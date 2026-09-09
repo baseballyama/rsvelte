@@ -217269,18 +217269,6 @@
 		"differential:upstream-features/$$props-valid2/input.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-8c5bf2efce0e/range/end/character:value-mismatch[official=35135aaa6cc2,rsvelte=6f4b6612125f]": [
 			"diagnostic-item-range-end"
 		],
-		"differential:upstream-features/$$props/input.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=efdba792a9aa]": [
-			"official-empty"
-		],
-		"differential:upstream-features/$$props/input.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=efdba792a9aa]": [
-			"official-empty"
-		],
-		"differential:upstream-features/$$restProps/input.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=1df3c10b6234]": [
-			"official-empty"
-		],
-		"differential:upstream-features/$$restProps/input.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=1df3c10b6234]": [
-			"official-empty"
-		],
 		"differential:upstream-features/$$slots-usage/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=d7cb19c61c74]": [
 			"diagnostic-item-set-extra-ts"
 		],
@@ -217341,12 +217329,6 @@
 		"differential:upstream-features/accessors-customElement-configs/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=1c311b0647c3]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/action/input.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=e001b72be00b]": [
-			"official-empty"
-		],
-		"differential:upstream-features/action/input.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=e001b72be00b]": [
-			"official-empty"
-		],
 		"differential:upstream-features/actions-animations-transitions-typechecks/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=ea59530feab8]": [
 			"diagnostic-item-set-extra-mixed"
 		],
@@ -217370,12 +217352,6 @@
 		],
 		"differential:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=00b99709ec19]": [
 			"diagnostic-item-set-missing-ts"
-		],
-		"differential:upstream-features/animation/input.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=f6c0990a1ceb]": [
-			"official-empty"
-		],
-		"differential:upstream-features/animation/input.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=f6c0990a1ceb]": [
-			"official-empty"
 		],
 		"differential:upstream-features/await-catch/input.svelte|textDocument/foldingRange|:extra-rsvelte[count=1,hash=00f41be5f1e1]": [
 			"folding-range-set-extra"
@@ -217863,12 +217839,6 @@
 		"differential:upstream-features/pug/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=6,hash=b21a2e2a9dad]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/reactive-block/input.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=0c2978de8b81]": [
-			"official-empty"
-		],
-		"differential:upstream-features/reactive-block/input.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=0c2978de8b81]": [
-			"official-empty"
-		],
 		"differential:upstream-features/reactive-statement-unused-in-comma-list/ignores-unused-let/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=10,hash=64ff9a43cc0d]": [
 			"diagnostic-item-set-extra-mixed"
 		],
@@ -217953,12 +217923,6 @@
 		"differential:upstream-features/snippet-js.v5/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=51c7ea72a87e]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-features/snippet.v5/input.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=347bae73b8f9]": [
-			"official-empty"
-		],
-		"differential:upstream-features/snippet.v5/input.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=347bae73b8f9]": [
-			"official-empty"
-		],
 		"differential:upstream-features/strictEvents/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=71e323082d93]": [
 			"diagnostic-item-set-extra-ts"
 		],
@@ -218036,12 +218000,6 @@
 		],
 		"differential:upstream-features/transition-options/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=58b1a67db00e]": [
 			"diagnostic-item-set-extra-ts"
-		],
-		"differential:upstream-features/transition/input.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=2b726a71047e]": [
-			"official-empty"
-		],
-		"differential:upstream-features/transition/input.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=2b726a71047e]": [
-			"official-empty"
 		],
 		"differential:upstream-features/typechecks-js-with-ts-check/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=735337a553c4]": [
 			"diagnostic-item-set-missing-js"
@@ -218169,12 +218127,6 @@
 		"differential:upstream-testfiles/code-actions/check-js/codeaction-custom-fix-all-component3.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=2f8cd21ed231]": [
 			"document-symbol-range"
 		],
-		"differential:upstream-testfiles/code-actions/check-js/codeaction-custom-fix-all-component3.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=e3ba5286c208]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/code-actions/check-js/codeaction-custom-fix-all-component3.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=e3ba5286c208]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/code-actions/codeaction-add-jsdoc.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=24829f16217e]": [
 			"document-symbol-kind"
 		],
@@ -218211,12 +218163,6 @@
 		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=fb95664dc9f9]": [
 			"document-symbol-range"
 		],
-		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=f829e2528b3f]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=f829e2528b3f]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=19997c251af2]": [
 			"diagnostic-mixed"
 		],
@@ -218247,12 +218193,6 @@
 		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts.svelte|textDocument/foldingRange|phase=edit|:extra-rsvelte[count=1,hash=f7141d70b277]": [
 			"folding-range-character"
 		],
-		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=4f53cda18c2b]": [
-			"empty-result-spelling-inlay-hint"
-		],
-		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=4f53cda18c2b]": [
-			"empty-result-spelling-inlay-hint"
-		],
 		"differential:upstream-testfiles/code-actions/codeaction-checkJs-module.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=d501e3466860]": [
 			"diagnostic-identity-source"
 		],
@@ -218277,12 +218217,6 @@
 		"differential:upstream-testfiles/code-actions/codeaction-checkJs-module.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=bdf4530b82e7]": [
 			"document-symbol-mixed-range-set-missing"
 		],
-		"differential:upstream-testfiles/code-actions/codeaction-checkJs-module.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=0ecd4a781a12]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/code-actions/codeaction-checkJs-module.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=0ecd4a781a12]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/code-actions/codeaction-checkJs.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=b5f3ef5ff1ae]": [
 			"diagnostic-item-set-missing-js"
 		],
@@ -218300,12 +218234,6 @@
 		],
 		"differential:upstream-testfiles/code-actions/codeaction-checkJs.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=37499fed3b10]": [
 			"document-symbol-kind"
-		],
-		"differential:upstream-testfiles/code-actions/codeaction-checkJs.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=4fd4154debe4]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/code-actions/codeaction-checkJs.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=4fd4154debe4]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/code-actions/codeaction-component-import.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=8600e6c9fb56]": [
 			"diagnostic-item-set-extra-mixed"
@@ -218649,12 +218577,6 @@
 		"differential:upstream-testfiles/code-actions/fix-add-async.svelte|textDocument/foldingRange|phase=edit|:extra-rsvelte[count=2,hash=9021421e18d7]": [
 			"folding-range-character"
 		],
-		"differential:upstream-testfiles/code-actions/fix-add-async.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=2a2e6e06ce9b]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/code-actions/fix-add-async.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=2a2e6e06ce9b]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/code-actions/fix-missing-function-element.svelte|textDocument/documentSymbol|:extra-rsvelte[count=3,hash=e03fab570a12]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
@@ -218733,12 +218655,6 @@
 		"differential:upstream-testfiles/code-actions/organize-imports-error.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=4,hash=8e3001fbf40e]": [
 			"document-symbol-mixed-kind-range-set-missing"
 		],
-		"differential:upstream-testfiles/code-actions/organize-imports-error.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/code-actions/organize-imports-error.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/code-actions/organize-imports-group.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=b450f34f37c3]": [
 			"document-symbol-kind"
 		],
@@ -218774,12 +218690,6 @@
 		],
 		"differential:upstream-testfiles/code-actions/organize-imports-leading-comment.svelte|textDocument/foldingRange|phase=edit|:extra-rsvelte[count=1,hash=1f05e4dceb32]": [
 			"folding-range-character"
-		],
-		"differential:upstream-testfiles/code-actions/organize-imports-leading-comment.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/code-actions/organize-imports-leading-comment.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/code-actions/organize-imports-module-store.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=e74a00757a2a]": [
 			"diagnostic-item-set-missing-svelte"
@@ -218859,12 +218769,6 @@
 		"differential:upstream-testfiles/code-actions/organize-imports-unchanged1.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=3,hash=4368e9dc2ecb]": [
 			"document-symbol-mixed-kind-range-set-missing"
 		],
-		"differential:upstream-testfiles/code-actions/organize-imports-unchanged1.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=1cbe191594f2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/code-actions/organize-imports-unchanged1.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=1cbe191594f2]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/code-actions/organize-imports-unchanged2.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=f22007827844]": [
 			"diagnostic-mixed"
 		],
@@ -218894,12 +218798,6 @@
 		],
 		"differential:upstream-testfiles/code-actions/organize-imports-unchanged2.svelte|textDocument/foldingRange|phase=edit|:extra-rsvelte[count=1,hash=5ade9149a1bb]": [
 			"folding-range-character"
-		],
-		"differential:upstream-testfiles/code-actions/organize-imports-unchanged2.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=09d923bc79eb]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/code-actions/organize-imports-unchanged2.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=09d923bc79eb]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/code-actions/organize-imports-with-generics.svelte|textDocument/diagnostic|/items/@diagnostic-ef6b4e83bfc1/range/end/character:value-mismatch[official=4523540f1504,rsvelte=8527a891e224]": [
 			"diagnostic-item-range-end"
@@ -219081,12 +218979,6 @@
 		"differential:upstream-testfiles/completions/ScndImport.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=16994b6b71ad]": [
 			"document-symbol-kind"
 		],
-		"differential:upstream-testfiles/completions/ScndImport.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/ScndImport.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/completions/UpperCase/dirCasing.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=db779fad98b1]": [
 			"document-symbol-kind"
 		],
@@ -219098,12 +218990,6 @@
 		],
 		"differential:upstream-testfiles/completions/UpperCase/dirCasing.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=46e6251f454f]": [
 			"document-symbol-kind"
-		],
-		"differential:upstream-testfiles/completions/UpperCase/dirCasing.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/UpperCase/dirCasing.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/completions/completions-auto-optional-chain.svelte|textDocument/diagnostic|/items/@diagnostic-0041042db073/range/end/character:value-mismatch[official=6b86b273ff34,rsvelte=5feceb66ffc8]": [
 			"diagnostic-item-range-end"
@@ -219189,12 +219075,6 @@
 		"differential:upstream-testfiles/completions/completions.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=8bb3e09151bd]": [
 			"document-symbol-kind"
 		],
-		"differential:upstream-testfiles/completions/completions.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=8a9122718cd2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/completions.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=8a9122718cd2]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/completions/completionsstyle.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=148e913bf6d0]": [
 			"diagnostic-mixed"
 		],
@@ -219236,12 +219116,6 @@
 		],
 		"differential:upstream-testfiles/completions/component-events-completion-ts-def.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=6,hash=8c81af2f7b8b]": [
 			"document-symbol-mixed-kind-range"
-		],
-		"differential:upstream-testfiles/completions/component-events-completion-ts-def.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=231652d55144]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/component-events-completion-ts-def.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=231652d55144]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/completions/component-events-completion.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=062990dd3c71]": [
 			"diagnostic-item-set-extra-ts"
@@ -219435,12 +219309,6 @@
 		"differential:upstream-testfiles/completions/custom-element-tag.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=63053aaab20e]": [
 			"document-symbol-range"
 		],
-		"differential:upstream-testfiles/completions/custom-element-tag.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=4f53cda18c2b]": [
-			"empty-result-spelling-inlay-hint"
-		],
-		"differential:upstream-testfiles/completions/custom-element-tag.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=4f53cda18c2b]": [
-			"empty-result-spelling-inlay-hint"
-		],
 		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=18,hash=28f95e3ebdb5]": [
 			"diagnostic-mixed"
 		],
@@ -219482,12 +219350,6 @@
 		],
 		"differential:upstream-testfiles/completions/element-events-completion.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=3ee2ae890c4b]": [
 			"document-symbol-range"
-		],
-		"differential:upstream-testfiles/completions/element-events-completion.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=5a558a910227]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/element-events-completion.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=5a558a910227]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/completions/emptytext-imported.svelte|textDocument/diagnostic|/items/@diagnostic-231519946f8d/range/end/character:value-mismatch[official=c6f3ac57944a,rsvelte=b17ef6d19c7a]": [
 			"diagnostic-item-range-end"
@@ -219567,12 +219429,6 @@
 		"differential:upstream-testfiles/completions/importcompletions-new-line.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=0c5a86d9a0d2]": [
 			"document-symbol-kind"
 		],
-		"differential:upstream-testfiles/completions/importcompletions-new-line.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/importcompletions-new-line.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/completions/importcompletions-store.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=117baaa942cd]": [
 			"diagnostic-item-set-extra-svelte"
 		],
@@ -219596,12 +219452,6 @@
 		],
 		"differential:upstream-testfiles/completions/importcompletions-store.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=42c3b5ea9d0d]": [
 			"document-symbol-kind"
-		],
-		"differential:upstream-testfiles/completions/importcompletions-store.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/importcompletions-store.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/completions/importcompletions-text.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=5,hash=e479d27ecd0a]": [
 			"diagnostic-item-set-extra-mixed"
@@ -219663,12 +219513,6 @@
 		"differential:upstream-testfiles/completions/importcompletions.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=1d40aa13d5e6]": [
 			"document-symbol-kind"
 		],
-		"differential:upstream-testfiles/completions/importcompletions.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/importcompletions.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/completions/importcompletions1.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=bb5aedddf5cc]": [
 			"document-symbol-kind"
 		],
@@ -219681,12 +219525,6 @@
 		"differential:upstream-testfiles/completions/importcompletions1.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=871b0b69f17e]": [
 			"document-symbol-kind"
 		],
-		"differential:upstream-testfiles/completions/importcompletions1.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/importcompletions1.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/completions/importcompletions2.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=e4a18978b1eb]": [
 			"document-symbol-kind"
 		],
@@ -219698,12 +219536,6 @@
 		],
 		"differential:upstream-testfiles/completions/importcompletions2.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=aa2da02a15e9]": [
 			"document-symbol-kind"
-		],
-		"differential:upstream-testfiles/completions/importcompletions2.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/importcompletions2.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/completions/importcompletions3.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=de6e1b178175]": [
 			"diagnostic-identity-code"
@@ -219728,12 +219560,6 @@
 		],
 		"differential:upstream-testfiles/completions/importcompletions3.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=cc1944f328f3]": [
 			"document-symbol-kind"
-		],
-		"differential:upstream-testfiles/completions/importcompletions3.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/importcompletions3.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/completions/importcompletions4.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=31ecc2cc6d1c]": [
 			"diagnostic-identity-code"
@@ -219789,12 +219615,6 @@
 		"differential:upstream-testfiles/completions/importcompletions5.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=4d74cd017858]": [
 			"document-symbol-range"
 		],
-		"differential:upstream-testfiles/completions/importcompletions5.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=4f53cda18c2b]": [
-			"empty-result-spelling-inlay-hint"
-		],
-		"differential:upstream-testfiles/completions/importcompletions5.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=4f53cda18c2b]": [
-			"empty-result-spelling-inlay-hint"
-		],
 		"differential:upstream-testfiles/completions/importcompletions6.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=a56f1f327987]": [
 			"diagnostic-mixed"
 		],
@@ -219849,12 +219669,6 @@
 		"differential:upstream-testfiles/completions/importcompletions7.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=3,hash=5f2491122f28]": [
 			"document-symbol-mixed-kind-range"
 		],
-		"differential:upstream-testfiles/completions/importcompletions7.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=4319b138f4af]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/importcompletions7.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=4319b138f4af]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/completions/importcompletions8.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=c704bf991d1d]": [
 			"document-symbol-mixed-kind-set-extra"
 		],
@@ -219867,12 +219681,6 @@
 		"differential:upstream-testfiles/completions/importcompletions8.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=0212096287f4]": [
 			"document-symbol-kind"
 		],
-		"differential:upstream-testfiles/completions/importcompletions8.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=4319b138f4af]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/importcompletions8.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=4319b138f4af]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/completions/importcompletions9.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=9dd4a755268a]": [
 			"document-symbol-mixed-kind-set-extra"
 		],
@@ -219884,12 +219692,6 @@
 		],
 		"differential:upstream-testfiles/completions/importcompletions9.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=cdcf1f11e865]": [
 			"document-symbol-kind"
-		],
-		"differential:upstream-testfiles/completions/importcompletions9.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=4319b138f4af]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/importcompletions9.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=4319b138f4af]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/completions/importcompletions_unclose-tag.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=8fe0b041278c]": [
 			"diagnostic-identity-code"
@@ -219914,12 +219716,6 @@
 		],
 		"differential:upstream-testfiles/completions/importcompletions_unclose-tag.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=6737454dcca3]": [
 			"document-symbol-range"
-		],
-		"differential:upstream-testfiles/completions/importcompletions_unclose-tag.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=e3ba5286c208]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/importcompletions_unclose-tag.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=e3ba5286c208]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/completions/importstatementcompletions.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=8ff0cbcbd7e0]": [
 			"diagnostic-item-set-extra-mixed"
@@ -220017,12 +219813,6 @@
 		"differential:upstream-testfiles/completions/jsdoc-completions.svelte|textDocument/foldingRange|phase=edit|:missing-rsvelte[count=1,hash=8065512eb951]": [
 			"folding-range-character"
 		],
-		"differential:upstream-testfiles/completions/jsdoc-completions.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=63fd057b202c]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/jsdoc-completions.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=63fd057b202c]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/completions/mustache.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=f77b26e91812]": [
 			"diagnostic-mixed"
 		],
@@ -220046,12 +219836,6 @@
 		],
 		"differential:upstream-testfiles/completions/mustache.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=0e084c85c3d7]": [
 			"document-symbol-kind"
-		],
-		"differential:upstream-testfiles/completions/mustache.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=f0456d08a4d8]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/mustache.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=f0456d08a4d8]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/completions/namespaced-v5.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=58f4bbb44797]": [
 			"diagnostic-item-set-extra-mixed"
@@ -220203,12 +219987,6 @@
 		"differential:upstream-testfiles/completions/useTabs/importcompletions1.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=889b259bb24f]": [
 			"document-symbol-kind"
 		],
-		"differential:upstream-testfiles/completions/useTabs/importcompletions1.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/completions/useTabs/importcompletions1.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/declaration-map/import-from-base64-sourcemap.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=a6194fa340d8]": [
 			"diagnostic-item-set-extra-mixed"
 		],
@@ -220233,12 +220011,6 @@
 		"differential:upstream-testfiles/declaration-map/import-from-base64-sourcemap.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=5bdcd93ce838]": [
 			"document-symbol-mixed-kind-range"
 		],
-		"differential:upstream-testfiles/declaration-map/import-from-base64-sourcemap.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/declaration-map/import-from-base64-sourcemap.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/declaration-map/importing.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=a6194fa340d8]": [
 			"diagnostic-item-set-extra-mixed"
 		],
@@ -220262,12 +220034,6 @@
 		],
 		"differential:upstream-testfiles/declaration-map/importing.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=48bbb8d74d36]": [
 			"document-symbol-mixed-kind-range"
-		],
-		"differential:upstream-testfiles/declaration-map/importing.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/declaration-map/importing.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/definition/definition-rune.svelte|textDocument/documentSymbol|:extra-rsvelte[count=6,hash=e7728244a6f0]": [
 			"document-symbol-mixed-kind-range-set-extra"
@@ -220461,12 +220227,6 @@
 		"differential:upstream-testfiles/diagnostics/shared-comp.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=03dd16f10e3c]": [
 			"document-symbol-mixed-kind-set-missing"
 		],
-		"differential:upstream-testfiles/diagnostics/shared-comp.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=e3799ad801c0]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/diagnostics/shared-comp.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=e3799ad801c0]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/diagnostics/unresolvedimport.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=623db0175fe4]": [
 			"document-symbol-mixed-kind-range"
 		],
@@ -220532,12 +220292,6 @@
 		],
 		"differential:upstream-testfiles/document-highlight/document-highlight.svelte|textDocument/foldingRange|phase=edit|:missing-rsvelte[count=2,hash=4dd9d74bab3e]": [
 			"folding-range-mixed-character-set-missing"
-		],
-		"differential:upstream-testfiles/document-highlight/document-highlight.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bdfae0029e06]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/document-highlight/document-highlight.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bdfae0029e06]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/documentation.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=a6194fa340d8]": [
 			"diagnostic-item-set-extra-mixed"
@@ -220622,12 +220376,6 @@
 		],
 		"differential:upstream-testfiles/find-component-references-child.svelte|textDocument/foldingRange|phase=edit|:extra-rsvelte[count=1,hash=89148b0b2c28]": [
 			"folding-range-character"
-		],
-		"differential:upstream-testfiles/find-component-references-child.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/find-component-references-child.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/find-component-references-parent.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=d763caf06359]": [
 			"diagnostic-item-set-extra-mixed"
@@ -220718,12 +220466,6 @@
 		],
 		"differential:upstream-testfiles/find-file-references-child.svelte|textDocument/foldingRange|phase=edit|:extra-rsvelte[count=1,hash=89148b0b2c28]": [
 			"folding-range-character"
-		],
-		"differential:upstream-testfiles/find-file-references-child.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/find-file-references-child.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/find-file-references-parent.svelte|textDocument/documentSymbol|:extra-rsvelte[count=7,hash=91fb24a417f5]": [
 			"document-symbol-mixed-kind-range-set-extra"
@@ -220838,12 +220580,6 @@
 		],
 		"differential:upstream-testfiles/find-references.svelte|textDocument/foldingRange|phase=edit|:extra-rsvelte[count=1,hash=89148b0b2c28]": [
 			"folding-range-character"
-		],
-		"differential:upstream-testfiles/find-references.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/find-references.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/hover/hover-$store.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=7032f21716e0]": [
 			"diagnostic-item-set-extra-rsvelte"
@@ -221090,12 +220826,6 @@
 		],
 		"differential:upstream-testfiles/preferences/imports.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=30eb426b73ca]": [
 			"document-symbol-mixed-kind-range"
-		],
-		"differential:upstream-testfiles/preferences/imports.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/preferences/imports.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/preferences/module-specifier-js.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=c9cb7307e10e]": [
 			"diagnostic-item-set-extra-ts"
@@ -221487,12 +221217,6 @@
 		"differential:upstream-testfiles/selection-range/selection-range-import.svelte|textDocument/foldingRange|phase=edit|:extra-rsvelte[count=1,hash=e38d76bcb082]": [
 			"folding-range-character"
 		],
-		"differential:upstream-testfiles/selection-range/selection-range-import.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/selection-range/selection-range-import.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/selection-range/selection-range.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=3c9c8cf549f3]": [
 			"diagnostic-mixed"
 		],
@@ -221517,12 +221241,6 @@
 		"differential:upstream-testfiles/selection-range/selection-range.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=22efa6dbb6fb]": [
 			"document-symbol-kind"
 		],
-		"differential:upstream-testfiles/selection-range/selection-range.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/selection-range/selection-range.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
 		"differential:upstream-testfiles/semantic-tokens/imported.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=68b8672c9461]": [
 			"document-symbol-kind"
 		],
@@ -221546,12 +221264,6 @@
 		],
 		"differential:upstream-testfiles/semantic-tokens/jsToken.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=427bbbafe639]": [
 			"document-symbol-kind"
-		],
-		"differential:upstream-testfiles/semantic-tokens/jsToken.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/semantic-tokens/jsToken.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=bcdc926e19c2]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/semantic-tokens/tokens.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=796aa282ee3a]": [
 			"diagnostic-item-set-extra-mixed"
@@ -221666,12 +221378,6 @@
 		],
 		"differential:upstream-testfiles/update-imports/+page.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=3,hash=10ec980c6158]": [
 			"document-symbol-mixed-kind-range"
-		],
-		"differential:upstream-testfiles/update-imports/+page.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=8995185ea296]": [
-			"official-empty"
-		],
-		"differential:upstream-testfiles/update-imports/+page.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=8995185ea296]": [
-			"official-empty"
 		],
 		"differential:upstream-testfiles/update-imports/updateimports.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=d64963235ff1]": [
 			"diagnostic-item-set-extra-mixed"
@@ -221889,17 +221595,17 @@
 		"expected:upstream-features/$$props-valid2/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=21b351fbfed5]": [
 			"diagnostic-item-set-extra-svelte"
 		],
-		"expected:upstream-features/$$props/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=4,hash=6a0cf46e05af]": [
-			"inlay-hint-set-extra-mixed"
+		"expected:upstream-features/$$props/input.svelte|textDocument/inlayHint|/:value-mismatch[official=4f53cda18c2b,rsvelte=74234e98afe7]": [
+			"empty-result-spelling-inlay-hint"
 		],
-		"expected:upstream-features/$$props/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=4,hash=6a0cf46e05af]": [
-			"inlay-hint-set-extra-mixed"
+		"expected:upstream-features/$$props/input.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=4f53cda18c2b,rsvelte=74234e98afe7]": [
+			"empty-result-spelling-inlay-hint"
 		],
-		"expected:upstream-features/$$restProps/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=4,hash=c9d8dfc771aa]": [
-			"inlay-hint-set-extra-mixed"
+		"expected:upstream-features/$$restProps/input.svelte|textDocument/inlayHint|/:value-mismatch[official=4f53cda18c2b,rsvelte=74234e98afe7]": [
+			"empty-result-spelling-inlay-hint"
 		],
-		"expected:upstream-features/$$restProps/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=4,hash=c9d8dfc771aa]": [
-			"inlay-hint-set-extra-mixed"
+		"expected:upstream-features/$$restProps/input.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=4f53cda18c2b,rsvelte=74234e98afe7]": [
+			"empty-result-spelling-inlay-hint"
 		],
 		"expected:upstream-features/$$slots-usage/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=d7cb19c61c74]": [
 			"diagnostic-item-set-extra-ts"
@@ -221973,11 +221679,11 @@
 		"expected:upstream-features/accessors-customElement-configs/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=1c311b0647c3]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/action/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=18,hash=d5d2f5fe151e]": [
-			"inlay-hint-set-extra-mixed"
+		"expected:upstream-features/action/input.svelte|textDocument/inlayHint|/:value-mismatch[official=c29820ea7049,rsvelte=74234e98afe7]": [
+			"rsvelte-empty"
 		],
-		"expected:upstream-features/action/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=18,hash=d5d2f5fe151e]": [
-			"inlay-hint-set-extra-mixed"
+		"expected:upstream-features/action/input.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=c29820ea7049,rsvelte=74234e98afe7]": [
+			"rsvelte-empty"
 		],
 		"expected:upstream-features/actions-animations-transitions-typechecks/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=ea59530feab8]": [
 			"diagnostic-item-set-extra-mixed"
@@ -222003,17 +221709,11 @@
 		"expected:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=00b99709ec19]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/animation/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=8,hash=c924dd6ee2a3]": [
-			"inlay-hint-mixed"
+		"expected:upstream-features/animation/input.svelte|textDocument/inlayHint|/:value-mismatch[official=edbc0d311201,rsvelte=74234e98afe7]": [
+			"rsvelte-empty"
 		],
-		"expected:upstream-features/animation/input.svelte|textDocument/inlayHint|:missing-rsvelte[count=1,hash=33338f099ab2]": [
-			"inlay-hint-label"
-		],
-		"expected:upstream-features/animation/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=8,hash=c924dd6ee2a3]": [
-			"inlay-hint-mixed"
-		],
-		"expected:upstream-features/animation/input.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=1,hash=33338f099ab2]": [
-			"inlay-hint-label"
+		"expected:upstream-features/animation/input.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=edbc0d311201,rsvelte=74234e98afe7]": [
+			"rsvelte-empty"
 		],
 		"expected:upstream-features/await-catch/input.svelte|textDocument/foldingRange|:extra-rsvelte[count=1,hash=00f41be5f1e1]": [
 			"folding-range-set-extra"
@@ -222519,11 +222219,11 @@
 		"expected:upstream-features/pug/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=6,hash=b21a2e2a9dad]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/reactive-block/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=1,hash=6712cb870407]": [
-			"inlay-hint-set-extra-type"
+		"expected:upstream-features/reactive-block/input.svelte|textDocument/inlayHint|/:value-mismatch[official=ed0e9a5c942a,rsvelte=74234e98afe7]": [
+			"rsvelte-empty"
 		],
-		"expected:upstream-features/reactive-block/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=1,hash=6712cb870407]": [
-			"inlay-hint-set-extra-type"
+		"expected:upstream-features/reactive-block/input.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=ed0e9a5c942a,rsvelte=74234e98afe7]": [
+			"rsvelte-empty"
 		],
 		"expected:upstream-features/reactive-statement-unused-in-comma-list/ignores-unused-let/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=10,hash=64ff9a43cc0d]": [
 			"diagnostic-item-set-extra-mixed"
@@ -222609,17 +222309,11 @@
 		"expected:upstream-features/snippet-js.v5/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=51c7ea72a87e]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"expected:upstream-features/snippet.v5/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=7,hash=49c766a255b9]": [
-			"inlay-hint-mixed"
+		"expected:upstream-features/snippet.v5/input.svelte|textDocument/inlayHint|/:value-mismatch[official=a35eed9c4c09,rsvelte=74234e98afe7]": [
+			"rsvelte-empty"
 		],
-		"expected:upstream-features/snippet.v5/input.svelte|textDocument/inlayHint|:missing-rsvelte[count=1,hash=a6f289f290ad]": [
-			"inlay-hint-label"
-		],
-		"expected:upstream-features/snippet.v5/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=7,hash=49c766a255b9]": [
-			"inlay-hint-mixed"
-		],
-		"expected:upstream-features/snippet.v5/input.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=1,hash=a6f289f290ad]": [
-			"inlay-hint-label"
+		"expected:upstream-features/snippet.v5/input.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=a35eed9c4c09,rsvelte=74234e98afe7]": [
+			"rsvelte-empty"
 		],
 		"expected:upstream-features/strictEvents/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=71e323082d93]": [
 			"diagnostic-item-set-extra-ts"
@@ -222699,11 +222393,11 @@
 		"expected:upstream-features/transition-options/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=f887313ed0ab]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/transition/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=21,hash=dedd0d58f91a]": [
-			"inlay-hint-set-extra-mixed"
+		"expected:upstream-features/transition/input.svelte|textDocument/inlayHint|/:value-mismatch[official=4f53cda18c2b,rsvelte=74234e98afe7]": [
+			"empty-result-spelling-inlay-hint"
 		],
-		"expected:upstream-features/transition/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=21,hash=dedd0d58f91a]": [
-			"inlay-hint-set-extra-mixed"
+		"expected:upstream-features/transition/input.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=4f53cda18c2b,rsvelte=74234e98afe7]": [
+			"empty-result-spelling-inlay-hint"
 		],
 		"expected:upstream-features/typechecks-js-with-ts-check/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=735337a553c4]": [
 			"diagnostic-item-set-missing-js"
