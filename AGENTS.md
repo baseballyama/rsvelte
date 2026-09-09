@@ -326,6 +326,16 @@ are in the archived file.
   answers yes either way, and an arm built from a worktree whose working copy still held the
   change then reads as the base. Prefer building the base from a pristine checkout of the
   merge base, or believe CI over a local arm — CI's tree is one nobody in this session made.
+  **The oracle is an arm too, and its identity is a submodule pin.** Corpus sources have to be
+  read from a checkout whose submodules are populated, and `submodules/svelte` comes along with
+  that choice: a rule about where to read *inputs* silently decides where the *oracle* came
+  from. Measured — a checkout parked thirteen commits back pins `56a036f4c` / `5.56.10` where
+  the branch pins `7bc0a70fe` / `5.57.0`, the two disagree on **48 of 214** moved units, and a
+  sweep's improvement count moved 136 → 169 (the regression count was 0 under both, which is
+  the only reason the verdict survived). `VERSION` *does* separate them on this axis, unlike
+  the npm/source/built one, so print it and `git ls-tree <the branch you are measuring>
+  submodules/svelte` beside any official column. What surfaced it was an impossible combination
+  rather than a suspicion: a byte divergence on a manifest entry while its ratchet is empty.
 - **A re-baseline is a measurement, not an argument.** A PR carrying a behaviour change *and* a
   ratchet re-baseline has two reasons its gate output can move, and the re-baseline's scope
   argument is about the diff rather than about the measurement — correctly-reasoned scope beside
@@ -357,6 +367,23 @@ are in the archived file.
   the input, paste the output), never by inference from neighbouring cells or from your own
   tree's other code path; probe a *direction* before printing it; write rules against the
   artifact ("every entry outside the table") rather than counts that go stale.
+- **An instrument can answer correctly in a vocabulary that cannot express the phenomenon**,
+  and a control drawn in the same vocabulary passes. Three instances on one day, every one keyed
+  on something that cannot represent a *move*. An occurrence **count** over comments scored
+  `let p = /* c */ $props()` as agreeing while the comment had changed sides of the statement, so
+  the cell carrying the defect entered the issue as a passing control and the issue's title named
+  the symptom the mechanism produces second. A residue split into two buckets by "does the first
+  differing line carry the marker on one side or on both" reported 23 + 16 mechanisms, where a
+  comment that moved by a line has it on one side **by construction** — the classifier's own shape
+  became the finding instead of the single family underneath. And `comm -12` returns an **empty set
+  with no error** when its input is not in *its own* locale's collating order: `<(… | LC_ALL=C
+  sort)` sets the locale for `sort` alone, so the explicit prefix on one stage is worse than none
+  on either, and the empty intersection reads as "these branches share no file, proceed" against a
+  trial merge that conflicts. None of the three was caught by a control or by re-reading the
+  command; all three were caught by **printing the underlying values** — the two file lists side by
+  side, all sixteen residue units, the whole output plus every comment-bearing line. That is one
+  level below stating the denominator: the denominator says which population, the raw values say
+  whether the key can see the thing at all.
 - **Grids.** List what every cell holds constant and ask which of those the oracle branches
   on; the cell that kills a hypothesis is usually the one that passes; re-key a grid (widest
   key the assertion can carry) before adding rows; a control's name is a claim — grep the
@@ -368,6 +395,20 @@ are in the archived file.
   varied only if the same cell with it removed is byte-equal; run that background arm before
   attributing, because the largest number in a grid is the likeliest to be two mechanisms added
   together.
+- **A citation degrades per hop, and what survives the hop is what makes the claim more
+  interesting.** The recorded form of this needs a recaller — a person or a file holding a stale
+  figure and handing it on. It needs neither. Measured twice on one day, both single-hop, both
+  through a session summary: `corpus-compat.yml`'s two `verify.mjs` invocations carried as
+  `:812`/`:890` when the file says `:879`/`:959`, and upstream's `isGeneratedVariableTypeHint`
+  ending `startsWith('$$')` carried as `startsWith('$')`. The second is the shape to keep,
+  because the degradation is not random: single-`$` suppresses every rune declaration a user
+  writes where double-`$` suppresses only `$$props`/`$$slots`/`$$restProps`, so the corrupted
+  form describes a *larger, more consequential* filter and would have read as the more important
+  finding. A line number degrades to a nearby line number and nobody notices; a predicate
+  degrades toward the version that would matter more. Both were cited in good faith from notes
+  written off the source, so the rule is not "cite carefully" — it is that **a claim's Nth hop is
+  not evidence at any N > 0**, and neither survived one `sed -n` against the file it named.
+
 - **Ask which artifact owns a question before hand-deriving it** (`attribution-check.mjs`,
   the trigger-guard allowlist, `lint-verify.mjs`'s repo-set guard). Two readings of one
   document are one measurement; what actually fires these rules is the same quantity produced
