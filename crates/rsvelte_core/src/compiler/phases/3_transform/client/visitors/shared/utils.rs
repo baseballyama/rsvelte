@@ -328,7 +328,7 @@ fn collect_hoisted_var_declarations<'x>(
         JsStatement::VariableDeclaration(decl) if matches!(decl.kind, JsVariableKind::Var) => {
             out.push(decl)
         }
-        JsStatement::Block(block) => {
+        JsStatement::Block(block, _) => {
             for stmt in &block.body {
                 collect_hoisted_var_declarations(stmt, arena, out);
             }
@@ -2257,7 +2257,7 @@ fn apply_transforms_to_statement_with_shadowed(
             }),
         }),
 
-        JsStatement::Block(block) => {
+        JsStatement::Block(block, origin) => {
             // Create a new scope with block-local variable declarations so that
             // locally-declared names (e.g. `const children = ...`) shadow outer
             // transforms and are not rewritten to `$$props.children`.
@@ -2268,7 +2268,7 @@ fn apply_transforms_to_statement_with_shadowed(
                 .iter()
                 .map(|s| apply_transforms_to_statement_with_shadowed(s, context, &block_scope))
                 .collect();
-            JsStatement::Block(JsBlockStatement::with_body(transformed_body))
+            JsStatement::Block(JsBlockStatement::with_body(transformed_body), *origin)
         }
 
         JsStatement::For(for_stmt) => {
@@ -3369,7 +3369,7 @@ fn collect_reactive_references_from_statement(
                 );
             }
         }
-        JsStatement::Block(block) => {
+        JsStatement::Block(block, _) => {
             for s in &block.body {
                 collect_reactive_references_from_statement(s, context, getters, seen);
             }

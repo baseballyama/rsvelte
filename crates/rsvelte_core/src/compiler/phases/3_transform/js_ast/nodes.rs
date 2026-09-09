@@ -80,7 +80,7 @@ pub enum JsStatement {
     /// Switch statement
     Switch(JsSwitchStatement),
     /// Block statement
-    Block(JsBlockStatement),
+    Block(JsBlockStatement, BlockOrigin),
     /// Empty statement
     Empty,
     /// Debugger statement
@@ -322,6 +322,16 @@ pub struct JsDoWhileStatement {
 #[derive(Debug, Clone)]
 pub struct JsBlockStatement {
     pub body: Vec<JsStatement>,
+}
+
+/// Where a statement-position block came from. Upstream builds a template
+/// lowering's block with `b.block([…])`, which carries no `loc`, so esrap
+/// discards the pending comments at the brace instead of flushing them there;
+/// a block the instance script wrote keeps its own position.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BlockOrigin {
+    Source,
+    Lowered,
 }
 
 impl JsBlockStatement {

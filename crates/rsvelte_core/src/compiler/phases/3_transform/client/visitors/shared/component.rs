@@ -2962,6 +2962,7 @@ fn visit_slot_children(
                             .init
                             .push(crate::compiler::phases::phase3_transform::js_ast::JsStatement::Block(
                                 block,
+                                BlockOrigin::Lowered,
                             ));
                     }
                     _ => {}

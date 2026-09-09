@@ -1539,7 +1539,7 @@ pub fn if_stmt(
 
 /// Create a block statement.
 pub fn block(body: Vec<JsStatement>) -> JsStatement {
-    JsStatement::Block(JsBlockStatement::with_body(body))
+    JsStatement::Block(JsBlockStatement::with_body(body), BlockOrigin::Lowered)
 }
 
 /// Create a debugger statement.

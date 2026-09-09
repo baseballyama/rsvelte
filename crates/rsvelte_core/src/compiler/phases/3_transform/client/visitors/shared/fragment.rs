@@ -494,7 +494,7 @@ pub fn process_children<F>(
                                 context.state.init.push(stmt);
                             }
                             crate::compiler::phases::phase3_transform::client::types::TransformResult::Block(block) => {
-                                context.state.init.push(JsStatement::Block(block));
+                                context.state.init.push(JsStatement::Block(block, BlockOrigin::Lowered));
                             }
                             _ => {}
                         }
@@ -510,7 +510,7 @@ pub fn process_children<F>(
                                 context.state.init.push(stmt);
                             }
                             crate::compiler::phases::phase3_transform::client::types::TransformResult::Block(block) => {
-                                context.state.init.push(JsStatement::Block(block));
+                                context.state.init.push(JsStatement::Block(block, BlockOrigin::Lowered));
                             }
                             _ => {}
                         }
@@ -538,7 +538,7 @@ pub fn process_children<F>(
                             context.state.init.push(stmt);
                         }
                         crate::compiler::phases::phase3_transform::client::types::TransformResult::Block(block) => {
-                            context.state.init.push(JsStatement::Block(block));
+                            context.state.init.push(JsStatement::Block(block, BlockOrigin::Lowered));
                         }
                         _ => {}
                     }
@@ -564,7 +564,7 @@ pub fn process_children<F>(
                             context.state.init.push(stmt);
                         }
                         crate::compiler::phases::phase3_transform::client::types::TransformResult::Block(block) => {
-                            context.state.init.push(JsStatement::Block(block));
+                            context.state.init.push(JsStatement::Block(block, BlockOrigin::Lowered));
                         }
                         _ => {}
                     }

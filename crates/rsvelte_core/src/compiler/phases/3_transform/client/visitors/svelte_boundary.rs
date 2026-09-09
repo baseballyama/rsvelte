@@ -264,10 +264,10 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
         // Wrap in block with hoisted snippets first
         let mut block_body = hoisted_snippets;
         block_body.push(boundary_call);
-        context
-            .state
-            .init
-            .push(JsStatement::Block(JsBlockStatement::with_body(block_body)));
+        context.state.init.push(JsStatement::Block(
+            JsBlockStatement::with_body(block_body),
+            BlockOrigin::Lowered,
+        ));
     }
 }
 
