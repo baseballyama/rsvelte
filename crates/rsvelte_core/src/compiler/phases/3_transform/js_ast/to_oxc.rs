@@ -939,8 +939,15 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 )))
             }
             JsStatement::VariableDeclaration(decl) => self.variable_declaration(decl),
-            JsStatement::Block(b) => {
+            JsStatement::Block(b, origin) => {
                 let (stmts, span) = self.statements(&b.body)?;
+                // Upstream builds a lowering's block with `b.block([…])`, which
+                // carries no `loc`, so esrap's `body` discards the pending
+                // comments instead of flushing them at the brace.
+                let span = match origin {
+                    BlockOrigin::Source => span,
+                    BlockOrigin::Lowered => rsvelte_esrap::UNLOCATED_SPAN,
+                };
                 Some(Statement::BlockStatement(BlockStatement::boxed(
                     span, stmts, &self.ab,
                 )))

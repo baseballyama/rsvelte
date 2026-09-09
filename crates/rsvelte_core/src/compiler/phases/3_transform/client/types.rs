@@ -767,9 +767,10 @@ impl<'a> ComponentContext<'a> {
         } else {
             // Wrap multiple statements in a block, matching the official compiler:
             // context.state.init.push(statements.length === 1 ? statements[0] : b.block(statements))
-            self.state
-                .init
-                .push(JsStatement::Block(JsBlockStatement::with_body(statements)));
+            self.state.init.push(JsStatement::Block(
+                JsBlockStatement::with_body(statements),
+                BlockOrigin::Lowered,
+            ));
         }
 
         TransformResult::None
@@ -1241,7 +1242,8 @@ impl<'a> ComponentContext<'a> {
             statements.push(b::stmt(&self.arena, slot_call));
             // Wrap in block scope so $0, $1, etc. don't leak
             self.state.init.push(JsStatement::Block(
-                crate::compiler::phases::phase3_transform::js_ast::nodes::JsBlockStatement::with_body(statements)
+                crate::compiler::phases::phase3_transform::js_ast::nodes::JsBlockStatement::with_body(statements),
+                BlockOrigin::Lowered,
             ));
         } else {
             self.state.init.push(b::stmt(&self.arena, slot_call));

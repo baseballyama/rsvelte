@@ -391,7 +391,7 @@ impl<'a> JsCodegen<'a> {
             JsStatement::While(while_stmt) => self.emit_while_statement(while_stmt),
             JsStatement::DoWhile(do_while) => self.emit_do_while_statement(do_while),
             JsStatement::Switch(sw) => self.emit_switch_statement(sw),
-            JsStatement::Block(block) => self.emit_block_statement(block),
+            JsStatement::Block(block, _) => self.emit_block_statement(block),
             JsStatement::Empty => self.needs_semicolon = true,
             JsStatement::Debugger => {
                 self.output.push_str("debugger");
@@ -692,7 +692,7 @@ impl<'a> JsCodegen<'a> {
     /// - Other -> inline statement (e.g. `expr;`)
     fn emit_if_branch(&mut self, stmt: &JsStatement) {
         match stmt {
-            JsStatement::Block(block) => self.emit_block_inline(block),
+            JsStatement::Block(block, _) => self.emit_block_inline(block),
             JsStatement::If(nested_if) => self.emit_if_statement(nested_if),
             _ => {
                 // Single statement without braces (like esrap)
@@ -779,7 +779,7 @@ impl<'a> JsCodegen<'a> {
     /// block bodies are emitted inline, non-block bodies are emitted bare.
     fn emit_loop_body(&mut self, stmt: &JsStatement) {
         match stmt {
-            JsStatement::Block(block) => self.emit_block_inline(block),
+            JsStatement::Block(block, _) => self.emit_block_inline(block),
             _ => {
                 self.emit_statement_inner(stmt);
                 if self.needs_semicolon {
@@ -866,7 +866,7 @@ impl<'a> JsCodegen<'a> {
 
     fn emit_statement_as_block(&mut self, stmt: &JsStatement) {
         match stmt {
-            JsStatement::Block(block) => self.emit_block_inline(block),
+            JsStatement::Block(block, _) => self.emit_block_inline(block),
             _ => {
                 self.output.push('{');
                 self.newline();
@@ -2044,7 +2044,7 @@ impl<'a> JsCodegen<'a> {
             | JsStatement::Switch(_)
             | JsStatement::ExportDefault(_) => true,
             // Block is multiline if it has any statements
-            JsStatement::Block(block) => !block.body.is_empty(),
+            JsStatement::Block(block, _) => !block.body.is_empty(),
             // If statement is always multiline
             JsStatement::If(_) => true,
             // Labeled inherits from body
@@ -2428,7 +2428,7 @@ fn stmt_type_name(stmt: &JsStatement) -> &'static str {
         JsStatement::While(_) => "WhileStatement",
         JsStatement::DoWhile(_) => "DoWhileStatement",
         JsStatement::Switch(_) => "SwitchStatement",
-        JsStatement::Block(_) => "BlockStatement",
+        JsStatement::Block(_, _) => "BlockStatement",
         JsStatement::Empty => "EmptyStatement",
         JsStatement::Debugger => "DebuggerStatement",
         JsStatement::Labeled(_) => "LabeledStatement",

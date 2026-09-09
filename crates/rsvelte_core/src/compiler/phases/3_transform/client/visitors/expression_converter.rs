@@ -4313,7 +4313,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
         }
         "BlockStatement" => {
             let block = convert_block_statement(obj, context);
-            Some(JsStatement::Block(block))
+            Some(JsStatement::Block(block, BlockOrigin::Source))
         }
         "IfStatement" => {
             let test = obj
@@ -7066,7 +7066,7 @@ fn convert_statement_from_jsnode(
         }
         JsNode::BlockStatement { body, .. } => {
             let block = convert_block_statement_from_jsnode(body, context);
-            Some(JsStatement::Block(block))
+            Some(JsStatement::Block(block, BlockOrigin::Source))
         }
         JsNode::VariableDeclaration {
             declarations, kind, ..

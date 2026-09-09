@@ -802,7 +802,7 @@ pub fn collect_identifiers_from_statement(
         JsStatement::Expression(expr_stmt) => {
             collect_ids_from_expr(arena.get_expr(expr_stmt.expression), arena, names);
         }
-        JsStatement::Block(block_stmt) => {
+        JsStatement::Block(block_stmt, _) => {
             for s in &block_stmt.body {
                 collect_identifiers_from_statement(s, arena, names);
             }
@@ -974,7 +974,7 @@ pub fn collect_identifiers_from_statement_props(
         JsStatement::Expression(expr_stmt) => {
             collect_ids_from_expr_props(arena.get_expr(expr_stmt.expression), arena, names);
         }
-        JsStatement::Block(block_stmt) => {
+        JsStatement::Block(block_stmt, _) => {
             for s in &block_stmt.body {
                 collect_identifiers_from_statement_props(s, arena, names);
             }
@@ -1181,7 +1181,7 @@ pub fn collect_identifiers_from_statement_deep(
         JsStatement::Expression(expr_stmt) => {
             collect_ids_from_expr_deep(arena.get_expr(expr_stmt.expression), arena, names);
         }
-        JsStatement::Block(block_stmt) => {
+        JsStatement::Block(block_stmt, _) => {
             for s in &block_stmt.body {
                 collect_identifiers_from_statement_deep(s, arena, names);
             }
