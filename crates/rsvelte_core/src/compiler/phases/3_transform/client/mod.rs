@@ -99,8 +99,8 @@ use std::sync::LazyLock;
 
 use crate::compiler::phases::phase1_parse::parser::is_js_whitespace;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
-    after_keyword, after_keywords, code_bytes, contains_identifier, find_code, find_rune_code,
-    is_ident_byte, skip_opaque,
+    after_keyword, after_keywords, code_bytes, code_bytes_from, contains_identifier, find_code,
+    find_rune_code, is_ident_byte, skip_opaque,
 };
 use crate::compiler::phases::phase3_transform::shared::rune_shadow;
 use crate::compiler::phases::phase3_transform::shared::substring::Substring;
@@ -1455,8 +1455,20 @@ pub(crate) fn transform_client(
                 content.start + (text.len() - text.trim_start().len()) as u32
             });
         if !trimmed.is_empty() {
+            // A comment's text also occurs in a string, inside a longer comment,
+            // and sometimes a second time as its own comment, so presence is a
+            // count of comment tokens rather than a substring test: re-emit
+            // exactly the occurrences the transform dropped.
+            let mut live = script_comment_texts(&transformed_script);
+            let source_comments = script_comment_texts(&content.raw);
             for (offset, comment) in &props_comments {
-                if !transformed_script.contains(comment.as_str()) {
+                let kept = live.iter().filter(|text| *text == comment.as_str()).count();
+                let had = source_comments
+                    .iter()
+                    .filter(|text| *text == comment.as_str())
+                    .count();
+                if kept < had {
+                    live.push(comment.to_string());
                     component_body.push(JsStatement::RawMapped {
                         code: comment.clone(),
                         source_offset: content.start + *offset,
@@ -3259,6 +3271,14 @@ fn script_raw_statement(
     }
 }
 
+/// The text of every comment token in a script, in source order.
+fn script_comment_texts(script: &str) -> Vec<String> {
+    crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet_with_pos(script)
+        .into_iter()
+        .map(|(_, comment)| comment)
+        .collect()
+}
+
 /// Comments inside the `$props()` declaration survive upstream's lowering even
 /// though the declaration itself is removed from the component body.
 fn props_declaration_comments(raw: &str) -> Vec<(u32, CompactString)> {
@@ -3268,14 +3288,17 @@ fn props_declaration_comments(raw: &str) -> Vec<(u32, CompactString)> {
     let Some(props) = find_rune_code(bytes, b"$props(") else {
         return Vec::new();
     };
-    // The `;` scan stays raw: a code-aware one finds none in a semicolon-free
-    // source and the region then runs to the end of the script.
     let Some(start) = raw[..props].rfind_sub("let") else {
         return Vec::new();
     };
-    let end = raw[props..]
-        .find(';')
-        .map_or(raw.len(), |end| props + end + 1);
+    // Whichever bound comes first: a raw `;` scan stops inside a comment that
+    // contains one, and a code-aware scan finds none in a semicolon-free source
+    // and then runs to the end of the script.
+    let semi = code_bytes_from(bytes, props)
+        .find(|&(_, byte)| byte == b';')
+        .map_or(raw.len(), |(at, _)| at + 1);
+    let line_end = raw[props..].find('\n').map_or(raw.len(), |at| props + at);
+    let end = semi.min(line_end);
     crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet_with_pos(&raw[start..end])
         .into_iter()
         .map(|(offset, comment)| ((start + offset) as u32, comment.into()))
