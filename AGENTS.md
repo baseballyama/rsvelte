@@ -434,6 +434,17 @@ are in the archived file.
   beats the one that leaves wrong evidence. Inject **at the place you are about to cite the
   checker for**, not at the end of the file: the first injection here was at EOF, and the two
   results together are the finding, where either alone is a wrong sentence.
+- **A count can be UNSCOPED, which is a third failure alongside stale and fabricated — and both
+  numbers are true.** Two people gave the number of filters one upstream provider applies as
+  **six** and **nine**, each confidently, neither stale and neither invented. Read off
+  `InlayHintProvider.ts`: `:69-74` is six conjuncts filtering on *shadow* offsets, `:86-88` is
+  three more filtering on *original-document* positions. "One of six" and "one of nine" are both
+  true sentences about the same commit, and they say different things about how much of an issue
+  a PR closed. A stale number is caught by re-deriving it and a fabricated one by asking for its
+  derivation; an unscoped one survives both, because every derivation of it is correct. The
+  defence is the same as for a population: say what the count is over, in the sentence that
+  carries it. Writing **no** number is the safe fallback when you cannot — which is what happened
+  here, and it was right for a reason neither party had.
 - **A development link closes an issue on merge regardless of what the PR body claims.** A PR
   landing one of the several defects an issue enumerates auto-closed it; the issue reads
   `state=OPEN stateReason=REOPENED` today only because someone noticed. The consequence is a
