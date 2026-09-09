@@ -3103,9 +3103,9 @@ dependencies = [
 
 [[package]]
 name = "string_wizard"
-version = "1.2.7"
+version = "1.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d47552f38fce40d287b25cdafa6534100538a366445d6c6f5a35acb0bb6d37d"
+checksum = "f275df3d1799d21fc6fae788e91dc20f805735c5d8dfbabcac8a790432cff209"
 dependencies = [
  "memchr",
  "oxc_index",
