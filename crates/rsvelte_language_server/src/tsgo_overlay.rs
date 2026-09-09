@@ -27,8 +27,8 @@ const CACHE_DIRECTORY: &str = ".rsvelte-language-server";
 const TSGO_DIRECTORY: &str = "tsgo";
 const SHADOW_DIRECTORY: &str = "svelte";
 const OVERLAY_TSCONFIG: &str = "tsconfig.json";
-const IGNORE_START: &str = "/*Ωignore_startΩ*/";
-const IGNORE_END: &str = "/*Ωignore_endΩ*/";
+pub(crate) const IGNORE_START: &str = "/*Ωignore_startΩ*/";
+pub(crate) const IGNORE_END: &str = "/*Ωignore_endΩ*/";
 
 /// One virtual document to open or update in the tsgo child.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1883,6 +1883,41 @@ fn render_return_type_offset(text: &str) -> Option<usize> {
     Some(at + HEADER.len() - " {".len())
 }
 
+/// JS `lastIndexOf`/`indexOf` return `-1` when absent and upstream compares those
+/// sentinels directly (`lastEnd === nextEnd`), so the port keeps them as `i64`.
+fn occurrences<'a>(text: &'a str, needle: &'a str) -> impl Iterator<Item = usize> + 'a {
+    let bytes = text.as_bytes();
+    let first = needle.as_bytes()[0];
+    (0..bytes.len())
+        .filter(move |&at| bytes[at] == first)
+        .filter(move |&at| bytes[at..].starts_with(needle.as_bytes()))
+}
+
+fn last_index_of(text: &str, needle: &str, from: usize) -> i64 {
+    occurrences(text, needle)
+        .take_while(|&at| at <= from)
+        .last()
+        .map_or(-1, |at| at as i64)
+}
+
+fn index_of(text: &str, needle: &str, from: usize) -> i64 {
+    occurrences(text, needle)
+        .find(|&at| at >= from)
+        .map_or(-1, |at| at as i64)
+}
+
+/// Port of `isInGeneratedCode`
+/// (`language-server/src/plugins/typescript/features/utils.ts:102-109`).
+///
+/// Both markers open and close with `/`, so an occurrence can overlap the one
+/// before it and a non-overlapping scan misses the later of the pair.
+pub(crate) fn is_in_generated_code(text: &str, start: usize, end: usize) -> bool {
+    let last_start = last_index_of(text, IGNORE_START, start);
+    let last_end = last_index_of(text, IGNORE_END, start);
+    let next_end = index_of(text, IGNORE_END, end);
+    (last_start > last_end || last_end == next_end) && last_start < next_end
+}
+
 fn ordered_range(start: Position, end: Position) -> Range {
     if (start.line, start.character) <= (end.line, end.character) {
         Range::new(start, end)
@@ -2129,6 +2164,66 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn is_in_generated_code_agrees_with_upstream_at_every_marker_boundary() {
+        let region = format!("let a = 1;{IGNORE_START}gen{IGNORE_END}let b = 2;");
+        let open = region.find(IGNORE_START).unwrap();
+        let close = region.find(IGNORE_END).unwrap();
+        // Expected values printed by upstream's own `isInGeneratedCode`.
+        let cells: &[(usize, usize, bool, &str)] = &[
+            (open, open, true, "at the START marker's own leading slash"),
+            (
+                open + IGNORE_START.len() + 1,
+                open + IGNORE_START.len() + 1,
+                true,
+                "region body",
+            ),
+            (close, close, true, "at the END marker's leading slash"),
+            (
+                close + IGNORE_END.len(),
+                close + IGNORE_END.len(),
+                false,
+                "past the END marker",
+            ),
+            (0, 0, false, "before any marker"),
+            (
+                open,
+                close + IGNORE_END.len(),
+                false,
+                "a span covering the whole region",
+            ),
+        ];
+        for &(start, end, expected, what) in cells {
+            assert_eq!(
+                is_in_generated_code(&region, start, end),
+                expected,
+                "{what} [{start},{end}]"
+            );
+        }
+        assert!(
+            cells.iter().any(|cell| cell.2) && cells.iter().any(|cell| !cell.2),
+            "liveness: the cells must exercise both answers"
+        );
+    }
+
+    #[test]
+    fn is_in_generated_code_sees_an_end_marker_overlapping_the_one_before_it() {
+        // Both markers open and close with `/`, so `E` immediately followed by
+        // its own tail contains a second `E` starting one byte before the first
+        // one ends; a non-overlapping scan reports `false` here.
+        let text = format!("{IGNORE_START}g{IGNORE_END}{}", &IGNORE_END[1..]);
+        let at = text.find(IGNORE_END).unwrap() + IGNORE_END.len() - 1;
+        assert_eq!(
+            text.match_indices(IGNORE_END).count(),
+            1,
+            "liveness: a non-overlapping scan must find only the first marker"
+        );
+        assert!(
+            is_in_generated_code(&text, at, at),
+            "overlapping END at {at}"
+        );
     }
 
     #[test]

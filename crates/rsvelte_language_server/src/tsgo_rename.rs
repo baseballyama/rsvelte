@@ -15,9 +15,8 @@ use sourcemap::SourceMap;
 
 use crate::context::attribute_context;
 use crate::text::LineIndex;
+use crate::tsgo_overlay::is_in_generated_code;
 
-const IGNORE_START: &str = "/*Ωignore_startΩ*/";
-const IGNORE_END: &str = "/*Ωignore_endΩ*/";
 const STORE_GET: &str = "__sveltets_2_store_get(";
 const PROPS_RETURN: &str = "\nreturn { props: {";
 
@@ -264,7 +263,7 @@ pub fn rewrite_workspace_edit(
         if collect_followups {
             collect_generated_followups(document, start, end, new_name, target, &mut followups);
         }
-        if is_generated_span(document.generated_text, start, end)
+        if is_in_generated_code(document.generated_text, start, end)
             || is_wrong_generated_rename(document.generated_text, start)
         {
             return;
@@ -326,7 +325,7 @@ fn collect_generated_followups(
     followups: &mut Vec<RenameFollowup>,
 ) {
     let generated = document.generated_text;
-    let starts_in_generated = is_generated_span(generated, start, end);
+    let starts_in_generated = is_in_generated_code(generated, start, end);
     if !starts_in_generated && has_exact_generated_range(document.projection_map, start, end) {
         return;
     }
@@ -679,15 +678,6 @@ const fn is_tag_name_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || matches!(byte, b':' | b'-' | b'_' | b'.')
 }
 
-fn is_generated_span(text: &str, start: usize, end: usize) -> bool {
-    let start = start.min(text.len());
-    let end = end.min(text.len());
-    let last_start = text[..start].rfind(IGNORE_START);
-    let last_end = text[..start].rfind(IGNORE_END);
-    let next_end = text[end..].find(IGNORE_END).map(|at| end + at);
-    matches!((last_start, next_end), (Some(open), Some(close)) if last_end.is_none_or(|end| open > end) && open < close)
-}
-
 fn document_by_shadow<'a>(
     documents: &'a [RenameDocument<'a>],
     uri: &str,
@@ -827,6 +817,7 @@ fn floor_char_boundary(text: &str, mut offset: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tsgo_overlay::IGNORE_START;
     use rsvelte_projection::{ProjectionArtifact, ProjectionEngine, Svelte2TsxOptions};
     use std::str::FromStr;
 
