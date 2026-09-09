@@ -3400,6 +3400,7 @@ impl Server {
                     }
                     if method == "textDocument/diagnostic" {
                         fill_diagnostic_tags(result);
+                        adjust_diagnostic_messages(result);
                     }
                     if let Some(fallback) = fallback_result {
                         merge_tsgo_result(&method, result, fallback);
@@ -4305,6 +4306,59 @@ const DEPRECATED_CODES: [i64; 2] = [6385, 6387];
 /// `reportsDeprecated` off the TypeScript API instead, and its `getDiagnosticTag`
 /// returns `[]` rather than `undefined`, so every diagnostic it emits carries the
 /// key. The code decides both flags, so the LSP surface can reproduce them.
+/// Upstream rewrites two diagnostics' message text before returning them
+/// (`typescript-go/features/DiagnosticsProvider.ts:946-981`). Svelte 5 is the
+/// only target here, so the `isSvelte5Plus` arm's `SvelteComponentTyped`
+/// paragraph is never appended -- which is why the first suffix ends in a space.
+const COMPONENT_CONSTRUCTOR_HINT: &str = "\n\nPossible causes:\n\
+    - You use the instance type of a component where you should use the constructor type\n\
+    - Type definitions are missing for this Svelte Component. ";
+
+const DECLARE_STATEMENT_HINT: &str =
+    "\nIf this is a declare statement, move it into <script context=\"module\">..</script>";
+
+fn adjust_diagnostic_messages(result: &mut serde_json::Value) {
+    fn adjust_items(value: &mut serde_json::Value) {
+        let Some(items) = value
+            .get_mut("items")
+            .and_then(serde_json::Value::as_array_mut)
+        else {
+            return;
+        };
+        for item in items {
+            let Some(object) = item.as_object_mut() else {
+                continue;
+            };
+            let code = object.get("code").and_then(serde_json::Value::as_i64);
+            let Some(message) = object.get("message").and_then(serde_json::Value::as_str) else {
+                continue;
+            };
+            let suffix = match code {
+                Some(2345) if message.contains("ConstructorOfATypedSvelteComponent") => {
+                    COMPONENT_CONSTRUCTOR_HINT
+                }
+                Some(1184) => DECLARE_STATEMENT_HINT,
+                _ => continue,
+            };
+            if message.ends_with(suffix) {
+                continue;
+            }
+            let adjusted = format!("{message}{suffix}");
+            object.insert("message".to_string(), serde_json::Value::String(adjusted));
+        }
+    }
+
+    adjust_items(result);
+    if let Some(related) = result
+        .get_mut("relatedDocuments")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        for report in related.values_mut() {
+            adjust_items(report);
+        }
+    }
+}
+
 fn fill_diagnostic_tags(result: &mut serde_json::Value) {
     fn tag_items(value: &mut serde_json::Value) {
         let Some(items) = value
@@ -4621,6 +4675,95 @@ fn might_be_at_start_tag_whitespace(text: &str, offset: usize) -> bool {
     let at = text.get(offset..).and_then(|text| text.chars().next());
     before.is_some_and(char::is_whitespace)
         && at.is_some_and(|character| character.is_whitespace() || matches!(character, '>' | '/'))
+}
+
+#[cfg(test)]
+mod diagnostic_message_tests {
+    use super::{COMPONENT_CONSTRUCTOR_HINT, DECLARE_STATEMENT_HINT, adjust_diagnostic_messages};
+
+    fn messages(items: serde_json::Value) -> Vec<String> {
+        let mut result = serde_json::json!({ "kind": "full", "items": items });
+        adjust_diagnostic_messages(&mut result);
+        result["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|item| item["message"].as_str().unwrap().to_string())
+            .collect()
+    }
+
+    /// The expected bytes are official's own, read out of the LSP gate artifact
+    /// rather than retyped: the line-continuations above must rebuild exactly
+    /// this, trailing space included -- it is the `isSvelte5Plus` ternary's empty
+    /// arm, and a version that drops it still looks right.
+    #[test]
+    fn the_constructor_hint_is_byte_identical_to_the_official_server() {
+        assert_eq!(
+            COMPONENT_CONSTRUCTOR_HINT,
+            "\n\nPossible causes:\n- You use the instance type of a component where you should use the constructor type\n- Type definitions are missing for this Svelte Component. "
+        );
+        assert!(COMPONENT_CONSTRUCTOR_HINT.ends_with(' '));
+        assert!(!COMPONENT_CONSTRUCTOR_HINT.contains("SvelteComponentTyped"));
+    }
+
+    #[test]
+    fn only_a_component_constructor_2345_is_adjusted() {
+        let out = messages(serde_json::json!([
+            { "code": 2345, "message": "x ConstructorOfATypedSvelteComponent y" },
+            { "code": 2345, "message": "an ordinary argument-type error" },
+            { "code": 1184, "message": "Modifiers cannot appear here." },
+            { "code": 2322, "message": "untouched" },
+            { "message": "no code at all" }
+        ]));
+        assert_eq!(
+            out[0],
+            format!("x ConstructorOfATypedSvelteComponent y{COMPONENT_CONSTRUCTOR_HINT}")
+        );
+        assert_eq!(out[1], "an ordinary argument-type error");
+        assert_eq!(
+            out[2],
+            format!("Modifiers cannot appear here.{DECLARE_STATEMENT_HINT}")
+        );
+        assert_eq!(out[3], "untouched");
+        assert_eq!(out[4], "no code at all");
+    }
+
+    /// The response passes this once, but a merged fallback or a re-entered
+    /// pipeline must not append a second copy.
+    #[test]
+    fn adjusting_twice_appends_once() {
+        let mut result = serde_json::json!({
+            "kind": "full",
+            "items": [{ "code": 1184, "message": "Modifiers cannot appear here." }]
+        });
+        adjust_diagnostic_messages(&mut result);
+        adjust_diagnostic_messages(&mut result);
+        assert_eq!(
+            result["items"][0]["message"].as_str().unwrap(),
+            format!("Modifiers cannot appear here.{DECLARE_STATEMENT_HINT}")
+        );
+    }
+
+    #[test]
+    fn related_documents_are_adjusted_too() {
+        let mut result = serde_json::json!({
+            "kind": "full",
+            "items": [],
+            "relatedDocuments": {
+                "file:///a.ts": {
+                    "kind": "full",
+                    "items": [{ "code": 1184, "message": "Modifiers cannot appear here." }]
+                }
+            }
+        });
+        adjust_diagnostic_messages(&mut result);
+        assert_eq!(
+            result["relatedDocuments"]["file:///a.ts"]["items"][0]["message"]
+                .as_str()
+                .unwrap(),
+            format!("Modifiers cannot appear here.{DECLARE_STATEMENT_HINT}")
+        );
+    }
 }
 
 #[cfg(test)]
