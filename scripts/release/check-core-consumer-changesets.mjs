@@ -170,20 +170,58 @@ function changedFiles(base) {
   return out ? out.split('\n').filter(Boolean) : [];
 }
 
-// Names in the frontmatter of every pending changeset (working-tree state — the
-// set the Release workflow will consume), not just ones added in this PR.
+// Package names in one changeset's frontmatter. Both quote styles occur in this
+// repository, and a double-quoted-only reader returns a plausible empty set
+// rather than an error (#4486).
+export function packagesIn(text) {
+  const named = new Set();
+  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!m) return named;
+  for (const line of m[1].split('\n')) {
+    const pkg = line.match(/^\s*["']?(@[^"':]+)["']?\s*:/);
+    if (pkg) named.add(pkg[1]);
+  }
+  return named;
+}
+
+// Every pending changeset (working-tree state — the set the Release workflow
+// will consume), mapped to the files naming it. This is the set the verdict is
+// computed from, and it deliberately includes changesets already on main:
+// the question it answers is "will the changed code ship in some bump", not
+// "does this PR carry a changeset".
 function namedPackages() {
   const dir = path.join(repoRoot, '.changeset');
-  const named = new Set();
+  const named = new Map();
   for (const file of readdirSync(dir)) {
     if (!file.endsWith('.md') || file === 'README.md') continue;
-    const text = readFileSync(path.join(dir, file), 'utf8');
-    const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-    if (!m) continue;
-    for (const line of m[1].split('\n')) {
-      const pkg = line.match(/^\s*["']?(@[^"':]+)["']?\s*:/);
-      if (pkg) named.add(pkg[1]);
+    for (const pkg of packagesIn(readFileSync(path.join(dir, file), 'utf8'))) {
+      if (!named.has(pkg)) named.set(pkg, []);
+      named.get(pkg).push(file);
     }
+  }
+  return named;
+}
+
+// The changesets this PR itself adds or edits. Separate from the set above
+// because the two answer different questions and only this one is a statement
+// about the pull request.
+function changesetsTouchedHere(base) {
+  let out = '';
+  try {
+    out = sh(`git diff --name-only --diff-filter=AM ${base}...HEAD -- .changeset`);
+  } catch {
+    return new Set();
+  }
+  const named = new Set();
+  for (const rel of out ? out.split('\n').filter(Boolean) : []) {
+    if (!rel.endsWith('.md') || rel.endsWith('README.md')) continue;
+    let text;
+    try {
+      text = readFileSync(path.join(repoRoot, rel), 'utf8');
+    } catch {
+      continue; // added then removed again within the range
+    }
+    for (const pkg of packagesIn(text)) named.add(pkg);
   }
   return named;
 }
@@ -245,11 +283,37 @@ function main() {
   }
 
   const named = namedPackages();
+  const here = changesetsTouchedHere(base);
   const missing = [...required].filter(([pkg]) => !named.has(pkg));
 
   console.log('Shared-core changes require these packages to be named in a changeset:');
+  let borrowed = 0;
   for (const [pkg, prefix] of required) {
-    console.log(`  ${named.has(pkg) ? '✓' : '✗'} ${pkg}  (touched: ${prefix})`);
+    // A tick means "some pending changeset names this", which another PR's
+    // changeset can satisfy. Say so, rather than printing a line that reads as
+    // a claim about this PR (#4486).
+    let note = '';
+    if (named.has(pkg)) {
+      if (here.has(pkg)) {
+        note = '  — named by this PR';
+      } else {
+        borrowed++;
+        const by = named.get(pkg);
+        note =
+          `  — NOT named by this PR; satisfied by ${by.length} pending ` +
+          `changeset${by.length === 1 ? '' : 's'} already in the tree (${by.join(', ')})`;
+      }
+    }
+    console.log(`  ${named.has(pkg) ? '✓' : '✗'} ${pkg}  (touched: ${prefix})${note}`);
+  }
+  if (borrowed > 0) {
+    console.log(
+      `\nNote: ${borrowed} requirement${borrowed === 1 ? ' is' : 's are'} met only by ` +
+        `changeset(s) this PR did not add. The release is still correct while those ` +
+        `stay pending, but withdrawing one before the release would leave this change ` +
+        `with no version bump and no CHANGELOG entry — and this check would not have ` +
+        `said so.`,
+    );
   }
 
   if (missing.length > 0) {
