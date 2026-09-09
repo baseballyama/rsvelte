@@ -9470,12 +9470,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/avatar.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/avatar.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/avatar.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -9501,12 +9495,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/badge.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/badge.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/badge.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -9534,12 +9522,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/button.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/button.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/button.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -9565,12 +9547,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/container.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/container.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/container.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -9598,12 +9574,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/input.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/input.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/input.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -9629,12 +9599,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/radio.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/radio.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/radio.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -9662,12 +9626,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/search.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/search.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/search.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -9693,12 +9651,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/slider.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/slider.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/slider.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -9726,12 +9678,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/copied.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/copied.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/copied.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -9758,12 +9704,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/copy.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/copy.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/copy.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -9788,12 +9728,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/figma.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/figma.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/framer.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -9812,12 +9746,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/framer.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/framer.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/github.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -9835,12 +9763,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/github.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/github.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/linear.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -9912,12 +9834,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/raycast.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/raycast.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/raycast.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -9942,12 +9858,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/slack.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/slack.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/vercel.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -9966,12 +9876,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/vercel.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/vercel.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/youtube.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -9989,12 +9893,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/youtube.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/youtube.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/assign-to-me.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -10015,12 +9913,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/assign-to-me.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/assign-to-me.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/assign-to-me.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -10046,12 +9938,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/assign-to.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/assign-to.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-labels.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -10071,12 +9957,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-labels.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-labels.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-labels.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -10102,12 +9982,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-priority.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-priority.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-status.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -10127,12 +10001,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-status.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-status.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-status.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -10160,12 +10028,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/remove-label.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/remove-label.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/remove-label.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -10191,12 +10053,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/set-due-date.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/set-due-date.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/set-due-date.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -10356,14 +10212,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/clipboard.svelte|textDocument/definition": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/clipboard.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/clipboard.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -10389,12 +10237,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/finder.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/finder.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/finder.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -10422,14 +10264,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/hammer.svelte|textDocument/definition": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/hammer.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/hammer.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -10455,12 +10289,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/raycast-dark.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/raycast-dark.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/raycast-dark.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -10488,12 +10316,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/raycast-light.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/raycast-light.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/raycast-light.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -10520,12 +10342,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/star.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/star.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/star.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -10551,12 +10367,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/window.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/window.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/window.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -11008,12 +10818,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/contact.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/contact.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/contact.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -11039,12 +10843,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/docs.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/docs.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/docs.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -11072,12 +10870,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/feedback.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/feedback.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/feedback.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -11103,12 +10895,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/plus.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/plus.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/plus.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -11136,12 +10922,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/projects.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/projects.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/projects.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -11167,12 +10947,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/teams.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/teams.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/teams.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -11944,12 +11718,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-accessible-dark.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-accessible-dark.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-accessible.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -11971,12 +11739,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-accessible.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-accessible.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-consistent.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -12003,12 +11765,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-consistent.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-consistent.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-consistent.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -12039,12 +11795,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-customizable.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-customizable.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-customizable.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -12272,12 +12022,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/icons/switch-off.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/icons/switch-off.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/icons/switch-on.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-item-set-extra-ts",
@@ -12289,12 +12033,6 @@
 			"completion-item-set-extra-ts",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/icons/switch-on.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/icons/switch-on.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/icons/x-com.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -14517,12 +14255,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/sidebar-sponsor-mobile.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/sidebar-sponsor-mobile.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/sidebar-sponsor.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -14546,12 +14278,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/sidebar-sponsor.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/sidebar-sponsor.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/site-header.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -14764,12 +14490,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/tailwind-indicator.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/tailwind-indicator.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/toc/toc-tree.svelte|textDocument/completion": [
 			"completion-additional-text-edits-presence-official-only",
@@ -52949,12 +52669,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/admin-dashboard/(no-sidebar)/Footer.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/admin-dashboard/(no-sidebar)/Footer.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/admin-dashboard/(no-sidebar)/layouts/stacked/+page.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
@@ -57743,12 +57457,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Airbnb.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Airbnb.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Airbnb.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -57776,12 +57484,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ArrowLeft.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ArrowLeft.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ArrowLeft.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -57811,12 +57513,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ArrowRight.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ArrowRight.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ArrowRight.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -57844,14 +57540,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Discord.svelte|textDocument/definition": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Discord.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Facebook.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -58023,12 +57711,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Google.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Google.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Google.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -58147,12 +57829,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Mailchimp.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Mailchimp.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Mashable.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -58174,12 +57850,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Mashable.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Mashable.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Mashable.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -58209,12 +57879,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Microsoft.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Microsoft.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ProductHunt.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -58234,12 +57898,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ProductHunt.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ProductHunt.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Reddit.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -58261,12 +57919,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Reddit.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Reddit.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Spotify.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -58286,12 +57938,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Spotify.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Spotify.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Twitter.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -58361,12 +58007,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Youtube.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Youtube.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/YoutubeHome.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -58386,12 +58026,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/YoutubeHome.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/YoutubeHome.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/builder/+layout.svelte|textDocument/completion": [
 			"completion-additional-text-edits-presence-official-only",
@@ -86075,12 +85709,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/FontSize.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/FontSize.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/FontWeight.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -86099,12 +85727,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/FontWeight.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/FontWeight.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/LineHeight.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -86122,12 +85744,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/LineHeight.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/LineHeight.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/ListPosition.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -86234,12 +85850,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/TextDecoration.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/TextDecoration.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/video/Autoplay.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -103227,12 +102837,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs/extend/CheckCircle.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs/extend/CheckCircle.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/docs/extend/CheckCircle.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -110133,12 +109737,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Angular.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Angular.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/ArrowLeft.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -110158,12 +109756,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/ArrowLeft.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/ArrowLeft.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/ArrowLeft.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -110190,12 +109782,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/ArrowRight.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/ArrowRight.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/ArrowRight.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -110263,12 +109849,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/China.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/China.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Clipboard.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -110288,12 +109868,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Clipboard.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Clipboard.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Clipboard.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -110320,12 +109894,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/CoinbaseWallet.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/CoinbaseWallet.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Combinator.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -110382,12 +109950,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Community.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Community.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Dev.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -110449,14 +110011,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Discord.svelte|textDocument/definition": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Discord.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Dribble.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -110478,12 +110032,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Dribble.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Dribble.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Dribble.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -110581,12 +110129,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Figma.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Figma.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/FlowbiteLogo.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -110604,12 +110146,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/FlowbiteLogo.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/FlowbiteLogo.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Fortmatic.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -110631,12 +110167,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Fortmatic.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Fortmatic.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Germany.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -110656,12 +110186,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Germany.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Germany.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/GitHub.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -110781,12 +110305,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Italy.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Italy.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Italy.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -110851,12 +110369,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/MetaMask.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/MetaMask.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Moon.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -110913,12 +110425,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Npm.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Npm.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/OperaWallet.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -110941,12 +110447,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/OperaWallet.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/OperaWallet.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Quote.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -110964,12 +110464,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Quote.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Quote.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/React.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -110990,12 +110484,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/React.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/React.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Reddit.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -111113,12 +110601,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Usa.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Usa.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Usa.svelte|textDocument/hover": [
 			"css-data",
 			"ts-render-union-order"
@@ -111146,12 +110628,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Vue.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Vue.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/WalletConnect.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -111181,12 +110657,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/WalletConnect.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/WalletConnect.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/WalletConnect.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -111213,12 +110683,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/YouTube.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/YouTube.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/YouTubeFull.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -111236,12 +110700,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/YouTubeFull.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/YouTubeFull.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/tests/button/basic-button.test.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -119361,12 +118819,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta-mobile.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta-mobile.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -119390,12 +118842,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/customizer.svelte|textDocument/completion": [
 			"completion-additional-text-edits-presence-official-only",
@@ -123857,12 +123303,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/site-footer.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/site-footer.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/site-header.svelte|textDocument/completion": [
 			"completion-additional-text-edits-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -124143,12 +123583,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/svelte-white.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/svelte-white.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/svelte-white.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -124244,14 +123678,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-item-set-missing-ts",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/tailwind-indicator.svelte|textDocument/definition": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/tailwind-indicator.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/tailwind-indicator.svelte|textDocument/hover": [
 			"html-data",
@@ -131905,12 +131331,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/blocks/dashboard-01/components/data-table-header-limit.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/blocks/dashboard-01/components/data-table-header-limit.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/blocks/dashboard-01/components/data-table-header-target.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -131926,12 +131346,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/blocks/dashboard-01/components/data-table-header-target.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/blocks/dashboard-01/components/data-table-header-target.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/blocks/dashboard-01/components/data-table-limit.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -181507,12 +180921,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-angle.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-angle.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-angle.svelte|textDocument/hover": [
 			"rsvelte-empty"
 		],
@@ -181539,12 +180947,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-color.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-color.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-color.svelte|textDocument/hover": [
 			"rsvelte-empty"
 		],
@@ -181568,12 +180970,6 @@
 			"completion-item-set-missing-html",
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-demo.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-demo.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-demo.svelte|textDocument/hover": [
 			"rsvelte-empty"
@@ -181602,12 +180998,6 @@
 			"completion-item-set-missing-html-close-tag",
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-duration.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-duration.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-duration.svelte|textDocument/hover": [
 			"rsvelte-empty"
@@ -181684,12 +181074,6 @@
 			"completion-item-set-missing-html-close-tag",
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-none.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-none.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-none.svelte|textDocument/hover": [
 			"rsvelte-empty"
@@ -181785,12 +181169,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-rtl.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-rtl.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-rtl.svelte|textDocument/hover": [
 			"rsvelte-empty"
 		],
@@ -181818,12 +181196,6 @@
 			"completion-item-set-missing-html-close-tag",
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-spread.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-spread.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-spread.svelte|textDocument/hover": [
 			"rsvelte-empty"
@@ -183629,12 +183001,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-blockquote.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-blockquote.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-demo.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -183654,12 +183020,6 @@
 			"completion-item-set-missing-html",
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-demo.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-demo.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-demo.svelte|textDocument/hover": [
 			"rsvelte-empty"
@@ -183683,12 +183043,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h1.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h1.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h2.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -183704,12 +183058,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h2.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h2.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h3.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -183727,12 +183075,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h3.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h3.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h4.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -183749,12 +183091,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h4.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h4.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-inline-code.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-item-set-extra-ts",
@@ -183766,12 +183102,6 @@
 			"completion-item-set-extra-ts",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-inline-code.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-inline-code.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-large.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -183788,12 +183118,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-large.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-large.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-lead.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -183813,12 +183137,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-lead.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-lead.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-list.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -183834,12 +183152,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-list.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-list.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-muted.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -183859,12 +183171,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-muted.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-muted.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-p.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -183883,12 +183189,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-p.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-p.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-small.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -183905,12 +183205,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-small.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-small.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-table.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -183926,12 +183220,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-table.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-table.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/icons/logos/hugeicons.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -213051,12 +212339,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/examples/dashboard/components/data-table-header-limit.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/examples/dashboard/components/data-table-header-limit.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/examples/dashboard/components/data-table-header-target.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -213072,12 +212354,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/examples/dashboard/components/data-table-header-target.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/examples/dashboard/components/data-table-header-target.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/examples/dashboard/components/data-table-limit.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -216408,12 +215684,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/sv-addons/registry/template/src/lib/registry/blocks/hello-world/hello-world.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/sv-addons/registry/template/src/lib/registry/blocks/hello-world/hello-world.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/sv-addons/registry/template/src/lib/registry/ui/button/button.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
