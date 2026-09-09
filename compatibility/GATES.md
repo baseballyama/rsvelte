@@ -7881,6 +7881,49 @@ is a harness with a denominator, and it is the only thing that turns the proxy z
 one. Nothing in the tree does it today: every gate compares each port to *upstream* on whatever
 inputs a real file supplies, which is this file's whole subject.
 
+#### 36. Does the LSP ratchet observe the PR that changes LSP behaviour? — **no, and the trigger keys on the ratchet file rather than on the behaviour**
+
+`lsp-corpus` is the ~950 job-minute real-world half of gate 42, and it is scheduled rather than
+per-PR on a capacity argument that is recorded and correct. The escape hatch that re-admits it on a
+pull request is `corpus-compat-job-filter.mjs:157`, which sets `lsp-ratchet` from a diff touching
+`compatibility/lsp-known-failures*.json` or `scripts/compat-lsp/**`. So the trigger names the
+**ratchet**, and a PR that changes the language server's **behaviour** without touching either path
+does not fire it. Measured on the filter, both directions, plus one live observation:
+
+| changed-file list | `lsp-corpus` | `lsp-ratchet` | job runs on a PR? |
+|---|---|---|---|
+| `compatibility/lsp-known-failures.json` | true | **true** | yes — positive control |
+| `scripts/compat-lsp/verify.mjs` | true | **true** | yes — positive control |
+| #4511's real list (2 LS sources + a changeset) | true | **false** | **no** — and observed SKIPPED on #4511 |
+| an inlay-hint filter PR (5 LS sources, lock, changeset) | true | **false** | **no** |
+
+The `lsp-corpus=true` column is the conjunction hazard this file already records, met from the
+other side: the filter enables the job and the job's own `if:` declines it, so **reading either
+artifact alone gives the wrong answer with full confidence**.
+
+**What makes this a coverage row rather than a restatement of the cost trade-off is the second
+half.** The two-sided ratchet has an *added* direction and a *stale* direction, and they are not
+scoped alike (`verify.mjs:1090-1091`): `added` is filtered against the **full** ratchet, while
+`removed` is filtered against `selectKnownForScope(known, suites, repos, SHARD)`. A PR's
+fixture-only run therefore evaluates staleness **only for fixture-scoped entries** — by design,
+since a fixture run has not measured the corpus entries and must not call them stale. The
+consequence is that for a behaviour-changing PR, *no* run anywhere evaluates the corpus half of the
+stale direction until the change is on `main` and the nightly fires.
+
+So the failure is displaced rather than absent, and it is displaced into the branch that this file
+already says is the expensive one: a red that first appears on `main`, where no PR could have
+caught it and the bisect population is every merge since the last nightly. Note the direction —
+this bites a PR that **fixes** something, because retiring a divergence is what makes a listed
+entry stale. A PR that only adds divergences is caught by `added` against the full ratchet.
+
+**The working rule:** a PR that changes language-server behaviour must dispatch `corpus-compat.yml`
+against its own branch and re-baseline in the same PR, and "CI was green" does not stand in for it.
+The automatic trigger cannot be read as coverage, because the property it keys on — did you edit
+the ratchet — is a property of the *fix you already wrote*, not of the behaviour you changed.
+
+**Not measured here:** whether any given behaviour PR actually retires a corpus entry. That needs
+the dispatch, which is the point. Recording it as an obligation rather than as a finding.
+
 <a id="ast-equivalence"></a>
 
 
