@@ -7,8 +7,8 @@ use std::fmt::Write as _;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
-    after_keywords, code_bytes, comment_ranges, ends_inside_line_comment, find_code, skip_opaque,
-    skip_ws_and_comments_back,
+    after_keywords, code_bytes, comment_ranges, ends_inside_line_comment, find_code,
+    find_code_from, skip_opaque, skip_ws_and_comments_back,
 };
 use crate::compiler::phases::phase3_transform::shared::offsets::{
     ByteOffset, CharOffset, CharToByte,
@@ -3132,7 +3132,18 @@ pub(super) fn transform_props_destructuring(
     // distinguish a same-line comment (which may trail a default value inside
     // `$.prop(...)`) from one that has already crossed a line boundary.
     let original_trimmed = line.trim();
-    let props_call = original_trimmed.rfind_sub("$props")?;
+    // The last `$props` **in code**: a plain substring search takes one written in
+    // a trailing comment, and the declaration is then spliced around that.
+    let props_call = {
+        let bytes = original_trimmed.as_bytes();
+        let mut last = None;
+        let mut from = 0;
+        while let Some(at) = find_code_from(bytes, b"$props", from) {
+            last = Some(at);
+            from = at + 1;
+        }
+        last?
+    };
     let assignment = code_bytes(&original_trimmed.as_bytes()[..props_call])
         .filter_map(|(offset, byte)| (byte == b'=').then_some(offset))
         .last()?;
