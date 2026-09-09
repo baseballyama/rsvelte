@@ -162,8 +162,13 @@ pnpm run test-and-update                             # Refresh report + docs
 node scripts/diff/compare-parsers.mjs                # Diff a parse against official
 ```
 
-- **Disk runs out before time does.** A debug build of `rsvelte_core`'s ~590 test targets is
-  ~83 GB of `target/debug/deps`; the whole release profile is ~0.5 GB. Read
+- **Disk runs out before time does.** A debug test binary is ~140 MB and `rsvelte_core`
+  builds one per `crates/rsvelte_core/tests/*.rs`, so a full debug build costs that rate
+  times `ls crates/rsvelte_core/tests/*.rs | wc -l` — 716 on `main` at `a760be550`, i.e. ~98 GB
+  of `target/debug/deps` against ~0.5 GB for the whole release profile. Carry the rate, not
+  the product: this bullet read "~590 targets, ~83 GB" until 2026-09-09, and 83 GB **was**
+  589 x 140 MB, so rounding the count made it look like a soft approximation while it
+  silently carried the total 22% low. Read
   `df -g /System/Volumes/Data` before invoking cargo and do not start a build under ~20 GiB
   free (ENOSPC leaves partial artifacts and the *next* run fails for an unrelated-looking
   reason). Scope debug runs with `--test <name>` / `-p <crate> --lib`; reclaim with
@@ -174,7 +179,11 @@ node scripts/diff/compare-parsers.mjs                # Diff a parse against offi
   runs no hooks: after resolving a conflict by hand, run fmt + clippy yourself.
 - **The denominator of a test run is what you passed cargo.** `--test a --test b` does not run
   the lib; `-p rsvelte_core` does not build `rsvelte_bindings_support`, which matches `JsNode`
-  exhaustively. When a change touches a type another crate names, run `--workspace`.
+  exhaustively. When a change touches a type another crate names, run `--workspace`. And a
+  misspelled target aborts the **whole** invocation — `error: no test target named X` runs
+  none of the others, so a nine-suite run and a zero-suite run print the same nothing.
+  Read the `Running tests/` lines as the denominator, not the exit code; the needle is
+  `Running tests/`, because cargo indents that line and `^Running` matches nothing.
 - `cargo fmt && cargo clippy --workspace --all-targets --all-features -- -D warnings` before every commit.
 
 ### Worktrees and the shared machine

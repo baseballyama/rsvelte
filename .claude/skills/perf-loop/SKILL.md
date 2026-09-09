@@ -72,7 +72,7 @@ PGO: `scripts/perf/pgo.sh` が `pgo/rsvelte.profdata` を再生成、`scripts/pe
 - **壁時計でなく CPU 時間**: `perf_bench` の CPU median を読む。壁時計は負荷で 2 倍動く。
 - **アームの同一性**: ファイル名・パス・ブランチは信用しない。`Compiling <crate> (<path>)` 行、2 成果物の `sha256`、出力での判別プローブ（含むべきもの／欠くべきもの両方）を読む。
 - **worktree**: 毎回 `cd <worktree> && CARGO_TARGET_DIR=<worktree>/target cargo …`。cwd は黙ってリセットされる。
-- **ディスク**: `df -g /System/Volumes/Data` が 20 GiB 未満なら cargo を起動しない。debug の `target/debug/deps` は 83 GB。
+- **ディスク**: `df -g /System/Volumes/Data` が 20 GiB 未満なら cargo を起動しない。debug の `target/debug/deps` は 1 バイナリ ~140 MB × `ls crates/rsvelte_core/tests/*.rs | wc -l` 本（積を持ち歩かない — AGENTS.md 参照）。
 - **分母**: 共有型（`JsNode` 等）を触ったら `--workspace`。`| tail`/`2>/dev/null` 越しに verdict を読まない。
 - **call count を先に読む**: 決定的。時間は 1 回ではノイズ。
 - **同居エージェント**: 計測窓の開始／終了は宣言で伝える。他人の窓の中で cargo を叩かない。
