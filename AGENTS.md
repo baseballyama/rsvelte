@@ -367,6 +367,23 @@ are in the archived file.
   the input, paste the output), never by inference from neighbouring cells or from your own
   tree's other code path; probe a *direction* before printing it; write rules against the
   artifact ("every entry outside the table") rather than counts that go stale.
+- **An instrument can answer correctly in a vocabulary that cannot express the phenomenon**,
+  and a control drawn in the same vocabulary passes. Three instances on one day, every one keyed
+  on something that cannot represent a *move*. An occurrence **count** over comments scored
+  `let p = /* c */ $props()` as agreeing while the comment had changed sides of the statement, so
+  the cell carrying the defect entered the issue as a passing control and the issue's title named
+  the symptom the mechanism produces second. A residue split into two buckets by "does the first
+  differing line carry the marker on one side or on both" reported 23 + 16 mechanisms, where a
+  comment that moved by a line has it on one side **by construction** — the classifier's own shape
+  became the finding instead of the single family underneath. And `comm -12` returns an **empty set
+  with no error** when its input is not in *its own* locale's collating order: `<(… | LC_ALL=C
+  sort)` sets the locale for `sort` alone, so the explicit prefix on one stage is worse than none
+  on either, and the empty intersection reads as "these branches share no file, proceed" against a
+  trial merge that conflicts. None of the three was caught by a control or by re-reading the
+  command; all three were caught by **printing the underlying values** — the two file lists side by
+  side, all sixteen residue units, the whole output plus every comment-bearing line. That is one
+  level below stating the denominator: the denominator says which population, the raw values say
+  whether the key can see the thing at all.
 - **Grids.** List what every cell holds constant and ask which of those the oracle branches
   on; the cell that kills a hypothesis is usually the one that passes; re-key a grid (widest
   key the assertion can carry) before adding rows; a control's name is a claim — grep the
