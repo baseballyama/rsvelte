@@ -123,6 +123,11 @@ pub struct Printer<'opt, const HAS_COMMENTS: bool = true, const DIRECT: bool = f
     /// Source-backed brace ranges for default-exported wrapper functions whose
     /// ordinary body span must remain in comment space.
     brace_mappings: Vec<BraceMapping>,
+    /// Comment-space starts this print is allowed to emit from source space.
+    /// Empty on the first pass, so nothing is; see [`crate::print_split`].
+    src_flushable: Vec<u32>,
+    /// Comment-space starts this print has emitted, in emission order.
+    written: Vec<u32>,
     /// Decorator expressions have no esrap mapping visitor, so their nested
     /// tokens must stay unmapped too.
     map_nodes: bool,
@@ -736,6 +741,8 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             loc_base: None,
             loc_map: Vec::new(),
             brace_mappings: Vec::new(),
+            src_flushable: Vec::new(),
+            written: Vec::new(),
             map_nodes: true,
         }
     }
@@ -761,6 +768,8 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             loc_base: None,
             loc_map: Vec::new(),
             brace_mappings: Vec::new(),
+            src_flushable: Vec::new(),
+            written: Vec::new(),
             map_nodes: true,
         }
     }
@@ -800,6 +809,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         self.loc_map = loc_map.to_vec();
         self.brace_mappings = brace_mappings.to_vec();
         self
+    }
+
+    /// The comment-space starts this print may emit from source space. Only the
+    /// second pass of [`crate::print_split`] passes a non-empty set.
+    pub fn with_src_flushable(mut self, starts: Vec<u32>) -> Self {
+        self.src_flushable = starts;
+        self
+    }
+
+    /// The comment-space starts this print emitted, in emission order.
+    pub fn take_written(&mut self) -> Vec<u32> {
+        std::mem::take(&mut self.written)
     }
 
     /// Enable source-map anchor events for this print.
@@ -1136,13 +1157,78 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         )
     }
 
-    fn write_comment_at(&self, index: usize, ctx: &mut Context<DIRECT>) {
+    fn write_comment_at(&mut self, index: usize, ctx: &mut Context<DIRECT>) {
+        if let Some(comment) = self.comment_at(index) {
+            self.written.push(comment.start);
+        }
         if let Some(source) = self.comment_source {
             let comment = self.comment_at(index).expect("pending comment");
             write_borrowed_comment_span(comment.start, comment.end, comment.block, source, ctx);
         } else {
             write_comment(&self.comments[index], ctx);
         }
+    }
+
+    /// Under split coordinates a real source offset is *below* `loc_base`, so
+    /// [`Self::has_loc`] reads it as "no location" and the located flush above
+    /// declines it. esrap has one coordinate space, so the same offset flushes
+    /// there. Compare each pending comment's own source position instead of its
+    /// buffer position — and only for the comments the located pass has been
+    /// shown to drop, because claiming one it would have placed moves a comment
+    /// that was already correct.
+    fn flush_comments_before_source(&mut self, ctx: &mut Context<DIRECT>, to: u32, pad: bool) {
+        if to == 0 || to == u32::MAX || self.src_flushable.is_empty() {
+            return;
+        }
+        let to_line = self.map_position(to).map(|(line, _)| line);
+        while self.comment_index < self.comment_len() {
+            let cmt = self
+                .comment_at(self.comment_index)
+                .expect("pending comment");
+            let Some((_, _)) = self.map_position(cmt.start) else {
+                break;
+            };
+            let Some((cmt_end_line, _)) = self.map_position(cmt.end) else {
+                break;
+            };
+            if self
+                .comment_source_offset(cmt.start)
+                .is_none_or(|source| source >= to)
+            {
+                break;
+            }
+            // Advancing past a comment this pass may not claim would drop it
+            // from the located pass too, so stop rather than skip.
+            if self.src_flushable.binary_search(&cmt.start).is_err() {
+                break;
+            }
+            self.write_comment_at(self.comment_index, ctx);
+            if !cmt.block || to_line.is_none_or(|line| cmt_end_line < line) {
+                ctx.newline();
+            } else if pad {
+                ctx.write_ascii(b' ');
+            }
+            self.comment_index += 1;
+        }
+    }
+
+    /// Resolve a comment-space offset back to an original-source offset through
+    /// `loc_map`, so a comment can be compared against a source position.
+    fn comment_source_offset(&self, offset: u32) -> Option<u32> {
+        let index = self
+            .loc_map
+            .partition_point(|range| range.start <= offset)
+            .checked_sub(1)?;
+        let range = self.loc_map.get(index)?;
+        if offset >= range.end {
+            return None;
+        }
+        let source = range.source?;
+        Some(if range.linear {
+            source + (offset - range.start)
+        } else {
+            source
+        })
     }
 
     /// esrap's `flush_comments_until`: emit every pending comment that starts
@@ -1159,6 +1245,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             return;
         }
         if !self.has_loc(to) {
+            self.flush_comments_before_source(ctx, to, pad);
             return;
         }
         let Some(next_comment) = self.comment_at(self.comment_index) else {

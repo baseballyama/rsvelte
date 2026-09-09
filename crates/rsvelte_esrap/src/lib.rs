@@ -197,7 +197,7 @@ pub fn print_split(
     let (comments, line_starts) = comments_and_line_starts(program, comment_source);
     let map_line_starts = map_source.map(printer::line_starts).unwrap_or_default();
     if comments.is_empty() {
-        print_split_impl::<false>(
+        return print_split_impl::<false>(
             program,
             loc_base,
             comment_source,
@@ -208,21 +208,60 @@ pub fn print_split(
             comments,
             line_starts,
             map_line_starts,
-        )
-    } else {
-        print_split_impl::<true>(
-            program,
-            loc_base,
-            comment_source,
-            map_source,
-            loc_map,
-            brace_mappings,
-            options,
-            comments,
-            line_starts,
-            map_line_starts,
-        )
+            Vec::new(),
+            None,
+        );
     }
+    // Under split coordinates a source position sits below `loc_base`, so the
+    // located flush declines it and a comment with no comment-space node after
+    // it is never emitted. Recovering it needs to know which comments the
+    // located pass drops, which only a print can answer — so print once, and
+    // print again only when that pass dropped something.
+    let total = comments.len();
+    let mut written = Vec::new();
+    let first = print_split_impl::<true>(
+        program,
+        loc_base,
+        comment_source,
+        map_source,
+        loc_map,
+        brace_mappings,
+        options,
+        comments,
+        line_starts,
+        map_line_starts,
+        Vec::new(),
+        Some(&mut written),
+    );
+    written.sort_unstable();
+    written.dedup();
+    if written.len() == total {
+        return first;
+    }
+    let (comments, line_starts) = comments_and_line_starts(program, comment_source);
+    let map_line_starts = map_source.map(printer::line_starts).unwrap_or_default();
+    let dropped: Vec<u32> = comments
+        .iter()
+        .map(|cmt| cmt.start)
+        .filter(|start| written.binary_search(start).is_err())
+        .collect();
+    if dropped.is_empty() {
+        return first;
+    }
+    print_split_impl::<true>(
+        program,
+        loc_base,
+        comment_source,
+        map_source,
+        loc_map,
+        brace_mappings,
+        options,
+        comments,
+        line_starts,
+        map_line_starts,
+        dropped,
+        None,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -237,14 +276,20 @@ fn print_split_impl<const HAS_COMMENTS: bool>(
     comments: Vec<printer::Cmt>,
     line_starts: Vec<u32>,
     map_line_starts: Vec<u32>,
+    src_flushable: Vec<u32>,
+    written_out: Option<&mut Vec<u32>>,
 ) -> PrintWithMap {
     if !HAS_COMMENTS && map_source.is_none() {
         let mut printer =
             printer::Printer::<HAS_COMMENTS, true>::with_comments(options, comments, line_starts)
                 .with_placement_source(comment_source)
-                .with_split_coordinates(map_line_starts, loc_base, loc_map, brace_mappings, false);
+                .with_split_coordinates(map_line_starts, loc_base, loc_map, brace_mappings, false)
+                .with_src_flushable(src_flushable);
         let mut ctx = context::Context::new_direct(&options.indent, program.source_text.len());
         printer.print_program(program, &mut ctx);
+        if let Some(out) = written_out {
+            *out = printer.take_written();
+        }
         let (buffer, returned, indent, dirty) = ctx.into_direct_parts();
         let (code, buffer) = command::finish_direct(buffer, &indent, dirty);
         pool::give(buffer, returned);
@@ -262,9 +307,13 @@ fn print_split_impl<const HAS_COMMENTS: bool>(
                 loc_map,
                 brace_mappings,
                 map_source.is_some(),
-            );
+            )
+            .with_src_flushable(src_flushable);
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
+    if let Some(out) = written_out {
+        *out = printer.take_written();
+    }
     let capacity = ctx.measure();
     let (buffer, returned) = ctx.into_parts();
     let output = if map_source.is_some() {
