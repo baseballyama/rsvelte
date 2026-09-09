@@ -28,6 +28,11 @@ use std::fmt::{self, Write as _};
 pub(super) enum Seg {
     Lit(String),
     Src(u32, u32),
+    /// Generated text that opens the `Src` chunk immediately following it.
+    /// Upstream writes such a delimiter by overwriting the chunk's own first
+    /// character, so its map segment anchors on that chunk instead of on the
+    /// end of the preceding one.
+    LitOpen(String),
 }
 
 /// Push a literal segment, merging with the previous Lit when adjacent.
@@ -54,6 +59,13 @@ pub(super) fn segs_push_fmt(segs: &mut Vec<Seg>, args: fmt::Arguments<'_>) {
     }
 }
 
+/// Push a delimiter that opens the `Src` chunk pushed immediately after it.
+pub(super) fn segs_push_lit_open(segs: &mut Vec<Seg>, s: &str) {
+    if !s.is_empty() {
+        segs.push(Seg::LitOpen(s.to_string()));
+    }
+}
+
 /// Push a source-range segment, with sanity checks against zero-length.
 pub(super) fn segs_push_src(segs: &mut Vec<Seg>, start: u32, end: u32) {
     if start >= end {
@@ -69,7 +81,7 @@ pub(super) fn segs_to_string(segs: &[Seg], source: &str) -> String {
     let mut out = String::new();
     for seg in segs {
         match seg {
-            Seg::Lit(s) => out.push_str(s),
+            Seg::Lit(s) | Seg::LitOpen(s) => out.push_str(s),
             Seg::Src(s, e) => out.push_str(slice_src(source, *s as usize, *e as usize)),
         }
     }
@@ -126,7 +138,7 @@ pub(super) fn emit_segmented_overwrite(
         // current append-on-empty-range behaviour.
         let mut pending = String::new();
         for seg in segments {
-            if let Seg::Lit(s) = seg {
+            if let Seg::Lit(s) | Seg::LitOpen(s) = seg {
                 pending.push_str(s);
             }
             // Src segments inside a zero-length range are impossible — skip.
@@ -138,29 +150,52 @@ pub(super) fn emit_segmented_overwrite(
     }
 
     let mut pending = String::new();
+    let mut opening = String::new();
     let mut cursor = range_start;
     for seg in segments {
         match seg {
-            Seg::Lit(s) => pending.push_str(s),
+            Seg::Lit(s) => {
+                pending.push_str(&opening);
+                opening.clear();
+                pending.push_str(s);
+            }
+            Seg::LitOpen(s) => opening.push_str(s),
             Seg::Src(s, e) => {
                 debug_assert!(
                     *s >= cursor && *e <= range_end && *s < *e,
                     "emit_segmented_overwrite: bad Src ({s}, {e}) for cursor {cursor} range_end {range_end}"
                 );
+                // An opening delimiter is written over the chunk's own first
+                // character so its segment anchors at `*s`; without that it
+                // falls inside the preceding edit and maps to `cursor`.
+                let head = str
+                    .original()
+                    .get(*s as usize..)
+                    .and_then(|rest| rest.chars().next())
+                    .map(|ch| (ch, *s + ch.len_utf8() as u32))
+                    .filter(|(_, head)| *head <= *e && !opening.is_empty());
+                if head.is_none() {
+                    pending.push_str(&opening);
+                    opening.clear();
+                }
                 if cursor < *s {
                     str.overwrite(cursor, *s, &pending);
-                    pending.clear();
                 } else if !pending.is_empty() {
-                    // cursor == *s — overwrite would be empty range; use
-                    // prepend_right so the literal lands before the
-                    // preserved source chunk.
+                    // cursor == *s — overwrite would be an empty range; use
+                    // prepend_right so the literal lands before the chunk.
                     str.prepend_right(*s, &pending);
-                    pending.clear();
+                }
+                pending.clear();
+                if let Some((ch, head)) = head {
+                    opening.push(ch);
+                    str.overwrite(*s, head, &opening);
+                    opening.clear();
                 }
                 cursor = *e;
             }
         }
     }
+    pending.push_str(&opening);
     if cursor < range_end {
         str.overwrite(cursor, range_end, &pending);
     } else if !pending.is_empty() {

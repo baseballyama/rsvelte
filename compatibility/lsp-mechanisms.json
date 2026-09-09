@@ -1,5 +1,5 @@
 {
-	"$schema-note": "Two maps beside `lsp-known-failures.json`, never inside its key. `entries` maps a ratchet id to the SET of mechanisms measured on it: an entry carries several (mean 6.17 on a corpus shard), so a label is not a partition of the entries, and one label per entry would need a precedence rule the data cannot supply. `mechanisms` maps a label to where it is answered — an `upstream_issues/` path that exists on disk, the literal `deliberate-divergences`, or `null` for a terminal that has not been established yet. `null` is not `rsvelte`: an unestablished terminal and a defect of ours are different facts, and writing one as the other puts a sign on an unmeasured quantity. An id whose set contains `unclassified`, or any label whose terminal is `null`, cannot appear in an attribution table. A label's prose lives in `scripts/compat-lsp/mechanism.mjs` beside the rule that assigns it; restating it here would be a second port that can disagree with the classifier.",
+	"$schema-note": "Two maps beside `lsp-known-failures.json`, never inside its key. `entries` maps a ratchet id to the SET of mechanisms measured on it: an entry carries several (mean 6.17 on a corpus shard), so a label is not a partition of the entries, and one label per entry would need a precedence rule the data cannot supply. `mechanisms` maps a label to where it is answered \u2014 an `upstream_issues/` path that exists on disk, the literal `deliberate-divergences`, or `null` for a terminal that has not been established yet. `null` is not `rsvelte`: an unestablished terminal and a defect of ours are different facts, and writing one as the other puts a sign on an unmeasured quantity. An id whose set contains `unclassified`, or any label whose terminal is `null`, cannot appear in an attribution table. A label's prose lives in `scripts/compat-lsp/mechanism.mjs` beside the rule that assigns it; restating it here would be a second port that can disagree with the classifier.",
 	"mechanisms": {
 		"ts-lib-copy": {
 			"terminal": null
@@ -9470,12 +9470,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/avatar.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/avatar.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/avatar.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -9501,12 +9495,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/badge.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/badge.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/badge.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -9534,12 +9522,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/button.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/button.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/button.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -9565,12 +9547,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/container.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/container.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/container.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -9598,12 +9574,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/input.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/input.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/input.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -9629,12 +9599,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/radio.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/radio.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/radio.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -9662,12 +9626,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/search.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/search.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/search.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -9693,12 +9651,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/slider.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/slider.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/framer/icons/slider.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -9726,12 +9678,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/copied.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/copied.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/copied.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -9758,12 +9704,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/copy.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/copy.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/copy.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -9788,12 +9728,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/figma.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/figma.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/framer.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -9812,12 +9746,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/framer.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/framer.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/github.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -9835,12 +9763,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/github.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/github.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/linear.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -9912,12 +9834,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/raycast.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/raycast.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/raycast.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -9942,12 +9858,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/slack.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/slack.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/vercel.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -9966,12 +9876,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/vercel.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/vercel.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/youtube.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -9989,12 +9893,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/youtube.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/icons/youtube.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/assign-to-me.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -10015,12 +9913,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/assign-to-me.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/assign-to-me.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/assign-to-me.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -10046,12 +9938,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/assign-to.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/assign-to.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-labels.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -10071,12 +9957,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-labels.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-labels.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-labels.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -10102,12 +9982,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-priority.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-priority.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-status.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -10127,12 +10001,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-status.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-status.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/change-status.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -10160,12 +10028,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/remove-label.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/remove-label.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/remove-label.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -10191,12 +10053,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/set-due-date.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/set-due-date.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/linear/icons/set-due-date.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -10356,14 +10212,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/clipboard.svelte|textDocument/definition": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/clipboard.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/clipboard.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -10389,12 +10237,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/finder.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/finder.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/finder.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -10422,14 +10264,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/hammer.svelte|textDocument/definition": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/hammer.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/hammer.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -10455,12 +10289,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/raycast-dark.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/raycast-dark.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/raycast-dark.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -10488,12 +10316,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/raycast-light.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/raycast-light.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/raycast-light.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -10520,12 +10342,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/star.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/star.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/star.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -10551,12 +10367,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/window.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/window.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/raycast/icons/window.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -11008,12 +10818,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/contact.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/contact.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/contact.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -11039,12 +10843,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/docs.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/docs.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/docs.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -11072,12 +10870,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/feedback.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/feedback.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/feedback.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -11103,12 +10895,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/plus.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/plus.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/plus.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -11136,12 +10922,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/projects.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/projects.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/projects.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -11167,12 +10947,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/teams.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/teams.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/examples/command/vercel/icons/teams.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -11944,12 +11718,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-accessible-dark.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-accessible-dark.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-accessible.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -11971,12 +11739,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-accessible.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-accessible.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-consistent.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -12003,12 +11765,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-consistent.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-consistent.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-consistent.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -12039,12 +11795,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-customizable.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-customizable.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/svg-customizable.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -12272,12 +12022,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/icons/switch-off.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/icons/switch-off.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/icons/switch-on.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-item-set-extra-ts",
@@ -12289,12 +12033,6 @@
 			"completion-item-set-extra-ts",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/icons/switch-on.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/icons/switch-on.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/icons/x-com.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -14517,12 +14255,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/sidebar-sponsor-mobile.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/sidebar-sponsor-mobile.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/sidebar-sponsor.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -14546,12 +14278,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/sidebar-sponsor.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/sidebar-sponsor.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/site-header.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -14764,12 +14490,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/tailwind-indicator.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/bits-ui/docs/src/lib/components/tailwind-indicator.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/toc/toc-tree.svelte|textDocument/completion": [
 			"completion-additional-text-edits-presence-official-only",
@@ -52949,12 +52669,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/admin-dashboard/(no-sidebar)/Footer.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/admin-dashboard/(no-sidebar)/Footer.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/admin-dashboard/(no-sidebar)/layouts/stacked/+page.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
@@ -57743,12 +57457,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Airbnb.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Airbnb.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Airbnb.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -57776,12 +57484,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ArrowLeft.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ArrowLeft.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ArrowLeft.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -57811,12 +57513,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ArrowRight.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ArrowRight.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ArrowRight.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -57844,14 +57540,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Discord.svelte|textDocument/definition": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Discord.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Facebook.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -58023,12 +57711,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Google.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Google.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Google.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -58147,12 +57829,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Mailchimp.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Mailchimp.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Mashable.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -58174,12 +57850,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Mashable.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Mashable.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Mashable.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -58209,12 +57879,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Microsoft.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Microsoft.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ProductHunt.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -58234,12 +57898,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ProductHunt.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/ProductHunt.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Reddit.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -58261,12 +57919,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Reddit.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Reddit.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Spotify.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -58286,12 +57938,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Spotify.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Spotify.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Twitter.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -58361,12 +58007,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Youtube.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/Youtube.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/YoutubeHome.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -58386,12 +58026,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/YoutubeHome.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/icons/YoutubeHome.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/builder/+layout.svelte|textDocument/completion": [
 			"completion-additional-text-edits-presence-official-only",
@@ -86075,12 +85709,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/FontSize.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/FontSize.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/FontWeight.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -86099,12 +85727,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/FontWeight.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/FontWeight.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/LineHeight.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -86122,12 +85744,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/LineHeight.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/LineHeight.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/ListPosition.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -86234,12 +85850,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/TextDecoration.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/typography/TextDecoration.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/video/Autoplay.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -103227,12 +102837,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs/extend/CheckCircle.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/docs/extend/CheckCircle.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/docs/extend/CheckCircle.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -110133,12 +109737,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Angular.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Angular.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/ArrowLeft.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -110158,12 +109756,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/ArrowLeft.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/ArrowLeft.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/ArrowLeft.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -110190,12 +109782,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/ArrowRight.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/ArrowRight.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/ArrowRight.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -110263,12 +109849,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/China.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/China.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Clipboard.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -110288,12 +109868,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Clipboard.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Clipboard.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Clipboard.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -110320,12 +109894,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/CoinbaseWallet.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/CoinbaseWallet.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Combinator.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -110382,12 +109950,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Community.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Community.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Dev.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -110449,14 +110011,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Discord.svelte|textDocument/definition": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Discord.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Dribble.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -110478,12 +110032,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Dribble.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Dribble.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Dribble.svelte|textDocument/hover": [
 			"ts-render-union-order"
@@ -110581,12 +110129,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Figma.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Figma.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/FlowbiteLogo.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -110604,12 +110146,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/FlowbiteLogo.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/FlowbiteLogo.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Fortmatic.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -110631,12 +110167,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Fortmatic.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Fortmatic.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Germany.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -110656,12 +110186,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Germany.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Germany.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/GitHub.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -110781,12 +110305,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Italy.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Italy.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Italy.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -110851,12 +110369,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/MetaMask.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/MetaMask.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Moon.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -110913,12 +110425,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Npm.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Npm.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/OperaWallet.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -110941,12 +110447,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/OperaWallet.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/OperaWallet.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Quote.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -110964,12 +110464,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Quote.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Quote.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/React.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -110990,12 +110484,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/React.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/React.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Reddit.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -111113,12 +110601,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Usa.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Usa.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Usa.svelte|textDocument/hover": [
 			"css-data",
 			"ts-render-union-order"
@@ -111146,12 +110628,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Vue.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/Vue.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/WalletConnect.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -111181,12 +110657,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/WalletConnect.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/WalletConnect.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/WalletConnect.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -111213,12 +110683,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/YouTube.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/YouTube.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/YouTubeFull.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -111236,12 +110700,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/YouTubeFull.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/flowbite-svelte/src/routes/utils/icons/YouTubeFull.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/flowbite-svelte/src/tests/button/basic-button.test.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -119361,12 +118819,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta-mobile.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta-mobile.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -119390,12 +118842,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/customizer.svelte|textDocument/completion": [
 			"completion-additional-text-edits-presence-official-only",
@@ -123857,12 +123303,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/site-footer.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/site-footer.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/site-header.svelte|textDocument/completion": [
 			"completion-additional-text-edits-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -124143,12 +123583,6 @@
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/svelte-white.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/svelte-white.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/svelte-white.svelte|textDocument/hover": [
 			"ts-render-union-order"
 		],
@@ -124244,14 +123678,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-item-set-missing-ts",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/tailwind-indicator.svelte|textDocument/definition": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/tailwind-indicator.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range",
-			"projection-target-position-workspace"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/tailwind-indicator.svelte|textDocument/hover": [
 			"html-data",
@@ -131905,12 +131331,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/blocks/dashboard-01/components/data-table-header-limit.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/blocks/dashboard-01/components/data-table-header-limit.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/blocks/dashboard-01/components/data-table-header-target.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -131926,12 +131346,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/blocks/dashboard-01/components/data-table-header-target.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/blocks/dashboard-01/components/data-table-header-target.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/blocks/dashboard-01/components/data-table-limit.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -181507,12 +180921,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-angle.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-angle.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-angle.svelte|textDocument/hover": [
 			"rsvelte-empty"
 		],
@@ -181539,12 +180947,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-color.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-color.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-color.svelte|textDocument/hover": [
 			"rsvelte-empty"
 		],
@@ -181568,12 +180970,6 @@
 			"completion-item-set-missing-html",
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-demo.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-demo.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-demo.svelte|textDocument/hover": [
 			"rsvelte-empty"
@@ -181602,12 +180998,6 @@
 			"completion-item-set-missing-html-close-tag",
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-duration.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-duration.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-duration.svelte|textDocument/hover": [
 			"rsvelte-empty"
@@ -181684,12 +181074,6 @@
 			"completion-item-set-missing-html-close-tag",
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-none.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-none.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-none.svelte|textDocument/hover": [
 			"rsvelte-empty"
@@ -181785,12 +181169,6 @@
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-rtl.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-rtl.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-rtl.svelte|textDocument/hover": [
 			"rsvelte-empty"
 		],
@@ -181818,12 +181196,6 @@
 			"completion-item-set-missing-html-close-tag",
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-spread.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-spread.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/shimmer-spread.svelte|textDocument/hover": [
 			"rsvelte-empty"
@@ -183629,12 +183001,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-blockquote.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-blockquote.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-demo.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -183654,12 +183020,6 @@
 			"completion-item-set-missing-html",
 			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-demo.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-demo.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-demo.svelte|textDocument/hover": [
 			"rsvelte-empty"
@@ -183683,12 +183043,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h1.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h1.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h2.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -183704,12 +183058,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h2.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h2.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h3.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -183727,12 +183075,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h3.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h3.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h4.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -183749,12 +183091,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h4.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-h4.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-inline-code.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-item-set-extra-ts",
@@ -183766,12 +183102,6 @@
 			"completion-item-set-extra-ts",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-inline-code.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-inline-code.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-large.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -183788,12 +183118,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-large.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-large.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-lead.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -183813,12 +183137,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-lead.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-lead.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-list.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -183834,12 +183152,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-list.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-list.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-muted.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -183859,12 +183171,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-muted.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-muted.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-p.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -183883,12 +183189,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-p.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-p.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-small.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -183905,12 +183205,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-small.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-small.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-table.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -183926,12 +183220,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-table.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/typography-table.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/icons/logos/hugeicons.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -213051,12 +212339,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/examples/dashboard/components/data-table-header-limit.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/examples/dashboard/components/data-table-header-limit.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/examples/dashboard/components/data-table-header-target.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-is-incomplete",
@@ -213072,12 +212354,6 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/examples/dashboard/components/data-table-header-target.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/examples/dashboard/components/data-table-header-target.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/examples/dashboard/components/data-table-limit.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -216409,12 +215685,6 @@
 			"completion-item-set-missing-html",
 			"completion-text-edit-range-end"
 		],
-		"aggregate:corpus/shadcn-svelte/sv-addons/registry/template/src/lib/registry/blocks/hello-world/hello-world.svelte|textDocument/definition": [
-			"projection-origin-range"
-		],
-		"aggregate:corpus/shadcn-svelte/sv-addons/registry/template/src/lib/registry/blocks/hello-world/hello-world.svelte|textDocument/definition|phase=edit": [
-			"projection-origin-range"
-		],
 		"aggregate:corpus/shadcn-svelte/sv-addons/registry/template/src/lib/registry/ui/button/button.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
@@ -217639,13 +216909,13 @@
 		"differential:fixtures/html-smoke-completions|textDocument/completion|0:1|phase=edit|/items:missing-rsvelte[count=1053,hash=7a797aef55ef]": [
 			"completion-item-set-missing-mixed"
 		],
-		"differential:fixtures/html-smoke-directive-completion|textDocument/completion|0:6|/items:extra-rsvelte[count=431,hash=236c0cbffae6]": [
+		"differential:fixtures/html-smoke-directive-completion|textDocument/completion|0:6|/items:extra-rsvelte[count=441,hash=ae6ccfefd6bd]": [
 			"completion-item-set-extra-ts"
 		],
 		"differential:fixtures/html-smoke-directive-completion|textDocument/completion|0:6|/items:missing-rsvelte[count=998,hash=3e9eda569451]": [
 			"completion-item-set-missing-mixed"
 		],
-		"differential:fixtures/html-smoke-directive-completion|textDocument/completion|0:6|phase=edit|/items:extra-rsvelte[count=431,hash=236c0cbffae6]": [
+		"differential:fixtures/html-smoke-directive-completion|textDocument/completion|0:6|phase=edit|/items:extra-rsvelte[count=441,hash=ae6ccfefd6bd]": [
 			"completion-item-set-extra-ts"
 		],
 		"differential:fixtures/html-smoke-directive-completion|textDocument/completion|0:6|phase=edit|/items:missing-rsvelte[count=998,hash=3e9eda569451]": [
@@ -217975,16 +217245,16 @@
 		"differential:upstream-features/$$props-invalid3/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=b2bc79a6a7cf]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/$$props-usage/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=2ca2eb71e922]": [
+		"differential:upstream-features/$$props-usage/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=5e3a27d178b4]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-features/$$props-usage/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=3,hash=5ca2b1bbacba]": [
+		"differential:upstream-features/$$props-usage/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=d9d290cc0022]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/$$props-usage/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=2ca2eb71e922]": [
+		"differential:upstream-features/$$props-usage/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=5e3a27d178b4]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-features/$$props-usage/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=5ca2b1bbacba]": [
+		"differential:upstream-features/$$props-usage/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=d9d290cc0022]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"differential:upstream-features/$$props-valid/input.svelte|textDocument/diagnostic|/items/@diagnostic-8c5bf2efce0e/range/end/character:value-mismatch[official=35135aaa6cc2,rsvelte=6f4b6612125f]": [
@@ -218023,16 +217293,16 @@
 		"differential:upstream-features/$$slots-usage/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=807d0e73a258]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/$$slots/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=5,hash=c8138f3a3eb1]": [
+		"differential:upstream-features/$$slots/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=adc04cf00ce3]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-features/$$slots/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=5,hash=9ea894242b28]": [
+		"differential:upstream-features/$$slots/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=bf43f0521f81]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/$$slots/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=5,hash=c8138f3a3eb1]": [
+		"differential:upstream-features/$$slots/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=adc04cf00ce3]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-features/$$slots/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=5,hash=9ea894242b28]": [
+		"differential:upstream-features/$$slots/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=bf43f0521f81]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"differential:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=6,hash=00b9e7e2a457]": [
@@ -218089,16 +217359,16 @@
 		"differential:upstream-features/actions-animations-transitions-typechecks/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=044a353869d3]": [
 			"diagnostic-item-set-missing-mixed"
 		],
-		"differential:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=8c51c1b59695]": [
+		"differential:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=27e01c261c6f]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=b81123f9d124]": [
+		"differential:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=00b99709ec19]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=8c51c1b59695]": [
+		"differential:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=27e01c261c6f]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=b81123f9d124]": [
+		"differential:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=00b99709ec19]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"differential:upstream-features/animation/input.svelte|textDocument/inlayHint|/:value-mismatch[official=74234e98afe7,rsvelte=f6c0990a1ceb]": [
@@ -218239,16 +217509,22 @@
 		"differential:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=9,hash=4309595352ac]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=26,hash=9419cbecd52c]": [
+		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items/@diagnostic-fa9731980a6c/message:value-mismatch[official=e512d2c89d45,rsvelte=2fc4543450de]": [
+			"diagnostic-item-message"
+		],
+		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=19,hash=75aca42c2e0c]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=9,hash=bbe3f8525be6]": [
+		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=4e95e45a02cc]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=26,hash=9419cbecd52c]": [
+		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-fa9731980a6c/message:value-mismatch[official=e512d2c89d45,rsvelte=2fc4543450de]": [
+			"diagnostic-item-message"
+		],
+		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=19,hash=75aca42c2e0c]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=9,hash=bbe3f8525be6]": [
+		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=4e95e45a02cc]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"differential:upstream-features/checkjs-nostrict/each-anytype/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=68985ce1b137]": [
@@ -218269,16 +217545,16 @@
 		"differential:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=11,hash=0a8caa536353]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=26,hash=9419cbecd52c]": [
+		"differential:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=17,hash=1be5f176c9fc]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=11,hash=6ccb0b24d707]": [
+		"differential:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=4e95e45a02cc]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=26,hash=9419cbecd52c]": [
+		"differential:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=17,hash=1be5f176c9fc]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=11,hash=6ccb0b24d707]": [
+		"differential:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=4e95e45a02cc]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"differential:upstream-features/checkjs/no-script-tag/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=0223df0efbe9]": [
@@ -218305,16 +217581,16 @@
 		"differential:upstream-features/component-handler/input.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=2,hash=b72158767a7a]": [
 			"inlay-hint-set-missing-mixed"
 		],
-		"differential:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=13,hash=e0a73848ba48]": [
+		"differential:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=12,hash=b6b71fed8b72]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=5,hash=7dafee039e68]": [
+		"differential:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=4,hash=5436eec80ab7]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=13,hash=e0a73848ba48]": [
+		"differential:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=12,hash=b6b71fed8b72]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=5,hash=7dafee039e68]": [
+		"differential:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=4,hash=5436eec80ab7]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"differential:upstream-features/const-tag/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=6a27c33c1530]": [
@@ -218323,17 +217599,17 @@
 		"differential:upstream-features/const-tag/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=6a27c33c1530]": [
 			"diagnostic-item-set-extra-rsvelte"
 		],
-		"differential:upstream-features/custom-types/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=12,hash=5d9b66690964]": [
-			"diagnostic-item-set-extra-ts"
+		"differential:upstream-features/custom-types/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=10,hash=c32c433c6cc3]": [
+			"diagnostic-mixed"
 		],
-		"differential:upstream-features/custom-types/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=10,hash=db609910b9f1]": [
-			"diagnostic-item-set-missing-ts"
+		"differential:upstream-features/custom-types/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=8,hash=4d86e150c0b4]": [
+			"diagnostic-mixed"
 		],
-		"differential:upstream-features/custom-types/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=12,hash=5d9b66690964]": [
-			"diagnostic-item-set-extra-ts"
+		"differential:upstream-features/custom-types/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=10,hash=c32c433c6cc3]": [
+			"diagnostic-mixed"
 		],
-		"differential:upstream-features/custom-types/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=10,hash=db609910b9f1]": [
-			"diagnostic-item-set-missing-ts"
+		"differential:upstream-features/custom-types/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=8,hash=4d86e150c0b4]": [
+			"diagnostic-mixed"
 		],
 		"differential:upstream-features/declaration-tag.v5/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=68985ce1b137]": [
 			"diagnostic-item-set-extra-rsvelte"
@@ -218413,18 +217689,6 @@
 		"differential:upstream-features/each/input.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=1,hash=f98ceb372e26]": [
 			"inlay-hint-set-missing-type"
 		],
-		"differential:upstream-features/element-attributes/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=49fa988af705]": [
-			"diagnostic-item-set-extra-ts"
-		],
-		"differential:upstream-features/element-attributes/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=5d65c4e9a0af]": [
-			"diagnostic-item-set-missing-ts"
-		],
-		"differential:upstream-features/element-attributes/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=49fa988af705]": [
-			"diagnostic-item-set-extra-ts"
-		],
-		"differential:upstream-features/element-attributes/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=5d65c4e9a0af]": [
-			"diagnostic-item-set-missing-ts"
-		],
 		"differential:upstream-features/element-events/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=10,hash=b2b309096410]": [
 			"diagnostic-item-set-extra-mixed"
 		],
@@ -218461,28 +217725,22 @@
 		"differential:upstream-features/function-call-in-props/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=4,hash=3ceb12a98b96]": [
 			"inlay-hint-set-extra-mixed"
 		],
-		"differential:upstream-features/generics-runes.v5/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=ceaefe750c8a]": [
+		"differential:upstream-features/generics-runes.v5/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=379fee6d5b94]": [
+			"diagnostic-item-set-extra-rsvelte"
+		],
+		"differential:upstream-features/generics-runes.v5/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=379fee6d5b94]": [
+			"diagnostic-item-set-extra-rsvelte"
+		],
+		"differential:upstream-features/generics/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=7,hash=fcfc8ff92af6]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/generics-runes.v5/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=92dd7694a798]": [
+		"differential:upstream-features/generics/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=d43ed1f21238]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/generics-runes.v5/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=ceaefe750c8a]": [
+		"differential:upstream-features/generics/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=7,hash=fcfc8ff92af6]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/generics-runes.v5/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=92dd7694a798]": [
-			"diagnostic-item-set-missing-ts"
-		],
-		"differential:upstream-features/generics/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=9,hash=fa6f4854e850]": [
-			"diagnostic-item-set-extra-mixed"
-		],
-		"differential:upstream-features/generics/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=3,hash=c82acac280c0]": [
-			"diagnostic-item-set-missing-ts"
-		],
-		"differential:upstream-features/generics/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=9,hash=fa6f4854e850]": [
-			"diagnostic-item-set-extra-mixed"
-		],
-		"differential:upstream-features/generics/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=c82acac280c0]": [
+		"differential:upstream-features/generics/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=d43ed1f21238]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"differential:upstream-features/if-block/input.svelte|textDocument/foldingRange|:extra-rsvelte[count=3,hash=c661d4a4433d]": [
@@ -218515,17 +217773,11 @@
 		"differential:upstream-features/ignore-false-positives/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=4,hash=9fe7bb401f6b]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/ignore-generated-code/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=536c3c2c072c]": [
+		"differential:upstream-features/ignore-generated-code/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=651129229444]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/ignore-generated-code/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=ad2355a9a83b]": [
-			"diagnostic-item-set-missing-ts"
-		],
-		"differential:upstream-features/ignore-generated-code/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=536c3c2c072c]": [
+		"differential:upstream-features/ignore-generated-code/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=651129229444]": [
 			"diagnostic-item-set-extra-mixed"
-		],
-		"differential:upstream-features/ignore-generated-code/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=ad2355a9a83b]": [
-			"diagnostic-item-set-missing-ts"
 		],
 		"differential:upstream-features/implicit-snippet.v5/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=ba5ae65db1b8]": [
 			"diagnostic-item-set-extra-ts"
@@ -218743,28 +217995,16 @@
 		"differential:upstream-features/svelte-element-error/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=76f37368bcf6]": [
 			"diagnostic-mixed"
 		],
-		"differential:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=5bc24f17e225]": [
-			"diagnostic-item-set-extra-ts"
-		],
-		"differential:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=fe6c78bb04c5]": [
-			"diagnostic-item-set-missing-ts"
-		],
-		"differential:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=5bc24f17e225]": [
-			"diagnostic-item-set-extra-ts"
-		],
-		"differential:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=fe6c78bb04c5]": [
-			"diagnostic-item-set-missing-ts"
-		],
 		"differential:upstream-features/svelte-native/input.svelte|textDocument/diagnostic|/items/@diagnostic-40d9ef56b9ec/range/end/character:value-mismatch[official=4fc82b26aecb,rsvelte=6b51d431df5d]": [
 			"diagnostic-item-range-end"
 		],
-		"differential:upstream-features/svelte-native/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=4,hash=f518cda5d51a]": [
+		"differential:upstream-features/svelte-native/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=4,hash=2ce84352207f]": [
 			"diagnostic-item-set-extra-ts"
 		],
 		"differential:upstream-features/svelte-native/input.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-40d9ef56b9ec/range/end/character:value-mismatch[official=4fc82b26aecb,rsvelte=6b51d431df5d]": [
 			"diagnostic-item-range-end"
 		],
-		"differential:upstream-features/svelte-native/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=4,hash=f518cda5d51a]": [
+		"differential:upstream-features/svelte-native/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=4,hash=2ce84352207f]": [
 			"diagnostic-item-set-extra-ts"
 		],
 		"differential:upstream-features/sveltekit-autotypings-arrow/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=ba5ae65db1b8]": [
@@ -218959,13 +218199,13 @@
 		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=6ca523e30dd2]": [
 			"diagnostic-mixed"
 		],
-		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=bbb3f62d14e2]": [
+		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=38c00860d2ed]": [
 			"document-symbol-mixed-range-set-extra"
 		],
 		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/documentSymbol|:missing-rsvelte[count=1,hash=fb95664dc9f9]": [
 			"document-symbol-range"
 		],
-		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=2,hash=bbb3f62d14e2]": [
+		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=2,hash=38c00860d2ed]": [
 			"document-symbol-mixed-range-set-extra"
 		],
 		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=fb95664dc9f9]": [
@@ -219985,13 +219225,13 @@
 		"differential:upstream-testfiles/completions/component-events-completion-ts-def.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=35253509122b]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-testfiles/completions/component-events-completion-ts-def.svelte|textDocument/documentSymbol|:extra-rsvelte[count=18,hash=ab1f9fea4a1b]": [
+		"differential:upstream-testfiles/completions/component-events-completion-ts-def.svelte|textDocument/documentSymbol|:extra-rsvelte[count=18,hash=50142a5e451c]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/completions/component-events-completion-ts-def.svelte|textDocument/documentSymbol|:missing-rsvelte[count=6,hash=8c81af2f7b8b]": [
 			"document-symbol-mixed-kind-range"
 		],
-		"differential:upstream-testfiles/completions/component-events-completion-ts-def.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=18,hash=ab1f9fea4a1b]": [
+		"differential:upstream-testfiles/completions/component-events-completion-ts-def.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=18,hash=50142a5e451c]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/completions/component-events-completion-ts-def.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=6,hash=8c81af2f7b8b]": [
@@ -220003,25 +219243,25 @@
 		"differential:upstream-testfiles/completions/component-events-completion-ts-def.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=231652d55144]": [
 			"official-empty"
 		],
-		"differential:upstream-testfiles/completions/component-events-completion.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=4,hash=dd2623eb57b5]": [
+		"differential:upstream-testfiles/completions/component-events-completion.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=062990dd3c71]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-testfiles/completions/component-events-completion.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=3,hash=acf808d11a41]": [
+		"differential:upstream-testfiles/completions/component-events-completion.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=14ae9f1059e3]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-testfiles/completions/component-events-completion.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=4,hash=dd2623eb57b5]": [
+		"differential:upstream-testfiles/completions/component-events-completion.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=062990dd3c71]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-testfiles/completions/component-events-completion.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=acf808d11a41]": [
+		"differential:upstream-testfiles/completions/component-events-completion.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=14ae9f1059e3]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-testfiles/completions/component-events-completion.svelte|textDocument/documentSymbol|:extra-rsvelte[count=15,hash=6741a4f7a9c2]": [
+		"differential:upstream-testfiles/completions/component-events-completion.svelte|textDocument/documentSymbol|:extra-rsvelte[count=15,hash=f1930584a64c]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/completions/component-events-completion.svelte|textDocument/documentSymbol|:missing-rsvelte[count=5,hash=a6a43d9155a4]": [
 			"document-symbol-mixed-kind-range"
 		],
-		"differential:upstream-testfiles/completions/component-events-completion.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=15,hash=6741a4f7a9c2]": [
+		"differential:upstream-testfiles/completions/component-events-completion.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=15,hash=f1930584a64c]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/completions/component-events-completion.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=5,hash=a6a43d9155a4]": [
@@ -220213,13 +219453,13 @@
 		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=18,hash=8fdfae3d44c2]": [
 			"diagnostic-mixed"
 		],
-		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/documentSymbol|:extra-rsvelte[count=35,hash=e0dbe516f3f3]": [
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/documentSymbol|:extra-rsvelte[count=35,hash=1bd908e6ca16]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/documentSymbol|:missing-rsvelte[count=18,hash=608116b5c142]": [
 			"document-symbol-mixed-kind-range-set-missing"
 		],
-		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=35,hash=e0dbe516f3f3]": [
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=35,hash=1bd908e6ca16]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=18,hash=608116b5c142]": [
@@ -220273,13 +219513,13 @@
 		"differential:upstream-testfiles/completions/emptytext-imported.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=4f53cda18c2b,rsvelte=74234e98afe7]": [
 			"empty-result-spelling-inlay-hint"
 		],
-		"differential:upstream-testfiles/completions/emptytext-importer.svelte|textDocument/documentSymbol|:extra-rsvelte[count=7,hash=92594dc20179]": [
+		"differential:upstream-testfiles/completions/emptytext-importer.svelte|textDocument/documentSymbol|:extra-rsvelte[count=7,hash=26c4b5f18207]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/completions/emptytext-importer.svelte|textDocument/documentSymbol|:missing-rsvelte[count=3,hash=c66d2c6bc301]": [
 			"document-symbol-mixed-kind-range"
 		],
-		"differential:upstream-testfiles/completions/emptytext-importer.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=7,hash=92594dc20179]": [
+		"differential:upstream-testfiles/completions/emptytext-importer.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=7,hash=26c4b5f18207]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/completions/emptytext-importer.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=3,hash=c66d2c6bc301]": [
@@ -220861,13 +220101,13 @@
 		"differential:upstream-testfiles/completions/namespaced.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=5,hash=ac42efd80363]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-testfiles/completions/namespaced.svelte|textDocument/documentSymbol|:extra-rsvelte[count=31,hash=32e477d6d974]": [
+		"differential:upstream-testfiles/completions/namespaced.svelte|textDocument/documentSymbol|:extra-rsvelte[count=31,hash=f79454684617]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/completions/namespaced.svelte|textDocument/documentSymbol|:missing-rsvelte[count=10,hash=0f6049b0ea98]": [
 			"document-symbol-mixed-kind-range"
 		],
-		"differential:upstream-testfiles/completions/namespaced.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=31,hash=32e477d6d974]": [
+		"differential:upstream-testfiles/completions/namespaced.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=31,hash=f79454684617]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/completions/namespaced.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=10,hash=0f6049b0ea98]": [
@@ -221341,13 +220581,13 @@
 		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=4,hash=010b8393e10c]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/documentSymbol|:extra-rsvelte[count=31,hash=8c5eb46537d6]": [
+		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/documentSymbol|:extra-rsvelte[count=31,hash=433adcf19327]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/documentSymbol|:missing-rsvelte[count=14,hash=06e48a4fdea8]": [
 			"document-symbol-mixed-kind-range-set-missing"
 		],
-		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=31,hash=8c5eb46537d6]": [
+		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=31,hash=433adcf19327]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=14,hash=06e48a4fdea8]": [
@@ -221683,13 +220923,13 @@
 		"differential:upstream-testfiles/hover/hoverinfo.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=f7c9b506d935]": [
 			"diagnostic-identity-source"
 		],
-		"differential:upstream-testfiles/hover/hoverinfo.svelte|textDocument/documentSymbol|:extra-rsvelte[count=13,hash=229a1f3a47d1]": [
+		"differential:upstream-testfiles/hover/hoverinfo.svelte|textDocument/documentSymbol|:extra-rsvelte[count=13,hash=7706e4df824e]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/hover/hoverinfo.svelte|textDocument/documentSymbol|:missing-rsvelte[count=8,hash=7b14595b3a0e]": [
 			"document-symbol-mixed-kind-range-set-missing"
 		],
-		"differential:upstream-testfiles/hover/hoverinfo.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=13,hash=229a1f3a47d1]": [
+		"differential:upstream-testfiles/hover/hoverinfo.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=13,hash=7706e4df824e]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/hover/hoverinfo.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=8,hash=7b14595b3a0e]": [
@@ -221773,13 +221013,13 @@
 		"differential:upstream-testfiles/performance.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=4,hash=c788b1dca00b]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-testfiles/performance.svelte|textDocument/documentSymbol|:extra-rsvelte[count=12,hash=5436e50a4b0c]": [
+		"differential:upstream-testfiles/performance.svelte|textDocument/documentSymbol|:extra-rsvelte[count=12,hash=f7e5b934eeea]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/performance.svelte|textDocument/documentSymbol|:missing-rsvelte[count=7,hash=672d558117da]": [
 			"document-symbol-mixed-kind-range-set-missing"
 		],
-		"differential:upstream-testfiles/performance.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=12,hash=5436e50a4b0c]": [
+		"differential:upstream-testfiles/performance.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=12,hash=f7e5b934eeea]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/performance.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=7,hash=672d558117da]": [
@@ -221947,25 +221187,25 @@
 		"differential:upstream-testfiles/rename/rename-prop-with-slot-events.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=bb24dd10af95]": [
 			"diagnostic-identity-source"
 		],
-		"differential:upstream-testfiles/rename/rename-prop-with-slot-events.svelte|textDocument/documentSymbol|:extra-rsvelte[count=7,hash=ebd13c506983]": [
+		"differential:upstream-testfiles/rename/rename-prop-with-slot-events.svelte|textDocument/documentSymbol|:extra-rsvelte[count=7,hash=384c0a54c432]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/rename/rename-prop-with-slot-events.svelte|textDocument/documentSymbol|:missing-rsvelte[count=6,hash=e3d2b6e659e5]": [
 			"document-symbol-mixed-kind-range-set-missing"
 		],
-		"differential:upstream-testfiles/rename/rename-prop-with-slot-events.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=7,hash=ebd13c506983]": [
+		"differential:upstream-testfiles/rename/rename-prop-with-slot-events.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=7,hash=384c0a54c432]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/rename/rename-prop-with-slot-events.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=6,hash=e3d2b6e659e5]": [
 			"document-symbol-mixed-kind-range-set-missing"
 		],
-		"differential:upstream-testfiles/rename/rename-runes-importer.svelte|textDocument/documentSymbol|:extra-rsvelte[count=15,hash=6f837fea57ee]": [
+		"differential:upstream-testfiles/rename/rename-runes-importer.svelte|textDocument/documentSymbol|:extra-rsvelte[count=15,hash=ba9833ffd5b7]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/rename/rename-runes-importer.svelte|textDocument/documentSymbol|:missing-rsvelte[count=5,hash=3c63128a6449]": [
 			"document-symbol-mixed-kind-range"
 		],
-		"differential:upstream-testfiles/rename/rename-runes-importer.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=15,hash=6f837fea57ee]": [
+		"differential:upstream-testfiles/rename/rename-runes-importer.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=15,hash=ba9833ffd5b7]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/rename/rename-runes-importer.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=5,hash=3c63128a6449]": [
@@ -221995,13 +221235,13 @@
 		"differential:upstream-testfiles/rename/rename-runes.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=4f53cda18c2b,rsvelte=74234e98afe7]": [
 			"empty-result-spelling-inlay-hint"
 		],
-		"differential:upstream-testfiles/rename/rename-shorthand.svelte|textDocument/documentSymbol|:extra-rsvelte[count=22,hash=5e46c8b5b8eb]": [
+		"differential:upstream-testfiles/rename/rename-shorthand.svelte|textDocument/documentSymbol|:extra-rsvelte[count=22,hash=f9dfd9ad64dd]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/rename/rename-shorthand.svelte|textDocument/documentSymbol|:missing-rsvelte[count=7,hash=b7d1025d5241]": [
 			"document-symbol-mixed-kind-range"
 		],
-		"differential:upstream-testfiles/rename/rename-shorthand.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=22,hash=5e46c8b5b8eb]": [
+		"differential:upstream-testfiles/rename/rename-shorthand.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=22,hash=f9dfd9ad64dd]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/rename/rename-shorthand.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=7,hash=b7d1025d5241]": [
@@ -222013,13 +221253,13 @@
 		"differential:upstream-testfiles/rename/rename-slot-events-importer.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=d1fc8e660ad0]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-testfiles/rename/rename-slot-events-importer.svelte|textDocument/documentSymbol|:extra-rsvelte[count=11,hash=124ea0a14544]": [
+		"differential:upstream-testfiles/rename/rename-slot-events-importer.svelte|textDocument/documentSymbol|:extra-rsvelte[count=11,hash=7943c57064d7]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/rename/rename-slot-events-importer.svelte|textDocument/documentSymbol|:missing-rsvelte[count=5,hash=1362bb9c0fd8]": [
 			"document-symbol-mixed-kind-range-set-missing"
 		],
-		"differential:upstream-testfiles/rename/rename-slot-events-importer.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=11,hash=124ea0a14544]": [
+		"differential:upstream-testfiles/rename/rename-slot-events-importer.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=11,hash=7943c57064d7]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/rename/rename-slot-events-importer.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=5,hash=1362bb9c0fd8]": [
@@ -222103,13 +221343,13 @@
 		"differential:upstream-testfiles/rename/rename2.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=a967083565e6]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-testfiles/rename/rename2.svelte|textDocument/documentSymbol|:extra-rsvelte[count=15,hash=335e72c18637]": [
+		"differential:upstream-testfiles/rename/rename2.svelte|textDocument/documentSymbol|:extra-rsvelte[count=15,hash=8f7b9c7ed9a5]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/rename/rename2.svelte|textDocument/documentSymbol|:missing-rsvelte[count=6,hash=1cf9e1c48e94]": [
 			"document-symbol-mixed-kind-range"
 		],
-		"differential:upstream-testfiles/rename/rename2.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=15,hash=335e72c18637]": [
+		"differential:upstream-testfiles/rename/rename2.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=15,hash=8f7b9c7ed9a5]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/rename/rename2.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=6,hash=1cf9e1c48e94]": [
@@ -222319,13 +221559,13 @@
 		"differential:upstream-testfiles/semantic-tokens/tokens.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=796aa282ee3a]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-testfiles/semantic-tokens/tokens.svelte|textDocument/documentSymbol|:extra-rsvelte[count=12,hash=44c0e07d51f7]": [
+		"differential:upstream-testfiles/semantic-tokens/tokens.svelte|textDocument/documentSymbol|:extra-rsvelte[count=12,hash=a99747389816]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/semantic-tokens/tokens.svelte|textDocument/documentSymbol|:missing-rsvelte[count=5,hash=7ad9509f505c]": [
 			"document-symbol-mixed-kind-range-set-missing"
 		],
-		"differential:upstream-testfiles/semantic-tokens/tokens.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=12,hash=44c0e07d51f7]": [
+		"differential:upstream-testfiles/semantic-tokens/tokens.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=12,hash=a99747389816]": [
 			"document-symbol-mixed-kind-range-set-extra"
 		],
 		"differential:upstream-testfiles/semantic-tokens/tokens.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=5,hash=7ad9509f505c]": [
@@ -222625,16 +221865,16 @@
 		"expected:upstream-features/$$props-invalid3/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=536a05445729]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/$$props-usage/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=2ca2eb71e922]": [
+		"expected:upstream-features/$$props-usage/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=5e3a27d178b4]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"expected:upstream-features/$$props-usage/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=3,hash=5ca2b1bbacba]": [
+		"expected:upstream-features/$$props-usage/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=d9d290cc0022]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/$$props-usage/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=2ca2eb71e922]": [
+		"expected:upstream-features/$$props-usage/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=5e3a27d178b4]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"expected:upstream-features/$$props-usage/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=5ca2b1bbacba]": [
+		"expected:upstream-features/$$props-usage/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=d9d290cc0022]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"expected:upstream-features/$$props-valid/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=864d192f4e29]": [
@@ -222673,16 +221913,16 @@
 		"expected:upstream-features/$$slots-usage/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=807d0e73a258]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/$$slots/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=5,hash=c8138f3a3eb1]": [
+		"expected:upstream-features/$$slots/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=adc04cf00ce3]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"expected:upstream-features/$$slots/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=5,hash=9ea894242b28]": [
+		"expected:upstream-features/$$slots/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=bf43f0521f81]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/$$slots/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=5,hash=c8138f3a3eb1]": [
+		"expected:upstream-features/$$slots/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=adc04cf00ce3]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"expected:upstream-features/$$slots/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=5,hash=9ea894242b28]": [
+		"expected:upstream-features/$$slots/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=bf43f0521f81]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"expected:upstream-features/$$slots/input.svelte|textDocument/inlayHint|/:value-mismatch[official=4f53cda18c2b,rsvelte=74234e98afe7]": [
@@ -222751,16 +221991,16 @@
 		"expected:upstream-features/actions-animations-transitions-typechecks/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=fb8c884fc271]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=5,hash=16c7bd38d02a]": [
+		"expected:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=4,hash=2f6b5ce9657f]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=b81123f9d124]": [
+		"expected:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=00b99709ec19]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=5,hash=16c7bd38d02a]": [
+		"expected:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=4,hash=2f6b5ce9657f]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=b81123f9d124]": [
+		"expected:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=00b99709ec19]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"expected:upstream-features/animation/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=8,hash=c924dd6ee2a3]": [
@@ -222907,16 +222147,22 @@
 		"expected:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=9,hash=4309595352ac]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=26,hash=9419cbecd52c]": [
+		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items/@diagnostic-fa9731980a6c/message:value-mismatch[official=e512d2c89d45,rsvelte=2fc4543450de]": [
+			"diagnostic-item-message"
+		],
+		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=19,hash=75aca42c2e0c]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=9,hash=bbe3f8525be6]": [
+		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=4e95e45a02cc]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=26,hash=9419cbecd52c]": [
+		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-fa9731980a6c/message:value-mismatch[official=e512d2c89d45,rsvelte=2fc4543450de]": [
+			"diagnostic-item-message"
+		],
+		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=19,hash=75aca42c2e0c]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=9,hash=bbe3f8525be6]": [
+		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=4e95e45a02cc]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"expected:upstream-features/checkjs-nostrict/each-anytype/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=68985ce1b137]": [
@@ -222943,16 +222189,16 @@
 		"expected:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=11,hash=0a8caa536353]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"expected:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=26,hash=9419cbecd52c]": [
+		"expected:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=17,hash=1be5f176c9fc]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=11,hash=6ccb0b24d707]": [
+		"expected:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=4e95e45a02cc]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=26,hash=9419cbecd52c]": [
+		"expected:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=17,hash=1be5f176c9fc]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=11,hash=6ccb0b24d707]": [
+		"expected:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=4e95e45a02cc]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"expected:upstream-features/checkjs/no-script-tag/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=0223df0efbe9]": [
@@ -222979,16 +222225,16 @@
 		"expected:upstream-features/component-handler/input.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=2,hash=b72158767a7a]": [
 			"inlay-hint-set-missing-mixed"
 		],
-		"expected:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=13,hash=e0a73848ba48]": [
+		"expected:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=12,hash=b6b71fed8b72]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"expected:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=5,hash=7dafee039e68]": [
+		"expected:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=4,hash=5436eec80ab7]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=13,hash=e0a73848ba48]": [
+		"expected:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=12,hash=b6b71fed8b72]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"expected:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=5,hash=7dafee039e68]": [
+		"expected:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=4,hash=5436eec80ab7]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"expected:upstream-features/const-tag-if/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=bd9050eba2ec]": [
@@ -223003,17 +222249,17 @@
 		"expected:upstream-features/const-tag/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=6a27c33c1530]": [
 			"diagnostic-item-set-extra-rsvelte"
 		],
-		"expected:upstream-features/custom-types/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=26,hash=4b74283235e0]": [
-			"diagnostic-item-set-extra-mixed"
+		"expected:upstream-features/custom-types/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=24,hash=845509bb2e01]": [
+			"diagnostic-mixed"
 		],
-		"expected:upstream-features/custom-types/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=10,hash=db609910b9f1]": [
-			"diagnostic-item-set-missing-ts"
+		"expected:upstream-features/custom-types/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=8,hash=4d86e150c0b4]": [
+			"diagnostic-mixed"
 		],
-		"expected:upstream-features/custom-types/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=26,hash=4b74283235e0]": [
-			"diagnostic-item-set-extra-mixed"
+		"expected:upstream-features/custom-types/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=24,hash=845509bb2e01]": [
+			"diagnostic-mixed"
 		],
-		"expected:upstream-features/custom-types/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=10,hash=db609910b9f1]": [
-			"diagnostic-item-set-missing-ts"
+		"expected:upstream-features/custom-types/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=8,hash=4d86e150c0b4]": [
+			"diagnostic-mixed"
 		],
 		"expected:upstream-features/declaration-tag.v5/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=68985ce1b137]": [
 			"diagnostic-item-set-extra-rsvelte"
@@ -223093,17 +222339,11 @@
 		"expected:upstream-features/each/input.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=1,hash=f98ceb372e26]": [
 			"inlay-hint-set-missing-type"
 		],
-		"expected:upstream-features/element-attributes/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=5,hash=90cdba4c19c6]": [
-			"diagnostic-item-set-extra-mixed"
+		"expected:upstream-features/element-attributes/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=4,hash=f8cce7c76ba9]": [
+			"diagnostic-item-set-extra-svelte"
 		],
-		"expected:upstream-features/element-attributes/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=5d65c4e9a0af]": [
-			"diagnostic-item-set-missing-ts"
-		],
-		"expected:upstream-features/element-attributes/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=5,hash=90cdba4c19c6]": [
-			"diagnostic-item-set-extra-mixed"
-		],
-		"expected:upstream-features/element-attributes/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=5d65c4e9a0af]": [
-			"diagnostic-item-set-missing-ts"
+		"expected:upstream-features/element-attributes/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=4,hash=f8cce7c76ba9]": [
+			"diagnostic-item-set-extra-svelte"
 		],
 		"expected:upstream-features/element-events/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=20,hash=20502f6790ea]": [
 			"diagnostic-item-set-extra-mixed"
@@ -223141,28 +222381,22 @@
 		"expected:upstream-features/function-call-in-props/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=4,hash=3ceb12a98b96]": [
 			"inlay-hint-set-extra-mixed"
 		],
-		"expected:upstream-features/generics-runes.v5/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=ceaefe750c8a]": [
+		"expected:upstream-features/generics-runes.v5/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=379fee6d5b94]": [
+			"diagnostic-item-set-extra-rsvelte"
+		],
+		"expected:upstream-features/generics-runes.v5/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=379fee6d5b94]": [
+			"diagnostic-item-set-extra-rsvelte"
+		],
+		"expected:upstream-features/generics/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=7,hash=fcfc8ff92af6]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/generics-runes.v5/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=92dd7694a798]": [
+		"expected:upstream-features/generics/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=d43ed1f21238]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/generics-runes.v5/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=ceaefe750c8a]": [
+		"expected:upstream-features/generics/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=7,hash=fcfc8ff92af6]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/generics-runes.v5/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=92dd7694a798]": [
-			"diagnostic-item-set-missing-ts"
-		],
-		"expected:upstream-features/generics/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=9,hash=fa6f4854e850]": [
-			"diagnostic-item-set-extra-mixed"
-		],
-		"expected:upstream-features/generics/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=3,hash=c82acac280c0]": [
-			"diagnostic-item-set-missing-ts"
-		],
-		"expected:upstream-features/generics/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=9,hash=fa6f4854e850]": [
-			"diagnostic-item-set-extra-mixed"
-		],
-		"expected:upstream-features/generics/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=c82acac280c0]": [
+		"expected:upstream-features/generics/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=d43ed1f21238]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"expected:upstream-features/if-block/input.svelte|textDocument/foldingRange|:extra-rsvelte[count=3,hash=c661d4a4433d]": [
@@ -223195,17 +222429,11 @@
 		"expected:upstream-features/ignore-false-positives/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=6,hash=4edfe4fa557a]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/ignore-generated-code/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=536c3c2c072c]": [
+		"expected:upstream-features/ignore-generated-code/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=651129229444]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/ignore-generated-code/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=ad2355a9a83b]": [
-			"diagnostic-item-set-missing-ts"
-		],
-		"expected:upstream-features/ignore-generated-code/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=536c3c2c072c]": [
+		"expected:upstream-features/ignore-generated-code/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=651129229444]": [
 			"diagnostic-item-set-extra-mixed"
-		],
-		"expected:upstream-features/ignore-generated-code/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=ad2355a9a83b]": [
-			"diagnostic-item-set-missing-ts"
 		],
 		"expected:upstream-features/implicit-snippet.v5/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=ba5ae65db1b8]": [
 			"diagnostic-item-set-extra-ts"
@@ -223429,22 +222657,16 @@
 		"expected:upstream-features/svelte-element-error/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=bfa92efe289c]": [
 			"diagnostic-identity-source-and-code"
 		],
-		"expected:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=7d119f7e27df]": [
+		"expected:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=2aaa7183f2ec]": [
+			"diagnostic-item-set-extra-svelte"
+		],
+		"expected:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=2aaa7183f2ec]": [
+			"diagnostic-item-set-extra-svelte"
+		],
+		"expected:upstream-features/svelte-native/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=8,hash=e7820b5f8c00]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=fe6c78bb04c5]": [
-			"diagnostic-item-set-missing-ts"
-		],
-		"expected:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=7d119f7e27df]": [
-			"diagnostic-item-set-extra-mixed"
-		],
-		"expected:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=fe6c78bb04c5]": [
-			"diagnostic-item-set-missing-ts"
-		],
-		"expected:upstream-features/svelte-native/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=8,hash=21ec30293085]": [
-			"diagnostic-item-set-extra-mixed"
-		],
-		"expected:upstream-features/svelte-native/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=8,hash=21ec30293085]": [
+		"expected:upstream-features/svelte-native/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=8,hash=e7820b5f8c00]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"expected:upstream-features/sveltekit-autotypings-arrow/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=ba5ae65db1b8]": [

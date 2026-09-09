@@ -845,6 +845,11 @@ impl<'source> MagicString<'source> {
         }
     }
 
+    /// The original source this `MagicString` was built from.
+    pub fn original(&self) -> &'source str {
+        self.original
+    }
+
     /// Return the effective content of a chunk — either the replacement
     /// text (for edited chunks) or the corresponding slice of the original
     /// source (for unedited chunks).
