@@ -308,6 +308,19 @@ are in the archived file.
   residue marker**: `verify.mjs` caps both its NEW list and its stale list at `SHOW = 30` and
   prints no "and N more" in either direction (#4484), so a re-baseline sourced from a job log is
   silently a re-baseline of the first 30.
+- **A fabricated value does not have to be a number, and a non-numeric one defeats every check
+  people write.** The recorded fabrications are numeric — `|| echo 0`, a rejected timestamp, an
+  empty `comm`, a paging window's short count — so the defences are range checks, denominators
+  and "does this look plausible". A hash sweep over 33,623 live components reported `js.map MOVED = 0`
+  on every file because the NAPI `compile` returns `js.map` as an **object** and the harness
+  hashed `String(map)`: `"[object Object]"`, one constant, for every input. It hashes cleanly, it
+  is identical in both arms, and it is **stable across reruns** — reproducibility normally argues
+  *for* a result. The sibling field in the same record (`js.code`, a string) was measured
+  correctly throughout, so the table read as a well-formed half-zero. Nothing inside the run can
+  see it: the defence is a two-sided control run **before** the result is believed — here four
+  files, three whose maps must move and one that must not, which named the instrument in one
+  command (`MAP-MOVED x3 / map-same x1` only after the fix). Check the runtime **type** of every
+  value a sweep hashes, not just its name.
 - **A negative result needs a positive control, and a control must bypass a stage the
   measurement passed through.** `grep` here is a `ugrep --ignore-files` wrapper (`command
   grep`); quote every glob-shaped argument (`--include='*.svelte'`); a NUL byte makes
@@ -395,6 +408,20 @@ are in the archived file.
   varied only if the same cell with it removed is byte-equal; run that background arm before
   attributing, because the largest number in a grid is the likeliest to be two mechanisms added
   together.
+- **One symptom, several writers — a grid cannot see them, because writers are not an
+  input.** Four cells of one defect (a script-trailing comment kept, moved, or dropped before
+  the first template statement) turned out to be one root with **four different writers**: a
+  declarator's own flush, the block's end flush, `reset_comment_index`'s discard, and
+  `flush_trailing_comments` refusing an unlocated `next`. Widening the grid could not have shown
+  that — a grid varies inputs, and which function writes the byte is not one. Two mechanisms
+  were published off output shape first and both were wrong while citing real code that was not
+  on the path (a source map proved the "synthesized span" reason false; instrumentation proved
+  the "flushed before the first identifier carrying a source loc" reason false, the leading
+  flush having never fired in any cell). What named all four was **one filtered backtrace at the
+  write site**, printed beside a per-statement probe of the guard's own inputs. And the cell that
+  *agreed* was the expensive one: it agreed through a **different writer**, so it was
+  load-bearing evidence for an account it had nothing to do with — a stronger form of "a cell can
+  be EQ for a reason unrelated to what it is named", because here the reason was the account.
 - **A citation degrades per hop, and what survives the hop is what makes the claim more
   interesting.** The recorded form of this needs a recaller — a person or a file holding a stale
   figure and handing it on. It needs neither. Measured twice on one day, both single-hop, both
@@ -409,6 +436,35 @@ are in the archived file.
   written off the source, so the rule is not "cite carefully" — it is that **a claim's Nth hop is
   not evidence at any N > 0**, and neither survived one `sed -n` against the file it named.
 
+- **A checker's coverage is its SECTION, not its file, and the boundary is invisible from a
+  green run.** Measured by injection on `compatibility/GATES.md`, a file two checkers both read:
+  a bogus entry placed *inside* `deliberate-divergences-check.mjs`'s own section is caught (rc=1,
+  naming the missing pin), and a bogus `#### 99.` heading appended at end of file leaves both it
+  and `known-failures-md-check.mjs` at rc=0. So neither "the checkers are blind to this file" nor
+  "the checkers cover this file" is true; coverage stops at a heading the output never mentions.
+  A green run after you edit some other part of the file reads as coverage and is not — the
+  same asymmetry as a wrong `deliberate` classification, where the failure that leaves no evidence
+  beats the one that leaves wrong evidence. Inject **at the place you are about to cite the
+  checker for**, not at the end of the file: the first injection here was at EOF, and the two
+  results together are the finding, where either alone is a wrong sentence.
+- **A count can be UNSCOPED, which is a third failure alongside stale and fabricated — and both
+  numbers are true.** Two people gave the number of filters one upstream provider applies as
+  **six** and **nine**, each confidently, neither stale and neither invented. Read off
+  `InlayHintProvider.ts`: `:69-74` is six conjuncts filtering on *shadow* offsets, `:86-88` is
+  three more filtering on *original-document* positions. "One of six" and "one of nine" are both
+  true sentences about the same commit, and they say different things about how much of an issue
+  a PR closed. A stale number is caught by re-deriving it and a fabricated one by asking for its
+  derivation; an unscoped one survives both, because every derivation of it is correct. The
+  defence is the same as for a population: say what the count is over, in the sentence that
+  carries it. Writing **no** number is the safe fallback when you cannot — which is what happened
+  here, and it was right for a reason neither party had.
+- **A development link closes an issue on merge regardless of what the PR body claims.** A PR
+  landing one of the several defects an issue enumerates auto-closed it; the issue reads
+  `state=OPEN stateReason=REOPENED` today only because someone noticed. The consequence is a
+  wrong `deliberate` classification's — a closed entry produces no further observation — but with
+  no reasoning anyone can review, because none was written: the linkage fires on merge and does
+  not consult the PR's own account of its scope. After a merge, read what closed and ask whether
+  the PR covers it. That is arithmetic rather than judgement, and it is the only check there is.
 - **Ask which artifact owns a question before hand-deriving it** (`attribution-check.mjs`,
   the trigger-guard allowlist, `lint-verify.mjs`'s repo-set guard). Two readings of one
   document are one measurement; what actually fires these rules is the same quantity produced
