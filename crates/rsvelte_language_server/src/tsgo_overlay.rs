@@ -1875,6 +1875,11 @@ fn ignored_ranges(text: &str) -> Vec<std::ops::Range<usize>> {
 fn render_return_type_offset(text: &str) -> Option<usize> {
     const HEADER: &str = ";function $$render() {";
     let at = text.find(HEADER)?;
+    // A hoisted props type is user text spliced in above the header, so the
+    // needle is forgeable; decline rather than filter at a user-text offset.
+    if text[at + HEADER.len()..].contains(HEADER) {
+        return None;
+    }
     Some(at + HEADER.len() - " {".len())
 }
 
@@ -2910,6 +2915,31 @@ mod tests {
                 utf8_position(&shadow.text, offset - 1)
             ),
             "the slot is the close paren's end, not any position near it"
+        );
+    }
+
+    #[test]
+    fn a_forged_render_header_in_user_text_declines_the_filter() {
+        let workspace = TestWorkspace::new("render-return-forged");
+        let app = workspace.0.join("App.svelte");
+        // svelte2tsx hoists a props type annotation verbatim into
+        // `;type $$ComponentProps = …`, above the generated header, so a
+        // string-literal type forges the needle ahead of the real one.
+        write(
+            &app,
+            "<script lang=\"ts\">\n  let { a }: { a: \";function $$render() {\" } = $props();\n</script>\n<p>{a}</p>",
+        );
+        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let shadow = overlay.shadow_for_source(&app).unwrap();
+        assert_eq!(
+            shadow.text.matches(";function $$render() {").count(),
+            2,
+            "liveness: the oracle must still splice the forged needle above the header"
+        );
+        assert_eq!(
+            render_return_type_offset(&shadow.text),
+            None,
+            "an ambiguous needle must decline the filter, not answer with a user-text offset"
         );
     }
 
