@@ -7843,31 +7843,75 @@ replication of both scans, with controls in both directions:
 The fused input is the marker minus its trailing `/`, concatenated with the whole marker, so the
 two occurrences share the single `/` that is both the prefix and the suffix.
 
-**Reach: 0, and the population is a proxy — read both halves or the row is misread.** Measured in
-two trees independently, over every checked-in file in any extension the marker actually occurs in:
+**Reach: 0, and the population is a proxy — read both halves or the row is misread.** Measured
+over populations stated as the command that produces them, because the two previous versions of
+this paragraph both named a population by extension and both got it wrong:
 
-| tree | files scanned | contain a marker (control) | contain a fused pair |
-|---|---|---|---|
-| `wt-4450`, language-tools only | 24,129 | 249 | **0** |
-| primary checkout, 118/119 submodules | 22,526 | 196 | **0** |
+| tree | population | files | contain a marker (control) | contain a fused pair |
+|---|---|---|---|---|
+| `wt-4450` @ `9ff66b2d5` | `git ls-files --recurse-submodules` | 8,581 | 264 | **0** |
+| `wt-4450` @ `9ff66b2d5` | on-disk, `.git` and `target/` pruned | 22,088 | 268 | **0** |
+| primary checkout @ `8057104f8` | `git ls-files --recurse-submodules`, 118/119 submodules | 175,842 | 264 | **0** |
+
+**Nothing gates these numbers**, which is why they went wrong twice: injecting a `999999` control
+and a reach of `7` into the first row leaves `known-failures-md-check`, `deliberate-divergences`
+and `attribution-check` all at `rc=0`. Re-derive them from the commands in the population column
+rather than citing them; the commands are the artifact and this table is a reading of it.
 
 Two controls, and the second was added after the first version of this row got its population
 wrong. **A dead scan produces the same `0`**: a third tree with no submodules initialised scanned
-112 files and reported control **0**, so the live trees' 249/196 is what separates "looked and
+112 files and reported control **0**, so the live trees' 264/268/264 is what separates "looked and
 found none" from "could not have found one". **And the detector needs its own two-sided control**,
 because the pattern is easy to state and easy to mis-implement — asserting that it fires on
 `needle[..len-1] + needle` and does *not* fire on `needle + "X" + needle` is one line, and the
 version of this measurement that tested *adjacency* (`END` immediately followed by `START`)
 instead of self-overlap reported 4 carriers, which is a real count of the wrong pattern.
 
-The population sentence is the part that was wrong, and it was wrong in the direction that reads
-as careful. It said `.tsx`/`.ts`, and **this tree contains zero `.tsx` files** — svelte2tsx's
-expectations are `.jsx` — so one of the two named extensions matched nothing at all while the
-filter silently excluded 56 marker-bearing files (`.jsx` 9, `.js` 35, `.md` 8, `.json` 4). The
-control still fired at 193, which is why nothing looked amiss: **a filter that drops a carrier
-class leaves a live control behind**, so the control certifies the scan and says nothing about the
-filter above it. Name a population by what the marker occurs in, measured, not by the extension
-you expect the generated shadow to have.
+**A third instrument failure on this same measurement is the one worth keeping, because its
+control was large and healthy-looking.** The first version of this reach scan reported its control
+as `810 files` carrying a marker, and 810 could not be reproduced afterwards under any population
+(superproject-tracked / on-disk / including `node_modules`) crossed with any needle variant, as
+files or as occurrences — 24 cells, stable at 192-193 files and 447/894 occurrences, so
+*population-insensitive*, which rules out "I measured a different tree". What *is* established is that the number and its own
+label cannot both be true: **no `.ts`/`.tsx` filter over any population reaches 810** — the maximum
+is **194** (193 `.ts` plus the single `.tsx` carrier the primary checkout's submodules hold), and it
+stays there with `node_modules` and `target/` included — while the header over that
+`810` said "every checked-in `.tsx`/`.ts` expectation". The nearest exact match is
+`724 .o + 63 .rmeta + 23 .rlib = 810`, the marker constants having been compiled into the build
+artifacts, which makes "the scan reached `target/` under a header saying it did not" the leading
+hypothesis and not a demonstrated one — the script is gone, and three numbers summing to a
+four-digit target is the kind of coincidence that reads as a mechanism.
+
+Record it as the disjunction rather than the guess, because the lesson does not need the guess:
+**a control's magnitude is not evidence that it is aimed at the population.** It fired, it was four
+times the true source count, and nothing about `810` invites a second look — a zero would have. The
+contradiction sat in one output for a day, next to the header it contradicts.
+
+The population sentence has now been wrong twice, and the second time was **inside the correction
+for the first**, which is why it is written out here rather than quietly fixed. Version one said
+`.tsx`/`.ts`, so it excluded every other carrier class while the `.ts` half still fired at 193 —
+**a filter that drops a carrier class leaves a live control behind**, so the control certifies the
+scan and says nothing about the filter above it.
+
+Version two replaced the extension pair with an explicit list — `.jsx` 9, `.js` 35, `.md` 8,
+`.json` 4, "56 marker-bearing files excluded", control 249 — and that list is *also* an
+enumeration written from the extensions its author thought to look for. Re-derived from the tree,
+the carriers on the widest population are `.ts` 193, `.js` 35, **`.rs` 18**, `.jsx` 9, `.md` 8,
+`.json` 4, **`.mjs` 1** = 268, of which **75** sit outside a `.ts`/`.tsx` filter. The published
+249 is exactly `268 − 18 − 1`: the corrected list dropped the two extensions nobody expected a
+`/*Ω…Ω*/` marker to appear in, one of which is the compiler's own Rust test expectations. **And
+`193 + 56 = 249` exactly**, so the table was internally consistent — it could be checked against
+itself indefinitely and never move, which is what a mis-composed control buys you.
+
+Two smaller scope errors rode along with it, and both are the same shape. The `.md` 8 and `.json`
+4 are **superproject** files (`compatibility/KNOWN-FAILURES.md`, `crates/rsvelte_projection/tests/data/`),
+not language-tools, so they could not belong to a row labelled "language-tools only". And the
+clause "this tree contains zero `.tsx` files" is true of `wt-4450` and **false of the primary
+checkout**, which tracks 642 of them and carries a marker in one
+(`submodules/sveltepress/packages/twoslash/__tests__/test-tsx.tsx`) — a sentence whose subject is
+"this tree" written directly beneath a table listing *two* trees. Name a population by the command
+that enumerates it; an extension list is a hypothesis about where a string lives, and this one has
+now been wrong three times about the same string.
 
 But the shadow `.tsx` the language server actually filters is **generated at request time and
 never checked in**, so these expectations are a proxy for the real population and a zero here does
