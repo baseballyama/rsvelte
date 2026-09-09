@@ -516,6 +516,23 @@ are in the archived file.
   when the observation is accurate. Related, and about the reader rather than the artifact: the
   same four-cell table was over-read twice in one session by one person, with a correction in
   between — being corrected on an artifact does not fix how you read it.
+- **An experiment designed against a remembered classification tests the memory, not the
+  mechanism.** A prototype's residue had been written up as *"5 of 7 regression files are
+  duplications (official 1 / off 1 / on 2), 2 are relocations"*, and the next arm — a high-water
+  clamp that stops a comment being written twice — was built and pre-registered against exactly
+  that split, with the artifact named on both halves of the falsification condition. It retired
+  **0 of 12** regressions and cost **6 of 40** fixes: same regression set, fix set a proper
+  subset, strictly worse than not having it. Counting comment tokens per arm says why in one
+  command and no build — official / off / on are equal on all seven files (26/26/26, 6/6/6,
+  8/8/8, …), so nothing was ever written twice and the clamp had nothing to clamp. The rule this
+  file already carries about a recalled number is weaker than this case needs: **a
+  classification is a word, so nothing about it looks like a quantity to check**, and a
+  pre-registration inherits the word without ever naming the observation under it. Before an
+  experiment is designed against a prior characterisation, re-derive the characterisation, and
+  prefer a derivation that is a *count* — a count has an instrument and a word does not. The
+  same re-derivation then retired the *next* design too: three of the seven relocations land
+  beside a component call, which is a node upstream locates, so the "restrict to spans that
+  mirror an upstream `loc`" fix would not have moved them either.
 
 ## Working with Subagents
 
