@@ -720,6 +720,29 @@ fn is_range_field(key: &str) -> bool {
 /// returns `[]`), and gives `targetRange` the same span as
 /// `targetSelectionRange` — `LocationLink.create(uri, defLocation.range,
 /// defLocation.range, ...)` — where tsgo reports the enclosing declaration.
+/// Drop the inlay hints upstream removes before mapping
+/// (`InlayHintProvider.ts:66-75`). Only the `$$render` return-type slot is
+/// ported here; upstream's other predicates read the generated file's
+/// TypeScript AST, which this proxy does not have.
+pub fn filter_generated_inlay_hints(
+    result: &mut Value,
+    overlay: &TsgoOverlay,
+    shadow_path: &std::path::Path,
+) {
+    let Some(hints) = result.as_array_mut() else {
+        return;
+    };
+    hints.retain(|hint| {
+        // A hint with no readable position is left to the mapper, which
+        // already drops what it cannot map: guessing here would delete a hint
+        // for a shape this filter does not understand.
+        let Some(position) = hint.get("position").and_then(parse_position) else {
+            return true;
+        };
+        !overlay.is_render_return_type_position(shadow_path, position)
+    });
+}
+
 pub fn normalize_definition_result(result: &mut Value) {
     if result.is_null() {
         *result = Value::Array(Vec::new());

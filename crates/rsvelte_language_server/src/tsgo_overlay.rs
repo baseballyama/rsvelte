@@ -186,6 +186,10 @@ struct ShadowState {
     fragment_offset: usize,
     /// svelte2tsx's message, when this shadow is the parser-error fallback.
     parser_error: Option<String>,
+    /// Offset just past the `)` of the generated `function $$render()` header.
+    /// `None` for an `identity` entry, whose text is the user's own: a
+    /// `function $$render()` they wrote is a real declaration, not ours.
+    render_return_type: Option<usize>,
 }
 
 /// Workspace-scoped diskless overlay used by the tsgo LSP proxy.
@@ -409,6 +413,7 @@ impl TsgoOverlay {
             source_map,
             tokens,
             generated_ranges,
+            render_return_type: render_return_type_offset(&document.text),
             identity: false,
             plain_insertions: Vec::new(),
             fragment_offset: 0,
@@ -462,6 +467,7 @@ impl TsgoOverlay {
             tokens: Vec::new(),
             source_map: None,
             generated_ranges: Vec::new(),
+            render_return_type: None,
             identity: true,
             plain_insertions: Vec::new(),
             fragment_offset,
@@ -524,6 +530,7 @@ impl TsgoOverlay {
             tokens: Vec::new(),
             source_map: None,
             generated_ranges: Vec::new(),
+            render_return_type: None,
             identity: true,
             plain_insertions,
             fragment_offset: 0,
@@ -865,6 +872,23 @@ impl TsgoOverlay {
             .generated_ranges
             .iter()
             .any(|range| range.contains(&offset))
+    }
+
+    /// Whether a tsgo position is the return-type slot of the generated
+    /// `$$render` header, which upstream drops
+    /// (`InlayHintProvider.ts:60-70`).
+    #[must_use]
+    pub fn is_render_return_type_position(&self, shadow_path: &Path, position: Position) -> bool {
+        let Some(source_path) = self.source_for_shadow(shadow_path) else {
+            return false;
+        };
+        let Some(entry) = self.entries.get(source_path) else {
+            return false;
+        };
+        let Some(offset) = entry.render_return_type else {
+            return false;
+        };
+        utf8_offset(&entry.document.text, position) == offset
     }
 
     /// Whether any byte of a tsgo range intersects generated-code markers.
@@ -1842,6 +1866,16 @@ fn ignored_ranges(text: &str) -> Vec<std::ops::Range<usize>> {
         cursor = end;
     }
     ranges
+}
+
+/// Upstream finds this by walking the generated file's top-level statements
+/// for `$$render` and taking its close paren's end; the header is emitted with
+/// a fixed shape on both paths in `create_render_function.rs`, so the same
+/// position is a fixed offset from it.
+fn render_return_type_offset(text: &str) -> Option<usize> {
+    const HEADER: &str = ";function $$render() {";
+    let at = text.find(HEADER)?;
+    Some(at + HEADER.len() - " {".len())
 }
 
 fn ordered_range(start: Position, end: Position) -> Range {
@@ -2846,6 +2880,36 @@ mod tests {
         assert!(
             overlay.map_source_position(&app, opener).is_some(),
             "rewritten template offsets must not inherit ProjectionMap's holes"
+        );
+    }
+
+    #[test]
+    fn the_render_return_type_offset_is_the_close_paren_of_the_generated_header() {
+        let workspace = TestWorkspace::new("render-return");
+        let app = workspace.0.join("App.svelte");
+        write(&app, "<script>let value = 1;</script><p>{value}</p>");
+        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let shadow = overlay.shadow_for_source(&app).unwrap();
+
+        // The oracle is the real emitter's output, not a copy of the constant:
+        // a typo in HEADER compiles, matches nothing, and reads as "no hints to
+        // filter" rather than as a failure.
+        let offset = render_return_type_offset(&shadow.text)
+            .expect("a projected component carries a $$render header");
+        assert_eq!(&shadow.text[offset - 1..offset], ")");
+        assert!(shadow.text[..offset].ends_with("$$render()"));
+
+        let shadow_path = overlay.shadow_dir.join("App.svelte.tsx");
+        assert!(
+            overlay
+                .is_render_return_type_position(&shadow_path, utf8_position(&shadow.text, offset))
+        );
+        assert!(
+            !overlay.is_render_return_type_position(
+                &shadow_path,
+                utf8_position(&shadow.text, offset - 1)
+            ),
+            "the slot is the close paren's end, not any position near it"
         );
     }
 
