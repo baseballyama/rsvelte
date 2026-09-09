@@ -326,6 +326,16 @@ are in the archived file.
   answers yes either way, and an arm built from a worktree whose working copy still held the
   change then reads as the base. Prefer building the base from a pristine checkout of the
   merge base, or believe CI over a local arm — CI's tree is one nobody in this session made.
+  **The oracle is an arm too, and its identity is a submodule pin.** Corpus sources have to be
+  read from a checkout whose submodules are populated, and `submodules/svelte` comes along with
+  that choice: a rule about where to read *inputs* silently decides where the *oracle* came
+  from. Measured — a checkout parked thirteen commits back pins `56a036f4c` / `5.56.10` where
+  the branch pins `7bc0a70fe` / `5.57.0`, the two disagree on **48 of 214** moved units, and a
+  sweep's improvement count moved 136 → 169 (the regression count was 0 under both, which is
+  the only reason the verdict survived). `VERSION` *does* separate them on this axis, unlike
+  the npm/source/built one, so print it and `git ls-tree <the branch you are measuring>
+  submodules/svelte` beside any official column. What surfaced it was an impossible combination
+  rather than a suspicion: a byte divergence on a manifest entry while its ratchet is empty.
 - **A re-baseline is a measurement, not an argument.** A PR carrying a behaviour change *and* a
   ratchet re-baseline has two reasons its gate output can move, and the re-baseline's scope
   argument is about the diff rather than about the measurement — correctly-reasoned scope beside
@@ -368,6 +378,20 @@ are in the archived file.
   varied only if the same cell with it removed is byte-equal; run that background arm before
   attributing, because the largest number in a grid is the likeliest to be two mechanisms added
   together.
+- **A citation degrades per hop, and what survives the hop is what makes the claim more
+  interesting.** The recorded form of this needs a recaller — a person or a file holding a stale
+  figure and handing it on. It needs neither. Measured twice on one day, both single-hop, both
+  through a session summary: `corpus-compat.yml`'s two `verify.mjs` invocations carried as
+  `:812`/`:890` when the file says `:879`/`:959`, and upstream's `isGeneratedVariableTypeHint`
+  ending `startsWith('$$')` carried as `startsWith('$')`. The second is the shape to keep,
+  because the degradation is not random: single-`$` suppresses every rune declaration a user
+  writes where double-`$` suppresses only `$$props`/`$$slots`/`$$restProps`, so the corrupted
+  form describes a *larger, more consequential* filter and would have read as the more important
+  finding. A line number degrades to a nearby line number and nobody notices; a predicate
+  degrades toward the version that would matter more. Both were cited in good faith from notes
+  written off the source, so the rule is not "cite carefully" — it is that **a claim's Nth hop is
+  not evidence at any N > 0**, and neither survived one `sed -n` against the file it named.
+
 - **Ask which artifact owns a question before hand-deriving it** (`attribution-check.mjs`,
   the trigger-guard allowlist, `lint-verify.mjs`'s repo-set guard). Two readings of one
   document are one measurement; what actually fires these rules is the same quantity produced
