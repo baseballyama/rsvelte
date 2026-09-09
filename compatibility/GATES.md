@@ -600,9 +600,9 @@ only — a post-edit phase (27b) is not calibrated, because upstream has no snap
 27h describes a floor the run is held to. It is not held to it on the run that matters most.
 `verify.mjs:426` opens `assertOracleCalibration` with
 `if (!selectedSuites.includes("upstream-features")) return;`, and
-`.github/workflows/corpus-compat.yml:890` invokes the real-world job as `--suites corpus`. The two
+`.github/workflows/corpus-compat.yml:959` invokes the real-world job as `--suites corpus`. The two
 jobs are disjoint by construction — `lsp-fixtures-current` runs
-`--suites fixtures,upstream-features,upstream-testfiles` (line 812) and no corpus repository, and
+`--suites fixtures,upstream-features,upstream-testfiles` (line 879) and no corpus repository, and
 `lsp-corpus` runs the 16 corpus shards and no snapshot — so **every shard that measures a corpus
 repository skips the calibration entirely**, silently, by an early return rather than by a reported
 skip.
@@ -1259,6 +1259,48 @@ on a tree that does not carry the change** — cheaper than an artifact, and it 
 **Unmeasured:** whether any other entry in the ratchet has moved for cause (c) without being noticed,
 which cannot be recovered retrospectively — the pre-change counts are what the ratchet holds, and the
 comparator that produced them is gone once the PR merges.
+### Blind spot 27x — the 16-shard corpus job issues three of the twelve methods the gate compares, and the hatch that starts it is keyed on a path [S]
+
+27j establishes that `lsp-fixtures-current` and `lsp-corpus` are disjoint *jobs*. They are also
+disjoint in **method**, and that half is not a scheduling detail: it decides which divergences the
+expensive job can observe at all.
+
+Every corpus unit is built by `corpusCases` (`suites.mjs:308`), which reaches
+`fileCase("corpus", directory, file, identifierRequests)` at `:315`. `identifierRequests`
+(`:101-113`) yields exactly `textDocument/hover`, `textDocument/definition` and
+`textDocument/completion`, once per identifier position. `basicRequests` (`:115-125`) — diagnostic,
+foldingRange, documentSymbol, inlayHint — has one call site, `fileCase("upstream-testfiles", …)` at
+`:304`, and that suite belongs to the other job: `corpus-compat.yml:879` runs
+`--suites fixtures,upstream-features,upstream-testfiles` while the shards at `:959` run
+`--suites corpus`.
+
+The ratchet corroborates the source read independently. Of 23,768 baseline entries, **21,792 are
+`aggregate:corpus/` keys and every one carries one of those three methods** — 0 carry any other. So
+nine of the twelve method labels the ratchet holds (`codeAction`, `diagnostic`, `documentHighlight`,
+`documentSymbol`, `foldingRange`, `inlayHint`, `prepareRename`, `selectionRange`, and the
+method-less `initialize` capability entries) are unreachable from `lsp-corpus` at any shard count or
+corpus size — this is a property of the request generator, not of the population. Positive control:
+212 keys carry `inlayHint`. Negative control: `aggregate:corpus/.*inlayHint` matches 0.
+
+What makes it a coverage row rather than a division of labour is the trigger. `lsp-corpus` is held
+off pull requests on a job-minute argument (`corpus-compat.yml:906-909`), and the one hatch that
+re-admits it is `corpus-compat-job-filter.mjs:157-162`, which fires on any diff touching
+`scripts/compat-lsp/**` or `compatibility/lsp-known-failures*.json` — priced by its own comment at
+`:153` as 950 job-minutes. That predicate is a **path**, and a path cannot know which methods the
+diff reaches. A change confined to `inlayHint` — 212 keys, none of them in any shard — starts all 16
+shards and buys zero bits about itself, while the population that would observe it is the cheap
+fixtures job that already runs on every PR. The converse holds too and is the quieter half: a change
+to the three identifier methods that is *not* under either path gets no shard run at all.
+
+Read the direction before treating this as something to narrow. Under-approximating a blast radius
+costs a skipped gate, which reads exactly like a passing one, so the hatch erring open is the right
+sign. The row is the price list, not a defect: it says which questions a shard run answers, so a
+method-scoped change is not held waiting on a verdict that structurally cannot mention it.
+
+**Unmeasured:** whether the three identifier methods are the ones a real-world population would most
+often break. The census answers what the job can issue, never what it should.
+
+
 
 ## 1. Compiler output parity — `scripts/compat-corpus/verify.mjs`
 
