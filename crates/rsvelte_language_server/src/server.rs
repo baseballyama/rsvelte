@@ -71,8 +71,9 @@ use crate::tsgo_rename::{
     rewrite_prepare_response, rewrite_workspace_edit,
 };
 use crate::tsgo_response::{
-    RequestDocumentContext, TsgoResponseMapper, empty_completion_list, normalize_definition_result,
-    normalize_hover_result, tsgo_unmapped_result, widen_hover_range_over_string_quotes,
+    RequestDocumentContext, TsgoResponseMapper, empty_completion_list,
+    filter_generated_inlay_hints, normalize_definition_result, normalize_hover_result,
+    tsgo_unmapped_result, widen_hover_range_over_string_quotes,
 };
 use crate::uri::{path_to_uri, uri_to_path};
 use crate::worker::{FileReferenceSource, Job, Outcome, PreprocessedAnalysis, Worker};
@@ -3192,6 +3193,18 @@ impl Server {
                     // enclosing statement merely touches an `Ωignore` region.
                     if method == "textDocument/definition" {
                         normalize_definition_result(result);
+                    }
+                    // Upstream filters inlay hints BEFORE mapping, on generated
+                    // positions (`InlayHintProvider.ts:66-75`); after mapping the
+                    // offsets it tests no longer exist.
+                    if method == "textDocument/inlayHint"
+                        && let Some(runtime) = &self.tsgo
+                        && let Some(source) = source_path.as_deref()
+                        && let Some(overlay) = runtime.overlay_for_source(source)
+                        && let Some(shadow) = overlay.shadow_for_source(source)
+                    {
+                        let shadow_path = uri_to_path(shadow.shadow_uri.as_str());
+                        filter_generated_inlay_hints(result, overlay, &shadow_path);
                     }
                     if let Some(runtime) = &self.tsgo {
                         let mut mapper = TsgoResponseMapper::for_overlays_with_default_document(
