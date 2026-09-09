@@ -86,9 +86,62 @@ fn type_literal(head: &[&str], after_first_member: &str) -> String {
 const INTERFACE: &str = "<script lang=\"ts\">
 interface P {
   // c
+  // d
   a: number;
 }
 let { a }: P = $props();
+</script>
+<i>{a}</i>
+";
+
+/// The same head, written inline on the declarator instead of behind an alias.
+/// This is the host that reaches the held-back (`pending`) re-emission path,
+/// where the comments are flushed at the initializer rather than in place.
+const INLINE_TWO: &str = "<script lang=\"ts\">
+let { a }: {
+  // c
+  // d
+  a: number;
+} = $props();
+</script>
+<i>{a}</i>
+";
+
+const INLINE_ONE: &str = "<script lang=\"ts\">
+let { a }: {
+  // c
+  a: number;
+} = $props();
+</script>
+<i>{a}</i>
+";
+
+/// A declarator with NO initializer: upstream floats the comment to the next
+/// located node and rsvelte drops it (#4396), so nothing here reaches the
+/// repeat at all.
+const UNINITIALIZED: &str = "<script lang=\"ts\">
+let v: {
+  // c
+  // d
+  a: number;
+} | null;
+let { a } = $props();
+</script>
+<i>{a}{v}</i>
+";
+
+/// A `<script module>`'s Program is builder-made, so upstream's comment cursor
+/// starts dead and the comment is printed by neither compiler.
+const MODULE_ALIAS: &str = "<script module lang=\"ts\">
+type Q = {
+  // c
+  // d
+  b: number;
+};
+export const q: Q = { b: 1 };
+</script>
+<script lang=\"ts\">
+let { a } = $props();
 </script>
 <i>{a}</i>
 ";
@@ -127,10 +180,22 @@ fn cells() -> Vec<(&'static str, String, &'static str, &'static str)> {
             "c c d",
         ),
         (
+            "a nested literal in the first member",
+            type_literal(&["  // c", "  // d"], "").replace("a: number;", "a: { e: number };"),
+            "c d c d",
+            "c d c d",
+        ),
+        (
             "an interface body does not speculate",
             INTERFACE.to_string(),
-            "c",
-            "c",
+            "c d",
+            "c d",
+        ),
+        (
+            "a module script's Program is builder-made",
+            MODULE_ALIAS.to_string(),
+            "",
+            "",
         ),
     ]
 }
@@ -177,4 +242,28 @@ fn the_extractor_and_the_compile_are_live() {
         client.contains("export default function C("),
         "not a compiled component: {client}"
     );
+}
+
+/// The hosts where the repeat is right and something upstream of it is not.
+///
+/// These pin what rsvelte answers TODAY, which is not what the oracle answers,
+/// so that the residue is written down rather than merely unexamined. Each cell
+/// names the issue that owns it; when one is fixed this test fails and the row
+/// moves into the table above.
+#[test]
+fn the_blocked_hosts_are_pinned_rather_than_matched() {
+    // An inline annotation on a destructured `$props()` loses its comment on the
+    // CLIENT before the repeat can apply (#4398) — the declaration is rebuilt
+    // from the pattern. The server keeps it and repeats the run correctly.
+    assert_eq!(sequence(INLINE_TWO, GenerateMode::Client), "");
+    assert_eq!(sequence(INLINE_TWO, GenerateMode::Server), "c d c d");
+    assert_eq!(sequence(INLINE_ONE, GenerateMode::Client), "");
+    assert_eq!(sequence(INLINE_ONE, GenerateMode::Server), "c c");
+
+    // An annotation on an UNINITIALIZED declarator is dropped on both targets
+    // (#4396): upstream ends the declaration at the identifier and floats the
+    // comment to the next located node, which rsvelte has no channel for. The
+    // oracle prints `c d c d` on both.
+    assert_eq!(sequence(UNINITIALIZED, GenerateMode::Client), "");
+    assert_eq!(sequence(UNINITIALIZED, GenerateMode::Server), "");
 }
