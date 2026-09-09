@@ -849,6 +849,16 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             let base = synth.cursor();
             synth.source.push_str(region);
             synth.source.push('\n');
+            // The region is a verbatim slice of the source, so comment-space
+            // offsets inside it resolve linearly; without this a map lookup
+            // falls through untranslated and reports a position past EOF.
+            synth.loc_map.push(LocRange {
+                start: base,
+                end: base + region.len() as u32,
+                source: Some(region_start),
+                linear: true,
+                source_end_override: None,
+            });
             for &(source_start, source_end, line) in comments {
                 if !synth.source_comments.insert((source_start, source_end)) || claim_only {
                     continue;
@@ -898,6 +908,15 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         let base = synth.cursor();
         synth.source.push_str(text);
         synth.source.push('\n');
+        // Same as `open_source_region_parts`: the island's text is the source's
+        // own, so its buffer region maps back linearly.
+        synth.loc_map.push(LocRange {
+            start: base,
+            end: base + text.len() as u32,
+            source: Some(island.source_offset),
+            linear: true,
+            source_end_override: None,
+        });
         synth.open_source_region = None;
         base.checked_sub(island.source_offset)
     }
