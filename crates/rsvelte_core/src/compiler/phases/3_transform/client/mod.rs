@@ -3262,9 +3262,14 @@ fn script_raw_statement(
 /// Comments inside the `$props()` declaration survive upstream's lowering even
 /// though the declaration itself is removed from the component body.
 fn props_declaration_comments(raw: &str) -> Vec<(u32, CompactString)> {
-    let Some(props) = raw.find_sub("$props()") else {
+    let bytes = raw.as_bytes();
+    // A `$props(` in a string, comment or template is not the declaration, and a
+    // raw scan that takes the decoy loses the real declaration's comments.
+    let Some(props) = find_rune_code(bytes, b"$props(") else {
         return Vec::new();
     };
+    // The `;` scan stays raw: a code-aware one finds none in a semicolon-free
+    // source and the region then runs to the end of the script.
     let Some(start) = raw[..props].rfind_sub("let") else {
         return Vec::new();
     };
