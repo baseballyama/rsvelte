@@ -1511,6 +1511,16 @@ pub fn stmt(arena: &JsArena, expression: JsExpr) -> JsStatement {
     })
 }
 
+/// `expr;` whose callee carries the original-source offset upstream stamps on it
+/// (`b.id('$.head', node.name_loc)`), which is where esrap flushes comments left
+/// over from an earlier chunk.
+pub fn stmt_anchored(arena: &JsArena, expression: JsExpr, anchor: Option<u32>) -> JsStatement {
+    JsStatement::Expression(JsExpressionStatement {
+        expression: arena.alloc_expr(expression),
+        comment_anchor: anchor,
+    })
+}
+
 /// Create a return statement.
 pub fn return_stmt(arena: &JsArena, argument: Option<JsExpr>) -> JsStatement {
     JsStatement::Return(JsReturnStatement {
