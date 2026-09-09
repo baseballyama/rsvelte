@@ -54,14 +54,6 @@ pub(crate) struct ScriptProjection {
     /// module Program drops them. Keeping the ranges separate lets Phase 3 make
     /// that distinction without trying to infer their origin from stripped JS.
     pub(crate) reemitted_comment_outputs: Vec<Range<u32>>,
-    /// The subset of `reemitted_comment_outputs` upstream prints TWICE.
-    ///
-    /// acorn-typescript's `tsLookAhead` does not set `isLookahead`, so a comment
-    /// consumed while speculatively parsing an object type fires `onComment`
-    /// once during the lookahead and again after the rewind. The region that
-    /// speculation covers is a `TSTypeLiteral`'s braces up to the end of its
-    /// first member, which is why an `interface` body never doubles.
-    pub(crate) repeated_comment_outputs: Vec<Range<u32>>,
     /// `(binding end, annotation end)` for every binding whose own type
     /// annotation was erased. Upstream's parser puts the annotation inside the
     /// binding's range, so a node ending at the first is located at the second.
@@ -672,11 +664,10 @@ fn strip_typescript_from_program_impl(
 
     let mut removals: Vec<(u32, u32)> = Vec::new();
     collect_ts_removals_from_program(program, source, &mut removals);
-    let repeat_regions = if include_projection {
-        collect_speculative_type_head_regions(program)
-    } else {
-        Vec::new()
-    };
+    // Not gated on `include_projection`: the repeat is in the emitted text now,
+    // so gating it would make the two strips disagree — and the server reads the
+    // projection-less one while the client reads the other.
+    let repeat_regions = collect_speculative_type_head_regions(program);
     let declarator_annotations = collect_declarator_annotations(program);
 
     // Text-based fallback: strip `declare global { ... }`, `declare module ... { ... }`,
@@ -761,7 +752,6 @@ fn strip_typescript_from_program_impl(
     let mut copied_chunks =
         include_projection.then(|| Vec::with_capacity(merged.len().saturating_add(1)));
     let mut reemitted_comment_outputs = include_projection.then(Vec::new);
-    let mut repeated_comment_outputs = include_projection.then(Vec::new);
     let mut pos = 0u32;
 
     // Comments an erased annotation left behind, waiting for the offset upstream
@@ -777,8 +767,6 @@ fn strip_typescript_from_program_impl(
                 &mut output,
                 copied_chunks.as_mut(),
                 reemitted_comment_outputs.as_mut(),
-                repeated_comment_outputs.as_mut(),
-                &repeat_regions,
             );
         }
         // The official compiler PARSES TypeScript and only removes the
@@ -811,49 +799,21 @@ fn strip_typescript_from_program_impl(
             if (removed.contains("/*") || removed.contains("//"))
                 && let Some(flush_at) = flush_at
             {
+                let plan = plan_reemitted_comments(*remove_start, removed, &repeat_regions);
                 if let Some(init_start) = flush_at {
-                    for (comment_offset, comment) in
-                        crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet_with_pos(removed)
-                    {
-                        let comment_start = *remove_start + comment_offset as u32;
-                        pending.push((
-                            init_start,
-                            comment_start,
-                            comment_start + comment.len() as u32,
-                        ));
-                    }
-                } else if let Some(copied_chunks) = copied_chunks.as_mut() {
-                    for (comment_offset, comment) in
-                        crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet_with_pos(removed)
-                    {
-                        let comment_start = *remove_start + comment_offset as u32;
-                        let comment_end = comment_start + comment.len() as u32;
-                        let output_start = output.len() as u32;
-                        push_source_range(
-                            source,
-                            comment_start..comment_end,
-                            &mut output,
-                            Some(copied_chunks),
-                        );
-                        let out_range = output_start..output.len() as u32;
-                        reemitted_comment_outputs
-                            .as_mut()
-                            .unwrap()
-                            .push(out_range.clone());
-                        if repeat_regions
-                            .iter()
-                            .any(|(from, to)| comment_start >= *from && comment_end <= *to)
-                        {
-                            repeated_comment_outputs.as_mut().unwrap().push(out_range);
-                        }
-                        output.push('\n');
+                    for (comment_start, comment_end) in plan {
+                        pending.push((init_start, comment_start, comment_end));
                     }
                 } else {
-                    for comment in
-                        crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet(removed)
-                    {
-                        output.push_str(&comment);
-                        output.push('\n');
+                    for (comment_start, comment_end) in plan {
+                        emit_pending_comment(
+                            source,
+                            comment_start,
+                            comment_end,
+                            &mut output,
+                            copied_chunks.as_mut(),
+                            reemitted_comment_outputs.as_mut(),
+                        );
                     }
                 }
             }
@@ -870,8 +830,6 @@ fn strip_typescript_from_program_impl(
             &mut output,
             copied_chunks.as_mut(),
             reemitted_comment_outputs.as_mut(),
-            repeated_comment_outputs.as_mut(),
-            &repeat_regions,
         );
     }
     // A flush point the copy never reached (an initializer inside a later removed
@@ -886,8 +844,6 @@ fn strip_typescript_from_program_impl(
                 &mut output,
                 copied_chunks.as_mut(),
                 reemitted_comment_outputs.as_mut(),
-                repeated_comment_outputs.as_mut(),
-                &repeat_regions,
             );
         }
     }
@@ -895,13 +851,64 @@ fn strip_typescript_from_program_impl(
     let projection = copied_chunks.map(|copied_chunks| ScriptProjection {
         copied_chunks,
         reemitted_comment_outputs: reemitted_comment_outputs.unwrap_or_default(),
-        repeated_comment_outputs: repeated_comment_outputs.unwrap_or_default(),
         binding_annotation_ends: collect_binding_annotation_ends(program),
         source_len: source.len() as u32,
         output_len: output.len() as u32,
     });
 
     (output, projection)
+}
+
+/// The comments a removed region re-emits, in order, with the RUNS upstream
+/// prints twice already doubled.
+///
+/// acorn-typescript's `tsLookAhead` does not set `isLookahead`, so a comment
+/// consumed while speculatively parsing an object type fires `onComment` once
+/// during the lookahead and again after the rewind. The rewind replays the whole
+/// speculated run, so two comments in a `TSTypeLiteral` head come out `c d c d`
+/// and not `c c d d` — a per-comment model agrees with a per-run one only for a
+/// single comment, which is why nothing had seen the difference. The region a
+/// speculation covers is the braces up to the end of the first member, which is
+/// why an `interface` body never doubles and a comment after the first member is
+/// left alone.
+///
+/// Doubling here rather than in a phase-3 consumer is what keeps this ONE port:
+/// the stripped text is what both the client's text pipeline and the server's
+/// parse read, so neither has to carry the rule.
+fn plan_reemitted_comments(
+    base: u32,
+    removed: &str,
+    repeat_regions: &[(u32, u32)],
+) -> Vec<(u32, u32)> {
+    let items: Vec<(u32, u32, Option<usize>)> =
+        crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet_with_pos(removed)
+            .into_iter()
+            .map(|(comment_offset, comment)| {
+                let start = base + comment_offset as u32;
+                let end = start + comment.len() as u32;
+                let region = repeat_regions
+                    .iter()
+                    .position(|(from, to)| start >= *from && end <= *to);
+                (start, end, region)
+            })
+            .collect();
+
+    let mut plan: Vec<(u32, u32)> = Vec::new();
+    let mut run_start = 0usize;
+    while run_start < items.len() {
+        let region = items[run_start].2;
+        let mut run_end = run_start;
+        while run_end < items.len() && items[run_end].2 == region {
+            run_end += 1;
+        }
+        let run = &items[run_start..run_end];
+        plan.extend(run.iter().map(|&(start, end, _)| (start, end)));
+        if region.is_some() {
+            plan.extend(run.iter().map(|&(start, end, _)| (start, end)));
+        }
+        run_start = run_end;
+    }
+    plan
 }
 
 /// Copy `source_range`, splitting it at every pending flush point it spans so an
@@ -918,8 +925,6 @@ fn push_range_flushing_pending(
     output: &mut String,
     mut copied_chunks: Option<&mut Vec<CopiedSourceChunk>>,
     mut reemitted: Option<&mut Vec<Range<u32>>>,
-    mut repeated: Option<&mut Vec<Range<u32>>>,
-    repeat_regions: &[(u32, u32)],
 ) {
     let mut cursor = source_range.start;
     while let Some(index) = pending
@@ -940,8 +945,6 @@ fn push_range_flushing_pending(
             output,
             copied_chunks.as_deref_mut(),
             reemitted.as_deref_mut(),
-            repeated.as_deref_mut(),
-            repeat_regions,
         );
         cursor = flush_at;
     }
@@ -961,21 +964,11 @@ fn emit_pending_comment(
     output: &mut String,
     copied_chunks: Option<&mut Vec<CopiedSourceChunk>>,
     reemitted: Option<&mut Vec<Range<u32>>>,
-    repeated: Option<&mut Vec<Range<u32>>>,
-    repeat_regions: &[(u32, u32)],
 ) {
     let output_start = output.len() as u32;
     push_source_range(source, comment_start..comment_end, output, copied_chunks);
-    let out_range = output_start..output.len() as u32;
     if let Some(reemitted) = reemitted {
-        reemitted.push(out_range.clone());
-    }
-    if let Some(repeated) = repeated
-        && repeat_regions
-            .iter()
-            .any(|(from, to)| comment_start >= *from && comment_end <= *to)
-    {
-        repeated.push(out_range);
+        reemitted.push(output_start..output.len() as u32);
     }
     output.push('\n');
 }
