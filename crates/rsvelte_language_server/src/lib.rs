@@ -43,6 +43,7 @@ pub mod tsgo_code_actions;
 pub mod tsgo_completion;
 pub mod tsgo_component_info;
 pub mod tsgo_custom;
+pub mod tsgo_inlay_hints;
 pub mod tsgo_overlay;
 pub mod tsgo_rename;
 pub mod tsgo_response;
