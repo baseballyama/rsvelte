@@ -675,9 +675,9 @@ answers would then be enrolled as legitimate ratchet entries defending the degra
 the calibration floor as its defence. 27j records that the floor does not run on `--suites corpus`.
 This row records that for that suite the named condition is not a risk but a **guarantee**.
 
-`corpus-compat.yml:859` checks the four corpus repositories out with
+`corpus-compat.yml:926` checks the four corpus repositories out with
 `git submodule update --init --depth 1` and nothing installs them; the job installs the root
-workspace and `submodules/language-tools` only (lines 869-875). `lsp-benchmark.yml:52-54` does run
+workspace and `submodules/language-tools` only (lines 935-944). `lsp-benchmark.yml:52-54` does run
 `pnpm --dir submodules/bits-ui install`, so the contrast is inside this repository: the job that
 measures *speed* on bits-ui installs it and the job that measures *parity* does not.
 
@@ -2851,7 +2851,7 @@ threads a `dev` flag through `CssContext` for exactly that — and no row here e
 
 `clientServerDiffs` is incremented (`:424`) and printed (`:485`); the exit path (`:495-517`)
 reads only `divergedIds`. **[S]** And CI does not pass `--both` anyway
-(`corpus-compat.yml:255`).
+(`corpus-compat.yml:312`).
 
 ### Blind spot 8c — `warnings` discarded — CLOSED
 
@@ -2919,7 +2919,7 @@ large-corpus comparison of the shipped default identified in 10a.
 The only guard is `included.length < 1000` (`:69-76`), read from `meta.json` — **not** from the
 number of comparisons actually performed. `matched` is printed (`:149`) and never asserted.
 
-**[D]** CI restores the oracle from `actions/cache` (`corpus-compat.yml:317-323`, caching both
+**[D]** CI restores the oracle from `actions/cache` (`corpus-compat.yml:424-430`, caching both
 `compatibility/fmt/oracle` and `compatibility/fmt/meta.json`), and `fmt.mjs:184-191` declares
 the oracle fresh on `fs.existsSync(ORACLE)` — existence of the *directory*, not of its
 contents. A partially-restored oracle tree with an intact `meta.json` passes the `>= 1000`
@@ -3136,7 +3136,7 @@ sources, so a rewrite taken from a run whose universe collapsed still passes it.
 
 ### Blind spot 11f — CI collects a narrower corpus than the script offers
 
-`corpus-compat.yml:420` runs `lint-collect.mjs --ci`, whose repo list (`lint-universe.mjs:24`)
+`corpus-compat.yml:590` runs `lint-collect.mjs --ci`, whose repo list (`lint-universe.mjs:24`)
 omits `svelte` and `svelte.dev`, which `lint-collect.mjs:43-44` does offer. **[S]** In CI the lint corpus contains no `.svelte`
 file from the Svelte repo and no documentation snippet. `compatibility/pattern-corpus` — the 32
 hand-written regression repros — is also not in that list.
@@ -3145,7 +3145,7 @@ hand-written regression repros — is also not in that list.
 **lower** bound: the CI list yields 6761 entries and the floor is 6000, so dropping `melt-ui`
 (84 files) leaves 6677 and clears it, and a *superset* run clears it by definition. The repo set
 is what makes this axis exact — `--update` now requires it to equal `CI_REPOS`
-(`lint-universe.mjs:24`), which `lint-collect.mjs --ci` and `corpus-compat.yml:420` both consume,
+(`lint-universe.mjs:24`), which `lint-collect.mjs --ci` and `corpus-compat.yml:590` both consume,
 so the collector, the workflow and the rewrite guard cannot disagree about which population the
 ratchet describes. Both directions are covered: a missing repo would delete its entries, an extra
 repo would add entries that fail every later run as stale.
@@ -3858,7 +3858,7 @@ comment regression on a *collected* seed is invisible here.
 
 ### Blind spot 20f — a PR samples by hash, so the run that adds a seed is the least likely to mutate it [D]
 
-**PRs run `--seeds 1500`, main runs `--full`** (`corpus-compat.yml:267-272`), and the sample
+**PRs run `--seeds 1500`, main runs `--full`** (`corpus-compat.yml:322-326`), and the sample
 was the 1500 lowest `fnv1a(id)` of ~14,100 eligible entries (`:145-152`). Nothing in that rank
 knows an id is *new*, so a repro landing in the same PR had roughly a 1-in-9 chance of being
 mutated — and the ratchet the PR was green against was measured without it.
@@ -5365,13 +5365,13 @@ the sources did not?**
 ### C1. Path filters — gates that do not run on some PRs
 
 `ci.yml` is deliberately unfiltered (`:6-8`, with the reason in a comment), so every Rust
-fixture gate runs on every PR. `corpus-compat.yml` **is** path-filtered (`push:` `:39-85`,
-`pull_request:` `:87-133`, kept in sync by hand).
+fixture gate runs on every PR. `corpus-compat.yml` **is** path-filtered (`push:` `:41-58`,
+`pull_request:` `:59-113`, kept in sync by hand).
 
 - **[S] `submodules/eslint-plugin-svelte` and `submodules/svelte-eslint-parser` are consumed by
-  `lint-parity` (`corpus-compat.yml:356`, `:380`) but appear nowhere in either paths list.**
-  Positive control: `command grep -n "eslint" .github/workflows/corpus-compat.yml` returns 6
-  hits, all at `:343` or later — zero inside `:39-133`. A PR whose only change is advancing that
+  `lint-parity` (`corpus-compat.yml:497`, `:525`) but appear nowhere in either paths list.**
+  Positive control: `command grep -n "eslint" .github/workflows/corpus-compat.yml` returns 7
+  hits, all at `:261` or later — zero inside `:41-113`. A PR whose only change is advancing that
   gitlink runs no corpus gate at all, and `lint-known-failures.json` is never re-validated
   against the new upstream rule set.
 - **[S]** Also absent from the list but reachable by the jobs: `scripts/fixtures/**` (except one
