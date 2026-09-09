@@ -7807,6 +7807,67 @@ The instance is two *separate* code paths each carrying their own logic.
 Degree 3 is worth reaching for whenever the decision is cheap to recompute, because it turns the
 corpus you already have into a detector for this class **at whatever size it happens to be**.
 
+#### 35. Is this offset inside a generated-code region? — [D], four ports, three of them scan non-overlapping, **reach 0 in the population that can be checked**
+
+**Upstream:** one function, `isInGeneratedCode`
+(`language-server/src/plugins/typescript/features/utils.ts:102-109`), built on JS `lastIndexOf` /
+`indexOf`. Those advance one position at a time, so they see an occurrence that overlaps the one
+before it.
+
+**Ports.** Four, across three crates, in two shapes:
+
+| # | site | shape | scan |
+|---|---|---|---|
+| 1 | `rsvelte_language_server/src/tsgo_overlay.rs` `is_in_generated_code` | upstream's formula, scanned per query | **overlapping** (byte-wise `occurrences`) |
+| 2 | `rsvelte_language_server/src/tsgo_overlay.rs` `ignored_ranges` → `is_generated_range` | ranges precomputed once per document | non-overlapping (`find`, then `cursor = end`) |
+| 3 | `rsvelte_check/src/svelte_check/mapper.rs:166` `is_in_generated_code` | upstream's formula, scanned per query | non-overlapping (`str::match_indices`) |
+| 4 | `rsvelte_content_mapper/src/lib.rs:239` `ignore_directives` | region extraction feeding a suppression policy | non-overlapping (`find`, then `cursor = end`) |
+
+Port 1 arrived with #4511, which deleted a **fifth**: `tsgo_rename.rs`'s `is_generated_span` held
+its own copies of both marker constants and a formula missing upstream's `lastEnd === nextEnd`
+clause. Ports 2 and 4 are the same algorithm written twice in two crates, which is the ordinary
+shape of this file; ports 1 and 3 are the interesting pair, because they agree on the *formula*
+and disagree on the *scan* underneath it.
+
+**The divergence, with a named input.** `IGNORE_START` and `IGNORE_END` both open and close with
+`/`, so each has a border of 1 and can fuse with a copy of itself. Measured on a faithful
+replication of both scans, with controls in both directions:
+
+| needle | border | non-overlapping | overlapping | differ |
+|---|---|---|---|---|
+| `abc` | 0 | `[0, 3]` | `[0, 3]` | no — **negative control** |
+| `aa` | 1 | `[0]` | `[0, 1]` | yes — **positive control** |
+| `/*Ωignore_startΩ*/` | 1 | `[0]` | `[0, 17]` | **misses one** |
+| `/*Ωignore_endΩ*/` | 1 | `[0]` | `[0, 15]` | **misses one** |
+
+The fused input is the marker minus its trailing `/`, concatenated with the whole marker, so the
+two occurrences share the single `/` that is both the prefix and the suffix.
+
+**Reach: 0, and the population is a proxy — read both halves or the row is misread.** Measured in
+two trees independently, on every checked-in `.tsx`/`.ts` expectation:
+
+| tree | `.tsx`/`.ts` scanned | contain a marker (control) | contain a fused pair |
+|---|---|---|---|
+| `wt-4450`, language-tools only | 961 | 193 | **0** |
+| primary checkout, 118/119 submodules | 22,526 | 196 | **0** |
+
+The control is what makes the zero readable: a third tree with no submodules initialised scanned
+112 files and reported control **0**, i.e. a dead scan producing the same `0` carriers. Two live
+trees agreeing at 193/196 is what separates "looked and found none" from "could not have found
+one".
+
+But the shadow `.tsx` the language server actually filters is **generated at request time and
+never checked in**, so these expectations are a proxy for the real population and a zero here does
+not bound it. The correct reading of this row is *the mechanism is confirmed and its reach is
+unmeasured on the population that matters* — not "confirmed, therefore live" and not "zero,
+therefore dead".
+
+**What it would take to raise this to [M].** Run ports 1 and 3 against each other over the shadow
+text the LSP gate already materialises for its 423 cases, rather than over checked-in files. That
+is a harness with a denominator, and it is the only thing that turns the proxy zero into a real
+one. Nothing in the tree does it today: every gate compares each port to *upstream* on whatever
+inputs a real file supplies, which is this file's whole subject.
+
 <a id="ast-equivalence"></a>
 
 
