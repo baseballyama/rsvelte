@@ -10,7 +10,7 @@ use super::{
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
-    code_bytes, find_rune_code, find_rune_code_from, skip_opaque,
+    code_bytes, code_bytes_from, find_rune_code, find_rune_code_from, skip_opaque,
 };
 use crate::compiler::phases::phase3_transform::shared::rune_shadow::RuneShadows;
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
@@ -107,6 +107,16 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
             &result[assignment + 1..props_at],
         )
         .is_empty()
+        // The caller's unit is a line, not a statement, so it can hold a second
+        // statement after this declaration's `;` — which the whole-unit rewrite
+        // below would delete.
+        && {
+            let bytes = result.as_bytes();
+            match code_bytes_from(bytes, props_at).find(|&(_, byte)| byte == b';') {
+                Some((semi, _)) => code_bytes_from(bytes, semi + 1).next().is_none(),
+                None => true,
+            }
+        }
         && let Some(transformed) = super::props_transforms::transform_props_destructuring(
             &result,
             prop_source_vars,
