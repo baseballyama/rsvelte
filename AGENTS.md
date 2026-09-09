@@ -308,6 +308,19 @@ are in the archived file.
   residue marker**: `verify.mjs` caps both its NEW list and its stale list at `SHOW = 30` and
   prints no "and N more" in either direction (#4484), so a re-baseline sourced from a job log is
   silently a re-baseline of the first 30.
+- **A fabricated value does not have to be a number, and a non-numeric one defeats every check
+  people write.** The recorded fabrications are numeric — `|| echo 0`, a rejected timestamp, an
+  empty `comm`, a paging window's short count — so the defences are range checks, denominators
+  and "does this look plausible". A hash sweep over 33,623 live components reported `js.map MOVED = 0`
+  on every file because the NAPI `compile` returns `js.map` as an **object** and the harness
+  hashed `String(map)`: `"[object Object]"`, one constant, for every input. It hashes cleanly, it
+  is identical in both arms, and it is **stable across reruns** — reproducibility normally argues
+  *for* a result. The sibling field in the same record (`js.code`, a string) was measured
+  correctly throughout, so the table read as a well-formed half-zero. Nothing inside the run can
+  see it: the defence is a two-sided control run **before** the result is believed — here four
+  files, three whose maps must move and one that must not, which named the instrument in one
+  command (`MAP-MOVED x3 / map-same x1` only after the fix). Check the runtime **type** of every
+  value a sweep hashes, not just its name.
 - **A negative result needs a positive control, and a control must bypass a stage the
   measurement passed through.** `grep` here is a `ugrep --ignore-files` wrapper (`command
   grep`); quote every glob-shaped argument (`--include='*.svelte'`); a NUL byte makes
