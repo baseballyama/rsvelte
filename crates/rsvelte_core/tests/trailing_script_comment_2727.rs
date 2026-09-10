@@ -39,7 +39,7 @@ fn trailing_line_comment_stays_outside_the_generated_setter() {
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, &output, SourceType::mjs()).parse();
     assert!(
-        !parsed.panicked && parsed.diagnostics.is_empty(),
+        !parsed.fatal_error && parsed.diagnostics.is_empty(),
         "client output must parse:\n{output}"
     );
 }

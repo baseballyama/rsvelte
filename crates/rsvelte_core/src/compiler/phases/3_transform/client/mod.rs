@@ -6338,7 +6338,7 @@ fn separate_same_line_top_level_statements<'a>(
         SourceType::mjs()
     };
     let parsed = Parser::new(&allocator, script, source_type).parse();
-    if parsed.panicked || !parsed.diagnostics.is_empty() {
+    if parsed.fatal_error || !parsed.diagnostics.is_empty() {
         return Cow::Borrowed(script);
     }
 
@@ -6432,7 +6432,7 @@ fn close_reactive_label_gaps<'a>(script: &'a str, is_typescript: bool) -> Cow<'a
         SourceType::mjs()
     };
     let parsed = Parser::new(&allocator, script, source_type).parse();
-    if parsed.panicked || !parsed.diagnostics.is_empty() {
+    if parsed.fatal_error || !parsed.diagnostics.is_empty() {
         return Cow::Borrowed(script);
     }
 
@@ -6914,7 +6914,7 @@ fn top_level_statement_end_lines(
         let parsed = oxc_parser::Parser::new(&alloc, script, oxc_span::SourceType::mjs()).parse();
         super::profile::record_direct_parse(super::profile::timer_elapsed(_pt), script.len());
 
-        let ends = if parsed.panicked || !parsed.diagnostics.is_empty() {
+        let ends = if parsed.fatal_error || !parsed.diagnostics.is_empty() {
             None
         } else {
             Some(statement_end_lines_from_spans(
@@ -9642,7 +9642,7 @@ fn find_enclosing_function_body(script: &str, pos: usize) -> Option<(usize, usiz
 
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, script, SourceType::mjs()).parse();
-    if parsed.panicked || !parsed.diagnostics.is_empty() {
+    if parsed.fatal_error || !parsed.diagnostics.is_empty() {
         return None;
     }
     let mut finder = BodyFinder {

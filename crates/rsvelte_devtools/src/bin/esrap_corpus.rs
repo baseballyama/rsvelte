@@ -68,7 +68,7 @@ fn main() {
         report.bytes += source.len();
         let allocator = Allocator::default();
         let parsed = parse(&allocator, &source);
-        if parsed.panicked || !parsed.diagnostics.is_empty() {
+        if parsed.fatal_error || !parsed.diagnostics.is_empty() {
             failures.push(format!(
                 "{}: input is not valid JavaScript: {:?}",
                 path.display(),
@@ -124,7 +124,7 @@ fn main() {
 
         let output_allocator = Allocator::default();
         let output = parse(&output_allocator, &plain);
-        if output.panicked || !output.diagnostics.is_empty() {
+        if output.fatal_error || !output.diagnostics.is_empty() {
             failures.push(format!(
                 "{}: printer emitted invalid JavaScript: {:?}",
                 path.display(),

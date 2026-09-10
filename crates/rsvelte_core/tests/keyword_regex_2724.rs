@@ -19,7 +19,7 @@ fn regex_after_return_is_not_a_template_close_tag() {
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, &output, SourceType::mjs()).parse();
     assert!(
-        !parsed.panicked && parsed.diagnostics.is_empty(),
+        !parsed.fatal_error && parsed.diagnostics.is_empty(),
         "client output must parse:\n{output}"
     );
 }

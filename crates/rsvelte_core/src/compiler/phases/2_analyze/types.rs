@@ -617,7 +617,7 @@ fn strip_typescript_parsed(
     let parser = Parser::new(&allocator, source, source_type);
     let result = parser.parse();
 
-    if result.panicked {
+    if result.fatal_error {
         // The AST is a stub; nothing can be stripped from it.
         return (source.to_string(), None);
     }
@@ -633,7 +633,7 @@ fn strip_typescript_parsed(
     if !result.diagnostics.is_empty() {
         let allocator = Allocator::default();
         let check = Parser::new(&allocator, &stripped, SourceType::mjs()).parse();
-        if check.panicked || !check.diagnostics.is_empty() {
+        if check.fatal_error || !check.diagnostics.is_empty() {
             return (source.to_string(), None);
         }
     }

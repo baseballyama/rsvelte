@@ -29,7 +29,7 @@ fn custom_element_await_attribute_emits_parseable_output() {
         let allocator = Allocator::default();
         let parsed = Parser::new(&allocator, &output, SourceType::mjs()).parse();
         assert!(
-            !parsed.panicked && parsed.diagnostics.is_empty(),
+            !parsed.fatal_error && parsed.diagnostics.is_empty(),
             "{generate:?} output must parse:\n{output}\ndiagnostics: {:?}",
             parsed.diagnostics
         );
