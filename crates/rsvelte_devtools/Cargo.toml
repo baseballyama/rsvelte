@@ -40,13 +40,13 @@ rsvelte_projection = { path = "../rsvelte_projection" }
 
 backtrace = "0.3"
 chrono = "0.4"
-oxc_allocator = "0.146"
-oxc_ast = "0.146"
-oxc_ast_visit = "0.146"
-oxc_codegen = "0.146"
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "0389c4010ef8298728f3e47fff8e2a9106d10045", optional = true }
-oxc_parser = "0.146"
-oxc_span = "0.146"
+oxc_allocator = "0.149"
+oxc_ast = "0.149"
+oxc_ast_visit = "0.149"
+oxc_codegen = "0.149"
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "60fa13878c3808413268c462ddadbceaf71c38bb", optional = true }
+oxc_parser = "0.149"
+oxc_span = "0.149"
 rayon = { version = "1.10", optional = true }
 regex = "1.11"
 rustc-hash = "2.0"

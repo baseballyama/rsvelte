@@ -113,7 +113,7 @@ pub(super) fn collect(
         SourceType::mjs()
     };
     let parsed = Parser::new(&allocator, script_text, source_type).parse();
-    if parsed.panicked {
+    if parsed.fatal_error {
         return out;
     }
     let program = &parsed.program;

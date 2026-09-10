@@ -31,7 +31,7 @@ fn nested_async_function_does_not_make_derived_async() {
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, &output, SourceType::mjs()).parse();
     assert!(
-        !parsed.panicked && parsed.diagnostics.is_empty(),
+        !parsed.fatal_error && parsed.diagnostics.is_empty(),
         "client output must parse:\n{output}"
     );
 }

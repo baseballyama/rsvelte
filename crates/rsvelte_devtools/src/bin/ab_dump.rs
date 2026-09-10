@@ -72,7 +72,7 @@ fn main() {
                 ..ParseOptions::default()
             })
             .parse();
-        if ret.panicked {
+        if ret.fatal_error {
             eprintln!("{path}: failed to parse");
             continue;
         }

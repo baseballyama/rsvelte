@@ -751,7 +751,7 @@ fn same_line_legacy_export_declaration_does_not_consume_the_next_statement() {
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, &result.js.code, SourceType::mjs()).parse();
     assert!(
-        !parsed.panicked && parsed.diagnostics.is_empty(),
+        !parsed.fatal_error && parsed.diagnostics.is_empty(),
         "generated client output must parse:\n{}",
         result.js.code
     );

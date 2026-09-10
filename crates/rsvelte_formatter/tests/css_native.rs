@@ -75,8 +75,9 @@ fn unparseable_style_body_is_spliced_without_a_blank_line() {
 /// The three `fmt-oracle-excluded.json` CSS entries. Each form below is
 /// `oxfmt <file>.css`'s own output byte-for-byte; `oxfmt(svelte: true)` — which
 /// prints embedded CSS through prettier's PostCSS printer — disagrees with oxfmt
-/// itself on all three, so matching the oracle would mean matching a tool against
-/// its own other answer.
+/// itself on `--bar` and `--sel`, so matching the oracle would mean matching a
+/// tool against its own other answer. `--arr` converged in oxc 0.149 (the engine
+/// stopped padding the comma), and is kept here to pin that it stays converged.
 #[test]
 fn a_custom_property_value_follows_the_oxc_engine_not_postcss() {
     let out = fmt(
@@ -85,7 +86,7 @@ fn a_custom_property_value_follows_the_oxc_engine_not_postcss() {
     );
     // oracle: `--bar:    !important;` / `[1, 2]` / `a > b ~c`
     assert!(out.contains("--bar: !important;"), "{out}");
-    assert!(out.contains("--arr: [1 , 2];"), "{out}");
+    assert!(out.contains("--arr: [1, 2];"), "{out}");
     assert!(out.contains("--sel: a > b ~ c;"), "{out}");
 }
 

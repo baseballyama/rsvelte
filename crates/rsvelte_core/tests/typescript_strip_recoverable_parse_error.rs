@@ -34,7 +34,7 @@ fn assert_parses(code: &str) {
     let allocator = Allocator::default();
     let ret = Parser::new(&allocator, code, SourceType::mjs()).parse();
     assert!(
-        !ret.panicked && ret.diagnostics.is_empty(),
+        !ret.fatal_error && ret.diagnostics.is_empty(),
         "generated module is not parseable JavaScript: {:?}\n{code}",
         ret.diagnostics
     );

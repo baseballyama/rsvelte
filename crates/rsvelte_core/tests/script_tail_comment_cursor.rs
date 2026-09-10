@@ -30,7 +30,7 @@ fn build(source: &str, generate: GenerateMode) -> String {
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, &code, SourceType::mjs()).parse();
     assert!(
-        !parsed.panicked && parsed.diagnostics.is_empty(),
+        !parsed.fatal_error && parsed.diagnostics.is_empty(),
         "output must parse:\n{code}"
     );
     code

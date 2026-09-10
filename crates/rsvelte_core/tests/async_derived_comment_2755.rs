@@ -26,7 +26,7 @@ fn leading_block_svelte_ignore_before_async_derived_is_retained_and_parseable() 
         let allocator = Allocator::default();
         let parsed = Parser::new(&allocator, &output, SourceType::mjs()).parse();
         assert!(
-            !parsed.panicked && parsed.diagnostics.is_empty(),
+            !parsed.fatal_error && parsed.diagnostics.is_empty(),
             "{generate:?} output must parse:\n{output}"
         );
     }
@@ -50,7 +50,7 @@ fn inspect_after_top_level_await_keeps_its_async_slot() {
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, &output, SourceType::mjs()).parse();
     assert!(
-        !parsed.panicked && parsed.diagnostics.is_empty(),
+        !parsed.fatal_error && parsed.diagnostics.is_empty(),
         "client output must parse:\n{output}"
     );
 }

@@ -1519,7 +1519,7 @@ fn has_top_level_await_ast(source: &str) -> Option<bool> {
             ..ParseOptions::default()
         })
         .parse();
-    if parsed.panicked || !parsed.diagnostics.is_empty() {
+    if parsed.fatal_error || !parsed.diagnostics.is_empty() {
         return None;
     }
 
