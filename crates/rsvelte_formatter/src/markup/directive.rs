@@ -5,8 +5,6 @@ use crate::error::FormatError;
 use crate::expression::format_attribute_value_expression;
 use crate::options::FormatOptions;
 
-use super::attribute::minimal_break_extra;
-use super::value::is_shallow_value;
 use crate::width::{VisualWidth, tab_width};
 
 pub(super) fn render_spread(
@@ -71,13 +69,12 @@ pub(super) fn render_directive_value(
     Ok(format_expression_at(source, expr, options, attr_depth)?.unwrap_or_default())
 }
 
-/// Like `render_directive_value` but re-narrows single-line values that would
-/// overflow the line when preceded by `prefix` characters at the attribute
-/// indent column. Only re-narrows when `narrow_value` is true (i.e. the open
-/// tag has already been broken to multi-line). Unlike plain attribute values,
-/// directive values include arrow-function handlers (`on:click={(e) => ...}`)
-/// which prettier also re-narrows, so we do not apply the `is_shallow_value`
-/// guard that the plain-attribute path uses.
+/// Like `render_directive_value` but, once the open tag is known to wrap
+/// (`narrow_value`), re-formats a single-line value that would overflow its
+/// attribute line. The `name={` prefix is charged to the value's first line
+/// only: prettier measures each group against the column it starts at, so a
+/// continuation line has the whole width minus its own indent, and charging
+/// the prefix to it re-breaks a line that fits (#4119).
 pub(super) fn render_directive_value_narrow(
     source: &str,
     expr: &Expression,
@@ -93,41 +90,17 @@ pub(super) fn render_directive_value_narrow(
         let indent_cols = attr_depth * options.js.indent_width.value() as usize;
         let line_width = options.js.line_width.value() as usize;
         // `{` + formatted + `}` = 1 brace on each side
-        if indent_cols + prefix + 1 + formatted.visual_width(tw) + 1 > line_width {
-            // For shallow (non-block) values use `prefix + 1` (the `{` counts
-            // against the first-line budget and the value has no multi-line
-            // continuation, so narrowing by the full prefix + brace is safe).
-            //
-            // For arrow-function values the body sits on the next line at
-            // `+indent_width` relative to the expression, which the final
-            // re-indent pass lifts to `attr_indent + indent_width` in the
-            // template. The effective available width for the body is
-            // `line_width - (attr_indent + indent_width)`, which is
-            // `line_width - attr_indent - prefix + (prefix - indent_width)`.
-            // Using `extra_lead = prefix - indent_width` (instead of `prefix`)
-            // leaves the body exactly one indent level of room, preventing
-            // over-narrow breakage of nested object / array arguments.
-            let indent_width = options.js.indent_width.value() as usize;
-            // An expression-bodied arrow must split after `=>`; `prefix -
-            // indent_width` yields `narrowed = inline_len` (fits exactly, off by
-            // one), so use the minimal-break width instead.
-            let is_expr_arrow = formatted.contains("=>")
-                && formatted
-                    .split_once("=>")
-                    .is_some_and(|(_, body)| !body.trim_start().starts_with('{'));
-            let extra_lead = if is_shallow_value(&formatted) {
-                prefix + 1
-            } else if is_expr_arrow {
-                let base_width = line_width.saturating_sub(indent_cols);
-                minimal_break_extra(base_width, formatted.visual_width(tw))
-            } else {
-                prefix.saturating_sub(indent_width)
-            };
-            if let Some(s) = crate::expression::format_directive_value_extra(
-                source, expr, value_end, options, attr_depth, extra_lead,
-            )? {
-                return Ok(s);
-            }
+        if indent_cols + prefix + 1 + formatted.visual_width(tw) + 1 > line_width
+            && let Some(s) = crate::expression::format_directive_value_offset(
+                source,
+                expr,
+                value_end,
+                options,
+                attr_depth,
+                prefix + 1,
+            )?
+        {
+            return Ok(s);
         }
     }
     Ok(formatted)

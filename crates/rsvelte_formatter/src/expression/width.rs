@@ -1,4 +1,4 @@
-use super::format_core::format_expr_core;
+use super::format_core::{format_expr_core, format_expr_core_offset};
 use crate::error::FormatError;
 use crate::options::FormatOptions;
 use crate::width::{VisualWidth, tab_width};
@@ -76,6 +76,25 @@ pub fn format_attribute_value_expression(
         oxc_formatter_core::LineWidth::try_from(crate::formatter_width(narrowed.max(1)))
             .unwrap_or(options.js.line_width);
     format_expr_core(expr_source, options, line_width, false)
+}
+
+/// Format an attribute / directive value expression whose first line starts
+/// `first_line_offset` columns after the attribute indent (`name={`). The
+/// width is narrowed by the nesting indent only; the prefix is charged to the
+/// first line alone, so a continuation line keeps the budget it really has once
+/// the open-tag rewrite pushes it out to the attribute column.
+pub fn format_attribute_value_expression_offset(
+    expr_source: &str,
+    options: &FormatOptions,
+    attr_depth: usize,
+    first_line_offset: usize,
+) -> Result<String, FormatError> {
+    let indent_cols = attr_depth * options.js.indent_width.value() as usize;
+    let narrowed = (options.js.line_width.value() as usize).saturating_sub(indent_cols);
+    let line_width =
+        oxc_formatter_core::LineWidth::try_from(crate::formatter_width(narrowed.max(1)))
+            .unwrap_or(options.js.line_width);
+    format_expr_core_offset(expr_source, options, line_width, false, first_line_offset)
 }
 
 /// Format an attribute / directive value expression at an explicit print

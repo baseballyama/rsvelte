@@ -217,7 +217,7 @@ pub(super) fn trivial_expr_verbatim(
 /// the dialect must key the cache even though `clear_expr_memo()` already runs
 /// per attempt — belt-and-suspenders against a future change to the clear timing
 /// silently returning a JS-formatted result for a TS retry.
-type ExprMemoKey = (String, u16, bool, bool, QuoteStyle);
+type ExprMemoKey = (String, u16, bool, bool, QuoteStyle, u16);
 thread_local! {
     static EXPR_MEMO: RefCell<HashMap<ExprMemoKey, String>> = RefCell::new(HashMap::new());
 }
@@ -289,7 +289,45 @@ pub(super) fn format_expr_core(
     line_width: oxc_formatter_core::LineWidth,
     single_line: bool,
 ) -> Result<String, FormatError> {
-    if let Some(out) = trivial_expr_verbatim(expr_source, line_width) {
+    format_expr_core_offset(expr_source, options, line_width, single_line, 0)
+}
+
+/// Smallest first-line offset the comment placeholder can spell: `/**/` plus
+/// the space oxc prints after it. Below that the offset is charged by
+/// narrowing the width instead.
+const MIN_COMMENT_OFFSET: usize = 5;
+
+/// A block comment of `cols` columns, used as a same-line placeholder so the
+/// formatter measures the expression's first line from a real column.
+fn offset_comment(cols: usize) -> String {
+    format!("/*{}*/", "x".repeat(cols - 4))
+}
+
+fn narrowed_width(
+    line_width: oxc_formatter_core::LineWidth,
+    by: usize,
+) -> oxc_formatter_core::LineWidth {
+    let narrowed = (line_width.value() as usize).saturating_sub(by).max(1);
+    oxc_formatter_core::LineWidth::try_from(crate::formatter_width(narrowed)).unwrap_or(line_width)
+}
+
+/// [`format_expr_core`] with the expression's first line starting
+/// `first_line_offset` columns in (the `name={` prefix of an attribute value,
+/// say). Only the first line pays for the prefix: continuation lines get the
+/// full `line_width`, which is what prettier's printer does when it measures
+/// each group against the column it actually starts at. A single width cannot
+/// express that, so the offset is spelled as a same-line block comment in front
+/// of the expression and stripped from the output again.
+pub(super) fn format_expr_core_offset(
+    expr_source: &str,
+    options: &FormatOptions,
+    line_width: oxc_formatter_core::LineWidth,
+    single_line: bool,
+    first_line_offset: usize,
+) -> Result<String, FormatError> {
+    if let Some(out) =
+        trivial_expr_verbatim(expr_source, narrowed_width(line_width, first_line_offset))
+    {
         return Ok(out.to_string());
     }
     let key: ExprMemoKey = (
@@ -298,6 +336,7 @@ pub(super) fn format_expr_core(
         single_line,
         options.typescript,
         options.js.quote_style,
+        u16::try_from(first_line_offset).unwrap_or(u16::MAX),
     );
     if let Some(cached) = EXPR_MEMO.with(|m| m.borrow().get(&key).cloned()) {
         return Ok(cached);
@@ -346,6 +385,14 @@ pub(super) fn format_expr_core(
     //   (template tags are synchronous), so no special handling is needed.
     let (wrapped, source_type, use_const_wrapper) =
         expression_wrapper(expr_source, options.typescript);
+    // The const wrapper already compensates its own prefix by widening the
+    // line, and the comment would sit in front of `const`, not the expression.
+    let offset_comment = (first_line_offset >= MIN_COMMENT_OFFSET && !use_const_wrapper)
+        .then(|| offset_comment(first_line_offset - 1));
+    let wrapped = match &offset_comment {
+        Some(comment) => format!("{comment} {wrapped}"),
+        None => wrapped,
+    };
 
     let first = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
@@ -418,6 +465,13 @@ pub(super) fn format_expr_core(
                 if expr_head_parenthesized_at_statement_position(&stmt.expression)
         );
 
+    let offset_comment = offset_comment.filter(|_| !use_const_wrapper);
+    // Without the placeholder the offset is charged the old way, by narrowing.
+    let line_width = if offset_comment.is_some() {
+        line_width
+    } else {
+        narrowed_width(line_width, first_line_offset)
+    };
     let mut js = options.js.clone();
     // Compensate for the const-wrapper prefix: tell OXC the line is `prefix_len`
     // characters wider than the target so its break decision is based on the
@@ -436,6 +490,17 @@ pub(super) fn format_expr_core(
         .print()
         .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
         .into_code();
+    let formatted = match &offset_comment {
+        Some(comment) => match formatted.strip_prefix(&format!("{comment} ")) {
+            Some(rest) => rest.to_string(),
+            // oxc moved the placeholder: charge the offset by narrowing instead.
+            None => {
+                let narrowed = narrowed_width(line_width, first_line_offset);
+                return format_expr_core(expr_source, options, narrowed, single_line);
+            }
+        },
+        None => formatted,
+    };
 
     // Template-position `x as A | B` / `x satisfies A | B`: oxc ties the union's
     // leading-`|` break to the `as`/`satisfies` annotation break, so once the
