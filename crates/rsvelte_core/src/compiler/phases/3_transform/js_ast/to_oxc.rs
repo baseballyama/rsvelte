@@ -179,23 +179,32 @@ pub fn program_to_oxc<'a>(
     program: &JsProgram,
     arena: &JsArena,
     allocator: &'a oxc_allocator::Allocator,
+    source_len: u32,
 ) -> Option<Converted<'a>> {
-    program_to_oxc_with_islands(program, arena, allocator, &[])
+    program_to_oxc_with_islands(program, arena, allocator, &[], source_len)
 }
 
 /// Convert an IR program while inserting retained source ASTs directly.
+/// `source_len` is the byte length of the original file this program was
+/// generated from, and it is the only quantity here that is genuinely an upper
+/// bound on the source offsets the printer can be asked to resolve. `max_span`
+/// is not: it is the running max of whatever the probe pass happens to note,
+/// so a template identifier's span could sit above a `max_span`-derived
+/// `loc_base` and read as comment space (#4521). Pass `0` when the program has
+/// no original source (a synthetic program in a test).
 pub fn program_to_oxc_with_islands<'a, 'source>(
     program: &JsProgram,
     arena: &JsArena,
     allocator: &'a oxc_allocator::Allocator,
     islands: &[AstIsland<'source>],
+    source_len: u32,
 ) -> Option<Converted<'a>> {
     note_fallback(UNSUPPORTED);
     let (probe, synth) = convert_once(program, arena, allocator, islands, None)?;
     if !synth.saw_comments {
         return Some(probe);
     }
-    let loc_base = synth.max_span.saturating_add(2);
+    let loc_base = synth.max_span.max(source_len).saturating_add(2);
     let (converted, synth) = convert_once(program, arena, allocator, islands, Some(loc_base))?;
     // Every span the pass produced outside a chunk region must stay below
     // `loc_base`, or the printer would mistake it for a real location.
@@ -3305,7 +3314,7 @@ mod tests {
         let program = JsProgram::with_body(vec![b::stmt(&arena, b::id("div"))]);
         let allocator = Allocator::default();
         let converted =
-            program_to_oxc(&program, &arena, &allocator).expect("identifier is supported");
+            program_to_oxc(&program, &arena, &allocator, 0).expect("identifier is supported");
 
         let oxc_ast::ast::Statement::ExpressionStatement(statement) = &converted.program.body[0]
         else {
@@ -3313,6 +3322,28 @@ mod tests {
         };
         assert_eq!(statement.expression.span().start, 7);
         assert_eq!(statement.expression.span().end, 10);
+    }
+
+    /// With a declared source length the boundary clears every source offset,
+    /// which is what makes "at or above `loc_base`" mean "comment space" (#4521).
+    #[test]
+    fn a_declared_source_length_lifts_the_comment_boundary_over_every_source_offset() {
+        let arena = JsArena::new();
+        arena.note_identifier_span("div", 1_000, 1_003);
+        let program = JsProgram::with_body(vec![
+            JsStatement::Raw("/* comment */ value;".into()),
+            b::stmt(&arena, b::id("div")),
+        ]);
+        let allocator = Allocator::default();
+        let converted = program_to_oxc(&program, &arena, &allocator, 1_200)
+            .expect("commented chunk is supported");
+
+        assert!(converted.comment_source.is_some());
+        assert!(
+            converted.loc_base > 1_200,
+            "loc_base {} must clear the source",
+            converted.loc_base
+        );
     }
 
     #[test]
@@ -3325,7 +3356,7 @@ mod tests {
         ]);
         let allocator = Allocator::default();
         let converted =
-            program_to_oxc(&program, &arena, &allocator).expect("commented chunk is supported");
+            program_to_oxc(&program, &arena, &allocator, 0).expect("commented chunk is supported");
 
         assert!(converted.comment_source.is_some());
         assert!(converted.loc_base < 1_000);
@@ -3357,7 +3388,7 @@ mod tests {
         let program =
             JsProgram::with_body(vec![b::stmt(&arena, assignment), b::stmt(&arena, update)]);
         let allocator = Allocator::default();
-        let converted = program_to_oxc(&program, &arena, &allocator)
+        let converted = program_to_oxc(&program, &arena, &allocator, 0)
             .expect("spanned assignment targets are supported");
 
         let Statement::ExpressionStatement(assignment) = &converted.program.body[0] else {
@@ -3403,7 +3434,7 @@ mod tests {
             crate::compiler::phases::phase3_transform::js_ast::JsExpr::Spanned(call_id, 0, 0),
         )]);
         let allocator = Allocator::default();
-        let converted = program_to_oxc(&program, &arena, &allocator).expect("call is supported");
+        let converted = program_to_oxc(&program, &arena, &allocator, 0).expect("call is supported");
 
         let oxc_ast::ast::Statement::ExpressionStatement(statement) = &converted.program.body[0]
         else {
@@ -3436,6 +3467,7 @@ mod tests {
                 source_offset: 12,
                 statement_indices: vec![1],
             }],
+            0,
         )
         .expect("retained AST is supported");
 
@@ -3463,7 +3495,7 @@ mod tests {
         )]);
         let allocator = Allocator::default();
         let converted =
-            program_to_oxc(&program, &arena, &allocator).expect("mapped raw chunk is supported");
+            program_to_oxc(&program, &arena, &allocator, 0).expect("mapped raw chunk is supported");
         let printed = rsvelte_esrap::print_with_map(
             &converted.program,
             "let value = 1;",
@@ -3490,7 +3522,8 @@ mod tests {
         });
         let program = JsProgram::with_body(vec![b::stmt(&arena, member)]);
         let allocator = Allocator::default();
-        let converted = program_to_oxc(&program, &arena, &allocator).expect("member is supported");
+        let converted =
+            program_to_oxc(&program, &arena, &allocator, 0).expect("member is supported");
 
         let Statement::ExpressionStatement(statement) = &converted.program.body[0] else {
             panic!("expected expression statement");

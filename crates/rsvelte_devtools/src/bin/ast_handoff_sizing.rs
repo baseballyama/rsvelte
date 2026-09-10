@@ -126,7 +126,7 @@ fn measure(source: &str, path: &str) -> Option<Row> {
     let output = compile_client_with_program_sink(source, options, &mut |program, arena| {
         let allocator = oxc_allocator::Allocator::default();
         let at = Instant::now();
-        let converted = program_to_oxc(program, arena, &allocator);
+        let converted = program_to_oxc(program, arena, &allocator, source.len() as u32);
         convert = at.elapsed();
         match converted {
             None => {
@@ -146,7 +146,7 @@ fn measure(source: &str, path: &str) -> Option<Row> {
                 // Same conversion again, then stripped: the question is not
                 // "does the strip run" but "does its result pass the gate that
                 // rejected the unstripped program".
-                let again = program_to_oxc(program, arena, &allocator)
+                let again = program_to_oxc(program, arena, &allocator, source.len() as u32)
                     .expect("second conversion of a program that already converted");
                 let at = Instant::now();
                 let stripped = again.into_coordinate_free_program();

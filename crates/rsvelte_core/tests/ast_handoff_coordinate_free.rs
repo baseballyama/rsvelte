@@ -68,8 +68,8 @@ fn stripping_leaves_no_span_and_no_comment_behind() {
 
     compile_client_with_program_sink(SOURCE, options, &mut |program, arena| {
         let allocator = oxc_allocator::Allocator::default();
-        let converted =
-            program_to_oxc(program, arena, &allocator).expect("fixture must convert to OXC");
+        let converted = program_to_oxc(program, arena, &allocator, SOURCE.len() as u32)
+            .expect("fixture must convert to OXC");
         before = located(&converted.program);
         before_comments = converted.program.comments.len();
 

@@ -403,7 +403,7 @@ pub fn transform_client_module(
         }
     }
 
-    print_module_program(body, &header)
+    print_module_program(body, &header, source.len() as u32)
 }
 
 /// Print a `.svelte.(js|ts)` module body the way upstream's `client_module` /
@@ -434,6 +434,7 @@ fn expand_module_inspect_holes(code: String) -> String {
 pub(crate) fn print_module_program(
     body: Vec<JsStatement>,
     header: &str,
+    source_len: u32,
 ) -> Result<String, TransformError> {
     use super::js_ast::codegen::generate;
 
@@ -443,8 +444,8 @@ pub(crate) fn print_module_program(
     };
     let arena = super::js_ast::arena::JsArena::new();
     let alloc = oxc_allocator::Allocator::default();
-    if let Some(code) =
-        super::js_ast::to_oxc::program_to_oxc(&program, &arena, &alloc).map(|converted| {
+    if let Some(code) = super::js_ast::to_oxc::program_to_oxc(&program, &arena, &alloc, source_len)
+        .map(|converted| {
             let print_opts = rsvelte_esrap::PrintOptions::default().with_unlocated_program(true);
             match &converted.comment_source {
                 Some(cs) => {
@@ -2807,6 +2808,7 @@ pub(crate) fn transform_client(
                     &context.arena,
                     &alloc,
                     &ast_islands,
+                    source.len() as u32,
                 )
             })
             .map(|converted| {
