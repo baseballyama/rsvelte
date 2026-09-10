@@ -1,5 +1,9 @@
 # @rsvelte/fmt-linux-x64-gnu
 
+## 0.7.22
+
+No changes in this release.
+
 ## 0.7.21
 
 No changes in this release.

@@ -1,5 +1,59 @@
 # @rsvelte/fmt
 
+## 0.7.22
+
+### Patch Changes
+
+- 2c3614d: fmt: rebuild a broken content mustache at the column it starts and against what follows it
+
+  A mustache in prose that had to break across lines was re-formatted at the
+  width its continuation lines get, as if its first line started at the indent
+  and nothing followed its `}`. prettier measures each JS group of the
+  expression in place — the first against the column the `{` sits at, after the
+  words before it on the line, and the last against the closing brace and any
+  text glued to it — so `Best happened at {categoryData.record_holders` now
+  breaks after the member that still fits on that line rather than after the one
+  that fits at the indent, and a mustache ending in `}.` leaves room for the dot.
+
+- 2b0dc16: fmt: charge a directive value's `name={` prefix to its first line only
+
+  Once an open tag wraps, a directive value was formatted at a print width
+  narrowed by its own `class:<name>=` prefix, so continuation lines that fit at
+  their real indent were broken again (`selected_category.id ===` / `category.id}`
+  where prettier keeps `selected_category.id === category.id}`), and the per-shape
+  discounts that softened that for arrow bodies and object literals left an
+  object flat past the print width where prettier expands it.
+
+  The prefix is now a first-line offset: the expression is formatted with a
+  same-line placeholder of the prefix's width in front of it and the full width
+  for every later line, which is how prettier's printer measures each group
+  against the column it starts at.
+
+- 4def6f8: fmt: measure a following mustache up to its first break opportunity
+
+  When deciding whether an inline element or an earlier interpolation fits, the
+  breakable mustache behind it was charged up to the head of its outermost
+  group (`{record.holders` for a member chain). prettier stops at the first
+  line-break opportunity anywhere in the expression (`{record`), so
+  `<span class="label">Label text</span>{record` now keeps the span's hug and
+  breaks inside the mustache where the oracle does.
+
+- 414babe: fmt: keep a `<pre>`'s attributes flat when its content offers the first break
+
+  A `<pre>` whose one-line form overflowed had its attributes wrapped one per
+  line where prettier keeps `<pre class="…">` on one line and breaks inside the
+  content — at a mustache's member chain or call, at a child `<code>`'s hugged
+  `>`, or at a child component's attributes. prettier's `fits` runs past the open
+  tag to the content's first line-break opportunity, and only a content with no
+  opportunity at all (a bare identifier, a long first text line) wraps the
+  attributes.
+
+  The formatter now measures that prefix, and lays the content line's mustaches
+  out left to right the way prettier's printer does: a mustache breaks when its
+  flat form plus everything up to the next opportunity overflows, its first line
+  is charged the open tag before it and its last line the `}</pre>` after it, and
+  its continuation lines sit one level inside the element.
+
 ## 0.7.21
 
 ### Patch Changes
