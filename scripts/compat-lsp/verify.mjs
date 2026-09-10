@@ -24,6 +24,7 @@ import {
 import {
   CORPUS_SHARDS,
   createCurrentArtifact,
+  describeArm,
   recordsFixtureControls,
 } from "./artifacts.mjs";
 import { EDIT_PHASES, OPEN_PHASE, editChanges } from "./edits.mjs";
@@ -184,12 +185,14 @@ function requireExecutable(command, label) {
 const TRUSTED = !selectedSuites.includes("corpus");
 requireExecutable(officialCommand, "official language server");
 requireExecutable(rsvelteCommand, "rsvelte language server");
+// Named here rather than inside the guard: the artifact records it as part of the
+// official arm's identity, and `bin/server.js` is a stub that identifies nothing.
+const officialBuiltServer = path.join(
+  ROOT,
+  "submodules/language-tools/packages/language-server/dist/src/server.js",
+);
 if (!process.env.OFFICIAL_LSP_COMMAND) {
-  const builtServer = path.join(
-    ROOT,
-    "submodules/language-tools/packages/language-server/dist/src/server.js",
-  );
-  if (!fs.existsSync(builtServer)) {
+  if (!fs.existsSync(officialBuiltServer)) {
     throw new Error(
       "official language server is not built; run `pnpm --dir submodules/language-tools --filter svelte-language-server build`",
     );
@@ -1045,6 +1048,18 @@ async function main() {
   // must leave nothing that `merge-current.mjs` could accept.
   assertOracleCalibration(calibration);
 
+  const known = knownBaseline;
+  const currentSet = new Set(current);
+  const knownSet = new Set(known);
+  const selectedKnown = selectKnownForScope(
+    known,
+    selectedSuites,
+    selectedRepos,
+    SHARD,
+  );
+  const added = current.filter((entry) => !knownSet.has(entry));
+  const removed = selectedKnown.filter((entry) => !currentSet.has(entry));
+
   if (WRITE_CURRENT) {
     const artifact = createCurrentArtifact({
       root: ROOT,
@@ -1060,6 +1075,12 @@ async function main() {
         [...mechanismsById].map(([id, labels]) => [id, [...labels]]),
       ),
       diagnosticDetails: Object.fromEntries(newDiagnosticDetails),
+      added,
+      removed,
+      arms: {
+        official: describeArm(officialCommand, [officialBuiltServer]),
+        rsvelte: describeArm(rsvelteCommand),
+      },
     });
     fs.mkdirSync(path.dirname(path.resolve(WRITE_CURRENT)), {
       recursive: true,
@@ -1078,17 +1099,6 @@ async function main() {
     );
   }
 
-  const known = knownBaseline;
-  const currentSet = new Set(current);
-  const knownSet = new Set(known);
-  const selectedKnown = selectKnownForScope(
-    known,
-    selectedSuites,
-    selectedRepos,
-    SHARD,
-  );
-  const added = current.filter((entry) => !knownSet.has(entry));
-  const removed = selectedKnown.filter((entry) => !currentSet.has(entry));
   const report = JSON.parse(fs.readFileSync(REPORT, "utf8"));
   report.ratchet = { current, added, removed };
   fs.writeFileSync(REPORT, JSON.stringify(report, null, "\t") + "\n");
@@ -1103,6 +1113,10 @@ async function main() {
   if (added.length) {
     console.error(`\n[lsp-verify] ${added.length} NEW divergence(s):`);
     for (const entry of added.slice(0, SHOW)) console.error(`  ${entry}`);
+    if (added.length > SHOW)
+      console.error(
+        `  … and ${added.length - SHOW} more (raise --show, or read \`added\` in the uploaded artifact)`,
+      );
     for (const entry of added.slice(0, SHOW)) {
       const details = newDiagnosticDetails.get(entry);
       if (!details) continue;
@@ -1116,6 +1130,10 @@ async function main() {
       `\n[lsp-verify] ${removed.length} stale ratchet entry/entries:`,
     );
     for (const entry of removed.slice(0, SHOW)) console.error(`  ${entry}`);
+    if (removed.length > SHOW)
+      console.error(
+        `  … and ${removed.length - SHOW} more (raise --show, or read \`removed\` in the uploaded artifact)`,
+      );
   }
   if (added.length || removed.length) process.exitCode = 1;
   else

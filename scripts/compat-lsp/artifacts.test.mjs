@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   ARTIFACT_SCHEMA,
   CONFIGURATION_ID,
   CORPUS_SHARDS,
   FIXTURE_SUITES,
+  describeArm,
   hashValues,
   mergeCurrentArtifacts,
   recordsFixtureControls,
@@ -31,6 +35,12 @@ function artifacts() {
     sourceRevisions: {
       "language-tools": "language-tools",
       ...Object.fromEntries(CORPUS_REPOS.map((repo) => [repo, `${repo}-sha`])),
+    },
+    added: [],
+    removed: [],
+    arms: {
+      official: { command: ["node", "server.js"], files: [] },
+      rsvelte: { command: ["rsvelte-language-server"], files: [] },
     },
   };
   return [
@@ -192,4 +202,55 @@ test("the merged mechanism map is the union over the artifact set", () => {
     merged.mechanisms["differential:fixtures/a|initialize|/capabilities:value"],
     ["unclassified"],
   );
+});
+
+test("an artifact missing the verdict or an arm is refused", () => {
+  for (const drop of ["added", "removed"]) {
+    const set = artifacts();
+    delete set[0][drop];
+    assert.throws(
+      () => mergeCurrentArtifacts(set, floor),
+      new RegExp(`lacks ${drop}`),
+    );
+  }
+  for (const arm of ["official", "rsvelte"]) {
+    const set = artifacts();
+    delete set[0].arms[arm];
+    assert.throws(
+      () => mergeCurrentArtifacts(set, floor),
+      new RegExp(`lacks the ${arm} arm`),
+    );
+  }
+  // The positive control: the unmodified set still merges, so the four
+  // rejections above are the deletions and not a broken fixture.
+  assert.ok(mergeCurrentArtifacts(artifacts(), floor));
+});
+
+test("describeArm identifies the files an arm is made of, not its command", () => {
+  const self = fileURLToPath(import.meta.url);
+  const sibling = path.join(path.dirname(self), "artifacts.mjs");
+
+  // The official arm's spelling is `node bin/server.js`, where bin/server.js is a
+  // stub; the file that identifies the build is passed as an extra path. Both are
+  // recorded, and the extra one is what a rebuild moves.
+  const described = describeArm(["node", self, "--stdio"], [sibling]);
+  assert.deepEqual(
+    described.files.map((file) => file.path),
+    [self, sibling],
+  );
+  assert.equal(described.files[0].bytes, fs.readFileSync(self).length);
+  for (const file of described.files) assert.match(file.sha256, /^[0-9a-f]{64}$/);
+  // Distinct files must not collapse to one hash — the failure this guards is a
+  // recorded identity that is the same for every build.
+  assert.notEqual(described.files[0].sha256, described.files[1].sha256);
+
+  // A command naming nothing on disk records no file rather than hashing whatever
+  // it finds: an empty list and a wrong hash are not the same answer.
+  assert.deepEqual(describeArm(["rsvelte-language-server"]).files, []);
+  assert.deepEqual(
+    describeArm([path.join(path.dirname(self), "no-such-binary")]).files,
+    [],
+  );
+  // A directory is not a file, so it must not be hashed.
+  assert.deepEqual(describeArm([path.dirname(self)]).files, []);
 });
