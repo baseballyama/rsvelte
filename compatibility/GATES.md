@@ -1346,6 +1346,13 @@ Because `verify.mjs:292` byte-compares first and only defers *byte-different* pa
 comparator, a divergence living **only** in comments is byte-different, AST-equivalent, and
 scored a pass — for every entry, on every target.
 
+**Closed for `pattern/issues/` only, by gate 45 (#4452).** That population is the repro files,
+whose entire purpose is to pin a divergence a fix closed — so a comment-only one there pins
+nothing, which is a sharper failure than the same blindness over a real-world component. Gate
+45 re-runs the identical normalized byte comparison over that prefix with the rescue removed.
+It leaves this row open over the rest of the corpus, which is ~98% of it: read the closure as
+one population, not as the mechanism.
+
 **Evidence [D].** `flowbite-svelte/src/lib/utils/singleselection.svelte.js` differs by hand
 (official drops a `@type {symbol}` JSDoc, rsvelte keeps it) while `known-failures.client.json`
 does not list it. Positive control: `command grep -rna -- "--comments"` across `scripts/`,
@@ -6077,6 +6084,65 @@ passes — gate 43 has the same shape one level up. Nothing here can improve on 
 would let the two be compared lives in `mechanism.mjs` beside the assigning rule, deliberately not
 in the sidecar (`$schema-note`), so there is no second field for this gate to diff a citation
 against.
+
+---
+
+## 45. Pattern-corpus exact output — `scripts/compat-corpus/verify.mjs` (pattern-exact family)
+
+**Unit.** One manifest entry under `pattern/issues/`, per target. The comparison is the same
+normalized generated JS that gate 1 compares — oxfmt, blank lines stripped — **without** gate 1's
+`ast_equiv_batch` rescue. Ratcheted shrink-only and two-sided through
+`compatibility/pattern-exact-known-failures.<target>.json`, per-entry justification in
+`KNOWN-FAILURES.md#pattern-exact-known-failures`, re-baselined with `--update-exact-baseline`.
+
+**Why a prefix rather than the corpus.** The comparison is strictly stricter than gate 1's, so
+over the whole corpus it enrols every divergence gate 1 deliberately tolerates and the ratchet
+becomes a five-figure file that churns on every submodule bump. `pattern/issues/` is the
+population where the tolerance is actively harmful: a file there exists **to pin a divergence a
+fix closed**, so one whose remaining divergence is comment-only pins nothing while reading as a
+passing repro.
+
+### Blind spot 45a — it reads `jsByteEqual` only, so CSS is outside it — [S]
+
+The family is built from the JS comparison map. A `pattern/issues/` repro whose subject is a
+generated **CSS** comment is not observed here. Gate 1 compares CSS byte-exactly with no AST
+rescue, so the gap is narrow rather than zero — but the two are different comparisons and this
+one does not cover it. The same map answers `true` when **neither** side produced a `.js` — both
+compilers rejecting the file reads as byte-equal here — so an error-population repro is enrolled
+by the error families and never by this one.
+
+### Blind spot 45b — the population is a literal prefix — [D]
+
+`PATTERN_EXACT_PREFIX` is `pattern/issues/`. `pattern/adversarial/`, `pattern/matrix/` and the
+loose `pattern/*.svelte` repros are outside it and keep gate 1's rescue. Measured by the enrolling
+CI run (`exactPopulation` in its `report.json`): 668 manifest entries carry the prefix out of a
+35,013-pair comparison, so this closes blind spot 1a over under 2% of the corpus. Read the closure
+as one population, never as the mechanism.
+
+### Blind spot 45c — the verdict is "the bytes differ", not who is wrong — [S]
+
+An entry says nothing about direction. Measured on the enrolling population, the direction is
+genuinely mixed — some entries are rsvelte emitting a comment official does not — so a summary
+sentence like "rsvelte drops comments" is unsupported by the ratchet and each entry's
+justification has to state its own direction.
+
+### Blind spot 45d — an id can be listed here and in gate 1 at once — [S]
+
+Nothing excludes an id already in `known-failures.<target>.json`. That is deliberate: excluding
+them couples the two ratchets, and then *fixing* a gate-1 entry would add a row here — the shape
+recorded for the svelte2tsx end-position gate, where a newly-matching finding becomes comparable.
+Two rows for one divergence is the cheaper failure.
+
+### Blind spot 45e — the first baseline was measured by CI, not locally — [U]
+
+`collect.mjs` takes no arguments and rewrites the whole corpus tree, so the repro population
+cannot be re-collected in isolation. When the family was written the working tree held 632
+`.svelte` files under `compatibility/pattern-corpus/issues/` while the collected tree and the
+manifest agreed at 586 — both 46 behind. A locally produced baseline would have been short by
+whatever those 46 carry, so the enrolling baseline is CI's, which collects fresh: run
+34430947366, tree `7b270ecbc`, which measured 668 — above both local counts, so a local baseline
+would have been short. Which of the 11 enrolled ids a local run would have missed is still
+unmeasured; the population size is the only part of this that is now settled.
 
 ---
 

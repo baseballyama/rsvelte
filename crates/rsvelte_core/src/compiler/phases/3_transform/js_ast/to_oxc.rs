@@ -711,12 +711,31 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         let before = self.synth.borrow().cursor();
         let value = f()?;
         let after = self.synth.borrow().cursor();
-        let span = if after > before {
+        // A region with no non-whitespace byte holds neither a token nor a
+        // comment, so it is not a location anything can be anchored to: it is
+        // the `'\n'` each chunk is appended with, belonging to a NEIGHBOURING
+        // chunk. Handing it to a builder-made node makes that node a comment
+        // flush boundary sitting just past an unrelated chunk's trailing
+        // comment (#4492, #4481's `{#key}` cell). The scan stops at the first
+        // code byte, so a region that has one costs O(1).
+        let span = if after > before && self.region_has_content(before, after) {
             Span::new(before, after)
         } else {
             SPAN
         };
         Some((value, span))
+    }
+
+    /// Whether `[start, end)` of the comment buffer holds anything but ASCII
+    /// whitespace. Non-ASCII whitespace counts as content, which keeps the
+    /// pre-existing span rather than dropping one this cannot classify.
+    fn region_has_content(&self, start: u32, end: u32) -> bool {
+        let synth = self.synth.borrow();
+        synth
+            .source
+            .as_bytes()
+            .get(start as usize..end as usize)
+            .is_some_and(|bytes| bytes.iter().any(|byte| !byte.is_ascii_whitespace()))
     }
 
     /// Record a span the printer must NOT read as a chunk location.
