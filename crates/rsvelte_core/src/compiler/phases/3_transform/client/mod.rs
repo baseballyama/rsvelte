@@ -1442,6 +1442,18 @@ pub(crate) fn transform_client(
         // adds indent to the first line, but subsequent lines of Raw content
         // need explicit indentation. We always use 1 because instance script
         // content is always emitted at the function body level.
+        // A `$props()` declaration the transform removes outright takes its own
+        // comments with it. Re-entering them as the script's text is what puts
+        // them in the comment buffer, so the first generated declarator can
+        // carry them the way upstream does; the re-emission loop below prints a
+        // statement instead, which is a different position (#4501).
+        if transformed_script.trim().is_empty() && !props_comments.is_empty() {
+            transformed_script = props_comments
+                .iter()
+                .map(|(_, comment)| comment.as_str())
+                .collect::<Vec<_>>()
+                .join("\n");
+        }
         let script_indent = 1usize;
         let trimmed = transformed_script.trim();
         // Upstream dedents a block comment by its opener line's indentation,
