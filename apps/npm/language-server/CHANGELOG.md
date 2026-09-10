@@ -1,5 +1,282 @@
 # @rsvelte/language-server
 
+## 0.7.6
+
+### Patch Changes
+
+- 7ae32be: svelte2tsx: anchor an attribute key's opening quote on the name it opens
+
+  The generated key `"data-open"` is an inserted quote, the attribute name kept as
+  a source chunk, and a closing quote. The opening quote was flushed inside the
+  preceding gap's single `overwrite`, so its map segment anchored on the end of
+  the _previous_ attribute. TypeScript reports a definition or hover range that
+  starts at that quote, so the range's start resolved to the previous attribute —
+  and on a multi-line start tag, to the previous line.
+
+  The delimiter is now written over the name's own first character, which is what
+  the reference does. Generated text is unchanged.
+
+- 3839dee: parse: omit `CallExpression.optional` where acorn-typescript omits it
+
+  acorn-typescript writes `optional` on a call carrying type arguments only when
+  the subscript chain was already optional at that point — `_optionalChained` in
+  `parseSubscript`, threaded left to right — so `f<T>(x)` has no `optional` key at
+  all while `o?.m<T>(x)` has `optional: false`. rsvelte wrote the key
+  unconditionally, which is the largest single field in the `parse()` AST parity
+  ratchet: 1,876 corpus files, 16.6% of all field divergences.
+
+  The predicate is local to the call's own callee chain, so a `?.` that comes
+  after the call (`f<T>(x)?.g(y)`) or one cut off by parentheses
+  (`(a?.b)<T>(x)`) does not reach it — being inside a `ChainExpression` is not the
+  rule. Generated code is unchanged: only the parse path can set type arguments.
+
+- 4b19fb2: Ship a compiler-only browser wasm as the default @rsvelte/compiler entry, retain the stable /wasm subpath, and add compileModule for JavaScript rune modules. Move lint and svelte2tsx to the separately loaded /playground and /playground/wasm exports, and update their consumers.
+- 16e21f3: feat(language-server): document a CSS property completion from the vendored MDN data
+
+  A CSS property completion carried `` `<name>` CSS property `` as its
+  `documentation` — the same one-line stub the hover answered with, from the same
+  place: `known_css_properties.rs` is a list of names and nothing else. So one
+  data gap produced divergences in `textDocument/hover` and
+  `textDocument/completion` alike, and repairing only the hover would have left
+  the second emission site of one lookup behind.
+
+  `cssCompletion.js:244` and `cssHover.js:83` both render an entry through
+  `getEntryDescription`. Hover passes a third `settings` argument that completion
+  does not, so "the same function" is an assumption rather than a fact; driving
+  the official server for both on one document measures the two strings
+  **byte-identical**, which is what licenses one lookup serving both here.
+
+  The `markdown` flag is threaded to both call sites — an embedded `<style>` block
+  and a `style="…"` attribute value — so a client without markdown support gets
+  the description unrendered rather than a markdown body it cannot display. A
+  property the vendored data has no description for now carries no documentation
+  at all, rather than the name stub.
+
+  Two upstream fixtures stop being pinned divergences: `css-smoke-hover-normal`
+  and `css-smoke-hover-nested` were recorded as answering `none` where upstream
+  answers `some`, on the reason "rsvelte CSS hover does not provide
+  selector-specific hover" — which the selector hover in this same change makes
+  false. The manifest's known-difference count goes 57 → 55.
+
+  The selector hover now follows the client's hover `contentFormat` as well.
+  `CSSHover.convertContents` (`cssHover.js:125-147`) maps a `MarkedString[]`
+  through `c.value` when the client declares no markdown support, so official
+  answers a plain `"<h1>"` where a markdown client gets
+  `{language: "html", value: "<h1>"}`; rsvelte emitted the tagged form to both.
+  That divergence was unreachable while rsvelte answered a selector with `null` —
+  the ratchet recorded the whole response as mismatched and never compared inside
+  it — so it became visible only once the selector hover existed. Two
+  `differential:fixtures/css-smoke-hover-normal` entries retire, taking
+  `lsp-known-failures.json` from 24128 to 24126.
+
+- 16e21f3: feat(language-server): hover a CSS declaration with its MDN description
+
+  `css::hover` answered only `:global(...)`, so hovering `color` in a `<style>`
+  block or in a static `style="…"` attribute fell through to tsgo, which answered
+  about the `style` attribute or about nothing at all. `css_data` has carried the
+  vendored MDN property set and a `getEntryDescription` port since the completion
+  work; only the consumer was missing.
+
+  The `Declaration` arm of `CSSHover.doHover` (`services/cssHover.js`) is now
+  ported: `CSSDataManager.getProperty` is an exact, case-sensitive lookup on a
+  name that `Property.getName` strips of a trailing `_`/`+` less merge, and the
+  reported range is the whole `Declaration` node — so the colon, the value and a
+  trailing `!important` all answer with the property's own description.
+  `inStyleAttributeWithoutInterpolation` (`CSSPlugin.ts:256-265`) is ported with
+  it, which declines the whole `style` attribute when its value holds a `{`.
+
+  Measured against the official server over the same 24 offsets: 5/24 identical
+  before, 17/24 after. The 7 that remain are selector hovers, which
+  `CSSHover.doHover` answers from its `Selector`/`SimpleSelector` arms via
+  `selectorPrinting` — not ported here.
+
+- 16e21f3: feat(language-server): hover a CSS selector with its element tree and specificity
+
+  `cssHover.doHover` walks the node path outermost-first and breaks at `Selector`,
+  so a pseudo-class, a pseudo-element and `:global()` are all answered there
+  rather than by the declaration arm. rsvelte answered none of them: hovering a
+  selector produced a bespoke `:global(...) prevents Svelte CSS scoping` string —
+  a sentence that appears nowhere in `language-tools` — or nothing at all.
+
+  This ports `selectorPrinting.js`'s `Element`, `toElement`, `MarkedStringPrinter`
+  and `Specificity` over the CSS AST `1_parse/read/style.rs` already produces, so
+  a selector now answers with the element tree and the specificity link, ranged
+  over the whole selector as upstream ranges it.
+
+  Two things the port turns on that are not visible in a table of answers.
+  `isPseudoElementIdentifier` is `/^::?([\w-]+)/` followed by
+  `getPseudoElement('::' + name)`, so **the pseudo-element/pseudo-class split is a
+  CSS-data lookup, not a colon count** — `p:before` scores `(0, 0, 2)` like
+  `p::before`, and rsvelte parses it as a `PseudoClassSelector`, so the node type
+  is not the classification. And `Element.addAttr` merges a repeated name with a
+  space, so `.a.b` renders `class="a b"` rather than two attributes.
+
+  A selector answers with a `MarkedString[]` where a declaration answers with a
+  `MarkupContent` (`CSSPlugin.doHoverInternal` passes the `Hover` through
+  untouched), so `css::hover` now returns which of the two it produced.
+
+- 62410db: Append the Svelte-specific guidance upstream adds to two TypeScript diagnostics: a component
+  constructor-type error (TS2345 mentioning `ConstructorOfATypedSvelteComponent`) and
+  `Modifiers cannot appear here.` (TS1184).
+- c1571c6: fix(language-server): find a document opened through a symlink
+
+  `DocumentStore` is keyed on the URI string the client sent, and several
+  responses are post-processed by looking the document up with a URI the server
+  derived from the overlay's _resolved_ path. When the two differ — a workspace
+  under macOS's `/var`, which is a symlink to `/private/var`, is enough — every
+  one of those lookups misses and the post-processing is silently skipped.
+
+  The store now also indexes each open document by its resolved path and consults
+  that only after a direct hit fails, so the common request costs no extra
+  syscall and a response still names the URI the client itself opened.
+
+  Measured on the hover quote-widening, the loss this was found through: with a
+  symlinked workspace the probe scored 2/11 EQ against 6/11 on the realpathed one;
+  with the fix the two workspaces are identical cell for cell.
+
+- 2c3614d: fmt: rebuild a broken content mustache at the column it starts and against what follows it
+
+  A mustache in prose that had to break across lines was re-formatted at the
+  width its continuation lines get, as if its first line started at the indent
+  and nothing followed its `}`. prettier measures each JS group of the
+  expression in place — the first against the column the `{` sits at, after the
+  words before it on the line, and the last against the closing brace and any
+  text glued to it — so `Best happened at {categoryData.record_holders` now
+  breaks after the member that still fits on that line rather than after the one
+  that fits at the indent, and a mustache ending in `}.` leaves room for the dot.
+
+- 2b0dc16: fmt: charge a directive value's `name={` prefix to its first line only
+
+  Once an open tag wraps, a directive value was formatted at a print width
+  narrowed by its own `class:<name>=` prefix, so continuation lines that fit at
+  their real indent were broken again (`selected_category.id ===` / `category.id}`
+  where prettier keeps `selected_category.id === category.id}`), and the per-shape
+  discounts that softened that for arrow bodies and object literals left an
+  object flat past the print width where prettier expands it.
+
+  The prefix is now a first-line offset: the expression is formatted with a
+  same-line placeholder of the prefix's width in front of it and the full width
+  for every later line, which is how prettier's printer measures each group
+  against the column it starts at.
+
+- 4def6f8: fmt: measure a following mustache up to its first break opportunity
+
+  When deciding whether an inline element or an earlier interpolation fits, the
+  breakable mustache behind it was charged up to the head of its outermost
+  group (`{record.holders` for a member chain). prettier stops at the first
+  line-break opportunity anywhere in the expression (`{record`), so
+  `<span class="label">Label text</span>{record` now keeps the span's hug and
+  breaks inside the mustache where the oracle does.
+
+- 414babe: fmt: keep a `<pre>`'s attributes flat when its content offers the first break
+
+  A `<pre>` whose one-line form overflowed had its attributes wrapped one per
+  line where prettier keeps `<pre class="…">` on one line and breaks inside the
+  content — at a mustache's member chain or call, at a child `<code>`'s hugged
+  `>`, or at a child component's attributes. prettier's `fits` runs past the open
+  tag to the content's first line-break opportunity, and only a content with no
+  opportunity at all (a bare identifier, a long first text line) wraps the
+  attributes.
+
+  The formatter now measures that prefix, and lays the content line's mustaches
+  out left to right the way prettier's printer does: a mustache breaks when its
+  flat form plus everything up to the next opportunity overflows, its first line
+  is charged the open tag before it and its last line the `}</pre>` after it, and
+  its continuation lines sit one level inside the element.
+
+- 15ef4ec: fix(language-server): answer "is this inside generated code" the way upstream does
+
+  Upstream has one `isInGeneratedCode`
+  (`language-server/src/plugins/typescript/features/utils.ts:102-109`). The rename
+  correction layer carried its own second answer, and it disagreed with upstream in
+  two independent ways.
+
+  `lastIndexOf(needle, from)` in JS matches a needle _beginning_ at or before
+  `from`, so it finds a marker straddling the position; `text[..start].rfind(…)`
+  requires the needle to end before `start`, so it does not. And upstream's
+  `lastEnd === nextEnd` disjunct — whose own comment says it fires when the
+  position sits inside an END marker — had no counterpart at all.
+
+  The reachable case is a position on a marker's own leading `/`, which is exactly
+  where a TypeScript node's `pos` sits: `getStart()` skips leading trivia and `pos`
+  does not. Upstream answers _generated_ there and the rename port answered _not
+  generated_. Measured over every position of six texts, the two disagree only at
+  or inside a marker's own bytes; every ordinary span already agreed.
+
+  Both markers open and close with `/`, so `/*Ωignore_endΩ*/` immediately followed
+  by its own tail contains a second end marker starting one byte before the first
+  one ends. JS `lastIndexOf` finds it and a non-overlapping scan does not, so the
+  port scans overlapping positions; a randomized comparison against upstream's
+  verbatim source over 256,462 probes reports 0 disagreements, with the
+  non-overlapping variant kept as a live control at 131.
+
+  `textDocument/rename` is requested by nothing under `scripts/compat-lsp/` — the
+  ratchet holds 0 rename keys against 3,569 for hover — so no gate has ever
+  compared this predicate and no ratchet moves. Whether tsgo returns a rename span
+  whose start abuts a marker is unmeasured, and two call-site guards could mask it,
+  so this may change no observable behaviour.
+
+  The marker constants were defined twice inside the crate, which is what let two
+  predicates exist; there is now one definition and one predicate.
+
+- c7ecaf6: fix(language-server): `textDocument/inlayHint` answers `null` when the client enabled no category
+
+  `getInlayHints` returns `null` before asking TypeScript for anything when
+  `areInlayHintsEnabled(userPreferences)` is false (`InlayHintProvider.ts:38-43`),
+  and `ls-config.ts:515-522` maps each of the six categories from the client's
+  config with **no fallback** — so a client that sends no `inlayHints` has every
+  one of them undefined and gets `null`. rsvelte read none of them: the only
+  occurrence of `inlayHints` in the language server was a literal in
+  `TsgoPreferences::default()` that turned all six on, so hints were produced
+  whatever the client asked for and `null` was not a reachable answer.
+
+  The config is chosen by the document's own script kind rather than by the
+  shadow's extension — `getUserPreferences` picks `'typescript'` for
+  `ScriptKind.TS`/`TSX` and `'javascript'` otherwise
+  (`LSAndTSDocResolver.ts:339-342`) — which rsvelte could not have got right by
+  looking at the shadow, because every shadow is a `.svelte.tsx` and so reads as
+  TypeScript. `is_typescript_component` already answers the question the way
+  upstream's `DocumentSnapshot` does, so the decision is the sibling of the one
+  `component_reference_code_lens_enabled` already makes.
+
+  Measured against the official server over stdio with the LSP gate's own
+  configuration, which gives `typescript` all six categories and `javascript`
+  none. Before, a plain `<script>` component answered a list where official
+  answered `null`; after, both answer `null`, while a `lang="ts"` component still
+  answers a list on both sides:
+
+  | component                                        | official | rsvelte before | rsvelte after |
+  | ------------------------------------------------ | -------- | -------------- | ------------- |
+  | `codeaction-checkJs.svelte` (plain)              | `null`   | list           | `null`        |
+  | `organize-imports-error.svelte` (plain)          | `null`   | list           | `null`        |
+  | `another-ref-format-date.svelte` (`lang="ts"`)   | list     | list           | list          |
+  | `codeaction-const-reassign.svelte` (`lang="ts"`) | list     | list           | list          |
+
+  The `lang="ts"` rows are the load-bearing half: a rule that read the six
+  categories off rsvelte's own merged defaults, or that keyed on the shadow's
+  extension, disables hints there too and still turns the plain rows green.
+
+  The built-in defaults are removed rather than kept alongside the check, because
+  upstream forwards exactly what the client asked for; leaving them would mean a
+  client that enables one category gets six.
+
+  `parameterNames` is a string enum (`'literals'` / `'all'` are on, `'none'` is
+  off) while the other five are booleans, so reading all six the same way is wrong
+  in both directions — that is one of the pinned cells.
+
+- c95dbfb: Drop the inlay hint on the generated `$$render` return type
+
+  Upstream's `InlayHintProvider` filters hints against the generated TSX before
+  mapping them back, and one of its predicates is the return-type slot of the
+  `$$render` function svelte2tsx emits. rsvelte forwarded tsgo's hints unfiltered,
+  so every component reported a return-type hint for a function the user never
+  wrote.
+
+  Measured against the live official server over the `upstream-features` and
+  `upstream-testfiles` suites, on a tree with #4488 merged: 40 divergent keys
+  retired, 0 new, and 0 movement outside `textDocument/inlayHint` in either
+  direction. All 17 carriers are `lang="ts"` components.
+
 ## 0.7.5
 
 ### Patch Changes
