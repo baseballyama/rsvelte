@@ -1,1 +1,8 @@
-[]
+[
+	"pattern/issues/008-comment-props-destructure.svelte",
+	"pattern/issues/3515-props-default-multiline-comment.svelte",
+	"pattern/issues/3515-props-plain-multiline-comment.svelte",
+	"pattern/issues/3515-props-rest-line-comment.svelte",
+	"pattern/issues/4046-snippet-parameter-comment.svelte",
+	"pattern/issues/destructure-rhs-ends-before-a-trailing-comment.svelte"
+]

@@ -6114,10 +6114,10 @@ by the error families and never by this one.
 ### Blind spot 45b — the population is a literal prefix — [D]
 
 `PATTERN_EXACT_PREFIX` is `pattern/issues/`. `pattern/adversarial/`, `pattern/matrix/` and the
-loose `pattern/*.svelte` repros are outside it and keep gate 1's rescue. Measured when the family
-was written: 616 manifest entries carry the prefix out of a 34k-entry manifest, so this closes
-blind spot 1a over under 2% of the corpus. Read the closure as one population, never as the
-mechanism.
+loose `pattern/*.svelte` repros are outside it and keep gate 1's rescue. Measured by the enrolling
+CI run (`exactPopulation` in its `report.json`): 668 manifest entries carry the prefix out of a
+35,013-pair comparison, so this closes blind spot 1a over under 2% of the corpus. Read the closure
+as one population, never as the mechanism.
 
 ### Blind spot 45c — the verdict is "the bytes differ", not who is wrong — [S]
 
@@ -6139,8 +6139,10 @@ Two rows for one divergence is the cheaper failure.
 cannot be re-collected in isolation. When the family was written the working tree held 632
 `.svelte` files under `compatibility/pattern-corpus/issues/` while the collected tree and the
 manifest agreed at 586 — both 46 behind. A locally produced baseline would have been short by
-whatever those 46 carry, so the enrolling baseline is CI's, which collects fresh. Whether any of
-the 46 contributes an entry was unmeasured before that run.
+whatever those 46 carry, so the enrolling baseline is CI's, which collects fresh: run
+34430947366, tree `7b270ecbc`, which measured 668 — above both local counts, so a local baseline
+would have been short. Which of the 11 enrolled ids a local run would have missed is still
+unmeasured; the population size is the only part of this that is now settled.
 
 ---
 
