@@ -35,7 +35,7 @@ jobs:
   coverage:
     name: Code coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     # Run unconditionally on push-to-main and manual dispatch. On PRs run
     # only when the author opts in by labeling the PR `coverage` —
     # llvm-cov instrumentation roughly doubles test runtime and the
@@ -130,20 +130,95 @@ jobs:
         timeout-minutes: 15
 
       - name: Generate coverage
-        # Skip the coverage instrumentation hit for the SSR / runtime suites if
-        # they get too noisy — initially we measure everything, and we can prune
-        # in `--ignore-filename-regex` later if needed.
-        # The disk watcher streams, and a streamed line survives the runner
-        # dying mid-step: when this job last failed, `Generate coverage` ended
-        # with a null conclusion and every later step — `if: always()` included —
-        # never ran, so a df placed after it reports nothing.
+        # `cargo llvm-cov --workspace` links every instrumented test binary and
+        # keeps them all until it reports, so peak disk is the SUM over every
+        # test target in the workspace — the large majority of them
+        # rsvelte_core's — and the runner's disk is not enough (#4474).
+        # Reporting per batch and reclaiming after each makes the peak the MAX
+        # over batches. The step prints its own counts; they are not written
+        # here, because a target count only ever grows.
+        # `CARGO_PROFILE_DEV_DEBUG` is deliberately not set: cargo-llvm-cov
+        # already pins `-C debuginfo=line-tables-only` and overrides the profile
+        # in both directions, measured on 0/2/line-tables-only.
         run: |
+          set -euo pipefail
           ( while true; do printf 'DISK %s ' "$(date -u +%H:%M:%S)"; df -h / | tail -1; sleep 30; done ) &
           watcher=$!
           trap 'kill "$watcher" 2>/dev/null || true' EXIT
-          cargo llvm-cov --workspace --lcov --output-path lcov.info \
-            --ignore-filename-regex '(tests/|benches/|src/bin/)' \
-            -- --test-threads=2
+
+          mkdir -p cov
+          # A restored target cache can carry stale counters; clean once, then
+          # own the reclamation ourselves for the rest of the job.
+          cargo llvm-cov clean --workspace
+
+          reclaim() {
+            # Test executables only. `.rlib`/`.rmeta`/`.so` stay so the next
+            # batch reuses the dependency build instead of recompiling it.
+            find target/llvm-cov-target/debug/deps -maxdepth 1 -type f -perm -u+x \
+              ! -name '*.so' ! -name '*.rlib' ! -name '*.rmeta' ! -name '*.d' -delete 2>/dev/null || true
+            rm -f target/llvm-cov-target/*.profraw
+            df -h / | tail -1
+          }
+
+          run() {
+            label=$1; shift
+            cargo llvm-cov --no-clean --lcov --output-path "cov/${label}.info" \
+              --ignore-filename-regex '(tests/|benches/|src/bin/)' "$@" -- --test-threads=2
+            reclaim
+          }
+
+          # Disjoint by construction: everything except rsvelte_core in one
+          # batch, then rsvelte_core's lib, then its test targets in batches.
+          run rest --workspace --exclude rsvelte_core
+          run core-lib -p rsvelte_core --lib --bins
+
+          # Derived, not transcribed: a new rsvelte_core test target is picked up
+          # without editing this file.
+          # `read` rather than `mapfile`: the loop is identical on bash 3.2, so
+          # this step can be dry-run outside CI. The `|| [ -n "$t" ]` arm keeps
+          # the last element when a producer omits its trailing newline.
+          CORE=()
+          while IFS= read -r t || [ -n "$t" ]; do
+            [ -n "$t" ] && CORE+=("$t")
+          done < <(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name=="rsvelte_core") | .targets[] | select(.kind==["test"]) | .name' | sort)
+          # An empty or truncated enumeration would report a partial measurement
+          # and exit 0, which reads exactly like full coverage.
+          if [ "${#CORE[@]}" -lt 500 ]; then
+            echo "rsvelte_core test enumeration returned ${#CORE[@]}, expected >=500; refusing to publish a partial report"
+            exit 1
+          fi
+          echo "rsvelte_core integration test targets: ${#CORE[@]}"
+
+          BATCH=100
+          i=0; n=0
+          while [ "$i" -lt "${#CORE[@]}" ]; do
+            n=$((n + 1))
+            args=()
+            for t in "${CORE[@]:$i:$BATCH}"; do args+=(--test "$t"); done
+            echo "=== batch $n: ${#args[@]} args starting at $i ==="
+            run "core-${n}" -p rsvelte_core "${args[@]}"
+            i=$((i + BATCH))
+          done
+
+          # Concatenated lcov: each batch emits complete `SF:`/`end_of_record`
+          # records, and both Codecov and lcov read a stream of them. A file
+          # covered by several batches appears once per batch, which is how its
+          # counters get summed rather than replaced.
+          # The explicit `echo` is load-bearing: cargo-llvm-cov's lcov output
+          # ends WITHOUT a trailing newline, so a plain `cat` welds one batch's
+          # `end_of_record` onto the next batch's `SF:` and silently loses a
+          # record per boundary while still exiting 0.
+          for f in cov/*.info; do cat "$f"; echo; done > lcov.info
+          test -s lcov.info
+          sf=$(grep -c '^SF:' lcov.info)
+          eor=$(grep -c '^end_of_record' lcov.info)
+          echo "batches=$(ls -1 cov/*.info | wc -l) SF=${sf} end_of_record=${eor}"
+          # A welded boundary shows up here and nowhere else in the job.
+          if [ "$sf" -ne "$eor" ]; then
+            echo "lcov.info has ${sf} SF records against ${eor} end_of_record; a record boundary was corrupted"
+            exit 1
+          fi
         env:
           RUST_MIN_STACK: '33554432'
           # Match CI's tsc pin; see .github/workflows/ci.yml for the
