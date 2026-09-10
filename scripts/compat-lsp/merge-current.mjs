@@ -16,15 +16,15 @@ if (!directory)
   throw new Error(
     "usage: merge-current.mjs ARTIFACT_DIRECTORY [--update-baseline]",
   );
-const floor = JSON.parse(
-  fs.readFileSync(
-    path.join(ROOT, "scripts/compat-lsp/corpus-population.json"),
-    "utf8",
-  ),
+const populationPath = path.join(
+  ROOT,
+  "scripts/compat-lsp/corpus-population.json",
 );
+const floor = JSON.parse(fs.readFileSync(populationPath, "utf8"));
 const merged = mergeCurrentArtifacts(
   readArtifacts(path.resolve(directory)),
   floor,
+  { allowPopulationChange: UPDATE },
 );
 const baseline = path.join(ROOT, "compatibility/lsp-known-failures.json");
 const sidecar = path.join(ROOT, "compatibility/lsp-mechanisms.json");
@@ -59,6 +59,21 @@ if (UPDATE) {
   console.log(
     `[lsp-merge] wrote ${Object.keys(document.entries).length} mechanism sets over ${labels.size} labels to ${path.relative(ROOT, sidecar)}`,
   );
+  // Third file, same command, same reason: a population declaration refreshed
+  // apart from the ratchet describes a corpus the ratchet was not measured on.
+  if (merged.populationChanges.length) {
+    for (const change of merged.populationChanges)
+      console.log(`[lsp-merge] population changed: ${change}`);
+    const populationTemporary = `${populationPath}.${process.pid}.tmp`;
+    fs.writeFileSync(
+      populationTemporary,
+      JSON.stringify(merged.population, null, 2) + "\n",
+    );
+    fs.renameSync(populationTemporary, populationPath);
+    console.log(
+      `[lsp-merge] wrote ${merged.populationChanges.length} population change(s) to ${path.relative(ROOT, populationPath)}`,
+    );
+  }
 } else {
   const known = JSON.parse(fs.readFileSync(baseline, "utf8"));
   const knownSet = new Set(known);

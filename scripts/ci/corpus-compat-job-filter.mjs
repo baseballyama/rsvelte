@@ -20,6 +20,8 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { CORPUS_REPOS } from '../compat-lsp/suites.mjs';
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
 
@@ -154,11 +156,19 @@ export function decide(workspace, changedFiles, root = ROOT) {
 	// the jobs above default to `true` on an empty list and this one defaults
 	// to `false`, so a `--changed-files` argument that does not resolve closes
 	// the hatch on the only event that consults it.
+	// A corpus submodule bump enrols files nothing has measured, so the ratchet
+	// it is compared against describes a corpus that no longer exists and `main`
+	// is red until the next nightly (#4465). The four repositories are read from
+	// the gate's own declaration rather than transcribed.
+	const corpusPrefixes = CORPUS_REPOS.map((repo) => `submodules/${repo}`);
 	enabled['lsp-ratchet'] = changedFiles.some(
 		(file) =>
 			file.startsWith('scripts/compat-lsp/') ||
 			(file.startsWith('compatibility/lsp-known-failures') &&
-				file.endsWith('.json')),
+				file.endsWith('.json')) ||
+			corpusPrefixes.some(
+				(prefix) => file === prefix || file.startsWith(`${prefix}/`),
+			),
 	);
 	for (const file of changedFiles) {
 		const pkg = packageOf(workspace, file, root);
