@@ -63,7 +63,7 @@ chrome.on('error', (error) => { launchError = error; });
 let socket;
 try {
 	let port;
-	for (let attempt = 0; attempt < 150; attempt++) {
+	for (let attempt = 0; attempt < 600; attempt++) {
 		if (launchError) throw launchError;
 		try { port = (await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0]; break; }
 		catch (error) { if (error.code !== 'ENOENT') throw error; }
