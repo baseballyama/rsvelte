@@ -951,6 +951,15 @@ fn unrecognised_option(keypath: &str) -> OptionError {
     }
 }
 
+/// `object()`'s shape guard runs before the key loop, and its keypath is empty at
+/// the top level — hence upstream's doubled space, reproduced here.
+fn shape_error(not_object: bool) -> OptionResult<()> {
+    if not_object {
+        return Err(invalid_option(" should be an object"));
+    }
+    Ok(())
+}
+
 /// A value upstream accepts that this entry point cannot honour. There is no
 /// upstream code for it because upstream never raises it.
 fn unsupported_option(detail: impl std::fmt::Display) -> OptionError {
@@ -1509,6 +1518,7 @@ impl NapiModuleCompileOptions {
 pub struct NapiCompileOptionsArg {
     inner: NapiCompileOptions,
     unrecognised: Option<String>,
+    not_object: bool,
 }
 
 /// The module entry's counterpart. Its recognised set is the same one: upstream
@@ -1516,6 +1526,32 @@ pub struct NapiCompileOptionsArg {
 pub struct NapiModuleCompileOptionsArg {
     inner: NapiModuleCompileOptions,
     unrecognised: Option<String>,
+    not_object: bool,
+}
+
+/// Upstream's `object()` opens with `(input && typeof input !== 'object') || Array.isArray(input)`.
+/// `null`/`undefined` never reach here: the parameter is an `Option`, so napi maps them to `None`.
+unsafe fn is_not_object(
+    env: napi::sys::napi_env,
+    napi_val: napi::sys::napi_value,
+) -> napi::Result<bool> {
+    let mut val_type = 0;
+    // SAFETY: `env`/`napi_val` are valid handles from Node-API; `napi_typeof`
+    // only reads them and writes the type tag.
+    let status = unsafe { napi::sys::napi_typeof(env, napi_val, &raw mut val_type) };
+    if status != napi::sys::Status::napi_ok {
+        return Err(napi::Error::from_status(napi::Status::from(status)));
+    }
+    if val_type != napi::sys::ValueType::napi_object {
+        return Ok(true);
+    }
+    let mut is_array = false;
+    // SAFETY: same valid handles; `napi_is_array` only reads them.
+    let status = unsafe { napi::sys::napi_is_array(env, napi_val, &raw mut is_array) };
+    if status != napi::sys::Status::napi_ok {
+        return Err(napi::Error::from_status(napi::Status::from(status)));
+    }
+    Ok(is_array)
 }
 
 /// Upstream's `object()` walks `for (const key in input)`, so an inherited
@@ -1561,6 +1597,8 @@ macro_rules! option_arg_wrapper {
                 env: napi::sys::napi_env,
                 napi_val: napi::sys::napi_value,
             ) -> napi::Result<Self> {
+                // SAFETY: valid handles from Node-API, forwarded to the shape check.
+                let not_object = unsafe { is_not_object(env, napi_val)? };
                 // SAFETY: valid handles from Node-API, forwarded to the key scan.
                 let unrecognised = unsafe { first_unrecognised_key(env, napi_val)? };
                 // SAFETY: the same valid handles, forwarded to the field decoder
@@ -1569,6 +1607,7 @@ macro_rules! option_arg_wrapper {
                 Ok(Self {
                     inner,
                     unrecognised,
+                    not_object,
                 })
             }
         }
@@ -1607,9 +1646,12 @@ fn options_to_compile(
     // Upstream seeds `state.filename` from the raw option before validating, so
     // the option error carries it even when a *later* option is what failed.
     let filename = raw_filename(opts.inner.filename.as_ref());
-    opts.unrecognised
-        .as_deref()
-        .map_or(Ok(()), |key| Err(unrecognised_option(key)))
+    shape_error(opts.not_object)
+        .and_then(|()| {
+            opts.unrecognised
+                .as_deref()
+                .map_or(Ok(()), |key| Err(unrecognised_option(key)))
+        })
         .and_then(|()| opts.inner.into_compile_options())
         .map_err(|e| e.into_napi(env, filename.as_deref()))
 }
@@ -1622,9 +1664,12 @@ fn options_to_module_compile(
         return Ok(ModuleCompileOptions::default());
     };
     let filename = raw_filename(opts.inner.filename.as_ref());
-    opts.unrecognised
-        .as_deref()
-        .map_or(Ok(()), |key| Err(unrecognised_option(key)))
+    shape_error(opts.not_object)
+        .and_then(|()| {
+            opts.unrecognised
+                .as_deref()
+                .map_or(Ok(()), |key| Err(unrecognised_option(key)))
+        })
         .and_then(|()| opts.inner.into_module_compile_options())
         .map_err(|e| e.into_napi(env, filename.as_deref()))
 }
