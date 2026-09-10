@@ -7280,10 +7280,11 @@ over the `pattern/issues/` prefix alone, with the AST rescue removed. Its unit i
 `(id, target)`, folded to one entry per id carrying a `details` array naming each diverging
 target, so an id that diverges on all four targets is one ratchet entry rather than four.
 
-**Current baseline**, measured by the enrolling CI run (`Corpus Compat` 34430947366, tree
-`7b270ecbc`, 668 `pattern/issues/` manifest entries per target): 11 distinct ids, 30 `(id, target)`
-pairs, filed as `pattern-exact-known-failures.client.json`, 6 entries;
-`pattern-exact-known-failures.client-dev.json`, 6 entries;
+**Current baseline**, from the enrolling CI run (`Corpus Compat` 34430947366, tree
+`7b270ecbc`, 668 `pattern/issues/` manifest entries per target) less the two client entries of
+`008-comment-props-destructure.svelte`, which #4563 retired: 11 distinct ids, 28 `(id, target)`
+pairs, filed as `pattern-exact-known-failures.client.json`, 5 entries;
+`pattern-exact-known-failures.client-dev.json`, 5 entries;
 `pattern-exact-known-failures.server.json`, 9 entries; and
 `pattern-exact-known-failures.server-dev.json`, 9 entries. The two client targets and the two dev
 targets agree entry for entry, which is what makes the server/client split the real axis here.
@@ -7322,7 +7323,7 @@ same comment on both sides in a different place.**
 
 | id | targets | direction |
 |---|---|---|
-| `008-comment-props-destructure.svelte` | all 4 | **misplaced.** Client wants `var /* ) scanner payload */ div = root();` and rsvelte drops it; server puts the same comment after `= $$props;` where official has none. One comment, two verdicts — a relocation, not a loss. |
+| `008-comment-props-destructure.svelte` | server, server-dev | **rsvelte emits extra**, on the server only: the comment lands after `= $$props;` where official has none. The client half — official writing `var /* ) scanner payload */ div = root();` where rsvelte dropped the comment — was the enrolling baseline's other verdict and retired in #4563, so the entry that once read as a relocation is now a one-sided extra. |
 | `3515-props-default-line-comment.svelte` | server, server-dev | **rsvelte emits extra.** `let { a = 1 } = $$props; // initializer` against official's bare statement. |
 | `3515-props-default-multiline-comment.svelte` | all 4 | **mixed.** Server is the same extra `/* initializer` as the line-comment sibling; client is an indentation difference *inside* a kept block comment (`\t\t` vs `\t\t\t\t`), which is the continuation-line half of the same divergence. |
 | `3515-props-plain-line-comment.svelte` | server, server-dev | **rsvelte emits extra**, as the `default` sibling. |
