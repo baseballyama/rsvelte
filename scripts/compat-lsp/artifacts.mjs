@@ -99,7 +99,20 @@ function requireArtifact(value, label) {
       throw new Error(`${label} carries a mechanism for unlisted ${id}`);
 }
 
-export function mergeCurrentArtifacts(artifacts, populationFloor) {
+// `corpus-population.json` is an exact declaration, not a bound: it refuses a
+// GROWN corpus as loudly as a shrunken one, which is what a partial run looks
+// like. That is right for a verdict and wrong for a re-baseline — a corpus
+// submodule bump could not be baselined at all until someone edited the file by
+// hand (#4465). `allowPopulationChange` is the caller saying it is going to
+// rewrite that declaration from the measured population in the same command, so
+// the mismatch is reported rather than thrown. Completeness is still enforced,
+// by the shard-count and universe-hash checks above, which the declaration does
+// not participate in.
+export function mergeCurrentArtifacts(
+  artifacts,
+  populationFloor,
+  { allowPopulationChange = false } = {},
+) {
   if (!artifacts.length) throw new Error("zero current artifacts supplied");
   if (artifacts.length !== CORPUS_SHARDS + 1)
     throw new Error(`expected exactly ${CORPUS_SHARDS + 1} current artifacts`);
@@ -198,12 +211,14 @@ export function mergeCurrentArtifacts(artifacts, populationFloor) {
     throw new Error(
       "corpus shard union does not equal the declared file universe",
     );
+  const populationChanges = [];
   for (const repo of CORPUS_REPOS) {
     for (const field of ["files", "identifiers", "requests"]) {
-      if (population[repo][field] !== populationFloor[repo]?.[field])
-        throw new Error(
-          `${repo} ${field} population is ${population[repo][field]}, expected ${populationFloor[repo]?.[field]}`,
-        );
+      if (population[repo][field] !== populationFloor[repo]?.[field]) {
+        const message = `${repo} ${field} population is ${population[repo][field]}, expected ${populationFloor[repo]?.[field]}`;
+        if (!allowPopulationChange) throw new Error(message);
+        populationChanges.push(message);
+      }
     }
   }
   const current = artifacts.flatMap((artifact) => artifact.current).sort();
@@ -219,6 +234,7 @@ export function mergeCurrentArtifacts(artifacts, populationFloor) {
     current,
     mechanisms,
     population,
+    populationChanges,
     projectRevision: reference.projectRevision,
   };
 }

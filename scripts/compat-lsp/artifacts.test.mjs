@@ -151,6 +151,50 @@ test("revision, universe, and population drift cannot false-shrink", () => {
   );
 });
 
+test("a re-baseline may rewrite the population, and still not a partial run", () => {
+  // The declaration refuses a grown corpus as loudly as a shrunken one, which is
+  // right for a verdict and blocks the very command that could refresh it
+  // (#4465). Relaxing it must move exactly one guard: completeness is enforced
+  // by the shard set and the universe hash, neither of which reads the file.
+  const drifted = structuredClone(floor);
+  drifted["bits-ui"].files += 7;
+  const merged = mergeCurrentArtifacts(artifacts(), drifted, {
+    allowPopulationChange: true,
+  });
+  assert.equal(merged.populationChanges.length, 1);
+  assert.match(merged.populationChanges[0], /bits-ui files population is/);
+  assert.equal(merged.population["bits-ui"].files, CORPUS_SHARDS);
+
+  // Same call, unrelaxed: the default still refuses.
+  assert.throws(
+    () => mergeCurrentArtifacts(artifacts(), drifted),
+    /population is/,
+  );
+
+  // …and the relaxation buys a partial run nothing: drop a shard, corrupt the
+  // universe hash, and each still throws with the flag set.
+  assert.throws(
+    () =>
+      mergeCurrentArtifacts(artifacts().slice(0, -1), drifted, {
+        allowPopulationChange: true,
+      }),
+    /expected exactly/,
+  );
+  const universe = artifacts();
+  universe[2].universeHash = "other";
+  assert.throws(
+    () =>
+      mergeCurrentArtifacts(universe, drifted, { allowPopulationChange: true }),
+    /universe hashes differ/,
+  );
+  // An unchanged population reports nothing, so the writer stays quiet.
+  assert.deepEqual(
+    mergeCurrentArtifacts(artifacts(), floor, { allowPopulationChange: true })
+      .populationChanges,
+    [],
+  );
+});
+
 test("a deleted baseline file remains owned by one stable shard", () => {
   const id = "corpus/bits-ui/deleted.svelte";
   assert.equal(
