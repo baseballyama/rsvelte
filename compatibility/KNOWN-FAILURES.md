@@ -6466,7 +6466,7 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
 ## Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **175 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **173 entries**.
 
 ### The question it asks
 
@@ -6582,13 +6582,13 @@ ratchet at all. So `loose:unclosed-element::RegularElement#span` is an ordinary 
 defect. Reading the issue and the gate as sharing a vocabulary would have attributed an rsvelte
 defect upstream.
 
-Partition of `parse-ast-known-failures.json` by cluster: `51 + 42 + 32 + 16 + 10 + 9 + 6 + 6 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `51 + 42 + 32 + 16 + 9 + 8 + 6 + 6 + 2 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
 | `span` | 51 | 27 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
 | `node-type` | 9 | 5 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
-| `estree-fields` | 10 | 5 | ESTree fields rsvelte's serializer omits or adds. The nine TypeScript type fields are gone (#4335); what is left is `Identifier.typeAnnotation`, `TSParameterProperty.{accessibility,readonly}` and `CallExpression.optional`. The lint gates found some of these from the other side. |
+| `estree-fields` | 8 | 4 | ESTree fields rsvelte's serializer omits or adds. The nine TypeScript type fields are gone (#4335) and so is `CallExpression.optional#extra` (#4133 — acorn-typescript writes `optional` on a type-argument call only when the subscript chain was already optional); what is left is `Identifier.typeAnnotation`, `TSParameterProperty.{accessibility,readonly}` and `CallExpression.optional#value`. The lint gates found some of these from the other side. |
 | `unclustered` | 32 | 20 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
 | `comment-attachment` | 42 | 21 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
 | `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
@@ -6599,8 +6599,8 @@ Partition of `parse-ast-known-failures.json` by cluster: `51 + 42 + 32 + 16 + 10
 
 **Read the `keys` column as `bases x axis`, not as work.** A key is
 `<axis>::<NodeType>.<field>#<kind>` and most node types diverge identically under `modern` and
-`legacy`, so 175 keys are **99 distinct bases**: 76 appear on both axes and 23 on one
-(76x2 + 23 = 175, a 1.77x collapse), and 99 is therefore the defect ceiling. The per-cluster
+`legacy`, so 173 keys are **98 distinct bases**: 75 appear on both axes and 23 on one
+(75x2 + 23 = 173, a 1.77x collapse), and 98 is therefore the defect ceiling. The per-cluster
 collapse is not uniform — `estree-fields`, `comment-attachment` and `loc-presence` are 2.00x
 (every base is on both axes), `span` 1.89x, `node-type` 1.80x, `unclustered` and `css-shape`
 1.60x, `child-count` 1.20x (legacy-only shapes), `ast-mode` and
@@ -6615,7 +6615,7 @@ have produced the right ones; the gated declaration and the gated partition line
 correct throughout, which is exactly the split this repository records between a checked half and
 an unchecked half on the same page.
 
-**No base's two axes sit in different clusters** (0 of 76), so a cluster can be worked end to end
+**No base's two axes sit in different clusters** (0 of 75), so a cluster can be worked end to end
 without a key from it turning up under someone else's row. Measured directly from the JSON, which
 is authoritative for the partition: the ten rows above are its `Counter(values())`.
 

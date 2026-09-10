@@ -961,6 +961,38 @@ macro_rules! ser_member_modifiers {
     }};
 }
 
+/// Mirrors `_optionalChained` in acorn-typescript's `parseSubscript`: only a `?.` at or before this call in its own subscript chain makes `optional` present.
+fn call_is_optional_chained(callee: &JsNodeId, optional: bool) -> bool {
+    if optional {
+        return true;
+    }
+    crate::ast::arena::with_current_serialize_arena(|arena| {
+        let mut id = *callee;
+        loop {
+            match arena.get_js_node(id) {
+                JsNode::MemberExpression {
+                    object, optional, ..
+                } => {
+                    if *optional {
+                        return true;
+                    }
+                    id = *object;
+                }
+                JsNode::CallExpression {
+                    callee, optional, ..
+                } => {
+                    if *optional {
+                        return true;
+                    }
+                    id = *callee;
+                }
+                JsNode::TSNonNullExpression { expression, .. } => id = *expression,
+                _ => return false,
+            }
+        }
+    })
+}
+
 /// Helper: serialize a `JsNodeId` field by resolving through the arena.
 macro_rules! ser_node {
     ($map:ident, $key:expr, $id:expr) => {
@@ -1241,7 +1273,9 @@ impl Serialize for JsNode {
                 if let Some(ta) = type_arguments {
                     map.serialize_entry("typeArguments", ta.as_ref())?;
                 }
-                map.serialize_entry("optional", optional)?;
+                if type_arguments.is_none() || call_is_optional_chained(callee, *optional) {
+                    map.serialize_entry("optional", optional)?;
+                }
                 ser_comments!(map, "CallExpression", *start, *end);
                 map.end()
             }
