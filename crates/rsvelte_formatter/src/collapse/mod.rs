@@ -52,8 +52,9 @@ use hug::{
 };
 use open_tag::{collect_break_inline_open_tag, collect_recollapse_open_tag, split_open_tag_attrs};
 use pre::{
-    collect_pre_block_reformats, try_break_pre_content_tag, try_break_pre_own_attrs,
-    try_break_textarea_tags, try_fix_pre_child_open_tags,
+    collect_pre_block_reformats, layout_pre_mustaches, pre_attrs_fit, pre_content_prefix,
+    try_break_pre_content_tag, try_break_pre_own_attrs, try_break_textarea_tags,
+    try_fix_pre_child_open_tags, wrap_pre_own_attrs,
 };
 use state::{build_orig_text_map, in_pre_content, orig_text_for, with_orig_text, with_pre_content};
 use util::{

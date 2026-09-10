@@ -1,4 +1,4 @@
-use super::format_core::{format_expr_core, format_expr_core_offset};
+use super::format_core::{format_expr_core, format_expr_core_layout, format_expr_core_offset};
 use crate::error::FormatError;
 use crate::options::FormatOptions;
 use crate::width::{VisualWidth, tab_width};
@@ -15,9 +15,31 @@ pub fn reformat_content_at_width(
     width: usize,
     indent_cols: usize,
 ) -> Result<String, FormatError> {
+    reformat_content_layout(expr_source, options, width, indent_cols, 0, 0)
+}
+
+/// [`reformat_content_at_width`] for an expression glued between other text
+/// on its first and last lines: `first_line_offset` columns precede it on its
+/// first line and `last_line_suffix` follow it on its last, and neither is
+/// charged to the continuation lines (`<pre class="…">{expr}</pre>`).
+pub fn reformat_content_layout(
+    expr_source: &str,
+    options: &FormatOptions,
+    width: usize,
+    indent_cols: usize,
+    first_line_offset: usize,
+    last_line_suffix: usize,
+) -> Result<String, FormatError> {
     let lw = oxc_formatter_core::LineWidth::try_from(crate::formatter_width(width.max(1)))
         .unwrap_or(options.js.line_width);
-    let formatted = format_expr_core(expr_source, options, lw, false)?;
+    let formatted = format_expr_core_layout(
+        expr_source,
+        options,
+        lw,
+        false,
+        first_line_offset,
+        last_line_suffix,
+    )?;
     if !formatted.contains('\n') {
         return Ok(formatted);
     }

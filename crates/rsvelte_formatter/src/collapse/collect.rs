@@ -3,12 +3,12 @@ use std::fmt::Write as _;
 use super::{
     ChildrenPortResult, FormatOptions, Fragment, IndentUnit, TemplateNode, VisualWidth,
     build_open_attr_doc, current_column, fill, fill_inline_runs, fragment_has_prose_word,
-    indent_config, is_block_display, is_component_tag, is_whitespace_preserving, tab_width,
-    text_end, text_start, trims_edge_whitespace, try_break_block_multiline_content,
-    try_break_block_overflow, try_break_content_tag_block, try_break_pre_content_tag,
-    try_break_pre_own_attrs, try_break_textarea_tags, try_children_port, try_fill_mixed,
-    try_fix_pre_child_open_tags, try_hug_block_inline_body, try_hug_mixed,
-    try_strip_trailing_slot_space,
+    indent_config, is_block_display, is_component_tag, is_whitespace_preserving,
+    layout_pre_mustaches, node_start, pre_attrs_fit, pre_content_prefix, tab_width, text_end,
+    text_start, trims_edge_whitespace, try_break_block_multiline_content, try_break_block_overflow,
+    try_break_content_tag_block, try_break_pre_content_tag, try_break_pre_own_attrs,
+    try_break_textarea_tags, try_children_port, try_fill_mixed, try_fix_pre_child_open_tags,
+    try_hug_block_inline_body, try_hug_mixed, try_strip_trailing_slot_space, wrap_pre_own_attrs,
 };
 
 /// Pass 1.6: targeted `try_collapse` sweep on inline/component pure-text
@@ -189,6 +189,46 @@ pub(super) fn collect(
                         }
                         continue;
                     }
+                    if elem.name.as_str() == "pre"
+                        && let Some(first) = elem.fragment.nodes.first()
+                        && let Some(prefix) = pre_content_prefix(out, &elem.fragment.nodes, options)
+                    {
+                        let tw = tab_width(options);
+                        let open_end = node_start(first) as usize;
+                        let open = &out[elem.start as usize..open_end];
+                        let mut content_col = current_column(out, node_start(first), tw);
+                        let mut wrapped_open = None;
+                        if !open.contains('\n')
+                            && !pre_attrs_fit(
+                                current_column(out, elem.start, tw),
+                                open.visual_width(tw),
+                                elem.name.as_str(),
+                                prefix,
+                                line_width,
+                            )
+                            && let Some((edit, column)) = wrap_pre_own_attrs(out, elem, options)
+                        {
+                            edits.push(edit);
+                            content_col = column;
+                            wrapped_open = Some((open_end, column));
+                        }
+                        edits.extend(layout_pre_mustaches(
+                            out,
+                            elem,
+                            content_col,
+                            line_width,
+                            options,
+                        ));
+                        edits.extend(try_fix_pre_child_open_tags(
+                            out,
+                            elem.start,
+                            &elem.fragment,
+                            line_width,
+                            options,
+                            wrapped_open,
+                        ));
+                        continue;
+                    }
                     if elem.name.as_str() == "pre" {
                         if let Some(edit) = try_break_pre_content_tag(
                             out,
@@ -215,6 +255,7 @@ pub(super) fn collect(
                                 &elem.fragment,
                                 line_width,
                                 options,
+                                None,
                             ) {
                                 edits.push(edit);
                             }

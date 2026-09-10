@@ -1,0 +1,5 @@
+# `pre-attributes-first-break.svelte`
+
+**Issue:** [#4174](https://github.com/baseballyama/rsvelte/issues/4174)
+
+A `<pre>` whose one-line form overflowed by a column had its attributes wrapped one per line where the oracle keeps `<pre class="…">` flat and breaks the content's mustache at its member chain. prettier decides a `<pre>`'s attribute group by running `fits` past the open tag into the content, and `printPre` offers a break at a text newline, at a mustache's first breakable JS group or at a child tag's own attribute / hug break, so the attributes stay flat whenever the text up to that first opportunity fits; only a content with no opportunity at all charges the close tag too. The formatter now measures that prefix, wraps the attributes only when it overflows, and lays the content line's mustaches out left to right with the open tag charged to a mustache's first line and `}</pre>` to its last. Committed in the oracle's formatted form; on the tree without the fix the open tag is re-wrapped and the mustache re-joined.

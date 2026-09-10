@@ -25,7 +25,7 @@ pub use text::expand_obj_arg_call;
 pub use width::{
     format_attribute_value_expression, format_attribute_value_expression_at_width,
     format_attribute_value_expression_flat, format_attribute_value_expression_offset,
-    format_expression_source, reformat_content_at_width,
+    format_expression_source, reformat_content_at_width, reformat_content_layout,
 };
 
 fn formatter_parse_options() -> OxcParseOptions {
