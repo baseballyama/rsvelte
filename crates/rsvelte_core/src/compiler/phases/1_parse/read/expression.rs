@@ -15692,6 +15692,193 @@ mod tests {
         );
     }
 
+    /// Every `start`/`end` the conversion emits, in source order, so a wrapped
+    /// value is visible as a number rather than as a shape.
+    fn collect_positions(value: &Value, out: &mut Vec<(String, u64)>) {
+        match value {
+            Value::Object(map) => {
+                for (key, child) in map {
+                    if (key == "start" || key == "end")
+                        && let Some(n) = child.as_u64()
+                    {
+                        out.push((key.clone(), n));
+                    }
+                    collect_positions(child, out);
+                }
+            }
+            Value::Array(items) => {
+                for item in items {
+                    collect_positions(item, out);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// #4432, and the residue is the list rather than the prose.
+    ///
+    /// The entry point's base is `offset - prefix`, which is negative when a
+    /// caller starts at 0. In a **release** build that is modular arithmetic
+    /// and comes out right: every consumer adds a span of at least 1 and the
+    /// sum wraps back, so all twenty shapes below answer with positions inside
+    /// the source. In a **debug** build the same expression panics
+    /// `attempt to subtract with overflow` before it can — which is the panic
+    /// the report names, and it is still live on the shapes in
+    /// `PANICS_IN_A_DEBUG_BUILD`.
+    ///
+    /// So the assertion is two-sided and profile-aware: release must have an
+    /// empty panicking set, debug must have exactly the recorded one. Fixing a
+    /// shape fails this test until the list shrinks, and a shape that starts
+    /// panicking fails it too. `AdjustedOffset` (#4443) is the shape of the
+    /// repair — base and prefix kept apart, `Add` doing both halves — and
+    /// finishing it means migrating the `convert_ts_*` family off `usize`:
+    /// measured at 13 type errors for the first three signatures, 50 after
+    /// them, 69 after twenty, so it is its own change.
+    ///
+    /// Two passes, because the first instrument was wrong. A fresh
+    /// `ParseArena` per call on one thread makes `as_json()` resolve node ids
+    /// against a stale arena, and the leftovers read as plausible positions:
+    /// `work()` answered `[(0,6)]` with the list in order and
+    /// `[(0,6),(31,32)]` with it reversed. One pass isolates each shape on its
+    /// own thread; the other uses one arena for the whole list, the way a
+    /// file's parse does. Each is held to the property independently — they
+    /// disagree about which nodes carry a position at all, which is not what
+    /// this is about.
+    #[test]
+    fn an_offset_zero_parse_emits_no_position_past_the_source() {
+        /// Shapes whose conversion still evaluates the negative base eagerly.
+        /// Debug panics on exactly these; release is correct on all of them.
+        const PANICS_IN_A_DEBUG_BUILD: &[&str] = &[
+            "f<number>(1)",
+            "new C<number>(1)",
+            "class K<T> extends M<number> { p: number = 1; }",
+            "(v: number) => v",
+            "o as string",
+            "(v: number = 1) => v",
+            "<T,>(v: T) => v",
+        ];
+        let cases: &[&'static str] = &[
+            "work()",
+            "new C(1)",
+            "f(g(1))",
+            "[1, 2].map(f)",
+            "() => 1",
+            "a + b",
+            "o.m(1)",
+            "({ x: 1 })",
+            "function q(a) { return a; }",
+            "f<number>(1)",
+            "new C<number>(1)",
+            "class K<T> extends M<number> { p: number = 1; }",
+            "(v) => v",
+            "(v: number) => v",
+            "o as string",
+            "(a, b) => a + b",
+            "({ x }) => x",
+            "([a]) => a",
+            "(v: number = 1) => v",
+            "<T,>(v: T) => v",
+        ];
+        fn positions(arena: &ParseArena, src: &str) -> Vec<(String, u64)> {
+            let line_offsets = vec![0];
+            let Some(expr) = parse_expression_with_typescript(arena, src, 0, &line_offsets, true)
+            else {
+                panic!("`{src}` should parse");
+            };
+            let mut out = Vec::new();
+            collect_positions(expr.as_json(), &mut out);
+            out
+        }
+        // The panics under test are the subject, so they must not print a
+        // backtrace each; a real assertion failure below still does.
+        let previous = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let isolated: Vec<Option<Vec<(String, u64)>>> = cases
+            .iter()
+            .map(|src| {
+                let src = *src;
+                std::thread::spawn(move || {
+                    std::panic::catch_unwind(|| positions(&ParseArena::new(), src)).ok()
+                })
+                .join()
+                .unwrap()
+            })
+            .collect();
+        let sequential: Vec<Option<Vec<(String, u64)>>> = cases
+            .iter()
+            .map(|src| {
+                let src = *src;
+                std::thread::spawn(move || {
+                    let arena = ParseArena::new();
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        cases.iter().take_while(|c| **c != src).for_each(|c| {
+                            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                positions(&arena, c)
+                            }));
+                        });
+                        positions(&arena, src)
+                    }))
+                    .ok()
+                })
+                .join()
+                .unwrap()
+            })
+            .collect();
+        std::panic::set_hook(previous);
+
+        let mut problems = Vec::new();
+        let mut panicked: Vec<&str> = Vec::new();
+        for (i, src) in cases.iter().enumerate() {
+            let len = src.len() as u64;
+            if isolated[i].is_none() {
+                panicked.push(src);
+                continue;
+            }
+            for (pass, seen) in [
+                ("isolated", isolated[i].as_ref()),
+                ("sequential", sequential[i].as_ref()),
+            ] {
+                let Some(seen) = seen else { continue };
+                assert!(
+                    !seen.is_empty(),
+                    "`{src}` ({pass}) emitted no positions at all"
+                );
+                let past: Vec<_> = seen.iter().filter(|(_, n)| *n > len).collect();
+                if !past.is_empty() {
+                    problems.push(format!("`{src}` ({pass}): len {len} but {past:?}"));
+                }
+                // The whole expression is the whole source on every shape here
+                // but `({ x: 1 })`, where the parenthesised object's own span
+                // is inside the parens — checked, not assumed.
+                let outermost = (seen[0].1, seen[1].1);
+                let expected: (u64, u64) = if *src == "({ x: 1 })" {
+                    (1, 9)
+                } else {
+                    (0, len)
+                };
+                if outermost != expected {
+                    problems.push(format!(
+                        "`{src}` ({pass}): outermost span {outermost:?} is not {expected:?}"
+                    ));
+                }
+            }
+        }
+        let expected_panics: Vec<&str> = if cfg!(debug_assertions) {
+            PANICS_IN_A_DEBUG_BUILD.to_vec()
+        } else {
+            Vec::new()
+        };
+        let mut sorted = panicked.clone();
+        sorted.sort_unstable();
+        let mut want = expected_panics.clone();
+        want.sort_unstable();
+        assert_eq!(
+            sorted, want,
+            "the set of shapes whose conversion panics at offset 0 moved (#4432)"
+        );
+        assert!(problems.is_empty(), "{}", problems.join("\n"));
+    }
+
     /// The ASCII gates here are fast-path filters, so rejecting a non-ASCII
     /// identifier must cost only a fallback — never a wrong parse.
     #[test]
