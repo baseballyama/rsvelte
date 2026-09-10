@@ -1,0 +1,916 @@
+{
+	"generatedAt": "2026-09-10T02:57:16.136Z",
+	"corpus": {
+		"svelteSha": "56a036f4ce873a24ee6631a06d03d372523d7a9b",
+		"svelteDevSha": "fa53d1446916ab42d8dae0a359d2358cd0c51f7a"
+	},
+	"rsvelteFmtSha256": "12c1cdbafef24a368d401620b1e87b94978314923b3cc1c7ed524d6f0f54946d",
+	"included": 33644,
+	"excluded": 23,
+	"converged": 33539,
+	"failed": 82,
+	"failures": [
+		{
+			"id": "adventurelog/frontend/src/lib/components/collections/CollectionMap.svelte",
+			"kind": "diff",
+			"lineDelta": -2,
+			"detail": {
+				"line": 322,
+				"column": 46,
+				"expected": "…ction collectTransportationLinesGeojson(",
+				"actual": "…ction collectTransportationLinesGeojson(transportations: any[]): {"
+			}
+		},
+		{
+			"id": "appwrite-console/src/routes/(console)/project-[region]-[project]/overview/onboard.svelte",
+			"kind": "diff",
+			"lineDelta": -7,
+			"detail": {
+				"line": 131,
+				"column": 53,
+				"expected": "…          justifyContent=\"space-between\">",
+				"actual": "…          justifyContent=\"space-between\""
+			}
+		},
+		{
+			"id": "chatgpt-web/src/lib/ChatOptionMenu.svelte",
+			"kind": "diff",
+			"lineDelta": 0,
+			"detail": {
+				"line": 253,
+				"column": 77,
+				"expected": "…icon={faSquarePlusOutline} /></span> New Chat",
+				"actual": "…icon={faSquarePlusOutline} /></span> New"
+			}
+		},
+		{
+			"id": "chatgpt-web/src/lib/ChatSettingsModal.svelte",
+			"kind": "diff",
+			"lineDelta": 0,
+			"detail": {
+				"line": 411,
+				"column": 76,
+				"expected": "…-icon\"><Fa icon={faRotateLeft} /></span> Reset",
+				"actual": "…-icon\"><Fa icon={faRotateLeft} /></span>"
+			}
+		},
+		{
+			"id": "chatgpt-web/src/lib/Util.svelte",
+			"kind": "diff",
+			"lineDelta": -2,
+			"detail": {
+				"line": 86,
+				"column": 17,
+				"expected": "        document",
+				"actual": "        document.querySelector(\"body\")?.scrollIntoView({"
+			}
+		},
+		{
+			"id": "flowbite-svelte/src/lib/tour/Tour.svelte",
+			"kind": "diff",
+			"lineDelta": 2,
+			"detail": {
+				"line": 226,
+				"column": 30,
+				"expected": "      class=\"{styles.overlay({",
+				"actual": "      class=\"{styles.overlay("
+			}
+		},
+		{
+			"id": "flowbite-svelte/src/routes/utils/ExampleWrapper.svelte",
+			"kind": "diff",
+			"lineDelta": -2,
+			"detail": {
+				"line": 464,
+				"column": 64,
+				"expected": "…malizeRenderedCode>{#if codeString}<code",
+				"actual": "…malizeRenderedCode>{#if codeString}<code>{normalizeIndentation(codeString)}</code>{:else}{@render code?.()}{/if}</pre>"
+			}
+		},
+		{
+			"id": "headscale-ui/src/lib/settings/DevSettings.svelte",
+			"kind": "diff",
+			"lineDelta": 2,
+			"detail": {
+				"line": 9,
+				"column": 47,
+				"expected": "…class=\"text-2xl bold text-primary mb-4\">Developer Flags<input",
+				"actual": "…class=\"text-2xl bold text-primary mb-4\">"
+			}
+		},
+		{
+			"id": "huly/packages/panel/src/components/Panel.svelte",
+			"kind": "diff",
+			"lineDelta": -3,
+			"detail": {
+				"line": 245,
+				"column": 41,
+				"expected": "      {:else if $$slots.attributes}<slot",
+				"actual": "      {:else if $$slots.attributes}<slot name=\"attributes\" direction=\"column\" />{/if}"
+			}
+		},
+		{
+			"id": "huly/packages/ui/src/components/Header.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 177,
+				"column": 40,
+				"expected": "        {#if type !== \"type-popup\"}<div",
+				"actual": "        {#if type !== \"type-popup\"}<div class=\"hulyHeader-divider no-print\" />{/if}"
+			}
+		},
+		{
+			"id": "huly/packages/ui/src/components/ModernCheckbox.svelte",
+			"kind": "diff",
+			"lineDelta": -3,
+			"detail": {
+				"line": 35,
+				"column": 28,
+				"expected": "      {#if labelIntl}<Label",
+				"actual": "      {#if labelIntl}<Label label={labelIntl} params={labelParams} />{:else}{label}{/if}"
+			}
+		},
+		{
+			"id": "huly/packages/ui/src/components/ModernRadioButton.svelte",
+			"kind": "diff",
+			"lineDelta": -3,
+			"detail": {
+				"line": 35,
+				"column": 28,
+				"expected": "      {#if labelIntl}<Label",
+				"actual": "      {#if labelIntl}<Label label={labelIntl} params={labelParams} />{:else}{label}{/if}"
+			}
+		},
+		{
+			"id": "huly/plugins/love-resources/src/components/meeting/ControlExt.svelte",
+			"kind": "diff",
+			"lineDelta": -2,
+			"detail": {
+				"line": 114,
+				"column": 28,
+				"expected": "      const widget = client",
+				"actual": "      const widget = client.getModel().findAllSync(workbench.class.Widget, {"
+			}
+		},
+		{
+			"id": "huly/plugins/love-resources/src/components/meeting/controls/CameraButton.svelte",
+			"kind": "diff",
+			"lineDelta": -2,
+			"detail": {
+				"line": 23,
+				"column": 25,
+				"expected": "  const camKeys = client",
+				"actual": "  const camKeys = client.getModel().findAllSync(view.class.Action, {"
+			}
+		},
+		{
+			"id": "huly/plugins/love-resources/src/components/meeting/controls/MicrophoneButton.svelte",
+			"kind": "diff",
+			"lineDelta": -2,
+			"detail": {
+				"line": 20,
+				"column": 25,
+				"expected": "  const micKeys = client",
+				"actual": "  const micKeys = client.getModel().findAllSync(view.class.Action, {"
+			}
+		},
+		{
+			"id": "huly/plugins/process-resources/src/components/attributeEditors/ConfigurePopup.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 136,
+				"column": 15,
+				"expected": "      ? client",
+				"actual": "      ? client.getModel().findAllSync(plugin.class.ProcessFunction, {"
+			}
+		},
+		{
+			"id": "huly/plugins/process-resources/src/components/attributeEditors/FunctionSelector.svelte",
+			"kind": "diff",
+			"lineDelta": -2,
+			"detail": {
+				"line": 46,
+				"column": 20,
+				"expected": "  $: funcs = client",
+				"actual": "  $: funcs = client.getModel().findAllSync(process.class.ProcessFunction, {"
+			}
+		},
+		{
+			"id": "huly/plugins/process-resources/src/components/settings/AddTransitionPopup.svelte",
+			"kind": "diff",
+			"lineDelta": -2,
+			"detail": {
+				"line": 63,
+				"column": 11,
+				"expected": "    client",
+				"actual": "    client.getModel().findAllSync(plugin.class.Transition, {"
+			}
+		},
+		{
+			"id": "huly/plugins/process-resources/src/components/settings/AsideTransitionEditor.svelte",
+			"kind": "diff",
+			"lineDelta": -2,
+			"detail": {
+				"line": 84,
+				"column": 11,
+				"expected": "    client",
+				"actual": "    client.getModel().findAllSync(plugin.class.Transition, {"
+			}
+		},
+		{
+			"id": "huly/plugins/process-resources/src/components/settings/CancelSubProcessEditor.svelte",
+			"kind": "diff",
+			"lineDelta": -2,
+			"detail": {
+				"line": 59,
+				"column": 24,
+				"expected": "  $: processes = client",
+				"actual": "  $: processes = client.getModel().findAllSync(plugin.class.Process, {"
+			}
+		},
+		{
+			"id": "huly/plugins/setting-resources/src/components/Settings.svelte",
+			"kind": "diff",
+			"lineDelta": -2,
+			"detail": {
+				"line": 148,
+				"column": 24,
+				"expected": "  const widget = client",
+				"actual": "  const widget = client.getModel().findAllSync(workbench.class.Widget, {"
+			}
+		},
+		{
+			"id": "immich/web/src/routes/(user)/utilities/duplicates/[[photos=photos]]/[[assetId=id]]/+page.svelte",
+			"kind": "diff",
+			"lineDelta": 1,
+			"detail": {
+				"line": 313,
+				"column": 41,
+				"expected": "          {$t(\"duplicates_description\")} <LinkToDocs",
+				"actual": "          {$t(\"duplicates_description\")}"
+			}
+		},
+		{
+			"id": "kampsy-ui/src/routes/avatar/+page.svelte",
+			"kind": "diff",
+			"lineDelta": 2,
+			"detail": {
+				"line": 102,
+				"column": 74,
+				"expected": "…ost prominent. Set {@render roundedCode(\"reverse\")} to flip the order so the last member",
+				"actual": "…ost prominent. Set {@render roundedCode("
+			}
+		},
+		{
+			"id": "kampsy-ui/src/routes/button/+page.svelte",
+			"kind": "diff",
+			"lineDelta": -2,
+			"detail": {
+				"line": 339,
+				"column": 36,
+				"expected": "          )}, {@render roundedCode(",
+				"actual": "          )}, {@render roundedCode(\"Invite Member\")}, {@render roundedCode(\"Rotate Key\")}. Avoid bare verbs ({@render ro…"
+			}
+		},
+		{
+			"id": "kampsy-ui/src/routes/checkbox/+page.svelte",
+			"kind": "diff",
+			"lineDelta": 2,
+			"detail": {
+				"line": 223,
+				"column": 54,
+				"expected": "…visible label. Set {@render roundedCode('aria-label=\"Select {row name}\"')} so the row stays identifiable",
+				"actual": "…visible label. Set {@render roundedCode("
+			}
+		},
+		{
+			"id": "kampsy-ui/src/routes/choicebox/+page.svelte",
+			"kind": "diff",
+			"lineDelta": -6,
+			"detail": {
+				"line": 264,
+				"column": 37,
+				"expected": "          why ({@render roundedCode(",
+				"actual": "          why ({@render roundedCode(\"Available on Pro\")}). A faded tile with no reason reads as broken."
+			}
+		},
+		{
+			"id": "kampsy-ui/src/routes/installation/+page.svelte",
+			"kind": "diff",
+			"lineDelta": 2,
+			"detail": {
+				"line": 118,
+				"column": 85,
+				"expected": "… project directory {@render roundedCode(\"cd my-app\")} . From here, you can",
+				"actual": "… project directory {@render roundedCode("
+			}
+		},
+		{
+			"id": "kampsy-ui/src/routes/project-banner/+page.svelte",
+			"kind": "diff",
+			"lineDelta": 2,
+			"detail": {
+				"line": 111,
+				"column": 73,
+				"expected": "…ng a rollback. The {@render roundedCode(\"label\")} prop accepts either a {@render roundedCode(",
+				"actual": "…ng a rollback. The {@render roundedCode("
+			}
+		},
+		{
+			"id": "kite-public/src/lib/components/contribute/ContributeFeedStep.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 146,
+				"column": 69,
+				"expected": "…ass=\"text-green-600 dark:text-green-400\"",
+				"actual": "…ass=\"text-green-600 dark:text-green-400\">{s(\"contribute.validCount\", {"
+			}
+		},
+		{
+			"id": "kite-public/src/lib/components/crypto/CryptoGrid.svelte",
+			"kind": "diff",
+			"lineDelta": -2,
+			"detail": {
+				"line": 223,
+				"column": 29,
+				"expected": "                >{isPositive",
+				"actual": "                >{isPositive ? \"+\" : \"\"}{priceData.priceChangePercentage24h.toFixed("
+			}
+		},
+		{
+			"id": "musicat/src/lib/views/WikiView.svelte",
+			"kind": "diff",
+			"lineDelta": -1,
+			"detail": {
+				"line": 339,
+				"column": 80,
+				"expected": "…ation: 200 }}>Searching wiki for:</small",
+				"actual": "…ation: 200 }}>Searching wiki for:</small>"
+			}
+		},
+		{
+			"id": "networking-toolbox/src/lib/components/furniture/TopNav.svelte",
+			"kind": "diff",
+			"lineDelta": -3,
+			"detail": {
+				"line": 225,
+				"column": 46,
+				"expected": "…                 {#if subItem.icon}<Icon",
+				"actual": "…                 {#if subItem.icon}<Icon name={subItem.icon} size=\"sm\" />{/if}"
+			}
+		},
+		{
+			"id": "networking-toolbox/src/lib/components/tools/IPv6NotationConverter.svelte",
+			"kind": "diff",
+			"lineDelta": -2,
+			"detail": {
+				"line": 257,
+				"column": 60,
+				"expected": "…tputAddress.length > inputAddress.length",
+				"actual": "…tputAddress.length > inputAddress.length ? \"+\" : \"\"}{outputAddress.length -"
+			}
+		},
+		{
+			"id": "open-webui/src/lib/components/admin/Evaluations/Leaderboard.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 200,
+				"column": 56,
+				"expected": "…     {#if direction === \"asc\"}<ChevronUp",
+				"actual": "…     {#if direction === \"asc\"}<ChevronUp className=\"size-2\" />{:else}<ChevronDown className=\"size-2\" />{/if}"
+			}
+		},
+		{
+			"id": "open-webui/src/lib/components/chat/ChatPlaceholder.svelte",
+			"kind": "diff",
+			"lineDelta": -1,
+			"detail": {
+				"line": 87,
+				"column": 20,
+				"expected": "          <EyeSlash",
+				"actual": "          <EyeSlash strokeWidth=\"2\" className=\"size-3.5\" />{$i18n.t("
+			}
+		},
+		{
+			"id": "open-webui/src/lib/components/chat/Placeholder.svelte",
+			"kind": "diff",
+			"lineDelta": -1,
+			"detail": {
+				"line": 95,
+				"column": 18,
+				"expected": "        <EyeSlash",
+				"actual": "        <EyeSlash strokeWidth=\"2\" className=\"size-3.5\" />{$i18n.t("
+			}
+		},
+		{
+			"id": "powertable/app/src/routes/examples/+layout.svelte",
+			"kind": "diff",
+			"lineDelta": -1,
+			"detail": {
+				"line": 51,
+				"column": 76,
+				"expected": "…g on the job will reveal the row's index",
+				"actual": "…g on the job will reveal the row's index (position"
+			}
+		},
+		{
+			"id": "primo/src/lib/builder/ui/Toggle/Toggle.svelte",
+			"kind": "diff",
+			"lineDelta": -2,
+			"detail": {
+				"line": 57,
+				"column": 77,
+				"expected": "…n({ toggled })}{:else if on && off}<span",
+				"actual": "…n({ toggled })}{:else if on && off}<span>{toggled ? on : off}</span>{/if}"
+			}
+		},
+		{
+			"id": "primo/src/lib/builder/views/modal/PageTypeModal/Item.svelte",
+			"kind": "diff",
+			"lineDelta": -2,
+			"detail": {
+				"line": 32,
+				"column": 27,
+				"expected": "        (await pb.instance",
+				"actual": "        (await pb.instance?.collection(\"pages\").getFullList({"
+			}
+		},
+		{
+			"id": "sparrow-app/packages/@sparrow-workspaces/src/features/testflow-schedule-explorer/components/test-results/sub-components/EmptyTestResult.svelte",
+			"kind": "diff",
+			"lineDelta": 0,
+			"detail": {
+				"line": 23,
+				"column": 3,
+				"expected": "    .empty-state {",
+				"actual": "  .empty-state {"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/AnimatedListDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 118,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"animated-list\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/BounceCardsDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 141,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"bounce-cards\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/CircularGalleryDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 106,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"circular-gallery\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/DomeGalleryDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 182,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"dome-gallery\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/ElasticSliderDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 119,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"elastic-slider\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/ElectricBorderDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 125,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"electric-border\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/FloatingLinesDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 216,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"floating-lines\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/FlowingMenuDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 150,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"flowing-menu\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/GhostCursorDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 165,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"ghost-cursor\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/GlassSurfaceDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 267,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"glass-surface\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/GradientBlindsDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 193,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"gradient-blinds\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/GradualBlurDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 185,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"gradual-blur\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/GridDistortionDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 99,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"grid-distortion\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/InfiniteMenuDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 90,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"infinite-menu\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/LetterGlitchDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 112,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"letter-glitch\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/LightPillarDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 182,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"light-pillar\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/MagnetLinesDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 131,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"magnet-lines\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/MetallicPaintDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 255,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"metallic-paint\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/ModelViewerDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 244,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"model-viewer\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/OrbitImagesDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 218,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"orbit-images\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/PixelTransitionDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 137,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"pixel-transition\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/PrismaticBurstDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 154,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"prismatic-burst\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/ProfileCardDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 187,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"profile-card\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/ReflectiveCardDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 145,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"reflective-card\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/ScrollStackDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 210,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"scroll-stack\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/SpotlightCardDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 81,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"spotlight-card\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/StaggeredMenuDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 176,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"staggered-menu\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/StickerPeelDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 151,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"sticker-peel\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/docs/pages/TargetCursorDemo.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 115,
+				"column": 32,
+				"expected": "  {#snippet code()}<DemoCodeTab",
+				"actual": "  {#snippet code()}<DemoCodeTab slug=\"target-cursor\" {usage} {source} />{/snippet}"
+			}
+		},
+		{
+			"id": "svelte-bits/src/lib/components/library/Animations/TargetCursor/TargetCursor.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 74,
+				"column": 20,
+				"expected": "      spinTl = gsap",
+				"actual": "      spinTl = gsap.timeline({ repeat: -1 }).to(cursor, {"
+			}
+		},
+		{
+			"id": "svelte-commerce/src/lib/theme/default/DefaultHomepage.svelte",
+			"kind": "diff",
+			"lineDelta": -1,
+			"detail": {
+				"line": 454,
+				"column": 71,
+				"expected": "…lass=\"ed-ribbon__dot\" aria-hidden=\"true\"",
+				"actual": "…lass=\"ed-ribbon__dot\" aria-hidden=\"true\"></span>{/if}"
+			}
+		},
+		{
+			"id": "svelte-commerce/src/lib/theme/wine/WineHomepage.svelte",
+			"kind": "diff",
+			"lineDelta": 1,
+			"detail": {
+				"line": 540,
+				"column": 81,
+				"expected": "…vation.hoursLabel}</strong>{themeContent",
+				"actual": "…vation.hoursLabel}</strong>{themeContent.reservation"
+			}
+		},
+		{
+			"id": "svelte-commerce/src/routes/(my)/my/addresses/+page.svelte",
+			"kind": "diff",
+			"lineDelta": 1,
+			"detail": {
+				"line": 103,
+				"column": 40,
+				"expected": "                    {address.firstName} {address.lastName}",
+				"actual": "                    {address.firstName}"
+			}
+		},
+		{
+			"id": "svelte-inspect-value/packages/svelte/src/lib/components/StringValue.svelte",
+			"kind": "diff",
+			"lineDelta": -4,
+			"detail": {
+				"line": 45,
+				"column": 13,
+				"expected": "  <Highlight",
+				"actual": "  <Highlight value={stringified} fields={[\"value\"]} alsoMatch={value} />{#if isUrlOrPath}"
+			}
+		},
+		{
+			"id": "svelte-inspect-value/packages/svelte/src/routes/(app)/usage/hotkeys/+page.svelte",
+			"kind": "diff",
+			"lineDelta": 0,
+			"detail": {
+				"line": 73,
+				"column": 77,
+				"expected": "…keyboard shortcuts, everything should be",
+				"actual": "…keyboard shortcuts, everything should be reachable"
+			}
+		},
+		{
+			"id": "svelte-material-ui/packages/icon-button/src/IconButton.svelte",
+			"kind": "diff",
+			"lineDelta": 2,
+			"detail": {
+				"line": 333,
+				"column": 40,
+				"expected": "  {@render children?.()}{#if touch}<div class=\"mdc-icon-button__touch\"></div>{/if}",
+				"actual": "  {@render children?.()}{#if touch}<div"
+			}
+		},
+		{
+			"id": "svelte-material-ui/packages/list/src/Item.svelte",
+			"kind": "diff",
+			"lineDelta": 2,
+			"detail": {
+				"line": 463,
+				"column": 21,
+				"expected": "  >{#if ripple}<span class=\"mdc-deprecated-list-item__ripple\"></span>{/if}{@render children?.()}</MyComponent",
+				"actual": "  >{#if ripple}<span"
+			}
+		},
+		{
+			"id": "svelte-material-ui/packages/segmented-button/src/Segment.svelte",
+			"kind": "diff",
+			"lineDelta": 2,
+			"detail": {
+				"line": 234,
+				"column": 20,
+				"expected": "  >{#if ripple}<div class=\"mdc-segmented-button__ripple\"></div>{/if}{@render children?.()}{#if touch}<div",
+				"actual": "  >{#if ripple}<div"
+			}
+		},
+		{
+			"id": "svelte-ux/packages/svelte-ux/src/routes/+page.svelte",
+			"kind": "diff",
+			"lineDelta": 0,
+			"detail": {
+				"line": 16,
+				"column": 76,
+				"expected": "…an not be used. Instead you will need to",
+				"actual": "…an not be used. Instead you will need to follow"
+			}
+		},
+		{
+			"id": "svelte/packages/svelte/tests/parser-modern/samples/comment-before-function-binding/input.svelte",
+			"kind": "diff",
+			"lineDelta": 0,
+			"detail": {
+				"line": 5,
+				"column": 20,
+				"expected": "<input bind:value={/** ( */ (() => value, (v) => (value = v.toLowerCase()))} />",
+				"actual": "<input bind:value={(() => value, (v) => (value = v.toLowerCase()))} />"
+			}
+		},
+		{
+			"id": "svelte/packages/svelte/tests/validator/samples/comment-before-function-binding/input.svelte",
+			"kind": "diff",
+			"lineDelta": 0,
+			"detail": {
+				"line": 5,
+				"column": 20,
+				"expected": "<input bind:value={/** ( */ (() => value, (v) => (value = v.toLowerCase()))} />",
+				"actual": "<input bind:value={(() => value, (v) => (value = v.toLowerCase()))} />"
+			}
+		},
+		{
+			"id": "sveltepress/packages/vite/__tests__/real-world.svelte",
+			"kind": "diff",
+			"lineDelta": -54,
+			"detail": {
+				"line": 53,
+				"column": 27,
+				"expected": "                    </span",
+				"actual": "                    </span><span style=\"color:#999999;--shiki-dark:#7FDBCA\">:</span><span"
+			}
+		}
+	]
+}
