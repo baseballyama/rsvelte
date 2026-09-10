@@ -77,7 +77,18 @@ const PARSE_RATCHETS = [
 	'parse-known-failures.client-dev.json',
 	'parse-known-failures.server-dev.json',
 ];
+const EXACT_RATCHETS = [
+	'pattern-exact-known-failures.client.json',
+	'pattern-exact-known-failures.server.json',
+	'pattern-exact-known-failures.client-dev.json',
+	'pattern-exact-known-failures.server-dev.json',
+];
 const DIAGNOSTIC_RATCHETS = [...WARNING_RATCHETS, ...ERROR_RATCHETS, ...PARSE_RATCHETS];
+
+// A repro whose two sides differ only in a comment. The output verdict rescues it
+// through `ast_equiv_batch` and scores `match`; the pattern-exact family must not.
+const COMMENT_ONLY_ID = 'pattern/issues/comment-only.svelte';
+const EXACT_SEED = [COMMENT_ONLY_ID];
 
 let failed = 0;
 function check(name, ok, detail) {
@@ -138,12 +149,38 @@ function buildSandbox() {
 			fs.writeFileSync(path.join(dir, 'client.js'), 'export default 1;\n');
 		}
 	}
+	// The one entry whose sides differ, and only inside a comment.
+	manifest.push({ id: COMMENT_ONLY_ID, source: COMMENT_ONLY_ID });
+	for (const [tree, body] of [
+		['expected', 'export default 1; // kept\n'],
+		['actual', 'export default 1;\n'],
+	]) {
+		const dir = path.join(CORPUS, tree, COMMENT_ONLY_ID);
+		fs.mkdirSync(dir, { recursive: true });
+		fs.writeFileSync(path.join(dir, 'warnings.json'), '{}\n');
+		fs.writeFileSync(path.join(dir, 'client.js'), body);
+	}
+	// Not a reimplementation of the comparator — a fixture for the one property
+	// this scenario turns on, which the real binary's own call site documents:
+	// `ast_equiv_batch` is invoked with no `--comments`, so a difference that
+	// lives only in a comment comes back `equivalent`. Stubbed because this job
+	// deliberately builds no Rust.
+	const bin = path.join(sandbox, 'target/release/ast_equiv_batch');
+	fs.mkdirSync(path.dirname(bin), { recursive: true });
+	fs.writeFileSync(
+		bin,
+		'#!/usr/bin/env node\n' +
+			"const inp = require('node:fs').readFileSync(0, 'utf8');\n" +
+			"process.stdout.write(JSON.stringify(JSON.parse(inp).map((p) => ({ id: p.id, verdict: 'equivalent' }))));\n"
+	);
+	fs.chmodSync(bin, 0o755);
 	fs.writeFileSync(path.join(CORPUS, 'manifest.json'), JSON.stringify(manifest));
 }
 
+const seedFor = (f) => (EXACT_RATCHETS.includes(f) ? EXACT_SEED : SENTINEL);
 function seedRatchets() {
-	for (const f of [...OUTPUT_RATCHETS, ...DIAGNOSTIC_RATCHETS]) {
-		fs.writeFileSync(path.join(CORPUS, f), JSON.stringify(SENTINEL, null, '\t') + '\n');
+	for (const f of [...OUTPUT_RATCHETS, ...DIAGNOSTIC_RATCHETS, ...EXACT_RATCHETS]) {
+		fs.writeFileSync(path.join(CORPUS, f), JSON.stringify(seedFor(f), null, '\t') + '\n');
 	}
 }
 
@@ -153,7 +190,7 @@ const isSentinel = (f) => {
 	const p = path.join(CORPUS, f);
 	return (
 		fs.existsSync(p) &&
-		JSON.stringify(JSON.parse(fs.readFileSync(p, 'utf8'))) === JSON.stringify(SENTINEL)
+		JSON.stringify(JSON.parse(fs.readFileSync(p, 'utf8'))) === JSON.stringify(seedFor(f))
 	);
 };
 const rewritten = (files) => files.filter((f) => !isSentinel(f));
@@ -277,6 +314,102 @@ console.log('\na declared source that contributed no entry refuses the rewrite')
 	fs.writeFileSync(sourcesPath, JSON.stringify(declared));
 	const after = run('--update-warning-baseline', '--update-error-baseline', '--update-parse-baseline');
 	check('exit 0 once the set matches again', after.status === 0, `status ${after.status}\n${after.stderr}`);
+}
+
+// The defect #4452 reports: a repro landed to pin a comment-only divergence pins
+// nothing, because the output verdict's AST rescue ignores comments. Both halves
+// are asserted here — that the output family does NOT see it is what makes the
+// pattern-exact family worth having, and a test that only checked the new family
+// would pass against a build where the output family had started catching it.
+console.log('\na comment-only pattern repro is invisible to the output family and caught by pattern-exact');
+{
+	// This is the file's only run with no update flag, so every family is checked
+	// two-sided and the seeds decide the exit code. The shared SENTINEL is a
+	// listed-but-passing entry, so it is cleared; `sandbox/e0` is the deliberate
+	// error divergence this corpus is built with, so its ratchets keep it.
+	seedRatchets();
+	for (const f of [...OUTPUT_RATCHETS, ...WARNING_RATCHETS, ...PARSE_RATCHETS]) {
+		fs.writeFileSync(path.join(CORPUS, f), JSON.stringify([], null, '\t') + '\n');
+	}
+	// message / position / end, but not frame: `frame` is compared only where both
+	// endpoints already agree, and e0's do not — so listing it there would be a
+	// stale entry rather than a matching one.
+	for (const f of ERROR_RATCHETS) {
+		const listed = f.includes('.client.') && !f.startsWith('error-frame-');
+		fs.writeFileSync(
+			path.join(CORPUS, f),
+			JSON.stringify(listed ? ['sandbox/e0'] : [], null, '\t') + '\n'
+		);
+	}
+	const r = spawnSync(
+		process.execPath,
+		[VERIFY, '--no-fmt', '--keep-artifacts', '--targets', 'client'],
+		{ cwd: sandbox, encoding: 'utf8' }
+	);
+	check('exit 0 while the id is baselined', r.status === 0, `status ${r.status}\n${r.stdout.slice(-600)}`);
+	const report = JSON.parse(fs.readFileSync(path.join(CORPUS, 'report.json'), 'utf8'));
+	const exact = report.exactFailures.find((f) => f.id === COMMENT_ONLY_ID);
+	check('pattern-exact records it', Boolean(exact), JSON.stringify(report.exactFailures));
+	check(
+		'recorded for the measured target only',
+		exact && exact.details.every((d) => d.target === 'client'),
+		JSON.stringify(exact?.details)
+	);
+	check(
+		'the output family does NOT record it',
+		!report.failures.some((f) => f.id === COMMENT_ONLY_ID),
+		'the AST rescue no longer hides it — this assertion is the reason the family exists'
+	);
+	check(
+		'the population is the repro prefix, not the whole corpus',
+		report.exactPopulation === 1,
+		`exactPopulation ${report.exactPopulation}`
+	);
+}
+
+console.log('\npattern-exact is two-sided: an unlisted comment-only divergence fails the run');
+{
+	seedRatchets();
+	fs.writeFileSync(path.join(CORPUS, EXACT_RATCHETS[0]), JSON.stringify([], null, '\t') + '\n');
+	const r = spawnSync(
+		process.execPath,
+		[VERIFY, '--no-fmt', '--keep-artifacts', '--targets', 'client'],
+		{ cwd: sandbox, encoding: 'utf8' }
+	);
+	check('exit non-zero', r.status !== 0, `status ${r.status}`);
+	check(
+		'names the entry',
+		new RegExp(COMMENT_ONLY_ID.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(r.stdout),
+		r.stdout.slice(-800)
+	);
+	check(
+		'names the family rather than the output one',
+		/pattern-corpus exact-output/.test(r.stdout),
+		r.stdout.slice(-800)
+	);
+}
+
+console.log('\n--no-fmt bars pattern-exact too: it compares normalized bytes');
+{
+	const r = run('--update-exact-baseline');
+	check('exit 2', r.status === 2, `status ${r.status}\n${r.stderr}`);
+	check('names --no-fmt as the reason', /--no-fmt/.test(r.stderr), r.stderr.slice(0, 400));
+	check(
+		'no exact ratchet rewritten',
+		untouched(EXACT_RATCHETS).length === EXACT_RATCHETS.length,
+		rewritten(EXACT_RATCHETS).join(', ')
+	);
+}
+
+console.log('\nthe diagnostic flags leave pattern-exact alone');
+{
+	const r = run('--update-warning-baseline', '--update-error-baseline', '--update-parse-baseline');
+	check('exit 0', r.status === 0, `status ${r.status}\n${r.stderr}`);
+	check(
+		'all exact ratchets untouched',
+		untouched(EXACT_RATCHETS).length === EXACT_RATCHETS.length,
+		rewritten(EXACT_RATCHETS).join(', ')
+	);
 }
 
 fs.rmSync(sandbox, { recursive: true, force: true });

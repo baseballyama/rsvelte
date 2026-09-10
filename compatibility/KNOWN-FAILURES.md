@@ -31,6 +31,7 @@ resolve. Do not rename an anchor — they are machine-facing.
 | [`parse-ast-known-failures`](#parse-ast-known-failures) | `compatibility/parse-ast-known-failures.md` |
 | [`parse-known-failures`](#parse-known-failures) | `compatibility/parse-known-failures.md` |
 | [`parse-oracle-excluded`](#parse-oracle-excluded) | `compatibility/parse-oracle-excluded.md` |
+| [`pattern-exact-known-failures`](#pattern-exact-known-failures) | `compatibility/pattern-exact-known-failures.md` |
 | [`scss-known-failures`](#scss-known-failures) | `compatibility/scss-known-failures.md` |
 | [`sourcemap-known-failures`](#sourcemap-known-failures) | `compatibility/sourcemap-known-failures.md` |
 | [`sourcemap-oracle-excluded`](#sourcemap-oracle-excluded) | `compatibility/sourcemap-oracle-excluded.md` |
@@ -7154,6 +7155,86 @@ own deliberately-invalid fixtures, which is exactly where a compiler is most lik
 something a strict parser refuses. A calibration corpus reproducing the measurement only shows
 the method is sound on *its* population — see `AGENTS.md` on what a gate's inputs do and do not
 contain.
+
+<a id="pattern-exact-known-failures"></a>
+
+## pattern-exact-known-failures.<target>.json — why each entry is accepted
+
+The output gate (`scripts/compat-corpus/verify.mjs`) rescues a byte-different pair whose ASTs
+are equivalent, and `ast_equiv_batch` is invoked with no arguments, so its comment policy is
+`Ignore` — a divergence that is only a comment's presence or placement is scored `match` on
+every entry and every target (`GATES.md` blind spot 1a). Over a real-world component that is a
+deliberate tolerance. Over `compatibility/pattern-corpus/issues/` it is not: a file there exists
+**to pin a divergence a fix closed**, so one whose remaining divergence is comment-only pins
+nothing while reading as a passing repro, and the regression it was committed to catch can come
+back without reddening anything.
+
+This family re-runs the identical normalized byte comparison — oxfmt, blank lines stripped —
+over the `pattern/issues/` prefix alone, with the AST rescue removed. Its unit is
+`(id, target)`, folded to one entry per id carrying a `details` array naming each diverging
+target, so an id that diverges on all four targets is one ratchet entry rather than four.
+
+**Current baseline**, measured by the enrolling CI run (`Corpus Compat` 34430947366, tree
+`7b270ecbc`, 668 `pattern/issues/` manifest entries per target): 11 distinct ids, 30 `(id, target)`
+pairs, filed as `pattern-exact-known-failures.client.json`, 6 entries;
+`pattern-exact-known-failures.client-dev.json`, 6 entries;
+`pattern-exact-known-failures.server.json`, 9 entries; and
+`pattern-exact-known-failures.server-dev.json`, 9 entries. The two client targets and the two dev
+targets agree entry for entry, which is what makes the server/client split the real axis here.
+Re-baseline with `node scripts/compat-corpus/verify.mjs --update-exact-baseline`, which refuses
+under `--no-fmt` for the same reason `--update-baseline` does: without the normalizer a
+formatting-only difference is counted as a failure, and the resulting list is a measurement of
+oxfmt.
+
+Ratchet semantics, matching the output family:
+
+- an id **not** in this list whose `pattern/issues/` output is byte-different fails CI;
+- an id **in** this list that has become byte-identical fails CI too — the list may shrink,
+  never grow, and the PR that fixes an entry re-baselines in the same PR;
+- the population is the literal prefix `pattern/issues/`, so `pattern/adversarial/`,
+  `pattern/matrix/` and the loose `pattern/*.svelte` repros keep the output family's rescue.
+
+Two things this family deliberately does not decide.
+
+**It does not say which side is wrong.** The verdict is "the bytes differ". The direction is
+mixed in both senses — some entries are rsvelte dropping a comment official emits, others are
+rsvelte emitting one official does not (`GATES.md` 45c) — so each entry's justification has to
+state its own direction rather than inherit a summary sentence.
+
+**It does not exclude an id the output family already lists.** Nothing couples the two ratchets,
+so a repro failing gate 1 for an ordinary text mismatch can be listed in both. Excluding them
+would mean that *fixing* a gate-1 entry adds a row here; two rows for one divergence is the
+cheaper failure.
+
+### The 11 entries, with the direction each one runs in
+
+Every line below is the first differing line the run reported, so `expected` is the official
+compiler and `actual` is rsvelte. `45c` says this family does not decide who is wrong, and the
+enrolling baseline bears that out: **10 of the 11 are comment-only and 1 is not, 5 are rsvelte
+dropping a comment official emits, 3 are rsvelte emitting one official does not, and 2 are the
+same comment on both sides in a different place.**
+
+| id | targets | direction |
+|---|---|---|
+| `008-comment-props-destructure.svelte` | all 4 | **misplaced.** Client wants `var /* ) scanner payload */ div = root();` and rsvelte drops it; server puts the same comment after `= $$props;` where official has none. One comment, two verdicts — a relocation, not a loss. |
+| `3515-props-default-line-comment.svelte` | server, server-dev | **rsvelte emits extra.** `let { a = 1 } = $$props; // initializer` against official's bare statement. |
+| `3515-props-default-multiline-comment.svelte` | all 4 | **mixed.** Server is the same extra `/* initializer` as the line-comment sibling; client is an indentation difference *inside* a kept block comment (`\t\t` vs `\t\t\t\t`), which is the continuation-line half of the same divergence. |
+| `3515-props-plain-line-comment.svelte` | server, server-dev | **rsvelte emits extra**, as the `default` sibling. |
+| `3515-props-plain-multiline-comment.svelte` | all 4 | **mixed**, as the `default` multiline sibling (`\t\t` vs `\t\t\t`). |
+| `3515-props-rest-line-comment.svelte` | client, client-dev | **rsvelte drops.** Official breaks `$.template_effect(() =>` across lines because a comment sits in the arrow body; rsvelte emits the one-line form, so the break is the visible half of a dropped comment. |
+| `3603-each-key-comment.svelte` | server, server-dev | **rsvelte drops.** `$.ensure_array_like(rows /* key */)` against `$.ensure_array_like(rows)`. |
+| `4046-snippet-parameter-comment.svelte` | all 4 | **rsvelte drops** on three targets (`/* parameter */` before the snippet call) and misplaces on `client-dev`, where official writes `() => /* parameter */ body(...)`. |
+| `destructure-rhs-ends-before-a-trailing-comment.svelte` | client, client-dev | **misplaced.** Official closes the effect (`});`) where rsvelte still has `/* } c */` — the comment is kept but a statement late. |
+| `dollar-function-parameter.svelte` | server, server-dev | **not a comment at all**, and the only such entry: official emits `$.store_mutate($$store_subs ??= {}, "$viewport", …)` and rsvelte emits the bare `$viewport.width += read(work);`. It is *already listed in* `known-failures.server.json` / `known-failures.server-dev.json`, so it is 45d realized on the first baseline — one divergence, two rows, on purpose. |
+| `legacy-prop-initializer-jsdoc.svelte` | server, server-dev | **rsvelte drops.** The `/** @param {any} value */` in front of a `$.fallback` initializer. |
+
+Ten of these are the blind spot the family was added for: gate 1 scores every one of them `match`
+today, on every target, and nine of the ten are absent from `known-failures.<target>.json`
+entirely — the repro file was committed to pin a fix and pinned nothing. None is attributed yet,
+so the four files are listed in `attribution-pending.json`; per `attribution-check.mjs` an
+rsvelte-side entry has exactly one end state, which is elimination.
+
+
 
 <a id="scss-known-failures"></a>
 

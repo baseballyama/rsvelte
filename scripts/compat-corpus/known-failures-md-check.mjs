@@ -186,6 +186,14 @@ const RATCHETS = [
 		key: 'parse-ast-known-failures.json',
 		jsons: ['parse-ast-known-failures.json'],
 	},
+	// Declared per target rather than through the `<target>` placeholder: the
+	// enrolling baseline is 6 on the two client targets and 9 on the two server
+	// ones, and a shared count would have to be wrong for two of the four.
+	...TARGETS.map((t) => ({
+		doc: 'pattern-exact-known-failures.md',
+		key: `pattern-exact-known-failures.${t}.json`,
+		jsons: [`pattern-exact-known-failures.${t}.json`],
+	})),
 	{
 		doc: 'parse-oracle-excluded.md',
 		key: 'parse-oracle-excluded.json',

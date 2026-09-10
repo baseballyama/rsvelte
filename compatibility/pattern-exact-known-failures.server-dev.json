@@ -1,0 +1,11 @@
+[
+	"pattern/issues/008-comment-props-destructure.svelte",
+	"pattern/issues/3515-props-default-line-comment.svelte",
+	"pattern/issues/3515-props-default-multiline-comment.svelte",
+	"pattern/issues/3515-props-plain-line-comment.svelte",
+	"pattern/issues/3515-props-plain-multiline-comment.svelte",
+	"pattern/issues/3603-each-key-comment.svelte",
+	"pattern/issues/4046-snippet-parameter-comment.svelte",
+	"pattern/issues/dollar-function-parameter.svelte",
+	"pattern/issues/legacy-prop-initializer-jsdoc.svelte"
+]

@@ -34,6 +34,14 @@
  *               official's text: an entry already listed there for a text
  *               mismatch would suppress a later regression to output that is
  *               not JavaScript at all.
+ *   - exactBaseline
+ *               the pattern-corpus exact-output ratchet (see verify.mjs). The
+ *               output verdict rescues a byte difference through
+ *               `ast_equiv_batch`, which is called with no `--comments` and so
+ *               ignores comments entirely; a repro file landed to pin a
+ *               comment-only divergence therefore pins nothing. This ratchet is
+ *               the same comparison with the rescue removed, over the
+ *               `pattern/issues/` repro population only.
  *   - reportOnly
  *               available to explicit reporting runs but excluded from the
  *               default shrink-only gates.
@@ -53,6 +61,7 @@ export const REPORT_TARGETS = [
 		errorEndBaseline: 'error-end-known-failures.client.json',
 		errorFrameBaseline: 'error-frame-known-failures.client.json',
 		parseBaseline: 'parse-known-failures.client.json',
+		exactBaseline: 'pattern-exact-known-failures.client.json',
 	},
 	{
 		key: 'server',
@@ -68,6 +77,7 @@ export const REPORT_TARGETS = [
 		errorEndBaseline: 'error-end-known-failures.server.json',
 		errorFrameBaseline: 'error-frame-known-failures.server.json',
 		parseBaseline: 'parse-known-failures.server.json',
+		exactBaseline: 'pattern-exact-known-failures.server.json',
 	},
 	{
 		key: 'server-dev',
@@ -83,6 +93,7 @@ export const REPORT_TARGETS = [
 		errorEndBaseline: 'error-end-known-failures.server-dev.json',
 		errorFrameBaseline: 'error-frame-known-failures.server-dev.json',
 		parseBaseline: 'parse-known-failures.server-dev.json',
+		exactBaseline: 'pattern-exact-known-failures.server-dev.json',
 	},
 	// `dev: true` gates 18 client codegen files plus the CSS transform (empty
 	// rules survive pruning in dev), so dev CSS is compared too.
@@ -100,6 +111,7 @@ export const REPORT_TARGETS = [
 		errorEndBaseline: 'error-end-known-failures.client-dev.json',
 		errorFrameBaseline: 'error-frame-known-failures.client-dev.json',
 		parseBaseline: 'parse-known-failures.client-dev.json',
+		exactBaseline: 'pattern-exact-known-failures.client-dev.json',
 	},
 ];
 
