@@ -10,7 +10,7 @@
 // Also cross-checks against a direct engine lint and reports a native-vs-wasm
 // micro-benchmark (informational only — no timing assertion).
 //
-// Prereqs: `pnpm run build:wasm:core` (wasm), `pnpm run build:lint-native`
+// Prereqs: `pnpm run build:wasm:playground` (wasm), `pnpm run build:lint-native`
 // (native .node), and `oxlint` installed. Wire-up mirrors `test:vps`.
 
 import { spawnSync } from 'node:child_process';

@@ -2,17 +2,17 @@
 
 This directory is the **changesets version anchor** for the `@rsvelte/compiler` npm package and holds its hand-written npm runtime overlay: the `rsvelte` CLI in `bin/` and its support module in `lib/`.
 
-The WASM portion of the published artifact is built by `wasm-pack` into the repo-root `pkg/` directory. When `pnpm publish` runs against this workspace package, the `publishConfig.directory` field redirects it to pack and upload `pkg/`. Right before publish, `scripts/release/finalize-pkg.mjs` rewrites `pkg/package.json`'s `name` from the Cargo crate name (`rsvelte_lint`) to the scoped npm name (`@rsvelte/compiler`), overlays the npm metadata, synthesises an `exports` map, copies the files listed in this directory's `files` field, and replaces `pkg/README.md` so the published package documents the compiler (not the linter crate whose README `wasm-pack` would otherwise copy).
+The WASM portion of the published artifact is built by `wasm-pack` into the repo-root `pkg/` directory. When `pnpm publish` runs against this workspace package, the `publishConfig.directory` field redirects it to pack and upload `pkg/`. Right before publish, `scripts/release/finalize-pkg.mjs` rewrites `pkg/package.json`'s `name` from the Cargo crate name (`rsvelte_compiler`) to the scoped npm name (`@rsvelte/compiler`), overlays the npm metadata, synthesises an `exports` map, copies the files listed in this directory's `files` field, and replaces `pkg/README.md` with the compiler package documentation.
 
 ## The stable `./wasm` subpath
 
-wasm-pack names its artifacts after the built crate (`rsvelte_lint.js`, `rsvelte_lint_bg.wasm`). Those filenames are **not** a public contract — the built crate has already changed once (`rsvelte_core_*` → `rsvelte_lint_*`), which broke every consumer that read the wasm bytes via a crate-named deep import (`@rsvelte/compiler/rsvelte_core_bg.wasm`).
+wasm-pack names its artifacts after the built crate (`rsvelte_compiler.js`, `rsvelte_compiler_bg.wasm`). Those filenames are **not** a public contract — the built crate has already changed once (`rsvelte_core_*` → `rsvelte_lint_*`), which broke every consumer that read the wasm bytes via a crate-named deep import (`@rsvelte/compiler/rsvelte_core_bg.wasm`).
 
 `finalize-pkg.mjs` therefore adds an `exports` map with a stable alias:
 
-- `@rsvelte/compiler` — the JS glue (default import), unchanged.
-- **`@rsvelte/compiler/wasm`** — the wasm bytes. Consumers that `initSync` the module (e.g. `svelte-shaker`, this repo's `@rsvelte/oxlint-plugin`) should resolve this path; it is invariant across crate/file renames.
-- `@rsvelte/compiler/*` — a passthrough so the crate-named deep imports that predate the `exports` map keep resolving (adding `exports` otherwise makes them fail).
+- `@rsvelte/compiler` — the compiler-only JS glue.
+- **`@rsvelte/compiler/wasm`** — the wasm bytes. Consumers that `initSync` the module (e.g. `svelte-shaker`) should resolve this path; it is invariant across crate/file renames.
+- `@rsvelte/compiler/*` — a passthrough for explicit artifact paths; those filenames may change.
 
 The script asserts every concrete `exports`, `files`, and `bin` target exists in `pkg/`, so a future crate rename or missing overlay fails the release loudly instead of publishing metadata that points at missing files.
 
@@ -22,3 +22,12 @@ Why split it this way:
 - `Cargo.toml` is the real source of truth for the crate version (wasm-pack derives `pkg/package.json` from it). `scripts/release/sync-version.mjs` propagates this `package.json`'s version into `Cargo.toml` and `Cargo.lock` whenever changesets bumps the version, so the two stay in lockstep.
 
 See `.github/workflows/release.yml` for the publish flow.
+
+## Building both entries
+
+Run `pnpm run build:wasm:core` and `pnpm run build:wasm:playground`, then
+`pnpm run finalize-pkg`. The finalizer copies `pkg-playground/` into
+`pkg/playground/` and exposes `./playground` and `./playground/wasm` for lint and
+svelte2tsx consumers. The default entry and `./wasm` always select the smaller
+compiler artifact. `pnpm run test:wasm-compiler-only` checks the exports, sizes,
+module options, and output against the pinned upstream source.

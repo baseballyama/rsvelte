@@ -2550,7 +2550,14 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_compiler_wasm"
-version = "0.1.0"
+version = "0.11.7"
+dependencies = [
+ "rsvelte_compiler_wasm_bindings",
+]
+
+[[package]]
+name = "rsvelte_compiler_wasm_bindings"
+version = "0.11.7"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",
@@ -2784,7 +2791,7 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "oxc_allocator",
- "rsvelte_compiler_wasm",
+ "rsvelte_compiler_wasm_bindings",
  "rsvelte_core",
  "rsvelte_lint",
  "rsvelte_projection",

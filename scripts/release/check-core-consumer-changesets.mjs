@@ -40,6 +40,10 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 // unless you want them named directly.
 const RULES = [
   {
+    prefix: 'crates/rsvelte_compiler_wasm_bindings/',
+    requires: ['@rsvelte/compiler', '@rsvelte/language-server'],
+  },
+  {
     prefix: 'crates/rsvelte/src/',
     // The stable Rust facade is versioned with the compiler release set.
     requires: ['@rsvelte/compiler'],
@@ -121,17 +125,12 @@ const RULES = [
     // was the newest tag for three months for exactly that reason (#4285).
     requires: ['@rsvelte/capi'],
   },
-  // NOTE: `crates/rsvelte_compiler_wasm/**` is deliberately absent for the same
-  // reason as the bindings crate below: it links into exactly one PUBLISHED
-  // artifact (the `@rsvelte/compiler` wasm, which names it so wasm-bindgen
-  // collects its exports), and its own standalone `pkg-compiler/` build is not
-  // published. One carrier means no artifact can be left stale behind another.
   // NOTE: `crates/rsvelte_fmt_wasm/**` is deliberately absent because it is
   // published NOWHERE — it does not appear in release.yml's build matrix, so
   // there is no artifact to leave stale.
   // NOTE: `crates/rsvelte_lint/**` and `crates/rsvelte_lint_bindings/**` are
   // intentionally NOT listed. Their code ships in two separate artifacts — the
-  // `@rsvelte/compiler` wasm (`build:wasm:core`, built from the bindings crate)
+  // `@rsvelte/compiler` wasm playground export (`build:wasm:playground`)
   // and the native `@rsvelte/lint` CLI — but those two packages share a `fixed`
   // changeset group (`.changeset/config.json`), so naming EITHER one bumps BOTH.
   // There is therefore no islanded-drift edge to guard here: the fixed group

@@ -1,20 +1,12 @@
 #!/usr/bin/env node
-// Gate for the compiler-only wasm (`crates/rsvelte_compiler_wasm`, #4541): the
-// artifact must carry the compiler surface and NOT the lint engine or
-// svelte2tsx, and its `compileModule` must agree with official Svelte.
-//
-// The absence assertions are the point of the crate, and an absence assertion
-// passes vacuously on a module that failed to load — so the presence half runs
-// first and its failure is what separates "lint is gone" from "nothing is here".
-//
-// Prereq: `pnpm run build:wasm:compiler`.
+// Run after building both wasm entries and finalizing pkg/.
 
 import { readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { compile as officialCompile, compileModule as officialCompileModule } from 'svelte/compiler';
+import { compile as officialCompile, compileModule as officialCompileModule } from '../../submodules/svelte/packages/svelte/src/compiler/index.js';
 
-const jsUrl = new URL('../../pkg-compiler/rsvelte_compiler.js', import.meta.url).href;
-const wasmPath = fileURLToPath(new URL('../../pkg-compiler/rsvelte_compiler_bg.wasm', import.meta.url));
+const jsUrl = new URL('../../pkg/rsvelte_compiler.js', import.meta.url).href;
+const wasmPath = fileURLToPath(new URL('../../pkg/rsvelte_compiler_bg.wasm', import.meta.url));
 
 const compiler = await import(jsUrl);
 compiler.initSync({ module: readFileSync(wasmPath) });
@@ -45,8 +37,6 @@ for (const name of ['lint', 'lint_with_config', 'lint_rules', 'lint_version', 's
 const compile = (source, options) => JSON.parse(compiler.compile(source, options));
 const compileModule = (source, options) => JSON.parse(compiler.compileModule(source, options));
 
-// Official Svelte is the oracle on both entry points. Comparing this port to
-// rsvelte's NAPI port instead would pass if both drifted the same way (#3664).
 const componentSource = '<script>let count = $state(0);</script><h1>{count}</h1>';
 for (const generate of ['client', 'server']) {
 	const mine = compile(componentSource, { filename: 'C.svelte', generate });
@@ -128,6 +118,70 @@ for (const [name, options] of [
 		JSON.stringify(official) === JSON.stringify(mine),
 		JSON.stringify({ official, mine }),
 	);
+}
+
+const playground = await import('../../pkg/playground/rsvelte_lint.js');
+playground.initSync({ module: readFileSync(new URL('../../pkg/playground/rsvelte_lint_bg.wasm', import.meta.url)) });
+for (const name of ['compile', 'compileModule', 'lint', 'svelte2tsx']) {
+	assert(`playground exports ${name}`, typeof playground[name] === 'function');
+}
+const playgroundSize = statSync(new URL('../../pkg/playground/rsvelte_lint_bg.wasm', import.meta.url)).size;
+assert('compiler wasm is smaller than playground', statSync(wasmPath).size < playgroundSize,
+	JSON.stringify({ compiler: statSync(wasmPath).size, playground: playgroundSize }));
+const manifest = JSON.parse(readFileSync(new URL('../../pkg/package.json', import.meta.url)));
+assert('stable wasm subpath selects compiler', manifest.exports['./wasm'] === './rsvelte_compiler_bg.wasm');
+assert('version matches package', compiler.version() === manifest.version);
+
+for (const source of [moduleSource, '\ufeff' + moduleSource, 'export const message = "こんにちは 🌏";']) {
+	for (const generate of ['client', 'server', false]) {
+		for (const dev of [false, true]) {
+			const options = { filename: '/project/src/state.svelte.js', rootDir: '/project', generate, dev };
+			const official = officialCompileModule(source, options);
+			for (const [label, entry] of [['compiler', compiler], ['playground', playground]]) {
+				const mine = JSON.parse(entry.compileModule(source, options));
+				assert(`${label} module ${generate}/${dev}/${JSON.stringify(source.slice(0, 20))}`,
+					(official.js === null ? mine.js === null : mine.js?.code === official.js.code) && JSON.stringify(mine.metadata) === JSON.stringify(official.metadata));
+			}
+		}
+	}
+}
+
+const warningSource = 'let n = $state(0); const x = n;';
+for (const [label, entry] of [['compiler', compiler], ['playground', playground]]) {
+	const compileModule = (source, options) => JSON.parse(entry.compileModule(source, options));
+	for (const generate of ['client', 'server', false]) {
+		const options = { filename: 'warning.svelte.js', generate };
+		const official = officialCompileModule(warningSource, options);
+		const mine = compileModule(warningSource, options);
+		const warningKey = (w) => ({ code: w.code, message: w.message, filename: w.filename, start: w.start, end: w.end, position: w.position });
+		assert(`${label} module ${generate} warning positive control`, official.warnings.length > 0 &&
+			JSON.stringify(mine.warnings.map(warningKey)) === JSON.stringify(official.warnings.map(warningKey)));
+		for (const keep of [true, false, 0, null, undefined, '', 'keep']) {
+			const seen = [];
+			const filtered = compileModule(warningSource, { ...options, warningFilter: (w) => { seen.push(w.code); return keep; } });
+			const expected = officialCompileModule(warningSource, { ...options, warningFilter: () => keep });
+			assert(`${label} module ${generate} warningFilter ${keep}`, seen.length > 0 && JSON.stringify(filtered.warnings.map(warningKey)) === JSON.stringify(expected.warnings.map(warningKey)));
+		}
+		assert(`${label} module ${generate} throwing warningFilter`, thrownBy(() => entry.compileModule(warningSource,
+			{ ...options, warningFilter: () => { throw new Error('module-filter-boom'); } }))?.message === 'module-filter-boom');
+	}
+}
+for (const [name, options] of [
+	['warningFilter type', { warningFilter: true }],
+	['rootDir type', { rootDir: false }],
+	['experimental flag', { experimental: { async: 'yes' } }],
+	['ignored component options', { css: 'invalid', runes: () => { throw new Error('must not call'); }, customElement: 'invalid', namespace: 'invalid', cssHash: 7 }],
+]) {
+	const official = thrownBy(() => officialCompileModule(moduleSource, options));
+	const mine = thrownBy(() => compiler.compileModule(moduleSource, options));
+	assert(`module options: ${name}`, JSON.stringify(mine) === JSON.stringify(official), JSON.stringify({ mine, official }));
+}
+// Upstream throws a TypeError before validating a non-string filename.
+assert('non-string filename rejected', thrownBy(() => officialCompileModule(moduleSource, { filename: 7 })) !== null &&
+	thrownBy(() => compiler.compileModule(moduleSource, { filename: 7 }))?.code === 'options_invalid_value');
+for (const source of ['let = ;', 'let n: number = 0;']) {
+	assert(`invalid module rejected: ${source}`, thrownBy(() => officialCompileModule(source, { filename: 'state.svelte.ts' })) !== null &&
+		thrownBy(() => compiler.compileModule(source, { filename: 'state.svelte.ts' })) !== null);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

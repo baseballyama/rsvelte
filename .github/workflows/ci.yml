@@ -777,6 +777,9 @@ jobs:
       - name: Build core wasm
         run: pnpm run build:wasm:core
 
+      - name: Build playground wasm
+        run: pnpm run build:wasm:playground
+
       - name: Finalize @rsvelte/compiler package
         run: pnpm run finalize-pkg
 
@@ -788,15 +791,14 @@ jobs:
       - name: Run wasm compile-options gate
         run: pnpm run test:wasm-compile
 
-      # The compiler-only artifact (#4541). Its gate asserts what the crate
-      # exists for — `lint` and `svelte2tsx` are absent — and an absence check
-      # passes on a module that failed to load, so it asserts the compiler
-      # surface is present first.
-      - name: Build compiler-only wasm
-        run: pnpm run build:wasm:compiler
-
       - name: Run compiler-only wasm gate
         run: pnpm run test:wasm-compiler-only
+
+      - name: Run packed wasm package gate
+        run: pnpm run test:wasm-package
+
+      - name: Run browser and worker wasm gate
+        run: pnpm run test:wasm-browser
 
       - name: Run @rsvelte/svelte2tsx tests
         run: pnpm --filter @rsvelte/svelte2tsx run test

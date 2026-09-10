@@ -3,7 +3,8 @@
 //
 // pnpm links the `@rsvelte/compiler` workspace dependency to `apps/npm/compiler`,
 // which carries only version/metadata — the wasm glue lives in `/pkg` after
-// `pnpm run build:wasm:core`. A real `npm i @rsvelte/svelte2tsx` gets the full
+// both wasm builds and `pnpm run finalize-pkg`. A real
+// `npm i @rsvelte/svelte2tsx` gets the full
 // pkg contents under `node_modules/@rsvelte/compiler`; this reproduces that for
 // the source checkout so the sync-API test resolves the same way consumers do.
 
@@ -15,9 +16,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const pkgDir = resolve(here, '../../../../pkg');
 const link = resolve(here, '../node_modules/@rsvelte/compiler');
 
-if (!existsSync(resolve(pkgDir, 'rsvelte_lint.js'))) {
+if (!existsSync(resolve(pkgDir, 'playground/rsvelte_lint.js'))) {
 	console.error(
-		'link-compiler: /pkg is not built. Run `pnpm run build:wasm:core` first.',
+		'link-compiler: /pkg is not built. Run `pnpm run build:wasm:core && pnpm run build:wasm:playground && pnpm run finalize-pkg` first.',
 	);
 	process.exit(1);
 }

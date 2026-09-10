@@ -37,7 +37,7 @@ doc = false
 # whole playground.
 wasm = [
     "rsvelte_core/wasm-target",
-    "dep:rsvelte_compiler_wasm",
+    "dep:rsvelte_compiler_wasm_bindings",
     "dep:rsvelte_projection",
     "dep:wasm-bindgen",
     "dep:console_error_panic_hook",
@@ -56,7 +56,7 @@ rsvelte_core = { path = "../rsvelte_core", default-features = false }
 rsvelte_projection = { path = "../rsvelte_projection", optional = true }
 # The compiler's wasm exports. Linked for its `#[wasm_bindgen]` items only, so
 # the playground module keeps every export it had when they lived here.
-rsvelte_compiler_wasm = { path = "../rsvelte_compiler_wasm", optional = true }
+rsvelte_compiler_wasm_bindings = { path = "../rsvelte_compiler_wasm_bindings", optional = true }
 
 # wasm-only.
 wasm-bindgen = { version = "0.2", optional = true }

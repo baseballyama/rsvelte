@@ -1,14 +1,8 @@
-//! The svelte2tsx wasm export.
-//!
-//! The compiler's own `#[wasm_bindgen]` surface moved to `rsvelte_compiler_wasm`
-//! so it can be built on its own (#4541); this crate links that crate, which is
-//! what keeps the playground module's exports unchanged. What stays here is the
-//! one export that is NOT the compiler: svelte2tsx pulls `rsvelte_projection`,
-//! which a compiler-only consumer must not have to download.
+//! The playground svelte2tsx wasm export.
 
 use wasm_bindgen::prelude::*;
 
-use crate::svelte2tsx::{Svelte2TsxOptions, svelte2tsx as rust_svelte2tsx};
+use rsvelte_projection::svelte2tsx::{Svelte2TsxOptions, svelte2tsx as rust_svelte2tsx};
 
 /// Convert a Svelte component to TypeScript/TSX. Mirrors the napi `svelte2tsx`
 /// shape — `options_json` and the return value are JSON strings so the wasm
