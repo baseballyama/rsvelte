@@ -810,6 +810,7 @@ fn strip_typescript_from_program_impl(
                             source,
                             comment_start,
                             comment_end,
+                            '\n',
                             &mut output,
                             copied_chunks.as_mut(),
                             reemitted_comment_outputs.as_mut(),
@@ -841,6 +842,7 @@ fn strip_typescript_from_program_impl(
                 source,
                 comment_start,
                 comment_end,
+                '\n',
                 &mut output,
                 copied_chunks.as_mut(),
                 reemitted_comment_outputs.as_mut(),
@@ -938,10 +940,25 @@ fn push_range_flushing_pending(
             output,
             copied_chunks.as_deref_mut(),
         );
+        // esrap keeps a leading comment inline when it shared the anchored
+        // node's source line and breaks only where the source broke, so the
+        // separator is the text between the comment and the flush point — not
+        // the shape of the erased annotation (#4397). A `//` comment would
+        // swallow the rest of the line, so it always breaks.
+        let separator = if source
+            .get(comment_end as usize..flush_at as usize)
+            .is_none_or(|between| between.contains('\n'))
+            || source[comment_start as usize..comment_end as usize].starts_with("//")
+        {
+            '\n'
+        } else {
+            ' '
+        };
         emit_pending_comment(
             source,
             comment_start,
             comment_end,
+            separator,
             output,
             copied_chunks.as_deref_mut(),
             reemitted.as_deref_mut(),
@@ -961,6 +978,7 @@ fn emit_pending_comment(
     source: &str,
     comment_start: u32,
     comment_end: u32,
+    separator: char,
     output: &mut String,
     mut copied_chunks: Option<&mut Vec<CopiedSourceChunk>>,
     reemitted: Option<&mut Vec<Range<u32>>>,
@@ -1006,7 +1024,7 @@ fn emit_pending_comment(
     if let Some(reemitted) = reemitted {
         reemitted.push(output_start..output.len() as u32);
     }
-    output.push('\n');
+    output.push(separator);
 }
 
 fn push_source_range(
