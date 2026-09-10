@@ -8202,6 +8202,12 @@ fn acorn_only_violation(
         await_at: Option<u32>,
         super_allowed: bool,
         next_function_is_method: bool,
+        /// acorn's `SCOPE_DIRECT_SUPER`: only a derived class's constructor gets
+        /// it, and only `super()` reads it. Arrows are transparent to both.
+        direct_super_allowed: bool,
+        next_function_is_direct_super: bool,
+        direct_super_at: Option<u32>,
+        class_is_derived: bool,
     }
     impl Scan<'_> {
         fn record_ts_modifier(&mut self, carries_modifier: bool, span: oxc_span::Span) {
@@ -8246,16 +8252,81 @@ fn acorn_only_violation(
             func: &oxc_ast::ast::Function<'a>,
             flags: oxc_syntax::scope::ScopeFlags,
         ) {
-            let saved = self.super_allowed;
+            let saved = (self.super_allowed, self.direct_super_allowed);
             self.super_allowed = std::mem::take(&mut self.next_function_is_method);
+            self.direct_super_allowed = std::mem::take(&mut self.next_function_is_direct_super);
             oxc_ast_visit::walk::walk_function(self, func, flags);
-            self.super_allowed = saved;
+            (self.super_allowed, self.direct_super_allowed) = saved;
         }
         fn visit_object_property(&mut self, prop: &oxc_ast::ast::ObjectProperty<'a>) {
             let saved = self.next_function_is_method;
-            self.next_function_is_method = prop.method;
+            // acorn routes a getter/setter through `parseMethod` like a shorthand
+            // method, so all three enter `SCOPE_SUPER`; oxc's `method` flag is set
+            // for the shorthand only.
+            self.next_function_is_method = prop.method
+                || matches!(
+                    prop.kind,
+                    oxc_ast::ast::PropertyKind::Get | oxc_ast::ast::PropertyKind::Set
+                );
             oxc_ast_visit::walk::walk_object_property(self, prop);
             self.next_function_is_method = saved;
+        }
+        /// acorn's `parseClassField` enters `SCOPE_CLASS_FIELD_INIT | SCOPE_SUPER`
+        /// around the initializer **only**, so `super` is legal there (the field
+        /// carries the class's `[[HomeObject]]`) and still illegal in a computed
+        /// key. `SCOPE_DIRECT_SUPER` is not entered, so `super()` stays rejected.
+        fn visit_property_definition(&mut self, def: &oxc_ast::ast::PropertyDefinition<'a>) {
+            self.record_ts_modifier(
+                def.accessibility.is_some()
+                    || def.r#override
+                    || def.readonly
+                    || def.declare
+                    || def.r#type
+                        == oxc_ast::ast::PropertyDefinitionType::TSAbstractPropertyDefinition,
+                def.span,
+            );
+            self.visit_decorators(&def.decorators);
+            self.visit_property_key(&def.key);
+            if let Some(annotation) = &def.type_annotation {
+                self.visit_ts_type_annotation(annotation);
+            }
+            if let Some(value) = &def.value {
+                let saved = (self.super_allowed, self.direct_super_allowed);
+                self.super_allowed = true;
+                self.direct_super_allowed = false;
+                self.visit_expression(value);
+                (self.super_allowed, self.direct_super_allowed) = saved;
+            }
+        }
+        /// acorn's `parseClassStaticBlock` enters `SCOPE_CLASS_STATIC_BLOCK |
+        /// SCOPE_SUPER`, same as a field initializer.
+        fn visit_static_block(&mut self, block: &oxc_ast::ast::StaticBlock<'a>) {
+            let saved = (self.super_allowed, self.direct_super_allowed);
+            self.super_allowed = true;
+            self.direct_super_allowed = false;
+            oxc_ast_visit::walk::walk_static_block(self, block);
+            (self.super_allowed, self.direct_super_allowed) = saved;
+        }
+        /// `SCOPE_DIRECT_SUPER` is a property of the class the method is in, so the
+        /// flag has to be readable when its constructor is reached.
+        fn visit_class(&mut self, class: &oxc_ast::ast::Class<'a>) {
+            let saved = self.class_is_derived;
+            self.class_is_derived = class.heritage.is_some();
+            oxc_ast_visit::walk::walk_class(self, class);
+            self.class_is_derived = saved;
+        }
+        /// acorn checks `allowSuper` at the `super` token and `allowDirectSuper`
+        /// only after seeing the `(`, so a `super()` where neither holds reports
+        /// the first message, not this one.
+        fn visit_call_expression(&mut self, call: &oxc_ast::ast::CallExpression<'a>) {
+            if matches!(call.callee, oxc_ast::ast::Expression::Super(_))
+                && self.super_allowed
+                && !self.direct_super_allowed
+                && self.direct_super_at.is_none()
+            {
+                self.direct_super_at = Some(call.span.start);
+            }
+            oxc_ast_visit::walk::walk_call_expression(self, call);
         }
         fn visit_decorator(&mut self, dec: &oxc_ast::ast::Decorator<'a>) {
             if self.check_decorator && self.decorator_at.is_none() {
@@ -8285,22 +8356,18 @@ fn acorn_only_violation(
                     || def.r#type == oxc_ast::ast::MethodDefinitionType::TSAbstractMethodDefinition,
                 def.span,
             );
-            let saved = self.next_function_is_method;
-            self.next_function_is_method = true;
-            oxc_ast_visit::walk::walk_method_definition(self, def);
-            self.next_function_is_method = saved;
-        }
-        fn visit_property_definition(&mut self, def: &oxc_ast::ast::PropertyDefinition<'a>) {
-            self.record_ts_modifier(
-                def.accessibility.is_some()
-                    || def.r#override
-                    || def.readonly
-                    || def.declare
-                    || def.r#type
-                        == oxc_ast::ast::PropertyDefinitionType::TSAbstractPropertyDefinition,
-                def.span,
+            let saved = (
+                self.next_function_is_method,
+                self.next_function_is_direct_super,
             );
-            oxc_ast_visit::walk::walk_property_definition(self, def);
+            self.next_function_is_method = true;
+            self.next_function_is_direct_super = self.class_is_derived
+                && def.kind == oxc_ast::ast::MethodDefinitionKind::Constructor;
+            oxc_ast_visit::walk::walk_method_definition(self, def);
+            (
+                self.next_function_is_method,
+                self.next_function_is_direct_super,
+            ) = saved;
         }
         fn visit_accessor_property(&mut self, def: &oxc_ast::ast::AccessorProperty<'a>) {
             // acorn has no auto-accessor plugin, so `accessor` itself is the violation.
@@ -8326,6 +8393,10 @@ fn acorn_only_violation(
         await_at: None,
         super_allowed: false,
         next_function_is_method: false,
+        direct_super_allowed: false,
+        next_function_is_direct_super: false,
+        direct_super_at: None,
+        class_is_derived: false,
     };
     // The TypeScript-only rule below needs a token that is cheap to rule out, so
     // a plain-JS script keeps the walk it had.
@@ -8364,6 +8435,12 @@ fn acorn_only_violation(
         finder
             .super_at
             .map(|at| (at, "'super' keyword outside a method".to_string())),
+        finder.direct_super_at.map(|at| {
+            (
+                at,
+                "super() call outside constructor of a subclass".to_string(),
+            )
+        }),
         finder
             .await_at
             .map(|at| (at, "Unexpected token".to_string())),
