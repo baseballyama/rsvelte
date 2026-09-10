@@ -7,7 +7,10 @@ import { CORPUS_REPOS } from "./suites.mjs";
 
 // 2 adds `mechanisms`: an artifact that predates it cannot populate the sidecar,
 // and a merge that silently accepted one would write a short map rather than fail.
-export const ARTIFACT_SCHEMA = 2;
+// 3 adds `added`/`removed` and `arms` for the same reason: a consumer reading the
+// verdict or the arm off an older artifact gets `undefined`, i.e. an empty stale
+// list and an unnamed binary, both of which read as an answer.
+export const ARTIFACT_SCHEMA = 3;
 export const CORPUS_SHARDS = 16;
 export const FIXTURE_SUITES = [
   "fixtures",
@@ -22,6 +25,33 @@ export const hashValues = (values) =>
   createHash("sha256")
     .update([...values].sort().join("\n"))
     .digest("hex");
+
+// The arm is resolved by path, so the tree revisions say nothing about which
+// binary ran. `bin/server.js` is a 93-byte stub that requires `../dist/src/server`,
+// so hashing the command's own first element identifies the official arm not at
+// all — the caller names the files that actually constitute each arm. For rsvelte
+// the static binary is the whole closure; for official the built entry says
+// whether `dist` was rebuilt from the recorded submodule revision, and is not the
+// transitive closure of what that entry requires.
+export function describeArm(command, extraPaths = []) {
+  const files = [...command, ...extraPaths]
+    .filter(
+      (candidate) =>
+        typeof candidate === "string" &&
+        candidate.includes(path.sep) &&
+        fs.existsSync(candidate) &&
+        fs.statSync(candidate).isFile(),
+    )
+    .map((file) => {
+      const contents = fs.readFileSync(file);
+      return {
+        path: file,
+        bytes: contents.length,
+        sha256: createHash("sha256").update(contents).digest("hex"),
+      };
+    });
+  return { command: [...command], files };
+}
 
 function revision(directory) {
   return execFileSync("git", ["rev-parse", "HEAD"], {
@@ -42,6 +72,9 @@ export function createCurrentArtifact({
   counts,
   mechanisms = {},
   diagnosticDetails = {},
+  added,
+  removed,
+  arms,
 }) {
   const sourceRevisions = {
     "language-tools": revision(path.join(root, "submodules/language-tools")),
@@ -61,6 +94,11 @@ export function createCurrentArtifact({
     population,
     counts,
     current: [...current].sort(),
+    // The verdict, not only the measurement: the printed lists are capped for
+    // display, so this is the only complete record of what the run decided.
+    added: [...added].sort(),
+    removed: [...removed].sort(),
+    arms,
     // Always written, even when empty: an absent map and an unclassified run
     // are different facts, and only one of them is a wiring failure.
     mechanisms: Object.fromEntries(
@@ -84,11 +122,21 @@ function requireArtifact(value, label) {
   for (const field of ["projectRevision", "configurationId", "universeHash"])
     if (typeof value[field] !== "string" || !value[field])
       throw new Error(`${label} lacks ${field}`);
-  for (const field of ["suites", "repos", "measuredIds", "current"])
+  for (const field of [
+    "suites",
+    "repos",
+    "measuredIds",
+    "current",
+    "added",
+    "removed",
+  ])
     if (!Array.isArray(value[field]))
       throw new Error(`${label} lacks ${field}`);
   if (!value.mechanisms || typeof value.mechanisms !== "object")
     throw new Error(`${label} lacks mechanisms`);
+  for (const arm of ["official", "rsvelte"])
+    if (!Array.isArray(value.arms?.[arm]?.command))
+      throw new Error(`${label} lacks the ${arm} arm`);
   // Coverage is asserted per artifact rather than on the union: a shard that
   // classified nothing is otherwise invisible once sixteen maps are merged.
   for (const id of value.current)
