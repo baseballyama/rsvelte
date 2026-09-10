@@ -18,6 +18,19 @@ pub(super) fn collect_content_tag_breaks(
         if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, i) {
             continue;
         }
+        // A `<pre>`'s direct mustaches were laid out by `layout_pre_mustaches`
+        // in pass 1 (its continuation indent is the element's, not the line's).
+        if let TemplateNode::RegularElement(e) = node
+            && e.name.as_str() == "pre"
+            && super::pre_content_prefix(out, &e.fragment.nodes, options).is_some()
+        {
+            for child in &e.fragment.nodes {
+                for fragment in child_fragments(child) {
+                    collect_content_tag_breaks(out, fragment, line_width, options, edits);
+                }
+            }
+            continue;
+        }
         if let TemplateNode::ExpressionTag(_) = node
             && let Some(edit) = try_break_inline_content_tag(out, node, line_width, options)
         {

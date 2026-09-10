@@ -217,7 +217,7 @@ pub(super) fn trivial_expr_verbatim(
 /// the dialect must key the cache even though `clear_expr_memo()` already runs
 /// per attempt — belt-and-suspenders against a future change to the clear timing
 /// silently returning a JS-formatted result for a TS retry.
-type ExprMemoKey = (String, u16, bool, bool, QuoteStyle, u16);
+type ExprMemoKey = (String, u16, bool, bool, QuoteStyle, u16, u16);
 thread_local! {
     static EXPR_MEMO: RefCell<HashMap<ExprMemoKey, String>> = RefCell::new(HashMap::new());
 }
@@ -325,9 +325,42 @@ pub(super) fn format_expr_core_offset(
     single_line: bool,
     first_line_offset: usize,
 ) -> Result<String, FormatError> {
-    if let Some(out) =
-        trivial_expr_verbatim(expr_source, narrowed_width(line_width, first_line_offset))
-    {
+    format_expr_core_layout(
+        expr_source,
+        options,
+        line_width,
+        single_line,
+        first_line_offset,
+        0,
+    )
+}
+
+/// Smallest last-line suffix the trailing placeholder can spell: oxc prints it
+/// as `; /**/`, so the `;` and the space carry two of the columns.
+const MIN_SUFFIX_COMMENT: usize = 6;
+
+fn suffix_comment(cols: usize) -> String {
+    format!("/*{}*/", "x".repeat(cols - 4))
+}
+
+/// [`format_expr_core_offset`] with the columns glued after the expression's
+/// last line (`}</pre>`) charged to that line only, as a trailing block-comment
+/// placeholder — prettier measures the last group against everything up to the
+/// next line break, which oxc cannot see past the wrapper. A suffix too short
+/// to spell, or an expression whose own `//` comment would swallow the
+/// placeholder, is charged the old way, by narrowing every line.
+pub(super) fn format_expr_core_layout(
+    expr_source: &str,
+    options: &FormatOptions,
+    line_width: oxc_formatter_core::LineWidth,
+    single_line: bool,
+    first_line_offset: usize,
+    last_line_suffix: usize,
+) -> Result<String, FormatError> {
+    if let Some(out) = trivial_expr_verbatim(
+        expr_source,
+        narrowed_width(line_width, first_line_offset + last_line_suffix),
+    ) {
         return Ok(out.to_string());
     }
     let key: ExprMemoKey = (
@@ -337,6 +370,7 @@ pub(super) fn format_expr_core_offset(
         options.typescript,
         options.js.quote_style,
         u16::try_from(first_line_offset).unwrap_or(u16::MAX),
+        u16::try_from(last_line_suffix).unwrap_or(u16::MAX),
     );
     if let Some(cached) = EXPR_MEMO.with(|m| m.borrow().get(&key).cloned()) {
         return Ok(cached);
@@ -391,6 +425,15 @@ pub(super) fn format_expr_core_offset(
         .then(|| offset_comment(first_line_offset - 1));
     let wrapped = match &offset_comment {
         Some(comment) => format!("{comment} {wrapped}"),
+        None => wrapped,
+    };
+    let suffix_comment = (last_line_suffix >= MIN_SUFFIX_COMMENT
+        && !use_const_wrapper
+        && !expr_source.contains("//"))
+    .then(|| suffix_comment(last_line_suffix - 2));
+    let wrapped = match &suffix_comment {
+        // The wrapper ends `\n);`, so the placeholder sits inside the parens.
+        Some(comment) => wrapped.replacen("\n);", &format!(" {comment}\n);"), 1),
         None => wrapped,
     };
 
@@ -466,12 +509,13 @@ pub(super) fn format_expr_core_offset(
         );
 
     let offset_comment = offset_comment.filter(|_| !use_const_wrapper);
-    // Without the placeholder the offset is charged the old way, by narrowing.
-    let line_width = if offset_comment.is_some() {
-        line_width
-    } else {
-        narrowed_width(line_width, first_line_offset)
-    };
+    let suffix_comment = suffix_comment.filter(|_| !use_const_wrapper);
+    // Without a placeholder the columns are charged the old way, by narrowing.
+    let line_width = narrowed_width(
+        line_width,
+        usize::from(offset_comment.is_none()) * first_line_offset
+            + usize::from(suffix_comment.is_none()) * last_line_suffix,
+    );
     let mut js = options.js.clone();
     // Compensate for the const-wrapper prefix: tell OXC the line is `prefix_len`
     // characters wider than the target so its break decision is based on the
@@ -490,14 +534,22 @@ pub(super) fn format_expr_core_offset(
         .print()
         .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
         .into_code();
+    // oxc moved a placeholder: charge its columns by narrowing instead.
+    let narrowed_fallback = || {
+        let narrowed = narrowed_width(line_width, first_line_offset + last_line_suffix);
+        format_expr_core(expr_source, options, narrowed, single_line)
+    };
     let formatted = match &offset_comment {
         Some(comment) => match formatted.strip_prefix(&format!("{comment} ")) {
             Some(rest) => rest.to_string(),
-            // oxc moved the placeholder: charge the offset by narrowing instead.
-            None => {
-                let narrowed = narrowed_width(line_width, first_line_offset);
-                return format_expr_core(expr_source, options, narrowed, single_line);
-            }
+            None => return narrowed_fallback(),
+        },
+        None => formatted,
+    };
+    let formatted = match &suffix_comment {
+        Some(comment) => match formatted.trim_end().strip_suffix(&format!(" {comment}")) {
+            Some(rest) => rest.to_string(),
+            None => return narrowed_fallback(),
         },
         None => formatted,
     };

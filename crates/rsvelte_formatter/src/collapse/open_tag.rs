@@ -507,23 +507,29 @@ pub(super) fn try_recollapse_open_tag(
     ))
 }
 
-/// Split an attribute string (`attr1 attr2="val" attr3={expr}`) into individual
-/// attribute tokens, respecting quoted values so spaces inside quotes don't split.
+/// Split an attribute string (`attr1 attr2="val" attr3={a ? b : c}`) into
+/// individual attribute tokens: a space inside a quoted value or inside a
+/// mustache's braces does not split.
 pub(super) fn split_open_tag_attrs(attrs: &str) -> Vec<&str> {
     let mut result = Vec::new();
     let mut start = 0;
     let mut in_quote = false;
     let mut quote_char = b'"';
+    let mut brace_depth = 0usize;
     let bytes = attrs.as_bytes();
     for (i, &b) in bytes.iter().enumerate() {
         if in_quote {
             if b == quote_char {
                 in_quote = false;
             }
-        } else if b == b'"' || b == b'\'' {
+        } else if b == b'"' || b == b'\'' || b == b'`' {
             in_quote = true;
             quote_char = b;
-        } else if b == b' ' {
+        } else if b == b'{' {
+            brace_depth += 1;
+        } else if b == b'}' {
+            brace_depth = brace_depth.saturating_sub(1);
+        } else if b == b' ' && brace_depth == 0 {
             let attr = attrs[start..i].trim();
             if !attr.is_empty() {
                 result.push(attr);

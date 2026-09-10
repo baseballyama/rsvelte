@@ -1,5 +1,7 @@
 use super::call_args::{expand_grouped_call_parens, grouped_call_expansion};
-use super::format_core::{format_expr_core_offset, has_leading_await, trivial_expr_verbatim};
+use super::format_core::{
+    format_expr_core_layout, format_expr_core_offset, has_leading_await, trivial_expr_verbatim,
+};
 use super::text::{
     collapse_block_header_expanded_call, collapse_expanded_arg_form, expand_obj_arg_call,
     outer_parens_match, strip_leading_paren_pair, strip_outer_parens,
@@ -491,4 +493,32 @@ fn first_line_offset_is_charged_to_the_first_line_only() {
         at(41, 3),
         "selected_category &&\n  selected_category.id ===\n    category.id"
     );
+}
+
+#[test]
+fn last_line_suffix_is_charged_to_the_last_line_only() {
+    let options = FormatOptions::new();
+    let at = |width: u16, offset: usize, suffix: usize| {
+        format_expr_core_layout(
+            "result.examples.iscDhcpd",
+            &options,
+            oxc_formatter_core::LineWidth::try_from(width).unwrap(),
+            false,
+            offset,
+            suffix,
+        )
+        .unwrap()
+    };
+    // `<pre class="output-value code-block">{` is 36 columns past the
+    // continuation indent, and `}</pre>` follows the last line: 36 + 24 + 7 = 67
+    // overflows a 66-column width, so the last member breaks; without the
+    // suffix the same expression fits.
+    assert_eq!(at(66, 36, 7), "result.examples\n  .iscDhcpd");
+    assert_eq!(at(66, 36, 0), "result.examples.iscDhcpd");
+    let broken = at(66, 36, 7);
+    assert!(!broken.contains("/*"), "placeholder leaked: {broken:?}");
+    // A suffix the placeholder cannot spell is charged by narrowing instead:
+    // 38 + 24 + 5 = 67 overflows, 38 + 24 + 3 = 65 fits.
+    assert_eq!(at(66, 38, 5), "result.examples\n  .iscDhcpd");
+    assert_eq!(at(66, 38, 3), "result.examples.iscDhcpd");
 }

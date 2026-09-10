@@ -1,8 +1,230 @@
 use super::{
     FormatOptions, Fragment, TemplateNode, VisualWidth, apply_edits, child_fragments,
-    current_column, indent_config, is_block_display, is_whitespace_preserving, node_end,
-    node_start, parse_formatted, split_open_tag_attrs, tab_width, with_pre_content,
+    current_column, did_self_close, indent_config, is_block_display, is_whitespace_preserving,
+    node_end, node_start, parse_formatted, split_open_tag_attrs, tab_width, with_pre_content,
 };
+use rsvelte_core::ast::template::RegularElement;
+
+/// Whether a `<pre>`'s attributes stay on its open-tag line. prettier keeps the
+/// attribute group flat when everything up to the first line-break opportunity
+/// fits — its `fits` runs past `>` into the content, and `printPre` offers a
+/// break at a text newline, at a mustache's first breakable JS group, or at a
+/// child tag's own attribute / hug break; only a content with none of those
+/// charges the close tag too.
+pub(super) fn pre_attrs_fit(
+    column: usize,
+    open_width: usize,
+    tag_name: &str,
+    content_prefix: (usize, bool),
+    line_width: usize,
+) -> bool {
+    let (content, found_break) = content_prefix;
+    let close = if found_break { 0 } else { tag_name.len() + 3 };
+    column + open_width + content + close <= line_width
+}
+
+/// Columns of a `<pre>` content up to its first line-break opportunity, and
+/// whether one was found (else the whole content was measured). `None` for a
+/// content this walk does not model (a block, a `{@render}`).
+pub(super) fn pre_content_prefix(
+    out: &str,
+    nodes: &[TemplateNode],
+    options: &FormatOptions,
+) -> Option<(usize, bool)> {
+    let tw = tab_width(options);
+    let mut width = 0;
+    for node in nodes {
+        let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
+        match node {
+            TemplateNode::Text(_) => {
+                if let Some(nl) = span.find('\n') {
+                    return Some((width + span[..nl].visual_width(tw), true));
+                }
+                width += span.visual_width(tw);
+            }
+            TemplateNode::ExpressionTag(_) | TemplateNode::HtmlTag(_) => {
+                let (head, inner) = split_mustache(span)?;
+                let Some(inner) = inner else {
+                    width += span.visual_width(tw);
+                    continue;
+                };
+                // At width 1 every breakable group breaks, so the first line
+                // ends exactly at the first opportunity.
+                let minimal =
+                    crate::expression::reformat_content_at_width(inner, options, 1, 0).ok()?;
+                match minimal.find('\n') {
+                    Some(nl) => {
+                        return Some((
+                            width + head.visual_width(tw) + minimal[..nl].visual_width(tw),
+                            true,
+                        ));
+                    }
+                    None => width += head.visual_width(tw) + minimal.visual_width(tw) + 1,
+                }
+            }
+            TemplateNode::RegularElement(e) => {
+                width += 1 + e.name.len();
+                if !e.attributes.is_empty()
+                    || !is_block_display(e.name.as_str())
+                    || did_self_close(out, e.end)
+                {
+                    return Some((width, true));
+                }
+                width += 1;
+                let (inner, found) = pre_content_prefix(out, &e.fragment.nodes, options)?;
+                width += inner;
+                if found {
+                    return Some((width, true));
+                }
+                width += e.name.len() + 3;
+            }
+            TemplateNode::Component(c) => return Some((width + 1 + c.name.len(), true)),
+            TemplateNode::Comment(_) => {
+                if span.contains('\n') {
+                    return None;
+                }
+                width += span.visual_width(tw);
+            }
+            _ => return None,
+        }
+    }
+    Some((width, false))
+}
+
+/// `{expr}` / `{@html expr}` → its head (`{` / `{@html `) and trimmed
+/// expression, `None` for an empty mustache.
+fn split_mustache(span: &str) -> Option<(&'static str, Option<&str>)> {
+    let head = if span.starts_with("{@html") {
+        "{@html "
+    } else {
+        "{"
+    };
+    let inner = span
+        .strip_prefix(head.trim_end())?
+        .strip_suffix('}')?
+        .trim();
+    Some((head, (!inner.is_empty()).then_some(inner)))
+}
+
+/// Lay out the mustaches on a `<pre>`'s content lines the way prettier's
+/// printer walks its groups, left to right: a mustache breaks when its flat
+/// form plus everything up to the next line-break opportunity overflows, its
+/// first line is charged what precedes it on the line and its last line what
+/// follows, and its continuation lines sit one level inside the element.
+/// `content_col` is the column right after the open tag's `>`. Stops at the
+/// first child tag, whose own layout owns the rest of the line.
+pub(super) fn layout_pre_mustaches(
+    out: &str,
+    elem: &RegularElement,
+    content_col: usize,
+    line_width: usize,
+    options: &FormatOptions,
+) -> Vec<(u32, u32, String)> {
+    let tw = tab_width(options);
+    let iw = options.js.indent_width.value() as usize;
+    let cont_cols = current_column(out, elem.start, tw) + iw;
+    let mut edits = Vec::new();
+    let mut col = content_col;
+    let nodes = &elem.fragment.nodes;
+    for (i, node) in nodes.iter().enumerate() {
+        let Some(span) = out.get(node_start(node) as usize..node_end(node) as usize) else {
+            return edits;
+        };
+        match node {
+            TemplateNode::Text(_) | TemplateNode::Comment(_) => {
+                col = match span.rfind('\n') {
+                    Some(nl) => span[nl + 1..].visual_width(tw),
+                    None => col + span.visual_width(tw),
+                };
+            }
+            TemplateNode::ExpressionTag(_) | TemplateNode::HtmlTag(_) => {
+                if span.contains('\n') {
+                    col = span[span.rfind('\n').unwrap_or(0) + 1..].visual_width(tw);
+                    continue;
+                }
+                let Some((head, Some(inner))) = split_mustache(span) else {
+                    col += span.visual_width(tw);
+                    continue;
+                };
+                let Some((rest, found)) = pre_content_prefix(out, &nodes[i + 1..], options) else {
+                    return edits;
+                };
+                let rest = rest + if found { 0 } else { elem.name.len() + 3 };
+                let flat = span.visual_width(tw);
+                if col + flat + rest <= line_width {
+                    col += flat;
+                    continue;
+                }
+                let first_line_offset = (col + head.visual_width(tw)).saturating_sub(cont_cols);
+                let Ok(wrapped) = crate::expression::reformat_content_layout(
+                    inner,
+                    options,
+                    line_width.saturating_sub(cont_cols).max(1),
+                    cont_cols,
+                    first_line_offset,
+                    1 + rest,
+                ) else {
+                    return edits;
+                };
+                let Some(last_nl) = wrapped.rfind('\n') else {
+                    col += flat;
+                    continue;
+                };
+                col = wrapped[last_nl + 1..].visual_width(tw) + 1;
+                let broken = format!("{head}{wrapped}}}");
+                if broken != span {
+                    edits.push((node_start(node), node_end(node), broken));
+                }
+            }
+            _ => return edits,
+        }
+    }
+    edits
+}
+
+/// Break a `<pre>`'s attributes one per line, `>` hugging the last (prettier
+/// never dedents a `<pre>`'s `>`). Rewrites the open tag only, so a child
+/// open-tag edit in the same pass cannot overlap it; returns the edit with the
+/// column the content starts at once wrapped.
+pub(super) fn wrap_pre_own_attrs(
+    out: &str,
+    elem: &RegularElement,
+    options: &FormatOptions,
+) -> Option<((u32, u32, String), usize)> {
+    let tw = tab_width(options);
+    let s = elem.start as usize;
+    let open_end = node_start(elem.fragment.nodes.first()?) as usize;
+    let open = out.get(s..open_end)?;
+    if open.contains('\n') || !open.ends_with('>') {
+        return None;
+    }
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    let inner = open.get(1..open.len() - 1)?;
+    let attrs = split_open_tag_attrs(inner.get(inner.find(' ')? + 1..)?.trim());
+    let last = attrs.last()?;
+    let iw = options.js.indent_width.value() as usize;
+    let attr_col = indent.visual_width(tw) + iw;
+    let inner_indent = " ".repeat(attr_col);
+    let mut new_open = format!("<{}", elem.name);
+    for attr in &attrs {
+        new_open.push('\n');
+        new_open.push_str(&inner_indent);
+        new_open.push_str(attr);
+    }
+    new_open.push('>');
+    Some((
+        (
+            crate::source_offset(s),
+            crate::source_offset(open_end),
+            new_open,
+        ),
+        attr_col + last.visual_width(tw) + 1,
+    ))
+}
 
 struct PreReindent<'a> {
     tab_lines: &'a std::collections::HashSet<usize>,
@@ -1276,6 +1498,10 @@ pub(super) fn try_fix_pre_child_open_tags(
     fragment: &Fragment,
     line_width: usize,
     options: &FormatOptions,
+    // `(open_end, column)` of a `<pre>` open tag another edit in this pass is
+    // wrapping: a child on that line is measured from `column`, not from the
+    // flat open tag still in `out`.
+    wrapped_open: Option<(usize, usize)>,
 ) -> Vec<(u32, u32, String)> {
     let tw = tab_width(options);
     let mut edits = Vec::new();
@@ -1305,12 +1531,50 @@ pub(super) fn try_fix_pre_child_open_tags(
         let Some(whole) = out.get(cs..ce) else {
             continue;
         };
-        // Find where the child's open tag ends (position right after `>`).
-        let open_end = if let Some(first_child_node) = child_fragment.nodes.first() {
-            node_start(first_child_node) as usize
-        } else {
-            continue; // empty element – nothing to fix
+        let line_start = out[..cs].rfind('\n').map_or(0, |i| i + 1);
+        // Width of the line from its start through `to`, read past a `<pre>`
+        // open tag that is being wrapped in this same pass.
+        let line_cols = |to: usize| match wrapped_open {
+            Some((pre_open_end, column)) if line_start < pre_open_end => {
+                column + out[pre_open_end..to].visual_width(tw)
+            }
+            _ => out[line_start..to].visual_width(tw),
         };
+        // Sub-case C: a self-closing child (`<Highlight {value} />`) whose line
+        // overflows breaks its attributes one per line, ` />` dedented one level,
+        // like any wrapped self-closing tag.
+        if child_fragment.nodes.is_empty() {
+            if !whole.contains('\n')
+                && did_self_close(out, child_end)
+                && let Some(inner) = whole.strip_prefix('<').and_then(|w| w.strip_suffix("/>"))
+                && let Some(sp) = inner.find(' ')
+            {
+                let line_nl = out[ce..].find('\n').map_or(out.len(), |i| ce + i);
+                if line_cols(line_nl) <= line_width {
+                    continue;
+                }
+                let attrs = split_open_tag_attrs(inner[sp + 1..].trim());
+                if attrs.is_empty() {
+                    continue;
+                }
+                let attr_indent = " ".repeat(pre_indent_col + 2 * iw);
+                let mut result = format!("<{}", &inner[..sp]);
+                for attr in attrs {
+                    result.push('\n');
+                    result.push_str(&attr_indent);
+                    result.push_str(attr);
+                }
+                result.push('\n');
+                result.push_str(&" ".repeat(pre_indent_col + iw));
+                result.push_str("/>");
+                if result != whole {
+                    edits.push((child_start, child_end, result));
+                }
+            }
+            continue;
+        }
+        // Find where the child's open tag ends (position right after `>`).
+        let open_end = node_start(&child_fragment.nodes[0]) as usize;
         let Some(open) = out.get(cs..open_end) else {
             continue;
         };
@@ -1323,34 +1587,27 @@ pub(super) fn try_fix_pre_child_open_tags(
             if !open.ends_with('>') {
                 continue;
             }
-            let line_start = out[..cs].rfind('\n').map_or(0, |i| i + 1);
             // Measure the full line (from start through the first `\n` after
             // the open-tag `>`, i.e. including the content that follows `>`).
             let line_nl = out[open_end..]
                 .find('\n')
                 .map_or(out.len(), |i| open_end + i);
-            let line = &out[line_start..line_nl];
             // Prettier dangles a `<pre>` child's open `>` when the child spans
             // multiple lines (its content has a newline) OR the glued open-tag
             // line overflows — a short single-line child (`<code class="x">y</code>`)
             // stays glued.
             let content = out.get(open_end..ce).unwrap_or("");
             let content_multiline = content.contains('\n');
-            if line.visual_width(tw) <= line_width && !content_multiline {
+            if line_cols(line_nl) <= line_width && !content_multiline {
                 continue; // fits on one line and single-line content — no action
             }
-            let has_attributes = open.contains(' ');
-            if !has_attributes {
-                // An attribute-free open tag only breaks because its first child
-                // borrows the `>`, which needs an inline tag whose content is
-                // leading-whitespace-sensitive; overflow alone is handled by
-                // `fix_pre_hugged_first_line`.
-                if !content_multiline
-                    || is_block_display(child_name)
-                    || content.starts_with([' ', '\t', '\r', '\n'])
-                {
-                    continue;
-                }
+            // An attribute-free open tag only breaks because its first child
+            // borrows the `>`, which needs an inline tag whose content is
+            // leading-whitespace-sensitive.
+            if !open.contains(' ')
+                && (is_block_display(child_name) || content.starts_with([' ', '\t', '\r', '\n']))
+            {
+                continue;
             }
             // Drop `>` to a new indented line.  The indent sits two levels
             // deeper than `<pre>`'s own indent (one for the child element, one
