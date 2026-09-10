@@ -1,36 +1,5 @@
 #!/usr/bin/env node
-// `wasm-pack build` writes `pkg/package.json` based on the Cargo crate it
-// builds (currently `rsvelte_lint_bindings`, whose `[lib] name = "rsvelte_lint"`
-// keeps the glue named `rsvelte_lint.{js,_bg.wasm}`; it re-exports the
-// `rsvelte_core` compiler wasm exports — see
-// `crates/rsvelte_lint_bindings/src/wasm.rs`). We publish under the scoped npm
-// name `@rsvelte/compiler`, so we overlay the npm-side metadata (and the
-// user-facing README) here after the wasm build completes and before
-// `pnpm publish` reads it.
-//
-// We also synthesise an `exports` map so consumers get a *stable* subpath to
-// the wasm bytes — `@rsvelte/compiler/wasm` — that does not name the internal
-// Cargo crate. wasm-pack names its artifacts after the built crate
-// (`rsvelte_lint.js`, `rsvelte_lint_bg.wasm`); tools that read the wasm to drive
-// `initSync` (svelte-shaker, this repo's own oxlint-plugin) would otherwise have
-// to hard-code that crate name and break every time the wasm build retargets a
-// different crate (`rsvelte_core_*` → `rsvelte_lint_*` did exactly this and broke
-// deep-import consumers). The `./wasm` alias is the contract; the crate-named
-// files stay reachable via a `"./*"` passthrough so existing deep imports keep
-// resolving.
-//
-// The version is the changeset-managed `apps/npm/compiler/package.json`
-// version — the single source of truth. We force it here rather than trusting
-// whatever wasm-pack derived from the built crate's `Cargo.toml`, because the
-// built crate is decoupled from the published package's version: if the wasm
-// build ever targets a different crate, wasm-pack stamps `pkg/package.json`
-// with that crate's own `Cargo.toml` version instead of the release version,
-// which npm rejects as already-published (E403) and crashes the changesets
-// publish. Owning the version here keeps the published tarball
-// correct no matter which crate the wasm build targets, and is also what
-// `workspace:^` consumers (e.g. `@rsvelte/svelte2tsx`) read when pnpm rewrites
-// their dependency range at publish time.
-
+// Publish the compiler entry and the separately loaded playground module.
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -59,10 +28,6 @@ if (generated.version !== source.version) {
 	);
 }
 generated.version = source.version;
-// wasm-pack copies the built crate's `Cargo.toml` description into
-// `pkg/package.json` — for `rsvelte_lint` that is the *linter* description, which
-// mislabels a package literally named `@rsvelte/compiler`. Override it with the
-// compiler-facing description from the version anchor.
 if (source.description) generated.description = source.description;
 if (source.repository) generated.repository = source.repository;
 if (source.homepage) generated.homepage = source.homepage;
@@ -94,18 +59,7 @@ for (const file of Object.values(source.bin ?? {})) {
 	chmodSync(resolve(pkgDir, file), 0o755);
 }
 
-// Synthesise a stable `exports` map. wasm-pack leaves `exports` unset and points
-// `main`/`module`/`types` at the crate-named glue (`rsvelte_lint.js`), so the
-// only way to reach the wasm today is a deep import that hard-codes the crate
-// name. We derive the real filenames from what wasm-pack emitted (so this keeps
-// working if the built crate is renamed) and expose:
-//   "."             → the JS glue (unchanged default import)
-//   "./wasm"        → the wasm bytes, under a name that never mentions the crate
-//   "./package.json"→ conventional, some tools require it
-//   "./*"           → passthrough so existing crate-named deep imports still work
-// The trailing `./*` is what keeps `exports` from *narrowing* resolution: without
-// it, adding `exports` would make `@rsvelte/compiler/rsvelte_lint_bg.wasm` (used
-// by this repo's oxlint-plugin fallback and by older external consumers) fail.
+// Keep public entry points independent of wasm-pack artifact filenames.
 const withDot = (p) => (p.startsWith('./') ? p : `./${p}`);
 const jsEntry = generated.main ?? generated.module;
 if (!jsEntry) {
@@ -115,12 +69,26 @@ const wasmFile = (generated.files ?? []).find((f) => f.endsWith('_bg.wasm'));
 if (!wasmFile) {
 	throw new Error('finalize-pkg: no `*_bg.wasm` entry in pkg/package.json "files"');
 }
+const playgroundDir = resolve(repoRoot, 'pkg-playground');
+const playground = JSON.parse(readFileSync(resolve(playgroundDir, 'package.json'), 'utf8'));
+const playgroundJs = playground.main ?? playground.module;
+const playgroundWasm = playground.files.find((file) => file.endsWith('_bg.wasm'));
+if (!playgroundJs || !playgroundWasm || !playground.types) {
+	throw new Error('finalize-pkg: incomplete playground build');
+}
+mkdirSync(resolve(pkgDir, 'playground'), { recursive: true });
+for (const file of playground.files) {
+	copyFileSync(resolve(playgroundDir, file), resolve(pkgDir, 'playground', file));
+}
+generated.files = [...new Set([...generated.files, 'playground'])];
 const dotExport = generated.types
 	? { types: withDot(generated.types), default: withDot(jsEntry) }
 	: withDot(jsEntry);
 generated.exports = {
 	'.': dotExport,
 	'./wasm': withDot(wasmFile),
+	'./playground': { types: `./playground/${playground.types}`, default: `./playground/${playgroundJs}` },
+	'./playground/wasm': `./playground/${playgroundWasm}`,
 	'./package.json': './package.json',
 	'./*': './*',
 };
@@ -129,7 +97,9 @@ generated.exports = {
 // crate rename or wasm-pack layout change fails the release loudly here rather
 // than publishing an `exports` map that points at missing files. The `./*`
 // passthrough is a wildcard with no single target, so it is not checked.
-const shippedTargets = new Set([withDot(jsEntry), withDot(wasmFile), './package.json']);
+const shippedTargets = new Set(Object.values(generated.exports).flatMap((value) =>
+	typeof value === 'string' ? [value] : Object.values(value),
+).filter((value) => !value.includes('*')));
 if (generated.types) shippedTargets.add(withDot(generated.types));
 for (const file of overlayFiles) shippedTargets.add(withDot(file));
 for (const target of shippedTargets) {
@@ -141,9 +111,5 @@ for (const target of shippedTargets) {
 writeFileSync(pkgJsonPath, JSON.stringify(generated, null, 2) + '\n');
 console.log(`Finalized pkg/package.json as ${generated.name}@${generated.version}`);
 
-// Overlay the user-facing README. `wasm-pack` copies the built crate's README
-// (`crates/rsvelte_lint/README.md`, the linter docs) into `pkg/README.md`, which
-// would otherwise ship as the `@rsvelte/compiler` README on npm. Replace it with
-// the compiler-specific README from the version-anchor directory.
 copyFileSync(sourceReadmePath, pkgReadmePath);
 console.log(`Copied ${sourceReadmePath} -> pkg/README.md`);

@@ -4999,7 +4999,7 @@ list would pass, since `includes()` only needs one occurrence.
 ### 38c — the other two ports of the same option are not here [S]
 
 `cssHash` is implemented three times: the napi bridge, the wasm bridge
-(`crates/rsvelte_lint_bindings/src/compiler_wasm/mod.rs`, exercised by
+(`crates/rsvelte_compiler_wasm_bindings/src/lib.rs`, exercised by
 `scripts/dev/test-wasm-compile-options.mjs`, whose rejection matrix compares against official), and the
 `rsvelte` facade's `options.rs`, which no gate drives at all. This is the "two ports of one
 function and no gate compares the ports" shape recorded for the constant fold: the wasm port
@@ -5117,7 +5117,7 @@ that round-trip is not reproduced here.
 `napi_parse` and the wasm `parse_svelte` build their own `ParseOptions` independently, and they
 already disagree: the NAPI one sets `capture_comments: true`
 (`crates/rsvelte_napi/src/lib.rs:195-206`) and the wasm one takes `ParseOptions::default()`
-(`crates/rsvelte_lint_bindings/src/compiler_wasm/mod.rs:87-89`), so the wasm AST carries no node
+(`crates/rsvelte_compiler_wasm_bindings/src/lib.rs:91-95`), so the wasm AST carries no node
 comments at all. Only the NAPI port is driven here. This is the "two ports of one function, and
 no gate compares the ports" shape from `two-ports-inventory.md`, and the wasm one is what the
 playground (`apps/playground/src/lib/compiler.ts`) and the published wasm build call.
@@ -6782,7 +6782,7 @@ of the parse configuration anywhere in `svelte/compiler`.
 - `crates/rsvelte_napi/src/lib.rs:201-217` sets `capture_comments: true`, with a comment
   asserting fidelity — *"The public AST API mirrors svelte/compiler `parse()`, which keeps
   `leadingComments`/`trailingComments` on nodes."*
-- `crates/rsvelte_lint_bindings/src/compiler_wasm/mod.rs:87-89` takes `ParseOptions::default()`,
+- `crates/rsvelte_compiler_wasm_bindings/src/lib.rs:91-95` takes `ParseOptions::default()`,
   which leaves `capture_comments` **false**, and accepts no options from its caller at all.
 
 **The named input** is any component with a comment inside `<script>`: the NAPI AST carries the
@@ -6803,7 +6803,7 @@ legacy warnings.
 
 **Ports.** The NAPI conversion in `crates/rsvelte_napi/src/lib.rs`, the C ABI JSON conversion in
 `crates/rsvelte_capi/src/lib.rs`, and the wasm conversion in
-`crates/rsvelte_lint_bindings/src/compiler_wasm/mod.rs` each implement that schema. #3664 recorded
+`crates/rsvelte_compiler_wasm_bindings/src/lib.rs` each implement that schema. #3664 recorded
 demonstrated disagreements on unknown keys, wrong scalar types, nested keys, aliases, removed
 options and truthy `runes` values.
 

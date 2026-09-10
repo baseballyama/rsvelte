@@ -757,6 +757,9 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           node scripts/compat-lsp/pin-official-svelte.mjs
 
+      - name: Install Svelte compiler dependencies
+        run: pnpm --dir submodules/svelte install --frozen-lockfile
+
       # `html_data/web.rs` and `css_data/web.rs` are vendored from
       # `vscode-{html,css}-languageservice` and record a SHA-256 per input file
       # — a RECORD nothing re-read. Their two tests compare the port against a
@@ -777,6 +780,9 @@ jobs:
       - name: Build core wasm
         run: pnpm run build:wasm:core
 
+      - name: Build playground wasm
+        run: pnpm run build:wasm:playground
+
       - name: Finalize @rsvelte/compiler package
         run: pnpm run finalize-pkg
 
@@ -787,6 +793,15 @@ jobs:
       # invoked by any workflow since it was written.
       - name: Run wasm compile-options gate
         run: pnpm run test:wasm-compile
+
+      - name: Run compiler-only wasm gate
+        run: pnpm run test:wasm-compiler-only
+
+      - name: Run packed wasm package gate
+        run: pnpm run test:wasm-package
+
+      - name: Run browser and worker wasm gate
+        run: pnpm run test:wasm-browser
 
       - name: Run @rsvelte/svelte2tsx tests
         run: pnpm --filter @rsvelte/svelte2tsx run test

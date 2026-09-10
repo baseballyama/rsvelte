@@ -1,0 +1,24 @@
+[package]
+name = "rsvelte_compiler_wasm"
+version = "0.11.7"
+edition = "2024"
+rust-version = "1.95"
+description = "Compiler-only WebAssembly bindings for Svelte"
+license = "MIT"
+publish = false
+
+[lib]
+name = "rsvelte_compiler"
+crate-type = ["cdylib"]
+test = false
+doctest = false
+bench = false
+
+[dependencies]
+rsvelte_compiler_wasm_bindings = { path = "../rsvelte_compiler_wasm_bindings" }
+
+[lints]
+workspace = true
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ['-Oz', '--enable-reference-types']

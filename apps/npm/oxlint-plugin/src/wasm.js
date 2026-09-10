@@ -13,22 +13,17 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const require = createRequire(import.meta.url);
 
-// Prefer the published `@rsvelte/compiler` dependency; fall back to this repo's
-// in-place wasm build at `/pkg` so the plugin runs from a source checkout (and
-// this repo's own E2E test) without a publish/link step. The wasm bytes come
-// from the package's stable `./wasm` subpath, which never names the internal
-// build crate (wasm-pack names its artifacts `rsvelte_lint_*`, but that is not a
-// contract) — so this keeps resolving across crate renames.
+// Resolve the playground export, with a local-build fallback for source checkouts.
 function resolveCompiler() {
 	try {
 		return {
-			jsUrl: pathToFileURL(require.resolve('@rsvelte/compiler')).href,
-			wasmPath: require.resolve('@rsvelte/compiler/wasm'),
+			jsUrl: pathToFileURL(require.resolve('@rsvelte/compiler/playground')).href,
+			wasmPath: require.resolve('@rsvelte/compiler/playground/wasm'),
 		};
 	} catch {
 		return {
-			jsUrl: new URL('../../../../pkg/rsvelte_lint.js', import.meta.url).href,
-			wasmPath: fileURLToPath(new URL('../../../../pkg/rsvelte_lint_bg.wasm', import.meta.url)),
+			jsUrl: new URL('../../../../pkg-playground/rsvelte_lint.js', import.meta.url).href,
+			wasmPath: fileURLToPath(new URL('../../../../pkg-playground/rsvelte_lint_bg.wasm', import.meta.url)),
 		};
 	}
 }

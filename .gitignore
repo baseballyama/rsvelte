@@ -18,6 +18,8 @@ target
 /pkg
 # Formatter WASM build output (rsvelte_fmt_wasm → browser fmt tool)
 /pkg-fmt
+# Playground WASM build output (compiler, lint and svelte2tsx)
+/pkg-playground
 
 # Language server: vendored lint wasm (built via build:wasm:lint-node) + bundle
 /apps/npm/language-server/vendor

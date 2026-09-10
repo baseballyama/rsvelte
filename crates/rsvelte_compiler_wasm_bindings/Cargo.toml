@@ -1,0 +1,26 @@
+[package]
+name = "rsvelte_compiler_wasm_bindings"
+version = "0.11.7"
+edition = "2024"
+rust-version = "1.95"
+description = "Compiler-only WebAssembly bindings for Svelte"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["rlib"]
+test = false
+doctest = false
+bench = false
+
+[dependencies]
+rsvelte_core = { path = "../rsvelte_core", default-features = false, features = ["wasm-target"] }
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+oxc_allocator = "0.146"
+console_error_panic_hook = "0.1"
+
+[lints]
+workspace = true
+

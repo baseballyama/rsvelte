@@ -10,13 +10,12 @@ use std::sync::{
 
 use wasm_bindgen::prelude::*;
 
-use crate::compiler::phases::phase1_parse::{ParseOptions, parse};
-use crate::compiler::phases::phase3_transform::css::generate_css_hash;
-use crate::compiler::{
+use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse};
+use rsvelte_core::compiler::phases::phase3_transform::css::generate_css_hash;
+use rsvelte_core::compiler::{
     CompileOptions, CompileResult, ComponentApi, CssHashFn, CssHashInput, CssMode,
     ExperimentalOptions, FragmentMode, GenerateMode, Namespace, Warning, WarningFilterFn, compile,
 };
-use crate::svelte2tsx::{Svelte2TsxOptions, svelte2tsx as rust_svelte2tsx};
 
 /// Initialize panic hook for better error messages in the browser console.
 #[wasm_bindgen(start)]
@@ -87,7 +86,7 @@ impl CompileResultWasm {
 pub fn parse_svelte(source: &str) -> ParseResultWasm {
     // Same as the NAPI entry: upstream strips it before the parser, so every
     // position below is relative to the trimmed source.
-    let source = crate::compiler::phases::phase1_parse::remove_bom(source);
+    let source = rsvelte_core::compiler::phases::phase1_parse::remove_bom(source);
     let options = ParseOptions::public_api();
 
     match parse(source, &oxc_allocator::Allocator::default(), options) {
@@ -96,7 +95,7 @@ pub fn parse_svelte(source: &str) -> ParseResultWasm {
             // serialize arena; without it the Serialize impls panic ("serialize
             // arena not set"), which surfaces in the browser as a WASM
             // "unreachable" trap.
-            let ast_json = crate::ast::arena::with_serialize_arena(&ast.arena, || {
+            let ast_json = rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
                 // Spans are emitted as UTF-16 code-unit offsets to match
                 // svelte/compiler (#793). For ASCII source byte == UTF-16, so
                 // skip the remap entirely and keep the fast direct-string path.
@@ -104,8 +103,8 @@ pub fn parse_svelte(source: &str) -> ParseResultWasm {
                     serde_json::to_string_pretty(&ast).unwrap_or_default()
                 } else {
                     let mut value = serde_json::to_value(&ast).unwrap_or(serde_json::Value::Null);
-                    let conv = crate::compiler::legacy::Utf8ToUtf16::new(source);
-                    crate::compiler::legacy::convert_positions_to_utf16(&mut value, &conv);
+                    let conv = rsvelte_core::compiler::legacy::Utf8ToUtf16::new(source);
+                    rsvelte_core::compiler::legacy::convert_positions_to_utf16(&mut value, &conv);
                     serde_json::to_string_pretty(&value).unwrap_or_default()
                 }
             });
@@ -179,57 +178,6 @@ pub fn compile_server(source: &str, name: &str) -> CompileResultWasm {
 #[wasm_bindgen]
 pub fn version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
-}
-
-/// Convert a Svelte component to TypeScript/TSX. Mirrors the napi `svelte2tsx`
-/// shape — `options_json` and the return value are JSON strings so the wasm
-/// boundary stays at primitive types and no bespoke `wasm_bindgen` struct is
-/// needed for every field of `Svelte2TsxResult`.
-#[wasm_bindgen]
-pub fn svelte2tsx(source: &str, options_json: &str) -> String {
-    let opts = parse_svelte2tsx_options(options_json);
-    match rust_svelte2tsx(source, opts) {
-        Ok(result) => {
-            let props: Vec<serde_json::Value> = result
-                .exported_names
-                .get_prop_names()
-                .iter()
-                .map(|n: &&str| serde_json::Value::String((*n).to_string()))
-                .collect();
-            let all: Vec<serde_json::Value> = result
-                .exported_names
-                .get_all_names()
-                .iter()
-                .map(|n: &&str| serde_json::Value::String((*n).to_string()))
-                .collect();
-            let events: Vec<serde_json::Value> = result
-                .events
-                .get_api_entries()
-                .into_iter()
-                .map(|(name, ty)| serde_json::json!({ "name": name, "type": ty }))
-                .collect();
-            let output = serde_json::json!({
-                "success": true,
-                "code": result.code,
-                "map": result.map,
-                "exportedNames": { "props": props, "all": all },
-                "events": events,
-            });
-            output.to_string()
-        }
-        Err(e) => serde_json::json!({
-            "success": false,
-            "error": format!("{e}"),
-        })
-        .to_string(),
-    }
-}
-
-fn parse_svelte2tsx_options(options_json: &str) -> Svelte2TsxOptions {
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(options_json) else {
-        return Svelte2TsxOptions::default();
-    };
-    Svelte2TsxOptions::from_json(&value)
 }
 
 // === Function-form compile options (issue #1680) ===
@@ -395,7 +343,7 @@ fn build_warning_filter(func: js_sys::Function, slot: ErrorSlot) -> WarningFilte
     Arc::new(move |warning: &Warning| -> bool {
         let obj = warning_to_js(warning);
         match func.call1(&JsValue::NULL, &obj) {
-            Ok(v) => v.as_bool().unwrap_or(true),
+            Ok(v) => v.is_truthy(),
             // A throwing filter aborts compilation (matching upstream Svelte and
             // the NAPI shim), surfaced via the shared error slot; the retained
             // warning here is discarded once the caller sees the failure.
@@ -470,6 +418,7 @@ fn build_css_hash(func: js_sys::Function, root_dir: Option<String>, slot: ErrorS
 fn build_compile_options(
     options: &JsValue,
     error_slot: &ErrorSlot,
+    module: bool,
 ) -> Result<CompileOptions, String> {
     let mut opts = CompileOptions::default();
     if options.is_undefined() || options.is_null() {
@@ -539,6 +488,13 @@ fn build_compile_options(
                 })?,
             };
         }
+    }
+
+    if module {
+        if let Some(func) = warning_filter.dyn_ref::<js_sys::Function>() {
+            opts.warning_filter = Some(build_warning_filter(func.clone(), Arc::clone(error_slot)));
+        }
+        return Ok(opts);
     }
 
     if let Some(value) = require_bool(options, "accessors")? {
@@ -763,7 +719,7 @@ fn warning_to_value(w: &Warning) -> serde_json::Value {
             serde_json::Value::String(filename.clone()),
         );
     }
-    let pos = |p: &crate::compiler::Position| serde_json::json!({ "line": p.line, "column": p.column, "character": p.character });
+    let pos = |p: &rsvelte_core::compiler::Position| serde_json::json!({ "line": p.line, "column": p.column, "character": p.character });
     if let Some(ref start) = w.start {
         map.insert("start".to_string(), pos(start));
     }
@@ -779,7 +735,7 @@ fn warning_to_value(w: &Warning) -> serde_json::Value {
     serde_json::Value::Object(map)
 }
 
-fn compile_result_to_json(result: CompileResult) -> String {
+fn compile_result_to_json(result: CompileResult, module: bool, generate: GenerateMode) -> String {
     let parse_map = |m: Option<&str>| {
         m.and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
             .unwrap_or(serde_json::Value::Null)
@@ -795,13 +751,19 @@ fn compile_result_to_json(result: CompileResult) -> String {
         })
         .unwrap_or(serde_json::Value::Null);
     let warnings: Vec<serde_json::Value> = result.warnings.iter().map(warning_to_value).collect();
-    serde_json::json!({
+    let mut value = serde_json::json!({
         "js": { "code": result.js.code, "map": parse_map(result.js.map.as_deref()) },
         "css": css,
         "warnings": warnings,
         "metadata": { "runes": result.metadata.runes },
-    })
-    .to_string()
+    });
+    if generate == GenerateMode::None {
+        value["js"] = serde_json::Value::Null;
+    }
+    if module {
+        value["ast"] = serde_json::Value::Null;
+    }
+    value.to_string()
 }
 
 /// Compile a Svelte component with the full compile-options object.
@@ -815,13 +777,40 @@ fn compile_result_to_json(result: CompileResult) -> String {
 #[wasm_bindgen(js_name = compile)]
 pub fn compile_svelte(source: &str, options: JsValue) -> Result<String, JsValue> {
     let error_slot: ErrorSlot = Arc::new(Mutex::new(None));
-    let opts = build_compile_options(&options, &error_slot).map_err(option_error_to_js)?;
+    let opts = build_compile_options(&options, &error_slot, false).map_err(option_error_to_js)?;
+    let generate = opts.generate;
     let result = compile(source, opts);
     if let Some(msg) = error_slot.lock().unwrap().take() {
         return Err(JsValue::from_str(&msg));
     }
     match result {
-        Ok(r) => Ok(compile_result_to_json(r)),
+        Ok(r) => Ok(compile_result_to_json(r, false, generate)),
         Err(e) => Err(JsValue::from_str(&format!("{e:?}"))),
     }
+}
+
+/// Compile a JavaScript rune module, returning the same JSON envelope as `compile`.
+#[wasm_bindgen(js_name = compileModule)]
+pub fn compile_module(source: &str, options: JsValue) -> Result<String, JsValue> {
+    let error_slot: ErrorSlot = Arc::new(Mutex::new(None));
+    let opts = build_compile_options(&options, &error_slot, true).map_err(option_error_to_js)?;
+    let generate = opts.generate;
+    let result = rsvelte_core::compiler::compile_module(
+        source,
+        rsvelte_core::compiler::ModuleCompileOptions {
+            dev: opts.dev,
+            generate: opts.generate,
+            filename: opts.filename,
+            root_dir: opts.root_dir,
+            warning_filter: opts.warning_filter,
+            experimental: opts.experimental,
+            legacy_options: opts.legacy_options,
+        },
+    );
+    if let Some(msg) = error_slot.lock().unwrap().take() {
+        return Err(JsValue::from_str(&msg));
+    }
+    result
+        .map(|result| compile_result_to_json(result, true, generate))
+        .map_err(|e| JsValue::from_str(&format!("{e:?}")))
 }
