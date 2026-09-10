@@ -1105,6 +1105,94 @@ for (const [label, opts] of VALID_OPTIONS) {
 	);
 }
 
+// Upstream's `object()` opens with a shape guard — `(input && typeof input !==
+// 'object') || Array.isArray(input)` — that runs before the key loop. Without it
+// a non-object decodes to all-`None` and compiles with silent defaults (#4534):
+// the failure is an ACCEPTED call, not a wrong error, so a row asserting only
+// that both sides agree on some error would never have been reached.
+function rawErrorShape(compile, src, opts) {
+	try {
+		compile(src, opts);
+		return { threw: false };
+	} catch (e) {
+		return {
+			threw: true,
+			code: e.code === undefined ? '(absent)' : String(e.code),
+			name: String(e.name),
+			filename: e.filename === undefined ? '(absent)' : String(e.filename),
+			message: String(e.message),
+		};
+	}
+}
+
+// Truthy non-objects and arrays: upstream's guard fires, so every field matches.
+const NON_OBJECT_EXACT = [
+	['string', '{"generate":"server"}'],
+	['number', 42],
+	['true', true],
+	['function', () => {}],
+	['array', ['generate']],
+	['array-empty', []],
+];
+
+// The falsy scalars are rejected by both sides with the same CODE for different
+// reasons: `input &&` short-circuits, so upstream skips its own guard and hands
+// the scalar to each per-option validator, reporting against whichever option is
+// declared first. rsvelte names the actual fault, so the message is deliberately
+// not upstream's — see the PR for #4534.
+const NON_OBJECT_FALSY = [
+	['empty-string', ''],
+	['zero', 0],
+	['false', false],
+];
+
+console.log('\n# non-object options argument');
+for (const [entry, compileSv, compileRs, src] of [
+	['compile', officialCompile, napi.compile, CSS_SRC],
+	['compileModule', officialCompileModule, napi.compileModule, MODULE_OPT_SRC],
+]) {
+	for (const [label, opts] of NON_OBJECT_EXACT) {
+		const sv = rawErrorShape(compileSv, src, opts);
+		const rs = rawErrorShape(compileRs, src, opts);
+		if (!sv.threw) {
+			assert(`non-object.${entry}.${label}: official rejects it`, false, 'the oracle accepted');
+			continue;
+		}
+		if (!rs.threw) {
+			assert(`non-object.${entry}.${label}: rsvelte rejects it too`, false, 'rsvelte compiled it');
+			continue;
+		}
+		for (const field of ['code', 'name', 'filename', 'message']) {
+			assert(
+				`non-object.${entry}.${label}: ${field}`,
+				rs[field] === sv[field],
+				`official ${JSON.stringify(sv[field])} vs rsvelte ${JSON.stringify(rs[field])}`
+			);
+		}
+	}
+	for (const [label, opts] of NON_OBJECT_FALSY) {
+		const sv = rawErrorShape(compileSv, src, opts);
+		const rs = rawErrorShape(compileRs, src, opts);
+		assert(
+			`non-object-falsy.${entry}.${label}: both reject with options_invalid_value`,
+			sv.threw && rs.threw && sv.code === 'options_invalid_value' && rs.code === sv.code,
+			`official ${sv.threw ? sv.code : 'accepted'} vs rsvelte ${rs.threw ? rs.code : 'accepted'}`
+		);
+		assert(
+			`non-object-falsy.${entry}.${label}: rsvelte names the shape`,
+			rs.threw && rs.message.includes('should be an object'),
+			rs.threw ? rs.message : 'rsvelte compiled it'
+		);
+		// Expiry condition rather than decoration: if upstream ever drops the
+		// `input &&` short-circuit these become exact rows, and this is what says so.
+		assert(
+			`non-object-falsy.${entry}.${label}: upstream still short-circuits its own guard`,
+			sv.threw && !sv.message.includes('should be an object'),
+			`upstream now reports the shape — promote ${label} to NON_OBJECT_EXACT`
+		);
+	}
+}
+
 function moduleErrorShape(compileModule, opts) {
 	try {
 		compileModule(MODULE_OPT_SRC, { filename: 'a.svelte.js', ...opts });
