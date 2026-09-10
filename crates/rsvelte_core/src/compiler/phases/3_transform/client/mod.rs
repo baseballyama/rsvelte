@@ -1447,6 +1447,31 @@ pub(crate) fn transform_client(
         // them in the comment buffer, so the first generated declarator can
         // carry them the way upstream does; the re-emission loop below prints a
         // statement instead, which is a different position (#4501).
+        // Upstream leaves a `$props()` declaration's comment on the declaration
+        // it lowered to, but only when nothing but blanks separates it from the
+        // call: across a newline it floats forward instead, and with a pattern
+        // between them (`let { a, /* c */ ...rest }`) it stays put (#4448). This
+        // runs before the re-entry below so the comment is moved, not copied.
+        let inline_props_comments: Vec<&str> = props_call_offset(&content.raw)
+            .map(|call| {
+                props_comments
+                    .iter()
+                    .filter(|(offset, comment)| {
+                        let end = offset + comment.len() as u32;
+                        end <= call
+                            && content.raw[end as usize..call as usize]
+                                .chars()
+                                .all(|c| c == ' ' || c == '\t')
+                    })
+                    .map(|(_, comment)| comment.as_str())
+                    .collect()
+            })
+            .unwrap_or_default();
+        if let Some(placed) =
+            place_props_comments_after_rest_props(&transformed_script, &inline_props_comments)
+        {
+            transformed_script = placed;
+        }
         if transformed_script.trim().is_empty() && !props_comments.is_empty() {
             transformed_script = props_comments
                 .iter()
@@ -3289,6 +3314,57 @@ fn script_comment_texts(script: &str) -> Vec<String> {
         .into_iter()
         .map(|(_, comment)| comment)
         .collect()
+}
+
+/// The offset of the declaration's `$props(` call inside a script's raw text.
+fn props_call_offset(raw: &str) -> Option<u32> {
+    find_rune_code(raw.as_bytes(), b"$props(").map(|at| at as u32)
+}
+
+/// Put a `$props()` declaration's comments back on the declaration it lowered
+/// to, printed after its `;` the way upstream does.
+///
+/// The lowering either drops the comment (a whole-object `let p = $props()`) or
+/// leaves it on its own line after the statement (a rest element), and both
+/// print it somewhere upstream does not (#4448). Only the `$.rest_props` form is
+/// handled: with a default the comment belongs *inside* the `$.prop(…)` call,
+/// which the lowering already does when there is no rest element, and moving it
+/// out to the statement end would be a second wrong answer rather than none.
+fn place_props_comments_after_rest_props(script: &str, comments: &[&str]) -> Option<String> {
+    use crate::compiler::phases::phase3_transform::shared::js_scan::find_code;
+
+    if comments.is_empty() || find_code(script.as_bytes(), b"$.prop(").is_some() {
+        return None;
+    }
+    let target = script
+        .lines()
+        .enumerate()
+        .filter(|(_, line)| line.contains("$.rest_props(") && line.trim_end().ends_with(';'))
+        .map(|(index, _)| index)
+        .last()?;
+    let mut out: Vec<String> = Vec::new();
+    for (index, line) in script.lines().enumerate() {
+        // The rest-element form leaves the comment on a line of its own after
+        // the statement; it is the same comment, not a second one.
+        if index != target && comments.iter().any(|comment| line.trim() == *comment) {
+            continue;
+        }
+        if index == target {
+            let mut moved = line.trim_end().to_string();
+            for comment in comments {
+                moved.push(' ');
+                moved.push_str(comment);
+            }
+            out.push(moved);
+        } else {
+            out.push(line.to_string());
+        }
+    }
+    let mut joined = out.join("\n");
+    if script.ends_with('\n') {
+        joined.push('\n');
+    }
+    Some(joined)
 }
 
 /// Comments inside the `$props()` declaration survive upstream's lowering even
