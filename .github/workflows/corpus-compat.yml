@@ -430,10 +430,20 @@ jobs:
           key: corpus-fmt-oracle-v1-${{ runner.os }}-${{ steps.pins.outputs.sources }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json', 'pnpm-lock.yaml', 'compatibility/pattern-corpus/**') }}
 
       - name: Build fmt trees (oracle cached, actual via rsvelte-fmt)
+        id: fmt-trees
         run: node scripts/compat-corpus/fmt.mjs
 
       - name: Verify formatter parity (ratchet, byte-identical)
         run: node scripts/compat-corpus/fmt-verify.mjs
+
+      # A property of the second application, which the parity comparison cannot
+      # see at any corpus size: rsvelte-fmt over its own output must change nothing.
+      - name: Verify formatter idempotency (ratchet)
+        # A failing parity step skips every unguarded step after it, and a
+        # skipped comparison reads exactly like a passing one. Run regardless,
+        # but only over a first application the environment actually produced.
+        if: ${{ !cancelled() && steps.fmt-trees.outcome == 'success' }}
+        run: node scripts/compat-corpus/fmt-idempotency-verify.mjs
 
       - name: Upload fmt report
         if: ${{ !cancelled() }}
@@ -442,6 +452,7 @@ jobs:
           name: corpus-fmt-report
           path: |
             compatibility/fmt-report.json
+            compatibility/fmt-idempotency-report.json
             compatibility/fmt/meta.json
           if-no-files-found: ignore
           retention-days: 14

@@ -229,7 +229,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout; whitespace inside a statement; anything about an error both sides raise; how the port decided a token was code; whether an output it scores `match` is TypeScript at all (6j) | [S] [D] |
 | 7 | svelte2tsx source map | structural invariants and corpus-wide mapped-line coverage on rsvelte's own map | relation between generated text and mapped original text; source index | [D] |
 | 8 | css-prune sweep | `css.code` + `code@line:col` warnings of 1969 generated components | `js.code`; **every element in the grid is a plain `<div>`/`<p>` in one component** | [D] |
-| 9 | Formatter parity (JS corpus) | whole-file bytes vs oxfmt oracle | ids whose oracle file is absent are skipped, uncounted; it compares **one application per side**, so `format(format(x)) != format(x)` is invisible at any corpus size (9e) | [D] |
+| 9 | Formatter parity (JS corpus) | whole-file bytes vs oxfmt oracle | ids whose oracle file is absent are skipped, uncounted; it compares **one application per side**, so `format(format(x)) != format(x)` is invisible to it at any corpus size — asserted by its own gate since 2026-09-10 (9e) | [D] |
 | 10 | Formatter parity (Rust svelte.dev) | whole-file bytes vs generated fixture | exercises `--no-native-css`, not the shipped default | [S] |
 | 11 | Lint output parity | set of `rule\tline:col\tmessage` | `.svelte.(js\|ts)` ungated on **both** sides; autofixes never compared | [D] |
 | 12 | svelte-check Layer 1 (fixtures) | multiset of `SEVERITY file:line code` | column, message, `source`, file-walk counts, every flag but `--tsconfig` | [D] |
@@ -3022,6 +3022,22 @@ non-idempotent formatter is where a divergence must come from.
 **Closing 9e:** a second application per side on the entries already materialized, as its own
 verdict rather than folded into the byte comparison. Cost: one extra format per compared entry,
 not per corpus component.
+
+**Closed 2026-09-10** by `scripts/compat-corpus/fmt-idempotency-verify.mjs` (`pnpm run
+corpus:fmt-idempotency`, a step of the `fmt-parity` job), ratcheted by
+`fmt-idempotency-known-failures.json` and justified in `KNOWN-FAILURES.md`
+(`#fmt-idempotency-known-failures`). It formats the parity run's whole `actual/` tree a second
+time — one directory invocation, so the cost is one more run over the corpus rather than one per
+entry — and compares bytes. Over the full population rather than the 520 of the 2026-09-04
+measurement: **rsvelte 82 of 33,644 non-idempotent, the oracle 25, 19 shared, 63 rsvelte-only**;
+57 of the 82 are not parity entries at all, because their first application *is* the oracle's
+byte for byte and it is the oracle's own output rsvelte does not leave alone. The sign is
+`63 + 7 + 12` (shrinks / same line count / grows). Instrument checked by injection on the
+introducing tree: a listed id dropped, a converging id added and a first application with
+trailing newlines appended each turned the run red, and the restored run was green. What it still
+does not see: the oracle's own non-idempotency is measured beside it but not gated (it is not a
+property of rsvelte), and an id that converges through a *different* second-pass path than the
+first is scored converged — the gate reads bytes, not passes.
 
 ---
 

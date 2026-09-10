@@ -1,4 +1,5 @@
 [
+	"fmt-idempotency-known-failures.json",
 	"fmt-known-failures.json",
 	"lsp-known-failures.json",
 	"parse-ast-known-failures.json",
