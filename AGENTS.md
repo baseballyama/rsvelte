@@ -534,6 +534,19 @@ are in the archived file.
   same re-derivation then retired the *next* design too: three of the seven relocations land
   beside a component call, which is a node upstream locates, so the "restrict to spans that
   mirror an upstream `loc`" fix would not have moved them either.
+- **The mechanism a defect report names can be load-bearing for a correct output elsewhere, and
+  the corpus is the wrong instrument for finding out.** #4521 is a real under-derivation —
+  `loc_base` was `max_span + 2`, so a source offset above it read as comment space. Raising the
+  boundary over the source repaired 256 map segments against 0 regressed and moved one `js.code`
+  file toward official over 34,930 components, and it also *drops* a script comment that
+  `a_script_comment_maps_before_the_template_expression_it_precedes` pins against the oracle:
+  on that input `max_span=41` against a 104-byte source, so `main`'s `loc_base=43` puts every
+  source offset above the boundary, and that misreading is exactly what anchors the comment in
+  the right place. One accident, two signs. The corpus could not see it — 0 of the 4,756 files
+  carrying the shape move, with an injected positive control the only mover — because the two
+  shapes sit at opposite ends of the same quantity (source length against longest generated
+  chunk), and real components are never at the end the fixture is at. So a sweep's improvement
+  count is not a regression check: run the fixture suite before believing one.
 
 ## Working with Subagents
 
