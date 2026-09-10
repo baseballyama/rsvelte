@@ -2469,7 +2469,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rsvelte"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "rsvelte_core",
  "rsvelte_projection",
@@ -2550,14 +2550,14 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_compiler_wasm"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "rsvelte_compiler_wasm_bindings",
 ]
 
 [[package]]
 name = "rsvelte_compiler_wasm_bindings"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",
@@ -2579,7 +2579,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_core"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "bumpalo",
  "chrono",
@@ -2676,7 +2676,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_fmt"
-version = "0.7.22"
+version = "0.7.23"
 dependencies = [
  "anyhow",
  "clap",
@@ -2728,7 +2728,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_language_server"
-version = "0.7.6"
+version = "0.7.7"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
@@ -2752,7 +2752,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_lint"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "anyhow",
  "bytecount",
@@ -2831,7 +2831,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_projection"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "indexmap",
  "memchr",
