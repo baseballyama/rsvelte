@@ -1,0 +1,40 @@
+[package]
+name = "rsvelte_compiler_wasm"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+description = "WebAssembly bindings for the rsvelte Svelte compiler"
+license = "MIT"
+publish = false
+
+[lib]
+# `rlib` as well as `cdylib` so `rsvelte_lint_bindings` can link this crate's
+# `#[wasm_bindgen]` surface into the fat playground module instead of carrying a
+# second copy of it — wasm-bindgen collects exports from every linked crate.
+crate-type = ["cdylib", "rlib"]
+# The emitted artifacts are `rsvelte_compiler.js` / `rsvelte_compiler_bg.wasm`.
+name = "rsvelte_compiler"
+# A test/doc harness for a cdylib is an executable that imports the wasm host
+# symbols, which only resolve once the module is loaded.
+test = false
+doctest = false
+bench = false
+
+[dependencies]
+# `wasm-target` selects rsvelte_core's wasm backend (no rayon, no jemalloc).
+rsvelte_core = { path = "../rsvelte_core", default-features = false, features = ["wasm-target"] }
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+# The parse entry hands the arena in explicitly, so this crate names the same
+# `oxc_allocator` version `rsvelte_core` does.
+oxc_allocator = "0.146"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+console_error_panic_hook = "0.1"
+
+[lints]
+workspace = true
+
+# rustc can emit a second wasm table (reference-types); wasm-opt's default MVP
+# feature set rejects that, so the feature must be enabled explicitly.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ['-Oz', '--enable-reference-types']

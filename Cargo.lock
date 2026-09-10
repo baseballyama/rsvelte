@@ -2549,6 +2549,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_compiler_wasm"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "js-sys",
+ "oxc_allocator",
+ "rsvelte_core",
+ "serde_json",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "rsvelte_content_mapper"
 version = "0.1.0"
 dependencies = [
@@ -2772,6 +2784,7 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "oxc_allocator",
+ "rsvelte_compiler_wasm",
  "rsvelte_core",
  "rsvelte_lint",
  "rsvelte_projection",

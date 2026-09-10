@@ -18,6 +18,8 @@ target
 /pkg
 # Formatter WASM build output (rsvelte_fmt_wasm → browser fmt tool)
 /pkg-fmt
+# Compiler-only WASM build output (rsvelte_compiler_wasm)
+/pkg-compiler
 
 # Language server: vendored lint wasm (built via build:wasm:lint-node) + bundle
 /apps/npm/language-server/vendor

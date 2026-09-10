@@ -121,6 +121,11 @@ const RULES = [
     // was the newest tag for three months for exactly that reason (#4285).
     requires: ['@rsvelte/capi'],
   },
+  // NOTE: `crates/rsvelte_compiler_wasm/**` is deliberately absent for the same
+  // reason as the bindings crate below: it links into exactly one PUBLISHED
+  // artifact (the `@rsvelte/compiler` wasm, which names it so wasm-bindgen
+  // collects its exports), and its own standalone `pkg-compiler/` build is not
+  // published. One carrier means no artifact can be left stale behind another.
   // NOTE: `crates/rsvelte_fmt_wasm/**` is deliberately absent because it is
   // published NOWHERE — it does not appear in release.yml's build matrix, so
   // there is no artifact to leave stale.

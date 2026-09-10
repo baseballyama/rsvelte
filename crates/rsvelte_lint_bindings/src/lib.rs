@@ -10,18 +10,16 @@
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
+// Linked, not re-exported: `rsvelte_compiler_wasm`'s `#[wasm_bindgen]` items
+// are collected into whatever cdylib links it, so naming the crate here is what
+// puts `compile`, `compileModule`, `parse_svelte` and `version` into the
+// playground module. Nothing in this crate calls it. The extern name is the
+// package's `[lib] name`, not the package name.
 #[cfg(feature = "wasm")]
-mod compiler_wasm;
+use rsvelte_compiler as _;
 
 #[cfg(feature = "wasm")]
-mod ast {
-    pub use rsvelte_core::ast::*;
-}
-
-#[cfg(feature = "wasm")]
-mod compiler {
-    pub use rsvelte_core::compiler::*;
-}
+mod svelte2tsx_wasm;
 
 #[cfg(feature = "wasm")]
 mod svelte2tsx {
