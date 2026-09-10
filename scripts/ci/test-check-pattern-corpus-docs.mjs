@@ -9,6 +9,7 @@
 // that case while the section-scoped check fails it.
 
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -101,13 +102,21 @@ function clean(overrides = {}) {
   });
 }
 
-function run(dir) {
+function run(dir, root = ROOT) {
   try {
-    return check(dir, join(dir, 'corpus-sources.json'));
+    return check(dir, join(dir, 'corpus-sources.json'), root);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
+
+// A guard path is resolved against the repo root, so the present/absent pair is
+// drawn from the real tree. The present one is this guard's own script: it
+// cannot disappear without taking these controls with it.
+const GUARD = 'scripts/ci/check-pattern-corpus-docs.mjs';
+const MISSING_GUARD = 'crates/rsvelte_core/tests/no-such-guard-4449.rs';
+const recordDoc = (guard = GUARD, body = 'what the fix restored') =>
+  `# \`ghost.svelte\`\n\n**Issue:** [#1](x)\n**Repro:** none — \`${guard}\`\n\n${body}\n`;
 
 const tests = {
   'a fully documented corpus reports nothing'() {
@@ -126,6 +135,56 @@ const tests = {
     const { problems } = run(clean({ orphanDocs: { 'ghost.svelte.md': '**Issue:** x\n\nwhy\n' } }));
     assert.equal(problems.length, 1, problems.join('; '));
     assert.match(problems[0], /issues\/ghost\.svelte\.md describes `ghost\.svelte`, which is not on disk/);
+  },
+
+  // #4449: a fix whose divergence cannot be written as a repro — a comment-only
+  // divergence is byte-different, AST-equivalent, and scored a pass by every
+  // corpus target — had nowhere to be recorded, and the absence was silent. A
+  // doc with no file is now legal, but only when it names a guard that exists.
+  'a doc with no file that names an existing guard is accepted'() {
+    const { fatal, problems } = run(clean({ orphanDocs: { 'ghost.svelte.md': recordDoc() } }));
+    assert.equal(fatal, null);
+    assert.deepEqual(problems, []);
+  },
+
+  'a doc with no file that names a missing guard is reported'() {
+    const { problems } = run(clean({ orphanDocs: { 'ghost.svelte.md': recordDoc(MISSING_GUARD) } }));
+    assert.equal(problems.length, 1, problems.join('; '));
+    assert.match(problems[0], /names the guard `[^`]*no-such-guard-4449\.rs`, which is not on disk/);
+  },
+
+  'a doc with no file whose guard line names nothing is reported'() {
+    const { problems } = run(
+      clean({
+        orphanDocs: {
+          'ghost.svelte.md': '# x\n\n**Issue:** [#1](x)\n**Repro:** none, a unit test covers it\n\nwhy\n',
+        },
+      }),
+    );
+    assert.equal(problems.length, 1, problems.join('; '));
+    assert.match(problems[0], /names no guard in backticks/);
+  },
+
+  'a doc with no file that says nothing is reported'() {
+    const { problems } = run(
+      clean({ orphanDocs: { 'ghost.svelte.md': recordDoc(GUARD, '') } }),
+    );
+    assert.equal(problems.length, 1, problems.join('; '));
+    assert.match(problems[0], /says nothing about what the fix restored/);
+  },
+
+  // The relaxation is one-directional: a file on disk still owes a repro, so a
+  // doc cannot claim there is none while its own repro sits beside it.
+  'a doc that claims no repro while its file is on disk is reported'() {
+    const { problems } = run(
+      clean({
+        issues: {
+          'a.svelte': `# \`a.svelte\`\n\n**Issue:** [#1](x)\n**Repro:** none — \`${GUARD}\`\n\nwhy\n`,
+        },
+      }),
+    );
+    assert.equal(problems.length, 1, problems.join('; '));
+    assert.match(problems[0], /says `\*\*Repro:\*\* none` while `a\.svelte` is on disk/);
   },
 
   // A bijection alone is satisfied by 666 empty files, which is what a bulk
@@ -278,6 +337,20 @@ const tests = {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  },
+
+  // `--index` is the "read them all in one place" command the README points at,
+  // and through a PIPE `process.exit` dropped everything that had not drained:
+  // 162 of 675 rows, deterministically, with no marker. Compared against the
+  // in-process value rather than against a literal, so it cannot go stale.
+  '--index survives a pipe'() {
+    const inProcess = index(join(ROOT, 'compatibility', 'pattern-corpus'));
+    const piped = execFileSync(
+      process.execPath,
+      [join(ROOT, 'scripts/ci/check-pattern-corpus-docs.mjs'), '--index'],
+      { encoding: 'utf8', maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'inherit'] },
+    );
+    assert.equal(piped.trimEnd(), inProcess.trimEnd());
   },
 
   // A guard nothing calls is worth nothing.
