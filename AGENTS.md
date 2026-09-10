@@ -237,6 +237,7 @@ cannot see is inventoried in
 | Transform idempotency (property, no oracle) | `idempotency-verify.mjs` | — |
 | CSS prune, SCSS backend (`grass` vs dart-sass) | `css-prune-*.mjs`, `scss-verify.mjs` | `css-prune-*`, `scss-known-failures.json` |
 | Formatter parity (oxfmt oracle) | `fmt.mjs` (`pnpm run corpus:fmt`) | `fmt-known-failures.json`, `fmt-oracle-excluded.json` |
+| Formatter idempotency (property of the second application, over the parity run's own `actual/` tree) | `fmt-idempotency-verify.mjs` (`pnpm run corpus:fmt-idempotency`) | `fmt-idempotency-known-failures.json` |
 | svelte2tsx text and source-map structure | `svelte2tsx-verify.mjs` | `svelte2tsx-*-known-failures.json` |
 | svelte-check diagnostics (fixture projects, real repos) | `check-verify.mjs`, `check-e2e-verify.mjs` | `check-*-known-failures.json` |
 | Lint: real-world corpus, adversarial (`compatibility/lint-adversarial/`), fix / suggest / end / env / preset / conditions / severity | `lint-*.mjs` (`pnpm run lint-*`) | `lint-*-known-failures.json` |

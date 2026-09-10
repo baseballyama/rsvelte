@@ -132,6 +132,7 @@
 		"corpus:verify:ssr-dev": "node scripts/compat-corpus/verify.mjs --targets server-dev",
 		"corpus:fmt": "node scripts/compat-corpus/fmt.mjs",
 		"corpus:fmt-verify": "node scripts/compat-corpus/fmt-verify.mjs",
+		"corpus:fmt-idempotency": "node scripts/compat-corpus/fmt-idempotency-verify.mjs",
 		"corpus:s2t:compile": "node scripts/compat-corpus/svelte2tsx-compile.mjs",
 		"corpus:s2t:verify": "node scripts/compat-corpus/svelte2tsx-verify.mjs",
 		"corpus:css-prune": "node scripts/compat-corpus/css-prune-sweep.mjs",

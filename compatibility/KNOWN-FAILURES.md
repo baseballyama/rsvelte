@@ -13,6 +13,7 @@ resolve. Do not rename an anchor — they are machine-facing.
 | [`dual-run-known-failures`](#dual-run-known-failures) | `compatibility/dual-run-known-failures.md` |
 | [`error-known-failures`](#error-known-failures) | `compatibility/error-known-failures.md` |
 | [`fmt-known-failures`](#fmt-known-failures) | `compatibility/fmt-known-failures.md` |
+| [`fmt-idempotency-known-failures`](#fmt-idempotency-known-failures) | `compatibility/fmt-idempotency-known-failures.md` |
 | [`fmt-oracle-excluded`](#fmt-oracle-excluded) | `compatibility/fmt-oracle-excluded.md` |
 | [`known-failures`](#known-failures) | `compatibility/known-failures.md` |
 | [`lint-adversarial-end-known-failures`](#lint-adversarial-end-known-failures) | `compatibility/lint-adversarial-end-known-failures.md` |
@@ -3268,6 +3269,76 @@ earlier group breaks and too wide when it stays flat — the two cases need two 
 one build-time computation. Doing this properly means the `broken` form becoming a function the
 printer evaluates at the column it actually has, which is a change to `Doc::RawExpr`'s contract
 rather than to an arithmetic expression. The 44 are pinned so that whoever takes it can count.
+
+<a id="fmt-idempotency-known-failures"></a>
+
+## fmt-idempotency-known-failures.json — why entries are accepted
+
+`scripts/compat-corpus/fmt-idempotency-verify.mjs` formats the parity run's own
+first application (`compatibility/fmt/actual/<id>`) a second time with the same
+`rsvelte-fmt` directory invocation `fmt.mjs` uses, and requires every byte to stay
+put. It asserts a property of rsvelte rather than comparing it to the oracle: the
+parity gate compares **one** application per side, so `format(format(x)) !=
+format(x)` was invisible to it at any corpus size (#4301, GATES.md 9e). The
+population is the parity set minus `fmt-oracle-excluded.json`. The ratchet may only
+shrink.
+
+**Current baseline: `fmt-idempotency-known-failures.json`, 90 entries.**
+
+Measured on the tree that introduced the gate (33,644 components, 23 excluded):
+33,531 converge and 90 do not — 82 whose second application writes different
+bytes, and 8 the second application **refuses** (a per-file parse error, listed
+with kind `error`). By the second application's line delta the 82 split
+`63 + 7 + 12` — shrinks, same line count with different bytes, grows — so this is
+not one mechanism. The oracle (`oxfmt` over its own output, same config) is
+non-idempotent on 25 of the same 33,644 by bytes and refuses its own output on
+the same 8; 19 of the 25 are among the 82, so **63 of the 90 are rsvelte's
+alone**, 27 are shared and 6 are the oracle's alone. Only 25 of the 90 are listed
+in `fmt-known-failures.json`: for the other 65 the first application matches the
+oracle byte-for-byte and it is the *oracle's own output* that rsvelte does not
+leave alone — a divergence class the parity gate cannot reach, because its input
+is never a formatted file.
+
+**The 8 refused are a bucket the bytes cannot see.** A per-file error leaves the
+staged file as it was, because nothing ran over it, so a gate that only compared
+bytes scored them converged — which is what the first CI run of this gate did,
+while printing the eight diagnostics above its green verdict. The gate now
+attributes every diagnostic on rsvelte-fmt's stderr to its id and fails outright
+on one it cannot attribute. All 8 have a first application byte-equal to the
+oracle's, and that output is not Svelte either parser reads back: `<span
+title=""foo"">` (`expected_token`, `attribute-static-quotemarks`,
+`component-prop-unescaped`, `attribute-quoting-hostile`,
+`3149-scoped-class-escape`), `<keygen></keygen>` (`void_element_invalid_content`,
+`void-tags`) and a `{/if}` with no open block (`block_unexpected_close`,
+`regex-zoo`, both copies of `01-basic-markup.md/12`). The oracle's own second
+application reports the same eight `CompileError`s. So the parity gate accepted
+output no Svelte parser accepts, on both sides — the fix is an oracle-fidelity
+question (`fmt-oracle-excluded.json` is the place for an entry the oracle gets
+wrong), and until then the entries stay here rather than counting as converged.
+
+Shapes read off the report's first differing lines, one example each: a hugged
+inline element or `{#if}` re-broken on the second pass
+(`>{#if ripple}<span class="…"></span>{/if}…` → `>{#if ripple}<span` / …, +2
+lines, `svelte-material-ui`), an expanded call re-joined once its arguments have
+been laid out (`{@render roundedCode(` / … → one line, −6, `kampsy-ui`), a broken
+open tag's `>` rejoined (`justifyContent="space-between">` → `…"` / `>`, −7,
+`appwrite-console`), and a prose fill wrapping one word earlier when the words
+arrive already broken (`</span> New Chat` / `from Current` → `</span> New` /
+`Chat from Current`, ±0, `chatgpt-web`). Which pass writes each is unmeasured; the
+entries are keyed by id, so an id that carries two of these leaves the ratchet only
+when both are gone.
+
+**Two-sided, like every ratchet here.** A new non-converging id fails the gate and a
+listed id that now converges fails it until `--update-baseline` retires it. The
+instrument was checked by injection on the introducing tree: a listed id removed
+(red, 1 NEW), a converging id added (red, 1 stale), a first application with
+three trailing newlines appended (red, 1 NEW, `-3 lines`), and a listed refused id
+removed (red, 1 NEW `[error]`); restored, green.
+
+Attribution is pending (`attribution-pending.json`): none of the 90 has a target
+yet, and the 19 the oracle shares are not thereby the oracle's fault — rsvelte's
+second application differs from its first on those files whatever `oxfmt` does on
+its own.
 
 <a id="fmt-oracle-excluded"></a>
 
