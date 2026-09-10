@@ -51,6 +51,74 @@ fn an_erased_host_block_comment_is_indented_once() {
     assert!(!out.contains("\n\t\t * two\n"), "{out}");
 }
 
+/// The opener nested deeper than the script's own indentation. The re-emitted
+/// slice is re-indented downstream by the distance between the opener's column
+/// and the continuation lines', so the opener has to arrive at the column it
+/// had in the source rather than at whatever the erased construct left behind.
+#[test]
+fn an_opener_nested_deeper_than_the_script_is_still_indented_once() {
+    let out = client(concat!(
+        "<script lang=\"ts\">\n",
+        "  interface P {\n",
+        "    /**\n",
+        "     * two\n",
+        "     */\n",
+        "    a: number\n",
+        "  }\n",
+        "  let { a }: P = $props()\n",
+        "</script>\n",
+        "<i>{a}</i>\n"
+    ));
+    assert!(!out.contains("COMPILE_ERROR"), "{out}");
+    assert!(out.contains("\n\t * two\n"), "{out}");
+    assert!(!out.contains("\n\t   * two\n"), "{out}");
+}
+
+/// The same nesting written with tabs: the opener's column is a byte count of
+/// whatever whitespace the source used, so a space-only rule would miss here.
+#[test]
+fn a_tab_indented_opener_is_indented_once() {
+    let out = client(concat!(
+        "<script lang=\"ts\">\n",
+        "\tinterface P {\n",
+        "\t\t/**\n",
+        "\t\t * two\n",
+        "\t\t */\n",
+        "\t\ta: number\n",
+        "\t}\n",
+        "\tlet { a }: P = $props()\n",
+        "</script>\n",
+        "<i>{a}</i>\n"
+    ));
+    assert!(!out.contains("COMPILE_ERROR"), "{out}");
+    assert!(out.contains("\n\t * two\n"), "{out}");
+    assert!(!out.contains("\n\t\t * two\n"), "{out}");
+}
+
+/// A surviving statement beside the erased construct: the comment is no longer
+/// the script's first non-blank line, so `script_lead` is that statement's
+/// indentation and not the comment's — the cell that says the fix reads the
+/// comment's own column rather than the script's.
+#[test]
+fn a_statement_beside_the_erased_construct_does_not_change_the_column() {
+    let out = client(concat!(
+        "<script lang=\"ts\">\n",
+        "  const k = 1;\n",
+        "  interface P {\n",
+        "    /**\n",
+        "     * two\n",
+        "     */\n",
+        "    a: number\n",
+        "  }\n",
+        "  let { a }: P = $props()\n",
+        "</script>\n",
+        "<i>{a}{k}</i>\n"
+    ));
+    assert!(!out.contains("COMPILE_ERROR"), "{out}");
+    assert!(out.contains("\n\t * two\n"), "{out}");
+    assert!(!out.contains("\n\t   * two\n"), "{out}");
+}
+
 /// The control that a blanket "one tab" rule would break: the host survives, so
 /// the comment sits inside an object literal and official indents it *twice*.
 /// This cell agreed before the change and must still agree.

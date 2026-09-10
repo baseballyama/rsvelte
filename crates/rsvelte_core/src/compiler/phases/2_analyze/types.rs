@@ -962,9 +962,45 @@ fn emit_pending_comment(
     comment_start: u32,
     comment_end: u32,
     output: &mut String,
-    copied_chunks: Option<&mut Vec<CopiedSourceChunk>>,
+    mut copied_chunks: Option<&mut Vec<CopiedSourceChunk>>,
     reemitted: Option<&mut Vec<Range<u32>>>,
 ) {
+    // A multi-line block comment is re-indented downstream by the distance
+    // between its opener's column and its continuation lines', so the opener
+    // has to arrive at the column it had in the source. What precedes it here
+    // is whatever indentation the erased construct left behind, which is the
+    // script's and not the comment's (#4515).
+    if source[comment_start as usize..comment_end as usize].contains('\n') {
+        let line_start = source[..comment_start as usize]
+            .rfind('\n')
+            .map_or(0, |at| at + 1);
+        let indent = &source[line_start..comment_start as usize];
+        let kept = output.trim_end_matches([' ', '\t']).len();
+        // The whitespace being replaced was copied from the source, so the
+        // chunk that claims it has to give back exactly as much as is dropped
+        // or every later projection offset shifts.
+        let cut = output.len() - kept;
+        let claimed = copied_chunks.as_ref().is_none_or(|chunks| {
+            chunks.last().is_none_or(|last| {
+                last.output.end as usize == output.len()
+                    && cut as u32 <= last.output.end - last.output.start
+            })
+        });
+        if indent.bytes().all(|byte| byte == b' ' || byte == b'\t') && claimed {
+            output.truncate(kept);
+            if cut > 0
+                && let Some(chunks) = copied_chunks.as_deref_mut()
+                && let Some(last) = chunks.last_mut()
+            {
+                last.output.end -= cut as u32;
+                last.source.end -= cut as u32;
+                if last.output.start == last.output.end {
+                    chunks.pop();
+                }
+            }
+            output.push_str(indent);
+        }
+    }
     let output_start = output.len() as u32;
     push_source_range(source, comment_start..comment_end, output, copied_chunks);
     if let Some(reemitted) = reemitted {
