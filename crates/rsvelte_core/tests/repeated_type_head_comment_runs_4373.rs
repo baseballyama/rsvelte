@@ -96,7 +96,11 @@ let { a }: P = $props();
 
 /// The same head, written inline on the declarator instead of behind an alias.
 /// This is the host that reaches the held-back (`pending`) re-emission path,
-/// where the comments are flushed at the initializer rather than in place.
+/// where the comments are flushed at the initializer rather than in place. The
+/// declaration is the script's only statement, so the transform empties the
+/// script and the comments reach the client only because they are re-entered as
+/// its text (#4501); with another statement beside it the count is still right
+/// and the placement is not, which is why the table's key cannot own that cell.
 const INLINE_TWO: &str = "<script lang=\"ts\">
 let { a }: {
   // c
@@ -197,6 +201,18 @@ fn cells() -> Vec<(&'static str, String, &'static str, &'static str)> {
             "",
             "",
         ),
+        (
+            "an inline head on a destructured `$props()`",
+            INLINE_TWO.to_string(),
+            "c d c d",
+            "c d c d",
+        ),
+        (
+            "one comment in an inline head on a destructured `$props()`",
+            INLINE_ONE.to_string(),
+            "c c",
+            "c c",
+        ),
     ]
 }
 
@@ -252,14 +268,6 @@ fn the_extractor_and_the_compile_are_live() {
 /// moves into the table above.
 #[test]
 fn the_blocked_hosts_are_pinned_rather_than_matched() {
-    // An inline annotation on a destructured `$props()` loses its comment on the
-    // CLIENT before the repeat can apply (#4398) — the declaration is rebuilt
-    // from the pattern. The server keeps it and repeats the run correctly.
-    assert_eq!(sequence(INLINE_TWO, GenerateMode::Client), "");
-    assert_eq!(sequence(INLINE_TWO, GenerateMode::Server), "c d c d");
-    assert_eq!(sequence(INLINE_ONE, GenerateMode::Client), "");
-    assert_eq!(sequence(INLINE_ONE, GenerateMode::Server), "c c");
-
     // An annotation on an UNINITIALIZED declarator is dropped on both targets
     // (#4396): upstream ends the declaration at the identifier and floats the
     // comment to the next located node, which rsvelte has no channel for. The
