@@ -471,8 +471,9 @@ fn grouped_call_expansion_counts_two_columns_per_call() {
 }
 
 /// The offset is charged to the first line alone, so the continuation keeps
-/// the full width; below the placeholder's minimum it is charged by narrowing
-/// and reaches the continuation too. Expected forms are oxfmt's own.
+/// the full width — below the placeholder's minimum too, where the unoffset
+/// layout stands whenever its first line still has room for the offset.
+/// Expected forms are oxfmt's own.
 #[test]
 fn first_line_offset_is_charged_to_the_first_line_only() {
     let opts = FormatOptions::default();
@@ -491,7 +492,7 @@ fn first_line_offset_is_charged_to_the_first_line_only() {
     );
     assert_eq!(
         at(41, 3),
-        "selected_category &&\n  selected_category.id ===\n    category.id"
+        "selected_category &&\n  selected_category.id === category.id"
     );
 }
 
@@ -521,4 +522,36 @@ fn last_line_suffix_is_charged_to_the_last_line_only() {
     // 38 + 24 + 5 = 67 overflows, 38 + 24 + 3 = 65 fits.
     assert_eq!(at(66, 38, 5), "result.examples\n  .iscDhcpd");
     assert_eq!(at(66, 38, 3), "result.examples.iscDhcpd");
+    // A narrow suffix reaches the last line only: at width 30 the chain
+    // breaks after `examples` with or without a `})` behind it (the last line
+    // `  .iscDhcpd` has room), where charging the two columns to the whole
+    // width would break after `result` (offset 14 + `examples` 16 = 30).
+    let at30 = |offset: usize, suffix: usize| {
+        format_expr_core_layout(
+            "result.examples.iscDhcpd",
+            &options,
+            oxc_formatter_core::LineWidth::try_from(30u16).unwrap(),
+            false,
+            offset,
+            suffix,
+        )
+        .unwrap()
+    };
+    assert_eq!(at30(14, 0), "result.examples\n  .iscDhcpd");
+    assert_eq!(at30(14, 2), "result.examples\n  .iscDhcpd");
+    // A narrow offset reaches the first line only: the `{` before a call at
+    // width 64 must not cost the argument line its last column.
+    let call = format_expr_core_layout(
+        "formatNumber(result.summary.totalPoolSpace - result.summary.allocatedSpace)",
+        &options,
+        oxc_formatter_core::LineWidth::try_from(64u16).unwrap(),
+        false,
+        1,
+        1,
+    )
+    .unwrap();
+    assert_eq!(
+        call,
+        "formatNumber(\n  result.summary.totalPoolSpace - result.summary.allocatedSpace,\n)"
+    );
 }

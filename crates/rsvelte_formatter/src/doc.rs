@@ -188,9 +188,12 @@ fn print_inner(
                     out.push_str(flat);
                 } else {
                     let rebuilt = src.as_deref().and_then(|s| {
-                        crate::expression::raw_expr::broken_lines(
+                        let pad = unit.columns() * ind;
+                        crate::expression::raw_expr::broken_lines_at(
                             s,
-                            width.saturating_sub(unit.columns() * ind),
+                            width.saturating_sub(pad),
+                            pos.saturating_sub(pad) + 1 + s.prefix.visual_width(unit.tab_width()),
+                            1 + rest_to_break(&cmds, unit),
                         )
                     });
                     let mut lines = rebuilt.as_ref().unwrap_or(broken).iter();
@@ -285,7 +288,29 @@ fn print_fill<'a>(
 /// of prettier's `doc.js` `fits`: a soft `line` defers a pending space that is
 /// only charged when a following string is emitted (so a trailing `line` costs
 /// nothing), and a hard/break line ends the measurement successfully.
-fn fits(mut remaining: isize, rest_stack: &[Cmd], next: &[Doc], unit: IndentUnit) -> bool {
+fn fits(remaining: isize, rest_stack: &[Cmd], next: &[Doc], unit: IndentUnit) -> bool {
+    consumed_to_break(remaining, rest_stack, next, unit).is_some()
+}
+
+/// Columns the pending commands occupy before their first line break, in the
+/// modes they were pushed with — what a mustache's last line has to leave room
+/// for (its closing `}` and any text glued after it) when the printer rebuilds
+/// its broken form.
+fn rest_to_break(rest_stack: &[Cmd], unit: IndentUnit) -> usize {
+    let budget = signed_width(usize::from(u16::MAX));
+    consumed_to_break(budget, rest_stack, &[], unit).map_or(usize::from(u16::MAX), |left| {
+        usize::try_from(budget - left).unwrap_or(0)
+    })
+}
+
+/// The columns left of `remaining` when the measurement stops at a line break,
+/// or `None` once it overflows — [`fits`] is this as a predicate.
+fn consumed_to_break(
+    mut remaining: isize,
+    rest_stack: &[Cmd],
+    next: &[Doc],
+    unit: IndentUnit,
+) -> Option<isize> {
     // Measurement never mutates the tree, so the whole walk borrows: cloning a
     // `Doc` here would deep-copy the entire measured subtree (and every entry
     // pulled off `rest_stack`) on every group, which dominated `print`.
@@ -295,13 +320,13 @@ fn fits(mut remaining: isize, rest_stack: &[Cmd], next: &[Doc], unit: IndentUnit
 
     loop {
         if remaining < 0 {
-            return false;
+            return None;
         }
         let (mode, d) = if let Some(x) = local.pop() {
             x
         } else {
             if rest_idx == 0 {
-                return true;
+                return Some(remaining);
             }
             rest_idx -= 1;
             match &rest_stack[rest_idx] {
@@ -344,7 +369,7 @@ fn fits(mut remaining: isize, rest_stack: &[Cmd], next: &[Doc], unit: IndentUnit
                         }
                         remaining -= signed_width(head.visual_width(unit.tab_width()));
                     }
-                    return remaining >= 0;
+                    return (remaining >= 0).then_some(remaining);
                 }
                 if !flat.is_empty() {
                     if has_pending_space {
@@ -372,22 +397,22 @@ fn fits(mut remaining: isize, rest_stack: &[Cmd], next: &[Doc], unit: IndentUnit
             }
             Doc::Line => {
                 if mode == Mode::Break {
-                    return true;
+                    return Some(remaining);
                 }
                 has_pending_space = true;
             }
             Doc::Softline => {
                 if mode == Mode::Break {
-                    return true;
+                    return Some(remaining);
                 }
             }
             Doc::Hardline | Doc::Literalline => {
-                return true;
+                return Some(remaining);
             }
             // A break-parent surviving to `fits` means the enclosing group
             // cannot render flat.
             Doc::BreakParent => {
-                return false;
+                return None;
             }
         }
     }
