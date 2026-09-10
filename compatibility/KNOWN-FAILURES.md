@@ -31,6 +31,7 @@ resolve. Do not rename an anchor — they are machine-facing.
 | [`parse-ast-known-failures`](#parse-ast-known-failures) | `compatibility/parse-ast-known-failures.md` |
 | [`parse-known-failures`](#parse-known-failures) | `compatibility/parse-known-failures.md` |
 | [`parse-oracle-excluded`](#parse-oracle-excluded) | `compatibility/parse-oracle-excluded.md` |
+| [`pattern-exact-known-failures`](#pattern-exact-known-failures) | `compatibility/pattern-exact-known-failures.md` |
 | [`scss-known-failures`](#scss-known-failures) | `compatibility/scss-known-failures.md` |
 | [`sourcemap-known-failures`](#sourcemap-known-failures) | `compatibility/sourcemap-known-failures.md` |
 | [`sourcemap-oracle-excluded`](#sourcemap-oracle-excluded) | `compatibility/sourcemap-oracle-excluded.md` |
@@ -7136,6 +7137,50 @@ own deliberately-invalid fixtures, which is exactly where a compiler is most lik
 something a strict parser refuses. A calibration corpus reproducing the measurement only shows
 the method is sound on *its* population — see `AGENTS.md` on what a gate's inputs do and do not
 contain.
+
+<a id="pattern-exact-known-failures"></a>
+
+## pattern-exact-known-failures.<target>.json — why each entry is accepted
+
+The output gate (`scripts/compat-corpus/verify.mjs`) rescues a byte-different pair whose ASTs
+are equivalent, and `ast_equiv_batch` is invoked with no arguments, so its comment policy is
+`Ignore` — a divergence that is only a comment's presence or placement is scored `match` on
+every entry and every target (`GATES.md` blind spot 1a). Over a real-world component that is a
+deliberate tolerance. Over `compatibility/pattern-corpus/issues/` it is not: a file there exists
+**to pin a divergence a fix closed**, so one whose remaining divergence is comment-only pins
+nothing while reading as a passing repro, and the regression it was committed to catch can come
+back without reddening anything.
+
+This family re-runs the identical normalized byte comparison — oxfmt, blank lines stripped —
+over the `pattern/issues/` prefix alone, with the AST rescue removed. Its unit is
+`(id, target)`, folded to one entry per id carrying a `details` array naming each diverging
+target, so an id that diverges on all four targets is one ratchet entry rather than four.
+
+**Current baseline: `pattern-exact-known-failures.<target>.json`, 0 entries.** Re-baseline with
+`node scripts/compat-corpus/verify.mjs --update-exact-baseline`, which refuses under `--no-fmt`
+for the same reason `--update-baseline` does: without the normalizer a formatting-only
+difference is counted as a failure, and the resulting list is a measurement of oxfmt.
+
+Ratchet semantics, matching the output family:
+
+- an id **not** in this list whose `pattern/issues/` output is byte-different fails CI;
+- an id **in** this list that has become byte-identical fails CI too — the list may shrink,
+  never grow, and the PR that fixes an entry re-baselines in the same PR;
+- the population is the literal prefix `pattern/issues/`, so `pattern/adversarial/`,
+  `pattern/matrix/` and the loose `pattern/*.svelte` repros keep the output family's rescue.
+
+Two things this family deliberately does not decide.
+
+**It does not say which side is wrong.** The verdict is "the bytes differ". The direction is
+mixed in both senses — some entries are rsvelte dropping a comment official emits, others are
+rsvelte emitting one official does not (`GATES.md` 45c) — so each entry's justification has to
+state its own direction rather than inherit a summary sentence.
+
+**It does not exclude an id the output family already lists.** Nothing couples the two ratchets,
+so a repro failing gate 1 for an ordinary text mismatch can be listed in both. Excluding them
+would mean that *fixing* a gate-1 entry adds a row here; two rows for one divergence is the
+cheaper failure.
+
 
 <a id="scss-known-failures"></a>
 

@@ -179,6 +179,7 @@ const UPDATE_WARNING_BASELINE = args.includes("--update-warning-baseline");
 const UPDATE_MESSAGE_BASELINE = args.includes("--update-message-baseline");
 const UPDATE_ERROR_BASELINE = args.includes("--update-error-baseline");
 const UPDATE_PARSE_BASELINE = args.includes("--update-parse-baseline");
+const UPDATE_EXACT_BASELINE = args.includes("--update-exact-baseline");
 const STRICT = args.includes("--strict"); // ignore the baseline: any failure fails
 const REPORT_ONLY = args.includes("--report-only");
 const TARGETS = selectTargets(args);
@@ -212,6 +213,7 @@ const UPDATE_FAMILIES = [
   UPDATE_MESSAGE_BASELINE && "warning message",
   UPDATE_ERROR_BASELINE && "error",
   UPDATE_PARSE_BASELINE && "parse",
+  UPDATE_EXACT_BASELINE && "pattern-exact",
 ].filter(Boolean);
 if (REPORT_ONLY && (STRICT || UPDATE_FAMILIES.length)) {
   console.error("[verify] --report-only cannot update ratchets or run in --strict mode");
@@ -227,7 +229,7 @@ if (UPDATE_FAMILIES.length) {
 // so a narrowed run rewrites only the files it measured. --no-fmt is not, but
 // only for the output family: warning comparison needs no oxfmt normalization,
 // so --update-warning-baseline is specified to run under it.
-if (UPDATE_BASELINE) {
+if (UPDATE_BASELINE || UPDATE_EXACT_BASELINE) {
   refuseUnrepresentativeBaseline("verify", [
     NO_FMT &&
       "--no-fmt counts formatting-only differences as failures, which the corpus gate tolerates by contract",
@@ -341,6 +343,14 @@ const ERROR_RATCHETS = [
 
 const PARSE_RATCHETS = [
   { kind: "output-parse", label: "output parseability", file: (t) => t.parseBaseline },
+];
+
+const EXACT_RATCHETS = [
+  {
+    kind: "js-exact",
+    label: "pattern-corpus exact output",
+    file: (t) => t.exactBaseline,
+  },
 ];
 
 if (FROM_REPORT) {
@@ -651,6 +661,36 @@ for (const { id } of manifest) {
   }
 }
 
+// `pattern-corpus/issues` files exist to pin a divergence a fix closed, and the
+// output verdict cannot hold a comment-only one: the bytes differ, the AST
+// comparator above is called with no `--comments`, and the verdict is `match`.
+// This is that same normalized byte comparison with the rescue removed, over the
+// repro population only. It is built from `jsByteEqual` rather than from
+// `failures` because the entries it must catch score `match` and so never reach
+// the failure list, and it never contributes to the output verdict.
+const PATTERN_EXACT_PREFIX = "pattern/issues/";
+const exactPopulation = manifest.filter((e) =>
+  e.id.startsWith(PATTERN_EXACT_PREFIX),
+).length;
+const exactFailures = (() => {
+  const byId = new Map();
+  for (const { id } of manifest) {
+    if (!id.startsWith(PATTERN_EXACT_PREFIX)) continue;
+    for (const targetDef of TARGETS) {
+      if (jsByteEqual.get(jsKey(id, targetDef.key)) !== false) continue;
+      if (!byId.has(id))
+        byId.set(id, { id, verdict: "js-byte-different", details: [] });
+      const { expJs, actJs } = astCandidates.get(jsKey(id, targetDef.key));
+      byId.get(id).details.push({
+        target: targetDef.key,
+        kind: "js-exact",
+        ...firstDiffLine(expJs, actJs),
+      });
+    }
+  }
+  return [...byId.values()].sort((left, right) => left.id.localeCompare(right.id));
+})();
+
 const astVerdicts = (() => {
   if (astCandidates.size === 0) return new Map();
   if (!fs.existsSync(AST_EQUIV_BIN)) {
@@ -959,6 +999,8 @@ const report = {
   parseCounts,
   parseFailures,
   parsedModules,
+  exactFailures,
+  exactPopulation,
 };
 fs.writeFileSync(path.join(CORPUS, "report.json"), JSON.stringify(report, null, "\t") + "\n");
 
@@ -1015,6 +1057,19 @@ const DIAGNOSTIC_FAMILIES = [
     update: UPDATE_PARSE_BASELINE,
     ratchets: PARSE_RATCHETS,
     failures: parseFailures,
+  },
+  {
+    family: "pattern-exact",
+    noun: "pattern-corpus exact-output",
+    flag: "--update-exact-baseline",
+    update: UPDATE_EXACT_BASELINE,
+    ratchets: EXACT_RATCHETS,
+    failures: exactFailures,
+    population: exactPopulation,
+    populationLabel: `${PATTERN_EXACT_PREFIX} manifest entries`,
+    // Not `--no-fmt`: this family compares normalized bytes, so an unformatted
+    // run would enrol formatting noise as if it were a divergence.
+    rebaseline: "--update-exact-baseline",
   },
 ];
 
@@ -1080,7 +1135,9 @@ for (const spec of DIAGNOSTIC_FAMILIES) {
     console.log(
       `\n[verify] ❌ ${fixed} ${spec.noun} baseline entries already PASS — the ratchet is stale.`,
     );
-    console.log(`  node scripts/compat-corpus/verify.mjs --no-fmt ${spec.flag}`);
+    console.log(
+      `  node scripts/compat-corpus/verify.mjs ${spec.rebaseline ?? `--no-fmt ${spec.flag}`}`,
+    );
   }
 
   if (regressions.length) {

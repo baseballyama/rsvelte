@@ -187,6 +187,11 @@ const RATCHETS = [
 		jsons: ['parse-ast-known-failures.json'],
 	},
 	{
+		doc: 'pattern-exact-known-failures.md',
+		key: 'pattern-exact-known-failures.<target>.json',
+		jsons: perTarget('pattern-exact-known-failures'),
+	},
+	{
 		doc: 'parse-oracle-excluded.md',
 		key: 'parse-oracle-excluded.json',
 		jsons: ['parse-oracle-excluded.json'],
