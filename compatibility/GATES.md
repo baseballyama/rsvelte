@@ -5114,13 +5114,19 @@ that round-trip is not reproduced here.
 
 ### 39g — it reads the NAPI binding, and the wasm `parse_svelte` is a second port — **[S]**
 
-`napi_parse` and the wasm `parse_svelte` build their own `ParseOptions` independently, and they
-already disagree: the NAPI one sets `capture_comments: true`
-(`crates/rsvelte_napi/src/lib.rs:195-206`) and the wasm one takes `ParseOptions::default()`
-(`crates/rsvelte_compiler_wasm_bindings/src/lib.rs:91-95`), so the wasm AST carries no node
-comments at all. Only the NAPI port is driven here. This is the "two ports of one function, and
-no gate compares the ports" shape from `two-ports-inventory.md`, and the wasm one is what the
+`napi_parse` and the wasm `parse_svelte` are two ports of one upstream function, and only the
+NAPI one is driven here. This is the "two ports of one function, and no gate compares the ports"
+shape from [`two-ports-inventory.md`](#two-ports-inventory), and the wasm one is what the
 playground (`apps/playground/src/lib/compiler.ts`) and the published wasm build call.
+
+They no longer disagree on comments: both construct from `ParseOptions::public_api()`
+(`crates/rsvelte_napi/src/lib.rs:209-218`, `crates/rsvelte_compiler_wasm_bindings/src/lib.rs:86-90`),
+which sets `capture_comments: true`, since #3750 shared the constructor on 2026-08-27. What
+remains is that the wasm port takes **no options at all**: the NAPI one threads `loose` and
+`skipExpressionLoc` into `ParseOptions` and selects the output shape with `modern`, and the wasm
+one is always modern and always non-loose. Its package deliberately does not present these
+exports as `svelte/compiler` equivalents (`apps/npm/compiler/README.md:100-102`), so that is a
+smaller claim than the one this row carried until 2026-09-10 — see the closed entry 14 below.
 
 ### 39h — aligned comment ownership is strict, but missing structure is outside that assertion — **[S]**
 
@@ -6769,9 +6775,13 @@ was also *small*, so `String(n)`, `Number(n)`, `Math.sign(n)` and 30 more names 
 recorded rather than tracked. What it does **not** buy: the surrounding predicates in row 9 are
 untouched, and nothing new compares any two of *them*.
 
-#### 14. What options does the public `parse()` run with? — [D]
+#### 14. What options does the public `parse()` run with? — [D], closed by #3750
 
-Filed as **#3688**; the divergence is one field today and the shape is why it is here.
+Filed as **#3688**, which is **CLOSED COMPLETED**: #3750 (`9ce6bf942`, 2026-08-27) gave both
+bindings the same `ParseOptions::public_api()` constructor. The paragraphs below described the
+pre-#3750 code and stayed here for two weeks after the fix; they are corrected in place rather
+than deleted, because the *shape* — one upstream answer, N ports — is what this section is for
+and it still holds.
 
 **Upstream:** one answer, in `compiler/index.js` — `parse(source, { modern, loose } = {})` calls
 `_parse(source, loose)` and `to_public_ast(source, ast, modern)`. There is no second construction
@@ -6779,16 +6789,31 @@ of the parse configuration anywhere in `svelte/compiler`.
 
 **Ports.** rsvelte builds it independently in each binding:
 
-- `crates/rsvelte_napi/src/lib.rs:201-217` sets `capture_comments: true`, with a comment
-  asserting fidelity — *"The public AST API mirrors svelte/compiler `parse()`, which keeps
-  `leadingComments`/`trailingComments` on nodes."*
-- `crates/rsvelte_compiler_wasm_bindings/src/lib.rs:91-95` takes `ParseOptions::default()`,
-  which leaves `capture_comments` **false**, and accepts no options from its caller at all.
+- `crates/rsvelte_napi/src/lib.rs:209-218` builds `ParseOptions { skip_expression_loc, loose,
+  ..ParseOptions::public_api() }` and reads `modern` separately, because upstream's `modern`
+  selects the output shape after the parse rather than configuring it.
+- `crates/rsvelte_compiler_wasm_bindings/src/lib.rs:86-90` also starts from
+  `ParseOptions::public_api()`, and adds nothing: it accepts no options from its caller at all.
 
-**The named input** is any component with a comment inside `<script>`: the NAPI AST carries the
-node comments and the wasm AST does not. Graded **[D] from code** rather than **[M]** — the wasm
-build was not executed, and a local `cargo` never builds the wasm features, which is part of why
-this went unobserved.
+The fidelity comment this row used to quote from the NAPI site now lives on the shared
+constructor (`crates/rsvelte_core/src/compiler/phases/1_parse/mod.rs:131-137`) — *"a public AST
+must retain `leadingComments` and `trailingComments` like `svelte/compiler` does. Keeping that
+decision here prevents the NAPI, raw-envelope, and wasm entry points from silently drifting
+apart."* That relocation is the fix: the decision is stated once, where all three read it.
+
+**The named input no longer reproduces.** It was any component with a comment inside `<script>`,
+on the claim that the wasm port left `capture_comments` false. Measured on the built artifact
+rather than read off the source — which is what the old grade said was missing — `wasm-pack build
+--target web --release` then `parse_svelte("<script>// hi\nlet a = 1;</script>")` returns
+`leadingComments: [{ type: "Line", value: " hi", start: 8, end: 13 }]`. The old grade was **[D]
+from code**, explicitly *not* **[M]**, because the wasm build had never been executed; executing
+it is what closed the row.
+
+**What is left, and it is smaller.** The wasm port takes no options, so a caller cannot ask for
+the legacy shape (`modern: false`) or for `loose`, while the NAPI port threads both. The wasm
+package states that its exports are deliberately not presented as `svelte/compiler` equivalents
+(`apps/npm/compiler/README.md:100-102`), so this residue is a documented surface difference rather than
+an unmeasured divergence.
 
 **Nothing compares them.** The `parse()` AST parity gate (#3389) drives the NAPI port only; that
 is gate-coverage **39g**. Corpus growth cannot reach the wasm port, because it is in no gate's
