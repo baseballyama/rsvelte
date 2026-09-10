@@ -49,6 +49,16 @@ Ids are `pattern/issues/<file>`, `pattern/matrix/<axis>/<file>` and
    divergence would mean seeding a `known-failures` entry, and the seed then has
    to be tracked and burned down separately from the fix. Add the repro in the
    fix PR (or immediately after it merges) so it lands green.
+8. **A fix with no admissible repro is still recorded — as a doc with no file.**
+   Convention 6 rules out a file for a comment-only divergence: `verify.mjs` calls
+   `ast_equiv_batch` with no arguments, so `CommentPolicy::Ignore` applies and a
+   comment-only difference is byte-different, AST-equivalent and scored a **pass**
+   by every entry and every target. Such a file would be green on both arms. Write
+   an `issues/<name>.md` with no `issues/<name>` beside it, carrying a
+   `**Repro:** none — ` line that names the guard in backticks; the checker
+   requires that path to exist, so the record cannot outlive what it points at.
+   The relaxation is one-directional — a file on disk still owes its doc, and a
+   doc whose file exists may not claim there is none (#4449).
 
 ## `issues/` — one minimal repro per fixed divergence
 
@@ -67,13 +77,21 @@ The table shape also let two defects be spelled that a per-file layout cannot:
 prose (the checker compares sets, so a repeated id was invisible to it), and one row was
 missing its trailing pipe. Both are unrepresentable now rather than merely detected.
 
+Some fixed divergences have no admissible repro at all (convention 8). Those are
+`issues/<name>.md` files with **no** sibling file, and they carry a
+`**Repro:** none — ` line naming the test that guards the fix instead. Without them
+a comment-only fix left no trace here, and a file-driven index makes an omission
+produce neither a conflict nor a red — the branch that stays green does not
+self-report.
+
 To read them all in one place:
 
 ```sh
 node scripts/ci/check-pattern-corpus-docs.mjs --index
 ```
 
-which prints the old table to stdout, generated from the sibling docs.
+which prints the old table to stdout, generated from the sibling docs, with the
+no-repro records last.
 
 ## `matrix/` — the axes around those repros
 
