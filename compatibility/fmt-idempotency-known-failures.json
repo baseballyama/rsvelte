@@ -35,6 +35,9 @@
 	"open-webui/src/lib/components/admin/Evaluations/Leaderboard.svelte",
 	"open-webui/src/lib/components/chat/ChatPlaceholder.svelte",
 	"open-webui/src/lib/components/chat/Placeholder.svelte",
+	"pattern/adversarial/attributes/attribute-quoting-hostile.svelte",
+	"pattern/adversarial/expressions/regex-zoo.svelte",
+	"pattern/issues/3149-scoped-class-escape.svelte",
 	"powertable/app/src/routes/examples/+layout.svelte",
 	"primo/src/lib/builder/ui/Toggle/Toggle.svelte",
 	"primo/src/lib/builder/views/modal/PageTypeModal/Item.svelte",
@@ -78,7 +81,12 @@
 	"svelte-material-ui/packages/list/src/Item.svelte",
 	"svelte-material-ui/packages/segmented-button/src/Segment.svelte",
 	"svelte-ux/packages/svelte-ux/src/routes/+page.svelte",
+	"svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/01-basic-markup.md/12.svelte",
+	"svelte/documentation/docs/03-template-syntax/01-basic-markup.md/12.svelte",
 	"svelte/packages/svelte/tests/parser-modern/samples/comment-before-function-binding/input.svelte",
+	"svelte/packages/svelte/tests/runtime-legacy/samples/attribute-static-quotemarks/main.svelte",
+	"svelte/packages/svelte/tests/runtime-runes/samples/component-prop-unescaped/main.svelte",
+	"svelte/packages/svelte/tests/runtime-xhtml/samples/void-tags/main.svelte",
 	"svelte/packages/svelte/tests/validator/samples/comment-before-function-binding/input.svelte",
 	"sveltepress/packages/vite/__tests__/real-world.svelte"
 ]

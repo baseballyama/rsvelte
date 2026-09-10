@@ -3029,13 +3029,16 @@ corpus:fmt-idempotency`, a step of the `fmt-parity` job), ratcheted by
 (`#fmt-idempotency-known-failures`). It formats the parity run's whole `actual/` tree a second
 time — one directory invocation, so the cost is one more run over the corpus rather than one per
 entry — and compares bytes. Over the full population rather than the 520 of the 2026-09-04
-measurement: **rsvelte 82 of 33,644 non-idempotent, the oracle 25, 19 shared, 63 rsvelte-only**;
-57 of the 82 are not parity entries at all, because their first application *is* the oracle's
-byte for byte and it is the oracle's own output rsvelte does not leave alone. The sign is
-`63 + 7 + 12` (shrinks / same line count / grows). Instrument checked by injection on the
-introducing tree: a listed id dropped, a converging id added and a first application with
-trailing newlines appended each turned the run red, and the restored run was green. What it still
-does not see: the oracle's own non-idempotency is measured beside it but not gated (it is not a
+measurement: **rsvelte 90 of 33,644 non-idempotent (82 by bytes, 8 refused by the second
+application), the oracle 33 (25 by bytes, the same 8 refused), 27 shared, 63 rsvelte-only**;
+65 of the 90 are not parity entries at all, because their first application *is* the oracle's
+byte for byte and it is the oracle's own output rsvelte does not leave alone. The sign of the 82 is
+`63 + 7 + 12` (shrinks / same line count / grows). A refused id is unchanged because nothing ran
+over it, so a byte comparison scores it converged; the gate reads rsvelte-fmt's diagnostics and
+lists it as `error`, and fails on a diagnostic it cannot attribute to an id. Instrument checked by
+injection on the introducing tree: a listed id dropped, a converging id added, a first application
+with trailing newlines appended and a listed refused id dropped each turned the run red, and the
+restored run was green. What it still does not see: the oracle's own non-idempotency is measured beside it but not gated (it is not a
 property of rsvelte), and an id that converges through a *different* second-pass path than the
 first is scored converged — the gate reads bytes, not passes.
 

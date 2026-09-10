@@ -13,9 +13,13 @@
  * The oracle is not idempotent on every input either (`fmt.mjs` records it), so
  * a non-converging id is not on its own a parity claim. The ratchet lists
  * rsvelte's own property; the justification doc says which entries the oracle
- * shares. Ratchet: compatibility/fmt-idempotency-known-failures.json, two-sided
- * like every ratchet here — a new non-converging id fails, and a listed id that
- * now converges fails until `--update-baseline` retires it.
+ * shares. An id the second application refuses (a per-file formatter error) is
+ * a failure too, not a convergence: the file is left as it was because nothing
+ * ran over it, and its first application can be byte-equal to the oracle's —
+ * the parity gate has already accepted output the parser does not read back.
+ * Ratchet: compatibility/fmt-idempotency-known-failures.json, two-sided like
+ * every ratchet here — a new failing id fails, and a listed id that now
+ * converges fails until `--update-baseline` retires it.
  *
  * Usage:
  *   node scripts/compat-corpus/fmt-idempotency-verify.mjs [--max-print <n>] [--update-baseline] [--strict]
@@ -81,8 +85,9 @@ const excludedSet = new Set(
 );
 
 // The first application is the tree fmt.mjs copied out of its own stage: an id
-// the formatter rejected is there as its unformatted source, so it is compared
-// like any other and converges trivially — the parity gate already lists it.
+// the first application rejected is there as its unformatted source and is a
+// parity failure already; whether the second application rejects it again is
+// read off rsvelte-fmt's diagnostics below, never off the unchanged bytes.
 const targets = [];
 const missingActual = [];
 let excluded = 0;
@@ -123,16 +128,34 @@ try {
     maxBuffer: 1 << 28,
   });
   if (res.error) fail(`rsvelte-fmt failed to start: ${res.error.message}`);
-  // A per-file error leaves that staged file unchanged, so it reads as
-  // converged here; it is a parity failure already, and the error is printed so
-  // the count is never a silent one.
+  // A per-file error leaves that staged file unchanged, so the bytes alone
+  // would read it as converged. Attribute every diagnostic to its id; one the
+  // gate cannot attribute is the silent shape, so it fails the run outright.
+  const targetSet = new Set(targets);
+  const stageBase = path.basename(stage) + path.sep;
+  const errored = new Map();
   if (res.status !== 0) {
     const diagnostics = (res.stderr || "")
       .split("\n")
       .filter((line) => line.startsWith("rsvelte-fmt: ") && !line.includes(" formatted "));
     console.log(`[fmt-idempotency] rsvelte-fmt reported ${diagnostics.length} error(s) on the second application:`);
-    for (const line of diagnostics.slice(0, MAX_PRINT)) {
-      console.log(`  ${line.replaceAll(`${stage}${path.sep}`, "").slice(0, 200)}`);
+    const unattributed = [];
+    for (const line of diagnostics) {
+      const body = line.slice("rsvelte-fmt: ".length);
+      const at = body.indexOf(stageBase);
+      const rel = at >= 0 ? body.slice(at + stageBase.length) : body;
+      const sep = rel.indexOf(": ");
+      const id = sep >= 0 ? rel.slice(0, sep) : rel;
+      if (targetSet.has(id)) errored.set(id, sep >= 0 ? rel.slice(sep + 2) : "");
+      else unattributed.push(line);
+    }
+    for (const [id, message] of [...errored].slice(0, MAX_PRINT)) {
+      console.log(`  ${id}: ${message.slice(0, 160)}`);
+    }
+    if (errored.size > MAX_PRINT) console.log(`  … and ${errored.size - MAX_PRINT} more`);
+    if (unattributed.length) {
+      for (const line of unattributed.slice(0, MAX_PRINT)) console.log(`  ?? ${line.slice(0, 200)}`);
+      fail(`${unattributed.length} diagnostic(s) name no component in the parity set — the gate cannot attribute them`);
     }
   }
   for (const id of targets) {
@@ -140,6 +163,10 @@ try {
     const twice = readIf(path.join(stage, id));
     if (twice === null) {
       failures.push({ id, kind: "missing", detail: { line: 0 } });
+      continue;
+    }
+    if (errored.has(id)) {
+      failures.push({ id, kind: "error", detail: { line: 0, actual: errored.get(id).slice(0, 200) } });
       continue;
     }
     if (once === twice) {
@@ -181,7 +208,7 @@ console.log("\n[fmt-idempotency] results:");
 console.log(`  included   ${included.length}`);
 console.log(`  excluded   ${excluded}  (oracle-bug / invalid-input / migrate — see compatibility/fmt-oracle-excluded.json)`);
 console.log(`  converged  ${converged}`);
-console.log(`  failed     ${failures.length}`);
+console.log(`  failed     ${failures.length}  (${failures.filter((f) => f.kind === "error").length} refused by the second application)`);
 console.log(`  report:    ${path.relative(ROOT, REPORT_PATH)}`);
 
 if (UPDATE_BASELINE) {
@@ -209,6 +236,10 @@ if (regressions.length) {
     `\n[fmt-idempotency] ❌ ${regressions.length} NEW non-converging components (not in baseline); first ${Math.min(MAX_PRINT, regressions.length)}:`,
   );
   for (const f of regressions.slice(0, MAX_PRINT)) {
+    if (f.kind === "error") {
+      console.log(`  - ${f.id} [error] ${f.detail.actual}`);
+      continue;
+    }
     console.log(`  - ${f.id} [${f.kind}] line ${f.detail?.line ?? ""} (${f.lineDelta >= 0 ? "+" : ""}${f.lineDelta ?? "?"} lines)`);
     if (f.detail?.expected !== undefined) console.log(`      once:  ${f.detail.expected}`);
     if (f.detail?.actual !== undefined) console.log(`      twice: ${f.detail.actual}`);
