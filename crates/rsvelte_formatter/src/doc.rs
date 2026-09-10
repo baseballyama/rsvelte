@@ -360,9 +360,15 @@ fn consumed_to_break(
             // overflow. (`fits` measures the rest with the modes the commands
             // were pushed in; the value's interpolation groups sit in `Break`
             // mode when the attribute's open tag has wrapped.)
-            Doc::RawExpr { flat, broken, .. } => {
+            Doc::RawExpr { flat, broken, src } => {
                 if mode == Mode::Break && broken.len() > 1 {
-                    let head = &broken[0];
+                    // With a source the head is the expression's first break
+                    // opportunity, as prettier charges it; `broken[0]` is the
+                    // outermost group's head, which can run past that.
+                    let head = src
+                        .as_deref()
+                        .and_then(crate::expression::raw_expr::first_break_head)
+                        .unwrap_or_else(|| broken[0].clone());
                     if !head.is_empty() {
                         if has_pending_space {
                             remaining -= 1;
