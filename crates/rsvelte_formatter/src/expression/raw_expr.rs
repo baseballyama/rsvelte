@@ -52,3 +52,14 @@ pub(crate) fn broken_lines_at(
     lines[last] = format!("{}}}", lines[last]);
     Some(lines)
 }
+
+/// What a breakable `RawExpr` costs a measurement that runs past it in break
+/// mode: `{prefix` and the expression up to its first line-break opportunity —
+/// prettier's `fits` stops at the first `line` of a group it reads in break
+/// mode, wherever that group sits in the expression — which is the first line
+/// of the expression formatted one column wide. `None` when it cannot break.
+pub(crate) fn first_break_head(src: &RawExprSource) -> Option<String> {
+    let narrowest = reformat_content_at_width(&src.expr, &src.options, 1, 0).ok()?;
+    let head = narrowest.split_once('\n')?.0;
+    Some(format!("{{{}{}", src.prefix, head.trim_end()))
+}
