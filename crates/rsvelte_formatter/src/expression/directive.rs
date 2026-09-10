@@ -3,7 +3,10 @@ use oxc_span::SourceType;
 use rsvelte_core::ast::js::Expression;
 
 use super::splice::split_leading_line_comments;
-use super::{format_attribute_value_expression, formatter_parse_options};
+use super::{
+    format_attribute_value_expression, format_attribute_value_expression_offset,
+    formatter_parse_options,
+};
 use crate::error::FormatError;
 use crate::options::FormatOptions;
 use crate::width::{VisualWidth, tab_width};
@@ -40,6 +43,33 @@ pub fn format_directive_value_extra(
     attr_depth: usize,
     extra: usize,
 ) -> Result<Option<String>, FormatError> {
+    format_directive_value_with(source, expr, value_end, |inner| {
+        format_attribute_value_expression(inner, options, attr_depth, extra)
+    })
+}
+
+/// [`format_directive_value`] with the value's first line starting
+/// `first_line_offset` columns after the attribute indent (see
+/// [`format_attribute_value_expression_offset`]).
+pub fn format_directive_value_offset(
+    source: &str,
+    expr: &Expression,
+    value_end: u32,
+    options: &FormatOptions,
+    attr_depth: usize,
+    first_line_offset: usize,
+) -> Result<Option<String>, FormatError> {
+    format_directive_value_with(source, expr, value_end, |inner| {
+        format_attribute_value_expression_offset(inner, options, attr_depth, first_line_offset)
+    })
+}
+
+fn format_directive_value_with(
+    source: &str,
+    expr: &Expression,
+    value_end: u32,
+    format: impl Fn(&str) -> Result<String, FormatError>,
+) -> Result<Option<String>, FormatError> {
     let Some(inner) = directive_brace_inner(source, expr, value_end) else {
         return Ok(None);
     };
@@ -65,12 +95,10 @@ pub fn format_directive_value_extra(
         if rest.is_empty() {
             return Ok(Some(leading_comments.trim_end_matches('\n').to_string()));
         }
-        let formatted_rest = format_attribute_value_expression(rest, options, attr_depth, extra)?;
+        let formatted_rest = format(rest)?;
         return Ok(Some(format!("{leading_comments}{formatted_rest}")));
     }
-    Ok(Some(format_attribute_value_expression(
-        inner, options, attr_depth, extra,
-    )?))
+    Ok(Some(format(inner)?))
 }
 
 /// Locate a directive value's `{ … }` braces and return the raw inner source.

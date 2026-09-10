@@ -18,13 +18,14 @@ pub(crate) use await_block::plan as plan_await_block;
 pub use collect::collect_template_edits;
 pub use declaration::format_pattern_source;
 pub use directive::{
-    format_directive_value, format_directive_value_extra, format_function_binding,
+    format_directive_value, format_directive_value_offset, format_function_binding,
 };
 pub use format_core::clear_expr_memo;
 pub use text::expand_obj_arg_call;
 pub use width::{
     format_attribute_value_expression, format_attribute_value_expression_at_width,
-    format_attribute_value_expression_flat, format_expression_source, reformat_content_at_width,
+    format_attribute_value_expression_flat, format_attribute_value_expression_offset,
+    format_expression_source, reformat_content_at_width,
 };
 
 fn formatter_parse_options() -> OxcParseOptions {

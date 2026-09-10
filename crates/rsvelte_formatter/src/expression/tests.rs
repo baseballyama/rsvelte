@@ -1,5 +1,5 @@
 use super::call_args::{expand_grouped_call_parens, grouped_call_expansion};
-use super::format_core::{has_leading_await, trivial_expr_verbatim};
+use super::format_core::{format_expr_core_offset, has_leading_await, trivial_expr_verbatim};
 use super::text::{
     collapse_block_header_expanded_call, collapse_expanded_arg_form, expand_obj_arg_call,
     outer_parens_match, strip_leading_paren_pair, strip_outer_parens,
@@ -466,4 +466,29 @@ fn grouped_call_expansion_counts_two_columns_per_call() {
     assert_eq!(expansion("mk({})"), 0);
     // Unparsable source must not be guessed at.
     assert_eq!(expansion("mk({ a: 1 }"), 0);
+}
+
+/// The offset is charged to the first line alone, so the continuation keeps
+/// the full width; below the placeholder's minimum it is charged by narrowing
+/// and reaches the continuation too. Expected forms are oxfmt's own.
+#[test]
+fn first_line_offset_is_charged_to_the_first_line_only() {
+    let opts = FormatOptions::default();
+    let src = "selected_category && selected_category.id === category.id";
+    let at = |width: u16, offset: usize| {
+        format_expr_core_offset(src, &opts, lw(width), false, offset).unwrap()
+    };
+    assert_eq!(at(62, 0), src);
+    assert_eq!(
+        at(62, 24),
+        "selected_category &&\n  selected_category.id === category.id"
+    );
+    assert!(
+        !at(62, 24).contains("/*"),
+        "placeholder leaked into the output"
+    );
+    assert_eq!(
+        at(41, 3),
+        "selected_category &&\n  selected_category.id ===\n    category.id"
+    );
 }
