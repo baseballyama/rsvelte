@@ -60,15 +60,11 @@ fn code(
     .map(|result| result.js.code)
 }
 
-/// The units that depend on the flag today, as a two-sided pin: #4570. Two of
-/// the three are **semantic** — `p(p(p().c++, true), true)` writes the setter's
-/// return value back through the setter — so this is a shrink-only list and not
-/// a tolerance.
-const KNOWN: [&str; 3] = [
-    "issues/3048-bindable-member-update.svelte (Client)",
-    "issues/4046-dev-event-handler-comment.svelte (Client)",
-    "issues/prop-shadowed-by-local-in-template-handler.svelte (Client)",
-];
+/// The units that depend on the flag today, as a two-sided pin: #4570. The two
+/// semantic ones are gone — the prop read on a member root no longer asks about
+/// the span wrapper — and what is left is comment placement, a different
+/// mechanism in the same issue.
+const KNOWN: [&str; 1] = ["issues/4046-dev-event-handler-comment.svelte (Client)"];
 
 #[test]
 fn the_generated_code_is_identical_with_and_without_source_maps() {
