@@ -751,17 +751,23 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                         expression: context.arena.alloc_expr(converted),
                     });
                 }
-                let is_spanned_identifier = matches!(
-                    &converted,
-                    JsExpr::Spanned(inner, _, _)
-                        if matches!(context.arena.get_expr(*inner), JsExpr::Identifier(_))
-                );
+                // Whether the wrapper is there is a source-map question — it is
+                // built only under `enable_sourcemap` — and the read below is
+                // not, so this asks about the identifier and not the wrapper
+                // (#4570).
+                let is_identifier_root = match &converted {
+                    JsExpr::Identifier(_) => true,
+                    JsExpr::Spanned(inner, _, _) => {
+                        matches!(context.arena.get_expr(*inner), JsExpr::Identifier(_))
+                    }
+                    _ => false,
+                };
                 // `get_binding` resolves by name from the root scope, so a
                 // parameter shadowing a prop still answers with the prop's
                 // binding — the identifier arm and the rest-prop branch above
                 // both consult `shadowed_prop_names` for exactly that reason,
                 // and an each key function's parameter is the case that needs it.
-                if is_spanned_identifier
+                if is_identifier_root
                     && let Some(name) = get_jsnode_identifier_name(object_node)
                     && !context.state.shadowed_prop_names.contains(name.as_str())
                     && let Some(binding) = context.state.get_binding(&name)
