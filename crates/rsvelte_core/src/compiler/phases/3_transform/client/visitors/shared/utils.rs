@@ -1161,6 +1161,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 params: arrow.params.clone(),
                 body: transformed_body,
                 is_async: arrow.is_async,
+                span: None,
             })
         }
 

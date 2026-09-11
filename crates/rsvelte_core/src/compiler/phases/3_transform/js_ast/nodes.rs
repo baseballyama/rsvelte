@@ -634,6 +634,10 @@ pub struct JsArrowFunction {
     pub params: SmallVec<[JsPattern; 3]>,
     pub body: JsArrowBody,
     pub is_async: bool,
+    /// The source span of the arrow this was converted from, when there is one.
+    /// Unconditional: esrap decides where a pending comment flushes from the
+    /// printed node's span, so this may not depend on `enable_sourcemap`.
+    pub span: Option<(u32, u32)>,
 }
 
 /// Arrow function body.

@@ -82,6 +82,7 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
                 body_block,
             ),
             is_async: false,
+            span: None,
         },
     );
 

@@ -356,6 +356,7 @@ pub fn arrow(arena: &JsArena, params: Vec<JsPattern>, body: JsExpr) -> JsExpr {
         params: params.into(),
         body: JsArrowBody::Expression(arena.alloc_expr(body)),
         is_async: false,
+        span: None,
     })
 }
 
@@ -366,6 +367,7 @@ pub fn arrow_block(params: Vec<JsPattern>, body: Vec<JsStatement>) -> JsExpr {
         params: params.into(),
         body: JsArrowBody::Block(JsBlockStatement::with_body(body)),
         is_async: false,
+        span: None,
     })
 }
 
@@ -387,6 +389,7 @@ pub fn async_arrow(arena: &JsArena, params: Vec<JsPattern>, body: JsExpr) -> JsE
         params: params.into(),
         body: JsArrowBody::Expression(arena.alloc_expr(body)),
         is_async: true,
+        span: None,
     })
 }
 
@@ -396,6 +399,7 @@ pub fn async_arrow_block(params: Vec<JsPattern>, body: Vec<JsStatement>) -> JsEx
         params: params.into(),
         body: JsArrowBody::Block(JsBlockStatement::with_body(body)),
         is_async: true,
+        span: None,
     })
 }
 
