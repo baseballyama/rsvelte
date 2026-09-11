@@ -69,7 +69,7 @@ console.log(client.css); // scoped styles
 // Compile for SSR.
 const server = compile_server(source, 'App');
 
-// Parse to the Svelte AST (JSON string, same shape the official parser produces).
+// Parse to the Svelte AST (compact JSON, same shape the official parser produces).
 const ast = JSON.parse(parse_svelte(source).ast);
 
 console.log(version()); // the rsvelte compiler version

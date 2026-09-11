@@ -96,16 +96,14 @@ pub fn parse_svelte(source: &str) -> ParseResultWasm {
             // arena not set"), which surfaces in the browser as a WASM
             // "unreachable" trap.
             let ast_json = rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
-                // Spans are emitted as UTF-16 code-unit offsets to match
-                // svelte/compiler (#793). For ASCII source byte == UTF-16, so
-                // skip the remap entirely and keep the fast direct-string path.
+                // Compact JSON shares the serializer used by the compiler.
                 if source.is_ascii() {
-                    serde_json::to_string_pretty(&ast).unwrap_or_default()
+                    serde_json::to_string(&ast).unwrap_or_default()
                 } else {
                     let mut value = serde_json::to_value(&ast).unwrap_or(serde_json::Value::Null);
                     let conv = rsvelte_core::compiler::legacy::Utf8ToUtf16::new(source);
                     rsvelte_core::compiler::legacy::convert_positions_to_utf16(&mut value, &conv);
-                    serde_json::to_string_pretty(&value).unwrap_or_default()
+                    serde_json::to_string(&value).unwrap_or_default()
                 }
             });
             ParseResultWasm {

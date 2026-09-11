@@ -3,7 +3,7 @@
 
 import { readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { compile as officialCompile, compileModule as officialCompileModule } from '../../submodules/svelte/packages/svelte/src/compiler/index.js';
+import { compile as officialCompile, compileModule as officialCompileModule, parse as officialParse } from '../../submodules/svelte/packages/svelte/src/compiler/index.js';
 
 const jsUrl = new URL('../../pkg/rsvelte_compiler.js', import.meta.url).href;
 const wasmPath = fileURLToPath(new URL('../../pkg/rsvelte_compiler_bg.wasm', import.meta.url));
@@ -182,6 +182,38 @@ assert('non-string filename rejected', thrownBy(() => officialCompileModule(modu
 for (const source of ['let = ;', 'let n: number = 0;']) {
 	assert(`invalid module rejected: ${source}`, thrownBy(() => officialCompileModule(source, { filename: 'state.svelte.ts' })) !== null &&
 		thrownBy(() => compiler.compileModule(source, { filename: 'state.svelte.ts' })) !== null);
+}
+
+for (const [label, entry] of [['compiler', compiler], ['playground', playground]]) {
+	for (const source of [
+		'<h1>{name}</h1>',
+		'<h1>こんにちは 😀</h1>',
+		'<script lang="ts">let n: number = 1;</script><p>{n}</p>',
+		'<!-- hi --><div class="x">ok</div>',
+		'\ufeff<h1>こんにちは 😀</h1>',
+	]) {
+		const parsed = entry.parse_svelte(source);
+		try {
+			const expected = JSON.stringify(officialParse(source, { modern: true }));
+			assert(`${label} compact parse matches official: ${JSON.stringify(source)}`,
+				parsed.success && parsed.ast === expected, parsed.error);
+		} finally {
+			parsed.free();
+		}
+	}
+	const invalid = entry.parse_svelte('<script>let = ;</script>');
+	try {
+		assert(`${label} parse rejects invalid input`, !invalid.success && Boolean(invalid.error));
+	} finally {
+		invalid.free();
+	}
+	const recovered = entry.parse_svelte('<p>recovered</p>');
+	try {
+		assert(`${label} parse recovers after invalid input`, recovered.success &&
+			recovered.ast === JSON.stringify(officialParse('<p>recovered</p>', { modern: true })));
+	} finally {
+		recovered.free();
+	}
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
