@@ -1,5 +1,9 @@
 # @rsvelte/language-server-win32-x64-msvc
 
+## 0.7.8
+
+No changes in this release.
+
 ## 0.7.7
 
 No changes in this release.
