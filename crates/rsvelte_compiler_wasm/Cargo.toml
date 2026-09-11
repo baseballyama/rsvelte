@@ -21,4 +21,4 @@ rsvelte_compiler_wasm_bindings = { path = "../rsvelte_compiler_wasm_bindings" }
 workspace = true
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = ['-Oz', '--enable-reference-types']
+wasm-opt = ['-Oz', '--converge', '--enable-reference-types']
