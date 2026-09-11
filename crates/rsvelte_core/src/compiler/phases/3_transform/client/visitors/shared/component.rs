@@ -3503,15 +3503,18 @@ fn build_component_meta_stmt(
     let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
         crate::compiler::phases::phase3_transform::profile::TF_BC_META,
     );
-    if !dev {
-        return b::stmt(arena, expression);
-    }
-
     let (start, tag_name) = match node {
         ComponentNode::Component(comp) => (comp.start, comp.name.to_string()),
         ComponentNode::SvelteComponent(comp) => (comp.start, "svelte:component".to_string()),
         ComponentNode::SvelteSelf(comp) => (comp.start, "svelte:self".to_string()),
     };
+
+    if !dev {
+        // Upstream anchors the component call on the tag's own source position,
+        // which is where esrap flushes a comment the instance script left
+        // pending — without it the flush falls to the end of the body (#4529).
+        return b::stmt_anchored(arena, expression, Some(start));
+    }
 
     let (line, col) =
         crate::compiler::phases::phase3_transform::utils::locate_in_source(source, start as usize);
