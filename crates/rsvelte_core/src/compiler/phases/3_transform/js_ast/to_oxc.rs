@@ -960,11 +960,14 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     fn stmt(&self, stmt: &JsStatement) -> Option<Statement<'a>> {
         match stmt {
             JsStatement::Expression(e) => {
+                // The chunk's anchor is claimed in **print** order, and the
+                // statement prints before anything inside it — so this runs
+                // before the expression is converted, or a source arrow in
+                // argument position would take the anchor the statement wants.
+                let span = self.comment_anchor(e.comment_anchor);
                 let expr = self.expr_id(e.expression)?;
                 Some(Statement::ExpressionStatement(ExpressionStatement::boxed(
-                    self.comment_anchor(e.comment_anchor),
-                    expr,
-                    &self.ab,
+                    span, expr, &self.ab,
                 )))
             }
             JsStatement::Return(r) => {
@@ -2869,9 +2872,14 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             }
         };
 
+        // A source arrow in argument position is where esrap flushes a comment
+        // the preceding chunk left pending, when no enclosing statement claimed
+        // the chunk's anchor first (#4481).
+        let span = self.comment_anchor(arrow.span.map(|(start, _)| start));
+
         Some(Expression::ArrowFunctionExpression(
             ArrowFunctionExpression::boxed(
-                SPAN,
+                span,
                 arrow.is_async,
                 None,
                 ArenaBox::new_in(params, &self.ab),

@@ -997,6 +997,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 params: conv_params.into(),
                 body: conv_body,
                 is_async: *is_async,
+                span: match (node.start(), node.end()) {
+                    (Some(start), Some(end)) if start < end => Some((start, end)),
+                    _ => None,
+                },
             })
         }
 
@@ -2779,6 +2783,7 @@ fn transform_rune_call(
                     params: vec![].into(),
                     body: JsArrowBody::Expression(context.arena.alloc_expr(converted)),
                     is_async: false,
+                    span: None,
                 });
 
                 JsExpr::Call(JsCallExpression {
@@ -2881,6 +2886,7 @@ fn transform_rune_call(
                 params: vec![].into(),
                 body: JsArrowBody::Expression(context.arena.alloc_expr(args_array)),
                 is_async: false,
+                span: None,
             });
 
             // Build: (...$$args) => inspector(...$$args)
@@ -2898,6 +2904,7 @@ fn transform_rune_call(
                 )))],
                 body: JsArrowBody::Expression(context.arena.alloc_expr(inspector_call)),
                 is_async: false,
+                span: None,
             });
 
             // Build: $.inspect(args_thunk, fn_wrapper, true)
@@ -3462,6 +3469,7 @@ fn convert_arrow_function(
         params: params.into(),
         body,
         is_async,
+        span: None,
     })
 }
 
