@@ -75,3 +75,18 @@ fn a_script_with_no_comment_is_unchanged() {
         "{out}"
     );
 }
+
+/// The negative that decides the anchor's scope: a **dynamic** component is
+/// lowered to `$.component(node, () => C, …)`, and upstream gives that statement
+/// no source position at all — it flushes the comment into the thunk's own
+/// parameter list instead. Anchoring the wrapper here matched the reported shape
+/// and moved this cell off official, so the anchor is on the static call only.
+#[test]
+fn the_dynamic_component_wrapper_claims_no_anchor() {
+    let out = client(
+        "<script>\n\timport X from \"x\";\n\tconst C = X;\n\t// c\n</script>\n<svelte:component this={C} />\n",
+    );
+    assert!(!out.contains("COMPILE_ERROR"), "{out}");
+    assert!(out.contains("\t\t(// c\n\t\t) => C,"), "{out}");
+    assert!(!out.contains("\t// c\n\t$.component("), "{out}");
+}

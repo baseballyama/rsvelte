@@ -586,6 +586,7 @@ pub fn build_component(
                 &context.state.analysis.name,
                 context.state.dev,
                 &context.state.analysis.source,
+                false,
             );
             statements.push(meta_stmt);
         }
@@ -629,6 +630,7 @@ pub fn build_component(
                 &context.state.analysis.name,
                 context.state.dev,
                 &context.state.analysis.source,
+                true,
             );
             statements.push(meta_stmt);
         }
@@ -3499,6 +3501,7 @@ fn build_component_meta_stmt(
     analysis_name: &str,
     dev: bool,
     source: &str,
+    anchor_comments: bool,
 ) -> JsStatement {
     let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
         crate::compiler::phases::phase3_transform::profile::TF_BC_META,
@@ -3510,10 +3513,12 @@ fn build_component_meta_stmt(
     };
 
     if !dev {
-        // Upstream anchors the component call on the tag's own source position,
-        // which is where esrap flushes a comment the instance script left
-        // pending — without it the flush falls to the end of the body (#4529).
-        return b::stmt_anchored(arena, expression, Some(start));
+        // Upstream anchors the *static* component call on the tag's own source
+        // position, which is where esrap flushes a comment the instance script
+        // left pending — without it the flush falls to the end of the body
+        // (#4529). The `$.component` wrapper carries no such position upstream,
+        // so it must not claim one here.
+        return b::stmt_anchored(arena, expression, anchor_comments.then_some(start));
     }
 
     let (line, col) =

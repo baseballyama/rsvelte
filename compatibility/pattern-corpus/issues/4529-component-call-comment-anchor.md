@@ -10,6 +10,10 @@ end of the function body — past every statement the template lowered to, which
 one-component cell cannot distinguish from "after the call". Upstream anchors the
 call on the tag's own `start`.
 
+A **dynamic** component (`$.component(node, () => C, …)`) carries no such
+position upstream — the comment flushes into the thunk's parameter list — so the
+anchor is on the static call only.
+
 The dev target is a different writer and still diverges: `add_svelte_meta` wraps
 the call in an arrow, and upstream flushes the comment *inside* the arrow
 (`() => // c` then the call), which a statement-level anchor cannot express.
