@@ -113,6 +113,8 @@ pub struct Printer<'opt, const HAS_COMMENTS: bool = true, const DIRECT: bool = f
     /// resolved against. Same as `line_starts` unless the caller split the two
     /// coordinate spaces (see [`crate::print_split`]).
     map_line_starts: Option<Vec<u32>>,
+    /// Length of the text source-map positions resolve against, when known.
+    map_source_len: Option<u32>,
     /// Spans below this offset are synthesized and carry no source location, so
     /// they take no part in comment placement — the Rust equivalent of esrap's
     /// `if (node.loc)` guards. `None` = every span is a real location.
@@ -738,6 +740,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             comment_source: None,
             placement_source: None,
             map_line_starts: None,
+            map_source_len: None,
             loc_base: None,
             loc_map: Vec::new(),
             brace_mappings: Vec::new(),
@@ -762,6 +765,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             borrowed_comments: None,
             comment_index: 0,
             map_line_starts: None,
+            map_source_len: None,
             line_starts,
             comment_source: None,
             placement_source: None,
@@ -772,6 +776,15 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             written: Vec::new(),
             map_nodes: true,
         }
+    }
+
+    /// The length of the text source-map positions index. An offset past it is
+    /// a chunk coordinate that `RestoreRawMappedSpans` could not translate, not
+    /// a source position, and emitting it produces a segment pointing past the
+    /// end of a source line (#4466).
+    pub(crate) const fn with_map_source_len(mut self, len: u32) -> Self {
+        self.map_source_len = Some(len);
+        self
     }
 
     /// Decide comment placement by reading `source`, not by comparing lines in
@@ -927,6 +940,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 None => offset,
             }
         };
+        if self.map_source_len.is_some_and(|len| offset > len) {
+            return None;
+        }
         let line = usize_to_u32(map_line_starts.partition_point(|&s| s <= offset));
         // `line` is 1-based; its start offset lives at index `line - 1`.
         let line_start = map_line_starts[(line - 1) as usize];
