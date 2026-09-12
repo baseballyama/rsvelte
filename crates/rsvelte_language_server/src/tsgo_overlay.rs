@@ -29,6 +29,9 @@ const SHADOW_DIRECTORY: &str = "svelte";
 const OVERLAY_TSCONFIG: &str = "tsconfig.json";
 pub(crate) const IGNORE_START: &str = "/*Ωignore_startΩ*/";
 pub(crate) const IGNORE_END: &str = "/*Ωignore_endΩ*/";
+/// `svelte2tsx/src/utils/ignore.ts:4`. rsvelte emits this inline rather than
+/// through a constant, so this is the first place it is named.
+pub(crate) const IGNORE_POSITION: &str = "/*Ωignore_positionΩ*/";
 
 /// One virtual document to open or update in the tsgo child.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -889,6 +892,21 @@ impl TsgoOverlay {
             return false;
         };
         utf8_offset(&entry.document.text, position) == offset
+    }
+
+    /// The generated shadow's text, for the filters that scan or parse it.
+    #[must_use]
+    pub fn shadow_text(&self, shadow_path: &Path) -> Option<&str> {
+        let source_path = self.source_for_shadow(shadow_path)?;
+        Some(self.entries.get(source_path)?.document.text.as_str())
+    }
+
+    /// A shadow position as a byte offset into that text.
+    #[must_use]
+    pub fn shadow_offset(&self, shadow_path: &Path, position: Position) -> Option<usize> {
+        let source_path = self.source_for_shadow(shadow_path)?;
+        let entry = self.entries.get(source_path)?;
+        Some(utf8_offset(&entry.document.text, position))
     }
 
     /// Whether any byte of a tsgo range intersects generated-code markers.
@@ -1868,21 +1886,6 @@ fn ignored_ranges(text: &str) -> Vec<std::ops::Range<usize>> {
     ranges
 }
 
-/// Upstream finds this by walking the generated file's top-level statements
-/// for `$$render` and taking its close paren's end; the header is emitted with
-/// a fixed shape on both paths in `create_render_function.rs`, so the same
-/// position is a fixed offset from it.
-fn render_return_type_offset(text: &str) -> Option<usize> {
-    const HEADER: &str = ";function $$render() {";
-    let at = text.find(HEADER)?;
-    // A hoisted props type is user text spliced in above the header, so the
-    // needle is forgeable; decline rather than filter at a user-text offset.
-    if text[at + HEADER.len()..].contains(HEADER) {
-        return None;
-    }
-    Some(at + HEADER.len() - " {".len())
-}
-
 /// JS `lastIndexOf`/`indexOf` return `-1` when absent and upstream compares those
 /// sentinels directly (`lastEnd === nextEnd`), so the port keeps them as `i64`.
 fn occurrences<'a>(text: &'a str, needle: &'a str) -> impl Iterator<Item = usize> + 'a {
@@ -1916,6 +1919,21 @@ pub(crate) fn is_in_generated_code(text: &str, start: usize, end: usize) -> bool
     let last_end = last_index_of(text, IGNORE_END, start);
     let next_end = index_of(text, IGNORE_END, end);
     (last_start > last_end || last_end == next_end) && last_start < next_end
+}
+
+/// Upstream finds this by walking the generated file's top-level statements
+/// for `$$render` and taking its close paren's end; the header is emitted with
+/// a fixed shape on both paths in `create_render_function.rs`, so the same
+/// position is a fixed offset from it.
+fn render_return_type_offset(text: &str) -> Option<usize> {
+    const HEADER: &str = ";function $$render() {";
+    let at = text.find(HEADER)?;
+    // A hoisted props type is user text spliced in above the header, so the
+    // needle is forgeable; decline rather than filter at a user-text offset.
+    if text[at + HEADER.len()..].contains(HEADER) {
+        return None;
+    }
+    Some(at + HEADER.len() - " {".len())
 }
 
 fn ordered_range(start: Position, end: Position) -> Range {

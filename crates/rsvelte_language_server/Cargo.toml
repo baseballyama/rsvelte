@@ -28,6 +28,11 @@ serde_json = "1.0"
 sourcemap = "9.0"
 regex = "1.11"
 oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "0389c4010ef8298728f3e47fff8e2a9106d10045" }
+oxc_allocator = "0.146"
+oxc_ast = "0.146"
+oxc_ast_visit = "0.146"
+oxc_parser = "0.146"
+oxc_span = "0.146"
 
 [dev-dependencies]
 # Rust's `regex` rejects JS-style escapes inside a character class, which the
