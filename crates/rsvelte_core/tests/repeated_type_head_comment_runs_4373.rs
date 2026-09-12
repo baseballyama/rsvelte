@@ -120,9 +120,10 @@ let { a }: {
 <i>{a}</i>
 ";
 
-/// A declarator with NO initializer: upstream floats the comment to the next
-/// located node and rsvelte drops it (#4396), so nothing here reaches the
-/// repeat at all.
+/// A declarator with NO initializer: its declaration ends at the identifier,
+/// so upstream flushes the head's comments at the NEXT located node instead of
+/// at an initializer. rsvelte floats them the same way (#4396), and the run is
+/// repeated there exactly as it is on an initialized host.
 const UNINITIALIZED: &str = "<script lang=\"ts\">
 let v: {
   // c
@@ -213,6 +214,12 @@ fn cells() -> Vec<(&'static str, String, &'static str, &'static str)> {
             "c c",
             "c c",
         ),
+        (
+            "an inline head on an uninitialized declarator",
+            UNINITIALIZED.to_string(),
+            "c d c d",
+            "c d c d",
+        ),
     ]
 }
 
@@ -258,20 +265,4 @@ fn the_extractor_and_the_compile_are_live() {
         client.contains("export default function C("),
         "not a compiled component: {client}"
     );
-}
-
-/// The hosts where the repeat is right and something upstream of it is not.
-///
-/// These pin what rsvelte answers TODAY, which is not what the oracle answers,
-/// so that the residue is written down rather than merely unexamined. Each cell
-/// names the issue that owns it; when one is fixed this test fails and the row
-/// moves into the table above.
-#[test]
-fn the_blocked_hosts_are_pinned_rather_than_matched() {
-    // An annotation on an UNINITIALIZED declarator is dropped on both targets
-    // (#4396): upstream ends the declaration at the identifier and floats the
-    // comment to the next located node, which rsvelte has no channel for. The
-    // oracle prints `c d c d` on both.
-    assert_eq!(sequence(UNINITIALIZED, GenerateMode::Client), "");
-    assert_eq!(sequence(UNINITIALIZED, GenerateMode::Server), "");
 }
