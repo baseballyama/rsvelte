@@ -211,7 +211,7 @@ pub fn transform_server_module(
         }
     }
 
-    super::client::print_module_program(body, &header)
+    super::client::print_module_program(body, &header, source.len() as u32)
 }
 
 /// Safety cap on the fixed-point iteration for the server-module call rewrites
