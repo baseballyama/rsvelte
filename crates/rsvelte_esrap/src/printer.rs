@@ -908,6 +908,19 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     /// map segment wants. Formatting decisions must keep using
     /// [`Self::offset_to_line_col`], which cannot compare across the two spaces.
     fn map_position(&self, offset: u32) -> Option<(u32, u32)> {
+        self.map_position_inner(offset, false)
+    }
+
+    /// [`Self::map_position`] for a source-map **segment**, which is the only
+    /// consumer that must not name a position the source cannot hold. The
+    /// placement decisions that share this lookup compare offsets and have to
+    /// keep seeing the untranslated one, so the rejection cannot live in
+    /// `map_position` itself (#4466).
+    fn map_segment(&self, offset: u32) -> Option<(u32, u32)> {
+        self.map_position_inner(offset, true)
+    }
+
+    fn map_position_inner(&self, offset: u32, for_segment: bool) -> Option<(u32, u32)> {
         if offset == u32::MAX {
             return None;
         }
@@ -940,7 +953,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 None => offset,
             }
         };
-        if self.map_source_len.is_some_and(|len| offset > len) {
+        if for_segment && self.map_source_len.is_some_and(|len| offset > len) {
             return None;
         }
         let line = usize_to_u32(map_line_starts.partition_point(|&s| s <= offset));
@@ -954,7 +967,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     /// `end` as the token's final source-map position. Prefer the copied run
     /// ending at `offset` over a following range starting at the same boundary;
     /// this matches `RawMapped`'s fallback span restorer.
-    fn map_end_position(&self, offset: u32) -> Option<(u32, u32)> {
+    fn map_segment_end(&self, offset: u32) -> Option<(u32, u32)> {
         if !self.loc_map.is_empty() {
             let index = self.loc_map.partition_point(|range| range.end < offset);
             if let Some(range) = self.loc_map.get(index)
@@ -975,7 +988,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 }
             }
         }
-        self.map_position(offset)
+        self.map_segment(offset)
     }
 
     /// Source-map line and column of a source-space `offset`.
@@ -1009,7 +1022,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             ctx.write(suffix);
             return;
         }
-        if let Some((line, column)) = self.map_position(span.start) {
+        if let Some((line, column)) = self.map_segment(span.start) {
             ctx.location(line, column);
             ctx.write(keyword);
             ctx.location(line, column.saturating_add(usize_to_u32(keyword.len())));
@@ -1038,11 +1051,11 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             return;
         }
 
-        if let Some((line, column)) = self.map_position(span.start) {
+        if let Some((line, column)) = self.map_segment(span.start) {
             ctx.location(line, column);
         }
         ctx.write(content);
-        if let Some((line, column)) = self.map_end_position(span.end) {
+        if let Some((line, column)) = self.map_segment_end(span.end) {
             ctx.location(line, column);
         }
     }
@@ -1089,7 +1102,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         // has none, and rsvelte spells that as an empty or sentinel span.
         let located = !span.is_empty() && span.start != u32::MAX;
         let cursor = if map_ok && located && self.emit_locations {
-            self.map_position(span.start)
+            self.map_segment(span.start)
         } else {
             None
         };
@@ -2560,7 +2573,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         let start = node.span().start;
         let offset_ok = self.function_async_offset_ok(node);
         let gen_suffix = if node.generator { "* " } else { " " };
-        match self.map_position(start) {
+        match self.map_segment(start) {
             Some((line, column)) if node.r#async && offset_ok => {
                 Self::write_source_keyword(ctx, line, column, "async ");
                 let col2 = column + usize_to_u32("async ".len());
@@ -4132,7 +4145,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         // Builder-created calls carry `SPAN` (zero); a nonzero span is an
         // explicit source-backed call such as a lowered directive runtime call.
         if node.span.start != 0
-            && let Some((line, column)) = self.map_position(node.span.start)
+            && let Some((line, column)) = self.map_segment(node.span.start)
         {
             ctx.location(line, column);
         }
@@ -4156,7 +4169,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         }
         self.call_arguments(&node.arguments, node.span().end, comment_argument, ctx);
         if node.span.start != 0
-            && let Some((line, column)) = self.map_end_position(node.span.end)
+            && let Some((line, column)) = self.map_segment_end(node.span.end)
         {
             ctx.location(line, column);
         }
