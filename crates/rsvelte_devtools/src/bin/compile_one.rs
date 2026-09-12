@@ -76,7 +76,13 @@ fn main() {
             ..Default::default()
         },
     ) {
-        Ok(result) => print!("{}", result.js.code),
+        Ok(result) => {
+            if args.iter().any(|a| a == "--map") {
+                print!("{}", result.js.map.unwrap_or_default());
+            } else {
+                print!("{}", result.js.code);
+            }
+        }
         Err(err) => {
             eprintln!("{err:?}");
             std::process::exit(2);
