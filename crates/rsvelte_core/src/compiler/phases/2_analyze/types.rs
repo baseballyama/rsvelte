@@ -669,6 +669,7 @@ fn strip_typescript_from_program_impl(
     // projection-less one while the client reads the other.
     let repeat_regions = collect_speculative_type_head_regions(program);
     let declarator_annotations = collect_declarator_annotations(program);
+    let pattern_flushes = collect_pattern_annotation_flushes(program);
 
     // Text-based fallback: strip `declare global { ... }`, `declare module ... { ... }`,
     // and `declare namespace ... { ... }` blocks. These may not always be parsed as
@@ -758,6 +759,32 @@ fn strip_typescript_from_program_impl(
     // flushes them at (the initializer's start) to be reached by the copy below.
     let mut pending: Vec<(u32, u32, u32)> = Vec::new();
 
+    // A destructuring pattern's flush point is its closing bracket, which the
+    // copy below has already passed by the time it reaches the annotation — so
+    // these are seeded ahead of it rather than pushed from inside it.
+    for (remove_start, remove_end) in &merged {
+        let Some((_, flush_at)) = pattern_flushes
+            .iter()
+            .find(|(from, _)| from == remove_start)
+        else {
+            continue;
+        };
+        let start = *remove_start as usize;
+        let end = (*remove_end as usize).min(source.len());
+        if start >= end {
+            continue;
+        }
+        let removed = &source[start..end];
+        if !removed.contains("/*") && !removed.contains("//") {
+            continue;
+        }
+        for (comment_start, comment_end) in
+            plan_reemitted_comments(*remove_start, removed, &repeat_regions)
+        {
+            pending.push((*flush_at, comment_start, comment_end));
+        }
+    }
+
     for (remove_start, remove_end) in &merged {
         if *remove_start > pos {
             push_range_flushing_pending(
@@ -791,10 +818,14 @@ fn strip_typescript_from_program_impl(
                 .map(|(_, init_start)| *init_start);
             // `Some(None)` is an uninitialized declarator: upstream drops the
             // comment onto the next located node, so this one is not ours to print.
-            let flush_at = match declarator_annotation {
-                Some(None) => None,
-                Some(Some(init_start)) => Some(Some(init_start)),
-                None => Some(None),
+            let flush_at = if pattern_flushes.iter().any(|(from, _)| from == remove_start) {
+                None
+            } else {
+                match declarator_annotation {
+                    Some(None) => None,
+                    Some(Some(init_start)) => Some(Some(init_start)),
+                    None => Some(None),
+                }
             };
             if (removed.contains("/*") || removed.contains("//"))
                 && let Some(flush_at) = flush_at
@@ -945,9 +976,15 @@ fn push_range_flushing_pending(
         // separator is the text between the comment and the flush point — not
         // the shape of the erased annotation (#4397). A `//` comment would
         // swallow the rest of the line, so it always breaks.
-        let separator = if source
-            .get(comment_end as usize..flush_at as usize)
-            .is_none_or(|between| between.contains('\n'))
+        // A pattern's flush point sits BEHIND its annotation, so the gap is on
+        // the other side of the comment there; reading it in source order keeps
+        // one rule for both directions.
+        let between = if comment_end <= flush_at {
+            source.get(comment_end as usize..flush_at as usize)
+        } else {
+            source.get(flush_at as usize..comment_start as usize)
+        };
+        let separator = if between.is_none_or(|between| between.contains('\n'))
             || source[comment_start as usize..comment_end as usize].starts_with("//")
         {
             '\n'
@@ -1205,6 +1242,57 @@ struct SpeculativeTypeHeads<'r> {
 /// `None` is a declarator with no initializer at all, where upstream attaches
 /// the comment to the next located node instead and re-emitting it here would
 /// put it after the `;`.
+/// Where an erased annotation's comment goes when the binding it annotates is a
+/// destructuring pattern, keyed by the annotation's start.
+///
+/// acorn-typescript folds the annotation into the pattern node's own range, so
+/// esrap flushes the comment before it writes the pattern's closing bracket —
+/// a point that lies BEHIND the annotation in the source
+/// (`let { a /* c */ } = …`, not `let { a } = /* c */ …`). An identifier binding
+/// has no closing token of its own, so its comment waits for the next located
+/// node instead; [`collect_declarator_annotations`] owns that case.
+fn collect_pattern_annotation_flushes(program: &oxc_ast::ast::Program) -> Vec<(u32, u32)> {
+    use oxc_ast_visit::Visit;
+    use oxc_span::GetSpan;
+
+    fn closing_bracket(pattern: &oxc_ast::ast::BindingPattern) -> Option<u32> {
+        match pattern {
+            oxc_ast::ast::BindingPattern::ObjectPattern(_)
+            | oxc_ast::ast::BindingPattern::ArrayPattern(_) => {
+                Some(pattern.span().end.saturating_sub(1))
+            }
+            _ => None,
+        }
+    }
+
+    struct V<'r> {
+        spans: &'r mut Vec<(u32, u32)>,
+    }
+    impl<'a> oxc_ast_visit::Visit<'a> for V<'_> {
+        fn visit_variable_declarator(&mut self, it: &oxc_ast::ast::VariableDeclarator<'a>) {
+            if let Some(ann) = &it.type_annotation
+                && let Some(at) = closing_bracket(&it.id)
+            {
+                self.spans.push((ann.span.start, at));
+            }
+            oxc_ast_visit::walk::walk_variable_declarator(self, it);
+        }
+
+        fn visit_formal_parameter(&mut self, it: &oxc_ast::ast::FormalParameter<'a>) {
+            if let Some(ann) = &it.type_annotation
+                && let Some(at) = closing_bracket(&it.pattern)
+            {
+                self.spans.push((ann.span.start, at));
+            }
+            oxc_ast_visit::walk::walk_formal_parameter(self, it);
+        }
+    }
+
+    let mut spans = Vec::new();
+    V { spans: &mut spans }.visit_program(program);
+    spans
+}
+
 fn collect_declarator_annotations(program: &oxc_ast::ast::Program) -> Vec<(u32, Option<u32>)> {
     use oxc_ast_visit::Visit;
     use oxc_span::GetSpan;
