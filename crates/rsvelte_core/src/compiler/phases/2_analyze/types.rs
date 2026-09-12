@@ -669,6 +669,7 @@ fn strip_typescript_from_program_impl(
     // projection-less one while the client reads the other.
     let repeat_regions = collect_speculative_type_head_regions(program);
     let declarator_annotations = collect_declarator_annotations(program);
+    let uninit_float_targets = collect_uninit_annotation_float_targets(program);
 
     // Text-based fallback: strip `declare global { ... }`, `declare module ... { ... }`,
     // and `declare namespace ... { ... }` blocks. These may not always be parsed as
@@ -789,10 +790,18 @@ fn strip_typescript_from_program_impl(
                 .iter()
                 .find(|(from, _)| *from == *remove_start)
                 .map(|(_, init_start)| *init_start);
-            // `Some(None)` is an uninitialized declarator: upstream drops the
-            // comment onto the next located node, so this one is not ours to print.
+            // `Some(None)` is an uninitialized declarator: its declaration ends at
+            // the identifier, so upstream flushes the comment at the NEXT located
+            // node instead. Printing it here would put it after the `;`, where the
+            // client's legacy state lowering stops scanning (#4395). Float it to
+            // the following statement when there is one; when the declarator ends
+            // the list upstream carries it out of the script entirely, which no
+            // source-range rewrite can express, so that shape still drops (#4396).
             let flush_at = match declarator_annotation {
-                Some(None) => None,
+                Some(None) => uninit_float_targets
+                    .iter()
+                    .find(|(from, _)| *from == *remove_start)
+                    .map(|(_, at)| Some(*at)),
                 Some(Some(init_start)) => Some(Some(init_start)),
                 None => Some(None),
             };
@@ -1205,6 +1214,61 @@ struct SpeculativeTypeHeads<'r> {
 /// `None` is a declarator with no initializer at all, where upstream attaches
 /// the comment to the next located node instead and re-emitting it here would
 /// put it after the `;`.
+/// For each uninitialized declarator that carries a type annotation, the offset of
+/// the statement that follows its declaration in the same list — the next node
+/// upstream locates, and so where a comment left by the erased annotation is
+/// flushed. A declarator whose declaration ends its list has no such offset and is
+/// absent from the result.
+fn collect_uninit_annotation_float_targets(program: &oxc_ast::ast::Program) -> Vec<(u32, u32)> {
+    use oxc_ast_visit::Visit;
+    use oxc_span::GetSpan;
+    struct V<'r> {
+        targets: &'r mut Vec<(u32, u32)>,
+    }
+    impl<'r> V<'r> {
+        fn scan(&mut self, statements: &[oxc_ast::ast::Statement<'_>]) {
+            for (index, statement) in statements.iter().enumerate() {
+                let oxc_ast::ast::Statement::VariableDeclaration(declaration) = statement else {
+                    continue;
+                };
+                let Some(next) = statements.get(index + 1) else {
+                    continue;
+                };
+                let next_start = next.span().start;
+                for declarator in &declaration.declarations {
+                    if declarator.init.is_none()
+                        && let Some(annotation) = &declarator.type_annotation
+                    {
+                        self.targets.push((annotation.span.start, next_start));
+                    }
+                }
+            }
+        }
+    }
+    impl<'a> oxc_ast_visit::Visit<'a> for V<'_> {
+        fn visit_program(&mut self, it: &oxc_ast::ast::Program<'a>) {
+            self.scan(&it.body);
+            oxc_ast_visit::walk::walk_program(self, it);
+        }
+
+        fn visit_function_body(&mut self, it: &oxc_ast::ast::FunctionBody<'a>) {
+            self.scan(&it.statements);
+            oxc_ast_visit::walk::walk_function_body(self, it);
+        }
+
+        fn visit_block_statement(&mut self, it: &oxc_ast::ast::BlockStatement<'a>) {
+            self.scan(&it.body);
+            oxc_ast_visit::walk::walk_block_statement(self, it);
+        }
+    }
+    let mut targets = Vec::new();
+    V {
+        targets: &mut targets,
+    }
+    .visit_program(program);
+    targets
+}
+
 fn collect_declarator_annotations(program: &oxc_ast::ast::Program) -> Vec<(u32, Option<u32>)> {
     use oxc_ast_visit::Visit;
     use oxc_span::GetSpan;
