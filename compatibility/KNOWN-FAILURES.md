@@ -5458,7 +5458,7 @@ would mean the axis had silently stopped being exercised.
 
 ## LSP differential known failures
 
-`lsp-known-failures.json` contains 23728 entries. Fixture and upstream entries identify one normalized
+`lsp-known-failures.json` contains 23708 entries. Fixture and upstream entries identify one normalized
 structural field for which `rsvelte-language-server` differs from the pinned official
 `svelte-language-server`, or from an upstream expected snapshot. A mismatched scalar key includes
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
@@ -5506,13 +5506,13 @@ snapshot is `[]` counts as reproduced and one holding a real list does not. Thes
 when #4494 sends the `javascript` preferences; until then the unported generated-hint filters of
 #4464 are unmeasurable on those fixtures, because neither server emits a hint there to filter.
 
-Partition of `lsp-known-failures.json` by key kind: `21792 + 1612 + 324` — real-world corpus
+Partition of `lsp-known-failures.json` by key kind: `21792 + 1594 + 322` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
 against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
 `expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
 carrying a key outside its suite's prefix.
 
-Partition of `lsp-known-failures.json` by request phase: `11869 + 11859`
+Partition of `lsp-known-failures.json` by request phase: `11859 + 11849`
 
 Opened-document keys and post-`didChange` keys. The edit phase re-runs the same request set, so the
 two addends differ by exactly the session-level keys, which run once per session rather than once per
