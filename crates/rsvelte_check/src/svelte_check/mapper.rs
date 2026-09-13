@@ -59,7 +59,11 @@ impl EntryMap {
         // past the last generated line the map covers, so a diagnostic there
         // belongs to nobody and the lower-bound lookup otherwise pins it to the
         // end of the author's file (#4583).
-        if self.segments.last().is_some_and(|last| dst_line > last.dst_line) {
+        if self
+            .segments
+            .last()
+            .is_some_and(|last| dst_line > last.dst_line)
+        {
             return true;
         }
         let start = self
@@ -790,7 +794,10 @@ mod tests {
             })
             .collect();
         segments.sort_by_key(|s| (s.dst_line, s.dst_col));
-        let last_mapped = segments.last().expect("the overlay maps something").dst_line;
+        let last_mapped = segments
+            .last()
+            .expect("the overlay maps something")
+            .dst_line;
         let entry_map = EntryMap {
             svelte_source: PathBuf::from("Repro.svelte"),
             map,
