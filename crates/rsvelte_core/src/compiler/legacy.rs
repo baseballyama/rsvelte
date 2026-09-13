@@ -672,12 +672,24 @@ fn convert_css(css: &crate::ast::css::StyleSheet) -> Value {
 }
 
 fn convert_css_node(node: &mut Value) {
+    convert_css_node_inner(node, true);
+}
+
+/// Upstream's `ComplexSelector` visitor (`legacy.js:206`) calls `next()` for the
+/// metadata deletion and then rebuilds `children` from `node.children` — the
+/// nodes as they were *before* the walk rewrote them — so the rewrite of
+/// anything below a converted `ComplexSelector` is computed and discarded. The
+/// only way to be below one is through a `PseudoClassSelector`'s `args`, and
+/// upstream's legacy AST therefore keeps the modern `ComplexSelector` /
+/// `RelativeSelector` shape in there. `convert` carries that: `false` still
+/// strips metadata, because `next()` does reach these nodes.
+fn convert_css_node_inner(node: &mut Value, convert: bool) {
     if let Value::Object(map) = node {
         // Remove metadata
         map.remove("metadata");
 
         // Convert ComplexSelector to Selector
-        if map.field("type") == Some(&json!("ComplexSelector")) {
+        if convert && map.field("type") == Some(&json!("ComplexSelector")) {
             map.insert("type".to_string(), json!("Selector"));
 
             // Flatten children: extract combinator and selectors from each RelativeSelector
@@ -701,15 +713,28 @@ fn convert_css_node(node: &mut Value) {
                 }
                 map.insert("children".to_string(), Value::Array(new_children));
             }
+
+            for (_, v) in map.iter_mut() {
+                match v {
+                    Value::Object(_) => convert_css_node_inner(v, false),
+                    Value::Array(arr) => {
+                        for item in arr {
+                            convert_css_node_inner(item, false);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            return;
         }
 
         // Recursively process children
         for (_, v) in map.iter_mut() {
             match v {
-                Value::Object(_) => convert_css_node(v),
+                Value::Object(_) => convert_css_node_inner(v, convert),
                 Value::Array(arr) => {
                     for item in arr {
-                        convert_css_node(item);
+                        convert_css_node_inner(item, convert);
                     }
                 }
                 _ => {}
