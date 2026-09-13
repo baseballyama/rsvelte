@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { entries, isUnguardedCall, parseGrep } from './check-submodule-update-strategy.mjs';
+import { SELF, entries, isUnguardedCall, parseGrep } from './check-submodule-update-strategy.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -81,7 +81,12 @@ for (const [text, unguarded] of [
 	['git submodule update --checkout --init submodules/svelte', false],
 	// `--remote --merge` overrides the strategy the same way; it is not an init.
 	['git submodule update --remote --merge "$TARGET_PATH"', false],
-	// Prose about the flag, not a call.
+	// Prose about the flag, not a call. Backticks are not whitespace, so a
+	// `(^|\s)--checkout` rule read these as unguarded calls — which is what this
+	// guard's own comments tripped on before the scan reached them (they were
+	// still untracked, so `git grep` could not see them and the run was green).
+	['every `git submodule update --init` in the tree passes `--checkout`', false],
+	['Does this line invoke `git submodule update --init` without `--checkout`?', false],
 	['`--checkout` is required because every entry is `update = none`', false],
 ]) {
 	check(`${unguarded ? 'flagged' : 'accepted'}: ${text.slice(0, 56)}`, () => {
@@ -110,6 +115,28 @@ check('.gitmodules marks every entry', () => {
 		found.filter((e) => e.update !== 'none').map((e) => e.name),
 		[],
 	);
+});
+
+// The exclusion exists because these two files hold the command as data. It has
+// to stay exactly those two: a third entry would be a real call site silenced.
+check('only this guard and its controls are exempt from the scan', () => {
+	assert.deepEqual(SELF, [
+		'scripts/ci/check-submodule-update-strategy.mjs',
+		'scripts/ci/test-check-submodule-update-strategy.mjs',
+	]);
+});
+
+// Both exempt files must still be the kind of file the exemption claims: they
+// describe the command, they never run it.
+check('neither exempt file executes a submodule command', () => {
+	for (const file of SELF) {
+		const text = readFileSync(join(ROOT, file), 'utf8');
+		assert.equal(
+			/execFileSync\(\s*'git',\s*\[\s*'submodule'/.test(text),
+			false,
+			`${file} runs git submodule`,
+		);
+	}
 });
 
 check('ci.yml runs the guard and this control', () => {

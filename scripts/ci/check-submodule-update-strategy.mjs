@@ -45,12 +45,16 @@ export function entries(text) {
  * way `--checkout` does, but none of them appear with `--init` here; keeping
  * the rule to `--init` leaves a false positive fixable by joining the command
  * onto one line, which is the safe direction.
+ *
+ * `--checkout` is matched anywhere in the line, punctuation included: prose
+ * writes it as `` `--checkout` `` and a word-boundary-after-whitespace rule
+ * reads that as absent — which is how this very file first failed the check.
  */
 export function isUnguardedCall(text) {
 	return (
 		/git submodule update\b/.test(text) &&
-		/(^|\s)--init\b/.test(text) &&
-		!/(^|\s)--checkout\b/.test(text)
+		/(^|[\s`'"])--init\b/.test(text) &&
+		!/--checkout\b/.test(text)
 	);
 }
 
@@ -64,6 +68,16 @@ export function parseGrep(stdout) {
 	}
 	return out;
 }
+
+/**
+ * Files where the command appears as data rather than as an instruction, and
+ * so cannot carry the flag: this guard's own error strings and its controls'
+ * fixtures. Neither runs a submodule command. Everything else is in scope.
+ */
+export const SELF = [
+	'scripts/ci/check-submodule-update-strategy.mjs',
+	'scripts/ci/test-check-submodule-update-strategy.mjs',
+];
 
 /**
  * Every tracked line mentioning the command. `docs/archive/` is excluded: it is
@@ -133,7 +147,7 @@ function main() {
 		return 2;
 	}
 
-	const unguarded = sites.filter((s) => isUnguardedCall(s.text));
+	const unguarded = sites.filter((s) => !SELF.includes(s.file) && isUnguardedCall(s.text));
 	for (const s of unguarded) {
 		console.error(
 			`::error file=${s.file},line=${s.line}::\`git submodule update --init\` without ` +
@@ -143,10 +157,12 @@ function main() {
 		failed = true;
 	}
 
+	const scanned = sites.filter((s) => !SELF.includes(s.file));
 	console.log(
 		`.gitmodules: ${declared.length - missing.length}/${declared.length} entries are ` +
-			`\`update = none\`; call sites: ${sites.length - unguarded.length}/${sites.length} ` +
-			'pass `--checkout` or need none.',
+			`\`update = none\`; call sites: ${scanned.length - unguarded.length}/${scanned.length} ` +
+			`pass \`--checkout\` or need none (${sites.length - scanned.length} lines in ` +
+			'this guard and its controls quote the command as data).',
 	);
 	return failed ? 1 : 0;
 }
