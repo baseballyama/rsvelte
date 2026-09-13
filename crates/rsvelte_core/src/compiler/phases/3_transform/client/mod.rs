@@ -3395,6 +3395,11 @@ fn props_declaration_comments(raw: &str) -> Vec<(u32, CompactString)> {
 
 /// Shortest run a resync candidate must start to beat the nearest-byte rule.
 const MIN_RESYNC_RUN: usize = 4;
+/// Agreement a resync candidate beyond the near window must buy. The official
+/// `tests/sourcemaps` fixtures are the oracle this is read off: 5 and below
+/// reproduce 793 of their 808 segments, 6 through 12 reproduce all 808, and 16
+/// and above lose 2 again by refusing a wide candidate that was right.
+const WIDE_RESYNC_RUN: usize = 6;
 /// Longest run compared when scoring a resync candidate — a cap, so scoring the
 /// window stays linear in the window rather than in the rest of the script.
 const MAX_RESYNC_RUN: usize = 64;
@@ -3722,10 +3727,11 @@ fn copied_spans_for_normalized_code(
         if common_run(&code_tail[skip_output..], &input_tail[skip_input..]) < MIN_RESYNC_RUN {
             let mut best: Option<(usize, usize, usize)> = None;
             let consider = |best: &mut Option<(usize, usize, usize)>,
+                            min_run: usize,
                             run: usize,
                             skip_input: usize,
                             skip_output: usize| {
-                if run >= MIN_RESYNC_RUN
+                if run >= min_run
                     && best.is_none_or(|(best_run, input, output)| {
                         let skipped = skip_input + skip_output;
                         skipped < input + output || (skipped == input + output && run > best_run)
@@ -3734,20 +3740,22 @@ fn copied_spans_for_normalized_code(
                     *best = Some((run, skip_input, skip_output));
                 }
             };
-            // Widen only when the near window yields nothing: the first byte of a
-            // fragment can sit further from `input` than a token's worth of skew,
-            // and accepting the weak anchor instead binds it to an unrelated
-            // occurrence of the same byte.
-            let windows: &[usize] = if spans.is_empty() && output == 0 {
-                &[NEAR_RESYNC_WINDOW, RESYNC_WINDOW]
-            } else {
-                &[NEAR_RESYNC_WINDOW]
-            };
-            for &window in windows {
+            // Widen whenever the near window yields nothing, because the
+            // fallback below is the weak anchor itself: a dropped `import` is
+            // longer than the near window, so `const` bound to the `c` of
+            // `'../../_data/points.csv'` (#4454). A wrong wide jump skips a
+            // whole statement where the weak anchor costs one byte, so the wide
+            // pass asks for more than a token's worth of agreement first.
+            let windows: &[(usize, usize)] = &[
+                (NEAR_RESYNC_WINDOW, MIN_RESYNC_RUN),
+                (RESYNC_WINDOW, WIDE_RESYNC_RUN),
+            ];
+            for &(window, min_run) in windows {
                 let near_input = &input_tail[..input_tail.len().min(window)];
                 for skip in memchr::memchr_iter(output_byte, near_input) {
                     consider(
                         &mut best,
+                        min_run,
                         common_run(code_tail, &input_tail[skip..]),
                         skip,
                         0,
@@ -3757,6 +3765,7 @@ fn copied_spans_for_normalized_code(
                 for skip in memchr::memchr_iter(input_byte, near_output) {
                     consider(
                         &mut best,
+                        min_run,
                         common_run(&code_tail[skip..], input_tail),
                         0,
                         skip,
@@ -3783,6 +3792,7 @@ fn copied_spans_for_normalized_code(
                         }
                         consider(
                             &mut best,
+                            MIN_RESYNC_RUN,
                             common_run(&code_tail[skip_output..], &input_tail[skip_input..]),
                             skip_input,
                             skip_output,
