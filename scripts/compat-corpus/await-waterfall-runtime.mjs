@@ -42,7 +42,7 @@ function bail(message, ...hints) {
 }
 
 if (!fs.existsSync(path.join(SVELTE_PKG, 'src/compiler/index.js'))) {
-	bail('official compiler missing', 'fix: git submodule update --init --depth 1 submodules/svelte');
+	bail('official compiler missing', 'fix: git submodule update --init --checkout --depth 1 submodules/svelte');
 }
 if (!fs.existsSync(BINDING)) {
 	bail(

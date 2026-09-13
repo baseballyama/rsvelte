@@ -20,7 +20,7 @@
 // falling back to layer 1 alone — a text-pin match is not evidence the lock
 // resolves, and reporting it as a pass previously let a 15-entry oxc-rev
 // drift through undetected on every machine that hadn't run
-// `git submodule update --init submodules/corsa-bind`. If resolution still
+// `git submodule update --init --checkout submodules/corsa-bind`. If resolution still
 // cannot happen (no network, no cargo), that is reported as a distinct,
 // non-passing outcome — never printed or exit-coded like a real pass — unless
 // the caller opted in with `--allow-unresolved`. `version-packages` instead
@@ -44,7 +44,7 @@ const fix = argv.has('--fix');
 // no-op: resolution is attempted by default via the self-init below.
 const allowUnresolved = argv.has('--allow-unresolved');
 
-const SUBMODULE_INIT_CMD = 'git submodule update --init submodules/corsa-bind';
+const SUBMODULE_INIT_CMD = 'git submodule update --init --checkout submodules/corsa-bind';
 
 const FIX_HINT = [
 	'Fix it with:',

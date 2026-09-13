@@ -69,7 +69,7 @@ jobs:
       # key — the job still goes green while caching nothing.
       # Both submodules are public, so no credentials are involved.
       - name: Checkout submodules
-        run: git submodule update --init --depth 1 submodules/corsa-bind submodules/eslint-plugin-svelte
+        run: git submodule update --init --checkout --depth 1 submodules/corsa-bind submodules/eslint-plugin-svelte
 
       # Its own workspace ⇒ its own target dir; keyed separately from the CI cache.
       - name: Cache cargo registry + target

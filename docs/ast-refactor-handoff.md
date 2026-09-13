@@ -1079,9 +1079,9 @@ legacy `$:`）。**§4 の決定的知見厳守**: derived/store/special-var は
 ```bash
 cd /Users/baseballyama/git/rsvelte-ssr-esrap
 pnpm install
-git submodule update --init --depth 1 submodules/svelte           # 公式コンパイラ(オラクル)
+git submodule update --init --checkout --depth 1 submodules/svelte           # 公式コンパイラ(オラクル)
 (cd submodules/svelte && pnpm install --frozen-lockfile)           # esrap 等が必要
-git submodule update --init --depth 1 submodules/svelte.dev submodules/bits-ui \
+git submodule update --init --checkout --depth 1 submodules/svelte.dev submodules/bits-ui \
     submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte
 node scripts/fixtures/generate-fixtures.mjs                        # フィクスチャ生成
 node scripts/compat-corpus/collect.mjs                             # コーパス収集(~10,160 entries)
