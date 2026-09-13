@@ -32,7 +32,7 @@ jobs:
       # remote) are never touched by the WASM / NAPI / playground build, so a
       # shallow svelte-only init keeps checkout fast (mirrors capi.yml).
       - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte
+        run: git submodule update --init --checkout --depth 1 submodules/svelte
 
       - uses: ./.github/actions/setup-rust
         with:

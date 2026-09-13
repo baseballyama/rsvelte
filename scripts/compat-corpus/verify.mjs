@@ -282,7 +282,7 @@ function requireFullCorpus(measured, what) {
   );
   console.error("  a partial corpus would delete every baseline entry it did not measure");
   console.error(
-    "  fix: git submodule update --init --depth 1 … && node scripts/compat-corpus/collect.mjs",
+    "  fix: git submodule update --init --checkout --depth 1 … && node scripts/compat-corpus/collect.mjs",
   );
   process.exit(2);
 }

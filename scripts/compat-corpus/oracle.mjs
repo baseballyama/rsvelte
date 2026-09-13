@@ -35,7 +35,7 @@ export function assertOracleCompiles(root, label) {
 	if (!fs.existsSync(entry)) {
 		throw new Error(
 			`[${label}] official compiler missing at ${OFFICIAL_COMPILER_REL}\n` +
-				'  run: git submodule update --init submodules/svelte'
+				'  run: git submodule update --init --checkout submodules/svelte'
 		);
 	}
 	const probe = path.join(root, 'scripts/compat-corpus/oracle-load-probe.mjs');

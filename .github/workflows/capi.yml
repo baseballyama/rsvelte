@@ -94,7 +94,7 @@ jobs:
       # vite-plugin-svelte is an SSH-only remote. Shallow-init just svelte
       # to keep the uploaded library's version accurate.
       - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte
+        run: git submodule update --init --checkout --depth 1 submodules/svelte
 
       - uses: ./.github/actions/setup-rust
 

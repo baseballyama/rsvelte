@@ -31,12 +31,20 @@ You need:
 ```bash
 git clone <repo-url>
 cd rsvelte
-git submodule update --init --recursive
+git submodule update --init --checkout --recursive   # --checkout is required, see below
 git config core.hooksPath .githooks   # enable cargo fmt/clippy pre-commit
 pnpm install
 pnpm run generate-fixtures            # required before tests
 cargo test
 ```
+
+Every submodule is declared with `update = none` in `.gitmodules`, so that
+projects depending on `rsvelte_core` as a Cargo git dependency do not have
+Cargo recursively fetch the corpus (some corpus projects have private or
+SSH-only nested submodules, which makes such a fetch fail). This is why the
+commands above and in the package scripts pass `--checkout`: without it,
+`git submodule update --init <path>` registers a submodule but checks nothing
+out.
 
 The Svelte submodule is pinned. Do **not** update it casually — fixtures are
 keyed on its commit hash and a wrong submodule version means tests compare

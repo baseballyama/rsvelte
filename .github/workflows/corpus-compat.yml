@@ -186,7 +186,7 @@ jobs:
         run: node scripts/compat-corpus/known-failures-md-check.mjs
 
       - name: Checkout corpus source submodules (shallow)
-        run: git submodule update --init --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs) submodules/language-tools
+        run: git submodule update --init --checkout --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs) submodules/language-tools
 
       - uses: ./.github/actions/setup-rust
 
@@ -390,7 +390,7 @@ jobs:
           submodules: false
 
       - name: Checkout corpus source submodules (shallow)
-        run: git submodule update --init --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs)
+        run: git submodule update --init --checkout --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs)
 
       - uses: ./.github/actions/setup-rust
 
@@ -469,7 +469,7 @@ jobs:
           submodules: false
 
       - name: Checkout corpus source submodules (shallow)
-        run: git submodule update --init --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs) submodules/language-tools
+        run: git submodule update --init --checkout --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs) submodules/language-tools
 
       - uses: ./.github/actions/setup-rust
 
@@ -505,7 +505,7 @@ jobs:
         # fixtures; the real-world component libraries (bits-ui / flowbite-svelte
         # / melt-ui / shadcn-svelte — the same pins the compile corpus uses) add
         # production-source breadth.
-        run: git submodule update --init --depth 1 submodules/eslint-plugin-svelte submodules/svelte-eslint-parser submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte submodules/skeleton
+        run: git submodule update --init --checkout --depth 1 submodules/eslint-plugin-svelte submodules/svelte-eslint-parser submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte submodules/skeleton
 
       - uses: ./.github/actions/setup-rust
 
@@ -682,7 +682,7 @@ jobs:
       # Only the two e2e projects: a single-package SvelteKit app (npm) and a
       # pnpm workspace monorepo whose playground resolves sibling packages.
       - name: Checkout e2e project submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/cmsaasstarter submodules/skeleton
+        run: git submodule update --init --checkout --depth 1 submodules/cmsaasstarter submodules/skeleton
 
       - uses: ./.github/actions/setup-rust
 
@@ -758,7 +758,7 @@ jobs:
         run: node scripts/compat-corpus/known-failures-md-check.mjs
 
       - name: Checkout the Svelte submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte
+        run: git submodule update --init --checkout --depth 1 submodules/svelte
 
       - uses: ./.github/actions/setup-rust
 
@@ -853,7 +853,7 @@ jobs:
           submodules: false
 
       - name: Checkout LSP oracle (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools
+        run: git submodule update --init --checkout --depth 1 submodules/svelte submodules/language-tools
 
       - uses: ./.github/actions/setup-rust
 
@@ -934,7 +934,7 @@ jobs:
         run: node scripts/compat-corpus/known-failures-md-check.mjs
 
       - name: Checkout LSP oracle and corpus sources (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte
+        run: git submodule update --init --checkout --depth 1 submodules/svelte submodules/language-tools submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte
 
       - uses: ./.github/actions/setup-rust
 

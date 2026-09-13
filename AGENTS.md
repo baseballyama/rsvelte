@@ -144,7 +144,7 @@ cannot express the constraint itself.
 ### Setup
 
 ```bash
-git submodule update --init --recursive
+git submodule update --init --checkout --recursive
 git config core.hooksPath .githooks
 pnpm install
 pnpm run generate-fixtures  # Required before running tests
@@ -199,7 +199,7 @@ Several agents share this `.git` (20+ linked worktrees) and this machine.
   measurement arms, and `|| exit` after any checkout — a failed checkout does not stop the next
   line, and the run then measures whatever tree was already there.
 - A linked worktree initializes **no** submodules. `git -C submodules/x rev-parse HEAD` then
-  returns the **superproject's** HEAD without error; `git submodule update --init --force
+  returns the **superproject's** HEAD without error; `git submodule update --init --checkout --force
   --recursive` fixes it. An absent submodule shows up only as a smaller denominator.
 - `FETCH_HEAD` and `origin/main` are shared, moving names. Resolve once
   (`MAIN=$(git rev-parse origin/main)`) and use the SHA. `git ls-remote origin main` is a

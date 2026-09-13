@@ -695,7 +695,7 @@ the calibration floor as its defence. 27j records that the floor does not run on
 This row records that for that suite the named condition is not a risk but a **guarantee**.
 
 `corpus-compat.yml:926` checks the four corpus repositories out with
-`git submodule update --init --depth 1` and nothing installs them; the job installs the root
+`git submodule update --init --checkout --depth 1` and nothing installs them; the job installs the root
 workspace and `submodules/language-tools` only (lines 935-944). `lsp-benchmark.yml:52-54` does run
 `pnpm --dir submodules/bits-ui install`, so the contrast is inside this repository: the job that
 measures *speed* on bits-ui installs it and the job that measures *parity* does not.
