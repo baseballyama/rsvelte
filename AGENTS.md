@@ -184,6 +184,9 @@ node scripts/diff/compare-parsers.mjs                # Diff a parse against offi
   none of the others, so a nine-suite run and a zero-suite run print the same nothing.
   Read the `Running tests/` lines as the denominator, not the exit code; the needle is
   `Running tests/`, because cargo indents that line and `^Running` matches nothing.
+  `scripts/ci/run-test-shard.sh` partitions **integration** binaries only (its own comment says
+  the `--lib` tests run in the separate `test-unit` job), so three green shards are not CI's
+  denominator and cannot observe a `--lib` failure — run `cargo test -p <crate> --lib` beside them.
 - `cargo fmt && cargo clippy --workspace --all-targets --all-features -- -D warnings` before every commit.
 
 ### Worktrees and the shared machine
