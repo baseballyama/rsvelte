@@ -284,7 +284,7 @@ impl FixtureCoverage {
             } else {
                 format!(
                     "{} is empty, so the submodule is not checked out (a fresh `git worktree` \
-                     does not populate submodules).\n  run: git submodule update --init --depth 1 \
+                     does not populate submodules).\n  run: git submodule update --init --checkout --depth 1 \
                      submodules/svelte",
                     svelte_root.display()
                 )

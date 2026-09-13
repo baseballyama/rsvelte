@@ -42,9 +42,9 @@ Every submodule is declared with `update = none` in `.gitmodules`, so that
 projects depending on `rsvelte_core` as a Cargo git dependency do not have
 Cargo recursively fetch the corpus (some corpus projects have private or
 SSH-only nested submodules, which makes such a fetch fail). This is why the
-commands above and in the package scripts pass `--checkout`: without it,
-`git submodule update --init <path>` registers a submodule but checks nothing
-out.
+commands above and in the package scripts pass `--checkout`, which overrides
+that strategy: without it the update registers a submodule and checks nothing
+out. `scripts/ci/check-submodule-update-strategy.mjs` gates both halves.
 
 The Svelte submodule is pinned. Do **not** update it casually — fixtures are
 keyed on its commit hash and a wrong submodule version means tests compare

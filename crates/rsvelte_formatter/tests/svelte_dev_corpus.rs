@@ -221,7 +221,7 @@ fn svelte_dev_corpus_parity() {
         );
         eprintln!(
             "[fmt-corpus] svelte.dev submodule not checked out; skipping. \
-             Run: git submodule update --init submodules/svelte.dev"
+             Run: git submodule update --init --checkout submodules/svelte.dev"
         );
         return;
     };

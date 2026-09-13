@@ -44,7 +44,7 @@ fn every_compiled_output_is_parseable() {
     let root = common::svelte_path().join("packages/svelte/tests");
     if !root.exists() {
         panic!(
-            "Svelte submodule missing at {} — run `git submodule update --init`",
+            "Svelte submodule missing at {} — run `git submodule update --init --checkout`",
             root.display()
         );
     }

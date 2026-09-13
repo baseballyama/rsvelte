@@ -940,7 +940,18 @@ To add a repository:
    ```
 
    Mirror the existing block in `.gitmodules` (`ignore = dirty`, `shallow = true`,
-   `branch = …`).
+   `branch = …`) and add `update = none`, which `git submodule add` does not write:
+
+   ```bash
+   git config -f .gitmodules submodule.submodules/repo.update none
+   ```
+
+   Cargo initialises the submodules of a git dependency recursively, so one entry
+   without it makes `rsvelte_core` unusable as a git dependency the moment that
+   repository has a private or SSH-only nested submodule of its own — a failure
+   only downstream consumers see. `pnpm run check:submodule-update-strategy`
+   gates it; check the repository out with
+   `git submodule update --init --checkout --depth 1 submodules/repo`.
 
 2. **List it in [`corpus-sources.json`](./corpus-sources.json)** — one entry:
 

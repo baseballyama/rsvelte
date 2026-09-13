@@ -1425,6 +1425,19 @@ jobs:
         if: ${{ !cancelled() }}
         run: node scripts/ci/test-check-svelte-dependency-pin.mjs
 
+      # Cargo fetches a git dependency's submodules recursively, so one entry
+      # without `update = none` breaks every downstream consumer and nothing in
+      # this repository observes it (#4580). `--checkout` is the other half: it
+      # overrides the strategy, and without it an update checks nothing out and
+      # still exits 0.
+      - name: Check the submodule update strategy
+        if: ${{ !cancelled() }}
+        run: node scripts/ci/check-submodule-update-strategy.mjs
+
+      - name: Run submodule update strategy guard tests
+        if: ${{ !cancelled() }}
+        run: node scripts/ci/test-check-submodule-update-strategy.mjs
+
       # An upstream report that nobody links is a report nobody can tell was
       # ever filed — 0 of 27 recorded a filing and 26 were unindexed (#3680).
       - name: Check upstream_issues is indexed

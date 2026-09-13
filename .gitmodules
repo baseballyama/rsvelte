@@ -10,6 +10,7 @@
 	path = submodules/svelte
 	url = https://github.com/sveltejs/svelte.git
 	ignore = dirty
+	update = none
 
 [submodule "language-tools"]
 	path = submodules/language-tools

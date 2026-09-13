@@ -98,6 +98,7 @@
 		"check:vendored-lsp-data": "node scripts/ci/check-vendored-lsp-data.mjs",
 		"fix:vendored-lsp-data": "node scripts/ci/check-vendored-lsp-data.mjs --fix",
 		"check:workflow-triggers": "node scripts/ci/workflow-trigger-guard.mjs",
+		"check:submodule-update-strategy": "node scripts/ci/check-submodule-update-strategy.mjs",
 		"test:workflow-trigger-guard": "node scripts/ci/test-workflow-trigger-guard.mjs",
 		"test:capi-release-decision": "node scripts/release/test-capi-release-decision.mjs",
 		"test:differential-corpus-workflow": "node scripts/ci/test-differential-corpus-workflow.mjs",
