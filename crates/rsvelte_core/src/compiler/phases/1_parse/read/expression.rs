@@ -142,9 +142,18 @@ fn normalize_block_comment_indentation(value: &str, source: &str, comment_start:
         return value.to_string();
     }
 
-    // Remove this indentation from the start of each line in the comment
-    let pattern = format!("\n{}", indentation);
-    value.replace(&pattern, "\n")
+    // `value.replace(new RegExp(`^${indentation}`, 'gm'), '')`. `^` under `m`
+    // matches at index 0 as well as after every newline, and index 0 of a block
+    // comment's value is the character after `/*` — so `/*  \n  ...*/` indented
+    // by two spaces loses the two that sit between `/*` and the first newline.
+    let mut out = String::with_capacity(value.len());
+    for (index, line) in value.split('\n').enumerate() {
+        if index > 0 {
+            out.push('\n');
+        }
+        out.push_str(line.strip_prefix(indentation).unwrap_or(line));
+    }
+    out
 }
 
 /// Create a comment object in ESTree format.
@@ -8998,23 +9007,7 @@ fn convert_parsed_program<'ast>(
         for comment in all_comments.iter() {
             let comment_start = offset + comment.span.start as usize;
             let comment_end = offset + comment.span.end as usize;
-            let raw_text = if comment.span.end as usize <= content.len() {
-                &content[comment.span.start as usize..comment.span.end as usize]
-            } else {
-                ""
-            };
-            let mut value = extract_comment_value(raw_text, comment.kind);
-            if matches!(
-                comment.kind,
-                oxc_ast::ast::CommentKind::SingleLineBlock
-                    | oxc_ast::ast::CommentKind::MultiLineBlock
-            ) {
-                value = normalize_block_comment_indentation(
-                    &value,
-                    content,
-                    comment.span.start as usize,
-                );
-            }
+            let value = comment_value_text(comment, content);
             record_oxc_comment(
                 comment.kind,
                 value,
@@ -9056,12 +9049,9 @@ fn convert_parsed_program<'ast>(
                 comment_values.push(js_comment_value(comment));
             }
             for comment in all_comments.iter() {
-                let raw_text = content
-                    .get(comment.span.start as usize..comment.span.end as usize)
-                    .unwrap_or("");
                 comment_entries.push(CommentEntry {
                     start: offset as u32 + comment.span.start,
-                    text: CompactString::from(extract_comment_value(raw_text, comment.kind)),
+                    text: CompactString::from(comment_value_text(comment, content)),
                     value: build_comment_value(comment, content, offset),
                 });
                 if capture {
@@ -9189,6 +9179,24 @@ fn js_comment_value(comment: &crate::ast::template::JsComment) -> Value {
     Value::Object(obj)
 }
 
+/// The `value` upstream's single `onComment` handler produces: delimiters
+/// stripped, then a multi-line block comment dedented by its own opening line's
+/// indentation. Both of a comment's consumers here — the node's
+/// `leadingComments`/`trailingComments` and the text the ignore walk reads —
+/// must be that one value, because upstream has only one.
+fn comment_value_text(comment: &oxc_ast::ast::Comment, content: &str) -> String {
+    let raw = content
+        .get(comment.span.start as usize..comment.span.end as usize)
+        .unwrap_or("");
+    let value = extract_comment_value(raw, comment.kind);
+    match comment.kind {
+        oxc_ast::ast::CommentKind::Line => value,
+        oxc_ast::ast::CommentKind::SingleLineBlock | oxc_ast::ast::CommentKind::MultiLineBlock => {
+            normalize_block_comment_indentation(&value, content, comment.span.start as usize)
+        }
+    }
+}
+
 /// Build a comment JSON value from an OXC comment.
 fn build_comment_value(comment: &oxc_ast::ast::Comment, content: &str, offset: usize) -> Value {
     let comment_start = offset + comment.span.start as usize;
@@ -9200,16 +9208,7 @@ fn build_comment_value(comment: &oxc_ast::ast::Comment, content: &str, offset: u
         }
     };
     let comment_text = if comment_end <= offset + content.len() {
-        let raw = &content[comment.span.start as usize..comment.span.end as usize];
-        match comment.kind {
-            oxc_ast::ast::CommentKind::Line => raw.strip_prefix("//").unwrap_or(raw).to_string(),
-            oxc_ast::ast::CommentKind::SingleLineBlock
-            | oxc_ast::ast::CommentKind::MultiLineBlock => raw
-                .strip_prefix("/*")
-                .and_then(|s| s.strip_suffix("*/"))
-                .unwrap_or(raw)
-                .to_string(),
-        }
+        comment_value_text(comment, content)
     } else {
         String::new()
     };
