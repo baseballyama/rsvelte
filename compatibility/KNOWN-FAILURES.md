@@ -6607,7 +6607,7 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
 ## Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **173 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **171 entries**.
 
 ### The question it asks
 
@@ -6723,7 +6723,7 @@ ratchet at all. So `loose:unclosed-element::RegularElement#span` is an ordinary 
 defect. Reading the issue and the gate as sharing a vocabulary would have attributed an rsvelte
 defect upstream.
 
-Partition of `parse-ast-known-failures.json` by cluster: `51 + 42 + 32 + 16 + 9 + 8 + 6 + 6 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `51 + 42 + 32 + 14 + 9 + 8 + 6 + 6 + 2 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
@@ -6733,18 +6733,18 @@ Partition of `parse-ast-known-failures.json` by cluster: `51 + 42 + 32 + 16 + 9 
 | `unclustered` | 32 | 20 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
 | `comment-attachment` | 42 | 21 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
 | `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
-| `css-shape` | 16 | 10 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`), **plus every key whose node type is spelled `Block`** — the cluster regex matches the CSS `Block` node and ESTree's block-comment type alike, so `Block#span` and `Block#node-missing` are filed here and are comments. The row is a key-shape partition, not a subject one. |
+| `css-shape` | 14 | 9 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`), **plus every key whose node type is spelled `Block`** — the cluster regex matches the CSS `Block` node and ESTree's block-comment type alike, so `Block#span` and `Block#node-missing` are filed here and are comments. The row is a key-shape partition, not a subject one. |
 | `child-count` | 6 | 5 | an array of children with a different length. |
 | `loc-presence` | 6 | 3 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
 | `ast-mode` | 2 | 2 | #3385 — the remaining legacy-root shape differences. |
 
 **Read the `keys` column as `bases x axis`, not as work.** A key is
 `<axis>::<NodeType>.<field>#<kind>` and most node types diverge identically under `modern` and
-`legacy`, so 173 keys are **98 distinct bases**: 75 appear on both axes and 23 on one
-(75x2 + 23 = 173, a 1.77x collapse), and 98 is therefore the defect ceiling. The per-cluster
+`legacy`, so 171 keys are **97 distinct bases**: 74 appear on both axes and 23 on one
+(74x2 + 23 = 171, a 1.76x collapse), and 97 is therefore the defect ceiling. The per-cluster
 collapse is not uniform — `estree-fields`, `comment-attachment` and `loc-presence` are 2.00x
-(every base is on both axes), `span` 1.89x, `node-type` 1.80x, `unclustered` and `css-shape`
-1.60x, `child-count` 1.20x (legacy-only shapes), `ast-mode` and
+(every base is on both axes), `span` 1.89x, `node-type` 1.80x, `unclustered` 1.60x,
+`css-shape` 1.56x, `child-count` 1.20x (legacy-only shapes), `ast-mode` and
 `accepts-what-official-rejects` 1.00x by construction.
 
 **Every figure in that paragraph was re-derived from the JSON rather than adjusted, and three of
@@ -6756,7 +6756,7 @@ have produced the right ones; the gated declaration and the gated partition line
 correct throughout, which is exactly the split this repository records between a checked half and
 an unchecked half on the same page.
 
-**No base's two axes sit in different clusters** (0 of 75), so a cluster can be worked end to end
+**No base's two axes sit in different clusters** (0 of 74), so a cluster can be worked end to end
 without a key from it turning up under someone else's row. Measured directly from the JSON, which
 is authoritative for the partition: the ten rows above are its `Counter(values())`.
 
