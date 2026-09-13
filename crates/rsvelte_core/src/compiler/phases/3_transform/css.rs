@@ -227,7 +227,7 @@ fn collect_is_where_unused_warnings(
 
             if sel_type == "PseudoClassSelector"
                 && (sel_name == "is" || sel_name == "where" || sel_name == "has")
-                && let Some(args) = sel.field("args")
+                && let Some(args) = sel.field("args").filter(|a| !a.is_null())
                 && !args.is_null()
                 && let Some(children) = args.field("children").and_then(|c| c.as_array())
             {
@@ -1471,7 +1471,7 @@ fn is_global_block(node: &Value) -> bool {
     {
         return sel.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
             && sel.field("name").and_then(|n| n.as_str()) == Some("global")
-            && sel.field("args").is_none();
+            && sel.field("args").is_none_or(Value::is_null);
     }
     false
 }
@@ -1515,7 +1515,7 @@ fn selector_contains_global_block(node: &Value) -> bool {
                             if sel.field("type").and_then(|t| t.as_str())
                                 == Some("PseudoClassSelector")
                                 && sel.field("name").and_then(|n| n.as_str()) == Some("global")
-                                && sel.field("args").is_none()
+                                && sel.field("args").is_none_or(Value::is_null)
                             {
                                 return true;
                             }
@@ -1956,7 +1956,7 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
                 let starts_with_bare_global = selectors.first().is_some_and(|s| {
                     s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
                         && s.field("name").and_then(|n| n.as_str()) == Some("global")
-                        && s.field("args").is_none()
+                        && s.field("args").is_none_or(Value::is_null)
                 });
 
                 // If starts with bare :global, mark all subsequent selectors as global
@@ -3116,7 +3116,7 @@ fn relative_selector_is_outer_global(rel: &Value) -> bool {
     if !first_is_global {
         return false;
     }
-    if first.field("args").is_none() {
+    if first.field("args").is_none_or(Value::is_null) {
         return true; // bare :global
     }
     // `:global(...)` stays global only if every simple selector is pseudo.
@@ -5166,7 +5166,7 @@ fn has_argument_unused_flags(
     let subject_is_global = selectors.iter().any(|s| {
         s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
             && s.field("name").and_then(|n| n.as_str()) == Some("global")
-            && s.field("args").is_some()
+            && s.field("args").is_some_and(|a| !a.is_null())
     });
 
     // For `:root:has()` / `:global(.foo):has()` the subject is the document root
@@ -5833,7 +5833,7 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
             // :not(X) matches "all elements that are NOT X", so it's always potentially used
             let name = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
             if (name == "is" || name == "where" || name == "has")
-                && let Some(args) = sel.field("args")
+                && let Some(args) = sel.field("args").filter(|a| !a.is_null())
                 && let Some(children) = args.field("children").and_then(|c| c.as_array())
             {
                 // Check if ALL selectors inside are definitely unused
@@ -7779,7 +7779,7 @@ fn transform_complex_selector(
                 .is_some_and(|s| {
                     s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
                         && s.field("name").and_then(|n| n.as_str()) == Some("global")
-                        && s.field("args").is_none()
+                        && s.field("args").is_none_or(Value::is_null)
                 });
 
             let selectors_count = relative_selector
@@ -7836,7 +7836,7 @@ fn transform_complex_selector(
                         // Skip the :global pseudo-class itself
                         if sel.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
                             && sel.field("name").and_then(|n| n.as_str()) == Some("global")
-                            && sel.field("args").is_none()
+                            && sel.field("args").is_none_or(Value::is_null)
                         {
                             continue;
                         }
@@ -7998,7 +7998,7 @@ fn transform_complex_selector(
                             && sel.field("name").and_then(|n| n.as_str()) == Some("global")
                         {
                             // Extract the content inside :global() from source
-                            if let Some(args) = sel.field("args") {
+                            if let Some(args) = sel.field("args").filter(|a| !a.is_null()) {
                                 push_global_args_text(
                                     &mut result,
                                     sel,
@@ -8062,7 +8062,7 @@ fn transform_complex_selector(
                             && sel.field("name").and_then(|n| n.as_str()) == Some("global")
                         {
                             // Extract the content inside :global() from source
-                            if let Some(args) = sel.field("args") {
+                            if let Some(args) = sel.field("args").filter(|a| !a.is_null()) {
                                 push_global_args_text(
                                     &mut selector_parts,
                                     sel,
@@ -8583,7 +8583,7 @@ fn format_simple_selector_with_scope(
             // arguments and need to scope their inner selectors. Mirrors upstream
             // Svelte's `PseudoClassSelector` visitor which calls `context.next()`
             // for is/where/has/not so the inner SelectorList gets scoped.
-            if let Some(args) = sel.field("args") {
+            if let Some(args) = sel.field("args").filter(|a| !a.is_null()) {
                 // Upstream descends with `context.next()` regardless of whether a
                 // modifier will be added, so a nested `:global(...)` is unwrapped
                 // even where the scope class is not (an empty `selector` here).
@@ -9000,7 +9000,7 @@ fn transform_is_not_complex_selector(
                         if sel.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
                             && sel.field("name").and_then(|n| n.as_str()) == Some("global")
                         {
-                            if let Some(global_args) = sel.field("args") {
+                            if let Some(global_args) = sel.field("args").filter(|a| !a.is_null()) {
                                 result.push_str(&get_selector_text(global_args));
                             }
                         } else {
@@ -9135,7 +9135,7 @@ fn strip_bare_global_from_text(
                         && arr.first().is_some_and(|s| {
                             s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
                                 && s.field("name").and_then(|n| n.as_str()) == Some("global")
-                                && s.field("args").is_none()
+                                && s.field("args").is_none_or(Value::is_null)
                         })
                 })
         });

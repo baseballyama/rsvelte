@@ -274,7 +274,7 @@ fn collect_css_node_classes(node: &Value, out: &mut Vec<String>) {
         }
         "PseudoClassSelector" => {
             // :not(.foo), :is(.foo), :where(.foo), :has(.foo) etc.
-            if let Some(args) = node.get("args") {
+            if let Some(args) = node.get("args").filter(|a| !a.is_null()) {
                 collect_selector_classes(args, out);
             }
         }
@@ -307,7 +307,7 @@ fn collect_selector_classes(node: &Value, out: &mut Vec<String>) {
         }
         "PseudoClassSelector" | "PseudoElementSelector" => {
             // Recurse into pseudo-class args (:not, :is, :where, :has).
-            if let Some(args) = node.get("args") {
+            if let Some(args) = node.get("args").filter(|a| !a.is_null()) {
                 collect_selector_classes(args, out);
             }
         }

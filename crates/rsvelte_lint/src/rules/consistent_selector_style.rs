@@ -766,7 +766,7 @@ fn is_bare_global_rule(node: &Value) -> bool {
     let first = &sels[0];
     first.get("type").and_then(Value::as_str) == Some("PseudoClassSelector")
         && first.get("name").and_then(Value::as_str) == Some("global")
-        && first.get("args").is_none()
+        && first.get("args").is_none_or(Value::is_null)
 }
 
 #[allow(clippy::only_used_in_recursion)]
@@ -810,7 +810,7 @@ fn check_selector_node(
                 // Skip :global pseudo-class content unless checkGlobal is true.
                 return;
             }
-            if let Some(args) = node.get("args") {
+            if let Some(args) = node.get("args").filter(|a| !a.is_null()) {
                 check_selector_node(
                     args,
                     sel,

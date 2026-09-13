@@ -2767,9 +2767,11 @@ impl<'a> SelectorParser<'a> {
             Value::String("PseudoClassSelector".to_string()),
         );
         obj.insert("name".to_string(), Value::String(name));
-        if let Some(args_value) = args {
-            obj.insert("args".to_string(), args_value);
-        }
+        // Upstream's node always carries `args`, `null` when the pseudo-class
+        // takes none (`css.ts`'s `PseudoClassSelector`), so the public AST has
+        // the key either way. Every reader here asks "are there args" with
+        // `is_null`, not with the key's presence.
+        obj.insert("args".to_string(), args.unwrap_or(Value::Null));
         obj.insert("start".to_string(), Value::Number((start as i64).into()));
         obj.insert("end".to_string(), Value::Number((end as i64).into()));
 

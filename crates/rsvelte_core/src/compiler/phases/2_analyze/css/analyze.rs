@@ -128,13 +128,19 @@ fn analyze_atrule(
     }
     Ok(())
 }
+/// `args` is always present on a `PseudoClassSelector` and is `null` when the
+/// pseudo-class takes none, so the question is the value, never the key.
+fn has_args(simple_selector: &serde_json::Value) -> bool {
+    simple_selector
+        .field("args")
+        .is_some_and(|args| !args.is_null())
+}
+
 /// Check if a simple selector is a `:global` block selector (without args).
 fn is_global_block_selector(simple_selector: &serde_json::Value) -> bool {
     simple_selector.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
         && simple_selector.field("name").and_then(|n| n.as_str()) == Some("global")
-        && !simple_selector
-            .as_object()
-            .is_some_and(|obj| obj.contains_key("args"))
+        && !has_args(simple_selector)
 }
 
 fn analyze_rule(
@@ -390,7 +396,7 @@ fn validate_nesting_selectors(
 
                 // Also check inside pseudo-class args for NestingSelector
                 if selector.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector") {
-                    if let Some(args) = selector.field("args") {
+                    if let Some(args) = selector.field("args").filter(|a| !a.is_null()) {
                         validate_nesting_in_pseudo_args(
                             args,
                             state,
@@ -494,7 +500,7 @@ fn validate_single_nesting_selector(
         }
 
         // Check that & is the first selector inside :global(...)
-        if let Some(args) = first_sel.field("args") {
+        if let Some(args) = first_sel.field("args").filter(|a| !a.is_null()) {
             if let Some(args_children) = args.field("children").and_then(|c| c.as_array()) {
                 if let Some(first_complex) = args_children.first() {
                     if let Some(first_complex_children) =
@@ -615,7 +621,7 @@ fn validate_nesting_in_pseudo_args(
                         is_global_block,
                     )?,
                     Some("PseudoClassSelector") => {
-                        if let Some(inner) = sel.field("args") {
+                        if let Some(inner) = sel.field("args").filter(|a| !a.is_null()) {
                             validate_nesting_in_pseudo_args(
                                 inner,
                                 state,
@@ -727,11 +733,7 @@ fn validate_complex_selector(
         {
             if let Some(first_sel) = selectors.first() {
                 // :global without args inside a pseudoclass is invalid
-                if state.in_pseudoclass
-                    && !first_sel
-                        .as_object()
-                        .is_some_and(|obj| obj.contains_key("args"))
-                {
+                if state.in_pseudoclass && !has_args(first_sel) {
                     return Err(at_node(
                         errors::css_global_block_invalid_placement(),
                         first_sel,
@@ -745,9 +747,7 @@ fn validate_complex_selector(
             .field("selectors")
             .and_then(|s| s.as_array())
             && let Some(first_sel) = selectors.first()
-            && first_sel
-                .as_object()
-                .is_some_and(|obj| obj.contains_key("args"))
+            && has_args(first_sel)
         {
             let is_at_start = children[..idx].iter().all(|child| {
                 child
@@ -780,12 +780,12 @@ fn validate_complex_selector(
                     && name == "global"
                 {
                     // Validate :global(...) selector contents
-                    if let Some(args) = selector.field("args") {
+                    if let Some(args) = selector.field("args").filter(|a| !a.is_null()) {
                         validate_global_args(args, selector, children.len(), selectors.len())?;
                     }
 
                     // Ensure :global(element) is at first position in compound selector
-                    if let Some(args) = selector.field("args")
+                    if let Some(args) = selector.field("args").filter(|a| !a.is_null())
                         && let Some(args_children) =
                             args.field("children").and_then(|c| c.as_array())
                         && let Some(first_complex) = args_children.first()
@@ -816,10 +816,7 @@ fn validate_complex_selector(
                     }
 
                     // Ensure :global(...) contains a single selector
-                    if selector
-                        .as_object()
-                        .is_some_and(|obj| obj.contains_key("args"))
-                        && let Some(args) = selector.field("args")
+                    if let Some(args) = selector.field("args").filter(|a| !a.is_null())
                         && let Some(args_children) =
                             args.field("children").and_then(|c| c.as_array())
                         && args_children.len() > 1
@@ -832,7 +829,7 @@ fn validate_complex_selector(
                     validate_global_type_selector_position(selector, selectors)?;
 
                     // Check for :global block inside pseudo-class args
-                    if let Some(args) = selector.field("args") {
+                    if let Some(args) = selector.field("args").filter(|a| !a.is_null()) {
                         validate_global_block_in_pseudo_args(args)?;
                     }
                 }
@@ -843,7 +840,7 @@ fn validate_complex_selector(
                     && let Some(name) = selector.field("name").and_then(|n| n.as_str())
                     && matches!(name, "is" | "not" | "has" | "where")
                 {
-                    if let Some(args) = selector.field("args") {
+                    if let Some(args) = selector.field("args").filter(|a| !a.is_null()) {
                         let pseudo_state = CssAnalysisState {
                             parent_rule: state.parent_rule,
                             parent_rule_has_parent: state.parent_rule_has_parent,
@@ -954,11 +951,7 @@ fn is_relative_selector_global_strict(relative_selector: &serde_json::Value) -> 
         return false;
     }
     // If no args (bare :global), it's global
-    if !first
-        .as_object()
-        .is_some_and(|obj| obj.contains_key("args"))
-        || first.field("args").filter(|&a| !a.is_null()).is_none()
-    {
+    if !has_args(first) {
         return true;
     }
     // Has args: all selectors in this RelativeSelector must be unscoped pseudo-classes or pseudo-elements
@@ -1173,7 +1166,7 @@ fn validate_global_type_selector_position(
         .position(|s| std::ptr::eq(s, global_selector))
         .unwrap_or(0);
 
-    if let Some(args) = global_selector.field("args")
+    if let Some(args) = global_selector.field("args").filter(|a| !a.is_null())
         && let Some(arg_children) = args.field("children").and_then(|c| c.as_array())
         && let Some(first_complex) = arg_children.first()
         && let Some(first_relative_children) =
@@ -1301,12 +1294,12 @@ fn extract_simple_selector(selector: &serde_json::Value, analysis: &mut Componen
                 if let Some(name) = selector.field("name").and_then(|n| n.as_str()) {
                     if name == "global" {
                         // Extract selectors from :global() args
-                        if let Some(args) = selector.field("args") {
+                        if let Some(args) = selector.field("args").filter(|a| !a.is_null()) {
                             extract_selectors_from_prelude(args, analysis);
                         }
                     } else if name == "is" || name == "where" || name == "not" || name == "has" {
                         // Extract selectors from pseudo-class args
-                        if let Some(args) = selector.field("args") {
+                        if let Some(args) = selector.field("args").filter(|a| !a.is_null()) {
                             extract_selectors_from_prelude(args, analysis);
                         }
                     }
