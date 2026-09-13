@@ -144,7 +144,10 @@ release-artifacts/
 
 # Corpus-compat pipeline (generated; see scripts/compat-corpus/)
 .corpus-cache/
-compatibility/sources/
+# No trailing slash: `compatibility/sources` arrives as a directory from
+# `collect.mjs`, and the pattern has to cover the name itself too — a stray
+# absolute symlink of that name was committed once because it did not (#4539).
+compatibility/sources
 compatibility/expected/
 compatibility/actual/
 compatibility/expected-s2t/
