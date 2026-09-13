@@ -809,8 +809,12 @@ fn convert_text(text: &Text, path: &[&str]) -> Value {
 }
 
 fn convert_comment(comment: &Comment) -> Value {
-    // Extract svelte-ignore directives
-    let ignores = extract_svelte_ignore(&comment.data);
+    // `legacy.js:200` calls the one `extract_svelte_ignore` with `runes: false`,
+    // which also appends a legacy code's modern spelling when that spelling is a
+    // real warning code. A second, splitting-only copy here reported one code
+    // where upstream reports two.
+    let ignores =
+        crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore(&comment.data, false);
 
     estree_obj! {
         "type": "Comment",
@@ -818,24 +822,6 @@ fn convert_comment(comment: &Comment) -> Value {
         "end": comment.end,
         "data": comment.data.as_str(),
         "ignores": ignores,
-    }
-}
-
-fn extract_svelte_ignore(data: &str) -> Vec<String> {
-    let trimmed = data.trim();
-    if let Some(rest) = trimmed.strip_prefix("svelte-ignore") {
-        let rest = rest.trim();
-        if rest.is_empty() {
-            return Vec::new();
-        }
-        // Split by whitespace or comma and filter empty, trimming each token
-        rest.split(|c: char| c.is_whitespace() || c == ',')
-            .map(|s| s.trim())
-            .filter(|s| !s.is_empty())
-            .map(|s| s.to_string())
-            .collect()
-    } else {
-        Vec::new()
     }
 }
 
@@ -1953,6 +1939,9 @@ fn find_closing_brace_after(source: &str, pos: usize) -> usize {
 }
 
 /// Remove surrounding whitespace text nodes from a list of nodes.
+///
+/// Upstream (`legacy.js:16`) rewrites `data` and leaves `raw` alone, so a
+/// trimmed text node in a legacy AST still reports the source it came from.
 fn remove_surrounding_whitespace_nodes(nodes: &mut Vec<TemplateNode>) {
     // Handle first node
     if let Some(TemplateNode::Text(first)) = nodes.first_mut() {
@@ -1961,7 +1950,6 @@ fn remove_surrounding_whitespace_nodes(nodes: &mut Vec<TemplateNode>) {
         } else {
             let new_data = REGEX_STARTS_WITH_WHITESPACE.replace(&first.data, "");
             first.data = new_data.to_string().into();
-            first.raw = first.data.clone();
         }
     }
 
@@ -1972,7 +1960,6 @@ fn remove_surrounding_whitespace_nodes(nodes: &mut Vec<TemplateNode>) {
         } else {
             let new_data = REGEX_ENDS_WITH_WHITESPACE.replace(&last.data, "");
             last.data = new_data.to_string().into();
-            last.raw = last.data.clone();
         }
     }
 }
