@@ -6607,7 +6607,7 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
 ## Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **171 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **167 entries**.
 
 ### The question it asks
 
@@ -6723,28 +6723,28 @@ ratchet at all. So `loose:unclosed-element::RegularElement#span` is an ordinary 
 defect. Reading the issue and the gate as sharing a vocabulary would have attributed an rsvelte
 defect upstream.
 
-Partition of `parse-ast-known-failures.json` by cluster: `51 + 42 + 32 + 14 + 9 + 8 + 6 + 6 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `51 + 42 + 30 + 14 + 8 + 8 + 6 + 5 + 2 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
 | `span` | 51 | 27 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
-| `node-type` | 9 | 5 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
+| `node-type` | 8 | 4 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
 | `estree-fields` | 8 | 4 | ESTree fields rsvelte's serializer omits or adds. The nine TypeScript type fields are gone (#4335) and so is `CallExpression.optional#extra` (#4133 — acorn-typescript writes `optional` on a type-argument call only when the subscript chain was already optional); what is left is `Identifier.typeAnnotation`, `TSParameterProperty.{accessibility,readonly}` and `CallExpression.optional#value`. The lint gates found some of these from the other side. |
-| `unclustered` | 32 | 20 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
+| `unclustered` | 30 | 18 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
 | `comment-attachment` | 42 | 21 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
 | `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
 | `css-shape` | 14 | 9 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`), **plus every key whose node type is spelled `Block`** — the cluster regex matches the CSS `Block` node and ESTree's block-comment type alike, so `Block#span` and `Block#node-missing` are filed here and are comments. The row is a key-shape partition, not a subject one. |
-| `child-count` | 6 | 5 | an array of children with a different length. |
+| `child-count` | 5 | 4 | an array of children with a different length. |
 | `loc-presence` | 6 | 3 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
 | `ast-mode` | 2 | 2 | #3385 — the remaining legacy-root shape differences. |
 
 **Read the `keys` column as `bases x axis`, not as work.** A key is
 `<axis>::<NodeType>.<field>#<kind>` and most node types diverge identically under `modern` and
-`legacy`, so 171 keys are **97 distinct bases**: 74 appear on both axes and 23 on one
-(74x2 + 23 = 171, a 1.76x collapse), and 97 is therefore the defect ceiling. The per-cluster
-collapse is not uniform — `estree-fields`, `comment-attachment` and `loc-presence` are 2.00x
-(every base is on both axes), `span` 1.89x, `node-type` 1.80x, `unclustered` 1.60x,
-`css-shape` 1.56x, `child-count` 1.20x (legacy-only shapes), `ast-mode` and
+`legacy`, so 167 keys are **93 distinct bases**: 74 appear on both axes and 19 on one
+(74x2 + 19 = 167, a 1.80x collapse), and 93 is therefore the defect ceiling. The per-cluster
+collapse is not uniform — `estree-fields`, `comment-attachment`, `loc-presence` and `node-type`
+are 2.00x (every base is on both axes), `span` 1.89x, `unclustered` 1.67x, `css-shape` 1.56x,
+`child-count` 1.25x (legacy-only shapes), `ast-mode` and
 `accepts-what-official-rejects` 1.00x by construction.
 
 **Every figure in that paragraph was re-derived from the JSON rather than adjusted, and three of
