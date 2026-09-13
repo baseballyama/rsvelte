@@ -53,6 +53,15 @@ impl EntryMap {
     /// its source start and its source end, which differ — and a diagnostic
     /// inside one of those still belongs to the author's code.
     fn is_inserted_text(&self, dst_line: u32, dst_col: u32) -> bool {
+        // A trailing insertion has no segment after it, so the two-sided test
+        // below cannot see one. svelte2tsx's epilogue — `return { props: {} as
+        // any as $$ComponentProps, … }` and everything after it — is appended
+        // past the last generated line the map covers, so a diagnostic there
+        // belongs to nobody and the lower-bound lookup otherwise pins it to the
+        // end of the author's file (#4583).
+        if self.segments.last().is_some_and(|last| dst_line > last.dst_line) {
+            return true;
+        }
         let start = self
             .segments
             .partition_point(|s| (s.dst_line, s.dst_col) <= (dst_line, dst_col));
@@ -746,6 +755,82 @@ mod tests {
         assert!(
             !entry_map.is_inserted_text(line, col),
             "the author's own identifier must stay mapped"
+        );
+    }
+
+    /// An un-destructured, un-annotated `$props()` leaves svelte2tsx emitting a
+    /// bare `$$ComponentProps` in its epilogue, which upstream emits too and
+    /// `tsc` reports `TS2304` on in both. Upstream drops the diagnostic because
+    /// MagicString gives the appended text a source-less segment; here the
+    /// epilogue sits past the last generated line the map covers at all (#4583).
+    #[test]
+    fn the_epilogue_past_the_last_mapped_line_is_inserted_text() {
+        use rsvelte_projection::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
+
+        let result = svelte2tsx(
+            "<script lang=\"ts\">\n  const props = $props();\n  void props;\n</script>\n\n<p>hi</p>\n",
+            Svelte2TsxOptions {
+                filename: "Repro.svelte".to_string(),
+                is_ts_file: true,
+                emit_jsdoc: true,
+                ..Default::default()
+            },
+        )
+        .expect("svelte2tsx");
+        let map =
+            SourceMap::from_slice(result.map.as_ref().expect("map").as_bytes()).expect("parse map");
+        let mut segments: Vec<Segment> = map
+            .tokens()
+            .map(|t| Segment {
+                dst_line: t.get_dst_line(),
+                dst_col: t.get_dst_col(),
+                src: t
+                    .get_source()
+                    .map(|_| (t.get_src_id(), t.get_src_line(), t.get_src_col())),
+            })
+            .collect();
+        segments.sort_by_key(|s| (s.dst_line, s.dst_col));
+        let last_mapped = segments.last().expect("the overlay maps something").dst_line;
+        let entry_map = EntryMap {
+            svelte_source: PathBuf::from("Repro.svelte"),
+            map,
+            segments,
+        };
+
+        let at = |needle: &str| {
+            let off = result
+                .code
+                .find(needle)
+                .unwrap_or_else(|| panic!("{needle} not in:\n{}", result.code));
+            let line = u32::try_from(result.code[..off].matches('\n').count())
+                .expect("fixture line fits u32");
+            let col = u32::try_from(
+                result.code[..off]
+                    .rsplit_once('\n')
+                    .map_or(off, |(_, tail)| tail.chars().count()),
+            )
+            .expect("fixture column fits u32");
+            (line, col)
+        };
+
+        let (line, col) = at("$$ComponentProps");
+        assert!(
+            line > last_mapped,
+            "the epilogue is on generated line {line}, which the map still covers \
+             (last mapped line {last_mapped}) — this cell no longer reads the axis"
+        );
+        assert!(
+            entry_map.is_inserted_text(line, col),
+            "the generated epilogue must not be attributed to the author"
+        );
+
+        // The author's own statement is on a mapped line and must stay mapped:
+        // a filter that swallowed the whole overlay would pass the assertion
+        // above and hide every real type error in the file.
+        let (line, col) = at("void props;");
+        assert!(
+            !entry_map.is_inserted_text(line, col),
+            "the author's own statement must stay mapped"
         );
     }
 
