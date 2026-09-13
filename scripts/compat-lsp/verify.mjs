@@ -310,7 +310,26 @@ const initializationOptions = {
         variableTypes: { enabled: true, suppressWhenTypeMatchesName: false },
       },
     },
-    javascript: { suggest: { autoImports: false } },
+    // Upstream picks the preference namespace by SCRIPT KIND, not by file
+    // extension (`LSAndTSDocResolver.ts`), so a component with no `lang="ts"`
+    // reads `javascript.inlayHints.*`. Sending only the `typescript` half made
+    // `areInlayHintsEnabled` false there and the official server answered
+    // `null` before computing a hint — the gate measuring its own
+    // configuration rather than either server (#4494).
+    javascript: {
+      suggest: { autoImports: false },
+      inlayHints: {
+        enumMemberValues: { enabled: true },
+        functionLikeReturnTypes: { enabled: true },
+        parameterNames: {
+          enabled: "all",
+          suppressWhenArgumentMatchesName: false,
+        },
+        parameterTypes: { enabled: true },
+        propertyDeclarationTypes: { enabled: true },
+        variableTypes: { enabled: true, suppressWhenTypeMatchesName: false },
+      },
+    },
   },
 };
 const capabilities = {
