@@ -462,6 +462,15 @@ impl<'a> Parser<'a> {
         } else {
             self.parse_js_expression(&pattern_clean, body_start)
         };
+        let pattern_expr = super::super::read::expression::attach_pattern_type_annotation(
+            &self.arena,
+            pattern_expr,
+            pattern_str,
+            body_start,
+            self.expression_line_offsets(),
+            self.ts,
+            super::super::read::expression::PatternAnnotationReader::ReadDeclaration,
+        );
 
         let init_offset = body_start
             + eq_idx
@@ -566,6 +575,15 @@ impl<'a> Parser<'a> {
             } else {
                 self.parse_js_expression(&pattern_clean, seg_off)
             };
+            let pattern_expr = super::super::read::expression::attach_pattern_type_annotation(
+                &self.arena,
+                pattern_expr,
+                &pattern_str,
+                seg_off,
+                self.expression_line_offsets(),
+                self.ts,
+                super::super::read::expression::PatternAnnotationReader::ReadDeclaration,
+            );
 
             let init_value: Value = if init_str.is_empty() {
                 Value::Null
@@ -2409,6 +2427,16 @@ impl<'a> Parser<'a> {
                                 self.expression_line_offsets(),
                             )
                         };
+                    let pattern_expr =
+                        super::super::read::expression::attach_pattern_type_annotation(
+                            &self.arena,
+                            pattern_expr,
+                            pattern_str,
+                            expr_start,
+                            self.expression_line_offsets(),
+                            self.ts,
+                            super::super::read::expression::PatternAnnotationReader::ReadPattern,
+                        );
 
                     // Calculate the offset for the init expression in the
                     // original source.  `trimmed` starts at `expr_start` in

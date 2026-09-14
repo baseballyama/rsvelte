@@ -3226,6 +3226,56 @@ fn attach_param_type_annotation<'a>(
     Expression::from_node(node)
 }
 
+/// OXC keeps a catch parameter's annotation beside the pattern
+/// (`CatchParameter::type_annotation`), while acorn-typescript writes it onto the
+/// pattern node itself and ends that node at the annotation. Both catch-clause
+/// ports call this, so the program path and the template-expression path cannot
+/// drift apart on the shape.
+fn attach_catch_param_type_annotation(
+    arena: &ParseArena,
+    mut node: JsNode,
+    type_ann: Option<&oxc_ast::ast::TSTypeAnnotation>,
+    adjusted_offset: AdjustedOffset,
+    line_offsets: &[usize],
+) -> JsNode {
+    let Some(type_ann) = type_ann else {
+        return node;
+    };
+    let annotation =
+        convert_type_annotation_adjusted(arena, type_ann, adjusted_offset, line_offsets);
+    let annotated_end = adjusted_offset + type_ann.span.end as usize;
+    let (start, end, loc, slot) = match &mut node {
+        JsNode::Identifier {
+            start,
+            end,
+            loc,
+            type_annotation,
+            ..
+        }
+        | JsNode::ObjectPattern {
+            start,
+            end,
+            loc,
+            type_annotation,
+            ..
+        }
+        | JsNode::ArrayPattern {
+            start,
+            end,
+            loc,
+            type_annotation,
+            ..
+        } => (start, end, loc, type_annotation),
+        _ => return node,
+    };
+    *end = annotated_end as u32;
+    if let Some(new_loc) = create_typed_loc(*start as usize, annotated_end, line_offsets) {
+        *loc = Some(new_loc);
+    }
+    *slot = Some(Box::new(annotation));
+    node
+}
+
 /// Convert oxc ObjectPattern to our Expression format (for function parameters).
 fn convert_object_pattern_to_expr<'a>(
     arena: &ParseArena,
@@ -7254,10 +7304,17 @@ fn convert_statement(
                 let h_start = offset + handler.span.start as usize - 1;
                 let h_end = offset + handler.span.end as usize - 1;
                 let param = handler.param.as_ref().map(|param| {
-                    arena.alloc_js_node(convert_binding_pattern_for_param_as_node(
+                    let adjusted = AdjustedOffset::wrapped(offset, 1);
+                    arena.alloc_js_node(attach_catch_param_type_annotation(
                         arena,
-                        &param.pattern,
-                        AdjustedOffset::wrapped(offset, 1),
+                        convert_binding_pattern_for_param_as_node(
+                            arena,
+                            &param.pattern,
+                            adjusted,
+                            line_offsets,
+                        ),
+                        param.type_annotation.as_deref(),
+                        adjusted,
                         line_offsets,
                     ))
                 });
@@ -10019,10 +10076,12 @@ fn convert_statement_for_program(
                 let handler_loc = create_typed_loc(handler_start, handler_end, line_offsets);
 
                 let param = handler.param.as_ref().map(|param| {
-                    arena.alloc_js_node(convert_binding_pattern(
+                    let adjusted = AdjustedOffset::plain(offset);
+                    arena.alloc_js_node(attach_catch_param_type_annotation(
                         arena,
-                        &param.pattern,
-                        AdjustedOffset::plain(offset),
+                        convert_binding_pattern(arena, &param.pattern, adjusted, line_offsets),
+                        param.type_annotation.as_deref(),
+                        adjusted,
                         line_offsets,
                     ))
                 });
@@ -14274,6 +14333,144 @@ pub fn validate_template_binding_pattern(
     })
 }
 
+/// The annotation `read_type_annotation` (`1-parse/read/context.js`) builds by
+/// hand for `{#each xs as x: T}` / `{:then v: T}`: it starts where the pattern
+/// ended — before the whitespace around the `:` — and carries no `loc`, because
+/// no acorn node produced it. Only a destructured pattern takes the annotation's
+/// `end`; a bare identifier keeps its own.
+fn attach_template_binding_annotation(
+    node: &mut JsNode,
+    annotation_start: usize,
+    annotation_end: usize,
+    annotation: Value,
+    extend_end: bool,
+    reader: PatternAnnotationReader,
+) {
+    let annotation = match reader {
+        PatternAnnotationReader::ReadDeclaration => annotation,
+        PatternAnnotationReader::ReadPattern => {
+            let mut obj = Map::new();
+            obj.set_field("type", Value::String("TSTypeAnnotation".to_string()));
+            obj.set_field("start", Value::from(annotation_start));
+            obj.set_field("end", Value::from(annotation_end));
+            obj.set_field("typeAnnotation", annotation);
+            Value::Object(obj)
+        }
+    };
+
+    let (end, slot) = match node {
+        JsNode::Identifier {
+            end,
+            type_annotation,
+            ..
+        }
+        | JsNode::ObjectPattern {
+            end,
+            type_annotation,
+            ..
+        }
+        | JsNode::ArrayPattern {
+            end,
+            type_annotation,
+            ..
+        } => (end, type_annotation),
+        _ => return,
+    };
+    if extend_end {
+        *end = annotation_end as u32;
+    }
+    *slot = Some(Box::new(annotation));
+}
+
+/// Upstream's `read_pattern` reads a pattern and its type annotation together,
+/// so `{@const x: T = …}`'s declarator id carries the annotation exactly as an
+/// each-block context does. The const-tag / declaration-tag ports parse the
+/// pattern with the annotation already stripped off the text, so they re-attach
+/// it here rather than growing a second annotation reader.
+pub fn attach_pattern_type_annotation<'a>(
+    arena: &ParseArena,
+    expr: Expression<'a>,
+    pattern_with_annotation: &str,
+    offset: usize,
+    line_offsets: &[usize],
+    ts: bool,
+    reader: PatternAnnotationReader,
+) -> Expression<'a> {
+    let Some((annotation, annotation_end)) = read_binding_type_annotation(
+        arena,
+        pattern_with_annotation,
+        offset,
+        line_offsets,
+        ts,
+        reader,
+    ) else {
+        return expr;
+    };
+    let mut node = expr_to_node(expr);
+    // `id.name !== ''` upstream: an identifier keeps its own `end`, a
+    // destructured pattern takes the annotation's.
+    let extend_end = !matches!(node, JsNode::Identifier { .. });
+    let pattern_end = node.end().unwrap_or(0) as usize;
+    attach_template_binding_annotation(
+        &mut node,
+        pattern_end,
+        annotation_end,
+        annotation,
+        extend_end,
+        reader,
+    );
+    Expression::from_node(node)
+}
+
+/// Which upstream reader produced the annotation. `{@const}` and the block
+/// patterns go through `read_pattern`, whose `read_type_annotation` builds the
+/// `TSTypeAnnotation` by hand — it starts at the pattern's end and has no `loc`.
+/// `{const …}` / `{let …}` go through `read_declaration`, where the node comes
+/// from the parser and carries its own span and `loc`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PatternAnnotationReader {
+    ReadPattern,
+    ReadDeclaration,
+}
+
+/// The TS type behind a template pattern's `:`, read the way
+/// `parse_binding_pattern` reads the pattern itself — one `let … = null` wrap, so
+/// the annotation and the pattern cannot come from different parses.
+fn read_binding_type_annotation(
+    arena: &ParseArena,
+    content: &str,
+    offset: usize,
+    line_offsets: &[usize],
+    ts: bool,
+    reader: PatternAnnotationReader,
+) -> Option<(Value, usize)> {
+    with_oxc_allocator(|allocator| {
+        let source_type = if ts {
+            SourceType::ts()
+        } else {
+            SourceType::mjs()
+        };
+        let wrapped = format!("let {} = null", content);
+        let parser = OxcParser::new(allocator, &wrapped, source_type);
+        let result = parser.parse();
+        let oxc_ast::ast::Statement::VariableDeclaration(var_decl) = result.program.body.first()?
+        else {
+            return None;
+        };
+        let type_ann = var_decl.declarations.first()?.type_annotation.as_ref()?;
+        let adjusted = AdjustedOffset::wrapped(offset, 4);
+        let value = match reader {
+            PatternAnnotationReader::ReadPattern => {
+                convert_ts_type_adjusted(arena, &type_ann.type_annotation, adjusted, line_offsets)
+            }
+            PatternAnnotationReader::ReadDeclaration => {
+                convert_type_annotation_adjusted(arena, type_ann, adjusted, line_offsets)
+            }
+        };
+        Some((value, offset + type_ann.span.end as usize - 4))
+    })
+}
+
 pub fn parse_binding_pattern<'a>(
     arena: &ParseArena,
     content: &str,
@@ -14344,17 +14541,53 @@ pub fn parse_binding_pattern<'a>(
             result.program.body.first()
             && let Some(decl) = var_decl.declarations.first()
         {
+            let annotation = decl.type_annotation.as_ref().map(|type_ann| {
+                (
+                    convert_ts_type_adjusted(
+                        arena,
+                        &type_ann.type_annotation,
+                        AdjustedOffset::wrapped(offset, 4),
+                        line_offsets,
+                    ),
+                    offset + type_ann.span.end as usize - 4,
+                )
+            });
+
             if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &decl.id {
                 let start = offset + id.span.start as usize - 4;
                 let end = offset + id.span.end as usize - 4;
-                return Ok(Expression::from_node(
-                    create_identifier_for_binding_toplevel(&id.name, start, end, line_offsets),
-                ));
+                let mut node =
+                    create_identifier_for_binding_toplevel(&id.name, start, end, line_offsets);
+                if let Some((inner, annotation_end)) = annotation {
+                    // `{ ...id, typeAnnotation }`: the identifier keeps its own `end`.
+                    attach_template_binding_annotation(
+                        &mut node,
+                        end,
+                        annotation_end,
+                        inner,
+                        false,
+                        PatternAnnotationReader::ReadPattern,
+                    );
+                }
+                return Ok(Expression::from_node(node));
             }
 
-            return Ok(Expression::from_node(
-                convert_binding_pattern_with_adjustment(arena, &decl.id, offset, 4, line_offsets),
-            ));
+            let mut node =
+                convert_binding_pattern_with_adjustment(arena, &decl.id, offset, 4, line_offsets);
+            if let Some((inner, annotation_end)) = annotation {
+                // `expression.end = expression.typeAnnotation.end` — a destructured
+                // pattern does take the annotation's end.
+                let pattern_end = node.end().unwrap_or(0) as usize;
+                attach_template_binding_annotation(
+                    &mut node,
+                    pattern_end,
+                    annotation_end,
+                    inner,
+                    true,
+                    PatternAnnotationReader::ReadPattern,
+                );
+            }
+            return Ok(Expression::from_node(node));
         }
 
         // Fallback: return as simple identifier
