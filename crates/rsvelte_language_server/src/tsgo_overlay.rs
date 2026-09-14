@@ -1038,6 +1038,23 @@ impl TsgoOverlay {
             return (!mappings.is_empty()).then_some(serde_json::Value::Object(mappings));
         };
         let config_dir = source.parent().unwrap_or_else(|| Path::new("."));
+        // tsgo (TypeScript 7) has REMOVED `baseUrl`, and its own error names the
+        // replacement: `"paths": {"*": ["./*"]}`. TypeScript 5.x, which
+        // `svelte-language-server` runs, still honours it, so without this every
+        // non-relative import a project roots at `baseUrl` loses its type here
+        // and keeps it there. The overlay's `paths` is a total override, which
+        // is the only place the translation can be written: a tsconfig cannot
+        // unset an option it inherits through `extends`. A project that declares
+        // `*` itself is left alone — the loop below overwrites this entry.
+        if let Some(base_url) = self.overlay_base_url() {
+            mappings.insert(
+                "*".to_string(),
+                json!([
+                    format!("{base_url}/*"),
+                    format!("{}/*", path_for_tsconfig(&self.shadow_dir))
+                ]),
+            );
+        }
         let Some((value, base)) = resolve_config_value_with_base(source, "paths") else {
             return (!mappings.is_empty()).then_some(serde_json::Value::Object(mappings));
         };
@@ -1069,6 +1086,14 @@ impl TsgoOverlay {
             );
         }
         (!mappings.is_empty()).then(|| serde_json::Value::Object(mappings))
+    }
+
+    /// The project's `baseUrl` as an absolute path, when it declares one.
+    fn overlay_base_url(&self) -> Option<String> {
+        let source = self.source_tsconfig.as_deref()?;
+        let config_dir = source.parent().unwrap_or_else(|| Path::new("."));
+        let (value, base) = resolve_config_value_with_base(source, "baseUrl")?;
+        Some(rebase_config_spec(value.as_str()?, &base, config_dir))
     }
 
     fn write_tsconfig(&self) -> Result<(), TsgoOverlayError> {
@@ -3296,5 +3321,86 @@ mod tests {
                 .unwrap()
                 .contains(&json!(rsvelte_check::overlay::SHIM_JSX_V4_NAME))
         );
+    }
+
+    #[test]
+    fn base_url_is_translated_into_the_paths_tsgo_still_honours() {
+        // tsgo removed `baseUrl`; TypeScript 5.x, which the official server
+        // runs, still honours it, so a `baseUrl`-rooted import kept its type
+        // there and lost it here (#4392).
+        let workspace = TestWorkspace::new("base-url");
+        write(
+            &workspace.0.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "baseUrl": "." } }"#,
+        );
+        write(&workspace.0.join("src/App.svelte"), "<p />");
+
+        let overlay = build_overlay(&workspace.0).unwrap();
+        let config = overlay_config(&overlay);
+        assert_eq!(
+            config["compilerOptions"]["paths"]["*"],
+            json!([
+                format!("{}/*", path_for_tsconfig(overlay.workspace())),
+                format!("{}/*", path_for_tsconfig(&overlay.shadow_dir))
+            ])
+        );
+    }
+
+    #[test]
+    fn base_url_resolves_against_the_config_that_declares_it() {
+        let workspace = TestWorkspace::new("base-url-extends");
+        write(
+            &workspace.0.join("configs/base.json"),
+            r#"{ "compilerOptions": { "baseUrl": "../app" } }"#,
+        );
+        write(
+            &workspace.0.join("tsconfig.json"),
+            r#"{ "extends": "./configs/base.json" }"#,
+        );
+        write(&workspace.0.join("app/src/App.svelte"), "<p />");
+
+        let overlay = build_overlay(&workspace.0).unwrap();
+        let config = overlay_config(&overlay);
+        assert_eq!(
+            config["compilerOptions"]["paths"]["*"][0],
+            json!(format!(
+                "{}/*",
+                path_for_tsconfig(&overlay.workspace().join("app"))
+            ))
+        );
+    }
+
+    #[test]
+    fn a_project_that_maps_the_star_pattern_itself_keeps_its_own() {
+        let workspace = TestWorkspace::new("base-url-star");
+        write(
+            &workspace.0.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "baseUrl": ".", "paths": { "*": ["./vendor/*"] } } }"#,
+        );
+        write(&workspace.0.join("src/App.svelte"), "<p />");
+
+        let overlay = build_overlay(&workspace.0).unwrap();
+        let config = overlay_config(&overlay);
+        assert_eq!(
+            config["compilerOptions"]["paths"]["*"],
+            json!([
+                path_for_tsconfig(&overlay.workspace().join("vendor/*")),
+                path_for_tsconfig(&overlay.shadow_dir.join("vendor/*"))
+            ])
+        );
+    }
+
+    #[test]
+    fn a_project_without_base_url_gains_no_star_pattern() {
+        // Live negative control: the translation must not appear on its own.
+        let workspace = TestWorkspace::new("base-url-absent");
+        write(
+            &workspace.0.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "strict": true } }"#,
+        );
+        write(&workspace.0.join("src/App.svelte"), "<p />");
+
+        let config = overlay_config(&build_overlay(&workspace.0).unwrap());
+        assert!(config["compilerOptions"]["paths"].is_null());
     }
 }
