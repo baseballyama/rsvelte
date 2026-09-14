@@ -1610,6 +1610,31 @@ pub fn var_decl(
     })
 }
 
+/// `const name = init;` whose identifier carries the original-source offset
+/// upstream stamps on it (`b.const(node.expression, …)`, where `node.expression`
+/// is the source Identifier). See [`JsVariableDeclarator::comment_anchor`].
+pub fn const_decl_anchored(
+    arena: &JsArena,
+    name: impl Into<CompactString>,
+    init: JsExpr,
+    // The span is the *source* name's, which the generated identifier does not
+    // reproduce byte for byte once the source name is non-ASCII.
+    anchor: Option<(u32, u32)>,
+) -> JsStatement {
+    let name = name.into();
+    JsStatement::VariableDeclaration(JsVariableDeclaration {
+        kind: JsVariableKind::Const,
+        declarations: vec![JsVariableDeclarator {
+            id: match anchor {
+                Some((start, end)) => JsPattern::SpannedIdentifier { name, start, end },
+                None => id_pattern(name),
+            },
+            init: Some(arena.alloc_expr(init)),
+            comment_anchor: anchor.map(|(start, _)| start),
+        }],
+    })
+}
+
 /// `var name = init;` whose identifier carries the original-source offset
 /// upstream stamps on it (`b.var(b.id(name, element.name_loc), …)`). See
 /// [`JsVariableDeclarator::comment_anchor`].

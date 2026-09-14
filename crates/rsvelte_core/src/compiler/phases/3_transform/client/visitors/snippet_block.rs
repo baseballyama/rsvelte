@@ -224,7 +224,10 @@ pub fn snippet_block(node: &SnippetBlock, context: &mut ComponentContext) {
     };
 
     // Create the const declaration: const snippet_name = ...;
-    let declaration = b::const_decl(&context.arena, &snippet_name, snippet);
+    // Upstream declares it with the snippet's own name Identifier, so a comment
+    // still pending from the instance script flushes here (#4489).
+    let name_span = node.expression.start().zip(node.expression.end());
+    let declaration = b::const_decl_anchored(&context.arena, &snippet_name, snippet, name_span);
 
     // Determine where to place the declaration
     place_snippet_declaration(node, context, declaration);
