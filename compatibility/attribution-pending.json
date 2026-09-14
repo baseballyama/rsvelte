@@ -6,5 +6,6 @@
 	"pattern-exact-known-failures.client-dev.json",
 	"pattern-exact-known-failures.client.json",
 	"pattern-exact-known-failures.server-dev.json",
-	"pattern-exact-known-failures.server.json"
+	"pattern-exact-known-failures.server.json",
+	"sourcemap-known-failures.json"
 ]
