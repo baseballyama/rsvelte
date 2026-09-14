@@ -79,6 +79,7 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `3635-esrap-side-effect-import-drops-attributes.md` | sveltejs/esrap | #3635 | unrecorded |
 | `3651-svelte-async-autofocus-and-event-output-is-unparseable.md` | sveltejs/svelte | #3651 | unrecorded |
 | `4083-oxc-parenthesized-satisfies-with-a-modifier-name.md` | oxc-project/oxc (`oxc_parser`) | #4083 | unrecorded |
+| `4133-svelte-each-expression-loc-keeps-the-swallowed-ts-assertion.md` | sveltejs/svelte | #4133 | unrecorded |
 | `4251-svelte-acorn-typescript-comment-duplication.md` | sveltejs/svelte | #4251 | unrecorded |
 | `4046-svelte-a-reordered-reactive-statement-reprints-earlier-comments.md` | sveltejs/svelte | #4046 | unrecorded |
 | `4111-svelte-await-catch-binding-transform-leaks-out-of-the-block.md` | sveltejs/svelte | #4111 | unrecorded |

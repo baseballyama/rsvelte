@@ -6778,6 +6778,7 @@ Attribution of `parse-ast-known-failures.json`:
 |---|---|---|
 | 1 | [`upstream_issues/3385-svelte-loose-parse-crashes.md`](../upstream_issues/3385-svelte-loose-parse-crashes.md) | `loose:unclosed-attribute-quote::(accepted)#official-rejects` — official does not reject that document, it **crashes** on it, so matching it would mean reproducing the crash |
 | 14 | [`upstream_issues/4251-svelte-acorn-typescript-comment-duplication.md`](../upstream_issues/4251-svelte-acorn-typescript-comment-duplication.md) | 6 keys on `modern` and 8 on `legacy` — official emits a comment twice, so its array is one element longer and the extra element has no counterpart. Re-measured under the aligned comparison (#4287); it was 17 under index pairing, where the surplus also mis-paired every later sibling |
+| 4 | [`upstream_issues/4133-svelte-each-expression-loc-keeps-the-swallowed-ts-assertion.md`](../upstream_issues/4133-svelte-each-expression-loc-keeps-the-swallowed-ts-assertion.md) | `LogicalExpression#span` (104 entries per axis) and `ConditionalExpression#span` (4) — in a TS component `{#each a ?? [] as x}` parses `[] as x` as a `TSAsExpression`, and unwrapping it moves the expression's `end` without moving its `loc.end`. Official's own `loc.end.column` disagrees with its own `end` offset on all 139 corpus occurrences and rsvelte's on none, so the sweep is internal to official and the counts account for the keys exactly |
 
 Both sides, on the gate's own source text (`parse-ast-verify.mjs:121`), under `{modern: true,
 loose: true}`:
