@@ -3410,13 +3410,14 @@ pub fn add_svelte_meta_dev(
     column: usize,
     additional: Option<Vec<(String, JsExpr)>>,
     dev: bool,
+    comment_anchor: Option<u32>,
 ) -> JsStatement {
     if !dev {
         return b::stmt(arena, expression);
     }
 
     let mut args: Vec<JsExpr> = vec![
-        b::arrow(arena, vec![], expression),
+        b::arrow_anchored_body(arena, vec![], expression, comment_anchor),
         b::string(meta_type),
         b::id(component_name),
         b::literal_number(line as f64),

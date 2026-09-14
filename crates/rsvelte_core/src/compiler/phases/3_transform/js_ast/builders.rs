@@ -360,6 +360,34 @@ pub fn arrow(arena: &JsArena, params: Vec<JsPattern>, body: JsExpr) -> JsExpr {
     })
 }
 
+/// `() => body` where the **callee** of a call body carries the original-source
+/// offset upstream stamps on the node it cloned there. Upstream synthesizes the
+/// arrow as well (`add_svelte_meta` builds it), so the flush belongs one level
+/// in: `() => // c` then the call, not `// c` then `() =>` (#4529).
+///
+/// Locating the call itself would be worse than not locating it: an arrow prints
+/// its parameters `until` the body's start, so a located body makes the empty
+/// parameter list claim the comment and emit `(// c\n) =>`. Upstream's arrow
+/// body is a `b.call`, which has no `loc` either — only its callee does — so a
+/// non-call body has nowhere to put the anchor and keeps none.
+#[inline]
+pub fn arrow_anchored_body(
+    arena: &JsArena,
+    params: Vec<JsPattern>,
+    body: JsExpr,
+    anchor: Option<u32>,
+) -> JsExpr {
+    if let (JsExpr::Call(call), Some(offset)) = (&body, anchor) {
+        arena.set_expr_comment_anchor(call.callee, offset);
+    }
+    JsExpr::Arrow(JsArrowFunction {
+        params: params.into(),
+        body: JsArrowBody::Expression(arena.alloc_expr(body)),
+        is_async: false,
+        span: None,
+    })
+}
+
 /// Create an arrow function with block body.
 #[inline]
 pub fn arrow_block(params: Vec<JsPattern>, body: Vec<JsStatement>) -> JsExpr {

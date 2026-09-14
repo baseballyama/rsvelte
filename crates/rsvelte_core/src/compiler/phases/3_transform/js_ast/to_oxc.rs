@@ -681,14 +681,25 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     /// Resolve an `ExprId` handle and convert the pointed-to expression.
     #[inline]
     fn expr_id(&self, id: ExprId) -> Option<Expression<'a>> {
-        if let Some((name, span)) = self.arena.expression_identifier_span(id) {
+        // Claimed before the expression is converted, for the reason
+        // `JsStatement::Expression` states: whatever prints first takes the
+        // chunk's anchor, and this node prints before anything inside it.
+        let anchor = self
+            .arena
+            .expr_comment_anchor(id)
+            .map(|offset| self.comment_anchor(Some(offset)));
+        let mut expression = if let Some((name, span)) = self.arena.expression_identifier_span(id) {
             self.identifier_span_scopes.borrow_mut().push((name, span));
             let expression = self.expr(self.arena.get_expr(id));
             self.identifier_span_scopes.borrow_mut().pop();
             expression
         } else {
             self.expr(self.arena.get_expr(id))
+        }?;
+        if let Some(span) = anchor.filter(|span| *span != SPAN) {
+            *expression.span_mut() = span;
         }
+        Some(expression)
     }
 
     /// Convert a member object and restore a span that could not be represented

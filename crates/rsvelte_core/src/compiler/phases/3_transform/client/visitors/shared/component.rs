@@ -3533,6 +3533,7 @@ fn build_component_meta_stmt(
         col,
         Some(vec![("componentTag".to_string(), b::string(&tag_name))]),
         dev,
+        anchor_comments.then_some(start),
     )
 }
 
