@@ -39,5 +39,9 @@ serde_json = { version = "1.0", features = ["preserve_order"] }
 sourcemap = "9.0"
 walkdir = "2.5"
 
+[dev-dependencies]
+# The epilogue test reads the emitted map the same way the mapper does.
+sourcemap = "9.0"
+
 [lints]
 workspace = true
