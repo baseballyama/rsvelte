@@ -7433,7 +7433,7 @@ fn transform_selector_list(
         }
     } else {
         // Fallback: just get the raw selector text
-        result = get_selector_text(prelude);
+        result = get_selector_text(prelude, css_source, Some(css_start));
     }
 
     result
@@ -7680,7 +7680,7 @@ fn push_global_args_text(
     } else {
         // Fallback to the reconstructed args text (e.g. synthetic nodes without
         // a reliable source span).
-        out.push_str(&get_selector_text(args));
+        out.push_str(&get_selector_text(args, css_source, Some(css_start)));
     }
 }
 
@@ -8450,8 +8450,11 @@ fn is_bare_universal(sel: &Value) -> bool {
         && sel.field("namespace").is_none_or(Value::is_null)
 }
 
-fn format_simple_selector(sel: &Value) -> String {
-    format_simple_selector_with_scope(sel, "", "", None, 0, None, false, false)
+/// Reconstruction is lossy — it cannot carry the author's quoting, spacing or
+/// escape sequences — so the source has to reach the leaves, not stop at the
+/// pseudo-class that owns them.
+fn format_simple_selector(sel: &Value, css_source: &str, css_start: Option<usize>) -> String {
+    format_simple_selector_with_scope(sel, "", css_source, css_start, 0, None, false, false)
 }
 
 /// The source text of a pseudo-class selector, arguments included.
@@ -8614,7 +8617,11 @@ fn format_simple_selector_with_scope(
                     // separator that only the source still carries.
                     text
                 } else {
-                    format!(":{}({})", name, get_selector_text(args))
+                    format!(
+                        ":{}({})",
+                        name,
+                        get_selector_text(args, css_source, css_start)
+                    )
                 }
             } else if let Some(text) = pseudo_source_text(sel, css_source, css_start) {
                 // Same reason, for the argument-less form — plus the escapes. The
@@ -8712,10 +8719,10 @@ fn transform_is_not_args(
 ) -> String {
     // args should be a SelectorList
     let Some(children) = args.field("children").and_then(|c| c.as_array()) else {
-        return get_selector_text(args);
+        return get_selector_text(args, css_source, css_start);
     };
     if children.is_empty() {
-        return get_selector_text(args);
+        return get_selector_text(args, css_source, css_start);
     }
 
     let mut used = Vec::with_capacity(children.len());
@@ -8734,7 +8741,7 @@ fn transform_is_not_args(
         texts.push(if is_unused {
             css_start
                 .map(|cs| get_complex_selector_text(complex_selector, css_source, cs))
-                .unwrap_or_else(|| get_selector_text(complex_selector))
+                .unwrap_or_else(|| get_selector_text(complex_selector, css_source, css_start))
         } else {
             transform_is_not_complex_selector(
                 complex_selector,
@@ -9001,17 +9008,21 @@ fn transform_is_not_complex_selector(
                             && sel.field("name").and_then(|n| n.as_str()) == Some("global")
                         {
                             if let Some(global_args) = sel.field("args").filter(|a| !a.is_null()) {
-                                result.push_str(&get_selector_text(global_args));
+                                result.push_str(&get_selector_text(
+                                    global_args,
+                                    css_source,
+                                    css_start,
+                                ));
                             }
                         } else {
-                            result.push_str(&format_simple_selector(sel));
+                            result.push_str(&format_simple_selector(sel, css_source, css_start));
                         }
                     }
                 } else if has_nesting {
                     // NestingSelector (&) inherits scoping from the parent rule.
                     // Don't add any additional scoping - just output the selectors as-is.
                     for sel in selectors {
-                        result.push_str(&format_simple_selector(sel));
+                        result.push_str(&format_simple_selector(sel, css_source, css_start));
                     }
                 } else if should_scope {
                     // Add :where() scoping for complex selectors
@@ -9072,7 +9083,7 @@ fn transform_is_not_complex_selector(
                             sel,
                             selector,
                             css_source,
-                            None,
+                            css_start,
                             1,
                             ctx,
                             inner_use_direct_class,
@@ -9194,11 +9205,11 @@ fn get_complex_selector_text(node: &Value, css_source: &str, css_start: usize) -
     if src_end <= css_source.len() && src_start < src_end {
         css_source[src_start..src_end].to_string()
     } else {
-        get_selector_text(node)
+        get_selector_text(node, css_source, Some(css_start))
     }
 }
 
-fn get_selector_text(node: &Value) -> String {
+fn get_selector_text(node: &Value, css_source: &str, css_start: Option<usize>) -> String {
     // Handle Raw type (used for pseudo element arguments like ::view-transition-group(foo))
     if node.field("type").and_then(|t| t.as_str()) == Some("Raw") {
         return node
@@ -9234,21 +9245,21 @@ fn get_selector_text(node: &Value) -> String {
             // Add the selectors from this relative selector or child
             if let Some(selectors) = child.field("selectors").and_then(|s| s.as_array()) {
                 for sel in selectors {
-                    result.push_str(&format_simple_selector(sel));
+                    result.push_str(&format_simple_selector(sel, css_source, css_start));
                 }
             } else {
-                result.push_str(&get_selector_text(child));
+                result.push_str(&get_selector_text(child, css_source, css_start));
             }
         }
         result
     } else if let Some(selectors) = node.field("selectors").and_then(|s| s.as_array()) {
         let mut result = String::new();
         for sel in selectors {
-            result.push_str(&format_simple_selector(sel));
+            result.push_str(&format_simple_selector(sel, css_source, css_start));
         }
         result
     } else {
-        format_simple_selector(node)
+        format_simple_selector(node, css_source, css_start)
     }
 }
 
