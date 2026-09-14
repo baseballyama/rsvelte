@@ -3772,6 +3772,28 @@ impl JsNode {
         }
     }
 
+    /// The `end` of this node's TS annotation, when it has one. The annotation is
+    /// an opaque `Value`, so the span is read out of it rather than off a field.
+    #[must_use]
+    pub fn type_annotation_end(&self) -> Option<u32> {
+        let annotation = match self {
+            Self::Identifier {
+                type_annotation, ..
+            }
+            | Self::ObjectPattern {
+                type_annotation, ..
+            }
+            | Self::ArrayPattern {
+                type_annotation, ..
+            } => type_annotation.as_deref(),
+            _ => None,
+        }?;
+        annotation
+            .field("end")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|end| u32::try_from(end).ok())
+    }
+
     #[must_use]
     pub fn end(&self) -> Option<u32> {
         match self {

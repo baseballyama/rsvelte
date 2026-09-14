@@ -95,6 +95,28 @@ pub fn trim_range(source: &str, mut start: usize, mut end: usize) -> Option<(u32
 }
 
 /// Get the expression source text from the original source.
+/// The range of a `{:then VALUE}` / `{:catch ERROR}` binding **including its TS
+/// annotation** — upstream's `AwaitPendingCatchBlock.ts:44` and `:62` read
+/// `value.typeAnnotation?.end ?? value.end`, because `read_pattern` leaves the
+/// identifier's own `end` in front of the `:` and the generated
+/// `const VALUE: T = $$_value;` needs the `: T`.
+pub fn get_binding_range_with_type(expr: &crate::ast::js::Expression) -> Option<(u32, u32)> {
+    let (start, end) = get_expression_range(expr)?;
+    Some((start, expr.type_annotation_end().unwrap_or(end)))
+}
+
+/// The source text of a `{:then}` / `{:catch}` binding, annotation included.
+pub fn get_binding_text_with_type<'a>(
+    expr: &crate::ast::js::Expression,
+    source: &'a str,
+) -> &'a str {
+    if let Some((start, end)) = get_binding_range_with_type(expr) {
+        slice_src(source, start as usize, end as usize)
+    } else {
+        ""
+    }
+}
+
 pub fn get_expression_text<'a>(expr: &crate::ast::js::Expression, source: &'a str) -> &'a str {
     if let Some((start, end)) = get_expression_range(expr) {
         slice_src(source, start as usize, end as usize)

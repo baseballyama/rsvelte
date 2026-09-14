@@ -322,6 +322,18 @@ impl Expression<'_> {
         }
     }
 
+    /// The `end` of the TS annotation on a binding pattern, when it carries one.
+    /// `read_pattern` leaves a bare identifier's own `end` in front of the `:`,
+    /// so a consumer that wants the annotated text — upstream svelte2tsx reads
+    /// `value.typeAnnotation?.end ?? value.end` — has to ask the annotation.
+    #[must_use]
+    pub fn type_annotation_end(&self) -> Option<u32> {
+        match self {
+            Expression::Typed(te) => te.node.type_annotation_end(),
+            Expression::Lazy { .. } => None,
+        }
+    }
+
     /// Check if this is an Identifier with the given name.
     #[inline]
     #[must_use]

@@ -7,7 +7,10 @@ use crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions;
 
 use crate::svelte2tsx::template::ctx::{Counter, TemplateNodeExt};
 use crate::svelte2tsx::template::nodes::snippet_block::hoist_snippet_blocks;
-use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
+use crate::svelte2tsx::template::utils::expr::{
+    get_binding_range_with_type, get_binding_text_with_type, get_expression_range,
+    get_expression_text,
+};
 use crate::svelte2tsx::template::walk::process_fragment_inplace;
 
 /// The source range of `{:then VALUE}`'s binding, when it lies inside the
@@ -26,7 +29,7 @@ fn error_range(block: &AwaitBlock, lo: u32, hi: u32) -> Option<(u32, u32)> {
 }
 
 fn range_within(expr: &crate::ast::js::Expression, lo: u32, hi: u32) -> Option<(u32, u32)> {
-    let (start, end) = get_expression_range(expr)?;
+    let (start, end) = get_binding_range_with_type(expr)?;
     (lo <= start && start < end && end <= hi).then_some((start, end))
 }
 
@@ -74,13 +77,13 @@ pub fn handle_await_block(
     let value_text = block
         .value
         .as_ref()
-        .map(|v| get_expression_text(v, source).to_string())
+        .map(|v| get_binding_text_with_type(v, source).to_string())
         .unwrap_or_default();
 
     let error_text = block
         .error
         .as_ref()
-        .map(|e| get_expression_text(e, source).to_string())
+        .map(|e| get_binding_text_with_type(e, source).to_string())
         .unwrap_or_default();
 
     if has_pending {
