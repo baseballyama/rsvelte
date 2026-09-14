@@ -440,6 +440,23 @@ pub fn thunk(arena: &JsArena, expr: JsExpr) -> JsExpr {
     unthunk(arena, arrow_expr)
 }
 
+/// `() => expr` whose **body** carries the original-source offset upstream keeps
+/// on the expression it cloned into the thunk. An arrow prints its parameters
+/// `until` the body's start, so a located body makes the empty parameter list
+/// claim a comment still pending from the instance script — which is where
+/// upstream puts it (`$.html(node, (// c` / `) => c);`, #4481). `unthunk` runs
+/// first, so `() => snippet()` still collapses to `snippet` and there is then no
+/// arrow to anchor.
+pub fn thunk_anchored(arena: &JsArena, expr: JsExpr, anchor: Option<u32>) -> JsExpr {
+    let thunked = thunk(arena, expr);
+    if let (JsExpr::Arrow(arrow), Some(offset)) = (&thunked, anchor)
+        && let JsArrowBody::Expression(body) = &arrow.body
+    {
+        arena.set_expr_comment_anchor(*body, offset);
+    }
+    thunked
+}
+
 /// Optimize `(arg) => func(arg)` to `func` and `() => func()` to `func`.
 /// Also optimizes `async () => await x()` to `() => x()` when x has no nested awaits.
 ///
