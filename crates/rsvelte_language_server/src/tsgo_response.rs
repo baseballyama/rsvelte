@@ -1128,7 +1128,7 @@ mod tests {
         let path = workspace.0.join("src/App.svelte");
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(&path, source).unwrap();
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = TsgoOverlay::build_with(&workspace.0, None, None).unwrap();
         (workspace, path, overlay)
     }
 
@@ -1398,8 +1398,8 @@ mod tests {
         let source = "<script>let value = 1;</script>";
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(&path, source).unwrap();
-        let parent_overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
-        let nested_overlay = TsgoOverlay::build(&nested, None).unwrap();
+        let parent_overlay = TsgoOverlay::build_with(&workspace.0, None, None).unwrap();
+        let nested_overlay = TsgoOverlay::build_with(&nested, None, None).unwrap();
         let nested_shadow = nested_overlay.shadow_for_source(&path).unwrap();
         let nested_shadow_uri = nested_shadow.shadow_uri.clone();
         let source_uri = nested_shadow.source_uri.clone();
@@ -1561,7 +1561,7 @@ mod tests {
     fn plain_typescript_values_and_completion_data_are_opaque() {
         let workspace = Workspace::new();
         fs::write(workspace.0.join("empty.txt"), "").unwrap();
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = TsgoOverlay::build_with(&workspace.0, None, None).unwrap();
         let mut value = json!({
             "uri": "file:///plain.ts",
             "range": {

@@ -13,7 +13,9 @@ use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
 
 use lsp_types::{Position, Range, Uri};
-use rsvelte_check::overlay::{SHIM_FILES, global_type_files};
+use rsvelte_check::overlay::{
+    FallbackSvelteTypes, SHIM_FILES, SHIM_JSX_V4_NAME, fallback_svelte_types, global_type_files,
+};
 use rsvelte_projection::{
     ProjectionEngine, ProjectionMap, RewriteExternalImportsOptions, Svelte2TsxMode,
     Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion, is_typescript_component,
@@ -202,6 +204,7 @@ pub struct TsgoOverlay {
     shadow_dir: PathBuf,
     tsconfig_path: PathBuf,
     source_tsconfig: Option<PathBuf>,
+    svelte_fallback: Option<FallbackSvelteTypes>,
     engine: ProjectionEngine,
     accessors: bool,
     namespace: Svelte2TsxNamespace,
@@ -226,6 +229,16 @@ impl TsgoOverlay {
     /// `tsconfig` defaults to `tsconfig.json`, then `jsconfig.json`, when one
     /// exists at the workspace root.
     pub fn build(workspace: &Path, tsconfig: Option<&Path>) -> Result<Self, TsgoOverlayError> {
+        Self::build_with(workspace, tsconfig, server_svelte_root().as_deref())
+    }
+
+    /// Build the overlay, saying where to resolve `svelte` from when the
+    /// workspace does not provide one (`importPackage.ts:27-38`).
+    pub fn build_with(
+        workspace: &Path,
+        tsconfig: Option<&Path>,
+        svelte_fallback_root: Option<&Path>,
+    ) -> Result<Self, TsgoOverlayError> {
         let workspace = absolute_normalized(workspace);
         let workspace = fs::canonicalize(&workspace)?;
         if !workspace.is_dir() {
@@ -243,6 +256,7 @@ impl TsgoOverlay {
 
         let source_tsconfig = resolve_tsconfig(&workspace, tsconfig);
         let tsconfig_path = cache_dir.join(OVERLAY_TSCONFIG);
+        let svelte_fallback = fallback_svelte_types(&workspace, svelte_fallback_root, &cache_dir);
         let compiler = rsvelte_check::config::load_compiler_options(&workspace);
         let mut overlay = Self {
             workspace,
@@ -250,6 +264,7 @@ impl TsgoOverlay {
             shadow_dir,
             tsconfig_path,
             source_tsconfig,
+            svelte_fallback,
             engine: ProjectionEngine::new(),
             accessors: compiler.projection_accessors(),
             namespace: compiler.projection_namespace(),
@@ -1008,11 +1023,25 @@ impl TsgoOverlay {
     /// under `shadow_dir`. `rootDirs` covers relative resolution only, so every
     /// mapping needs its shadow-tree twin spelled out beside the original.
     fn overlay_paths(&self) -> Option<serde_json::Value> {
-        let source = self.source_tsconfig.as_deref()?;
-        let config_dir = source.parent().unwrap_or_else(|| Path::new("."));
-        let (value, base) = resolve_config_value_with_base(source, "paths")?;
         let mut mappings = serde_json::Map::new();
-        for (pattern, targets) in value.as_object()? {
+        // The user's own patterns are written after these, so a project that
+        // maps `svelte` itself still wins.
+        for (module, target) in self.svelte_fallback.iter().flat_map(|fallback| {
+            fallback
+                .modules
+                .iter()
+                .map(move |m| (m, &fallback.declarations))
+        }) {
+            mappings.insert(module.clone(), json!([path_for_tsconfig(target)]));
+        }
+        let Some(source) = self.source_tsconfig.as_deref() else {
+            return (!mappings.is_empty()).then_some(serde_json::Value::Object(mappings));
+        };
+        let config_dir = source.parent().unwrap_or_else(|| Path::new("."));
+        let Some((value, base)) = resolve_config_value_with_base(source, "paths") else {
+            return (!mappings.is_empty()).then_some(serde_json::Value::Object(mappings));
+        };
+        for (pattern, targets) in value.as_object().into_iter().flatten() {
             let mut candidates = Vec::new();
             for target in targets
                 .as_array()
@@ -1060,12 +1089,23 @@ impl TsgoOverlay {
             // repository — and its `declare global`s — into the program.
             include.push(format!("{}/**/*", path_for_tsconfig(root)));
         }
-        let (shims, svelte_html) = global_type_files(&self.workspace);
+        let (mut shims, mut svelte_html) = global_type_files(&self.workspace);
+        if let Some(fallback) = &self.svelte_fallback {
+            svelte_html = fallback.svelte_html.clone();
+            if svelte_html.is_some() {
+                shims.retain(|name| *name != SHIM_JSX_V4_NAME);
+            }
+        }
         let mut files = shims
             .iter()
             .map(|name| (*name).to_string())
             .collect::<Vec<_>>();
         files.extend(svelte_html.as_deref().map(path_for_tsconfig));
+        files.extend(
+            self.svelte_fallback
+                .as_ref()
+                .map(|fallback| path_for_tsconfig(&fallback.declarations)),
+        );
         files.extend(specs.files.unwrap_or_default());
         let mut config = json!({
             "compilerOptions": {
@@ -1227,6 +1267,20 @@ impl TsgoOverlay {
         }
         Ok(())
     }
+}
+
+/// Where `require.resolve('svelte/package.json', { paths: [__dirname] })`
+/// looks from: the directory holding the running server
+/// (`importPackage.ts:32`). `@rsvelte/language-server` declares `svelte` for
+/// this reason, exactly as `svelte-language-server` does — and the launcher
+/// passes its own package root, because the native binary is installed in a
+/// sibling platform package that cannot see it.
+fn server_svelte_root() -> Option<PathBuf> {
+    if let Some(root) = std::env::var_os("RSVELTE_LANGUAGE_SERVER_ROOT") {
+        return Some(PathBuf::from(root));
+    }
+    let exe = std::env::current_exe().ok()?;
+    Some(exe.parent()?.to_path_buf())
 }
 
 fn resolve_tsconfig(workspace: &Path, explicit: Option<&Path>) -> Option<PathBuf> {
@@ -2107,8 +2161,15 @@ fn path_to_uri(path: &Path) -> Result<Uri, TsgoOverlayError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rsvelte_check::overlay::{SHIM_JSX_V4_NAME, SHIM_NATIVE_JSX_NAME, SHIM_SHIMS_V4_NAME};
+    use rsvelte_check::overlay::{SHIM_NATIVE_JSX_NAME, SHIM_SHIMS_V4_NAME};
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    /// Every test that is not about the fallback pins it off, so the program a
+    /// test asserts on does not depend on whether the tree it runs in happens
+    /// to have `node_modules/svelte` above the test binary.
+    fn build_overlay(workspace: &Path) -> Result<TsgoOverlay, TsgoOverlayError> {
+        TsgoOverlay::build_with(workspace, None, None)
+    }
 
     struct TestWorkspace(PathBuf);
 
@@ -2300,7 +2361,7 @@ mod tests {
             root.display()
         );
 
-        let mut overlay = TsgoOverlay::build(&root, None).unwrap();
+        let mut overlay = build_overlay(&root).unwrap();
         let (mut positions, mut identity, mut forward_none, mut reverse_none, mut moved) =
             (0usize, 0usize, 0usize, 0usize, 0usize);
         let mut open_failed = 0usize;
@@ -2430,7 +2491,7 @@ mod tests {
             "<p>skip</p>",
         );
 
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = build_overlay(&workspace.0).unwrap();
         assert_eq!(overlay.eager_shadows().len(), 2);
         let shadow = overlay.shadow_for_source(&app).unwrap();
         let shadow_path = overlay.shadow_dir.join("src/App.svelte.tsx");
@@ -2466,7 +2527,7 @@ mod tests {
         );
         write(&workspace.0.join("App.svelte"), "<p>{ambient}</p>");
 
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = build_overlay(&workspace.0).unwrap();
         let config: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(overlay.tsconfig_path()).unwrap()).unwrap();
         let include = config["include"].as_array().unwrap();
@@ -2508,7 +2569,7 @@ mod tests {
         );
         write(&workspace.0.join("src/lib/Widget.svelte"), "<p />");
 
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = build_overlay(&workspace.0).unwrap();
         let config: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(overlay.tsconfig_path()).unwrap()).unwrap();
         let source = path_for_tsconfig(&overlay.workspace().join("src/lib/*"));
@@ -2553,7 +2614,7 @@ mod tests {
         );
         write(&workspace.0.join("src/App.svelte"), "<p />");
 
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = build_overlay(&workspace.0).unwrap();
         let config: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(overlay.tsconfig_path()).unwrap()).unwrap();
         assert_eq!(
@@ -2583,7 +2644,7 @@ mod tests {
         );
         write(&workspace.0.join("src/App.svelte"), "<p />");
 
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = build_overlay(&workspace.0).unwrap();
         let config: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(overlay.tsconfig_path()).unwrap()).unwrap();
         let paths = &config["compilerOptions"]["paths"];
@@ -2601,7 +2662,7 @@ mod tests {
     }
 
     fn overlay_config_of(workspace: &Path) -> serde_json::Value {
-        let overlay = TsgoOverlay::build(workspace, None).unwrap();
+        let overlay = build_overlay(workspace).unwrap();
         serde_json::from_str(&fs::read_to_string(overlay.tsconfig_path()).unwrap()).unwrap()
     }
 
@@ -2672,7 +2733,7 @@ mod tests {
         let workspace = TestWorkspace::new("native-jsx-shim");
         write(&workspace.0.join("App.svelte"), "<p />");
 
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = build_overlay(&workspace.0).unwrap();
         assert!(overlay.cache_dir().join(SHIM_NATIVE_JSX_NAME).is_file());
         let config: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(overlay.tsconfig_path()).unwrap()).unwrap();
@@ -2714,7 +2775,7 @@ mod tests {
         write(&workspace.0.join("src/main.ts"), "export const main = 1;");
         write(&workspace.0.join("App.svelte"), "<p />");
 
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = build_overlay(&workspace.0).unwrap();
         let config: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(overlay.tsconfig_path()).unwrap()).unwrap();
         assert!(
@@ -2733,7 +2794,7 @@ mod tests {
         let workspace = TestWorkspace::new("lifecycle");
         let app = workspace.0.join("src/App.svelte");
         write(&app, "<p>disk</p>");
-        let mut overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let mut overlay = build_overlay(&workspace.0).unwrap();
 
         let changed = overlay.open_or_update(&app, "<p>buffer</p>", 7).unwrap();
         assert_eq!(changed.version, 7);
@@ -2768,7 +2829,7 @@ mod tests {
         let workspace = TestWorkspace::new("plain");
         let source = workspace.0.join("src/main.ts");
         write(&source, "const face = '😀';\nface;\n");
-        let mut overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let mut overlay = build_overlay(&workspace.0).unwrap();
 
         let shadow = overlay
             .open_plain(&source, "const face = '😀';\nface;\n", 3, "typescript")
@@ -2811,7 +2872,7 @@ mod tests {
             "<script lang=\"ts\">\n  import Child from './Child.svelte';\n</script>\n<Child  />\n";
         write(&app, source);
         write(&workspace.0.join("Child.svelte"), "<p>child</p>");
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = build_overlay(&workspace.0).unwrap();
         let cursor = LineIndex::new(source).position(source, source.rfind("  ").unwrap() + 1);
         let site = crate::tsgo_component_info::component_completion_site(
             source,
@@ -2850,7 +2911,7 @@ mod tests {
         let app = workspace.0.join("src/App.svelte");
         let source = "<script lang=\"ts\">\nconst 名前 = \"💡\";\nconsole.log(名前);\n</script>\n";
         write(&app, source);
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = build_overlay(&workspace.0).unwrap();
         let shadow_path = overlay.shadow_dir.join("src/App.svelte.tsx");
         let source_offset = source.rfind("名前").unwrap();
         let source_position = LineIndex::new(source).position(source, source_offset);
@@ -2890,7 +2951,7 @@ mod tests {
             )
             .collect::<Vec<_>>();
         let preprocess_map = encoded_preprocess_map(&app, original, &mappings);
-        let mut overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let mut overlay = build_overlay(&workspace.0).unwrap();
         let shadow = overlay
             .open_or_update_preprocessed(&app, original, &preprocessed, Some(&preprocess_map), 4)
             .unwrap();
@@ -2959,7 +3020,7 @@ mod tests {
                 (preprocessed_end, Some(original_end)),
             ],
         );
-        let mut overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let mut overlay = build_overlay(&workspace.0).unwrap();
         let shadow = overlay
             .open_or_update_preprocessed(&app, original, preprocessed, Some(&preprocess_map), 1)
             .unwrap();
@@ -2993,7 +3054,7 @@ mod tests {
         let app = workspace.0.join("App.svelte");
         let source = "<input bind:value={value}>";
         write(&app, source);
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = build_overlay(&workspace.0).unwrap();
         let opener = Position::new(0, 0);
         assert!(
             overlay.map_source_position(&app, opener).is_some(),
@@ -3006,7 +3067,7 @@ mod tests {
         let workspace = TestWorkspace::new("render-return");
         let app = workspace.0.join("App.svelte");
         write(&app, "<script>let value = 1;</script><p>{value}</p>");
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = build_overlay(&workspace.0).unwrap();
         let shadow = overlay.shadow_for_source(&app).unwrap();
 
         // The oracle is the real emitter's output, not a copy of the constant:
@@ -3042,7 +3103,7 @@ mod tests {
             &app,
             "<script lang=\"ts\">\n  let { a }: { a: \";function $$render() {\" } = $props();\n</script>\n<p>{a}</p>",
         );
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = build_overlay(&workspace.0).unwrap();
         let shadow = overlay.shadow_for_source(&app).unwrap();
         assert_eq!(
             shadow.text.matches(";function $$render() {").count(),
@@ -3067,7 +3128,7 @@ mod tests {
         let workspace = TestWorkspace::new("ignore-map");
         let app = workspace.0.join("App.svelte");
         write(&app, "<script>export let value;</script><p>{value}</p>");
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = build_overlay(&workspace.0).unwrap();
         let shadow_path = overlay.shadow_dir.join("App.svelte.tsx");
         let shadow = overlay.shadow_for_source(&app).unwrap();
         let ignored = shadow.text.find(IGNORE_START).unwrap() + IGNORE_START.len();
@@ -3086,7 +3147,7 @@ mod tests {
         let cache_parent = workspace.0.join(CACHE_DIRECTORY);
         fs::create_dir_all(&cache_parent).unwrap();
         symlink(&outside.0, cache_parent.join(TSGO_DIRECTORY)).unwrap();
-        let error = TsgoOverlay::build(&workspace.0, None).unwrap_err();
+        let error = build_overlay(&workspace.0).unwrap_err();
         assert!(error.to_string().contains("symlink"));
         assert!(fs::read_dir(&outside.0).unwrap().next().is_none());
     }
@@ -3108,6 +3169,132 @@ mod tests {
         assert_eq!(
             shadow_language_id("<script module lang=\"ts\">export const a = 1;</script>"),
             "typescriptreact"
+        );
+    }
+
+    /// A `svelte` install whose bundled declarations are shaped like the real
+    /// one: the ambient `*.svelte` wildcard plus named modules.
+    fn write_svelte_package(root: &Path, svelte_html: bool) -> PathBuf {
+        let package = root.join("node_modules/svelte");
+        write(&package.join("package.json"), r#"{"version":"5.57.0"}"#);
+        write(
+            &package.join("types/index.d.ts"),
+            "declare module 'svelte' {\n\texport function mount(): void;\n}\n\
+             declare module 'svelte/transition' {\n\texport function fade(): void;\n}\n\
+             declare module '*.svelte' {\n\texport default 1;\n}\n",
+        );
+        if svelte_html {
+            write(&package.join("svelte-html.d.ts"), "");
+        }
+        package
+    }
+
+    fn overlay_config(overlay: &TsgoOverlay) -> serde_json::Value {
+        serde_json::from_str(&fs::read_to_string(overlay.tsconfig_path()).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn a_project_without_node_modules_types_against_the_svelte_beside_the_server() {
+        // Upstream resolves `svelte` with `paths = [workspace, __dirname]`, so a
+        // project with no `node_modules` keeps every `svelte/*` type instead of
+        // losing them to a 2307 (#4101).
+        let workspace = TestWorkspace::new("svelte-fallback");
+        let server = TestWorkspace::new("svelte-fallback-server");
+        write_svelte_package(&server.0, false);
+        write(&workspace.0.join("src/App.svelte"), "<p />");
+
+        let overlay = TsgoOverlay::build_with(&workspace.0, None, Some(&server.0)).unwrap();
+        let config = overlay_config(&overlay);
+        let shadow = path_for_tsconfig(&overlay.cache_dir().join("svelte-types.d.ts"));
+        assert_eq!(
+            config["compilerOptions"]["paths"]["svelte/transition"],
+            json!([shadow.clone()])
+        );
+        assert_eq!(
+            config["compilerOptions"]["paths"]["svelte"],
+            json!([shadow.clone()])
+        );
+        // The ambient `*.svelte` wildcard must not come with them, or a missing
+        // component would type as a default-only import.
+        assert!(config["compilerOptions"]["paths"]["*.svelte"].is_null());
+        assert!(config["files"].as_array().unwrap().contains(&json!(shadow)));
+    }
+
+    #[test]
+    fn a_project_with_its_own_svelte_is_left_alone() {
+        // Live negative control for the test above: tsgo's own module
+        // resolution reaches an installed `svelte`, so nothing is overridden.
+        let workspace = TestWorkspace::new("svelte-installed");
+        let server = TestWorkspace::new("svelte-installed-server");
+        write_svelte_package(&workspace.0, false);
+        write_svelte_package(&server.0, false);
+        write(&workspace.0.join("src/App.svelte"), "<p />");
+
+        let overlay = TsgoOverlay::build_with(&workspace.0, None, Some(&server.0)).unwrap();
+        let config = overlay_config(&overlay);
+        assert!(config["compilerOptions"]["paths"].is_null());
+        assert!(!overlay.cache_dir().join("svelte-types.d.ts").is_file());
+    }
+
+    #[test]
+    fn a_project_that_maps_svelte_itself_keeps_its_own_mapping() {
+        let workspace = TestWorkspace::new("svelte-user-mapping");
+        let server = TestWorkspace::new("svelte-user-mapping-server");
+        write_svelte_package(&server.0, false);
+        write(
+            &workspace.0.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "paths": { "svelte": ["./vendor/svelte.d.ts"] } } }"#,
+        );
+        write(&workspace.0.join("vendor/svelte.d.ts"), "export {};");
+        write(&workspace.0.join("src/App.svelte"), "<p />");
+
+        let overlay = TsgoOverlay::build_with(&workspace.0, None, Some(&server.0)).unwrap();
+        let config = overlay_config(&overlay);
+        assert_eq!(
+            config["compilerOptions"]["paths"]["svelte"],
+            json!([
+                path_for_tsconfig(&overlay.workspace().join("vendor/svelte.d.ts")),
+                path_for_tsconfig(&overlay.shadow_dir.join("vendor/svelte.d.ts"))
+            ])
+        );
+        // The subpath it did not map still comes from the fallback.
+        assert_eq!(
+            config["compilerOptions"]["paths"]["svelte/transition"],
+            json!([path_for_tsconfig(
+                &overlay.cache_dir().join("svelte-types.d.ts")
+            )])
+        );
+    }
+
+    #[test]
+    fn the_fallback_package_supplies_svelte_html_in_place_of_the_jsx_shim() {
+        let workspace = TestWorkspace::new("svelte-fallback-html");
+        let server = TestWorkspace::new("svelte-fallback-html-server");
+        write_svelte_package(&server.0, true);
+        let package = fs::canonicalize(&server.0)
+            .unwrap()
+            .join("node_modules/svelte");
+        write(&workspace.0.join("src/App.svelte"), "<p />");
+
+        let overlay = TsgoOverlay::build_with(&workspace.0, None, Some(&server.0)).unwrap();
+        let files = overlay_config(&overlay)["files"].clone();
+        let files = files.as_array().unwrap();
+        assert!(files.contains(&json!(path_for_tsconfig(&package.join("svelte-html.d.ts")))));
+        assert!(!files.contains(&json!(rsvelte_check::overlay::SHIM_JSX_V4_NAME)));
+    }
+
+    #[test]
+    fn without_a_fallback_root_nothing_changes() {
+        let workspace = TestWorkspace::new("svelte-no-fallback");
+        write(&workspace.0.join("src/App.svelte"), "<p />");
+
+        let config = overlay_config(&build_overlay(&workspace.0).unwrap());
+        assert!(config["compilerOptions"]["paths"].is_null());
+        assert!(
+            config["files"]
+                .as_array()
+                .unwrap()
+                .contains(&json!(rsvelte_check::overlay::SHIM_JSX_V4_NAME))
         );
     }
 }

@@ -189,6 +189,9 @@ importers:
 
   apps/npm/language-server:
     dependencies:
+      svelte:
+        specifier: ^5.0.0
+        version: 5.57.0
       vscode-languageserver:
         specifier: ^10.0.0
         version: 10.1.1

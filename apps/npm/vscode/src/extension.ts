@@ -193,11 +193,15 @@ function waitWhileStarting(c: LanguageClient, timeoutMs: number): Promise<{ time
   });
 }
 
-function serverEnvironment(): NodeJS.ProcessEnv {
+function serverEnvironment(context: ExtensionContext): NodeJS.ProcessEnv {
   return {
     ...process.env,
     RSVELTE_PREPROCESS_NODE: process.env.RSVELTE_PREPROCESS_NODE ?? process.execPath,
     ELECTRON_RUN_AS_NODE: process.env.ELECTRON_RUN_AS_NODE ?? "1",
+    // `__dirname` for the server: where `svelte` is resolved from when a
+    // document's own workspace has none (`importPackage.ts:32`).
+    RSVELTE_LANGUAGE_SERVER_ROOT:
+      process.env.RSVELTE_LANGUAGE_SERVER_ROOT ?? context.extensionPath,
   };
 }
 
@@ -262,7 +266,7 @@ function buildServerOptions(context: ExtensionContext): ServerOptions {
     ? resolveWorkspaceRelative(configured)
     : process.env.RSVELTE_LANGUAGE_SERVER_BIN ||
       (process.env.RSVELTE_LANGUAGE_SERVER_JS === "1" ? undefined : resolveNativeServer(context));
-  const environment = serverEnvironment();
+  const environment = serverEnvironment(context);
   if (resolved && !/\.(?:[cm]?js)$/i.test(resolved)) {
     return {
       run: { command: resolved, args: ["--stdio"], options: { env: environment } },
