@@ -51,6 +51,10 @@ pub struct TsgoResponseMapper<'a> {
     overlays: &'a [TsgoOverlay],
     default_document: Option<RequestDocumentContext>,
     aliases: Vec<UriAlias>,
+    /// Whether a request range is clamped into the shadow instead of being able
+    /// to fail the request. Upstream does this for inlay hints only
+    /// (`InlayHintProvider.ts:104-113`).
+    clamp_request_ranges: bool,
 }
 
 impl<'a> TsgoResponseMapper<'a> {
@@ -60,6 +64,7 @@ impl<'a> TsgoResponseMapper<'a> {
             overlays: std::slice::from_ref(overlay),
             default_document: None,
             aliases: Vec::new(),
+            clamp_request_ranges: false,
         }
     }
 
@@ -70,6 +75,7 @@ impl<'a> TsgoResponseMapper<'a> {
             overlays,
             default_document: None,
             aliases: Vec::new(),
+            clamp_request_ranges: false,
         }
     }
 
@@ -83,6 +89,7 @@ impl<'a> TsgoResponseMapper<'a> {
             overlays: std::slice::from_ref(overlay),
             default_document: document,
             aliases: Vec::new(),
+            clamp_request_ranges: false,
         }
     }
 
@@ -96,6 +103,7 @@ impl<'a> TsgoResponseMapper<'a> {
             overlays,
             default_document: document,
             aliases: Vec::new(),
+            clamp_request_ranges: false,
         }
     }
 
@@ -109,6 +117,7 @@ impl<'a> TsgoResponseMapper<'a> {
             overlays,
             default_document,
             aliases: Vec::new(),
+            clamp_request_ranges: false,
         }
     }
 
@@ -121,6 +130,7 @@ impl<'a> TsgoResponseMapper<'a> {
             overlays,
             default_document,
             aliases: Vec::new(),
+            clamp_request_ranges: false,
         }
     }
 
@@ -176,6 +186,21 @@ impl<'a> TsgoResponseMapper<'a> {
     /// `false` means a required source span has no shadow mapping and the
     /// request should not be forwarded.
     pub fn map_request(&self, method: &str, params: &mut Value) -> bool {
+        // Upstream answers inlay hints for a range it cannot map instead of
+        // dropping the request: `convertToTargetTextSpan`
+        // (`InlayHintProvider.ts:104-113`) turns an unmappable start into offset
+        // 0 and an unmappable end into the snapshot's length. An editor asks for
+        // the visible viewport, which starts at `0:0` — a position before the
+        // shadow's prologue, which maps to nothing (#4464).
+        if method == "textDocument/inlayHint" {
+            let clamping = Self {
+                overlays: self.overlays,
+                default_document: self.default_document.clone(),
+                aliases: self.aliases.clone(),
+                clamp_request_ranges: true,
+            };
+            return clamping.map_transactional(method, params, Direction::SourceToShadow);
+        }
         self.map_transactional(method, params, Direction::SourceToShadow)
     }
 
@@ -550,6 +575,15 @@ impl<'a> TsgoResponseMapper<'a> {
         let overlay = self.overlay_for_context(context)?;
         match direction {
             Direction::SourceToShadow => {
+                if self.clamp_request_ranges {
+                    // A request range is the window the editor is painting, not
+                    // a position it asked about, so neither an unmappable
+                    // endpoint nor an endpoint that lands in generated code is a
+                    // reason to drop the request. `convertToTargetTextSpan`
+                    // maps the two endpoints independently and substitutes 0 /
+                    // the snapshot length for whichever one fails.
+                    return overlay.clamp_source_range(&context.source_path, range);
+                }
                 let mapped = overlay.map_source_range(&context.source_path, range)?;
                 (!overlay.is_generated_range(&context.shadow_path, mapped)).then_some(mapped)
             }
@@ -1146,6 +1180,56 @@ mod tests {
             "start": { "line": range.start.line, "character": range.start.character },
             "end": { "line": range.end.line, "character": range.end.character }
         })
+    }
+
+    #[test]
+    fn an_inlay_hint_viewport_starting_at_the_first_character_is_clamped_not_dropped() {
+        // An editor asks for the visible range, which starts at `0:0` — before
+        // the script tag, so its shadow position lands in the generated
+        // prologue and every other method drops the request there.
+        // `convertToTargetTextSpan` (`InlayHintProvider.ts:104-113`) clamps
+        // instead, so inlay hints alone answer (#4464).
+        let source = "<script lang=\"ts\">\nimport Comp from './Comp.svelte';\nfunction take(howMany: number) { return howMany; }\ntake(3);\n</script>\n\n<Comp />\n";
+        let (_workspace, path, overlay) = overlay(source);
+        let source_uri = overlay.shadow_for_source(&path).unwrap().source_uri.clone();
+        let viewport = json_range(Range::new(Position::new(0, 0), Position::new(6, 0)));
+        let params = json!({
+            "textDocument": { "uri": source_uri.as_str() },
+            "range": viewport
+        });
+
+        let mut dropped = params.clone();
+        let mapper = TsgoResponseMapper::for_request(&overlay, &dropped);
+        assert!(
+            !mapper.map_request("textDocument/documentHighlight", &mut dropped),
+            "the same range is still unmappable for every other method: {dropped}"
+        );
+
+        let mut clamped = params.clone();
+        let mapper = TsgoResponseMapper::for_request(&overlay, &clamped);
+        let context = mapper.default_document().cloned().unwrap();
+        assert!(
+            mapper.map_request("textDocument/inlayHint", &mut clamped),
+            "inlay hints clamp the same range instead of failing"
+        );
+        assert_eq!(clamped["textDocument"]["uri"], context.shadow_uri.as_str());
+
+        let shadow = overlay.shadow_text(&context.shadow_path).unwrap();
+        let end = crate::text::LineIndex::new(shadow).position(shadow, shadow.len());
+        let mapped = parse_range(&clamped["range"]).unwrap();
+        assert!(
+            mapped.start <= mapped.end && mapped.end <= end,
+            "the clamped range stays inside the shadow: {mapped:?} vs {end:?}"
+        );
+        // The body the viewport was asked about is still covered, so the clamp
+        // widens the window rather than emptying it.
+        let take = overlay
+            .map_source_range(&path, source_range(source, "howMany: number"))
+            .unwrap();
+        assert!(
+            mapped.start <= take.start && take.end <= mapped.end,
+            "clamped {mapped:?} does not cover {take:?}"
+        );
     }
 
     #[test]

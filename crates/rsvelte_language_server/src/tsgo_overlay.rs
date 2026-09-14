@@ -919,6 +919,24 @@ impl TsgoOverlay {
         Some(self.entries.get(source_path)?.document.text.as_str())
     }
 
+    /// `convertToTargetTextSpan` (`InlayHintProvider.ts:104-113`): the two
+    /// endpoints are mapped independently and an unmappable one becomes offset 0
+    /// (start) or the snapshot's length (end), so the span always exists. An
+    /// editor asks for the visible viewport, which starts at `0:0` — a position
+    /// whose shadow lands in the prologue (#4464).
+    #[must_use]
+    pub fn clamp_source_range(&self, source_path: &Path, range: Range) -> Option<Range> {
+        let path = self.lookup_source_path(source_path);
+        let entry = self.entries.get(&path)?;
+        let start = self
+            .map_source_position(source_path, range.start)
+            .unwrap_or_else(|| Position::new(0, 0));
+        let end = self
+            .map_source_position(source_path, range.end)
+            .unwrap_or_else(|| utf8_position(&entry.document.text, entry.document.text.len()));
+        Some(ordered_range(start, end))
+    }
+
     /// A shadow position as a byte offset into that text.
     #[must_use]
     pub fn shadow_offset(&self, shadow_path: &Path, position: Position) -> Option<usize> {
