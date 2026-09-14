@@ -98,6 +98,15 @@ fn build_component_bind_suffix(attributes: &[Attribute], source: &str, inst_var:
 /// The `</Component>` → `Component}` mapping upstream keeps for the closing tag.
 /// The `svelte:` tags keep nothing there, and neither does a component whose
 /// closing tag is missing.
+/// `InlineComponent.ts:103`: `str.original.indexOf(node.name, node.start)`. The
+/// tag name is the first occurrence of the name at or after the node's `<`.
+fn component_name_range(comp: &Component, source: &str) -> Option<(u32, u32)> {
+    let start = comp.start as usize;
+    let offset = source.get(start..)?.find(comp.name.as_str())? + start;
+    let end = offset + comp.name.len();
+    (end <= comp.end as usize).then(|| (source_offset(offset), source_offset(end)))
+}
+
 fn component_closing_name_range(
     name: &str,
     closing_tag_start: u32,
@@ -315,30 +324,36 @@ pub fn handle_component(
     // is appended (as ignore-wrapped statements) for every non-`bind:this`
     // binding on a component.
     let component_bind_suffix = build_component_bind_suffix(&comp.attributes, source, &inst_var);
-    let (header_lit, trailer_lit) = if needs_instance {
+    let (header_lit, header_tail, trailer_lit) = if needs_instance {
         let on_calls = if has_events {
             build_on_calls(&inst_var, &on_directives, source)
         } else {
             String::new()
         };
         (
+            format!("{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent("),
             format!(
-                "{}{{ const {}C = __sveltets_2_ensureComponent({}); const {} = new {}C({{ target: __sveltets_2_any(), props: {{",
-                block_indent, inst_var, comp.name, inst_var, inst_var,
+                "); const {inst_var} = new {inst_var}C({{ target: __sveltets_2_any(), props: {{"
             ),
             format!("}}}});{component_bind_suffix}{on_calls}"),
         )
     } else {
         (
-            format!(
-                "{}{{ const {}C = __sveltets_2_ensureComponent({}); new {}C({{ target: __sveltets_2_any(), props: {{",
-                block_indent, inst_var, comp.name, inst_var,
-            ),
+            format!("{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent("),
+            format!("); new {inst_var}C({{ target: __sveltets_2_any(), props: {{"),
             "}});".to_string(),
         )
     };
-    let mut opener_segs: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 2);
+    let mut opener_segs: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 4);
     opener_segs.push(Seg::Lit(header_lit));
+    // `InlineComponent.ts:107-111` pushes `[nodeNameStart, nodeNameEnd]`, not the
+    // name's text: the argument of `__sveltets_2_ensureComponent` is the source's
+    // own tag name, so every position in it maps back (#4097).
+    match component_name_range(comp, source) {
+        Some((start, end)) => opener_segs.push(Seg::Src(start, end)),
+        None => opener_segs.push(Seg::Lit(comp.name.to_string())),
+    }
+    opener_segs.push(Seg::Lit(header_tail));
     opener_segs.extend(attr_segs);
     if !use_snippet_props {
         // The snippet-prop path leaves the `props: { … ` object literal open so
