@@ -5473,7 +5473,7 @@ pub(super) fn transform_state_vars_ast(
             script.len(),
         );
 
-        if parsed.panicked || !parsed.diagnostics.is_empty() {
+        if parsed.fatal_error || !parsed.diagnostics.is_empty() {
             // Parse error - fall back to text-based transform
             return None;
         }

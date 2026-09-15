@@ -338,7 +338,7 @@ impl InitialResolver<'_> {
             oxc_span::SourceType::ts().with_module(true),
         )
         .parse();
-        if parsed.panicked || !parsed.diagnostics.is_empty() {
+        if parsed.fatal_error || !parsed.diagnostics.is_empty() {
             return false;
         }
         let Some(Statement::ExpressionStatement(stmt)) = parsed.program.body.first() else {

@@ -27,11 +27,11 @@ clap = { version = "4.5", features = ["derive"] }
 # compiler CLI and the NAPI addon use it.
 mimalloc = { version = "0.1", features = ["local_dynamic_tls"] }
 notify = { version = "8", default-features = false, features = ["macos_kqueue"] }
-oxc_allocator = "0.146"
-oxc_ast = "0.146"
-oxc_parser = "0.146"
+oxc_allocator = "0.149"
+oxc_ast = "0.149"
+oxc_parser = "0.149"
 oxc_resolver = "11"
-oxc_span = "0.146"
+oxc_span = "0.149"
 rayon = "1.10"
 regex = { version = "1.11", default-features = false, features = ["std", "perf", "unicode-perl", "unicode-case"] }
 serde = { version = "1.0", features = ["derive"] }

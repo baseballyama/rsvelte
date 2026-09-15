@@ -51,7 +51,7 @@ fn main() {
                     ..ParseOptions::default()
                 })
                 .parse();
-            assert!(!ret.panicked, "{name} failed to parse");
+            assert!(!ret.fatal_error, "{name} failed to parse");
             ret
         })
         .collect();

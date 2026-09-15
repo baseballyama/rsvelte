@@ -50,7 +50,7 @@ pub(super) fn rename_dollar_props(source: &str, protect_generated: bool) -> Rena
     }
     let allocator = oxc_allocator::Allocator::default();
     let ret = oxc_parser::Parser::new(&allocator, source, oxc_span::SourceType::mjs()).parse();
-    if ret.panicked || !ret.diagnostics.is_empty() {
+    if ret.fatal_error || !ret.diagnostics.is_empty() {
         return Rename::Unavailable;
     }
 

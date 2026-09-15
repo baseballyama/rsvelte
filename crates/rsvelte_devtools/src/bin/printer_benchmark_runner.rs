@@ -103,7 +103,7 @@ fn main() {
                 })
                 .parse();
             assert!(
-                !parsed.panicked && parsed.diagnostics.is_empty(),
+                !parsed.fatal_error && parsed.diagnostics.is_empty(),
                 "{} is not valid JavaScript: {:?}",
                 path.display(),
                 parsed.diagnostics.first()
@@ -218,7 +218,7 @@ fn assert_valid_output(source: &str, label: &str, expected_comments: &[String]) 
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, source, SourceType::mjs()).parse();
     assert!(
-        !parsed.panicked && parsed.diagnostics.is_empty(),
+        !parsed.fatal_error && parsed.diagnostics.is_empty(),
         "{label} emitted invalid JavaScript: {:?}",
         parsed.diagnostics.first()
     );

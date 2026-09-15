@@ -3931,7 +3931,7 @@ fn canon(code: &str) -> Option<String> {
     use oxc_span::SourceType;
     let alloc = Allocator::default();
     let ret = Parser::new(&alloc, code, SourceType::mjs()).parse();
-    if ret.panicked || !ret.diagnostics.is_empty() {
+    if ret.fatal_error || !ret.diagnostics.is_empty() {
         return None;
     }
     Some(rsvelte_esrap::print(&ret.program, code))
