@@ -3326,6 +3326,20 @@ impl Server {
                                 }
                             }
                         }
+                        "textDocument/documentSymbol" => {
+                            if let Some(uri) = source_uri.as_ref()
+                                && let Some(source) = self.documents.get(uri)
+                                && is_svelte_document(
+                                    &source.language_id,
+                                    &uri_to_path(uri.as_str()),
+                                )
+                            {
+                                crate::tsgo_symbols::rewrite_anonymous_function_symbols(
+                                    result,
+                                    source.text(),
+                                );
+                            }
+                        }
                         "textDocument/hover" => {
                             normalize_hover_result(result);
                             if let Some(document) =
