@@ -39,6 +39,8 @@ export function entries(text) {
 	return out;
 }
 
+const ARGV_FORM = /['"]submodule['"]\s*,\s*['"]update['"]/;
+
 /**
  * Does this line invoke `git submodule update --init` without `--checkout`?
  * `--merge` / `--rebase` / `--remote --merge` override the strategy the same
@@ -49,10 +51,14 @@ export function entries(text) {
  * `--checkout` is matched anywhere in the line, punctuation included: prose
  * writes it as `` `--checkout` `` and a word-boundary-after-whitespace rule
  * reads that as absent — which is how this very file first failed the check.
+ *
+ * The argv form (`['submodule', 'update', '--init', …]` passed to a spawn)
+ * is a call site too: #4580 missed one in check-lint-types-lock.mjs, and the
+ * release job's version PR then failed on an empty submodules/corsa-bind.
  */
 export function isUnguardedCall(text) {
 	return (
-		/git submodule update\b/.test(text) &&
+		(/git submodule update\b/.test(text) || ARGV_FORM.test(text)) &&
 		/(^|[\s`'"])--init\b/.test(text) &&
 		!/--checkout\b/.test(text)
 	);
@@ -88,7 +94,15 @@ function callSites(root = ROOT) {
 	try {
 		stdout = execFileSync(
 			'git',
-			['grep', '-n', '--fixed-strings', 'git submodule update', '--', '.', ':!docs/archive'],
+			[
+				'grep',
+				'-n',
+				'-E',
+				`git submodule update|['"]submodule['"][[:space:]]*,[[:space:]]*['"]update['"]`,
+				'--',
+				'.',
+				':!docs/archive',
+			],
 			{ cwd: root, encoding: 'utf8' },
 		);
 	} catch (err) {

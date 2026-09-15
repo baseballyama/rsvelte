@@ -88,6 +88,11 @@ for (const [text, unguarded] of [
 	['every `git submodule update --init` in the tree passes `--checkout`', false],
 	['Does this line invoke `git submodule update --init` without `--checkout`?', false],
 	['`--checkout` is required because every entry is `update = none`', false],
+	// The argv form, as check-lint-types-lock.mjs shipped it after #4580.
+	["['submodule', 'update', '--init', '--depth', '1', 'submodules/corsa-bind'],", true],
+	["spawnSync('git', [\"submodule\", \"update\", \"--init\", path], {", true],
+	["['submodule', 'update', '--init', '--checkout', '--depth', '1', dir],", false],
+	["['submodule', 'status', '--', path]", false],
 ]) {
 	check(`${unguarded ? 'flagged' : 'accepted'}: ${text.slice(0, 56)}`, () => {
 		assert.equal(isUnguardedCall(text), unguarded);
