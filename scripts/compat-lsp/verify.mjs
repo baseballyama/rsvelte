@@ -419,6 +419,15 @@ const counts = {
   differential: 0,
   expected: 0,
 };
+// One record per timed-out request. `transportTimeouts` alone cannot separate
+// "a server stopped answering" from "this request was queued behind 63 others
+// and the deadline runs from send, not from service": the first puts every
+// timeout in one instant, the second spreads them. Capped, because a shard that
+// loses a whole window would otherwise write 64 of these and a pathological run
+// far more (#4614).
+const TIMEOUT_SAMPLE_LIMIT = 256;
+const transportTimeoutSamples = [];
+let inFlightRequests = 0;
 const methodCounts = new Map();
 const phaseRequests = new Map();
 let nextId = 0;
@@ -680,12 +689,15 @@ async function requestBoth(
 ) {
   const id = ++nextId;
   const message = { jsonrpc: "2.0", id, method, params };
+  const sentAt = Date.now();
+  const sentInFlight = ++inFlightRequests;
   official.send(message);
   rsvelte.send(message);
   const settled = await Promise.allSettled([
     official.response(id, clientRequest, timeoutMs),
     rsvelte.response(id, clientRequest, timeoutMs),
   ]);
+  inFlightRequests--;
   const failures = settled.filter((result) => result.status === "rejected");
   if (
     failures.length &&
@@ -707,6 +719,15 @@ async function requestBoth(
   const messages = settled.map((result, index) => {
     if (result.status === "fulfilled") return result.value;
     counts.transportTimeouts++;
+    if (transportTimeoutSamples.length < TIMEOUT_SAMPLE_LIMIT)
+      transportTimeoutSamples.push({
+        arm: index === 0 ? "official" : "rsvelte",
+        method,
+        id,
+        sentAt,
+        elapsedMs: Date.now() - sentAt,
+        inFlightAtSend: sentInFlight,
+      });
     processes[index].send({
       jsonrpc: "2.0",
       method: "$/cancelRequest",
@@ -1094,6 +1115,7 @@ async function main() {
         [...mechanismsById].map(([id, labels]) => [id, [...labels]]),
       ),
       diagnosticDetails: Object.fromEntries(newDiagnosticDetails),
+      transportTimeoutSamples,
       added,
       removed,
       arms: {
@@ -1110,11 +1132,16 @@ async function main() {
     );
   }
 
-  // Written above on purpose: the artifact is the only record of how far off the
-  // deadline was, and it is what says whether raising it again would help.
+  // Written above on purpose: the artifact carries `transportTimeoutSamples`,
+  // which is the only record of how far off the deadline was and of how many
+  // requests were in flight when it passed. `mergeCurrentArtifacts` refuses the
+  // file, so writing it cannot be mistaken for accepting it.
   if (counts.transportTimeouts) {
+    const spread = transportTimeoutSamples.length
+      ? `; first sample ${transportTimeoutSamples[0].arm} ${transportTimeoutSamples[0].method} at ${transportTimeoutSamples[0].elapsedMs}ms with ${transportTimeoutSamples[0].inFlightAtSend} in flight`
+      : "";
     throw new Error(
-      `${counts.transportTimeouts} request(s) exceeded the ${REQUEST_TIMEOUT_MS}ms deadline. A timeout is compared as a transport error, so it changes this run's keys and the next run would disagree; raise --request-timeout-ms rather than baselining the result`,
+      `${counts.transportTimeouts} request(s) exceeded the ${REQUEST_TIMEOUT_MS}ms deadline${spread}. A timeout is compared as a transport error, so it changes this run's keys and the next run would disagree; raise --request-timeout-ms rather than baselining the result`,
     );
   }
 

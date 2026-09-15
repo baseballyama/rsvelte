@@ -118,6 +118,31 @@ test("missing, duplicate, and partial corpus shard sets are rejected", () => {
   );
 });
 
+test("an artifact that recorded a transport timeout cannot be merged", () => {
+  // `verify.mjs` writes the file and *then* throws, so this is the only check
+  // standing between a poisoned run and `--update-baseline` (#4614).
+  const poisoned = artifacts();
+  poisoned.at(-1).counts = { compared: 12, transportTimeouts: 64 };
+  assert.throws(
+    () => mergeCurrentArtifacts(poisoned, floor),
+    /64 transport timeout\(s\)/,
+  );
+  // The fixture artifact is refused on the same grounds, and a zero is not a
+  // timeout: the clean matrix still merges.
+  const poisonedFixtures = artifacts();
+  poisonedFixtures[0].counts = { compared: 1, transportTimeouts: 1 };
+  assert.throws(
+    () => mergeCurrentArtifacts(poisonedFixtures, floor),
+    /1 transport timeout\(s\)/,
+  );
+  const clean = artifacts();
+  for (const artifact of clean) artifact.counts.transportTimeouts = 0;
+  assert.equal(
+    mergeCurrentArtifacts(clean, floor).current.length,
+    CORPUS_SHARDS + 1,
+  );
+});
+
 test("unknown artifacts and control keys in corpus artifacts are rejected", () => {
   assert.equal(recordsFixtureControls(["corpus"]), false);
   assert.equal(recordsFixtureControls(FIXTURE_SUITES), true);
@@ -224,7 +249,9 @@ test("an artifact whose mechanism map does not cover its keys is rejected", () =
     /carries no mechanism for/,
   );
   const extra = artifacts();
-  extra[0].mechanisms["differential:fixtures/b|initialize|/x:value"] = ["ts-render"];
+  extra[0].mechanisms["differential:fixtures/b|initialize|/x:value"] = [
+    "ts-render",
+  ];
   assert.throws(
     () => mergeCurrentArtifacts(extra, floor),
     /carries a mechanism for unlisted/,
@@ -283,7 +310,8 @@ test("describeArm identifies the files an arm is made of, not its command", () =
     [self, sibling],
   );
   assert.equal(described.files[0].bytes, fs.readFileSync(self).length);
-  for (const file of described.files) assert.match(file.sha256, /^[0-9a-f]{64}$/);
+  for (const file of described.files)
+    assert.match(file.sha256, /^[0-9a-f]{64}$/);
   // Distinct files must not collapse to one hash — the failure this guards is a
   // recorded identity that is the same for every build.
   assert.notEqual(described.files[0].sha256, described.files[1].sha256);

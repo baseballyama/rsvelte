@@ -360,6 +360,34 @@ pub fn arrow(arena: &JsArena, params: Vec<JsPattern>, body: JsExpr) -> JsExpr {
     })
 }
 
+/// `() => body` where the **callee** of a call body carries the original-source
+/// offset upstream stamps on the node it cloned there. Upstream synthesizes the
+/// arrow as well (`add_svelte_meta` builds it), so the flush belongs one level
+/// in: `() => // c` then the call, not `// c` then `() =>` (#4529).
+///
+/// Locating the call itself would be worse than not locating it: an arrow prints
+/// its parameters `until` the body's start, so a located body makes the empty
+/// parameter list claim the comment and emit `(// c\n) =>`. Upstream's arrow
+/// body is a `b.call`, which has no `loc` either — only its callee does — so a
+/// non-call body has nowhere to put the anchor and keeps none.
+#[inline]
+pub fn arrow_anchored_body(
+    arena: &JsArena,
+    params: Vec<JsPattern>,
+    body: JsExpr,
+    anchor: Option<u32>,
+) -> JsExpr {
+    if let (JsExpr::Call(call), Some(offset)) = (&body, anchor) {
+        arena.set_expr_comment_anchor(call.callee, offset);
+    }
+    JsExpr::Arrow(JsArrowFunction {
+        params: params.into(),
+        body: JsArrowBody::Expression(arena.alloc_expr(body)),
+        is_async: false,
+        span: None,
+    })
+}
+
 /// Create an arrow function with block body.
 #[inline]
 pub fn arrow_block(params: Vec<JsPattern>, body: Vec<JsStatement>) -> JsExpr {
@@ -410,6 +438,23 @@ pub fn async_arrow_block(params: Vec<JsPattern>, body: Vec<JsStatement>) -> JsEx
 pub fn thunk(arena: &JsArena, expr: JsExpr) -> JsExpr {
     let arrow_expr = arrow(arena, vec![], expr);
     unthunk(arena, arrow_expr)
+}
+
+/// `() => expr` whose **body** carries the original-source offset upstream keeps
+/// on the expression it cloned into the thunk. An arrow prints its parameters
+/// `until` the body's start, so a located body makes the empty parameter list
+/// claim a comment still pending from the instance script — which is where
+/// upstream puts it (`$.html(node, (// c` / `) => c);`, #4481). `unthunk` runs
+/// first, so `() => snippet()` still collapses to `snippet` and there is then no
+/// arrow to anchor.
+pub fn thunk_anchored(arena: &JsArena, expr: JsExpr, anchor: Option<u32>) -> JsExpr {
+    let thunked = thunk(arena, expr);
+    if let (JsExpr::Arrow(arrow), Some(offset)) = (&thunked, anchor)
+        && let JsArrowBody::Expression(body) = &arrow.body
+    {
+        arena.set_expr_comment_anchor(*body, offset);
+    }
+    thunked
 }
 
 /// Optimize `(arg) => func(arg)` to `func` and `() => func()` to `func`.
@@ -1606,6 +1651,31 @@ pub fn var_decl(
             id: id_pattern(name),
             init: init.map(|e| arena.alloc_expr(e)),
             comment_anchor: None,
+        }],
+    })
+}
+
+/// `const name = init;` whose identifier carries the original-source offset
+/// upstream stamps on it (`b.const(node.expression, …)`, where `node.expression`
+/// is the source Identifier). See [`JsVariableDeclarator::comment_anchor`].
+pub fn const_decl_anchored(
+    arena: &JsArena,
+    name: impl Into<CompactString>,
+    init: JsExpr,
+    // The span is the *source* name's, which the generated identifier does not
+    // reproduce byte for byte once the source name is non-ASCII.
+    anchor: Option<(u32, u32)>,
+) -> JsStatement {
+    let name = name.into();
+    JsStatement::VariableDeclaration(JsVariableDeclaration {
+        kind: JsVariableKind::Const,
+        declarations: vec![JsVariableDeclarator {
+            id: match anchor {
+                Some((start, end)) => JsPattern::SpannedIdentifier { name, start, end },
+                None => id_pattern(name),
+            },
+            init: Some(arena.alloc_expr(init)),
+            comment_anchor: anchor.map(|(start, _)| start),
         }],
     })
 }

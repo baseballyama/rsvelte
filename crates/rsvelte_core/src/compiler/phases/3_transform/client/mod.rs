@@ -113,7 +113,10 @@ use regex::Regex;
 use super::TransformError;
 use super::js_ast::{
     builders::{self as b},
-    codegen::{CodegenResult, SourceMapping, generate, generate_with_sourcemap},
+    codegen::{
+        CodegenResult, SourceMapping, build_line_starts, byte_column_to_utf16, generate,
+        generate_with_sourcemap,
+    },
     nodes::{
         JsBlockStatement, JsExportDefault, JsExportDefaultDeclaration, JsExpr,
         JsFunctionDeclaration, JsImportDeclaration, JsImportSpecifier, JsObjectMember, JsPattern,
@@ -2868,13 +2871,19 @@ pub(crate) fn transform_client(
                         super::profile::record_esrap_client_split(super::profile::timer_elapsed(
                             _t,
                         ));
-                        (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
+                        (
+                            pm.code,
+                            esrap_mappings_to_source_mappings(&pm.mappings, source),
+                        )
                     }
                     None if options.enable_sourcemap => {
                         let _t = super::profile::timer_start();
                         let pm = rsvelte_esrap::print_with_map(oxc_prog, source, &print_opts);
                         super::profile::record_esrap_client_map(super::profile::timer_elapsed(_t));
-                        (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
+                        (
+                            pm.code,
+                            esrap_mappings_to_source_mappings(&pm.mappings, source),
+                        )
                     }
                     None => {
                         let _t = super::profile::timer_start();
@@ -3060,7 +3069,13 @@ fn rehome_tag_derived_line_comments(code: &str) -> String {
 /// Convert esrap's flat, generated-order mapping list into the
 /// [`SourceMapping`] list the downstream VLQ encoder (`encode_vlq_mappings`)
 /// consumes.
-fn esrap_mappings_to_source_mappings(mappings: &[rsvelte_esrap::Mapping]) -> Vec<SourceMapping> {
+fn esrap_mappings_to_source_mappings(
+    mappings: &[rsvelte_esrap::Mapping],
+    source: &str,
+) -> Vec<SourceMapping> {
+    // esrap's generated columns are already UTF-16; its source columns are byte
+    // offsets into the line, so an all-ASCII source needs no conversion at all.
+    let line_starts = (!source.is_ascii()).then(|| build_line_starts(source));
     mappings
         .iter()
         .map(|m| SourceMapping {
@@ -3069,7 +3084,15 @@ fn esrap_mappings_to_source_mappings(mappings: &[rsvelte_esrap::Mapping]) -> Vec
             // esrap only ever maps a single source.
             source: 0,
             orig_line: m.source_line,
-            orig_col: m.source_column,
+            orig_col: line_starts.as_ref().map_or(m.source_column, |starts| {
+                u32::try_from(byte_column_to_utf16(
+                    source,
+                    starts,
+                    m.source_line as usize,
+                    m.source_column as usize,
+                ))
+                .unwrap_or(m.source_column)
+            }),
             name: None,
         })
         .collect()

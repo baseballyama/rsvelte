@@ -7669,14 +7669,35 @@ each sample's recorded `metadata.json` still says exactly that).
 | `anchor` | `anchor\t<sample>\t<target>\t<index>\t<str>` | an official `_config.js` `client:` / `server:` / `css:` expectation that rsvelte's map does not satisfy |
 | `map-parity` | `map-parity\t<sample>\t<target>\t<count>` | budget: official map segments that rsvelte does not reproduce, where the generated code is byte-identical (missing + wrong) |
 | `out-of-range` | `out-of-range\t<sample>\t<target>\t<count>` | budget: out-of-range segments not also emitted by the official map at the same generated and original position |
+| `corpus-out-of-range` | `corpus-out-of-range\t<pattern-corpus path>\t<target>\t<count>` | budget: the same predicate over `compatibility/pattern-corpus`, where there is no oracle to subtract |
 
-**Current baseline: `sourcemap-known-failures.json`, 0 entries.** The
+**Current baseline: `sourcemap-known-failures.json`, 69 entries** — every one a
+`corpus-out-of-range` budget; the upstream-sample arms (`anchor`, `map-parity`,
+`out-of-range`) are all still empty. The
 before/after tables further down record what one specific change did at the time
 it landed; they are history, not the current size. Reading the newest number in
 those tables as today's count is the mistake this line exists to prevent — the
 `73` under the anchoring fix was correct when written (#2264 took the list 75 →
 73), #2312 later took it to 74, and the location-less comment cursor brought it
 back to 73.
+
+### Why the 69 `corpus-out-of-range` entries are accepted
+
+The 29 upstream samples read **0** on the out-of-range predicate, which is what
+let the client map carry the defect of #4454 with this gate green; the corpus arm
+(#4454's second half) is the population that can see it. It measures 1,269 of the
+1,387 `.svelte` components under `compatibility/pattern-corpus` — the other 118
+are error repros the compiler rejects — on client and server, and finds
+**87 out-of-range segments of 263,879** (0.03%) in 69 file/target pairs.
+
+They are accepted as a shrink-only budget rather than fixed here because every
+one of them is a *residual* of the mechanism #4600 closed: the byte-vs-UTF-16
+column defect took the same population from 6,016 to 137 to 77 on the client, and
+what is left is a set of small per-segment overshoots (`+2` … `+18`) with no
+single shared cause identified yet. There is no oracle arm: a segment whose
+original position lies past the end of its source line is wrong without reference
+to another compiler, so unlike the upstream-sample arm there is nothing to
+subtract.
 
 Ratchet semantics, matching `fmt-verify.mjs` / `verify.mjs`:
 

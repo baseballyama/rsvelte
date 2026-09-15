@@ -24,6 +24,13 @@
 //!    source line (or past the last line). Segments already emitted by the
 //!    official compiler are not rsvelte regressions; every additional position
 //!    is tracked by a shrink-only budget.
+//! 4. `corpus-out-of-range` — the same predicate over every `.svelte` component
+//!    in `compatibility/pattern-corpus`, client and server. The 29 upstream
+//!    samples read 0 on it, so before this arm existed the predicate could move
+//!    by three orders of magnitude with the gate that owns it staying green
+//!    (#4454). There is no oracle here — a position past the end of a source
+//!    line is wrong without reference to another compiler — so the budget is
+//!    rsvelte's own count, per file and target.
 //!
 //! Ground truth is the official compiler: the `client.js` / `client.js.map`
 //! fixtures under `fixtures/<sha>/sourcemaps/` are produced by
@@ -670,6 +677,15 @@ fn compatibility_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../compatibility")
 }
 
+/// A budget key is `<sample>/<target>`, and a corpus sample is a path, so only
+/// the last `/` separates the two fields.
+fn split_budget_key(key: &str) -> String {
+    key.rsplit_once('/').map_or_else(
+        || key.to_string(),
+        |(sample, target)| format!("{sample}\t{target}"),
+    )
+}
+
 fn load_ratchet(file: &str) -> Vec<String> {
     let path = compatibility_dir().join(file);
     let text = fs::read_to_string(&path)
@@ -710,6 +726,57 @@ fn load_input(sample: &str) -> Option<String> {
     fs::read_to_string(path)
         .ok()
         .map(|s| s.replace("\r\n", "\n"))
+}
+
+/// Every `.svelte` component under `compatibility/pattern-corpus`, as a path
+/// relative to that directory. Module files (`.svelte.js` / `.svelte.ts`) go
+/// through `compileModule`, which emits no template mappings, so they are not
+/// part of this population.
+fn corpus_samples() -> Vec<String> {
+    let root = compatibility_dir().join("pattern-corpus");
+    let mut out = Vec::new();
+    let mut stack = vec![root.clone()];
+    while let Some(dir) = stack.pop() {
+        let entries =
+            fs::read_dir(&dir).unwrap_or_else(|e| panic!("failed to read {}: {e}", dir.display()));
+        for entry in entries.filter_map(Result::ok) {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.extension().is_some_and(|ext| ext == "svelte")
+                && let Ok(rel) = path.strip_prefix(&root)
+                && let Some(rel) = rel.to_str()
+            {
+                out.push(rel.to_string());
+            }
+        }
+    }
+    assert!(
+        out.len() > 500,
+        "pattern-corpus walk found only {} components — the corpus moved?",
+        out.len()
+    );
+    out.sort();
+    out
+}
+
+fn compile_corpus(input: &str, name: &str, target: Target) -> Option<Compiled> {
+    let generate = match target {
+        Target::Client | Target::Css => GenerateMode::Client,
+        Target::Server => GenerateMode::Server,
+    };
+    let options = CompileOptions {
+        generate,
+        filename: Some(name.to_string()),
+        css: CssMode::External,
+        dev: false,
+        ..Default::default()
+    };
+    let result = compile(input, options).ok()?;
+    Some(Compiled {
+        code: result.js.code,
+        map: result.js.map,
+    })
 }
 
 struct Compiled {
@@ -796,6 +863,14 @@ struct Report {
     out_of_range: BTreeMap<String, usize>,
     /// `<sample>/<target>` → total segment count, for the printed summary.
     totals: BTreeMap<String, usize>,
+    /// `<pattern-corpus path>/<target>` → out-of-range segment count. The
+    /// upstream samples exercise the predicate on 29 files and read 0 there, so
+    /// the corpus is the only population that shows it moving at all (#4454).
+    corpus_out_of_range: BTreeMap<String, usize>,
+    /// `<pattern-corpus path>/<target>` → total segment count.
+    corpus_totals: BTreeMap<String, usize>,
+    /// Pattern-corpus components that compiled on at least one target.
+    corpus_samples_measured: usize,
     /// `<sample>/<target>` → parity against the official map, for the pairs
     /// whose generated code is byte-identical.
     parity: BTreeMap<String, Parity>,
@@ -887,6 +962,36 @@ fn measure() -> Report {
         }
     }
 
+    // The pattern corpus. No oracle runs inside a Rust test, so this arm only
+    // measures rsvelte against the *source* — which is all the out-of-range
+    // predicate needs: a position past the end of a source line is wrong
+    // without reference to any other compiler. A file the compiler rejects is
+    // not a carrier and is skipped; the budget's `NO LONGER MEASURED` arm is
+    // what keeps that from turning into silence.
+    for name in corpus_samples() {
+        let path = compatibility_dir().join("pattern-corpus").join(&name);
+        let Ok(input) = fs::read_to_string(&path).map(|s| s.replace("\r\n", "\n")) else {
+            continue;
+        };
+        let mut measured = false;
+        for target in [Target::Client, Target::Server] {
+            let Some(ours) = compile_corpus(&input, &name, target) else {
+                continue;
+            };
+            let Some(map) = ours.map.as_deref().and_then(decode_map) else {
+                continue;
+            };
+            measured = true;
+            let key = format!("{name}/{}", target.as_str());
+            let (bad, total) = out_of_range_positions(&map, &input);
+            report.corpus_out_of_range.insert(key.clone(), bad.len());
+            report.corpus_totals.insert(key, total);
+        }
+        if measured {
+            report.corpus_samples_measured += 1;
+        }
+    }
+
     // Anchors — checked against rsvelte's map, and separately against the
     // official map so a setup difference is not blamed on rsvelte.
     for (sample, target, entries) in ANCHORS {
@@ -949,6 +1054,12 @@ fn sourcemap_gate_measure() {
             ratchet.push(format!("out-of-range\t{sample}\t{target}\t{count}"));
         }
     }
+    for (key, count) in &report.corpus_out_of_range {
+        if *count > 0 {
+            let (sample, target) = key.rsplit_once('/').unwrap();
+            ratchet.push(format!("corpus-out-of-range\t{sample}\t{target}\t{count}"));
+        }
+    }
     for (key, p) in &report.parity {
         if p.bad() > 0 {
             let (sample, target) = key.split_once('/').unwrap();
@@ -989,16 +1100,22 @@ fn sourcemap_gate_measure() {
 fn summary(report: &Report) -> String {
     let bad: usize = report.out_of_range.values().sum();
     let total: usize = report.totals.values().sum();
+    let corpus_bad: usize = report.corpus_out_of_range.values().sum();
+    let corpus_total: usize = report.corpus_totals.values().sum();
     let missing: usize = report.parity.values().map(|p| p.missing).sum();
     let wrong: usize = report.parity.values().map(|p| p.wrong).sum();
     let exact: usize = report.parity.values().map(|p| p.exact).sum();
     let official_total = missing + wrong + exact;
     format!(
         "  out-of-range segments: {bad}/{total} ({:.1}%)\n  \
+         pattern-corpus out-of-range segments: {corpus_bad}/{corpus_total} \
+         ({:.2}%) over {} components\n  \
          byte-identical generated outputs: {}/{}\n  \
          official segments reproduced: {exact}/{official_total} ({:.1}%) \
          — {missing} missing, {wrong} wrong",
         100.0 * bad as f64 / total.max(1) as f64,
+        100.0 * corpus_bad as f64 / corpus_total.max(1) as f64,
+        report.corpus_samples_measured,
         report.identical_code.len(),
         report.totals.len(),
         100.0 * exact as f64 / official_total.max(1) as f64,
@@ -1015,12 +1132,14 @@ fn sourcemap_gate() {
 
     // Numeric budgets: `<kind>\t<sample>\t<target>\t<count>`.
     let mut oor_budget: BTreeMap<String, usize> = BTreeMap::new();
+    let mut corpus_oor_budget: BTreeMap<String, usize> = BTreeMap::new();
     let mut parity_budget: BTreeMap<String, usize> = BTreeMap::new();
     let mut plain_known: BTreeSet<&str> = BTreeSet::new();
     for id in &known {
         let parts: Vec<&str> = id.split('\t').collect();
         let numeric = match parts.first() {
             Some(&"out-of-range") => Some(&mut oor_budget),
+            Some(&"corpus-out-of-range") => Some(&mut corpus_oor_budget),
             Some(&"map-parity") => Some(&mut parity_budget),
             _ => None,
         };
@@ -1061,12 +1180,12 @@ fn sourcemap_gate() {
                 if *count > allowed {
                     regressions.push(format!(
                         "{kind}\t{}\t{count} (budget {allowed})",
-                        key.replace('/', "\t")
+                        split_budget_key(key)
                     ));
                 } else if *count < allowed {
                     fixed.push(format!(
                         "{kind}\t{}\t{count} < budget {allowed}",
-                        key.replace('/', "\t")
+                        split_budget_key(key)
                     ));
                 }
             }
@@ -1077,13 +1196,18 @@ fn sourcemap_gate() {
                 if !measured.contains_key(key) {
                     regressions.push(format!(
                         "{kind}\t{}\tNO LONGER MEASURED (budget {})",
-                        key.replace('/', "\t"),
+                        split_budget_key(key),
                         budget[key]
                     ));
                 }
             }
         };
     check_budget("out-of-range", &report.out_of_range, &oor_budget);
+    check_budget(
+        "corpus-out-of-range",
+        &report.corpus_out_of_range,
+        &corpus_oor_budget,
+    );
     let parity_bad: BTreeMap<String, usize> = report
         .parity
         .iter()

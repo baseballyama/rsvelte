@@ -145,6 +145,15 @@ function requireArtifact(value, label) {
   for (const id of Object.keys(value.mechanisms))
     if (!value.current.includes(id))
       throw new Error(`${label} carries a mechanism for unlisted ${id}`);
+  // `verify.mjs` writes the artifact *before* it throws on a timed-out run, so
+  // the file a poisoned run leaves behind is well-formed and indistinguishable
+  // from a clean one by every check above. A transport timeout is compared as an
+  // error, so it invents keys that the next run will not reproduce: baselining
+  // one makes a later, unrelated run go red (#4614).
+  if (value.counts?.transportTimeouts)
+    throw new Error(
+      `${label} recorded ${value.counts.transportTimeouts} transport timeout(s); its keys include ones no clean run reproduces, so it cannot be merged or baselined`,
+    );
 }
 
 // `corpus-population.json` is an exact declaration, not a bound: it refuses a
