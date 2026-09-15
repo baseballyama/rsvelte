@@ -1,5 +1,33 @@
 # @rsvelte/oxlint-plugin
 
+## 0.2.5
+
+### Patch Changes
+
+- 4b19fb2: Ship a compiler-only browser wasm as the default @rsvelte/compiler entry, retain the stable /wasm subpath, and add compileModule for JavaScript rune modules. Move lint and svelte2tsx to the separately loaded /playground and /playground/wasm exports, and update their consumers.
+- Updated dependencies [7ae32be]
+- Updated dependencies [3839dee]
+- Updated dependencies [4b19fb2]
+- Updated dependencies [e8328b6]
+- Updated dependencies [509aecd]
+- Updated dependencies [2de8dfc]
+- Updated dependencies [053ee1a]
+- Updated dependencies [30a5661]
+- Updated dependencies [ae34333]
+- Updated dependencies [a605c9d]
+- Updated dependencies [f3193ea]
+- Updated dependencies [32ea335]
+- Updated dependencies [458b132]
+- Updated dependencies [72278f5]
+- Updated dependencies [8082403]
+- Updated dependencies [f00c7dd]
+- Updated dependencies [90a7797]
+- Updated dependencies [43345c7]
+- Updated dependencies [392273f]
+- Updated dependencies [ac83a90]
+- Updated dependencies [629cd1c]
+  - @rsvelte/compiler@0.12.0
+
 ## 0.2.4
 
 ### Patch Changes

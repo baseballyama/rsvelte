@@ -23,7 +23,7 @@ jobs:
 
       - name: Checkout pinned benchmark inputs
         run: >-
-          git submodule update --init --depth 1
+          git submodule update --init --checkout --depth 1
           submodules/svelte
           submodules/language-tools
           submodules/bits-ui

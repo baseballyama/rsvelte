@@ -61,7 +61,7 @@ jobs:
           submodules: false
 
       - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte
+        run: git submodule update --init --checkout --depth 1 submodules/svelte
 
       - name: Install cross-compile linker
         if: matrix.apt

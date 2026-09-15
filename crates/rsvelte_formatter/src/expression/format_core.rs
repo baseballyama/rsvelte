@@ -363,6 +363,73 @@ pub(super) fn format_expr_core_layout(
     ) {
         return Ok(out.to_string());
     }
+    // An offset too narrow to spell as a comment, likewise: only a measurement
+    // starting on the first line sees it, and what it covered sits on that line.
+    if (1..MIN_COMMENT_OFFSET).contains(&first_line_offset) {
+        let unoffset = format_expr_core_layout(
+            expr_source,
+            options,
+            line_width,
+            single_line,
+            0,
+            last_line_suffix,
+        )?;
+        let tw = tab_width(options);
+        let first = unoffset.split('\n').next().unwrap_or("").trim_end();
+        let first_cols = first.visual_width(tw)
+            + first_line_offset
+            + if unoffset.contains('\n') {
+                0
+            } else {
+                last_line_suffix
+            };
+        if first_cols <= line_width.value() as usize {
+            return Ok(unoffset);
+        }
+        return format_expr_core_layout(
+            expr_source,
+            options,
+            line_width,
+            single_line,
+            MIN_COMMENT_OFFSET,
+            last_line_suffix,
+        );
+    }
+    // A suffix too narrow to spell as a comment is charged exactly when the
+    // unsuffixed layout's last line still has room for it — only a measurement
+    // that reaches the expression's end sees the suffix, and everything such a
+    // measurement covered sits on that line. Otherwise the narrowest comment
+    // stands in: it over-charges the last line by a few columns, where
+    // narrowing the width would charge every line.
+    if (1..MIN_SUFFIX_COMMENT).contains(&last_line_suffix) {
+        let unsuffixed = format_expr_core_layout(
+            expr_source,
+            options,
+            line_width,
+            single_line,
+            first_line_offset,
+            0,
+        )?;
+        let tw = tab_width(options);
+        let last = unsuffixed.rsplit('\n').next().unwrap_or("").trim_end();
+        let last_cols = last.visual_width(tw)
+            + if unsuffixed.contains('\n') {
+                0
+            } else {
+                first_line_offset
+            };
+        if last_cols + last_line_suffix <= line_width.value() as usize {
+            return Ok(unsuffixed);
+        }
+        return format_expr_core_layout(
+            expr_source,
+            options,
+            line_width,
+            single_line,
+            first_line_offset,
+            MIN_SUFFIX_COMMENT,
+        );
+    }
     let key: ExprMemoKey = (
         expr_source.to_string(),
         line_width.value(),

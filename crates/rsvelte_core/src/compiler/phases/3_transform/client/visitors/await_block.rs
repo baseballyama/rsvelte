@@ -177,6 +177,7 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
             col,
             None,
             true,
+            None,
         )
     } else {
         add_svelte_meta(&context.arena, await_call)

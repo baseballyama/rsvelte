@@ -84,7 +84,7 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
     let is_mathml = !is_controlled && context.state.metadata.namespace == "mathml";
 
     // Create thunk and apply unthunk optimization
-    let thunked = b::thunk(&context.arena, html_expr);
+    let thunked = b::thunk_anchored(&context.arena, html_expr, node.expression.start());
 
     // Check for hydration_html_changed ignore (only in dev mode, matching official compiler)
     let ignore_hydration = context.state.options.dev

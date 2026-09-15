@@ -1334,10 +1334,13 @@ pub(crate) fn normalize_js_with_oxc_lead(js: &str, indent_level: usize, lead: &s
     // preserve its original indentation exactly as-is.
     let mut result_lines = Vec::new();
     let indent_str: String = "\t".repeat(indent_level);
-    // A block comment opening on line 0 gets no indent on its opener line, so
+    // A block comment opening the slice gets no indent on its opener line, so
     // the final print cannot dedent one back off its continuation lines; leave
-    // them bare and let that print supply the indent once.
+    // them bare and let that print supply the indent once. esrap emits a leading
+    // newline when the slice is only a comment (its host construct was erased),
+    // so the test has to look past leading whitespace or the guard misses there.
     let leading_comment_last_line = code
+        .trim_start()
         .starts_with("/*")
         .then(|| {
             code.find_sub("*/")

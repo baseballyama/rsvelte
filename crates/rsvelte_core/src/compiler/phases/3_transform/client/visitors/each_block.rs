@@ -656,6 +656,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
             col,
             None,
             true,
+            None,
         )
     } else {
         add_svelte_meta(&context.arena, each_call)

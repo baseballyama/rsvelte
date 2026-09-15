@@ -80,6 +80,7 @@ fn render_value_sequence_doc(
     // the `"` delimiter (`{x ?? ''}`), matching the legacy path.
     let mut opts_sq = options.clone();
     opts_sq.js.quote_style = QuoteStyle::Single;
+    let opts_shared = std::sync::Arc::new(opts_sq.clone());
 
     let mut docs: Vec<Doc> = Vec::with_capacity(parts.len());
     let mut breakable_count = 0usize;
@@ -159,7 +160,11 @@ fn render_value_sequence_doc(
                 docs.push(Doc::Group(vec![Doc::RawExpr {
                     flat,
                     broken,
-                    src: None,
+                    src: Some(Box::new(crate::doc::RawExprSource {
+                        expr: inner.to_string(),
+                        prefix: String::new(),
+                        options: std::sync::Arc::clone(&opts_shared),
+                    })),
                 }]));
                 col += flat_w;
             }
@@ -173,31 +178,44 @@ fn render_value_sequence_doc(
         return Ok(None);
     }
 
-    // Reserve one column for the closing `"` (always the last character on the
-    // value's final line when the open tag wraps). Printed in Break mode (the
-    // open tag has wrapped): verbatim text stays put, and each interpolation
-    // group breaks or stays flat via `fits`, which measures a trailing
-    // *breakable* interpolation only up to its first break — so an earlier
-    // interpolation stays flat whenever a later one can absorb the overflow,
-    // matching prettier-plugin-svelte.
-    let width = line_width.saturating_sub(1);
+    // The closing `"` is part of the document, so it is charged the way prettier
+    // charges it: by a measurement that reaches the value's end, and by the last
+    // line of a broken interpolation it follows — not by every line. Printed in
+    // Break mode (the open tag has wrapped): verbatim text stays put, and each
+    // interpolation group breaks or stays flat via `fits`, which measures a
+    // trailing *breakable* interpolation only up to its first break — so an
+    // earlier interpolation stays flat whenever a later one can absorb the
+    // overflow, matching prettier-plugin-svelte.
+    docs.push(Doc::Text("\"".into()));
+    let width = line_width;
     let unit = indent_str(1, &options.js);
-    // The open-tag assembly emits a TEXT-led value (`class="text {…}"`,
-    // `is_string_value_attr` true) VERBATIM, but re-indents an INTERPOLATION-led
-    // value (`value="{…}"`) by the attribute column. So bake the absolute indent
-    // into continuation lines only for the verbatim case; emit the interp-led
-    // form RELATIVE (base_indent 0) so the downstream re-indent lands a broken
-    // interpolation's continuation at `attr_indent + 2`, not `2*attr_indent + 2`.
-    // (`fits` ignores indentation, so base_indent never changes a break decision.)
+    // Printed at the attribute's real indent, so a broken interpolation is
+    // rebuilt with the columns its continuation lines actually get. The open-tag
+    // assembly emits a TEXT-led value (`class="text {…}"`, `is_string_value_attr`
+    // true) VERBATIM but re-indents an INTERPOLATION-led value (`value="{…}"`) by
+    // the attribute column, so the interp-led form is handed over RELATIVE: the
+    // attribute indent is stripped from its continuation lines again.
     let text_led = matches!(parts.first(), Some(AttributeValuePart::Text(t)) if !t.raw.is_empty());
-    let base_indent = if text_led { attr_depth } else { 0 };
     let out = doc_print(
         &propagate_breaks(Doc::Concat(docs)),
         width,
         crate::width::IndentUnit::new(&unit, crate::width::tab_width(options)),
-        base_indent,
+        attr_depth,
         start_col,
     );
+    let out = out.strip_suffix('"').map_or(out.clone(), str::to_string);
+    let out = if text_led {
+        out
+    } else {
+        let pad = unit.repeat(attr_depth);
+        let mut lines = out.split('\n');
+        let mut relative = lines.next().unwrap_or_default().to_string();
+        for line in lines {
+            relative.push('\n');
+            relative.push_str(line.strip_prefix(pad.as_str()).unwrap_or(line));
+        }
+        relative
+    };
     Ok(Some(out))
 }
 

@@ -40,6 +40,10 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 // unless you want them named directly.
 const RULES = [
   {
+    prefix: 'crates/rsvelte_compiler_wasm_bindings/',
+    requires: ['@rsvelte/compiler', '@rsvelte/language-server'],
+  },
+  {
     prefix: 'crates/rsvelte/src/',
     // The stable Rust facade is versioned with the compiler release set.
     requires: ['@rsvelte/compiler'],
@@ -126,7 +130,7 @@ const RULES = [
   // there is no artifact to leave stale.
   // NOTE: `crates/rsvelte_lint/**` and `crates/rsvelte_lint_bindings/**` are
   // intentionally NOT listed. Their code ships in two separate artifacts — the
-  // `@rsvelte/compiler` wasm (`build:wasm:core`, built from the bindings crate)
+  // `@rsvelte/compiler` wasm playground export (`build:wasm:playground`)
   // and the native `@rsvelte/lint` CLI — but those two packages share a `fixed`
   // changeset group (`.changeset/config.json`), so naming EITHER one bumps BOTH.
   // There is therefore no islanded-drift edge to guard here: the fixed group

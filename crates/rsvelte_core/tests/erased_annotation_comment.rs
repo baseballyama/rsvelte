@@ -22,10 +22,12 @@
 //! count-keyed grid the one-line-annotation row reads `2 == 2` and EQUAL while
 //! the two copies sit on different lines than upstream puts them on.
 //!
-//! Two cells are deliberately NOT the oracle's output and say so. Upstream emits
+//! One cell is deliberately NOT the oracle's output and says so. Upstream emits
 //! the comment twice through `@sveltejs/acorn-typescript@1.0.10`'s `tsLookAhead`
 //! (see `collect_speculative_type_head_regions`), and rsvelte reproduces that
-//! where it can; the two residual rows are the shapes where it cannot yet.
+//! where it can; the residual row is the shape where it cannot yet — #4397
+//! retired the other one, which is why the one-line annotation is now a matched
+//! cell above rather than a pin below.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
@@ -51,12 +53,21 @@ fn compile_lines(body: &str, tmpl: &str) -> Vec<String> {
 /// The cells whose whole generated text upstream and rsvelte agree on.
 #[test]
 fn an_erased_annotations_comment_lands_where_upstream_puts_it() {
-    let cells: [(&str, &str, &str, &[&str]); 5] = [
+    let cells: [(&str, &str, &str, &[&str]); 6] = [
         (
             "multi-line annotation on an initialized declarator",
             "\tlet a: {\n\t\t/* c */\n\t\tb: number;\n\t} = { b: 1 };",
             "{a.b}",
             &["\tlet a = /* c */", "\t/* c */"],
+        ),
+        (
+            // The row above and this one differ only in where the newline sits,
+            // and upstream answers differently: the separator after the flushed
+            // comment is the source text between it and the initializer (#4397).
+            "one-line annotation on an initialized declarator",
+            "\tlet a: { /* c */ b: number } = { b: 1 };",
+            "{a.b}",
+            &["\tlet a = /* c */ /* c */ { b: 1 };"],
         ),
         (
             "one-line interface declaration",
@@ -101,21 +112,15 @@ fn an_erased_annotations_comment_lands_where_upstream_puts_it() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-/// The two shapes where rsvelte still differs from upstream, pinned so the
-/// difference is a recorded value rather than an unexamined one. Both are
+/// The shape where rsvelte still differs from upstream (#4396), pinned so the
+/// difference is a recorded value rather than an unexamined one. It is
 /// comment-placement only, which is exactly the class `ast_equiv_batch` rescues
-/// under `CommentPolicy::Ignore` — so no corpus gate can hold them.
+/// under `CommentPolicy::Ignore` — so no corpus gate can hold it. #4397 retired
+/// the one-line annotation that used to sit here; issues citing this test under
+/// its old name `the_two_residual_shapes_are_pinned_rather_than_matched` mean
+/// this one.
 #[test]
-fn the_two_residual_shapes_are_pinned_rather_than_matched() {
-    // Upstream: `let a = /* c */ /* c */ { b: 1 };` — both copies on one line.
-    // rsvelte re-emits at the removal point and the printer breaks the line.
-    let got = compile_lines("\tlet a: { /* c */ b: number } = { b: 1 };", "{a.b}");
-    assert_eq!(
-        got,
-        vec!["\tlet a = /* c */".to_string(), "\t/* c */".to_string()],
-        "one-line annotation: the two copies are emitted, on two lines"
-    );
-
+fn the_residual_shape_is_pinned_rather_than_matched() {
     // Upstream: `let a;` then `var /* c */` `/* c */` — the comment floats to the
     // next located node. rsvelte drops it, which is what keeps the declaration's
     // own lowering intact.

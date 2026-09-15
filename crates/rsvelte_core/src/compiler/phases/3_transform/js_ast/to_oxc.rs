@@ -681,14 +681,25 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     /// Resolve an `ExprId` handle and convert the pointed-to expression.
     #[inline]
     fn expr_id(&self, id: ExprId) -> Option<Expression<'a>> {
-        if let Some((name, span)) = self.arena.expression_identifier_span(id) {
+        // Claimed before the expression is converted, for the reason
+        // `JsStatement::Expression` states: whatever prints first takes the
+        // chunk's anchor, and this node prints before anything inside it.
+        let anchor = self
+            .arena
+            .expr_comment_anchor(id)
+            .map(|offset| self.comment_anchor(Some(offset)));
+        let mut expression = if let Some((name, span)) = self.arena.expression_identifier_span(id) {
             self.identifier_span_scopes.borrow_mut().push((name, span));
             let expression = self.expr(self.arena.get_expr(id));
             self.identifier_span_scopes.borrow_mut().pop();
             expression
         } else {
             self.expr(self.arena.get_expr(id))
+        }?;
+        if let Some(span) = anchor.filter(|span| *span != SPAN) {
+            *expression.span_mut() = span;
         }
+        Some(expression)
     }
 
     /// Convert a member object and restore a span that could not be represented
@@ -711,12 +722,31 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         let before = self.synth.borrow().cursor();
         let value = f()?;
         let after = self.synth.borrow().cursor();
-        let span = if after > before {
+        // A region with no non-whitespace byte holds neither a token nor a
+        // comment, so it is not a location anything can be anchored to: it is
+        // the `'\n'` each chunk is appended with, belonging to a NEIGHBOURING
+        // chunk. Handing it to a builder-made node makes that node a comment
+        // flush boundary sitting just past an unrelated chunk's trailing
+        // comment (#4492, #4481's `{#key}` cell). The scan stops at the first
+        // code byte, so a region that has one costs O(1).
+        let span = if after > before && self.region_has_content(before, after) {
             Span::new(before, after)
         } else {
             SPAN
         };
         Some((value, span))
+    }
+
+    /// Whether `[start, end)` of the comment buffer holds anything but ASCII
+    /// whitespace. Non-ASCII whitespace counts as content, which keeps the
+    /// pre-existing span rather than dropping one this cannot classify.
+    fn region_has_content(&self, start: u32, end: u32) -> bool {
+        let synth = self.synth.borrow();
+        synth
+            .source
+            .as_bytes()
+            .get(start as usize..end as usize)
+            .is_some_and(|bytes| bytes.iter().any(|byte| !byte.is_ascii_whitespace()))
     }
 
     /// Record a span the printer must NOT read as a chunk location.
@@ -941,11 +971,14 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     fn stmt(&self, stmt: &JsStatement) -> Option<Statement<'a>> {
         match stmt {
             JsStatement::Expression(e) => {
+                // The chunk's anchor is claimed in **print** order, and the
+                // statement prints before anything inside it — so this runs
+                // before the expression is converted, or a source arrow in
+                // argument position would take the anchor the statement wants.
+                let span = self.comment_anchor(e.comment_anchor);
                 let expr = self.expr_id(e.expression)?;
                 Some(Statement::ExpressionStatement(ExpressionStatement::boxed(
-                    self.comment_anchor(e.comment_anchor),
-                    expr,
-                    &self.ab,
+                    span, expr, &self.ab,
                 )))
             }
             JsStatement::Return(r) => {
@@ -2850,9 +2883,14 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             }
         };
 
+        // A source arrow in argument position is where esrap flushes a comment
+        // the preceding chunk left pending, when no enclosing statement claimed
+        // the chunk's anchor first (#4481).
+        let span = self.comment_anchor(arrow.span.map(|(start, _)| start));
+
         Some(Expression::ArrowFunctionExpression(
             ArrowFunctionExpression::boxed(
-                SPAN,
+                span,
                 arrow.is_async,
                 None,
                 ArenaBox::new_in(params, &self.ab),

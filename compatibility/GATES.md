@@ -229,7 +229,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout; whitespace inside a statement; anything about an error both sides raise; how the port decided a token was code; whether an output it scores `match` is TypeScript at all (6j) | [S] [D] |
 | 7 | svelte2tsx source map | structural invariants and corpus-wide mapped-line coverage on rsvelte's own map | relation between generated text and mapped original text; source index | [D] |
 | 8 | css-prune sweep | `css.code` + `code@line:col` warnings of 1969 generated components | `js.code`; **every element in the grid is a plain `<div>`/`<p>` in one component** | [D] |
-| 9 | Formatter parity (JS corpus) | whole-file bytes vs oxfmt oracle | ids whose oracle file is absent are skipped, uncounted; it compares **one application per side**, so `format(format(x)) != format(x)` is invisible at any corpus size (9e) | [D] |
+| 9 | Formatter parity (JS corpus) | whole-file bytes vs oxfmt oracle | ids whose oracle file is absent are skipped, uncounted; it compares **one application per side**, so `format(format(x)) != format(x)` is invisible to it at any corpus size — asserted by its own gate since 2026-09-10 (9e) | [D] |
 | 10 | Formatter parity (Rust svelte.dev) | whole-file bytes vs generated fixture | exercises `--no-native-css`, not the shipped default | [S] |
 | 11 | Lint output parity | set of `rule\tline:col\tmessage` | `.svelte.(js\|ts)` ungated on **both** sides; autofixes never compared | [D] |
 | 12 | svelte-check Layer 1 (fixtures) | multiset of `SEVERITY file:line code` | column, message, `source`, file-walk counts, every flag but `--tsconfig` | [D] |
@@ -695,7 +695,7 @@ the calibration floor as its defence. 27j records that the floor does not run on
 This row records that for that suite the named condition is not a risk but a **guarantee**.
 
 `corpus-compat.yml:926` checks the four corpus repositories out with
-`git submodule update --init --depth 1` and nothing installs them; the job installs the root
+`git submodule update --init --checkout --depth 1` and nothing installs them; the job installs the root
 workspace and `submodules/language-tools` only (lines 935-944). `lsp-benchmark.yml:52-54` does run
 `pnpm --dir submodules/bits-ui install`, so the contrast is inside this repository: the job that
 measures *speed* on bits-ui installs it and the job that measures *parity* does not.
@@ -1345,6 +1345,13 @@ printing is off (`lib.rs:186`), so `/* @__PURE__ */` stops being a code differen
 Because `verify.mjs:292` byte-compares first and only defers *byte-different* pairs to the
 comparator, a divergence living **only** in comments is byte-different, AST-equivalent, and
 scored a pass — for every entry, on every target.
+
+**Closed for `pattern/issues/` only, by gate 45 (#4452).** That population is the repro files,
+whose entire purpose is to pin a divergence a fix closed — so a comment-only one there pins
+nothing, which is a sharper failure than the same blindness over a real-world component. Gate
+45 re-runs the identical normalized byte comparison over that prefix with the rescue removed.
+It leaves this row open over the rest of the corpus, which is ~98% of it: read the closure as
+one population, not as the mechanism.
 
 **Evidence [D].** `flowbite-svelte/src/lib/utils/singleselection.svelte.js` differs by hand
 (official drops a `@type {symbol}` JSDoc, rsvelte keeps it) while `known-failures.client.json`
@@ -3015,6 +3022,25 @@ non-idempotent formatter is where a divergence must come from.
 **Closing 9e:** a second application per side on the entries already materialized, as its own
 verdict rather than folded into the byte comparison. Cost: one extra format per compared entry,
 not per corpus component.
+
+**Closed 2026-09-10** by `scripts/compat-corpus/fmt-idempotency-verify.mjs` (`pnpm run
+corpus:fmt-idempotency`, a step of the `fmt-parity` job), ratcheted by
+`fmt-idempotency-known-failures.json` and justified in `KNOWN-FAILURES.md`
+(`#fmt-idempotency-known-failures`). It formats the parity run's whole `actual/` tree a second
+time — one directory invocation, so the cost is one more run over the corpus rather than one per
+entry — and compares bytes. Over the full population rather than the 520 of the 2026-09-04
+measurement: **rsvelte 90 of 33,644 non-idempotent (82 by bytes, 8 refused by the second
+application), the oracle 33 (25 by bytes, the same 8 refused), 27 shared, 63 rsvelte-only**;
+65 of the 90 are not parity entries at all, because their first application *is* the oracle's
+byte for byte and it is the oracle's own output rsvelte does not leave alone. The sign of the 82 is
+`63 + 7 + 12` (shrinks / same line count / grows). A refused id is unchanged because nothing ran
+over it, so a byte comparison scores it converged; the gate reads rsvelte-fmt's diagnostics and
+lists it as `error`, and fails on a diagnostic it cannot attribute to an id. Instrument checked by
+injection on the introducing tree: a listed id dropped, a converging id added, a first application
+with trailing newlines appended and a listed refused id dropped each turned the run red, and the
+restored run was green. What it still does not see: the oracle's own non-idempotency is measured beside it but not gated (it is not a
+property of rsvelte), and an id that converges through a *different* second-pass path than the
+first is scored converged — the gate reads bytes, not passes.
 
 ---
 
@@ -4992,7 +5018,7 @@ list would pass, since `includes()` only needs one occurrence.
 ### 38c — the other two ports of the same option are not here [S]
 
 `cssHash` is implemented three times: the napi bridge, the wasm bridge
-(`crates/rsvelte_lint_bindings/src/compiler_wasm/mod.rs`, exercised by
+(`crates/rsvelte_compiler_wasm_bindings/src/lib.rs`, exercised by
 `scripts/dev/test-wasm-compile-options.mjs`, whose rejection matrix compares against official), and the
 `rsvelte` facade's `options.rs`, which no gate drives at all. This is the "two ports of one
 function and no gate compares the ports" shape recorded for the constant fold: the wasm port
@@ -5107,13 +5133,19 @@ that round-trip is not reproduced here.
 
 ### 39g — it reads the NAPI binding, and the wasm `parse_svelte` is a second port — **[S]**
 
-`napi_parse` and the wasm `parse_svelte` build their own `ParseOptions` independently, and they
-already disagree: the NAPI one sets `capture_comments: true`
-(`crates/rsvelte_napi/src/lib.rs:195-206`) and the wasm one takes `ParseOptions::default()`
-(`crates/rsvelte_lint_bindings/src/compiler_wasm/mod.rs:87-89`), so the wasm AST carries no node
-comments at all. Only the NAPI port is driven here. This is the "two ports of one function, and
-no gate compares the ports" shape from `two-ports-inventory.md`, and the wasm one is what the
+`napi_parse` and the wasm `parse_svelte` are two ports of one upstream function, and only the
+NAPI one is driven here. This is the "two ports of one function, and no gate compares the ports"
+shape from [`two-ports-inventory.md`](#two-ports-inventory), and the wasm one is what the
 playground (`apps/playground/src/lib/compiler.ts`) and the published wasm build call.
+
+They no longer disagree on comments: both construct from `ParseOptions::public_api()`
+(`crates/rsvelte_napi/src/lib.rs:209-218`, `crates/rsvelte_compiler_wasm_bindings/src/lib.rs:86-90`),
+which sets `capture_comments: true`, since #3750 shared the constructor on 2026-08-27. What
+remains is that the wasm port takes **no options at all**: the NAPI one threads `loose` and
+`skipExpressionLoc` into `ParseOptions` and selects the output shape with `modern`, and the wasm
+one is always modern and always non-loose. Its package deliberately does not present these
+exports as `svelte/compiler` equivalents (`apps/npm/compiler/README.md:100-102`), so that is a
+smaller claim than the one this row carried until 2026-09-10 — see the closed entry 14 below.
 
 ### 39h — aligned comment ownership is strict, but missing structure is outside that assertion — **[S]**
 
@@ -6080,6 +6112,65 @@ against.
 
 ---
 
+## 45. Pattern-corpus exact output — `scripts/compat-corpus/verify.mjs` (pattern-exact family)
+
+**Unit.** One manifest entry under `pattern/issues/`, per target. The comparison is the same
+normalized generated JS that gate 1 compares — oxfmt, blank lines stripped — **without** gate 1's
+`ast_equiv_batch` rescue. Ratcheted shrink-only and two-sided through
+`compatibility/pattern-exact-known-failures.<target>.json`, per-entry justification in
+`KNOWN-FAILURES.md#pattern-exact-known-failures`, re-baselined with `--update-exact-baseline`.
+
+**Why a prefix rather than the corpus.** The comparison is strictly stricter than gate 1's, so
+over the whole corpus it enrols every divergence gate 1 deliberately tolerates and the ratchet
+becomes a five-figure file that churns on every submodule bump. `pattern/issues/` is the
+population where the tolerance is actively harmful: a file there exists **to pin a divergence a
+fix closed**, so one whose remaining divergence is comment-only pins nothing while reading as a
+passing repro.
+
+### Blind spot 45a — it reads `jsByteEqual` only, so CSS is outside it — [S]
+
+The family is built from the JS comparison map. A `pattern/issues/` repro whose subject is a
+generated **CSS** comment is not observed here. Gate 1 compares CSS byte-exactly with no AST
+rescue, so the gap is narrow rather than zero — but the two are different comparisons and this
+one does not cover it. The same map answers `true` when **neither** side produced a `.js` — both
+compilers rejecting the file reads as byte-equal here — so an error-population repro is enrolled
+by the error families and never by this one.
+
+### Blind spot 45b — the population is a literal prefix — [D]
+
+`PATTERN_EXACT_PREFIX` is `pattern/issues/`. `pattern/adversarial/`, `pattern/matrix/` and the
+loose `pattern/*.svelte` repros are outside it and keep gate 1's rescue. Measured by the enrolling
+CI run (`exactPopulation` in its `report.json`): 668 manifest entries carry the prefix out of a
+35,013-pair comparison, so this closes blind spot 1a over under 2% of the corpus. Read the closure
+as one population, never as the mechanism.
+
+### Blind spot 45c — the verdict is "the bytes differ", not who is wrong — [S]
+
+An entry says nothing about direction. Measured on the enrolling population, the direction is
+genuinely mixed — some entries are rsvelte emitting a comment official does not — so a summary
+sentence like "rsvelte drops comments" is unsupported by the ratchet and each entry's
+justification has to state its own direction.
+
+### Blind spot 45d — an id can be listed here and in gate 1 at once — [S]
+
+Nothing excludes an id already in `known-failures.<target>.json`. That is deliberate: excluding
+them couples the two ratchets, and then *fixing* a gate-1 entry would add a row here — the shape
+recorded for the svelte2tsx end-position gate, where a newly-matching finding becomes comparable.
+Two rows for one divergence is the cheaper failure.
+
+### Blind spot 45e — the first baseline was measured by CI, not locally — [U]
+
+`collect.mjs` takes no arguments and rewrites the whole corpus tree, so the repro population
+cannot be re-collected in isolation. When the family was written the working tree held 632
+`.svelte` files under `compatibility/pattern-corpus/issues/` while the collected tree and the
+manifest agreed at 586 — both 46 behind. A locally produced baseline would have been short by
+whatever those 46 carry, so the enrolling baseline is CI's, which collects fresh: run
+34430947366, tree `7b270ecbc`, which measured 668 — above both local counts, so a local baseline
+would have been short. Which of the 11 enrolled ids a local run would have missed is still
+unmeasured; the population size is the only part of this that is now settled.
+
+---
+
 ## Adding a gate, or a row here
 
 When you add a gate, add its row **before** the ratchet is first baselined, and answer the
@@ -6703,9 +6794,13 @@ was also *small*, so `String(n)`, `Number(n)`, `Math.sign(n)` and 30 more names 
 recorded rather than tracked. What it does **not** buy: the surrounding predicates in row 9 are
 untouched, and nothing new compares any two of *them*.
 
-#### 14. What options does the public `parse()` run with? — [D]
+#### 14. What options does the public `parse()` run with? — [D], closed by #3750
 
-Filed as **#3688**; the divergence is one field today and the shape is why it is here.
+Filed as **#3688**, which is **CLOSED COMPLETED**: #3750 (`9ce6bf942`, 2026-08-27) gave both
+bindings the same `ParseOptions::public_api()` constructor. The paragraphs below described the
+pre-#3750 code and stayed here for two weeks after the fix; they are corrected in place rather
+than deleted, because the *shape* — one upstream answer, N ports — is what this section is for
+and it still holds.
 
 **Upstream:** one answer, in `compiler/index.js` — `parse(source, { modern, loose } = {})` calls
 `_parse(source, loose)` and `to_public_ast(source, ast, modern)`. There is no second construction
@@ -6713,16 +6808,31 @@ of the parse configuration anywhere in `svelte/compiler`.
 
 **Ports.** rsvelte builds it independently in each binding:
 
-- `crates/rsvelte_napi/src/lib.rs:201-217` sets `capture_comments: true`, with a comment
-  asserting fidelity — *"The public AST API mirrors svelte/compiler `parse()`, which keeps
-  `leadingComments`/`trailingComments` on nodes."*
-- `crates/rsvelte_lint_bindings/src/compiler_wasm/mod.rs:87-89` takes `ParseOptions::default()`,
-  which leaves `capture_comments` **false**, and accepts no options from its caller at all.
+- `crates/rsvelte_napi/src/lib.rs:209-218` builds `ParseOptions { skip_expression_loc, loose,
+  ..ParseOptions::public_api() }` and reads `modern` separately, because upstream's `modern`
+  selects the output shape after the parse rather than configuring it.
+- `crates/rsvelte_compiler_wasm_bindings/src/lib.rs:86-90` also starts from
+  `ParseOptions::public_api()`, and adds nothing: it accepts no options from its caller at all.
 
-**The named input** is any component with a comment inside `<script>`: the NAPI AST carries the
-node comments and the wasm AST does not. Graded **[D] from code** rather than **[M]** — the wasm
-build was not executed, and a local `cargo` never builds the wasm features, which is part of why
-this went unobserved.
+The fidelity comment this row used to quote from the NAPI site now lives on the shared
+constructor (`crates/rsvelte_core/src/compiler/phases/1_parse/mod.rs:131-137`) — *"a public AST
+must retain `leadingComments` and `trailingComments` like `svelte/compiler` does. Keeping that
+decision here prevents the NAPI, raw-envelope, and wasm entry points from silently drifting
+apart."* That relocation is the fix: the decision is stated once, where all three read it.
+
+**The named input no longer reproduces.** It was any component with a comment inside `<script>`,
+on the claim that the wasm port left `capture_comments` false. Measured on the built artifact
+rather than read off the source — which is what the old grade said was missing — `wasm-pack build
+--target web --release` then `parse_svelte("<script>// hi\nlet a = 1;</script>")` returns
+`leadingComments: [{ type: "Line", value: " hi", start: 8, end: 13 }]`. The old grade was **[D]
+from code**, explicitly *not* **[M]**, because the wasm build had never been executed; executing
+it is what closed the row.
+
+**What is left, and it is smaller.** The wasm port takes no options, so a caller cannot ask for
+the legacy shape (`modern: false`) or for `loose`, while the NAPI port threads both. The wasm
+package states that its exports are deliberately not presented as `svelte/compiler` equivalents
+(`apps/npm/compiler/README.md:100-102`), so this residue is a documented surface difference rather than
+an unmeasured divergence.
 
 **Nothing compares them.** The `parse()` AST parity gate (#3389) drives the NAPI port only; that
 is gate-coverage **39g**. Corpus growth cannot reach the wasm port, because it is in no gate's
@@ -6737,7 +6847,7 @@ legacy warnings.
 
 **Ports.** The NAPI conversion in `crates/rsvelte_napi/src/lib.rs`, the C ABI JSON conversion in
 `crates/rsvelte_capi/src/lib.rs`, and the wasm conversion in
-`crates/rsvelte_lint_bindings/src/compiler_wasm/mod.rs` each implement that schema. #3664 recorded
+`crates/rsvelte_compiler_wasm_bindings/src/lib.rs` each implement that schema. #3664 recorded
 demonstrated disagreements on unknown keys, wrong scalar types, nested keys, aliases, removed
 options and truthy `runes` values.
 

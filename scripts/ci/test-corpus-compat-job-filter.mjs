@@ -8,6 +8,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { CORPUS_REPOS } from '../compat-lsp/suites.mjs';
 import {
 	JOB_TARGETS,
 	closure,
@@ -215,11 +216,26 @@ const tests = {
 				true,
 				`${file} must re-admit the full LSP gate`,
 			);
+		// A corpus submodule bump enrols files nothing has measured, so the PR
+		// that moves the pin is the second one that must pay for the gate (#4465).
+		// The repositories come from the gate's own `CORPUS_REPOS`, so this list
+		// is a control on the derivation and not a second copy of it.
+		for (const repo of CORPUS_REPOS)
+			for (const file of [`submodules/${repo}`, `submodules/${repo}/a.svelte`])
+				assert.equal(
+					decide(FAKE, [file])['lsp-ratchet'],
+					true,
+					`${file} must re-admit the full LSP gate`,
+				);
 		// …and only that PR: the hatch costs 950 job-minutes when it fires.
 		for (const file of [
 			'crates/rsvelte_core/src/lib.rs',
 			'compatibility/known-failures.client.json',
 			'pnpm-lock.yaml',
+			// a corpus submodule the LSP gate does not walk
+			'submodules/svelte.dev/x.svelte',
+			// a name that only shares a prefix with one it does
+			`submodules/${CORPUS_REPOS[0]}-extra/a.svelte`,
 		])
 			assert.equal(
 				decide(FAKE, [file])['lsp-ratchet'],

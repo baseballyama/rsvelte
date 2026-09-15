@@ -13,7 +13,7 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
-import initWasm, { initSync, svelte2tsx as wasmSvelte2tsx } from '@rsvelte/compiler';
+import initWasm, { initSync, svelte2tsx as wasmSvelte2tsx } from '@rsvelte/compiler/playground';
 
 let ready = false;
 
@@ -24,11 +24,7 @@ function ensureReadySync() {
 	let bytes;
 	try {
 		const require = createRequire(import.meta.url);
-		// wasm-pack ships the glue as `<crate>.js` and the module as
-		// `<crate>_bg.wasm`; derive the wasm path from the resolved entry so this
-		// keeps working across crate renames (rsvelte_core -> rsvelte_lint).
-		const entry = require.resolve('@rsvelte/compiler');
-		const wasmPath = entry.replace(/\.js$/, '_bg.wasm');
+		const wasmPath = require.resolve('@rsvelte/compiler/playground/wasm');
 		bytes = readFileSync(wasmPath);
 	} catch (cause) {
 		throw new Error(

@@ -113,7 +113,10 @@ use regex::Regex;
 use super::TransformError;
 use super::js_ast::{
     builders::{self as b},
-    codegen::{CodegenResult, SourceMapping, generate, generate_with_sourcemap},
+    codegen::{
+        CodegenResult, SourceMapping, build_line_starts, byte_column_to_utf16, generate,
+        generate_with_sourcemap,
+    },
     nodes::{
         JsBlockStatement, JsExportDefault, JsExportDefaultDeclaration, JsExpr,
         JsFunctionDeclaration, JsImportDeclaration, JsImportSpecifier, JsObjectMember, JsPattern,
@@ -1442,6 +1445,43 @@ pub(crate) fn transform_client(
         // adds indent to the first line, but subsequent lines of Raw content
         // need explicit indentation. We always use 1 because instance script
         // content is always emitted at the function body level.
+        // A `$props()` declaration the transform removes outright takes its own
+        // comments with it. Re-entering them as the script's text is what puts
+        // them in the comment buffer, so the first generated declarator can
+        // carry them the way upstream does; the re-emission loop below prints a
+        // statement instead, which is a different position (#4501).
+        // Upstream leaves a `$props()` declaration's comment on the declaration
+        // it lowered to, but only when nothing but blanks separates it from the
+        // call: across a newline it floats forward instead, and with a pattern
+        // between them (`let { a, /* c */ ...rest }`) it stays put (#4448). This
+        // runs before the re-entry below so the comment is moved, not copied.
+        let inline_props_comments: Vec<&str> = props_call_offset(&content.raw)
+            .map(|call| {
+                props_comments
+                    .iter()
+                    .filter(|(offset, comment)| {
+                        let end = offset + comment.len() as u32;
+                        end <= call
+                            && content.raw[end as usize..call as usize]
+                                .chars()
+                                .all(|c| c == ' ' || c == '\t')
+                    })
+                    .map(|(_, comment)| comment.as_str())
+                    .collect()
+            })
+            .unwrap_or_default();
+        if let Some(placed) =
+            place_props_comments_after_rest_props(&transformed_script, &inline_props_comments)
+        {
+            transformed_script = placed;
+        }
+        if transformed_script.trim().is_empty() && !props_comments.is_empty() {
+            transformed_script = props_comments
+                .iter()
+                .map(|(_, comment)| comment.as_str())
+                .collect::<Vec<_>>()
+                .join("\n");
+        }
         let script_indent = 1usize;
         let trimmed = transformed_script.trim();
         // Upstream dedents a block comment by its opener line's indentation,
@@ -2831,13 +2871,19 @@ pub(crate) fn transform_client(
                         super::profile::record_esrap_client_split(super::profile::timer_elapsed(
                             _t,
                         ));
-                        (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
+                        (
+                            pm.code,
+                            esrap_mappings_to_source_mappings(&pm.mappings, source),
+                        )
                     }
                     None if options.enable_sourcemap => {
                         let _t = super::profile::timer_start();
                         let pm = rsvelte_esrap::print_with_map(oxc_prog, source, &print_opts);
                         super::profile::record_esrap_client_map(super::profile::timer_elapsed(_t));
-                        (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
+                        (
+                            pm.code,
+                            esrap_mappings_to_source_mappings(&pm.mappings, source),
+                        )
                     }
                     None => {
                         let _t = super::profile::timer_start();
@@ -3023,7 +3069,13 @@ fn rehome_tag_derived_line_comments(code: &str) -> String {
 /// Convert esrap's flat, generated-order mapping list into the
 /// [`SourceMapping`] list the downstream VLQ encoder (`encode_vlq_mappings`)
 /// consumes.
-fn esrap_mappings_to_source_mappings(mappings: &[rsvelte_esrap::Mapping]) -> Vec<SourceMapping> {
+fn esrap_mappings_to_source_mappings(
+    mappings: &[rsvelte_esrap::Mapping],
+    source: &str,
+) -> Vec<SourceMapping> {
+    // esrap's generated columns are already UTF-16; its source columns are byte
+    // offsets into the line, so an all-ASCII source needs no conversion at all.
+    let line_starts = (!source.is_ascii()).then(|| build_line_starts(source));
     mappings
         .iter()
         .map(|m| SourceMapping {
@@ -3032,7 +3084,15 @@ fn esrap_mappings_to_source_mappings(mappings: &[rsvelte_esrap::Mapping]) -> Vec
             // esrap only ever maps a single source.
             source: 0,
             orig_line: m.source_line,
-            orig_col: m.source_column,
+            orig_col: line_starts.as_ref().map_or(m.source_column, |starts| {
+                u32::try_from(byte_column_to_utf16(
+                    source,
+                    starts,
+                    m.source_line as usize,
+                    m.source_column as usize,
+                ))
+                .unwrap_or(m.source_column)
+            }),
             name: None,
         })
         .collect()
@@ -3279,6 +3339,57 @@ fn script_comment_texts(script: &str) -> Vec<String> {
         .collect()
 }
 
+/// The offset of the declaration's `$props(` call inside a script's raw text.
+fn props_call_offset(raw: &str) -> Option<u32> {
+    find_rune_code(raw.as_bytes(), b"$props(").map(|at| at as u32)
+}
+
+/// Put a `$props()` declaration's comments back on the declaration it lowered
+/// to, printed after its `;` the way upstream does.
+///
+/// The lowering either drops the comment (a whole-object `let p = $props()`) or
+/// leaves it on its own line after the statement (a rest element), and both
+/// print it somewhere upstream does not (#4448). Only the `$.rest_props` form is
+/// handled: with a default the comment belongs *inside* the `$.prop(…)` call,
+/// which the lowering already does when there is no rest element, and moving it
+/// out to the statement end would be a second wrong answer rather than none.
+fn place_props_comments_after_rest_props(script: &str, comments: &[&str]) -> Option<String> {
+    use crate::compiler::phases::phase3_transform::shared::js_scan::find_code;
+
+    if comments.is_empty() || find_code(script.as_bytes(), b"$.prop(").is_some() {
+        return None;
+    }
+    let target = script
+        .lines()
+        .enumerate()
+        .filter(|(_, line)| line.contains("$.rest_props(") && line.trim_end().ends_with(';'))
+        .map(|(index, _)| index)
+        .last()?;
+    let mut out: Vec<String> = Vec::new();
+    for (index, line) in script.lines().enumerate() {
+        // The rest-element form leaves the comment on a line of its own after
+        // the statement; it is the same comment, not a second one.
+        if index != target && comments.iter().any(|comment| line.trim() == *comment) {
+            continue;
+        }
+        if index == target {
+            let mut moved = line.trim_end().to_string();
+            for comment in comments {
+                moved.push(' ');
+                moved.push_str(comment);
+            }
+            out.push(moved);
+        } else {
+            out.push(line.to_string());
+        }
+    }
+    let mut joined = out.join("\n");
+    if script.ends_with('\n') {
+        joined.push('\n');
+    }
+    Some(joined)
+}
+
 /// Comments inside the `$props()` declaration survive upstream's lowering even
 /// though the declaration itself is removed from the component body.
 fn props_declaration_comments(raw: &str) -> Vec<(u32, CompactString)> {
@@ -3307,6 +3418,11 @@ fn props_declaration_comments(raw: &str) -> Vec<(u32, CompactString)> {
 
 /// Shortest run a resync candidate must start to beat the nearest-byte rule.
 const MIN_RESYNC_RUN: usize = 4;
+/// Agreement a resync candidate beyond the near window must buy. The official
+/// `tests/sourcemaps` fixtures are the oracle this is read off: 5 and below
+/// reproduce 793 of their 808 segments, 6 through 12 reproduce all 808, and 16
+/// and above lose 2 again by refusing a wide candidate that was right.
+const WIDE_RESYNC_RUN: usize = 6;
 /// Longest run compared when scoring a resync candidate — a cap, so scoring the
 /// window stays linear in the window rather than in the rest of the script.
 const MAX_RESYNC_RUN: usize = 64;
@@ -3634,10 +3750,11 @@ fn copied_spans_for_normalized_code(
         if common_run(&code_tail[skip_output..], &input_tail[skip_input..]) < MIN_RESYNC_RUN {
             let mut best: Option<(usize, usize, usize)> = None;
             let consider = |best: &mut Option<(usize, usize, usize)>,
+                            min_run: usize,
                             run: usize,
                             skip_input: usize,
                             skip_output: usize| {
-                if run >= MIN_RESYNC_RUN
+                if run >= min_run
                     && best.is_none_or(|(best_run, input, output)| {
                         let skipped = skip_input + skip_output;
                         skipped < input + output || (skipped == input + output && run > best_run)
@@ -3646,20 +3763,22 @@ fn copied_spans_for_normalized_code(
                     *best = Some((run, skip_input, skip_output));
                 }
             };
-            // Widen only when the near window yields nothing: the first byte of a
-            // fragment can sit further from `input` than a token's worth of skew,
-            // and accepting the weak anchor instead binds it to an unrelated
-            // occurrence of the same byte.
-            let windows: &[usize] = if spans.is_empty() && output == 0 {
-                &[NEAR_RESYNC_WINDOW, RESYNC_WINDOW]
-            } else {
-                &[NEAR_RESYNC_WINDOW]
-            };
-            for &window in windows {
+            // Widen whenever the near window yields nothing, because the
+            // fallback below is the weak anchor itself: a dropped `import` is
+            // longer than the near window, so `const` bound to the `c` of
+            // `'../../_data/points.csv'` (#4454). A wrong wide jump skips a
+            // whole statement where the weak anchor costs one byte, so the wide
+            // pass asks for more than a token's worth of agreement first.
+            let windows: &[(usize, usize)] = &[
+                (NEAR_RESYNC_WINDOW, MIN_RESYNC_RUN),
+                (RESYNC_WINDOW, WIDE_RESYNC_RUN),
+            ];
+            for &(window, min_run) in windows {
                 let near_input = &input_tail[..input_tail.len().min(window)];
                 for skip in memchr::memchr_iter(output_byte, near_input) {
                     consider(
                         &mut best,
+                        min_run,
                         common_run(code_tail, &input_tail[skip..]),
                         skip,
                         0,
@@ -3669,6 +3788,7 @@ fn copied_spans_for_normalized_code(
                 for skip in memchr::memchr_iter(input_byte, near_output) {
                     consider(
                         &mut best,
+                        min_run,
                         common_run(&code_tail[skip..], input_tail),
                         0,
                         skip,
@@ -3695,6 +3815,7 @@ fn copied_spans_for_normalized_code(
                         }
                         consider(
                             &mut best,
+                            MIN_RESYNC_RUN,
                             common_run(&code_tail[skip_output..], &input_tail[skip_input..]),
                             skip_input,
                             skip_output,

@@ -58,7 +58,7 @@ jobs:
       # --manifest-path crates/rsvelte_lint_types/Cargo.toml` cannot even load
       # the manifest without it. Same step the `Lint-types lockfile` job runs.
       - name: Checkout corsa-bind submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/corsa-bind
+        run: git submodule update --init --checkout --depth 1 submodules/corsa-bind
 
       - uses: ./.github/actions/setup-node-pnpm
 

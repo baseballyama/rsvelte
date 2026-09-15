@@ -680,6 +680,70 @@ fn comments_in_removed_props_declarations_are_retained() {
 }
 
 #[test]
+fn a_props_only_script_keeps_its_value_position_comment_on_the_template_root() {
+    // Expected text is the oracle's own output for this input, not a
+    // neighbouring cell's. The trailing newline inside the script is what makes
+    // upstream break the line here; without it upstream writes
+    // `var /* c */ i = root();` and rsvelte still breaks — that residue is
+    // #4500, and it is why the sibling case below asserts the declarator rather
+    // than the whole file.
+    let source = "<script>let { a } = /* c */ $props();\n</script><i>{a}</i>";
+    let result = crate::compiler::compile(
+        source,
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            name: Some("C6".into()),
+            ..Default::default()
+        },
+    )
+    .expect("compiles");
+    assert_eq!(
+        result.js.code,
+        "import 'svelte/internal/disclose-version';\n\
+         import * as $ from 'svelte/internal/client';\n\
+         \n\
+         var root = $.from_html(`<i> </i>`);\n\
+         \n\
+         export default function C6($$anchor, $$props) {\n\
+         \tvar /* c */\n\
+         \ti = root();\n\
+         \n\
+         \tvar text = $.only_child(i, true);\n\
+         \n\
+         \t$.template_effect(() => $.set_text(text, $$props.a));\n\
+         \t$.append($$anchor, i);\n\
+         }"
+    );
+}
+
+#[test]
+fn a_removed_props_declaration_does_not_take_its_comment_with_it() {
+    // The declaration is the script's only statement, so the transform empties
+    // the script and the comment leaves with it unless it is re-entered as the
+    // script's text (#4501). `var /* c */` is the position upstream writes it
+    // at; a bare `contains("/* c */")` would also pass on the statement-shaped
+    // re-emission this replaces.
+    for source in [
+        "<script>let { a } = /* c */ $props();</script><i>{a}</i>",
+        "<script>\nlet { a } = /* c */ $props();</script><i>{a}</i>",
+    ] {
+        let result = crate::compiler::compile(
+            source,
+            crate::compiler::CompileOptions {
+                generate: crate::compiler::GenerateMode::Client,
+                ..Default::default()
+            },
+        )
+        .expect("compiles");
+        assert!(
+            result.js.code.contains("var /* c */"),
+            "{source}\n{}",
+            result.js.code
+        );
+    }
+}
+
+#[test]
 fn legacy_prop_trailing_comment_stays_inside_generated_prop_call() {
     let source = r#"<script lang="ts">
 	export let value: string | null = null; // trailing prop comment

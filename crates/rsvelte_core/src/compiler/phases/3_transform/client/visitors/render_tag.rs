@@ -221,6 +221,7 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
             col,
             None,
             true,
+            None,
         ));
     } else {
         statements.push(b::stmt(&context.arena, call));

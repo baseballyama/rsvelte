@@ -221,6 +221,7 @@ pub(crate) fn flatten_with_map(
     indent: &str,
     capacity: usize,
     source_line_starts: &[u32],
+    source_len: u32,
 ) -> (String, Vec<Mapping>) {
     let mut driver = Driver {
         code: String::with_capacity(
@@ -239,6 +240,7 @@ pub(crate) fn flatten_with_map(
         current_line: 0,
         current_column: 0,
         source_line_starts,
+        source_len,
         last_source_line: 0,
         // Only Location events emit a mapping, so every event is a safe upper
         // bound that avoids repeatedly growing this hot output vector.
@@ -281,6 +283,10 @@ struct Driver<'a> {
     current_line: u32,
     current_column: u32,
     source_line_starts: &'a [u32],
+    /// One past the last byte a source position may name. An offset beyond it
+    /// is a chunk coordinate a lowering could not translate back, and emitting
+    /// it produces a segment pointing past the end of a source line (#4466).
+    source_len: u32,
     /// 1-based line most recently resolved from a source offset. A token's two
     /// anchors, and consecutive tokens, almost always share it.
     last_source_line: u32,
@@ -305,6 +311,9 @@ impl Driver<'_> {
             }
             EventKind::LocationOffset { offset } => {
                 self.flush_pending();
+                if offset > self.source_len {
+                    return;
+                }
                 let line = self.source_line_of(offset);
                 if line == 0 {
                     return;
@@ -550,7 +559,7 @@ mod tests {
         ]);
         assert_eq!(
             print(&buffer, "  ", 0),
-            flatten_with_map(&buffer, "  ", 0, &[]).0
+            flatten_with_map(&buffer, "  ", 0, &[], u32::MAX).0
         );
     }
 
@@ -560,7 +569,7 @@ mod tests {
             TestCommand::Text("ab\ncd"),
             TestCommand::Event(EventKind::Location { line: 3, column: 4 }),
         ]);
-        let (_, mappings) = flatten_with_map(&buffer, "\t", 0, &[]);
+        let (_, mappings) = flatten_with_map(&buffer, "\t", 0, &[], u32::MAX);
         assert_eq!(
             mappings,
             vec![Mapping {

@@ -142,9 +142,18 @@ fn normalize_block_comment_indentation(value: &str, source: &str, comment_start:
         return value.to_string();
     }
 
-    // Remove this indentation from the start of each line in the comment
-    let pattern = format!("\n{}", indentation);
-    value.replace(&pattern, "\n")
+    // `value.replace(new RegExp(`^${indentation}`, 'gm'), '')`. `^` under `m`
+    // matches at index 0 as well as after every newline, and index 0 of a block
+    // comment's value is the character after `/*` — so `/*  \n  ...*/` indented
+    // by two spaces loses the two that sit between `/*` and the first newline.
+    let mut out = String::with_capacity(value.len());
+    for (index, line) in value.split('\n').enumerate() {
+        if index > 0 {
+            out.push('\n');
+        }
+        out.push_str(line.strip_prefix(indentation).unwrap_or(line));
+    }
+    out
 }
 
 /// Create a comment object in ESTree format.
@@ -2726,8 +2735,9 @@ pub fn parse_typescript_params<'a>(
             // Without this it was silently dropped (a snippet `(...args)`
             // emitted `()` in svelte2tsx). Mirror the function-param rest handling.
             if let Some(rest) = &arrow.params.rest {
-                let rest_start = (offset - 1) + rest.span.start as usize;
-                let rest_end = (offset - 1) + rest.span.end as usize;
+                let base = AdjustedOffset::wrapped(offset, 1);
+                let rest_start = base + rest.span.start as usize;
+                let rest_end = base + rest.span.end as usize;
                 let argument = convert_binding_pattern(
                     arena,
                     &rest.rest.argument,
@@ -3005,8 +3015,17 @@ impl AdjustedOffset {
         self.base.wrapping_add(1).wrapping_sub(self.prefix)
     }
 
-    /// The base `convert_ts_type` wants: it removes no wrapper of its own.
+    /// The base a converter still taking a plain `usize` wants. Both callers are
+    /// on the program path, where the base is absolute and `prefix` is 0; a
+    /// wrapped base handed out here would underflow downstream exactly as the
+    /// pre-subtracted `usize` used to (#4432), so the boundary says so loudly.
     fn for_plain_converter(self) -> usize {
+        debug_assert!(
+            self.base >= self.prefix,
+            "a wrapped base ({} - {}) escaped to a converter that adds to it",
+            self.base,
+            self.prefix
+        );
         self.base.wrapping_sub(self.prefix)
     }
 }
@@ -3205,6 +3224,56 @@ fn attach_param_type_annotation<'a>(
     }
     *type_annotation = Some(Box::new(annotation));
     Expression::from_node(node)
+}
+
+/// OXC keeps a catch parameter's annotation beside the pattern
+/// (`CatchParameter::type_annotation`), while acorn-typescript writes it onto the
+/// pattern node itself and ends that node at the annotation. Both catch-clause
+/// ports call this, so the program path and the template-expression path cannot
+/// drift apart on the shape.
+fn attach_catch_param_type_annotation(
+    arena: &ParseArena,
+    mut node: JsNode,
+    type_ann: Option<&oxc_ast::ast::TSTypeAnnotation>,
+    adjusted_offset: AdjustedOffset,
+    line_offsets: &[usize],
+) -> JsNode {
+    let Some(type_ann) = type_ann else {
+        return node;
+    };
+    let annotation =
+        convert_type_annotation_adjusted(arena, type_ann, adjusted_offset, line_offsets);
+    let annotated_end = adjusted_offset + type_ann.span.end as usize;
+    let (start, end, loc, slot) = match &mut node {
+        JsNode::Identifier {
+            start,
+            end,
+            loc,
+            type_annotation,
+            ..
+        }
+        | JsNode::ObjectPattern {
+            start,
+            end,
+            loc,
+            type_annotation,
+            ..
+        }
+        | JsNode::ArrayPattern {
+            start,
+            end,
+            loc,
+            type_annotation,
+            ..
+        } => (start, end, loc, type_annotation),
+        _ => return node,
+    };
+    *end = annotated_end as u32;
+    if let Some(new_loc) = create_typed_loc(*start as usize, annotated_end, line_offsets) {
+        *loc = Some(new_loc);
+    }
+    *slot = Some(Box::new(annotation));
+    node
 }
 
 /// Convert oxc ObjectPattern to our Expression format (for function parameters).
@@ -3651,12 +3720,7 @@ fn convert_ts_type_adjusted(
     adjusted_offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
-    convert_ts_type(
-        arena,
-        ts_type,
-        adjusted_offset.for_plain_converter(),
-        line_offsets,
-    )
+    convert_ts_type(arena, ts_type, adjusted_offset, line_offsets)
 }
 
 /// Convert TSTypeName with pre-adjusted offset.
@@ -3727,7 +3791,7 @@ fn convert_ts_type_name_adjusted(
 fn convert_ts_type(
     arena: &ParseArena,
     ts_type: &oxc_ast::ast::TSType,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     use oxc_ast::ast::TSType;
@@ -3784,11 +3848,7 @@ fn convert_ts_type(
             let mut obj = base("TSTypeReference");
             obj.set_field(
                 "typeName",
-                convert_ts_type_name_adjusted(
-                    &type_ref.type_name,
-                    AdjustedOffset::plain(offset),
-                    line_offsets,
-                ),
+                convert_ts_type_name_adjusted(&type_ref.type_name, offset, line_offsets),
             );
             if let Some(args) = &type_ref.type_arguments {
                 obj.set_field(
@@ -3944,12 +4004,7 @@ fn convert_ts_type(
             );
             obj.set_field(
                 "typeAnnotation",
-                convert_type_annotation_adjusted(
-                    arena,
-                    &f.return_type,
-                    AdjustedOffset::plain(offset),
-                    line_offsets,
-                ),
+                convert_type_annotation_adjusted(arena, &f.return_type, offset, line_offsets),
             );
             Value::Object(obj)
         }
@@ -3981,12 +4036,7 @@ fn convert_ts_type(
             );
             obj.set_field(
                 "typeAnnotation",
-                convert_type_annotation_adjusted(
-                    arena,
-                    &c.return_type,
-                    AdjustedOffset::plain(offset),
-                    line_offsets,
-                ),
+                convert_type_annotation_adjusted(arena, &c.return_type, offset, line_offsets),
             );
             Value::Object(obj)
         }
@@ -4064,13 +4114,7 @@ fn convert_ts_type(
                 }
                 other => other
                     .as_ts_type_name()
-                    .map(|name| {
-                        convert_ts_type_name_adjusted(
-                            name,
-                            AdjustedOffset::plain(offset),
-                            line_offsets,
-                        )
-                    })
+                    .map(|name| convert_ts_type_name_adjusted(name, offset, line_offsets))
                     .unwrap_or(Value::Null),
             };
             obj.set_field("exprName", expr_name);
@@ -4105,14 +4149,7 @@ fn convert_ts_type(
                 predicate
                     .type_annotation
                     .as_ref()
-                    .map(|ta| {
-                        convert_type_annotation_adjusted(
-                            arena,
-                            ta,
-                            AdjustedOffset::plain(offset),
-                            line_offsets,
-                        )
-                    })
+                    .map(|ta| convert_type_annotation_adjusted(arena, ta, offset, line_offsets))
                     .unwrap_or(Value::Null),
             );
             Value::Object(obj)
@@ -4189,7 +4226,7 @@ fn ts_mapped_modifier(operator: oxc_ast::ast::TSMappedTypeModifierOperator) -> V
 fn convert_ts_import_type(
     arena: &ParseArena,
     import: &oxc_ast::ast::TSImportType,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     let mut obj = Map::new();
@@ -4229,7 +4266,7 @@ fn convert_ts_import_type(
 /// left-nested `TSQualifiedName` chain.
 fn convert_ts_import_type_qualifier(
     qualifier: &oxc_ast::ast::TSImportTypeQualifier,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     use oxc_ast::ast::TSImportTypeQualifier;
@@ -4265,7 +4302,7 @@ fn convert_ts_import_type_qualifier(
 fn convert_ts_tuple_element(
     arena: &ParseArena,
     element: &oxc_ast::ast::TSTupleElement,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     use oxc_ast::ast::TSTupleElement;
@@ -4301,7 +4338,7 @@ fn convert_ts_tuple_element(
 /// svelte/compiler emits a tuple member's label as a plain `Identifier`.
 fn convert_ts_identifier_name(
     name: &oxc_ast::ast::IdentifierName,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     let mut obj = Map::new();
@@ -4324,7 +4361,7 @@ fn convert_ts_identifier_name(
 fn convert_ts_type_parameter_declaration(
     arena: &ParseArena,
     decl: &oxc_ast::ast::TSTypeParameterDeclaration,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     let start = offset + decl.span.start as usize;
@@ -4348,7 +4385,7 @@ fn convert_ts_type_parameter_declaration(
 fn convert_ts_type_parameter(
     arena: &ParseArena,
     param: &oxc_ast::ast::TSTypeParameter,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     let start = offset + param.span.start as usize;
@@ -4381,7 +4418,7 @@ fn convert_ts_type_parameter(
 fn convert_this_param(
     arena: &ParseArena,
     this_param: &oxc_ast::ast::TSThisParameter,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     let start = offset + this_param.span.start as usize;
@@ -4393,12 +4430,7 @@ fn convert_this_param(
     if let Some(type_ann) = &this_param.type_annotation {
         obj.set_field(
             "typeAnnotation",
-            convert_type_annotation_adjusted(
-                arena,
-                type_ann,
-                AdjustedOffset::plain(offset),
-                line_offsets,
-            ),
+            convert_type_annotation_adjusted(arena, type_ann, offset, line_offsets),
         );
     }
     Value::Object(obj)
@@ -4409,7 +4441,7 @@ fn convert_this_param(
 fn convert_rest_parameter(
     arena: &ParseArena,
     rest: &oxc_ast::ast::FormalParameterRest,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     let start = offset + rest.span.start as usize;
@@ -4419,22 +4451,12 @@ fn convert_rest_parameter(
     push_span_fields(&mut obj, start, end, line_offsets);
     obj.set_field(
         "argument",
-        convert_binding_pattern_for_param(
-            arena,
-            &rest.rest.argument,
-            AdjustedOffset::plain(offset),
-            line_offsets,
-        ),
+        convert_binding_pattern_for_param(arena, &rest.rest.argument, offset, line_offsets),
     );
     if let Some(type_ann) = &rest.type_annotation {
         obj.set_field(
             "typeAnnotation",
-            convert_type_annotation_adjusted(
-                arena,
-                type_ann,
-                AdjustedOffset::plain(offset),
-                line_offsets,
-            ),
+            convert_type_annotation_adjusted(arena, type_ann, offset, line_offsets),
         );
     }
     Value::Object(obj)
@@ -4444,7 +4466,7 @@ fn convert_ts_function_like_params(
     arena: &ParseArena,
     this_param: Option<&oxc_ast::ast::TSThisParameter>,
     params: &oxc_ast::ast::FormalParameters,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Vec<Value> {
     let mut out = Vec::with_capacity(
@@ -4457,7 +4479,7 @@ fn convert_ts_function_like_params(
 
     for param in &params.items {
         out.push(
-            convert_formal_parameter(arena, param, AdjustedOffset::plain(offset), line_offsets)
+            convert_formal_parameter(arena, param, offset, line_offsets)
                 .as_json()
                 .clone(),
         );
@@ -4474,7 +4496,7 @@ fn convert_ts_function_like_params(
 fn convert_ts_signature(
     arena: &ParseArena,
     sig: &oxc_ast::ast::TSSignature,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     use oxc_ast::ast::TSSignature;
@@ -4502,12 +4524,7 @@ fn convert_ts_signature(
             if let Some(type_ann) = &prop.type_annotation {
                 obj.set_field(
                     "typeAnnotation",
-                    convert_type_annotation_adjusted(
-                        arena,
-                        type_ann,
-                        AdjustedOffset::plain(offset),
-                        line_offsets,
-                    ),
+                    convert_type_annotation_adjusted(arena, type_ann, offset, line_offsets),
                 );
             }
             Value::Object(obj)
@@ -4558,12 +4575,7 @@ fn convert_ts_signature(
             if let Some(return_type) = &method.return_type {
                 obj.set_field(
                     "typeAnnotation",
-                    convert_type_annotation_adjusted(
-                        arena,
-                        return_type,
-                        AdjustedOffset::plain(offset),
-                        line_offsets,
-                    ),
+                    convert_type_annotation_adjusted(arena, return_type, offset, line_offsets),
                 );
             }
             Value::Object(obj)
@@ -4596,12 +4608,7 @@ fn convert_ts_signature(
             if let Some(return_type) = &call.return_type {
                 obj.set_field(
                     "typeAnnotation",
-                    convert_type_annotation_adjusted(
-                        arena,
-                        return_type,
-                        AdjustedOffset::plain(offset),
-                        line_offsets,
-                    ),
+                    convert_type_annotation_adjusted(arena, return_type, offset, line_offsets),
                 );
             }
             Value::Object(obj)
@@ -4634,12 +4641,7 @@ fn convert_ts_signature(
             if let Some(return_type) = &constructor.return_type {
                 obj.set_field(
                     "typeAnnotation",
-                    convert_type_annotation_adjusted(
-                        arena,
-                        return_type,
-                        AdjustedOffset::plain(offset),
-                        line_offsets,
-                    ),
+                    convert_type_annotation_adjusted(arena, return_type, offset, line_offsets),
                 );
             }
             Value::Object(obj)
@@ -4655,7 +4657,7 @@ fn convert_ts_signature(
 fn convert_ts_index_signature(
     arena: &ParseArena,
     index: &oxc_ast::ast::TSIndexSignature,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     let start = offset + index.span.start as usize;
@@ -4682,7 +4684,7 @@ fn convert_ts_index_signature(
                 convert_type_annotation_adjusted(
                     arena,
                     &param.type_annotation,
-                    AdjustedOffset::plain(offset),
+                    offset,
                     line_offsets,
                 ),
             );
@@ -4692,12 +4694,7 @@ fn convert_ts_index_signature(
     obj.set_field("parameters", Value::Array(parameters));
     obj.set_field(
         "typeAnnotation",
-        convert_type_annotation_adjusted(
-            arena,
-            &index.type_annotation,
-            AdjustedOffset::plain(offset),
-            line_offsets,
-        ),
+        convert_type_annotation_adjusted(arena, &index.type_annotation, offset, line_offsets),
     );
     Value::Object(obj)
 }
@@ -4705,7 +4702,7 @@ fn convert_ts_index_signature(
 /// Convert a `TSPropertySignature` key (Identifier / string / numeric).
 fn convert_ts_property_key(
     key: &oxc_ast::ast::PropertyKey,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     use oxc_ast::ast::PropertyKey;
@@ -4750,7 +4747,7 @@ fn convert_ts_property_key(
 /// Convert a `TSLiteralType` literal into an ESTree `Literal` node.
 fn convert_ts_literal(
     literal: &oxc_ast::ast::TSLiteral,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     use oxc_ast::ast::TSLiteral;
@@ -4844,7 +4841,7 @@ fn number_value(v: f64) -> Value {
 fn convert_ts_type_param_instantiation(
     arena: &ParseArena,
     args: &oxc_ast::ast::TSTypeParameterInstantiation,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     let start = offset + args.span.start as usize;
@@ -5017,8 +5014,12 @@ fn convert_expression<'a>(
             let start = offset + ts_as.span.start as usize - 1;
             let end = offset + ts_as.span.end as usize - 1;
             let inner = convert_expression(arena, &ts_as.expression, offset, line_offsets);
-            let type_annotation =
-                convert_ts_type(arena, &ts_as.type_annotation, offset - 1, line_offsets);
+            let type_annotation = convert_ts_type(
+                arena,
+                &ts_as.type_annotation,
+                AdjustedOffset::wrapped(offset, 1),
+                line_offsets,
+            );
             Expression::from_node(JsNode::TSAsExpression {
                 start: start as u32,
                 end: end as u32,
@@ -5034,7 +5035,7 @@ fn convert_expression<'a>(
             let type_annotation = convert_ts_type(
                 arena,
                 &ts_satisfies.type_annotation,
-                offset - 1,
+                AdjustedOffset::wrapped(offset, 1),
                 line_offsets,
             );
             Expression::from_node(JsNode::TSSatisfiesExpression {
@@ -5063,7 +5064,7 @@ fn convert_expression<'a>(
             let type_annotation = convert_ts_type(
                 arena,
                 &ts_assertion.type_annotation,
-                offset - 1,
+                AdjustedOffset::wrapped(offset, 1),
                 line_offsets,
             );
             Expression::from_node(JsNode::TSTypeAssertion {
@@ -5081,7 +5082,7 @@ fn convert_expression<'a>(
             let type_arguments = convert_ts_type_param_instantiation(
                 arena,
                 &ts_inst.type_arguments,
-                offset - 1,
+                AdjustedOffset::wrapped(offset, 1),
                 line_offsets,
             );
             Expression::from_node(JsNode::TSInstantiationExpression {
@@ -5688,7 +5689,7 @@ fn create_call_expression<'a>(
         type_arguments: opt_type_args(
             arena,
             call.type_arguments.as_deref(),
-            || offset - 1,
+            || AdjustedOffset::wrapped(offset, 1),
             line_offsets,
         ),
     })
@@ -5817,7 +5818,7 @@ fn create_new_expression<'a>(
         type_arguments: opt_type_args(
             arena,
             new_expr.type_arguments.as_deref(),
-            || offset - 1,
+            || AdjustedOffset::wrapped(offset, 1),
             line_offsets,
         ),
     })
@@ -5949,7 +5950,7 @@ fn function_expression_type_parameters(
         Box::new(convert_ts_type_parameter_declaration(
             arena,
             tp,
-            offset - 1,
+            AdjustedOffset::wrapped(offset, 1),
             line_offsets,
         ))
     })
@@ -6127,7 +6128,7 @@ fn convert_class_element_for_expr(
             if let Some(type_params) = opt_type_params(
                 arena,
                 method.value.type_parameters.as_deref(),
-                || offset - 1,
+                || AdjustedOffset::wrapped(offset, 1),
                 line_offsets,
             ) {
                 obj.set_field("typeParameters", *type_params);
@@ -6209,7 +6210,7 @@ fn convert_class_element_for_expr(
         oxc_ast::ast::ClassElement::TSIndexSignature(index) => Some(convert_ts_index_signature(
             arena,
             index,
-            offset,
+            AdjustedOffset::plain(offset),
             line_offsets,
         )),
         _ => None,
@@ -6783,8 +6784,12 @@ fn convert_ts_wrapper_target(
             let start = offset + ts_as.span.start as usize - 1;
             let end = offset + ts_as.span.end as usize - 1;
             let inner = convert_expression(arena, &ts_as.expression, offset, line_offsets);
-            let type_annotation =
-                convert_ts_type(arena, &ts_as.type_annotation, offset - 1, line_offsets);
+            let type_annotation = convert_ts_type(
+                arena,
+                &ts_as.type_annotation,
+                AdjustedOffset::wrapped(offset, 1),
+                line_offsets,
+            );
             JsNode::TSAsExpression {
                 start: start as u32,
                 end: end as u32,
@@ -6800,7 +6805,7 @@ fn convert_ts_wrapper_target(
             let type_annotation = convert_ts_type(
                 arena,
                 &ts_satisfies.type_annotation,
-                offset - 1,
+                AdjustedOffset::wrapped(offset, 1),
                 line_offsets,
             );
             JsNode::TSSatisfiesExpression {
@@ -6829,7 +6834,7 @@ fn convert_ts_wrapper_target(
             let type_annotation = convert_ts_type(
                 arena,
                 &ts_assertion.type_annotation,
-                offset - 1,
+                AdjustedOffset::wrapped(offset, 1),
                 line_offsets,
             );
             JsNode::TSTypeAssertion {
@@ -7022,7 +7027,7 @@ fn create_arrow_function<'a>(
             Box::new(convert_ts_type_parameter_declaration(
                 arena,
                 tp,
-                offset - 1,
+                AdjustedOffset::wrapped(offset, 1),
                 line_offsets,
             ))
         }),
@@ -7299,10 +7304,17 @@ fn convert_statement(
                 let h_start = offset + handler.span.start as usize - 1;
                 let h_end = offset + handler.span.end as usize - 1;
                 let param = handler.param.as_ref().map(|param| {
-                    arena.alloc_js_node(convert_binding_pattern_for_param_as_node(
+                    let adjusted = AdjustedOffset::wrapped(offset, 1);
+                    arena.alloc_js_node(attach_catch_param_type_annotation(
                         arena,
-                        &param.pattern,
-                        AdjustedOffset::wrapped(offset, 1),
+                        convert_binding_pattern_for_param_as_node(
+                            arena,
+                            &param.pattern,
+                            adjusted,
+                            line_offsets,
+                        ),
+                        param.type_annotation.as_deref(),
+                        adjusted,
                         line_offsets,
                     ))
                 });
@@ -7432,7 +7444,7 @@ fn convert_statement(
                     Box::new(convert_ts_type_parameter_declaration(
                         arena,
                         tp,
-                        offset - 1,
+                        AdjustedOffset::wrapped(offset, 1),
                         line_offsets,
                     ))
                 }),
@@ -8202,6 +8214,12 @@ fn acorn_only_violation(
         await_at: Option<u32>,
         super_allowed: bool,
         next_function_is_method: bool,
+        /// acorn's `SCOPE_DIRECT_SUPER`: only a derived class's constructor gets
+        /// it, and only `super()` reads it. Arrows are transparent to both.
+        direct_super_allowed: bool,
+        next_function_is_direct_super: bool,
+        direct_super_at: Option<u32>,
+        class_is_derived: bool,
     }
     impl Scan<'_> {
         fn record_ts_modifier(&mut self, carries_modifier: bool, span: oxc_span::Span) {
@@ -8246,16 +8264,81 @@ fn acorn_only_violation(
             func: &oxc_ast::ast::Function<'a>,
             flags: oxc_syntax::scope::ScopeFlags,
         ) {
-            let saved = self.super_allowed;
+            let saved = (self.super_allowed, self.direct_super_allowed);
             self.super_allowed = std::mem::take(&mut self.next_function_is_method);
+            self.direct_super_allowed = std::mem::take(&mut self.next_function_is_direct_super);
             oxc_ast_visit::walk::walk_function(self, func, flags);
-            self.super_allowed = saved;
+            (self.super_allowed, self.direct_super_allowed) = saved;
         }
         fn visit_object_property(&mut self, prop: &oxc_ast::ast::ObjectProperty<'a>) {
             let saved = self.next_function_is_method;
-            self.next_function_is_method = prop.method;
+            // acorn routes a getter/setter through `parseMethod` like a shorthand
+            // method, so all three enter `SCOPE_SUPER`; oxc's `method` flag is set
+            // for the shorthand only.
+            self.next_function_is_method = prop.method
+                || matches!(
+                    prop.kind,
+                    oxc_ast::ast::PropertyKind::Get | oxc_ast::ast::PropertyKind::Set
+                );
             oxc_ast_visit::walk::walk_object_property(self, prop);
             self.next_function_is_method = saved;
+        }
+        /// acorn's `parseClassField` enters `SCOPE_CLASS_FIELD_INIT | SCOPE_SUPER`
+        /// around the initializer **only**, so `super` is legal there (the field
+        /// carries the class's `[[HomeObject]]`) and still illegal in a computed
+        /// key. `SCOPE_DIRECT_SUPER` is not entered, so `super()` stays rejected.
+        fn visit_property_definition(&mut self, def: &oxc_ast::ast::PropertyDefinition<'a>) {
+            self.record_ts_modifier(
+                def.accessibility.is_some()
+                    || def.r#override
+                    || def.readonly
+                    || def.declare
+                    || def.r#type
+                        == oxc_ast::ast::PropertyDefinitionType::TSAbstractPropertyDefinition,
+                def.span,
+            );
+            self.visit_decorators(&def.decorators);
+            self.visit_property_key(&def.key);
+            if let Some(annotation) = &def.type_annotation {
+                self.visit_ts_type_annotation(annotation);
+            }
+            if let Some(value) = &def.value {
+                let saved = (self.super_allowed, self.direct_super_allowed);
+                self.super_allowed = true;
+                self.direct_super_allowed = false;
+                self.visit_expression(value);
+                (self.super_allowed, self.direct_super_allowed) = saved;
+            }
+        }
+        /// acorn's `parseClassStaticBlock` enters `SCOPE_CLASS_STATIC_BLOCK |
+        /// SCOPE_SUPER`, same as a field initializer.
+        fn visit_static_block(&mut self, block: &oxc_ast::ast::StaticBlock<'a>) {
+            let saved = (self.super_allowed, self.direct_super_allowed);
+            self.super_allowed = true;
+            self.direct_super_allowed = false;
+            oxc_ast_visit::walk::walk_static_block(self, block);
+            (self.super_allowed, self.direct_super_allowed) = saved;
+        }
+        /// `SCOPE_DIRECT_SUPER` is a property of the class the method is in, so the
+        /// flag has to be readable when its constructor is reached.
+        fn visit_class(&mut self, class: &oxc_ast::ast::Class<'a>) {
+            let saved = self.class_is_derived;
+            self.class_is_derived = class.heritage.is_some();
+            oxc_ast_visit::walk::walk_class(self, class);
+            self.class_is_derived = saved;
+        }
+        /// acorn checks `allowSuper` at the `super` token and `allowDirectSuper`
+        /// only after seeing the `(`, so a `super()` where neither holds reports
+        /// the first message, not this one.
+        fn visit_call_expression(&mut self, call: &oxc_ast::ast::CallExpression<'a>) {
+            if matches!(call.callee, oxc_ast::ast::Expression::Super(_))
+                && self.super_allowed
+                && !self.direct_super_allowed
+                && self.direct_super_at.is_none()
+            {
+                self.direct_super_at = Some(call.span.start);
+            }
+            oxc_ast_visit::walk::walk_call_expression(self, call);
         }
         fn visit_decorator(&mut self, dec: &oxc_ast::ast::Decorator<'a>) {
             if self.check_decorator && self.decorator_at.is_none() {
@@ -8285,22 +8368,18 @@ fn acorn_only_violation(
                     || def.r#type == oxc_ast::ast::MethodDefinitionType::TSAbstractMethodDefinition,
                 def.span,
             );
-            let saved = self.next_function_is_method;
-            self.next_function_is_method = true;
-            oxc_ast_visit::walk::walk_method_definition(self, def);
-            self.next_function_is_method = saved;
-        }
-        fn visit_property_definition(&mut self, def: &oxc_ast::ast::PropertyDefinition<'a>) {
-            self.record_ts_modifier(
-                def.accessibility.is_some()
-                    || def.r#override
-                    || def.readonly
-                    || def.declare
-                    || def.r#type
-                        == oxc_ast::ast::PropertyDefinitionType::TSAbstractPropertyDefinition,
-                def.span,
+            let saved = (
+                self.next_function_is_method,
+                self.next_function_is_direct_super,
             );
-            oxc_ast_visit::walk::walk_property_definition(self, def);
+            self.next_function_is_method = true;
+            self.next_function_is_direct_super = self.class_is_derived
+                && def.kind == oxc_ast::ast::MethodDefinitionKind::Constructor;
+            oxc_ast_visit::walk::walk_method_definition(self, def);
+            (
+                self.next_function_is_method,
+                self.next_function_is_direct_super,
+            ) = saved;
         }
         fn visit_accessor_property(&mut self, def: &oxc_ast::ast::AccessorProperty<'a>) {
             // acorn has no auto-accessor plugin, so `accessor` itself is the violation.
@@ -8326,6 +8405,10 @@ fn acorn_only_violation(
         await_at: None,
         super_allowed: false,
         next_function_is_method: false,
+        direct_super_allowed: false,
+        next_function_is_direct_super: false,
+        direct_super_at: None,
+        class_is_derived: false,
     };
     // The TypeScript-only rule below needs a token that is cheap to rule out, so
     // a plain-JS script keeps the walk it had.
@@ -8364,6 +8447,12 @@ fn acorn_only_violation(
         finder
             .super_at
             .map(|at| (at, "'super' keyword outside a method".to_string())),
+        finder.direct_super_at.map(|at| {
+            (
+                at,
+                "super() call outside constructor of a subclass".to_string(),
+            )
+        }),
         finder
             .await_at
             .map(|at| (at, "Unexpected token".to_string())),
@@ -8975,23 +9064,7 @@ fn convert_parsed_program<'ast>(
         for comment in all_comments.iter() {
             let comment_start = offset + comment.span.start as usize;
             let comment_end = offset + comment.span.end as usize;
-            let raw_text = if comment.span.end as usize <= content.len() {
-                &content[comment.span.start as usize..comment.span.end as usize]
-            } else {
-                ""
-            };
-            let mut value = extract_comment_value(raw_text, comment.kind);
-            if matches!(
-                comment.kind,
-                oxc_ast::ast::CommentKind::SingleLineBlock
-                    | oxc_ast::ast::CommentKind::MultiLineBlock
-            ) {
-                value = normalize_block_comment_indentation(
-                    &value,
-                    content,
-                    comment.span.start as usize,
-                );
-            }
+            let value = comment_value_text(comment, content);
             record_oxc_comment(
                 comment.kind,
                 value,
@@ -9033,12 +9106,9 @@ fn convert_parsed_program<'ast>(
                 comment_values.push(js_comment_value(comment));
             }
             for comment in all_comments.iter() {
-                let raw_text = content
-                    .get(comment.span.start as usize..comment.span.end as usize)
-                    .unwrap_or("");
                 comment_entries.push(CommentEntry {
                     start: offset as u32 + comment.span.start,
-                    text: CompactString::from(extract_comment_value(raw_text, comment.kind)),
+                    text: CompactString::from(comment_value_text(comment, content)),
                     value: build_comment_value(comment, content, offset),
                 });
                 if capture {
@@ -9166,6 +9236,24 @@ fn js_comment_value(comment: &crate::ast::template::JsComment) -> Value {
     Value::Object(obj)
 }
 
+/// The `value` upstream's single `onComment` handler produces: delimiters
+/// stripped, then a multi-line block comment dedented by its own opening line's
+/// indentation. Both of a comment's consumers here — the node's
+/// `leadingComments`/`trailingComments` and the text the ignore walk reads —
+/// must be that one value, because upstream has only one.
+fn comment_value_text(comment: &oxc_ast::ast::Comment, content: &str) -> String {
+    let raw = content
+        .get(comment.span.start as usize..comment.span.end as usize)
+        .unwrap_or("");
+    let value = extract_comment_value(raw, comment.kind);
+    match comment.kind {
+        oxc_ast::ast::CommentKind::Line => value,
+        oxc_ast::ast::CommentKind::SingleLineBlock | oxc_ast::ast::CommentKind::MultiLineBlock => {
+            normalize_block_comment_indentation(&value, content, comment.span.start as usize)
+        }
+    }
+}
+
 /// Build a comment JSON value from an OXC comment.
 fn build_comment_value(comment: &oxc_ast::ast::Comment, content: &str, offset: usize) -> Value {
     let comment_start = offset + comment.span.start as usize;
@@ -9177,16 +9265,7 @@ fn build_comment_value(comment: &oxc_ast::ast::Comment, content: &str, offset: u
         }
     };
     let comment_text = if comment_end <= offset + content.len() {
-        let raw = &content[comment.span.start as usize..comment.span.end as usize];
-        match comment.kind {
-            oxc_ast::ast::CommentKind::Line => raw.strip_prefix("//").unwrap_or(raw).to_string(),
-            oxc_ast::ast::CommentKind::SingleLineBlock
-            | oxc_ast::ast::CommentKind::MultiLineBlock => raw
-                .strip_prefix("/*")
-                .and_then(|s| s.strip_suffix("*/"))
-                .unwrap_or(raw)
-                .to_string(),
-        }
+        comment_value_text(comment, content)
     } else {
         String::new()
     };
@@ -9615,7 +9694,7 @@ fn convert_statement_for_program(
                             Box::new(convert_ts_type_parameter_declaration(
                                 arena,
                                 tp,
-                                offset,
+                                AdjustedOffset::plain(offset),
                                 line_offsets,
                             ))
                         }),
@@ -9997,10 +10076,12 @@ fn convert_statement_for_program(
                 let handler_loc = create_typed_loc(handler_start, handler_end, line_offsets);
 
                 let param = handler.param.as_ref().map(|param| {
-                    arena.alloc_js_node(convert_binding_pattern(
+                    let adjusted = AdjustedOffset::plain(offset);
+                    arena.alloc_js_node(attach_catch_param_type_annotation(
                         arena,
-                        &param.pattern,
-                        AdjustedOffset::plain(offset),
+                        convert_binding_pattern(arena, &param.pattern, adjusted, line_offsets),
+                        param.type_annotation.as_deref(),
+                        adjusted,
                         line_offsets,
                     ))
                 });
@@ -10678,12 +10759,22 @@ fn convert_ts_type_alias_declaration_as_node(
     if let Some(parameters) = &decl.type_parameters {
         obj.set_field(
             "typeParameters",
-            convert_ts_type_parameter_declaration(arena, parameters, offset, line_offsets),
+            convert_ts_type_parameter_declaration(
+                arena,
+                parameters,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            ),
         );
     }
     obj.set_field(
         "typeAnnotation",
-        convert_ts_type(arena, &decl.type_annotation, offset, line_offsets),
+        convert_ts_type(
+            arena,
+            &decl.type_annotation,
+            AdjustedOffset::plain(offset),
+            line_offsets,
+        ),
     );
     if decl.declare {
         obj.set_field("declare", Value::Bool(true));
@@ -10718,7 +10809,12 @@ fn convert_ts_interface_declaration_as_node(
     if let Some(parameters) = &decl.type_parameters {
         obj.set_field(
             "typeParameters",
-            convert_ts_type_parameter_declaration(arena, parameters, offset, line_offsets),
+            convert_ts_type_parameter_declaration(
+                arena,
+                parameters,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            ),
         );
     }
     // Interface heritage is uncommon in the comment residue, but keeping the
@@ -10752,7 +10848,12 @@ fn convert_ts_interface_declaration_as_node(
             if let Some(arguments) = &heritage.type_arguments {
                 heritage_obj.set_field(
                     "typeParameters",
-                    convert_ts_type_param_instantiation(arena, arguments, offset, line_offsets),
+                    convert_ts_type_param_instantiation(
+                        arena,
+                        arguments,
+                        AdjustedOffset::plain(offset),
+                        line_offsets,
+                    ),
                 );
             }
             Value::Object(heritage_obj)
@@ -10773,7 +10874,9 @@ fn convert_ts_interface_declaration_as_node(
             decl.body
                 .body
                 .iter()
-                .map(|member| convert_ts_signature(arena, member, offset, line_offsets))
+                .map(|member| {
+                    convert_ts_signature(arena, member, AdjustedOffset::plain(offset), line_offsets)
+                })
                 .collect(),
         ),
     );
@@ -10877,7 +10980,7 @@ fn convert_function_declaration_as_node(
             expr_to_node(Expression::from_json(convert_this_param(
                 arena,
                 p,
-                offset,
+                AdjustedOffset::plain(offset),
                 line_offsets,
             )))
         })
@@ -10895,7 +10998,7 @@ fn convert_function_declaration_as_node(
         params.push(expr_to_node(Expression::from_json(convert_rest_parameter(
             arena,
             rest,
-            offset,
+            AdjustedOffset::plain(offset),
             line_offsets,
         ))));
     }
@@ -10925,7 +11028,7 @@ fn convert_function_declaration_as_node(
             Box::new(convert_ts_type_parameter_declaration(
                 arena,
                 tp,
-                offset,
+                AdjustedOffset::plain(offset),
                 line_offsets,
             ))
         }),
@@ -11017,7 +11120,7 @@ fn convert_class_declaration_as_node(
         type_parameters: opt_type_params(
             arena,
             class_decl.type_parameters.as_deref(),
-            || offset,
+            || AdjustedOffset::plain(offset),
             line_offsets,
         ),
         super_type_parameters: opt_type_args(
@@ -11026,7 +11129,7 @@ fn convert_class_declaration_as_node(
                 .heritage
                 .as_ref()
                 .and_then(|h| h.type_arguments.as_deref()),
-            || offset,
+            || AdjustedOffset::plain(offset),
             line_offsets,
         ),
     }
@@ -11208,7 +11311,7 @@ fn convert_declaration_for_program(
             let mut params: Vec<Value> = func_decl
                 .this_param
                 .as_deref()
-                .map(|p| convert_this_param(arena, p, offset, line_offsets))
+                .map(|p| convert_this_param(arena, p, AdjustedOffset::plain(offset), line_offsets))
                 .into_iter()
                 .collect();
             params.extend(func_decl.params.items.iter().map(|param| {
@@ -11217,7 +11320,12 @@ fn convert_declaration_for_program(
                     .clone()
             }));
             if let Some(rest) = &func_decl.params.rest {
-                params.push(convert_rest_parameter(arena, rest, offset, line_offsets));
+                params.push(convert_rest_parameter(
+                    arena,
+                    rest,
+                    AdjustedOffset::plain(offset),
+                    line_offsets,
+                ));
             }
             obj.set_field("params", Value::Array(params));
 
@@ -11480,7 +11588,7 @@ fn convert_variable_declarator_for_program(
         let type_value = convert_ts_type(
             arena,
             &type_annotation.type_annotation,
-            offset,
+            AdjustedOffset::plain(offset),
             line_offsets,
         );
         ts_obj.set_field("typeAnnotation", type_value);
@@ -11666,7 +11774,7 @@ fn convert_expression_for_program<'a>(
                 type_arguments: opt_type_args(
                     arena,
                     call.type_arguments.as_deref(),
-                    || offset,
+                    || AdjustedOffset::plain(offset),
                     line_offsets,
                 ),
             })
@@ -11852,7 +11960,7 @@ fn convert_expression_for_program<'a>(
                     Box::new(convert_ts_type_parameter_declaration(
                         arena,
                         tp,
-                        offset,
+                        AdjustedOffset::plain(offset),
                         line_offsets,
                     ))
                 }),
@@ -12061,7 +12169,7 @@ fn convert_expression_for_program<'a>(
                 type_arguments: opt_type_args(
                     arena,
                     new_expr.type_arguments.as_deref(),
-                    || offset,
+                    || AdjustedOffset::plain(offset),
                     line_offsets,
                 ),
             })
@@ -12357,7 +12465,7 @@ fn convert_expression_for_program<'a>(
                         type_arguments: opt_type_args(
                             arena,
                             call.type_arguments.as_deref(),
-                            || offset,
+                            || AdjustedOffset::plain(offset),
                             line_offsets,
                         ),
                     }
@@ -12536,8 +12644,12 @@ fn convert_expression_for_program<'a>(
             let end = offset + ts_as.span.end as usize;
             let inner =
                 convert_expression_for_program(arena, &ts_as.expression, offset, line_offsets);
-            let type_annotation =
-                convert_ts_type(arena, &ts_as.type_annotation, offset, line_offsets);
+            let type_annotation = convert_ts_type(
+                arena,
+                &ts_as.type_annotation,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            );
             Expression::from_node(JsNode::TSAsExpression {
                 start: start as u32,
                 end: end as u32,
@@ -12555,8 +12667,12 @@ fn convert_expression_for_program<'a>(
                 offset,
                 line_offsets,
             );
-            let type_annotation =
-                convert_ts_type(arena, &ts_satisfies.type_annotation, offset, line_offsets);
+            let type_annotation = convert_ts_type(
+                arena,
+                &ts_satisfies.type_annotation,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            );
             Expression::from_node(JsNode::TSSatisfiesExpression {
                 start: start as u32,
                 end: end as u32,
@@ -12590,8 +12706,12 @@ fn convert_expression_for_program<'a>(
                 offset,
                 line_offsets,
             );
-            let type_annotation =
-                convert_ts_type(arena, &ts_assertion.type_annotation, offset, line_offsets);
+            let type_annotation = convert_ts_type(
+                arena,
+                &ts_assertion.type_annotation,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            );
             Expression::from_node(JsNode::TSTypeAssertion {
                 start: start as u32,
                 end: end as u32,
@@ -12608,7 +12728,7 @@ fn convert_expression_for_program<'a>(
             let type_arguments = convert_ts_type_param_instantiation(
                 arena,
                 &ts_inst.type_arguments,
-                offset,
+                AdjustedOffset::plain(offset),
                 line_offsets,
             );
             Expression::from_node(JsNode::TSInstantiationExpression {
@@ -12851,7 +12971,7 @@ fn convert_class_element_for_program_as_node(
                 value: Box::new(convert_ts_index_signature(
                     arena,
                     index,
-                    offset,
+                    AdjustedOffset::plain(offset),
                     line_offsets,
                 )),
             })
@@ -13067,7 +13187,7 @@ fn convert_class_element_for_program(
         oxc_ast::ast::ClassElement::TSIndexSignature(index) => Some(convert_ts_index_signature(
             arena,
             index,
-            offset,
+            AdjustedOffset::plain(offset),
             line_offsets,
         )),
     }
@@ -13103,7 +13223,7 @@ fn convert_function_expression_for_program(
     let mut params: Vec<Value> = func
         .this_param
         .as_deref()
-        .map(|p| convert_this_param(arena, p, offset, line_offsets))
+        .map(|p| convert_this_param(arena, p, AdjustedOffset::plain(offset), line_offsets))
         .into_iter()
         .collect();
     params.extend(func.params.items.iter().map(|param| {
@@ -13197,7 +13317,7 @@ fn convert_function_expression_for_program_as_node(
             expr_to_node(Expression::from_json(convert_this_param(
                 arena,
                 p,
-                offset,
+                AdjustedOffset::plain(offset),
                 line_offsets,
             )))
         })
@@ -13291,7 +13411,7 @@ fn program_function_expression_type_parameters(
         Box::new(convert_ts_type_parameter_declaration(
             arena,
             tp,
-            offset,
+            AdjustedOffset::plain(offset),
             line_offsets,
         ))
     })
@@ -13318,7 +13438,7 @@ fn opt_type_annotation(
 fn opt_type_args(
     arena: &ParseArena,
     args: Option<&oxc_ast::ast::TSTypeParameterInstantiation<'_>>,
-    adjusted_offset: impl FnOnce() -> usize,
+    adjusted_offset: impl FnOnce() -> AdjustedOffset,
     line_offsets: &[usize],
 ) -> Option<Box<serde_json::Value>> {
     args.map(|a| {
@@ -13334,7 +13454,7 @@ fn opt_type_args(
 fn opt_type_params(
     arena: &ParseArena,
     type_params: Option<&oxc_ast::ast::TSTypeParameterDeclaration<'_>>,
-    adjusted_offset: impl FnOnce() -> usize,
+    adjusted_offset: impl FnOnce() -> AdjustedOffset,
     line_offsets: &[usize],
 ) -> Option<Box<serde_json::Value>> {
     type_params.map(|tp| {
@@ -13673,8 +13793,12 @@ fn convert_ts_wrapper_target_for_program(
             let end = offset + ts_as.span.end as usize;
             let inner =
                 convert_expression_for_program(arena, &ts_as.expression, offset, line_offsets);
-            let type_annotation =
-                convert_ts_type(arena, &ts_as.type_annotation, offset, line_offsets);
+            let type_annotation = convert_ts_type(
+                arena,
+                &ts_as.type_annotation,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            );
             JsNode::TSAsExpression {
                 start: start as u32,
                 end: end as u32,
@@ -13692,8 +13816,12 @@ fn convert_ts_wrapper_target_for_program(
                 offset,
                 line_offsets,
             );
-            let type_annotation =
-                convert_ts_type(arena, &ts_satisfies.type_annotation, offset, line_offsets);
+            let type_annotation = convert_ts_type(
+                arena,
+                &ts_satisfies.type_annotation,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            );
             JsNode::TSSatisfiesExpression {
                 start: start as u32,
                 end: end as u32,
@@ -13727,8 +13855,12 @@ fn convert_ts_wrapper_target_for_program(
                 offset,
                 line_offsets,
             );
-            let type_annotation =
-                convert_ts_type(arena, &ts_assertion.type_annotation, offset, line_offsets);
+            let type_annotation = convert_ts_type(
+                arena,
+                &ts_assertion.type_annotation,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            );
             JsNode::TSTypeAssertion {
                 start: start as u32,
                 end: end as u32,
@@ -14201,6 +14333,144 @@ pub fn validate_template_binding_pattern(
     })
 }
 
+/// The annotation `read_type_annotation` (`1-parse/read/context.js`) builds by
+/// hand for `{#each xs as x: T}` / `{:then v: T}`: it starts where the pattern
+/// ended — before the whitespace around the `:` — and carries no `loc`, because
+/// no acorn node produced it. Only a destructured pattern takes the annotation's
+/// `end`; a bare identifier keeps its own.
+fn attach_template_binding_annotation(
+    node: &mut JsNode,
+    annotation_start: usize,
+    annotation_end: usize,
+    annotation: Value,
+    extend_end: bool,
+    reader: PatternAnnotationReader,
+) {
+    let annotation = match reader {
+        PatternAnnotationReader::ReadDeclaration => annotation,
+        PatternAnnotationReader::ReadPattern => {
+            let mut obj = Map::new();
+            obj.set_field("type", Value::String("TSTypeAnnotation".to_string()));
+            obj.set_field("start", Value::from(annotation_start));
+            obj.set_field("end", Value::from(annotation_end));
+            obj.set_field("typeAnnotation", annotation);
+            Value::Object(obj)
+        }
+    };
+
+    let (end, slot) = match node {
+        JsNode::Identifier {
+            end,
+            type_annotation,
+            ..
+        }
+        | JsNode::ObjectPattern {
+            end,
+            type_annotation,
+            ..
+        }
+        | JsNode::ArrayPattern {
+            end,
+            type_annotation,
+            ..
+        } => (end, type_annotation),
+        _ => return,
+    };
+    if extend_end {
+        *end = annotation_end as u32;
+    }
+    *slot = Some(Box::new(annotation));
+}
+
+/// Upstream's `read_pattern` reads a pattern and its type annotation together,
+/// so `{@const x: T = …}`'s declarator id carries the annotation exactly as an
+/// each-block context does. The const-tag / declaration-tag ports parse the
+/// pattern with the annotation already stripped off the text, so they re-attach
+/// it here rather than growing a second annotation reader.
+pub fn attach_pattern_type_annotation<'a>(
+    arena: &ParseArena,
+    expr: Expression<'a>,
+    pattern_with_annotation: &str,
+    offset: usize,
+    line_offsets: &[usize],
+    ts: bool,
+    reader: PatternAnnotationReader,
+) -> Expression<'a> {
+    let Some((annotation, annotation_end)) = read_binding_type_annotation(
+        arena,
+        pattern_with_annotation,
+        offset,
+        line_offsets,
+        ts,
+        reader,
+    ) else {
+        return expr;
+    };
+    let mut node = expr_to_node(expr);
+    // `id.name !== ''` upstream: an identifier keeps its own `end`, a
+    // destructured pattern takes the annotation's.
+    let extend_end = !matches!(node, JsNode::Identifier { .. });
+    let pattern_end = node.end().unwrap_or(0) as usize;
+    attach_template_binding_annotation(
+        &mut node,
+        pattern_end,
+        annotation_end,
+        annotation,
+        extend_end,
+        reader,
+    );
+    Expression::from_node(node)
+}
+
+/// Which upstream reader produced the annotation. `{@const}` and the block
+/// patterns go through `read_pattern`, whose `read_type_annotation` builds the
+/// `TSTypeAnnotation` by hand — it starts at the pattern's end and has no `loc`.
+/// `{const …}` / `{let …}` go through `read_declaration`, where the node comes
+/// from the parser and carries its own span and `loc`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PatternAnnotationReader {
+    ReadPattern,
+    ReadDeclaration,
+}
+
+/// The TS type behind a template pattern's `:`, read the way
+/// `parse_binding_pattern` reads the pattern itself — one `let … = null` wrap, so
+/// the annotation and the pattern cannot come from different parses.
+fn read_binding_type_annotation(
+    arena: &ParseArena,
+    content: &str,
+    offset: usize,
+    line_offsets: &[usize],
+    ts: bool,
+    reader: PatternAnnotationReader,
+) -> Option<(Value, usize)> {
+    with_oxc_allocator(|allocator| {
+        let source_type = if ts {
+            SourceType::ts()
+        } else {
+            SourceType::mjs()
+        };
+        let wrapped = format!("let {} = null", content);
+        let parser = OxcParser::new(allocator, &wrapped, source_type);
+        let result = parser.parse();
+        let oxc_ast::ast::Statement::VariableDeclaration(var_decl) = result.program.body.first()?
+        else {
+            return None;
+        };
+        let type_ann = var_decl.declarations.first()?.type_annotation.as_ref()?;
+        let adjusted = AdjustedOffset::wrapped(offset, 4);
+        let value = match reader {
+            PatternAnnotationReader::ReadPattern => {
+                convert_ts_type_adjusted(arena, &type_ann.type_annotation, adjusted, line_offsets)
+            }
+            PatternAnnotationReader::ReadDeclaration => {
+                convert_type_annotation_adjusted(arena, type_ann, adjusted, line_offsets)
+            }
+        };
+        Some((value, offset + type_ann.span.end as usize - 4))
+    })
+}
+
 pub fn parse_binding_pattern<'a>(
     arena: &ParseArena,
     content: &str,
@@ -14271,17 +14541,53 @@ pub fn parse_binding_pattern<'a>(
             result.program.body.first()
             && let Some(decl) = var_decl.declarations.first()
         {
+            let annotation = decl.type_annotation.as_ref().map(|type_ann| {
+                (
+                    convert_ts_type_adjusted(
+                        arena,
+                        &type_ann.type_annotation,
+                        AdjustedOffset::wrapped(offset, 4),
+                        line_offsets,
+                    ),
+                    offset + type_ann.span.end as usize - 4,
+                )
+            });
+
             if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &decl.id {
                 let start = offset + id.span.start as usize - 4;
                 let end = offset + id.span.end as usize - 4;
-                return Ok(Expression::from_node(
-                    create_identifier_for_binding_toplevel(&id.name, start, end, line_offsets),
-                ));
+                let mut node =
+                    create_identifier_for_binding_toplevel(&id.name, start, end, line_offsets);
+                if let Some((inner, annotation_end)) = annotation {
+                    // `{ ...id, typeAnnotation }`: the identifier keeps its own `end`.
+                    attach_template_binding_annotation(
+                        &mut node,
+                        end,
+                        annotation_end,
+                        inner,
+                        false,
+                        PatternAnnotationReader::ReadPattern,
+                    );
+                }
+                return Ok(Expression::from_node(node));
             }
 
-            return Ok(Expression::from_node(
-                convert_binding_pattern_with_adjustment(arena, &decl.id, offset, 4, line_offsets),
-            ));
+            let mut node =
+                convert_binding_pattern_with_adjustment(arena, &decl.id, offset, 4, line_offsets);
+            if let Some((inner, annotation_end)) = annotation {
+                // `expression.end = expression.typeAnnotation.end` — a destructured
+                // pattern does take the annotation's end.
+                let pattern_end = node.end().unwrap_or(0) as usize;
+                attach_template_binding_annotation(
+                    &mut node,
+                    pattern_end,
+                    annotation_end,
+                    inner,
+                    true,
+                    PatternAnnotationReader::ReadPattern,
+                );
+            }
+            return Ok(Expression::from_node(node));
         }
 
         // Fallback: return as simple identifier
@@ -14685,7 +14991,7 @@ fn convert_expression_with_adjustment(
             let type_annotation = convert_ts_type(
                 arena,
                 &ts_as.type_annotation,
-                doc_offset - prefix_len,
+                AdjustedOffset::wrapped(doc_offset, prefix_len),
                 line_offsets,
             );
             ts_assertion_value(
@@ -14710,7 +15016,7 @@ fn convert_expression_with_adjustment(
             let type_annotation = convert_ts_type(
                 arena,
                 &ts_satisfies.type_annotation,
-                doc_offset - prefix_len,
+                AdjustedOffset::wrapped(doc_offset, prefix_len),
                 line_offsets,
             );
             ts_assertion_value(
@@ -15613,6 +15919,170 @@ mod tests {
             Some("AssignmentExpression"),
             "Should be AssignmentExpression"
         );
+    }
+
+    /// Every `start`/`end` the conversion emits, in source order, so a wrapped
+    /// value is visible as a number rather than as a shape.
+    fn collect_positions(value: &Value, out: &mut Vec<(String, u64)>) {
+        match value {
+            Value::Object(map) => {
+                for (key, child) in map {
+                    if (key == "start" || key == "end")
+                        && let Some(n) = child.as_u64()
+                    {
+                        out.push((key.clone(), n));
+                    }
+                    collect_positions(child, out);
+                }
+            }
+            Value::Array(items) => {
+                for item in items {
+                    collect_positions(item, out);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// #4432, and the residue is the list rather than the prose.
+    ///
+    /// The entry point's base is `offset - prefix`, which is negative when a
+    /// caller starts at 0. Spelled as a pre-subtracted `usize` that was modular
+    /// arithmetic — right in release, where every consumer adds a span of at
+    /// least 1 and the sum wraps back, and `attempt to subtract with overflow`
+    /// in debug before it could. The `convert_ts_*` family now carries
+    /// [`AdjustedOffset`] instead, which keeps base and prefix apart and only
+    /// ever hands out a sum, so no shape evaluates the negative value at all.
+    ///
+    /// The assertion stays two-sided: nothing here may panic in either profile,
+    /// and every shape's positions are checked, which the panicking ones never
+    /// reached.
+    ///
+    /// Two passes, because the first instrument was wrong. A fresh
+    /// `ParseArena` per call on one thread makes `as_json()` resolve node ids
+    /// against a stale arena, and the leftovers read as plausible positions:
+    /// `work()` answered `[(0,6)]` with the list in order and
+    /// `[(0,6),(31,32)]` with it reversed. One pass isolates each shape on its
+    /// own thread; the other uses one arena for the whole list, the way a
+    /// file's parse does. Each is held to the property independently — they
+    /// disagree about which nodes carry a position at all, which is not what
+    /// this is about.
+    #[test]
+    fn an_offset_zero_parse_emits_no_position_past_the_source() {
+        let cases: &[&'static str] = &[
+            "work()",
+            "new C(1)",
+            "f(g(1))",
+            "[1, 2].map(f)",
+            "() => 1",
+            "a + b",
+            "o.m(1)",
+            "({ x: 1 })",
+            "function q(a) { return a; }",
+            "f<number>(1)",
+            "new C<number>(1)",
+            "class K<T> extends M<number> { p: number = 1; }",
+            "(v) => v",
+            "(v: number) => v",
+            "o as string",
+            "(a, b) => a + b",
+            "({ x }) => x",
+            "([a]) => a",
+            "(v: number = 1) => v",
+            "<T,>(v: T) => v",
+        ];
+        fn positions(arena: &ParseArena, src: &str) -> Vec<(String, u64)> {
+            let line_offsets = vec![0];
+            let Some(expr) = parse_expression_with_typescript(arena, src, 0, &line_offsets, true)
+            else {
+                panic!("`{src}` should parse");
+            };
+            let mut out = Vec::new();
+            collect_positions(expr.as_json(), &mut out);
+            out
+        }
+        // The panics under test are the subject, so they must not print a
+        // backtrace each; a real assertion failure below still does.
+        let previous = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let isolated: Vec<Option<Vec<(String, u64)>>> = cases
+            .iter()
+            .map(|src| {
+                let src = *src;
+                std::thread::spawn(move || {
+                    std::panic::catch_unwind(|| positions(&ParseArena::new(), src)).ok()
+                })
+                .join()
+                .unwrap()
+            })
+            .collect();
+        let sequential: Vec<Option<Vec<(String, u64)>>> = cases
+            .iter()
+            .map(|src| {
+                let src = *src;
+                std::thread::spawn(move || {
+                    let arena = ParseArena::new();
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        cases.iter().take_while(|c| **c != src).for_each(|c| {
+                            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                positions(&arena, c)
+                            }));
+                        });
+                        positions(&arena, src)
+                    }))
+                    .ok()
+                })
+                .join()
+                .unwrap()
+            })
+            .collect();
+        std::panic::set_hook(previous);
+
+        let mut problems = Vec::new();
+        let mut panicked: Vec<&str> = Vec::new();
+        for (i, src) in cases.iter().enumerate() {
+            let len = src.len() as u64;
+            if isolated[i].is_none() {
+                panicked.push(src);
+                continue;
+            }
+            for (pass, seen) in [
+                ("isolated", isolated[i].as_ref()),
+                ("sequential", sequential[i].as_ref()),
+            ] {
+                let Some(seen) = seen else { continue };
+                assert!(
+                    !seen.is_empty(),
+                    "`{src}` ({pass}) emitted no positions at all"
+                );
+                let past: Vec<_> = seen.iter().filter(|(_, n)| *n > len).collect();
+                if !past.is_empty() {
+                    problems.push(format!("`{src}` ({pass}): len {len} but {past:?}"));
+                }
+                // The whole expression is the whole source on every shape here
+                // but `({ x: 1 })`, where the parenthesised object's own span
+                // is inside the parens — checked, not assumed.
+                let outermost = (seen[0].1, seen[1].1);
+                let expected: (u64, u64) = if *src == "({ x: 1 })" {
+                    (1, 9)
+                } else {
+                    (0, len)
+                };
+                if outermost != expected {
+                    problems.push(format!(
+                        "`{src}` ({pass}): outermost span {outermost:?} is not {expected:?}"
+                    ));
+                }
+            }
+        }
+        let mut sorted = panicked.clone();
+        sorted.sort_unstable();
+        assert_eq!(
+            sorted,
+            Vec::<&str>::new(),
+            "a shape's conversion panics at offset 0 again (#4432)"
+        );
+        assert!(problems.is_empty(), "{}", problems.join("\n"));
     }
 
     /// The ASCII gates here are fast-path filters, so rejecting a non-ASCII

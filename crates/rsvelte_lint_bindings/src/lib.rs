@@ -10,23 +10,12 @@
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
+// wasm-bindgen collects the shared compiler exports into the playground cdylib.
 #[cfg(feature = "wasm")]
-mod compiler_wasm;
+use rsvelte_compiler_wasm_bindings as _;
 
 #[cfg(feature = "wasm")]
-mod ast {
-    pub use rsvelte_core::ast::*;
-}
-
-#[cfg(feature = "wasm")]
-mod compiler {
-    pub use rsvelte_core::compiler::*;
-}
-
-#[cfg(feature = "wasm")]
-mod svelte2tsx {
-    pub use rsvelte_projection::svelte2tsx::*;
-}
+mod svelte2tsx_wasm;
 
 #[cfg(feature = "napi")]
 pub mod napi;

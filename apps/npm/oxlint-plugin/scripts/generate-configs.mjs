@@ -5,7 +5,7 @@
 // the fragment can never drift from the engine's actual rule set.
 //
 // Run via `pnpm --filter @rsvelte/oxlint-plugin run build` (needs the core wasm
-// built: `pnpm run build:wasm:core`).
+// built: `pnpm run build:wasm:playground`).
 
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

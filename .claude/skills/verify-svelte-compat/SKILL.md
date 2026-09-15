@@ -45,7 +45,7 @@ vendored されておりサブモジュールではない。報告: Mode / Targe
 ```bash
 # Mode A（既存パスなら中止）
 TARGET_PATH="compatibility/verify-svelte-compat/$NAME"
-git submodule add -f "$URL" "$TARGET_PATH" && git submodule update --init "$TARGET_PATH"
+git submodule add -f "$URL" "$TARGET_PATH" && git submodule update --init --checkout "$TARGET_PATH"
 # Mode B: PREV_COMMIT=$(git -C "$TARGET_PATH" rev-parse HEAD) を記録。.gitmodules に branch があれば
 git submodule update --remote --merge "$TARGET_PATH"
 # 共通（branch なし）: 最新の安定タグ（^v?X.Y.Z$）、無ければ origin/HEAD

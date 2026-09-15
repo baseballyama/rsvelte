@@ -73,7 +73,7 @@ fn the_two_implementations_of_every_pass_agree() {
     let fixtures = root.join("submodules/svelte/packages/svelte/tests");
     assert!(
         fixtures.exists(),
-        "Svelte submodule missing at {} — run `git submodule update --init`",
+        "Svelte submodule missing at {} — run `git submodule update --init --checkout`",
         fixtures.display()
     );
 

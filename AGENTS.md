@@ -144,7 +144,7 @@ cannot express the constraint itself.
 ### Setup
 
 ```bash
-git submodule update --init --recursive
+git submodule update --init --checkout --recursive
 git config core.hooksPath .githooks
 pnpm install
 pnpm run generate-fixtures  # Required before running tests
@@ -184,6 +184,9 @@ node scripts/diff/compare-parsers.mjs                # Diff a parse against offi
   none of the others, so a nine-suite run and a zero-suite run print the same nothing.
   Read the `Running tests/` lines as the denominator, not the exit code; the needle is
   `Running tests/`, because cargo indents that line and `^Running` matches nothing.
+  `scripts/ci/run-test-shard.sh` partitions **integration** binaries only (its own comment says
+  the `--lib` tests run in the separate `test-unit` job), so three green shards are not CI's
+  denominator and cannot observe a `--lib` failure — run `cargo test -p <crate> --lib` beside them.
 - `cargo fmt && cargo clippy --workspace --all-targets --all-features -- -D warnings` before every commit.
 
 ### Worktrees and the shared machine
@@ -199,7 +202,7 @@ Several agents share this `.git` (20+ linked worktrees) and this machine.
   measurement arms, and `|| exit` after any checkout — a failed checkout does not stop the next
   line, and the run then measures whatever tree was already there.
 - A linked worktree initializes **no** submodules. `git -C submodules/x rev-parse HEAD` then
-  returns the **superproject's** HEAD without error; `git submodule update --init --force
+  returns the **superproject's** HEAD without error; `git submodule update --init --checkout --force
   --recursive` fixes it. An absent submodule shows up only as a smaller denominator.
 - `FETCH_HEAD` and `origin/main` are shared, moving names. Resolve once
   (`MAIN=$(git rev-parse origin/main)`) and use the SHA. `git ls-remote origin main` is a
@@ -237,6 +240,7 @@ cannot see is inventoried in
 | Transform idempotency (property, no oracle) | `idempotency-verify.mjs` | — |
 | CSS prune, SCSS backend (`grass` vs dart-sass) | `css-prune-*.mjs`, `scss-verify.mjs` | `css-prune-*`, `scss-known-failures.json` |
 | Formatter parity (oxfmt oracle) | `fmt.mjs` (`pnpm run corpus:fmt`) | `fmt-known-failures.json`, `fmt-oracle-excluded.json` |
+| Formatter idempotency (property of the second application, over the parity run's own `actual/` tree) | `fmt-idempotency-verify.mjs` (`pnpm run corpus:fmt-idempotency`) | `fmt-idempotency-known-failures.json` |
 | svelte2tsx text and source-map structure | `svelte2tsx-verify.mjs` | `svelte2tsx-*-known-failures.json` |
 | svelte-check diagnostics (fixture projects, real repos) | `check-verify.mjs`, `check-e2e-verify.mjs` | `check-*-known-failures.json` |
 | Lint: real-world corpus, adversarial (`compatibility/lint-adversarial/`), fix / suggest / end / env / preset / conditions / severity | `lint-*.mjs` (`pnpm run lint-*`) | `lint-*-known-failures.json` |
@@ -533,6 +537,19 @@ are in the archived file.
   same re-derivation then retired the *next* design too: three of the seven relocations land
   beside a component call, which is a node upstream locates, so the "restrict to spans that
   mirror an upstream `loc`" fix would not have moved them either.
+- **The mechanism a defect report names can be load-bearing for a correct output elsewhere, and
+  the corpus is the wrong instrument for finding out.** #4521 is a real under-derivation —
+  `loc_base` was `max_span + 2`, so a source offset above it read as comment space. Raising the
+  boundary over the source repaired 256 map segments against 0 regressed and moved one `js.code`
+  file toward official over 34,930 components, and it also *drops* a script comment that
+  `a_script_comment_maps_before_the_template_expression_it_precedes` pins against the oracle:
+  on that input `max_span=41` against a 104-byte source, so `main`'s `loc_base=43` puts every
+  source offset above the boundary, and that misreading is exactly what anchors the comment in
+  the right place. One accident, two signs. The corpus could not see it — 0 of the 4,756 files
+  carrying the shape move, with an injected positive control the only mover — because the two
+  shapes sit at opposite ends of the same quantity (source length against longest generated
+  chunk), and real components are never at the end the fixture is at. So a sweep's improvement
+  count is not a regression check: run the fixture suite before believing one.
 
 ## Working with Subagents
 

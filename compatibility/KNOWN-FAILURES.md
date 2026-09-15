@@ -13,6 +13,7 @@ resolve. Do not rename an anchor — they are machine-facing.
 | [`dual-run-known-failures`](#dual-run-known-failures) | `compatibility/dual-run-known-failures.md` |
 | [`error-known-failures`](#error-known-failures) | `compatibility/error-known-failures.md` |
 | [`fmt-known-failures`](#fmt-known-failures) | `compatibility/fmt-known-failures.md` |
+| [`fmt-idempotency-known-failures`](#fmt-idempotency-known-failures) | `compatibility/fmt-idempotency-known-failures.md` |
 | [`fmt-oracle-excluded`](#fmt-oracle-excluded) | `compatibility/fmt-oracle-excluded.md` |
 | [`known-failures`](#known-failures) | `compatibility/known-failures.md` |
 | [`lint-adversarial-end-known-failures`](#lint-adversarial-end-known-failures) | `compatibility/lint-adversarial-end-known-failures.md` |
@@ -31,6 +32,7 @@ resolve. Do not rename an anchor — they are machine-facing.
 | [`parse-ast-known-failures`](#parse-ast-known-failures) | `compatibility/parse-ast-known-failures.md` |
 | [`parse-known-failures`](#parse-known-failures) | `compatibility/parse-known-failures.md` |
 | [`parse-oracle-excluded`](#parse-oracle-excluded) | `compatibility/parse-oracle-excluded.md` |
+| [`pattern-exact-known-failures`](#pattern-exact-known-failures) | `compatibility/pattern-exact-known-failures.md` |
 | [`scss-known-failures`](#scss-known-failures) | `compatibility/scss-known-failures.md` |
 | [`sourcemap-known-failures`](#sourcemap-known-failures) | `compatibility/sourcemap-known-failures.md` |
 | [`sourcemap-oracle-excluded`](#sourcemap-oracle-excluded) | `compatibility/sourcemap-oracle-excluded.md` |
@@ -903,7 +905,7 @@ Svelte structure, oxc for embedded JS, and PostCSS for embedded CSS) and require
 embedded CSS by default, so the ratchet intentionally includes CSS-engine parity
 as well as Svelte-structure parity. The ratchet may only shrink.
 
-**Current baseline: `fmt-known-failures.json`, 478 entries.** The 789-entry
+**Current baseline: `fmt-known-failures.json`, 412 entries.** The 789-entry
 split this paragraph used to give (22 pre-enrolment + 766 expanded population + 1
 pattern-corpus repro) no longer holds: 239 entries left the ratchet in the
 2026-09-01 re-baseline, and the CI report the baseline is derived from carries a
@@ -928,9 +930,9 @@ An id that carries two clusters' divergences at once is filed under its dominant
 one (see *Multiple clusters per id*), so the per-cluster counts below remain a
 partition of the ratchet rather than an over-count:
 
-Partition of `fmt-known-failures.json` by cluster: `228 + 188 + 13 + 35 + 12 + 1 + 1`
+Partition of `fmt-known-failures.json` by cluster: `198 + 152 + 13 + 35 + 12 + 1 + 1`
 
-**The partition is now the mechanical rule applied to all 478 entries**, where it
+**The partition is now the mechanical rule applied to all 412 entries**, where it
 used to be the hand-diagnosed Clusters 1-12 (23 entries) plus the mechanical
 Clusters 20-27 over the rest. The hand-diagnosed sections below are kept — their
 diagnoses did not stop being true — but their ids are now counted inside the
@@ -951,6 +953,59 @@ bump arm over the oracle's own 33,838-component population: 0 new failures, 2 re
 bump converged one of the three `css_native.rs` custom-property spellings — the oxc engine
 stopped padding the comma in `--arr: [1 , 2]`, so `oxfmt <file>.css` and `oxfmt(svelte: true)`
 now agree on `[1, 2]` and the assertion follows the engine there rather than diverging from it.
+
+**33 entries left in #4311** — 31 from **21 — breaks-earlier** and 2 from
+**20 — breaks-later** — when the whole-value attribute model
+(`markup/value_sequence.rs`) stopped building its interpolations with
+`src: None`. Its `broken` form was laid out at doc-build time on a budget
+derived from the builder's running column (`line_width − col − 1`), which is
+the *first* line's room, and nothing re-checked it against the indent the
+continuation lines print at, so `parentRowId === row.id` broke at `===` on a
+continuation line that had the whole width. Each interpolation now carries its
+source, the printer rebuilds it at the attribute's real indent (the
+interpolation-led form is printed at that indent and handed over relative
+afterwards), `fits` charges it up to its first break opportunity, and the
+closing `"` is a document text charged the way prettier charges it — by a
+measurement that reaches the value's end, or by the last line of the
+interpolation it follows — rather than a column reserved on every line.
+Measured on the fix arm over all 33,644 components: 57 outputs moved, 32
+retired, 0 new failures, and the other 25 stay listed with fewer differing lines
+on every one of them. The 33rd, layercake's `ArrowheadMarker.svelte` (an SVG
+`d` attribute whose fourth interpolation broke early), is in CI's 33,841-unit
+population but not in the local corpus; CI's stale-entry check named it, and the
+file at the pinned submodule revision diverges on the base arm and is byte-equal
+on the fix arm.
+
+**5 entries left in #4309** — all 5 from **21 — breaks-earlier** — when `fits`
+stopped charging a breakable mustache it reads in break mode by the head of its
+outermost group (`{record.holders` for a member chain, `broken[0]` as built at
+doc-build time) and charges its first break opportunity instead, the way
+prettier's `fits` returns at the first `line` of any group it reads in break
+mode: `{record`, the expression's first line one column wide. An inline element
+glued to such a mustache was measured a member too long, so its hug broke
+(`</span\n>`) where the oracle keeps `…</span>{record` and breaks inside the
+mustache. The issue recorded the mechanism with its output effect unmeasured;
+measured on the fix arm over all 33,644 components: 7 outputs moved, 5 retired,
+0 new failures, and the other two stay listed with fewer differing lines (36→29,
+59→31).
+
+**28 entries left in #4310** — all 28 from **20 — breaks-later** — when a
+content-level mustache that has to break stopped being rebuilt at its
+continuation lines' budget alone and is laid out in place: prettier measures the
+expression's first group against the column the `{` sits at, after the prose
+before it on the line, and its last against the `}` and any text glued to it up
+to the next break opportunity, so `Best happened at {categoryData.record_holders`
+breaks after the member that still fits at column 49 rather than after the one
+that fits at the indent, and `({visit.activities` keeps the line that ends
+exactly at the width. The same measurement exposed two approximations in the
+expression layout that had charged a narrow first-line offset or last-line
+suffix — one the placeholder comment cannot spell — to *every* line by narrowing
+the width; both are now charged exactly, with the unoffset (unsuffixed) layout
+standing whenever its first (last) line still has room. Measured on the fix arm
+over all 33,644 components: 33 outputs moved, 27 retired, 0 new failures, and
+the other six stay listed with fewer differing lines (11→6, 12→4, 8→4, 7→3, 7→3,
+8→4); the 28th (`layerchart/…/facet-click.svelte`, `{(…).toFixed(` at a column)
+is in CI's population and not the local one, and was named by CI's own run.
 
 **25 entries left in #4174** — 20 from **21 — breaks-earlier**, 4 from
 **20 — breaks-later** and 1 from **23 — indent-only** — when a `<pre>`'s
@@ -1475,9 +1530,9 @@ buckets per entry from the doc would be transcription, not measurement.
 | 2 | the two engines disagree about whitespace around a selector token neither models — the column combinator and a `nth-child(… of <selector>)` clause: rsvelte's `oxc_formatter_css` prints the space, the oracle's PostCSS path closes it up; measured through the official compiler, `js.code` is byte-identical for the two spellings and `css.code` differs only in that whitespace | `crates/rsvelte_formatter/tests/css_native.rs` — `a_column_combinator_keeps_its_spaces`, `an_nth_child_of_clause_keeps_the_space_after_of` |
 | 1 | a hex escape ending a selector: rsvelte emits the escape's terminating space and the separator before `{` as two spaces where the oracle emits one — the same file's 18 other selectors, including every hex escape followed by more text, agree; measured through the official compiler, `js.code` is byte-identical for the two spellings and `css.code` differs only in that whitespace | `crates/rsvelte_formatter/tests/css_native.rs` — `a_hex_escape_ending_a_selector_keeps_its_own_separator` |
 | 1 | continuation indent of a comma-separated multi-value declaration: rsvelte's engine prints every continuation at one depth where the oracle's PostCSS path indents the ones following an interleaved comment one level deeper than the first; measured through the official compiler, `js.code` is byte-identical for the two spellings and `css.code` differs only in that whitespace | `crates/rsvelte_formatter/tests/css_native.rs` — `every_continuation_of_a_multi_value_declaration_sits_at_one_depth` |
-| 473 | no upstream report and no pinned deliberate divergence; elimination is the only end state open to these entries | none |
+| 407 | no upstream report and no pinned deliberate divergence; elimination is the only end state open to these entries | none |
 
-Partition of `fmt-known-failures.json` by mechanism: `1 + 2 + 1 + 1 + 473`
+Partition of `fmt-known-failures.json` by mechanism: `1 + 2 + 1 + 1 + 407`
 
 Attribution of `fmt-known-failures.json`:
 
@@ -1643,7 +1698,7 @@ this cell is not a hug disagreement: it is a layout pass 1.6 does not have, name
 after the open tag and borrowing the closing tag's `>` onto its own line. How many corpus
 entries carry that shape is **unmeasured**.
 
-**What this population is not.** `fmt-known-failures.json` holds 478 entries; the 72 carriers
+**What this population is not.** `fmt-known-failures.json` holds 412 entries; the 72 carriers
 here are the ones whose *first differing line* is a `>` boundary, so this is a sub-population
 chosen by a signature, not a cluster of the partition above. An entry is retired only when
 every one of its differing regions is repaired.
@@ -1682,7 +1737,7 @@ the four classes come out `27 / 122 / 244 / 127` under the order now printed, an
 ungated half rot separately — `known-failures-md-check` reads the partition line and reads no
 prose, so the line stayed right while the table drifted.
 
-Partition of `fmt-known-failures.json` by diff shape: `232 + 102 + 120 + 24`
+Partition of `fmt-known-failures.json` by diff shape: `191 + 82 + 115 + 24`
 
 **Three of every four entries agree on every token and differ only in layout** — every row above
 except the token one. The placement and line-break rows are separated on purpose: collapsing runs
@@ -3225,6 +3280,76 @@ earlier group breaks and too wide when it stays flat — the two cases need two 
 one build-time computation. Doing this properly means the `broken` form becoming a function the
 printer evaluates at the column it actually has, which is a change to `Doc::RawExpr`'s contract
 rather than to an arithmetic expression. The 44 are pinned so that whoever takes it can count.
+
+<a id="fmt-idempotency-known-failures"></a>
+
+## fmt-idempotency-known-failures.json — why entries are accepted
+
+`scripts/compat-corpus/fmt-idempotency-verify.mjs` formats the parity run's own
+first application (`compatibility/fmt/actual/<id>`) a second time with the same
+`rsvelte-fmt` directory invocation `fmt.mjs` uses, and requires every byte to stay
+put. It asserts a property of rsvelte rather than comparing it to the oracle: the
+parity gate compares **one** application per side, so `format(format(x)) !=
+format(x)` was invisible to it at any corpus size (#4301, GATES.md 9e). The
+population is the parity set minus `fmt-oracle-excluded.json`. The ratchet may only
+shrink.
+
+**Current baseline: `fmt-idempotency-known-failures.json`, 90 entries.**
+
+Measured on the tree that introduced the gate (33,644 components, 23 excluded):
+33,531 converge and 90 do not — 82 whose second application writes different
+bytes, and 8 the second application **refuses** (a per-file parse error, listed
+with kind `error`). By the second application's line delta the 82 split
+`63 + 7 + 12` — shrinks, same line count with different bytes, grows — so this is
+not one mechanism. The oracle (`oxfmt` over its own output, same config) is
+non-idempotent on 25 of the same 33,644 by bytes and refuses its own output on
+the same 8; 19 of the 25 are among the 82, so **63 of the 90 are rsvelte's
+alone**, 27 are shared and 6 are the oracle's alone. Only 25 of the 90 are listed
+in `fmt-known-failures.json`: for the other 65 the first application matches the
+oracle byte-for-byte and it is the *oracle's own output* that rsvelte does not
+leave alone — a divergence class the parity gate cannot reach, because its input
+is never a formatted file.
+
+**The 8 refused are a bucket the bytes cannot see.** A per-file error leaves the
+staged file as it was, because nothing ran over it, so a gate that only compared
+bytes scored them converged — which is what the first CI run of this gate did,
+while printing the eight diagnostics above its green verdict. The gate now
+attributes every diagnostic on rsvelte-fmt's stderr to its id and fails outright
+on one it cannot attribute. All 8 have a first application byte-equal to the
+oracle's, and that output is not Svelte either parser reads back: `<span
+title=""foo"">` (`expected_token`, `attribute-static-quotemarks`,
+`component-prop-unescaped`, `attribute-quoting-hostile`,
+`3149-scoped-class-escape`), `<keygen></keygen>` (`void_element_invalid_content`,
+`void-tags`) and a `{/if}` with no open block (`block_unexpected_close`,
+`regex-zoo`, both copies of `01-basic-markup.md/12`). The oracle's own second
+application reports the same eight `CompileError`s. So the parity gate accepted
+output no Svelte parser accepts, on both sides — the fix is an oracle-fidelity
+question (`fmt-oracle-excluded.json` is the place for an entry the oracle gets
+wrong), and until then the entries stay here rather than counting as converged.
+
+Shapes read off the report's first differing lines, one example each: a hugged
+inline element or `{#if}` re-broken on the second pass
+(`>{#if ripple}<span class="…"></span>{/if}…` → `>{#if ripple}<span` / …, +2
+lines, `svelte-material-ui`), an expanded call re-joined once its arguments have
+been laid out (`{@render roundedCode(` / … → one line, −6, `kampsy-ui`), a broken
+open tag's `>` rejoined (`justifyContent="space-between">` → `…"` / `>`, −7,
+`appwrite-console`), and a prose fill wrapping one word earlier when the words
+arrive already broken (`</span> New Chat` / `from Current` → `</span> New` /
+`Chat from Current`, ±0, `chatgpt-web`). Which pass writes each is unmeasured; the
+entries are keyed by id, so an id that carries two of these leaves the ratchet only
+when both are gone.
+
+**Two-sided, like every ratchet here.** A new non-converging id fails the gate and a
+listed id that now converges fails it until `--update-baseline` retires it. The
+instrument was checked by injection on the introducing tree: a listed id removed
+(red, 1 NEW), a converging id added (red, 1 stale), a first application with
+three trailing newlines appended (red, 1 NEW, `-3 lines`), and a listed refused id
+removed (red, 1 NEW `[error]`); restored, green.
+
+Attribution is pending (`attribution-pending.json`): none of the 90 has a target
+yet, and the 19 the oracle shares are not thereby the oracle's fault — rsvelte's
+second application differs from its first on those files whatever `oxfmt` does on
+its own.
 
 <a id="fmt-oracle-excluded"></a>
 
@@ -5344,7 +5469,7 @@ would mean the axis had silently stopped being exercised.
 
 ## LSP differential known failures
 
-`lsp-known-failures.json` contains 23728 entries. Fixture and upstream entries identify one normalized
+`lsp-known-failures.json` contains 23824 entries. Fixture and upstream entries identify one normalized
 structural field for which `rsvelte-language-server` differs from the pinned official
 `svelte-language-server`, or from an upstream expected snapshot. A mismatched scalar key includes
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
@@ -5378,27 +5503,39 @@ The ratchet stays on the pending list until it is burned down.
 deletion, a cluster table buys no attribution and would cost a classification pass over every
 remaining key; shrinking the ratchet advances the DoD directly and a taxonomy of it does not.
 
-**One cluster is exempt from that, because its cause is this gate's own configuration rather than
-either server** (#4494). `verify.mjs` enables every `typescript.inlayHints.*` preference and sends
-no `javascript.inlayHints`; upstream selects the preference set by script kind
-(`LSAndTSDocResolver.ts:339-343`), so a component with no `lang="ts"` reads the absent `javascript`
-set, `areInlayHintsEnabled` is false, and the official server returns `null` before computing a
-hint. rsvelte answers `null` there too once it honours the client's preferences, so those carriers
-hold no `differential:` key at all — every one of them diverges only from upstream's committed
-snapshot, which upstream's own harness recorded with hints enabled, and official diverges from it
-identically. The run's own `typescript-inlay-hints` calibration row is that same split:
-`calibrationView` (`normalize.mjs:81`) rewrites official's `null` to `[]`, so a non-TS fixture whose
-snapshot is `[]` counts as reproduced and one holding a real list does not. These entries retire
-when #4494 sends the `javascript` preferences; until then the unported generated-hint filters of
-#4464 are unmeasurable on those fixtures, because neither server emits a hint there to filter.
+**One cluster was exempt from that, because its cause was this gate's own configuration rather
+than either server** (#4494), and it is now measured. `verify.mjs` enabled every
+`typescript.inlayHints.*` preference and sent no `javascript.inlayHints`; upstream selects the
+preference set by script kind (`LSAndTSDocResolver.ts:339-343`), so a component with no
+`lang="ts"` read the absent `javascript` set, `areInlayHintsEnabled` was false, and the official
+server returned `null` before computing a hint. Both servers were switched off there, so the
+carriers held no `differential:` key at all and diverged only from upstream's committed snapshot,
+which upstream's own harness recorded with hints enabled.
 
-Partition of `lsp-known-failures.json` by key kind: `21792 + 1612 + 324` — real-world corpus
+Sending the `javascript` preferences alongside the `typescript` ones moved 144 keys and **nothing
+else in the run** — every added and every removed key is a `textDocument/inlayHint` key, and the
+`typescript-inlay-hints` calibration row went `14/18` to `18/18`. 14 `expected:` entries retired,
+all of them `rsvelte=74234e98afe7`, the digest of JSON `null`. 130 appeared, and they are the
+divergence the configuration was hiding, in three classes:
+
+* **72 `value-mismatch`, every one `rsvelte=74234e98afe7`.** 54 of them carry
+  `official=4f53cda18c2b`, the digest of `[]`: rsvelte answers `null` where upstream answers an
+  empty array. The other 18 are files where the official server computes hints and rsvelte
+  computes none.
+* **48 `extra-rsvelte` and 10 `missing-rsvelte`** — hint-content divergence on the components that
+  were inert before, which is the residue of #4464 §1's unported filters and is the reachability
+  this change buys.
+
+None of the three is a property of the gate any more, so they are on the same footing as the rest
+of the ratchet: they stay until they are burned down.
+
+Partition of `lsp-known-failures.json` by key kind: `21792 + 1712 + 320` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
 against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
 `expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
 carrying a key outside its suite's prefix.
 
-Partition of `lsp-known-failures.json` by request phase: `11869 + 11859`
+Partition of `lsp-known-failures.json` by request phase: `11917 + 11907`
 
 Opened-document keys and post-`didChange` keys. The edit phase re-runs the same request set, so the
 two addends differ by exactly the session-level keys, which run once per session rather than once per
@@ -6493,7 +6630,7 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
 ## Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **173 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **149 entries**.
 
 ### The question it asks
 
@@ -6609,28 +6746,28 @@ ratchet at all. So `loose:unclosed-element::RegularElement#span` is an ordinary 
 defect. Reading the issue and the gate as sharing a vocabulary would have attributed an rsvelte
 defect upstream.
 
-Partition of `parse-ast-known-failures.json` by cluster: `51 + 42 + 32 + 16 + 9 + 8 + 6 + 6 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `51 + 30 + 28 + 12 + 8 + 6 + 6 + 5 + 2 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
 | `span` | 51 | 27 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
-| `node-type` | 9 | 5 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
-| `estree-fields` | 8 | 4 | ESTree fields rsvelte's serializer omits or adds. The nine TypeScript type fields are gone (#4335) and so is `CallExpression.optional#extra` (#4133 — acorn-typescript writes `optional` on a type-argument call only when the subscript chain was already optional); what is left is `Identifier.typeAnnotation`, `TSParameterProperty.{accessibility,readonly}` and `CallExpression.optional#value`. The lint gates found some of these from the other side. |
-| `unclustered` | 32 | 20 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
-| `comment-attachment` | 42 | 21 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
+| `node-type` | 8 | 4 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
+| `estree-fields` | 6 | 3 | ESTree fields rsvelte's serializer omits or adds. The nine TypeScript type fields are gone (#4335), so is `CallExpression.optional#extra` (#4133 — acorn-typescript writes `optional` on a type-argument call only when the subscript chain was already optional) and so is `Identifier.typeAnnotation` (#4133 — OXC keeps a catch parameter's and a declarator's annotation beside the pattern, not on it); what is left is `TSParameterProperty.{accessibility,readonly}` and `CallExpression.optional#value`. The lint gates found some of these from the other side. |
+| `unclustered` | 30 | 18 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
+| `comment-attachment` | 28 | 14 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. #4133 retired seven bases at once: a TS annotation, its type arguments, its type parameters and a return type are serialized from an opaque `Value`, so their nested nodes carried no comment at all until the declarations' materialization was routed through every one of them. |
 | `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
-| `css-shape` | 16 | 10 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`), **plus every key whose node type is spelled `Block`** — the cluster regex matches the CSS `Block` node and ESTree's block-comment type alike, so `Block#span` and `Block#node-missing` are filed here and are comments. The row is a key-shape partition, not a subject one. |
-| `child-count` | 6 | 5 | an array of children with a different length. |
+| `css-shape` | 12 | 8 | the CSS text rsvelte re-serializes onto a node (`Atrule.prelude`, `Declaration.value`) and the style-sheet comment fields — the legacy selector conversion left the row in #4592 — **plus every key whose node type is spelled `Block`** — the cluster regex matches the CSS `Block` node and ESTree's block-comment type alike, so `Block#span` and `Block#node-missing` are filed here and are comments. The row is a key-shape partition, not a subject one. |
+| `child-count` | 5 | 4 | an array of children with a different length. |
 | `loc-presence` | 6 | 3 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
 | `ast-mode` | 2 | 2 | #3385 — the remaining legacy-root shape differences. |
 
 **Read the `keys` column as `bases x axis`, not as work.** A key is
 `<axis>::<NodeType>.<field>#<kind>` and most node types diverge identically under `modern` and
-`legacy`, so 173 keys are **98 distinct bases**: 75 appear on both axes and 23 on one
-(75x2 + 23 = 173, a 1.77x collapse), and 98 is therefore the defect ceiling. The per-cluster
-collapse is not uniform — `estree-fields`, `comment-attachment` and `loc-presence` are 2.00x
-(every base is on both axes), `span` 1.89x, `node-type` 1.80x, `unclustered` and `css-shape`
-1.60x, `child-count` 1.20x (legacy-only shapes), `ast-mode` and
+`legacy`, so 149 keys are **84 distinct bases**: 65 appear on both axes and 19 on one
+(65x2 + 19 = 149, a 1.77x collapse), and 84 is therefore the defect ceiling. The per-cluster
+collapse is not uniform — `estree-fields`, `comment-attachment`, `loc-presence` and `node-type`
+are 2.00x (every base is on both axes), `span` 1.89x, `unclustered` 1.67x, `css-shape` 1.50x,
+`child-count` 1.25x (legacy-only shapes), `ast-mode` and
 `accepts-what-official-rejects` 1.00x by construction.
 
 **Every figure in that paragraph was re-derived from the JSON rather than adjusted, and three of
@@ -6642,7 +6779,7 @@ have produced the right ones; the gated declaration and the gated partition line
 correct throughout, which is exactly the split this repository records between a checked half and
 an unchecked half on the same page.
 
-**No base's two axes sit in different clusters** (0 of 75), so a cluster can be worked end to end
+**No base's two axes sit in different clusters** (0 of 65), so a cluster can be worked end to end
 without a key from it turning up under someone else's row. Measured directly from the JSON, which
 is authoritative for the partition: the ten rows above are its `Counter(values())`.
 
@@ -6652,6 +6789,7 @@ Attribution of `parse-ast-known-failures.json`:
 |---|---|---|
 | 1 | [`upstream_issues/3385-svelte-loose-parse-crashes.md`](../upstream_issues/3385-svelte-loose-parse-crashes.md) | `loose:unclosed-attribute-quote::(accepted)#official-rejects` — official does not reject that document, it **crashes** on it, so matching it would mean reproducing the crash |
 | 14 | [`upstream_issues/4251-svelte-acorn-typescript-comment-duplication.md`](../upstream_issues/4251-svelte-acorn-typescript-comment-duplication.md) | 6 keys on `modern` and 8 on `legacy` — official emits a comment twice, so its array is one element longer and the extra element has no counterpart. Re-measured under the aligned comparison (#4287); it was 17 under index pairing, where the surplus also mis-paired every later sibling |
+| 4 | [`upstream_issues/4133-svelte-each-expression-loc-keeps-the-swallowed-ts-assertion.md`](../upstream_issues/4133-svelte-each-expression-loc-keeps-the-swallowed-ts-assertion.md) | `LogicalExpression#span` (104 entries per axis) and `ConditionalExpression#span` (4) — in a TS component `{#each a ?? [] as x}` parses `[] as x` as a `TSAsExpression`, and unwrapping it moves the expression's `end` without moving its `loc.end`. Official's own `loc.end.column` disagrees with its own `end` offset on all 139 corpus occurrences and rsvelte's on none, so the sweep is internal to official and the counts account for the keys exactly |
 
 Both sides, on the gate's own source text (`parse-ast-verify.mjs:121`), under `{modern: true,
 loose: true}`:
@@ -6879,8 +7017,9 @@ over-acceptance in the `param-default` / `class-modifier` family's shape, not a 
 **`TSIndexSignature` is done** (`parameters`, `typeAnnotation`, `readonly`), which removes four
 ratcheted keys — and those four sat in **two** clusters (`unclustered` and `estree-fields`) for
 one mechanism, the same split recorded under B. A fifth key it closes, `readonly#missing`, has no
-carrier at all. Its `leadingComments#missing` is untouched and belongs to `comment-attachment`: a
-`Value`-built node never reaches `ser_comments!`. One measured neighbour is **not** fixed —
+carrier at all. Its `leadingComments#missing` sat in `comment-attachment` for the reason stated
+here — a `Value`-built node never reaches `ser_comments!` — and #4133 retired it by routing every
+opaque TypeScript field through the materialization the opaque *declarations* already used. One measured neighbour is **not** fixed —
 `class C { static [k: string]: number }` drops the member entirely (`ClassBody.body[]#length`),
 because a class element goes through two further converters, the pair that also drops a
 `static {}` block.
@@ -7147,6 +7286,87 @@ own deliberately-invalid fixtures, which is exactly where a compiler is most lik
 something a strict parser refuses. A calibration corpus reproducing the measurement only shows
 the method is sound on *its* population — see `AGENTS.md` on what a gate's inputs do and do not
 contain.
+
+<a id="pattern-exact-known-failures"></a>
+
+## pattern-exact-known-failures.<target>.json — why each entry is accepted
+
+The output gate (`scripts/compat-corpus/verify.mjs`) rescues a byte-different pair whose ASTs
+are equivalent, and `ast_equiv_batch` is invoked with no arguments, so its comment policy is
+`Ignore` — a divergence that is only a comment's presence or placement is scored `match` on
+every entry and every target (`GATES.md` blind spot 1a). Over a real-world component that is a
+deliberate tolerance. Over `compatibility/pattern-corpus/issues/` it is not: a file there exists
+**to pin a divergence a fix closed**, so one whose remaining divergence is comment-only pins
+nothing while reading as a passing repro, and the regression it was committed to catch can come
+back without reddening anything.
+
+This family re-runs the identical normalized byte comparison — oxfmt, blank lines stripped —
+over the `pattern/issues/` prefix alone, with the AST rescue removed. Its unit is
+`(id, target)`, folded to one entry per id carrying a `details` array naming each diverging
+target, so an id that diverges on all four targets is one ratchet entry rather than four.
+
+**Current baseline**, from the enrolling CI run (`Corpus Compat` 34430947366, tree
+`7b270ecbc`, 668 `pattern/issues/` manifest entries per target) less the two client entries of
+`008-comment-props-destructure.svelte`, which #4563 retired: 11 distinct ids, 28 `(id, target)`
+pairs, filed as `pattern-exact-known-failures.client.json`, 5 entries;
+`pattern-exact-known-failures.client-dev.json`, 5 entries;
+`pattern-exact-known-failures.server.json`, 9 entries; and
+`pattern-exact-known-failures.server-dev.json`, 9 entries. The two client targets and the two dev
+targets agree entry for entry, which is what makes the server/client split the real axis here.
+Re-baseline with `node scripts/compat-corpus/verify.mjs --update-exact-baseline`, which refuses
+under `--no-fmt` for the same reason `--update-baseline` does: without the normalizer a
+formatting-only difference is counted as a failure, and the resulting list is a measurement of
+oxfmt.
+
+Ratchet semantics, matching the output family:
+
+- an id **not** in this list whose `pattern/issues/` output is byte-different fails CI;
+- an id **in** this list that has become byte-identical fails CI too — the list may shrink,
+  never grow, and the PR that fixes an entry re-baselines in the same PR;
+- the population is the literal prefix `pattern/issues/`, so `pattern/adversarial/`,
+  `pattern/matrix/` and the loose `pattern/*.svelte` repros keep the output family's rescue.
+
+Two things this family deliberately does not decide.
+
+**It does not say which side is wrong.** The verdict is "the bytes differ". The direction is
+mixed in both senses — some entries are rsvelte dropping a comment official emits, others are
+rsvelte emitting one official does not (`GATES.md` 45c) — so each entry's justification has to
+state its own direction rather than inherit a summary sentence.
+
+**It does not exclude an id the output family already lists.** Nothing couples the two ratchets,
+so a repro failing gate 1 for an ordinary text mismatch can be listed in both. Excluding them
+would mean that *fixing* a gate-1 entry adds a row here; two rows for one divergence is the
+cheaper failure.
+
+### The 11 entries, with the direction each one runs in
+
+Every line below is the first differing line the run reported, so `expected` is the official
+compiler and `actual` is rsvelte. `45c` says this family does not decide who is wrong, and the
+enrolling baseline bears that out: **10 of the 11 are comment-only and 1 is not, 5 are rsvelte
+dropping a comment official emits, 3 are rsvelte emitting one official does not, and 2 are the
+same comment on both sides in a different place.**
+
+| id | targets | direction |
+|---|---|---|
+| `008-comment-props-destructure.svelte` | server, server-dev | **rsvelte emits extra**, on the server only: the comment lands after `= $$props;` where official has none. The client half — official writing `var /* ) scanner payload */ div = root();` where rsvelte dropped the comment — was the enrolling baseline's other verdict and retired in #4563, so the entry that once read as a relocation is now a one-sided extra. |
+| `3515-props-default-line-comment.svelte` | server, server-dev | **rsvelte emits extra.** `let { a = 1 } = $$props; // initializer` against official's bare statement. |
+| `3515-props-default-multiline-comment.svelte` | all 4 | **mixed.** Server is the same extra `/* initializer` as the line-comment sibling; client is an indentation difference *inside* a kept block comment (`\t\t` vs `\t\t\t\t`), which is the continuation-line half of the same divergence. |
+| `3515-props-plain-line-comment.svelte` | server, server-dev | **rsvelte emits extra**, as the `default` sibling. |
+| `3515-props-plain-multiline-comment.svelte` | all 4 | **mixed**, as the `default` multiline sibling (`\t\t` vs `\t\t\t`). |
+| `3515-props-rest-line-comment.svelte` | client, client-dev | **rsvelte drops.** Official breaks `$.template_effect(() =>` across lines because a comment sits in the arrow body; rsvelte emits the one-line form, so the break is the visible half of a dropped comment. |
+| `3603-each-key-comment.svelte` | server, server-dev | **rsvelte drops.** `$.ensure_array_like(rows /* key */)` against `$.ensure_array_like(rows)`. |
+| `4046-snippet-parameter-comment.svelte` | all 4 | **rsvelte drops** on three targets (`/* parameter */` before the snippet call) and misplaces on `client-dev`, where official writes `() => /* parameter */ body(...)`. |
+| `destructure-rhs-ends-before-a-trailing-comment.svelte` | client, client-dev | **misplaced.** Official closes the effect (`});`) where rsvelte still has `/* } c */` — the comment is kept but a statement late. |
+| `dollar-function-parameter.svelte` | server, server-dev | **not a comment at all**, and the only such entry: official emits `$.store_mutate($$store_subs ??= {}, "$viewport", …)` and rsvelte emits the bare `$viewport.width += read(work);`. It is *already listed in* `known-failures.server.json` / `known-failures.server-dev.json`, so it is 45d realized on the first baseline — one divergence, two rows, on purpose. |
+| `legacy-prop-initializer-jsdoc.svelte` | server, server-dev | **rsvelte drops.** The `/** @param {any} value */` in front of a `$.fallback` initializer. |
+
+Ten of these are the blind spot the family was added for: gate 1 scores every one of them `match`
+today, on every target, and nine of the ten are absent from `known-failures.<target>.json`
+entirely — the repro file was committed to pin a fix and pinned nothing. None is attributed yet,
+so the four files are listed in `attribution-pending.json`; per `attribution-check.mjs` an
+rsvelte-side entry has exactly one end state, which is elimination.
+
+
 
 <a id="scss-known-failures"></a>
 
@@ -7460,14 +7680,35 @@ each sample's recorded `metadata.json` still says exactly that).
 | `anchor` | `anchor\t<sample>\t<target>\t<index>\t<str>` | an official `_config.js` `client:` / `server:` / `css:` expectation that rsvelte's map does not satisfy |
 | `map-parity` | `map-parity\t<sample>\t<target>\t<count>` | budget: official map segments that rsvelte does not reproduce, where the generated code is byte-identical (missing + wrong) |
 | `out-of-range` | `out-of-range\t<sample>\t<target>\t<count>` | budget: out-of-range segments not also emitted by the official map at the same generated and original position |
+| `corpus-out-of-range` | `corpus-out-of-range\t<pattern-corpus path>\t<target>\t<count>` | budget: the same predicate over `compatibility/pattern-corpus`, where there is no oracle to subtract |
 
-**Current baseline: `sourcemap-known-failures.json`, 0 entries.** The
+**Current baseline: `sourcemap-known-failures.json`, 69 entries** — every one a
+`corpus-out-of-range` budget; the upstream-sample arms (`anchor`, `map-parity`,
+`out-of-range`) are all still empty. The
 before/after tables further down record what one specific change did at the time
 it landed; they are history, not the current size. Reading the newest number in
 those tables as today's count is the mistake this line exists to prevent — the
 `73` under the anchoring fix was correct when written (#2264 took the list 75 →
 73), #2312 later took it to 74, and the location-less comment cursor brought it
 back to 73.
+
+### Why the 69 `corpus-out-of-range` entries are accepted
+
+The 29 upstream samples read **0** on the out-of-range predicate, which is what
+let the client map carry the defect of #4454 with this gate green; the corpus arm
+(#4454's second half) is the population that can see it. It measures 1,269 of the
+1,387 `.svelte` components under `compatibility/pattern-corpus` — the other 118
+are error repros the compiler rejects — on client and server, and finds
+**87 out-of-range segments of 263,879** (0.03%) in 69 file/target pairs.
+
+They are accepted as a shrink-only budget rather than fixed here because every
+one of them is a *residual* of the mechanism #4600 closed: the byte-vs-UTF-16
+column defect took the same population from 6,016 to 137 to 77 on the client, and
+what is left is a set of small per-segment overshoots (`+2` … `+18`) with no
+single shared cause identified yet. There is no oracle arm: a segment whose
+original position lies past the end of its source line is wrong without reference
+to another compiler, so unlike the upstream-sample arm there is nothing to
+subtract.
 
 Ratchet semantics, matching `fmt-verify.mjs` / `verify.mjs`:
 

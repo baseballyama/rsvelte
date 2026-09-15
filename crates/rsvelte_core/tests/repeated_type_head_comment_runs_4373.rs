@@ -96,7 +96,11 @@ let { a }: P = $props();
 
 /// The same head, written inline on the declarator instead of behind an alias.
 /// This is the host that reaches the held-back (`pending`) re-emission path,
-/// where the comments are flushed at the initializer rather than in place.
+/// where the comments are flushed at the initializer rather than in place. The
+/// declaration is the script's only statement, so the transform empties the
+/// script and the comments reach the client only because they are re-entered as
+/// its text (#4501); with another statement beside it the count is still right
+/// and the placement is not, which is why the table's key cannot own that cell.
 const INLINE_TWO: &str = "<script lang=\"ts\">
 let { a }: {
   // c
@@ -116,9 +120,10 @@ let { a }: {
 <i>{a}</i>
 ";
 
-/// A declarator with NO initializer: upstream floats the comment to the next
-/// located node and rsvelte drops it (#4396), so nothing here reaches the
-/// repeat at all.
+/// A declarator with NO initializer: its declaration ends at the identifier,
+/// so upstream flushes the head's comments at the NEXT located node instead of
+/// at an initializer. rsvelte floats them the same way (#4396), and the run is
+/// repeated there exactly as it is on an initialized host.
 const UNINITIALIZED: &str = "<script lang=\"ts\">
 let v: {
   // c
@@ -197,6 +202,24 @@ fn cells() -> Vec<(&'static str, String, &'static str, &'static str)> {
             "",
             "",
         ),
+        (
+            "an inline head on a destructured `$props()`",
+            INLINE_TWO.to_string(),
+            "c d c d",
+            "c d c d",
+        ),
+        (
+            "one comment in an inline head on a destructured `$props()`",
+            INLINE_ONE.to_string(),
+            "c c",
+            "c c",
+        ),
+        (
+            "an inline head on an uninitialized declarator",
+            UNINITIALIZED.to_string(),
+            "c d c d",
+            "c d c d",
+        ),
     ]
 }
 
@@ -242,28 +265,4 @@ fn the_extractor_and_the_compile_are_live() {
         client.contains("export default function C("),
         "not a compiled component: {client}"
     );
-}
-
-/// The hosts where the repeat is right and something upstream of it is not.
-///
-/// These pin what rsvelte answers TODAY, which is not what the oracle answers,
-/// so that the residue is written down rather than merely unexamined. Each cell
-/// names the issue that owns it; when one is fixed this test fails and the row
-/// moves into the table above.
-#[test]
-fn the_blocked_hosts_are_pinned_rather_than_matched() {
-    // An inline annotation on a destructured `$props()` loses its comment on the
-    // CLIENT before the repeat can apply (#4398) — the declaration is rebuilt
-    // from the pattern. The server keeps it and repeats the run correctly.
-    assert_eq!(sequence(INLINE_TWO, GenerateMode::Client), "");
-    assert_eq!(sequence(INLINE_TWO, GenerateMode::Server), "c d c d");
-    assert_eq!(sequence(INLINE_ONE, GenerateMode::Client), "");
-    assert_eq!(sequence(INLINE_ONE, GenerateMode::Server), "c c");
-
-    // An annotation on an UNINITIALIZED declarator is dropped on both targets
-    // (#4396): upstream ends the declaration at the identifier and floats the
-    // comment to the next located node, which rsvelte has no channel for. The
-    // oracle prints `c d c d` on both.
-    assert_eq!(sequence(UNINITIALIZED, GenerateMode::Client), "");
-    assert_eq!(sequence(UNINITIALIZED, GenerateMode::Server), "");
 }

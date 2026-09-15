@@ -1,5 +1,99 @@
 # @rsvelte/svelte-check
 
+## 0.5.28
+
+### Patch Changes
+
+- 7ae32be: svelte2tsx: anchor an attribute key's opening quote on the name it opens
+
+  The generated key `"data-open"` is an inserted quote, the attribute name kept as
+  a source chunk, and a closing quote. The opening quote was flushed inside the
+  preceding gap's single `overwrite`, so its map segment anchored on the end of
+  the _previous_ attribute. TypeScript reports a definition or hover range that
+  starts at that quote, so the range's start resolved to the previous attribute —
+  and on a multi-line start tag, to the previous line.
+
+  The delimiter is now written over the name's own first character, which is what
+  the reference does. Generated text is unchanged.
+
+- 3839dee: parse: omit `CallExpression.optional` where acorn-typescript omits it
+
+  acorn-typescript writes `optional` on a call carrying type arguments only when
+  the subscript chain was already optional at that point — `_optionalChained` in
+  `parseSubscript`, threaded left to right — so `f<T>(x)` has no `optional` key at
+  all while `o?.m<T>(x)` has `optional: false`. rsvelte wrote the key
+  unconditionally, which is the largest single field in the `parse()` AST parity
+  ratchet: 1,876 corpus files, 16.6% of all field divergences.
+
+  The predicate is local to the call's own callee chain, so a `?.` that comes
+  after the call (`f<T>(x)?.g(y)`) or one cut off by parentheses
+  (`(a?.b)<T>(x)`) does not reach it — being inside a `ChainExpression` is not the
+  rule. Generated code is unchanged: only the parse path can set type arguments.
+
+- 509aecd: fix(svelte2tsx): apply a `<svelte:element>` opener as segments, not one overwrite
+
+  `handle_svelte_dynamic_element` built the whole opening tag as a string and
+  applied it with a single `str.overwrite(el.start, opening_tag_end, …)`, so the
+  `this={…}` expression and every attribute value reached the shadow as generated
+  text with no map segment. `textDocument/hover` inside a `<svelte:element>` start
+  tag answered `null` where official answers, because official builds the same
+  opener from a TransformationArray whose expression entries are source ranges.
+
+  The opener now goes through `build_attribute_segments` + `bake_out_of_order_src`
+  - `emit_segmented_overwrite`, which is what the plain-element path
+    (`element.rs`) already did. `this="div"` keeps no range — the parser stores the
+    bare text — so it stays generated, matching upstream.
+
+  The generated TSX is unchanged; only the map moves.
+
+- 392273f: fix(svelte2tsx): reproduce upstream's case-sensitive script and style scan
+
+  `find_ci` folded ASCII case, so every scan that locates a verbatim `<script>` or
+  `<style>` block — the style blanker, the orphan-script scan and its fast path —
+  also matched a component named `<Script>`, `<SCRIPT>` or `<Style>`. Upstream's
+  `scriptRegex` and `styleRegex` (`htmlxparser.ts:33-36`) carry `g` and no `i`, so
+  those are component names there.
+
+  Both scans feed a rewrite, so the consequence was not only a wrong range.
+  `remove_orphan_scripts` blanks the matched source and, when the file has no
+  top-level `<script>`, injects the blanked body into `$$render()` as a statement:
+  `<Script><p>hello</p></Script>` alone in a file produced TSX no parser accepts.
+  `blank_style_tags` replaces its match with spaces, so a `<Style>` component's
+  children vanished from the projection while the output still compiled.
+
+  Measured against official svelte2tsx over five cells, three move to byte-equal
+  and two could not move (`<Style />` is self-closing, so the style blanker's
+  fallback never finds a `</style>`; the lowercase spelling is a script on both
+  sides).
+
+- 629cd1c: fix(svelte2tsx): apply the six remaining start-tag openers as segments, not one overwrite
+
+  `<svelte:element>` was one host of a class: nine call sites build a start tag with
+  `format!` and apply it with a single `str.overwrite(el.start, opening_tag_end, …)`.
+  `magic-string` emits one segment for an `addEdit` and a segment per character for
+  an unedited chunk, so every expression inside such a tag shares the element's
+  start mapping and a request inside it resolves through the nearest mapping to its
+  left. Upstream never does this: `htmlxtojsx_v2`'s `transform` takes a
+  `TransformationArray` whose entries are strings **or `[start, end]` ranges**, and
+  it `move`s each range so the source chunk reaches the shadow unedited.
+
+  Six ports are converted to `build_attribute_segments` + `bake_out_of_order_src` +
+  `emit_segmented_overwrite`, which is the path `element.rs` has used for plain
+  elements since the structured bake landed: `<svelte:component>`, `<svelte:self>`,
+  the standard special elements (`<svelte:body>`, `<svelte:window>`,
+  `<svelte:document>`, `<svelte:head>`) and `handle_boundary_snippet_props`,
+  `<slot>`, a named-slot element and `<svelte:fragment>` inside a component, and
+  `<title>` inside `<svelte:head>`. `format_component_bind_directive_segments` is
+  the segment twin the `<svelte:self>` path needed.
+
+  The entire string attribute-building path now has no callers and is deleted —
+  15 functions, 514 lines, including `build_attributes_string`, which was literally
+  `segs_to_string(build_attribute_segments(…))`. `trailing_attr_comment_text`'s unit
+  test is re-pointed at `trailing_attr_comment_segs` rather than dropped, so the
+  assertion survives and now exercises the segment path.
+
+  The generated TSX is unchanged; only the map moves.
+
 ## 0.5.27
 
 ### Patch Changes

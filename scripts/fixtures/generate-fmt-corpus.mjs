@@ -88,7 +88,7 @@ function getSvelteDevSha() {
   if (!fs.existsSync(SVELTE_DEV)) {
     fail(
       `submodule missing at ${SVELTE_DEV}.\n` +
-        `Run: git submodule update --init submodules/svelte.dev`,
+        `Run: git submodule update --init --checkout submodules/svelte.dev`,
     );
   }
   return new Promise((resolve) => {

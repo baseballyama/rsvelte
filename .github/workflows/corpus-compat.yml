@@ -186,7 +186,7 @@ jobs:
         run: node scripts/compat-corpus/known-failures-md-check.mjs
 
       - name: Checkout corpus source submodules (shallow)
-        run: git submodule update --init --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs) submodules/language-tools
+        run: git submodule update --init --checkout --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs) submodules/language-tools
 
       - uses: ./.github/actions/setup-rust
 
@@ -390,7 +390,7 @@ jobs:
           submodules: false
 
       - name: Checkout corpus source submodules (shallow)
-        run: git submodule update --init --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs)
+        run: git submodule update --init --checkout --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs)
 
       - uses: ./.github/actions/setup-rust
 
@@ -430,10 +430,20 @@ jobs:
           key: corpus-fmt-oracle-v1-${{ runner.os }}-${{ steps.pins.outputs.sources }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json', 'pnpm-lock.yaml', 'compatibility/pattern-corpus/**') }}
 
       - name: Build fmt trees (oracle cached, actual via rsvelte-fmt)
+        id: fmt-trees
         run: node scripts/compat-corpus/fmt.mjs
 
       - name: Verify formatter parity (ratchet, byte-identical)
         run: node scripts/compat-corpus/fmt-verify.mjs
+
+      # A property of the second application, which the parity comparison cannot
+      # see at any corpus size: rsvelte-fmt over its own output must change nothing.
+      - name: Verify formatter idempotency (ratchet)
+        # A failing parity step skips every unguarded step after it, and a
+        # skipped comparison reads exactly like a passing one. Run regardless,
+        # but only over a first application the environment actually produced.
+        if: ${{ !cancelled() && steps.fmt-trees.outcome == 'success' }}
+        run: node scripts/compat-corpus/fmt-idempotency-verify.mjs
 
       - name: Upload fmt report
         if: ${{ !cancelled() }}
@@ -442,6 +452,7 @@ jobs:
           name: corpus-fmt-report
           path: |
             compatibility/fmt-report.json
+            compatibility/fmt-idempotency-report.json
             compatibility/fmt/meta.json
           if-no-files-found: ignore
           retention-days: 14
@@ -458,7 +469,7 @@ jobs:
           submodules: false
 
       - name: Checkout corpus source submodules (shallow)
-        run: git submodule update --init --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs) submodules/language-tools
+        run: git submodule update --init --checkout --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs) submodules/language-tools
 
       - uses: ./.github/actions/setup-rust
 
@@ -494,7 +505,7 @@ jobs:
         # fixtures; the real-world component libraries (bits-ui / flowbite-svelte
         # / melt-ui / shadcn-svelte — the same pins the compile corpus uses) add
         # production-source breadth.
-        run: git submodule update --init --depth 1 submodules/eslint-plugin-svelte submodules/svelte-eslint-parser submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte submodules/skeleton
+        run: git submodule update --init --checkout --depth 1 submodules/eslint-plugin-svelte submodules/svelte-eslint-parser submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte submodules/skeleton
 
       - uses: ./.github/actions/setup-rust
 
@@ -671,7 +682,7 @@ jobs:
       # Only the two e2e projects: a single-package SvelteKit app (npm) and a
       # pnpm workspace monorepo whose playground resolves sibling packages.
       - name: Checkout e2e project submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/cmsaasstarter submodules/skeleton
+        run: git submodule update --init --checkout --depth 1 submodules/cmsaasstarter submodules/skeleton
 
       - uses: ./.github/actions/setup-rust
 
@@ -747,7 +758,7 @@ jobs:
         run: node scripts/compat-corpus/known-failures-md-check.mjs
 
       - name: Checkout the Svelte submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte
+        run: git submodule update --init --checkout --depth 1 submodules/svelte
 
       - uses: ./.github/actions/setup-rust
 
@@ -842,7 +853,7 @@ jobs:
           submodules: false
 
       - name: Checkout LSP oracle (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools
+        run: git submodule update --init --checkout --depth 1 submodules/svelte submodules/language-tools
 
       - uses: ./.github/actions/setup-rust
 
@@ -923,7 +934,7 @@ jobs:
         run: node scripts/compat-corpus/known-failures-md-check.mjs
 
       - name: Checkout LSP oracle and corpus sources (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte
+        run: git submodule update --init --checkout --depth 1 submodules/svelte submodules/language-tools submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte
 
       - uses: ./.github/actions/setup-rust
 

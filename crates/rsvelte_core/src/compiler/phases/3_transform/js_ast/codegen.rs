@@ -2836,6 +2836,40 @@ pub fn offset_to_line_col_utf16(
     (line, column)
 }
 
+/// Convert a 0-based **byte** column on `line` into the UTF-16 column Source
+/// Map v3 counts. esrap resolves a source position by subtracting a byte line
+/// start, so every column to the right of a non-ASCII character arrives here
+/// too large; a column past the line keeps its overshoot.
+#[must_use]
+pub fn byte_column_to_utf16(
+    source: &str,
+    line_starts: &[usize],
+    line: usize,
+    column: usize,
+) -> usize {
+    let Some(&start) = line_starts.get(line) else {
+        return column;
+    };
+    // The next line starts one past its predecessor's `\n`.
+    let end = line_starts
+        .get(line + 1)
+        .map_or(source.len(), |&next| next.saturating_sub(1));
+    let Some(text) = source.get(start..end) else {
+        return column;
+    };
+    if text.is_ascii() {
+        return column;
+    }
+    if column >= text.len() {
+        return text.encode_utf16().count() + (column - text.len());
+    }
+    let mut cut = column;
+    while cut > 0 && !text.is_char_boundary(cut) {
+        cut -= 1;
+    }
+    text[..cut].encode_utf16().count()
+}
+
 /// Encode a list of source mappings into a VLQ-encoded mappings string.
 pub fn encode_vlq_mappings(mappings: &[SourceMapping]) -> String {
     if mappings.is_empty() {

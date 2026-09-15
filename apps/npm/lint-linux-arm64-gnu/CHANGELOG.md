@@ -1,5 +1,17 @@
 # @rsvelte/lint-linux-arm64-gnu
 
+## 0.12.2
+
+No changes in this release.
+
+## 0.12.1
+
+No changes in this release.
+
+## 0.12.0
+
+No changes in this release.
+
 ## 0.11.7
 
 No changes in this release.

@@ -61,7 +61,7 @@ fn vendored_shims_match_the_language_tools_submodule() {
             std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
             "submodules/language-tools is not checked out in a job that declares \
              RSVELTE_REQUIRE_PREREQS — the vendored-shim drift assertions would be silently \
-             skipped. Run `git submodule update --init \
+             skipped. Run `git submodule update --init --checkout \
              submodules/language-tools`."
         );
         eprintln!("Skipping: submodules/language-tools not initialised");

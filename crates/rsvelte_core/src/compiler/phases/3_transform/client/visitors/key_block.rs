@@ -82,6 +82,7 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
                 body_block,
             ),
             is_async: false,
+            span: None,
         },
     );
 
@@ -103,6 +104,7 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
             col,
             None,
             true,
+            None,
         )
     } else {
         b::stmt(&context.arena, key_call)

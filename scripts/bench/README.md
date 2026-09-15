@@ -44,7 +44,7 @@ The root dependencies and Git submodules must already be initialized:
 
 ```bash
 pnpm install --frozen-lockfile
-git submodule update --init --recursive
+git submodule update --init --checkout --recursive
 ```
 
 For a quick diagnostic run, override the fixed defaults explicitly:

@@ -266,7 +266,7 @@ const { units, linked } = collect();
 if (units.length < MIN_UNITS) {
 	fail(
 		`only ${units.length} SCSS units found (floor ${MIN_UNITS}) — the corpus submodules look absent; ` +
-			'run `git submodule update --init` before gating',
+			'run `git submodule update --init --checkout` before gating',
 	);
 }
 

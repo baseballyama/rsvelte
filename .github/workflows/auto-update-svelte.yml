@@ -175,7 +175,7 @@ jobs:
             echo "fixed. **CI will fail until that is done.** To finish:"
             echo
             echo "1. \`git fetch origin ${pr_branch} && git checkout ${pr_branch}\`"
-            echo "2. \`git submodule update --init --recursive submodules/svelte\`"
+            echo "2. \`git submodule update --init --checkout --recursive submodules/svelte\`"
             echo "3. Run the \`upgrade-svelte\` skill (or \`./scripts/dev/upgrade-svelte.sh ${LATEST_VERSION}\`)"
             echo "   to rebuild the compiler, regenerate fixtures, fix regressions,"
             echo "   refresh docs, and add a changeset."

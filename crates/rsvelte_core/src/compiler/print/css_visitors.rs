@@ -206,8 +206,11 @@ fn visit_attribute_selector(context: &mut Context, node: &Value) {
         if let Some(matcher) = node.field("matcher").and_then(|m| m.as_str()) {
             context.write(matcher);
             if let Some(value) = node.field("value").and_then(|v| v.as_str()) {
-                // Value includes quotes if originally quoted
+                // `print/index.js:409` writes `"${node.value}"` — the AST value
+                // is unquoted, and the printer always re-quotes with `"`.
+                context.write("\"");
                 context.write(value);
+                context.write("\"");
 
                 if let Some(flags) = node.field("flags").and_then(|f| f.as_str()) {
                     context.write(" ");
@@ -677,7 +680,7 @@ mod tests {
             "type": "AttributeSelector",
             "name": "type",
             "matcher": "=",
-            "value": "\"text\"",
+            "value": "text",
             "flags": null
         });
         visit_attribute_selector(&mut ctx, &node);
@@ -692,7 +695,7 @@ mod tests {
             "type": "AttributeSelector",
             "name": "class",
             "matcher": "~=",
-            "value": "\"btn\"",
+            "value": "btn",
             "flags": "i"
         });
         visit_attribute_selector(&mut ctx, &node);

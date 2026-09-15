@@ -100,14 +100,15 @@ fn a_plain_element_template_keeps_officials_declarator_placement() {
     );
 }
 
-/// The unfixed half of the issue. Official emits `// c` *before* the call; the
-/// first pass writes it after, so this is a relocation and out of scope here.
-/// A recovery that claimed relocations too would pass this by accident while
-/// breaking the `keep_*` cells above.
+/// The relocation half of the issue, which #4529 closed by anchoring the static
+/// component call on the tag's source position. This used to pin the comment
+/// *after* the call as out of scope here; it is now official's own placement,
+/// and it still says the recovery in this file is not what moves it — the
+/// `keep_*` cells above are unchanged.
 #[test]
-fn a_self_closing_component_still_trails_its_comment() {
+fn a_self_closing_component_leads_its_comment() {
     assert_eq!(
         client("\t// c", "<X />"),
-        "export default function C($$anchor) {\n\tX($$anchor, {});\n\t// c\n}"
+        "export default function C($$anchor) {\n\t// c\n\tX($$anchor, {});\n}"
     );
 }

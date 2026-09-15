@@ -333,6 +333,7 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
             col,
             None,
             true,
+            None,
         )
     } else {
         add_svelte_meta(&context.arena, if_call)

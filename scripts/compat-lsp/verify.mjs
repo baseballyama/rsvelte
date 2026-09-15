@@ -24,6 +24,7 @@ import {
 import {
   CORPUS_SHARDS,
   createCurrentArtifact,
+  describeArm,
   recordsFixtureControls,
 } from "./artifacts.mjs";
 import { EDIT_PHASES, OPEN_PHASE, editChanges } from "./edits.mjs";
@@ -184,12 +185,14 @@ function requireExecutable(command, label) {
 const TRUSTED = !selectedSuites.includes("corpus");
 requireExecutable(officialCommand, "official language server");
 requireExecutable(rsvelteCommand, "rsvelte language server");
+// Named here rather than inside the guard: the artifact records it as part of the
+// official arm's identity, and `bin/server.js` is a stub that identifies nothing.
+const officialBuiltServer = path.join(
+  ROOT,
+  "submodules/language-tools/packages/language-server/dist/src/server.js",
+);
 if (!process.env.OFFICIAL_LSP_COMMAND) {
-  const builtServer = path.join(
-    ROOT,
-    "submodules/language-tools/packages/language-server/dist/src/server.js",
-  );
-  if (!fs.existsSync(builtServer)) {
+  if (!fs.existsSync(officialBuiltServer)) {
     throw new Error(
       "official language server is not built; run `pnpm --dir submodules/language-tools --filter svelte-language-server build`",
     );
@@ -307,7 +310,26 @@ const initializationOptions = {
         variableTypes: { enabled: true, suppressWhenTypeMatchesName: false },
       },
     },
-    javascript: { suggest: { autoImports: false } },
+    // Upstream picks the preference namespace by SCRIPT KIND, not by file
+    // extension (`LSAndTSDocResolver.ts`), so a component with no `lang="ts"`
+    // reads `javascript.inlayHints.*`. Sending only the `typescript` half made
+    // `areInlayHintsEnabled` false there and the official server answered
+    // `null` before computing a hint — the gate measuring its own
+    // configuration rather than either server (#4494).
+    javascript: {
+      suggest: { autoImports: false },
+      inlayHints: {
+        enumMemberValues: { enabled: true },
+        functionLikeReturnTypes: { enabled: true },
+        parameterNames: {
+          enabled: "all",
+          suppressWhenArgumentMatchesName: false,
+        },
+        parameterTypes: { enabled: true },
+        propertyDeclarationTypes: { enabled: true },
+        variableTypes: { enabled: true, suppressWhenTypeMatchesName: false },
+      },
+    },
   },
 };
 const capabilities = {
@@ -397,6 +419,15 @@ const counts = {
   differential: 0,
   expected: 0,
 };
+// One record per timed-out request. `transportTimeouts` alone cannot separate
+// "a server stopped answering" from "this request was queued behind 63 others
+// and the deadline runs from send, not from service": the first puts every
+// timeout in one instant, the second spreads them. Capped, because a shard that
+// loses a whole window would otherwise write 64 of these and a pathological run
+// far more (#4614).
+const TIMEOUT_SAMPLE_LIMIT = 256;
+const transportTimeoutSamples = [];
+let inFlightRequests = 0;
 const methodCounts = new Map();
 const phaseRequests = new Map();
 let nextId = 0;
@@ -658,12 +689,15 @@ async function requestBoth(
 ) {
   const id = ++nextId;
   const message = { jsonrpc: "2.0", id, method, params };
+  const sentAt = Date.now();
+  const sentInFlight = ++inFlightRequests;
   official.send(message);
   rsvelte.send(message);
   const settled = await Promise.allSettled([
     official.response(id, clientRequest, timeoutMs),
     rsvelte.response(id, clientRequest, timeoutMs),
   ]);
+  inFlightRequests--;
   const failures = settled.filter((result) => result.status === "rejected");
   if (
     failures.length &&
@@ -685,6 +719,15 @@ async function requestBoth(
   const messages = settled.map((result, index) => {
     if (result.status === "fulfilled") return result.value;
     counts.transportTimeouts++;
+    if (transportTimeoutSamples.length < TIMEOUT_SAMPLE_LIMIT)
+      transportTimeoutSamples.push({
+        arm: index === 0 ? "official" : "rsvelte",
+        method,
+        id,
+        sentAt,
+        elapsedMs: Date.now() - sentAt,
+        inFlightAtSend: sentInFlight,
+      });
     processes[index].send({
       jsonrpc: "2.0",
       method: "$/cancelRequest",
@@ -1045,6 +1088,18 @@ async function main() {
   // must leave nothing that `merge-current.mjs` could accept.
   assertOracleCalibration(calibration);
 
+  const known = knownBaseline;
+  const currentSet = new Set(current);
+  const knownSet = new Set(known);
+  const selectedKnown = selectKnownForScope(
+    known,
+    selectedSuites,
+    selectedRepos,
+    SHARD,
+  );
+  const added = current.filter((entry) => !knownSet.has(entry));
+  const removed = selectedKnown.filter((entry) => !currentSet.has(entry));
+
   if (WRITE_CURRENT) {
     const artifact = createCurrentArtifact({
       root: ROOT,
@@ -1060,6 +1115,13 @@ async function main() {
         [...mechanismsById].map(([id, labels]) => [id, [...labels]]),
       ),
       diagnosticDetails: Object.fromEntries(newDiagnosticDetails),
+      transportTimeoutSamples,
+      added,
+      removed,
+      arms: {
+        official: describeArm(officialCommand, [officialBuiltServer]),
+        rsvelte: describeArm(rsvelteCommand),
+      },
     });
     fs.mkdirSync(path.dirname(path.resolve(WRITE_CURRENT)), {
       recursive: true,
@@ -1070,25 +1132,19 @@ async function main() {
     );
   }
 
-  // Written above on purpose: the artifact is the only record of how far off the
-  // deadline was, and it is what says whether raising it again would help.
+  // Written above on purpose: the artifact carries `transportTimeoutSamples`,
+  // which is the only record of how far off the deadline was and of how many
+  // requests were in flight when it passed. `mergeCurrentArtifacts` refuses the
+  // file, so writing it cannot be mistaken for accepting it.
   if (counts.transportTimeouts) {
+    const spread = transportTimeoutSamples.length
+      ? `; first sample ${transportTimeoutSamples[0].arm} ${transportTimeoutSamples[0].method} at ${transportTimeoutSamples[0].elapsedMs}ms with ${transportTimeoutSamples[0].inFlightAtSend} in flight`
+      : "";
     throw new Error(
-      `${counts.transportTimeouts} request(s) exceeded the ${REQUEST_TIMEOUT_MS}ms deadline. A timeout is compared as a transport error, so it changes this run's keys and the next run would disagree; raise --request-timeout-ms rather than baselining the result`,
+      `${counts.transportTimeouts} request(s) exceeded the ${REQUEST_TIMEOUT_MS}ms deadline${spread}. A timeout is compared as a transport error, so it changes this run's keys and the next run would disagree; raise --request-timeout-ms rather than baselining the result`,
     );
   }
 
-  const known = knownBaseline;
-  const currentSet = new Set(current);
-  const knownSet = new Set(known);
-  const selectedKnown = selectKnownForScope(
-    known,
-    selectedSuites,
-    selectedRepos,
-    SHARD,
-  );
-  const added = current.filter((entry) => !knownSet.has(entry));
-  const removed = selectedKnown.filter((entry) => !currentSet.has(entry));
   const report = JSON.parse(fs.readFileSync(REPORT, "utf8"));
   report.ratchet = { current, added, removed };
   fs.writeFileSync(REPORT, JSON.stringify(report, null, "\t") + "\n");
@@ -1103,6 +1159,10 @@ async function main() {
   if (added.length) {
     console.error(`\n[lsp-verify] ${added.length} NEW divergence(s):`);
     for (const entry of added.slice(0, SHOW)) console.error(`  ${entry}`);
+    if (added.length > SHOW)
+      console.error(
+        `  … and ${added.length - SHOW} more (raise --show, or read \`added\` in the uploaded artifact)`,
+      );
     for (const entry of added.slice(0, SHOW)) {
       const details = newDiagnosticDetails.get(entry);
       if (!details) continue;
@@ -1116,6 +1176,10 @@ async function main() {
       `\n[lsp-verify] ${removed.length} stale ratchet entry/entries:`,
     );
     for (const entry of removed.slice(0, SHOW)) console.error(`  ${entry}`);
+    if (removed.length > SHOW)
+      console.error(
+        `  … and ${removed.length - SHOW} more (raise --show, or read \`removed\` in the uploaded artifact)`,
+      );
   }
   if (added.length || removed.length) process.exitCode = 1;
   else

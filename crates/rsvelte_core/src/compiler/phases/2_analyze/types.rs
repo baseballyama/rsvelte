@@ -669,6 +669,8 @@ fn strip_typescript_from_program_impl(
     // projection-less one while the client reads the other.
     let repeat_regions = collect_speculative_type_head_regions(program);
     let declarator_annotations = collect_declarator_annotations(program);
+    let uninit_float_targets = collect_uninit_annotation_float_targets(program);
+    let pattern_flushes = collect_pattern_annotation_flushes(program);
 
     // Text-based fallback: strip `declare global { ... }`, `declare module ... { ... }`,
     // and `declare namespace ... { ... }` blocks. These may not always be parsed as
@@ -758,6 +760,32 @@ fn strip_typescript_from_program_impl(
     // flushes them at (the initializer's start) to be reached by the copy below.
     let mut pending: Vec<(u32, u32, u32)> = Vec::new();
 
+    // A destructuring pattern's flush point is its closing bracket, which the
+    // copy below has already passed by the time it reaches the annotation — so
+    // these are seeded ahead of it rather than pushed from inside it.
+    for (remove_start, remove_end) in &merged {
+        let Some((_, flush_at)) = pattern_flushes
+            .iter()
+            .find(|(from, _)| from == remove_start)
+        else {
+            continue;
+        };
+        let start = *remove_start as usize;
+        let end = (*remove_end as usize).min(source.len());
+        if start >= end {
+            continue;
+        }
+        let removed = &source[start..end];
+        if !removed.contains("/*") && !removed.contains("//") {
+            continue;
+        }
+        for (comment_start, comment_end) in
+            plan_reemitted_comments(*remove_start, removed, &repeat_regions)
+        {
+            pending.push((*flush_at, comment_start, comment_end));
+        }
+    }
+
     for (remove_start, remove_end) in &merged {
         if *remove_start > pos {
             push_range_flushing_pending(
@@ -789,12 +817,26 @@ fn strip_typescript_from_program_impl(
                 .iter()
                 .find(|(from, _)| *from == *remove_start)
                 .map(|(_, init_start)| *init_start);
-            // `Some(None)` is an uninitialized declarator: upstream drops the
-            // comment onto the next located node, so this one is not ours to print.
-            let flush_at = match declarator_annotation {
-                Some(None) => None,
-                Some(Some(init_start)) => Some(Some(init_start)),
-                None => Some(None),
+            // `Some(None)` is an uninitialized declarator: its declaration ends at
+            // the identifier, so upstream flushes the comment at the NEXT located
+            // node instead. Printing it here would put it after the `;`, where the
+            // client's legacy state lowering stops scanning (#4395). Float it to
+            // the following statement when there is one; when the declarator ends
+            // the list upstream carries it out of the script entirely, which no
+            // source-range rewrite can express, so that shape still drops (#4396).
+            // A destructuring pattern owns its own flush point (#4398), seeded
+            // ahead of this loop because it lies behind the annotation.
+            let flush_at = if pattern_flushes.iter().any(|(from, _)| from == remove_start) {
+                None
+            } else {
+                match declarator_annotation {
+                    Some(None) => uninit_float_targets
+                        .iter()
+                        .find(|(from, _)| *from == *remove_start)
+                        .map(|(_, at)| Some(*at)),
+                    Some(Some(init_start)) => Some(Some(init_start)),
+                    None => Some(None),
+                }
             };
             if (removed.contains("/*") || removed.contains("//"))
                 && let Some(flush_at) = flush_at
@@ -810,6 +852,7 @@ fn strip_typescript_from_program_impl(
                             source,
                             comment_start,
                             comment_end,
+                            '\n',
                             &mut output,
                             copied_chunks.as_mut(),
                             reemitted_comment_outputs.as_mut(),
@@ -841,6 +884,7 @@ fn strip_typescript_from_program_impl(
                 source,
                 comment_start,
                 comment_end,
+                '\n',
                 &mut output,
                 copied_chunks.as_mut(),
                 reemitted_comment_outputs.as_mut(),
@@ -938,10 +982,31 @@ fn push_range_flushing_pending(
             output,
             copied_chunks.as_deref_mut(),
         );
+        // esrap keeps a leading comment inline when it shared the anchored
+        // node's source line and breaks only where the source broke, so the
+        // separator is the text between the comment and the flush point — not
+        // the shape of the erased annotation (#4397). A `//` comment would
+        // swallow the rest of the line, so it always breaks.
+        // A pattern's flush point sits BEHIND its annotation, so the gap is on
+        // the other side of the comment there; reading it in source order keeps
+        // one rule for both directions.
+        let between = if comment_end <= flush_at {
+            source.get(comment_end as usize..flush_at as usize)
+        } else {
+            source.get(flush_at as usize..comment_start as usize)
+        };
+        let separator = if between.is_none_or(|between| between.contains('\n'))
+            || source[comment_start as usize..comment_end as usize].starts_with("//")
+        {
+            '\n'
+        } else {
+            ' '
+        };
         emit_pending_comment(
             source,
             comment_start,
             comment_end,
+            separator,
             output,
             copied_chunks.as_deref_mut(),
             reemitted.as_deref_mut(),
@@ -961,16 +1026,53 @@ fn emit_pending_comment(
     source: &str,
     comment_start: u32,
     comment_end: u32,
+    separator: char,
     output: &mut String,
-    copied_chunks: Option<&mut Vec<CopiedSourceChunk>>,
+    mut copied_chunks: Option<&mut Vec<CopiedSourceChunk>>,
     reemitted: Option<&mut Vec<Range<u32>>>,
 ) {
+    // A multi-line block comment is re-indented downstream by the distance
+    // between its opener's column and its continuation lines', so the opener
+    // has to arrive at the column it had in the source. What precedes it here
+    // is whatever indentation the erased construct left behind, which is the
+    // script's and not the comment's (#4515).
+    if source[comment_start as usize..comment_end as usize].contains('\n') {
+        let line_start = source[..comment_start as usize]
+            .rfind('\n')
+            .map_or(0, |at| at + 1);
+        let indent = &source[line_start..comment_start as usize];
+        let kept = output.trim_end_matches([' ', '\t']).len();
+        // The whitespace being replaced was copied from the source, so the
+        // chunk that claims it has to give back exactly as much as is dropped
+        // or every later projection offset shifts.
+        let cut = output.len() - kept;
+        let claimed = copied_chunks.as_ref().is_none_or(|chunks| {
+            chunks.last().is_none_or(|last| {
+                last.output.end as usize == output.len()
+                    && cut as u32 <= last.output.end - last.output.start
+            })
+        });
+        if indent.bytes().all(|byte| byte == b' ' || byte == b'\t') && claimed {
+            output.truncate(kept);
+            if cut > 0
+                && let Some(chunks) = copied_chunks.as_deref_mut()
+                && let Some(last) = chunks.last_mut()
+            {
+                last.output.end -= cut as u32;
+                last.source.end -= cut as u32;
+                if last.output.start == last.output.end {
+                    chunks.pop();
+                }
+            }
+            output.push_str(indent);
+        }
+    }
     let output_start = output.len() as u32;
     push_source_range(source, comment_start..comment_end, output, copied_chunks);
     if let Some(reemitted) = reemitted {
         reemitted.push(output_start..output.len() as u32);
     }
-    output.push('\n');
+    output.push(separator);
 }
 
 fn push_source_range(
@@ -1140,6 +1242,112 @@ fn collect_speculative_type_head_regions(program: &oxc_ast::ast::Program) -> Vec
 
 struct SpeculativeTypeHeads<'r> {
     regions: &'r mut Vec<(u32, u32)>,
+}
+
+/// For each uninitialized declarator that carries a type annotation, the offset of
+/// the statement that follows its declaration in the same list — the next node
+/// upstream locates, and so where a comment left by the erased annotation is
+/// flushed. A declarator whose declaration ends its list has no such offset and is
+/// absent from the result.
+fn collect_uninit_annotation_float_targets(program: &oxc_ast::ast::Program) -> Vec<(u32, u32)> {
+    use oxc_ast_visit::Visit;
+    use oxc_span::GetSpan;
+    struct V<'r> {
+        targets: &'r mut Vec<(u32, u32)>,
+    }
+    impl<'r> V<'r> {
+        fn scan(&mut self, statements: &[oxc_ast::ast::Statement<'_>]) {
+            for (index, statement) in statements.iter().enumerate() {
+                let oxc_ast::ast::Statement::VariableDeclaration(declaration) = statement else {
+                    continue;
+                };
+                let Some(next) = statements.get(index + 1) else {
+                    continue;
+                };
+                let next_start = next.span().start;
+                for declarator in &declaration.declarations {
+                    if declarator.init.is_none()
+                        && let Some(annotation) = &declarator.type_annotation
+                    {
+                        self.targets.push((annotation.span.start, next_start));
+                    }
+                }
+            }
+        }
+    }
+    impl<'a> oxc_ast_visit::Visit<'a> for V<'_> {
+        fn visit_program(&mut self, it: &oxc_ast::ast::Program<'a>) {
+            self.scan(&it.body);
+            oxc_ast_visit::walk::walk_program(self, it);
+        }
+
+        fn visit_function_body(&mut self, it: &oxc_ast::ast::FunctionBody<'a>) {
+            self.scan(&it.statements);
+            oxc_ast_visit::walk::walk_function_body(self, it);
+        }
+
+        fn visit_block_statement(&mut self, it: &oxc_ast::ast::BlockStatement<'a>) {
+            self.scan(&it.body);
+            oxc_ast_visit::walk::walk_block_statement(self, it);
+        }
+    }
+    let mut targets = Vec::new();
+    V {
+        targets: &mut targets,
+    }
+    .visit_program(program);
+    targets
+}
+
+/// Where an erased annotation's comment goes when the binding it annotates is a
+/// destructuring pattern, keyed by the annotation's start.
+///
+/// acorn-typescript folds the annotation into the pattern node's own range, so
+/// esrap flushes the comment before it writes the pattern's closing bracket —
+/// a point that lies BEHIND the annotation in the source
+/// (`let { a /* c */ } = …`, not `let { a } = /* c */ …`). An identifier binding
+/// has no closing token of its own, so its comment waits for the next located
+/// node instead; [`collect_declarator_annotations`] owns that case.
+fn collect_pattern_annotation_flushes(program: &oxc_ast::ast::Program) -> Vec<(u32, u32)> {
+    use oxc_ast_visit::Visit;
+    use oxc_span::GetSpan;
+
+    fn closing_bracket(pattern: &oxc_ast::ast::BindingPattern) -> Option<u32> {
+        match pattern {
+            oxc_ast::ast::BindingPattern::ObjectPattern(_)
+            | oxc_ast::ast::BindingPattern::ArrayPattern(_) => {
+                Some(pattern.span().end.saturating_sub(1))
+            }
+            _ => None,
+        }
+    }
+
+    struct V<'r> {
+        spans: &'r mut Vec<(u32, u32)>,
+    }
+    impl<'a> oxc_ast_visit::Visit<'a> for V<'_> {
+        fn visit_variable_declarator(&mut self, it: &oxc_ast::ast::VariableDeclarator<'a>) {
+            if let Some(ann) = &it.type_annotation
+                && let Some(at) = closing_bracket(&it.id)
+            {
+                self.spans.push((ann.span.start, at));
+            }
+            oxc_ast_visit::walk::walk_variable_declarator(self, it);
+        }
+
+        fn visit_formal_parameter(&mut self, it: &oxc_ast::ast::FormalParameter<'a>) {
+            if let Some(ann) = &it.type_annotation
+                && let Some(at) = closing_bracket(&it.pattern)
+            {
+                self.spans.push((ann.span.start, at));
+            }
+            oxc_ast_visit::walk::walk_formal_parameter(self, it);
+        }
+    }
+
+    let mut spans = Vec::new();
+    V { spans: &mut spans }.visit_program(program);
+    spans
 }
 
 /// Where a comment left inside an erased declarator annotation belongs, keyed by

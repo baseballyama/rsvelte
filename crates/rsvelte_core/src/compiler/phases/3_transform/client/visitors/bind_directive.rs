@@ -246,6 +246,7 @@ pub fn unified_build_bind_this(
                 params: params.into(),
                 body: arrow.body,
                 is_async: arrow.is_async,
+                span: None,
             })
         }
         other => {
@@ -273,6 +274,7 @@ pub fn unified_build_bind_this(
                 params: params.into(),
                 body: arrow.body,
                 is_async: arrow.is_async,
+                span: None,
             })
         }
         other => {
@@ -1622,6 +1624,7 @@ fn build_bind_this_with_each_ids(
                 params,
                 body: optional_body,
                 is_async: arrow.is_async,
+                span: None,
             })
         }
         other => {
@@ -1647,6 +1650,7 @@ fn build_bind_this_with_each_ids(
                 params: params.into(),
                 body: arrow.body,
                 is_async: arrow.is_async,
+                span: None,
             })
         }
         other => {
@@ -2726,6 +2730,7 @@ fn merge_store_invalidation_into_setter(
                         params: arrow.params.clone(),
                         body: JsArrowBody::Expression(arena.alloc_expr(seq)),
                         is_async: arrow.is_async,
+                        span: None,
                     })
                 }
                 JsArrowBody::Block(_) => {

@@ -43,7 +43,10 @@ pub fn is_unscoped_pseudo_class(selector: &serde_json::Value) -> bool {
         }
 
         // Check if args is null (no children to scope)
-        if selector.field("args").is_none() {
+        if selector
+            .field("args")
+            .is_none_or(serde_json::Value::is_null)
+        {
             return true;
         }
     }

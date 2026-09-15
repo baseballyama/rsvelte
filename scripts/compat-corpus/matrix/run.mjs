@@ -122,7 +122,7 @@ if (!fs.existsSync(BINDING)) {
 const OFFICIAL = path.join(ROOT, 'submodules/svelte/packages/svelte/src/compiler/index.js');
 if (!fs.existsSync(OFFICIAL)) {
 	console.error(`[matrix] official compiler missing at ${path.relative(ROOT, OFFICIAL)}`);
-	console.error('  fix: git submodule update --init --depth 1 submodules/svelte && (cd submodules/svelte && pnpm install --ignore-scripts)');
+	console.error('  fix: git submodule update --init --checkout --depth 1 submodules/svelte && (cd submodules/svelte && pnpm install --ignore-scripts)');
 	process.exit(2);
 }
 

@@ -1,5 +1,342 @@
 # @rsvelte/compiler
 
+## 0.12.2
+
+### Patch Changes
+
+- 60b3470: Reduce WebAssembly size by sharing the compiler's compact JSON serializer for `parse_svelte` and repeating size optimization until it converges. The returned AST JSON no longer includes indentation; its data and UTF-16 positions are unchanged. Compiler features and exports remain available.
+- fe1d1d5: compiler: an erased annotation's comment keeps the line it shared with the initializer
+
+  A comment left behind by an erased TypeScript annotation is flushed at the
+  initializer's start, and the flush wrote a newline after it unconditionally.
+  Upstream's printer does not: esrap keeps a leading comment inline when it shared
+  the anchored node's source line and breaks only where the source broke. So a
+  one-line annotation came out on three lines where official keeps one (#4397).
+
+  The separator is now read off the text between the comment's end and the flush
+  point — not off the shape of the annotation and not off the shape of the
+  initializer. A newline _before_ the comment still prints inline, a multi-line
+  initializer still prints inline, and a newline _after_ the comment still breaks.
+  A `//` comment always breaks, since a space there would swallow the rest of the
+  line. The two in-place call sites — a whole erased _statement_, which has no
+  flush point — keep the newline they had, which is what leaves the `type` alias
+  and `interface` cells unchanged.
+
+  Measured on nine cells against Svelte 5.57.0: three go from divergent to
+  byte-equal on **both** the client and the server, none goes the other way, and
+  78 neighbouring cells across six sibling grids are byte-identical between the
+  arms. The separator is one byte either way, so every source-projection offset is
+  unchanged.
+
+- 48affff: compiler: a block comment whose host TypeScript construct is erased keeps its own column
+
+  A multi-line block comment re-emitted out of an erased construct is re-indented
+  downstream by the distance between its opener's column and its continuation
+  lines'. The opener arrived at whatever indentation the erased construct left
+  behind — the script's, not the comment's — so a comment nested deeper than the
+  script kept the difference on every continuation line (#4515).
+
+  The opener now arrives at the column it had in the source, which makes the two
+  quantities the same one again. Measured on six cells against Svelte 5.57.0, both
+  targets: the three where the comment is nested deeper than the script (spaces,
+  tabs, and with a surviving statement beside the erased construct) go from
+  divergent to byte-equal, and the three that already agreed — an opener at the
+  script's own indentation, a surviving host, a script-leading comment — are
+  unchanged.
+
+- 99f2437: client: a `$props()` declaration's inline comment stays on the declaration it lowered to
+
+  Upstream prints a comment that sits inline before the `$props(` call after the `;`
+  of the declaration the lowering produced. rsvelte printed it as a statement of its
+  own ahead of the script for the whole-object form (`let p = $props()`, where the
+  transform drops the comment) and on a line of its own after the statement for the
+  rest form (`let { a, ...z } = $props()`, where it survives) — two routes to the
+  same wrong line (#4448).
+
+  The axis is the comment's distance from the **call**, not from the `let`: read off
+  the oracle, `let p = /* c */\n$props()` floats the comment forward while
+  `let p =\n/* c */ $props()` trails the declaration, so a comment is moved only
+  when nothing but blanks separates it from `$props(`. Newline-freedom alone is not
+  enough — `let { a, /* c */ ...rest } = $props()` satisfies it and upstream leaves
+  that comment in the pattern. The `$.prop(…)` form is deliberately untouched: with a default the comment belongs inside the call, which the lowering
+  already does, and moving it to the statement end would be a second wrong answer
+  instead of none.
+
+  Measured on 34 cells against Svelte 5.57.0 (the four grids for #4448, #4501,
+  #3515 and the newline axis): 10 go from divergent to byte-equal, 0 go the other
+  way. The plain destructure keeps the line break that is #4500, and the server
+  target is unchanged throughout.
+
+- 5050b3b: client: a `$props()` declaration the transform removes outright no longer takes its comments with it
+
+  When the destructured `$props()` declaration is the script's only statement, the
+  transform empties the instance script, and the re-emission loop that puts a
+  dropped declaration comment back is inside `if !trimmed.is_empty()`. The comment
+  was therefore dropped from the client output entirely. Re-entering the comments
+  as the script's own text puts them in the comment buffer, where the template
+  root's declarator — which already carries the source anchor upstream stamps on
+  it — picks them up, so the output is `var /* c */ i = root();` the way upstream
+  writes it.
+
+  The line break rsvelte still adds after a block comment in this position when
+  `</script>` and the first element share a source line is #4500 and is unchanged
+  here.
+
+## 0.12.1
+
+### Patch Changes
+
+- a3da818: parse: `super` is legal wherever acorn enters `SCOPE_SUPER`, not only in a method
+
+  `super.x` was rejected with `'super' keyword outside a method` inside a class field
+  initializer, a class static block, and an object literal getter or setter — all
+  valid JavaScript, all accepted by official Svelte, and all reported by a user
+  against `compileModule` and `compile` alike (#4549).
+
+  The site is `expression.rs`'s own `Scan`, not the OXC allow-list in
+  `early_errors.rs`: `SemanticBuilder` reports nothing for any of these cells. The
+  scan set `super_allowed` from method definitions and object-literal shorthand
+  methods only, where acorn enters `SCOPE_SUPER` from `parseMethod` (which
+  getters and setters also go through), from `parseClassField` around the
+  **initializer only**, and from `parseClassStaticBlock`.
+
+  `SCOPE_DIRECT_SUPER` is ported with it, so a `super()` call in a field
+  initializer or a static block now says `super() call outside constructor of a
+subclass` where it said `'super' keyword outside a method`. acorn checks
+  `allowSuper` at the `super` token and `allowDirectSuper` only after the `(`, so
+  a bare `super()` in a plain function keeps the first message.
+
+  Over the 20 shapes acorn's own list generates, rsvelte agreed with official on
+  12 and now agrees on all 20. A computed key still rejects, because acorn enters
+  the scope for a field's value and not for its key, and a `function` expression
+  still rejects everywhere — it makes its own `[[HomeObject]]`.
+
+## 0.12.0
+
+### Minor Changes
+
+- 4b19fb2: Ship a compiler-only browser wasm as the default @rsvelte/compiler entry, retain the stable /wasm subpath, and add compileModule for JavaScript rune modules. Move lint and svelte2tsx to the separately loaded /playground and /playground/wasm exports, and update their consumers.
+
+### Patch Changes
+
+- 7ae32be: svelte2tsx: anchor an attribute key's opening quote on the name it opens
+
+  The generated key `"data-open"` is an inserted quote, the attribute name kept as
+  a source chunk, and a closing quote. The opening quote was flushed inside the
+  preceding gap's single `overwrite`, so its map segment anchored on the end of
+  the _previous_ attribute. TypeScript reports a definition or hover range that
+  starts at that quote, so the range's start resolved to the previous attribute —
+  and on a multi-line start tag, to the previous line.
+
+  The delimiter is now written over the name's own first character, which is what
+  the reference does. Generated text is unchanged.
+
+- 3839dee: parse: omit `CallExpression.optional` where acorn-typescript omits it
+
+  acorn-typescript writes `optional` on a call carrying type arguments only when
+  the subscript chain was already optional at that point — `_optionalChained` in
+  `parseSubscript`, threaded left to right — so `f<T>(x)` has no `optional` key at
+  all while `o?.m<T>(x)` has `optional: false`. rsvelte wrote the key
+  unconditionally, which is the largest single field in the `parse()` AST parity
+  ratchet: 1,876 corpus files, 16.6% of all field divergences.
+
+  The predicate is local to the call's own callee chain, so a `?.` that comes
+  after the call (`f<T>(x)?.g(y)`) or one cut off by parentheses
+  (`(a?.b)<T>(x)`) does not reach it — being inside a `ChainExpression` is not the
+  rule. Generated code is unchanged: only the parse path can set type arguments.
+
+- e8328b6: client: a comment-buffer region that holds only a chunk separator is not a location
+
+  `to_oxc::consumed` gives a container the slice of the synthetic comment buffer
+  its children consumed. When they consumed only the `'\n'` each chunk is appended
+  with, that slice sits just past a _neighbouring_ chunk's trailing comment, and
+  `has_loc` reads it as a real source position — so the arrow printer hands it to
+  the parameter list as the `until` bound and flushes an unrelated script comment
+  inside the parens.
+
+  A region with no non-whitespace byte holds neither a token nor a comment, so it
+  no longer becomes a span. `<svelte:boundary>` now drops the trailing script
+  comment as upstream does, and `{#key}` keeps it in the second argument's
+  parameter list where upstream puts it.
+
+- 509aecd: fix(svelte2tsx): apply a `<svelte:element>` opener as segments, not one overwrite
+
+  `handle_svelte_dynamic_element` built the whole opening tag as a string and
+  applied it with a single `str.overwrite(el.start, opening_tag_end, …)`, so the
+  `this={…}` expression and every attribute value reached the shadow as generated
+  text with no map segment. `textDocument/hover` inside a `<svelte:element>` start
+  tag answered `null` where official answers, because official builds the same
+  opener from a TransformationArray whose expression entries are source ranges.
+
+  The opener now goes through `build_attribute_segments` + `bake_out_of_order_src`
+  - `emit_segmented_overwrite`, which is what the plain-element path
+    (`element.rs`) already did. `this="div"` keeps no range — the parser stores the
+    bare text — so it stays generated, matching upstream.
+
+  The generated TSX is unchanged; only the map moves.
+
+- 2de8dfc: Give a `$effect` chunk's source-map positions their source offsets back. `to_oxc.rs` claimed a chunk's comment-buffer region — the only thing that resolves a comment-space offset into the source — everywhere except the effect path, so any statement whose text contains `$effect` had its positions written into the map untranslated and landing past the end of the line they name. The guard is a substring scan, so those seven bytes inside a comment or a string literal did it to a component that uses no rune at all. Generated code is unchanged.
+- 053ee1a: client: a block comment opening the instance-script slice is indented once, not twice
+
+  When a block comment's host TypeScript construct is erased, the slice reaching
+  `normalize_js_with_oxc_lead` is the comment alone, and esrap prints such a slice
+  with a leading newline. The guard that stops the re-indent loop double-indenting
+  a leading block comment tested `code.starts_with("/*")`, so the newline made it
+  miss and every continuation line gained a tab: `\t\t * @typedef {Object} Props`
+  where official prints `\t * @typedef {Object} Props`.
+
+  Measured over the corpus, both arms, four targets: 38 of 135,560 units move,
+  across 19 files, on `client` and `client-dev` only. Of the 98 lines that differ
+  between the arms, 98 now equal official's and none went the other way; 12 units
+  become byte-identical to official where none were before.
+
+  No gate observes the class — `ast_equiv_batch` runs with `CommentPolicy::Ignore`
+  and the normalized comparison runs both sides through oxfmt, which re-aligns a
+  JSDoc body — so the guard is a unit test rather than a `pattern-corpus` repro,
+  which would pin nothing.
+
+- 30a5661: anchor `$.head`'s callee on the tag name, as upstream does
+
+  Upstream stamps the call's callee with the tag name's own source position
+  (`b.id('$.head', node.name_loc)`), which is where esrap flushes a comment left
+  pending at the end of the instance script. rsvelte built the call unanchored, so
+  the comment was dropped where official keeps it. `<svelte:head>` now passes
+  `node.name_loc` through a `b::stmt_anchored`. The `{#snippet}` half of the same
+  symptom is a different mechanism and is tracked separately (#4489).
+
+- ae34333: client: emit an instance-script comment the located flush drops entirely
+
+  Under split coordinates a comment lives above `loc_base` and an original source
+  position lives below it, so `has_loc` — which answers "may this node carry
+  comments" — reads a real source offset as "no location" and
+  `flush_comments_until` returns before writing anything. A comment with no
+  comment-space node after it is therefore never emitted at all, which is what a
+  `<script>` whose template lowers to a component call produces.
+
+  The printer now runs a second pass when the first one dropped a comment, and
+  that pass may flush **only** the dropped set from source space. Restricting it
+  to what the ordinary path loses is what separates a recovery from a relocation:
+  measured over the corpus, the rule fixes 22 units and moves none. The second
+  pass runs on 0.86% of compiles.
+
+- a605c9d: discard pending comments at a lowering's block brace, as upstream does
+
+  Upstream builds a template lowering's statement-position block with
+  `b.block([…])`, which carries no `loc`, so esrap's `body` discards every pending
+  comment there; a block the instance script wrote is acorn-parsed and keeps its
+  own position. rsvelte derived a comment-buffer span for both from the region the
+  block's children consumed, so a comment at the end of the instance script was
+  flushed at the brace of an `{#if}` wrapper and kept where official drops it.
+  `JsStatement::Block` now carries a `BlockOrigin`, set to `Lowered` only where
+  upstream would call `b.block`.
+
+- f3193ea: Keep a comment written between a method's `)` and its body. esrap runs a parameter list's comment window until the body starts, and in the acorn AST a method is a `FunctionExpression`, so upstream reaches methods, getters, setters and object-literal methods through that same rule. rsvelte routed them through a helper that ended the window at the `)` instead, which put such a comment outside every window and dropped it from the output on all four targets. The three bodied sites now share one expression; the five bodyless TS signature callers keep the paren-ending default, which is the only place it is correct.
+- 32ea335: Lower `$props()` when a comment sits between the callee and its parentheses. The client canonicalises the call before its byte matchers run, and that regex admitted a comment only in the gap after `=` — so `$props/* c */()` and `$props(/* c */)` matched nothing, the text helper returned `None`, and its caller read that `None` as _not a props declaration_. The rune was then emitted verbatim: output that parses and throws `ReferenceError: $props is not defined` at first render, with no `rest_excludes` and no import. A comment is a separator wherever whitespace is one, so one gap now spells all three positions. The comment's own slot is unchanged and still differs from upstream, which is a separate defect; this restores the lowering, not the byte.
+- 458b132: client: a `$props()` decoy in a string or comment no longer drops the declaration's comment
+
+  `props_declaration_comments` located the declaration with
+  `find_sub("$props()")`, so a `$props()` written inside a string or a comment
+  earlier in the script took the anchor. The backward `let` search before that
+  offset then found nothing, the function returned no comments, and the real
+  declaration's comment was dropped rather than misplaced. It now walks
+  `js_scan::find_rune_code`, which skips strings, comments, templates and regex
+  literals.
+
+  Both outputs parse and run identically, so only comment text differs.
+
+- 72278f5: client: a comment inside a `$props()` declaration no longer deletes the next statement
+
+  The `$props()` destructuring rewrite is routed per source _line_, and the line
+  that carries a block comment between `=` and `$props()` can hold a second
+  statement after the declaration's `;`. The whole-line rewrite replaced it, so
+  `let { a } = /* c */ $props(); console.log(a)` emitted no `console.log` — and
+  the same for an `onMount` registration or a `$state` declaration. The output
+  parses and runs, so only output equality could see it.
+
+  The routing guard now requires the declaration's `;` to be the line's last code
+  byte, which sends a line carrying a trailing statement to the statement-based
+  path instead.
+
+- 8082403: Keep a `$props()` declaration's comment whose text also occurs in a string, a template literal or another comment, and stop truncating the declaration at a `;` written inside its own comment — which emitted an unterminated `/*` fragment
+- f00c7dd: Keep a comment written inside a destructured `$props()` pattern, at the position upstream prints it. The client's state transform replaces source ranges rather than reprinting, and a read-only destructure is replaced by nothing, so `let { a /* c */ } = $props()` deleted the comment along with the declaration. Where the comment did survive it was pushed to the front of the script instead of flushed before the first node that follows it, so a declaration preceded by another statement printed it in the wrong place. A comment inside an erased type annotation is deliberately not carried; that is a separate defect and stays open.
+- 90a7797: client: locate the `$props()` call among code bytes, not by substring
+
+  `transform_props_destructuring` found the call with a last-occurrence,
+  boundary-free substring search, so a trailing comment mentioning `$props` moved
+  the anchor into the comment and the declaration was spliced around it — the
+  client emitted the comment's own words in code position, which no JS parser
+  accepts. It now walks `js_scan::find_code_from`, which skips comments, strings,
+  templates and regex literals.
+
+  The comment's output slot is unchanged and still differs from upstream; that is
+  a separate defect. This restores the code, not the byte.
+
+- 43345c7: repeat a speculated comment run whole, on the server as well as the client
+
+  acorn-typescript's `tsLookAhead` leaves `isLookahead` unset, so a comment inside
+  a `TSTypeLiteral`'s head fires `onComment` during the speculative parse and again
+  after the rewind. The rewind replays the whole run, so two comments print
+  `c d c d`; rsvelte repeated each comment in place (`c c d d`) and the server did
+  not repeat at all. The repeat now happens once, in the stripped script both
+  targets read, instead of in a client-only text pass.
+
+- 392273f: fix(svelte2tsx): reproduce upstream's case-sensitive script and style scan
+
+  `find_ci` folded ASCII case, so every scan that locates a verbatim `<script>` or
+  `<style>` block — the style blanker, the orphan-script scan and its fast path —
+  also matched a component named `<Script>`, `<SCRIPT>` or `<Style>`. Upstream's
+  `scriptRegex` and `styleRegex` (`htmlxparser.ts:33-36`) carry `g` and no `i`, so
+  those are component names there.
+
+  Both scans feed a rewrite, so the consequence was not only a wrong range.
+  `remove_orphan_scripts` blanks the matched source and, when the file has no
+  top-level `<script>`, injects the blanked body into `$$render()` as a statement:
+  `<Script><p>hello</p></Script>` alone in a file produced TSX no parser accepts.
+  `blank_style_tags` replaces its match with spaces, so a `<Style>` component's
+  children vanished from the projection while the output still compiled.
+
+  Measured against official svelte2tsx over five cells, three move to byte-equal
+  and two could not move (`<Style />` is self-closing, so the style blanker's
+  fallback never finds a `</style>`; the lowercase spelling is a script on both
+  sides).
+
+- ac83a90: fix(sourcemap): a comment-buffer region records its own `LocRange`
+
+  `open_source_region_parts` and `open_island_region` append a verbatim slice of
+  the source to the comment buffer and returned spans inside it without recording
+  the region. `map_position`'s `loc_map` lookup then missed, fell through
+  `None => offset`, and resolved a comment-space offset against the source line
+  table — so segments landed past the end of the line they named. Both regions map
+  back linearly, which is one `LocRange` each.
+
+- 629cd1c: fix(svelte2tsx): apply the six remaining start-tag openers as segments, not one overwrite
+
+  `<svelte:element>` was one host of a class: nine call sites build a start tag with
+  `format!` and apply it with a single `str.overwrite(el.start, opening_tag_end, …)`.
+  `magic-string` emits one segment for an `addEdit` and a segment per character for
+  an unedited chunk, so every expression inside such a tag shares the element's
+  start mapping and a request inside it resolves through the nearest mapping to its
+  left. Upstream never does this: `htmlxtojsx_v2`'s `transform` takes a
+  `TransformationArray` whose entries are strings **or `[start, end]` ranges**, and
+  it `move`s each range so the source chunk reaches the shadow unedited.
+
+  Six ports are converted to `build_attribute_segments` + `bake_out_of_order_src` +
+  `emit_segmented_overwrite`, which is the path `element.rs` has used for plain
+  elements since the structured bake landed: `<svelte:component>`, `<svelte:self>`,
+  the standard special elements (`<svelte:body>`, `<svelte:window>`,
+  `<svelte:document>`, `<svelte:head>`) and `handle_boundary_snippet_props`,
+  `<slot>`, a named-slot element and `<svelte:fragment>` inside a component, and
+  `<title>` inside `<svelte:head>`. `format_component_bind_directive_segments` is
+  the segment twin the `<svelte:self>` path needed.
+
+  The entire string attribute-building path now has no callers and is deleted —
+  15 functions, 514 lines, including `build_attributes_string`, which was literally
+  `segs_to_string(build_attribute_segments(…))`. `trailing_attr_comment_text`'s unit
+  test is re-pointed at `trailing_attr_comment_segs` rather than dropped, so the
+  assertion survives and now exercises the segment path.
+
+  The generated TSX is unchanged; only the map moves.
+
 ## 0.11.7
 
 ### Patch Changes

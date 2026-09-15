@@ -159,7 +159,7 @@ function main() {
 	);
 	if (missing.length > 0) {
 		return fail(
-			`submodule(s) not checked out: run \`git submodule update --init --depth 1 ${missing
+			`submodule(s) not checked out: run \`git submodule update --init --checkout --depth 1 ${missing
 				.map((p) => p.submodule)
 				.join(' ')}\``
 		);

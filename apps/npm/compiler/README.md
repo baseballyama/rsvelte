@@ -69,7 +69,7 @@ console.log(client.css); // scoped styles
 // Compile for SSR.
 const server = compile_server(source, 'App');
 
-// Parse to the Svelte AST (JSON string, same shape the official parser produces).
+// Parse to the Svelte AST (compact JSON, same shape the official parser produces).
 const ast = JSON.parse(parse_svelte(source).ast);
 
 console.log(version()); // the rsvelte compiler version
@@ -100,6 +100,46 @@ console.log(result.js.code, result.warnings);
 The exported names and JSON-string return values below are specific to this
 WASM package. They are deliberately not presented as `svelte/compiler`
 equivalents.
+
+### Rune modules and Web Workers
+
+`compileModule(source, options)` compiles JavaScript rune modules such as
+`state.svelte.js`. Like `compile`, it takes an options object and returns a JSON
+string. It supports `generate`, `dev`, `filename`, `rootDir`, `experimental`, and
+`warningFilter`. Preprocess TypeScript into JavaScript before calling it.
+
+The same imports work in a browser module worker:
+
+```js
+// compiler-worker.js (bundle as a module worker)
+import init, { compile, compileModule } from '@rsvelte/compiler';
+
+const ready = init();
+self.onmessage = async ({ data: { source, filename, module } }) => {
+  await ready;
+  try {
+    const result = (module ? compileModule : compile)(source, {
+      filename,
+      generate: 'client',
+    });
+    self.postMessage({ result: JSON.parse(result) });
+  } catch (error) {
+    self.postMessage({ error: String(error) });
+  }
+};
+```
+
+Load this worker with `new Worker(new URL('./compiler-worker.js', import.meta.url),
+{ type: 'module' })`. Ensure your bundler serves the generated wasm asset; you can
+also pass its URL to `init({ module_or_path: wasmUrl })` explicitly.
+
+### Playground tools
+
+The default import and `@rsvelte/compiler/wasm` contain only compiler bindings.
+They do not include lint or svelte2tsx. Applications needing those tools import
+`@rsvelte/compiler/playground` and initialize that module separately. Its raw
+binary is available at `@rsvelte/compiler/playground/wasm`. Both artifacts ship
+in the npm package, but loading the default entry fetches only the compiler wasm.
 
 ## Compare CLI
 

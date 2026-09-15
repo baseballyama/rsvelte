@@ -303,6 +303,60 @@ fn blank_svelte_type_reference(tsx: &mut String) {
     }
 }
 
+/// The `svelte` a workspace cannot resolve for itself, materialized so the
+/// overlay program can declare its ambient modules directly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FallbackSvelteTypes {
+    /// Blanked copy of the package's `types/index.d.ts` in the cache dir.
+    pub declarations: PathBuf,
+    /// The non-wildcard module names it declares (`svelte`, `svelte/store`, …).
+    pub modules: Vec<String>,
+    /// The package's own `svelte-html.d.ts`, when it ships one.
+    pub svelte_html: Option<PathBuf>,
+}
+
+/// The `svelte` to type against when the document's own workspace is not the
+/// answer, with its bundled declarations materialized into `cache_dir`.
+///
+/// `getPackageInfo('svelte', fromPath)` resolves with
+/// `paths = [fromPath, __dirname]` (`language-server/src/importPackage.ts:27-38`),
+/// so upstream degrades to the copy shipped beside the server rather than losing
+/// every `svelte/*` type — and reporting a `2307` official does not — on a
+/// project with no `node_modules`. `None` means the workspace answers for itself
+/// and tsgo's own module resolution reaches it, which is the case that needs no
+/// override.
+///
+/// Upstream's `isTrusted` also *suppresses* the workspace arm, because it
+/// `require`s the package it finds. Nothing here executes the workspace's
+/// svelte — the overlay reads its `.d.ts` files — so the workspace arm is
+/// unconditional; a measurement, not an omission: every LSP corpus workspace
+/// resolves svelte through the checkout root, so suppressing that arm would
+/// rewrite every corpus overlay's program for a reason this fix is not about.
+#[must_use]
+pub fn fallback_svelte_types(
+    workspace: &Path,
+    fallback_root: Option<&Path>,
+    cache_dir: &Path,
+) -> Option<FallbackSvelteTypes> {
+    let root = fs::canonicalize(workspace).unwrap_or_else(|_| workspace.to_path_buf());
+    if resolve_svelte_package(&root).is_some() {
+        return None;
+    }
+    let fallback_root = fallback_root?;
+    let fallback_root =
+        fs::canonicalize(fallback_root).unwrap_or_else(|_| fallback_root.to_path_buf());
+    let package = resolve_svelte_package(&fallback_root)?;
+    let shadow = materialize_svelte_types_shadow(&package.dir, cache_dir)?;
+    let svelte_html = (package.major != Some(3))
+        .then(|| package.dir.join(SVELTE_HTML_DTS))
+        .filter(|path| path.is_file());
+    Some(FallbackSvelteTypes {
+        declarations: shadow.path,
+        modules: shadow.modules,
+        svelte_html,
+    })
+}
+
 /// Walk `node_modules` upwards from `from` for the `svelte` package, the
 /// Rust equivalent of `require.resolve('svelte/package.json', { paths })`.
 fn resolve_svelte_package(from: &Path) -> Option<SveltePackage> {

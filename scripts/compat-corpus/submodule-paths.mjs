@@ -4,7 +4,7 @@
  * derive the list from `corpus-sources.json` instead of restating it — the
  * corpus is 100+ repositories and a hand-maintained copy drifts silently.
  *
- * Usage: git submodule update --init --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs)
+ * Usage: git submodule update --init --checkout --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs)
  */
 import fs from 'node:fs';
 import path from 'node:path';

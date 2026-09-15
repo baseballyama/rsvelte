@@ -1,6 +1,6 @@
-import type { ParseResultWasm, CompileResultWasm } from '../../../../pkg/rsvelte_lint';
+import type { ParseResultWasm, CompileResultWasm } from '../../../../pkg-playground/rsvelte_lint';
 
-let wasmModule: typeof import('../../../../pkg/rsvelte_lint') | null = null;
+let wasmModule: typeof import('../../../../pkg-playground/rsvelte_lint') | null = null;
 let initPromise: Promise<void> | null = null;
 
 export async function initCompiler(): Promise<void> {
@@ -8,7 +8,7 @@ export async function initCompiler(): Promise<void> {
 	if (initPromise) return initPromise;
 
 	initPromise = (async () => {
-		const wasm = await import('../../../../pkg/rsvelte_lint');
+		const wasm = await import('../../../../pkg-playground/rsvelte_lint');
 		await wasm.default();
 		wasmModule = wasm;
 	})();
@@ -53,7 +53,7 @@ export interface Svelte2TsxOptions {
 /**
  * Convert a `.svelte` component to its TSX shadow file. The wasm boundary is a
  * JSON string in / JSON string out (see
- * `rsvelte_lint_bindings::compiler_wasm::svelte2tsx`).
+ * `rsvelte_lint_bindings::svelte2tsx_wasm::svelte2tsx`).
  */
 export function svelte2tsx(source: string, options: Svelte2TsxOptions = {}): Svelte2TsxResult {
 	if (!wasmModule) throw new Error('WASM not initialized');

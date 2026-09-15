@@ -114,6 +114,12 @@ pub struct JsArena {
     /// transform semantics. Keep those uncommon spans out of band instead of
     /// growing every expression node.
     bare_expr_spans: UnsafeCell<Option<FxHashMap<ExprId, (u32, u32)>>>,
+    /// Original-source offsets that decide where esrap flushes a comment left
+    /// pending by an earlier chunk, for expressions upstream builds out of a
+    /// source node (`b.call(…, node)`). Kept out of band for the same reason as
+    /// `bare_expr_spans`: the anchor belongs to one expression, and the wrapper
+    /// built around it must not inherit it.
+    expr_comment_anchors: UnsafeCell<Option<FxHashMap<ExprId, u32>>>,
 }
 
 // JsArena is explicitly NOT Sync - it's single-threaded only.
@@ -132,6 +138,7 @@ impl JsArena {
             identifier_spans: UnsafeCell::new(FxHashMap::default()),
             expression_identifier_spans: UnsafeCell::new(FxHashMap::default()),
             bare_expr_spans: UnsafeCell::new(None),
+            expr_comment_anchors: UnsafeCell::new(None),
         }
     }
 
@@ -224,6 +231,32 @@ impl JsArena {
             (&*self.bare_expr_spans.get())
                 .as_ref()
                 .and_then(|spans| spans.get(&id).copied())
+        }
+    }
+
+    /// Record the source offset at which this expression flushes pending
+    /// comments. Upstream stamps it on the node itself; here the expression's
+    /// own span is the generated one, so it lives beside the arena.
+    #[inline]
+    pub fn set_expr_comment_anchor(&self, id: ExprId, offset: u32) {
+        // SAFETY: like node allocation, span metadata is mutated only by the
+        // single thread that owns this arena.
+        unsafe {
+            (*self.expr_comment_anchors.get())
+                .get_or_insert_with(FxHashMap::default)
+                .insert(id, offset);
+        }
+    }
+
+    /// The comment-flush offset of an expression, when it has one.
+    #[inline]
+    pub fn expr_comment_anchor(&self, id: ExprId) -> Option<u32> {
+        // SAFETY: the arena is single-threaded and callers do not retain a
+        // reference into the map across a mutation.
+        unsafe {
+            (&*self.expr_comment_anchors.get())
+                .as_ref()
+                .and_then(|anchors| anchors.get(&id).copied())
         }
     }
 

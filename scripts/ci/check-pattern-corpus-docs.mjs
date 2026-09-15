@@ -23,7 +23,7 @@
 // script expects (a new sub-corpus, or a missing directory) — a failure rather
 // than a pass, because a check that silently stops looking is worse than none.
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -85,6 +85,13 @@ function bijection(label, ids, names, problems) {
 
 const DOC_SUFFIX = '.md';
 const ISSUE_LINE = '**Issue:** ';
+// A fix whose divergence cannot be written as a repro is recorded as a doc with
+// no file (#4449). The line has to name what does guard it, or the record is a
+// claim with nothing behind it — which is the state this replaced.
+const REPRO_NONE = '**Repro:** none';
+const BACKTICKED = /`([^`]+)`/g;
+
+export const ROOT = join(HERE, '..', '..');
 
 /** `{ repros, docs }` for `issues/`, split on the doc suffix. */
 function issueEntries(corpus) {
@@ -95,14 +102,32 @@ function issueEntries(corpus) {
   };
 }
 
-/** Read one sibling doc into the two cells the README table used to hold. */
+/**
+ * Read one sibling doc into the cells the README table used to hold, plus the
+ * `**Repro:** none` line when there is one. That line is excluded from `body`
+ * on purpose: otherwise its presence alone would satisfy "says something".
+ */
 export function readIssueDoc(corpus, repro) {
   const text = readFileSync(join(corpus, 'issues', `${repro}${DOC_SUFFIX}`), 'utf8');
   const lines = text.split('\n');
   const at = lines.findIndex((line) => line.startsWith(ISSUE_LINE));
   if (at < 0) return null;
-  const body = lines.slice(at + 1).join('\n').trim();
-  return { issue: lines[at].slice(ISSUE_LINE.length).trim(), body };
+  const rest = lines.slice(at + 1);
+  const reproAt = rest.findIndex((line) => line.startsWith(REPRO_NONE));
+  const body = rest
+    .filter((_, i) => i !== reproAt)
+    .join('\n')
+    .trim();
+  return {
+    issue: lines[at].slice(ISSUE_LINE.length).trim(),
+    body,
+    reproNone: reproAt < 0 ? null : rest[reproAt],
+  };
+}
+
+/** Every backticked path on the `**Repro:** none` line. */
+function guardPaths(line) {
+  return [...line.matchAll(BACKTICKED)].map((m) => m[1]);
 }
 
 /**
@@ -110,7 +135,7 @@ export function readIssueDoc(corpus, repro) {
  * decoration: a bijection alone is satisfied by 666 empty files, which is the
  * shape a bulk migration produces when it goes wrong.
  */
-function issueDocs(corpus, problems) {
+function issueDocs(corpus, problems, root) {
   const { repros, docs } = issueEntries(corpus);
   const have = new Set(docs);
   for (const repro of repros) {
@@ -121,28 +146,61 @@ function issueDocs(corpus, problems) {
     const doc = readIssueDoc(corpus, repro);
     if (!doc) problems.push(`issues/${repro}${DOC_SUFFIX} has no \`${ISSUE_LINE.trim()}\` line`);
     else if (!doc.body) problems.push(`issues/${repro}${DOC_SUFFIX} says nothing about what the repro pins`);
+    else if (doc.reproNone) {
+      problems.push(
+        `issues/${repro}${DOC_SUFFIX} says \`${REPRO_NONE}\` while \`${repro}\` is on disk`,
+      );
+    }
   }
   for (const doc of docs) {
     const repro = doc.slice(0, -DOC_SUFFIX.length);
-    if (!repros.includes(repro)) {
+    if (repros.includes(repro)) continue;
+    const parsed = readIssueDoc(corpus, repro);
+    if (!parsed) {
+      problems.push(`issues/${doc} has no \`${ISSUE_LINE.trim()}\` line`);
+      continue;
+    }
+    if (!parsed.reproNone) {
       problems.push(`issues/${doc} describes \`${repro}\`, which is not on disk`);
+      continue;
+    }
+    if (!parsed.body) problems.push(`issues/${doc} says nothing about what the fix restored`);
+    const guards = guardPaths(parsed.reproNone);
+    if (guards.length === 0) {
+      problems.push(`issues/${doc} says \`${REPRO_NONE}\` but names no guard in backticks`);
+      continue;
+    }
+    for (const guard of guards) {
+      if (!existsSync(join(root, guard))) {
+        problems.push(`issues/${doc} names the guard \`${guard}\`, which is not on disk`);
+      }
     }
   }
 }
 
 /** The old README table, generated — `--index`. */
 export function index(corpus) {
-  const { repros } = issueEntries(corpus);
+  const { repros, docs } = issueEntries(corpus);
   const out = ['| File | Issue | What it pins |', '|---|---|---|'];
   for (const repro of repros) {
     const doc = readIssueDoc(corpus, repro);
     if (!doc) continue;
     out.push(`| \`${repro}\` | ${doc.issue} | ${doc.body.replace(/\n/g, ' ')} |`);
   }
+  // Records with no repro read the same way and must not be invisible here —
+  // being unlisted is the state #4449 was about.
+  for (const doc of docs) {
+    const repro = doc.slice(0, -DOC_SUFFIX.length);
+    if (repros.includes(repro)) continue;
+    const parsed = readIssueDoc(corpus, repro);
+    if (!parsed?.reproNone) continue;
+    const guards = guardPaths(parsed.reproNone).map((g) => `\`${g}\``).join(', ');
+    out.push(`| none — guarded by ${guards} | ${parsed.issue} | ${parsed.body.replace(/\n/g, ' ')} |`);
+  }
   return out.join('\n');
 }
 
-export function check(corpus, sources = SOURCES) {
+export function check(corpus, sources = SOURCES, root = ROOT) {
   const problems = [];
   const layout = entries(corpus, true);
   const unexpected = layout.filter((entry) => !SUBDIRS.includes(entry));
@@ -162,7 +220,7 @@ export function check(corpus, sources = SOURCES) {
 
   const issues = sectionBounds(lines, 2, '`issues/`');
   if (!issues) return { fatal: 'README has no `## `issues/`` section', problems };
-  issueDocs(corpus, problems);
+  issueDocs(corpus, problems, root);
 
   // Every sibling doc is safe from being collected as a corpus unit only
   // because `pattern` carries `markdown: false` — `collectRepo`'s own default
@@ -246,5 +304,10 @@ function main() {
 }
 
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
-  process.exit(main());
+  // `process.exit` truncates a piped stdout: writes to a pipe are async, and
+  // exiting drops whatever has not drained. `--index` prints ~675 rows, and
+  // through a pipe that arrived as the first 162 with no marker — the exact
+  // shape of a cap that reads as a complete answer. Setting the code instead
+  // lets Node drain first.
+  process.exitCode = main();
 }

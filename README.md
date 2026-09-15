@@ -89,7 +89,7 @@ The Svelte 4-to-5 migration tool is not in scope.
 ## Contributing
 
 ```bash
-git submodule update --init --recursive
+git submodule update --init --checkout --recursive
 pnpm install
 pnpm run generate-fixtures
 cargo test --release

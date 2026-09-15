@@ -68,7 +68,7 @@ jobs:
           submodules: false
 
       - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte
+        run: git submodule update --init --checkout --depth 1 submodules/svelte
 
       - uses: ./.github/actions/setup-rust
 
@@ -138,7 +138,7 @@ jobs:
           submodules: false
 
       - name: Checkout corsa-bind submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/corsa-bind
+        run: git submodule update --init --checkout --depth 1 submodules/corsa-bind
 
       - uses: ./.github/actions/setup-rust
 
@@ -163,7 +163,7 @@ jobs:
           submodules: false
 
       - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte
+        run: git submodule update --init --checkout --depth 1 submodules/svelte
 
       - uses: ./.github/actions/setup-rust
         with:
@@ -244,7 +244,7 @@ jobs:
       # fmt-corpus step read it) — are skipped, cutting checkout from ~45 s to
       # ~15 s on the macOS runners.
       - name: Checkout needed submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools submodules/eslint-plugin-svelte submodules/esrap
+        run: git submodule update --init --checkout --depth 1 submodules/svelte submodules/language-tools submodules/eslint-plugin-svelte submodules/esrap
 
       - uses: ./.github/actions/setup-rust
         with:
@@ -409,7 +409,7 @@ jobs:
           submodules: false
 
       - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte
+        run: git submodule update --init --checkout --depth 1 submodules/svelte
 
       - uses: ./.github/actions/setup-rust
         with:
@@ -493,7 +493,7 @@ jobs:
       # Only the `svelte` submodule's package.json is read by rsvelte_core's
       # build.rs for the version string, so a shallow svelte-only init suffices.
       - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte
+        run: git submodule update --init --checkout --depth 1 submodules/svelte
 
       - uses: ./.github/actions/setup-rust
         with:
@@ -535,7 +535,7 @@ jobs:
           submodules: false
 
       - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte
+        run: git submodule update --init --checkout --depth 1 submodules/svelte
 
       - uses: ./.github/actions/setup-rust
         with:
@@ -612,7 +612,7 @@ jobs:
       # svelte (rsvelte_core build.rs version string) + svelte.dev (the corpus
       # source files the parity tests read). No Svelte build / generated fixtures.
       - name: Checkout svelte + svelte.dev submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev
+        run: git submodule update --init --checkout --depth 1 submodules/svelte submodules/svelte.dev
 
       - uses: ./.github/actions/setup-rust
         with:
@@ -725,7 +725,7 @@ jobs:
       # The native server reads Svelte's version at build time; language-tools
       # supplies the pinned differential oracle and its upstream fixtures.
       - name: Checkout language-server submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools
+        run: git submodule update --init --checkout --depth 1 submodules/svelte submodules/language-tools
 
       - uses: ./.github/actions/setup-rust
         with:
@@ -757,6 +757,9 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           node scripts/compat-lsp/pin-official-svelte.mjs
 
+      - name: Install Svelte compiler dependencies
+        run: pnpm --dir submodules/svelte install --frozen-lockfile
+
       # `html_data/web.rs` and `css_data/web.rs` are vendored from
       # `vscode-{html,css}-languageservice` and record a SHA-256 per input file
       # — a RECORD nothing re-read. Their two tests compare the port against a
@@ -777,6 +780,9 @@ jobs:
       - name: Build core wasm
         run: pnpm run build:wasm:core
 
+      - name: Build playground wasm
+        run: pnpm run build:wasm:playground
+
       - name: Finalize @rsvelte/compiler package
         run: pnpm run finalize-pkg
 
@@ -787,6 +793,15 @@ jobs:
       # invoked by any workflow since it was written.
       - name: Run wasm compile-options gate
         run: pnpm run test:wasm-compile
+
+      - name: Run compiler-only wasm gate
+        run: pnpm run test:wasm-compiler-only
+
+      - name: Run packed wasm package gate
+        run: pnpm run test:wasm-package
+
+      - name: Run browser and worker wasm gate
+        run: pnpm run test:wasm-browser
 
       - name: Run @rsvelte/svelte2tsx tests
         run: pnpm --filter @rsvelte/svelte2tsx run test
@@ -888,7 +903,7 @@ jobs:
           submodules: false
 
       - name: Checkout fixture submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools
+        run: git submodule update --init --checkout --depth 1 submodules/svelte submodules/language-tools
 
       - uses: ./.github/actions/setup-rust
 
@@ -978,7 +993,7 @@ jobs:
           # setup state only and the compiler source remains the merge base.
           git fetch --no-tags --depth 1 origin "$BASE_SHA"
           git checkout --detach "$BASE_SHA"
-          git submodule update --init --depth 1 submodules/svelte submodules/language-tools
+          git submodule update --init --checkout --depth 1 submodules/svelte submodules/language-tools
           pnpm install --no-frozen-lockfile
           pnpm run generate-fixtures
           RUST_TEST_THREADS=1 RUST_MIN_STACK=33554432 CARGO_PROFILE_RELEASE_LTO=off \
@@ -1049,7 +1064,7 @@ jobs:
           submodules: false
 
       - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte
+        run: git submodule update --init --checkout --depth 1 submodules/svelte
 
       - uses: ./.github/actions/setup-rust
 
@@ -1077,7 +1092,7 @@ jobs:
 
       # rsvelte_core's build.rs reads the Svelte version string from the submodule.
       - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte
+        run: git submodule update --init --checkout --depth 1 submodules/svelte
 
       - uses: ./.github/actions/setup-rust
         with:
@@ -1222,7 +1237,7 @@ jobs:
       # the one step here that checks out a submodule.
       - name: Checkout svelte submodule (shallow)
         if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
-        run: git submodule update --init --depth 1 submodules/svelte
+        run: git submodule update --init --checkout --depth 1 submodules/svelte
 
       - name: Install Svelte compiler dependencies
         if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
@@ -1301,7 +1316,7 @@ jobs:
           submodules: false
 
       - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte
+        run: git submodule update --init --checkout --depth 1 submodules/svelte
 
       - name: Check vite-plugin-svelte-native VERSION matches submodules/svelte
         run: node scripts/dev/check-vps-version.mjs
@@ -1409,6 +1424,19 @@ jobs:
       - name: Run svelte pin guard tests
         if: ${{ !cancelled() }}
         run: node scripts/ci/test-check-svelte-dependency-pin.mjs
+
+      # Cargo fetches a git dependency's submodules recursively, so one entry
+      # without `update = none` breaks every downstream consumer and nothing in
+      # this repository observes it (#4580). `--checkout` is the other half: it
+      # overrides the strategy, and without it an update checks nothing out and
+      # still exits 0.
+      - name: Check the submodule update strategy
+        if: ${{ !cancelled() }}
+        run: node scripts/ci/check-submodule-update-strategy.mjs
+
+      - name: Run submodule update strategy guard tests
+        if: ${{ !cancelled() }}
+        run: node scripts/ci/test-check-submodule-update-strategy.mjs
 
       # An upstream report that nobody links is a report nobody can tell was
       # ever filed — 0 of 27 recorded a filing and 26 were unindexed (#3680).

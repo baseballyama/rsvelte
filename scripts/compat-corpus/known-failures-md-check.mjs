@@ -186,6 +186,14 @@ const RATCHETS = [
 		key: 'parse-ast-known-failures.json',
 		jsons: ['parse-ast-known-failures.json'],
 	},
+	// Declared per target rather than through the `<target>` placeholder: the
+	// enrolling baseline is 6 on the two client targets and 9 on the two server
+	// ones, and a shared count would have to be wrong for two of the four.
+	...TARGETS.map((t) => ({
+		doc: 'pattern-exact-known-failures.md',
+		key: `pattern-exact-known-failures.${t}.json`,
+		jsons: [`pattern-exact-known-failures.${t}.json`],
+	})),
 	{
 		doc: 'parse-oracle-excluded.md',
 		key: 'parse-oracle-excluded.json',
@@ -215,6 +223,11 @@ const RATCHETS = [
 	{ doc: 'css-prune-known-failures.md', key: 'css-prune-known-failures.json', jsons: ['css-prune-known-failures.json'] },
 	{ doc: 'fmt-known-failures.md', key: 'fmt-known-failures.json', jsons: ['fmt-known-failures.json'] },
 	{ doc: 'fmt-oracle-excluded.md', key: 'fmt-oracle-excluded.json', jsons: ['fmt-oracle-excluded.json'] },
+	{
+		doc: 'fmt-idempotency-known-failures.md',
+		key: 'fmt-idempotency-known-failures.json',
+		jsons: ['fmt-idempotency-known-failures.json'],
+	},
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', jsons: ['lint-known-failures.json'] },
 	...[
 		'lint-adversarial',

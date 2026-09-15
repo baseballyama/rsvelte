@@ -1051,6 +1051,24 @@ macro_rules! ser_comments {
     };
 }
 
+/// Serialize an opaque TypeScript subtree — an annotation, type arguments, type
+/// parameters, a return type — with the comments its nested nodes carry. Those
+/// nodes are `Value`s, so their own serializers never run and `ser_comments!`
+/// cannot reach them; this is the same materialization the opaque TS
+/// declarations already go through. The clone is paid only where the side table
+/// exists, which is the `parse()` path.
+macro_rules! ser_opaque_ts {
+    ($map:ident, $key:expr, $value:expr) => {
+        if crate::ast::arena::try_with_current_serialize_arena(|arena| arena.has_node_comments())
+            .unwrap_or(false)
+        {
+            $map.serialize_entry($key, &opaque_ts_with_comments($value))?;
+        } else {
+            $map.serialize_entry($key, $value)?;
+        }
+    };
+}
+
 /// Clone an opaque TypeScript declaration subtree and materialize comments from
 /// the parse-only arena side table on every nested ESTree node. Unlike ordinary
 /// typed children, these nodes are serialized from `Value`, so their serializers
@@ -1128,7 +1146,7 @@ impl Serialize for JsNode {
                     map.serialize_entry("optional", &true)?;
                 }
                 if let Some(ta) = type_annotation {
-                    map.serialize_entry("typeAnnotation", ta.as_ref())?;
+                    ser_opaque_ts!(map, "typeAnnotation", ta.as_ref());
                 }
                 ser_comments!(map, "Identifier", *start, *end);
                 map.end()
@@ -1271,7 +1289,7 @@ impl Serialize for JsNode {
                 ser_node!(map, "callee", callee);
                 ser_children!(map, "arguments", arguments);
                 if let Some(ta) = type_arguments {
-                    map.serialize_entry("typeArguments", ta.as_ref())?;
+                    ser_opaque_ts!(map, "typeArguments", ta.as_ref());
                 }
                 if type_arguments.is_none() || call_is_optional_chained(callee, *optional) {
                     map.serialize_entry("optional", optional)?;
@@ -1315,7 +1333,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_node!(map, "callee", callee);
                 if let Some(ta) = type_arguments {
-                    map.serialize_entry("typeArguments", ta.as_ref())?;
+                    ser_opaque_ts!(map, "typeArguments", ta.as_ref());
                 }
                 ser_children!(map, "arguments", arguments);
                 ser_comments!(map, "NewExpression", *start, *end);
@@ -1347,17 +1365,17 @@ impl Serialize for JsNode {
                 if let Some(tp) = type_parameters
                     && !type_parameters_after_body
                 {
-                    map.serialize_entry("typeParameters", tp.as_ref())?;
+                    ser_opaque_ts!(map, "typeParameters", tp.as_ref());
                 }
                 ser_children!(map, "params", params);
                 if let Some(rt) = return_type {
-                    map.serialize_entry("returnType", rt.as_ref())?;
+                    ser_opaque_ts!(map, "returnType", rt.as_ref());
                 }
                 ser_opt_node!(map, "body", body);
                 if let Some(tp) = type_parameters
                     && *type_parameters_after_body
                 {
-                    map.serialize_entry("typeParameters", tp.as_ref())?;
+                    ser_opaque_ts!(map, "typeParameters", tp.as_ref());
                 }
                 ser_comments!(map, "FunctionExpression", *start, *end);
                 map.end()
@@ -1401,7 +1419,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 // acorn-typescript writes an arrow's `returnType` ahead of `id`.
                 if let Some(rt) = return_type {
-                    map.serialize_entry("returnType", rt.as_ref())?;
+                    ser_opaque_ts!(map, "returnType", rt.as_ref());
                 }
                 ser_opt_node!(map, "id", id);
                 map.serialize_entry("expression", expression)?;
@@ -1411,7 +1429,7 @@ impl Serialize for JsNode {
                 ser_node!(map, "body", body);
                 // acorn-typescript appends `typeParameters` after `body` for arrows.
                 if let Some(tp) = type_parameters {
-                    map.serialize_entry("typeParameters", tp.as_ref())?;
+                    ser_opaque_ts!(map, "typeParameters", tp.as_ref());
                 }
                 ser_comments!(map, "ArrowFunctionExpression", *start, *end);
                 map.end()
@@ -1719,7 +1737,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_children!(map, "properties", properties);
                 if let Some(ta) = type_annotation {
-                    map.serialize_entry("typeAnnotation", ta.as_ref())?;
+                    ser_opaque_ts!(map, "typeAnnotation", ta.as_ref());
                 }
                 ser_comments!(map, "ObjectPattern", *start, *end);
                 map.end()
@@ -1738,7 +1756,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 map.serialize_entry("elements", elements)?;
                 if let Some(ta) = type_annotation {
-                    map.serialize_entry("typeAnnotation", ta.as_ref())?;
+                    ser_opaque_ts!(map, "typeAnnotation", ta.as_ref());
                 }
                 ser_comments!(map, "ArrayPattern", *start, *end);
                 map.end()
@@ -1774,7 +1792,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_node!(map, "argument", argument);
                 if let Some(ta) = type_annotation {
-                    map.serialize_entry("typeAnnotation", ta.as_ref())?;
+                    ser_opaque_ts!(map, "typeAnnotation", ta.as_ref());
                 }
                 ser_comments!(map, "RestElement", *start, *end);
                 map.end()
@@ -1934,11 +1952,11 @@ impl Serialize for JsNode {
                 map.serialize_entry("generator", generator)?;
                 map.serialize_entry("async", r#async)?;
                 if let Some(tp) = type_parameters {
-                    map.serialize_entry("typeParameters", tp.as_ref())?;
+                    ser_opaque_ts!(map, "typeParameters", tp.as_ref());
                 }
                 ser_children!(map, "params", params);
                 if let Some(rt) = return_type {
-                    map.serialize_entry("returnType", rt.as_ref())?;
+                    ser_opaque_ts!(map, "returnType", rt.as_ref());
                 }
                 if body.is_some() {
                     ser_opt_node!(map, "body", body);
@@ -1967,7 +1985,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_opt_node!(map, "id", id);
                 if let Some(tp) = type_parameters {
-                    map.serialize_entry("typeParameters", tp.as_ref())?;
+                    ser_opaque_ts!(map, "typeParameters", tp.as_ref());
                 }
                 ser_opt_node!(map, "superClass", super_class);
                 if let Some(stp) = super_type_parameters {
@@ -2484,7 +2502,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("kind", kind.as_str())?;
                 ser_node!(map, "key", key);
                 if let Some(tp) = type_parameters {
-                    map.serialize_entry("typeParameters", tp.as_ref())?;
+                    ser_opaque_ts!(map, "typeParameters", tp.as_ref());
                 }
                 ser_node!(map, "value", value);
                 ser_member_modifiers!(map, modifiers);
@@ -2512,7 +2530,7 @@ impl Serialize for JsNode {
                 ser_member_modifiers!(map, modifiers);
                 ser_node!(map, "key", key);
                 if let Some(ta) = type_annotation {
-                    map.serialize_entry("typeAnnotation", ta.as_ref())?;
+                    ser_opaque_ts!(map, "typeAnnotation", ta.as_ref());
                 }
                 ser_opt_node!(map, "value", value);
                 ser_comments!(map, "PropertyDefinition", *start, *end);
@@ -2634,7 +2652,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "expression", expression);
-                map.serialize_entry("typeAnnotation", type_annotation.as_ref())?;
+                ser_opaque_ts!(map, "typeAnnotation", type_annotation.as_ref());
                 ser_comments!(map, "TSAsExpression", *start, *end);
                 map.end()
             }
@@ -2651,7 +2669,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "expression", expression);
-                map.serialize_entry("typeAnnotation", type_annotation.as_ref())?;
+                ser_opaque_ts!(map, "typeAnnotation", type_annotation.as_ref());
                 ser_comments!(map, "TSSatisfiesExpression", *start, *end);
                 map.end()
             }
@@ -2683,7 +2701,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 // svelte/compiler emits `typeAnnotation` before `expression` here.
-                map.serialize_entry("typeAnnotation", type_annotation.as_ref())?;
+                ser_opaque_ts!(map, "typeAnnotation", type_annotation.as_ref());
                 ser_node!(map, "expression", expression);
                 ser_comments!(map, "TSTypeAssertion", *start, *end);
                 map.end()
@@ -2701,7 +2719,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "expression", expression);
-                map.serialize_entry("typeArguments", type_arguments.as_ref())?;
+                ser_opaque_ts!(map, "typeArguments", type_arguments.as_ref());
                 ser_comments!(map, "TSInstantiationExpression", *start, *end);
                 map.end()
             }
@@ -3770,6 +3788,28 @@ impl JsNode {
                 Some(self.get_start_inner())
             }
         }
+    }
+
+    /// The `end` of this node's TS annotation, when it has one. The annotation is
+    /// an opaque `Value`, so the span is read out of it rather than off a field.
+    #[must_use]
+    pub fn type_annotation_end(&self) -> Option<u32> {
+        let annotation = match self {
+            Self::Identifier {
+                type_annotation, ..
+            }
+            | Self::ObjectPattern {
+                type_annotation, ..
+            }
+            | Self::ArrayPattern {
+                type_annotation, ..
+            } => type_annotation.as_deref(),
+            _ => None,
+        }?;
+        annotation
+            .field("end")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|end| u32::try_from(end).ok())
     }
 
     #[must_use]

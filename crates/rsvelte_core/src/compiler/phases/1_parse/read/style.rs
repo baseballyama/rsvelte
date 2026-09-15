@@ -2767,9 +2767,11 @@ impl<'a> SelectorParser<'a> {
             Value::String("PseudoClassSelector".to_string()),
         );
         obj.insert("name".to_string(), Value::String(name));
-        if let Some(args_value) = args {
-            obj.insert("args".to_string(), args_value);
-        }
+        // Upstream's node always carries `args`, `null` when the pseudo-class
+        // takes none (`css.ts`'s `PseudoClassSelector`), so the public AST has
+        // the key either way. Every reader here asks "are there args" with
+        // `is_null`, not with the key's presence.
+        obj.insert("args".to_string(), args.unwrap_or(Value::Null));
         obj.insert("start".to_string(), Value::Number((start as i64).into()));
         obj.insert("end".to_string(), Value::Number((end as i64).into()));
 
@@ -3333,43 +3335,41 @@ impl<'a> SelectorParser<'a> {
                 self.advance();
             }
 
-            // Read value (quoted string or unquoted identifier)
-            let c = self.current_char();
-            if c == '"' || c == '\'' {
-                let quote = c;
-                let val_start = self.index;
-                self.advance(); // consume opening quote
-                while !self.is_eof() {
-                    let ch = self.current_char();
-                    if ch == '\\' {
-                        self.advance();
-                        if !self.is_eof() {
-                            self.advance();
-                        }
-                        continue;
-                    }
-                    if ch == quote {
-                        break;
-                    }
+            // `read_attribute_value` (`1-parse/read/style.js:580`): the quotes
+            // are delimiters, not content, an escape keeps its backslash, and
+            // the result is trimmed on both sides — so `[a="x"]`, `[a='x']` and
+            // `[a= x ]` all carry `x`.
+            let mut read = String::new();
+            let mut escaped = false;
+            let quote = match self.current_char() {
+                c @ ('"' | '\'') => {
                     self.advance();
+                    Some(c)
                 }
-                self.advance(); // consume closing quote
-                // Include quotes in value to preserve original quote style
-                value = Some(self.source[val_start..self.index].to_string());
-            } else {
-                // Unquoted value
-                let val_start = self.index;
-                while !self.is_eof() {
-                    let ch = self.current_char();
-                    if ch == ']' || is_js_whitespace(ch) {
-                        break;
+                _ => None,
+            };
+            while !self.is_eof() {
+                let ch = self.current_char();
+                if escaped {
+                    read.push('\\');
+                    read.push(ch);
+                    escaped = false;
+                } else if ch == '\\' {
+                    escaped = true;
+                } else if match quote {
+                    Some(q) => ch == q,
+                    None => ch == ']' || is_js_whitespace(ch),
+                } {
+                    if quote.is_some() {
+                        self.advance(); // upstream's `parser.eat(quote_mark, true)`
                     }
-                    self.advance();
+                    break;
+                } else {
+                    read.push(ch);
                 }
-                if self.index > val_start {
-                    value = Some(self.source[val_start..self.index].to_string());
-                }
+                self.advance();
             }
+            value = Some(read.trim().to_string());
 
             // Skip whitespace
             while !self.is_eof() && is_js_whitespace(self.current_char()) {

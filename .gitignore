@@ -18,6 +18,8 @@ target
 /pkg
 # Formatter WASM build output (rsvelte_fmt_wasm → browser fmt tool)
 /pkg-fmt
+# Playground WASM build output (compiler, lint and svelte2tsx)
+/pkg-playground
 
 # Language server: vendored lint wasm (built via build:wasm:lint-node) + bundle
 /apps/npm/language-server/vendor
@@ -142,7 +144,10 @@ release-artifacts/
 
 # Corpus-compat pipeline (generated; see scripts/compat-corpus/)
 .corpus-cache/
-compatibility/sources/
+# No trailing slash: `compatibility/sources` arrives as a directory from
+# `collect.mjs`, and the pattern has to cover the name itself too — a stray
+# absolute symlink of that name was committed once because it did not (#4539).
+compatibility/sources
 compatibility/expected/
 compatibility/actual/
 compatibility/expected-s2t/
@@ -169,6 +174,7 @@ compatibility/.oxfmt-ignore-nothing
 # fmt-parity stage (generated; the fmt-known-failures.json ratchet is checked in)
 compatibility/fmt/
 compatibility/fmt-report.json
+compatibility/fmt-idempotency-report.json
 # svelte-check diagnostic-parity gate (generated; check-known-failures.json is tracked)
 scripts/compat-corpus/check-oracle/node_modules/
 scripts/compat-corpus/check-oracle/package-lock.json

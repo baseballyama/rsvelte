@@ -3,7 +3,7 @@
 //!
 //! Usage:
 //!   cargo run -p `rsvelte_devtools` --bin `compile_one` -- <file.svelte> [--server] [--dev]
-//!     [--runes-false | --runes-true] [--experimental-async]
+//!     [--runes-false | --runes-true] [--experimental-async] [--no-sourcemap]
 //!
 //! A path that does not end in `.svelte` is compiled as a `.svelte.js` module.
 
@@ -29,6 +29,7 @@ fn main() {
     let experimental = ExperimentalOptions {
         r#async: args.iter().any(|a| a == "--experimental-async"),
     };
+    let enable_sourcemap = !args.iter().any(|a| a == "--no-sourcemap");
     let generate = if args.iter().any(|a| a == "--server") {
         GenerateMode::Server
     } else {
@@ -71,10 +72,17 @@ fn main() {
             runes,
             filename: Some(path.clone()),
             experimental,
+            enable_sourcemap,
             ..Default::default()
         },
     ) {
-        Ok(result) => print!("{}", result.js.code),
+        Ok(result) => {
+            if args.iter().any(|a| a == "--map") {
+                print!("{}", result.js.map.unwrap_or_default());
+            } else {
+                print!("{}", result.js.code);
+            }
+        }
         Err(err) => {
             eprintln!("{err:?}");
             std::process::exit(2);

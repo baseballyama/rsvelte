@@ -43,7 +43,7 @@ fn fixture_root() -> PathBuf {
     assert!(
         p.is_dir(),
         "no-unused-props fixtures missing at {} — run \
-         `git submodule update --init --depth 1 submodules/eslint-plugin-svelte`",
+         `git submodule update --init --checkout --depth 1 submodules/eslint-plugin-svelte`",
         p.display()
     );
     p

@@ -178,11 +178,11 @@ for (const src of SOURCES) {
 	const dir = path.resolve(ROOT, src.path);
 	if (!fs.existsSync(dir) || fs.readdirSync(dir).length === 0) {
 		if (src.required) {
-			console.error(`[collect] required source ${src.id} missing at ${src.path} (run: git submodule update --init --depth 1 ${src.path})`);
+			console.error(`[collect] required source ${src.id} missing at ${src.path} (run: git submodule update --init --checkout --depth 1 ${src.path})`);
 			process.exit(1);
 		}
 		console.warn(`[collect] source ${src.id} missing at ${src.path} — skipping`);
-		console.warn(`  (run: git submodule update --init --depth 1 ${src.path} to include it)`);
+		console.warn(`  (run: git submodule update --init --checkout --depth 1 ${src.path} to include it)`);
 		continue;
 	}
 	collectRepo(src.id, dir, { markdown: src.markdown ?? false });

@@ -32,7 +32,7 @@ const requiredSubmodules = [
 const missingSubmodule = requiredSubmodules.find((path) => !existsSync(join(root, path)));
 if (missingSubmodule) {
   throw new Error(
-    `${missingSubmodule} is missing; initialize the checkout with git submodule update --init --recursive`,
+    `${missingSubmodule} is missing; initialize the checkout with git submodule update --init --checkout --recursive`,
   );
 }
 if (!existsSync(join(root, "node_modules"))) {

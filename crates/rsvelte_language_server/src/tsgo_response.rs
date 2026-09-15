@@ -10,7 +10,8 @@ use lsp_types::{Position, Range, Uri};
 use serde_json::{Map, Value};
 
 use crate::text::LineIndex;
-use crate::tsgo_overlay::TsgoOverlay;
+use crate::tsgo_inlay_hints::{HintKind, ShadowNodes};
+use crate::tsgo_overlay::{TsgoOverlay, is_in_generated_code};
 use crate::uri::uri_to_path;
 
 /// The Svelte document associated with a request.
@@ -732,6 +733,9 @@ pub fn filter_generated_inlay_hints(
     let Some(hints) = result.as_array_mut() else {
         return;
     };
+    let text = overlay.shadow_text(shadow_path);
+    // Upstream builds one `SourceFile` per request, not one per hint.
+    let nodes = text.and_then(ShadowNodes::parse);
     hints.retain(|hint| {
         // A hint with no readable position is left to the mapper, which
         // already drops what it cannot map: guessing here would delete a hint
@@ -739,7 +743,27 @@ pub fn filter_generated_inlay_hints(
         let Some(position) = hint.get("position").and_then(parse_position) else {
             return true;
         };
-        !overlay.is_render_return_type_position(shadow_path, position)
+        if overlay.is_render_return_type_position(shadow_path, position) {
+            return false;
+        }
+        let (Some(text), Some(offset)) = (text, overlay.shadow_offset(shadow_path, position))
+        else {
+            return true;
+        };
+        if is_in_generated_code(text, offset, offset) {
+            return false;
+        }
+        // The filters below need a tree. oxc rejects what TypeScript's
+        // best-effort `SourceFile` accepts, so a shadow that does not parse
+        // leaves every remaining hint alone rather than guessing.
+        let (Some(nodes), Ok(at)) = (nodes.as_ref(), u32::try_from(offset)) else {
+            return true;
+        };
+        let kind = HintKind::from_lsp(hint.get("kind").and_then(Value::as_i64));
+        !nodes.is_svelte2tsx_function_hints(text, kind, at)
+            && !nodes.is_generated_variable_type_hint(text, kind, at, is_in_generated_code)
+            && !nodes.is_generated_async_function_return_type(kind, at)
+            && !nodes.is_generated_function_return_type(text, kind, at)
     });
 }
 
@@ -1104,7 +1128,7 @@ mod tests {
         let path = workspace.0.join("src/App.svelte");
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(&path, source).unwrap();
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = TsgoOverlay::build_with(&workspace.0, None, None).unwrap();
         (workspace, path, overlay)
     }
 
@@ -1374,8 +1398,8 @@ mod tests {
         let source = "<script>let value = 1;</script>";
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(&path, source).unwrap();
-        let parent_overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
-        let nested_overlay = TsgoOverlay::build(&nested, None).unwrap();
+        let parent_overlay = TsgoOverlay::build_with(&workspace.0, None, None).unwrap();
+        let nested_overlay = TsgoOverlay::build_with(&nested, None, None).unwrap();
         let nested_shadow = nested_overlay.shadow_for_source(&path).unwrap();
         let nested_shadow_uri = nested_shadow.shadow_uri.clone();
         let source_uri = nested_shadow.source_uri.clone();
@@ -1537,7 +1561,7 @@ mod tests {
     fn plain_typescript_values_and_completion_data_are_opaque() {
         let workspace = Workspace::new();
         fs::write(workspace.0.join("empty.txt"), "").unwrap();
-        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let overlay = TsgoOverlay::build_with(&workspace.0, None, None).unwrap();
         let mut value = json!({
             "uri": "file:///plain.ts",
             "range": {

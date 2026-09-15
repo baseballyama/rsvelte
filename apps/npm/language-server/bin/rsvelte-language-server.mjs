@@ -67,6 +67,12 @@ const result = spawnSync(command, args, {
 	env: {
 		...process.env,
 		RSVELTE_PREPROCESS_NODE: process.env.RSVELTE_PREPROCESS_NODE ?? process.execPath,
+		// `__dirname` for the native server: the directory `svelte` is resolved
+		// from when a document's own workspace does not provide one, the way
+		// `getPackageInfo` falls back in svelte-language-server. The binary
+		// itself lives in a sibling platform package, so it cannot find this.
+		RSVELTE_LANGUAGE_SERVER_ROOT:
+			process.env.RSVELTE_LANGUAGE_SERVER_ROOT ?? pkgRoot,
 	},
 });
 

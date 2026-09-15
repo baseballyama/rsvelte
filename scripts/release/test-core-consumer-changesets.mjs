@@ -25,12 +25,22 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const CONFIG = JSON.parse(readFileSync(join(ROOT, '.changeset/config.json'), 'utf8'));
 
 let failures = 0;
+let unmeasured = 0;
+
+// A control whose population is empty on this tree has nothing to say; it is
+// printed as such rather than as a pass or a failure.
+class Unmeasured extends Error {}
 
 function check(name, fn) {
 	try {
 		fn();
 		console.log(`  ok   ${name}`);
 	} catch (err) {
+		if (err instanceof Unmeasured) {
+			unmeasured += 1;
+			console.log(`  skip ${name}\n       ${err.message}`);
+			return;
+		}
 		failures += 1;
 		console.log(`  FAIL ${name}\n       ${err.message}`);
 	}
@@ -164,18 +174,26 @@ check('packagesIn reads the frontmatter only', () => {
 // A live control on the tree: the guard's verdict is computed from these files,
 // so a reader that silently matches none of them would make every requirement
 // look unmet -- or, with the tick logic, every one look borrowed.
+// Right after a Release PR merges the tree carries no pending changeset, so the
+// population is empty and the two fixture controls above are what carry
+// packagesIn; failing here would turn every PR red until the next fix lands.
 check('every pending changeset names at least one @rsvelte package', () => {
 	const dir = join(ROOT, '.changeset');
 	const files = readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md');
-	assert.ok(files.length > 0, 'no pending changesets -- this control cannot fire');
+	if (files.length === 0) {
+		throw new Unmeasured(
+			'0 pending changesets on this tree -- a state of main right after a release, not a verdict on this PR; the fixture controls above carry packagesIn',
+		);
+	}
 	const silent = files.filter((f) => packagesIn(readFileSync(join(dir, f), 'utf8')).size === 0);
 	assert.deepEqual(silent, [], 'these changesets parse to no package');
 });
 
+const tail = unmeasured ? ` (${unmeasured} unmeasured on this tree)` : '';
 console.log(
 	failures === 0
-		? '\ncore-consumer-changesets self-test: all checks passed'
-		: `\ncore-consumer-changesets self-test: ${failures} failure(s)`,
+		? `\ncore-consumer-changesets self-test: all checks passed${tail}`
+		: `\ncore-consumer-changesets self-test: ${failures} failure(s)${tail}`,
 );
 
 process.exit(failures === 0 ? 0 : 1);
