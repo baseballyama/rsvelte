@@ -1,5 +1,38 @@
 # @rsvelte/language-server
 
+## 0.7.9
+
+### Patch Changes
+
+- 34cc0e1: fix(lsp): a `baseUrl`-rooted import keeps its type
+
+  tsgo (TypeScript 7) has removed `baseUrl`; TypeScript 5.x, which `svelte-language-server` runs,
+  still honours it, so every non-relative import a project roots at `baseUrl` lost its type here
+  and kept it there — hover returned `null` and a `2307` appeared where official reported nothing.
+  The overlay now writes tsgo's own prescribed replacement, `"paths": {"*": ["<baseUrl>/*"]}`, plus
+  the shadow-tree twin, unless the project maps `*` itself.
+
+- 7588fdc: Apply `InlayHintProvider`'s generated-code filters to `textDocument/inlayHint`
+
+  `on_inlay_hint` forwarded tsgo's hints with no filter but the render-return-type one, so every
+  hint svelte2tsx's own scaffolding produces reached the editor. This ports the four AST filters
+  (`isSvelte2tsxFunctionHints`, `isGeneratedVariableTypeHint`, `isGeneratedAsyncFunctionReturnType`,
+  `isGeneratedFunctionReturnType`) plus `isInGeneratedCode`, applied in upstream's order and on
+  shadow offsets — the coordinate space upstream filters in, before any mapping.
+
+- dda312f: chore(deps): update oxfmt to 0.67.0 and the pinned oxc crates to 0.149
+
+  The embedded CSS engine no longer pads the comma in a custom property's list value, so
+  `--arr: [1 , 2]` now formats as `--arr: [1, 2]`, matching `oxfmt` itself.
+
+- 59f88fc: fix(lsp): a project with no `node_modules` types against the `svelte` beside the server
+
+  `svelte-language-server` resolves `svelte` with `paths = [the document's workspace, __dirname]`,
+  so it degrades to the copy shipped next to itself. rsvelte only looked in the workspace, so an
+  un-installed project lost every `svelte/*` type — hover returned `null` — and gained a
+  `2307 Cannot find module 'svelte/transition'` official does not report. The overlay now declares
+  the fallback package's ambient modules when, and only when, the workspace cannot resolve one.
+
 ## 0.7.8
 
 ### Patch Changes

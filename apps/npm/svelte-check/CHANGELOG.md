@@ -1,5 +1,48 @@
 # @rsvelte/svelte-check
 
+## 0.5.29
+
+### Patch Changes
+
+- e67ec13: fix(parse): a comment inside a TypeScript annotation reaches the public AST
+
+  An annotation, its type arguments, its type parameters and a return type are serialized from an
+  opaque value, so their nested nodes never consulted the comment side table. `type T = { /** doc */
+b: string }` kept the comment and every other context dropped it — a plain or destructured
+  declarator, `$props()`, a function parameter, an `as` cast and a type argument. The parse-AST
+  parity ratchet falls from 163 to 149 keys.
+
+- a3c84ab: fix(parse): a binding pattern's TS annotation reaches the public AST
+
+  `catch (e: unknown)`, `{#each xs as x: T}` and `{@const x: T = …}` all dropped
+  the annotation: OXC keeps it beside the pattern (`CatchParameter`'s and
+  `VariableDeclarator`'s own `type_annotation`), and the three ports read only the
+  pattern. Upstream attaches it to the pattern node — with acorn's own span and
+  `loc` for a catch parameter or a `{const …}` declaration tag, and with the
+  hand-built node `read_type_annotation` produces (starting at the pattern's end,
+  no `loc`) for everything that goes through `read_pattern`.
+
+  svelte2tsx keeps that annotation too: `{:then value: T}` emitted
+  `const value = $$_value;` where upstream reads
+  `value.typeAnnotation?.end ?? value.end`.
+
+- 40d9084: fix(svelte-check): drop diagnostics from the overlay epilogue instead of pinning them past the end of the file
+
+  A component calling `$props()` with neither destructuring nor an annotation
+  leaves `$$ComponentProps` undeclared in the generated overlay — upstream emits
+  the same thing — so `tsgo` reports `TS2304` on it. Upstream drops that
+  diagnostic; rsvelte's insertion test needed a mapped segment on both sides of
+  the gap and the epilogue has none after it, so the lower-bound lookup attributed
+  it to `<lines + 1>:1` of the author's file.
+
+- 59f88fc: fix(lsp): a project with no `node_modules` types against the `svelte` beside the server
+
+  `svelte-language-server` resolves `svelte` with `paths = [the document's workspace, __dirname]`,
+  so it degrades to the copy shipped next to itself. rsvelte only looked in the workspace, so an
+  un-installed project lost every `svelte/*` type — hover returned `null` — and gained a
+  `2307 Cannot find module 'svelte/transition'` official does not report. The overlay now declares
+  the fallback package's ambient modules when, and only when, the workspace cannot resolve one.
+
 ## 0.5.28
 
 ### Patch Changes

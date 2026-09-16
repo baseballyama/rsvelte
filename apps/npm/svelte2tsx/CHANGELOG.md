@@ -1,5 +1,52 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.27
+
+### Patch Changes
+
+- e67ec13: fix(parse): a comment inside a TypeScript annotation reaches the public AST
+
+  An annotation, its type arguments, its type parameters and a return type are serialized from an
+  opaque value, so their nested nodes never consulted the comment side table. `type T = { /** doc */
+b: string }` kept the comment and every other context dropped it — a plain or destructured
+  declarator, `$props()`, a function parameter, an `as` cast and a type argument. The parse-AST
+  parity ratchet falls from 163 to 149 keys.
+
+- a3c84ab: fix(parse): a binding pattern's TS annotation reaches the public AST
+
+  `catch (e: unknown)`, `{#each xs as x: T}` and `{@const x: T = …}` all dropped
+  the annotation: OXC keeps it beside the pattern (`CatchParameter`'s and
+  `VariableDeclarator`'s own `type_annotation`), and the three ports read only the
+  pattern. Upstream attaches it to the pattern node — with acorn's own span and
+  `loc` for a catch parameter or a `{const …}` declaration tag, and with the
+  hand-built node `read_type_annotation` produces (starting at the pattern's end,
+  no `loc`) for everything that goes through `read_pattern`.
+
+  svelte2tsx keeps that annotation too: `{:then value: T}` emitted
+  `const value = $$_value;` where upstream reads
+  `value.typeAnnotation?.end ?? value.end`.
+
+- Updated dependencies [e67ec13]
+- Updated dependencies [47c5bc5]
+- Updated dependencies [93cb66a]
+- Updated dependencies [a3c84ab]
+- Updated dependencies [e89647b]
+- Updated dependencies [0bc5f54]
+- Updated dependencies [800d0c6]
+- Updated dependencies [19f97ff]
+- Updated dependencies [109cf1c]
+- Updated dependencies [7969c00]
+- Updated dependencies [b758868]
+- Updated dependencies [dda312f]
+- Updated dependencies [8594bc1]
+- Updated dependencies [256591a]
+- Updated dependencies [e14fa58]
+- Updated dependencies [c83c8b8]
+- Updated dependencies [bb60492]
+- Updated dependencies [edb2cc8]
+- Updated dependencies [100ad78]
+  - @rsvelte/compiler@0.12.3
+
 ## 0.2.26
 
 ### Patch Changes
