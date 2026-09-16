@@ -2250,7 +2250,7 @@ fn bigint_key_digits(raw_key: &str) -> Option<String> {
     }
     let alloc = Allocator::default();
     let parsed = Parser::new(&alloc, trimmed, SourceType::mjs()).parse();
-    if parsed.panicked || !parsed.diagnostics.is_empty() {
+    if parsed.fatal_error || !parsed.diagnostics.is_empty() {
         return None;
     }
     let [Statement::ExpressionStatement(stmt)] = parsed.program.body.as_slice() else {
@@ -2276,7 +2276,7 @@ fn numeric_key_value(raw_key: &str) -> Option<f64> {
     }
     let alloc = Allocator::default();
     let parsed = Parser::new(&alloc, trimmed, SourceType::mjs()).parse();
-    if parsed.panicked || !parsed.diagnostics.is_empty() {
+    if parsed.fatal_error || !parsed.diagnostics.is_empty() {
         return None;
     }
     let [Statement::ExpressionStatement(stmt)] = parsed.program.body.as_slice() else {
@@ -2526,7 +2526,7 @@ fn ast_expr_is_simple(value: &str, analysis: &ComponentAnalysis, dev: bool) -> O
         super::super::profile::timer_elapsed(_pt),
         src.len(),
     );
-    if parsed.panicked || !parsed.diagnostics.is_empty() {
+    if parsed.fatal_error || !parsed.diagnostics.is_empty() {
         return None;
     }
     let Some(Statement::ExpressionStatement(stmt)) = parsed.program.body.first() else {
@@ -2568,7 +2568,7 @@ fn ast_should_proxy(value: &str, analysis: Option<&ComponentAnalysis>) -> Option
         super::super::profile::timer_elapsed(_pt),
         src.len(),
     );
-    if parsed.panicked || !parsed.diagnostics.is_empty() {
+    if parsed.fatal_error || !parsed.diagnostics.is_empty() {
         return None;
     }
     let Some(Statement::ExpressionStatement(stmt)) = parsed.program.body.first() else {

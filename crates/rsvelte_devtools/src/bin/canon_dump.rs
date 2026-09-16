@@ -28,7 +28,7 @@ fn main() {
     let allocator = Allocator::new();
     let source_type = SourceType::mjs();
     let parsed = Parser::new(&allocator, &code, source_type).parse();
-    if parsed.panicked {
+    if parsed.fatal_error {
         print!("{code}");
         return;
     }

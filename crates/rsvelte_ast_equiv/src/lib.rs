@@ -203,7 +203,7 @@ pub fn canonicalize_with(code: &str, options: Options) -> Result<Canonical, Pars
         // second half of ignoring parens.
         oxc_ast_visit::VisitMut::visit_program(&mut ClearPife, &mut parsed.program);
     }
-    if parsed.panicked || !parsed.diagnostics.is_empty() {
+    if parsed.fatal_error || !parsed.diagnostics.is_empty() {
         let message = parsed
             .diagnostics
             .first()

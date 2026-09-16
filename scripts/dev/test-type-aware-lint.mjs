@@ -33,7 +33,7 @@ function run(cmd, args, opts = {}) {
 function ensureSubmodule(path, hint) {
 	if (existsSync(join(repoRoot, path, '.git'))) return;
 	console.log(`==> checking out ${path}`);
-	const r = spawnSync('git', ['submodule', 'update', '--init', '--depth', '1', path], {
+	const r = spawnSync('git', ['submodule', 'update', '--init', '--checkout', '--depth', '1', path], {
 		stdio: 'inherit',
 		cwd: repoRoot
 	});

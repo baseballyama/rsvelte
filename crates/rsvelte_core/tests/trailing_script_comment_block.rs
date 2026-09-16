@@ -53,7 +53,7 @@ fn compile_cell(template: &str, generate: GenerateMode, dev: bool) -> String {
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, &output, SourceType::mjs()).parse();
     assert!(
-        !parsed.panicked && parsed.diagnostics.is_empty(),
+        !parsed.fatal_error && parsed.diagnostics.is_empty(),
         "output must parse:\n{output}"
     );
     output

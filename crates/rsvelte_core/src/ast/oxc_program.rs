@@ -97,7 +97,7 @@ impl<'source> RetainedProgram<'source> {
                     program: parsed.program,
                     diagnostics: parsed.diagnostics.into_vec(),
                     irregular_whitespaces: parsed.irregular_whitespaces.into_vec(),
-                    panicked: parsed.panicked,
+                    panicked: parsed.fatal_error,
                 }
             },
         )

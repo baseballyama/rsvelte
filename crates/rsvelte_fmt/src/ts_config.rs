@@ -95,7 +95,7 @@ fn source_type_for(path: &Path) -> SourceType {
 pub fn evaluate(source: &str, path: &Path) -> Result<serde_json::Value, String> {
     let allocator = Allocator::default();
     let ret = OxcParser::new(&allocator, source, source_type_for(path)).parse();
-    if ret.panicked || !ret.diagnostics.is_empty() {
+    if ret.fatal_error || !ret.diagnostics.is_empty() {
         let detail = ret.diagnostics.first().map_or_else(
             || "unknown parse error".to_string(),
             std::string::ToString::to_string,

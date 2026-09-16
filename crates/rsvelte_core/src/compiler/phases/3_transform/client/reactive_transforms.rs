@@ -1063,7 +1063,7 @@ fn extract_catch_param_names(body: &str) -> Vec<String> {
 
     let allocator = oxc_allocator::Allocator::default();
     let parsed = oxc_parser::Parser::new(&allocator, body, oxc_span::SourceType::mjs()).parse();
-    if parsed.panicked {
+    if parsed.fatal_error {
         return Vec::new();
     }
     let mut visitor = CatchParams { names: Vec::new() };

@@ -118,7 +118,7 @@ function haveCorsaBind() {
 function ensureCorsaBind() {
 	if (haveCorsaBind()) return { ok: true };
 	try {
-		execFileSync('git', ['submodule', 'update', '--init', '--depth', '1', 'submodules/corsa-bind'], {
+		execFileSync('git', ['submodule', 'update', '--init', '--checkout', '--depth', '1', 'submodules/corsa-bind'], {
 			cwd: repoRoot,
 			stdio: ['ignore', 'ignore', 'pipe'],
 		});

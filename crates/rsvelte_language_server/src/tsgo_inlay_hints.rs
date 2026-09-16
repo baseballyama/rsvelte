@@ -63,7 +63,7 @@ impl ShadowNodes {
     pub fn parse(text: &str) -> Option<Self> {
         let allocator = Allocator::default();
         let ret = Parser::new(&allocator, text, SourceType::tsx()).parse();
-        if ret.panicked {
+        if ret.fatal_error {
             return None;
         }
         let mut nodes = Self::default();

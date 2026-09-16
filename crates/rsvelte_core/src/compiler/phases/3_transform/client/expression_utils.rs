@@ -3016,7 +3016,7 @@ fn direct_await_from_ast(expr: &str) -> Option<bool> {
     let wrapped = format!("({expr});");
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, &wrapped, SourceType::mjs()).parse();
-    if parsed.panicked || !parsed.diagnostics.is_empty() {
+    if parsed.fatal_error || !parsed.diagnostics.is_empty() {
         return None;
     }
     let Statement::ExpressionStatement(statement) = parsed.program.body.first()? else {
