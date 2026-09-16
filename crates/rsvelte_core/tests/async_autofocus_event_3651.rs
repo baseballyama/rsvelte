@@ -35,7 +35,7 @@ fn awaited_autofocus_and_event_values_emit_parseable_javascript() {
         let parsed = Parser::new(&allocator, &output, SourceType::mjs()).parse();
 
         assert!(
-            !parsed.panicked && parsed.diagnostics.is_empty(),
+            !parsed.fatal_error && parsed.diagnostics.is_empty(),
             "client dev={dev} output must parse:\n{output}\ndiagnostics: {:?}",
             parsed.diagnostics
         );

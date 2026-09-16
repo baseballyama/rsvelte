@@ -30,7 +30,7 @@ fn parses(code: &str) -> bool {
     let allocator = oxc_allocator::Allocator::default();
     let source_type = oxc_span::SourceType::mjs();
     let parsed = oxc_parser::Parser::new(&allocator, code, source_type).parse();
-    !parsed.panicked && parsed.diagnostics.is_empty()
+    !parsed.fatal_error && parsed.diagnostics.is_empty()
 }
 
 const SAME_LINE_FORMS: &[(&str, &str)] = &[

@@ -194,7 +194,7 @@ fn parse<'a>(allocator: &'a Allocator, source: &'a str) -> oxc_ast::ast::Program
             ..ParseOptions::default()
         })
         .parse();
-    assert!(!parsed.panicked && parsed.diagnostics.is_empty());
+    assert!(!parsed.fatal_error && parsed.diagnostics.is_empty());
     parsed.program
 }
 

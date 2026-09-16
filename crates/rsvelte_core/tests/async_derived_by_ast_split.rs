@@ -21,7 +21,7 @@ fn assert_parses(code: &str) {
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, code, SourceType::mjs()).parse();
     assert!(
-        !parsed.panicked && parsed.diagnostics.is_empty(),
+        !parsed.fatal_error && parsed.diagnostics.is_empty(),
         "generated JavaScript must parse:\n{code}"
     );
 }

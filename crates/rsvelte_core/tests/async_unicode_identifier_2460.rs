@@ -40,7 +40,7 @@ fn unicode_arrow_parameter_does_not_split_a_text_scan_at_a_utf8_byte() {
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, &output, SourceType::mjs()).parse();
     assert!(
-        !parsed.panicked && parsed.diagnostics.is_empty(),
+        !parsed.fatal_error && parsed.diagnostics.is_empty(),
         "client output must parse:\n{output}"
     );
 }
