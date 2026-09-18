@@ -14,7 +14,8 @@ use std::str::FromStr;
 
 use lsp_types::{Position, Range, Uri};
 use rsvelte_check::overlay::{
-    FallbackSvelteTypes, SHIM_FILES, SHIM_JSX_V4_NAME, fallback_svelte_types, global_type_files,
+    CACHE_GITIGNORE, FallbackSvelteTypes, SHIM_FILES, SHIM_JSX_V4_NAME, fallback_svelte_types,
+    global_type_files,
 };
 use rsvelte_projection::{
     ProjectionEngine, ProjectionMap, RewriteExternalImportsOptions, Svelte2TsxMode,
@@ -248,11 +249,13 @@ impl TsgoOverlay {
             });
         }
 
-        let cache_dir = workspace.join(CACHE_DIRECTORY).join(TSGO_DIRECTORY);
+        let cache_root = workspace.join(CACHE_DIRECTORY);
+        let cache_dir = cache_root.join(TSGO_DIRECTORY);
         let shadow_dir = cache_dir.join(SHADOW_DIRECTORY);
         reject_symlink_components(&cache_dir, &workspace)?;
         fs::create_dir_all(&shadow_dir)?;
         reject_symlink_components(&shadow_dir, &cache_dir)?;
+        write_cache_gitignore(&cache_root);
 
         let source_tsconfig = resolve_tsconfig(&workspace, tsconfig);
         let tsconfig_path = cache_dir.join(OVERLAY_TSCONFIG);
@@ -2072,6 +2075,24 @@ fn floor_char_boundary(text: &str, mut offset: usize) -> usize {
     offset
 }
 
+/// Marks the cache root as ignored by git. The cache is created inside every
+/// workspace folder the server is opened against, so without this the user gets
+/// an untracked directory in `git status` from nothing but opening an editor —
+/// and unlike `rsvelte-check`, there is no command they ran that could have
+/// added the ignore entry for them.
+///
+/// Best-effort: a cache root we cannot write into still yields a working
+/// overlay, so a failure here must not fail the build. A symlinked
+/// `.gitignore` is left alone rather than written through, for the same reason
+/// `reject_symlink_components` exists.
+fn write_cache_gitignore(cache_root: &Path) {
+    let path = cache_root.join(".gitignore");
+    if reject_symlink_components(&path, cache_root).is_err() {
+        return;
+    }
+    let _ = write_if_changed(&path, CACHE_GITIGNORE);
+}
+
 fn write_if_changed(path: &Path, contents: &str) -> Result<(), TsgoOverlayError> {
     if fs::read_to_string(path).is_ok_and(|existing| existing == contents) {
         return Ok(());
@@ -3160,6 +3181,31 @@ mod tests {
         let position = utf8_position(&shadow.text, ignored);
         assert!(overlay.is_generated_position(&shadow_path, position));
         assert_eq!(overlay.map_generated_position(&shadow_path, position), None);
+    }
+
+    #[test]
+    fn the_cache_root_ignores_itself_so_opening_an_editor_leaves_git_status_clean() {
+        let workspace = TestWorkspace::new("gitignore");
+        write(
+            &workspace.0.join("App.svelte"),
+            "<script>export let value;</script><p>{value}</p>",
+        );
+        build_overlay(&workspace.0).unwrap();
+        let ignore = workspace.0.join(CACHE_DIRECTORY).join(".gitignore");
+        assert_eq!(fs::read_to_string(&ignore).unwrap(), "*\n");
+    }
+
+    #[test]
+    fn rebuilding_over_an_existing_cache_keeps_the_ignore_file() {
+        // The overlay is rebuilt on config changes and on every server start,
+        // and `git clean` / a manual delete can take the marker with it.
+        let workspace = TestWorkspace::new("gitignore-rebuild");
+        write(&workspace.0.join("App.svelte"), "<p>hi</p>");
+        build_overlay(&workspace.0).unwrap();
+        let ignore = workspace.0.join(CACHE_DIRECTORY).join(".gitignore");
+        fs::remove_file(&ignore).unwrap();
+        build_overlay(&workspace.0).unwrap();
+        assert_eq!(fs::read_to_string(&ignore).unwrap(), "*\n");
     }
 
     #[cfg(unix)]
