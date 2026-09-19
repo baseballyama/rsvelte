@@ -1,5 +1,9 @@
 # @rsvelte/svelte-check-darwin-arm64
 
+## 0.5.30
+
+No changes in this release.
+
 ## 0.5.29
 
 No changes in this release.
