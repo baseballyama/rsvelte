@@ -46,6 +46,11 @@ impl EmbeddedRegions {
     }
 
     #[must_use]
+    pub fn scripts(&self) -> &[Range<usize>] {
+        &self.scripts
+    }
+
+    #[must_use]
     pub fn in_style(&self, offset: usize) -> bool {
         self.style_at(offset).is_some()
     }
@@ -482,6 +487,22 @@ const fn is_attribute_name_byte(byte: u8) -> bool {
 /// (`lib/documents/utils.ts:156-160`).
 #[must_use]
 pub fn fallback_script_body(text: &str) -> Option<Range<usize>> {
+    let (instance, module) = scanned_script_bodies(text);
+    instance.or(module)
+}
+
+/// `Document.scriptInfo` on its own — the `<script>` that declares neither
+/// `context="module"` nor a bare `module` — for the callers whose upstream
+/// counterpart reads that field and not `moduleScriptInfo`.
+#[must_use]
+pub fn instance_script_body(text: &str) -> Option<Range<usize>> {
+    scanned_script_bodies(text).0
+}
+
+/// `extractScriptTags`' two `find`s: the first non-module `<script>` body and
+/// the first module one.
+fn scanned_script_bodies(text: &str) -> (Option<Range<usize>>, Option<Range<usize>>) {
+    let mut instance = None;
     let mut module = None;
     let mut offset = 0;
     while offset < text.len() {
@@ -501,11 +522,11 @@ pub fn fallback_script_body(text: &str) -> Option<Range<usize>> {
         if is_module {
             module.get_or_insert(open..close);
         } else {
-            return Some(open..close);
+            instance.get_or_insert(open..close);
         }
         offset = close.max(open);
     }
-    module
+    (instance, module)
 }
 
 /// Whether an open tag carries `name` at all, valued or bare — `'module' in
