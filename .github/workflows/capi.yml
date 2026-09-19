@@ -236,12 +236,12 @@ jobs:
         run: php -d ffi.enable=true crates/rsvelte_capi/examples/php/smoke.php
 
       # ---------------- Java FFM (JDK 22+) ----------------
-      - name: Set up JDK 22
+      - name: Set up JDK 25
         if: github.event_name != 'pull_request'
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
-          java-version: '22'
+          java-version: '25'
 
       - name: Java FFM smoke
         if: github.event_name != 'pull_request'
