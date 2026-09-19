@@ -185,6 +185,12 @@ struct ShadowState {
     source_map: Option<String>,
     tokens: Vec<MappingToken>,
     generated_ranges: Vec<std::ops::Range<usize>>,
+    /// The `.tsx` this overlay appends to every `.svelte` module specifier so
+    /// tsgo resolves the shadow. Unlike an `Ωignore` region it sits *inside* a
+    /// source-backed token, so a range that merely spans it — `'./X.svelte.tsx'`,
+    /// which is what tsgo hands back for a module hover — still has a source
+    /// range on both sides (#4097).
+    import_suffix_ranges: Vec<std::ops::Range<usize>>,
     identity: bool,
     plain_insertions: Vec<(usize, std::ops::Range<usize>)>,
     /// Byte offset in `source_text` that generated offset 0 corresponds to,
@@ -411,12 +417,11 @@ impl TsgoOverlay {
             text: generated_text,
             version,
         };
-        let mut generated_ranges = ignored_ranges(&document.text);
-        generated_ranges.extend(
-            import_insertions
-                .iter()
-                .map(|(_, generated)| generated.clone()),
-        );
+        let generated_ranges = ignored_ranges(&document.text);
+        let import_suffix_ranges = import_insertions
+            .iter()
+            .map(|(_, generated)| generated.clone())
+            .collect::<Vec<_>>();
         let state = ShadowState {
             source_path: source_path.clone(),
             shadow_path: shadow_path.clone(),
@@ -434,6 +439,7 @@ impl TsgoOverlay {
             source_map,
             tokens,
             generated_ranges,
+            import_suffix_ranges,
             render_return_type: render_return_type_offset(&document.text),
             identity: false,
             plain_insertions: Vec::new(),
@@ -488,6 +494,7 @@ impl TsgoOverlay {
             tokens: Vec::new(),
             source_map: None,
             generated_ranges: Vec::new(),
+            import_suffix_ranges: Vec::new(),
             render_return_type: None,
             identity: true,
             plain_insertions: Vec::new(),
@@ -551,6 +558,7 @@ impl TsgoOverlay {
             tokens: Vec::new(),
             source_map: None,
             generated_ranges: Vec::new(),
+            import_suffix_ranges: Vec::new(),
             render_return_type: None,
             identity: true,
             plain_insertions,
@@ -836,6 +844,7 @@ impl TsgoOverlay {
         if entry
             .generated_ranges
             .iter()
+            .chain(&entry.import_suffix_ranges)
             .any(|range| range.contains(&generated_offset))
         {
             return None;
@@ -892,6 +901,7 @@ impl TsgoOverlay {
         entry
             .generated_ranges
             .iter()
+            .chain(&entry.import_suffix_ranges)
             .any(|range| range.contains(&offset))
     }
 
@@ -938,10 +948,19 @@ impl TsgoOverlay {
         };
         let start = utf8_offset(&entry.document.text, range.start);
         let end = utf8_offset(&entry.document.text, range.end).max(start);
-        entry
+        if entry
             .generated_ranges
             .iter()
             .any(|generated| generated.start < end && start < generated.end)
+        {
+            return true;
+        }
+        // Only a range with no source text of its own is generated: spanning the
+        // appended `.tsx` does not make `'./X.svelte.tsx'` generated.
+        entry
+            .import_suffix_ranges
+            .iter()
+            .any(|suffix| suffix.start <= start && end <= suffix.end)
     }
 
     /// Resolution integrity for every eager shadow.
@@ -3448,5 +3467,52 @@ mod tests {
 
         let config = overlay_config(&build_overlay(&workspace.0).unwrap());
         assert!(config["compilerOptions"]["paths"].is_null());
+    }
+
+    #[test]
+    fn a_svelte_module_specifier_maps_back_without_the_appended_tsx() {
+        let workspace = TestWorkspace::new("svelte-specifier-hover");
+        let app = workspace.0.join("src/App.svelte");
+        let source =
+            "<script lang=\"ts\">\n\timport Other from './Other.svelte';\n</script>\n\n<Other />\n";
+        write(&app, source);
+        write(&workspace.0.join("src/Other.svelte"), "<p>other</p>\n");
+        let overlay = build_overlay(&workspace.0).unwrap();
+        let shadow = overlay.shadow_for_source(&app).unwrap();
+        let shadow_path = crate::uri::uri_to_path(shadow.shadow_uri.as_str());
+        let index = LineIndex::new(&shadow.text);
+        let literal = "'./Other.svelte.tsx'";
+        let at = shadow.text.find(literal).expect("rewritten specifier");
+        let range = Range::new(
+            index.position(&shadow.text, at),
+            index.position(&shadow.text, at + literal.len()),
+        );
+        assert!(!overlay.is_generated_range(&shadow_path, range));
+
+        let source_index = LineIndex::new(source);
+        let source_literal = "'./Other.svelte'";
+        let source_at = source.find(source_literal).unwrap();
+        assert_eq!(
+            overlay.map_generated_range(&shadow_path, range),
+            Some(Range::new(
+                source_index.position(source, source_at),
+                source_index.position(source, source_at + source_literal.len()),
+            ))
+        );
+
+        // The four bytes themselves stay generated: they have no source at all.
+        let suffix = at + "'./Other.svelte".len();
+        let suffix_range = Range::new(
+            index.position(&shadow.text, suffix),
+            index.position(&shadow.text, suffix + ".tsx".len()),
+        );
+        assert!(overlay.is_generated_range(&shadow_path, suffix_range));
+        assert_eq!(
+            overlay.map_generated_range(&shadow_path, suffix_range),
+            None
+        );
+        assert!(
+            overlay.is_generated_position(&shadow_path, index.position(&shadow.text, suffix + 1))
+        );
     }
 }
