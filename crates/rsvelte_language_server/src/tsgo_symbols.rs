@@ -71,8 +71,8 @@ struct SymbolDocument<'a> {
     text: &'a str,
     index: LineIndex,
     scripts: Vec<Range<usize>>,
-    /// `document.scriptInfo.end`. `None` when the document does not parse and
-    /// the instance script cannot be told from the module script.
+    /// `document.scriptInfo?.end`: the instance script alone, so a component
+    /// that only has `<script module>` compares against `undefined`.
     instance_end: Option<usize>,
     /// svelte2tsx's `htmlxAst`: the legacy template AST, UTF-16 offsets.
     template: Option<Value>,
@@ -81,22 +81,30 @@ struct SymbolDocument<'a> {
 impl<'a> SymbolDocument<'a> {
     fn new(text: &'a str) -> Self {
         let allocator = Allocator::default();
-        let (scripts, instance_end, template) =
-            match parse_root(text, &allocator) {
-                Some(root) => {
-                    let instance = root.instance.as_deref().and_then(|script| {
-                        body_of(text, script.start as usize, script.end as usize)
-                    });
-                    let module = root.module.as_deref().and_then(|script| {
-                        body_of(text, script.start as usize, script.end as usize)
-                    });
-                    let instance_end = instance.as_ref().map(|body| body.end);
-                    let scripts = instance.into_iter().chain(module).collect();
-                    let legacy = rsvelte_core::convert_to_legacy(text, root);
-                    (scripts, instance_end, legacy.get("html").cloned())
-                }
-                None => (EmbeddedRegions::new(text).scripts().to_vec(), None, None),
-            };
+        let (scripts, instance_end, template) = match parse_root(text, &allocator) {
+            Some(root) => {
+                let instance = root
+                    .instance
+                    .as_deref()
+                    .and_then(|script| body_of(text, script.start as usize, script.end as usize));
+                let module = root
+                    .module
+                    .as_deref()
+                    .and_then(|script| body_of(text, script.start as usize, script.end as usize));
+                let instance_end = instance.as_ref().map(|body| body.end);
+                let scripts = instance.into_iter().chain(module).collect();
+                let legacy = rsvelte_core::convert_to_legacy(text, root);
+                (scripts, instance_end, legacy.get("html").cloned())
+            }
+            None => {
+                let instance_end = crate::context::instance_script_body(text).map(|body| body.end);
+                (
+                    EmbeddedRegions::new(text).scripts().to_vec(),
+                    instance_end,
+                    None,
+                )
+            }
+        };
         Self {
             text,
             index: LineIndex::new(text),
@@ -117,10 +125,7 @@ impl<'a> SymbolDocument<'a> {
         // svelte2tsx replaces the instance script's end tag with the generated
         // template callback, so its start maps to `scriptInfo.end`, which
         // `isInScript` also counts as inside the script.
-        let starts_at_script_end = match self.instance_end {
-            Some(end) => start == end,
-            None => self.scripts.iter().any(|body| body.end == start),
-        };
+        let starts_at_script_end = self.instance_end == Some(start);
         if starts_at_script_end
             || (!self.is_in_script(range.start)
                 && !self.is_in_user_written_template_function(start))
@@ -302,6 +307,25 @@ mod tests {
         ]);
         rewrite_anonymous_function_symbols(&mut result, text);
         assert_eq!(names(&result), ["() => item", "function () { value; }"]);
+    }
+
+    /// `document.scriptInfo?.end` is `undefined` without an instance script, so
+    /// the module script's own end is not the generated callback's boundary.
+    #[test]
+    fn a_module_script_end_is_not_the_instance_script_end() {
+        let text = "<script module>\n  export const a = 1;\n</script>\n\n<p>{a}</p>\n";
+        let script_end = text.find("</script>").expect("needle");
+        let index = LineIndex::new(text);
+        let mut result = json!([{
+            "name": "<function>",
+            "kind": 12,
+            "location": { "uri": "file:///App.svelte", "range": {
+                "start": index.position(text, script_end),
+                "end": index.position(text, script_end + "</script>".len()),
+            } },
+        }]);
+        rewrite_anonymous_function_symbols(&mut result, text);
+        assert_eq!(names(&result), ["</script>"]);
     }
 
     #[test]
