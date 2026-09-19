@@ -302,6 +302,13 @@ impl TsgoOverlay {
         &self.tsconfig_path
     }
 
+    /// The project config this overlay was built from, when the workspace has
+    /// one. `None` is upstream's configless fallback project.
+    #[must_use]
+    pub fn source_tsconfig(&self) -> Option<&Path> {
+        self.source_tsconfig.as_deref()
+    }
+
     /// Generate or replace one virtual shadow buffer.
     pub fn open_or_update(
         &mut self,
@@ -1309,6 +1316,35 @@ fn server_svelte_root() -> Option<PathBuf> {
     }
     let exe = std::env::current_exe().ok()?;
     Some(exe.parent()?.to_path_buf())
+}
+
+/// The project config that owns `source`: the nearest `tsconfig.json` — then
+/// `jsconfig.json` — at or above its directory, without leaving `boundary` and
+/// without crossing a `node_modules`. This is `findTsConfigPath`
+/// (`plugins/typescript/utils.ts:146-167`), which resolves a project **per
+/// document** rather than once per workspace root.
+#[must_use]
+pub fn nearest_tsconfig(source: &Path, boundary: &Path) -> Option<PathBuf> {
+    let mut cursor = source.parent();
+    while let Some(dir) = cursor {
+        if !dir.starts_with(boundary) {
+            return None;
+        }
+        if dir.file_name().is_some_and(|name| name == "node_modules") {
+            return None;
+        }
+        for name in ["tsconfig.json", "jsconfig.json"] {
+            let candidate = dir.join(name);
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+        if dir == boundary {
+            return None;
+        }
+        cursor = dir.parent();
+    }
+    None
 }
 
 fn resolve_tsconfig(workspace: &Path, explicit: Option<&Path>) -> Option<PathBuf> {
@@ -3448,5 +3484,100 @@ mod tests {
 
         let config = overlay_config(&build_overlay(&workspace.0).unwrap());
         assert!(config["compilerOptions"]["paths"].is_null());
+    }
+
+    #[test]
+    fn a_nested_config_owns_the_documents_beneath_it() {
+        // `findTsConfigPath` searches from the DOCUMENT's directory upward, so a
+        // subdirectory carrying its own config is its own project (#4391).
+        let workspace = TestWorkspace::new("nearest-tsconfig");
+        let root = fs::canonicalize(&workspace.0).unwrap();
+        write(&root.join("tsconfig.json"), "{}");
+        write(&root.join("docs/tsconfig.json"), "{}");
+        write(&root.join("docs/src/App.svelte"), "<p />");
+        write(&root.join("src/App.svelte"), "<p />");
+
+        assert_eq!(
+            nearest_tsconfig(&root.join("docs/src/App.svelte"), &root),
+            Some(root.join("docs/tsconfig.json"))
+        );
+        assert_eq!(
+            nearest_tsconfig(&root.join("src/App.svelte"), &root),
+            Some(root.join("tsconfig.json"))
+        );
+    }
+
+    #[test]
+    fn a_jsconfig_answers_only_where_no_tsconfig_does() {
+        let workspace = TestWorkspace::new("nearest-jsconfig");
+        let root = fs::canonicalize(&workspace.0).unwrap();
+        write(&root.join("docs/jsconfig.json"), "{}");
+        write(&root.join("docs/src/App.svelte"), "<p />");
+        assert_eq!(
+            nearest_tsconfig(&root.join("docs/src/App.svelte"), &root),
+            Some(root.join("docs/jsconfig.json"))
+        );
+
+        // Upstream prefers the closest, and at one directory that is tsconfig.
+        write(&root.join("docs/tsconfig.json"), "{}");
+        assert_eq!(
+            nearest_tsconfig(&root.join("docs/src/App.svelte"), &root),
+            Some(root.join("docs/tsconfig.json"))
+        );
+    }
+
+    #[test]
+    fn the_search_stops_at_the_boundary_and_at_node_modules() {
+        let workspace = TestWorkspace::new("nearest-boundary");
+        let root = fs::canonicalize(&workspace.0).unwrap();
+        write(&root.join("tsconfig.json"), "{}");
+        write(&root.join("node_modules/dep/src/App.svelte"), "<p />");
+        write(&root.join("plain/App.svelte"), "<p />");
+
+        // A dependency's document does not join the workspace project.
+        assert_eq!(
+            nearest_tsconfig(&root.join("node_modules/dep/src/App.svelte"), &root),
+            None
+        );
+        // Nothing above the boundary is reachable either, even though this
+        // workspace's own config would otherwise answer.
+        assert_eq!(
+            nearest_tsconfig(&root.join("plain/App.svelte"), &root.join("plain")),
+            None
+        );
+        assert_eq!(
+            nearest_tsconfig(&root.join("plain/App.svelte"), &root),
+            Some(root.join("tsconfig.json"))
+        );
+    }
+
+    #[test]
+    fn a_nested_overlay_resolves_the_nested_configs_own_paths() {
+        // The reason the split matters: `paths` declared one level down are
+        // invisible to a single workspace-root project.
+        let workspace = TestWorkspace::new("nested-paths");
+        let root = fs::canonicalize(&workspace.0).unwrap();
+        write(&root.join("tsconfig.json"), "{}");
+        write(
+            &root.join("docs/tsconfig.json"),
+            r#"{ "compilerOptions": { "paths": { "@/*": ["./src/*"] } } }"#,
+        );
+        write(&root.join("docs/src/App.svelte"), "<p />");
+
+        let owner = nearest_tsconfig(&root.join("docs/src/App.svelte"), &root).unwrap();
+        let nested = TsgoOverlay::build_with(owner.parent().unwrap(), Some(&owner), None).unwrap();
+        let config = overlay_config(&nested);
+        assert_eq!(
+            config["compilerOptions"]["paths"]["@/*"],
+            json!([
+                path_for_tsconfig(&root.join("docs/src/*")),
+                path_for_tsconfig(&nested.shadow_dir.join("src/*"))
+            ])
+        );
+
+        // Live control: the root project, which is what the server used to hand
+        // every document, has no such mapping.
+        let rooted = build_overlay(&root).unwrap();
+        assert!(overlay_config(&rooted)["compilerOptions"]["paths"].is_null());
     }
 }

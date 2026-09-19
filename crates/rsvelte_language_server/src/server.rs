@@ -65,7 +65,7 @@ use crate::tsgo_custom::{
     component_probe_position, component_reference_code_lens, filter_component_references,
     prepare_code_lenses, resolve_code_lens, rewrite_will_rename_params, rewrite_will_rename_result,
 };
-use crate::tsgo_overlay::TsgoOverlay;
+use crate::tsgo_overlay::{self, TsgoOverlay};
 use crate::tsgo_rename::{
     PrepareRenamePlan, RenameDocument, merge_workspace_edits, prepare_rename_plan,
     rewrite_prepare_response, rewrite_workspace_edit,
@@ -386,6 +386,9 @@ struct TsgoRuntime {
     client: TsgoClient,
     overlays: Vec<TsgoOverlay>,
     generation: Option<u64>,
+    /// Directories whose owning project has already been resolved. The walk is
+    /// a handful of `stat`s and `sync_tsgo_document` runs on every keystroke.
+    resolved_dirs: HashSet<PathBuf>,
 }
 
 struct PreprocessRuntime {
@@ -474,7 +477,72 @@ impl TsgoRuntime {
             client,
             overlays,
             generation: None,
+            resolved_dirs: HashSet::new(),
         })
+    }
+
+    /// Make sure the project that owns `source` exists before one is picked for
+    /// it. `svelte-language-server` keys a service by tsconfig path and resolves
+    /// one **per document** (`plugins/typescript/service.ts:172-201`), so a
+    /// subdirectory carrying its own config — `paths`, `types`, `strict` — is a
+    /// project of its own; a single workspace-root project makes every option
+    /// those configs declare invisible. Built on demand, as upstream does, so a
+    /// repository with hundreds of configs only pays for the ones it opens.
+    fn ensure_overlay_for(&mut self, source: &Path) -> bool {
+        let Some(dir) = source.parent() else {
+            return false;
+        };
+        if self.resolved_dirs.contains(dir) {
+            return false;
+        }
+        // Only cache once a workspace answers: before `initialize` has built
+        // one, "no project" is a state, not the answer for this directory.
+        let Some((boundary, serving_config)) = self.overlay_for_source(source).map(|serving| {
+            (
+                serving.workspace().to_path_buf(),
+                serving.source_tsconfig().map(Path::to_path_buf),
+            )
+        }) else {
+            return false;
+        };
+        self.resolved_dirs.insert(dir.to_path_buf());
+        let Some(owner) = tsgo_overlay::nearest_tsconfig(source, &boundary) else {
+            return false;
+        };
+        if serving_config.as_deref() == Some(owner.as_path()) {
+            return false;
+        }
+        let Some(root) = owner.parent().map(Path::to_path_buf) else {
+            return false;
+        };
+        if self
+            .overlays
+            .iter()
+            .any(|overlay| overlay.workspace() == root)
+        {
+            return false;
+        }
+        match TsgoOverlay::build(&root, Some(&owner)) {
+            Ok(overlay) => {
+                for shadow in overlay.eager_shadows() {
+                    let _ = self.client.open_buffer(OpenBuffer::new(
+                        shadow.shadow_uri.clone(),
+                        shadow.language_id.clone(),
+                        shadow.version,
+                        shadow.text.clone(),
+                    ));
+                }
+                self.overlays.push(overlay);
+                true
+            }
+            Err(error) => {
+                log::warn(format_args!(
+                    "could not prepare tsgo overlay for {}: {error}",
+                    root.display()
+                ));
+                false
+            }
+        }
     }
 
     fn overlay_for_source_mut(&mut self, source: &Path) -> Option<&mut TsgoOverlay> {
@@ -2272,6 +2340,7 @@ impl Server {
         let Some(runtime) = &mut self.tsgo else {
             return;
         };
+        runtime.ensure_overlay_for(&path);
         if is_svelte_document(&language_id, &path) {
             let Some(overlay) = runtime.overlay_for_source_mut(&path) else {
                 return;
@@ -2426,6 +2495,7 @@ impl Server {
         if rebuilt.is_empty() {
             return;
         }
+        runtime.resolved_dirs.clear();
         for shadow in runtime.overlays.iter().flat_map(TsgoOverlay::open_shadows) {
             let _ = runtime.client.close_buffer(shadow.shadow_uri.clone());
         }
@@ -2470,6 +2540,7 @@ impl Server {
                 .position(|overlay| overlay.workspace() == path)
             {
                 let overlay = runtime.overlays.remove(index);
+                runtime.resolved_dirs.clear();
                 for shadow in overlay.open_shadows() {
                     let _ = runtime.client.close_buffer(shadow.shadow_uri.clone());
                 }
