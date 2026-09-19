@@ -104,7 +104,7 @@ version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40c48f72fd53cd289104fc64099abca73db4166ad86ea0b4341abe65af83dadc"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -115,7 +115,7 @@ checksum = "291e6a250ff86cd4a820112fb8898808a366d8f9f58ce16d1f538353ad55747d"
 dependencies = [
  "anstyle",
  "once_cell_polyfill",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -396,9 +396,9 @@ checksum = "b9e769b5c8c8283982a987c6e948e540254f1058d5a74b8794914d4ef5fc2a24"
 
 [[package]]
 name = "codspeed"
-version = "5.0.1"
+version = "5.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7083f253260bcb4aaa3b4aa4c52973703dabc1a85c2f193997e2689aafa8a919"
+checksum = "c0379da47d0de730b2f7900e3f2d9c3b5efc21b46875282305300b4851f03e70"
 dependencies = [
  "anyhow",
  "cc",
@@ -414,9 +414,9 @@ dependencies = [
 
 [[package]]
 name = "codspeed-criterion-compat"
-version = "5.0.1"
+version = "5.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9f24251445188c69d50f10179d795424bd71b533b7e3f84fc03f26893b01af0"
+checksum = "65f64942456bd4514b06ba4c72623bf197931d05d3d1db61b8a0c6289b30b2c7"
 dependencies = [
  "clap",
  "codspeed",
@@ -427,9 +427,9 @@ dependencies = [
 
 [[package]]
 name = "codspeed-criterion-compat-walltime"
-version = "5.0.1"
+version = "5.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c38205d56e2cb4fe04b708de7f9653a3f1b89edbe3a20b28f21e9e525e9e061"
+checksum = "e86691354129085562c025293f9e8b35bf9054813bb9981be3a96aa8490c07d1"
 dependencies = [
  "anes",
  "cast",
@@ -464,7 +464,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -700,14 +700,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
 name = "fancy-regex"
-version = "0.19.1"
+version = "0.19.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52e0387578e845beb7a1acff126228499f26cb18edf12919cc513bb863266464"
+checksum = "d301f5bf187b3c295fce6468d3875037a0bccc5f6b151c63cac2f85babf21912"
 dependencies = [
  "bit-set",
  "regex-automata",
@@ -1236,7 +1236,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2463,7 +2463,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rsvelte"
-version = "0.12.2"
+version = "0.12.3"
 dependencies = [
  "rsvelte_core",
  "rsvelte_projection",
@@ -2521,7 +2521,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_check"
-version = "0.5.28"
+version = "0.5.29"
 dependencies = [
  "clap",
  "mimalloc",
@@ -2544,14 +2544,14 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_compiler_wasm"
-version = "0.12.2"
+version = "0.12.3"
 dependencies = [
  "rsvelte_compiler_wasm_bindings",
 ]
 
 [[package]]
 name = "rsvelte_compiler_wasm_bindings"
-version = "0.12.2"
+version = "0.12.3"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",
@@ -2573,7 +2573,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_core"
-version = "0.12.2"
+version = "0.12.3"
 dependencies = [
  "bumpalo",
  "chrono",
@@ -2670,7 +2670,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_fmt"
-version = "0.7.23"
+version = "0.7.24"
 dependencies = [
  "anyhow",
  "clap",
@@ -2722,7 +2722,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_language_server"
-version = "0.7.8"
+version = "0.7.9"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
@@ -2751,7 +2751,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_lint"
-version = "0.12.2"
+version = "0.12.3"
 dependencies = [
  "anyhow",
  "bytecount",
@@ -2830,7 +2830,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_projection"
-version = "0.12.2"
+version = "0.12.3"
 dependencies = [
  "indexmap",
  "memchr",
@@ -2870,7 +2870,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3122,9 +3122,9 @@ dependencies = [
 
 [[package]]
 name = "string_wizard"
-version = "1.2.8"
+version = "1.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f275df3d1799d21fc6fae788e91dc20f805735c5d8dfbabcac8a790432cff209"
+checksum = "5f079730f47f36412f526c810311c54d65915c08d53a731835f03af4e13ba106"
 dependencies = [
  "memchr",
  "oxc_index",
@@ -3230,7 +3230,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3648,7 +3648,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

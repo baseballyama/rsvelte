@@ -512,7 +512,10 @@ jobs:
         build-rsvelte-language-server,
         verify-release-commit,
       ]
-    timeout-minutes: 30
+    # 26 platform packages are published one at a time and each waits up to 90s
+    # for the registry to make it visible, so the walk alone outruns a 30-minute
+    # job: the 0.12.3 release was cancelled mid-publish three times in a row.
+    timeout-minutes: 120
     # Publishing is non-atomic across packages and must never be interrupted.
     concurrency:
       group: release-publish-${{ github.ref }}

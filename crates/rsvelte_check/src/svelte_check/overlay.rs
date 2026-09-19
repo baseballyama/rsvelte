@@ -61,6 +61,13 @@ pub const SHIM_FILES: &[(&str, &str)] = &[
     (SHIM_NATIVE_JSX_NAME, SHIM_SVELTE_NATIVE_JSX),
 ];
 
+/// Self-ignoring marker written at the cache root, so a `rsvelte-check` run
+/// does not leave an untracked directory behind in the user's repository.
+/// `uv` (`.venv/.gitignore`) and the Vercel CLI (`.vercel/.gitignore`) mark
+/// their own generated directories the same way. Keep in sync with
+/// `rsvelte_language_server`'s `CACHE_GITIGNORE`.
+pub const CACHE_GITIGNORE: &str = "*\n";
+
 pub const SHIM_SHIMS_V4_NAME: &str = "svelte-shims-v4.d.ts";
 pub const SHIM_JSX_V4_NAME: &str = "svelte-jsx-v4.d.ts";
 pub const SHIM_NATIVE_JSX_NAME: &str = "svelte-native-jsx.d.ts";
@@ -544,6 +551,11 @@ pub fn materialize_overlay_with(
     reject_symlink_components(&cache_dir, &cache_dir)?;
     fs::create_dir_all(&emit_dir)?;
     reject_symlink_components(&emit_dir, &cache_dir)?;
+    // Mark the cache as ignored by git: it is generated in the user's
+    // workspace root on every run, and nothing else adds an ignore entry for
+    // it. Best-effort — a `.gitignore` we could not write does not affect a
+    // single diagnostic.
+    let _ = write_if_changed(&cache_dir.join(".gitignore"), CACHE_GITIGNORE);
     let manifest_path = cache_dir.join("manifest.json");
     let namespace = compiler_opts.projection_namespace();
     let accessors = compiler_opts.projection_accessors();
@@ -4073,6 +4085,26 @@ mod tests {
         // Parent-data `$types.js` and bare `@sveltejs/kit` are never matched.
         assert!(out.contains("import('../../../../../$types.js')"), "{out}");
         assert!(out.contains("from '@sveltejs/kit'"), "{out}");
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn the_cache_dir_ignores_itself_so_a_run_leaves_git_status_clean() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_ignore_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(tmp.join("src/App.svelte"), b"<div>hi</div>").unwrap();
+
+        let layout = materialize_overlay(&tmp, &[tmp.join("src/App.svelte")], None).unwrap();
+        let ignore = layout.cache_dir.join(".gitignore");
+        assert_eq!(fs::read_to_string(&ignore).unwrap(), "*\n");
+
+        // A second run must restore a marker the user (or `git clean`) removed,
+        // and must not disturb one that is already correct.
+        fs::remove_file(&ignore).unwrap();
+        materialize_overlay(&tmp, &[tmp.join("src/App.svelte")], None).unwrap();
+        assert_eq!(fs::read_to_string(&ignore).unwrap(), "*\n");
 
         let _ = fs::remove_dir_all(&tmp);
     }

@@ -1,5 +1,131 @@
 # @rsvelte/compiler
 
+## 0.12.3
+
+### Patch Changes
+
+- e67ec13: fix(parse): a comment inside a TypeScript annotation reaches the public AST
+
+  An annotation, its type arguments, its type parameters and a return type are serialized from an
+  opaque value, so their nested nodes never consulted the comment side table. `type T = { /** doc */
+b: string }` kept the comment and every other context dropped it — a plain or destructured
+  declarator, `$props()`, a function parameter, an `as` cast and a type argument. The parse-AST
+  parity ratchet falls from 163 to 149 keys.
+
+- 47c5bc5: Flush a pending instance-script comment at a generated call's source arrow argument, matching upstream, instead of deferring it past the whole statement.
+- 93cb66a: fix(parse): `AttributeSelector.value` is the unquoted value upstream reads
+
+  `read_attribute_value` treats the quotes as delimiters, keeps a backslash on an
+  escape and trims the result, so `[a="x"]`, `[a='x']` and `[a= x ]` all carry
+  `x`. rsvelte kept the quotes in the AST to preserve the author's quote style,
+  which made the value a different string from upstream's on every quoted
+  attribute selector. `print`'s `AttributeSelector` always re-quotes with `"`,
+  which is what upstream's printer does.
+
+- a3c84ab: fix(parse): a binding pattern's TS annotation reaches the public AST
+
+  `catch (e: unknown)`, `{#each xs as x: T}` and `{@const x: T = …}` all dropped
+  the annotation: OXC keeps it beside the pattern (`CatchParameter`'s and
+  `VariableDeclarator`'s own `type_annotation`), and the three ports read only the
+  pattern. Upstream attaches it to the pattern node — with acorn's own span and
+  `loc` for a catch parameter or a `{const …}` declaration tag, and with the
+  hand-built node `read_type_annotation` produces (starting at the pattern's end,
+  no `loc`) for everything that goes through `read_pattern`.
+
+  svelte2tsx keeps that annotation too: `{:then value: T}` emitted
+  `const value = $$_value;` where upstream reads
+  `value.typeAnnotation?.end ?? value.end`.
+
+- e89647b: fix(parse): dedent a multi-line block comment on the node as well as on `Root.comments`
+
+  Upstream's single `onComment` handler strips a block comment's own opening-line
+  indentation from every line of its `value`, and that one value is what both
+  `Root.comments` and a node's `leadingComments` / `trailingComments` carry.
+  rsvelte ported the handler twice and only one of the two dedented, so the same
+  comment came back dedented in `Root.comments` and raw on the node. The dedent
+  itself also missed index 0, which `^` under `m` matches.
+
+- 0bc5f54: fix(compiler): a client source-map resync no longer anchors a token inside a string literal
+
+  The text alignment that maps generated instance-body bytes back to the script
+  re-anchored on the next equal byte whenever it found no candidate agreeing for a
+  token's worth of bytes inside a 32-byte window. A dropped `import` is longer than
+  that window, so `const xKey` anchored on the `c` of `'../../_data/points.csv'`
+  and its end anchor landed past that line's end.
+
+- 800d0c6: Anchor the client component call on the tag's source position, so a comment at the end of the instance script is printed before the call instead of after the whole function body.
+- 19f97ff: A comment left pending at the end of a `<script>` now reaches the first component call in dev output. The dev target wraps the call in `$.add_svelte_meta(() => …)`, and the wrapper was built without the source offset its non-dev sibling already carried, so the comment fell through to the end of the function body.
+- 109cf1c: fix(client): `{@html}`'s thunk carries the anchor its `{#key}` sibling reaches by recovery
+
+  `{@html expr}` lowers to `$.html(node, () => expr)`. Upstream builds the thunk with `b.thunk`, so
+  the arrow has no `loc` while the expression keeps its own, and esrap's parameter sequence runs
+  `until` the body's start — which is why a comment still pending from the instance script is emitted
+  inside the empty parameter list. rsvelte built the thunk with no anchor, so the located pass had no
+  site before the end of the component body and wrote the comment there.
+
+- 7969c00: fix(parse): three legacy-AST fields now come from the shape upstream produces
+
+  `PseudoClassSelector.args` keeps the modern `ComplexSelector` / `RelativeSelector`
+  shape, because upstream's `ComplexSelector` visitor rebuilds `children` from the
+  nodes as they were before the walk rewrote them; `Text.raw` survives the
+  surrounding-whitespace trim, which upstream applies to `data` alone; and
+  `Comment.ignores` comes from the one `extract_svelte_ignore`, whose lax branch
+  also appends a legacy code's modern spelling.
+
+- b758868: Stop emitting client source-map segments whose source offset is past the end of the source: an untranslated chunk coordinate resolved to a position no source line can hold.
+- dda312f: chore(deps): update oxfmt to 0.67.0 and the pinned oxc crates to 0.149
+
+  The embedded CSS engine no longer pads the comma in a custom property's list value, so
+  `--arr: [1 , 2]` now formats as `--arr: [1, 2]`, matching `oxfmt` itself.
+
+- 8594bc1: fix(parse): the expression path's span base no longer underflows at offset 0
+
+  `parse_expression_with_typescript` wraps its content in parens, so absolute
+  positions are `offset + span - prefix`. Spelling that as a pre-subtracted
+  `usize` made the base itself negative whenever a caller starts at 0 — modular
+  arithmetic that comes out right in release and panics `attempt to subtract with
+overflow` in debug. The `convert_ts_*` family now carries `AdjustedOffset`,
+  which keeps base and prefix apart and only ever hands out a sum.
+
+- 256591a: A comment left behind by an erased TypeScript annotation on a destructuring pattern now lands inside the pattern's brackets, where upstream puts it, instead of ahead of the initializer
+- e14fa58: client: a prop read on a member root no longer depends on the source-map option
+
+  The rewrite that turns `p.c` into `p().c` for a `$bindable()` prop was gated on
+  the converted object being a `JsExpr::Spanned`, and that wrapper is built only
+  under `enable_sourcemap`. With source maps off the read never ran, the update's
+  base stayed the bare `p`, and a second writer applied the mutate transform again:
+  `p(p().c++, true)` came out as `p(p(p().c++, true), true)`, which passes the
+  setter's return value back through the setter (#4570).
+
+  The condition now asks about the identifier rather than about the wrapper.
+  Whether a span wrapper is present is a source-map question; whether the root
+  needs the prop read is not.
+
+  Measured over all 1,389 `.svelte` files of `compatibility/pattern-corpus` x
+  client/server, 2,536 live units: **0 move** on the default `enable_sourcemap:
+true` path — this cannot touch what anyone compiles today — and exactly the two
+  semantic units move under `--no-sourcemap`, both onto official's answer.
+
+- c83c8b8: fix(parse): `PseudoClassSelector.args` is `null`, not absent, when the pseudo-class takes none
+
+  Upstream's `read_selector` builds every `PseudoClassSelector` with `args` in the
+  object literal and assigns `null` for an argument-less selector, so the public
+  `parse()` AST always carries the key. rsvelte inserted it only when it had a
+  value, so `:hover` came back without the field. Readers that asked "are there
+  args" by the key's presence now ask with `is_null`, which is the question
+  upstream's own consumers ask.
+
+- bb60492: A comment left pending at the end of a `<script>` is no longer dropped when a `{#snippet}` is declared ahead of the instance statements. The snippet's `const` was built from a bare name, so no node in that chunk offered a source offset and the comment was lost rather than moved.
+- edb2cc8: fix(compiler): client source-map columns count UTF-16 units, not UTF-8 bytes
+
+  esrap resolved a source position by subtracting a byte line start, so every client-map
+  column to the right of a character above U+007F was too large — by 2 per CJK character,
+  by 2 per astral character. Source Map v3 columns are JavaScript string offsets, which is
+  what the official compiler emits. Generated columns were already correct; the server
+  port already converted.
+
+- 100ad78: Float an uninitialized declarator's erased-annotation comment onto the following statement instead of dropping it, which is where upstream flushes it.
+
 ## 0.12.2
 
 ### Patch Changes

@@ -111,6 +111,10 @@ Highlights:
 - **Parallel compile.** Files are compiled across rayon workers; the TS pass is the long pole.
 - **Watch mode.** Composes with `--incremental` for an editor-like inner loop.
 
+### The `.svelte-check/` cache directory
+
+The cache ignores itself (it contains a `.gitignore` holding `*`), so a run does not leave an untracked directory behind in your repository. git, oxlint, `rsvelte-lint`, `rsvelte-fmt` and `tsc`/`tsgo` all skip it for free. Prettier reads `.gitignore` only at the project root, and ESLint flat config reads neither `.gitignore` nor dot-directory exclusions — add `.svelte-check/` to `.prettierignore` and to your flat-config `ignores` if you run those over the whole tree.
+
 ## Compatibility status
 
 - **Compiler / A11y / CSS warnings** — full coverage; matches the official `svelte-check`'s set.
