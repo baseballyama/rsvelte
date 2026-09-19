@@ -103,6 +103,29 @@ native binary for supported platforms, with the JavaScript server as a
 fallback. Neovim, Zed, Sublime Text, Helix, and Emacs setup is documented in
 the [editor guide](../../../editors/README.md).
 
+## The `.rsvelte-language-server/` directory
+
+The server writes a small tsgo overlay — an overlay `tsconfig.json`, the
+svelte2tsx shim declarations, and empty parent directories — into
+`.rsvelte-language-server/` at each workspace folder root. tsgo only considers
+an in-memory file during module resolution when its parent directory exists, and
+the shadow tree has to sit inside the workspace for relative imports,
+`rootDirs`, and `paths` aliases to resolve against the same roots as your
+sources. Generated `.svelte.tsx` bodies are never written to disk.
+
+The directory ignores itself (it contains a `.gitignore` holding `*`), so it
+stays out of `git status` without you adding anything. Tools that read nested
+ignore files — git, oxlint, `rsvelte-check`, `rsvelte-lint`, `rsvelte-fmt`,
+`tsc`/`tsgo` — skip it for free. Two that don't:
+
+- **Prettier** reads `.gitignore` only at the project root. Add
+  `.rsvelte-language-server/` to your `.prettierignore`.
+- **ESLint** flat config neither reads `.gitignore` nor skips dot-directories.
+  Add `.rsvelte-language-server/` to `ignores` (or import your root
+  `.gitignore` with `includeIgnoreFile`).
+
+The same applies to `.svelte-check/`, which `rsvelte-check` generates.
+
 ## Native server
 
 `rsvelte-language-server` is a launcher. It prefers the prebuilt native (Rust)
