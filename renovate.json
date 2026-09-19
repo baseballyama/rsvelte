@@ -126,6 +126,26 @@
         "ubuntu"
       ],
       "enabled": false
+    },
+    {
+      "description": "pnpm rejects a lockfile entry younger than the runner's global `minimumReleaseAge`, so a Renovate PR raised the moment a version publishes fails `pnpm install` on every job until it ages out, and someone re-runs its CI by hand (#4530, #4537, #4625, #4632, #4643). The gate is 24h, derived from the cutoff two failing runs printed (each exactly the run time minus 24h). Wait past it instead of racing it.",
+      "matchManagers": [
+        "npm"
+      ],
+      "minimumReleaseAge": "25 hours"
+    },
+    {
+      "description": "The packages `pnpm-workspace.yaml`'s `minimumReleaseAgeExclude` lists are exempt from that gate, so their PRs pass immediately and need no delay here. Keep this list in sync with that one.",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "svelte",
+        "vite",
+        "oxlint",
+        "@oxlint/**"
+      ],
+      "minimumReleaseAge": null
     }
   ]
 }
