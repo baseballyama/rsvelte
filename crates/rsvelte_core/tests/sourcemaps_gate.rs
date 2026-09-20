@@ -560,11 +560,17 @@ struct Parity {
     wrong: usize,
     /// Present and pointing at the same original position.
     exact: usize,
+    /// Official segments naming a column past the end of their own source line
+    /// — `kind + ' '` counts the separator even where the source has a newline
+    /// there. `out-of-range` already refuses to call such a position an rsvelte
+    /// regression; demanding rsvelte reproduce one is the same claim from the
+    /// other side, so they are counted here and left out of `bad()` (#4610).
+    unreachable: usize,
 }
 
 impl Parity {
     fn total(&self) -> usize {
-        self.missing + self.wrong + self.exact
+        self.missing + self.wrong + self.exact + self.unreachable
     }
     fn bad(&self) -> usize {
         self.missing + self.wrong
@@ -585,6 +591,17 @@ fn snippet(text: &str, line: usize, col: usize, len: usize) -> String {
         return "<eol>".into();
     }
     String::from_utf16_lossy(&units[col..end]).replace('\n', "\\n")
+}
+
+/// Whether a segment's original position names a column the source line cannot
+/// hold. Same predicate as [`out_of_range_positions`] (column == line length is
+/// legal: it addresses the line terminator), against the compiled input.
+fn segment_past_line_end(src: &str, segment: &Segment) -> bool {
+    let line = segment[2].max(0) as usize;
+    let column = segment[3].max(0) as usize;
+    src.split('\n')
+        .nth(line)
+        .is_none_or(|text| column > text.trim_end_matches('\r').encode_utf16().count())
 }
 
 /// Locate rsvelte's counterpart of one official segment.
@@ -622,6 +639,9 @@ fn explain_parity(key: &str, theirs: &DecodedMap, ours: &DecodedMap, generated: 
                 previous_column = Some(segment[0]);
                 occurrence = 0;
             }
+            if segment_past_line_end(src, segment) {
+                continue;
+            }
             let mine = counterpart(ours, line_no, segment, occurrence);
             let gen_text = snippet(generated, line_no, segment[0] as usize, 24);
             let want = snippet(src, segment[2] as usize, segment[3] as usize, 24);
@@ -643,7 +663,7 @@ fn explain_parity(key: &str, theirs: &DecodedMap, ours: &DecodedMap, generated: 
     }
 }
 
-fn parity(theirs: &DecodedMap, ours: &DecodedMap) -> Parity {
+fn parity(theirs: &DecodedMap, ours: &DecodedMap, src: &str) -> Parity {
     let mut p = Parity::default();
     for (line_no, line) in theirs.lines.iter().enumerate() {
         let mut previous_column = None;
@@ -657,6 +677,10 @@ fn parity(theirs: &DecodedMap, ours: &DecodedMap) -> Parity {
             } else {
                 previous_column = Some(segment[0]);
                 occurrence = 0;
+            }
+            if segment_past_line_end(src, segment) {
+                p.unreachable += 1;
+                continue;
             }
             let mine = counterpart(ours, line_no, segment, occurrence);
             match mine {
@@ -948,7 +972,7 @@ fn measure() -> Report {
                 report.identical_code.push(key.clone());
                 match theirs.map.as_deref().and_then(decode_map) {
                     Some(their_map) => {
-                        let comparison = parity(&their_map, &map);
+                        let comparison = parity(&their_map, &map, &input);
                         if comparison.bad() > 0 {
                             explain_parity(&key, &their_map, &map, &ours.code, &input);
                         }
@@ -1338,6 +1362,10 @@ fn astral_original_columns_are_in_range_in_utf16_units() {
 
 #[test]
 fn parity_compares_duplicate_generated_columns_by_occurrence() {
+    // Six eight-character lines, so every position below is inside the source
+    // and the out-of-range carve-out stays out of this test's way.
+    let src = "12345678\n".repeat(6);
+    let src = src.as_str();
     let official = DecodedMap {
         sources: Vec::new(),
         sources_content: Vec::new(),
@@ -1354,11 +1382,11 @@ fn parity_compares_duplicate_generated_columns_by_occurrence() {
         lines: vec![vec![vec![3, 0, 0, 0], vec![3, 0, 1, 2], vec![3, 0, 4, 5]]],
     };
 
-    let identical_result = parity(&official, &identical);
+    let identical_result = parity(&official, &identical, src);
     assert_eq!(identical_result.exact, 2);
     assert_eq!(identical_result.bad(), 0);
 
-    let shifted_result = parity(&official, &extra_leading);
+    let shifted_result = parity(&official, &extra_leading, src);
     assert_eq!(shifted_result.exact, 0);
     assert_eq!(shifted_result.wrong, 2);
 
@@ -1377,7 +1405,7 @@ fn parity_compares_duplicate_generated_columns_by_occurrence() {
         lines: vec![vec![vec![3, 0, 1, 2]]],
     };
 
-    let duplicate_result = parity(&duplicated, &once);
+    let duplicate_result = parity(&duplicated, &once, src);
     assert_eq!(duplicate_result.exact, 2);
     assert_eq!(duplicate_result.bad(), 0);
 
@@ -1387,7 +1415,40 @@ fn parity_compares_duplicate_generated_columns_by_occurrence() {
         sources_content: Vec::new(),
         lines: vec![vec![vec![3, 0, 1, 2], vec![3, 0, 4, 5]]],
     };
-    let first_only = parity(&two_distinct, &once);
+    let first_only = parity(&two_distinct, &once, src);
     assert_eq!(first_only.exact, 1);
     assert_eq!(first_only.missing, 1);
+}
+
+/// An official segment whose own column is past the end of its source line is
+/// not a parity target: `out-of-range` already declines to call that position
+/// an rsvelte regression, and reproducing it would be emitting a position the
+/// source cannot hold (#4610).
+#[test]
+fn parity_skips_an_official_segment_the_source_cannot_hold() {
+    let src = "ab
+cdef
+";
+    // Column 3 is one past the end of line 0 (`ab`), column 4 is the line
+    // terminator of line 1 (`cdef`) and so is addressable.
+    let official = DecodedMap {
+        sources: Vec::new(),
+        sources_content: Vec::new(),
+        lines: vec![vec![vec![0, 0, 0, 3], vec![5, 0, 1, 4]]],
+    };
+    let ours = DecodedMap {
+        sources: Vec::new(),
+        sources_content: Vec::new(),
+        lines: vec![vec![vec![5, 0, 1, 4]]],
+    };
+
+    let result = parity(&official, &ours, src);
+    assert_eq!(result.unreachable, 1);
+    assert_eq!(result.exact, 1);
+    assert_eq!(
+        result.bad(),
+        0,
+        "the unreachable segment is not a divergence"
+    );
+    assert_eq!(result.total(), 2, "it is still counted in the population");
 }

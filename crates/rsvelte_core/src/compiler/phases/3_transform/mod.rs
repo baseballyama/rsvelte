@@ -1537,8 +1537,13 @@ fn generate_token_mappings_inner<'source>(
         // Upstream anchors a declaration keyword as `kind + ' '`, so its end
         // column counts the separator even where the source has a newline there.
         let anchor_len = if text == "let" { 4 } else { text.len() };
+        // `is_ascii` answers how wide a character is, not whether the token
+        // stays on one line: a string literal with a line continuation carries
+        // its own newline, and the derived columns then name a position past
+        // the end of the line they claim (#4610).
+        let single_line = !text.as_bytes().contains(&b'\n');
         let (gen_line_end, gen_col_end, orig_line_end, orig_col_end) =
-            if text.is_ascii() && source_end == src_pos + text.len() {
+            if text.is_ascii() && single_line && source_end == src_pos + text.len() {
                 (
                     generated_line,
                     generated_col + anchor_len as u32,
@@ -2249,6 +2254,35 @@ mod tests {
                 mapping.orig_col,
             ) == (1, 1, 1, 1)
         }));
+    }
+
+    /// `is_ascii` answers how wide a character is, not whether a token stays on
+    /// one line. A string literal with a line continuation is ASCII and carries
+    /// its own newline, so deriving the end anchor as `col + len` named a
+    /// column the starting line cannot hold (#4610).
+    #[test]
+    fn server_token_end_anchors_stay_inside_their_source_line() {
+        let source = "<script>\n\tconst cont = \"a\\\nb\";\n</script>\n\n{cont}";
+        let generated = "\tconst cont = \"a\\\nb\";\n";
+        let mappings = generate_server_token_mappings(generated, source);
+        let lines: Vec<&str> = source.split('\n').collect();
+        let overflow: Vec<(u32, u32)> = mappings
+            .iter()
+            .filter(|mapping| {
+                let line = lines[mapping.orig_line as usize];
+                mapping.orig_col as usize > line.encode_utf16().count()
+            })
+            .map(|mapping| (mapping.orig_line, mapping.orig_col))
+            .collect();
+        assert!(overflow.is_empty(), "out-of-range anchors: {overflow:?}");
+        // The literal ends on the line it ends on: `b";` puts the closing quote
+        // at column 1 of source line 2, so its end anchor is column 2 there.
+        assert!(
+            mappings
+                .iter()
+                .any(|mapping| mapping.orig_line == 2 && mapping.orig_col == 2),
+            "no end anchor on the continuation's own line: {mappings:?}"
+        );
     }
 
     #[test]
