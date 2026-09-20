@@ -1784,7 +1784,10 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_node_id(w, *body, arena)?;
             write_bool(w, *declare);
             write_bool(w, *r#abstract);
-            write_bool(w, *implements);
+            // The envelope's slot is a bool and the decoder reads one; carrying the
+            // `TSExpressionWithTypeArguments` array needs the same VERSION bump
+            // as the TS blobs above.
+            write_bool(w, implements.is_some());
             write_id_range(w, *decorators, arena)?;
         }
         JsNode::ReturnStatement {
