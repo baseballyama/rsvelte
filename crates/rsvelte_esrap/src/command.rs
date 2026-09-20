@@ -307,13 +307,6 @@ impl Driver<'_> {
             EventKind::Flush => self.flush_pending(),
             EventKind::Location { line, column } => {
                 self.flush_pending();
-                // A keyword's end anchor is `column + keyword.len()` on a
-                // resolved column, so a keyword longer than the source token it
-                // stands for lands past the end of the line it names. An offset
-                // the driver resolves itself cannot (#4610).
-                if self.column_past_end_of_line(line - 1, column) {
-                    return;
-                }
                 self.push_mapping(line - 1, column);
             }
             EventKind::LocationOffset { offset } => {
@@ -331,23 +324,6 @@ impl Driver<'_> {
                 );
             }
         }
-    }
-
-    /// Whether `column` lies past the last character of 0-based `source_line`.
-    /// The final line is bounded by `source_len`, so every line has a bound and
-    /// the check never has to guess.
-    fn column_past_end_of_line(&self, source_line: u32, column: u32) -> bool {
-        let starts = self.source_line_starts;
-        let Some(&start) = starts.get(source_line as usize) else {
-            return false;
-        };
-        let end = match starts.get(source_line as usize + 1) {
-            // The following line's start is one past this line's newline.
-            Some(&next) => next.saturating_sub(1),
-            None if self.source_len == u32::MAX => return false,
-            None => self.source_len,
-        };
-        column > end.saturating_sub(start)
     }
 
     /// 1-based source line containing `offset`, or 0 if it precedes the first
@@ -584,32 +560,6 @@ mod tests {
         assert_eq!(
             print(&buffer, "  ", 0),
             flatten_with_map(&buffer, "  ", 0, &[], u32::MAX).0
-        );
-    }
-
-    /// A keyword's end anchor is `column + keyword.len()` on a resolved column,
-    /// so a keyword longer than the source token it stands for names a column
-    /// its line cannot hold. The line terminator stays addressable (#4610).
-    #[test]
-    fn a_location_past_the_end_of_its_source_line_emits_no_mapping() {
-        // `ab\ncdef\n`: line 0 holds two characters, line 1 holds four.
-        let starts = [0u32, 3, 8];
-        let buffer = buffer(vec![
-            TestCommand::Event(EventKind::Location { line: 1, column: 3 }),
-            TestCommand::Text("x"),
-            TestCommand::Event(EventKind::Location { line: 2, column: 4 }),
-            TestCommand::Text("y"),
-            TestCommand::Event(EventKind::Location { line: 2, column: 5 }),
-        ]);
-        let (_, mappings) = flatten_with_map(&buffer, "\t", 0, &starts, 8);
-        assert_eq!(
-            mappings,
-            vec![Mapping {
-                gen_line: 0,
-                gen_column: 1,
-                source_line: 1,
-                source_column: 4,
-            }]
         );
     }
 

@@ -105,16 +105,18 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
 /// The three carriers #4466 named, as recorded values rather than a direction.
 /// Before the guards they read 309/442, 63/98 and 276/438.
 ///
-/// `3071`'s remaining one is a **different shape**: it is the exclusive end of
-/// the last node, which lands exactly at the end of `</script>` — one past the
-/// line's last byte, which is what an exclusive end is. Rejecting it would need
-/// `offset >= len`, and that would drop every legitimate end-of-file end too.
+/// `3071`'s last one went with #4610. It was recorded here as "the exclusive end
+/// of the last node, which lands exactly at the end of `</script>`", and that
+/// account was wrong on its own numbers: an exclusive end lands at column
+/// `len`, which this predicate allows, and the surviving segment sat at
+/// `len + 1` — a keyword's `column + keyword.length` end anchor derived from a
+/// start on a line that never held the keyword.
 #[test]
 fn the_named_carriers_point_inside_their_source() {
     let root = corpus_root();
     for (relative, expected) in [
         ("issues/3103-reactive-array-rest.svelte", 0),
-        ("issues/3071-rune-argument-class-in-component.svelte", 1),
+        ("issues/3071-rune-argument-class-in-component.svelte", 0),
         ("adversarial/legacy/legacy-reactive-ordering.svelte", 0),
     ] {
         let path = root.join(relative);
@@ -129,12 +131,10 @@ fn the_named_carriers_point_inside_their_source() {
     }
 }
 
-/// The corpus-wide ceiling. `main` before this change reads 5,891 of 111,276
-/// (5.3%); the residue is 77 of 105,462 (0.1%), and the ones that are left are
-/// a different shape — an exclusive end landing one past the last byte — not the
-/// untranslated chunk offsets this rejects. A ceiling rather than an equality
-/// because the denominator moves with every codegen change; the direction is
-/// what the test exists to hold.
+/// The corpus-wide count. `main` before #4466's guards read 5,891 of 111,276
+/// (5.3%); the residue was 77 of 105,462 (0.1%) until #4610 took the keyword
+/// anchors, and it is 0 now. The denominator moves with every codegen change,
+/// so it is asserted only as a floor — the numerator is the property.
 #[test]
 fn the_corpus_map_does_not_point_past_a_source_line() {
     let mut files = Vec::new();
@@ -158,10 +158,8 @@ fn the_corpus_map_does_not_point_past_a_source_line() {
         total > 50_000,
         "only {total} segments compared — instrument"
     );
-    let share = (out_of_range as f64) / (total as f64);
-    assert!(
-        share < 0.002,
-        "{out_of_range} of {total} segments ({:.2}%) point past the end of a source line",
-        100.0 * share
+    assert_eq!(
+        out_of_range, 0,
+        "{out_of_range} of {total} segments point past the end of a source line"
     );
 }
