@@ -9031,6 +9031,7 @@
 			"official-defect-svelte-ts-shadow",
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
+			"ts-render",
 			"ts-render-import-line",
 			"ts-render-local-modifier",
 			"ts-render-multiple",
@@ -53186,14 +53187,12 @@
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/admin-dashboard/+error.svelte|textDocument/hover": [
-			"rsvelte-empty",
 			"rsvelte-empty-import-only",
 			"ts-render-import-line",
 			"ts-render-multiple",
 			"ts-render-overload-count"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/admin-dashboard/+error.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty",
 			"rsvelte-empty-import-only",
 			"ts-render-import-line",
 			"ts-render-multiple",
@@ -54377,12 +54376,10 @@
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/admin-dashboard/utils/settings/SocialAccounts.svelte|textDocument/hover": [
 			"official-empty",
-			"rsvelte-empty",
 			"rsvelte-empty-import-only"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/admin-dashboard/utils/settings/SocialAccounts.svelte|textDocument/hover|phase=edit": [
 			"official-empty",
-			"rsvelte-empty",
 			"rsvelte-empty-import-only"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/admin-dashboard/utils/widgets/AppsMenu.svelte|textDocument/completion": [
@@ -54712,11 +54709,9 @@
 			"rsvelte-empty"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/marketing/[slug]/+page.svelte|textDocument/hover": [
-			"rsvelte-empty",
 			"rsvelte-empty-import-only"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/marketing/[slug]/+page.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty",
 			"rsvelte-empty-import-only"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/publisher/[slug]/+page.svelte|textDocument/completion": [
@@ -54760,11 +54755,9 @@
 			"rsvelte-empty"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/publisher/[slug]/+page.svelte|textDocument/hover": [
-			"rsvelte-empty",
 			"rsvelte-empty-import-only"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/publisher/[slug]/+page.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty",
 			"rsvelte-empty-import-only"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/blocks/utils/api-check/CodeWrapper.svelte|textDocument/completion": [
@@ -73427,13 +73420,11 @@
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/mega-menu/Icons.svelte|textDocument/hover": [
 			"projection-response-range",
-			"rsvelte-empty",
 			"rsvelte-empty-import-only",
 			"ts-symbol-name"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/docs-examples/components/mega-menu/Icons.svelte|textDocument/hover|phase=edit": [
 			"projection-response-range",
-			"rsvelte-empty",
 			"rsvelte-empty-import-only",
 			"ts-symbol-name"
 		],
@@ -151860,10 +151851,10 @@
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/create/elevenlabs/bar-visualizer-demo.svelte|textDocument/hover": [
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
-			"ts-render-overload-count"
+			"ts-render-overload-count",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/create/elevenlabs/bar-visualizer-demo.svelte|textDocument/hover|phase=edit": [
 			"rsvelte-empty",
@@ -214801,13 +214792,13 @@
 		"differential:upstream-features/await.v5/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=e932cbb32eab]": [
 			"diagnostic-item-set-missing-mixed"
 		],
-		"differential:upstream-features/bind-this/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=19,hash=e695209fa406]": [
+		"differential:upstream-features/bind-this/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=19,hash=94b7463004b4]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-features/bind-this/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=6,hash=05ef533a8977]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/bind-this/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=19,hash=e695209fa406]": [
+		"differential:upstream-features/bind-this/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=19,hash=94b7463004b4]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-features/bind-this/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=6,hash=05ef533a8977]": [
@@ -214909,17 +214900,11 @@
 		"differential:upstream-features/component-handler/input.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=2,hash=b72158767a7a]": [
 			"inlay-hint-set-missing-mixed"
 		],
-		"differential:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=10,hash=57345974d70e]": [
+		"differential:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=8,hash=013683d83db4]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=daa4eb89ac83]": [
-			"diagnostic-item-set-missing-ts"
-		],
-		"differential:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=10,hash=57345974d70e]": [
+		"differential:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=8,hash=013683d83db4]": [
 			"diagnostic-item-set-extra-ts"
-		],
-		"differential:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=daa4eb89ac83]": [
-			"diagnostic-item-set-missing-ts"
 		],
 		"differential:upstream-features/const-tag/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=6a27c33c1530]": [
 			"diagnostic-item-set-extra-rsvelte"
@@ -219145,13 +219130,13 @@
 		"expected:upstream-features/await.v5/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=6b06560cc1ec]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/bind-this/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=20,hash=8b57ac9b0be7]": [
+		"expected:upstream-features/bind-this/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=20,hash=ae387489a1fc]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"expected:upstream-features/bind-this/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=6,hash=05ef533a8977]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/bind-this/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=20,hash=8b57ac9b0be7]": [
+		"expected:upstream-features/bind-this/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=20,hash=ae387489a1fc]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"expected:upstream-features/bind-this/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=6,hash=05ef533a8977]": [
@@ -219259,17 +219244,11 @@
 		"expected:upstream-features/component-handler/input.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=2,hash=b72158767a7a]": [
 			"inlay-hint-set-missing-mixed"
 		],
-		"expected:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=10,hash=57345974d70e]": [
+		"expected:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=8,hash=013683d83db4]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"expected:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=daa4eb89ac83]": [
-			"diagnostic-item-set-missing-ts"
-		],
-		"expected:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=10,hash=57345974d70e]": [
+		"expected:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=8,hash=013683d83db4]": [
 			"diagnostic-item-set-extra-ts"
-		],
-		"expected:upstream-features/component-invalid/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=daa4eb89ac83]": [
-			"diagnostic-item-set-missing-ts"
 		],
 		"expected:upstream-features/const-tag-if/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=bd9050eba2ec]": [
 			"diagnostic-item-set-extra-svelte"
