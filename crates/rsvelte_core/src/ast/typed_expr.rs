@@ -788,10 +788,13 @@ pub enum JsNode {
         loc: Option<Box<Loc>>,
         body: IdRange,
     },
+    // `@dec class C {}`. Kept as its ESTree object so `expression` survives:
+    // decorators are unsupported and always end as an error, but `parse()`
+    // still returns the node.
     Decorator {
         start: u32,
         end: u32,
-        loc: Option<Box<Loc>>,
+        value: Box<Value>,
     },
     // TypeScript (minimal, for remove_typescript_nodes detection)
     TSTypeAnnotation {
@@ -857,7 +860,7 @@ pub enum JsNode {
     TSParameterProperty {
         start: u32,
         end: u32,
-        loc: Option<Box<Loc>>,
+        value: Box<Value>,
     },
     // `namespace N { … }` / `declare module 'x' { … }`. `body` is a
     // `TSModuleBlock`, or — for the dotted `namespace A.B { … }`, which
@@ -2551,15 +2554,6 @@ impl Serialize for JsNode {
                 ser_comments!(map, "StaticBlock", *start, *end);
                 map.end()
             }
-            Self::Decorator { start, end, loc } => {
-                let mut map = serializer.serialize_map(Some(3))?;
-                map.serialize_entry("type", "Decorator")?;
-                map.serialize_entry("start", start)?;
-                map.serialize_entry("end", end)?;
-                ser_loc!(map, loc);
-                ser_comments!(map, "Decorator", *start, *end);
-                map.end()
-            }
             Self::TSTypeAnnotation {
                 start,
                 end,
@@ -2575,16 +2569,9 @@ impl Serialize for JsNode {
                 ser_comments!(map, "TSTypeAnnotation", *start, *end);
                 map.end()
             }
-            Self::TSParameterProperty { start, end, loc } => {
-                let mut map = serializer.serialize_map(Some(3))?;
-                map.serialize_entry("type", "TSParameterProperty")?;
-                map.serialize_entry("start", start)?;
-                map.serialize_entry("end", end)?;
-                ser_loc!(map, loc);
-                ser_comments!(map, "TSParameterProperty", *start, *end);
-                map.end()
-            }
             Self::TSEnumDeclaration { value, .. }
+            | Self::TSParameterProperty { value, .. }
+            | Self::Decorator { value, .. }
             | Self::TSTypeAliasDeclaration { value, .. }
             | Self::TSInterfaceDeclaration { value, .. }
             | Self::TSImportEqualsDeclaration { value, .. }
@@ -2917,6 +2904,8 @@ impl JsNode {
                             | "TSExportAssignment"
                             | "TSNamespaceExportDeclaration"
                             | "TSIndexSignature"
+                            | "TSParameterProperty"
+                            | "Decorator"
                     )
                 ) {
                     let start = owned_obj
@@ -2944,6 +2933,10 @@ impl JsNode {
                             Self::TSNamespaceExportDeclaration { start, end, value }
                         }
                         Some("TSIndexSignature") => Self::TSIndexSignature { start, end, value },
+                        Some("TSParameterProperty") => {
+                            Self::TSParameterProperty { start, end, value }
+                        }
+                        Some("Decorator") => Self::Decorator { start, end, value },
                         _ => Self::TSInterfaceDeclaration { start, end, value },
                     };
                 }
@@ -3588,14 +3581,12 @@ impl JsNode {
                         loc,
                         body: convert_array(obj, "body"),
                     },
-                    "Decorator" => Self::Decorator { start, end, loc },
                     "TSTypeAnnotation" => Self::TSTypeAnnotation {
                         start,
                         end,
                         loc,
                         type_annotation: convert_child(obj, "typeAnnotation"),
                     },
-                    "TSParameterProperty" => Self::TSParameterProperty { start, end, loc },
                     "TSModuleDeclaration" => Self::TSModuleDeclaration {
                         start,
                         end,
