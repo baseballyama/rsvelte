@@ -150,7 +150,13 @@ function requireArtifact(value, label) {
   // from a clean one by every check above. A transport timeout is compared as an
   // error, so it invents keys that the next run will not reproduce: baselining
   // one makes a later, unrelated run go red (#4614).
-  if (value.counts?.transportTimeouts)
+  // `counts` is required before the timeout is read: an absent one makes
+  // `value.counts?.transportTimeouts` undefined, which is falsy, so the guard
+  // below would read a hand-edited artifact as clean — the same "absent scores
+  // as a pass" shape the guard exists to remove.
+  if (typeof value.counts?.transportTimeouts !== "number")
+    throw new Error(`${label} lacks counts.transportTimeouts`);
+  if (value.counts.transportTimeouts)
     throw new Error(
       `${label} recorded ${value.counts.transportTimeouts} transport timeout(s); its keys include ones no clean run reproduces, so it cannot be merged or baselined`,
     );
