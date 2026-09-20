@@ -16,7 +16,7 @@ use crate::svelte2tsx::template::attributes::class_style::build_class_style_dire
 use crate::svelte2tsx::template::attributes::directive_suffix::build_directive_prefix_suffix;
 use crate::svelte2tsx::template::ctx::Counter;
 use crate::svelte2tsx::template::nodes::snippet_block::hoist_snippet_blocks;
-use crate::svelte2tsx::template::segs::{Seg, bake_out_of_order_src, emit_segmented_overwrite};
+use crate::svelte2tsx::template::segs::{Seg, emit_opener_segments};
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
 use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
@@ -237,13 +237,11 @@ fn render_dynamic_element(
     opener.extend(suffix);
     if dynamic_element_is_self_closing(el, input.source) {
         opener.push(Seg::Lit(format!("{inner_close}}}")));
-        let opener = bake_out_of_order_src(opener, input.source);
-        emit_segmented_overwrite(str, el.start, el.end, &opener);
+        emit_opener_segments(str, el.start, el.end, opener, input.source);
         return;
     }
 
-    let opener = bake_out_of_order_src(opener, input.source);
-    emit_segmented_overwrite(str, el.start, input.opening_tag_end, &opener);
+    emit_opener_segments(str, el.start, input.opening_tag_end, opener, input.source);
     hoist_snippet_blocks(&el.fragment, input.source, str);
     process_fragment_inplace(
         &el.fragment,

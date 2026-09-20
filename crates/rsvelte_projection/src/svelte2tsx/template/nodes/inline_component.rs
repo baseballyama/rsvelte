@@ -26,7 +26,9 @@ use crate::svelte2tsx::template::attributes::let_::{
 };
 use crate::svelte2tsx::template::attributes::spread::format_spread_attribute_segments;
 use crate::svelte2tsx::template::ctx::{Counter, ElementOpenerCommentIndex};
-use crate::svelte2tsx::template::segs::{Seg, bake_out_of_order_src, emit_segmented_overwrite};
+use crate::svelte2tsx::template::segs::{
+    Seg, bake_out_of_order_src, emit_opener_segments, emit_segmented_overwrite,
+};
 use crate::svelte2tsx::template::utils::expr::{
     extend_expr_end_with_ts_postfix, get_binding_lhs_text, get_expression_end_stripping_ts,
     get_expression_range, get_expression_text, get_set_binding_ranges,
@@ -718,7 +720,19 @@ pub fn handle_svelte_component(
     } else {
         " ".repeat(scomp_spacing.before_block)
     };
-    let (header_lit, trailer_lit) = if needs_inst {
+    // The `this={…}` expression is a source chunk, not text interpolated into
+    // the header: hover and go-to-definition inside it answer nothing once it
+    // is baked into a literal (#4649).
+    let header_open = format!("{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent(");
+    let expr_seg = match get_expression_range(&comp.expression) {
+        Some((start, end))
+            if start < end && slice_src(source, start as usize, end as usize) == expr_text =>
+        {
+            Seg::Src(start, end)
+        }
+        _ => Seg::Lit(expr_text.to_string()),
+    };
+    let (header_close, trailer_lit) = if needs_inst {
         let on_calls = if has_events {
             build_on_calls(&inst_var, &on_directives, source)
         } else {
@@ -726,22 +740,22 @@ pub fn handle_svelte_component(
         };
         (
             format!(
-                "{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent({expr_text}); const {inst_var} = new {inst_var}C({{ target: __sveltets_2_any(), props: {{"
+                "); const {inst_var} = new {inst_var}C({{ target: __sveltets_2_any(), props: {{"
             ),
             format!("}}}});{component_bind_suffix}{on_calls}"),
         )
     } else {
         (
-            format!(
-                "{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent({expr_text}); new {inst_var}C({{ target: __sveltets_2_any(), props: {{"
-            ),
+            format!("); new {inst_var}C({{ target: __sveltets_2_any(), props: {{"),
             "}});".to_string(),
         )
     };
     // The snippet-props path keeps the props object open so the demoted
     // `{#snippet}` children can be moved inside it.
-    let mut opener: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 3);
-    opener.push(Seg::Lit(header_lit));
+    let mut opener: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 5);
+    opener.push(Seg::Lit(header_open));
+    opener.push(expr_seg);
+    opener.push(Seg::Lit(header_close));
     opener.extend(attr_segs);
     if !use_snippet_props {
         opener.push(Seg::Lit(trailer_lit.clone()));
@@ -765,12 +779,7 @@ pub fn handle_svelte_component(
         opener.push(Seg::Lit(own_default_let_open.clone()));
     }
 
-    emit_segmented_overwrite(
-        str,
-        comp.start,
-        opening_tag_end,
-        &bake_out_of_order_src(opener, source),
-    );
+    emit_opener_segments(str, comp.start, opening_tag_end, opener, source);
 
     // Children of svelte:component are at depth+1 (this component is now an
     // ancestor). Slot-bearing children take the same lowering as a named

@@ -117,6 +117,84 @@ pub(super) fn bake_out_of_order_src(segs: Vec<Seg>, source: &str) -> Vec<Seg> {
     out
 }
 
+/// The `Seg::Src` a `<svelte:component this={C} a={x}>` opener has to emit
+/// first while the source spells it last: the first `Src` in the list, starting
+/// after some later one, overlapping none of them, and leaving the rest of the
+/// list in ascending order once it is taken out.
+fn leading_hoist(segments: &[Seg]) -> Option<(usize, u32, u32)> {
+    let mut srcs = segments
+        .iter()
+        .enumerate()
+        .filter_map(|(i, seg)| match seg {
+            Seg::Src(s, e) => Some((i, *s, *e)),
+            _ => None,
+        });
+    let (index, start, end) = srcs.next()?;
+    if start >= end {
+        return None;
+    }
+    let mut last_end = 0;
+    let mut out_of_order = false;
+    for (_, s, e) in srcs {
+        if s < last_end || s >= e || (s < end && e > start) {
+            return None;
+        }
+        out_of_order |= s < start;
+        last_end = e;
+    }
+    out_of_order.then_some((index, start, end))
+}
+
+/// Apply an element/component opener's segments, relocating a leading
+/// out-of-order `Seg::Src` instead of baking it into a literal.
+///
+/// `emit_segmented_overwrite` walks source order, so a chunk the generated text
+/// puts first while the source puts it last cannot be preserved in place; the
+/// pre-pass then flattens one side or the other and that side loses its
+/// mappings (#4649). Upstream relocates such a chunk with `str.move()`
+/// (`htmlxtojsx_v2/utils/node-utils.ts`, `transform`); this does the same for
+/// the one shape our openers produce, and falls back to
+/// [`bake_out_of_order_src`] for every other ordering.
+pub(super) fn emit_opener_segments(
+    str: &mut MagicString<'_>,
+    range_start: u32,
+    range_end: u32,
+    segments: Vec<Seg>,
+    source: &str,
+) {
+    if let Some((index, start, end)) = leading_hoist(&segments)
+        && range_start < start
+        && end <= range_end
+    {
+        let mut lead = String::new();
+        for seg in &segments[..index] {
+            match seg {
+                Seg::Lit(text) | Seg::LitOpen(text) => lead.push_str(text),
+                Seg::Src(..) => unreachable!("leading_hoist returns the first Src"),
+            }
+        }
+        emit_segmented_overwrite_around(
+            str,
+            range_start,
+            range_end,
+            &segments[index + 1..],
+            Some((start, end)),
+        );
+        if !lead.is_empty() {
+            // Attached to the chunk's own intro so it travels with the move.
+            str.prepend_right(start, &lead);
+        }
+        str.move_range(start, end, range_start);
+        return;
+    }
+    emit_segmented_overwrite(
+        str,
+        range_start,
+        range_end,
+        &bake_out_of_order_src(segments, source),
+    );
+}
+
 /// Apply a list of segments to a `MagicString`, overwriting `[start, end)`
 /// while preserving every `Seg::Src(s, e)` chunk as an unedited region —
 /// the cornerstone of the structured bake. The unedited chunks survive
@@ -131,6 +209,20 @@ pub(super) fn emit_segmented_overwrite(
     range_start: u32,
     range_end: u32,
     segments: &[Seg],
+) {
+    emit_segmented_overwrite_around(str, range_start, range_end, segments, None);
+}
+
+/// [`emit_segmented_overwrite`], with `hoisted` naming a source range inside
+/// `[range_start, range_end)` that a caller is about to relocate with
+/// [`MagicString::move_range`]. The gap that contains it is written in two
+/// pieces so the relocated chunk is never covered by an overwrite.
+fn emit_segmented_overwrite_around(
+    str: &mut MagicString<'_>,
+    range_start: u32,
+    range_end: u32,
+    segments: &[Seg],
+    hoisted: Option<(u32, u32)>,
 ) {
     if range_start >= range_end {
         // Degenerate: still attach the pending literal at the boundary so
@@ -178,13 +270,7 @@ pub(super) fn emit_segmented_overwrite(
                     pending.push_str(&opening);
                     opening.clear();
                 }
-                if cursor < *s {
-                    str.overwrite(cursor, *s, &pending);
-                } else if !pending.is_empty() {
-                    // cursor == *s — overwrite would be an empty range; use
-                    // prepend_right so the literal lands before the chunk.
-                    str.prepend_right(*s, &pending);
-                }
+                write_gap(str, cursor, *s, &pending, hoisted, GapEnd::Chunk);
                 pending.clear();
                 if let Some((ch, head)) = head {
                     opening.push(ch);
@@ -196,10 +282,51 @@ pub(super) fn emit_segmented_overwrite(
         }
     }
     pending.push_str(&opening);
-    if cursor < range_end {
-        str.overwrite(cursor, range_end, &pending);
-    } else if !pending.is_empty() {
-        str.append_left(range_end, &pending);
+    write_gap(str, cursor, range_end, &pending, hoisted, GapEnd::Range);
+}
+
+/// What sits immediately after a gap: a preserved `Seg::Src` chunk, or the end
+/// of the overwritten range. It decides where a zero-length gap's literal is
+/// attached — before the chunk, or after everything already there.
+enum GapEnd {
+    Chunk,
+    Range,
+}
+
+/// Write `text` over `[from, to)`, stepping over `hoisted` when that range sits
+/// inside the gap: the literal lands before the hoisted chunk and the bytes
+/// after it are cleared, so the chunk stays unedited and keeps its mappings.
+fn write_gap(
+    str: &mut MagicString<'_>,
+    from: u32,
+    to: u32,
+    text: &str,
+    hoisted: Option<(u32, u32)>,
+    end: GapEnd,
+) {
+    if let Some((hs, he)) = hoisted
+        && from <= hs
+        && he <= to
+    {
+        if from < hs {
+            str.overwrite(from, hs, text);
+        } else if !text.is_empty() {
+            str.append_left(hs, text);
+        }
+        if he < to {
+            str.overwrite(he, to, "");
+        }
+        return;
+    }
+    if from < to {
+        str.overwrite(from, to, text);
+    } else if !text.is_empty() {
+        match end {
+            // cursor == *s — overwrite would be an empty range; use
+            // prepend_right so the literal lands before the chunk.
+            GapEnd::Chunk => str.prepend_right(to, text),
+            GapEnd::Range => str.append_left(to, text),
+        };
     }
 }
 
