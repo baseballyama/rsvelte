@@ -9740,13 +9740,11 @@ fn convert_statement_for_program(
                 oxc_ast::ast::ExportDefaultDeclarationKind::ClassDeclaration(class_decl)
                     if !class_decl.declare
                         && !class_decl.r#abstract
-                        && class_decl.implements.is_empty()
                         && class_decl.decorators.is_empty() =>
                 {
-                    // Plain-JS class: the typed `ClassDeclaration` node omits the
-                    // TS-only `abstract`/`declare`/`implements`/`decorators`
-                    // fields, so it serializes byte-identical to the former Value
-                    // blob while routing the class body through the typed walker.
+                    // `abstract` / `declare` / `decorators` still fall through to
+                    // the Value blob below, which drops them: neither form matches
+                    // acorn-typescript, which writes all three before `id`.
                     convert_class_declaration_as_node(arena, class_decl, offset, line_offsets)
                 }
                 oxc_ast::ast::ExportDefaultDeclarationKind::ClassDeclaration(class_decl) => {
@@ -10823,6 +10821,42 @@ fn convert_ts_type_alias_declaration_as_node(
     }
 }
 
+/// `A`, `B<C>` in an `extends` / `implements` clause. acorn-typescript gives both
+/// clauses the same node, down to naming the instantiation `typeParameters`.
+fn ts_expression_with_type_arguments(
+    arena: &ParseArena,
+    span: oxc_span::Span,
+    type_name: &oxc_ast::ast::TSTypeName<'_>,
+    type_arguments: Option<&oxc_ast::ast::TSTypeParameterInstantiation<'_>>,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    let mut obj = Map::new();
+    let start = offset + span.start as usize;
+    let end = offset + span.end as usize;
+    obj.set_field(
+        "type",
+        Value::String("TSExpressionWithTypeArguments".to_string()),
+    );
+    push_span_fields(&mut obj, start, end, line_offsets);
+    obj.set_field(
+        "expression",
+        convert_ts_type_name_adjusted(type_name, AdjustedOffset::plain(offset), line_offsets),
+    );
+    if let Some(arguments) = type_arguments {
+        obj.set_field(
+            "typeParameters",
+            convert_ts_type_param_instantiation(
+                arena,
+                arguments,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            ),
+        );
+    }
+    Value::Object(obj)
+}
+
 fn convert_ts_interface_declaration_as_node(
     arena: &ParseArena,
     decl: &oxc_ast::ast::TSInterfaceDeclaration<'_>,
@@ -10861,39 +10895,14 @@ fn convert_ts_interface_declaration_as_node(
         .extends
         .iter()
         .map(|heritage| {
-            let mut heritage_obj = Map::new();
-            let heritage_start = offset + heritage.span.start as usize;
-            let heritage_end = offset + heritage.span.end as usize;
-            heritage_obj.set_field(
-                "type",
-                Value::String("TSExpressionWithTypeArguments".to_string()),
-            );
-            push_span_fields(
-                &mut heritage_obj,
-                heritage_start,
-                heritage_end,
+            ts_expression_with_type_arguments(
+                arena,
+                heritage.span,
+                &heritage.type_name,
+                heritage.type_arguments.as_deref(),
+                offset,
                 line_offsets,
-            );
-            heritage_obj.set_field(
-                "expression",
-                convert_ts_type_name_adjusted(
-                    &heritage.type_name,
-                    AdjustedOffset::plain(offset),
-                    line_offsets,
-                ),
-            );
-            if let Some(arguments) = &heritage.type_arguments {
-                heritage_obj.set_field(
-                    "typeParameters",
-                    convert_ts_type_param_instantiation(
-                        arena,
-                        arguments,
-                        AdjustedOffset::plain(offset),
-                        line_offsets,
-                    ),
-                );
-            }
-            Value::Object(heritage_obj)
+            )
         })
         .collect();
     if !extends.is_empty() {
@@ -11154,7 +11163,24 @@ fn convert_class_declaration_as_node(
         body,
         declare: class_decl.declare,
         r#abstract: class_decl.r#abstract,
-        implements: !class_decl.implements.is_empty(),
+        implements: (!class_decl.implements.is_empty()).then(|| {
+            Box::new(Value::Array(
+                class_decl
+                    .implements
+                    .iter()
+                    .map(|clause| {
+                        ts_expression_with_type_arguments(
+                            arena,
+                            clause.span,
+                            &clause.expression,
+                            clause.type_arguments.as_deref(),
+                            offset,
+                            line_offsets,
+                        )
+                    })
+                    .collect(),
+            ))
+        }),
         decorators,
         type_parameters: opt_type_params(
             arena,
@@ -11179,7 +11205,7 @@ fn convert_class_declaration_as_node(
 /// `ClassDeclaration` cases (so an `export <decl>` declaration routes through the
 /// typed analyze walker instead of `JsNode::Raw`). Cases whose byte-identical
 /// serialization needs the Value form — TS `declare`/overload functions,
-/// abstract / declare / implements / decorated classes, and all TS-only
+/// abstract / declare / decorated classes, and all TS-only
 /// declarations — fall back to
 /// `JsNode::from_value(convert_declaration_for_program(...))`.
 fn convert_declaration_for_program_as_node(
@@ -11204,13 +11230,12 @@ fn convert_declaration_for_program_as_node(
                     ))
                 })
         }
-        // The typed class node adds `abstract` / `declare` / `implements` /
-        // `decorators` fields that the Value form omits, so only the plain-JS
-        // shape is byte-identical.
+        // `abstract` / `declare` / `decorators` still fall through to the Value
+        // form, which drops them: neither matches acorn-typescript, which writes
+        // all three before `id`.
         Declaration::ClassDeclaration(class_decl)
             if !class_decl.declare
                 && !class_decl.r#abstract
-                && class_decl.implements.is_empty()
                 && class_decl.decorators.is_empty() =>
         {
             convert_class_declaration_as_node(arena, class_decl, offset, line_offsets)

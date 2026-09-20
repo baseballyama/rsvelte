@@ -558,7 +558,10 @@ pub enum JsNode {
         body: JsNodeId,
         declare: bool,
         r#abstract: bool,
-        implements: bool,
+        /// Opaque, output-only `TSExpressionWithTypeArguments` array
+        /// (`implements A, B<C>`), serialized verbatim. `None` for the plain-JS
+        /// majority.
+        implements: Option<Box<serde_json::Value>>,
         decorators: IdRange,
         /// Opaque, output-only TS `typeParameters` blob (`class K<T>`).
         type_parameters: Option<Box<serde_json::Value>>,
@@ -2001,15 +2004,15 @@ impl Serialize for JsNode {
                 if let Some(stp) = super_type_parameters {
                     map.serialize_entry("superTypeParameters", stp.as_ref())?;
                 }
+                if let Some(clauses) = implements {
+                    map.serialize_entry("implements", clauses.as_ref())?;
+                }
                 ser_node!(map, "body", body);
                 if *declare {
                     map.serialize_entry("declare", &true)?;
                 }
                 if *r#abstract {
                     map.serialize_entry("abstract", &true)?;
-                }
-                if *implements {
-                    map.serialize_entry("implements", &true)?;
                 }
                 if !decorators.is_empty() {
                     ser_children!(map, "decorators", decorators);
@@ -3358,7 +3361,7 @@ impl JsNode {
                         body: convert_child(obj, "body"),
                         declare: get_bool(obj, "declare"),
                         r#abstract: get_bool(obj, "abstract"),
-                        implements: get_bool(obj, "implements"),
+                        implements: obj.field("implements").cloned().map(Box::new),
                         decorators: convert_array(obj, "decorators"),
                         type_parameters: obj.field("typeParameters").cloned().map(Box::new),
                         super_type_parameters: obj
