@@ -2847,6 +2847,7 @@ pub(crate) fn transform_client(
                     &context.arena,
                     &alloc,
                     &ast_islands,
+                    Some(source),
                 )
             })
             .map(|converted| {
