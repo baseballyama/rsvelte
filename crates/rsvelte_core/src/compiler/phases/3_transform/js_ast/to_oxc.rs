@@ -70,6 +70,40 @@ use rsvelte_esrap::{BraceMapping, LocRange};
 use std::cell::RefCell;
 use std::collections::HashSet;
 
+/// OXC lifts a directive prologue out of `Program::body` into
+/// `Program::directives`; ESTree and the printer both want those statements in
+/// `body`. Every re-parse in phase 3 rebuilds its output from `body` alone, so
+/// without this a `"use strict"` is deleted from the generated module.
+pub fn hoisted_directives<'a>(
+    ab: &AstBuilder<'a>,
+    directives: ArenaVec<'a, Directive<'a>>,
+) -> Vec<Statement<'a>> {
+    directives
+        .into_iter()
+        .map(|directive| {
+            let expression = Expression::StringLiteral(ArenaBox::new_in(directive.expression, ab));
+            Statement::ExpressionStatement(ExpressionStatement::boxed(
+                directive.span,
+                expression,
+                ab,
+            ))
+        })
+        .collect()
+}
+
+/// Put a lifted prologue back at the front of `program.body`, in place. For the
+/// callers that walk a re-parsed `body` rather than rebuilding it, which cannot
+/// see `directives` at all.
+pub fn restore_hoisted_directives<'a>(ab: &AstBuilder<'a>, program: &mut Program<'a>) {
+    if program.directives.is_empty() {
+        return;
+    }
+    let directives = std::mem::replace(&mut program.directives, ArenaVec::new_in(ab));
+    for (index, statement) in hoisted_directives(ab, directives).into_iter().enumerate() {
+        program.body.insert(index, statement);
+    }
+}
+
 /// A converted program plus the comment coordinate space it needs to be printed
 /// in (see the module docs). `comment_source` is `None` for the common
 /// comment-free program, which prints exactly as before.
@@ -2041,7 +2075,11 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             // Chunk-local spans stay below `loc_base`, so they read as "no
             // location"; record the bound the second pass has to clear.
             self.note_span(text.len() as u32);
-            let mut stmts: Vec<Statement<'a>> = ret.program.body.into_iter().collect();
+            let mut stmts: Vec<Statement<'a>> =
+                hoisted_directives(&self.ab, ret.program.directives)
+                    .into_iter()
+                    .chain(ret.program.body)
+                    .collect();
             seal_removed_inspect_empties(&mut stmts, &text, &sealed_at, 0);
             return Some(stmts);
         }
@@ -2050,7 +2088,11 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             // Probe pass: the comments are dropped here, but the result is
             // discarded — it only tells the driver a second pass is needed.
             self.note_span(text.len() as u32);
-            let mut stmts: Vec<Statement<'a>> = ret.program.body.into_iter().collect();
+            let mut stmts: Vec<Statement<'a>> =
+                hoisted_directives(&self.ab, ret.program.directives)
+                    .into_iter()
+                    .chain(ret.program.body)
+                    .collect();
             seal_removed_inspect_empties(&mut stmts, &text, &sealed_at, 0);
             return Some(stmts);
         }
@@ -2074,7 +2116,10 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             return None;
         }
         let shift = base - 1;
-        let mut stmts: Vec<Statement<'a>> = ret.program.body.into_iter().collect();
+        let mut stmts: Vec<Statement<'a>> = hoisted_directives(&self.ab, ret.program.directives)
+            .into_iter()
+            .chain(ret.program.body)
+            .collect();
         let mut shifter = ShiftSpans(shift);
         for stmt in &mut stmts {
             shifter.visit_statement(stmt);
