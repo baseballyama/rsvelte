@@ -283,6 +283,7 @@ fn print_split_impl<const HAS_COMMENTS: bool>(
         let mut printer =
             printer::Printer::<HAS_COMMENTS, true>::with_comments(options, comments, line_starts)
                 .with_placement_source(comment_source)
+                .with_map_text(map_source)
                 .with_map_source_len(map_source.map_or(u32::MAX, |s| s.len() as u32))
                 .with_split_coordinates(map_line_starts, loc_base, loc_map, brace_mappings, false)
                 .with_src_flushable(src_flushable);
@@ -302,6 +303,7 @@ fn print_split_impl<const HAS_COMMENTS: bool>(
     let mut printer =
         printer::Printer::<HAS_COMMENTS, false>::with_comments(options, comments, line_starts)
             .with_placement_source(comment_source)
+            .with_map_text(map_source)
             .with_map_source_len(map_source.map_or(u32::MAX, |s| s.len() as u32))
             .with_split_coordinates(
                 map_line_starts,
@@ -373,6 +375,7 @@ fn print_with_map_impl<const HAS_COMMENTS: bool>(
     let mut printer =
         printer::Printer::<HAS_COMMENTS, false>::with_comments(options, comments, line_starts)
             .with_placement_source(source)
+            .with_map_text(Some(source))
             .with_map_source_len(source.len() as u32)
             .with_source_map();
     let mut ctx = context::Context::new();

@@ -7682,9 +7682,8 @@ each sample's recorded `metadata.json` still says exactly that).
 | `out-of-range` | `out-of-range\t<sample>\t<target>\t<count>` | budget: out-of-range segments not also emitted by the official map at the same generated and original position |
 | `corpus-out-of-range` | `corpus-out-of-range\t<pattern-corpus path>\t<target>\t<count>` | budget: the same predicate over `compatibility/pattern-corpus`, where there is no oracle to subtract |
 
-**Current baseline: `sourcemap-known-failures.json`, 69 entries** — every one a
-`corpus-out-of-range` budget; the upstream-sample arms (`anchor`, `map-parity`,
-`out-of-range`) are all still empty. The
+**Current baseline: `sourcemap-known-failures.json`, 0 entries** — every arm
+(`anchor`, `map-parity`, `out-of-range`, `corpus-out-of-range`) is empty. The
 before/after tables further down record what one specific change did at the time
 it landed; they are history, not the current size. Reading the newest number in
 those tables as today's count is the mistake this line exists to prevent — the
@@ -7692,23 +7691,34 @@ those tables as today's count is the mistake this line exists to prevent — the
 73), #2312 later took it to 74, and the location-less comment cursor brought it
 back to 73.
 
-### Why the 69 `corpus-out-of-range` entries are accepted
+### Why there are no `corpus-out-of-range` entries
 
 The 29 upstream samples read **0** on the out-of-range predicate, which is what
 let the client map carry the defect of #4454 with this gate green; the corpus arm
 (#4454's second half) is the population that can see it. It measures 1,269 of the
 1,387 `.svelte` components under `compatibility/pattern-corpus` — the other 118
-are error repros the compiler rejects — on client and server, and finds
-**87 out-of-range segments of 263,879** (0.03%) in 69 file/target pairs.
+are error repros the compiler rejects — on client and server, and read 6,016 when
+#4454 was filed, 137 after #4585, 87 after #4600 and **0** since #4610.
 
-They are accepted as a shrink-only budget rather than fixed here because every
-one of them is a *residual* of the mechanism #4600 closed: the byte-vs-UTF-16
-column defect took the same population from 6,016 to 137 to 77 on the client, and
-what is left is a set of small per-segment overshoots (`+2` … `+18`) with no
-single shared cause identified yet. There is no oracle arm: a segment whose
-original position lies past the end of its source line is wrong without reference
-to another compiler, so unlike the upstream-sample arm there is nothing to
-subtract.
+The 87 were two mechanisms, one per port, both the same shape — a source column
+produced by *arithmetic* on a resolved column rather than resolved from an offset,
+so nothing re-checked which line it landed on:
+
+- client (77): a keyword's end anchor is `column + keyword.len()`, and a keyword
+  longer than the source token it stands for runs off the end of the line. An
+  offset the driver resolves itself cannot, so the guard sits on the one event
+  that carries a pre-resolved pair (`rsvelte_esrap::command`).
+- server (10): `generate_token_mappings_inner`'s fast path read `text.is_ascii()`
+  as "this token stays on one line". A string literal with a line continuation is
+  ASCII and carries its own newline, so both derived columns named a position past
+  the end of the line they claimed.
+
+There is no oracle arm here: a segment whose original position lies past the end
+of its source line is wrong without reference to another compiler, so unlike the
+upstream-sample arm there is nothing to subtract. The official compiler emits 18
+such segments on the same corpus, and `map-parity` no longer asks rsvelte to
+reproduce one — declining to call an official out-of-range position a regression
+and demanding rsvelte reproduce it are the same claim from opposite sides.
 
 Ratchet semantics, matching `fmt-verify.mjs` / `verify.mjs`:
 
