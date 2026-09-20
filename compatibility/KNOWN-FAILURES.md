@@ -6631,7 +6631,7 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
 ## Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **137 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **134 entries**.
 
 ### The question it asks
 
@@ -6747,15 +6747,15 @@ ratchet at all. So `loose:unclosed-element::RegularElement#span` is an ordinary 
 defect. Reading the issue and the gate as sharing a vocabulary would have attributed an rsvelte
 defect upstream.
 
-Partition of `parse-ast-known-failures.json` by cluster: `51 + 28 + 22 + 12 + 8 + 5 + 4 + 4 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `51 + 29 + 18 + 12 + 8 + 5 + 4 + 4 + 2 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
 | `span` | 51 | 27 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
 | `node-type` | 8 | 4 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
 | `estree-fields` | 4 | 2 | ESTree fields rsvelte's serializer omits or adds. The nine TypeScript type fields are gone (#4335), so is `Identifier.typeAnnotation` (#4133 — OXC keeps a catch parameter's and a declarator's annotation beside the pattern, not on it) and so is `TSParameterProperty.{accessibility,readonly}` (#4133). Both remaining bases are `CallExpression.optional`. `#value` is the type-argument call, where acorn-typescript writes `optional` only when the subscript chain was already optional. `#extra` **came back** with the `Decorator.expression` fix: `parseDecorator` builds the decorator's own spine with a bare `while (eat('.'))` loop and one `parseMaybeDecoratorArguments` wrap, neither of which sets `optional`, while the arguments go through the ordinary parser and keep it — so `@dec({a:1})` and `@a.b.c` have no `optional` on the spine and `@dec(a?.b())` has it on everything inside the argument. Suppressing it here needs to tell `@a.b` from `@(a.b)`, and OXC elides the parentheses, so the distinction is not in the AST rsvelte reads. The lint gates found some of these from the other side. |
-| `unclustered` | 22 | 14 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. `ClassDeclaration.implements` left in #4133: acorn-typescript gives the clause the same `TSExpressionWithTypeArguments` array it gives an interface `extends`, and rsvelte's typed class node carried a bool. `ExpressionStatement.directive` left in #4133: OXC lifts a `<script>`'s directive prologue out of `Program::body` into `Program::directives`, ESTree keeps it in `body`, and the script-program converter read only `body`. |
-| `comment-attachment` | 28 | 14 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. #4133 retired seven bases at once: a TS annotation, its type arguments, its type parameters and a return type are serialized from an opaque `Value`, so their nested nodes carried no comment at all until the declarations' materialization was routed through every one of them. |
+| `unclustered` | 18 | 10 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. `ClassDeclaration.implements` left in #4133: acorn-typescript gives the clause the same `TSExpressionWithTypeArguments` array it gives an interface `extends`, and rsvelte's typed class node carried a bool. `ExpressionStatement.directive` left in #4133: OXC lifts a `<script>`'s directive prologue out of `Program::body` into `Program::directives`, ESTree keeps it in `body`, and the script-program converter read only `body`. |
+| `comment-attachment` | 29 | 15 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. #4133 retired seven bases at once: a TS annotation, its type arguments, its type parameters and a return type are serialized from an opaque `Value`, so their nested nodes carried no comment at all until the declarations' materialization was routed through every one of them. `modern::Property.trailingComments#missing` is the one base here that is modern-only, and it appeared when the `customElement` fix retired `Root.options.customElement.shadow_object#extra`: the carrier's `shadow` object literal carries a trailing comment on a property, which the whole-field key could not tell from the field's absence. |
 | `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
 | `css-shape` | 12 | 8 | the CSS text rsvelte re-serializes onto a node (`Atrule.prelude`, `Declaration.value`) and the style-sheet comment fields — the legacy selector conversion left the row in #4592 — **plus every key whose node type is spelled `Block`** — the cluster regex matches the CSS `Block` node and ESTree's block-comment type alike, so `Block#span` and `Block#node-missing` are filed here and are comments. The row is a key-shape partition, not a subject one. |
 | `child-count` | 5 | 4 | an array of children with a different length. |
@@ -6764,10 +6764,10 @@ Partition of `parse-ast-known-failures.json` by cluster: `51 + 28 + 22 + 12 + 8 
 
 **Read the `keys` column as `bases x axis`, not as work.** A key is
 `<axis>::<NodeType>.<field>#<kind>` and most node types diverge identically under `modern` and
-`legacy`, so 137 keys are **78 distinct bases**: 59 appear on both axes and 19 on one
-(59x2 + 19 = 137, a 1.76x collapse), and 78 is therefore the defect ceiling. The per-cluster
-collapse is not uniform — `estree-fields`, `comment-attachment`, `loc-presence` and `node-type`
-are 2.00x (every base is on both axes), `span` 1.89x, `unclustered` 1.57x, `css-shape` 1.50x,
+`legacy`, so 134 keys are **75 distinct bases**: 59 appear on both axes and 16 on one
+(59x2 + 16 = 134, a 1.79x collapse), and 75 is therefore the defect ceiling. The per-cluster
+collapse is not uniform — `estree-fields`, `loc-presence` and `node-type` are 2.00x (every base is
+on both axes), `comment-attachment` 1.93x, `span` 1.89x, `unclustered` 1.80x, `css-shape` 1.50x,
 `child-count` 1.25x (legacy-only shapes), `ast-mode` and
 `accepts-what-official-rejects` 1.00x by construction.
 
@@ -6780,7 +6780,8 @@ have produced the right ones; the gated declaration and the gated partition line
 correct throughout, which is exactly the split this repository records between a checked half and
 an unchecked half on the same page.
 
-**No base's two axes sit in different clusters** (0 of 65), so a cluster can be worked end to end
+**No base's two axes sit in different clusters** (0 of the 59 bases that appear on both axes), so a
+cluster can be worked end to end
 without a key from it turning up under someone else's row. Measured directly from the JSON, which
 is authoritative for the partition: the ten rows above are its `Counter(values())`.
 

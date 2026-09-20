@@ -19,7 +19,7 @@
 use crate::ast::js::Expression;
 use crate::ast::template::{
     AttributeValue, AttributeValuePart, CssOption, CustomElementOptions, Namespace, ShadowMode,
-    SvelteOptions, TemplateNode,
+    ShadowOption, SvelteOptions, TemplateNode,
 };
 use crate::error::{ParseError, ParseResult};
 use serde_json::Value as JsonValue;
@@ -298,7 +298,6 @@ fn parse_custom_element_option<'a>(
                 return Ok(Some(CustomElementOptions {
                     tag: Some(tag.into()),
                     shadow: None,
-                    shadow_object: None,
                     props: None,
                     extend: None,
                 }));
@@ -325,15 +324,23 @@ fn parse_custom_element_option<'a>(
 }
 
 /// Parse customElement object expression.
+///
+/// Upstream checks every property's *shape* in source order and then reads the
+/// four options by name (`properties.find`), so a malformed `tag` is reported
+/// before a malformed `shadow` whatever order the source writes them in, and a
+/// repeated key is read from its first occurrence.
 fn parse_custom_element_object<'a>(
     obj_expr: &JsonValue,
     attr: &crate::ast::template::AttributeNode,
 ) -> ParseResult<CustomElementOptions<'a>> {
-    let mut tag = None;
-    let mut shadow = None;
-    let mut shadow_object = None;
-    let mut props = None;
-    let mut extend = None;
+    let span = (attr.start as usize, attr.end as usize);
+    let invalid = || {
+        ParseError::svelte(
+            "svelte_options_invalid_customelement",
+            CUSTOM_ELEMENT_INVALID,
+            span,
+        )
+    };
 
     let empty = Vec::new();
     let properties = match obj_expr.field("properties") {
@@ -343,81 +350,62 @@ fn parse_custom_element_object<'a>(
 
     for prop in properties {
         if !is_plain_property(prop) {
-            return Err(ParseError::svelte(
-                "svelte_options_invalid_customelement",
-                CUSTOM_ELEMENT_INVALID,
-                (attr.start as usize, attr.end as usize),
-            ));
-        }
-        let key = property_key(prop).unwrap_or_default();
-        let value = prop.field("value");
-
-        match key {
-            "tag" => {
-                // Upstream reads `tag[1]?.value`, so anything that is not a
-                // string literal reaches `validate_tag` as a non-string.
-                let tag_value = value
-                    .and_then(|v| v.field("value"))
-                    .and_then(|v| v.as_str());
-                validate_tag_name(tag_value, attr)?;
-                tag = tag_value.map(|t| t.to_string().into());
-            }
-            "shadow" => {
-                // Mirrors 1-parse/read/options.js L134-143: a string literal must
-                // be "open"/"none"; an ObjectExpression (ShadowRootInit) is
-                // passed through verbatim.
-                let value_type = value
-                    .and_then(|v| v.field("type"))
-                    .and_then(|t| t.as_str())
-                    .unwrap_or("");
-                if value_type == "ObjectExpression" {
-                    shadow_object = value.cloned();
-                } else {
-                    match value
-                        .and_then(|v| v.field("value"))
-                        .and_then(|v| v.as_str())
-                    {
-                        Some("open") if value_type == "Literal" => shadow = Some(ShadowMode::Open),
-                        Some("none") if value_type == "Literal" => shadow = Some(ShadowMode::None),
-                        _ => {
-                            return Err(ParseError::svelte(
-                                "svelte_options_invalid_customelement_shadow",
-                                CUSTOM_ELEMENT_SHADOW_INVALID,
-                                (attr.start as usize, attr.end as usize),
-                            ));
-                        }
-                    }
-                }
-            }
-            "props" => {
-                let value = value.cloned().unwrap_or(JsonValue::Null);
-                validate_custom_element_props(&value, attr)?;
-                props = Some(value);
-            }
-            "extend" => {
-                if let Some(extend_expr) = value {
-                    extend = Some(Expression::from_json(extend_expr.clone()));
-                }
-            }
-            _ => {}
+            return Err(invalid());
         }
     }
+    let find = |name: &str| {
+        properties
+            .iter()
+            .find(|prop| property_key(prop) == Some(name))
+            .and_then(|prop| prop.field("value"))
+    };
 
-    Ok(CustomElementOptions {
-        tag,
-        shadow,
-        shadow_object,
-        props,
-        extend,
-    })
+    let mut options = CustomElementOptions::default();
+
+    if let Some(value) = find("tag") {
+        // Upstream reads `tag[1]?.value`, so anything that is not a string
+        // literal reaches `validate_tag` as a non-string.
+        let tag_value = value.field("value").and_then(|v| v.as_str());
+        validate_tag_name(tag_value, attr)?;
+        options.tag = tag_value.map(|tag| tag.to_string().into());
+    }
+
+    if let Some(value) = find("props") {
+        options.props = Some(custom_element_props(value, attr)?);
+    }
+
+    if let Some(value) = find("shadow") {
+        let value_type = value.field("type").and_then(|t| t.as_str()).unwrap_or("");
+        let literal = value.field("value").and_then(|v| v.as_str());
+        options.shadow = Some(match (value_type, literal) {
+            ("Literal", Some("open")) => ShadowOption::Mode(ShadowMode::Open),
+            ("Literal", Some("none")) => ShadowOption::Mode(ShadowMode::None),
+            ("ObjectExpression", _) => ShadowOption::Init(value.clone()),
+            _ => {
+                return Err(ParseError::svelte(
+                    "svelte_options_invalid_customelement_shadow",
+                    CUSTOM_ELEMENT_SHADOW_INVALID,
+                    span,
+                ));
+            }
+        });
+    }
+
+    if let Some(value) = find("extend") {
+        options.extend = Some(Expression::from_json(value.clone()));
+    }
+
+    Ok(options)
 }
 
-/// Upstream's `props` walk (1-parse/read/options.js L83-132): every entry must be
-/// a statically analyzable `{ attribute?, reflect?, type? }` object literal.
-fn validate_custom_element_props(
+/// Upstream's `props` walk (1-parse/read/options.js L82-131): every entry must
+/// be a statically analyzable `{ attribute?, reflect?, type? }` object literal,
+/// and the walk that validates is the walk that builds the plain object the
+/// option becomes — `ce.props[name]` is written field by field in source order.
+fn custom_element_props(
     props: &JsonValue,
     attr: &crate::ast::template::AttributeNode,
-) -> ParseResult<()> {
+) -> ParseResult<JsonValue> {
     let invalid = || {
         ParseError::svelte(
             "svelte_options_invalid_customelement_props",
@@ -430,6 +418,7 @@ fn validate_custom_element_props(
         return Err(invalid());
     };
 
+    let mut out = serde_json::Map::new();
     for entry in entries {
         if !is_plain_property(entry) {
             return Err(invalid());
@@ -438,7 +427,11 @@ fn validate_custom_element_props(
         else {
             return Err(invalid());
         };
+        let Some(name) = property_key(entry) else {
+            return Err(invalid());
+        };
 
+        let mut definition = serde_json::Map::new();
         for field in fields {
             if !is_plain_property(field) {
                 return Err(invalid());
@@ -451,7 +444,8 @@ fn validate_custom_element_props(
                 .and_then(|v| v.field("value"))
                 .unwrap_or(&JsonValue::Null);
 
-            let ok = match property_key(field).unwrap_or_default() {
+            let key = property_key(field).unwrap_or_default();
+            let ok = match key {
                 "type" => value.as_str().is_some_and(|t| PROP_TYPES.contains(&t)),
                 "reflect" => value.is_boolean(),
                 "attribute" => value.is_string(),
@@ -460,10 +454,12 @@ fn validate_custom_element_props(
             if !ok {
                 return Err(invalid());
             }
+            definition.insert(key.to_string(), value.clone());
         }
+        out.insert(name.to_string(), JsonValue::Object(definition));
     }
 
-    Ok(())
+    Ok(JsonValue::Object(out))
 }
 
 /// The `properties` array of an `ObjectExpression`, or `None` for anything else.

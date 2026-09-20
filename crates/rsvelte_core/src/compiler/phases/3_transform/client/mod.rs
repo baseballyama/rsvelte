@@ -2611,43 +2611,20 @@ pub(crate) fn transform_client(
         // Reference: transform-client.js lines 590-626: entries from
         // `<svelte:options customElement={{ props: {...} }}>` come first, then
         // every prop/bindable_prop binding (not already covered) as `name: {}`.
-        // `ce.props` is the ObjectExpression AST of the `props` option; convert
-        // it to (name, prop_def) entries in source order.
+        // `ce.props` is already the evaluated `{ name: { attribute?, reflect?,
+        // type? } }` map the parser built while validating, in source order.
         let ce_props: Vec<(String, serde_json::Map<String, serde_json::Value>)> = ce
             .props
             .as_ref()
-            .and_then(|p| p.field("properties"))
-            .and_then(|p| p.as_array())
+            .and_then(|props| props.as_object())
             .map(|props| {
                 props
                     .iter()
-                    .filter_map(|prop| {
-                        let key = prop.field("key")?;
-                        let name = key
-                            .field("name")
-                            .and_then(|n| n.as_str())
-                            .or_else(|| key.field("value").and_then(|v| v.as_str()))?
-                            .to_string();
-                        let mut def = serde_json::Map::new();
-                        if let Some(value_props) = prop
-                            .field("value")
-                            .and_then(|v| v.field("properties"))
-                            .and_then(|p| p.as_array())
-                        {
-                            for vp in value_props {
-                                let vkey = vp.field("key").and_then(|k| {
-                                    k.field("name")
-                                        .and_then(|n| n.as_str())
-                                        .or_else(|| k.field("value").and_then(|v| v.as_str()))
-                                });
-                                if let (Some(vkey), Some(vval)) =
-                                    (vkey, vp.field("value").and_then(|v| v.field("value")))
-                                {
-                                    def.insert(vkey.to_string(), vval.clone());
-                                }
-                            }
-                        }
-                        Some((name, def))
+                    .map(|(name, definition)| {
+                        (
+                            name.clone(),
+                            definition.as_object().cloned().unwrap_or_default(),
+                        )
                     })
                     .collect()
             })

@@ -212,17 +212,25 @@ pub(crate) fn analyze_prepared_component_with_retained(
         // ShadowRootInit object form (`shadow: { mode: 'open', ... }`):
         // upstream passes the AST through to `create_custom_element`
         // (transform-client.js line 641: `shadow_root_init = ce.shadow`).
-        let shadow_object_source = ce_opts.shadow_object.as_ref().and_then(|obj| {
-            let start = obj.field("start")?.as_u64()? as usize;
-            let end = obj.field("end")?.as_u64()? as usize;
-            Some(source.get(start..end)?.to_string())
-        });
+        let shadow_object_source = match &ce_opts.shadow {
+            Some(crate::ast::template::ShadowOption::Init(obj)) => (|| {
+                let start = obj.field("start")?.as_u64()? as usize;
+                let end = obj.field("end")?.as_u64()? as usize;
+                Some(source.get(start..end)?.to_string())
+            })(),
+            _ => None,
+        };
         analysis.custom_element = Some(types::CustomElementConfig {
             tag: ce_opts.tag.as_ref().map(|t| t.to_string()),
-            shadow: ce_opts.shadow.map(|s| match s {
-                crate::ast::template::ShadowMode::Open => "open".to_string(),
-                crate::ast::template::ShadowMode::None => "none".to_string(),
-            }),
+            shadow: match &ce_opts.shadow {
+                Some(crate::ast::template::ShadowOption::Mode(
+                    crate::ast::template::ShadowMode::Open,
+                )) => Some("open".to_string()),
+                Some(crate::ast::template::ShadowOption::Mode(
+                    crate::ast::template::ShadowMode::None,
+                )) => Some("none".to_string()),
+                _ => None,
+            },
             shadow_object_source,
             props: ce_opts.props.clone(),
             extend,
