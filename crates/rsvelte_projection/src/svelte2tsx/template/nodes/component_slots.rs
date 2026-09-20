@@ -362,9 +362,12 @@ pub fn process_component_children_with_slots(
         && open_default_slot_block
         && let Some(first_node) = fragment.nodes.first()
     {
-        str.append_left_fmt(
+        // `prepend_right`, not `append_left`: when the first child starts at the
+        // opening tag's end this has to follow the ranges `transform` moved
+        // there, the way upstream's own transformation array does.
+        str.prepend_right(
             first_node.start(),
-            format_args!(
+            &format!(
                 "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
                 build_let_destructure_string(attributes, source),
                 inst_var

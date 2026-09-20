@@ -14,6 +14,7 @@ mod collect;
 pub mod ctx;
 mod nodes;
 mod segs;
+mod transform;
 pub mod utils;
 mod walk;
 

@@ -23,8 +23,10 @@ pub fn format_spread_attribute_segments(spread: &SpreadAttribute, source: &str) 
             segs_push_lit(&mut out, slice_src(source, e as usize, extended as usize));
             segs_push_lit(&mut out, "),");
         } else {
-            segs_push_lit(&mut out, "...");
-            segs_push_src(&mut out, s, e);
+            // `Spread.ts:13-16`: one range, `[node.start + 1, node.end - 1]` —
+            // the braces are dropped and the `...` comes from the source, so the
+            // transformation array has no literal between the tag name and it.
+            segs_push_src(&mut out, spread.start + 1, spread.end - 1);
             segs_push_lit(&mut out, ",");
         }
     } else {

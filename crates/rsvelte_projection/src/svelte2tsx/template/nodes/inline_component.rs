@@ -27,6 +27,7 @@ use crate::svelte2tsx::template::attributes::let_::{
 use crate::svelte2tsx::template::attributes::spread::format_spread_attribute_segments;
 use crate::svelte2tsx::template::ctx::{Counter, ElementOpenerCommentIndex};
 use crate::svelte2tsx::template::segs::{Seg, bake_out_of_order_src, emit_segmented_overwrite};
+use crate::svelte2tsx::template::transform::{Tf, push_tf, transform};
 use crate::svelte2tsx::template::utils::expr::{
     extend_expr_end_with_ts_postfix, get_binding_lhs_text, get_expression_end_stripping_ts,
     get_expression_range, get_expression_text, get_set_binding_ranges,
@@ -261,39 +262,11 @@ pub fn handle_component(
         named_slot_close,
     );
 
-    // Add extra whitespace to match JS svelte2tsx position-preserving behavior
-    let name_start = source[comp.start as usize..]
-        .find(comp.name.as_str())
-        .map_or(comp.start + 1, |offset| comp.start + source_offset(offset));
-    let spacing = opener_spacing(
-        source,
-        comp.start,
-        &comp.name,
-        opening_tag_end,
-        Some((name_start, name_start + source_offset(comp.name.len()))),
-        &comp.attributes,
-        &counter.element_opener_comments,
-        OpenerCtx {
-            is_element: false,
-            in_component_slot: named_slot_close,
-            tag_name: &comp.name,
-            is_slot_tag: false,
-            preserve_bind: options.preserves_bind_prefix(),
-        },
-    );
-    if spacing.in_attr_object > 0 {
-        let mut padded: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 1);
-        padded.push(Seg::Lit(" ".repeat(spacing.in_attr_object)));
-        padded.extend(attr_segs);
-        attr_segs = padded;
-    }
-    // A named-slot child's `$$slot_def[…]` prologue is emitted by the caller
-    // ahead of this block, and takes the leading gaps with it.
-    let block_indent = if named_slot_close {
-        String::new()
-    } else {
-        " ".repeat(spacing.before_block)
-    };
+    // `transform` collapses each run of source between two kept ranges to a
+    // single space and moves the ones past the delete destination to the end of
+    // the opener, so the block indent and the props object's leading spaces are
+    // produced by the moves rather than counted.
+    let block_indent = String::new();
 
     // Add children prop for Svelte 5 if component has children. Inserted
     // at the beginning of the props object, AFTER any leading whitespace
@@ -349,7 +322,8 @@ pub fn handle_component(
     // `InlineComponent.ts:107-111` pushes `[nodeNameStart, nodeNameEnd]`, not the
     // name's text: the argument of `__sveltets_2_ensureComponent` is the source's
     // own tag name, so every position in it maps back (#4097).
-    match component_name_range(comp, source) {
+    let name_range = component_name_range(comp, source);
+    match name_range {
         Some((start, end)) => opener_segs.push(Seg::Src(start, end)),
         None => opener_segs.push(Seg::Lit(comp.name.to_string())),
     }
@@ -371,8 +345,33 @@ pub fn handle_component(
         // `__sveltets_2_ensure{Transition,Animation}(name(undefined.mapElementTag("undefined")…))`.
         opener_segs.extend(build_component_directive_suffix(&comp.attributes, source));
     }
-    let opener_segs = bake_out_of_order_src(opener_segs, source);
-    emit_segmented_overwrite(str, comp.start, opening_tag_end, &opener_segs);
+    // `InlineComponent.ts:100-106`: the whitespace after the tag name is kept
+    // and marks the delete destination, so the characters `transform` removes
+    // still map onto the props object (autocompletion on a blank).
+    let mut tfs: Vec<Tf> = Vec::with_capacity(opener_segs.len() + 2);
+    let mut segs = opener_segs.into_iter();
+    // The header, the tag-name range and the header's tail, in that order —
+    // upstream's array keeps the delete marker after them.
+    for seg in segs.by_ref().take(3) {
+        push_tf(&mut tfs, seg);
+    }
+    if let Some((_, name_end)) = name_range
+        && source
+            .as_bytes()
+            .get(name_end as usize)
+            .is_some_and(u8::is_ascii_whitespace)
+    {
+        tfs.push(Tf::Delete(name_end));
+        tfs.push(Tf::Range(name_end, name_end + 1));
+        // Emptied rather than left to `transform`: an edited chunk with no
+        // content emits no mapping, so the blank does not become a segment of
+        // its own while it still travels with the move (#4650).
+        str.overwrite_content_only(name_end, name_end + 1, "");
+    }
+    for seg in segs {
+        push_tf(&mut tfs, seg);
+    }
+    transform(str, comp.start, opening_tag_end, &tfs);
 
     // Handle closing tag
     let closing_tag_start = find_closing_tag_start(source, comp.end);
@@ -532,7 +531,10 @@ pub fn handle_component(
             // No children but bracketed (e.g. `<C let:x></C>`) — append
             // the slot-def block before the closing tag so the `let`
             // bindings have a scope.
-            str.append_left(closing_tag_start, &inline_block);
+            // `prepend_right`: with no children the closing tag starts at the
+            // opening tag's end, where `transform` has moved the opener's kept
+            // ranges, and this block belongs after them.
+            str.prepend_right(closing_tag_start, &inline_block);
         }
         let spaces = " ".repeat(closing_tag_spacing(
             closing_tag_start,
@@ -562,9 +564,12 @@ pub fn handle_component(
     } else if needs_inline_block {
         // A self-closing tag has no `</Component>` for upstream to map, so the
         // name is never referenced here — only the `let:` scope and block close.
-        str.append_left_fmt(comp.end, format_args!("{inline_block}}}}}"));
+        // `prepend_right`, not `append_left`: upstream carries this in the
+        // transformation array, so it follows the ranges `transform` moved to
+        // the opener's end rather than preceding them.
+        str.prepend_right(comp.end, &format!("{inline_block}}}}}"));
     } else {
-        str.append_left(comp.end, "}");
+        str.prepend_right(comp.end, "}");
     }
     // Restore the slot context for following siblings.
     counter.slot_inst = saved_outer_slot;
