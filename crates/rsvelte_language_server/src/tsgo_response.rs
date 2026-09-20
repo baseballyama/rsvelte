@@ -585,7 +585,7 @@ impl<'a> TsgoResponseMapper<'a> {
                     return overlay.clamp_source_range(&context.source_path, range);
                 }
                 let mapped = overlay.map_source_range(&context.source_path, range)?;
-                (!overlay.is_generated_range(&context.shadow_path, mapped)).then_some(mapped)
+                (!overlay.touches_generated_range(&context.shadow_path, mapped)).then_some(mapped)
             }
             Direction::ShadowToSource => overlay.map_generated_range(&context.shadow_path, range),
         }

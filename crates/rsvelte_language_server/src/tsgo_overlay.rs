@@ -955,9 +955,25 @@ impl TsgoOverlay {
         Some(utf8_offset(&entry.document.text, position))
     }
 
-    /// Whether any byte of a tsgo range intersects generated-code markers.
+    /// Whether a tsgo range is generated text, which is what decides that it
+    /// maps back to nothing. An `Ωignore` region makes any range it intersects
+    /// generated; the appended `.tsx` does not, because the range around it has
+    /// source of its own — `'./X.svelte.tsx'` is the source specifier.
     #[must_use]
     pub fn is_generated_range(&self, shadow_path: &Path, range: Range) -> bool {
+        self.generated_range_span(shadow_path, range, false)
+    }
+
+    /// Whether a tsgo range *touches* generated text. The question a request
+    /// asks, where `is_generated_range` is the question a response asks: an
+    /// editor range that runs through the appended `.tsx` covers bytes with no
+    /// source, so the request is dropped rather than answered about them.
+    #[must_use]
+    pub fn touches_generated_range(&self, shadow_path: &Path, range: Range) -> bool {
+        self.generated_range_span(shadow_path, range, true)
+    }
+
+    fn generated_range_span(&self, shadow_path: &Path, range: Range, touching: bool) -> bool {
         let Some(source_path) = self.source_for_shadow(shadow_path) else {
             return false;
         };
@@ -973,12 +989,13 @@ impl TsgoOverlay {
         {
             return true;
         }
-        // Only a range with no source text of its own is generated: spanning the
-        // appended `.tsx` does not make `'./X.svelte.tsx'` generated.
-        entry
-            .import_suffix_ranges
-            .iter()
-            .any(|suffix| suffix.start <= start && end <= suffix.end)
+        entry.import_suffix_ranges.iter().any(|suffix| {
+            if touching {
+                suffix.start < end && start < suffix.end
+            } else {
+                suffix.start <= start && end <= suffix.end
+            }
+        })
     }
 
     /// Resolution integrity for every eager shadow.
@@ -3532,5 +3549,14 @@ mod tests {
         assert!(
             overlay.is_generated_position(&shadow_path, index.position(&shadow.text, suffix + 1))
         );
+
+        // A request range that merely runs *through* the appended `.tsx` is a
+        // different question from a response range that sits on it, and the
+        // specifier is the case where the two answers differ: the editor's range
+        // covers four bytes with no source, so the request is still dropped
+        // (#4464's `0:0` viewport maps to a range of exactly this shape), while
+        // the response range maps back to the source specifier.
+        assert!(overlay.touches_generated_range(&shadow_path, range));
+        assert!(!overlay.is_generated_range(&shadow_path, range));
     }
 }
