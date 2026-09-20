@@ -7119,6 +7119,7 @@ fn convert_function_body_directive(
         end: end as u32,
         loc,
         expression: arena.alloc_js_node(expression),
+        directive: Some(CompactString::from(directive.directive.as_str())),
     }
 }
 
@@ -7144,6 +7145,7 @@ fn convert_statement(
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
+                directive: None,
                 expression: arena.alloc_js_node(expr_to_node(convert_expression(
                     arena,
                     &expr_stmt.expression,
@@ -9124,6 +9126,28 @@ fn convert_parsed_program<'ast>(
                 map: &mut ignore_comment_map,
                 captured: capture.then(std::collections::HashMap::default),
             };
+            // OXC lifts a script's directive prologue out of `body`; ESTree
+            // keeps them as the first `ExpressionStatement`s, so they are
+            // visited first or the attacher pairs comments with the wrong node.
+            for directive in &program.directives {
+                let node = convert_function_body_directive(
+                    arena,
+                    directive,
+                    offset,
+                    0,
+                    line_offsets,
+                    false,
+                );
+                attacher.visit(
+                    &node.to_value(),
+                    Some(ParentInfo {
+                        end: Some(end as u32),
+                        is_last_in_body: false,
+                    }),
+                );
+                body_nodes.push(node);
+            }
+
             let last_index = program.body.len().saturating_sub(1);
 
             for (index, stmt) in program.body.iter().enumerate() {
@@ -9163,9 +9187,21 @@ fn convert_parsed_program<'ast>(
             // No comments, or comments but no `svelte-ignore` — fast path: keep
             // everything as typed JsNode (the harvest pass would find nothing).
             program
-                .body
+                .directives
                 .iter()
-                .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
+                .map(|directive| {
+                    convert_function_body_directive(
+                        arena,
+                        directive,
+                        offset,
+                        0,
+                        line_offsets,
+                        false,
+                    )
+                })
+                .chain(program.body.iter().filter_map(|stmt| {
+                    convert_statement_for_program(arena, stmt, offset, line_offsets)
+                }))
                 .collect()
         };
 
@@ -9511,6 +9547,7 @@ fn convert_statement_for_program(
                 end: end as u32,
                 loc,
                 expression: arena.alloc_js_node(expr_to_node(expr)),
+                directive: None,
             })
         }
         oxc_ast::ast::Statement::VariableDeclaration(var_decl) => {

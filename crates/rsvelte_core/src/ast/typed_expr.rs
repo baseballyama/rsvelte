@@ -499,6 +499,9 @@ pub enum JsNode {
         end: u32,
         loc: Option<Box<Loc>>,
         expression: JsNodeId,
+        // acorn's `directive`: the raw text of a directive-prologue string,
+        // without its quotes. Absent on every other expression statement.
+        directive: Option<CompactString>,
     },
     BlockStatement {
         start: u32,
@@ -1853,6 +1856,7 @@ impl Serialize for JsNode {
                 end,
                 loc,
                 expression,
+                directive,
             } => {
                 let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "ExpressionStatement")?;
@@ -1860,6 +1864,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "expression", expression);
+                if let Some(directive) = directive {
+                    map.serialize_entry("directive", directive.as_str())?;
+                }
                 ser_comments!(map, "ExpressionStatement", *start, *end);
                 map.end()
             }
@@ -3301,6 +3308,10 @@ impl JsNode {
                         end,
                         loc,
                         expression: convert_child(obj, "expression"),
+                        directive: obj
+                            .field("directive")
+                            .and_then(Value::as_str)
+                            .map(CompactString::from),
                     },
                     "BlockStatement" => Self::BlockStatement {
                         start,

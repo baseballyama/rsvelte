@@ -1687,10 +1687,12 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             end,
             loc,
             expression,
+            directive,
         } => {
             write_preamble(w, JS_EXPRESSION_STATEMENT, *start, *end);
             write_typed_loc(w, loc.as_deref());
             write_node_id(w, *expression, arena)?;
+            write_opt_str(w, directive.as_deref());
         }
         JsNode::BlockStatement {
             start,
