@@ -1168,9 +1168,11 @@ function readJsProgram(ctx, start, end) {
 function readJsExpressionStatement(ctx, start, end) {
 	const loc = readTypedLoc(ctx);
 	const expression = readNode(ctx);
+	const directive = readOptStr(ctx);
 	const node = { type: 'ExpressionStatement', start, end };
 	if (loc !== null) node.loc = loc;
 	node.expression = expression;
+	if (directive !== null) node.directive = directive;
 	return node;
 }
 

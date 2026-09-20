@@ -6092,6 +6092,7 @@ fn collect_identifier_names_in_node(
             start: _,
             end: _,
             loc: _,
+            directive: _,
             expression,
         } => walk(*expression, out),
 
