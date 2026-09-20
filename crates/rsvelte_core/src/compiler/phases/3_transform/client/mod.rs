@@ -4334,12 +4334,10 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
             }
         } else {
             let trimmed = line.trim();
-            if scan && (trimmed.starts_with("import ") || trimmed.starts_with("import{")) {
+            if scan && starts_import_declaration(trimmed, following) {
                 // Check if this import is complete on one line
                 let scanned = scan_import_line(trimmed, false, ImportCarry::default());
-                let ends_at_specifier = is_complete_side_effect_import(trimmed)
-                    || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
-                        && scanned.last_string_end == Some(trimmed.len()));
+                let ends_at_specifier = scanned.ends_at_specifier(trimmed.len());
                 let attributes_follow = ends_at_specifier && starts_import_attributes(following);
                 if !attributes_follow
                     && (scanned.semicolon.is_some()
@@ -4531,11 +4529,9 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
             }
         } else {
             let trimmed = line.trim();
-            if scan && (trimmed.starts_with("import ") || trimmed.starts_with("import{")) {
+            if scan && starts_import_declaration(trimmed, following) {
                 let scanned = scan_import_line(trimmed, false, ImportCarry::default());
-                let ends_at_specifier = is_complete_side_effect_import(trimmed)
-                    || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
-                        && scanned.last_string_end == Some(trimmed.len()));
+                let ends_at_specifier = scanned.ends_at_specifier(trimmed.len());
                 let attributes_follow = ends_at_specifier && starts_import_attributes(following);
                 if !attributes_follow
                     && (scanned.semicolon.is_some()
@@ -4675,16 +4671,6 @@ fn compose_script_projection(
     }
 }
 
-/// Check whether `trimmed` is a complete *side-effect* import statement —
-/// `import "module"` or `import 'module'` with no `from` clause and no
-/// terminating semicolon. ASI in real JavaScript allows this form to stand
-/// alone on its own line, so it must not be merged with the following line
-/// the way `extract_imports` accumulates incomplete multi-line imports.
-///
-/// The line is considered complete iff after `import` there is whitespace,
-/// then a single string literal (single or double quoted), then optional
-/// whitespace until end-of-line. Anything else (bindings, `from`, trailing
-/// content, dynamic `import(...)` calls) returns `false`.
 #[derive(Default)]
 struct ImportLineScan {
     /// Just past the first `;` that is code.
@@ -4900,7 +4886,7 @@ fn peel_leading_imports_ref<'a>(
 ) -> (&'a str, usize) {
     let mut offset = s.len() - s.trim_start().len();
     let mut cur = &s[offset..];
-    while cur.starts_with("import ") || cur.starts_with("import{") {
+    while starts_import_declaration(cur, "") {
         let Some(end) = import_statement_end(cur) else {
             break;
         };
@@ -4920,45 +4906,22 @@ fn peel_leading_imports_ref<'a>(
     (cur, offset)
 }
 
-fn is_complete_side_effect_import(trimmed: &str) -> bool {
-    // Must start with `import ` (we already know this from the caller, but
-    // re-check defensively to keep the helper standalone).
-    let after_import = if let Some(rest) = trimmed.strip_prefix("import ") {
-        rest.trim_start()
-    } else {
+/// Does `s` open an `import` declaration? `import(…)`, `import.meta` and an
+/// `import:` property key on its own line do not.
+///
+/// No separator is required between the keyword and a string, `{` or `*`, so
+/// the token after it decides; `following` is consulted when it is on a later line.
+fn starts_import_declaration(s: &str, following: &str) -> bool {
+    let Some(after) = after_keyword(s, "import") else {
         return false;
     };
-
-    // Side-effect imports start directly with a string literal — `"…"` or `'…'`.
-    let bytes = after_import.as_bytes();
-    let quote = match bytes.first() {
-        Some(&b'"') => b'"',
-        Some(&b'\'') => b'\'',
-        _ => return false,
-    };
-
-    // Walk the string literal, honouring escapes.
-    let mut i = 1;
-    let mut closed = false;
-    while i < bytes.len() {
-        match bytes[i] {
-            b'\\' if i + 1 < bytes.len() => i += 2,
-            c if c == quote => {
-                closed = true;
-                i += 1;
-                break;
-            }
-            _ => i += 1,
-        }
-    }
-    if !closed {
-        return false;
-    }
-
-    // After the closing quote only optional whitespace is allowed for this to
-    // be a *complete* side-effect import. Anything else (e.g. `from`, more
-    // tokens) means we should not treat the line as complete here.
-    after_import[i..].trim().is_empty()
+    let at = skip_js_whitespace_and_comments(s, after);
+    let next = s.as_bytes().get(at).or_else(|| {
+        following
+            .as_bytes()
+            .get(skip_js_whitespace_and_comments(following, 0))
+    });
+    next.is_some_and(|&b| matches!(b, b'"' | b'\'' | b'{' | b'*') || is_ident_byte(b))
 }
 
 /// True when `text` is a `let`/`const`/`var` declaration whose whole initializer
@@ -8991,7 +8954,7 @@ fn transform_instance_script_for_visitors(
         let at_statement_boundary = accumulated_lines.is_empty();
 
         // Skip import statements (already extracted)
-        if at_statement_boundary && trimmed.starts_with("import ") {
+        if at_statement_boundary && starts_import_declaration(trimmed, "") {
             line_idx += 1;
             continue;
         }
