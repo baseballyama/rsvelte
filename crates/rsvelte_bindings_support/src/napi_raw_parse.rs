@@ -2167,10 +2167,6 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_typed_loc(w, loc.as_deref());
             write_id_range(w, *body, arena)?;
         }
-        JsNode::Decorator { start, end, loc } => {
-            write_preamble(w, JS_DECORATOR, *start, *end);
-            write_typed_loc(w, loc.as_deref());
-        }
         JsNode::TSTypeAnnotation {
             start,
             end,
@@ -2192,12 +2188,10 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
         | JsNode::TSExportAssignment { start, end, .. }
         | JsNode::TSNamespaceExportDeclaration { start, end, .. }
         | JsNode::TSIndexSignature { start, end, .. }
-        | JsNode::TSDeclareMethod { start, end, .. } => {
+        | JsNode::TSDeclareMethod { start, end, .. }
+        | JsNode::TSParameterProperty { start, end, .. }
+        | JsNode::Decorator { start, end, .. } => {
             write_json_node(w, *start, *end, node)?;
-        }
-        JsNode::TSParameterProperty { start, end, loc } => {
-            write_preamble(w, JS_TS_PARAMETER_PROPERTY, *start, *end);
-            write_typed_loc(w, loc.as_deref());
         }
         JsNode::TSModuleDeclaration {
             start,

@@ -6016,7 +6016,7 @@ fn collect_identifier_names_in_node(
         | JsNode::Decorator {
             start: _,
             end: _,
-            loc: _,
+            value: _,
         } => {}
 
         JsNode::ImportExpression {
@@ -6454,7 +6454,7 @@ fn collect_identifier_names_in_node(
         | JsNode::TSParameterProperty {
             start: _,
             end: _,
-            loc: _,
+            value: _,
         }
         | JsNode::TSTypeAliasDeclaration { .. }
         | JsNode::TSInterfaceDeclaration { .. }

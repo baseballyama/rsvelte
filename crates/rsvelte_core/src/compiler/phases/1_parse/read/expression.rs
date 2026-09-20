@@ -11096,11 +11096,13 @@ fn convert_class_declaration_as_node(
             .map(|dec| {
                 let dec_start = offset + dec.span.start as usize;
                 let dec_end = offset + dec.span.end as usize;
-                JsNode::Decorator {
-                    start: dec_start as u32,
-                    end: dec_end as u32,
-                    loc: None,
-                }
+                let mut obj = Map::new();
+                obj.set_field("type", Value::String("Decorator".to_string()));
+                push_span_fields(&mut obj, dec_start, dec_end, line_offsets);
+                let expression =
+                    convert_expression_for_program(arena, &dec.expression, offset, line_offsets);
+                obj.set_field("expression", expression.as_json().clone());
+                JsNode::from_value(Value::Object(obj))
             })
             .collect();
         arena.alloc_js_children(decorator_nodes)
