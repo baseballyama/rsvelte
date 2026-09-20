@@ -5469,7 +5469,7 @@ would mean the axis had silently stopped being exercised.
 
 ## LSP differential known failures
 
-`lsp-known-failures.json` contains 23784 entries. Fixture and upstream entries identify one normalized
+`lsp-known-failures.json` contains 23520 entries. Fixture and upstream entries identify one normalized
 structural field for which `rsvelte-language-server` differs from the pinned official
 `svelte-language-server`, or from an upstream expected snapshot. A mismatched scalar key includes
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
@@ -5529,13 +5529,13 @@ divergence the configuration was hiding, in three classes:
 None of the three is a property of the gate any more, so they are on the same footing as the rest
 of the ratchet: they stay until they are burned down.
 
-Partition of `lsp-known-failures.json` by key kind: `21792 + 1680 + 312` — real-world corpus
+Partition of `lsp-known-failures.json` by key kind: `21562 + 1650 + 308` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
 against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
 `expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
 carrying a key outside its suite's prefix.
 
-Partition of `lsp-known-failures.json` by request phase: `11897 + 11887`
+Partition of `lsp-known-failures.json` by request phase: `11765 + 11755`
 
 Opened-document keys and post-`didChange` keys. The edit phase re-runs the same request set, so the
 two addends differ by exactly the session-level keys, which run once per session rather than once per
@@ -5598,7 +5598,7 @@ about the divergences: `documentHighlight` 6 `rsvelte-empty` + 4 `unclassified`,
 **both** sides answered. A method arm for either is a separate change from sending it a valid
 request, and until one exists these 12 are un-attributable by construction.
 
-Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `3570 + 7586 + 258 + 10378`
+Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `3566 + 7394 + 258 + 10344`
 
 bits-ui, flowbite-svelte, melt-ui, shadcn-svelte, in that order. This is the count
 that moves when a corpus submodule is bumped, and it is the reason the population floor is
@@ -5646,10 +5646,10 @@ Attribution of `lsp-known-failures.json`:
 |---|---|---|
 | 5 | `deliberate-divergences` | `initialize` capabilities rsvelte declares differently on purpose, each pinned by a test: the `" "` completion trigger, the two `source.fixAll` code-action kinds, `workspace.workspaceFolders`, `positionEncoding`, `diagnosticProvider.identifier` |
 | 1 | `upstream_issues/svelte-language-server-duplicate-completion-trigger-character.md` | upstream lists `"@"` twice in `completionProvider.triggerCharacters`, so the arrays differ as multisets |
-| 1218 | `upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md` | `textDocument/hover` on the real-world corpus, where every label in the entry's mechanism set is one of the seven renderings that report measures on a plain `.ts` file: `rsvelte-empty-import-only` 1116, `ts-render-union-order` 104, `ts-render-overload-count` 74, `ts-render-import-line` 40, `ts-render-local-modifier` 38, `ts-render-multiple` 16, `ts-render-declaration-order` 4 |
+| 1454 | `upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md` | `textDocument/hover` on the real-world corpus, where every label in the entry's mechanism set is one of the seven renderings that report measures on a plain `.ts` file: `rsvelte-empty-import-only` 1336, `ts-render-union-order` 108, `ts-render-overload-count` 74, `ts-render-import-line` 58, `ts-render-multiple` 46, `ts-render-local-modifier` 38, `ts-render-declaration-order` 6 |
 | 4 | `upstream_issues/tsgo-lsp-completion-item-omits-the-typescript-kind.md` | `textDocument/completion` on the `completion-script-null` fixture at `0:10`, both phases: tsgo maps every variable-like entry to `CompletionItemKind.Variable`, so pairing on `(kind, label)` matches nothing and the same 11 items are reported once as `extra-rsvelte` and once as `missing-rsvelte`. The four entries are that pair times the opened and post-`didChange` phases. Attributed here because the label `completion-item-pairing-key-kind-ts` already carries this terminal in `lsp-mechanisms.json` and these are the only entries whose whole label set resolves to it |
 
-The 1218 are derived from `lsp-mechanisms.json` rather than read off the ratchet key, which for an
+The 1454 are derived from `lsp-mechanisms.json` rather than read off the ratchet key, which for an
 `aggregate:` entry carries no field at all. Twelve labels were given a terminal; the correspondence
 is between the classifier's RULES and the report's differences, not between their names.
 `mechanism.mjs`'s `TS_RENDER_RULES` implements the report's seven renderings one text rewrite each
@@ -5661,8 +5661,9 @@ empty, which is that report's dropped origin line with nothing behind it.
 
 **The table and the sidecar do not agree, and the residual is a state to record rather than a
 gap to fill.** The entries whose whole label set resolves to a terminal partition as
-`hover 1218 + completion-item-kind 4 + deliberate 3` = 1225; the table reads
-`hover 1218 + completion-item-kind 4 + deliberate 5 + duplicate-@ 1` = 1228. The three the table
+`hover 1454 + completion-item-kind 4 + deliberate 3` = 1461 — the number
+`lsp-mechanisms-check.mjs` prints as "attributable today", so the two derivations agree; the table
+reads `hover 1454 + completion-item-kind 4 + deliberate 5 + duplicate-@ 1` = 1464. The three the table
 attributes by hand and the sidecar does not are carried by two labels that **cannot be given a
 terminal at the current granularity**, because one label carries entries whose correct terminals
 differ: `initialize-capability-completionProvider` covers `triggerCharacters:extra` (deliberate —
