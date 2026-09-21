@@ -2430,7 +2430,14 @@ fn parse_expression_with_typescript<'a>(
                 return None;
             }
 
-            // Adjust positions: subtract 1 for the opening paren we added
+            // Adjust positions: subtract 1 for the opening paren we added.
+            // Upstream picks one acorn variant per component, so a template
+            // expression in a `lang="ts"` component is parsed by
+            // acorn-typescript and carries its shapes too.
+            let _ts_guard = TsProgramGuard {
+                arena,
+                previous: arena.set_ts_program(use_typescript),
+            };
             let expr = convert_expression(arena, &expr_stmt.expression, offset, line_offsets);
 
             // Attach comments to the expression
@@ -5141,13 +5148,21 @@ fn convert_expression<'a>(
             let start = offset + import_expr.span.start as usize - 1;
             let end = offset + import_expr.span.end as usize - 1;
             let source = convert_expression(arena, &import_expr.source, offset, line_offsets);
+            let options = import_expr
+                .options
+                .as_ref()
+                .map(|opt| {
+                    let node = expr_to_node(convert_expression(arena, opt, offset, line_offsets));
+                    arena.alloc_js_children(vec![node])
+                })
+                .unwrap_or_else(IdRange::empty);
             Expression::from_node(JsNode::ImportExpression {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 source: arena.alloc_js_node(expr_to_node(source)),
-                options: IdRange::empty(),
-                ts: false,
+                options,
+                ts: arena.is_ts_program(),
             })
         }
         OxcExpression::AwaitExpression(await_expr) => {
