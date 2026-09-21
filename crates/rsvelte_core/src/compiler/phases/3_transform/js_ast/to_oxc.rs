@@ -230,7 +230,13 @@ pub fn program_to_oxc_with_islands<'a, 'source>(
     if !synth.saw_comments {
         return Some(probe);
     }
-    let loc_base = synth.max_span.saturating_add(2);
+    // `max_span` is whatever the probe pass happened to note, which is not an
+    // upper bound on the source offsets the printer resolves; the source length
+    // is (#4521).
+    let loc_base = synth
+        .max_span
+        .max(source.map_or(0, |text| u32::try_from(text.len()).unwrap_or(u32::MAX)))
+        .saturating_add(2);
     let (converted, synth) =
         convert_once(program, arena, allocator, islands, source, Some(loc_base))?;
     // Every span the pass produced outside a chunk region must stay below
