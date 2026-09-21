@@ -790,18 +790,46 @@ pub fn filter_generated_inlay_hints(
         if is_in_generated_code(text, offset, offset) {
             return false;
         }
+        let kind = HintKind::from_lsp(hint.get("kind").and_then(Value::as_i64));
+        // `isSvelte2tsxFunctionHints`'s first arm, which needs no tree and so
+        // is answered before the ones that do.
+        if kind == HintKind::Parameter && label_points_at_a_svelte2tsx_shim(hint) {
+            return false;
+        }
         // The filters below need a tree. oxc rejects what TypeScript's
         // best-effort `SourceFile` accepts, so a shadow that does not parse
         // leaves every remaining hint alone rather than guessing.
         let (Some(nodes), Ok(at)) = (nodes.as_ref(), u32::try_from(offset)) else {
             return true;
         };
-        let kind = HintKind::from_lsp(hint.get("kind").and_then(Value::as_i64));
         !nodes.is_svelte2tsx_function_hints(text, kind, at)
             && !nodes.is_generated_variable_type_hint(text, kind, at, is_in_generated_code)
             && !nodes.is_generated_async_function_return_type(kind, at)
             && !nodes.is_generated_function_return_type(text, kind, at)
     });
+}
+
+/// `isSvelte2tsxFunctionHints`'s first arm (`InlayHintProvider.ts:200`):
+/// `inlayHint.displayParts?.some((v) => isSvelte2tsxShimFile(v.file))`.
+///
+/// Upstream reads `file` off the TypeScript API's `ts.InlayHint`. tsgo speaks
+/// LSP, where the same pointer is `label[].location.uri`, and it attaches one
+/// whenever the name maps back to a single segment
+/// (`ls/inlay_hints.go:787-802`). `isSvelte2tsxShimFile` is the two file names
+/// below and nothing else (`typescript/utils.ts:377-379`).
+fn label_points_at_a_svelte2tsx_shim(hint: &Value) -> bool {
+    hint.get("label")
+        .and_then(Value::as_array)
+        .is_some_and(|parts| {
+            parts.iter().any(|part| {
+                part.get("location")
+                    .and_then(|location| location.get("uri"))
+                    .and_then(Value::as_str)
+                    .is_some_and(|uri| {
+                        uri.ends_with("svelte-shims.d.ts") || uri.ends_with("svelte-shims-v4.d.ts")
+                    })
+            })
+        })
 }
 
 /// `TypeScriptPlugin.getDocumentSymbols` (`:286-345`) rewrites and drops
@@ -1992,5 +2020,36 @@ mod tests {
         widen_hover_range_over_string_quotes(&mut identifier, text);
         assert_eq!(identifier["range"]["start"]["character"], json!(14));
         assert_eq!(identifier["range"]["end"]["character"], json!(17));
+    }
+
+    /// `isSvelte2tsxShimFile` is those two names and nothing else, so a hint
+    /// pointing into the user's own `.d.ts` must survive.
+    #[test]
+    fn a_label_part_pointing_into_a_svelte2tsx_shim_names_a_generated_hint() {
+        let shim = json!({
+            "label": [{"value": "x", "location": {"uri": "file:///w/.rsvelte-language-server/tsgo/svelte-shims-v4.d.ts"}}]
+        });
+        assert!(label_points_at_a_svelte2tsx_shim(&shim));
+        let legacy = json!({
+            "label": [{"value": "x", "location": {"uri": "file:///w/node_modules/svelte2tsx/svelte-shims.d.ts"}}]
+        });
+        assert!(label_points_at_a_svelte2tsx_shim(&legacy));
+        let user = json!({
+            "label": [{"value": "x", "location": {"uri": "file:///w/src/app.d.ts"}}]
+        });
+        assert!(!label_points_at_a_svelte2tsx_shim(&user));
+    }
+
+    /// tsgo attaches a location only when the name maps to a single segment,
+    /// and a plain string label carries none at all.
+    #[test]
+    fn a_label_without_a_location_is_not_a_generated_hint() {
+        assert!(!label_points_at_a_svelte2tsx_shim(
+            &json!({"label": "count: "})
+        ));
+        assert!(!label_points_at_a_svelte2tsx_shim(&json!({
+            "label": [{"value": "count"}]
+        })));
+        assert!(!label_points_at_a_svelte2tsx_shim(&json!({})));
     }
 }
