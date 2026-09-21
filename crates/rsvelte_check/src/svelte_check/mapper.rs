@@ -79,7 +79,17 @@ impl EntryMap {
         let Some(next) = self.segments.get(start) else {
             return false;
         };
-        next.dst_line == dst_line && next.src.is_some() && next.src == prev.src
+        let (Some(before), Some(after)) = (prev.src, next.src) else {
+            return false;
+        };
+        // The generated gap between two segments that are adjacent in the source
+        // covers no source character, so what fills it was inserted. Until #4650
+        // an unedited chunk emitted a segment one past its last character, which
+        // made the two sides equal; upstream's walk makes the later one the next
+        // source column instead.
+        let adjacent = after == before
+            || (after.0 == before.0 && after.1 == before.1 && after.2 == before.2 + 1);
+        next.dst_line == dst_line && adjacent
     }
 }
 
