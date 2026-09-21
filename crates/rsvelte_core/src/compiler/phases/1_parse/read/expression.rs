@@ -7806,24 +7806,33 @@ fn get_line_column_for_binding(pos: usize, line_offsets: &[usize]) -> (u32, u32)
     let line = line_offsets
         .partition_point(|&offset| offset <= pos)
         .saturating_sub(1);
+    let line_start = line_offsets.get(line).copied().unwrap_or(0);
+    ((line + 1) as u32, (pos - line_start) as u32)
+}
 
-    // Check if this line immediately follows an empty line
-    // An empty line has length 1 (just the newline character)
-    let adjusted_line_start = if line > 0 {
-        let current_line_start = line_offsets.get(line).copied().unwrap_or(0);
-        let prev_line_start = line_offsets.get(line - 1).copied().unwrap_or(0);
-        // If the previous line was empty (current - prev == 1), use prev as line_start
-        if current_line_start - prev_line_start == 1 {
-            prev_line_start
-        } else {
-            current_line_start
-        }
-    } else {
-        line_offsets.get(line).copied().unwrap_or(0)
-    };
-
-    let column = pos - adjusted_line_start;
-    ((line + 1) as u32, column as u32)
+/// Line starts that reproduce upstream `read_pattern`'s column arithmetic.
+///
+/// It parses a destructuring context as `(<pattern> = 1)` and pays for the `(`
+/// by deleting the first space of the prefix — which lands on the template's
+/// first line that carries a non-newline character. The `(` shift therefore
+/// survives on the pattern's own line whenever an earlier line has content, and
+/// never reaches the pattern's later lines (#4133). Pulling that line's start
+/// back by one byte says exactly this to every column computed from the slice.
+pub(crate) fn read_pattern_line_offsets(
+    pattern_start: usize,
+    line_offsets: &[usize],
+) -> Option<Vec<usize>> {
+    let line = line_offsets
+        .partition_point(|&start| start <= pattern_start)
+        .checked_sub(1)?;
+    let start = *line_offsets.get(line)?;
+    // Every earlier line holds at least its own newline, so `start == line` is
+    // "every line before this one is empty" and there is no space to delete.
+    (start > line).then(|| {
+        let mut shifted = line_offsets.to_vec();
+        shifted[line] = start - 1;
+        shifted
+    })
 }
 
 /// Create loc for binding patterns (complex patterns like ObjectPattern, ArrayPattern).
@@ -14554,6 +14563,18 @@ pub fn parse_binding_pattern<'a>(
             create_identifier_for_binding_toplevel(trimmed, start, end, line_offsets),
         ));
     }
+
+    // Upstream returns from `read_identifier` before the `(pattern = 1)` wrap,
+    // so only a `{`/`[` context is charged for the `(`.
+    let shifted = if trimmed.starts_with('{') || trimmed.starts_with('[') {
+        read_pattern_line_offsets(
+            offset + (content.len() - content.trim_start_ws().len()),
+            line_offsets,
+        )
+    } else {
+        None
+    };
+    let line_offsets = shifted.as_deref().unwrap_or(line_offsets);
 
     with_oxc_allocator(|allocator| {
         // The component's mode, not JavaScript: a default value inside the
