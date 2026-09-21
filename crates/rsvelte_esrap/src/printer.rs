@@ -4922,8 +4922,15 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             let second_start = second
                 .as_expression()
                 .map_or_else(|| second.span().start, |e| unparen(e).span().start);
+            // Only a comment *between* the two arguments wraps the call. One
+            // inside the first argument is that argument's business: upstream
+            // prints `$.tag($.state(1 // c\n), 'a')` on one argument line.
+            let first_end = first
+                .as_expression()
+                .map_or_else(|| first.span().end, |e| unparen(e).span().end);
             let force_multiline = self.comment_at(self.comment_index).is_some_and(|c| {
-                c.start < second_start
+                c.start >= first_end
+                    && c.start < second_start
                     && (!c.block || self.comment_starts_on_earlier_line(c, second_start))
             });
 
