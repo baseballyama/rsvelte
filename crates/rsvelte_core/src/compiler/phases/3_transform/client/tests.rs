@@ -1981,6 +1981,10 @@ fn test_starts_import_declaration() {
         );
     }
     assert!(starts_import_declaration("import", "\"pkg\";\n"));
+    assert!(starts_import_declaration(
+        "import /* a",
+        " b */ x from 'm';\n"
+    ));
 
     for expression in [
         "import(\"pkg\")",
@@ -1995,6 +1999,10 @@ fn test_starts_import_declaration() {
         assert!(!starts_import_declaration(expression, ""), "{expression:?}");
     }
     assert!(!starts_import_declaration("import", "(\"pkg\");\n"));
+    assert!(!starts_import_declaration(
+        "import /* a",
+        " b */ (\"pkg\");\n"
+    ));
 }
 
 #[test]
@@ -2102,6 +2110,7 @@ fn projected_import_extraction_preserves_legacy_output() {
         "import\"a\";import{ b }from\"m\";let z = b;\n",
         "import*as ns from\"m\"\nlet z = ns\n",
         "import\n\"pkg\";\nlet z = 1;\n",
+        "import /* a\n b */ x from 'm';\nlet z = x;\n",
         // A comment inside an import's own span is left in the body rather than
         // hoisted; without these rows the two ports agree vacuously about it.
         "import {\n  a,\n  /* c */\n  b,\n} from 'm';\nlet z = a + b;\n",

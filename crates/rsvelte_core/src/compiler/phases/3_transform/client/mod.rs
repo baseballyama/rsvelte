@@ -4334,7 +4334,7 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
             }
         } else {
             let trimmed = line.trim();
-            if scan && starts_import_declaration(trimmed, following) {
+            if scan && starts_import_declaration(trimmed, &script[line_end..]) {
                 // Check if this import is complete on one line
                 let scanned = scan_import_line(trimmed, false, ImportCarry::default());
                 let ends_at_specifier = scanned.ends_at_specifier(trimmed.len());
@@ -4529,7 +4529,9 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
             }
         } else {
             let trimmed = line.trim();
-            if scan && starts_import_declaration(trimmed, following) {
+            if scan
+                && starts_import_declaration(trimmed, &script[line_start + physical_line.len()..])
+            {
                 let scanned = scan_import_line(trimmed, false, ImportCarry::default());
                 let ends_at_specifier = scanned.ends_at_specifier(trimmed.len());
                 let attributes_follow = ends_at_specifier && starts_import_attributes(following);
@@ -4910,18 +4912,22 @@ fn peel_leading_imports_ref<'a>(
 /// `import:` property key on its own line do not.
 ///
 /// No separator is required between the keyword and a string, `{` or `*`, so
-/// the token after it decides; `following` is consulted when it is on a later line.
+/// the token after it decides; `following` is consulted when it is on a later
+/// line, and is the raw tail because a block comment opened after the keyword
+/// may close there.
 fn starts_import_declaration(s: &str, following: &str) -> bool {
     let Some(after) = after_keyword(s, "import") else {
         return false;
     };
     let at = skip_js_whitespace_and_comments(s, after);
-    let next = s.as_bytes().get(at).or_else(|| {
-        following
+    let next = s.as_bytes().get(at).copied().or_else(|| {
+        let joined = format!("{}\n{following}", &s[after..]);
+        joined
             .as_bytes()
-            .get(skip_js_whitespace_and_comments(following, 0))
+            .get(skip_js_whitespace_and_comments(&joined, 0))
+            .copied()
     });
-    next.is_some_and(|&b| matches!(b, b'"' | b'\'' | b'{' | b'*') || is_ident_byte(b))
+    next.is_some_and(|b| matches!(b, b'"' | b'\'' | b'{' | b'*') || is_ident_byte(b))
 }
 
 /// True when `text` is a `let`/`const`/`var` declaration whose whole initializer

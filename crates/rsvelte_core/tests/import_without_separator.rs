@@ -410,3 +410,27 @@ export default function T($$anchor, $$props) {
 }"#;
     assert_eq!(component(src, GenerateMode::Client, false), expected);
 }
+
+#[test]
+fn a_block_comment_after_the_keyword_may_close_on_a_later_line() {
+    let src =
+        "<script>\nimport /* a\n b */ x from \"m\";\nlet n = $state(x);\n</script>\n<b>{n}</b>";
+    let expected = r#"import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import x from "m";
+
+var root = $.from_html(`<b> </b>`);
+
+export default function T($$anchor) {
+	/* a
+	 b */
+	let n = $.proxy(x);
+
+	var b = root();
+	var text = $.only_child(b, true);
+
+	$.template_effect(() => $.set_text(text, n));
+	$.append($$anchor, b);
+}"#;
+    assert_eq!(component(src, GenerateMode::Client, false), expected);
+}
