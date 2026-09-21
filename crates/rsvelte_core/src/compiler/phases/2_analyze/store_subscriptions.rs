@@ -288,7 +288,7 @@ pub fn detect_store_subscriptions(
                 // treat $derived as the rune, not a store subscription.
                 if ref_name == "$derived"
                     && binding.declaration_kind == DeclarationKind::Import
-                    && is_import_from_svelte_store(store_name, &analysis.source)
+                    && binding.import_source.as_deref() == Some("svelte/store")
                 {
                     continue;
                 }
@@ -1759,29 +1759,6 @@ fn starts_a_class_member(chars: &[char], prev_code: Option<usize>) -> bool {
         // — continues an expression into what follows.
         _ => false,
     }
-}
-
-/// Check if a given name is imported from 'svelte/store' in the source code.
-/// This checks for patterns like:
-///   import { derived } from 'svelte/store'
-///   import { derived } from "svelte/store"
-///   import { writable, derived } from 'svelte/store'
-fn is_import_from_svelte_store(name: &str, source: &str) -> bool {
-    // Look for import statements containing the name from 'svelte/store'
-    for line in source.lines() {
-        let trimmed = line.trim();
-        if !trimmed.starts_with("import ") {
-            continue;
-        }
-        // Check if this import line includes the name and 'svelte/store'
-        if (memchr::memmem::find(trimmed.as_bytes(), b"'svelte/store'").is_some()
-            || memchr::memmem::find(trimmed.as_bytes(), b"\"svelte/store\"").is_some())
-            && trimmed.contains(name)
-        {
-            return true;
-        }
-    }
-    false
 }
 
 /// Collect $xxx identifiers from a template fragment.
