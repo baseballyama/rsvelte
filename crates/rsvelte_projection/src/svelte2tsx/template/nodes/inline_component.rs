@@ -355,6 +355,31 @@ pub fn handle_component(
         Some((start, end)) => opener_segs.push(Seg::Src(start, end)),
         None => opener_segs.push(Seg::Lit(comp.name.to_string())),
     }
+    // `InlineComponent.ts:67-75`: a whitespace right after the tag name is
+    // overwritten with nothing, so the generated props object — not that
+    // character — is what the map anchors next (#4650).
+    let tag_name_end = comp.start + 1 + source_offset(comp.name.len());
+    if source
+        .as_bytes()
+        .get(tag_name_end as usize)
+        .is_some_and(u8::is_ascii_whitespace)
+        && tag_name_end < opening_tag_end
+    {
+        let next_src = attr_segs.iter().find_map(|seg| match seg {
+            Seg::Src(start, _) => Some(*start),
+            _ => None,
+        });
+        // `transform`'s one-character extension (`node-utils.ts:56-71`) then
+        // swallows the character after it, unless a kept range starts there.
+        let drop_end = if next_src.is_some_and(|start| start > tag_name_end + 1)
+            && tag_name_end + 1 < opening_tag_end.saturating_sub(1)
+        {
+            tag_name_end + 2
+        } else {
+            tag_name_end + 1
+        };
+        opener_segs.push(Seg::Drop(tag_name_end, drop_end));
+    }
     opener_segs.push(Seg::Lit(header_tail));
     opener_segs.extend(attr_segs);
     if !use_snippet_props {

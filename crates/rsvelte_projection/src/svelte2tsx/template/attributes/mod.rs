@@ -123,6 +123,7 @@ pub(super) fn build_attribute_segments(
                 Seg::Lit(t) => segs_push_lit(segs, &t),
                 Seg::LitOpen(t) => segs_push_lit_open(segs, &t),
                 Seg::Src(a, b) => segs_push_src(segs, a, b),
+                Seg::Drop(a, b) => segs.push(Seg::Drop(a, b)),
             }
         }
     };
@@ -246,6 +247,7 @@ pub(super) fn build_component_props_segments(
                 Seg::Lit(t) => segs_push_lit(dst, &t),
                 Seg::LitOpen(t) => segs_push_lit_open(dst, &t),
                 Seg::Src(a, b) => segs_push_src(dst, a, b),
+                Seg::Drop(a, b) => dst.push(Seg::Drop(a, b)),
             }
         }
     };
