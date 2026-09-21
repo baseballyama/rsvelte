@@ -7,15 +7,15 @@
 //!
 //! Elements keep upstream's `tag#id.class` naming and its
 //! [`SymbolKind::FIELD`], so an outline built by this server looks like the one
-//! built by the official one wherever the two describe the same thing.
+//! built by the official one wherever the two describe the same thing. That
+//! includes `<script>` and `<style>`, which reach upstream's outline as plain
+//! elements and carry no hint of a module context.
 
 use lsp_types::{
     DocumentSymbol, DocumentSymbolResponse, Location, Range, SymbolInformation, SymbolKind, Uri,
 };
 use rsvelte_core::Allocator;
-use rsvelte_core::ast::template::{
-    Attribute, AttributeValue, AttributeValuePart, Script, ScriptContext, TemplateNode,
-};
+use rsvelte_core::ast::template::{Attribute, AttributeValue, AttributeValuePart, TemplateNode};
 
 use crate::context::skip_braces;
 use crate::nodes::{Block, Kind, Span, Top, parse_root, top_level, view};
@@ -32,14 +32,14 @@ pub fn document_symbols(text: &str, uri: &Uri, hierarchical: bool) -> DocumentSy
             match top {
                 Top::Node(node) => collect(text, node, &mut symbols),
                 Top::Script(script) => symbols.push(Symbol::leaf(
-                    script_name(script),
-                    SymbolKind::MODULE,
+                    "script".to_string(),
+                    SymbolKind::FIELD,
                     (script.start, script.end),
                     tag_name_span(script.start, "script"),
                 )),
                 Top::Style(style) => symbols.push(Symbol::leaf(
                     "style".to_string(),
-                    SymbolKind::MODULE,
+                    SymbolKind::FIELD,
                     (style.start, style.end),
                     tag_name_span(style.start, "style"),
                 )),
@@ -123,7 +123,9 @@ impl Symbol {
                 uri: uri.clone(),
                 range: to_range(text, index, self.span),
             },
-            container_name: container.map(str::to_string),
+            // `vscode-html-languageservice` spells "no container" as `''`, and
+            // `SymbolInformation.create` keeps the field either way.
+            container_name: Some(container.unwrap_or_default().to_string()),
         });
         for child in &self.children {
             child.flatten(text, index, uri, Some(&self.name), out);
@@ -229,13 +231,6 @@ fn header_name(text: &str, (start, end): Span) -> String {
         .collect()
 }
 
-fn script_name(script: &Script<'_>) -> String {
-    match script.context {
-        ScriptContext::Module => "script module".to_string(),
-        ScriptContext::Default => "script".to_string(),
-    }
-}
-
 fn tag_name_span(start: u32, tag: &str) -> Span {
     let name_start = start.saturating_add(1);
     let name_length = u32::try_from(tag.len()).map_or(u32::MAX, |length| length);
@@ -312,14 +307,7 @@ mod tests {
         );
         assert_eq!(
             outline(&nested(text)),
-            vec![
-                "script module",
-                "script",
-                "Widget",
-                "  {#if a}",
-                "    p",
-                "style",
-            ]
+            vec!["script", "script", "Widget", "  {#if a}", "    p", "style",]
         );
     }
 
@@ -384,7 +372,7 @@ mod tests {
         assert_eq!(
             names,
             vec![
-                ("div", None),
+                ("div", Some("")),
                 ("span", Some("div")),
                 ("{#if a}", Some("span")),
                 ("p", Some("{#if a}")),

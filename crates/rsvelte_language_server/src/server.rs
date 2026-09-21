@@ -73,7 +73,7 @@ use crate::tsgo_rename::{
 use crate::tsgo_response::{
     RequestDocumentContext, TsgoResponseMapper, empty_completion_list,
     filter_generated_inlay_hints, normalize_definition_result, normalize_hover_result,
-    tsgo_unmapped_result, widen_hover_range_over_string_quotes,
+    rewrite_document_symbols, tsgo_unmapped_result, widen_hover_range_over_string_quotes,
 };
 use crate::uri::{path_to_uri, uri_to_path};
 use crate::worker::{FileReferenceSource, Job, Outcome, PreprocessedAnalysis, Worker};
@@ -3221,6 +3221,15 @@ impl Server {
                         mapper.map_response(&method, result);
                     }
                     match method.as_str() {
+                        "textDocument/documentSymbol" => {
+                            if let Some(text) = source_uri
+                                .as_ref()
+                                .and_then(|uri| self.documents.get(uri))
+                                .map(Document::text)
+                            {
+                                rewrite_document_symbols(result, text);
+                            }
+                        }
                         "textDocument/completion" => {
                             let mut strip_commits = false;
                             rewrite_completion_response_for_context(result, completion_context);

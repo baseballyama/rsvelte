@@ -395,3 +395,42 @@ mod tests {
         assert_eq!(snippet.name_span, Some((10, 13)));
     }
 }
+
+/// Upstream's `svelteNodeAt(position)` fed through
+/// `isAttributeName(node) || isAttributeShorthand(node) || isEventHandler(node)`
+/// (`TypeScriptPlugin.ts:317-321`). `isAttributeShorthand` walks parents until
+/// it finds an `Attribute`, so any offset inside one answers yes; an
+/// `EventHandler` only answers for its own name, because a position inside its
+/// handler resolves to the expression instead.
+#[must_use]
+pub fn offset_is_in_attribute(root: &Root<'_>, offset: u32) -> bool {
+    fn in_fragment(fragment: &Fragment<'_>, offset: u32) -> bool {
+        fragment.nodes.iter().any(|node| in_node(node, offset))
+    }
+    fn in_node(node: &TemplateNode<'_>, offset: u32) -> bool {
+        let node = view(node);
+        if !node.contains(offset as usize) {
+            return false;
+        }
+        if node.attributes.iter().any(|attribute| {
+            let (start, end) = attribute.span();
+            if !(start..=end).contains(&offset) {
+                return false;
+            }
+            match attribute {
+                Attribute::Attribute(_) => true,
+                Attribute::OnDirective(directive) => directive
+                    .expression
+                    .as_ref()
+                    .and_then(span_of)
+                    .is_none_or(|(from, to)| !(from..=to).contains(&offset)),
+                _ => false,
+            }
+        }) {
+            return true;
+        }
+        node.fragments()
+            .any(|fragment| in_fragment(fragment, offset))
+    }
+    in_fragment(&root.fragment, offset)
+}
