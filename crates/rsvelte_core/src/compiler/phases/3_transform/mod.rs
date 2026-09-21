@@ -423,6 +423,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
             .css
             .as_ref()
             .and_then(|css| css.content.comment.as_ref())
+            .and_then(|comment| comment.get("data").and_then(serde_json::Value::as_str))
             .is_some_and(|comment| {
                 crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore(
                     comment,
