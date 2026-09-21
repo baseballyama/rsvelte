@@ -1289,9 +1289,10 @@ pub(crate) fn normalize_js_with_oxc_lead(js: &str, indent_level: usize, lead: &s
     };
     // Upstream dedents a multi-line block comment by its opener line's
     // indentation; the script slice arrives here with the FIRST line's
-    // indentation already trimmed, so a leading `/**` would dedent by nothing
-    // and its continuation lines would keep the source indent on top of ours.
-    if protected.starts_with("/*") && !lead.is_empty() {
+    // indentation already trimmed, so a block comment opening anywhere on that
+    // line would dedent by nothing and keep the source indent on top of ours
+    // (#4671).
+    if !lead.is_empty() {
         protected.insert_str(0, lead);
     }
 
@@ -1334,19 +1335,15 @@ pub(crate) fn normalize_js_with_oxc_lead(js: &str, indent_level: usize, lead: &s
     // preserve its original indentation exactly as-is.
     let mut result_lines = Vec::new();
     let indent_str: String = "\t".repeat(indent_level);
-    // A block comment opening the slice gets no indent on its opener line, so
-    // the final print cannot dedent one back off its continuation lines; leave
-    // them bare and let that print supply the indent once. esrap emits a leading
-    // newline when the slice is only a comment (its host construct was erased),
-    // so the test has to look past leading whitespace or the guard misses there.
-    let leading_comment_last_line = code
-        .trim_start()
-        .starts_with("/*")
-        .then(|| {
-            code.find_sub("*/")
-                .map(|end| code[..end].matches('\n').count())
-        })
-        .flatten();
+    // The final print dedents a block comment by its opener line's indentation,
+    // so a comment's continuation lines have to move with that opener. The
+    // slice's first non-blank line is the one whose indent comes later from
+    // `emit_statement`, so a comment opening there — whether or not code
+    // precedes it on that line (#4671) — leaves its continuation lines bare;
+    // one opening on any later line moves with it.
+    let mut scan = super::ScanState::default();
+    let mut block_comment_opener_line: Option<usize> = None;
+    let first_code_line = code.lines().position(|line| !line.trim().is_empty());
     // Use a persistent stack so we correctly preserve state across lines,
     // including inside nested template literals (e.g. `${`...`}`). A simple
     // `bool` cannot represent whether we are in a nested Template vs an
@@ -1354,13 +1351,20 @@ pub(crate) fn normalize_js_with_oxc_lead(js: &str, indent_level: usize, lead: &s
     let mut stack: Vec<TemplateStateFrame> = Vec::new();
     for (i, line) in code.lines().enumerate() {
         let in_template_at_start = in_string_content(&stack);
+        let in_block_comment_at_start = scan.in_block_comment;
+        scan.advance(line);
+        if !in_block_comment_at_start && scan.in_block_comment {
+            block_comment_opener_line = Some(i);
+        }
+        let inside_unindented_comment =
+            in_block_comment_at_start && block_comment_opener_line == first_code_line;
         if i == 0 {
             // First line gets indent from emit_statement's self.indent()
             update_template_literal_stack(line, &mut stack);
             result_lines.push(line.to_string());
         } else if line.is_empty() {
             result_lines.push(String::new());
-        } else if in_template_at_start || leading_comment_last_line.is_some_and(|last| i <= last) {
+        } else if in_template_at_start || inside_unindented_comment {
             // Inside a template literal - preserve content exactly as-is
             update_template_literal_stack(line, &mut stack);
             result_lines.push(line.to_string());
