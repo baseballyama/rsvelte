@@ -6631,7 +6631,7 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
 ## Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **134 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **120 entries**.
 
 ### The question it asks
 
@@ -6747,11 +6747,11 @@ ratchet at all. So `loose:unclosed-element::RegularElement#span` is an ordinary 
 defect. Reading the issue and the gate as sharing a vocabulary would have attributed an rsvelte
 defect upstream.
 
-Partition of `parse-ast-known-failures.json` by cluster: `51 + 29 + 18 + 12 + 8 + 5 + 4 + 4 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `37 + 29 + 18 + 12 + 8 + 5 + 4 + 4 + 2 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
-| `span` | 51 | 27 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
+| `span` | 37 | 20 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
 | `node-type` | 8 | 4 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
 | `estree-fields` | 4 | 2 | ESTree fields rsvelte's serializer omits or adds. The nine TypeScript type fields are gone (#4335), so is `Identifier.typeAnnotation` (#4133 — OXC keeps a catch parameter's and a declarator's annotation beside the pattern, not on it) and so is `TSParameterProperty.{accessibility,readonly}` (#4133). Both remaining bases are `CallExpression.optional`. `#value` is the type-argument call, where acorn-typescript writes `optional` only when the subscript chain was already optional. `#extra` **came back** with the `Decorator.expression` fix: `parseDecorator` builds the decorator's own spine with a bare `while (eat('.'))` loop and one `parseMaybeDecoratorArguments` wrap, neither of which sets `optional`, while the arguments go through the ordinary parser and keep it — so `@dec({a:1})` and `@a.b.c` have no `optional` on the spine and `@dec(a?.b())` has it on everything inside the argument. Suppressing it here needs to tell `@a.b` from `@(a.b)`, and OXC elides the parentheses, so the distinction is not in the AST rsvelte reads. The lint gates found some of these from the other side. |
 | `unclustered` | 18 | 10 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. `ClassDeclaration.implements` left in #4133: acorn-typescript gives the clause the same `TSExpressionWithTypeArguments` array it gives an interface `extends`, and rsvelte's typed class node carried a bool. `ExpressionStatement.directive` left in #4133: OXC lifts a `<script>`'s directive prologue out of `Program::body` into `Program::directives`, ESTree keeps it in `body`, and the script-program converter read only `body`. |
