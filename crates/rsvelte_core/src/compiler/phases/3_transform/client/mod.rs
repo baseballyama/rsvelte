@@ -4305,10 +4305,10 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
             let trimmed = line.trim();
             let scanned = scan_import_line(trimmed, line_starts_in_block_comment, carry);
             let attributes_follow =
-                scanned.ends_at_specifier(trimmed.len()) && starts_import_attributes(following);
+                scanned.ends_at_specifier() && starts_import_attributes(following);
             carry = scanned.carry;
             carry.expect_attributes |= attributes_follow;
-            if scanned.closes(trimmed.len()) && !attributes_follow {
+            if scanned.closes() && !attributes_follow {
                 carry = ImportCarry::default();
                 if let Some(end) = scanned.end()
                     && end < trimmed.len()
@@ -4339,7 +4339,7 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
                 let scanned = scan_import_line(trimmed, false, ImportCarry::default());
                 let ends_at_specifier = is_complete_side_effect_import(trimmed)
                     || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
-                        && scanned.last_string_end == Some(trimmed.len()));
+                        && scanned.ends_at_specifier());
                 let attributes_follow = ends_at_specifier && starts_import_attributes(following);
                 if !attributes_follow
                     && (scanned.semicolon.is_some()
@@ -4476,10 +4476,10 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
             let trimmed = line.trim();
             let scanned = scan_import_line(trimmed, line_starts_in_block_comment, carry);
             let attributes_follow =
-                scanned.ends_at_specifier(trimmed.len()) && starts_import_attributes(following);
+                scanned.ends_at_specifier() && starts_import_attributes(following);
             carry = scanned.carry;
             carry.expect_attributes |= attributes_follow;
-            if scanned.closes(trimmed.len()) && !attributes_follow {
+            if scanned.closes() && !attributes_follow {
                 carry = ImportCarry::default();
                 if let Some(end) = scanned.end()
                     && end < trimmed.len()
@@ -4535,7 +4535,7 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
                 let scanned = scan_import_line(trimmed, false, ImportCarry::default());
                 let ends_at_specifier = is_complete_side_effect_import(trimmed)
                     || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
-                        && scanned.last_string_end == Some(trimmed.len()));
+                        && scanned.ends_at_specifier());
                 let attributes_follow = ends_at_specifier && starts_import_attributes(following);
                 if !attributes_follow
                     && (scanned.semicolon.is_some()
@@ -4691,6 +4691,9 @@ struct ImportLineScan {
     semicolon: Option<usize>,
     /// Just past the last string or template literal that is code.
     last_string_end: Option<usize>,
+    /// Just past the last byte on the line that is code — whitespace and
+    /// comments after it do not continue the statement (#4668).
+    last_code_end: Option<usize>,
     /// Just past the `}` that closes an import-attributes clause.
     attributes_end: Option<usize>,
     /// Brace nesting and clause state to carry to the statement's next line.
@@ -4720,19 +4723,20 @@ impl ImportLineScan {
     }
 
     /// True when the statement would end — by ASI — at the module specifier that
-    /// finishes this line, so whether it really ends there depends on what
-    /// follows on the next line.
-    fn ends_at_specifier(&self, line_len: usize) -> bool {
+    /// finishes this line's code, so whether it really ends there depends on
+    /// what follows on the next line. A comment after the specifier is not
+    /// part of the statement, and reading it as one swallowed the next line
+    /// (#4668).
+    fn ends_at_specifier(&self) -> bool {
         self.semicolon.is_none()
             && self.attributes_end.is_none()
             && self.carry.depth == 0
-            && self.last_string_end == Some(line_len)
+            && self.last_string_end.is_some()
+            && self.last_string_end == self.last_code_end
     }
 
-    fn closes(&self, line_len: usize) -> bool {
-        self.semicolon.is_some()
-            || self.attributes_end.is_some()
-            || self.ends_at_specifier(line_len)
+    fn closes(&self) -> bool {
+        self.semicolon.is_some() || self.attributes_end.is_some() || self.ends_at_specifier()
     }
 }
 
@@ -4765,6 +4769,7 @@ fn scan_import_line(s: &str, in_block_comment: bool, carry: ImportCarry) -> Impo
             }
             if !is_comment {
                 prev = Some(b'x');
+                out.last_code_end = Some(next);
             }
             i = next;
             continue;
@@ -4795,6 +4800,7 @@ fn scan_import_line(s: &str, in_block_comment: bool, carry: ImportCarry) -> Impo
         }
         if !bytes[i].is_ascii_whitespace() {
             prev = Some(bytes[i]);
+            out.last_code_end = Some(i + 1);
         }
         i += 1;
     }
@@ -4955,10 +4961,10 @@ fn is_complete_side_effect_import(trimmed: &str) -> bool {
         return false;
     }
 
-    // After the closing quote only optional whitespace is allowed for this to
-    // be a *complete* side-effect import. Anything else (e.g. `from`, more
-    // tokens) means we should not treat the line as complete here.
-    after_import[i..].trim().is_empty()
+    // After the closing quote only whitespace and comments are allowed for
+    // this to be a *complete* side-effect import. Anything else (e.g. `from`,
+    // more tokens) means we should not treat the line as complete here.
+    skip_js_whitespace_and_comments(after_import, i) == after_import.len()
 }
 
 /// True when `text` is a `let`/`const`/`var` declaration whose whole initializer
