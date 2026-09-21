@@ -4,6 +4,8 @@ use crate::ast::template::{Attribute, OnDirective};
 use crate::svelte2tsx::template::segs::{Seg, segs_push_fmt, segs_push_lit, segs_push_src};
 use std::fmt::Write as _;
 
+use crate::svelte2tsx::magic_string::MagicString;
+use crate::svelte2tsx::template::transform::surround_with;
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 
 /// Collect references to all `on:` directives from an attribute list.
@@ -31,6 +33,46 @@ pub fn build_on_calls(inst_var: &str, on_directives: &[&OnDirective], source: &s
         let _ = write!(calls, "{}.$on(\"{}\", {});", inst_var, on.name, handler);
     }
     calls
+}
+
+/// `InlineComponent.addEvent` (`InlineComponent.ts:136-151`) as segments.
+///
+/// The event name and the handler are transformation RANGES, not baked text:
+/// `transform` moves them and collapses the source between them, which is where
+/// the props object's spacing comes from (#4650).
+pub fn build_on_call_segments(
+    str: &mut MagicString<'_>,
+    inst_var: &str,
+    on_directives: &[&OnDirective],
+    source: &str,
+) -> Vec<Seg> {
+    let mut out = Vec::new();
+    for on in on_directives {
+        segs_push_fmt(&mut out, format_args!("{inst_var}.$on("));
+        match directive_name_range(source, on) {
+            Some((start, end)) => {
+                surround_with(str, start, end, "\"", "\"");
+                segs_push_src(&mut out, start, end);
+            }
+            None => segs_push_fmt(&mut out, format_args!("\"{}\"", on.name)),
+        }
+        segs_push_lit(&mut out, ", ");
+        match on.expression.as_ref().and_then(get_expression_range) {
+            Some((start, end)) => segs_push_src(&mut out, start, end),
+            None => segs_push_lit(&mut out, "() => {}"),
+        }
+        segs_push_lit(&mut out, ");");
+    }
+    out
+}
+
+/// `getDirectiveNameStartEndIdx` (`node-utils.ts:169-172`): the name is what
+/// follows the directive's first `:`.
+fn directive_name_range(source: &str, on: &OnDirective) -> Option<(u32, u32)> {
+    let start = on.start as usize;
+    let colon = source.get(start..on.end as usize)?.find(':')? + start + 1;
+    let end = colon + on.name.len();
+    (end <= on.end as usize).then_some((colon as u32, end as u32))
 }
 
 /// An `on:` directive as segments.

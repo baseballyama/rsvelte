@@ -1086,6 +1086,50 @@ impl<'source> MagicString<'source> {
         self
     }
 
+    /// `overwrite(start, end, content, { contentOnly: true })`: the first
+    /// chunk keeps the `intro` and `outro` other callers already attached to
+    /// it, which is what `transform` relies on to append generated text to a
+    /// kept range and then still overwrite the character after it.
+    pub fn overwrite_content_only(&mut self, start: u32, end: u32, content: &str) -> &mut Self {
+        if start >= end {
+            return self;
+        }
+        assert!(
+            (end as usize) <= self.original.len(),
+            "overwrite_content_only: end ({}) > source length ({})",
+            end,
+            self.original.len()
+        );
+        let start_boundary = self.split_at(start);
+        let first = start_boundary
+            .right_index()
+            .expect("overwrite_content_only: no chunk at start");
+        match end.cmp(&self.chunks[first].end) {
+            std::cmp::Ordering::Less => {
+                let dense_insert_slot = start_boundary
+                    .dense_right_slot
+                    .map(|right_slot| DenseSlot::from_index(right_slot.index() + 1));
+                self.split_known_chunk(first, end, dense_insert_slot);
+            }
+            std::cmp::Ordering::Equal => {}
+            std::cmp::Ordering::Greater => {
+                self.split_at(end);
+            }
+        }
+        self.chunks[first].content = Some(content.to_string());
+        let mut cur_end = self.chunks[first].end;
+        while cur_end < end {
+            let Some(ci) = self.chunk_starting_at(cur_end) else {
+                break;
+            };
+            self.chunks[ci].content = Some(String::new());
+            self.chunks[ci].intro.clear();
+            self.chunks[ci].outro.clear();
+            cur_end = self.chunks[ci].end;
+        }
+        self
+    }
+
     pub fn overwrite_fmt(&mut self, start: u32, end: u32, args: fmt::Arguments<'_>) -> &mut Self {
         if start >= end {
             return self;
