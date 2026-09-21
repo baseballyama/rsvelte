@@ -7,8 +7,11 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use lsp_types::{Position, Range, Uri};
+use rsvelte_core::Allocator;
 use serde_json::{Map, Value};
 
+use crate::context::EmbeddedRegions;
+use crate::nodes::{offset_is_in_attribute, parse_root};
 use crate::text::LineIndex;
 use crate::tsgo_inlay_hints::{HintKind, ShadowNodes};
 use crate::tsgo_overlay::{TsgoOverlay, is_in_generated_code};
@@ -801,6 +804,106 @@ pub fn filter_generated_inlay_hints(
     });
 }
 
+/// `TypeScriptPlugin.getDocumentSymbols` (`:286-345`) rewrites and drops
+/// symbols after mapping them back; tsgo answers the request itself, so the
+/// same passes run here over its mapped result. Upstream's `symbols.slice(1)`
+/// has no counterpart: the symbol it discards is the navigation tree's root,
+/// which `textDocument/documentSymbol` does not report, and "the container is
+/// that root" is therefore spelled here as "tsgo reported no container".
+pub fn rewrite_document_symbols(result: &mut Value, source: &str) {
+    let Some(symbols) = result.as_array_mut() else {
+        return;
+    };
+    let index = LineIndex::new(source);
+    let scripts = EmbeddedRegions::new(source);
+    let allocator = Allocator::default();
+    let mut template = None;
+    symbols.retain_mut(|symbol| {
+        let Some(object) = symbol.as_object_mut() else {
+            return true;
+        };
+        if !object.contains_key("containerName") {
+            object.insert("containerName".to_string(), Value::String("script".into()));
+        }
+        let Some(range) = object
+            .get("location")
+            .and_then(|location| location.get("range"))
+            .and_then(parse_range)
+        else {
+            return true;
+        };
+        if range.start == range.end {
+            return false;
+        }
+        let Some(name) = object.get("name").and_then(Value::as_str) else {
+            return true;
+        };
+        if name.starts_with("__sveltets_") {
+            return false;
+        }
+        let kind = object.get("kind").and_then(Value::as_u64);
+        let start = index.offset(source, range.start);
+        if matches!(kind, Some(PROPERTY_KIND | METHOD_KIND)) && !scripts.in_script(start) {
+            // A generated component constructor's `props`, whose original
+            // position is the component tag rather than the word.
+            if name == "props" && source.as_bytes().get(start) != Some(&b'p') {
+                return false;
+            }
+            let root = template.get_or_insert_with(|| parse_root(source, &allocator));
+            if root
+                .as_ref()
+                .is_some_and(|root| offset_is_in_attribute(root, start as u32))
+            {
+                return false;
+            }
+        }
+        let mut renamed = if name == "<function>" {
+            Some(anonymous_function_name(source, &index, range))
+        } else {
+            None
+        };
+        let name = renamed.as_deref().unwrap_or(name);
+        if name.starts_with("$$_") {
+            // `on:foo={() => ''}` reaches tsgo as `$$_….$on("foo") callback`.
+            let Some(handler) = name.find("$on") else {
+                return false;
+            };
+            renamed = Some(name[handler..].to_string());
+        }
+        if let Some(renamed) = renamed {
+            object.insert("name".to_string(), Value::String(renamed));
+        }
+        true
+    });
+}
+
+/// `SymbolKind.Property` and `SymbolKind.Method`, the two kinds whose symbols
+/// upstream re-reads against the template.
+const PROPERTY_KIND: u64 = 7;
+const METHOD_KIND: u64 = 6;
+
+/// Upstream names an anonymous function after the source it spans, cut to 50
+/// UTF-16 units. A surrogate pair straddling the cut is kept whole, because
+/// `String.prototype.substring`'s half of one is not a Rust `str`.
+fn anonymous_function_name(source: &str, index: &LineIndex, range: Range) -> String {
+    let start = index.offset(source, range.start);
+    let end = index.offset(source, range.end);
+    let text = source.get(start..end).unwrap_or_default().trim_start();
+    let mut units = 0;
+    let mut cut = text.len();
+    for (offset, character) in text.char_indices() {
+        if units >= 50 {
+            cut = offset;
+            break;
+        }
+        units += character.len_utf16();
+    }
+    if cut == text.len() {
+        return text.to_string();
+    }
+    format!("{}...", &text[..cut])
+}
+
 pub fn normalize_definition_result(result: &mut Value) {
     if result.is_null() {
         *result = Value::Array(Vec::new());
@@ -1124,6 +1227,153 @@ mod tests {
         // The other two shapes upstream can produce are unchanged.
         assert_eq!(tsgo_unmapped_result("textDocument/definition"), json!([]));
         assert_eq!(tsgo_unmapped_result("textDocument/hover"), Value::Null);
+    }
+
+    fn symbol(name: &str, kind: u64, range: [[u32; 2]; 2]) -> Value {
+        json!({
+            "name": name,
+            "kind": kind,
+            "location": {
+                "uri": "file:///a.svelte",
+                "range": {
+                    "start": { "line": range[0][0], "character": range[0][1] },
+                    "end": { "line": range[1][0], "character": range[1][1] },
+                },
+            },
+        })
+    }
+
+    fn rewritten(source: &str, symbols: Vec<Value>) -> Vec<(String, Option<String>)> {
+        let mut result = Value::Array(symbols);
+        rewrite_document_symbols(&mut result, source);
+        result
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|symbol| {
+                (
+                    symbol["name"].as_str().unwrap().to_string(),
+                    symbol
+                        .get("containerName")
+                        .and_then(Value::as_str)
+                        .map(str::to_string),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_symbol_tsgo_reports_no_container_for_is_a_child_of_the_script() {
+        assert_eq!(
+            rewritten(
+                "<script>let a;</script>",
+                vec![
+                    symbol("a", 13, [[0, 12], [0, 13]]),
+                    json!({
+                        "name": "b",
+                        "kind": 13,
+                        "containerName": "a",
+                        "location": {
+                            "uri": "file:///a.svelte",
+                            "range": {
+                                "start": { "line": 0, "character": 12 },
+                                "end": { "line": 0, "character": 13 },
+                            },
+                        },
+                    }),
+                ],
+            ),
+            vec![
+                ("a".to_string(), Some("script".to_string())),
+                ("b".to_string(), Some("a".to_string())),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_zero_length_range_and_a_generated_name_are_dropped() {
+        assert_eq!(
+            rewritten(
+                "<script>let a;</script>",
+                vec![
+                    symbol("a", 13, [[0, 12], [0, 12]]),
+                    symbol("__sveltets_2_any", 12, [[0, 8], [0, 13]]),
+                    symbol("kept", 13, [[0, 12], [0, 13]]),
+                ],
+            ),
+            vec![("kept".to_string(), Some("script".to_string()))]
+        );
+    }
+
+    #[test]
+    fn a_generated_constructors_props_is_dropped_where_the_source_has_no_such_word() {
+        // `props` maps onto the component tag, `p` onto a real `props` binding.
+        assert_eq!(
+            rewritten(
+                "<Comp />\n<script>let props;</script>",
+                vec![
+                    symbol("props", 7, [[0, 1], [0, 5]]),
+                    symbol("props", 7, [[1, 16], [1, 21]]),
+                ],
+            ),
+            vec![("props".to_string(), Some("script".to_string()))]
+        );
+    }
+
+    #[test]
+    fn a_property_on_an_attribute_is_not_a_symbol_of_its_own() {
+        assert_eq!(
+            rewritten(
+                "<Comp a={1} on:click={() => run()} />",
+                vec![
+                    symbol("\"a\"", 7, [[0, 6], [0, 11]]),
+                    symbol("\"on:click\"", 7, [[0, 12], [0, 20]]),
+                    // Inside the handler, where upstream's `svelteNodeAt`
+                    // answers the expression rather than the event handler.
+                    symbol("run", 6, [[0, 28], [0, 31]]),
+                ],
+            ),
+            vec![("run".to_string(), Some("script".to_string()))]
+        );
+    }
+
+    #[test]
+    fn an_anonymous_function_is_named_after_its_source() {
+        assert_eq!(
+            rewritten(
+                "<script>\n  const f = () => 1;\n</script>",
+                vec![symbol("<function>", 12, [[1, 12], [1, 20]])],
+            ),
+            vec![("() => 1;".to_string(), Some("script".to_string()))]
+        );
+    }
+
+    #[test]
+    fn a_name_longer_than_fifty_units_is_cut() {
+        let line = format!("<script>{}</script>", "x".repeat(60));
+        let names = rewritten(&line, vec![symbol("<function>", 12, [[0, 8], [0, 68]])]);
+        assert_eq!(names[0].0, format!("{}...", "x".repeat(50)));
+    }
+
+    #[test]
+    fn a_svelte2tsx_local_survives_only_as_the_event_handler_it_wraps() {
+        assert_eq!(
+            rewritten(
+                "<script>let a;</script>",
+                vec![
+                    symbol("$$_tnenopmoC0C", 13, [[0, 8], [0, 13]]),
+                    symbol(
+                        "$$_tnenopmoC0.$on(\"click\") callback",
+                        13,
+                        [[0, 8], [0, 13]]
+                    ),
+                ],
+            ),
+            vec![(
+                "$on(\"click\") callback".to_string(),
+                Some("script".to_string())
+            )]
+        );
     }
 
     use std::fs;
