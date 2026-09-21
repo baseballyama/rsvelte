@@ -33,6 +33,11 @@ pub(super) enum Seg {
     /// character, so its map segment anchors on that chunk instead of on the
     /// end of the preceding one.
     LitOpen(String),
+    /// A source range overwritten with nothing. Emits no text *and no map
+    /// segment* — magic-string skips an edited chunk whose content is empty —
+    /// which is how upstream keeps a deleted character from taking the mapping
+    /// the following generated text would otherwise anchor on.
+    Drop(u32, u32),
 }
 
 /// Push a literal segment, merging with the previous Lit when adjacent.
@@ -83,6 +88,7 @@ pub(super) fn segs_to_string(segs: &[Seg], source: &str) -> String {
         match seg {
             Seg::Lit(s) | Seg::LitOpen(s) => out.push_str(s),
             Seg::Src(s, e) => out.push_str(slice_src(source, *s as usize, *e as usize)),
+            Seg::Drop(..) => {}
         }
     }
     out
@@ -110,6 +116,15 @@ pub(super) fn bake_out_of_order_src(segs: Vec<Seg>, source: &str) -> Vec<Seg> {
             Seg::Src(s, e) => {
                 let text = source.get(s as usize..e as usize).unwrap_or("").to_string();
                 out.push(Seg::Lit(text));
+            }
+            // A `Drop` that the cursor has already passed writes nothing and
+            // would only trip `emit_segmented_overwrite`'s ordering assert.
+            Seg::Drop(s, e) if s < last_end || s >= e => {
+                let _ = (s, e);
+            }
+            Seg::Drop(s, e) => {
+                last_end = e;
+                out.push(Seg::Drop(s, e));
             }
             lit => out.push(lit),
         }
@@ -171,6 +186,7 @@ pub(super) fn emit_opener_segments(
             match seg {
                 Seg::Lit(text) | Seg::LitOpen(text) => lead.push_str(text),
                 Seg::Src(..) => unreachable!("leading_hoist returns the first Src"),
+                Seg::Drop(..) => {}
             }
         }
         emit_segmented_overwrite_around(
@@ -252,6 +268,26 @@ fn emit_segmented_overwrite_around(
                 pending.push_str(s);
             }
             Seg::LitOpen(s) => opening.push_str(s),
+            // `InlineComponent.ts:75` / `Element.ts:85`: the character is
+            // overwritten with nothing *before* the surrounding text is placed,
+            // so the text that follows anchors on the next preserved chunk
+            // instead of on the deleted character.
+            Seg::Drop(s, e) => {
+                debug_assert!(
+                    *s >= cursor && *e <= range_end && *s < *e,
+                    "emit_segmented_overwrite: bad Drop ({s}, {e}) for cursor {cursor} range_end {range_end}"
+                );
+                pending.push_str(&opening);
+                opening.clear();
+                if cursor < *s {
+                    str.overwrite(cursor, *s, &pending);
+                } else if !pending.is_empty() {
+                    str.prepend_right(*s, &pending);
+                }
+                pending.clear();
+                str.overwrite(*s, *e, "");
+                cursor = *e;
+            }
             Seg::Src(s, e) => {
                 debug_assert!(
                     *s >= cursor && *e <= range_end && *s < *e,
