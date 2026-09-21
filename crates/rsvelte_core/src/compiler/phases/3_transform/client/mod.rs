@@ -4123,11 +4123,11 @@ pub(crate) fn is_js_comments_and_whitespace_only(src: &str) -> bool {
 /// in pure-code state — so an `import …` line living inside a backtick template
 /// literal (e.g. a code-sample string) is not mis-hoisted as a real import.
 #[derive(Default, Clone)]
-struct ScanState {
+pub(super) struct ScanState {
     /// One entry per open template literal. `0` = in template text; `>=1` =
     /// inside a `${ }` hole, value is the brace-nesting depth.
     template_brace_depth: Vec<i32>,
-    in_block_comment: bool,
+    pub(super) in_block_comment: bool,
 }
 
 impl ScanState {
@@ -4139,7 +4139,7 @@ impl ScanState {
     /// Advance the carried state across one line. Single/double-quoted strings
     /// and `//` comments cannot cross a newline, so only template literals and
     /// block comments persist between lines.
-    fn advance(&mut self, line: &str) {
+    pub(super) fn advance(&mut self, line: &str) {
         let b = line.as_bytes();
         let n = b.len();
         let mut i = 0;
