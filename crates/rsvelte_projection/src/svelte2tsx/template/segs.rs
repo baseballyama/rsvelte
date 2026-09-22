@@ -194,7 +194,7 @@ pub(super) fn emit_opener_segments(
             range_start,
             range_end,
             &segments[index + 1..],
-            Some((start, end)),
+            &[(start, end)],
         );
         if !lead.is_empty() {
             // Attached to the chunk's own intro so it travels with the move.
@@ -209,6 +209,103 @@ pub(super) fn emit_opener_segments(
         range_end,
         &bake_out_of_order_src(segments, source),
     );
+}
+
+/// Apply an element opener whose generated text starts with statements the
+/// SOURCE puts later — the `use:` action declarations, which precede
+/// `createElement(...)` while their attribute sits among the others.
+///
+/// `lead` and the literals inside `prefix` are attached to the chunks they
+/// surround, so they travel with them; each preserved chunk is then moved to
+/// `range_start` in order. Upstream needs no such step because `transform()`
+/// moves EVERY preserved chunk to the tag end
+/// (`htmlxtojsx_v2/utils/node-utils.ts`), where this emitter keeps them in
+/// place and writes the gaps.
+///
+/// A prefix whose ranges cannot be relocated safely — out of order, outside
+/// the opener, or overlapping a chunk that stays — is baked into the leading
+/// literal, which is what the whole prefix used to be.
+pub(super) fn emit_opener_with_hoisted_prefix(
+    str: &mut MagicString<'_>,
+    range_start: u32,
+    range_end: u32,
+    lead: &str,
+    prefix: &[Seg],
+    segments: Vec<Seg>,
+    source: &str,
+) {
+    let hoists: Vec<(u32, u32)> = prefix
+        .iter()
+        .filter_map(|seg| match seg {
+            Seg::Src(start, end) => Some((*start, *end)),
+            _ => None,
+        })
+        .collect();
+    let stays_in_place = |(start, end): &(u32, u32)| {
+        segments.iter().any(|seg| match seg {
+            Seg::Src(s, e) | Seg::Drop(s, e) => *s < *end && *e > *start,
+            _ => false,
+        })
+    };
+    // `range_start == 0` is the one target `MagicString::move_range` answers
+    // differently: it links before the CURRENT first chunk rather than before
+    // the chunk that starts there, so a second move lands ahead of the first
+    // and both land ahead of whatever the document prologue attached at 0.
+    // Script hoisting relies on that behaviour, so the guard is here.
+    let relocatable = !hoists.is_empty()
+        && range_start > 0
+        && hoists.windows(2).all(|pair| pair[0].1 <= pair[1].0)
+        && hoists
+            .iter()
+            .all(|(start, end)| range_start < *start && *end <= range_end)
+        && !hoists.iter().any(stays_in_place);
+    if !relocatable {
+        let mut head = String::from(lead);
+        head.push_str(&segs_to_string(prefix, source));
+        let mut segments = segments;
+        segments.insert(0, Seg::Lit(head));
+        emit_segmented_overwrite(
+            str,
+            range_start,
+            range_end,
+            &bake_out_of_order_src(segments, source),
+        );
+        return;
+    }
+
+    // Each literal is attached to the chunk that follows it, except the last,
+    // which has none and rides the chunk before it.
+    let mut pending = String::from(lead);
+    let mut previous_end = None;
+    for seg in prefix {
+        match seg {
+            Seg::Lit(text) | Seg::LitOpen(text) => pending.push_str(text),
+            Seg::Src(start, _) => {
+                if !pending.is_empty() {
+                    str.prepend_right(*start, &pending);
+                    pending.clear();
+                }
+                previous_end = Some(seg);
+            }
+            Seg::Drop(..) => {}
+        }
+    }
+    if !pending.is_empty()
+        && let Some(Seg::Src(_, end)) = previous_end
+    {
+        str.append_left(*end, &pending);
+    }
+
+    emit_segmented_overwrite_around(
+        str,
+        range_start,
+        range_end,
+        &bake_out_of_order_src(segments, source),
+        &hoists,
+    );
+    for (start, end) in hoists {
+        str.move_range(start, end, range_start);
+    }
 }
 
 /// Apply a list of segments to a `MagicString`, overwriting `[start, end)`
@@ -226,19 +323,19 @@ pub(super) fn emit_segmented_overwrite(
     range_end: u32,
     segments: &[Seg],
 ) {
-    emit_segmented_overwrite_around(str, range_start, range_end, segments, None);
+    emit_segmented_overwrite_around(str, range_start, range_end, segments, &[]);
 }
 
-/// [`emit_segmented_overwrite`], with `hoisted` naming a source range inside
+/// [`emit_segmented_overwrite`], with `hoisted` naming source ranges inside
 /// `[range_start, range_end)` that a caller is about to relocate with
-/// [`MagicString::move_range`]. The gap that contains it is written in two
-/// pieces so the relocated chunk is never covered by an overwrite.
+/// [`MagicString::move_range`]. A gap that contains one is written in pieces so
+/// the relocated chunks are never covered by an overwrite.
 fn emit_segmented_overwrite_around(
     str: &mut MagicString<'_>,
     range_start: u32,
     range_end: u32,
     segments: &[Seg],
-    hoisted: Option<(u32, u32)>,
+    hoisted: &[(u32, u32)],
 ) {
     if range_start >= range_end {
         // Degenerate: still attach the pending literal at the boundary so
@@ -337,23 +434,35 @@ fn write_gap(
     from: u32,
     to: u32,
     text: &str,
-    hoisted: Option<(u32, u32)>,
+    hoisted: &[(u32, u32)],
     end: GapEnd,
 ) {
-    if let Some((hs, he)) = hoisted
-        && from <= hs
-        && he <= to
-    {
-        if from < hs {
-            str.overwrite(from, hs, text);
-        } else if !text.is_empty() {
+    let inside = hoisted
+        .iter()
+        .filter(|(hs, he)| from <= *hs && *he <= to)
+        .copied();
+    let mut at = from;
+    let mut written = false;
+    for (hs, he) in inside {
+        // The literal belongs at the START of the gap, where the generated
+        // text sits; every later byte of the gap is cleared, because the
+        // hoisted chunks are about to leave it.
+        if at < hs {
+            str.overwrite(at, hs, if written { "" } else { text });
+            written = true;
+        } else if !written && !text.is_empty() {
             str.append_left(hs, text);
+            written = true;
         }
-        if he < to {
-            str.overwrite(he, to, "");
+        at = he;
+    }
+    if written {
+        if at < to {
+            str.overwrite(at, to, "");
         }
         return;
     }
+    let from = at;
     if from < to {
         str.overwrite(from, to, text);
     } else if !text.is_empty() {
