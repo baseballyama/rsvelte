@@ -46,6 +46,11 @@ impl EmbeddedRegions {
     }
 
     #[must_use]
+    pub fn scripts(&self) -> &[Range<usize>] {
+        &self.scripts
+    }
+
+    #[must_use]
     pub fn in_style(&self, offset: usize) -> bool {
         self.style_at(offset).is_some()
     }
