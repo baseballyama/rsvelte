@@ -215296,12 +215296,6 @@
     "differential:upstream-features/unInitialized/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=85c871d26c93]": [
       "diagnostic-item-set-extra-ts"
     ],
-    "differential:upstream-testfiles/call-hierarchy/call-hierarchy-import.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=660fe3e1946b]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/call-hierarchy/call-hierarchy-import.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=660fe3e1946b]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/call-hierarchy/call-hierarchy-import.svelte|textDocument/foldingRange|:extra-rsvelte[count=1,hash=44ac2e58edf8]": [
       "folding-range-character"
     ],
@@ -215313,12 +215307,6 @@
     ],
     "differential:upstream-testfiles/call-hierarchy/call-hierarchy-import.svelte|textDocument/foldingRange|phase=edit|:missing-rsvelte[count=1,hash=d09436ed04e0]": [
       "folding-range-set-missing"
-    ],
-    "differential:upstream-testfiles/call-hierarchy/outgoing-component.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=e4cc1e9cbb72]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/call-hierarchy/outgoing-component.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=e4cc1e9cbb72]": [
-      "document-symbol-set-extra"
     ],
     "differential:upstream-testfiles/call-hierarchy/outgoing-component.svelte|textDocument/foldingRange|:extra-rsvelte[count=1,hash=b87d137f0729]": [
       "folding-range-character"
@@ -215410,12 +215398,6 @@
     "differential:upstream-testfiles/code-actions/codeaction-component-import.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=48502064cf93]": [
       "diagnostic-item-set-extra-rsvelte"
     ],
-    "differential:upstream-testfiles/code-actions/codeaction-component-import.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=a8128b19e428]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/code-actions/codeaction-component-import.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=a8128b19e428]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/code-actions/codeaction-component-import.svelte|textDocument/foldingRange|:missing-rsvelte[count=1,hash=9d3ddc8aafab]": [
       "folding-range-set-missing"
     ],
@@ -215494,10 +215476,10 @@
     "differential:upstream-testfiles/code-actions/codeactions.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=7ad73949fa22]": [
       "diagnostic-item-set-missing-ts"
     ],
-    "differential:upstream-testfiles/code-actions/codeactions.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=74b13a5c8ff0]": [
+    "differential:upstream-testfiles/code-actions/codeactions.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=977c163460fb]": [
       "document-symbol-set-extra"
     ],
-    "differential:upstream-testfiles/code-actions/codeactions.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=2,hash=74b13a5c8ff0]": [
+    "differential:upstream-testfiles/code-actions/codeactions.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=977c163460fb]": [
       "document-symbol-set-extra"
     ],
     "differential:upstream-testfiles/code-actions/codeactions.svelte|textDocument/foldingRange|:extra-rsvelte[count=1,hash=113e8d0dc039]": [
@@ -215626,14 +215608,14 @@
     "differential:upstream-testfiles/code-actions/organize-imports-snippet.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=84ade9ccfc7e]": [
       "diagnostic-item-set-missing-mixed"
     ],
-    "differential:upstream-testfiles/code-actions/organize-imports-snippet.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=670d6a0155f3]": [
-      "document-symbol-mixed-kind-set-extra"
+    "differential:upstream-testfiles/code-actions/organize-imports-snippet.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=9efa3ee30247]": [
+      "document-symbol-kind"
     ],
     "differential:upstream-testfiles/code-actions/organize-imports-snippet.svelte|textDocument/documentSymbol|:missing-rsvelte[count=1,hash=5994629050d2]": [
       "document-symbol-kind"
     ],
-    "differential:upstream-testfiles/code-actions/organize-imports-snippet.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=2,hash=670d6a0155f3]": [
-      "document-symbol-mixed-kind-set-extra"
+    "differential:upstream-testfiles/code-actions/organize-imports-snippet.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=9efa3ee30247]": [
+      "document-symbol-kind"
     ],
     "differential:upstream-testfiles/code-actions/organize-imports-snippet.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=5994629050d2]": [
       "document-symbol-kind"
@@ -215710,14 +215692,8 @@
     "differential:upstream-testfiles/code-actions/organize-imports-with-generics.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=4a34edd17a98]": [
       "diagnostic-item-set-missing-ts"
     ],
-    "differential:upstream-testfiles/code-actions/organize-imports-with-generics.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=920b80c174fe]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/code-actions/organize-imports-with-generics.svelte|textDocument/documentSymbol|:missing-rsvelte[count=1,hash=c73547e71827]": [
       "document-symbol-set-missing"
-    ],
-    "differential:upstream-testfiles/code-actions/organize-imports-with-generics.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=920b80c174fe]": [
-      "document-symbol-set-extra"
     ],
     "differential:upstream-testfiles/code-actions/organize-imports-with-generics.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=c73547e71827]": [
       "document-symbol-set-missing"
@@ -215746,12 +215722,6 @@
     "differential:upstream-testfiles/code-actions/organize-imports-with-module.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=9b468b7e144d]": [
       "diagnostic-item-set-missing-ts"
     ],
-    "differential:upstream-testfiles/code-actions/organize-imports-with-module.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=64d7b208c842]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/code-actions/organize-imports-with-module.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=64d7b208c842]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/code-actions/organize-imports-with-module.svelte|textDocument/foldingRange|:extra-rsvelte[count=1,hash=d19d49ca9873]": [
       "folding-range-character"
     ],
@@ -215775,12 +215745,6 @@
     ],
     "differential:upstream-testfiles/code-actions/remove-imports-inline.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=4cfb89555396]": [
       "diagnostic-item-set-missing-js"
-    ],
-    "differential:upstream-testfiles/codelens/importing.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=f631ffb1e987]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/codelens/importing.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=f631ffb1e987]": [
-      "document-symbol-set-extra"
     ],
     "differential:upstream-testfiles/codelens/importing.svelte|textDocument/foldingRange|:missing-rsvelte[count=1,hash=4c35c2b3c8b3]": [
       "folding-range-set-missing"
@@ -216436,12 +216400,6 @@
     "differential:upstream-testfiles/declaration-map/importing.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=7eee1a2a4972]": [
       "diagnostic-item-set-missing-js"
     ],
-    "differential:upstream-testfiles/definition/definition-rune.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=f97088d8fac0]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/definition/definition-rune.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=f97088d8fac0]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/definition/definition-rune.svelte|textDocument/foldingRange|:missing-rsvelte[count=1,hash=9d3ddc8aafab]": [
       "folding-range-set-missing"
     ],
@@ -216460,13 +216418,13 @@
     "differential:upstream-testfiles/definitions.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=7,hash=7ab0c1849413]": [
       "diagnostic-item-set-missing-mixed"
     ],
-    "differential:upstream-testfiles/definitions.svelte|textDocument/documentSymbol|:extra-rsvelte[count=3,hash=077304e2a983]": [
+    "differential:upstream-testfiles/definitions.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=ca6667c44ab6]": [
       "document-symbol-set-extra"
     ],
     "differential:upstream-testfiles/definitions.svelte|textDocument/documentSymbol|:missing-rsvelte[count=1,hash=3febec865d54]": [
       "document-symbol-set-missing"
     ],
-    "differential:upstream-testfiles/definitions.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=3,hash=077304e2a983]": [
+    "differential:upstream-testfiles/definitions.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=2,hash=ca6667c44ab6]": [
       "document-symbol-set-extra"
     ],
     "differential:upstream-testfiles/definitions.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=3febec865d54]": [
@@ -216532,12 +216490,6 @@
     "differential:upstream-testfiles/diagnostics/shared-comp.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=a5b268bffd17]": [
       "document-symbol-kind"
     ],
-    "differential:upstream-testfiles/document-highlight/document-highlight.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=919bc46448e6]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/document-highlight/document-highlight.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=919bc46448e6]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/document-highlight/document-highlight.svelte|textDocument/foldingRange|:extra-rsvelte[count=1,hash=b29c8ffef984]": [
       "folding-range-character"
     ],
@@ -216574,13 +216526,13 @@
     "differential:upstream-testfiles/documentsymbols-snippets.v5/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=57eb924f117e]": [
       "diagnostic-item-set-missing-ts"
     ],
-    "differential:upstream-testfiles/documentsymbols-snippets.v5/input.svelte|textDocument/documentSymbol|:extra-rsvelte[count=12,hash=2ec0e029e307]": [
+    "differential:upstream-testfiles/documentsymbols-snippets.v5/input.svelte|textDocument/documentSymbol|:extra-rsvelte[count=10,hash=a658d481af8e]": [
       "document-symbol-mixed-kind-range-set-extra"
     ],
     "differential:upstream-testfiles/documentsymbols-snippets.v5/input.svelte|textDocument/documentSymbol|:missing-rsvelte[count=8,hash=59f89da62d42]": [
       "document-symbol-mixed-kind-range-set-missing"
     ],
-    "differential:upstream-testfiles/documentsymbols-snippets.v5/input.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=12,hash=2ec0e029e307]": [
+    "differential:upstream-testfiles/documentsymbols-snippets.v5/input.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=10,hash=a658d481af8e]": [
       "document-symbol-mixed-kind-range-set-extra"
     ],
     "differential:upstream-testfiles/documentsymbols-snippets.v5/input.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=8,hash=59f89da62d42]": [
@@ -216856,13 +216808,13 @@
     "differential:upstream-testfiles/hover/hover-$store.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=7032f21716e0]": [
       "diagnostic-item-set-extra-rsvelte"
     ],
-    "differential:upstream-testfiles/hover/hover-$store.svelte|textDocument/documentSymbol|:extra-rsvelte[count=3,hash=8bd228e85ca1]": [
+    "differential:upstream-testfiles/hover/hover-$store.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=7ed09f63474a]": [
       "document-symbol-mixed-range-set-extra"
     ],
     "differential:upstream-testfiles/hover/hover-$store.svelte|textDocument/documentSymbol|:missing-rsvelte[count=2,hash=6708f8476c97]": [
       "document-symbol-mixed-range-set-missing"
     ],
-    "differential:upstream-testfiles/hover/hover-$store.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=3,hash=8bd228e85ca1]": [
+    "differential:upstream-testfiles/hover/hover-$store.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=2,hash=7ed09f63474a]": [
       "document-symbol-mixed-range-set-extra"
     ],
     "differential:upstream-testfiles/hover/hover-$store.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=6708f8476c97]": [
@@ -217042,12 +216994,6 @@
     "differential:upstream-testfiles/preferences/module-specifier-js.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=310467b3d835]": [
       "diagnostic-item-set-missing-ts"
     ],
-    "differential:upstream-testfiles/preferences/module-specifier-js.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=88e23fcbd550]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/preferences/module-specifier-js.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=88e23fcbd550]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/preferences/module-specifier-js.svelte|textDocument/foldingRange|:missing-rsvelte[count=1,hash=9d3ddc8aafab]": [
       "folding-range-set-missing"
     ],
@@ -217114,14 +217060,8 @@
     "differential:upstream-testfiles/rename/rename-runes-importer.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=2,hash=8d438dfab705]": [
       "inlay-hint-label"
     ],
-    "differential:upstream-testfiles/rename/rename-runes.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=1fe40dac8e7d]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/rename/rename-runes.svelte|textDocument/documentSymbol|:missing-rsvelte[count=1,hash=8db07d1c9197]": [
       "document-symbol-set-missing"
-    ],
-    "differential:upstream-testfiles/rename/rename-runes.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=1fe40dac8e7d]": [
-      "document-symbol-set-extra"
     ],
     "differential:upstream-testfiles/rename/rename-runes.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=8db07d1c9197]": [
       "document-symbol-set-missing"
@@ -217198,13 +217138,13 @@
     "differential:upstream-testfiles/rename/rename.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=7e5aa097c785]": [
       "diagnostic-item-set-missing-mixed"
     ],
-    "differential:upstream-testfiles/rename/rename.svelte|textDocument/documentSymbol|:extra-rsvelte[count=5,hash=ba154b5acbc8]": [
+    "differential:upstream-testfiles/rename/rename.svelte|textDocument/documentSymbol|:extra-rsvelte[count=4,hash=9fcfc72a26ed]": [
       "document-symbol-mixed-kind-set-extra"
     ],
     "differential:upstream-testfiles/rename/rename.svelte|textDocument/documentSymbol|:missing-rsvelte[count=2,hash=2165702f1278]": [
       "document-symbol-mixed-kind-set-missing"
     ],
-    "differential:upstream-testfiles/rename/rename.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=5,hash=ba154b5acbc8]": [
+    "differential:upstream-testfiles/rename/rename.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=4,hash=9fcfc72a26ed]": [
       "document-symbol-mixed-kind-set-extra"
     ],
     "differential:upstream-testfiles/rename/rename.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=2165702f1278]": [
@@ -217252,12 +217192,6 @@
     "differential:upstream-testfiles/rename/rename4.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=c1c7c946fa9c]": [
       "diagnostic-identity-source"
     ],
-    "differential:upstream-testfiles/rename/rename4.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=3963fa18b973]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/rename/rename4.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=3963fa18b973]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/rename/rename4.svelte|textDocument/foldingRange|:missing-rsvelte[count=1,hash=48fedaa1cdd7]": [
       "folding-range-set-missing"
     ],
@@ -217276,13 +217210,13 @@
     "differential:upstream-testfiles/rename/rename5.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=e8aa12f2cd85]": [
       "diagnostic-identity-source"
     ],
-    "differential:upstream-testfiles/rename/rename5.svelte|textDocument/documentSymbol|:extra-rsvelte[count=3,hash=ffcac70df51d]": [
+    "differential:upstream-testfiles/rename/rename5.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=add3cdcd5003]": [
       "document-symbol-mixed-kind-set-extra"
     ],
     "differential:upstream-testfiles/rename/rename5.svelte|textDocument/documentSymbol|:missing-rsvelte[count=2,hash=5a19627e4854]": [
       "document-symbol-mixed-kind-set-missing"
     ],
-    "differential:upstream-testfiles/rename/rename5.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=3,hash=ffcac70df51d]": [
+    "differential:upstream-testfiles/rename/rename5.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=2,hash=add3cdcd5003]": [
       "document-symbol-mixed-kind-set-extra"
     ],
     "differential:upstream-testfiles/rename/rename5.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=5a19627e4854]": [
@@ -217462,10 +217396,10 @@
     "differential:upstream-testfiles/workspace-symbols/workspace-symbols.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=9a9ae07600e3]": [
       "diagnostic-item-set-missing-ts"
     ],
-    "differential:upstream-testfiles/workspace-symbols/workspace-symbols.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=b01ff96c592b]": [
+    "differential:upstream-testfiles/workspace-symbols/workspace-symbols.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=dbc8b846d8f3]": [
       "document-symbol-set-extra"
     ],
-    "differential:upstream-testfiles/workspace-symbols/workspace-symbols.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=2,hash=b01ff96c592b]": [
+    "differential:upstream-testfiles/workspace-symbols/workspace-symbols.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=dbc8b846d8f3]": [
       "document-symbol-set-extra"
     ],
     "differential:upstream-testfiles/workspace-symbols/workspace-symbols.svelte|textDocument/foldingRange|:missing-rsvelte[count=1,hash=48fedaa1cdd7]": [
