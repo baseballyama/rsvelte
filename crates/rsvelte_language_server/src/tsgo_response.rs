@@ -13,7 +13,7 @@ use serde_json::{Map, Value};
 use crate::context::EmbeddedRegions;
 use crate::nodes::{offset_is_in_attribute, parse_root};
 use crate::text::LineIndex;
-use crate::tsgo_inlay_hints::{HintKind, ShadowNodes};
+use crate::tsgo_inlay_hints::{HintKind, ShadowNodes, render_return_type_without_a_tree};
 use crate::tsgo_overlay::{TsgoOverlay, is_in_generated_code};
 use crate::uri::uri_to_path;
 
@@ -773,6 +773,15 @@ pub fn filter_generated_inlay_hints(
     let text = overlay.shadow_text(shadow_path);
     // Upstream builds one `SourceFile` per request, not one per hint.
     let nodes = text.and_then(ShadowNodes::parse);
+    // Unlike the four filters below, this one is answered for a shadow oxc
+    // rejects too: upstream's `SourceFile` is best-effort and never loses it.
+    let render_return_type = overlay
+        .is_projected_shadow(shadow_path)
+        .then(|| match nodes.as_ref() {
+            Some(nodes) => nodes.render_return_type(),
+            None => text.and_then(render_return_type_without_a_tree),
+        })
+        .flatten();
     hints.retain(|hint| {
         // A hint with no readable position is left to the mapper, which
         // already drops what it cannot map: guessing here would delete a hint
@@ -780,14 +789,14 @@ pub fn filter_generated_inlay_hints(
         let Some(position) = hint.get("position").and_then(parse_position) else {
             return true;
         };
-        if overlay.is_render_return_type_position(shadow_path, position) {
-            return false;
-        }
         let (Some(text), Some(offset)) = (text, overlay.shadow_offset(shadow_path, position))
         else {
             return true;
         };
         if is_in_generated_code(text, offset, offset) {
+            return false;
+        }
+        if render_return_type.is_some_and(|slot| u32::try_from(offset) == Ok(slot)) {
             return false;
         }
         let kind = HintKind::from_lsp(hint.get("kind").and_then(Value::as_i64));
