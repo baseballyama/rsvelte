@@ -5529,7 +5529,7 @@ divergence the configuration was hiding, in three classes:
 None of the three is a property of the gate any more, so they are on the same footing as the rest
 of the ratchet: they stay until they are burned down.
 
-Partition of `lsp-known-failures.json` by key kind: `21562 + 1212 + 304` — real-world corpus
+Partition of `lsp-known-failures.json` by key kind: `21562 + 1214 + 302` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
 against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
 `expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
