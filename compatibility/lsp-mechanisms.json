@@ -214654,14 +214654,14 @@
 		"differential:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=00b99709ec19]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/animation/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=3,hash=9c7d94e8c506]": [
-			"inlay-hint-mixed"
+		"differential:upstream-features/animation/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=1,hash=f4276e2d16b1]": [
+			"inlay-hint-label"
 		],
 		"differential:upstream-features/animation/input.svelte|textDocument/inlayHint|:missing-rsvelte[count=1,hash=33338f099ab2]": [
 			"inlay-hint-label"
 		],
-		"differential:upstream-features/animation/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=3,hash=9c7d94e8c506]": [
-			"inlay-hint-mixed"
+		"differential:upstream-features/animation/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=1,hash=f4276e2d16b1]": [
+			"inlay-hint-label"
 		],
 		"differential:upstream-features/animation/input.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=1,hash=33338f099ab2]": [
 			"inlay-hint-label"
@@ -214858,13 +214858,13 @@
 		"differential:upstream-features/coffeescript-ignore/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=41,hash=db88b55bd673]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-features/component-handler/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=5,hash=6f9d62250df1]": [
+		"differential:upstream-features/component-handler/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=3,hash=31ea7107ecb7]": [
 			"inlay-hint-set-extra-mixed"
 		],
 		"differential:upstream-features/component-handler/input.svelte|textDocument/inlayHint|:missing-rsvelte[count=2,hash=b72158767a7a]": [
 			"inlay-hint-set-missing-mixed"
 		],
-		"differential:upstream-features/component-handler/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=5,hash=6f9d62250df1]": [
+		"differential:upstream-features/component-handler/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=3,hash=31ea7107ecb7]": [
 			"inlay-hint-set-extra-mixed"
 		],
 		"differential:upstream-features/component-handler/input.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=2,hash=b72158767a7a]": [
@@ -215122,12 +215122,6 @@
 		"differential:upstream-features/pug/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=6,hash=b21a2e2a9dad]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/reactive-block/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=2,hash=9fa3bf222a26]": [
-			"inlay-hint-set-extra-type"
-		],
-		"differential:upstream-features/reactive-block/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=2,hash=9fa3bf222a26]": [
-			"inlay-hint-set-extra-type"
-		],
 		"differential:upstream-features/reactive-statement-unused-in-comma-list/ignores-unused-let/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=10,hash=64ff9a43cc0d]": [
 			"diagnostic-item-set-extra-mixed"
 		],
@@ -215295,12 +215289,6 @@
 		],
 		"differential:upstream-features/transition-options/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=4f366d8fd894]": [
 			"diagnostic-item-set-extra-ts"
-		],
-		"differential:upstream-features/transition/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=8,hash=8fbcfb5a855d]": [
-			"inlay-hint-set-extra-parameter"
-		],
-		"differential:upstream-features/transition/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=8,hash=8fbcfb5a855d]": [
-			"inlay-hint-set-extra-parameter"
 		],
 		"differential:upstream-features/typechecks-js-with-ts-check/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=735337a553c4]": [
 			"diagnostic-item-set-missing-js"
@@ -216058,13 +216046,13 @@
 		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/foldingRange|phase=edit|:missing-rsvelte[count=1,hash=3599894b2e7f]": [
 			"folding-range-set-missing"
 		],
-		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/inlayHint|:extra-rsvelte[count=27,hash=a00cdba131b2]": [
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/inlayHint|:extra-rsvelte[count=25,hash=331e7b24daee]": [
 			"inlay-hint-mixed"
 		],
 		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/inlayHint|:missing-rsvelte[count=2,hash=25ad7333efa1]": [
 			"inlay-hint-mixed"
 		],
-		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=27,hash=a00cdba131b2]": [
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=25,hash=331e7b24daee]": [
 			"inlay-hint-mixed"
 		],
 		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=2,hash=25ad7333efa1]": [
@@ -216628,13 +216616,13 @@
 		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/foldingRange|phase=edit|:missing-rsvelte[count=3,hash=bf30ff70a3f7]": [
 			"folding-range-mixed-end-line-character-set-missing"
 		],
-		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/inlayHint|:extra-rsvelte[count=3,hash=9e870ea1c0a0]": [
+		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/inlayHint|:extra-rsvelte[count=2,hash=41ead0b00b80]": [
 			"inlay-hint-mixed"
 		],
 		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/inlayHint|:missing-rsvelte[count=2,hash=9761a30bd55d]": [
 			"inlay-hint-mixed"
 		],
-		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=3,hash=9e870ea1c0a0]": [
+		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=2,hash=41ead0b00b80]": [
 			"inlay-hint-mixed"
 		],
 		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=2,hash=9761a30bd55d]": [
@@ -217726,14 +217714,14 @@
 		"expected:upstream-features/actions-enhance-types/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=00b99709ec19]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/animation/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=3,hash=9c7d94e8c506]": [
-			"inlay-hint-mixed"
+		"expected:upstream-features/animation/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=1,hash=f4276e2d16b1]": [
+			"inlay-hint-label"
 		],
 		"expected:upstream-features/animation/input.svelte|textDocument/inlayHint|:missing-rsvelte[count=1,hash=33338f099ab2]": [
 			"inlay-hint-label"
 		],
-		"expected:upstream-features/animation/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=3,hash=9c7d94e8c506]": [
-			"inlay-hint-mixed"
+		"expected:upstream-features/animation/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=1,hash=f4276e2d16b1]": [
+			"inlay-hint-label"
 		],
 		"expected:upstream-features/animation/input.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=1,hash=33338f099ab2]": [
 			"inlay-hint-label"
@@ -217936,13 +217924,13 @@
 		"expected:upstream-features/coffeescript-ignore/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=41,hash=db88b55bd673]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"expected:upstream-features/component-handler/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=5,hash=6f9d62250df1]": [
+		"expected:upstream-features/component-handler/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=3,hash=31ea7107ecb7]": [
 			"inlay-hint-set-extra-mixed"
 		],
 		"expected:upstream-features/component-handler/input.svelte|textDocument/inlayHint|:missing-rsvelte[count=2,hash=b72158767a7a]": [
 			"inlay-hint-set-missing-mixed"
 		],
-		"expected:upstream-features/component-handler/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=5,hash=6f9d62250df1]": [
+		"expected:upstream-features/component-handler/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=3,hash=31ea7107ecb7]": [
 			"inlay-hint-set-extra-mixed"
 		],
 		"expected:upstream-features/component-handler/input.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=2,hash=b72158767a7a]": [
@@ -218212,12 +218200,6 @@
 		"expected:upstream-features/pug/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=6,hash=b21a2e2a9dad]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/reactive-block/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=2,hash=9fa3bf222a26]": [
-			"inlay-hint-set-extra-type"
-		],
-		"expected:upstream-features/reactive-block/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=2,hash=9fa3bf222a26]": [
-			"inlay-hint-set-extra-type"
-		],
 		"expected:upstream-features/reactive-statement-unused-in-comma-list/ignores-unused-let/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=10,hash=64ff9a43cc0d]": [
 			"diagnostic-item-set-extra-mixed"
 		],
@@ -218385,12 +218367,6 @@
 		],
 		"expected:upstream-features/transition-options/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=6381ee0d4995]": [
 			"diagnostic-item-set-extra-mixed"
-		],
-		"expected:upstream-features/transition/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=8,hash=8fbcfb5a855d]": [
-			"inlay-hint-set-extra-parameter"
-		],
-		"expected:upstream-features/transition/input.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=8,hash=8fbcfb5a855d]": [
-			"inlay-hint-set-extra-parameter"
 		],
 		"expected:upstream-features/typechecks-js-with-ts-check/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=735337a553c4]": [
 			"diagnostic-item-set-missing-js"

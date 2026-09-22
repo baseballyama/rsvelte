@@ -10,7 +10,7 @@ use lsp_types::{Position, Range, Uri};
 use rsvelte_core::Allocator;
 use serde_json::{Map, Value};
 
-use crate::context::EmbeddedRegions;
+use crate::context::{EmbeddedRegions, ScriptBodies, attribute_context, script_bodies};
 use crate::nodes::{offset_is_in_attribute, parse_root};
 use crate::text::LineIndex;
 use crate::tsgo_inlay_hints::{HintKind, ShadowNodes, render_return_type_without_a_tree};
@@ -818,6 +818,69 @@ pub fn filter_generated_inlay_hints(
     });
 }
 
+/// `checkGeneratedFunctionHintWithSource` (`InlayHintProvider.ts:308-346`),
+/// the filter upstream runs AFTER mapping, on source coordinates: the hints
+/// svelte2tsx generates for a directive's own call sit on the directive's
+/// attribute, which only the source document can tell apart from a hint the
+/// user's own code earned.
+///
+/// Returns nothing; hints the predicate claims are removed from `result`.
+pub fn filter_source_inlay_hints(result: &mut Value, source_text: &str) {
+    let Some(hints) = result.as_array_mut() else {
+        return;
+    };
+    let bodies = script_bodies(source_text);
+    let index = LineIndex::new(source_text);
+    hints.retain(|hint| {
+        let Some(position) = hint.get("position").and_then(parse_position) else {
+            return true;
+        };
+        let offset = index.offset(source_text, position);
+        !is_generated_directive_hint(source_text, &bodies, offset)
+    });
+}
+
+/// The predicate itself. `true` hides the hint.
+fn is_generated_directive_hint(text: &str, bodies: &ScriptBodies, offset: usize) -> bool {
+    // `isInTag` is inclusive at both ends (`isInRange`).
+    let in_body = |body: &Option<std::ops::Range<usize>>| {
+        body.as_ref()
+            .is_some_and(|body| (body.start..=body.end).contains(&offset))
+    };
+    if in_body(&bodies.module) {
+        return false;
+    }
+    if in_body(&bodies.instance) {
+        // A reactive statement's generated hint is the one exception inside a
+        // script: svelte2tsx wraps `$: x = …` in a call of its own.
+        return text
+            .get(offset..)
+            .is_some_and(|rest| rest.trim_start().starts_with("$:"));
+    }
+    let Some(context) = attribute_context(text, offset) else {
+        return false;
+    };
+    if context.in_value || !context.name.contains(':') {
+        return false;
+    }
+    // `<div on:click>`: the hints belong to svelte2tsx's own handler call, but
+    // `on:click={handler}` names the user's function and keeps them. Upstream
+    // spells this as the recorded attribute value being falsy.
+    if context.name.starts_with("on:") {
+        return !context.has_value;
+    }
+    // transitionCall / animationCall / actionCall, and the `tag:` hint on the
+    // `mapElementTag` argument inside each of them.
+    ["in", "out", "animate", "transition", "use"]
+        .iter()
+        .any(|directive| {
+            context
+                .name
+                .strip_prefix(directive)
+                .is_some_and(|rest| rest.starts_with(':'))
+        })
+}
+
 /// `isSvelte2tsxFunctionHints`'s first arm (`InlayHintProvider.ts:200`):
 /// `inlayHint.displayParts?.some((v) => isSvelte2tsxShimFile(v.file))`.
 ///
@@ -1255,6 +1318,78 @@ fn json_u32(value: &Value) -> Option<u32> {
 
 #[cfg(test)]
 mod tests {
+    /// The oracle for these cells is the official language server answering the
+    /// same component: it emits NO hint on any of the five directives and keeps
+    /// both hints on `on:click={() => take(1)}`.
+    const DIRECTIVE_DOC: &str = concat!(
+        "<script context=\"module\">\n\tconst version = 1;\n</script>\n",
+        "<script lang=\"ts\">\n\tlet n = 1;\n\t$: doubled = n * 2;\n</script>\n",
+        "\n",
+        "<div class={cls} transition:myFade={{ duration: 1 }}></div>\n",
+        "<div use:tip={\"hi\"} on:click on:input={handler}></div>\n",
+    );
+
+    fn hidden_at(text: &str, needle: &str) -> bool {
+        let offset = text.find(needle).expect("needle");
+        super::is_generated_directive_hint(text, &super::script_bodies(text), offset)
+    }
+
+    #[test]
+    fn a_directive_hint_is_hidden_and_a_plain_attribute_is_not() {
+        for directive in [
+            "transition:myFade",
+            "use:tip",
+            // A bare `on:` is svelte2tsx's own handler call; a valued one is
+            // the user's function and keeps its hints.
+            "on:click",
+        ] {
+            assert!(hidden_at(DIRECTIVE_DOC, directive), "{directive}");
+        }
+        for kept in ["class={cls}", "on:input={handler}"] {
+            assert!(!hidden_at(DIRECTIVE_DOC, kept), "{kept}");
+        }
+    }
+
+    #[test]
+    fn a_position_inside_a_directive_value_is_not_a_generated_hint() {
+        // `inValue` is the guard: `{ duration: 1 }` is the user's own object.
+        assert!(!hidden_at(DIRECTIVE_DOC, "duration: 1"));
+        // Nor is the element's own `<`, which is outside the start tag.
+        assert!(!hidden_at(DIRECTIVE_DOC, "<div class"));
+    }
+
+    #[test]
+    fn only_a_reactive_statement_hides_a_hint_inside_a_script() {
+        assert!(hidden_at(DIRECTIVE_DOC, "$: doubled"));
+        assert!(!hidden_at(DIRECTIVE_DOC, "let n = 1"));
+        // The module script is never asked the `$:` question at all, so a
+        // reactive-looking statement there would still keep its hints.
+        assert!(!hidden_at(DIRECTIVE_DOC, "const version"));
+    }
+
+    #[test]
+    fn the_filter_removes_only_the_claimed_hints() {
+        let position = |needle: &str| {
+            let offset = DIRECTIVE_DOC.find(needle).expect("needle");
+            let index = LineIndex::new(DIRECTIVE_DOC);
+            let position = index.position(DIRECTIVE_DOC, offset);
+            json!({ "position": { "line": position.line, "character": position.character } })
+        };
+        let mut result = json!([
+            position("transition:myFade"),
+            position("class={cls}"),
+            position("use:tip"),
+            // A hint with no readable position is left alone.
+            json!({}),
+        ]);
+        filter_source_inlay_hints(&mut result, DIRECTIVE_DOC);
+        assert_eq!(
+            result,
+            json!([position("class={cls}"), json!({})]),
+            "{result}"
+        );
+    }
+
     #[test]
     fn an_unmapped_completion_is_an_empty_list_not_null() {
         assert_eq!(
