@@ -24,6 +24,17 @@ use crate::error::ParseResult;
 use super::super::parser::{MAX_NESTING_DEPTH, Parser, is_js_whitespace};
 use super::super::utils::TrimWs;
 
+/// `element.js:361` stores the preceding HTML comment **node** on
+/// `css.content.comment`, so the field carries `type`/`start`/`end` too.
+fn comment_json(comment: &crate::ast::template::Comment) -> Value {
+    serde_json::json!({
+        "type": "Comment",
+        "start": comment.start,
+        "end": comment.end,
+        "data": comment.data.as_str(),
+    })
+}
+
 /// Returns `true` when the `<style>` has a `lang` attribute whose value is not
 /// plain CSS (e.g. `sass`, `scss`, `stylus`, `less`, `postcss`). Such a block
 /// is preprocessed before the compiler normally sees it, so its body is NOT
@@ -531,7 +542,7 @@ impl<'a> Parser<'a> {
                     start: here as u32,
                     end: here as u32,
                     styles: String::new(),
-                    comment: self.pending_leading_comments.last().cloned(),
+                    comment: self.pending_leading_comments.last().map(comment_json),
                 },
             });
             return Ok(None);
@@ -808,7 +819,7 @@ impl<'a> Parser<'a> {
         // HTML comment in `content.content.comment` so that the analysis phase can check
         // if `svelte-ignore css_unused_selector` is present.
         // We use `pending_leading_comments` which accumulates comment data as comments are parsed.
-        let comment = self.pending_leading_comments.last().cloned();
+        let comment = self.pending_leading_comments.last().map(comment_json);
 
         let stylesheet = StyleSheet {
             node_type: StyleSheetType::StyleSheet,

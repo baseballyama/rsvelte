@@ -34,14 +34,14 @@
   ],
   "testfiles": {
     "root": "typescript/testfiles",
-    "file_count": 174,
-    "svelte_count": 143,
+    "file_count": 176,
+    "svelte_count": 145,
     "extensions": {
       "js": 1,
       "json": 7,
       "map": 1,
       "prettierrc": 1,
-      "svelte": 143,
+      "svelte": 145,
       "ts": 21
     }
   },
