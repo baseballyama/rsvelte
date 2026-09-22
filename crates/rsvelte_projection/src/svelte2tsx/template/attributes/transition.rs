@@ -35,3 +35,22 @@ pub fn format_animate_directive_v4(name: &str, expr: Option<&str>, tag: &str, ns
         )
     })
 }
+
+/// The source range of a directive's own name — `myFade` in
+/// `transition:myFade={…}` — so the generated call can keep it rather than
+/// synthesize it. Upstream's `transform()` moves that range, which is why
+/// official's map has a segment for every byte of it and rsvelte's had none
+/// (#4464).
+///
+/// The equality check is the guard: a directive whose source spelling this
+/// does not reproduce exactly falls back to generated text, where a wrong
+/// range would move the mapping onto unrelated bytes.
+pub fn directive_name_span(source: &str, attr_start: u32, name: &str) -> Option<(u32, u32)> {
+    let colon = source.get(attr_start as usize..)?.find(':')?;
+    let start = attr_start as usize + colon + 1;
+    let end = start + name.len();
+    if source.get(start..end)? != name {
+        return None;
+    }
+    Some((u32::try_from(start).ok()?, u32::try_from(end).ok()?))
+}

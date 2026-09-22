@@ -10,10 +10,13 @@ use crate::svelte2tsx::template::attributes::binding::{
 };
 use crate::svelte2tsx::template::attributes::build_attribute_segments;
 use crate::svelte2tsx::template::attributes::directive_suffix::{
-    action_arguments, build_directive_prefix_suffix, build_element_directive_suffix_segments,
+    action_arguments, build_action_prefix_segments, build_directive_prefix_suffix,
+    build_element_directive_suffix_segments,
 };
 use crate::svelte2tsx::template::ctx::Counter;
-use crate::svelte2tsx::template::segs::{Seg, bake_out_of_order_src, emit_segmented_overwrite};
+use crate::svelte2tsx::template::segs::{
+    Seg, bake_out_of_order_src, emit_opener_with_hoisted_prefix, emit_segmented_overwrite,
+};
 use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
 use crate::svelte2tsx::template::utils::source::{
     closing_tag_name_matches, find_closing_tag_start, find_opening_tag_end,
@@ -131,22 +134,23 @@ pub fn handle_regular_element(
         }
         None => indent,
     };
-    let header_lit = if directive_prefix.is_empty() {
-        format!(
-            "{}{{ {}{}.createElement(\"{}\"{}, {{",
-            indent, element_var_decl, options.typings_namespace, el.name, actions_arg,
-        )
+    // `const $$action_N = …;` statements keep their own name and parameter
+    // ranges, which the SOURCE puts after attributes the generated text puts
+    // later; `emit_opener_with_hoisted_prefix` relocates them.
+    let action_prefix = if directive_prefix.is_empty() {
+        Vec::new()
     } else {
-        format!(
-            "{}{{{}{{ {}{}.createElement(\"{}\"{}, {{",
-            indent,
-            directive_prefix,
-            element_var_decl,
-            options.typings_namespace,
-            el.name,
-            actions_arg,
-        )
+        build_action_prefix_segments(&el.attributes, source, &el.name, &options.typings_namespace)
     };
+    let lead = if directive_prefix.is_empty() {
+        indent.clone()
+    } else {
+        format!("{indent}{{")
+    };
+    let header_lit = format!(
+        "{{ {}{}.createElement(\"{}\"{}, {{",
+        element_var_decl, options.typings_namespace, el.name, actions_arg,
+    );
     // The trailer closes the props object + createElement call (`}});`), then
     // appends the `class:` / `style:` directive statements (segmented, so their
     // expression chunks keep their source mapping), then the transition/animate
@@ -161,8 +165,15 @@ pub fn handle_regular_element(
     // The post-`createElement` suffix statements are already assembled in
     // source-attribute order by `build_element_directive_suffix_segments`.
     opener_segs.extend(suffix_segs);
-    let opener_segs = bake_out_of_order_src(opener_segs, source);
-    emit_segmented_overwrite(str, el.start, opening_tag_end, &opener_segs);
+    emit_opener_with_hoisted_prefix(
+        str,
+        el.start,
+        opening_tag_end,
+        &lead,
+        &action_prefix,
+        opener_segs,
+        source,
+    );
 
     finish_regular_element(
         el,

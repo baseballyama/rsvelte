@@ -7,10 +7,13 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use lsp_types::{Position, Range, Uri};
+use rsvelte_core::Allocator;
 use serde_json::{Map, Value};
 
+use crate::context::{EmbeddedRegions, ScriptBodies, attribute_context, script_bodies};
+use crate::nodes::{offset_is_in_attribute, parse_root};
 use crate::text::LineIndex;
-use crate::tsgo_inlay_hints::{HintKind, ShadowNodes};
+use crate::tsgo_inlay_hints::{HintKind, ShadowNodes, render_return_type_without_a_tree};
 use crate::tsgo_overlay::{TsgoOverlay, is_in_generated_code};
 use crate::uri::uri_to_path;
 
@@ -770,6 +773,15 @@ pub fn filter_generated_inlay_hints(
     let text = overlay.shadow_text(shadow_path);
     // Upstream builds one `SourceFile` per request, not one per hint.
     let nodes = text.and_then(ShadowNodes::parse);
+    // Unlike the four filters below, this one is answered for a shadow oxc
+    // rejects too: upstream's `SourceFile` is best-effort and never loses it.
+    let render_return_type = overlay
+        .is_projected_shadow(shadow_path)
+        .then(|| match nodes.as_ref() {
+            Some(nodes) => nodes.render_return_type(),
+            None => text.and_then(render_return_type_without_a_tree),
+        })
+        .flatten();
     hints.retain(|hint| {
         // A hint with no readable position is left to the mapper, which
         // already drops what it cannot map: guessing here would delete a hint
@@ -777,14 +789,20 @@ pub fn filter_generated_inlay_hints(
         let Some(position) = hint.get("position").and_then(parse_position) else {
             return true;
         };
-        if overlay.is_render_return_type_position(shadow_path, position) {
-            return false;
-        }
         let (Some(text), Some(offset)) = (text, overlay.shadow_offset(shadow_path, position))
         else {
             return true;
         };
         if is_in_generated_code(text, offset, offset) {
+            return false;
+        }
+        if render_return_type.is_some_and(|slot| u32::try_from(offset) == Ok(slot)) {
+            return false;
+        }
+        let kind = HintKind::from_lsp(hint.get("kind").and_then(Value::as_i64));
+        // `isSvelte2tsxFunctionHints`'s first arm, which needs no tree and so
+        // is answered before the ones that do.
+        if kind == HintKind::Parameter && label_points_at_a_svelte2tsx_shim(hint) {
             return false;
         }
         // The filters below need a tree. oxc rejects what TypeScript's
@@ -793,12 +811,197 @@ pub fn filter_generated_inlay_hints(
         let (Some(nodes), Ok(at)) = (nodes.as_ref(), u32::try_from(offset)) else {
             return true;
         };
-        let kind = HintKind::from_lsp(hint.get("kind").and_then(Value::as_i64));
         !nodes.is_svelte2tsx_function_hints(text, kind, at)
             && !nodes.is_generated_variable_type_hint(text, kind, at, is_in_generated_code)
             && !nodes.is_generated_async_function_return_type(kind, at)
             && !nodes.is_generated_function_return_type(text, kind, at)
     });
+}
+
+/// `checkGeneratedFunctionHintWithSource` (`InlayHintProvider.ts:308-346`),
+/// the filter upstream runs AFTER mapping, on source coordinates: the hints
+/// svelte2tsx generates for a directive's own call sit on the directive's
+/// attribute, which only the source document can tell apart from a hint the
+/// user's own code earned.
+///
+/// Returns nothing; hints the predicate claims are removed from `result`.
+pub fn filter_source_inlay_hints(result: &mut Value, source_text: &str) {
+    let Some(hints) = result.as_array_mut() else {
+        return;
+    };
+    let bodies = script_bodies(source_text);
+    let index = LineIndex::new(source_text);
+    hints.retain(|hint| {
+        let Some(position) = hint.get("position").and_then(parse_position) else {
+            return true;
+        };
+        let offset = index.offset(source_text, position);
+        !is_generated_directive_hint(source_text, &bodies, offset)
+    });
+}
+
+/// The predicate itself. `true` hides the hint.
+fn is_generated_directive_hint(text: &str, bodies: &ScriptBodies, offset: usize) -> bool {
+    // `isInTag` is inclusive at both ends (`isInRange`).
+    let in_body = |body: &Option<std::ops::Range<usize>>| {
+        body.as_ref()
+            .is_some_and(|body| (body.start..=body.end).contains(&offset))
+    };
+    if in_body(&bodies.module) {
+        return false;
+    }
+    if in_body(&bodies.instance) {
+        // A reactive statement's generated hint is the one exception inside a
+        // script: svelte2tsx wraps `$: x = …` in a call of its own.
+        return text
+            .get(offset..)
+            .is_some_and(|rest| rest.trim_start().starts_with("$:"));
+    }
+    let Some(context) = attribute_context(text, offset) else {
+        return false;
+    };
+    if context.in_value || !context.name.contains(':') {
+        return false;
+    }
+    // `<div on:click>`: the hints belong to svelte2tsx's own handler call, but
+    // `on:click={handler}` names the user's function and keeps them. Upstream
+    // spells this as the recorded attribute value being falsy.
+    if context.name.starts_with("on:") {
+        return !context.has_value;
+    }
+    // transitionCall / animationCall / actionCall, and the `tag:` hint on the
+    // `mapElementTag` argument inside each of them.
+    ["in", "out", "animate", "transition", "use"]
+        .iter()
+        .any(|directive| {
+            context
+                .name
+                .strip_prefix(directive)
+                .is_some_and(|rest| rest.starts_with(':'))
+        })
+}
+
+/// `isSvelte2tsxFunctionHints`'s first arm (`InlayHintProvider.ts:200`):
+/// `inlayHint.displayParts?.some((v) => isSvelte2tsxShimFile(v.file))`.
+///
+/// Upstream reads `file` off the TypeScript API's `ts.InlayHint`. tsgo speaks
+/// LSP, where the same pointer is `label[].location.uri`, and it attaches one
+/// whenever the name maps back to a single segment
+/// (`ls/inlay_hints.go:787-802`). `isSvelte2tsxShimFile` is the two file names
+/// below and nothing else (`typescript/utils.ts:377-379`).
+fn label_points_at_a_svelte2tsx_shim(hint: &Value) -> bool {
+    hint.get("label")
+        .and_then(Value::as_array)
+        .is_some_and(|parts| {
+            parts.iter().any(|part| {
+                part.get("location")
+                    .and_then(|location| location.get("uri"))
+                    .and_then(Value::as_str)
+                    .is_some_and(|uri| {
+                        uri.ends_with("svelte-shims.d.ts") || uri.ends_with("svelte-shims-v4.d.ts")
+                    })
+            })
+        })
+}
+
+/// `TypeScriptPlugin.getDocumentSymbols` (`:286-345`) rewrites and drops
+/// symbols after mapping them back; tsgo answers the request itself, so the
+/// same passes run here over its mapped result. Upstream's `symbols.slice(1)`
+/// has no counterpart: the symbol it discards is the navigation tree's root,
+/// which `textDocument/documentSymbol` does not report, and "the container is
+/// that root" is therefore spelled here as "tsgo reported no container".
+pub fn rewrite_document_symbols(result: &mut Value, source: &str) {
+    let Some(symbols) = result.as_array_mut() else {
+        return;
+    };
+    let index = LineIndex::new(source);
+    let scripts = EmbeddedRegions::new(source);
+    let allocator = Allocator::default();
+    let mut template = None;
+    symbols.retain_mut(|symbol| {
+        let Some(object) = symbol.as_object_mut() else {
+            return true;
+        };
+        if !object.contains_key("containerName") {
+            object.insert("containerName".to_string(), Value::String("script".into()));
+        }
+        let Some(range) = object
+            .get("location")
+            .and_then(|location| location.get("range"))
+            .and_then(parse_range)
+        else {
+            return true;
+        };
+        if range.start == range.end {
+            return false;
+        }
+        let Some(name) = object.get("name").and_then(Value::as_str) else {
+            return true;
+        };
+        if name.starts_with("__sveltets_") {
+            return false;
+        }
+        let kind = object.get("kind").and_then(Value::as_u64);
+        let start = index.offset(source, range.start);
+        if matches!(kind, Some(PROPERTY_KIND | METHOD_KIND)) && !scripts.in_script(start) {
+            // A generated component constructor's `props`, whose original
+            // position is the component tag rather than the word.
+            if name == "props" && source.as_bytes().get(start) != Some(&b'p') {
+                return false;
+            }
+            let root = template.get_or_insert_with(|| parse_root(source, &allocator));
+            if root
+                .as_ref()
+                .is_some_and(|root| offset_is_in_attribute(root, start as u32))
+            {
+                return false;
+            }
+        }
+        let mut renamed = if name == "<function>" {
+            Some(anonymous_function_name(source, &index, range))
+        } else {
+            None
+        };
+        let name = renamed.as_deref().unwrap_or(name);
+        if name.starts_with("$$_") {
+            // `on:foo={() => ''}` reaches tsgo as `$$_….$on("foo") callback`.
+            let Some(handler) = name.find("$on") else {
+                return false;
+            };
+            renamed = Some(name[handler..].to_string());
+        }
+        if let Some(renamed) = renamed {
+            object.insert("name".to_string(), Value::String(renamed));
+        }
+        true
+    });
+}
+
+/// `SymbolKind.Property` and `SymbolKind.Method`, the two kinds whose symbols
+/// upstream re-reads against the template.
+const PROPERTY_KIND: u64 = 7;
+const METHOD_KIND: u64 = 6;
+
+/// Upstream names an anonymous function after the source it spans, cut to 50
+/// UTF-16 units. A surrogate pair straddling the cut is kept whole, because
+/// `String.prototype.substring`'s half of one is not a Rust `str`.
+fn anonymous_function_name(source: &str, index: &LineIndex, range: Range) -> String {
+    let start = index.offset(source, range.start);
+    let end = index.offset(source, range.end);
+    let text = source.get(start..end).unwrap_or_default().trim_start();
+    let mut units = 0;
+    let mut cut = text.len();
+    for (offset, character) in text.char_indices() {
+        if units >= 50 {
+            cut = offset;
+            break;
+        }
+        units += character.len_utf16();
+    }
+    if cut == text.len() {
+        return text.to_string();
+    }
+    format!("{}...", &text[..cut])
 }
 
 pub fn normalize_definition_result(result: &mut Value) {
@@ -1115,6 +1318,78 @@ fn json_u32(value: &Value) -> Option<u32> {
 
 #[cfg(test)]
 mod tests {
+    /// The oracle for these cells is the official language server answering the
+    /// same component: it emits NO hint on any of the five directives and keeps
+    /// both hints on `on:click={() => take(1)}`.
+    const DIRECTIVE_DOC: &str = concat!(
+        "<script context=\"module\">\n\tconst version = 1;\n</script>\n",
+        "<script lang=\"ts\">\n\tlet n = 1;\n\t$: doubled = n * 2;\n</script>\n",
+        "\n",
+        "<div class={cls} transition:myFade={{ duration: 1 }}></div>\n",
+        "<div use:tip={\"hi\"} on:click on:input={handler}></div>\n",
+    );
+
+    fn hidden_at(text: &str, needle: &str) -> bool {
+        let offset = text.find(needle).expect("needle");
+        super::is_generated_directive_hint(text, &super::script_bodies(text), offset)
+    }
+
+    #[test]
+    fn a_directive_hint_is_hidden_and_a_plain_attribute_is_not() {
+        for directive in [
+            "transition:myFade",
+            "use:tip",
+            // A bare `on:` is svelte2tsx's own handler call; a valued one is
+            // the user's function and keeps its hints.
+            "on:click",
+        ] {
+            assert!(hidden_at(DIRECTIVE_DOC, directive), "{directive}");
+        }
+        for kept in ["class={cls}", "on:input={handler}"] {
+            assert!(!hidden_at(DIRECTIVE_DOC, kept), "{kept}");
+        }
+    }
+
+    #[test]
+    fn a_position_inside_a_directive_value_is_not_a_generated_hint() {
+        // `inValue` is the guard: `{ duration: 1 }` is the user's own object.
+        assert!(!hidden_at(DIRECTIVE_DOC, "duration: 1"));
+        // Nor is the element's own `<`, which is outside the start tag.
+        assert!(!hidden_at(DIRECTIVE_DOC, "<div class"));
+    }
+
+    #[test]
+    fn only_a_reactive_statement_hides_a_hint_inside_a_script() {
+        assert!(hidden_at(DIRECTIVE_DOC, "$: doubled"));
+        assert!(!hidden_at(DIRECTIVE_DOC, "let n = 1"));
+        // The module script is never asked the `$:` question at all, so a
+        // reactive-looking statement there would still keep its hints.
+        assert!(!hidden_at(DIRECTIVE_DOC, "const version"));
+    }
+
+    #[test]
+    fn the_filter_removes_only_the_claimed_hints() {
+        let position = |needle: &str| {
+            let offset = DIRECTIVE_DOC.find(needle).expect("needle");
+            let index = LineIndex::new(DIRECTIVE_DOC);
+            let position = index.position(DIRECTIVE_DOC, offset);
+            json!({ "position": { "line": position.line, "character": position.character } })
+        };
+        let mut result = json!([
+            position("transition:myFade"),
+            position("class={cls}"),
+            position("use:tip"),
+            // A hint with no readable position is left alone.
+            json!({}),
+        ]);
+        filter_source_inlay_hints(&mut result, DIRECTIVE_DOC);
+        assert_eq!(
+            result,
+            json!([position("class={cls}"), json!({})]),
+            "{result}"
+        );
+    }
+
     #[test]
     fn an_unmapped_completion_is_an_empty_list_not_null() {
         assert_eq!(
@@ -1124,6 +1399,153 @@ mod tests {
         // The other two shapes upstream can produce are unchanged.
         assert_eq!(tsgo_unmapped_result("textDocument/definition"), json!([]));
         assert_eq!(tsgo_unmapped_result("textDocument/hover"), Value::Null);
+    }
+
+    fn symbol(name: &str, kind: u64, range: [[u32; 2]; 2]) -> Value {
+        json!({
+            "name": name,
+            "kind": kind,
+            "location": {
+                "uri": "file:///a.svelte",
+                "range": {
+                    "start": { "line": range[0][0], "character": range[0][1] },
+                    "end": { "line": range[1][0], "character": range[1][1] },
+                },
+            },
+        })
+    }
+
+    fn rewritten(source: &str, symbols: Vec<Value>) -> Vec<(String, Option<String>)> {
+        let mut result = Value::Array(symbols);
+        rewrite_document_symbols(&mut result, source);
+        result
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|symbol| {
+                (
+                    symbol["name"].as_str().unwrap().to_string(),
+                    symbol
+                        .get("containerName")
+                        .and_then(Value::as_str)
+                        .map(str::to_string),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_symbol_tsgo_reports_no_container_for_is_a_child_of_the_script() {
+        assert_eq!(
+            rewritten(
+                "<script>let a;</script>",
+                vec![
+                    symbol("a", 13, [[0, 12], [0, 13]]),
+                    json!({
+                        "name": "b",
+                        "kind": 13,
+                        "containerName": "a",
+                        "location": {
+                            "uri": "file:///a.svelte",
+                            "range": {
+                                "start": { "line": 0, "character": 12 },
+                                "end": { "line": 0, "character": 13 },
+                            },
+                        },
+                    }),
+                ],
+            ),
+            vec![
+                ("a".to_string(), Some("script".to_string())),
+                ("b".to_string(), Some("a".to_string())),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_zero_length_range_and_a_generated_name_are_dropped() {
+        assert_eq!(
+            rewritten(
+                "<script>let a;</script>",
+                vec![
+                    symbol("a", 13, [[0, 12], [0, 12]]),
+                    symbol("__sveltets_2_any", 12, [[0, 8], [0, 13]]),
+                    symbol("kept", 13, [[0, 12], [0, 13]]),
+                ],
+            ),
+            vec![("kept".to_string(), Some("script".to_string()))]
+        );
+    }
+
+    #[test]
+    fn a_generated_constructors_props_is_dropped_where_the_source_has_no_such_word() {
+        // `props` maps onto the component tag, `p` onto a real `props` binding.
+        assert_eq!(
+            rewritten(
+                "<Comp />\n<script>let props;</script>",
+                vec![
+                    symbol("props", 7, [[0, 1], [0, 5]]),
+                    symbol("props", 7, [[1, 16], [1, 21]]),
+                ],
+            ),
+            vec![("props".to_string(), Some("script".to_string()))]
+        );
+    }
+
+    #[test]
+    fn a_property_on_an_attribute_is_not_a_symbol_of_its_own() {
+        assert_eq!(
+            rewritten(
+                "<Comp a={1} on:click={() => run()} />",
+                vec![
+                    symbol("\"a\"", 7, [[0, 6], [0, 11]]),
+                    symbol("\"on:click\"", 7, [[0, 12], [0, 20]]),
+                    // Inside the handler, where upstream's `svelteNodeAt`
+                    // answers the expression rather than the event handler.
+                    symbol("run", 6, [[0, 28], [0, 31]]),
+                ],
+            ),
+            vec![("run".to_string(), Some("script".to_string()))]
+        );
+    }
+
+    #[test]
+    fn an_anonymous_function_is_named_after_its_source() {
+        assert_eq!(
+            rewritten(
+                "<script>\n  const f = () => 1;\n</script>",
+                vec![symbol("<function>", 12, [[1, 12], [1, 20]])],
+            ),
+            vec![("() => 1;".to_string(), Some("script".to_string()))]
+        );
+    }
+
+    #[test]
+    fn a_name_longer_than_fifty_units_is_cut() {
+        let line = format!("<script>{}</script>", "x".repeat(60));
+        let names = rewritten(&line, vec![symbol("<function>", 12, [[0, 8], [0, 68]])]);
+        assert_eq!(names[0].0, format!("{}...", "x".repeat(50)));
+    }
+
+    #[test]
+    fn a_svelte2tsx_local_survives_only_as_the_event_handler_it_wraps() {
+        assert_eq!(
+            rewritten(
+                "<script>let a;</script>",
+                vec![
+                    symbol("$$_tnenopmoC0C", 13, [[0, 8], [0, 13]]),
+                    symbol(
+                        "$$_tnenopmoC0.$on(\"click\") callback",
+                        13,
+                        [[0, 8], [0, 13]]
+                    ),
+                ],
+            ),
+            vec![(
+                "$on(\"click\") callback".to_string(),
+                Some("script".to_string())
+            )]
+        );
     }
 
     use std::fs;
@@ -1742,5 +2164,36 @@ mod tests {
         widen_hover_range_over_string_quotes(&mut identifier, text);
         assert_eq!(identifier["range"]["start"]["character"], json!(14));
         assert_eq!(identifier["range"]["end"]["character"], json!(17));
+    }
+
+    /// `isSvelte2tsxShimFile` is those two names and nothing else, so a hint
+    /// pointing into the user's own `.d.ts` must survive.
+    #[test]
+    fn a_label_part_pointing_into_a_svelte2tsx_shim_names_a_generated_hint() {
+        let shim = json!({
+            "label": [{"value": "x", "location": {"uri": "file:///w/.rsvelte-language-server/tsgo/svelte-shims-v4.d.ts"}}]
+        });
+        assert!(label_points_at_a_svelte2tsx_shim(&shim));
+        let legacy = json!({
+            "label": [{"value": "x", "location": {"uri": "file:///w/node_modules/svelte2tsx/svelte-shims.d.ts"}}]
+        });
+        assert!(label_points_at_a_svelte2tsx_shim(&legacy));
+        let user = json!({
+            "label": [{"value": "x", "location": {"uri": "file:///w/src/app.d.ts"}}]
+        });
+        assert!(!label_points_at_a_svelte2tsx_shim(&user));
+    }
+
+    /// tsgo attaches a location only when the name maps to a single segment,
+    /// and a plain string label carries none at all.
+    #[test]
+    fn a_label_without_a_location_is_not_a_generated_hint() {
+        assert!(!label_points_at_a_svelte2tsx_shim(
+            &json!({"label": "count: "})
+        ));
+        assert!(!label_points_at_a_svelte2tsx_shim(&json!({
+            "label": [{"value": "count"}]
+        })));
+        assert!(!label_points_at_a_svelte2tsx_shim(&json!({})));
     }
 }

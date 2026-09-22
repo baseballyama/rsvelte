@@ -20,7 +20,8 @@ use crate::svelte2tsx::template::attributes::binding::{
     sanitize_tag_for_var,
 };
 use crate::svelte2tsx::template::attributes::directive_suffix::{
-    action_arguments, build_directive_prefix_suffix, build_element_directive_suffix_segments,
+    action_arguments, build_action_prefix_segments, build_directive_prefix_suffix,
+    build_element_directive_suffix_segments,
 };
 use crate::svelte2tsx::template::attributes::event_handler::format_on_directive_segments;
 use crate::svelte2tsx::template::attributes::let_::{
@@ -29,7 +30,9 @@ use crate::svelte2tsx::template::attributes::let_::{
 use crate::svelte2tsx::template::attributes::spread::format_spread_attribute_segments;
 use crate::svelte2tsx::template::ctx::{Counter, ElementOpenerCommentIndex, TemplateNodeExt};
 use crate::svelte2tsx::template::segs::segs_to_string;
-use crate::svelte2tsx::template::segs::{Seg, bake_out_of_order_src, emit_segmented_overwrite};
+use crate::svelte2tsx::template::segs::{
+    Seg, bake_out_of_order_src, emit_opener_with_hoisted_prefix, emit_segmented_overwrite,
+};
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_set_binding_ranges};
 use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
 use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
@@ -550,17 +553,22 @@ pub fn handle_named_slot_element(
     let element_var_decl = element_var
         .as_ref()
         .map_or_else(String::new, |var| format!("const {var} = "));
-    let mut opener = vec![Seg::Lit(format!(
-        "{}{}{}{{ {}{}.createElement(\"{}\"{}, {{{}",
+    // An action prefix gets its own block so `$$action_N` is scoped to the
+    // element, exactly as `handle_regular_element` wraps it — and, as there,
+    // the action's own source ranges are relocated rather than synthesized.
+    let action_prefix = if directive_prefix.is_empty() {
+        Vec::new()
+    } else {
+        build_action_prefix_segments(&el.attributes, source, &el.name, &options.typings_namespace)
+    };
+    let lead = format!(
+        "{}{}{}",
         " ".repeat(spacing.before_block),
         block_open,
-        // An action prefix gets its own block so `$$action_N` is scoped to the
-        // element, exactly as `handle_regular_element` wraps it.
-        if directive_prefix.is_empty() {
-            String::new()
-        } else {
-            format!("{{{directive_prefix}")
-        },
+        if directive_prefix.is_empty() { "" } else { "{" },
+    );
+    let mut opener = vec![Seg::Lit(format!(
+        "{{ {}{}.createElement(\"{}\"{}, {{{}",
         element_var_decl,
         options.typings_namespace,
         el.name,
@@ -569,11 +577,14 @@ pub fn handle_named_slot_element(
     ))];
     opener.extend(attr_segs);
     opener.push(Seg::Lit(format!("}});{directive_suffix}")));
-    emit_segmented_overwrite(
+    emit_opener_with_hoisted_prefix(
         str,
         el.start,
         opening_tag_end,
-        &bake_out_of_order_src(opener, source),
+        &lead,
+        &action_prefix,
+        opener,
+        source,
     );
     // An action prefix opens one more block, which the closer below has to match.
     // The leading space is the one the overwritten `</tag>` leaves behind, so an

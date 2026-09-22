@@ -1178,6 +1178,42 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         end
     }
 
+    /// The same-line comment that follows the whole rune call (past an optional
+    /// `;`). Once the call is synthesized the printer has no node left for it to
+    /// trail, so upstream places it before the call's `)` (#4516).
+    fn trailing_comment_past_call(&self, call_end: u32) -> Option<((u32, u32), bool)> {
+        let bytes = self.source.as_bytes();
+        let mut i = call_end as usize;
+        while matches!(bytes.get(i), Some(b' ') | Some(b'\t')) {
+            i += 1;
+        }
+        let semi = bytes.get(i) == Some(&b';');
+        if semi {
+            i += 1;
+            while matches!(bytes.get(i), Some(b' ') | Some(b'\t')) {
+                i += 1;
+            }
+        }
+        if bytes.get(i) != Some(&b'/') {
+            return None;
+        }
+        match bytes.get(i + 1) {
+            Some(b'/') => {
+                let stop = memchr::memchr(b'\n', &bytes[i..]).map_or(bytes.len(), |q| i + q);
+                Some(((i as u32, stop as u32), semi))
+            }
+            Some(b'*') => {
+                let close = memchr::memmem::find(&bytes[i + 2..], b"*/")?;
+                let stop = i + 2 + close + 2;
+                if bytes[i..stop].contains(&b'\n') {
+                    return None;
+                }
+                Some(((i as u32, stop as u32), semi))
+            }
+            _ => None,
+        }
+    }
+
     /// The leading whitespace of the line `offset` sits on.
     fn line_indent(&self, offset: u32) -> &str {
         let head = &self.source[..offset as usize];
@@ -1441,11 +1477,27 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // A wrapper call keeps same-line trailing comments inside its parens
         // (the argument node still precedes a `)`); the bare-argument form has
         // no node after them, so they land after the statement's `;`.
-        let (trailing, spilled) = if bare {
+        let (mut trailing, spilled) = if bare {
             (String::new(), post_comments)
         } else {
             self.split_trailing_comments(&post_comments, arg_end)
         };
+
+        // The comment after the call's own `)` has no node left to trail once
+        // the wrapper is synthesized, so upstream prints it inside the parens
+        // too, not after the statement (#4516).
+        let outer = if bare || !spilled.is_empty() {
+            None
+        } else {
+            self.trailing_comment_past_call(call.span.end)
+        };
+        if let Some(((cstart, cend), _)) = outer {
+            trailing.push(' ');
+            trailing.push_str(&self.source[cstart as usize..cend as usize]);
+            if self.source[cstart as usize..].starts_with("//") {
+                trailing.push('\n');
+            }
+        }
 
         let replacement = if is_non_reactive {
             if needs_proxy {
@@ -1472,7 +1524,14 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             Some(&(first, _)) if proxy_is_head || tagged => first,
             _ => call.span.start,
         };
-        let end = self.append_comments_past_semicolon(&spilled, call.span.end, &mut replacement);
+        let mut end =
+            self.append_comments_past_semicolon(&spilled, call.span.end, &mut replacement);
+        if let Some(((_, comment_end), semi)) = outer {
+            if semi {
+                replacement.push(';');
+            }
+            end = comment_end;
+        }
         self.add_replacement(start, end, replacement);
         true
     }

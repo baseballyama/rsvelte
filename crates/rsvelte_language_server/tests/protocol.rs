@@ -1739,11 +1739,13 @@ fn a_client_without_the_modern_capabilities_is_served_the_old_shapes() {
     assert_eq!(
         flat,
         vec![
-            (json!("script"), Value::Null),
-            (json!("div.wrap"), Value::Null),
+            // `SymbolInformation.create` writes `''` for a top-level symbol,
+            // which is what the official server's outline carries.
+            (json!("script"), json!("")),
+            (json!("div.wrap"), json!("")),
             (json!("{#each [1, 2] as n}"), json!("div.wrap")),
             (json!("p"), json!("{#each [1, 2] as n}")),
-            (json!("style"), Value::Null),
+            (json!("style"), json!("")),
         ]
     );
     assert_eq!(symbols[0]["location"]["uri"], json!(uri));

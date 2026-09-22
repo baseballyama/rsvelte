@@ -313,6 +313,7 @@ fn append_segments(dst: &mut Vec<Seg>, src: Vec<Seg>) {
                 }
             }
             Seg::Src(start, end) => segs_push_src(dst, start, end),
+            Seg::Drop(start, end) => dst.push(Seg::Drop(start, end)),
         }
     }
 }
