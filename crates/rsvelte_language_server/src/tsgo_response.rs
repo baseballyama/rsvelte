@@ -773,6 +773,7 @@ pub fn filter_generated_inlay_hints(
     let text = overlay.shadow_text(shadow_path);
     // Upstream builds one `SourceFile` per request, not one per hint.
     let nodes = text.and_then(ShadowNodes::parse);
+    let projected = overlay.is_projected_shadow(shadow_path);
     hints.retain(|hint| {
         // A hint with no readable position is left to the mapper, which
         // already drops what it cannot map: guessing here would delete a hint
@@ -780,9 +781,6 @@ pub fn filter_generated_inlay_hints(
         let Some(position) = hint.get("position").and_then(parse_position) else {
             return true;
         };
-        if overlay.is_render_return_type_position(shadow_path, position) {
-            return false;
-        }
         let (Some(text), Some(offset)) = (text, overlay.shadow_offset(shadow_path, position))
         else {
             return true;
@@ -802,7 +800,8 @@ pub fn filter_generated_inlay_hints(
         let (Some(nodes), Ok(at)) = (nodes.as_ref(), u32::try_from(offset)) else {
             return true;
         };
-        !nodes.is_svelte2tsx_function_hints(text, kind, at)
+        !(projected && nodes.is_render_return_type(at))
+            && !nodes.is_svelte2tsx_function_hints(text, kind, at)
             && !nodes.is_generated_variable_type_hint(text, kind, at, is_in_generated_code)
             && !nodes.is_generated_async_function_return_type(kind, at)
             && !nodes.is_generated_function_return_type(text, kind, at)

@@ -12,6 +12,10 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_parser::Parser;
 use oxc_span::{GetSpan, SourceType, Span};
 
+/// `internalHelpers.renderName` (`svelte2tsx`), the name `findRenderFunction`
+/// looks for.
+const RENDER_FUNCTION_NAME: &str = "$$render";
+
 /// What a filter needs from one node, alongside its span and parent.
 #[derive(Debug, Clone)]
 enum Kind {
@@ -54,6 +58,7 @@ struct Entry {
 pub struct ShadowNodes {
     entries: Vec<Entry>,
     stack: Vec<usize>,
+    render_return_type: Option<u32>,
 }
 
 impl ShadowNodes {
@@ -169,6 +174,18 @@ impl<'a> Visit<'a> for ShadowNodes {
     }
 
     fn visit_statement(&mut self, it: &Statement<'a>) {
+        // `findRenderFunction` (`features/utils.ts:331-338`) walks only the
+        // source file's own statements, so the empty stack is the parent test.
+        if self.stack.is_empty()
+            && self.render_return_type.is_none()
+            && let Statement::FunctionDeclaration(function) = it
+            && function
+                .id
+                .as_ref()
+                .is_some_and(|id| id.name == RENDER_FUNCTION_NAME)
+        {
+            self.render_return_type = Some(function.params.span.end);
+        }
         let kind = if matches!(it, Statement::BlockStatement(_)) {
             Kind::Block
         } else {
@@ -280,6 +297,21 @@ impl ShadowNodes {
             || text
                 .get(name.start as usize..name.end as usize)
                 .is_some_and(|name| name.starts_with("$$"))
+    }
+
+    /// `inlayHint.position !== renderFunctionReturnTypeLocation`
+    /// (`InlayHintProvider.ts:60-70`): the return-type slot of the generated
+    /// `$$render` header, which is `getTypeAnnotationPosition`'s close-paren end
+    /// (`:308-321`). Unlike the other filters this one reads no `kind`.
+    ///
+    /// Derived from the tree rather than from a text needle: the header's
+    /// neighbours are not fixed — an `import` between the reference directive
+    /// and the header moves the preceding `;` onto its own line — so a literal
+    /// matches one emitted shape and silently answers "nothing to filter" on
+    /// the rest (#4464).
+    #[must_use]
+    pub fn is_render_return_type(&self, offset: u32) -> bool {
+        self.render_return_type == Some(offset)
     }
 
     /// `isGeneratedAsyncFunctionReturnType` (`:259-280`): an `async` arrow whose
