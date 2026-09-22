@@ -607,7 +607,12 @@ impl OutputEstimate {
             } else if byte.is_ascii() {
                 self.add_mapping_bytes(ASCII_HIRES_SEGMENT.len());
             } else if byte & 0xc0 != 0x80 {
-                self.add_mapping_bytes(MAX_HIRES_SEGMENT_BYTES);
+                // An astral lead byte spans two UTF-16 units, so it maps twice.
+                self.add_mapping_bytes(if byte >= 0xf0 {
+                    2 * MAX_HIRES_SEGMENT_BYTES
+                } else {
+                    MAX_HIRES_SEGMENT_BYTES
+                });
             }
         }
     }
@@ -717,9 +722,18 @@ impl<'a, const CAPACITY_GUARANTEED: bool> MappingState<'a, CAPACITY_GUARANTEED> 
         self.emit_segment(self.generated_column, source_line, source_column);
 
         if chunk.is_edited() {
+            let mut consumed = 0;
             for ch in body.chars() {
+                consumed += ch.len_utf8();
                 if ch == '\n' {
                     self.advance_line();
+                    // `Mappings.addEdit` maps the start of every line the content
+                    // occupies back to the chunk, and stops before a trailing
+                    // newline so the code after it does not start a line too far
+                    // in (#4650).
+                    if consumed < body.len() {
+                        self.emit_segment(0, source_line, source_column);
+                    }
                 } else {
                     self.generated_column += i64_count(ch.len_utf16());
                 }
@@ -736,12 +750,14 @@ impl<'a, const CAPACITY_GUARANTEED: bool> MappingState<'a, CAPACITY_GUARANTEED> 
                 self.advance_line();
                 current_source_line += 1;
                 current_source_column = 0;
-                self.emit_segment(
-                    self.generated_column,
-                    current_source_line,
-                    current_source_column,
-                );
                 byte_index += 1;
+                if byte_index < bytes.len() {
+                    self.emit_segment(
+                        self.generated_column,
+                        current_source_line,
+                        current_source_column,
+                    );
+                }
             } else if bytes[byte_index].is_ascii() {
                 let run_start = byte_index;
                 while byte_index < bytes.len()
@@ -751,29 +767,41 @@ impl<'a, const CAPACITY_GUARANTEED: bool> MappingState<'a, CAPACITY_GUARANTEED> 
                     byte_index += 1;
                 }
                 let run_len = byte_index - run_start;
+                // A segment is emitted when a character is passed, so it belongs to the
+                // character after it; the last one in the chunk has no successor here and
+                // upstream maps n characters with n segments, not n + 1 (#4650).
+                let emitted = run_len - usize::from(byte_index == bytes.len());
                 // The precomputed segments are deltas from the segment just emitted at
                 // the cursor, so the two columns must coincide here.
                 debug_assert_eq!(self.segment_column, self.generated_column);
-                push_ascii_hires_segments::<CAPACITY_GUARANTEED>(self.mappings, run_len);
+                push_ascii_hires_segments::<CAPACITY_GUARANTEED>(self.mappings, emitted);
                 self.generated_column += i64_count(run_len);
-                self.segment_column = self.generated_column;
                 current_source_column += i64_count(run_len);
-                self.original_column = current_source_column;
+                let unemitted = i64_count(run_len - emitted);
+                self.segment_column = self.generated_column - unemitted;
+                self.original_column = current_source_column - unemitted;
             } else {
                 let ch = body[byte_index..]
                     .chars()
                     .next()
                     .expect("non-ASCII byte starts a character");
-                let width = i64_count(ch.len_utf16());
-                current_source_column += width;
-                // Anchored past the character, like the ASCII run's segments; the cursor
-                // moves with it inside `emit_segment`.
-                self.emit_segment(
-                    self.generated_column + width,
-                    current_source_line,
-                    current_source_column,
-                );
+                // Upstream walks UTF-16 units, so a surrogate pair maps twice (#4650).
+                let units = ch.len_utf16();
                 byte_index += ch.len_utf8();
+                for unit in 0..units {
+                    current_source_column += 1;
+                    if byte_index < bytes.len() || unit + 1 < units {
+                        // Anchored past the unit, like the ASCII run's segments; the cursor
+                        // moves with it inside `emit_segment`.
+                        self.emit_segment(
+                            self.generated_column + 1,
+                            current_source_line,
+                            current_source_column,
+                        );
+                    } else {
+                        self.generated_column += 1;
+                    }
+                }
             }
         }
     }
@@ -1491,9 +1519,9 @@ impl<'source> MagicString<'source> {
         if let Some(code) = &mut code {
             code.push_str(&self.outro);
         }
-        if let Some(mapping) = &mut mapping {
-            mapping.advance_unmapped(&self.outro);
-        }
+        // Upstream's `generateDecodedMap` walks the chunks and stops: the trailing
+        // `outro` never advances the mapping cursor, so the encoded mappings carry
+        // no line for it (#4650).
     }
 }
 
@@ -2598,7 +2626,26 @@ mod tests {
             source: Some("in.svelte".to_string()),
             include_content: false,
         });
-        assert_eq!(map.mappings, ";;AAAA,CAAC;;EAAA,EAAE;AACH,AAAA;;;");
+        // Every expected mapping in this module is the string `magic-string@0.30.11`
+        // returns for the same calls with `hires: true`.
+        assert_eq!(map.mappings, ";;AAAA;;EAAC,CAAC,CAAC;AACH;AAAA");
+    }
+
+    #[test]
+    fn source_map_edited_chunk_maps_every_line_of_its_content() {
+        let mut spanning = MagicString::new("abcdef");
+        spanning.overwrite(1, 4, "X\nY\nZ");
+        assert_eq!(spanning.to_string(), "aX\nY\nZef");
+        assert_eq!(
+            spanning.generate_mappings(),
+            "AAAA,CAAC;AAAA;AAAA,CAAG,CAAC"
+        );
+
+        // A trailing newline ends the content, so no line is mapped past it.
+        let mut trailing = MagicString::new("abcdef");
+        trailing.overwrite(1, 4, "X\nY\n");
+        assert_eq!(trailing.to_string(), "aX\nY\nef");
+        assert_eq!(trailing.generate_mappings(), "AAAA,CAAC;AAAA;AAAG,CAAC");
     }
 
     #[test]
@@ -2617,8 +2664,7 @@ mod tests {
         });
         assert_eq!(
             map.mappings,
-            "AACG,CAAC,CAAC,CAAC,AADN,CAAC,CAAC,CAAC,EAAA,CAAC,CAAC,CAAC;\
-             AACN,CAAC,CAAC,AAAA"
+            "AACG,CAAC,CAAC,CADL,CAAC,CAAC,GAAC,CAAC,CAAC,CAAC;AACN,CAAC,CAAC"
         );
     }
 
@@ -2627,9 +2673,9 @@ mod tests {
         let source = "const n = 1;";
         let lines = decode_mappings(&MagicString::new(source).generate_mappings());
 
-        // One segment per copied character plus the boundary past the last one, each
-        // at its own generated column — not all at column 0 (issue #2066).
-        let expected: Vec<[i64; 4]> = (0..=source.len() as i64)
+        // One segment per copied character, each at its own generated column — not all
+        // at column 0 (issue #2066) and not one past the last character (#4650).
+        let expected: Vec<[i64; 4]> = (0..source.len() as i64)
             .map(|column| [column, 0, 0, column])
             .collect();
         assert_eq!(lines, vec![expected]);
@@ -2652,7 +2698,8 @@ mod tests {
         }
         assert_eq!(lines[0].len(), 11);
         assert_eq!(lines[1].len(), 13);
-        assert_eq!(lines[2].len(), 1);
+        // The trailing newline ends the last mapped chunk; nothing follows it.
+        assert_eq!(lines[2].len(), 0);
     }
 
     #[test]
@@ -2670,7 +2717,6 @@ mod tests {
                 [1, 0, 0, 1],
                 [2, 0, 0, 2],
                 [3, 0, 0, 3],
-                [4, 0, 0, 4],
                 // The edited chunk starts past the inserted `/*x*/`.
                 [9, 0, 0, 4],
                 // The copied tail resumes at the generated column it really occupies.
@@ -2679,7 +2725,6 @@ mod tests {
                 [18, 0, 0, 11],
                 [19, 0, 0, 12],
                 [20, 0, 0, 13],
-                [21, 0, 0, 14],
             ]]
         );
     }
@@ -2689,12 +2734,10 @@ mod tests {
         let source = "// 日本語😀ok\n";
         let lines = decode_mappings(&MagicString::new(source).generate_mappings());
 
-        // The astral `😀` occupies two UTF-16 units, so column 7 is skipped.
-        let expected: Vec<[i64; 4]> = [0, 1, 2, 3, 4, 5, 6, 8, 9, 10]
-            .into_iter()
-            .map(|column| [column, 0, 0, column])
-            .collect();
-        assert_eq!(lines, vec![expected, vec![[0, 0, 1, 0]]]);
+        // The astral `😀` occupies two UTF-16 units and upstream walks units, so it
+        // maps twice (#4650); the trailing newline ends the chunk.
+        let expected: Vec<[i64; 4]> = (0..=10).map(|column| [column, 0, 0, column]).collect();
+        assert_eq!(lines, vec![expected, vec![]]);
     }
 
     #[test]
@@ -2726,7 +2769,10 @@ mod tests {
         let mappings = MagicString::new(&source).generate_mappings();
         let vlq_calls = VLQ_ENCODE_CALLS.with(std::cell::Cell::get);
 
-        assert_eq!(mappings.len(), 4 + source.len() * ASCII_HIRES_SEGMENT.len());
+        assert_eq!(
+            mappings.len(),
+            4 + (source.len() - 1) * ASCII_HIRES_SEGMENT.len()
+        );
         assert_eq!(vlq_calls, 4);
     }
 

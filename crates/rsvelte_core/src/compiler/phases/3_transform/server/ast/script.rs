@@ -54,6 +54,7 @@ use crate::ast::template::Script;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::builders::B;
 use crate::compiler::phases::phase3_transform::client::expression_utils::wrap_await_with_save_in_async_derived;
+use crate::compiler::phases::phase3_transform::js_ast::to_oxc::restore_hoisted_directives;
 use oxc_allocator::CloneIn;
 use oxc_ast::ast::{Comment, Expression as OxcExpression, Statement, VariableDeclarationKind};
 use oxc_ast_visit::VisitMut;
@@ -910,9 +911,15 @@ fn classification_parse<'p>(
     state: &ServerTransformState<'_>,
     is_instance: bool,
 ) -> Option<oxc_parser::ParserReturn<'p>> {
+    // Every caller classifies by walking `program.body`, and OXC lifts a
+    // directive prologue out of it, so `"use strict"` would classify as absent.
+    let restore = |mut ret: oxc_parser::ParserReturn<'p>| {
+        restore_hoisted_directives(&oxc_ast::builder::AstBuilder::new(alloc), &mut ret.program);
+        ret
+    };
     let ret = oxc_parser::Parser::new(alloc, owned, oxc_span::SourceType::mjs()).parse();
     if ret.diagnostics.is_empty() {
-        return Some(ret);
+        return Some(restore(ret));
     }
     let ts = oxc_parser::Parser::new(
         alloc,
@@ -921,7 +928,7 @@ fn classification_parse<'p>(
     )
     .parse();
     if ts.diagnostics.is_empty() {
-        return Some(ts);
+        return Some(restore(ts));
     }
     record_classification_failure(state, is_instance, &ret.diagnostics);
     None

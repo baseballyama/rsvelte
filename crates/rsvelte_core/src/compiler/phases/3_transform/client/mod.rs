@@ -2611,43 +2611,20 @@ pub(crate) fn transform_client(
         // Reference: transform-client.js lines 590-626: entries from
         // `<svelte:options customElement={{ props: {...} }}>` come first, then
         // every prop/bindable_prop binding (not already covered) as `name: {}`.
-        // `ce.props` is the ObjectExpression AST of the `props` option; convert
-        // it to (name, prop_def) entries in source order.
+        // `ce.props` is already the evaluated `{ name: { attribute?, reflect?,
+        // type? } }` map the parser built while validating, in source order.
         let ce_props: Vec<(String, serde_json::Map<String, serde_json::Value>)> = ce
             .props
             .as_ref()
-            .and_then(|p| p.field("properties"))
-            .and_then(|p| p.as_array())
+            .and_then(|props| props.as_object())
             .map(|props| {
                 props
                     .iter()
-                    .filter_map(|prop| {
-                        let key = prop.field("key")?;
-                        let name = key
-                            .field("name")
-                            .and_then(|n| n.as_str())
-                            .or_else(|| key.field("value").and_then(|v| v.as_str()))?
-                            .to_string();
-                        let mut def = serde_json::Map::new();
-                        if let Some(value_props) = prop
-                            .field("value")
-                            .and_then(|v| v.field("properties"))
-                            .and_then(|p| p.as_array())
-                        {
-                            for vp in value_props {
-                                let vkey = vp.field("key").and_then(|k| {
-                                    k.field("name")
-                                        .and_then(|n| n.as_str())
-                                        .or_else(|| k.field("value").and_then(|v| v.as_str()))
-                                });
-                                if let (Some(vkey), Some(vval)) =
-                                    (vkey, vp.field("value").and_then(|v| v.field("value")))
-                                {
-                                    def.insert(vkey.to_string(), vval.clone());
-                                }
-                            }
-                        }
-                        Some((name, def))
+                    .map(|(name, definition)| {
+                        (
+                            name.clone(),
+                            definition.as_object().cloned().unwrap_or_default(),
+                        )
                     })
                     .collect()
             })
@@ -2847,6 +2824,7 @@ pub(crate) fn transform_client(
                     &context.arena,
                     &alloc,
                     &ast_islands,
+                    Some(source),
                 )
             })
             .map(|converted| {
@@ -4145,11 +4123,11 @@ pub(crate) fn is_js_comments_and_whitespace_only(src: &str) -> bool {
 /// in pure-code state — so an `import …` line living inside a backtick template
 /// literal (e.g. a code-sample string) is not mis-hoisted as a real import.
 #[derive(Default, Clone)]
-struct ScanState {
+pub(super) struct ScanState {
     /// One entry per open template literal. `0` = in template text; `>=1` =
     /// inside a `${ }` hole, value is the brace-nesting depth.
     template_brace_depth: Vec<i32>,
-    in_block_comment: bool,
+    pub(super) in_block_comment: bool,
 }
 
 impl ScanState {
@@ -4161,7 +4139,7 @@ impl ScanState {
     /// Advance the carried state across one line. Single/double-quoted strings
     /// and `//` comments cannot cross a newline, so only template literals and
     /// block comments persist between lines.
-    fn advance(&mut self, line: &str) {
+    pub(super) fn advance(&mut self, line: &str) {
         let b = line.as_bytes();
         let n = b.len();
         let mut i = 0;
@@ -4327,10 +4305,10 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
             let trimmed = line.trim();
             let scanned = scan_import_line(trimmed, line_starts_in_block_comment, carry);
             let attributes_follow =
-                scanned.ends_at_specifier(trimmed.len()) && starts_import_attributes(following);
+                scanned.ends_at_specifier() && starts_import_attributes(following);
             carry = scanned.carry;
             carry.expect_attributes |= attributes_follow;
-            if scanned.closes(trimmed.len()) && !attributes_follow {
+            if scanned.closes() && !attributes_follow {
                 carry = ImportCarry::default();
                 if let Some(end) = scanned.end()
                     && end < trimmed.len()
@@ -4361,7 +4339,7 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
                 let scanned = scan_import_line(trimmed, false, ImportCarry::default());
                 let ends_at_specifier = is_complete_side_effect_import(trimmed)
                     || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
-                        && scanned.last_string_end == Some(trimmed.len()));
+                        && scanned.ends_at_specifier());
                 let attributes_follow = ends_at_specifier && starts_import_attributes(following);
                 if !attributes_follow
                     && (scanned.semicolon.is_some()
@@ -4498,10 +4476,10 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
             let trimmed = line.trim();
             let scanned = scan_import_line(trimmed, line_starts_in_block_comment, carry);
             let attributes_follow =
-                scanned.ends_at_specifier(trimmed.len()) && starts_import_attributes(following);
+                scanned.ends_at_specifier() && starts_import_attributes(following);
             carry = scanned.carry;
             carry.expect_attributes |= attributes_follow;
-            if scanned.closes(trimmed.len()) && !attributes_follow {
+            if scanned.closes() && !attributes_follow {
                 carry = ImportCarry::default();
                 if let Some(end) = scanned.end()
                     && end < trimmed.len()
@@ -4557,7 +4535,7 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
                 let scanned = scan_import_line(trimmed, false, ImportCarry::default());
                 let ends_at_specifier = is_complete_side_effect_import(trimmed)
                     || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
-                        && scanned.last_string_end == Some(trimmed.len()));
+                        && scanned.ends_at_specifier());
                 let attributes_follow = ends_at_specifier && starts_import_attributes(following);
                 if !attributes_follow
                     && (scanned.semicolon.is_some()
@@ -4713,6 +4691,9 @@ struct ImportLineScan {
     semicolon: Option<usize>,
     /// Just past the last string or template literal that is code.
     last_string_end: Option<usize>,
+    /// Just past the last byte on the line that is code — whitespace and
+    /// comments after it do not continue the statement (#4668).
+    last_code_end: Option<usize>,
     /// Just past the `}` that closes an import-attributes clause.
     attributes_end: Option<usize>,
     /// Brace nesting and clause state to carry to the statement's next line.
@@ -4742,19 +4723,20 @@ impl ImportLineScan {
     }
 
     /// True when the statement would end — by ASI — at the module specifier that
-    /// finishes this line, so whether it really ends there depends on what
-    /// follows on the next line.
-    fn ends_at_specifier(&self, line_len: usize) -> bool {
+    /// finishes this line's code, so whether it really ends there depends on
+    /// what follows on the next line. A comment after the specifier is not
+    /// part of the statement, and reading it as one swallowed the next line
+    /// (#4668).
+    fn ends_at_specifier(&self) -> bool {
         self.semicolon.is_none()
             && self.attributes_end.is_none()
             && self.carry.depth == 0
-            && self.last_string_end == Some(line_len)
+            && self.last_string_end.is_some()
+            && self.last_string_end == self.last_code_end
     }
 
-    fn closes(&self, line_len: usize) -> bool {
-        self.semicolon.is_some()
-            || self.attributes_end.is_some()
-            || self.ends_at_specifier(line_len)
+    fn closes(&self) -> bool {
+        self.semicolon.is_some() || self.attributes_end.is_some() || self.ends_at_specifier()
     }
 }
 
@@ -4787,6 +4769,7 @@ fn scan_import_line(s: &str, in_block_comment: bool, carry: ImportCarry) -> Impo
             }
             if !is_comment {
                 prev = Some(b'x');
+                out.last_code_end = Some(next);
             }
             i = next;
             continue;
@@ -4817,6 +4800,7 @@ fn scan_import_line(s: &str, in_block_comment: bool, carry: ImportCarry) -> Impo
         }
         if !bytes[i].is_ascii_whitespace() {
             prev = Some(bytes[i]);
+            out.last_code_end = Some(i + 1);
         }
         i += 1;
     }
@@ -4977,10 +4961,10 @@ fn is_complete_side_effect_import(trimmed: &str) -> bool {
         return false;
     }
 
-    // After the closing quote only optional whitespace is allowed for this to
-    // be a *complete* side-effect import. Anything else (e.g. `from`, more
-    // tokens) means we should not treat the line as complete here.
-    after_import[i..].trim().is_empty()
+    // After the closing quote only whitespace and comments are allowed for
+    // this to be a *complete* side-effect import. Anything else (e.g. `from`,
+    // more tokens) means we should not treat the line as complete here.
+    skip_js_whitespace_and_comments(after_import, i) == after_import.len()
 }
 
 /// True when `text` is a `let`/`const`/`var` declaration whose whole initializer

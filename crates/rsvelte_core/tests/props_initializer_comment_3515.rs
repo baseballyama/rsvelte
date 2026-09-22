@@ -74,5 +74,8 @@ fn multiple_and_multiline_comments_keep_source_order_inside_the_prop_call() {
     assert_contains(&multiple, "1 /* one */ /* two */);");
 
     let multiline = client("let { a = 1 } = /* one\n+two */ $props();", "{a}", false);
-    assert_contains(&multiline, "1 /* one\n\t\t+two */\n\t);");
+    // One tab, not two: the official compiler dedents the comment by its
+    // opener line's indentation, and the opener is the script's first line
+    // (#4671).
+    assert_contains(&multiline, "1 /* one\n\t+two */\n\t);");
 }

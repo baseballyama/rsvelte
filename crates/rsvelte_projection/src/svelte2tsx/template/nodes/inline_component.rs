@@ -26,7 +26,9 @@ use crate::svelte2tsx::template::attributes::let_::{
 };
 use crate::svelte2tsx::template::attributes::spread::format_spread_attribute_segments;
 use crate::svelte2tsx::template::ctx::{Counter, ElementOpenerCommentIndex};
-use crate::svelte2tsx::template::segs::{Seg, bake_out_of_order_src, emit_segmented_overwrite};
+use crate::svelte2tsx::template::segs::{
+    Seg, bake_out_of_order_src, emit_opener_segments, emit_segmented_overwrite,
+};
 use crate::svelte2tsx::template::utils::expr::{
     extend_expr_end_with_ts_postfix, get_binding_lhs_text, get_expression_end_stripping_ts,
     get_expression_range, get_expression_text, get_set_binding_ranges,
@@ -98,6 +100,15 @@ fn build_component_bind_suffix(attributes: &[Attribute], source: &str, inst_var:
 /// The `</Component>` → `Component}` mapping upstream keeps for the closing tag.
 /// The `svelte:` tags keep nothing there, and neither does a component whose
 /// closing tag is missing.
+/// `InlineComponent.ts:103`: `str.original.indexOf(node.name, node.start)`. The
+/// tag name is the first occurrence of the name at or after the node's `<`.
+fn component_name_range(comp: &Component, source: &str) -> Option<(u32, u32)> {
+    let start = comp.start as usize;
+    let offset = source.get(start..)?.find(comp.name.as_str())? + start;
+    let end = offset + comp.name.len();
+    (end <= comp.end as usize).then(|| (source_offset(offset), source_offset(end)))
+}
+
 fn component_closing_name_range(
     name: &str,
     closing_tag_start: u32,
@@ -315,30 +326,61 @@ pub fn handle_component(
     // is appended (as ignore-wrapped statements) for every non-`bind:this`
     // binding on a component.
     let component_bind_suffix = build_component_bind_suffix(&comp.attributes, source, &inst_var);
-    let (header_lit, trailer_lit) = if needs_instance {
+    let (header_lit, header_tail, trailer_lit) = if needs_instance {
         let on_calls = if has_events {
             build_on_calls(&inst_var, &on_directives, source)
         } else {
             String::new()
         };
         (
+            format!("{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent("),
             format!(
-                "{}{{ const {}C = __sveltets_2_ensureComponent({}); const {} = new {}C({{ target: __sveltets_2_any(), props: {{",
-                block_indent, inst_var, comp.name, inst_var, inst_var,
+                "); const {inst_var} = new {inst_var}C({{ target: __sveltets_2_any(), props: {{"
             ),
             format!("}}}});{component_bind_suffix}{on_calls}"),
         )
     } else {
         (
-            format!(
-                "{}{{ const {}C = __sveltets_2_ensureComponent({}); new {}C({{ target: __sveltets_2_any(), props: {{",
-                block_indent, inst_var, comp.name, inst_var,
-            ),
+            format!("{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent("),
+            format!("); new {inst_var}C({{ target: __sveltets_2_any(), props: {{"),
             "}});".to_string(),
         )
     };
-    let mut opener_segs: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 2);
+    let mut opener_segs: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 4);
     opener_segs.push(Seg::Lit(header_lit));
+    // `InlineComponent.ts:107-111` pushes `[nodeNameStart, nodeNameEnd]`, not the
+    // name's text: the argument of `__sveltets_2_ensureComponent` is the source's
+    // own tag name, so every position in it maps back (#4097).
+    match component_name_range(comp, source) {
+        Some((start, end)) => opener_segs.push(Seg::Src(start, end)),
+        None => opener_segs.push(Seg::Lit(comp.name.to_string())),
+    }
+    // `InlineComponent.ts:67-75`: a whitespace right after the tag name is
+    // overwritten with nothing, so the generated props object — not that
+    // character — is what the map anchors next (#4650).
+    let tag_name_end = comp.start + 1 + source_offset(comp.name.len());
+    if source
+        .as_bytes()
+        .get(tag_name_end as usize)
+        .is_some_and(u8::is_ascii_whitespace)
+        && tag_name_end < opening_tag_end
+    {
+        let next_src = attr_segs.iter().find_map(|seg| match seg {
+            Seg::Src(start, _) => Some(*start),
+            _ => None,
+        });
+        // `transform`'s one-character extension (`node-utils.ts:56-71`) then
+        // swallows the character after it, unless a kept range starts there.
+        let drop_end = if next_src.is_some_and(|start| start > tag_name_end + 1)
+            && tag_name_end + 1 < opening_tag_end.saturating_sub(1)
+        {
+            tag_name_end + 2
+        } else {
+            tag_name_end + 1
+        };
+        opener_segs.push(Seg::Drop(tag_name_end, drop_end));
+    }
+    opener_segs.push(Seg::Lit(header_tail));
     opener_segs.extend(attr_segs);
     if !use_snippet_props {
         // The snippet-prop path leaves the `props: { … ` object literal open so
@@ -703,7 +745,19 @@ pub fn handle_svelte_component(
     } else {
         " ".repeat(scomp_spacing.before_block)
     };
-    let (header_lit, trailer_lit) = if needs_inst {
+    // The `this={…}` expression is a source chunk, not text interpolated into
+    // the header: hover and go-to-definition inside it answer nothing once it
+    // is baked into a literal (#4649).
+    let header_open = format!("{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent(");
+    let expr_seg = match get_expression_range(&comp.expression) {
+        Some((start, end))
+            if start < end && slice_src(source, start as usize, end as usize) == expr_text =>
+        {
+            Seg::Src(start, end)
+        }
+        _ => Seg::Lit(expr_text.to_string()),
+    };
+    let (header_close, trailer_lit) = if needs_inst {
         let on_calls = if has_events {
             build_on_calls(&inst_var, &on_directives, source)
         } else {
@@ -711,22 +765,22 @@ pub fn handle_svelte_component(
         };
         (
             format!(
-                "{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent({expr_text}); const {inst_var} = new {inst_var}C({{ target: __sveltets_2_any(), props: {{"
+                "); const {inst_var} = new {inst_var}C({{ target: __sveltets_2_any(), props: {{"
             ),
             format!("}}}});{component_bind_suffix}{on_calls}"),
         )
     } else {
         (
-            format!(
-                "{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent({expr_text}); new {inst_var}C({{ target: __sveltets_2_any(), props: {{"
-            ),
+            format!("); new {inst_var}C({{ target: __sveltets_2_any(), props: {{"),
             "}});".to_string(),
         )
     };
     // The snippet-props path keeps the props object open so the demoted
     // `{#snippet}` children can be moved inside it.
-    let mut opener: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 3);
-    opener.push(Seg::Lit(header_lit));
+    let mut opener: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 5);
+    opener.push(Seg::Lit(header_open));
+    opener.push(expr_seg);
+    opener.push(Seg::Lit(header_close));
     opener.extend(attr_segs);
     if !use_snippet_props {
         opener.push(Seg::Lit(trailer_lit.clone()));
@@ -750,12 +804,7 @@ pub fn handle_svelte_component(
         opener.push(Seg::Lit(own_default_let_open.clone()));
     }
 
-    emit_segmented_overwrite(
-        str,
-        comp.start,
-        opening_tag_end,
-        &bake_out_of_order_src(opener, source),
-    );
+    emit_opener_segments(str, comp.start, opening_tag_end, opener, source);
 
     // Children of svelte:component are at depth+1 (this component is now an
     // ancestor). Slot-bearing children take the same lowering as a named

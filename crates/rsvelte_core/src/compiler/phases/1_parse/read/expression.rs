@@ -2430,7 +2430,14 @@ fn parse_expression_with_typescript<'a>(
                 return None;
             }
 
-            // Adjust positions: subtract 1 for the opening paren we added
+            // Adjust positions: subtract 1 for the opening paren we added.
+            // Upstream picks one acorn variant per component, so a template
+            // expression in a `lang="ts"` component is parsed by
+            // acorn-typescript and carries its shapes too.
+            let _ts_guard = TsProgramGuard {
+                arena,
+                previous: arena.set_ts_program(use_typescript),
+            };
             let expr = convert_expression(arena, &expr_stmt.expression, offset, line_offsets);
 
             // Attach comments to the expression
@@ -5141,13 +5148,21 @@ fn convert_expression<'a>(
             let start = offset + import_expr.span.start as usize - 1;
             let end = offset + import_expr.span.end as usize - 1;
             let source = convert_expression(arena, &import_expr.source, offset, line_offsets);
+            let options = import_expr
+                .options
+                .as_ref()
+                .map(|opt| {
+                    let node = expr_to_node(convert_expression(arena, opt, offset, line_offsets));
+                    arena.alloc_js_children(vec![node])
+                })
+                .unwrap_or_else(IdRange::empty);
             Expression::from_node(JsNode::ImportExpression {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 source: arena.alloc_js_node(expr_to_node(source)),
-                options: IdRange::empty(),
-                ts: false,
+                options,
+                ts: arena.is_ts_program(),
             })
         }
         OxcExpression::AwaitExpression(await_expr) => {
@@ -7119,6 +7134,7 @@ fn convert_function_body_directive(
         end: end as u32,
         loc,
         expression: arena.alloc_js_node(expression),
+        directive: Some(CompactString::from(directive.directive.as_str())),
     }
 }
 
@@ -7144,6 +7160,7 @@ fn convert_statement(
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
+                directive: None,
                 expression: arena.alloc_js_node(expr_to_node(convert_expression(
                     arena,
                     &expr_stmt.expression,
@@ -7804,24 +7821,33 @@ fn get_line_column_for_binding(pos: usize, line_offsets: &[usize]) -> (u32, u32)
     let line = line_offsets
         .partition_point(|&offset| offset <= pos)
         .saturating_sub(1);
+    let line_start = line_offsets.get(line).copied().unwrap_or(0);
+    ((line + 1) as u32, (pos - line_start) as u32)
+}
 
-    // Check if this line immediately follows an empty line
-    // An empty line has length 1 (just the newline character)
-    let adjusted_line_start = if line > 0 {
-        let current_line_start = line_offsets.get(line).copied().unwrap_or(0);
-        let prev_line_start = line_offsets.get(line - 1).copied().unwrap_or(0);
-        // If the previous line was empty (current - prev == 1), use prev as line_start
-        if current_line_start - prev_line_start == 1 {
-            prev_line_start
-        } else {
-            current_line_start
-        }
-    } else {
-        line_offsets.get(line).copied().unwrap_or(0)
-    };
-
-    let column = pos - adjusted_line_start;
-    ((line + 1) as u32, column as u32)
+/// Line starts that reproduce upstream `read_pattern`'s column arithmetic.
+///
+/// It parses a destructuring context as `(<pattern> = 1)` and pays for the `(`
+/// by deleting the first space of the prefix — which lands on the template's
+/// first line that carries a non-newline character. The `(` shift therefore
+/// survives on the pattern's own line whenever an earlier line has content, and
+/// never reaches the pattern's later lines (#4133). Pulling that line's start
+/// back by one byte says exactly this to every column computed from the slice.
+pub(crate) fn read_pattern_line_offsets(
+    pattern_start: usize,
+    line_offsets: &[usize],
+) -> Option<Vec<usize>> {
+    let line = line_offsets
+        .partition_point(|&start| start <= pattern_start)
+        .checked_sub(1)?;
+    let start = *line_offsets.get(line)?;
+    // Every earlier line holds at least its own newline, so `start == line` is
+    // "every line before this one is empty" and there is no space to delete.
+    (start > line).then(|| {
+        let mut shifted = line_offsets.to_vec();
+        shifted[line] = start - 1;
+        shifted
+    })
 }
 
 /// Create loc for binding patterns (complex patterns like ObjectPattern, ArrayPattern).
@@ -9124,6 +9150,28 @@ fn convert_parsed_program<'ast>(
                 map: &mut ignore_comment_map,
                 captured: capture.then(std::collections::HashMap::default),
             };
+            // OXC lifts a script's directive prologue out of `body`; ESTree
+            // keeps them as the first `ExpressionStatement`s, so they are
+            // visited first or the attacher pairs comments with the wrong node.
+            for directive in &program.directives {
+                let node = convert_function_body_directive(
+                    arena,
+                    directive,
+                    offset,
+                    0,
+                    line_offsets,
+                    false,
+                );
+                attacher.visit(
+                    &node.to_value(),
+                    Some(ParentInfo {
+                        end: Some(end as u32),
+                        is_last_in_body: false,
+                    }),
+                );
+                body_nodes.push(node);
+            }
+
             let last_index = program.body.len().saturating_sub(1);
 
             for (index, stmt) in program.body.iter().enumerate() {
@@ -9163,9 +9211,21 @@ fn convert_parsed_program<'ast>(
             // No comments, or comments but no `svelte-ignore` — fast path: keep
             // everything as typed JsNode (the harvest pass would find nothing).
             program
-                .body
+                .directives
                 .iter()
-                .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
+                .map(|directive| {
+                    convert_function_body_directive(
+                        arena,
+                        directive,
+                        offset,
+                        0,
+                        line_offsets,
+                        false,
+                    )
+                })
+                .chain(program.body.iter().filter_map(|stmt| {
+                    convert_statement_for_program(arena, stmt, offset, line_offsets)
+                }))
                 .collect()
         };
 
@@ -9511,6 +9571,7 @@ fn convert_statement_for_program(
                 end: end as u32,
                 loc,
                 expression: arena.alloc_js_node(expr_to_node(expr)),
+                directive: None,
             })
         }
         oxc_ast::ast::Statement::VariableDeclaration(var_decl) => {
@@ -9703,13 +9764,11 @@ fn convert_statement_for_program(
                 oxc_ast::ast::ExportDefaultDeclarationKind::ClassDeclaration(class_decl)
                     if !class_decl.declare
                         && !class_decl.r#abstract
-                        && class_decl.implements.is_empty()
                         && class_decl.decorators.is_empty() =>
                 {
-                    // Plain-JS class: the typed `ClassDeclaration` node omits the
-                    // TS-only `abstract`/`declare`/`implements`/`decorators`
-                    // fields, so it serializes byte-identical to the former Value
-                    // blob while routing the class body through the typed walker.
+                    // `abstract` / `declare` / `decorators` still fall through to
+                    // the Value blob below, which drops them: neither form matches
+                    // acorn-typescript, which writes all three before `id`.
                     convert_class_declaration_as_node(arena, class_decl, offset, line_offsets)
                 }
                 oxc_ast::ast::ExportDefaultDeclarationKind::ClassDeclaration(class_decl) => {
@@ -10786,6 +10845,42 @@ fn convert_ts_type_alias_declaration_as_node(
     }
 }
 
+/// `A`, `B<C>` in an `extends` / `implements` clause. acorn-typescript gives both
+/// clauses the same node, down to naming the instantiation `typeParameters`.
+fn ts_expression_with_type_arguments(
+    arena: &ParseArena,
+    span: oxc_span::Span,
+    type_name: &oxc_ast::ast::TSTypeName<'_>,
+    type_arguments: Option<&oxc_ast::ast::TSTypeParameterInstantiation<'_>>,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    let mut obj = Map::new();
+    let start = offset + span.start as usize;
+    let end = offset + span.end as usize;
+    obj.set_field(
+        "type",
+        Value::String("TSExpressionWithTypeArguments".to_string()),
+    );
+    push_span_fields(&mut obj, start, end, line_offsets);
+    obj.set_field(
+        "expression",
+        convert_ts_type_name_adjusted(type_name, AdjustedOffset::plain(offset), line_offsets),
+    );
+    if let Some(arguments) = type_arguments {
+        obj.set_field(
+            "typeParameters",
+            convert_ts_type_param_instantiation(
+                arena,
+                arguments,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            ),
+        );
+    }
+    Value::Object(obj)
+}
+
 fn convert_ts_interface_declaration_as_node(
     arena: &ParseArena,
     decl: &oxc_ast::ast::TSInterfaceDeclaration<'_>,
@@ -10824,39 +10919,14 @@ fn convert_ts_interface_declaration_as_node(
         .extends
         .iter()
         .map(|heritage| {
-            let mut heritage_obj = Map::new();
-            let heritage_start = offset + heritage.span.start as usize;
-            let heritage_end = offset + heritage.span.end as usize;
-            heritage_obj.set_field(
-                "type",
-                Value::String("TSExpressionWithTypeArguments".to_string()),
-            );
-            push_span_fields(
-                &mut heritage_obj,
-                heritage_start,
-                heritage_end,
+            ts_expression_with_type_arguments(
+                arena,
+                heritage.span,
+                &heritage.type_name,
+                heritage.type_arguments.as_deref(),
+                offset,
                 line_offsets,
-            );
-            heritage_obj.set_field(
-                "expression",
-                convert_ts_type_name_adjusted(
-                    &heritage.type_name,
-                    AdjustedOffset::plain(offset),
-                    line_offsets,
-                ),
-            );
-            if let Some(arguments) = &heritage.type_arguments {
-                heritage_obj.set_field(
-                    "typeParameters",
-                    convert_ts_type_param_instantiation(
-                        arena,
-                        arguments,
-                        AdjustedOffset::plain(offset),
-                        line_offsets,
-                    ),
-                );
-            }
-            Value::Object(heritage_obj)
+            )
         })
         .collect();
     if !extends.is_empty() {
@@ -11096,11 +11166,13 @@ fn convert_class_declaration_as_node(
             .map(|dec| {
                 let dec_start = offset + dec.span.start as usize;
                 let dec_end = offset + dec.span.end as usize;
-                JsNode::Decorator {
-                    start: dec_start as u32,
-                    end: dec_end as u32,
-                    loc: None,
-                }
+                let mut obj = Map::new();
+                obj.set_field("type", Value::String("Decorator".to_string()));
+                push_span_fields(&mut obj, dec_start, dec_end, line_offsets);
+                let expression =
+                    convert_expression_for_program(arena, &dec.expression, offset, line_offsets);
+                obj.set_field("expression", expression.as_json().clone());
+                JsNode::from_value(Value::Object(obj))
             })
             .collect();
         arena.alloc_js_children(decorator_nodes)
@@ -11115,7 +11187,24 @@ fn convert_class_declaration_as_node(
         body,
         declare: class_decl.declare,
         r#abstract: class_decl.r#abstract,
-        implements: !class_decl.implements.is_empty(),
+        implements: (!class_decl.implements.is_empty()).then(|| {
+            Box::new(Value::Array(
+                class_decl
+                    .implements
+                    .iter()
+                    .map(|clause| {
+                        ts_expression_with_type_arguments(
+                            arena,
+                            clause.span,
+                            &clause.expression,
+                            clause.type_arguments.as_deref(),
+                            offset,
+                            line_offsets,
+                        )
+                    })
+                    .collect(),
+            ))
+        }),
         decorators,
         type_parameters: opt_type_params(
             arena,
@@ -11140,7 +11229,7 @@ fn convert_class_declaration_as_node(
 /// `ClassDeclaration` cases (so an `export <decl>` declaration routes through the
 /// typed analyze walker instead of `JsNode::Raw`). Cases whose byte-identical
 /// serialization needs the Value form — TS `declare`/overload functions,
-/// abstract / declare / implements / decorated classes, and all TS-only
+/// abstract / declare / decorated classes, and all TS-only
 /// declarations — fall back to
 /// `JsNode::from_value(convert_declaration_for_program(...))`.
 fn convert_declaration_for_program_as_node(
@@ -11165,13 +11254,12 @@ fn convert_declaration_for_program_as_node(
                     ))
                 })
         }
-        // The typed class node adds `abstract` / `declare` / `implements` /
-        // `decorators` fields that the Value form omits, so only the plain-JS
-        // shape is byte-identical.
+        // `abstract` / `declare` / `decorators` still fall through to the Value
+        // form, which drops them: neither matches acorn-typescript, which writes
+        // all three before `id`.
         Declaration::ClassDeclaration(class_decl)
             if !class_decl.declare
                 && !class_decl.r#abstract
-                && class_decl.implements.is_empty()
                 && class_decl.decorators.is_empty() =>
         {
             convert_class_declaration_as_node(arena, class_decl, offset, line_offsets)
@@ -14490,6 +14578,18 @@ pub fn parse_binding_pattern<'a>(
             create_identifier_for_binding_toplevel(trimmed, start, end, line_offsets),
         ));
     }
+
+    // Upstream returns from `read_identifier` before the `(pattern = 1)` wrap,
+    // so only a `{`/`[` context is charged for the `(`.
+    let shifted = if trimmed.starts_with('{') || trimmed.starts_with('[') {
+        read_pattern_line_offsets(
+            offset + (content.len() - content.trim_start_ws().len()),
+            line_offsets,
+        )
+    } else {
+        None
+    };
+    let line_offsets = shifted.as_deref().unwrap_or(line_offsets);
 
     with_oxc_allocator(|allocator| {
         // The component's mode, not JavaScript: a default value inside the

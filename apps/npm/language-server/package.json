@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/language-server",
-  "version": "0.7.9",
+  "version": "0.7.10",
   "description": "Native Svelte language server with formatting, linting and TypeScript 7 language features",
   "license": "MIT",
   "repository": {
@@ -45,7 +45,7 @@
     "@rsvelte/language-server-win32-x64-msvc": "workspace:^"
   },
   "dependencies": {
-    "svelte": "5.57.0",
+    "svelte": "5.57.1",
     "vscode-languageserver": "^10.0.0",
     "vscode-languageserver-textdocument": "^1.0.12"
   },

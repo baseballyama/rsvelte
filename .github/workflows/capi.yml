@@ -204,7 +204,7 @@ jobs:
       # ---------------- Ruby ----------------
       - name: Set up Ruby
         if: github.event_name != 'pull_request'
-        uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
+        uses: ruby/setup-ruby@e8944e80fb94b20106697132f8c20c665fab29e9 # v1.325.0
         with:
           ruby-version: '4.0.7'
 
@@ -236,12 +236,12 @@ jobs:
         run: php -d ffi.enable=true crates/rsvelte_capi/examples/php/smoke.php
 
       # ---------------- Java FFM (JDK 22+) ----------------
-      - name: Set up JDK 22
+      - name: Set up JDK 25
         if: github.event_name != 'pull_request'
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
-          java-version: '22'
+          java-version: '25'
 
       - name: Java FFM smoke
         if: github.event_name != 'pull_request'

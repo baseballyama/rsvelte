@@ -85,13 +85,14 @@ impl<'a> Parser<'a> {
             }
 
             // Track comment as potential leading comment for a script
-            self.pending_leading_comments.push(data.to_string());
-
-            return Ok(Some(TemplateNode::Comment(Comment {
+            let comment = Comment {
                 start: start as u32,
                 end: self.index as u32,
                 data: CompactString::from(data),
-            })));
+            };
+            self.pending_leading_comments.push(comment.clone());
+
+            return Ok(Some(TemplateNode::Comment(comment)));
         }
 
         // Check for closing tag

@@ -1348,11 +1348,10 @@ pub struct CustomElementOptions<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tag: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub shadow: Option<ShadowMode>,
-    /// `shadow` given as a `ShadowRootInit` object expression (upstream allows
-    /// `shadow: { mode: 'open', ... }` and passes the AST straight through).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub shadow_object: Option<serde_json::Value>,
+    pub shadow: Option<ShadowOption>,
+    /// The evaluated `{ [name]: { attribute?, reflect?, type? } }` map, not the
+    /// option's AST: upstream builds the plain object while it validates
+    /// (`1-parse/read/options.js:82-131`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub props: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1364,6 +1363,15 @@ pub struct CustomElementOptions<'a> {
 pub enum ShadowMode {
     Open,
     None,
+}
+
+/// `shadow` holds either the string literal's value or the `ShadowRootInit`
+/// object expression, in one field, as upstream writes both to `ce.shadow`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum ShadowOption {
+    Mode(ShadowMode),
+    Init(serde_json::Value),
 }
 
 // =============================================================================

@@ -12,6 +12,10 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_parser::Parser;
 use oxc_span::{GetSpan, SourceType, Span};
 
+/// `internalHelpers.renderName` (`svelte2tsx`), the name `findRenderFunction`
+/// looks for.
+const RENDER_FUNCTION_NAME: &str = "$$render";
+
 /// What a filter needs from one node, alongside its span and parent.
 #[derive(Debug, Clone)]
 enum Kind {
@@ -54,6 +58,7 @@ struct Entry {
 pub struct ShadowNodes {
     entries: Vec<Entry>,
     stack: Vec<usize>,
+    render_return_type: Option<u32>,
 }
 
 impl ShadowNodes {
@@ -169,6 +174,18 @@ impl<'a> Visit<'a> for ShadowNodes {
     }
 
     fn visit_statement(&mut self, it: &Statement<'a>) {
+        // `findRenderFunction` (`features/utils.ts:331-338`) walks only the
+        // source file's own statements, so the empty stack is the parent test.
+        if self.stack.is_empty()
+            && self.render_return_type.is_none()
+            && let Statement::FunctionDeclaration(function) = it
+            && function
+                .id
+                .as_ref()
+                .is_some_and(|id| id.name == RENDER_FUNCTION_NAME)
+        {
+            self.render_return_type = Some(function.params.span.end);
+        }
         let kind = if matches!(it, Statement::BlockStatement(_)) {
             Kind::Block
         } else {
@@ -190,6 +207,26 @@ impl<'a> Visit<'a> for ShadowNodes {
         walk::walk_variable_declarator(self, it);
         self.pop();
     }
+}
+
+/// [`ShadowNodes::render_return_type`] for a shadow oxc rejects, where the
+/// other filters decline for want of a tree but this one still has an answer:
+/// TypeScript's `SourceFile` is best-effort, so upstream never loses it, and a
+/// completion fixture like `new A().` is exactly the input that reaches here.
+///
+/// The needle is the emitted header itself. It used to carry the `;` that
+/// precedes it, which an `import` moves onto its own line — so it matched only
+/// components that import nothing, and that was the defect (#4464). Two
+/// occurrences means a hoisted props type forged one, and an ambiguous answer
+/// declines rather than filtering at a user-text offset.
+#[must_use]
+pub fn render_return_type_without_a_tree(text: &str) -> Option<u32> {
+    const HEADER: &str = "function $$render() {";
+    let at = text.find(HEADER)?;
+    if text[at + HEADER.len()..].contains(HEADER) {
+        return None;
+    }
+    u32::try_from(at + HEADER.len() - " {".len()).ok()
 }
 
 /// `ts.InlayHintKind`. tsgo sends the LSP numbering, where 1 is Type and 2 is
@@ -280,6 +317,14 @@ impl ShadowNodes {
             || text
                 .get(name.start as usize..name.end as usize)
                 .is_some_and(|name| name.starts_with("$$"))
+    }
+
+    /// `renderFunctionReturnTypeLocation` (`InlayHintProvider.ts:60-70`): the
+    /// return-type slot of the generated `$$render` header, which is
+    /// `getTypeAnnotationPosition`'s close-paren end (`:308-321`).
+    #[must_use]
+    pub const fn render_return_type(&self) -> Option<u32> {
+        self.render_return_type
     }
 
     /// `isGeneratedAsyncFunctionReturnType` (`:259-280`): an `async` arrow whose

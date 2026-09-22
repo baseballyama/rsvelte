@@ -52,7 +52,7 @@ function artifacts() {
       universeHash: hashValues(["fixtures/a"]),
       measuredIds: ["fixtures/a"],
       population: {},
-      counts: { compared: 1 },
+      counts: { compared: 1, transportTimeouts: 0 },
       current: ["differential:fixtures/a|initialize|/capabilities:value"],
       mechanisms: {
         "differential:fixtures/a|initialize|/capabilities:value": [
@@ -73,7 +73,7 @@ function artifacts() {
           { files: 1, identifiers: 1, requests: 3 },
         ]),
       ),
-      counts: { compared: 12 },
+      counts: { compared: 12, transportTimeouts: 0 },
       current: [`aggregate:corpus/repo/${index}|hover|digest=${index}`],
       mechanisms: {
         [`aggregate:corpus/repo/${index}|hover|digest=${index}`]: ["ts-render"],
@@ -140,6 +140,26 @@ test("an artifact that recorded a transport timeout cannot be merged", () => {
   assert.equal(
     mergeCurrentArtifacts(clean, floor).current.length,
     CORPUS_SHARDS + 1,
+  );
+});
+
+test("an artifact that cannot answer the timeout question is refused", () => {
+  // The timeout guard reads `value.counts?.transportTimeouts`, and `undefined`
+  // is falsy, so before this was required an artifact with no `counts` merged
+  // as though it were clean — absent scoring as a pass, which is the shape the
+  // guard exists to remove (#4614). Both ways of losing the number are checked:
+  // the whole object, and the one field.
+  const noCounts = artifacts();
+  delete noCounts.at(-1).counts;
+  assert.throws(
+    () => mergeCurrentArtifacts(noCounts, floor),
+    /lacks counts\.transportTimeouts/,
+  );
+  const noField = artifacts();
+  delete noField[0].counts.transportTimeouts;
+  assert.throws(
+    () => mergeCurrentArtifacts(noField, floor),
+    /lacks counts\.transportTimeouts/,
   );
 });
 

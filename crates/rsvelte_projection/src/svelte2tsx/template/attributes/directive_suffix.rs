@@ -3,15 +3,74 @@
 
 use super::binding::bind_directive_suffix_segs;
 use super::class_style::class_style_directive_seg;
-use super::transition::{format_animate_directive_v4, format_transition_directive_v4};
+use super::transition::{
+    directive_name_span, format_animate_directive_v4, format_transition_directive_v4,
+};
 use std::fmt::Write as _;
 
 use crate::ast::template::Attribute;
 use crate::svelte2tsx::svelte2tsx::slice_src;
-use crate::svelte2tsx::template::segs::{Seg, segs_push_lit};
+use crate::svelte2tsx::template::segs::{Seg, segs_push_lit, segs_push_src};
 use crate::svelte2tsx::template::utils::expr::{
     extend_expr_end_with_ts_postfix, get_expression_range, get_expression_text,
 };
+
+/// The directive's parameter expression as text plus, when it has one, the
+/// source range that produces the same text. A trailing TS postfix
+/// (`transition:fade={params as ParamsType}`) is part of the run, as
+/// `Transition.ts` keeps it.
+fn directive_expression<'a>(
+    expression: Option<&crate::ast::js::Expression>,
+    source: &'a str,
+    attribute_end: u32,
+) -> Option<(&'a str, Option<(u32, u32)>)> {
+    let expression = expression?;
+    if let Some((start, end)) = get_expression_range(expression) {
+        let extended = extend_expr_end_with_ts_postfix(source, end, attribute_end);
+        return Some((
+            slice_src(source, start as usize, extended as usize),
+            Some((start, extended)),
+        ));
+    }
+    Some((get_expression_text(expression, source), None))
+}
+
+/// Emit one `transition:` / `in:` / `out:` / `animate:` statement, keeping the
+/// directive's own name and its parameter expression as SOURCE ranges.
+///
+/// Upstream's `transform()` moves both runs, so official's map has a segment
+/// for every byte of them; rsvelte synthesized the whole statement with
+/// `format!`, and the map then answered the element's start for all 132
+/// generated columns of a directive line (#4464). The generated TEXT is
+/// unchanged — both runs are copied verbatim — so only the map moves.
+///
+/// A name or expression whose source range cannot be recovered falls back to
+/// generated text rather than guessing a range.
+fn push_directive_statement(
+    out: &mut Vec<Seg>,
+    open: &str,
+    name: &str,
+    name_span: Option<(u32, u32)>,
+    middle: &str,
+    expr: Option<(&str, Option<(u32, u32)>)>,
+) {
+    segs_push_lit(out, open);
+    match name_span {
+        Some((start, end)) => segs_push_src(out, start, end),
+        None => segs_push_lit(out, name),
+    }
+    segs_push_lit(out, middle);
+    if let Some((expr_text, expr_span)) = expr {
+        segs_push_lit(out, ",(");
+        match expr_span {
+            Some((start, end)) => segs_push_src(out, start, end),
+            None => segs_push_lit(out, expr_text),
+        }
+        segs_push_lit(out, ")");
+    }
+    // Closes the directive call and the `ensure…` wrapper around it.
+    segs_push_lit(out, "));");
+}
 
 /// Build the post-`createElement(...)` suffix statements for an element's
 /// `class:` / `style:` / `transition:` / `in:` / `out:` / `animate:` / `bind:`
@@ -45,31 +104,25 @@ pub fn build_element_directive_suffix_segments(
             Attribute::TransitionDirective(t) => {
                 // Preserve a trailing TS postfix on the param expression
                 // (`transition:fade={params as ParamsType}`), as Transition.ts does.
-                let expr = t.expression.as_ref().map(|e| {
-                    if let Some((s, ex)) = get_expression_range(e) {
-                        let extended = extend_expr_end_with_ts_postfix(source, ex, t.end);
-                        slice_src(source, s as usize, extended as usize)
-                    } else {
-                        get_expression_text(e, source)
-                    }
-                });
-                segs_push_lit(
+                let expr = directive_expression(t.expression.as_ref(), source, t.end);
+                push_directive_statement(
                     &mut out,
-                    &format_transition_directive_v4(&t.name, expr, tag, ns),
+                    "__sveltets_2_ensureTransition(",
+                    &t.name,
+                    directive_name_span(source, t.start, &t.name),
+                    &format!("({ns}.mapElementTag('{tag}')"),
+                    expr,
                 );
             }
             Attribute::AnimateDirective(a) => {
-                let expr = a.expression.as_ref().map(|e| {
-                    if let Some((s, ex)) = get_expression_range(e) {
-                        let extended = extend_expr_end_with_ts_postfix(source, ex, a.end);
-                        slice_src(source, s as usize, extended as usize)
-                    } else {
-                        get_expression_text(e, source)
-                    }
-                });
-                segs_push_lit(
+                let expr = directive_expression(a.expression.as_ref(), source, a.end);
+                push_directive_statement(
                     &mut out,
-                    &format_animate_directive_v4(&a.name, expr, tag, ns),
+                    "__sveltets_2_ensureAnimation(",
+                    &a.name,
+                    directive_name_span(source, a.start, &a.name),
+                    &format!("({ns}.mapElementTag('{tag}'),__sveltets_2_AnimationMove"),
+                    expr,
                 );
             }
             Attribute::BindDirective(bind) => {
@@ -83,6 +136,39 @@ pub fn build_element_directive_suffix_segments(
             }
             _ => {}
         }
+    }
+    out
+}
+
+/// The `use:` action declarations that precede an element's `createElement`
+/// call, with the action's own name and its parameter expression kept as
+/// SOURCE ranges — the prefix half of what [`push_directive_statement`] does
+/// for `transition:` / `animate:` (#4693).
+///
+/// The caller relocates these `Seg::Src` ranges, because the generated text
+/// puts them before attributes the source puts first.
+pub fn build_action_prefix_segments(
+    attributes: &[Attribute],
+    source: &str,
+    tag: &str,
+    ns: &str,
+) -> Vec<Seg> {
+    let mut out: Vec<Seg> = Vec::new();
+    let mut actions = 0usize;
+    for attr in attributes {
+        let Attribute::UseDirective(use_dir) = attr else {
+            continue;
+        };
+        let expr = directive_expression(use_dir.expression.as_ref(), source, use_dir.end);
+        push_directive_statement(
+            &mut out,
+            &format!("const $$action_{actions} = __sveltets_2_ensureAction("),
+            &use_dir.name,
+            directive_name_span(source, use_dir.start, &use_dir.name),
+            &format!("({ns}.mapElementTag('{tag}')"),
+            expr,
+        );
+        actions += 1;
     }
     out
 }
@@ -194,34 +280,26 @@ pub fn build_component_directive_suffix(attributes: &[Attribute], source: &str) 
     for attr in attributes {
         match attr {
             Attribute::TransitionDirective(t) => {
-                let s = t
-                    .expression
-                    .as_ref()
-                    .map(|e| get_expression_text(e, source))
-                    .map_or_else(
-                        || format!("__sveltets_2_ensureTransition({}({}));", t.name, map_tag),
-                        |expr| {
-                            format!(
-                                "__sveltets_2_ensureTransition({}({},({})));",
-                                t.name, map_tag, expr
-                            )
-                        },
-                    );
-                segs_push_lit(&mut out, &s);
+                let expr = directive_expression(t.expression.as_ref(), source, t.end);
+                push_directive_statement(
+                    &mut out,
+                    "__sveltets_2_ensureTransition(",
+                    &t.name,
+                    directive_name_span(source, t.start, &t.name),
+                    &format!("({map_tag}"),
+                    expr,
+                );
             }
             Attribute::AnimateDirective(a) => {
-                let s = a
-                    .expression
-                    .as_ref()
-                    .map(|e| get_expression_text(e, source))
-                    .map_or_else(|| format!(
-                        "__sveltets_2_ensureAnimation({}({},__sveltets_2_AnimationMove));",
-                        a.name, map_tag
-                    ), |expr| format!(
-                        "__sveltets_2_ensureAnimation({}({},__sveltets_2_AnimationMove,({})));",
-                        a.name, map_tag, expr
-                    ));
-                segs_push_lit(&mut out, &s);
+                let expr = directive_expression(a.expression.as_ref(), source, a.end);
+                push_directive_statement(
+                    &mut out,
+                    "__sveltets_2_ensureAnimation(",
+                    &a.name,
+                    directive_name_span(source, a.start, &a.name),
+                    &format!("({map_tag},__sveltets_2_AnimationMove"),
+                    expr,
+                );
             }
             _ => {}
         }

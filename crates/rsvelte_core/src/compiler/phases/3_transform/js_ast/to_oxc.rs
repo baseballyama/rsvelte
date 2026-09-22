@@ -70,6 +70,40 @@ use rsvelte_esrap::{BraceMapping, LocRange};
 use std::cell::RefCell;
 use std::collections::HashSet;
 
+/// OXC lifts a directive prologue out of `Program::body` into
+/// `Program::directives`; ESTree and the printer both want those statements in
+/// `body`. Every re-parse in phase 3 rebuilds its output from `body` alone, so
+/// without this a `"use strict"` is deleted from the generated module.
+pub fn hoisted_directives<'a>(
+    ab: &AstBuilder<'a>,
+    directives: ArenaVec<'a, Directive<'a>>,
+) -> Vec<Statement<'a>> {
+    directives
+        .into_iter()
+        .map(|directive| {
+            let expression = Expression::StringLiteral(ArenaBox::new_in(directive.expression, ab));
+            Statement::ExpressionStatement(ExpressionStatement::boxed(
+                directive.span,
+                expression,
+                ab,
+            ))
+        })
+        .collect()
+}
+
+/// Put a lifted prologue back at the front of `program.body`, in place. For the
+/// callers that walk a re-parsed `body` rather than rebuilding it, which cannot
+/// see `directives` at all.
+pub fn restore_hoisted_directives<'a>(ab: &AstBuilder<'a>, program: &mut Program<'a>) {
+    if program.directives.is_empty() {
+        return;
+    }
+    let directives = std::mem::replace(&mut program.directives, ArenaVec::new_in(ab));
+    for (index, statement) in hoisted_directives(ab, directives).into_iter().enumerate() {
+        program.body.insert(index, statement);
+    }
+}
+
 /// A converted program plus the comment coordinate space it needs to be printed
 /// in (see the module docs). `comment_source` is `None` for the common
 /// comment-free program, which prints exactly as before.
@@ -180,7 +214,7 @@ pub fn program_to_oxc<'a>(
     arena: &JsArena,
     allocator: &'a oxc_allocator::Allocator,
 ) -> Option<Converted<'a>> {
-    program_to_oxc_with_islands(program, arena, allocator, &[])
+    program_to_oxc_with_islands(program, arena, allocator, &[], None)
 }
 
 /// Convert an IR program while inserting retained source ASTs directly.
@@ -189,14 +223,16 @@ pub fn program_to_oxc_with_islands<'a, 'source>(
     arena: &JsArena,
     allocator: &'a oxc_allocator::Allocator,
     islands: &[AstIsland<'source>],
+    source: Option<&'source str>,
 ) -> Option<Converted<'a>> {
     note_fallback(UNSUPPORTED);
-    let (probe, synth) = convert_once(program, arena, allocator, islands, None)?;
+    let (probe, synth) = convert_once(program, arena, allocator, islands, source, None)?;
     if !synth.saw_comments {
         return Some(probe);
     }
     let loc_base = synth.max_span.saturating_add(2);
-    let (converted, synth) = convert_once(program, arena, allocator, islands, Some(loc_base))?;
+    let (converted, synth) =
+        convert_once(program, arena, allocator, islands, source, Some(loc_base))?;
     // Every span the pass produced outside a chunk region must stay below
     // `loc_base`, or the printer would mistake it for a real location.
     if synth.max_span >= loc_base {
@@ -211,6 +247,7 @@ fn convert_once<'a, 'source>(
     arena: &JsArena,
     allocator: &'a oxc_allocator::Allocator,
     islands: &[AstIsland<'source>],
+    source: Option<&'source str>,
     loc_base: Option<u32>,
 ) -> Option<(Converted<'a>, Synth)> {
     let cx = Cx {
@@ -224,6 +261,7 @@ fn convert_once<'a, 'source>(
             .component_brace_span
             .as_ref()
             .map(|(name, start, end)| (name.as_str(), *start, *end)),
+        source,
     };
 
     // Collect, flattening multi-statement `Raw` blobs inline. A single None
@@ -560,6 +598,10 @@ struct Synth {
     /// can tell whether it sits after those comments in the *source* (which is
     /// the order upstream compares in) and not merely after them in the buffer.
     last_region_source: Option<u32>,
+    /// Original-source end of the last comment the previous chunk region
+    /// carried, so an anchor can make upstream's `comment.loc.end.line <
+    /// to.line` comparison in SOURCE lines (#4500).
+    last_region_comment_source_end: Option<u32>,
     last_region_ends_with_removed_inspect_comment: bool,
     saw_comments: bool,
     /// Source offset of the region a [`JsSourceAnchor`] most recently opened,
@@ -589,6 +631,7 @@ impl Synth {
             loc_map: Vec::new(),
             pending_region: None,
             last_region_source: None,
+            last_region_comment_source_end: None,
             last_region_ends_with_removed_inspect_comment: false,
             saw_comments: false,
             open_source_region: None,
@@ -646,6 +689,9 @@ struct Cx<'a, 'arena, 'source> {
     brace_mappings: RefCell<Vec<BraceMapping>>,
     /// [`JsProgram::component_brace_span`], matched by function name.
     component_brace_span: Option<(&'arena str, u32, u32)>,
+    /// The `.svelte` source, when the caller can supply it: comment placement
+    /// compares source lines, which no comment-space offset can answer (#4500).
+    source: Option<&'source str>,
 }
 
 impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
@@ -814,6 +860,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 });
             }
         }
+        synth.last_region_comment_source_end = Self::last_comment_source_end(&synth, region);
         synth.last_region_source = source_offset;
         Some(region)
     }
@@ -833,15 +880,58 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         if !synth.enabled || synth.last_region_source.is_none_or(|chunk| anchor <= chunk) {
             return SPAN;
         }
+        // Upstream breaks the line after a block comment only when the anchor's
+        // SOURCE line is past the comment's (esrap: `comment.loc.end.line <
+        // to.line`). The buffer ends every chunk with a newline, so the printer
+        // would read a break whatever the source says (#4500); when the source
+        // keeps the two on one line, say so by making that byte a space. The
+        // buffer length is unchanged, so no span moves.
+        if self
+            .source
+            .zip(synth.last_region_comment_source_end)
+            .is_some_and(|(source, end)| {
+                end <= anchor
+                    && source
+                        .get(end as usize..anchor as usize)
+                        .is_some_and(|between| !between.contains(['\n', '\r']))
+            })
+            && synth.source.ends_with('\n')
+        {
+            synth.source.pop();
+            synth.source.push(' ');
+        }
         let at = synth.cursor();
         // The cursor anchors the first generated node following this chunk.
         // Reusing it would make later statements claim the same trailing comment.
         synth.last_region_source = None;
+        synth.last_region_comment_source_end = None;
         // Keep a later independently parsed comment on a distinct line. Otherwise
         // it starts at this anchor and is emitted as the preceding statement's
         // trailing comment.
         synth.source.push('\n');
         Span::new(at, at)
+    }
+
+    /// Original-source end of the last comment inside `region`, when its buffer
+    /// bytes map back to the source byte for byte. `None` leaves the placement
+    /// decision on the comment-space answer.
+    fn last_comment_source_end(synth: &Synth, region: (u32, u32)) -> Option<u32> {
+        let comment = synth
+            .comments
+            .iter()
+            .rev()
+            .find(|comment| comment.span.start >= region.0 && comment.span.end <= region.1)?;
+        let index = synth
+            .loc_map
+            .partition_point(|range| range.start < comment.span.end)
+            .checked_sub(1)?;
+        let range = synth.loc_map.get(index)?;
+        if !range.linear || comment.span.end > range.end {
+            return None;
+        }
+        range
+            .source
+            .map(|source| source + (comment.span.end - range.start))
     }
 
     /// Append `anchor`'s source slice to the comment buffer (once per region)
@@ -2041,7 +2131,11 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             // Chunk-local spans stay below `loc_base`, so they read as "no
             // location"; record the bound the second pass has to clear.
             self.note_span(text.len() as u32);
-            let mut stmts: Vec<Statement<'a>> = ret.program.body.into_iter().collect();
+            let mut stmts: Vec<Statement<'a>> =
+                hoisted_directives(&self.ab, ret.program.directives)
+                    .into_iter()
+                    .chain(ret.program.body)
+                    .collect();
             seal_removed_inspect_empties(&mut stmts, &text, &sealed_at, 0);
             return Some(stmts);
         }
@@ -2050,7 +2144,11 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             // Probe pass: the comments are dropped here, but the result is
             // discarded — it only tells the driver a second pass is needed.
             self.note_span(text.len() as u32);
-            let mut stmts: Vec<Statement<'a>> = ret.program.body.into_iter().collect();
+            let mut stmts: Vec<Statement<'a>> =
+                hoisted_directives(&self.ab, ret.program.directives)
+                    .into_iter()
+                    .chain(ret.program.body)
+                    .collect();
             seal_removed_inspect_empties(&mut stmts, &text, &sealed_at, 0);
             return Some(stmts);
         }
@@ -2074,7 +2172,10 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             return None;
         }
         let shift = base - 1;
-        let mut stmts: Vec<Statement<'a>> = ret.program.body.into_iter().collect();
+        let mut stmts: Vec<Statement<'a>> = hoisted_directives(&self.ab, ret.program.directives)
+            .into_iter()
+            .chain(ret.program.body)
+            .collect();
         let mut shifter = ShiftSpans(shift);
         for stmt in &mut stmts {
             shifter.visit_statement(stmt);
@@ -3455,6 +3556,7 @@ mod tests {
                 source_offset: 12,
                 statement_indices: vec![1],
             }],
+            None,
         )
         .expect("retained AST is supported");
 

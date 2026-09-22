@@ -26,6 +26,7 @@ use crate::ast::template::{Root, TemplateNode};
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::builders::B;
+use crate::compiler::phases::phase3_transform::js_ast::to_oxc::hoisted_directives;
 use crate::compiler::phases::phase3_transform::jsnode_to_oxc::jsnode_to_oxc_expr;
 use crate::compiler::phases::phase3_transform::server::evaluate::EvalValue;
 use crate::compiler::phases::phase3_transform::shared::js_scan;
@@ -1138,7 +1139,15 @@ impl<'a> ServerTransformState<'a> {
             }
             ret = ts;
         }
-        ret.program.body.into_iter().next()
+        // A one-statement re-parse makes a string-literal statement the whole
+        // prologue, so OXC lifts it out of `body` and the statement disappears.
+        hoisted_directives(
+            &oxc_ast::builder::AstBuilder::new(self.allocator),
+            ret.program.directives,
+        )
+        .into_iter()
+        .chain(ret.program.body)
+        .next()
     }
 
     /// Re-parse a whole program `src` into the state allocator, returning ALL
@@ -1168,7 +1177,13 @@ impl<'a> ServerTransformState<'a> {
             ));
             return Vec::new();
         }
-        ret.program.body.into_iter().collect()
+        hoisted_directives(
+            &oxc_ast::builder::AstBuilder::new(self.allocator),
+            ret.program.directives,
+        )
+        .into_iter()
+        .chain(ret.program.body)
+        .collect()
     }
 
     /// Re-parse a single declarator slice (`x = init` / `{ a } = init`) by

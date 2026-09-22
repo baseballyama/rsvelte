@@ -499,6 +499,9 @@ pub enum JsNode {
         end: u32,
         loc: Option<Box<Loc>>,
         expression: JsNodeId,
+        // acorn's `directive`: the raw text of a directive-prologue string,
+        // without its quotes. Absent on every other expression statement.
+        directive: Option<CompactString>,
     },
     BlockStatement {
         start: u32,
@@ -555,7 +558,10 @@ pub enum JsNode {
         body: JsNodeId,
         declare: bool,
         r#abstract: bool,
-        implements: bool,
+        /// Opaque, output-only `TSExpressionWithTypeArguments` array
+        /// (`implements A, B<C>`), serialized verbatim. `None` for the plain-JS
+        /// majority.
+        implements: Option<Box<serde_json::Value>>,
         decorators: IdRange,
         /// Opaque, output-only TS `typeParameters` blob (`class K<T>`).
         type_parameters: Option<Box<serde_json::Value>>,
@@ -788,10 +794,13 @@ pub enum JsNode {
         loc: Option<Box<Loc>>,
         body: IdRange,
     },
+    // `@dec class C {}`. Kept as its ESTree object so `expression` survives:
+    // decorators are unsupported and always end as an error, but `parse()`
+    // still returns the node.
     Decorator {
         start: u32,
         end: u32,
-        loc: Option<Box<Loc>>,
+        value: Box<Value>,
     },
     // TypeScript (minimal, for remove_typescript_nodes detection)
     TSTypeAnnotation {
@@ -857,7 +866,7 @@ pub enum JsNode {
     TSParameterProperty {
         start: u32,
         end: u32,
-        loc: Option<Box<Loc>>,
+        value: Box<Value>,
     },
     // `namespace N { … }` / `declare module 'x' { … }`. `body` is a
     // `TSModuleBlock`, or — for the dotted `namespace A.B { … }`, which
@@ -1850,6 +1859,7 @@ impl Serialize for JsNode {
                 end,
                 loc,
                 expression,
+                directive,
             } => {
                 let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "ExpressionStatement")?;
@@ -1857,6 +1867,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "expression", expression);
+                if let Some(directive) = directive {
+                    map.serialize_entry("directive", directive.as_str())?;
+                }
                 ser_comments!(map, "ExpressionStatement", *start, *end);
                 map.end()
             }
@@ -1991,15 +2004,15 @@ impl Serialize for JsNode {
                 if let Some(stp) = super_type_parameters {
                     map.serialize_entry("superTypeParameters", stp.as_ref())?;
                 }
+                if let Some(clauses) = implements {
+                    map.serialize_entry("implements", clauses.as_ref())?;
+                }
                 ser_node!(map, "body", body);
                 if *declare {
                     map.serialize_entry("declare", &true)?;
                 }
                 if *r#abstract {
                     map.serialize_entry("abstract", &true)?;
-                }
-                if *implements {
-                    map.serialize_entry("implements", &true)?;
                 }
                 if !decorators.is_empty() {
                     ser_children!(map, "decorators", decorators);
@@ -2551,15 +2564,6 @@ impl Serialize for JsNode {
                 ser_comments!(map, "StaticBlock", *start, *end);
                 map.end()
             }
-            Self::Decorator { start, end, loc } => {
-                let mut map = serializer.serialize_map(Some(3))?;
-                map.serialize_entry("type", "Decorator")?;
-                map.serialize_entry("start", start)?;
-                map.serialize_entry("end", end)?;
-                ser_loc!(map, loc);
-                ser_comments!(map, "Decorator", *start, *end);
-                map.end()
-            }
             Self::TSTypeAnnotation {
                 start,
                 end,
@@ -2575,16 +2579,9 @@ impl Serialize for JsNode {
                 ser_comments!(map, "TSTypeAnnotation", *start, *end);
                 map.end()
             }
-            Self::TSParameterProperty { start, end, loc } => {
-                let mut map = serializer.serialize_map(Some(3))?;
-                map.serialize_entry("type", "TSParameterProperty")?;
-                map.serialize_entry("start", start)?;
-                map.serialize_entry("end", end)?;
-                ser_loc!(map, loc);
-                ser_comments!(map, "TSParameterProperty", *start, *end);
-                map.end()
-            }
             Self::TSEnumDeclaration { value, .. }
+            | Self::TSParameterProperty { value, .. }
+            | Self::Decorator { value, .. }
             | Self::TSTypeAliasDeclaration { value, .. }
             | Self::TSInterfaceDeclaration { value, .. }
             | Self::TSImportEqualsDeclaration { value, .. }
@@ -2917,6 +2914,8 @@ impl JsNode {
                             | "TSExportAssignment"
                             | "TSNamespaceExportDeclaration"
                             | "TSIndexSignature"
+                            | "TSParameterProperty"
+                            | "Decorator"
                     )
                 ) {
                     let start = owned_obj
@@ -2944,6 +2943,10 @@ impl JsNode {
                             Self::TSNamespaceExportDeclaration { start, end, value }
                         }
                         Some("TSIndexSignature") => Self::TSIndexSignature { start, end, value },
+                        Some("TSParameterProperty") => {
+                            Self::TSParameterProperty { start, end, value }
+                        }
+                        Some("Decorator") => Self::Decorator { start, end, value },
                         _ => Self::TSInterfaceDeclaration { start, end, value },
                     };
                 }
@@ -3308,6 +3311,10 @@ impl JsNode {
                         end,
                         loc,
                         expression: convert_child(obj, "expression"),
+                        directive: obj
+                            .field("directive")
+                            .and_then(Value::as_str)
+                            .map(CompactString::from),
                     },
                     "BlockStatement" => Self::BlockStatement {
                         start,
@@ -3354,7 +3361,7 @@ impl JsNode {
                         body: convert_child(obj, "body"),
                         declare: get_bool(obj, "declare"),
                         r#abstract: get_bool(obj, "abstract"),
-                        implements: get_bool(obj, "implements"),
+                        implements: obj.field("implements").cloned().map(Box::new),
                         decorators: convert_array(obj, "decorators"),
                         type_parameters: obj.field("typeParameters").cloned().map(Box::new),
                         super_type_parameters: obj
@@ -3588,14 +3595,12 @@ impl JsNode {
                         loc,
                         body: convert_array(obj, "body"),
                     },
-                    "Decorator" => Self::Decorator { start, end, loc },
                     "TSTypeAnnotation" => Self::TSTypeAnnotation {
                         start,
                         end,
                         loc,
                         type_annotation: convert_child(obj, "typeAnnotation"),
                     },
-                    "TSParameterProperty" => Self::TSParameterProperty { start, end, loc },
                     "TSModuleDeclaration" => Self::TSModuleDeclaration {
                         start,
                         end,

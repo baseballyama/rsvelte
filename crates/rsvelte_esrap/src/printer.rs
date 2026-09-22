@@ -65,24 +65,64 @@ pub struct Unsupported(pub &'static str);
 /// of sequential keyword fragments anchored from one source position, advancing
 /// the column by each fragment's length. When `cursor` is `None`, fragments are
 /// written unmapped.
-struct KeywordCursor {
+struct KeywordCursor<'a> {
     cursor: Option<(u32, u32)>,
+    /// The cursor's source line, when the printer can quote it. Only consulted
+    /// for a fragment whose end anchor would leave the line (#4610).
+    line: Option<&'a str>,
 }
 
-impl KeywordCursor {
+impl KeywordCursor<'_> {
     /// Write one fragment (e.g. `"declare "`, `"class "`). Mapped if a cursor is
     /// active, otherwise a plain write.
     fn write<const DIRECT: bool>(&mut self, ctx: &mut Context<DIRECT>, fragment: &str) {
-        if let Some((line, col)) = self.cursor {
+        let Some((line, col)) = self.cursor else {
+            ctx.write(fragment);
+            return;
+        };
+        if column_is_on_line(col, self.line) {
             ctx.location(line, col);
-            ctx.write(fragment);
-            let end = col.saturating_add(usize_to_u32(fragment.len()));
-            ctx.location(line, end);
-            self.cursor = Some((line, end));
-        } else {
-            ctx.write(fragment);
         }
+        ctx.write(fragment);
+        let Some(end) = keyword_end_anchor(col, fragment, self.line) else {
+            // The end anchor would leave the line, and so would every column
+            // derived from it, so the run stops carrying a position here.
+            // Upstream's cursor is a closure over a `loc`; dropping it is how
+            // esrap spells "no location".
+            self.cursor = None;
+            return;
+        };
+        ctx.location(line, end);
+        self.cursor = Some((line, end));
     }
+}
+
+/// esrap's keyword end anchor is `column + keyword.length`, which is inside the
+/// line whenever the keyword is the source's own token. Two cases leave the
+/// line, and only one of them is real: a keyword whose trailing separator the
+/// source spells as a newline (`import\n{a}`, `let\n\tx` — upstream anchors
+/// past the terminator there on purpose), and a *generated* keyword lowered over
+/// a shorter source token, where the start anchor already names a line that
+/// never held it. Quoting the line separates them (#4610); with no line to quote
+/// the anchor is kept, matching esrap.
+/// Whether `column` names a position on `line`. A caller derives a keyword's
+/// start column by arithmetic (the previous fragment's end, a closing brace plus
+/// one), so unlike a resolved offset it can leave the line. `column == len` is
+/// the line terminator and is addressable.
+fn column_is_on_line(column: u32, line: Option<&str>) -> bool {
+    line.is_none_or(|line| column as usize <= line.len())
+}
+
+fn keyword_end_anchor(column: u32, keyword: &str, line: Option<&str>) -> Option<u32> {
+    let end = column.saturating_add(usize_to_u32(keyword.len()));
+    let Some(line) = line else { return Some(end) };
+    if end as usize <= line.len() {
+        return Some(end);
+    }
+    let body = keyword.trim_end();
+    line.get(column as usize..column as usize + body.len())
+        .is_some_and(|text| text == body)
+        .then_some(end)
 }
 
 #[repr(C)]
@@ -115,6 +155,9 @@ pub struct Printer<'opt, const HAS_COMMENTS: bool = true, const DIRECT: bool = f
     map_line_starts: Option<Vec<u32>>,
     /// Length of the text source-map positions resolve against, when known.
     map_source_len: Option<u32>,
+    /// The buffer source-map positions resolve against, when the caller can name
+    /// it. Only read to check a keyword anchor that would leave its line (#4610).
+    map_text: Option<&'opt str>,
     /// Spans below this offset are synthesized and carry no source location, so
     /// they take no part in comment placement — the Rust equivalent of esrap's
     /// `if (node.loc)` guards. `None` = every span is a real location.
@@ -741,6 +784,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             placement_source: None,
             map_line_starts: None,
             map_source_len: None,
+            map_text: None,
             loc_base: None,
             loc_map: Vec::new(),
             brace_mappings: Vec::new(),
@@ -766,6 +810,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             comment_index: 0,
             map_line_starts: None,
             map_source_len: None,
+            map_text: None,
             line_starts,
             comment_source: None,
             placement_source: None,
@@ -782,6 +827,11 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     /// a chunk coordinate that `RestoreRawMappedSpans` could not translate, not
     /// a source position, and emitting it produces a segment pointing past the
     /// end of a source line (#4466).
+    pub(crate) const fn with_map_text(mut self, text: Option<&'opt str>) -> Self {
+        self.map_text = text;
+        self
+    }
+
     pub(crate) const fn with_map_source_len(mut self, len: u32) -> Self {
         self.map_source_len = Some(len);
         self
@@ -1004,10 +1054,35 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
 
     /// esrap's `write_source_keyword`: bracket the literal `keyword` with
     /// source-map anchors for its exact span, so breakpoints land on the keyword.
-    fn write_source_keyword(ctx: &mut Context<DIRECT>, line: u32, column: u32, keyword: &str) {
-        ctx.location(line, column);
+    fn write_source_keyword(
+        &self,
+        ctx: &mut Context<DIRECT>,
+        line: u32,
+        column: u32,
+        keyword: &str,
+    ) {
+        let text = self.map_source_line(line);
+        if column_is_on_line(column, text) {
+            ctx.location(line, column);
+        }
         ctx.write(keyword);
-        ctx.location(line, column + usize_to_u32(keyword.len()));
+        if let Some(end) = keyword_end_anchor(column, keyword, text) {
+            ctx.location(line, end);
+        }
+    }
+
+    /// Source-map line `line` (1-based) without its terminator, when the printer
+    /// was given the buffer the map resolves against.
+    fn map_source_line(&self, line: u32) -> Option<&'opt str> {
+        let text = self.map_text?;
+        let starts = self.map_line_starts.as_deref().unwrap_or(&self.line_starts);
+        let start = *starts.get(line.checked_sub(1)? as usize)? as usize;
+        let end = match starts.get(line as usize) {
+            // The next line's start is one past this line's terminator.
+            Some(&next) => (next as usize).saturating_sub(1),
+            None => text.len(),
+        };
+        text.get(start..end)
     }
 
     /// esrap's `write_keyword`: map one `keyword` anchored at `span`'s start
@@ -1025,7 +1100,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if let Some((line, column)) = self.map_segment(span.start) {
             ctx.location(line, column);
             ctx.write(keyword);
-            ctx.location(line, column.saturating_add(usize_to_u32(keyword.len())));
+            if let Some(end) = keyword_end_anchor(column, keyword, self.map_source_line(line)) {
+                ctx.location(line, end);
+            }
             if !suffix.is_empty() {
                 ctx.write(suffix);
             }
@@ -1097,7 +1174,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     /// When `map_ok` is false (or no source context), every fragment is written
     /// unmapped. Implemented as an explicit [`KeywordCursor`] because Rust closures
     /// can't borrow `self` mutably across calls the way the JS closure does.
-    fn keyword_cursor(&self, span: Span, map_ok: bool) -> KeywordCursor {
+    fn keyword_cursor(&self, span: Span, map_ok: bool) -> KeywordCursor<'opt> {
         // esrap guards every keyword anchor on `node.loc`; a builder-made node
         // has none, and rsvelte spells that as an empty or sentinel span.
         let located = !span.is_empty() && span.start != u32::MAX;
@@ -1106,7 +1183,8 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         } else {
             None
         };
-        KeywordCursor { cursor }
+        let line = cursor.and_then(|(line, _)| self.map_source_line(line));
+        KeywordCursor { cursor, line }
     }
 
     /// esrap's `function_async_function_offset_ok`: the `async function` source
@@ -2575,13 +2653,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         let gen_suffix = if node.generator { "* " } else { " " };
         match self.map_segment(start) {
             Some((line, column)) if node.r#async && offset_ok => {
-                Self::write_source_keyword(ctx, line, column, "async ");
+                self.write_source_keyword(ctx, line, column, "async ");
                 let col2 = column + usize_to_u32("async ".len());
-                Self::write_source_keyword(ctx, line, col2, "function");
+                self.write_source_keyword(ctx, line, col2, "function");
                 ctx.write(gen_suffix);
             }
             Some((line, column)) if !node.r#async => {
-                Self::write_source_keyword(ctx, line, column, "function");
+                self.write_source_keyword(ctx, line, column, "function");
                 ctx.write(gen_suffix);
             }
             _ => {
@@ -3040,7 +3118,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 (Some((ce_line, ce_col)), Some((al_line, al_col)))
                     if ce_line == al_line && al_col >= 4 =>
                 {
-                    Self::write_source_keyword(ctx, ce_line, ce_col + 1, "else");
+                    self.write_source_keyword(ctx, ce_line, ce_col + 1, "else");
                     ctx.write_ascii(b' ');
                 }
                 _ => ctx.write("else "),
@@ -3059,7 +3137,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         match (body_end, test_start) {
             (Some((be_line, be_col)), Some((t_line, t_col))) if be_line == t_line && t_col >= 6 => {
                 ctx.write_ascii(b' ');
-                Self::write_source_keyword(ctx, be_line, be_col + 1, "while");
+                self.write_source_keyword(ctx, be_line, be_col + 1, "while");
                 ctx.write_ascii_bytes(b" (");
             }
             _ => ctx.write(" while ("),
@@ -3136,7 +3214,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     if p_line == f_line && f_col >= 7 =>
                 {
                     ctx.write_ascii(b' ');
-                    Self::write_source_keyword(ctx, p_line, p_col + 1, "finally");
+                    self.write_source_keyword(ctx, p_line, p_col + 1, "finally");
                     ctx.write_ascii(b' ');
                 }
                 _ => ctx.write(" finally "),
@@ -4844,8 +4922,15 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             let second_start = second
                 .as_expression()
                 .map_or_else(|| second.span().start, |e| unparen(e).span().start);
+            // Only a comment *between* the two arguments wraps the call. One
+            // inside the first argument is that argument's business: upstream
+            // prints `$.tag($.state(1 // c\n), 'a')` on one argument line.
+            let first_end = first
+                .as_expression()
+                .map_or_else(|| first.span().end, |e| unparen(e).span().end);
             let force_multiline = self.comment_at(self.comment_index).is_some_and(|c| {
-                c.start < second_start
+                c.start >= first_end
+                    && c.start < second_start
                     && (!c.block || self.comment_starts_on_earlier_line(c, second_start))
             });
 
@@ -6351,5 +6436,39 @@ mod tests {
         // layout with an expression statement instead.
         assert_eq!(print_ok("{ a; }"), "{\n\ta;\n}");
         assert_eq!(print_ok("{}"), "{}");
+    }
+}
+
+#[cfg(test)]
+mod keyword_anchor_tests {
+    use super::{column_is_on_line, keyword_end_anchor};
+
+    /// esrap's `column + keyword.length` leaves the line only for a keyword
+    /// whose trailing separator the source spells as a newline. Quoting the line
+    /// is what separates that from a generated keyword lowered over a shorter
+    /// source token (#4610).
+    #[test]
+    fn an_end_anchor_survives_only_where_the_line_holds_the_keyword() {
+        // `import` alone on its line: upstream anchors `import ` at column 7,
+        // one past the terminator, and that is the position it means.
+        assert_eq!(keyword_end_anchor(0, "import ", Some("import")), Some(7));
+        // `function` lowered onto a line that ends in `</script>`.
+        assert_eq!(keyword_end_anchor(6, "let ", Some("</script>")), None);
+        // Inside the line, the quote is never consulted.
+        assert_eq!(keyword_end_anchor(1, "let ", Some("\tlet x = 1;")), Some(5));
+        // With no line to quote, esrap's arithmetic stands.
+        assert_eq!(keyword_end_anchor(6, "let ", None), Some(10));
+    }
+
+    /// A derived start column is arithmetic too — `ce_col + 1` after a closing
+    /// brace, or the previous fragment's end — so it can leave the line, and an
+    /// empty line holds no column but 0.
+    #[test]
+    fn a_start_anchor_may_address_the_line_terminator_but_not_past_it() {
+        assert!(column_is_on_line(9, Some("</script>")));
+        assert!(!column_is_on_line(10, Some("</script>")));
+        assert!(column_is_on_line(0, Some("")));
+        assert!(!column_is_on_line(11, Some("")));
+        assert!(column_is_on_line(11, None));
     }
 }

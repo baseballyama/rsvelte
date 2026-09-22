@@ -1,7 +1,7 @@
-//! The anonymous functions in tsgo's outline of a component, treated the way
-//! `TypeScriptPlugin.getDocumentSymbols` (`TypeScriptPlugin.ts:329-351`) treats
-//! them: a `<function>` the user wrote is named after its source text, and one
-//! the projection generated is dropped.
+//! The `<function>` branch of `TypeScriptPlugin.getDocumentSymbols`
+//! (`TypeScriptPlugin.ts:329-351`): a `<function>` the user wrote is named
+//! after its source text, and one the projection generated is dropped.
+//! `tsgo_response::rewrite_document_symbols` runs the surrounding passes.
 
 use std::ops::Range;
 
@@ -13,61 +13,9 @@ use crate::context::{EmbeddedRegions, body_of};
 use crate::nodes::parse_root;
 use crate::text::LineIndex;
 
-const ANONYMOUS_FUNCTION: &str = "<function>";
 const NAME_LIMIT: usize = 50;
 
-/// Rewrite a mapped `textDocument/documentSymbol` result for the component
-/// whose source is `text`. Both response shapes are accepted; a dropped
-/// `DocumentSymbol`'s children take its place, as upstream keeps every other
-/// entry of its flat list.
-pub fn rewrite_anonymous_function_symbols(result: &mut Value, text: &str) {
-    let Some(items) = result.as_array_mut() else {
-        return;
-    };
-    if !items.iter().any(has_anonymous_function) {
-        return;
-    }
-    let document = SymbolDocument::new(text);
-    rewrite(items, &document);
-}
-
-fn has_anonymous_function(item: &Value) -> bool {
-    item.get("name").and_then(Value::as_str) == Some(ANONYMOUS_FUNCTION)
-        || item
-            .get("children")
-            .and_then(Value::as_array)
-            .is_some_and(|children| children.iter().any(has_anonymous_function))
-}
-
-fn rewrite(items: &mut Vec<Value>, document: &SymbolDocument<'_>) {
-    let mut kept = Vec::with_capacity(items.len());
-    for mut item in std::mem::take(items) {
-        if let Some(children) = item.get_mut("children").and_then(Value::as_array_mut) {
-            rewrite(children, document);
-        }
-        if item.get("name").and_then(Value::as_str) != Some(ANONYMOUS_FUNCTION) {
-            kept.push(item);
-            continue;
-        }
-        let range = item
-            .pointer("/location/range")
-            .or_else(|| item.get("range"))
-            .and_then(|range| serde_json::from_value::<lsp_types::Range>(range.clone()).ok());
-        let Some(range) = range else {
-            kept.push(item);
-            continue;
-        };
-        if let Some(name) = document.function_name(range) {
-            item["name"] = Value::String(name);
-            kept.push(item);
-        } else if let Some(Value::Array(children)) = item.get_mut("children").map(Value::take) {
-            kept.extend(children);
-        }
-    }
-    *items = kept;
-}
-
-struct SymbolDocument<'a> {
+pub(crate) struct SymbolDocument<'a> {
     text: &'a str,
     index: LineIndex,
     scripts: Vec<Range<usize>>,
@@ -79,32 +27,33 @@ struct SymbolDocument<'a> {
 }
 
 impl<'a> SymbolDocument<'a> {
-    fn new(text: &'a str) -> Self {
+    pub(crate) fn new(text: &'a str) -> Self {
         let allocator = Allocator::default();
-        let (scripts, instance_end, template) = match parse_root(text, &allocator) {
-            Some(root) => {
-                let instance = root
-                    .instance
-                    .as_deref()
-                    .and_then(|script| body_of(text, script.start as usize, script.end as usize));
-                let module = root
-                    .module
-                    .as_deref()
-                    .and_then(|script| body_of(text, script.start as usize, script.end as usize));
-                let instance_end = instance.as_ref().map(|body| body.end);
-                let scripts = instance.into_iter().chain(module).collect();
-                let legacy = rsvelte_core::convert_to_legacy(text, root);
-                (scripts, instance_end, legacy.get("html").cloned())
-            }
-            None => {
-                let instance_end = crate::context::instance_script_body(text).map(|body| body.end);
-                (
-                    EmbeddedRegions::new(text).scripts().to_vec(),
-                    instance_end,
-                    None,
-                )
-            }
-        };
+        let (scripts, instance_end, template) =
+            match parse_root(text, &allocator) {
+                Some(root) => {
+                    let instance = root.instance.as_deref().and_then(|script| {
+                        body_of(text, script.start as usize, script.end as usize)
+                    });
+                    let module = root.module.as_deref().and_then(|script| {
+                        body_of(text, script.start as usize, script.end as usize)
+                    });
+                    let instance_end = instance.as_ref().map(|body| body.end);
+                    let scripts = instance.into_iter().chain(module).collect();
+                    let legacy = rsvelte_core::convert_to_legacy(text, root);
+                    (scripts, instance_end, legacy.get("html").cloned())
+                }
+                None => {
+                    let instance_end = crate::context::script_bodies(text)
+                        .instance
+                        .map(|body| body.end);
+                    (
+                        EmbeddedRegions::new(text).scripts().to_vec(),
+                        instance_end,
+                        None,
+                    )
+                }
+            };
         Self {
             text,
             index: LineIndex::new(text),
@@ -116,7 +65,7 @@ impl<'a> SymbolDocument<'a> {
 
     /// The name upstream gives a `<function>` symbol, or `None` when it drops
     /// the symbol.
-    fn function_name(&self, range: lsp_types::Range) -> Option<String> {
+    pub(crate) fn function_name(&self, range: lsp_types::Range) -> Option<String> {
         // `TypeScriptPlugin.ts:297-303` drops these before the function branch.
         if range.start == range.end {
             return None;
@@ -267,7 +216,7 @@ mod tests {
                 { "name": "<function>", "kind": 12, "location": { "uri": "file:///App.svelte", "range": {
                     "start": callback_start, "end": document_end } } },
             ]);
-            rewrite_anonymous_function_symbols(&mut result, &text);
+            crate::tsgo_response::rewrite_document_symbols(&mut result, &text);
             assert_eq!(
                 names(&result),
                 ["Test1", "function () { return true; }"],
@@ -305,7 +254,7 @@ mod tests {
             symbol("<function>", text, "{#snippet", Some("{/snippet}")),
             symbol("<function>", text, "<Child", Some("/>")),
         ]);
-        rewrite_anonymous_function_symbols(&mut result, text);
+        crate::tsgo_response::rewrite_document_symbols(&mut result, text);
         assert_eq!(names(&result), ["() => item", "function () { value; }"]);
     }
 
@@ -324,7 +273,7 @@ mod tests {
                 "end": index.position(text, script_end + "</script>".len()),
             } },
         }]);
-        rewrite_anonymous_function_symbols(&mut result, text);
+        crate::tsgo_response::rewrite_document_symbols(&mut result, text);
         assert_eq!(names(&result), ["</script>"]);
     }
 
@@ -357,7 +306,7 @@ mod tests {
                 }],
             }],
         }]);
-        rewrite_anonymous_function_symbols(&mut result, text);
+        crate::tsgo_response::rewrite_document_symbols(&mut result, text);
         assert_eq!(result[0]["children"][0]["name"], "data");
         assert_eq!(result[0]["children"].as_array().unwrap().len(), 1);
     }
@@ -367,7 +316,7 @@ mod tests {
         let body = "x".repeat(60);
         let text = format!("<script>\n  (function () {{ {body} }})();\n</script>\n");
         let mut result = json!([symbol("<function>", &text, "function ()", Some(" })"))]);
-        rewrite_anonymous_function_symbols(&mut result, &text);
+        crate::tsgo_response::rewrite_document_symbols(&mut result, &text);
         let name = result[0]["name"].as_str().unwrap();
         assert_eq!(
             name,
@@ -380,7 +329,7 @@ mod tests {
         let text = "<p>{";
         let mut result = json!([{ "name": "a", "kind": 13 }]);
         let before = result.clone();
-        rewrite_anonymous_function_symbols(&mut result, text);
+        crate::tsgo_response::rewrite_document_symbols(&mut result, text);
         assert_eq!(result, before);
     }
 }

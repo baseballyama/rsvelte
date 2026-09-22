@@ -185,6 +185,12 @@ struct ShadowState {
     source_map: Option<String>,
     tokens: Vec<MappingToken>,
     generated_ranges: Vec<std::ops::Range<usize>>,
+    /// The `.tsx` this overlay appends to every `.svelte` module specifier so
+    /// tsgo resolves the shadow. Unlike an `Ωignore` region it sits *inside* a
+    /// source-backed token, so a range that merely spans it — `'./X.svelte.tsx'`,
+    /// which is what tsgo hands back for a module hover — still has a source
+    /// range on both sides (#4097).
+    import_suffix_ranges: Vec<std::ops::Range<usize>>,
     identity: bool,
     plain_insertions: Vec<(usize, std::ops::Range<usize>)>,
     /// Byte offset in `source_text` that generated offset 0 corresponds to,
@@ -192,10 +198,6 @@ struct ShadowState {
     fragment_offset: usize,
     /// svelte2tsx's message, when this shadow is the parser-error fallback.
     parser_error: Option<String>,
-    /// Offset just past the `)` of the generated `function $$render()` header.
-    /// `None` for an `identity` entry, whose text is the user's own: a
-    /// `function $$render()` they wrote is a real declaration, not ours.
-    render_return_type: Option<usize>,
 }
 
 /// Workspace-scoped diskless overlay used by the tsgo LSP proxy.
@@ -411,12 +413,11 @@ impl TsgoOverlay {
             text: generated_text,
             version,
         };
-        let mut generated_ranges = ignored_ranges(&document.text);
-        generated_ranges.extend(
-            import_insertions
-                .iter()
-                .map(|(_, generated)| generated.clone()),
-        );
+        let generated_ranges = ignored_ranges(&document.text);
+        let import_suffix_ranges = import_insertions
+            .iter()
+            .map(|(_, generated)| generated.clone())
+            .collect::<Vec<_>>();
         let state = ShadowState {
             source_path: source_path.clone(),
             shadow_path: shadow_path.clone(),
@@ -434,7 +435,7 @@ impl TsgoOverlay {
             source_map,
             tokens,
             generated_ranges,
-            render_return_type: render_return_type_offset(&document.text),
+            import_suffix_ranges,
             identity: false,
             plain_insertions: Vec::new(),
             fragment_offset: 0,
@@ -488,7 +489,7 @@ impl TsgoOverlay {
             tokens: Vec::new(),
             source_map: None,
             generated_ranges: Vec::new(),
-            render_return_type: None,
+            import_suffix_ranges: Vec::new(),
             identity: true,
             plain_insertions: Vec::new(),
             fragment_offset,
@@ -551,7 +552,7 @@ impl TsgoOverlay {
             tokens: Vec::new(),
             source_map: None,
             generated_ranges: Vec::new(),
-            render_return_type: None,
+            import_suffix_ranges: Vec::new(),
             identity: true,
             plain_insertions,
             fragment_offset: 0,
@@ -836,6 +837,7 @@ impl TsgoOverlay {
         if entry
             .generated_ranges
             .iter()
+            .chain(&entry.import_suffix_ranges)
             .any(|range| range.contains(&generated_offset))
         {
             return None;
@@ -892,24 +894,18 @@ impl TsgoOverlay {
         entry
             .generated_ranges
             .iter()
+            .chain(&entry.import_suffix_ranges)
             .any(|range| range.contains(&offset))
     }
 
-    /// Whether a tsgo position is the return-type slot of the generated
-    /// `$$render` header, which upstream drops
-    /// (`InlayHintProvider.ts:60-70`).
+    /// Whether the shadow at `shadow_path` is svelte2tsx output rather than the
+    /// user's own file. An `identity` entry's `function $$render()` would be a
+    /// declaration someone wrote, not the generated header.
     #[must_use]
-    pub fn is_render_return_type_position(&self, shadow_path: &Path, position: Position) -> bool {
-        let Some(source_path) = self.source_for_shadow(shadow_path) else {
-            return false;
-        };
-        let Some(entry) = self.entries.get(source_path) else {
-            return false;
-        };
-        let Some(offset) = entry.render_return_type else {
-            return false;
-        };
-        utf8_offset(&entry.document.text, position) == offset
+    pub fn is_projected_shadow(&self, shadow_path: &Path) -> bool {
+        self.source_for_shadow(shadow_path)
+            .and_then(|source_path| self.entries.get(source_path))
+            .is_some_and(|entry| !entry.identity)
     }
 
     /// The generated shadow's text, for the filters that scan or parse it.
@@ -917,6 +913,24 @@ impl TsgoOverlay {
     pub fn shadow_text(&self, shadow_path: &Path) -> Option<&str> {
         let source_path = self.source_for_shadow(shadow_path)?;
         Some(self.entries.get(source_path)?.document.text.as_str())
+    }
+
+    /// `convertToTargetTextSpan` (`InlayHintProvider.ts:104-113`): the two
+    /// endpoints are mapped independently and an unmappable one becomes offset 0
+    /// (start) or the snapshot's length (end), so the span always exists. An
+    /// editor asks for the visible viewport, which starts at `0:0` — a position
+    /// whose shadow lands in the prologue (#4464).
+    #[must_use]
+    pub fn clamp_source_range(&self, source_path: &Path, range: Range) -> Option<Range> {
+        let path = self.lookup_source_path(source_path);
+        let entry = self.entries.get(&path)?;
+        let start = self
+            .map_source_position(source_path, range.start)
+            .unwrap_or_else(|| Position::new(0, 0));
+        let end = self
+            .map_source_position(source_path, range.end)
+            .unwrap_or_else(|| utf8_position(&entry.document.text, entry.document.text.len()));
+        Some(ordered_range(start, end))
     }
 
     /// A shadow position as a byte offset into that text.
@@ -927,9 +941,25 @@ impl TsgoOverlay {
         Some(utf8_offset(&entry.document.text, position))
     }
 
-    /// Whether any byte of a tsgo range intersects generated-code markers.
+    /// Whether a tsgo range is generated text, which is what decides that it
+    /// maps back to nothing. An `Ωignore` region makes any range it intersects
+    /// generated; the appended `.tsx` does not, because the range around it has
+    /// source of its own — `'./X.svelte.tsx'` is the source specifier.
     #[must_use]
     pub fn is_generated_range(&self, shadow_path: &Path, range: Range) -> bool {
+        self.generated_range_span(shadow_path, range, false)
+    }
+
+    /// Whether a tsgo range *touches* generated text. The question a request
+    /// asks, where `is_generated_range` is the question a response asks: an
+    /// editor range that runs through the appended `.tsx` covers bytes with no
+    /// source, so the request is dropped rather than answered about them.
+    #[must_use]
+    pub fn touches_generated_range(&self, shadow_path: &Path, range: Range) -> bool {
+        self.generated_range_span(shadow_path, range, true)
+    }
+
+    fn generated_range_span(&self, shadow_path: &Path, range: Range, touching: bool) -> bool {
         let Some(source_path) = self.source_for_shadow(shadow_path) else {
             return false;
         };
@@ -938,10 +968,20 @@ impl TsgoOverlay {
         };
         let start = utf8_offset(&entry.document.text, range.start);
         let end = utf8_offset(&entry.document.text, range.end).max(start);
-        entry
+        if entry
             .generated_ranges
             .iter()
             .any(|generated| generated.start < end && start < generated.end)
+        {
+            return true;
+        }
+        entry.import_suffix_ranges.iter().any(|suffix| {
+            if touching {
+                suffix.start < end && start < suffix.end
+            } else {
+                suffix.start <= start && end <= suffix.end
+            }
+        })
     }
 
     /// Resolution integrity for every eager shadow.
@@ -2001,21 +2041,6 @@ pub(crate) fn is_in_generated_code(text: &str, start: usize, end: usize) -> bool
     let last_end = last_index_of(text, IGNORE_END, start);
     let next_end = index_of(text, IGNORE_END, end);
     (last_start > last_end || last_end == next_end) && last_start < next_end
-}
-
-/// Upstream finds this by walking the generated file's top-level statements
-/// for `$$render` and taking its close paren's end; the header is emitted with
-/// a fixed shape on both paths in `create_render_function.rs`, so the same
-/// position is a fixed offset from it.
-fn render_return_type_offset(text: &str) -> Option<usize> {
-    const HEADER: &str = ";function $$render() {";
-    let at = text.find(HEADER)?;
-    // A hoisted props type is user text spliced in above the header, so the
-    // needle is forgeable; decline rather than filter at a user-text offset.
-    if text[at + HEADER.len()..].contains(HEADER) {
-        return None;
-    }
-    Some(at + HEADER.len() - " {".len())
 }
 
 fn ordered_range(start: Position, end: Position) -> Range {
@@ -3108,58 +3133,84 @@ mod tests {
         );
     }
 
-    #[test]
-    fn the_render_return_type_offset_is_the_close_paren_of_the_generated_header() {
-        let workspace = TestWorkspace::new("render-return");
+    /// The oracle is the real emitter's output, not a copy of a constant: a
+    /// wrong answer here compiles, matches nothing, and reads as "no hints to
+    /// filter" rather than as a failure.
+    fn render_return_type_slot(source: &str, name: &str) -> (String, Option<u32>) {
+        let workspace = TestWorkspace::new(name);
         let app = workspace.0.join("App.svelte");
-        write(&app, "<script>let value = 1;</script><p>{value}</p>");
+        write(&app, source);
         let overlay = build_overlay(&workspace.0).unwrap();
-        let shadow = overlay.shadow_for_source(&app).unwrap();
-
-        // The oracle is the real emitter's output, not a copy of the constant:
-        // a typo in HEADER compiles, matches nothing, and reads as "no hints to
-        // filter" rather than as a failure.
-        let offset = render_return_type_offset(&shadow.text)
-            .expect("a projected component carries a $$render header");
-        assert_eq!(&shadow.text[offset - 1..offset], ")");
-        assert!(shadow.text[..offset].ends_with("$$render()"));
-
-        let shadow_path = overlay.shadow_dir.join("App.svelte.tsx");
-        assert!(
-            overlay
-                .is_render_return_type_position(&shadow_path, utf8_position(&shadow.text, offset))
-        );
-        assert!(
-            !overlay.is_render_return_type_position(
-                &shadow_path,
-                utf8_position(&shadow.text, offset - 1)
-            ),
-            "the slot is the close paren's end, not any position near it"
-        );
+        let text = overlay.shadow_for_source(&app).unwrap().text.clone();
+        let slot = match crate::tsgo_inlay_hints::ShadowNodes::parse(&text) {
+            Some(nodes) => nodes.render_return_type(),
+            // The filter answers without a tree too, so the helper must.
+            None => crate::tsgo_inlay_hints::render_return_type_without_a_tree(&text),
+        };
+        (text, slot)
     }
 
     #[test]
-    fn a_forged_render_header_in_user_text_declines_the_filter() {
-        let workspace = TestWorkspace::new("render-return-forged");
-        let app = workspace.0.join("App.svelte");
-        // svelte2tsx hoists a props type annotation verbatim into
-        // `;type $$ComponentProps = …`, above the generated header, so a
-        // string-literal type forges the needle ahead of the real one.
-        write(
-            &app,
-            "<script lang=\"ts\">\n  let { a }: { a: \";function $$render() {\" } = $props();\n</script>\n<p>{a}</p>",
+    fn the_render_return_type_slot_is_the_generated_header_close_paren() {
+        // The second source is #4464's own carrier. An `import` moves the `;`
+        // that precedes the header onto its own line, which is why a literal
+        // needle answered `None` on every component that imports anything.
+        for (name, source) in [
+            (
+                "render-return",
+                "<script>let value = 1;</script><p>{value}</p>",
+            ),
+            (
+                "render-return-import",
+                "<script lang=\"ts\">\n  import Comp from './Comp.svelte';\n  const n = 1;\n</script>\n<Comp a={n} />",
+            ),
+        ] {
+            let (text, slot) = render_return_type_slot(source, name);
+            let offset = slot.expect("a projected component carries a $$render header") as usize;
+            assert!(
+                crate::tsgo_inlay_hints::ShadowNodes::parse(&text).is_some(),
+                "liveness: {name} must exercise the tree, not the fallback"
+            );
+            assert_eq!(&text[offset - 1..offset], ")", "{name}");
+            assert!(text[..offset].ends_with("$$render()"), "{name}");
+        }
+    }
+
+    /// The completion fixtures are deliberately unparseable (`new A().`), and
+    /// oxc recovers nothing from them — `fatal_error`, zero statements — so the
+    /// tree the other filters need does not exist. Upstream keeps filtering
+    /// there because TypeScript's `SourceFile` is best-effort; the fallback is
+    /// what keeps rsvelte from answering one hint official does not.
+    #[test]
+    fn an_unparseable_shadow_still_finds_the_render_return_type_slot() {
+        let source = "<script>class A { b() { return true; } } new A().</script>";
+        let (text, slot) = render_return_type_slot(source, "render-return-unparseable");
+        assert!(
+            crate::tsgo_inlay_hints::ShadowNodes::parse(&text).is_none(),
+            "liveness: this shadow must be the one oxc rejects"
         );
-        let overlay = build_overlay(&workspace.0).unwrap();
-        let shadow = overlay.shadow_for_source(&app).unwrap();
+        let offset = slot.expect("the fallback answers where the tree cannot") as usize;
+        assert_eq!(&text[offset - 1..offset], ")");
+        assert!(text[..offset].ends_with("$$render()"));
+    }
+
+    #[test]
+    fn a_forged_render_header_in_user_text_does_not_move_the_slot() {
+        // svelte2tsx hoists a props type annotation verbatim, so a string
+        // literal can forge the header's text above the real one. The tree
+        // reads it as a string; a text needle read it as a second header.
+        let source = "<script lang=\"ts\">\n  let { a }: { a: \";function $$render() {\" } = $props();\n</script>\n<p>{a}</p>";
+        let (text, slot) = render_return_type_slot(source, "render-return-forged");
         assert_eq!(
-            shadow.text.matches(";function $$render() {").count(),
+            text.matches(";function $$render() {").count(),
             2,
-            "liveness: the oracle must still splice the forged needle above the header"
+            "liveness: the oracle must still splice the forged text above the header"
         );
-        assert_eq!(
-            render_return_type_offset(&shadow.text),
-            None,
-            "an ambiguous needle must decline the filter, not answer with a user-text offset"
+        let offset = slot.expect("the forged text must not suppress the real header") as usize;
+        assert!(text[..offset].ends_with("$$render()"));
+        assert!(
+            offset > text.rfind(";function $$render() {").unwrap(),
+            "the slot must be the real header, not the forged one"
         );
     }
 
@@ -3448,5 +3499,61 @@ mod tests {
 
         let config = overlay_config(&build_overlay(&workspace.0).unwrap());
         assert!(config["compilerOptions"]["paths"].is_null());
+    }
+
+    #[test]
+    fn a_svelte_module_specifier_maps_back_without_the_appended_tsx() {
+        let workspace = TestWorkspace::new("svelte-specifier-hover");
+        let app = workspace.0.join("src/App.svelte");
+        let source =
+            "<script lang=\"ts\">\n\timport Other from './Other.svelte';\n</script>\n\n<Other />\n";
+        write(&app, source);
+        write(&workspace.0.join("src/Other.svelte"), "<p>other</p>\n");
+        let overlay = build_overlay(&workspace.0).unwrap();
+        let shadow = overlay.shadow_for_source(&app).unwrap();
+        let shadow_path = crate::uri::uri_to_path(shadow.shadow_uri.as_str());
+        let index = LineIndex::new(&shadow.text);
+        let literal = "'./Other.svelte.tsx'";
+        let at = shadow.text.find(literal).expect("rewritten specifier");
+        let range = Range::new(
+            index.position(&shadow.text, at),
+            index.position(&shadow.text, at + literal.len()),
+        );
+        assert!(!overlay.is_generated_range(&shadow_path, range));
+
+        let source_index = LineIndex::new(source);
+        let source_literal = "'./Other.svelte'";
+        let source_at = source.find(source_literal).unwrap();
+        assert_eq!(
+            overlay.map_generated_range(&shadow_path, range),
+            Some(Range::new(
+                source_index.position(source, source_at),
+                source_index.position(source, source_at + source_literal.len()),
+            ))
+        );
+
+        // The four bytes themselves stay generated: they have no source at all.
+        let suffix = at + "'./Other.svelte".len();
+        let suffix_range = Range::new(
+            index.position(&shadow.text, suffix),
+            index.position(&shadow.text, suffix + ".tsx".len()),
+        );
+        assert!(overlay.is_generated_range(&shadow_path, suffix_range));
+        assert_eq!(
+            overlay.map_generated_range(&shadow_path, suffix_range),
+            None
+        );
+        assert!(
+            overlay.is_generated_position(&shadow_path, index.position(&shadow.text, suffix + 1))
+        );
+
+        // A request range that merely runs *through* the appended `.tsx` is a
+        // different question from a response range that sits on it, and the
+        // specifier is the case where the two answers differ: the editor's range
+        // covers four bytes with no source, so the request is still dropped
+        // (#4464's `0:0` viewport maps to a range of exactly this shape), while
+        // the response range maps back to the source specifier.
+        assert!(overlay.touches_generated_range(&shadow_path, range));
+        assert!(!overlay.is_generated_range(&shadow_path, range));
     }
 }
