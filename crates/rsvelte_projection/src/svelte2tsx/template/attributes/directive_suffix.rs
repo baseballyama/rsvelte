@@ -140,6 +140,39 @@ pub fn build_element_directive_suffix_segments(
     out
 }
 
+/// The `use:` action declarations that precede an element's `createElement`
+/// call, with the action's own name and its parameter expression kept as
+/// SOURCE ranges — the prefix half of what [`push_directive_statement`] does
+/// for `transition:` / `animate:` (#4693).
+///
+/// The caller relocates these `Seg::Src` ranges, because the generated text
+/// puts them before attributes the source puts first.
+pub fn build_action_prefix_segments(
+    attributes: &[Attribute],
+    source: &str,
+    tag: &str,
+    ns: &str,
+) -> Vec<Seg> {
+    let mut out: Vec<Seg> = Vec::new();
+    let mut actions = 0usize;
+    for attr in attributes {
+        let Attribute::UseDirective(use_dir) = attr else {
+            continue;
+        };
+        let expr = directive_expression(use_dir.expression.as_ref(), source, use_dir.end);
+        push_directive_statement(
+            &mut out,
+            &format!("const $$action_{actions} = __sveltets_2_ensureAction("),
+            &use_dir.name,
+            directive_name_span(source, use_dir.start, &use_dir.name),
+            &format!("({ns}.mapElementTag('{tag}')"),
+            expr,
+        );
+        actions += 1;
+    }
+    out
+}
+
 /// Build the directive prefix (action declarations) and suffix
 /// (transition / animate calls) that wrap `svelteHTML.createElement(...)`
 /// for an HTML element. Mirrors the JS reference's
