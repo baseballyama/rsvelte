@@ -1964,27 +1964,45 @@ fn test_find_matching_paren() {
 // through the full compile pipeline.
 
 #[test]
-fn test_is_complete_side_effect_import() {
-    // Side-effect imports without `from`/`;` are complete on a single line.
-    assert!(is_complete_side_effect_import("import \"./Inner.svelte\""));
-    assert!(is_complete_side_effect_import("import './foo.js'"));
-    assert!(is_complete_side_effect_import(
-        "import  \"./Inner.svelte\"   "
+fn test_starts_import_declaration() {
+    for declaration in [
+        "import \"./Inner.svelte\"",
+        "import\"pkg\";",
+        "import'pkg';",
+        "import\t\"pkg\";",
+        "import/**/\"pkg\";",
+        "import{ x }from\"foo\"",
+        "import*as ns from\"foo\"",
+        "import x from 'foo'",
+    ] {
+        assert!(
+            starts_import_declaration(declaration, ""),
+            "{declaration:?}"
+        );
+    }
+    assert!(starts_import_declaration("import", "\"pkg\";\n"));
+    assert!(starts_import_declaration(
+        "import /* a",
+        " b */ x from 'm';\n"
     ));
-    // Escaped quote inside string literal.
-    assert!(is_complete_side_effect_import("import \"./a\\\".svelte\""));
 
-    // Non-side-effect imports must NOT be detected here.
-    assert!(!is_complete_side_effect_import("import x from 'foo'"));
-    assert!(!is_complete_side_effect_import("import { x } from 'foo'"));
-    assert!(!is_complete_side_effect_import("import {"));
-    assert!(!is_complete_side_effect_import("import * as ns from 'foo'"));
-
-    // Anything trailing the closing quote also fails.
-    assert!(!is_complete_side_effect_import("import \"./foo\" extra"));
-
-    // Unclosed string literal is not complete.
-    assert!(!is_complete_side_effect_import("import \"./foo"));
+    for expression in [
+        "import(\"pkg\")",
+        "import (\"pkg\")",
+        "import.meta.url",
+        "import: \"default\", eager: true });",
+        "import = 1",
+        "imports.push(1)",
+        "import$ = 1",
+        "import",
+    ] {
+        assert!(!starts_import_declaration(expression, ""), "{expression:?}");
+    }
+    assert!(!starts_import_declaration("import", "(\"pkg\");\n"));
+    assert!(!starts_import_declaration(
+        "import /* a",
+        " b */ (\"pkg\");\n"
+    ));
 }
 
 #[test]
@@ -2087,6 +2105,12 @@ fn projected_import_extraction_preserves_legacy_output() {
         "import d from './d.json'\r\n\twith { type: 'json' };\r\nlet z = d;\r\n",
         "import d from './d.json' with {\n\ttype: 'json'\n};\nlet z = d;\n",
         "import d from './d.json'\nlet z = d\n",
+        // No separator after the keyword, which is how a minifier prints it.
+        "import\"pkg\";\nlet z = 1;\n",
+        "import\"a\";import{ b }from\"m\";let z = b;\n",
+        "import*as ns from\"m\"\nlet z = ns\n",
+        "import\n\"pkg\";\nlet z = 1;\n",
+        "import /* a\n b */ x from 'm';\nlet z = x;\n",
         // A comment inside an import's own span is left in the body rather than
         // hoisted; without these rows the two ports agree vacuously about it.
         "import {\n  a,\n  /* c */\n  b,\n} from 'm';\nlet z = a + b;\n",
