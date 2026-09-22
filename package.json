@@ -205,7 +205,7 @@
 		"prettier": "^3.9.4",
 		"prettier-plugin-svelte": "^4.1.0",
 		"sass": "1.104.1",
-		"svelte": "5.57.0",
+		"svelte": "5.57.1",
 		"svelte-preprocess-markdown": "^2.7.3"
 	},
 	"packageManager": "pnpm@12.4.2"
