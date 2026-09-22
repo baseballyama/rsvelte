@@ -8,7 +8,6 @@ use std::sync::Arc;
 
 use lsp_types::{Position, Range, Uri};
 use rsvelte_core::Allocator;
-use rsvelte_core::ast::template::Root;
 use serde_json::{Map, Value};
 
 use crate::context::{EmbeddedRegions, ScriptBodies, attribute_context, script_bodies};
@@ -16,7 +15,6 @@ use crate::nodes::{offset_is_in_attribute, parse_root};
 use crate::text::LineIndex;
 use crate::tsgo_inlay_hints::{HintKind, ShadowNodes, render_return_type_without_a_tree};
 use crate::tsgo_overlay::{TsgoOverlay, is_in_generated_code};
-use crate::tsgo_symbols::SymbolDocument;
 use crate::uri::uri_to_path;
 
 /// The Svelte document associated with a request.
@@ -916,61 +914,20 @@ pub fn rewrite_document_symbols(result: &mut Value, source: &str) {
     let Some(symbols) = result.as_array_mut() else {
         return;
     };
-    let mut pass = DocumentSymbolPass {
-        source,
-        index: LineIndex::new(source),
-        scripts: EmbeddedRegions::new(source),
-        allocator: Allocator::default(),
-        template: None,
-        functions: None,
-    };
-    pass.rewrite(symbols);
-}
-
-/// What the passes read about the source, parsed at most once per request.
-struct DocumentSymbolPass<'a> {
-    source: &'a str,
-    index: LineIndex,
-    scripts: EmbeddedRegions,
-    allocator: Allocator,
-    template: Option<Option<Root<'a>>>,
-    functions: Option<SymbolDocument<'a>>,
-}
-
-impl<'a> DocumentSymbolPass<'a> {
-    /// A `DocumentSymbol` carries its own `range` and nests, where a
-    /// `SymbolInformation` carries `location.range` and is flat; the editor's
-    /// `hierarchicalDocumentSymbolSupport` decides which tsgo answers with. A
-    /// dropped nested symbol leaves its children in its place, since every one
-    /// of them would otherwise go with it.
-    fn rewrite(&mut self, symbols: &mut Vec<Value>) {
-        let mut kept = Vec::with_capacity(symbols.len());
-        for mut symbol in std::mem::take(symbols) {
-            if let Some(children) = symbol.get_mut("children").and_then(Value::as_array_mut) {
-                self.rewrite(children);
-            }
-            if self.keep(&mut symbol) {
-                kept.push(symbol);
-            } else if let Some(Value::Array(children)) = symbol.get_mut("children").map(Value::take)
-            {
-                kept.extend(children);
-            }
-        }
-        *symbols = kept;
-    }
-
-    fn keep(&mut self, symbol: &mut Value) -> bool {
+    let index = LineIndex::new(source);
+    let scripts = EmbeddedRegions::new(source);
+    let allocator = Allocator::default();
+    let mut template = None;
+    symbols.retain_mut(|symbol| {
         let Some(object) = symbol.as_object_mut() else {
             return true;
         };
-        let nested = !object.contains_key("location");
-        if !nested && !object.contains_key("containerName") {
+        if !object.contains_key("containerName") {
             object.insert("containerName".to_string(), Value::String("script".into()));
         }
         let Some(range) = object
             .get("location")
             .and_then(|location| location.get("range"))
-            .or_else(|| object.get("range"))
             .and_then(parse_range)
         else {
             return true;
@@ -985,18 +942,14 @@ impl<'a> DocumentSymbolPass<'a> {
             return false;
         }
         let kind = object.get("kind").and_then(Value::as_u64);
-        let start = self.index.offset(self.source, range.start);
-        if matches!(kind, Some(PROPERTY_KIND | METHOD_KIND)) && !self.scripts.in_script(start) {
+        let start = index.offset(source, range.start);
+        if matches!(kind, Some(PROPERTY_KIND | METHOD_KIND)) && !scripts.in_script(start) {
             // A generated component constructor's `props`, whose original
             // position is the component tag rather than the word.
-            if name == "props" && self.source.as_bytes().get(start) != Some(&b'p') {
+            if name == "props" && source.as_bytes().get(start) != Some(&b'p') {
                 return false;
             }
-            let source = self.source;
-            let allocator = &self.allocator;
-            let root = self
-                .template
-                .get_or_insert_with(|| parse_root(source, allocator));
+            let root = template.get_or_insert_with(|| parse_root(source, &allocator));
             if root
                 .as_ref()
                 .is_some_and(|root| offset_is_in_attribute(root, start as u32))
@@ -1005,17 +958,7 @@ impl<'a> DocumentSymbolPass<'a> {
             }
         }
         let mut renamed = if name == "<function>" {
-            let source = self.source;
-            let document = self
-                .functions
-                .get_or_insert_with(|| SymbolDocument::new(source));
-            // The generated template callback and the functions svelte2tsx
-            // makes for snippets cover arbitrary template text, so upstream
-            // keeps only a `<function>` the user wrote.
-            match document.function_name(range) {
-                Some(named) => Some(named),
-                None => return false,
-            }
+            Some(anonymous_function_name(source, &index, range))
         } else {
             None
         };
@@ -1028,16 +971,38 @@ impl<'a> DocumentSymbolPass<'a> {
             renamed = Some(name[handler..].to_string());
         }
         if let Some(renamed) = renamed {
-            symbol["name"] = Value::String(renamed);
+            object.insert("name".to_string(), Value::String(renamed));
         }
         true
-    }
+    });
 }
 
 /// `SymbolKind.Property` and `SymbolKind.Method`, the two kinds whose symbols
 /// upstream re-reads against the template.
 const PROPERTY_KIND: u64 = 7;
 const METHOD_KIND: u64 = 6;
+
+/// Upstream names an anonymous function after the source it spans, cut to 50
+/// UTF-16 units. A surrogate pair straddling the cut is kept whole, because
+/// `String.prototype.substring`'s half of one is not a Rust `str`.
+fn anonymous_function_name(source: &str, index: &LineIndex, range: Range) -> String {
+    let start = index.offset(source, range.start);
+    let end = index.offset(source, range.end);
+    let text = source.get(start..end).unwrap_or_default().trim_start();
+    let mut units = 0;
+    let mut cut = text.len();
+    for (offset, character) in text.char_indices() {
+        if units >= 50 {
+            cut = offset;
+            break;
+        }
+        units += character.len_utf16();
+    }
+    if cut == text.len() {
+        return text.to_string();
+    }
+    format!("{}...", &text[..cut])
+}
 
 pub fn normalize_definition_result(result: &mut Value) {
     if result.is_null() {

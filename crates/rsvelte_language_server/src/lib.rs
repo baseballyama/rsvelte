@@ -47,7 +47,6 @@ pub mod tsgo_inlay_hints;
 pub mod tsgo_overlay;
 pub mod tsgo_rename;
 pub mod tsgo_response;
-pub mod tsgo_symbols;
 pub mod uri;
 pub mod worker;
 
