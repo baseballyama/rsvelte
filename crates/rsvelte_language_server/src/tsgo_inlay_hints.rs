@@ -209,6 +209,26 @@ impl<'a> Visit<'a> for ShadowNodes {
     }
 }
 
+/// [`ShadowNodes::render_return_type`] for a shadow oxc rejects, where the
+/// other filters decline for want of a tree but this one still has an answer:
+/// TypeScript's `SourceFile` is best-effort, so upstream never loses it, and a
+/// completion fixture like `new A().` is exactly the input that reaches here.
+///
+/// The needle is the emitted header itself. It used to carry the `;` that
+/// precedes it, which an `import` moves onto its own line — so it matched only
+/// components that import nothing, and that was the defect (#4464). Two
+/// occurrences means a hoisted props type forged one, and an ambiguous answer
+/// declines rather than filtering at a user-text offset.
+#[must_use]
+pub fn render_return_type_without_a_tree(text: &str) -> Option<u32> {
+    const HEADER: &str = "function $$render() {";
+    let at = text.find(HEADER)?;
+    if text[at + HEADER.len()..].contains(HEADER) {
+        return None;
+    }
+    u32::try_from(at + HEADER.len() - " {".len()).ok()
+}
+
 /// `ts.InlayHintKind`. tsgo sends the LSP numbering, where 1 is Type and 2 is
 /// Parameter (`InlayHintKind` in the LSP spec).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -299,19 +319,12 @@ impl ShadowNodes {
                 .is_some_and(|name| name.starts_with("$$"))
     }
 
-    /// `inlayHint.position !== renderFunctionReturnTypeLocation`
-    /// (`InlayHintProvider.ts:60-70`): the return-type slot of the generated
-    /// `$$render` header, which is `getTypeAnnotationPosition`'s close-paren end
-    /// (`:308-321`). Unlike the other filters this one reads no `kind`.
-    ///
-    /// Derived from the tree rather than from a text needle: the header's
-    /// neighbours are not fixed — an `import` between the reference directive
-    /// and the header moves the preceding `;` onto its own line — so a literal
-    /// matches one emitted shape and silently answers "nothing to filter" on
-    /// the rest (#4464).
+    /// `renderFunctionReturnTypeLocation` (`InlayHintProvider.ts:60-70`): the
+    /// return-type slot of the generated `$$render` header, which is
+    /// `getTypeAnnotationPosition`'s close-paren end (`:308-321`).
     #[must_use]
-    pub fn is_render_return_type(&self, offset: u32) -> bool {
-        self.render_return_type == Some(offset)
+    pub const fn render_return_type(&self) -> Option<u32> {
+        self.render_return_type
     }
 
     /// `isGeneratedAsyncFunctionReturnType` (`:259-280`): an `async` arrow whose

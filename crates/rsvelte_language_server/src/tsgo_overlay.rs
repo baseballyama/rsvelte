@@ -3142,10 +3142,11 @@ mod tests {
         write(&app, source);
         let overlay = build_overlay(&workspace.0).unwrap();
         let text = overlay.shadow_for_source(&app).unwrap().text.clone();
-        let nodes = crate::tsgo_inlay_hints::ShadowNodes::parse(&text)
-            .expect("the generated shadow parses");
-        let slot = (0..=u32::try_from(text.len()).unwrap())
-            .find(|offset| nodes.is_render_return_type(*offset));
+        let slot = match crate::tsgo_inlay_hints::ShadowNodes::parse(&text) {
+            Some(nodes) => nodes.render_return_type(),
+            // The filter answers without a tree too, so the helper must.
+            None => crate::tsgo_inlay_hints::render_return_type_without_a_tree(&text),
+        };
         (text, slot)
     }
 
@@ -3166,9 +3167,31 @@ mod tests {
         ] {
             let (text, slot) = render_return_type_slot(source, name);
             let offset = slot.expect("a projected component carries a $$render header") as usize;
+            assert!(
+                crate::tsgo_inlay_hints::ShadowNodes::parse(&text).is_some(),
+                "liveness: {name} must exercise the tree, not the fallback"
+            );
             assert_eq!(&text[offset - 1..offset], ")", "{name}");
             assert!(text[..offset].ends_with("$$render()"), "{name}");
         }
+    }
+
+    /// The completion fixtures are deliberately unparseable (`new A().`), and
+    /// oxc recovers nothing from them — `fatal_error`, zero statements — so the
+    /// tree the other filters need does not exist. Upstream keeps filtering
+    /// there because TypeScript's `SourceFile` is best-effort; the fallback is
+    /// what keeps rsvelte from answering one hint official does not.
+    #[test]
+    fn an_unparseable_shadow_still_finds_the_render_return_type_slot() {
+        let source = "<script>class A { b() { return true; } } new A().</script>";
+        let (text, slot) = render_return_type_slot(source, "render-return-unparseable");
+        assert!(
+            crate::tsgo_inlay_hints::ShadowNodes::parse(&text).is_none(),
+            "liveness: this shadow must be the one oxc rejects"
+        );
+        let offset = slot.expect("the fallback answers where the tree cannot") as usize;
+        assert_eq!(&text[offset - 1..offset], ")");
+        assert!(text[..offset].ends_with("$$render()"));
     }
 
     #[test]
