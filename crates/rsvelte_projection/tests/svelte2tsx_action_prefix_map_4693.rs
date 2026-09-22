@@ -105,3 +105,47 @@ fn an_action_before_the_other_attributes_keeps_both_sides() {
         }
     }
 }
+
+/// An element that starts the FILE. `MagicString::move_range` answers index 0
+/// differently — it links before the current first chunk rather than before the
+/// chunk that starts there — so a second relocation would land ahead of the
+/// first, and both ahead of whatever the document prologue attached at 0. The
+/// prefix is baked there instead, and what this pins is the TEXT: the corpus
+/// caught 19 unparseable outputs of this shape that 256 fixtures did not.
+///
+/// The expected order is read off the official tool for the same input.
+#[test]
+fn an_element_that_starts_the_file_still_emits_its_actions_in_order() {
+    let (code, _) = project("<div use:a use:b></div>\n");
+    let first = code
+        .find("const $$action_0 = __sveltets_2_ensureAction(a(")
+        .expect("first action");
+    let second = code
+        .find("const $$action_1 = __sveltets_2_ensureAction(b(")
+        .expect("second action");
+    let element = code
+        .find("svelteHTML.createElement(\"div\", __sveltets_2_union($$action_0,$$action_1)")
+        .expect("createElement");
+    assert!(first < second && second < element, "{code}");
+}
+
+/// The same shape one byte later — a leading newline is enough to put the
+/// element past offset 0, which is where the relocation applies.
+#[test]
+fn an_element_one_byte_in_relocates_and_keeps_the_order() {
+    const SOURCE: &str = "\n<div use:a use:b></div>\n";
+    let (code, mapped) = project(SOURCE);
+    let text = SOURCE.lines().nth(1).expect("template line");
+    for run in ["a", "b"] {
+        let column =
+            u32::try_from(text.find(&format!("use:{run}")).expect("run") + 4).expect("column fits");
+        assert!(mapped.contains(&(1, column)), "{run}: 1:{column}\n{code}");
+    }
+    let first = code
+        .find("const $$action_0 = __sveltets_2_ensureAction(a(")
+        .expect("first action");
+    let second = code
+        .find("const $$action_1 = __sveltets_2_ensureAction(b(")
+        .expect("second action");
+    assert!(first < second, "{code}");
+}

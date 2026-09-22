@@ -247,7 +247,13 @@ pub(super) fn emit_opener_with_hoisted_prefix(
             _ => false,
         })
     };
+    // `range_start == 0` is the one target `MagicString::move_range` answers
+    // differently: it links before the CURRENT first chunk rather than before
+    // the chunk that starts there, so a second move lands ahead of the first
+    // and both land ahead of whatever the document prologue attached at 0.
+    // Script hoisting relies on that behaviour, so the guard is here.
     let relocatable = !hoists.is_empty()
+        && range_start > 0
         && hoists.windows(2).all(|pair| pair[0].1 <= pair[1].0)
         && hoists
             .iter()
