@@ -1336,16 +1336,10 @@ impl<'a> JsCodegen<'a> {
                     self.output.push(']');
                 }
 
-                // Auto-detect method shorthand: Init property with a non-arrow
-                // FunctionExpression value is emitted as `name(params) { body }`,
-                // mirroring esrap/astring. This applies for both explicit and
-                // implicit method shorthand.
-                let auto_method = !prop.computed
-                    && matches!(prop.kind, JsPropertyKind::Init)
-                    && matches!(self.arena.get_expr(prop.value), JsExpr::Function(_));
-
-                // Method shorthand: name(params) { body }
-                if prop.method || auto_method {
+                // Method shorthand: name(params) { body }. esrap prints the
+                // concise form only when the property says so — it stopped
+                // inferring it from a function value in 2.3.x.
+                if prop.method {
                     if let JsExpr::Function(func) = self.arena.get_expr(prop.value) {
                         self.output.push('(');
                         self.emit_params(&func.params);

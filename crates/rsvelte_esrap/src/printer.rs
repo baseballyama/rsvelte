@@ -4589,10 +4589,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             return;
         }
         // Method / accessor shorthand: `key() {}`, `get key() {}`, `*key() {}`.
-        // esrap takes this branch for ANY property whose value is a
-        // FunctionExpression (regardless of the `method` flag or key kind), so a
-        // string-keyed function property prints as `"k"() {}`, not `"k": function`.
-        if let Expression::FunctionExpression(f) = &prop.value {
+        // esrap 2.3.x takes this branch only when the property itself carries the
+        // concise form (`method`, or a `get`/`set` kind); it no longer infers it
+        // from a function value, so `{ k: function () {} }` stays spelled that way.
+        if let Expression::FunctionExpression(f) = &prop.value
+            && (prop.method || prop.kind != PropertyKind::Init)
+        {
             match prop.kind {
                 PropertyKind::Get => ctx.write_ascii_bytes(b"get "),
                 PropertyKind::Set => ctx.write_ascii_bytes(b"set "),
