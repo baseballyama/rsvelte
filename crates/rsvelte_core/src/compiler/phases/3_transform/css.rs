@@ -620,14 +620,9 @@ fn generate_css_sourcemap(
     let css_output_filename = options.css_output_filename.as_deref();
     let filename = options.filename.as_deref();
 
-    // Compute source name relative to output
-    let source_name = if let (Some(css_out), Some(input)) = (css_output_filename, filename) {
-        get_source_name(Some(input), Some(css_out), "input.svelte")
-    } else if let Some(input) = filename {
-        get_source_name(Some(input), None, "input.svelte")
-    } else {
-        "input.svelte".to_string()
-    };
+    // `source: options.filename` (`css/index.js`), which is `(unknown)` when the
+    // caller named nothing — `validate_options` substitutes before this reads it.
+    let source_name = get_source_name(options.filename_or_unknown(), css_output_filename);
 
     // `file: options.cssOutputFilename || options.filename` (`css/index.js`),
     // which MagicString reduces to its basename.

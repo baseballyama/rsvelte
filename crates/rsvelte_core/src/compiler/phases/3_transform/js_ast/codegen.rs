@@ -2951,15 +2951,15 @@ fn vlq_encode(out: &mut Vec<u8>, value: i64) {
 
 /// Compute the source name (relative path from output to input), matching
 /// the official Svelte compiler's `get_source_name` behavior.
-pub fn get_source_name(
-    filename: Option<&str>,
-    output_filename: Option<&str>,
-    default_name: &str,
-) -> String {
-    let source = filename.unwrap_or(default_name);
+///
+/// Upstream takes a third `fallback` argument and never reads it, because
+/// `validate_options` has already replaced an absent `filename` with
+/// `(unknown)`. This takes the substituted name instead, so no caller can
+/// reintroduce the dead default (#4704).
+pub fn get_source_name(filename: &str, output_filename: Option<&str>) -> String {
     match output_filename {
-        Some(output) => get_relative_path(output, source),
-        None => get_basename(source).to_string(),
+        Some(output) => get_relative_path(output, filename),
+        None => get_basename(filename).to_string(),
     }
 }
 
