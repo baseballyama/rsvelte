@@ -5,6 +5,7 @@
 const { decodeEnvelope, decodeBatch } = require('./envelope.js');
 const { decodeParseEnvelope } = require('./parse-envelope.js');
 const { resolveTriple } = require('./platform.cjs');
+const { attachResultSourceMapMethods } = require('./lib/source-map.js');
 
 const { platform, arch } = process;
 
@@ -93,7 +94,9 @@ function compile(source, options) {
 	}
 	const { options: resolved, warningFilter } = prepareCompileOptions(options);
 	if (resolved?.modernAst) {
-		return applyWarningFilter(binding.compile(source, resolved), warningFilter);
+		return attachResultSourceMapMethods(
+			applyWarningFilter(binding.compile(source, resolved), warningFilter),
+		);
 	}
 	return applyWarningFilter(
 		decodeEnvelope(binding.compileEnvelopeExternalSources(source, resolved), source),
@@ -134,7 +137,9 @@ function compileBatch(inputs) {
 	});
 	if (prepared.some((input) => input.options?.modernAst)) {
 		return prepared.map((input, i) =>
-			applyWarningFilter(binding.compile(input.source, input.options), filters[i]),
+			attachResultSourceMapMethods(
+				applyWarningFilter(binding.compile(input.source, input.options), filters[i]),
+			),
 		);
 	}
 	const sourceContents = prepared.map((input) => input.source);
@@ -160,10 +165,12 @@ async function compileAsync(source, options) {
 		// The callback is handed straight through: Rust calls it with upstream's
 		// own `{ hash, css, name, filename }` object and reads the string back.
 		const result = await binding.compileWithCssHash(source, resolved, options.cssHash);
-		return applyWarningFilter(result, warningFilter);
+		return attachResultSourceMapMethods(applyWarningFilter(result, warningFilter));
 	}
 	if (resolved?.modernAst) {
-		return applyWarningFilter(binding.compile(source, resolved), warningFilter);
+		return attachResultSourceMapMethods(
+			applyWarningFilter(binding.compile(source, resolved), warningFilter),
+		);
 	}
 	return applyWarningFilter(
 		decodeEnvelope(
@@ -184,7 +191,9 @@ async function compileBatchAsync(inputs) {
 	});
 	if (prepared.some((input) => input.options?.modernAst)) {
 		return prepared.map((input, i) =>
-			applyWarningFilter(binding.compile(input.source, input.options), filters[i]),
+			attachResultSourceMapMethods(
+				applyWarningFilter(binding.compile(input.source, input.options), filters[i]),
+			),
 		);
 	}
 	const sourceContents = prepared.map((input) => input.source);

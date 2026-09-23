@@ -145,6 +145,43 @@ if (withWarn) {
 	assertEq('warning code', withWarn.warnings[0].code, 'a11y_x');
 }
 
+// `svelte/compiler` returns `js.map` as a magic-string `SourceMap`, so callers
+// inline a map with `map.toUrl()` — `vite-plugin-svelte`'s dep optimizer does
+// exactly that and crashed on the plain object the envelope used to decode to
+// (#4695). Both methods must stay non-enumerable so the map still serializes
+// as a plain Source Map v3 document.
+console.log('\ndecoded sourcemaps carry magic-string\'s methods:');
+const mapJson = '{"version":3,"sources":["T.svelte"],"names":[],"mappings":"AAAA"}';
+const mapped = expectNoThrow('envelope with a js.map decodes', () =>
+	decodeEnvelope(buildEnvelope({ jsCode: 'let x = 1;', jsMap: mapJson })),
+);
+if (mapped) {
+	const map = mapped.js.map;
+	assertEq('js.map.toUrl is a function', typeof map.toUrl, 'function');
+	assertEq('js.map.toString() is the map JSON', map.toString(), JSON.stringify(map));
+	// Calling a missing `toUrl` would abort this file and take every later
+	// assertion's denominator with it, so the url checks are guarded.
+	const url = typeof map.toUrl === 'function' ? map.toUrl() : null;
+	assertEq(
+		'js.map.toUrl() is a base64 data URI',
+		url !== null && url.startsWith('data:application/json;charset=utf-8;base64,'),
+		true,
+	);
+	assertEq(
+		'js.map.toUrl() round-trips the mappings',
+		url === null
+			? null
+			: JSON.parse(Buffer.from(url.split('base64,')[1], 'base64').toString()).mappings,
+		'AAAA',
+	);
+	assertEq(
+		'the methods are non-enumerable',
+		Object.keys(map).join(','),
+		'version,sources,names,mappings',
+	);
+	assertEq('JSON.stringify is unchanged', JSON.stringify(map), mapJson);
+}
+
 console.log('\nmalformed envelopes throw:');
 // jsCodeLen far beyond the buffer (offset 20).
 expectThrow(

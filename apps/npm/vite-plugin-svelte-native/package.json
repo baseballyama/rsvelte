@@ -26,6 +26,7 @@
     "parse-envelope.js",
     "platform.cjs",
     "lib/bounds-check.js",
+    "lib/source-map.js",
     "index.cjs",
     "index.d.ts"
   ],
