@@ -504,8 +504,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
         // Generate JS source map if we have mappings
         if !js_mappings.is_empty() {
             let output_filename = options.output_filename.as_deref();
-            let filename = options.filename.as_deref();
-            let source_name = get_source_name(filename, output_filename, "input.svelte");
+            let source_name = get_source_name(options.filename_or_unknown(), output_filename);
 
             // Upstream's JS map comes out of esrap's `print()`, which sets no
             // `file` key; only the CSS map names its output file.
@@ -587,11 +586,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                                 } else {
                                     pp_src.clone()
                                 };
-                                multi_sources.push(get_source_name(
-                                    Some(&source_path),
-                                    output_filename,
-                                    pp_src,
-                                ));
+                                multi_sources.push(get_source_name(&source_path, output_filename));
                             }
                         } else {
                             multi_sources.push(pp_src.clone());
@@ -659,7 +654,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
             let output_filename = options.output_filename.as_deref();
             let filename = options.filename.as_deref();
             if output_filename.is_some() || filename.is_some() {
-                let source_name = get_source_name(filename, output_filename, "input.svelte");
+                let source_name = get_source_name(options.filename_or_unknown(), output_filename);
                 let file_name: Option<&str> = None;
 
                 // Generate line-level identity mappings (each generated line maps to line 0, col 0)
@@ -776,13 +771,7 @@ pub(crate) fn remap_css_sourcemap(
     let source_name = options
         .css_output_filename
         .as_ref()
-        .map(|css_out| {
-            get_source_name(
-                options.filename.as_deref(),
-                Some(css_out.as_str()),
-                "input.svelte",
-            )
-        })
+        .map(|css_out| get_source_name(options.filename_or_unknown(), Some(css_out.as_str())))
         .unwrap_or_else(|| {
             css_map
                 .field("sources")
