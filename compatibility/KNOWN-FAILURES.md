@@ -6631,7 +6631,7 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
 ## Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **116 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **100 entries**.
 
 ### The question it asks
 
@@ -6747,27 +6747,27 @@ ratchet at all. So `loose:unclosed-element::RegularElement#span` is an ordinary 
 defect. Reading the issue and the gate as sharing a vocabulary would have attributed an rsvelte
 defect upstream.
 
-Partition of `parse-ast-known-failures.json` by cluster: `37 + 29 + 16 + 10 + 8 + 5 + 4 + 4 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `35 + 21 + 14 + 8 + 7 + 5 + 4 + 4 + 1 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
-| `span` | 37 | 20 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
+| `span` | 35 | 19 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
 | `node-type` | 8 | 4 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
 | `estree-fields` | 4 | 2 | ESTree fields rsvelte's serializer omits or adds. The nine TypeScript type fields are gone (#4335), so is `Identifier.typeAnnotation` (#4133 — OXC keeps a catch parameter's and a declarator's annotation beside the pattern, not on it) and so is `TSParameterProperty.{accessibility,readonly}` (#4133). Both remaining bases are `CallExpression.optional`. `#value` is the type-argument call, where acorn-typescript writes `optional` only when the subscript chain was already optional. `#extra` **came back** with the `Decorator.expression` fix: `parseDecorator` builds the decorator's own spine with a bare `while (eat('.'))` loop and one `parseMaybeDecoratorArguments` wrap, neither of which sets `optional`, while the arguments go through the ordinary parser and keep it — so `@dec({a:1})` and `@a.b.c` have no `optional` on the spine and `@dec(a?.b())` has it on everything inside the argument. Suppressing it here needs to tell `@a.b` from `@(a.b)`, and OXC elides the parentheses, so the distinction is not in the AST rsvelte reads. The lint gates found some of these from the other side. |
-| `unclustered` | 16 | 9 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. `ClassDeclaration.implements` left in #4133: acorn-typescript gives the clause the same `TSExpressionWithTypeArguments` array it gives an interface `extends`, and rsvelte's typed class node carried a bool. `ExpressionStatement.directive` left in #4133: OXC lifts a `<script>`'s directive prologue out of `Program::body` into `Program::directives`, ESTree keeps it in `body`, and the script-program converter read only `body`. `ImportExpression.options` left in #4133 for the second time: the field was fixed on the script path and the **template** path was a second port of the same conversion, which wrote `options: []` and `ts: false` unconditionally — the arena's TS flag was only ever set while converting a program, so a template expression could not see it. |
-| `comment-attachment` | 29 | 15 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. #4133 retired seven bases at once: a TS annotation, its type arguments, its type parameters and a return type are serialized from an opaque `Value`, so their nested nodes carried no comment at all until the declarations' materialization was routed through every one of them. `modern::Property.trailingComments#missing` is the one base here that is modern-only, and it appeared when the `customElement` fix retired `Root.options.customElement.shadow_object#extra`: the carrier's `shadow` object literal carries a trailing comment on a property, which the whole-field key could not tell from the field's absence. |
+| `unclustered` | 14 | 8 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. `ClassDeclaration.implements` left in #4133: acorn-typescript gives the clause the same `TSExpressionWithTypeArguments` array it gives an interface `extends`, and rsvelte's typed class node carried a bool. `ExpressionStatement.directive` left in #4133: OXC lifts a `<script>`'s directive prologue out of `Program::body` into `Program::directives`, ESTree keeps it in `body`, and the script-program converter read only `body`. `ImportExpression.options` left in #4133 for the second time: the field was fixed on the script path and the **template** path was a second port of the same conversion, which wrote `options: []` and `ts: false` unconditionally — the arena's TS flag was only ever set while converting a program, so a template expression could not see it. |
+| `comment-attachment` | 21 | 11 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. #4133 retired seven bases at once: a TS annotation, its type arguments, its type parameters and a return type are serialized from an opaque `Value`, so their nested nodes carried no comment at all until the declarations' materialization was routed through every one of them. `modern::Property.trailingComments#missing` is the one base here that is modern-only, and it appeared when the `customElement` fix retired `Root.options.customElement.shadow_object#extra`: the carrier's `shadow` object literal carries a trailing comment on a property, which the whole-field key could not tell from the field's absence. |
 | `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
-| `css-shape` | 10 | 6 | the CSS text rsvelte re-serializes onto a node (`Atrule.prelude`, `Declaration.value`) and the style-sheet comment fields — the legacy selector conversion left the row in #4592 — **plus every key whose node type is spelled `Block`** — the cluster regex matches the CSS `Block` node and ESTree's block-comment type alike, so `Block#span` and `Block#node-missing` are filed here and are comments. The row is a key-shape partition, not a subject one. `Style.content.comment` / `StyleSheet.content.comment` left in #4133: `element.js:361` stores the preceding HTML comment **node**, so the field carries `type`/`start`/`end` beside `data`, and rsvelte stored the string. |
+| `css-shape` | 7 | 5 | the CSS text rsvelte re-serializes onto a node (`Atrule.prelude`, `Declaration.value`) and the style-sheet comment fields — the legacy selector conversion left the row in #4592. It used to also hold **every key whose node type is spelled `Block`** — the cluster regex matches the CSS `Block` node and ESTree's block-comment type alike, so `Block#span` and `Block#node-missing` were filed here and were comments; they left with the Svelte 5.57.1 bump (below). The row is a key-shape partition, not a subject one. `Style.content.comment` / `StyleSheet.content.comment` left in #4133: `element.js:361` stores the preceding HTML comment **node**, so the field carries `type`/`start`/`end` beside `data`, and rsvelte stored the string. |
 | `child-count` | 5 | 4 | an array of children with a different length. |
 | `loc-presence` | 4 | 2 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". `Decorator.loc` left in #4133. |
-| `ast-mode` | 2 | 2 | #3385 — the remaining legacy-root shape differences. |
+| `ast-mode` | 1 | 1 | #3385 — the remaining legacy-root shape differences. |
 
 **Read the `keys` column as `bases x axis`, not as work.** A key is
 `<axis>::<NodeType>.<field>#<kind>` and most node types diverge identically under `modern` and
-`legacy`, so 116 keys are **65 distinct bases**: 51 appear on both axes and 14 on one
-(51x2 + 14 = 116, a 1.78x collapse), and 65 is therefore the defect ceiling. The per-cluster
+`legacy`, so 100 keys are **57 distinct bases**: 43 appear on both axes and 14 on one
+(43x2 + 14 = 100, a 1.75x collapse), and 57 is therefore the defect ceiling. The per-cluster
 collapse is not uniform — `estree-fields`, `loc-presence` and `node-type` are 2.00x (every base is
-on both axes), `comment-attachment` 1.93x, `span` 1.85x, `unclustered` 1.78x, `css-shape` 1.67x,
+on both axes), `comment-attachment` 1.91x, `span` 1.84x, `unclustered` 1.75x, `css-shape` 1.40x,
 `child-count` 1.25x (legacy-only shapes), `ast-mode` and
 `accepts-what-official-rejects` 1.00x by construction.
 
@@ -6780,17 +6780,29 @@ have produced the right ones; the gated declaration and the gated partition line
 correct throughout, which is exactly the split this repository records between a checked half and
 an unchecked half on the same page.
 
-**No base's two axes sit in different clusters** (0 of the 51 bases that appear on both axes), so a
+**No base's two axes sit in different clusters** (0 of the 43 bases that appear on both axes), so a
 cluster can be worked end to end
 without a key from it turning up under someone else's row. Measured directly from the JSON, which
 is authoritative for the partition: the ten rows above are its `Counter(values())`.
+
+**The Svelte 5.57.1 bump retired 16 keys at once, and nothing rsvelte does moved.** They were the
+whole `upstream_issues/4251` cluster — `@sveltejs/acorn-typescript` emitted a comment twice at
+every TypeScript speculation point, so official's array was one element longer than ours and the
+surplus had no counterpart. 1.0.13 fixed it and Svelte 5.57.1 brings it in, so the report, its CI
+pin and its probe script are deleted with this re-baseline. The attribution table below lost its
+largest row with them. **The row claimed `6 keys on modern and 8 on legacy`; the set that actually
+retired is 7 and 9.** The diff is the measurement — the row's count was not re-derived after the
+keys it describes last moved, and neither number is recoverable from the other, so the count in a
+prose row is exactly as unchecked here as this file says it is everywhere else. The retired keys
+by cluster are `comment-attachment` 8, `css-shape` 3, `span` 2, `unclustered` 2, `ast-mode` 1 —
+five clusters for one mechanism, because `Block`, `Line` and `(root)._comments` are comment nodes
+whose key shapes land elsewhere.
 
 Attribution of `parse-ast-known-failures.json`:
 
 | n | target | cluster |
 |---|---|---|
 | 1 | [`upstream_issues/3385-svelte-loose-parse-crashes.md`](../upstream_issues/3385-svelte-loose-parse-crashes.md) | `loose:unclosed-attribute-quote::(accepted)#official-rejects` — official does not reject that document, it **crashes** on it, so matching it would mean reproducing the crash |
-| 14 | [`upstream_issues/4251-svelte-acorn-typescript-comment-duplication.md`](../upstream_issues/4251-svelte-acorn-typescript-comment-duplication.md) | 6 keys on `modern` and 8 on `legacy` — official emits a comment twice, so its array is one element longer and the extra element has no counterpart. Re-measured under the aligned comparison (#4287); it was 17 under index pairing, where the surplus also mis-paired every later sibling |
 | 4 | [`upstream_issues/4133-svelte-each-expression-loc-keeps-the-swallowed-ts-assertion.md`](../upstream_issues/4133-svelte-each-expression-loc-keeps-the-swallowed-ts-assertion.md) | `LogicalExpression#span` (104 entries per axis) and `ConditionalExpression#span` (4) — in a TS component `{#each a ?? [] as x}` parses `[] as x` as a `TSAsExpression`, and unwrapping it moves the expression's `end` without moving its `loc.end`. Official's own `loc.end.column` disagrees with its own `end` offset on all 139 corpus occurrences and rsvelte's on none, so the sweep is internal to official and the counts account for the keys exactly |
 
 Both sides, on the gate's own source text (`parse-ast-verify.mjs:121`), under `{modern: true,
