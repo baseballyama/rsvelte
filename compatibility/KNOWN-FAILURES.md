@@ -5469,7 +5469,7 @@ would mean the axis had silently stopped being exercised.
 
 ## LSP differential known failures
 
-`lsp-known-failures.json` contains 23074 entries. Fixture and upstream entries identify one normalized
+`lsp-known-failures.json` contains 23102 entries. Fixture and upstream entries identify one normalized
 structural field for which `rsvelte-language-server` differs from the pinned official
 `svelte-language-server`, or from an upstream expected snapshot. A mismatched scalar key includes
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
@@ -5529,13 +5529,13 @@ divergence the configuration was hiding, in three classes:
 None of the three is a property of the gate any more, so they are on the same footing as the rest
 of the ratchet: they stay until they are burned down.
 
-Partition of `lsp-known-failures.json` by key kind: `21580 + 1192 + 302` — real-world corpus
+Partition of `lsp-known-failures.json` by key kind: `21608 + 1192 + 302` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
 against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
 `expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
 carrying a key outside its suite's prefix.
 
-Partition of `lsp-known-failures.json` by request phase: `11542 + 11532`
+Partition of `lsp-known-failures.json` by request phase: `11556 + 11546`
 
 Opened-document keys and post-`didChange` keys. The edit phase re-runs the same request set, so the
 two addends differ by exactly the session-level keys, which run once per session rather than once per
@@ -5598,7 +5598,7 @@ about the divergences: `documentHighlight` 6 `rsvelte-empty` + 4 `unclassified`,
 **both** sides answered. A method arm for either is a separate change from sending it a valid
 request, and until one exists these 12 are un-attributable by construction.
 
-Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `3584 + 7394 + 258 + 10344`
+Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `3584 + 7394 + 258 + 10372`
 
 bits-ui, flowbite-svelte, melt-ui, shadcn-svelte, in that order. This is the count
 that moves when a corpus submodule is bumped, and it is the reason the population floor is
