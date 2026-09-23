@@ -18,6 +18,12 @@
 //! (which elides no rule at all, so every cell here must be immobile under it).
 //!
 //! Every expectation is the official compiler's own output for the same source.
+//!
+//! Svelte 5.57.1 moved five of the ten cells: `prune()` now marks a complex
+//! selector used when `every_is_global(...)` holds, so `& :global(i)` under a
+//! `:global(.g)` parent no longer depends on this component rendering anything
+//! (sveltejs/svelte#18793). The `& span` cells did not move, and they are what
+//! keeps the original axis — `:global(args)` is not a global block — readable.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
@@ -51,32 +57,33 @@ fn css_dev(markup: &str, style: &str, dev: bool) -> String {
     out.replace(&out[start..start + len], "HASH")
 }
 
-/// The template carries no element at all: a `&` under a fully-global parent
-/// matches every element, so one stray tag makes the nested `:global(i)` used and
-/// the whole shape stops discriminating.
+/// The template carries no element at all, so nothing here is used by matching:
+/// the leaf survives because `& :global(i)` is global end to end and `prune()`
+/// marks such a selector used without consulting the elements at all.
 #[test]
-fn an_unused_child_of_a_global_arguments_rule_empties_its_parent() {
+fn a_fully_global_child_of_a_global_arguments_rule_is_used() {
     let out = css(
         "",
         ":global(.g) {\n\t\twidth: 20px;\n\t\t&:disabled { & :global(i) { color: green; } }\n\t}",
     );
     assert_eq!(
         out,
-        "\n\t.g {\n\t\twidth: 20px;\n\t\t/* (empty) &:disabled { & :global(i) { color: green; } }*/\n\t}\n"
+        "\n\t.g {\n\t\twidth: 20px;\n\t\t&:disabled { & i { color: green; } }\n\t}\n"
     );
 }
 
-/// A declaration still decides non-emptiness on its own, so the sibling rule that
-/// has one keeps its body and only the unused child is commented.
+/// The sibling shape with a declaration of its own. Both halves are kept, which is
+/// what distinguishes this from the `& span` cells below: there the declaration is
+/// the only reason the parent survives.
 #[test]
-fn a_declaration_keeps_the_parent_of_the_same_unused_child() {
+fn a_declaration_and_a_global_child_are_both_kept() {
     let out = css(
         "",
         ":global(.g) {\n\t\twidth: 20px;\n\t\t&:hover { color: red; & :global(i) { color: blue; } }\n\t}",
     );
     assert_eq!(
         out,
-        "\n\t.g {\n\t\twidth: 20px;\n\t\t&:hover { color: red; /* (unused) & :global(i) { color: blue; }*/ }\n\t}\n"
+        "\n\t.g {\n\t\twidth: 20px;\n\t\t&:hover { color: red; & i { color: blue; } }\n\t}\n"
     );
 }
 
@@ -115,19 +122,18 @@ fn an_unused_child_of_a_local_rule_empties_its_parent() {
     );
 }
 
-/// The outer declaration is what makes the cells above readable at all: drop it and
-/// the outer rule is empty on its own, so official comments the whole thing out and
-/// the child's verdict is no longer in the output. A grid without this axis reports
-/// no movement for either arm of the fix.
+/// The outer declaration is the axis this grid holds: without it the outer rule has
+/// nothing but the child, so the child's verdict decides the whole rule. It is kept,
+/// which is the same verdict as the cell above reached with a declaration present.
 #[test]
-fn without_the_outer_declaration_the_whole_rule_is_commented_and_hides_the_child() {
+fn without_the_outer_declaration_the_global_child_still_keeps_the_rule() {
     let out = css(
         "",
         ":global(.g) {\n\t\t&:disabled { & :global(i) { color: green; } }\n\t}",
     );
     assert_eq!(
         out,
-        "\n\t/* (empty) :global(.g) {\n\t\t&:disabled { & :global(i) { color: green; } }\n\t}*/\n"
+        "\n\t.g {\n\t\t&:disabled { & i { color: green; } }\n\t}\n"
     );
 }
 
@@ -146,9 +152,10 @@ fn a_direct_child_of_a_global_arguments_rule_is_used() {
     );
 }
 
-/// `dev` elides no rule, so every cell above is immobile under it and the same four
-/// sources come back as `(unused)` annotations on the leaf. A fix that reached the
-/// dev path too would show up here and nowhere else in this file.
+/// `dev` elides no rule, so a leaf that goes unused comes back as an `(unused)`
+/// annotation rather than a deletion. The two `& :global(i)` sources are kept
+/// outright under both modes; only the local `& span` leaf is annotated. A fix that
+/// reached the dev path alone would show up here and nowhere else in this file.
 #[test]
 fn no_cell_in_this_file_moves_under_dev() {
     assert_eq!(
@@ -157,7 +164,7 @@ fn no_cell_in_this_file_moves_under_dev() {
             ":global(.g) {\n\t\twidth: 20px;\n\t\t&:disabled { & :global(i) { color: green; } }\n\t}",
             true
         ),
-        "\n\t.g {\n\t\twidth: 20px;\n\t\t&:disabled { /* (unused) & :global(i) { color: green; }*/ }\n\t}\n"
+        "\n\t.g {\n\t\twidth: 20px;\n\t\t&:disabled { & i { color: green; } }\n\t}\n"
     );
     assert_eq!(
         css_dev(
@@ -165,7 +172,7 @@ fn no_cell_in_this_file_moves_under_dev() {
             ":global(.g) {\n\t\twidth: 20px;\n\t\t&:hover { color: red; & :global(i) { color: blue; } }\n\t}",
             true
         ),
-        "\n\t.g {\n\t\twidth: 20px;\n\t\t&:hover { color: red; /* (unused) & :global(i) { color: blue; }*/ }\n\t}\n"
+        "\n\t.g {\n\t\twidth: 20px;\n\t\t&:hover { color: red; & i { color: blue; } }\n\t}\n"
     );
     assert_eq!(
         css_dev(
