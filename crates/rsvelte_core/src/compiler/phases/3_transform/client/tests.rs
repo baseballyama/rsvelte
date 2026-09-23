@@ -70,13 +70,14 @@ fn module_return_jsdoc_cast_parenthesizes_its_arrow() {
                 !output.contains("return /** @type {TThen} */"),
                 "the cast comment must not remain unparenthesized in {generate:?}, dev={dev}:\n{output}"
             );
-            // The comment ends on a line before its operand starts, so upstream
-            // separates them with a newline rather than a space. Both asserts
-            // above pass on output that uses a space, which is the whole
-            // divergence this shape produces.
+            // esrap 2.3.x opens the cast's own parenthesis right after the
+            // comment (sveltejs/esrap#164) instead of padding to the operand's
+            // line, so the separator is a space and the operand starts on the
+            // next line. Both asserts above pass on either spelling, which is
+            // why this one is here.
             assert!(
-                output.contains("return (/** @type {TThen} */\n"),
-                "the cast comment must be followed by a newline, not a space, in {generate:?}, dev={dev}:\n{output}"
+                output.contains("return (/** @type {TThen} */ (\n"),
+                "the cast comment must open its own parenthesis in {generate:?}, dev={dev}:\n{output}"
             );
         }
     }
@@ -117,7 +118,7 @@ fn server_module_var_derived_reads_use_optional_calls() {
 }
 
 #[test]
-fn first_comment_reemitted_from_a_typescript_declaration_repeats_in_client_output() {
+fn a_comment_reemitted_from_a_typescript_declaration_is_not_repeated() {
     let source = r#"<script lang="ts">
         type OwnProps = {
             /** First prop. */
@@ -144,10 +145,13 @@ fn first_comment_reemitted_from_a_typescript_declaration_repeats_in_client_outpu
         .js
         .code;
 
+        // `@sveltejs/acorn-typescript` 1.0.13 stopped firing `onComment` during a
+        // speculative type parse as well as after the rewind, so the first
+        // comment of an erased type is emitted once like every later one.
         assert_eq!(
             output.matches("First prop.").count(),
-            2,
-            "the first erased-type comment follows both upstream cursor flushes in dev={dev}:\n{output}"
+            1,
+            "the first erased-type comment is emitted once in dev={dev}:\n{output}"
         );
         assert_eq!(
             output.matches("Second prop.").count(),
