@@ -9,7 +9,11 @@
 //! ordinary JSDoc: `/** @type {T} */ (` opens the cast and its operand sits on
 //! the next line.
 //!
-//! Every expectation below is the official compiler's bytes (svelte 5.56.10).
+//! Every expectation below is the official compiler's bytes (svelte 5.57.1).
+//! The parentheses each cast carries are esrap 2.3.x's own: it re-adds the ones
+//! acorn elides after a JSDoc `@type` comment (sveltejs/esrap#164). They are not
+//! this file's axis — the axis is whether the operand stays on the comment's
+//! line or moves to the next, and the two controls below fix both answers.
 
 use rsvelte_core::compiler::ModuleCompileOptions;
 use rsvelte_core::{CompileOptions, GenerateMode, compile, compile_module};
@@ -55,7 +59,7 @@ fn a_cast_comment_before_a_wrapped_arrow_keeps_its_line_break() {
         &module(
             "export function pin(then) {\n\treturn /** @type {TThen} */ (\n\t\t(...args) => then(...args)\n\t);\n}\n",
         ),
-        "return (/** @type {TThen} */\n\t(...args) => then(...args));",
+        "return (/** @type {TThen} */ (\n\t(...args) => then(...args)));",
     );
 }
 
@@ -63,19 +67,20 @@ fn a_cast_comment_before_a_wrapped_arrow_keeps_its_line_break() {
 fn a_cast_comment_before_a_wrapped_binary_keeps_its_line_break() {
     assert_contains(
         &module("export function f() {\n\treturn /** @type {T} */ (\n\t\t1 + 2\n\t);\n}\n"),
-        "return (/** @type {T} */\n\t1 + 2);",
+        "return (/** @type {T} */ (\n\t1 + 2));",
     );
 }
 
-/// The parens are gone from the output entirely here, which is what makes the
-/// break the only observable: the comment is the reason the operand moves down.
+/// The source's own parens are gone from the output here — the pair that
+/// survives is the cast's, re-added by esrap — so the only observable left is
+/// where `bar` sits, and the comment is the reason it moves down.
 #[test]
 fn a_cast_comment_in_an_initializer_keeps_its_line_break() {
     assert_contains(
         &module(
             "export function f(bar) {\n\tconst x = /** @type {T} */ (\n\t\tbar\n\t);\n\treturn x;\n}\n",
         ),
-        "const x = /** @type {T} */\n\tbar;",
+        "const x = /** @type {T} */ (\n\tbar);",
     );
 }
 
@@ -85,7 +90,7 @@ fn a_cast_comment_in_an_initializer_keeps_its_line_break() {
 fn a_cast_comment_on_the_operands_own_line_still_pads_with_a_space() {
     assert_contains(
         &module("export function f(bar) {\n\tconst x = /** @type {T} */ (bar);\n\treturn x;\n}\n"),
-        "const x = /** @type {T} */ bar;",
+        "const x = /** @type {T} */ (bar);",
     );
 }
 
@@ -96,7 +101,7 @@ fn a_cast_comment_on_the_operands_own_line_still_pads_with_a_space() {
 fn an_unparenthesized_argument_comment_was_already_broken() {
     assert_contains(
         &module("export function f(bar) {\n\treturn foo(/** @type {T} */\n\tbar);\n}\n"),
-        "return foo(\n\t\t/** @type {T} */\n\t\tbar\n\t);",
+        "return foo(\n\t\t/** @type {T} */ (\n\t\tbar)\n\t);",
     );
 }
 
@@ -106,6 +111,6 @@ fn an_unparenthesized_argument_comment_was_already_broken() {
 fn a_component_instance_script_breaks_the_same_way() {
     assert_contains(
         &component("<script>\n\tlet v = /** @type {T} */ (\n\t\t1 + 2\n\t);\n</script>\n\n{v}\n"),
-        "let v = /** @type {T} */\n\t1 + 2;",
+        "let v = /** @type {T} */ (\n\t1 + 2);",
     );
 }

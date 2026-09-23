@@ -588,7 +588,7 @@ code exploration, or anything likely to consume meaningful context.
 
 ## Test Status
 
-<!-- svelte-target-version -->Source: `pnpm run compatibility-report` (Svelte **v5.57.0**).<!-- /svelte-target-version --> Re-run `pnpm run test-and-update`
+<!-- svelte-target-version -->Source: `pnpm run compatibility-report` (Svelte **v5.57.1**).<!-- /svelte-target-version --> Re-run `pnpm run test-and-update`
 to refresh. Runtime skip lists and fixture compile options are shared constants in
 `crates/rsvelte_core/tests/common/mod.rs`; `tests/audit_skipped.rs` re-checks every skipped
 fixture after a Svelte bump.

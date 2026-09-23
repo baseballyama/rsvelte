@@ -423,9 +423,10 @@ fn element_has_async_attribute(node: &RegularElement, state: &ServerTransformSta
                 // would spuriously route the element through `emit_async_element`,
                 // breaking the surrounding push coalescing.
                 let raw_name = a.name.as_str();
-                if is_event_attribute(a)
+                if (is_event_attribute(a)
                     || raw_name == "defaultValue"
-                    || raw_name == "defaultChecked"
+                    || raw_name == "defaultChecked")
+                    && !is_input_default_attribute(node, a)
                 {
                     continue;
                 }
@@ -899,6 +900,18 @@ fn get_bind_attribute_name(element: &RegularElement, name: &str) -> String {
     }
 }
 
+/// `<input defaultValue=… >` / `defaultChecked`: upstream keeps the attribute
+/// and deopts the whole element to the runtime spread, which is where the
+/// interaction between `value` and `defaultValue` can be resolved
+/// (sveltejs/svelte#18733). Every other element still drops them — they are
+/// properties, not attributes.
+fn is_input_default_attribute(
+    node: &RegularElement,
+    a: &crate::ast::template::AttributeNode<'_>,
+) -> bool {
+    node.name.as_str() == "input" && matches!(a.name.as_str(), "defaultValue" | "defaultChecked")
+}
+
 /// Port of `build_element_attributes` (no-spread branch). Pushes one or more
 /// [`TemplateEntry`] items onto `state.template` for the element's attributes.
 ///
@@ -914,11 +927,11 @@ pub(super) fn build_element_attributes<'a>(
     // `build_element_attributes` abandons the per-attribute emission and instead
     // builds ONE `$.attributes({ ...merged }, css_hash, classes, styles, flags?)`
     // call covering the whole element. Mirror that here.
-    if node
-        .attributes
-        .iter()
-        .any(|a| matches!(a, Attribute::SpreadAttribute(_)))
-    {
+    if node.attributes.iter().any(|a| match a {
+        Attribute::SpreadAttribute(_) => true,
+        Attribute::Attribute(a) => is_input_default_attribute(node, a),
+        _ => false,
+    }) {
         build_element_spread_attributes(node, css_hash, state);
         return;
     }
@@ -1358,9 +1371,10 @@ fn build_element_spread_attributes<'a>(
                 if raw_name == "value" && matches!(node.name.as_str(), "select" | "textarea") {
                     continue;
                 }
-                if is_event_attribute(a)
+                if (is_event_attribute(a)
                     || raw_name == "defaultValue"
-                    || raw_name == "defaultChecked"
+                    || raw_name == "defaultChecked")
+                    && !is_input_default_attribute(node, a)
                 {
                     continue;
                 }

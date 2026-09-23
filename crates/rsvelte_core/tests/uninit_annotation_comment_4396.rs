@@ -8,11 +8,11 @@
 //! into `let stats;` — text that parses, runs, and is no longer reactive. The
 //! comment therefore goes on its own line ahead of the FOLLOWING statement.
 //!
-//! Every expected string below is official Svelte 5.57.0's own output for the
-//! same source (`submodules/svelte`, pin `7bc0a70fe`), read off the oracle
-//! rather than inferred from a neighbouring cell. Upstream prints the comment
-//! twice because acorn-typescript speculates over the annotation; that is the
-//! oracle's answer here, not a defect being pinned.
+//! Every expected string below is official Svelte 5.57.1's own output for the
+//! same source (`submodules/svelte`, pin `636eaaaa6`), read off the oracle
+//! rather than inferred from a neighbouring cell. Through 5.57.0 these rows
+//! carried the comment twice, acorn-typescript having fired `onComment` for
+//! both halves of its speculation over the annotation; 1.0.13 fixed that.
 //!
 //! No corpus gate observes any of this: `ast_equiv_batch` runs with
 //! `CommentPolicy::Ignore`, so a comment-only divergence scores `match` on both
@@ -54,7 +54,7 @@ fn a_block_comment_floats_to_the_next_statement_on_the_client() {
     let out = client(BLOCK, "Follow");
     assert!(!out.contains("COMPILE_ERROR"), "{out}");
     assert!(
-        out.contains("\tlet a;\n\n\t/* c */\n\t/* c */\n\tlet n = 1;\n"),
+        out.contains("\tlet a;\n\n\t/* c */\n\tlet n = 1;\n"),
         "{out}"
     );
 }
@@ -64,7 +64,7 @@ fn a_block_comment_floats_to_the_next_statement_on_the_server() {
     let out = server(BLOCK, "Follow");
     assert!(!out.contains("COMPILE_ERROR"), "{out}");
     assert!(
-        out.contains("\tlet a;\n\n\t/* c */\n\t/* c */\n\tlet n = 1;\n"),
+        out.contains("\tlet a;\n\n\t/* c */\n\tlet n = 1;\n"),
         "{out}"
     );
 }
@@ -73,20 +73,14 @@ fn a_block_comment_floats_to_the_next_statement_on_the_server() {
 fn a_line_comment_floats_to_the_next_statement_on_the_client() {
     let out = client(LINE, "Lineann");
     assert!(!out.contains("COMPILE_ERROR"), "{out}");
-    assert!(
-        out.contains("\tlet a;\n\n\t// c\n\t// c\n\tlet n = 1;\n"),
-        "{out}"
-    );
+    assert!(out.contains("\tlet a;\n\n\t// c\n\tlet n = 1;\n"), "{out}");
 }
 
 #[test]
 fn a_line_comment_floats_to_the_next_statement_on_the_server() {
     let out = server(LINE, "Lineann");
     assert!(!out.contains("COMPILE_ERROR"), "{out}");
-    assert!(
-        out.contains("\tlet a;\n\n\t// c\n\t// c\n\tlet n = 1;\n"),
-        "{out}"
-    );
+    assert!(out.contains("\tlet a;\n\n\t// c\n\tlet n = 1;\n"), "{out}");
 }
 
 /// The hazard #4395 recorded, on the shape the real-world carrier has: a legacy
@@ -112,10 +106,7 @@ fn an_initialized_declarator_is_untouched() {
         "Init",
     );
     assert!(!out.contains("COMPILE_ERROR"), "{out}");
-    assert!(
-        out.contains("\tlet a = /* c */\n\t/* c */\n\tnull;\n"),
-        "{out}"
-    );
+    assert!(out.contains("\tlet a = /* c */\n\tnull;\n"), "{out}");
 }
 
 /// The half this does NOT close: when the declarator ends its statement list,

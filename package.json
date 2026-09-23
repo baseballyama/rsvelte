@@ -70,7 +70,6 @@
 		"test:corpus-targets": "node scripts/dev/test-corpus-targets.mjs",
 		"test:known-failures-md-check": "node scripts/dev/test-known-failures-md-check.mjs",
 		"test:deliberate-divergences": "node scripts/dev/deliberate-divergences-check.mjs",
-    "test:acorn-comment-duplication": "node scripts/dev/test-acorn-comment-duplication.mjs",
 		"test:lsp-ratchet": "node --test scripts/compat-lsp/*.test.mjs",
 		"test:release-comment": "node scripts/dev/test-release-comment.mjs",
 		"test:css-prune-verdict": "node scripts/dev/test-css-prune-sweep-warning-verdict.mjs",
@@ -205,8 +204,8 @@
 		"prettier": "^3.9.4",
 		"prettier-plugin-svelte": "^4.1.0",
 		"sass": "1.104.1",
-		"svelte": "5.57.0",
+		"svelte": "5.57.1",
 		"svelte-preprocess-markdown": "^2.7.3"
 	},
-	"packageManager": "pnpm@12.4.2"
+	"packageManager": "pnpm@12.5.1"
 }

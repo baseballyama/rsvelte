@@ -29,5 +29,6 @@ pub struct StyleSheetContent {
     pub start: u32,
     pub end: u32,
     pub styles: String,
-    pub comment: Option<String>,
+    /// `element.js:361` assigns the preceding HTML comment **node**, not its text.
+    pub comment: Option<serde_json::Value>,
 }

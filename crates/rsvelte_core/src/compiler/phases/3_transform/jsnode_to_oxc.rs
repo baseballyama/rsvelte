@@ -1424,9 +1424,10 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     }
 
     /// Build a boxed `ObjectProperty`. Handles plain `key: value`, computed
-    /// keys, method shorthand, and get / set accessors. Mirrors codegen's
-    /// `auto_method` heuristic: a non-computed `init` property whose value is a
-    /// (non-arrow) function expression renders as a method shorthand.
+    /// keys, method shorthand, and get / set accessors. The concise form needs
+    /// `method` (or a `get`/`set` kind) to be set: esrap stopped inferring it
+    /// from a function value in 2.3.x, so `{ click: function () {} }` stays
+    /// spelled that way.
     fn object_property(
         &self,
         node: &JsNode,
@@ -1455,8 +1456,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             JsNode::FunctionExpression { .. }
         );
         let is_accessor = kind != "init";
-        let auto_method = !*computed && kind == "init" && value_is_function;
-        let method = *method || auto_method;
+        let method = *method;
 
         if (is_accessor || method) && !value_is_function {
             return None;

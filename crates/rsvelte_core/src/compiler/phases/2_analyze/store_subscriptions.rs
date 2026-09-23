@@ -2057,6 +2057,12 @@ fn collect_dollar_refs_from_if_block(block: &IfBlock, source: &str, refs: &mut V
 /// Collect $xxx identifiers from an each block.
 fn collect_dollar_refs_from_each_block(block: &EachBlock, source: &str, refs: &mut Vec<StoreRef>) {
     collect_dollar_refs_from_expression(&block.expression, source, refs);
+    // 写経 `scope.js`'s `EachBlock`: the fallback is visited in the enclosing
+    // scope, before the body (sveltejs/svelte#18803). The order decides where
+    // each `$store` getter is declared relative to its siblings.
+    if let Some(ref fallback) = block.fallback {
+        collect_dollar_refs_from_fragment(fallback, source, refs);
+    }
     let mut bindings = pattern_binding_names(block.context.as_ref());
     if let Some(index) = &block.index {
         bindings.push(index.to_string());
@@ -2068,9 +2074,6 @@ fn collect_dollar_refs_from_each_block(block: &EachBlock, source: &str, refs: &m
         remove_scoped_refs(refs, first, &binding_set);
     }
     collect_dollar_refs_from_scoped_fragment(&block.body, source, refs, bindings);
-    if let Some(ref fallback) = block.fallback {
-        collect_dollar_refs_from_fragment(fallback, source, refs);
-    }
 }
 
 /// Collect $xxx identifiers from an await block.

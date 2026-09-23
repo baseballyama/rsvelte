@@ -46,6 +46,11 @@ impl EmbeddedRegions {
     }
 
     #[must_use]
+    pub fn scripts(&self) -> &[Range<usize>] {
+        &self.scripts
+    }
+
+    #[must_use]
     pub fn in_style(&self, offset: usize) -> bool {
         self.style_at(offset).is_some()
     }
@@ -200,6 +205,10 @@ pub struct AttributeContext<'a> {
     pub name_start: usize,
     /// Whether the cursor is in the attribute's value rather than its name.
     pub in_value: bool,
+    /// Whether the attribute is spelled with a non-empty value. Upstream reads
+    /// `elementTag.attributes[name]` for truthiness, and its scanner records
+    /// `null` for a bare attribute and `""` for an empty one.
+    pub has_value: bool,
     pub element_tag: &'a str,
 }
 
@@ -381,58 +390,79 @@ fn scan_start_tag<'a>(text: &'a str, from: usize, offset: usize, tag: &'a str) -
             continue;
         }
         let name = &text[start..i];
-        if (start..=i).contains(&offset) {
-            return Step::Found(AttributeContext {
-                name,
-                name_start: start,
-                in_value: false,
-                element_tag: tag,
-            });
-        }
+        let name_end = i;
         let mut after = i;
         while bytes.get(after).is_some_and(u8::is_ascii_whitespace) {
             after += 1;
         }
-        if bytes.get(after) != Some(&b'=') {
+        // The value is read before the name is answered for, because
+        // `has_value` is a question about the attribute rather than about the
+        // cursor: a hint sitting on `on:click`'s NAME still has to know whether
+        // the attribute was written with one.
+        let has_assign = bytes.get(after) == Some(&b'=');
+        let value = if has_assign {
+            i = after + 1;
+            while bytes.get(i).is_some_and(u8::is_ascii_whitespace) {
+                i += 1;
+            }
+            Some(attribute_value_range(text, &mut i))
+        } else {
+            None
+        };
+        let has_value = value.as_ref().is_some_and(|value| !value.is_empty());
+        if (start..=name_end).contains(&offset) {
+            return Step::Found(AttributeContext {
+                name,
+                name_start: start,
+                in_value: false,
+                has_value,
+                element_tag: tag,
+            });
+        }
+        let Some(value) = value else {
             continue;
-        }
-        i = after + 1;
-        while bytes.get(i).is_some_and(u8::is_ascii_whitespace) {
-            i += 1;
-        }
-        let value = match bytes.get(i) {
-            Some(&quote @ (b'"' | b'\'')) => {
-                let end = text[i + 1..]
-                    .find(quote as char)
-                    .map_or(bytes.len(), |e| i + 1 + e);
-                let value = i + 1..end;
-                i = (end + 1).min(bytes.len());
-                value
-            }
-            Some(b'{') => {
-                let end = skip_braces(text, i);
-                let value = i..end;
-                i = end;
-                value
-            }
-            _ => {
-                let start = i;
-                while bytes
-                    .get(i)
-                    .is_some_and(|&b| !b.is_ascii_whitespace() && b != b'>')
-                {
-                    i += 1;
-                }
-                start..i
-            }
         };
         if value.contains(&offset) || value.end == offset {
             return Step::Found(AttributeContext {
                 name,
                 name_start: start,
                 in_value: true,
+                has_value,
                 element_tag: tag,
             });
+        }
+    }
+}
+
+/// The attribute value starting at `*i`, advancing `*i` past it. Quotes are
+/// excluded from the range, as the official scanner's recorded value excludes
+/// them too.
+fn attribute_value_range(text: &str, i: &mut usize) -> Range<usize> {
+    let bytes = text.as_bytes();
+    let index = *i;
+    match bytes.get(index) {
+        Some(&quote @ (b'"' | b'\'')) => {
+            let end = text[index + 1..]
+                .find(quote as char)
+                .map_or(bytes.len(), |e| index + 1 + e);
+            *i = (end + 1).min(bytes.len());
+            index + 1..end
+        }
+        Some(b'{') => {
+            let end = skip_braces(text, index);
+            *i = end;
+            index..end
+        }
+        _ => {
+            let mut end = index;
+            while bytes
+                .get(end)
+                .is_some_and(|&b| !b.is_ascii_whitespace() && b != b'>')
+            {
+                end += 1;
+            }
+            *i = end;
+            index..end
         }
     }
 }
@@ -482,7 +512,26 @@ const fn is_attribute_name_byte(byte: u8) -> bool {
 /// (`lib/documents/utils.ts:156-160`).
 #[must_use]
 pub fn fallback_script_body(text: &str) -> Option<Range<usize>> {
-    let mut module = None;
+    let bodies = script_bodies(text);
+    bodies.instance.or(bodies.module)
+}
+
+/// The instance and module `<script>` bodies, kept apart. `extractScriptTags`
+/// (`lib/documents/utils.ts:146-161`) takes the FIRST script of each kind, and
+/// the two answer different questions — a hint in the module script is never a
+/// generated one, while a hint in the instance script is generated only when a
+/// reactive statement follows it.
+pub struct ScriptBodies {
+    pub instance: Option<Range<usize>>,
+    pub module: Option<Range<usize>>,
+}
+
+#[must_use]
+pub fn script_bodies(text: &str) -> ScriptBodies {
+    let mut bodies = ScriptBodies {
+        instance: None,
+        module: None,
+    };
     let mut offset = 0;
     while offset < text.len() {
         let Some(start) = find_opening_tag(&text[offset..], "script").map(|idx| offset + idx)
@@ -498,14 +547,15 @@ pub fn fallback_script_body(text: &str) -> Option<Range<usize>> {
         let open_tag = &text[start..open];
         let is_module = attribute_value(open_tag, "context").map(str::trim) == Some("module")
             || has_attribute(open_tag, "module");
-        if is_module {
-            module.get_or_insert(open..close);
+        let slot = if is_module {
+            &mut bodies.module
         } else {
-            return Some(open..close);
-        }
+            &mut bodies.instance
+        };
+        slot.get_or_insert(open..close);
         offset = close.max(open);
     }
-    module
+    bodies
 }
 
 /// Whether an open tag carries `name` at all, valued or bare — `'module' in

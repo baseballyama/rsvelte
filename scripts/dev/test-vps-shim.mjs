@@ -94,6 +94,54 @@ assert(
 	asyncCompiled?.js?.map?.sourcesContent?.[0] === compileSource,
 );
 
+// `svelte/compiler` returns every map as a magic-string `SourceMap`, so
+// tooling inlines one with `map.toUrl()` — `vite-plugin-svelte`'s dep
+// optimizer does exactly that and crashed on the plain object the NAPI
+// boundary hands back (#4695). The methods have to reach every entry point
+// that returns a `CompileResult`, not just the envelope path.
+const modernCompiled = r.compile(compileSource, {
+	filename: 'Foo.svelte',
+	generate: 'client',
+	modernAst: true,
+});
+const [batchModern] = r.compileBatch([
+	{ source: compileSource, options: { filename: 'Foo.svelte', generate: 'client', modernAst: true } },
+]);
+const asyncBatch = await r.compileBatchAsync([
+	{ source: compileSource, options: { filename: 'Foo.svelte', generate: 'client' } },
+]);
+// `compileModule` is absent from this list on purpose: `compile_module` in
+// `rsvelte_core` returns `map: None`, so there is no map to decorate. That is a
+// separate divergence from upstream (which returns a `SourceMap` there too).
+for (const [label, map] of [
+	['compile() js', compiled?.js?.map],
+	['compile() css', compiled?.css?.map],
+	['compile({modernAst}) js', modernCompiled?.js?.map],
+	['compileBatch() js', batchCompiled?.js?.map],
+	['compileBatch({modernAst}) js', batchModern?.js?.map],
+	['compileAsync() js', asyncCompiled?.js?.map],
+	['compileBatchAsync() js', asyncBatch?.[0]?.js?.map],
+]) {
+	if (map == null) {
+		assert(`${label}.map is present`, false, 'map is null');
+		continue;
+	}
+	assert(`${label}.map.toUrl() works`, typeof map.toUrl === 'function');
+	const url = typeof map.toUrl === 'function' ? map.toUrl() : '';
+	assert(
+		`${label}.map.toUrl() is a base64 data URI`,
+		url.startsWith('data:application/json;charset=utf-8;base64,'),
+		url.slice(0, 60),
+	);
+	assert(`${label}.map.toString() is the map JSON`, map.toString() === JSON.stringify(map));
+	// Non-enumerable, so a serialized map is byte-identical to before.
+	assert(
+		`${label}.map methods are non-enumerable`,
+		!Object.keys(map).includes('toUrl') && !Object.keys(map).includes('toString'),
+		Object.keys(map).join(','),
+	);
+}
+
 async function assertCompileError(label, invoke) {
 	try {
 		await invoke();

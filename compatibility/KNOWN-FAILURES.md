@@ -5469,7 +5469,7 @@ would mean the axis had silently stopped being exercised.
 
 ## LSP differential known failures
 
-`lsp-known-failures.json` contains 23516 entries. Fixture and upstream entries identify one normalized
+`lsp-known-failures.json` contains 23074 entries. Fixture and upstream entries identify one normalized
 structural field for which `rsvelte-language-server` differs from the pinned official
 `svelte-language-server`, or from an upstream expected snapshot. A mismatched scalar key includes
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
@@ -5529,13 +5529,13 @@ divergence the configuration was hiding, in three classes:
 None of the three is a property of the gate any more, so they are on the same footing as the rest
 of the ratchet: they stay until they are burned down.
 
-Partition of `lsp-known-failures.json` by key kind: `21562 + 1648 + 306` — real-world corpus
+Partition of `lsp-known-failures.json` by key kind: `21580 + 1192 + 302` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
 against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
 `expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
 carrying a key outside its suite's prefix.
 
-Partition of `lsp-known-failures.json` by request phase: `11763 + 11753`
+Partition of `lsp-known-failures.json` by request phase: `11542 + 11532`
 
 Opened-document keys and post-`didChange` keys. The edit phase re-runs the same request set, so the
 two addends differ by exactly the session-level keys, which run once per session rather than once per
@@ -5598,7 +5598,7 @@ about the divergences: `documentHighlight` 6 `rsvelte-empty` + 4 `unclassified`,
 **both** sides answered. A method arm for either is a separate change from sending it a valid
 request, and until one exists these 12 are un-attributable by construction.
 
-Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `3566 + 7394 + 258 + 10344`
+Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `3584 + 7394 + 258 + 10344`
 
 bits-ui, flowbite-svelte, melt-ui, shadcn-svelte, in that order. This is the count
 that moves when a corpus submodule is bumped, and it is the reason the population floor is
@@ -6631,7 +6631,7 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
 ## Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **134 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **100 entries**.
 
 ### The question it asks
 
@@ -6747,27 +6747,27 @@ ratchet at all. So `loose:unclosed-element::RegularElement#span` is an ordinary 
 defect. Reading the issue and the gate as sharing a vocabulary would have attributed an rsvelte
 defect upstream.
 
-Partition of `parse-ast-known-failures.json` by cluster: `51 + 29 + 18 + 12 + 8 + 5 + 4 + 4 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `35 + 21 + 14 + 8 + 7 + 5 + 4 + 4 + 1 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
-| `span` | 51 | 27 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
+| `span` | 35 | 19 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
 | `node-type` | 8 | 4 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
 | `estree-fields` | 4 | 2 | ESTree fields rsvelte's serializer omits or adds. The nine TypeScript type fields are gone (#4335), so is `Identifier.typeAnnotation` (#4133 — OXC keeps a catch parameter's and a declarator's annotation beside the pattern, not on it) and so is `TSParameterProperty.{accessibility,readonly}` (#4133). Both remaining bases are `CallExpression.optional`. `#value` is the type-argument call, where acorn-typescript writes `optional` only when the subscript chain was already optional. `#extra` **came back** with the `Decorator.expression` fix: `parseDecorator` builds the decorator's own spine with a bare `while (eat('.'))` loop and one `parseMaybeDecoratorArguments` wrap, neither of which sets `optional`, while the arguments go through the ordinary parser and keep it — so `@dec({a:1})` and `@a.b.c` have no `optional` on the spine and `@dec(a?.b())` has it on everything inside the argument. Suppressing it here needs to tell `@a.b` from `@(a.b)`, and OXC elides the parentheses, so the distinction is not in the AST rsvelte reads. The lint gates found some of these from the other side. |
-| `unclustered` | 18 | 10 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. `ClassDeclaration.implements` left in #4133: acorn-typescript gives the clause the same `TSExpressionWithTypeArguments` array it gives an interface `extends`, and rsvelte's typed class node carried a bool. `ExpressionStatement.directive` left in #4133: OXC lifts a `<script>`'s directive prologue out of `Program::body` into `Program::directives`, ESTree keeps it in `body`, and the script-program converter read only `body`. |
-| `comment-attachment` | 29 | 15 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. #4133 retired seven bases at once: a TS annotation, its type arguments, its type parameters and a return type are serialized from an opaque `Value`, so their nested nodes carried no comment at all until the declarations' materialization was routed through every one of them. `modern::Property.trailingComments#missing` is the one base here that is modern-only, and it appeared when the `customElement` fix retired `Root.options.customElement.shadow_object#extra`: the carrier's `shadow` object literal carries a trailing comment on a property, which the whole-field key could not tell from the field's absence. |
+| `unclustered` | 14 | 8 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. `ClassDeclaration.implements` left in #4133: acorn-typescript gives the clause the same `TSExpressionWithTypeArguments` array it gives an interface `extends`, and rsvelte's typed class node carried a bool. `ExpressionStatement.directive` left in #4133: OXC lifts a `<script>`'s directive prologue out of `Program::body` into `Program::directives`, ESTree keeps it in `body`, and the script-program converter read only `body`. `ImportExpression.options` left in #4133 for the second time: the field was fixed on the script path and the **template** path was a second port of the same conversion, which wrote `options: []` and `ts: false` unconditionally — the arena's TS flag was only ever set while converting a program, so a template expression could not see it. |
+| `comment-attachment` | 21 | 11 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. #4133 retired seven bases at once: a TS annotation, its type arguments, its type parameters and a return type are serialized from an opaque `Value`, so their nested nodes carried no comment at all until the declarations' materialization was routed through every one of them. `modern::Property.trailingComments#missing` is the one base here that is modern-only, and it appeared when the `customElement` fix retired `Root.options.customElement.shadow_object#extra`: the carrier's `shadow` object literal carries a trailing comment on a property, which the whole-field key could not tell from the field's absence. |
 | `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
-| `css-shape` | 12 | 8 | the CSS text rsvelte re-serializes onto a node (`Atrule.prelude`, `Declaration.value`) and the style-sheet comment fields — the legacy selector conversion left the row in #4592 — **plus every key whose node type is spelled `Block`** — the cluster regex matches the CSS `Block` node and ESTree's block-comment type alike, so `Block#span` and `Block#node-missing` are filed here and are comments. The row is a key-shape partition, not a subject one. |
+| `css-shape` | 7 | 5 | the CSS text rsvelte re-serializes onto a node (`Atrule.prelude`, `Declaration.value`) and the style-sheet comment fields — the legacy selector conversion left the row in #4592. It used to also hold **every key whose node type is spelled `Block`** — the cluster regex matches the CSS `Block` node and ESTree's block-comment type alike, so `Block#span` and `Block#node-missing` were filed here and were comments; they left with the Svelte 5.57.1 bump (below). The row is a key-shape partition, not a subject one. `Style.content.comment` / `StyleSheet.content.comment` left in #4133: `element.js:361` stores the preceding HTML comment **node**, so the field carries `type`/`start`/`end` beside `data`, and rsvelte stored the string. |
 | `child-count` | 5 | 4 | an array of children with a different length. |
 | `loc-presence` | 4 | 2 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". `Decorator.loc` left in #4133. |
-| `ast-mode` | 2 | 2 | #3385 — the remaining legacy-root shape differences. |
+| `ast-mode` | 1 | 1 | #3385 — the remaining legacy-root shape differences. |
 
 **Read the `keys` column as `bases x axis`, not as work.** A key is
 `<axis>::<NodeType>.<field>#<kind>` and most node types diverge identically under `modern` and
-`legacy`, so 134 keys are **75 distinct bases**: 59 appear on both axes and 16 on one
-(59x2 + 16 = 134, a 1.79x collapse), and 75 is therefore the defect ceiling. The per-cluster
+`legacy`, so 100 keys are **57 distinct bases**: 43 appear on both axes and 14 on one
+(43x2 + 14 = 100, a 1.75x collapse), and 57 is therefore the defect ceiling. The per-cluster
 collapse is not uniform — `estree-fields`, `loc-presence` and `node-type` are 2.00x (every base is
-on both axes), `comment-attachment` 1.93x, `span` 1.89x, `unclustered` 1.80x, `css-shape` 1.50x,
+on both axes), `comment-attachment` 1.91x, `span` 1.84x, `unclustered` 1.75x, `css-shape` 1.40x,
 `child-count` 1.25x (legacy-only shapes), `ast-mode` and
 `accepts-what-official-rejects` 1.00x by construction.
 
@@ -6780,17 +6780,29 @@ have produced the right ones; the gated declaration and the gated partition line
 correct throughout, which is exactly the split this repository records between a checked half and
 an unchecked half on the same page.
 
-**No base's two axes sit in different clusters** (0 of the 59 bases that appear on both axes), so a
+**No base's two axes sit in different clusters** (0 of the 43 bases that appear on both axes), so a
 cluster can be worked end to end
 without a key from it turning up under someone else's row. Measured directly from the JSON, which
 is authoritative for the partition: the ten rows above are its `Counter(values())`.
+
+**The Svelte 5.57.1 bump retired 16 keys at once, and nothing rsvelte does moved.** They were the
+whole `upstream_issues/4251` cluster — `@sveltejs/acorn-typescript` emitted a comment twice at
+every TypeScript speculation point, so official's array was one element longer than ours and the
+surplus had no counterpart. 1.0.13 fixed it and Svelte 5.57.1 brings it in, so the report, its CI
+pin and its probe script are deleted with this re-baseline. The attribution table below lost its
+largest row with them. **The row claimed `6 keys on modern and 8 on legacy`; the set that actually
+retired is 7 and 9.** The diff is the measurement — the row's count was not re-derived after the
+keys it describes last moved, and neither number is recoverable from the other, so the count in a
+prose row is exactly as unchecked here as this file says it is everywhere else. The retired keys
+by cluster are `comment-attachment` 8, `css-shape` 3, `span` 2, `unclustered` 2, `ast-mode` 1 —
+five clusters for one mechanism, because `Block`, `Line` and `(root)._comments` are comment nodes
+whose key shapes land elsewhere.
 
 Attribution of `parse-ast-known-failures.json`:
 
 | n | target | cluster |
 |---|---|---|
 | 1 | [`upstream_issues/3385-svelte-loose-parse-crashes.md`](../upstream_issues/3385-svelte-loose-parse-crashes.md) | `loose:unclosed-attribute-quote::(accepted)#official-rejects` — official does not reject that document, it **crashes** on it, so matching it would mean reproducing the crash |
-| 14 | [`upstream_issues/4251-svelte-acorn-typescript-comment-duplication.md`](../upstream_issues/4251-svelte-acorn-typescript-comment-duplication.md) | 6 keys on `modern` and 8 on `legacy` — official emits a comment twice, so its array is one element longer and the extra element has no counterpart. Re-measured under the aligned comparison (#4287); it was 17 under index pairing, where the surplus also mis-paired every later sibling |
 | 4 | [`upstream_issues/4133-svelte-each-expression-loc-keeps-the-swallowed-ts-assertion.md`](../upstream_issues/4133-svelte-each-expression-loc-keeps-the-swallowed-ts-assertion.md) | `LogicalExpression#span` (104 entries per axis) and `ConditionalExpression#span` (4) — in a TS component `{#each a ?? [] as x}` parses `[] as x` as a `TSAsExpression`, and unwrapping it moves the expression's `end` without moving its `loc.end`. Official's own `loc.end.column` disagrees with its own `end` offset on all 139 corpus occurrences and rsvelte's on none, so the sweep is internal to official and the counts account for the keys exactly |
 
 Both sides, on the gate's own source text (`parse-ast-verify.mjs:121`), under `{modern: true,
@@ -7309,11 +7321,13 @@ target, so an id that diverges on all four targets is one ratchet entry rather t
 
 **Current baseline**, from the enrolling CI run (`Corpus Compat` 34430947366, tree
 `7b270ecbc`, 668 `pattern/issues/` manifest entries per target) less the two client entries of
-`008-comment-props-destructure.svelte`, which #4563 retired: 11 distinct ids, 28 `(id, target)`
+`008-comment-props-destructure.svelte`, which #4563 retired, plus the two server entries of
+`4079-annotated-private-read-comment-placement.svelte.js` that the Svelte 5.57.1 upgrade added:
+12 distinct ids, 30 `(id, target)`
 pairs, filed as `pattern-exact-known-failures.client.json`, 5 entries;
 `pattern-exact-known-failures.client-dev.json`, 5 entries;
-`pattern-exact-known-failures.server.json`, 9 entries; and
-`pattern-exact-known-failures.server-dev.json`, 9 entries. The two client targets and the two dev
+`pattern-exact-known-failures.server.json`, 10 entries; and
+`pattern-exact-known-failures.server-dev.json`, 10 entries. The two client targets and the two dev
 targets agree entry for entry, which is what makes the server/client split the real axis here.
 Re-baseline with `node scripts/compat-corpus/verify.mjs --update-exact-baseline`, which refuses
 under `--no-fmt` for the same reason `--update-baseline` does: without the normalizer a
@@ -7340,13 +7354,15 @@ so a repro failing gate 1 for an ordinary text mismatch can be listed in both. E
 would mean that *fixing* a gate-1 entry adds a row here; two rows for one divergence is the
 cheaper failure.
 
-### The 11 entries, with the direction each one runs in
+### The 12 entries, with the direction each one runs in
 
 Every line below is the first differing line the run reported, so `expected` is the official
 compiler and `actual` is rsvelte. `45c` says this family does not decide who is wrong, and the
 enrolling baseline bears that out: **10 of the 11 are comment-only and 1 is not, 5 are rsvelte
 dropping a comment official emits, 3 are rsvelte emitting one official does not, and 2 are the
-same comment on both sides in a different place.**
+same comment on both sides in a different place.** The twelfth entry, added by the 5.57.1 upgrade,
+is a thirteenth of nothing — it is the same comment on both sides with the *parenthesis* in a
+different place, which is a shape the tally above has no bucket for.
 
 | id | targets | direction |
 |---|---|---|
@@ -7360,6 +7376,7 @@ same comment on both sides in a different place.**
 | `4046-snippet-parameter-comment.svelte` | all 4 | **rsvelte drops** on three targets (`/* parameter */` before the snippet call) and misplaces on `client-dev`, where official writes `() => /* parameter */ body(...)`. |
 | `destructure-rhs-ends-before-a-trailing-comment.svelte` | client, client-dev | **misplaced.** Official closes the effect (`});`) where rsvelte still has `/* } c */` — the comment is kept but a statement late. |
 | `dollar-function-parameter.svelte` | server, server-dev | **not a comment at all**, and the only such entry: official emits `$.store_mutate($$store_subs ??= {}, "$viewport", …)` and rsvelte emits the bare `$viewport.width += read(work);`. It is *already listed in* `known-failures.server.json` / `known-failures.server-dev.json`, so it is 45d realized on the first baseline — one divergence, two rows, on purpose. |
+| `4079-annotated-private-read-comment-placement.svelte.js` | server, server-dev | **upstream is wrong, and it is the newer behaviour.** For `const v = /** @type {string} */ (this.#derived);` official 5.57.1 writes `/** @type {string} */ (this.#derived)()` and rsvelte writes `/** @type {string} */ (this.#derived())`. esrap 2.3.x re-adds a JSDoc cast's parentheses from the comment alone (sveltejs/esrap#164) and closes them as soon as the node the comment led is printed; upstream's `b.call(<read>)` getter wrapper carries no `loc`, so the flush happens at the callee and the cast lands on the getter rather than on its value — `checkJs` reads that as calling a `string`. Our server pipeline re-parses the transformed text, so the call has a real span (measured: `Span { 213, 228 }`, i.e. `this.#derived()`) and the parenthesis closes around the value. Reported as `upstream_issues/svelte-jsdoc-cast-comment-lands-inside-an-earlier-store-get.md`, whose other shape is the same root on the client target. |
 | `legacy-prop-initializer-jsdoc.svelte` | server, server-dev | **rsvelte drops.** The `/** @param {any} value */` in front of a `$.fallback` initializer. |
 
 Ten of these are the blind spot the family was added for: gate 1 scores every one of them `match`

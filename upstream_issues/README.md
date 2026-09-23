@@ -80,7 +80,6 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `3651-svelte-async-autofocus-and-event-output-is-unparseable.md` | sveltejs/svelte | #3651 | unrecorded |
 | `4083-oxc-parenthesized-satisfies-with-a-modifier-name.md` | oxc-project/oxc (`oxc_parser`) | #4083 | unrecorded |
 | `4133-svelte-each-expression-loc-keeps-the-swallowed-ts-assertion.md` | sveltejs/svelte | #4133 | unrecorded |
-| `4251-svelte-acorn-typescript-comment-duplication.md` | sveltejs/svelte | #4251 | unrecorded |
 | `4046-svelte-a-reordered-reactive-statement-reprints-earlier-comments.md` | sveltejs/svelte | #4046 | unrecorded |
 | `4111-svelte-await-catch-binding-transform-leaks-out-of-the-block.md` | sveltejs/svelte | #4111 | unrecorded |
 | `4117-svelte-class-shorthand-reaches-attributes-untransformed.md` | sveltejs/svelte | #4117 | unrecorded |
@@ -116,6 +115,7 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `svelte-eslint-parser-self-closing-style-lookalike-component.md` | sveltejs/svelte-eslint-parser | — | unrecorded |
 | `svelte-fromcodepoint-rangeerror.md` | sveltejs/svelte | #3617 | unrecorded |
 | `svelte-inspect-with-in-a-declarator.md` | sveltejs/svelte | #3614, #3627 | unrecorded |
+| `svelte-jsdoc-cast-comment-lands-inside-an-earlier-store-get.md` | sveltejs/svelte | — | unrecorded |
 | `svelte-language-server-duplicate-completion-trigger-character.md` | sveltejs/language-tools (svelte-language-server) | — | unrecorded |
 | `svelte-language-server-hovers-svelte2tsx-synthesized-render-function.md` | sveltejs/language-tools (language-server) | #4154 | unrecorded |
 | `svelte-language-server-rune-definition-lands-inside-the-jsdoc.md` | sveltejs/language-tools (language-server) | #4154 | unrecorded |
@@ -133,18 +133,19 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `tsgo-lsp-completion-omits-the-commit-character-inputs.md` | microsoft/typescript-go (`tsgo --lsp`) | #4154 | unrecorded |
 | `tsgo-lsp-hover-renders-declarations-differently-from-tsc.md` | microsoft/typescript-go (`tsgo --lsp`) | #4154 | unrecorded |
 
-**27** reports carry no rsvelte issue number. Six came out of the lint-parity campaign (five
+**28** reports carry no rsvelte issue number. Six came out of the lint-parity campaign (five
 against `eslint-plugin-svelte`, one against `svelte-eslint-parser`), two out of the
 `two-ports-inventory.md` row 21 shadow probes, seven out of the SCSS-backend burndown — five
 covering every unit `scss-known-failures.json` lists as `grass-rejects-accepted`, plus the two
 classes in that ratchet whose output is not render-neutral (a hoisted declaration, and a slash list
-divided inside a nested rule) — and three out of the LSP differential campaign. The remaining nine
+divided inside a nested rule) — and three out of the LSP differential campaign. The remaining ten
 are later: two `oxfmt` CSS reports from the formatter-parity corpus, one against `esrap`, one
 against `language-tools`, and one against `prettier-plugin-svelte` from the formatter-parity
 burndown (an inline element in a text run overflows `printWidth`, and re-formatting the output is
 not a fixed point), one against `oxc_formatter_css` from the same burndown (three shapes the Svelte
 compiler accepts and passes through byte-for-byte that the CSS formatter does not
-round-trip), and three against `svelte2tsx` from the svelte2tsx-ratchet burndown.
+round-trip), three against `svelte2tsx` from the svelte2tsx-ratchet burndown, and one against
+`svelte` from the 5.57.1 upgrade (a JSDoc cast comment claimed by a synthesized `$.get(…)`).
 None of them names an issue internally — `—` records that, rather than
 inventing a number, and `check-upstream-issues.mjs` holds the count above to the table so this
 paragraph cannot go stale the way it already had (it read "Fifteen" against 19 rows).
