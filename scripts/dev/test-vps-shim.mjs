@@ -110,9 +110,10 @@ const [batchModern] = r.compileBatch([
 const asyncBatch = await r.compileBatchAsync([
 	{ source: compileSource, options: { filename: 'Foo.svelte', generate: 'client' } },
 ]);
-// `compileModule` is absent from this list on purpose: `compile_module` in
-// `rsvelte_core` returns `map: None`, so there is no map to decorate. That is a
-// separate divergence from upstream (which returns a `SourceMap` there too).
+const moduleCompiled = r.compileModule('export const x = $state(0);', {
+	filename: 'foo.svelte.js',
+	generate: 'client',
+});
 for (const [label, map] of [
 	['compile() js', compiled?.js?.map],
 	['compile() css', compiled?.css?.map],
@@ -121,6 +122,7 @@ for (const [label, map] of [
 	['compileBatch({modernAst}) js', batchModern?.js?.map],
 	['compileAsync() js', asyncCompiled?.js?.map],
 	['compileBatchAsync() js', asyncBatch?.[0]?.js?.map],
+	['compileModule() js', moduleCompiled?.js?.map],
 ]) {
 	if (map == null) {
 		assert(`${label}.map is present`, false, 'map is null');
@@ -182,11 +184,7 @@ assert(
 );
 
 // 2. compileModule() — used by the `.svelte.js` / `.svelte.ts` path
-const m = r.compileModule('export const x = $state(0);', {
-	filename: 'foo.svelte.js',
-	generate: 'client',
-});
-assert('compileModule() returns js.code', typeof m?.js?.code === 'string');
+assert('compileModule() returns js.code', typeof moduleCompiled?.js?.code === 'string');
 
 // 3. hmrDiff() — the fast-path HMR optimization the shim can consult
 const same = r.hmrDiff('<h1>x</h1>', '<h1>x</h1>');
