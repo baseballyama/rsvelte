@@ -6396,10 +6396,7 @@ fn create_assignment_expression<'a>(
     line_offsets: &[usize],
 ) -> Expression<'a> {
     let operator = assignment_operator_to_str(&assign.operator);
-    let left = match simple_assignment_lhs_inner(assign) {
-        Some(inner) => expr_to_node(convert_expression(arena, inner, offset, line_offsets)),
-        None => convert_assignment_target(arena, &assign.left, offset, line_offsets),
-    };
+    let left = convert_assignment_target(arena, &assign.left, offset, line_offsets);
     let right = convert_expression(arena, &assign.right, offset, line_offsets);
 
     Expression::from_node(JsNode::AssignmentExpression {
@@ -6410,27 +6407,6 @@ fn create_assignment_expression<'a>(
         left: arena.alloc_js_node(left),
         right: arena.alloc_js_node(expr_to_node(right)),
     })
-}
-
-/// The expression a **plain `=`** LHS unwraps to when it carries TS assertion
-/// wrappers (`x! = 1` -> `x`), or `None` when the LHS must be kept as-is.
-///
-/// svelte/compiler gets this from acorn-typescript's `toAssignable`, which
-/// unwraps the wrapper but whose return value only `parseMaybeAssign` (the `=`
-/// case) uses. So a compound assignment (`x! += 1`), an update (`x!++`) and every
-/// nested destructuring position keep the wrapper, while a plain `=` loses it.
-fn simple_assignment_lhs_inner<'x>(
-    assign: &'x oxc_ast::ast::AssignmentExpression<'x>,
-) -> Option<&'x oxc_ast::ast::Expression<'x>> {
-    if assign.operator != oxc_ast::ast::AssignmentOperator::Assign {
-        return None;
-    }
-    let inner = assign
-        .left
-        .as_simple_assignment_target()?
-        .get_expression()?
-        .get_inner_expression();
-    Some(inner)
 }
 
 fn assignment_operator_to_str(op: &oxc_ast::ast::AssignmentOperator) -> &'static str {
@@ -7823,31 +7799,6 @@ fn get_line_column_for_binding(pos: usize, line_offsets: &[usize]) -> (u32, u32)
         .saturating_sub(1);
     let line_start = line_offsets.get(line).copied().unwrap_or(0);
     ((line + 1) as u32, (pos - line_start) as u32)
-}
-
-/// Line starts that reproduce upstream `read_pattern`'s column arithmetic.
-///
-/// It parses a destructuring context as `(<pattern> = 1)` and pays for the `(`
-/// by deleting the first space of the prefix — which lands on the template's
-/// first line that carries a non-newline character. The `(` shift therefore
-/// survives on the pattern's own line whenever an earlier line has content, and
-/// never reaches the pattern's later lines (#4133). Pulling that line's start
-/// back by one byte says exactly this to every column computed from the slice.
-pub(crate) fn read_pattern_line_offsets(
-    pattern_start: usize,
-    line_offsets: &[usize],
-) -> Option<Vec<usize>> {
-    let line = line_offsets
-        .partition_point(|&start| start <= pattern_start)
-        .checked_sub(1)?;
-    let start = *line_offsets.get(line)?;
-    // Every earlier line holds at least its own newline, so `start == line` is
-    // "every line before this one is empty" and there is no space to delete.
-    (start > line).then(|| {
-        let mut shifted = line_offsets.to_vec();
-        shifted[line] = start - 1;
-        shifted
-    })
 }
 
 /// Create loc for binding patterns (complex patterns like ObjectPattern, ArrayPattern).
@@ -12173,17 +12124,8 @@ fn convert_expression_for_program<'a>(
             let start = offset + assign.span.start as usize;
             let end = offset + assign.span.end as usize;
 
-            let left = match simple_assignment_lhs_inner(assign) {
-                Some(inner) => expr_to_node(convert_expression_for_program(
-                    arena,
-                    inner,
-                    offset,
-                    line_offsets,
-                )),
-                None => {
-                    convert_assignment_target_for_program(arena, &assign.left, offset, line_offsets)
-                }
-            };
+            let left =
+                convert_assignment_target_for_program(arena, &assign.left, offset, line_offsets);
             let right = convert_expression_for_program(arena, &assign.right, offset, line_offsets);
             let operator = assignment_operator_to_str(&assign.operator);
 
@@ -14578,18 +14520,6 @@ pub fn parse_binding_pattern<'a>(
             create_identifier_for_binding_toplevel(trimmed, start, end, line_offsets),
         ));
     }
-
-    // Upstream returns from `read_identifier` before the `(pattern = 1)` wrap,
-    // so only a `{`/`[` context is charged for the `(`.
-    let shifted = if trimmed.starts_with('{') || trimmed.starts_with('[') {
-        read_pattern_line_offsets(
-            offset + (content.len() - content.trim_start_ws().len()),
-            line_offsets,
-        )
-    } else {
-        None
-    };
-    let line_offsets = shifted.as_deref().unwrap_or(line_offsets);
 
     with_oxc_allocator(|allocator| {
         // The component's mode, not JavaScript: a default value inside the

@@ -2401,22 +2401,11 @@ impl<'a> Parser<'a> {
                     // standalone expressions.
                     let pattern_expr =
                         if pattern_clean.starts_with('{') || pattern_clean.starts_with('[') {
-                            // `{@const}` reads its pattern with `read_pattern`; the
-                            // `{const …}` declaration tag does not, so only this site
-                            // pays for the `(` the wrap adds (#4133).
-                            let shifted = super::super::read::expression::read_pattern_line_offsets(
-                                expr_start
-                                    + (pattern_clean.len() - pattern_clean.trim_start_ws().len()),
-                                self.expression_line_offsets(),
-                            );
-                            let line_offsets = shifted
-                                .as_deref()
-                                .unwrap_or_else(|| self.expression_line_offsets());
                             match super::super::read::expression::parse_destructuring_pattern(
                                 &self.arena,
                                 &pattern_clean,
                                 expr_start,
-                                line_offsets,
+                                self.expression_line_offsets(),
                                 self.ts,
                             ) {
                                 Some(expr) => expr,

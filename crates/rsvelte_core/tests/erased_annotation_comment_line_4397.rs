@@ -16,8 +16,12 @@
 //! target, and a source-shape screen over `compatibility/sources` (33,890
 //! `.svelte` files) selects 0 carriers. This test is the whole guard.
 //!
-//! Every expected string here is official Svelte 5.57.0's own output for the
-//! same source (`submodules/svelte`, pin `7bc0a70fe`), not a neighbouring cell's.
+//! Every expected string here is official Svelte 5.57.1's own output for the
+//! same source (`submodules/svelte`, pin `636eaaaa6`), not a neighbouring cell's.
+//! Through 5.57.0 each of them carried the comment twice, because
+//! `@sveltejs/acorn-typescript` fired `onComment` for both halves of its
+//! speculation over the annotation; 1.0.13 fixed that and the copies are gone,
+//! which moves no cell across the axis this file measures.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
@@ -34,8 +38,8 @@ fn client(src: &str) -> String {
     .unwrap_or_else(|e| format!("COMPILE_ERROR: {e:?}"))
 }
 
-const INLINE: &str = "let a = /* c */ /* c */ { b: 1 };";
-const BROKEN: &str = "let a = /* c */\n\t/* c */\n\t{ b: 1 };";
+const INLINE: &str = "let a = /* c */ { b: 1 };";
+const BROKEN: &str = "let a = /* c */\n\t{ b: 1 };";
 
 /// The reported cell: annotation, comment and initializer all on one line.
 #[test]
@@ -112,9 +116,9 @@ fn a_multi_line_annotation_still_breaks_the_line() {
     assert!(out.contains(BROKEN), "{out}");
 }
 
-/// A whole erased *statement* has no flush point, so its comments keep the
-/// newline they always had. Official prints both copies on their own lines
-/// ahead of the declaration.
+/// A whole erased *statement* has no flush point, so its comment keeps the
+/// newline it always had: official prints it on its own line ahead of the
+/// declaration.
 #[test]
 fn an_erased_type_alias_keeps_its_comments_on_their_own_lines() {
     let out = client(concat!(
@@ -125,8 +129,5 @@ fn an_erased_type_alias_keeps_its_comments_on_their_own_lines() {
         "<i>{a.b}</i>\n"
     ));
     assert!(!out.contains("COMPILE_ERROR"), "{out}");
-    assert!(
-        out.contains("/* c */\n\t/* c */\n\tlet a = { b: 1 };"),
-        "{out}"
-    );
+    assert!(out.contains("/* c */\n\tlet a = { b: 1 };"), "{out}");
 }

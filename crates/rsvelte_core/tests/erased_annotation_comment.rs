@@ -22,12 +22,12 @@
 //! count-keyed grid the one-line-annotation row reads `2 == 2` and EQUAL while
 //! the two copies sit on different lines than upstream puts them on.
 //!
-//! One cell is deliberately NOT the oracle's output and says so. Upstream emits
-//! the comment twice through `@sveltejs/acorn-typescript@1.0.10`'s `tsLookAhead`
-//! (see `collect_speculative_type_head_regions`), and rsvelte reproduces that
-//! where it can; the residual row is the shape where it cannot yet — #4397
-//! retired the other one, which is why the one-line annotation is now a matched
-//! cell above rather than a pin below.
+//! One cell is deliberately NOT the oracle's output and says so; the residual
+//! row is the shape rsvelte cannot place yet. Until Svelte 5.57.1 four of the
+//! matched cells carried the comment twice, because
+//! `@sveltejs/acorn-typescript@1.0.10`'s `tsLookAhead` left `isLookahead` unset
+//! and fired `onComment` during the speculative parse as well as after the
+//! rewind; 1.0.13 fixed it and the port of the doubling is gone.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
@@ -58,7 +58,7 @@ fn an_erased_annotations_comment_lands_where_upstream_puts_it() {
             "multi-line annotation on an initialized declarator",
             "\tlet a: {\n\t\t/* c */\n\t\tb: number;\n\t} = { b: 1 };",
             "{a.b}",
-            &["\tlet a = /* c */", "\t/* c */"],
+            &["\tlet a = /* c */"],
         ),
         (
             // The row above and this one differ only in where the newline sits,
@@ -67,7 +67,7 @@ fn an_erased_annotations_comment_lands_where_upstream_puts_it() {
             "one-line annotation on an initialized declarator",
             "\tlet a: { /* c */ b: number } = { b: 1 };",
             "{a.b}",
-            &["\tlet a = /* c */ /* c */ { b: 1 };"],
+            &["\tlet a = /* c */ { b: 1 };"],
         ),
         (
             "one-line interface declaration",
@@ -77,17 +77,19 @@ fn an_erased_annotations_comment_lands_where_upstream_puts_it() {
         ),
         (
             // A type alias's `{` is a speculative head and an interface body is
-            // not, so this row carries two copies where the one above carries one.
+            // not. That used to make this row carry two copies of the comment;
+            // `@sveltejs/acorn-typescript` 1.0.13 stopped the lookahead firing
+            // `onComment`, so the two rows now agree.
             "one-line type alias declaration",
             "\ttype P = { /* c */ a?: number };\n\tlet v: P = {};",
             "{v.a}",
-            &["\t/* c */", "\t/* c */", "\tlet v = {};"],
+            &["\t/* c */", "\tlet v = {};"],
         ),
         (
             "multi-line function return annotation",
             "\tfunction f(): {\n\t\t/* c */\n\t\tb: number;\n\t} {\n\t\treturn { b: 1 };\n\t}\n\tlet a = f();",
             "{a.b}",
-            &["\tfunction f(/* c */", "\t/* c */", "\tlet a = f();"],
+            &["\tfunction f(/* c */", "\tlet a = f();"],
         ),
         (
             // Control: a value-position comment is not erased at all, so it must

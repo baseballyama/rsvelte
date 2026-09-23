@@ -2852,11 +2852,10 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     /// Handles plain `key: value`, computed keys (`[expr]: value`), method
     /// shorthand (`key() {}`), and getter / setter accessors (`get key() {}` /
     /// `set key() {}`). Mirrors codegen's [`emit_object_member`] exactly so the
-    /// esrap output stays byte-identical: in particular codegen's `auto_method`
-    /// heuristic treats any non-computed `Init` property whose value is a
-    /// (non-arrow) function expression as a method shorthand, so we set
-    /// `method: true` for that shape too — without it esrap would print
-    /// `key: function() {}` instead of the `key() {}` codegen emits.
+    /// esrap output stays byte-identical: the concise form is taken from the
+    /// property's own `method` flag, never inferred from a function value —
+    /// esrap stopped inferring it in 2.3.x, so `{ click: function () {} }`
+    /// stays spelled that way.
     fn object_property(
         &self,
         p: &JsProperty,
@@ -2870,14 +2869,10 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         // A getter / setter / method renders from `kind` + `method` + a bare
         // function value (esrap emits the concise method form, not `key:
         // function(){}`). For all of these the value MUST be a non-arrow
-        // function expression; bail otherwise. Additionally, mirror codegen's
-        // `auto_method`: a non-computed `Init` property with a function value is
-        // emitted as a method shorthand even when `method` is false.
+        // function expression; bail otherwise.
         let value_is_function = matches!(self.arena.get_expr(p.value), JsExpr::Function(_));
         let is_accessor = !matches!(p.kind, JsPropertyKind::Init);
-        let auto_method =
-            !p.computed && matches!(p.kind, JsPropertyKind::Init) && value_is_function;
-        let method = p.method || auto_method;
+        let method = p.method;
 
         if (is_accessor || method) && !value_is_function {
             // `get`/`set`/method shape requires a function value to be faithful.

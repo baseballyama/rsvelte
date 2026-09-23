@@ -273,13 +273,7 @@ pub fn build_component(
                     } else {
                         handlers.into_iter().next().unwrap()
                     };
-                    // Use method shorthand for function expression handlers
-                    // e.g., `foo($$arg) { ... }` instead of `foo: function($$arg) { ... }`
-                    if let JsExpr::Function(ref func) = value {
-                        b::prop_method(arena, name, func.params.to_vec(), func.body.body.clone())
-                    } else {
-                        b::prop(arena, name, value)
-                    }
+                    b::prop(arena, name, value)
                 })
                 .collect(),
         );

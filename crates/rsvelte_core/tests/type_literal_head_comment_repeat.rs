@@ -1,50 +1,25 @@
-//! A comment consumed while acorn-typescript parses a type SPECULATIVELY is
-//! printed twice: `tsLookAhead` leaves `isLookahead` unset, so the comment fires
-//! `onComment` during the lookahead and again after the rewind. The doubled
-//! region runs from the opener to the token that settles the ambiguity — a `{`
-//! that could open an object or a mapped type, and a `(` that could open a
-//! function type's parameters or a parenthesised type.
+//! A comment consumed while acorn-typescript parses a type SPECULATIVELY used to
+//! be printed twice: `tsLookAhead` left `isLookahead` unset, so the comment fired
+//! `onComment` during the lookahead and again after the rewind. rsvelte carried a
+//! port of that doubling, keyed on the speculated region (the opener to the token
+//! that settles the ambiguity).
 //!
-//! rsvelte repeated "the first comment re-emitted anywhere in the script"
-//! instead. That is a different rule which agrees on the commonest shape and
-//! diverges in three directions: it repeated an `interface` member's comment,
-//! it repeated a later member's comment, and it did NOT repeat the first-member
-//! comment of a second type literal in the same script.
+//! `@sveltejs/acorn-typescript` 1.0.13 fixed it and Svelte 5.57.1 brings it in, so
+//! the port is gone and this grid is the guard against re-introducing it. The 33
+//! rows are kept exactly as they were — they are the cells that discriminated
+//! between the several rules the doubling could have followed, so they are also
+//! the cells a partial removal would leave doubling. Every expected count is
+//! re-derived from the oracle (`submodules/svelte/.../src/compiler/index.js`,
+//! `generate: 'client'`, `dev: false`) at 5.57.1: all 33 are 1, where 19 of them
+//! were 2 at 5.57.0.
 //!
-//! Every expected count is generated from the oracle
-//! (`submodules/svelte/.../src/compiler/index.js`, `generate: 'client'`,
-//! `dev: false`), never inferred from the rule.
-//!
-//! The rows that discriminate, and what each one kills:
-//!
-//! - `interface, first member` kills "any named object type doubles".
-//! - `comment before the brace` kills "any comment in the erased declaration
-//!   doubles" — it is outside the braces.
-//! - `intersection` / `union` / `nested` / `generic` / `array of literal` kill
-//!   "only a type alias whose annotation is directly a literal doubles".
-//! - `trailing the first member` and `second member after a fn type` kill "the
-//!   first comment inside the braces doubles": the position is measured against
-//!   the first MEMBER, not against the first comment.
-//! - `constructor type parameter list` and `method signature parameter list`
-//!   kill "any `(` doubles". Both are `(` at the head of a parameter list and
-//!   neither doubles, because `new` and the method name have already settled
-//!   what follows — which is what says the rule is about SPECULATION and not
-//!   about the bracket.
-//! - `mapped type head` is the cell a `TSTypeLiteral`-only rule fails, and it
-//!   is not hypothetical: `appwrite-console`'s `settings/migrations/details.svelte`
-//!   carries it and a `TSTypeLiteral`-only fix regressed that file.
-//! - `tuple element`, `type argument list` and `conditional type` are the
-//!   negative controls for openers that are not speculation sites.
-//!
-//! `empty literal` and `fn type, empty parameter list` are why each region ends
-//! at the closer when there is no first member or parameter.
-//!
-//! The function-type rows have no corpus carrier, for two separate reasons: no
-//! `.svelte` component holds the shape, and the one `.svelte.ts` that does
-//! (`runed`'s `resource.svelte.ts`) is esbuild-stripped by the gate's own
-//! preparation — which erases the TYPE, so there is no speculation site left,
-//! not merely no comment (esbuild keeps a comment inside an object literal or a
-//! class body).
+//! The rows that used to double, and are therefore the live ones here: a `{`
+//! opening an object or mapped type (through intersections, unions, nesting,
+//! generics, an `as` clause, an index signature, a parenthesised type and an
+//! array of a literal), and the `(` of a function type's parameter list including
+//! an empty one. The rest were already 1 and stay as negative controls — a fix
+//! that stopped doubling by disabling comment re-emission altogether would drive
+//! them to 0.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
@@ -67,12 +42,12 @@ fn marker_count(decl: &str, marker: &str) -> usize {
 }
 
 #[test]
-fn only_a_speculatively_parsed_type_head_repeats_its_comment() {
+fn no_type_head_repeats_its_comment() {
     let cells: [(&str, &str, usize); 33] = [
         (
             "type alias, first member",
             "type P = {\n/** MARK */\nm0?: string;\nm1?: string };",
-            2,
+            1,
         ),
         (
             "type alias, second member",
@@ -82,12 +57,12 @@ fn only_a_speculatively_parsed_type_head_repeats_its_comment() {
         (
             "intersection member literal",
             "type Q = { z?: string };\ntype P = Q & {\n/** MARK */\nm0?: string };",
-            2,
+            1,
         ),
         (
             "union member literal",
             "type Q = { z?: string };\ntype P = Q | {\n/** MARK */\nm0?: string };",
-            2,
+            1,
         ),
         (
             "interface, first member",
@@ -102,7 +77,7 @@ fn only_a_speculatively_parsed_type_head_repeats_its_comment() {
         (
             "nested literal, inner first",
             "type P = { outer?: {\n/** MARK */\ninner?: string } };",
-            2,
+            1,
         ),
         (
             "second member after a fn type",
@@ -112,22 +87,22 @@ fn only_a_speculatively_parsed_type_head_repeats_its_comment() {
         (
             "first member is a fn type",
             "type P = {\n/** MARK */\nf?: () => void;\nm1?: string };",
-            2,
+            1,
         ),
         (
             "generic type alias",
             "type P<T> = {\n/** MARK */\nm0?: T };",
-            2,
+            1,
         ),
         (
             "two comments before the first",
             "type P = {\n/** A */\n/** MARK */\nm0?: string;\nm1?: string };",
-            2,
+            1,
         ),
         (
             "comment on the brace line",
             "type P = { /** MARK */\nm0?: string;\nm1?: string };",
-            2,
+            1,
         ),
         (
             "comment before the brace",
@@ -137,17 +112,17 @@ fn only_a_speculatively_parsed_type_head_repeats_its_comment() {
         (
             "empty literal",
             "type P = {\n/** MARK */\n};\ntype R = { m0?: string };",
-            2,
+            1,
         ),
         (
             "line comment, first member",
             "type P = {\n// MARK\nm0?: string;\nm1?: string };",
-            2,
+            1,
         ),
         (
             "block comment, first member",
             "type P = {\n/* MARK */\nm0?: string;\nm1?: string };",
-            2,
+            1,
         ),
         (
             "trailing the first member",
@@ -157,7 +132,7 @@ fn only_a_speculatively_parsed_type_head_repeats_its_comment() {
         (
             "mapped type head",
             "type P = {\n/** MARK */\n[k in 'a' | 'b']?: string };",
-            2,
+            1,
         ),
         (
             "mapped type after the key",
@@ -167,17 +142,17 @@ fn only_a_speculatively_parsed_type_head_repeats_its_comment() {
         (
             "mapped type with an as clause",
             "type P = {\n/** MARK */\n[k in 'a' as `x${k}`]?: string };",
-            2,
+            1,
         ),
         (
             "fn type parameter list",
             "type F = (\n/** MARK */\na: string) => void;\ntype P = { z?: string };",
-            2,
+            1,
         ),
         (
             "fn type, empty parameter list",
             "type F = (\n/** MARK */\n) => void;\ntype P = { z?: string };",
-            2,
+            1,
         ),
         (
             "fn type, second parameter",
@@ -187,7 +162,7 @@ fn only_a_speculatively_parsed_type_head_repeats_its_comment() {
         (
             "fn type inside an interface",
             "interface P { m: (\n/** MARK */\na: string) => void }",
-            2,
+            1,
         ),
         (
             "constructor type parameter list",
@@ -217,7 +192,7 @@ fn only_a_speculatively_parsed_type_head_repeats_its_comment() {
         (
             "index signature in a literal",
             "type P = {\n/** MARK */\n[k: string]: string };",
-            2,
+            1,
         ),
         (
             "index signature in an interface",
@@ -227,12 +202,12 @@ fn only_a_speculatively_parsed_type_head_repeats_its_comment() {
         (
             "parenthesised type",
             "type T = (\n/** MARK */\nstring);\ntype P = { z?: string };",
-            2,
+            1,
         ),
         (
             "array of literal",
             "type T = {\n/** MARK */\na?: string }[];\ntype P = { z?: string };",
-            2,
+            1,
         ),
     ];
 
@@ -246,21 +221,20 @@ fn only_a_speculatively_parsed_type_head_repeats_its_comment() {
     assert!(wrong.is_empty(), "{}", wrong.join("\n"));
 }
 
-/// The direction rsvelte emitted too FEW in: upstream repeats the head comment
-/// of EVERY speculative type, and rsvelte repeated only the script's first
-/// re-emitted comment. Both markers are asserted, because a fix that repeats
-/// every re-emitted comment would satisfy the second one alone.
+/// Two speculative type heads in one script, the shape that used to double both.
+/// Asserting both markers keeps a partial removal — one that stops doubling only
+/// the script's first re-emitted comment — from passing.
 #[test]
-fn every_speculative_type_head_repeats_not_only_the_scripts_first() {
+fn neither_literal_in_a_script_repeats_its_comment() {
     let decl = "type A = {\n/** OTHER */\na?: string };\ntype P = {\n/** MARK */\nm0?: string };";
     assert_eq!(
         marker_count(decl, "OTHER"),
-        2,
+        1,
         "the first literal's comment"
     );
     assert_eq!(
         marker_count(decl, "MARK"),
-        2,
+        1,
         "the second literal's comment"
     );
 }

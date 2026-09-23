@@ -1615,15 +1615,177 @@ fn is_complex_selector_global_like(complex: &Value) -> bool {
     }
 }
 
-/// A relative selector that is nothing but `:global` / `:global(...)`.
-fn relative_selector_is_only_global(rel: &Value) -> bool {
-    rel.field("selectors")
-        .and_then(|s| s.as_array())
-        .is_some_and(|sels| {
-            sels.len() == 1
-                && sels[0].field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                && sels[0].field("name").and_then(|n| n.as_str()) == Some("global")
+/// 写経 `css/utils.js`'s `is_global`, i.e. upstream's `metadata.is_global`: the
+/// relative selector opens with `:global`/`:global(...)` and nothing in it
+/// scopes the result back (`:global(button).x` is still scoped).
+fn metadata_is_global(rel: &Value, preludes: &[&Value], depth: usize) -> bool {
+    let Some(selectors) = rel.field("selectors").and_then(|s| s.as_array()) else {
+        return false;
+    };
+    let Some(first) = selectors.first() else {
+        return false;
+    };
+    if first.field("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector")
+        || first.field("name").and_then(|n| n.as_str()) != Some("global")
+    {
+        return false;
+    }
+    if first.field("args").is_none_or(serde_json::Value::is_null) {
+        return true;
+    }
+    selectors.iter().all(|selector| {
+        is_unscoped_pseudo_class(selector, preludes, depth)
+            || selector.field("type").and_then(|t| t.as_str()) == Some("PseudoElementSelector")
+    })
+}
+
+/// 写経 `css/utils.js`'s `is_unscoped_pseudo_class`: a pseudo-class that cannot
+/// be, or is not, scoped. `:has`/`:is`/`:where` (and a multi-child `:not`) scope
+/// their arguments, so they only stay unscoped when every argument is global.
+fn is_unscoped_pseudo_class(selector: &Value, preludes: &[&Value], depth: usize) -> bool {
+    if selector.field("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector") {
+        return false;
+    }
+    let name = selector
+        .field("name")
+        .and_then(|n| n.as_str())
+        .unwrap_or_default();
+    let args = selector.field("args").filter(|a| !a.is_null());
+    let every_arg = |predicate: &dyn Fn(&Value) -> bool| {
+        args.and_then(|a| a.field("children"))
+            .and_then(|c| c.as_array())
+            .is_some_and(|complexes| {
+                complexes.iter().all(|complex| {
+                    complex
+                        .field("children")
+                        .and_then(|c| c.as_array())
+                        .is_some_and(|rels| rels.iter().all(predicate))
+                })
+            })
+    };
+    let scopes_its_arguments = matches!(name, "has" | "is" | "where")
+        || (name == "not"
+            && args.is_some_and(|a| {
+                !a.field("children")
+                    .and_then(|c| c.as_array())
+                    .is_some_and(|complexes| {
+                        complexes.iter().all(|complex| {
+                            complex
+                                .field("children")
+                                .and_then(|c| c.as_array())
+                                .is_some_and(|rels| rels.len() == 1)
+                        })
+                    })
+            }));
+    if !scopes_its_arguments || args.is_none() {
+        return true;
+    }
+    every_arg(&|rel| selector_is_global(rel, preludes, depth))
+}
+
+/// 写経 `css-prune.js`'s `is_global(selector, rule)`: the relative selector is
+/// `:global(...)`, unscopeable, or an `:is()`/`:where()`/`&` that resolves to a
+/// fully global selector list. `depth` counts the ancestor preludes of the rule
+/// that owns `rel`, so a `&` in it resolves against `preludes[depth - 1]`.
+fn selector_is_global(rel: &Value, preludes: &[&Value], depth: usize) -> bool {
+    if metadata_is_global(rel, preludes, depth) || is_global_like(rel) {
+        return true;
+    }
+    let Some(selectors) = rel.field("selectors").and_then(|s| s.as_array()) else {
+        return true;
+    };
+    let mut explicitly_global = false;
+    for selector in selectors {
+        let ty = selector
+            .field("type")
+            .and_then(|t| t.as_str())
+            .unwrap_or_default();
+        let name = selector
+            .field("name")
+            .and_then(|n| n.as_str())
+            .unwrap_or_default();
+        let mut selector_list = None;
+        let mut can_be_global = false;
+        let mut owner_depth = depth;
+
+        if ty == "PseudoClassSelector" {
+            if matches!(name, "is" | "where")
+                && selector.field("args").is_some_and(|a| !a.is_null())
+            {
+                selector_list = selector.field("args");
+            } else {
+                can_be_global = is_unscoped_pseudo_class(selector, preludes, depth);
+            }
+        }
+        if ty == "NestingSelector" {
+            if depth == 0 {
+                return false;
+            }
+            owner_depth = depth - 1;
+            selector_list = preludes.get(owner_depth).copied();
+        }
+
+        let has_global_selectors = selector_list
+            .and_then(|list| list.field("children"))
+            .and_then(|c| c.as_array())
+            .is_some_and(|complexes| {
+                complexes.iter().any(|complex| {
+                    complex
+                        .field("children")
+                        .and_then(|c| c.as_array())
+                        .is_some_and(|rels| {
+                            rels.iter()
+                                .all(|rel| selector_is_global(rel, preludes, owner_depth))
+                        })
+                })
+            });
+        explicitly_global |= has_global_selectors;
+
+        if !has_global_selectors && !can_be_global {
+            return false;
+        }
+    }
+    explicitly_global || selectors.is_empty()
+}
+
+/// Whether the implicit `&` that `get_relative_selectors` prepends to a nested
+/// rule's selector is global — i.e. some complex selector of the owning rule's
+/// parent prelude is global end to end.
+fn nesting_selector_is_global(preludes: &[&Value], depth: usize) -> bool {
+    let Some(owner_depth) = depth.checked_sub(1) else {
+        return false;
+    };
+    preludes
+        .get(owner_depth)
+        .and_then(|list| list.field("children"))
+        .and_then(|c| c.as_array())
+        .is_some_and(|complexes| {
+            complexes.iter().any(|complex| {
+                complex
+                    .field("children")
+                    .and_then(|c| c.as_array())
+                    .is_some_and(|rels| {
+                        rels.iter()
+                            .all(|rel| selector_is_global(rel, preludes, owner_depth))
+                    })
+            })
         })
+}
+
+/// Whether a relative selector mentions `&` anywhere, including inside an
+/// `:is()` / `:where()` / `:has()` / `:not()` argument — `get_relative_selectors`
+/// walks the whole selector before deciding to prepend an implicit one.
+fn mentions_nesting_selector(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => {
+            if map.get("type").and_then(|t| t.as_str()) == Some("NestingSelector") {
+                return true;
+            }
+            map.values().any(mentions_nesting_selector)
+        }
+        Value::Array(items) => items.iter().any(mentions_nesting_selector),
+        _ => false,
+    }
 }
 
 /// Check if a relative selector is global or global-like
@@ -1822,17 +1984,34 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
         return false;
     }
 
-    // A rule whose whole selector is `:global(...)` matches outside this
-    // component, so an unused ancestor cannot make it unused: upstream keeps it
-    // used and prints the ancestor `(unused)` rather than `(empty)`. A `:global`
-    // that shares its compound (`:global(img).k`) or its chain (`.zz :global(img)`)
-    // with a local part is reported as usual.
-    if complex
-        .field("children")
-        .and_then(|c| c.as_array())
-        .is_some_and(|rels| rels.len() == 1 && relative_selector_is_only_global(&rels[0]))
-    {
-        return false;
+    // 写経 `prune()`'s `ComplexSelector` (sveltejs/svelte#18793): a selector whose
+    // every relative selector is global does not depend on an element in this
+    // component, so it is used whatever the template renders — an unused ancestor
+    // cannot make it unused either, and upstream prints the ancestor `(unused)`
+    // rather than `(empty)`. A `:global` that shares its compound
+    // (`:global(img).k`) or its chain (`.zz :global(img)`) with a local part is
+    // not global and is reported as usual.
+    if let Some(rels) = complex.field("children").and_then(|c| c.as_array()) {
+        let preludes = ctx.parent_preludes.borrow();
+        // A nested rule with no `&` of its own is walked as `& <selector>`
+        // (`get_relative_selectors`), so the implicit one has to be global too —
+        // unless `truncate` left nothing to prepend it to, which it does when
+        // every relative selector is itself a `:global(...)` or unscopeable.
+        let truncates_to_nothing = rels
+            .iter()
+            .all(|rel| metadata_is_global(rel, &preludes, preludes.len()) || is_global_like(rel));
+        let implicit_nesting_is_global = truncates_to_nothing
+            || preludes.is_empty()
+            || rels.iter().any(mentions_nesting_selector)
+            || nesting_selector_is_global(&preludes, preludes.len());
+        if !rels.is_empty()
+            && implicit_nesting_is_global
+            && rels
+                .iter()
+                .all(|rel| selector_is_global(rel, &preludes, preludes.len()))
+        {
+            return false;
+        }
     }
 
     // A non-global selector can never match when the component renders no

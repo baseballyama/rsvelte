@@ -8,7 +8,9 @@
 //! than the field and the widening has to start there.
 //!
 //! Every expectation below is official's own output for the same input, taken
-//! from `submodules/svelte/packages/svelte/src/compiler/index.js`.
+//! from `submodules/svelte/packages/svelte/src/compiler/index.js` (`VERSION
+//! 5.57.1`). esrap 2.3.x re-adds the parentheses acorn elides after a JSDoc
+//! `@type` comment, so every cast row carries them around its operand now.
 
 use rsvelte_core::{GenerateMode, ModuleCompileOptions, compile_module};
 
@@ -34,7 +36,7 @@ fn client(body: &str) -> String {
 fn a_comment_leading_a_bare_private_read_prints_inside_the_getter() {
     let out = client("return /** @type {string} */ this.#raw;");
     assert!(
-        out.contains("return $.get(/** @type {string} */ this.#raw);"),
+        out.contains("return $.get(/** @type {string} */ (this.#raw));"),
         "output:\n{out}"
     );
 }
@@ -45,7 +47,7 @@ fn a_comment_leading_a_bare_private_read_prints_inside_the_getter() {
 fn a_comment_leading_a_parenthesised_private_read_prints_inside_the_getter() {
     let out = client("return /** @type {string} */ (this.#raw);");
     assert!(
-        out.contains("return $.get(/** @type {string} */ this.#raw);"),
+        out.contains("return $.get(/** @type {string} */ (this.#raw));"),
         "output:\n{out}"
     );
 }
@@ -55,7 +57,7 @@ fn a_comment_leading_a_parenthesised_private_read_prints_inside_the_getter() {
 fn a_comment_leading_doubly_parenthesised_read_prints_inside_the_getter() {
     let out = client("return /** @type {string} */ ((this.#raw));");
     assert!(
-        out.contains("return $.get(/** @type {string} */ this.#raw);"),
+        out.contains("return $.get(/** @type {string} */ (this.#raw));"),
         "output:\n{out}"
     );
 }
@@ -66,7 +68,7 @@ fn a_comment_leading_doubly_parenthesised_read_prints_inside_the_getter() {
 fn a_comment_leading_a_read_in_an_argument_prints_inside_the_getter() {
     let out = client("return String(/** @type {string} */ (this.#raw));");
     assert!(
-        out.contains("return String($.get(/** @type {string} */ this.#raw));"),
+        out.contains("return String($.get(/** @type {string} */ (this.#raw)));"),
         "output:\n{out}"
     );
 }
@@ -76,7 +78,7 @@ fn a_comment_leading_a_read_in_an_argument_prints_inside_the_getter() {
 fn a_comment_leading_a_parenthesised_derived_read_prints_inside_the_getter() {
     let out = client("const v = /** @type {string} */ (this.#derived);\n\t\treturn v;");
     assert!(
-        out.contains("const v = $.get(/** @type {string} */ this.#derived);"),
+        out.contains("const v = $.get(/** @type {string} */ (this.#derived));"),
         "output:\n{out}"
     );
 }
@@ -99,7 +101,7 @@ fn a_line_comment_leading_a_parenthesised_read_prints_inside_the_getter() {
 fn a_comment_leading_a_read_that_is_a_deeper_chains_object_stays_outside() {
     let out = client("return /** @type {string} */ (this.#derived).toString();");
     assert!(
-        out.contains("return (/** @type {string} */ $.get(this.#derived).toString());"),
+        out.contains("return (/** @type {string} */ ($.get(this.#derived).toString()));"),
         "output:\n{out}"
     );
 }
@@ -118,7 +120,7 @@ fn an_unannotated_parenthesised_read_is_wrapped_without_parens() {
 fn an_annotated_local_read_is_untouched() {
     let out = client("const local = 1;\n\t\treturn /** @type {string} */ (local);");
     assert!(
-        out.contains("return (/** @type {string} */ local);"),
+        out.contains("return (/** @type {string} */ (local));"),
         "output:\n{out}"
     );
 }

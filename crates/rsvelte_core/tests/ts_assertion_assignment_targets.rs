@@ -4,11 +4,11 @@
 //! without them the whole target serialized as `null` and a consumer reading the
 //! AST lost the write.
 //!
-//! svelte/compiler's shape comes from acorn-typescript's `toAssignable`, which
-//! unwraps the wrapper but whose return value is only used by `parseMaybeAssign`.
-//! The observable consequence is an asymmetry that these tests pin: a plain `=`
-//! LHS is unwrapped, while a compound assignment, an update expression and every
-//! nested destructuring position keep the wrapper.
+//! svelte/compiler's shape comes from acorn-typescript's `toAssignable`. Since
+//! 1.0.13 `parseMaybeAssign` passes `preserveTypeScriptWrapper`, so every
+//! assignment-target position keeps the wrapper — a plain `=` no longer differs
+//! from a compound assignment, an update expression or a nested destructuring
+//! position. Expectations below are read off `svelte.parse()`.
 
 use rsvelte_core::ast::arena::with_serialize_arena;
 use rsvelte_core::{CompileOptions, GenerateMode, ParseOptions, compile, parse};
@@ -131,7 +131,7 @@ fn non_null_update_in_template_expression_preserves_wrapper() {
     assert_eq!(span_text(source, arg), "count!");
 }
 
-// ── AssignmentExpression: `=` unwraps, compound keeps ──────────────────────
+// ── AssignmentExpression: every target position keeps the wrapper ─────────
 
 #[test]
 fn compound_assignment_lhs_preserves_wrapper() {
@@ -163,37 +163,54 @@ fn logical_assignment_lhs_preserves_wrapper() {
 }
 
 #[test]
-fn simple_assignment_lhs_unwraps_the_assertion() {
-    // acorn-typescript's `toAssignable` returns the unwrapped node and
-    // `parseMaybeAssign` keeps that return value, so `x! = 1` loses the wrapper
-    // in svelte/compiler's AST. Nested wrappers are stripped all the way down.
-    for stmt in [
-        "count! = 1;",
-        "count!! = 1;",
-        "(count as number) = 1;",
-        "(count satisfies number) = 1;",
+fn simple_assignment_lhs_preserves_the_assertion() {
+    // `svelte.parse()` 5.57.1, one row per statement: (wrapper type, wrapped text,
+    // inner type). acorn-typescript 1.0.13 preserves the wrapper here; 1.0.10
+    // returned the unwrapped node, which is the shape this file used to pin.
+    for (stmt, ty, text, inner) in [
+        ("count! = 1;", "TSNonNullExpression", "count!", "Identifier"),
+        (
+            "count!! = 1;",
+            "TSNonNullExpression",
+            "count!!",
+            "TSNonNullExpression",
+        ),
+        (
+            "(count as number) = 1;",
+            "TSAsExpression",
+            "count as number",
+            "Identifier",
+        ),
+        (
+            "(count satisfies number) = 1;",
+            "TSSatisfiesExpression",
+            "count satisfies number",
+            "Identifier",
+        ),
     ] {
         let source = script(stmt);
         let ast = parse_to_value(&source);
         let assign = find_node(&ast, "AssignmentExpression").expect("AssignmentExpression");
+        let left = assign.get("left").expect("left present");
 
         assert_eq!(
-            assign.pointer("/left/type").and_then(Value::as_str),
-            Some("Identifier"),
-            "`{stmt}` must unwrap to a bare Identifier"
+            left.get("type").and_then(Value::as_str),
+            Some(ty),
+            "`{stmt}` must keep its wrapper"
         );
+        assert_eq!(span_text(&source, left), text, "`{stmt}` wrapper span");
         assert_eq!(
-            assign.pointer("/left/name").and_then(Value::as_str),
-            Some("count"),
-            "`{stmt}` must unwrap to `count`"
+            left.pointer("/expression/type").and_then(Value::as_str),
+            Some(inner),
+            "`{stmt}` inner node"
         );
     }
 }
 
 #[test]
-fn simple_assignment_lhs_unwrap_stops_at_the_member_expression() {
-    // `obj!.p! = 1`: only the OUTER wrapper is an assignment target, so it is
-    // stripped; the `obj!` inside the member object is a value position and stays.
+fn simple_assignment_lhs_wraps_the_member_expression() {
+    // `obj!.p! = 1`: the outer `!` is the assignment target and stays, and the
+    // `obj!` inside the member object is a value position that always stayed.
     let source = script("obj!.p! = 1;");
     let ast = parse_to_value(&source);
     let assign = find_node(&ast, "AssignmentExpression").expect("AssignmentExpression");
@@ -201,13 +218,19 @@ fn simple_assignment_lhs_unwrap_stops_at_the_member_expression() {
     let left = assign.get("left").expect("left present");
     assert_eq!(
         left.get("type").and_then(Value::as_str),
+        Some("TSNonNullExpression")
+    );
+    assert_eq!(span_text(&source, left), "obj!.p!");
+    let member = left.get("expression").expect("expression present");
+    assert_eq!(
+        member.get("type").and_then(Value::as_str),
         Some("MemberExpression")
     );
     assert_eq!(
-        left.pointer("/object/type").and_then(Value::as_str),
+        member.pointer("/object/type").and_then(Value::as_str),
         Some("TSNonNullExpression")
     );
-    assert_eq!(span_text(&source, left), "obj!.p");
+    assert_eq!(span_text(&source, member), "obj!.p");
 }
 
 // ── destructuring targets: nested positions keep the wrapper ───────────────
