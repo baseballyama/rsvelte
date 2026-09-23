@@ -1,308 +1,29 @@
 {
   "$schema-note": "Two maps beside `lsp-known-failures.json`, never inside its key. `entries` maps a ratchet id to the SET of mechanisms measured on it: an entry carries several (mean 6.17 on a corpus shard), so a label is not a partition of the entries, and one label per entry would need a precedence rule the data cannot supply. `mechanisms` maps a label to where it is answered — an `upstream_issues/` path that exists on disk, the literal `deliberate-divergences`, or `null` for a terminal that has not been established yet. `null` is not `rsvelte`: an unestablished terminal and a defect of ours are different facts, and writing one as the other puts a sign on an unmeasured quantity. An id whose set contains `unclassified`, or any label whose terminal is `null`, cannot appear in an attribution table. A label's prose lives in `scripts/compat-lsp/mechanism.mjs` beside the rule that assigns it; restating it here would be a second port that can disagree with the classifier.",
   "mechanisms": {
-    "ts-lib-copy": {
+    "completion-additional-text-edits-other": {
       "terminal": null
     },
-    "ts-render-union-order": {
-      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
-    },
-    "ts-render-quote-style": {
-      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
-    },
-    "ts-render-local-modifier": {
-      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
-    },
-    "ts-render-jsdoc-tag": {
-      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
-    },
-    "ts-render-import-line": {
-      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
-    },
-    "ts-render-overload-count": {
-      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
-    },
-    "ts-render-declaration-order": {
-      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
-    },
-    "rsvelte-empty-import-only": {
-      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
-    },
-    "official-empty-target-is-the-request": {
-      "terminal": null
-    },
-    "ts-render-multiple": {
-      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
-    },
-    "ts-type-any": {
-      "terminal": null
-    },
-    "ts-render": {
-      "terminal": null
-    },
-    "ts-symbol-kind": {
-      "terminal": null
-    },
-    "ts-symbol-name": {
-      "terminal": null
-    },
-    "official-defect-svelte-ts-shadow": {
-      "terminal": null
-    },
-    "css-data": {
-      "terminal": null
-    },
-    "html-data": {
-      "terminal": null
-    },
-    "provider-routing": {
-      "terminal": null
-    },
-    "rsvelte-empty": {
-      "terminal": null
-    },
-    "official-empty": {
-      "terminal": null
-    },
-    "projection-origin-range": {
-      "terminal": null
-    },
-    "projection-target-position-declaration": {
-      "terminal": null
-    },
-    "projection-target-position-workspace": {
-      "terminal": null
-    },
-    "projection-response-range": {
-      "terminal": null
-    },
-    "target-component-vs-import": {
-      "terminal": null
-    },
-    "target-declaration-vs-source": {
-      "terminal": null
-    },
-    "target-file-mismatch": {
-      "terminal": null
-    },
-    "completion-item-set-missing-ts": {
-      "terminal": null
-    },
-    "completion-item-set-missing-html": {
-      "terminal": null
-    },
-    "completion-item-set-missing-html-close-tag": {
-      "terminal": null
-    },
-    "completion-item-set-missing-css": {
-      "terminal": null
-    },
-    "completion-item-set-missing-svg": {
-      "terminal": null
-    },
-    "completion-item-set-missing-emmet": {
-      "terminal": null
-    },
-    "completion-item-set-missing-other": {
-      "terminal": null
-    },
-    "completion-item-set-missing-mixed": {
-      "terminal": null
-    },
-    "completion-item-set-extra-ts": {
-      "terminal": null
-    },
-    "completion-item-set-extra-html": {
-      "terminal": null
-    },
-    "completion-item-set-extra-html-close-tag": {
-      "terminal": null
-    },
-    "completion-item-set-extra-css": {
-      "terminal": null
-    },
-    "completion-item-set-extra-svg": {
-      "terminal": null
-    },
-    "completion-item-set-extra-emmet": {
-      "terminal": null
-    },
-    "completion-item-set-extra-other": {
-      "terminal": null
-    },
-    "completion-item-set-extra-mixed": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind-ts": {
-      "terminal": "upstream_issues/tsgo-lsp-completion-item-omits-the-typescript-kind.md"
-    },
-    "completion-item-pairing-key-kind-html": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind-html-close-tag": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind-css": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind-svg": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind-emmet": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind-other": {
+    "completion-additional-text-edits-presence-official-only": {
       "terminal": null
     },
-    "completion-item-pairing-key-kind-mixed": {
+    "completion-additional-text-edits-presence-rsvelte-only": {
       "terminal": null
     },
-    "completion-item-pairing-key-sort-text-ts": {
+    "completion-command-presence-official-only": {
       "terminal": null
     },
-    "completion-item-pairing-key-sort-text-html": {
+    "completion-command-presence-rsvelte-only": {
       "terminal": null
     },
-    "completion-item-pairing-key-sort-text-html-close-tag": {
+    "completion-command-value": {
       "terminal": null
     },
-    "completion-item-pairing-key-sort-text-css": {
+    "completion-commit-characters-presence-official-only": {
       "terminal": null
     },
-    "completion-item-pairing-key-sort-text-svg": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-sort-text-emmet": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-sort-text-other": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-sort-text-mixed": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+sort-text-ts": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+sort-text-html": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+sort-text-html-close-tag": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+sort-text-css": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+sort-text-svg": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+sort-text-emmet": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+sort-text-other": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+sort-text-mixed": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-filter-text-ts": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-filter-text-html": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-filter-text-html-close-tag": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-filter-text-css": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-filter-text-svg": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-filter-text-emmet": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-filter-text-other": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-filter-text-mixed": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+filter-text-ts": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+filter-text-html": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+filter-text-html-close-tag": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+filter-text-css": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+filter-text-svg": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+filter-text-emmet": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+filter-text-other": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+filter-text-mixed": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-sort-text+filter-text-ts": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-sort-text+filter-text-html": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-sort-text+filter-text-html-close-tag": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-sort-text+filter-text-css": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-sort-text+filter-text-svg": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-sort-text+filter-text-emmet": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-sort-text+filter-text-other": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-sort-text+filter-text-mixed": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+sort-text+filter-text-ts": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+sort-text+filter-text-html": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+sort-text+filter-text-html-close-tag": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+sort-text+filter-text-css": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+sort-text+filter-text-svg": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+sort-text+filter-text-emmet": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+sort-text+filter-text-other": {
-      "terminal": null
-    },
-    "completion-item-pairing-key-kind+sort-text+filter-text-mixed": {
-      "terminal": null
-    },
-    "completion-item-duplicate-label": {
-      "terminal": null
+    "completion-commit-characters-presence-rsvelte-only": {
+      "terminal": "upstream_issues/tsgo-lsp-completion-omits-the-commit-character-inputs.md"
     },
     "completion-commit-characters-value-extra-paren": {
       "terminal": "upstream_issues/tsgo-lsp-completion-omits-the-commit-character-inputs.md"
@@ -310,79 +31,7 @@
     "completion-commit-characters-value-other": {
       "terminal": null
     },
-    "completion-commit-characters-presence-rsvelte-only": {
-      "terminal": "upstream_issues/tsgo-lsp-completion-omits-the-commit-character-inputs.md"
-    },
-    "completion-commit-characters-presence-official-only": {
-      "terminal": null
-    },
-    "completion-command-presence-rsvelte-only": {
-      "terminal": null
-    },
-    "completion-command-presence-official-only": {
-      "terminal": null
-    },
-    "completion-command-value": {
-      "terminal": null
-    },
-    "completion-text-edit-presence-rsvelte-only": {
-      "terminal": null
-    },
-    "completion-text-edit-presence-official-only": {
-      "terminal": null
-    },
-    "completion-text-edit-range-start": {
-      "terminal": null
-    },
-    "completion-text-edit-range-end": {
-      "terminal": null
-    },
-    "completion-text-edit-range-other": {
-      "terminal": null
-    },
-    "completion-text-edit-other": {
-      "terminal": null
-    },
-    "completion-text-edit-new-text-ts": {
-      "terminal": null
-    },
-    "completion-text-edit-new-text-html": {
-      "terminal": null
-    },
-    "completion-text-edit-new-text-html-close-tag": {
-      "terminal": null
-    },
-    "completion-text-edit-new-text-css": {
-      "terminal": null
-    },
-    "completion-text-edit-new-text-svg": {
-      "terminal": null
-    },
-    "completion-text-edit-new-text-emmet": {
-      "terminal": null
-    },
-    "completion-text-edit-new-text-other": {
-      "terminal": null
-    },
-    "completion-additional-text-edits-presence-rsvelte-only": {
-      "terminal": null
-    },
-    "completion-additional-text-edits-presence-official-only": {
-      "terminal": null
-    },
-    "completion-additional-text-edits-other": {
-      "terminal": null
-    },
-    "completion-item-data-source-rsvelte-only": {
-      "terminal": null
-    },
-    "completion-item-data-source-official-only": {
-      "terminal": null
-    },
-    "completion-item-data-uri": {
-      "terminal": null
-    },
-    "completion-item-data-position": {
+    "completion-is-incomplete": {
       "terminal": null
     },
     "completion-item-data-name": {
@@ -391,79 +40,337 @@
     "completion-item-data-other": {
       "terminal": null
     },
-    "completion-is-incomplete": {
+    "completion-item-data-position": {
       "terminal": null
     },
-    "completion-item-detail-presence-rsvelte-only": {
+    "completion-item-data-source-official-only": {
+      "terminal": null
+    },
+    "completion-item-data-source-rsvelte-only": {
+      "terminal": null
+    },
+    "completion-item-data-uri": {
       "terminal": null
     },
     "completion-item-detail-presence-official-only": {
       "terminal": null
     },
-    "completion-item-detail-value": {
+    "completion-item-detail-presence-rsvelte-only": {
       "terminal": null
     },
-    "completion-item-documentation-presence-rsvelte-only": {
+    "completion-item-detail-value": {
       "terminal": null
     },
     "completion-item-documentation-presence-official-only": {
       "terminal": null
     },
+    "completion-item-documentation-presence-rsvelte-only": {
+      "terminal": null
+    },
     "completion-item-documentation-value": {
       "terminal": null
     },
-    "completion-item-label-details-presence-rsvelte-only": {
+    "completion-item-duplicate-label": {
       "terminal": null
     },
     "completion-item-label-details-presence-official-only": {
       "terminal": null
     },
+    "completion-item-label-details-presence-rsvelte-only": {
+      "terminal": null
+    },
     "completion-item-label-details-value": {
       "terminal": null
     },
-    "diagnostic-identity-source": {
+    "completion-item-pairing-key-filter-text-css": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-filter-text-emmet": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-filter-text-html": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-filter-text-html-close-tag": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-filter-text-mixed": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-filter-text-other": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-filter-text-svg": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-filter-text-ts": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+filter-text-css": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+filter-text-emmet": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+filter-text-html": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+filter-text-html-close-tag": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+filter-text-mixed": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+filter-text-other": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+filter-text-svg": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+filter-text-ts": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+sort-text+filter-text-css": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+sort-text+filter-text-emmet": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+sort-text+filter-text-html": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+sort-text+filter-text-html-close-tag": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+sort-text+filter-text-mixed": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+sort-text+filter-text-other": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+sort-text+filter-text-svg": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+sort-text+filter-text-ts": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+sort-text-css": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+sort-text-emmet": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+sort-text-html": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+sort-text-html-close-tag": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+sort-text-mixed": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+sort-text-other": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+sort-text-svg": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind+sort-text-ts": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind-css": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind-emmet": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind-html": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind-html-close-tag": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind-mixed": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind-other": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind-svg": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-kind-ts": {
+      "terminal": "upstream_issues/tsgo-lsp-completion-item-omits-the-typescript-kind.md"
+    },
+    "completion-item-pairing-key-sort-text+filter-text-css": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-sort-text+filter-text-emmet": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-sort-text+filter-text-html": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-sort-text+filter-text-html-close-tag": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-sort-text+filter-text-mixed": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-sort-text+filter-text-other": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-sort-text+filter-text-svg": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-sort-text+filter-text-ts": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-sort-text-css": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-sort-text-emmet": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-sort-text-html": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-sort-text-html-close-tag": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-sort-text-mixed": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-sort-text-other": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-sort-text-svg": {
+      "terminal": null
+    },
+    "completion-item-pairing-key-sort-text-ts": {
+      "terminal": null
+    },
+    "completion-item-set-extra-css": {
+      "terminal": null
+    },
+    "completion-item-set-extra-emmet": {
+      "terminal": null
+    },
+    "completion-item-set-extra-html": {
+      "terminal": null
+    },
+    "completion-item-set-extra-html-close-tag": {
+      "terminal": null
+    },
+    "completion-item-set-extra-mixed": {
+      "terminal": null
+    },
+    "completion-item-set-extra-other": {
+      "terminal": null
+    },
+    "completion-item-set-extra-svg": {
+      "terminal": null
+    },
+    "completion-item-set-extra-ts": {
+      "terminal": null
+    },
+    "completion-item-set-missing-css": {
+      "terminal": null
+    },
+    "completion-item-set-missing-emmet": {
+      "terminal": null
+    },
+    "completion-item-set-missing-html": {
+      "terminal": null
+    },
+    "completion-item-set-missing-html-close-tag": {
+      "terminal": null
+    },
+    "completion-item-set-missing-mixed": {
+      "terminal": null
+    },
+    "completion-item-set-missing-other": {
+      "terminal": null
+    },
+    "completion-item-set-missing-svg": {
+      "terminal": null
+    },
+    "completion-item-set-missing-ts": {
+      "terminal": null
+    },
+    "completion-text-edit-new-text-css": {
+      "terminal": null
+    },
+    "completion-text-edit-new-text-emmet": {
+      "terminal": null
+    },
+    "completion-text-edit-new-text-html": {
+      "terminal": null
+    },
+    "completion-text-edit-new-text-html-close-tag": {
+      "terminal": null
+    },
+    "completion-text-edit-new-text-other": {
+      "terminal": null
+    },
+    "completion-text-edit-new-text-svg": {
+      "terminal": null
+    },
+    "completion-text-edit-new-text-ts": {
+      "terminal": null
+    },
+    "completion-text-edit-other": {
+      "terminal": null
+    },
+    "completion-text-edit-presence-official-only": {
+      "terminal": null
+    },
+    "completion-text-edit-presence-rsvelte-only": {
+      "terminal": null
+    },
+    "completion-text-edit-range-end": {
+      "terminal": null
+    },
+    "completion-text-edit-range-other": {
+      "terminal": null
+    },
+    "completion-text-edit-range-start": {
+      "terminal": null
+    },
+    "css-data": {
       "terminal": null
     },
     "diagnostic-identity-code": {
       "terminal": null
     },
+    "diagnostic-identity-source": {
+      "terminal": null
+    },
     "diagnostic-identity-source-and-code": {
       "terminal": null
     },
-    "diagnostic-item-set-missing-ts": {
+    "diagnostic-item-message": {
       "terminal": null
     },
-    "diagnostic-item-set-missing-js": {
+    "diagnostic-item-other": {
       "terminal": null
     },
-    "diagnostic-item-set-missing-svelte": {
+    "diagnostic-item-range-end": {
       "terminal": null
     },
-    "diagnostic-item-set-missing-css": {
+    "diagnostic-item-range-start": {
       "terminal": null
     },
-    "diagnostic-item-set-missing-rsvelte": {
-      "terminal": null
-    },
-    "diagnostic-item-set-missing-rsvelte-css": {
-      "terminal": null
-    },
-    "diagnostic-item-set-missing-other": {
-      "terminal": null
-    },
-    "diagnostic-item-set-missing-mixed": {
-      "terminal": null
-    },
-    "diagnostic-item-set-extra-ts": {
+    "diagnostic-item-set-extra-css": {
       "terminal": null
     },
     "diagnostic-item-set-extra-js": {
       "terminal": null
     },
-    "diagnostic-item-set-extra-svelte": {
+    "diagnostic-item-set-extra-mixed": {
       "terminal": null
     },
-    "diagnostic-item-set-extra-css": {
+    "diagnostic-item-set-extra-other": {
       "terminal": null
     },
     "diagnostic-item-set-extra-rsvelte": {
@@ -472,145 +379,73 @@
     "diagnostic-item-set-extra-rsvelte-css": {
       "terminal": null
     },
-    "diagnostic-item-set-extra-other": {
+    "diagnostic-item-set-extra-svelte": {
       "terminal": null
     },
-    "diagnostic-item-set-extra-mixed": {
+    "diagnostic-item-set-extra-ts": {
+      "terminal": null
+    },
+    "diagnostic-item-set-missing-css": {
+      "terminal": null
+    },
+    "diagnostic-item-set-missing-js": {
+      "terminal": null
+    },
+    "diagnostic-item-set-missing-mixed": {
+      "terminal": null
+    },
+    "diagnostic-item-set-missing-other": {
+      "terminal": null
+    },
+    "diagnostic-item-set-missing-rsvelte": {
+      "terminal": null
+    },
+    "diagnostic-item-set-missing-rsvelte-css": {
+      "terminal": null
+    },
+    "diagnostic-item-set-missing-svelte": {
+      "terminal": null
+    },
+    "diagnostic-item-set-missing-ts": {
+      "terminal": null
+    },
+    "diagnostic-item-severity": {
+      "terminal": null
+    },
+    "diagnostic-mixed": {
       "terminal": null
     },
     "document-symbol-kind": {
       "terminal": null
     },
-    "document-symbol-range": {
-      "terminal": null
-    },
-    "document-symbol-set-missing": {
-      "terminal": null
-    },
-    "document-symbol-set-extra": {
-      "terminal": null
-    },
-    "document-symbol-mixed-kind-set-missing": {
-      "terminal": null
-    },
-    "document-symbol-mixed-kind-set-extra": {
-      "terminal": null
-    },
-    "document-symbol-mixed-range-set-missing": {
-      "terminal": null
-    },
-    "document-symbol-mixed-range-set-extra": {
-      "terminal": null
-    },
     "document-symbol-mixed-kind-range": {
-      "terminal": null
-    },
-    "document-symbol-mixed-kind-range-set-missing": {
       "terminal": null
     },
     "document-symbol-mixed-kind-range-set-extra": {
       "terminal": null
     },
-    "folding-range-end-line": {
+    "document-symbol-mixed-kind-range-set-missing": {
       "terminal": null
     },
-    "folding-range-character": {
+    "document-symbol-mixed-kind-set-extra": {
       "terminal": null
     },
-    "folding-range-kind": {
+    "document-symbol-mixed-kind-set-missing": {
       "terminal": null
     },
-    "folding-range-set-missing": {
+    "document-symbol-mixed-range-set-extra": {
       "terminal": null
     },
-    "folding-range-set-extra": {
+    "document-symbol-mixed-range-set-missing": {
       "terminal": null
     },
-    "folding-range-mixed-end-line-set-missing": {
+    "document-symbol-range": {
       "terminal": null
     },
-    "folding-range-mixed-end-line-set-extra": {
+    "document-symbol-set-extra": {
       "terminal": null
     },
-    "folding-range-mixed-character-set-missing": {
-      "terminal": null
-    },
-    "folding-range-mixed-character-set-extra": {
-      "terminal": null
-    },
-    "folding-range-mixed-end-line-character": {
-      "terminal": null
-    },
-    "folding-range-mixed-end-line-character-set-missing": {
-      "terminal": null
-    },
-    "folding-range-mixed-end-line-character-set-extra": {
-      "terminal": null
-    },
-    "folding-range-mixed-kind-set-missing": {
-      "terminal": null
-    },
-    "folding-range-mixed-kind-set-extra": {
-      "terminal": null
-    },
-    "folding-range-mixed-end-line-kind": {
-      "terminal": null
-    },
-    "folding-range-mixed-end-line-kind-set-missing": {
-      "terminal": null
-    },
-    "folding-range-mixed-end-line-kind-set-extra": {
-      "terminal": null
-    },
-    "folding-range-mixed-character-kind": {
-      "terminal": null
-    },
-    "folding-range-mixed-character-kind-set-missing": {
-      "terminal": null
-    },
-    "folding-range-mixed-character-kind-set-extra": {
-      "terminal": null
-    },
-    "folding-range-mixed-end-line-character-kind": {
-      "terminal": null
-    },
-    "folding-range-mixed-end-line-character-kind-set-missing": {
-      "terminal": null
-    },
-    "folding-range-mixed-end-line-character-kind-set-extra": {
-      "terminal": null
-    },
-    "inlay-hint-set-missing-type": {
-      "terminal": null
-    },
-    "inlay-hint-set-missing-parameter": {
-      "terminal": null
-    },
-    "inlay-hint-set-missing-other": {
-      "terminal": null
-    },
-    "inlay-hint-set-missing-mixed": {
-      "terminal": null
-    },
-    "inlay-hint-set-extra-type": {
-      "terminal": null
-    },
-    "inlay-hint-set-extra-parameter": {
-      "terminal": null
-    },
-    "inlay-hint-set-extra-other": {
-      "terminal": null
-    },
-    "inlay-hint-set-extra-mixed": {
-      "terminal": null
-    },
-    "inlay-hint-label": {
-      "terminal": null
-    },
-    "inlay-hint-kind": {
-      "terminal": null
-    },
-    "inlay-hint-mixed": {
+    "document-symbol-set-missing": {
       "terminal": null
     },
     "empty-result-spelling-document-highlight": {
@@ -619,34 +454,76 @@
     "empty-result-spelling-inlay-hint": {
       "terminal": null
     },
-    "diagnostic-mixed": {
+    "folding-range-character": {
       "terminal": null
     },
-    "diagnostic-item-range-start": {
+    "folding-range-end-line": {
       "terminal": null
     },
-    "diagnostic-item-range-end": {
+    "folding-range-kind": {
       "terminal": null
     },
-    "diagnostic-item-message": {
+    "folding-range-mixed-character-kind": {
       "terminal": null
     },
-    "diagnostic-item-severity": {
+    "folding-range-mixed-character-kind-set-extra": {
       "terminal": null
     },
-    "diagnostic-item-other": {
+    "folding-range-mixed-character-kind-set-missing": {
       "terminal": null
     },
-    "selection-range-chain-rsvelte-deeper": {
+    "folding-range-mixed-character-set-extra": {
       "terminal": null
     },
-    "selection-range-chain-rsvelte-shallower": {
+    "folding-range-mixed-character-set-missing": {
       "terminal": null
     },
-    "selection-range-innermost": {
+    "folding-range-mixed-end-line-character": {
       "terminal": null
     },
-    "linked-editing-word-pattern": {
+    "folding-range-mixed-end-line-character-kind": {
+      "terminal": null
+    },
+    "folding-range-mixed-end-line-character-kind-set-extra": {
+      "terminal": null
+    },
+    "folding-range-mixed-end-line-character-kind-set-missing": {
+      "terminal": null
+    },
+    "folding-range-mixed-end-line-character-set-extra": {
+      "terminal": null
+    },
+    "folding-range-mixed-end-line-character-set-missing": {
+      "terminal": null
+    },
+    "folding-range-mixed-end-line-kind": {
+      "terminal": null
+    },
+    "folding-range-mixed-end-line-kind-set-extra": {
+      "terminal": null
+    },
+    "folding-range-mixed-end-line-kind-set-missing": {
+      "terminal": null
+    },
+    "folding-range-mixed-end-line-set-extra": {
+      "terminal": null
+    },
+    "folding-range-mixed-end-line-set-missing": {
+      "terminal": null
+    },
+    "folding-range-mixed-kind-set-extra": {
+      "terminal": null
+    },
+    "folding-range-mixed-kind-set-missing": {
+      "terminal": null
+    },
+    "folding-range-set-extra": {
+      "terminal": null
+    },
+    "folding-range-set-missing": {
+      "terminal": null
+    },
+    "html-data": {
       "terminal": null
     },
     "initialize-capability-codeActionProvider": {
@@ -661,6 +538,9 @@
     "initialize-capability-executeCommandProvider": {
       "terminal": null
     },
+    "initialize-capability-other": {
+      "terminal": null
+    },
     "initialize-capability-positionEncoding": {
       "terminal": "deliberate-divergences"
     },
@@ -670,7 +550,127 @@
     "initialize-capability-workspace": {
       "terminal": "deliberate-divergences"
     },
-    "initialize-capability-other": {
+    "inlay-hint-kind": {
+      "terminal": null
+    },
+    "inlay-hint-label": {
+      "terminal": null
+    },
+    "inlay-hint-mixed": {
+      "terminal": null
+    },
+    "inlay-hint-set-extra-mixed": {
+      "terminal": null
+    },
+    "inlay-hint-set-extra-other": {
+      "terminal": null
+    },
+    "inlay-hint-set-extra-parameter": {
+      "terminal": null
+    },
+    "inlay-hint-set-extra-type": {
+      "terminal": null
+    },
+    "inlay-hint-set-missing-mixed": {
+      "terminal": null
+    },
+    "inlay-hint-set-missing-other": {
+      "terminal": null
+    },
+    "inlay-hint-set-missing-parameter": {
+      "terminal": null
+    },
+    "inlay-hint-set-missing-type": {
+      "terminal": null
+    },
+    "linked-editing-word-pattern": {
+      "terminal": null
+    },
+    "official-defect-svelte-ts-shadow": {
+      "terminal": null
+    },
+    "official-empty": {
+      "terminal": null
+    },
+    "official-empty-target-is-the-request": {
+      "terminal": null
+    },
+    "projection-origin-range": {
+      "terminal": null
+    },
+    "projection-response-range": {
+      "terminal": null
+    },
+    "projection-target-position-declaration": {
+      "terminal": null
+    },
+    "projection-target-position-workspace": {
+      "terminal": null
+    },
+    "provider-routing": {
+      "terminal": null
+    },
+    "rsvelte-empty": {
+      "terminal": null
+    },
+    "rsvelte-empty-import-only": {
+      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
+    },
+    "selection-range-chain-rsvelte-deeper": {
+      "terminal": null
+    },
+    "selection-range-chain-rsvelte-shallower": {
+      "terminal": null
+    },
+    "selection-range-innermost": {
+      "terminal": null
+    },
+    "target-component-vs-import": {
+      "terminal": null
+    },
+    "target-declaration-vs-source": {
+      "terminal": null
+    },
+    "target-file-mismatch": {
+      "terminal": null
+    },
+    "ts-lib-copy": {
+      "terminal": null
+    },
+    "ts-render": {
+      "terminal": null
+    },
+    "ts-render-declaration-order": {
+      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
+    },
+    "ts-render-import-line": {
+      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
+    },
+    "ts-render-jsdoc-tag": {
+      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
+    },
+    "ts-render-local-modifier": {
+      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
+    },
+    "ts-render-multiple": {
+      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
+    },
+    "ts-render-overload-count": {
+      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
+    },
+    "ts-render-quote-style": {
+      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
+    },
+    "ts-render-union-order": {
+      "terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
+    },
+    "ts-symbol-kind": {
+      "terminal": null
+    },
+    "ts-symbol-name": {
+      "terminal": null
+    },
+    "ts-type-any": {
       "terminal": null
     },
     "unclassified": {
@@ -215900,12 +215900,6 @@
     "differential:upstream-features/unInitialized/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=85c871d26c93]": [
       "diagnostic-item-set-extra-ts"
     ],
-    "differential:upstream-testfiles/call-hierarchy/call-hierarchy-import.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=660fe3e1946b]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/call-hierarchy/call-hierarchy-import.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=660fe3e1946b]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/call-hierarchy/call-hierarchy-import.svelte|textDocument/foldingRange|:extra-rsvelte[count=1,hash=44ac2e58edf8]": [
       "folding-range-character"
     ],
@@ -215917,12 +215911,6 @@
     ],
     "differential:upstream-testfiles/call-hierarchy/call-hierarchy-import.svelte|textDocument/foldingRange|phase=edit|:missing-rsvelte[count=1,hash=d09436ed04e0]": [
       "folding-range-set-missing"
-    ],
-    "differential:upstream-testfiles/call-hierarchy/outgoing-component.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=e4cc1e9cbb72]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/call-hierarchy/outgoing-component.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=e4cc1e9cbb72]": [
-      "document-symbol-set-extra"
     ],
     "differential:upstream-testfiles/call-hierarchy/outgoing-component.svelte|textDocument/foldingRange|:extra-rsvelte[count=1,hash=b87d137f0729]": [
       "folding-range-character"
@@ -216014,12 +216002,6 @@
     "differential:upstream-testfiles/code-actions/codeaction-component-import.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=48502064cf93]": [
       "diagnostic-item-set-extra-rsvelte"
     ],
-    "differential:upstream-testfiles/code-actions/codeaction-component-import.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=a8128b19e428]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/code-actions/codeaction-component-import.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=a8128b19e428]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/code-actions/codeaction-component-import.svelte|textDocument/foldingRange|:missing-rsvelte[count=1,hash=9d3ddc8aafab]": [
       "folding-range-set-missing"
     ],
@@ -216098,10 +216080,10 @@
     "differential:upstream-testfiles/code-actions/codeactions.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=7ad73949fa22]": [
       "diagnostic-item-set-missing-ts"
     ],
-    "differential:upstream-testfiles/code-actions/codeactions.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=74b13a5c8ff0]": [
+    "differential:upstream-testfiles/code-actions/codeactions.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=977c163460fb]": [
       "document-symbol-set-extra"
     ],
-    "differential:upstream-testfiles/code-actions/codeactions.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=2,hash=74b13a5c8ff0]": [
+    "differential:upstream-testfiles/code-actions/codeactions.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=977c163460fb]": [
       "document-symbol-set-extra"
     ],
     "differential:upstream-testfiles/code-actions/codeactions.svelte|textDocument/foldingRange|:extra-rsvelte[count=1,hash=113e8d0dc039]": [
@@ -216230,14 +216212,14 @@
     "differential:upstream-testfiles/code-actions/organize-imports-snippet.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=84ade9ccfc7e]": [
       "diagnostic-item-set-missing-mixed"
     ],
-    "differential:upstream-testfiles/code-actions/organize-imports-snippet.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=670d6a0155f3]": [
-      "document-symbol-mixed-kind-set-extra"
+    "differential:upstream-testfiles/code-actions/organize-imports-snippet.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=9efa3ee30247]": [
+      "document-symbol-kind"
     ],
     "differential:upstream-testfiles/code-actions/organize-imports-snippet.svelte|textDocument/documentSymbol|:missing-rsvelte[count=1,hash=5994629050d2]": [
       "document-symbol-kind"
     ],
-    "differential:upstream-testfiles/code-actions/organize-imports-snippet.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=2,hash=670d6a0155f3]": [
-      "document-symbol-mixed-kind-set-extra"
+    "differential:upstream-testfiles/code-actions/organize-imports-snippet.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=9efa3ee30247]": [
+      "document-symbol-kind"
     ],
     "differential:upstream-testfiles/code-actions/organize-imports-snippet.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=5994629050d2]": [
       "document-symbol-kind"
@@ -216314,14 +216296,8 @@
     "differential:upstream-testfiles/code-actions/organize-imports-with-generics.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-ef6b4e83bfc1/range/end/character:value-mismatch[official=4523540f1504,rsvelte=8527a891e224]": [
       "diagnostic-item-range-end"
     ],
-    "differential:upstream-testfiles/code-actions/organize-imports-with-generics.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=920b80c174fe]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/code-actions/organize-imports-with-generics.svelte|textDocument/documentSymbol|:missing-rsvelte[count=1,hash=c73547e71827]": [
       "document-symbol-set-missing"
-    ],
-    "differential:upstream-testfiles/code-actions/organize-imports-with-generics.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=920b80c174fe]": [
-      "document-symbol-set-extra"
     ],
     "differential:upstream-testfiles/code-actions/organize-imports-with-generics.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=c73547e71827]": [
       "document-symbol-set-missing"
@@ -216350,12 +216326,6 @@
     "differential:upstream-testfiles/code-actions/organize-imports-with-module.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=9b468b7e144d]": [
       "diagnostic-item-set-missing-ts"
     ],
-    "differential:upstream-testfiles/code-actions/organize-imports-with-module.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=64d7b208c842]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/code-actions/organize-imports-with-module.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=64d7b208c842]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/code-actions/organize-imports-with-module.svelte|textDocument/foldingRange|:extra-rsvelte[count=1,hash=d19d49ca9873]": [
       "folding-range-character"
     ],
@@ -216379,12 +216349,6 @@
     ],
     "differential:upstream-testfiles/code-actions/remove-imports-inline.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=4cfb89555396]": [
       "diagnostic-item-set-missing-js"
-    ],
-    "differential:upstream-testfiles/codelens/importing.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=f631ffb1e987]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/codelens/importing.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=f631ffb1e987]": [
-      "document-symbol-set-extra"
     ],
     "differential:upstream-testfiles/codelens/importing.svelte|textDocument/foldingRange|:missing-rsvelte[count=1,hash=4c35c2b3c8b3]": [
       "folding-range-set-missing"
@@ -217040,12 +217004,6 @@
     "differential:upstream-testfiles/declaration-map/importing.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=7eee1a2a4972]": [
       "diagnostic-item-set-missing-js"
     ],
-    "differential:upstream-testfiles/definition/definition-rune.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=f97088d8fac0]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/definition/definition-rune.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=f97088d8fac0]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/definition/definition-rune.svelte|textDocument/foldingRange|:missing-rsvelte[count=1,hash=9d3ddc8aafab]": [
       "folding-range-set-missing"
     ],
@@ -217064,13 +217022,13 @@
     "differential:upstream-testfiles/definitions.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=7,hash=7ab0c1849413]": [
       "diagnostic-item-set-missing-mixed"
     ],
-    "differential:upstream-testfiles/definitions.svelte|textDocument/documentSymbol|:extra-rsvelte[count=3,hash=077304e2a983]": [
+    "differential:upstream-testfiles/definitions.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=ca6667c44ab6]": [
       "document-symbol-set-extra"
     ],
     "differential:upstream-testfiles/definitions.svelte|textDocument/documentSymbol|:missing-rsvelte[count=1,hash=3febec865d54]": [
       "document-symbol-set-missing"
     ],
-    "differential:upstream-testfiles/definitions.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=3,hash=077304e2a983]": [
+    "differential:upstream-testfiles/definitions.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=2,hash=ca6667c44ab6]": [
       "document-symbol-set-extra"
     ],
     "differential:upstream-testfiles/definitions.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=3febec865d54]": [
@@ -217136,12 +217094,6 @@
     "differential:upstream-testfiles/diagnostics/shared-comp.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=a5b268bffd17]": [
       "document-symbol-kind"
     ],
-    "differential:upstream-testfiles/document-highlight/document-highlight.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=919bc46448e6]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/document-highlight/document-highlight.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=919bc46448e6]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/document-highlight/document-highlight.svelte|textDocument/foldingRange|:extra-rsvelte[count=1,hash=b29c8ffef984]": [
       "folding-range-character"
     ],
@@ -217178,13 +217130,13 @@
     "differential:upstream-testfiles/documentsymbols-snippets.v5/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=57eb924f117e]": [
       "diagnostic-item-set-missing-ts"
     ],
-    "differential:upstream-testfiles/documentsymbols-snippets.v5/input.svelte|textDocument/documentSymbol|:extra-rsvelte[count=12,hash=2ec0e029e307]": [
+    "differential:upstream-testfiles/documentsymbols-snippets.v5/input.svelte|textDocument/documentSymbol|:extra-rsvelte[count=10,hash=a658d481af8e]": [
       "document-symbol-mixed-kind-range-set-extra"
     ],
     "differential:upstream-testfiles/documentsymbols-snippets.v5/input.svelte|textDocument/documentSymbol|:missing-rsvelte[count=8,hash=59f89da62d42]": [
       "document-symbol-mixed-kind-range-set-missing"
     ],
-    "differential:upstream-testfiles/documentsymbols-snippets.v5/input.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=12,hash=2ec0e029e307]": [
+    "differential:upstream-testfiles/documentsymbols-snippets.v5/input.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=10,hash=a658d481af8e]": [
       "document-symbol-mixed-kind-range-set-extra"
     ],
     "differential:upstream-testfiles/documentsymbols-snippets.v5/input.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=8,hash=59f89da62d42]": [
@@ -217460,13 +217412,13 @@
     "differential:upstream-testfiles/hover/hover-$store.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=7032f21716e0]": [
       "diagnostic-item-set-extra-rsvelte"
     ],
-    "differential:upstream-testfiles/hover/hover-$store.svelte|textDocument/documentSymbol|:extra-rsvelte[count=3,hash=8bd228e85ca1]": [
+    "differential:upstream-testfiles/hover/hover-$store.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=7ed09f63474a]": [
       "document-symbol-mixed-range-set-extra"
     ],
     "differential:upstream-testfiles/hover/hover-$store.svelte|textDocument/documentSymbol|:missing-rsvelte[count=2,hash=6708f8476c97]": [
       "document-symbol-mixed-range-set-missing"
     ],
-    "differential:upstream-testfiles/hover/hover-$store.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=3,hash=8bd228e85ca1]": [
+    "differential:upstream-testfiles/hover/hover-$store.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=2,hash=7ed09f63474a]": [
       "document-symbol-mixed-range-set-extra"
     ],
     "differential:upstream-testfiles/hover/hover-$store.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=6708f8476c97]": [
@@ -217646,12 +217598,6 @@
     "differential:upstream-testfiles/preferences/module-specifier-js.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=310467b3d835]": [
       "diagnostic-item-set-missing-ts"
     ],
-    "differential:upstream-testfiles/preferences/module-specifier-js.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=88e23fcbd550]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/preferences/module-specifier-js.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=88e23fcbd550]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/preferences/module-specifier-js.svelte|textDocument/foldingRange|:missing-rsvelte[count=1,hash=9d3ddc8aafab]": [
       "folding-range-set-missing"
     ],
@@ -217718,14 +217664,8 @@
     "differential:upstream-testfiles/rename/rename-runes-importer.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=2,hash=8d438dfab705]": [
       "inlay-hint-label"
     ],
-    "differential:upstream-testfiles/rename/rename-runes.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=1fe40dac8e7d]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/rename/rename-runes.svelte|textDocument/documentSymbol|:missing-rsvelte[count=1,hash=8db07d1c9197]": [
       "document-symbol-set-missing"
-    ],
-    "differential:upstream-testfiles/rename/rename-runes.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=1fe40dac8e7d]": [
-      "document-symbol-set-extra"
     ],
     "differential:upstream-testfiles/rename/rename-runes.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=8db07d1c9197]": [
       "document-symbol-set-missing"
@@ -217802,13 +217742,13 @@
     "differential:upstream-testfiles/rename/rename.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=7e5aa097c785]": [
       "diagnostic-item-set-missing-mixed"
     ],
-    "differential:upstream-testfiles/rename/rename.svelte|textDocument/documentSymbol|:extra-rsvelte[count=5,hash=ba154b5acbc8]": [
+    "differential:upstream-testfiles/rename/rename.svelte|textDocument/documentSymbol|:extra-rsvelte[count=4,hash=9fcfc72a26ed]": [
       "document-symbol-mixed-kind-set-extra"
     ],
     "differential:upstream-testfiles/rename/rename.svelte|textDocument/documentSymbol|:missing-rsvelte[count=2,hash=2165702f1278]": [
       "document-symbol-mixed-kind-set-missing"
     ],
-    "differential:upstream-testfiles/rename/rename.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=5,hash=ba154b5acbc8]": [
+    "differential:upstream-testfiles/rename/rename.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=4,hash=9fcfc72a26ed]": [
       "document-symbol-mixed-kind-set-extra"
     ],
     "differential:upstream-testfiles/rename/rename.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=2165702f1278]": [
@@ -217856,12 +217796,6 @@
     "differential:upstream-testfiles/rename/rename4.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=c1c7c946fa9c]": [
       "diagnostic-identity-source"
     ],
-    "differential:upstream-testfiles/rename/rename4.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=3963fa18b973]": [
-      "document-symbol-set-extra"
-    ],
-    "differential:upstream-testfiles/rename/rename4.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=3963fa18b973]": [
-      "document-symbol-set-extra"
-    ],
     "differential:upstream-testfiles/rename/rename4.svelte|textDocument/foldingRange|:missing-rsvelte[count=1,hash=48fedaa1cdd7]": [
       "folding-range-set-missing"
     ],
@@ -217880,13 +217814,13 @@
     "differential:upstream-testfiles/rename/rename5.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=e8aa12f2cd85]": [
       "diagnostic-identity-source"
     ],
-    "differential:upstream-testfiles/rename/rename5.svelte|textDocument/documentSymbol|:extra-rsvelte[count=3,hash=ffcac70df51d]": [
+    "differential:upstream-testfiles/rename/rename5.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=add3cdcd5003]": [
       "document-symbol-mixed-kind-set-extra"
     ],
     "differential:upstream-testfiles/rename/rename5.svelte|textDocument/documentSymbol|:missing-rsvelte[count=2,hash=5a19627e4854]": [
       "document-symbol-mixed-kind-set-missing"
     ],
-    "differential:upstream-testfiles/rename/rename5.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=3,hash=ffcac70df51d]": [
+    "differential:upstream-testfiles/rename/rename5.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=2,hash=add3cdcd5003]": [
       "document-symbol-mixed-kind-set-extra"
     ],
     "differential:upstream-testfiles/rename/rename5.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=5a19627e4854]": [
@@ -218066,10 +218000,10 @@
     "differential:upstream-testfiles/workspace-symbols/workspace-symbols.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=9a9ae07600e3]": [
       "diagnostic-item-set-missing-ts"
     ],
-    "differential:upstream-testfiles/workspace-symbols/workspace-symbols.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=b01ff96c592b]": [
+    "differential:upstream-testfiles/workspace-symbols/workspace-symbols.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=dbc8b846d8f3]": [
       "document-symbol-set-extra"
     ],
-    "differential:upstream-testfiles/workspace-symbols/workspace-symbols.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=2,hash=b01ff96c592b]": [
+    "differential:upstream-testfiles/workspace-symbols/workspace-symbols.svelte|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=dbc8b846d8f3]": [
       "document-symbol-set-extra"
     ],
     "differential:upstream-testfiles/workspace-symbols/workspace-symbols.svelte|textDocument/foldingRange|:missing-rsvelte[count=1,hash=48fedaa1cdd7]": [
