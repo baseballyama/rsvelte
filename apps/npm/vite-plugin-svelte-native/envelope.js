@@ -13,6 +13,7 @@
 'use strict';
 
 const { isWindowOutOfBounds, windowOutOfBoundsMessage } = require('./lib/bounds-check.js');
+const { attachSourceMapMethods } = require('./lib/source-map.js');
 
 const MAGIC = 0x31565352; // "RSV1" little-endian
 const VERSION = 1;
@@ -199,7 +200,9 @@ function makeCodeMapObject(buf, slice, codeOff, codeLen, mapOff, mapLen, sourceC
 				// parsed object matches the legacy compile() shape —
 				// callers that just want the raw JSON to write to disk
 				// should prefer `mapBytes` / `mapText` (no JSON.parse).
-				mapCache = attachSourceContent(JSON.parse(slice(mapOff, mapLen)), sourceContent);
+				mapCache = attachSourceMapMethods(
+					attachSourceContent(JSON.parse(slice(mapOff, mapLen)), sourceContent),
+				);
 			}
 			return mapCache;
 		},
