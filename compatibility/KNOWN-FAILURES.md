@@ -7321,11 +7321,13 @@ target, so an id that diverges on all four targets is one ratchet entry rather t
 
 **Current baseline**, from the enrolling CI run (`Corpus Compat` 34430947366, tree
 `7b270ecbc`, 668 `pattern/issues/` manifest entries per target) less the two client entries of
-`008-comment-props-destructure.svelte`, which #4563 retired: 11 distinct ids, 28 `(id, target)`
+`008-comment-props-destructure.svelte`, which #4563 retired, plus the two server entries of
+`4079-annotated-private-read-comment-placement.svelte.js` that the Svelte 5.57.1 upgrade added:
+12 distinct ids, 30 `(id, target)`
 pairs, filed as `pattern-exact-known-failures.client.json`, 5 entries;
 `pattern-exact-known-failures.client-dev.json`, 5 entries;
-`pattern-exact-known-failures.server.json`, 9 entries; and
-`pattern-exact-known-failures.server-dev.json`, 9 entries. The two client targets and the two dev
+`pattern-exact-known-failures.server.json`, 10 entries; and
+`pattern-exact-known-failures.server-dev.json`, 10 entries. The two client targets and the two dev
 targets agree entry for entry, which is what makes the server/client split the real axis here.
 Re-baseline with `node scripts/compat-corpus/verify.mjs --update-exact-baseline`, which refuses
 under `--no-fmt` for the same reason `--update-baseline` does: without the normalizer a
@@ -7352,13 +7354,15 @@ so a repro failing gate 1 for an ordinary text mismatch can be listed in both. E
 would mean that *fixing* a gate-1 entry adds a row here; two rows for one divergence is the
 cheaper failure.
 
-### The 11 entries, with the direction each one runs in
+### The 12 entries, with the direction each one runs in
 
 Every line below is the first differing line the run reported, so `expected` is the official
 compiler and `actual` is rsvelte. `45c` says this family does not decide who is wrong, and the
 enrolling baseline bears that out: **10 of the 11 are comment-only and 1 is not, 5 are rsvelte
 dropping a comment official emits, 3 are rsvelte emitting one official does not, and 2 are the
-same comment on both sides in a different place.**
+same comment on both sides in a different place.** The twelfth entry, added by the 5.57.1 upgrade,
+is a thirteenth of nothing — it is the same comment on both sides with the *parenthesis* in a
+different place, which is a shape the tally above has no bucket for.
 
 | id | targets | direction |
 |---|---|---|
@@ -7372,6 +7376,7 @@ same comment on both sides in a different place.**
 | `4046-snippet-parameter-comment.svelte` | all 4 | **rsvelte drops** on three targets (`/* parameter */` before the snippet call) and misplaces on `client-dev`, where official writes `() => /* parameter */ body(...)`. |
 | `destructure-rhs-ends-before-a-trailing-comment.svelte` | client, client-dev | **misplaced.** Official closes the effect (`});`) where rsvelte still has `/* } c */` — the comment is kept but a statement late. |
 | `dollar-function-parameter.svelte` | server, server-dev | **not a comment at all**, and the only such entry: official emits `$.store_mutate($$store_subs ??= {}, "$viewport", …)` and rsvelte emits the bare `$viewport.width += read(work);`. It is *already listed in* `known-failures.server.json` / `known-failures.server-dev.json`, so it is 45d realized on the first baseline — one divergence, two rows, on purpose. |
+| `4079-annotated-private-read-comment-placement.svelte.js` | server, server-dev | **upstream is wrong, and it is the newer behaviour.** For `const v = /** @type {string} */ (this.#derived);` official 5.57.1 writes `/** @type {string} */ (this.#derived)()` and rsvelte writes `/** @type {string} */ (this.#derived())`. esrap 2.3.x re-adds a JSDoc cast's parentheses from the comment alone (sveltejs/esrap#164) and closes them as soon as the node the comment led is printed; upstream's `b.call(<read>)` getter wrapper carries no `loc`, so the flush happens at the callee and the cast lands on the getter rather than on its value — `checkJs` reads that as calling a `string`. Our server pipeline re-parses the transformed text, so the call has a real span (measured: `Span { 213, 228 }`, i.e. `this.#derived()`) and the parenthesis closes around the value. Reported as `upstream_issues/svelte-jsdoc-cast-comment-lands-inside-an-earlier-store-get.md`, whose other shape is the same root on the client target. |
 | `legacy-prop-initializer-jsdoc.svelte` | server, server-dev | **rsvelte drops.** The `/** @param {any} value */` in front of a `$.fallback` initializer. |
 
 Ten of these are the blind spot the family was added for: gate 1 scores every one of them `match`
