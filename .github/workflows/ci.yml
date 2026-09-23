@@ -1140,6 +1140,11 @@ jobs:
       - name: Run parse-envelope decoder validation
         run: pnpm run test:parse-envelope
 
+      # Same for the compile-envelope decoder. It had no CI step at all until
+      # #4695, so its assertions were a script nobody ran.
+      - name: Run compile-envelope decoder validation
+        run: pnpm run test:envelope
+
       # Again a separate process, for the same reason: this one is the only gate
       # that drives the `cssHash` callback across the boundary.
       - name: Run NAPI cssHash gate

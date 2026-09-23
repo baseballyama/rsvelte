@@ -135,16 +135,34 @@ export interface Warning {
 // Compile result
 // ---------------------------------------------------------------------------
 
+/**
+ * What `svelte/compiler` hands back as `js.map` / `css.map`: the standard
+ * Source Map v3 fields plus magic-string's `toString()` / `toUrl()`, which
+ * tooling calls to inline a map. Both methods are non-enumerable, so the
+ * object still serializes as a plain map.
+ */
+export interface SourceMap {
+	version: number;
+	file?: string;
+	sources: string[];
+	sourcesContent?: (string | null)[];
+	names: string[];
+	mappings: string;
+	toString(): string;
+	toUrl(): string;
+}
+
 export interface CompileResultJs {
 	code: string;
 	/**
-	 * A standard SourceMap v3 JSON object. Accessing this triggers a
-	 * one-time `JSON.parse` of the underlying envelope bytes. For
-	 * callers that immediately re-serialize (writing to disk,
-	 * sending over the wire) prefer {@link mapBytes} / {@link mapText}
-	 * to skip the parse round-trip.
+	 * A standard SourceMap v3 JSON object carrying magic-string's
+	 * `toString()` / `toUrl()`. Accessing this triggers a one-time
+	 * `JSON.parse` of the underlying envelope bytes. For callers that
+	 * immediately re-serialize (writing to disk, sending over the wire)
+	 * prefer {@link mapBytes} / {@link mapText} to skip the parse
+	 * round-trip.
 	 */
-	map: unknown;
+	map: SourceMap | null;
 	/**
 	 * Zero-copy `Buffer` / `Uint8Array` view over the raw sourcemap
 	 * JSON bytes in a raw envelope. The standard `compile` wrappers
@@ -159,7 +177,7 @@ export interface CompileResultJs {
 export interface CompileResultCss {
 	code: string;
 	/** See {@link CompileResultJs.map}. */
-	map: unknown;
+	map: SourceMap | null;
 	mapBytes: Buffer | Uint8Array | null;
 	mapText: string | null;
 	hasGlobal: boolean;
