@@ -1748,6 +1748,46 @@ fn selector_is_global(rel: &Value, preludes: &[&Value], depth: usize) -> bool {
     explicitly_global || selectors.is_empty()
 }
 
+/// Whether the implicit `&` that `get_relative_selectors` prepends to a nested
+/// rule's selector is global — i.e. some complex selector of the owning rule's
+/// parent prelude is global end to end.
+fn nesting_selector_is_global(preludes: &[&Value], depth: usize) -> bool {
+    let Some(owner_depth) = depth.checked_sub(1) else {
+        return false;
+    };
+    preludes
+        .get(owner_depth)
+        .and_then(|list| list.field("children"))
+        .and_then(|c| c.as_array())
+        .is_some_and(|complexes| {
+            complexes.iter().any(|complex| {
+                complex
+                    .field("children")
+                    .and_then(|c| c.as_array())
+                    .is_some_and(|rels| {
+                        rels.iter()
+                            .all(|rel| selector_is_global(rel, preludes, owner_depth))
+                    })
+            })
+        })
+}
+
+/// Whether a relative selector mentions `&` anywhere, including inside an
+/// `:is()` / `:where()` / `:has()` / `:not()` argument — `get_relative_selectors`
+/// walks the whole selector before deciding to prepend an implicit one.
+fn mentions_nesting_selector(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => {
+            if map.get("type").and_then(|t| t.as_str()) == Some("NestingSelector") {
+                return true;
+            }
+            map.values().any(mentions_nesting_selector)
+        }
+        Value::Array(items) => items.iter().any(mentions_nesting_selector),
+        _ => false,
+    }
+}
+
 /// Check if a relative selector is global or global-like
 fn is_relative_selector_global_like(rel: &Value) -> bool {
     if let Some(selectors) = rel.field("selectors").and_then(|s| s.as_array()) {
@@ -1953,7 +1993,19 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
     // not global and is reported as usual.
     if let Some(rels) = complex.field("children").and_then(|c| c.as_array()) {
         let preludes = ctx.parent_preludes.borrow();
+        // A nested rule with no `&` of its own is walked as `& <selector>`
+        // (`get_relative_selectors`), so the implicit one has to be global too —
+        // unless `truncate` left nothing to prepend it to, which it does when
+        // every relative selector is itself a `:global(...)` or unscopeable.
+        let truncates_to_nothing = rels
+            .iter()
+            .all(|rel| metadata_is_global(rel, &preludes, preludes.len()) || is_global_like(rel));
+        let implicit_nesting_is_global = truncates_to_nothing
+            || preludes.is_empty()
+            || rels.iter().any(mentions_nesting_selector)
+            || nesting_selector_is_global(&preludes, preludes.len());
         if !rels.is_empty()
+            && implicit_nesting_is_global
             && rels
                 .iter()
                 .all(|rel| selector_is_global(rel, &preludes, preludes.len()))

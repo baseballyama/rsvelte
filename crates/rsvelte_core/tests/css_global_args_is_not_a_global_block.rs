@@ -191,3 +191,21 @@ fn no_cell_in_this_file_moves_under_dev() {
         "\n\t.loc.HASH {\n\t\ttop: 0;\n\t\t&:disabled { /* (unused) & span { color: green; }*/ }\n\t}\n"
     );
 }
+
+/// The implicit `&`. A nested rule that never writes one is walked as
+/// `& <selector>` (`get_relative_selectors`), so `:where(:global(form))` is global
+/// only if the rule it sits in is. Here the intermediate `:not(span > *)` is not,
+/// and the leaf stays unused — the cell that separates "every relative selector is
+/// global" from "the selector is global", which the corpus found on
+/// `svelte/tests/migrate/samples/is-not-where-has/output.svelte`.
+#[test]
+fn a_global_argument_under_a_scoped_intermediate_is_still_unused() {
+    let out = css(
+        "<div>x</div>",
+        "div {\n\t\t:not(span > *) {\n\t\t\t:where(:global(form)) { color: red; }\n\t\t}\n\t}",
+    );
+    assert_eq!(
+        out,
+        "\n\t/* (empty) div {\n\t\t:not(span > *) {\n\t\t\t:where(:global(form)) { color: red; }\n\t\t}\n\t}*/\n"
+    );
+}
