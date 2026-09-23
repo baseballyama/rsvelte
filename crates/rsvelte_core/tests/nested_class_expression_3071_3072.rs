@@ -85,8 +85,8 @@ fn an_inline_heritage_class_does_not_swallow_the_subclass_body() {
     let source = "export class Sub extends class {\n\tinline = $state(\"i\");\n} {\n\town = $derived(this.inline + \"!\");\n}\n";
     let client = module(source, GenerateMode::Client);
     assert!(
-        client.contains("extends class {"),
-        "heritage class parenthesised:\n{client}"
+        client.contains("extends (class {"),
+        "heritage class lost its `wrap_super` parentheses:\n{client}"
     );
     assert!(client.contains("#inline = $.state(\"i\");"), "{client}");
     assert!(client.contains("#own = $.derived("), "{client}");
@@ -96,8 +96,8 @@ fn an_inline_heritage_class_does_not_swallow_the_subclass_body() {
     // `find_class_header` with the client's.
     let server = module(source, GenerateMode::Server);
     assert!(
-        server.contains("extends class {"),
-        "heritage class parenthesised:\n{server}"
+        server.contains("extends (class {"),
+        "heritage class lost its `wrap_super` parentheses:\n{server}"
     );
     assert!(server.contains("#own = $.derived("), "{server}");
 }
@@ -113,8 +113,8 @@ fn an_inline_heritage_class_is_lowered_when_the_subclass_declares_nothing() {
     // This path re-emits the source slice verbatim, so it is the one that
     // proves the transformed header is what gets emitted rather than the slice.
     assert!(
-        out.contains("extends class {") && out.contains("} {\n\town = 1;"),
-        "heritage class parenthesised, or the subclass body lost:\n{out}"
+        out.contains("extends (class {") && out.contains("}) {\n\town = 1;"),
+        "heritage class lost its parentheses, or the subclass body lost:\n{out}"
     );
 }
 
@@ -134,18 +134,21 @@ fn two_stacked_heritage_classes_are_all_lowered() {
 }
 
 #[test]
-fn only_a_primary_expression_superclass_loses_its_parentheses() {
+fn a_superclass_below_a_new_expression_is_parenthesized() {
     let out = module(
         "const Base = class {};\nconst mixin = (b) => b;\nexport class C extends class {} {}\nexport class G extends function () {} {}\nexport class D extends (0, Base) {}\nexport class B extends mixin(Base) {}\nexport class E extends (Base ?? class {}) {}\nexport class J extends (true ? Base : Base) {}\n",
         GenerateMode::Client,
     );
-    // Matches official.
-    assert!(out.contains("extends class {} {}"), "{out}");
-    assert!(out.contains("extends function () {} {}"), "{out}");
+    // esrap 2.3.x's `wrap_super`: parenthesize anything whose precedence is
+    // below a `NewExpression`'s. A class, a function and an object literal are
+    // legal `extends` operands unparenthesized and are wrapped anyway; a call
+    // and a member expression are not. Every line is the 5.57.1 oracle's bytes;
+    // the first two are where 5.57.0 emitted text no parser accepts and rsvelte
+    // diverged on purpose, and `wrap_super` is what retires that.
+    assert!(out.contains("extends (class {}) {}"), "{out}");
+    assert!(out.contains("extends (function () {}) {}"), "{out}");
     assert!(out.contains("extends (0, Base) {}"), "{out}");
     assert!(out.contains("extends mixin(Base) {}"), "{out}");
-    // Deliberate divergence: official omits these and emits text no parser
-    // accepts — see compatibility/GATES.md#deliberate-divergences.
     assert!(out.contains("extends (Base ?? class {}) {}"), "{out}");
     assert!(out.contains("extends (true ? Base : Base) {}"), "{out}");
 }
