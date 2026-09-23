@@ -1208,6 +1208,40 @@ impl EstreeGenerator {
         }
     }
 
+    /// esrap's `write_import_attributes`: the ` with { key: value, … }` tail an
+    /// `import`/`export … from` carries. `assertions` is the legacy spelling.
+    fn generate_import_attributes(&mut self, node: &serde_json::Value) {
+        let attributes = node
+            .field("attributes")
+            .and_then(|a| a.as_array())
+            .map(|a| (a, " with { "))
+            .or_else(|| {
+                node.field("assertions")
+                    .and_then(|a| a.as_array())
+                    .map(|a| (a, " assert { "))
+            });
+        let Some((attributes, open)) = attributes else {
+            return;
+        };
+        if attributes.is_empty() {
+            return;
+        }
+        self.output.push_str(open);
+        for (i, attribute) in attributes.iter().enumerate() {
+            if i > 0 {
+                self.output.push_str(", ");
+            }
+            if let Some(key) = attribute.field("key") {
+                self.generate_node(key);
+            }
+            self.output.push_str(": ");
+            if let Some(value) = attribute.field("value") {
+                self.generate_node(value);
+            }
+        }
+        self.output.push_str(" }");
+    }
+
     fn generate_import_declaration(&mut self, node: &serde_json::Value) {
         self.output.push_str("import ");
 
@@ -1265,6 +1299,7 @@ impl EstreeGenerator {
         if let Some(source) = node.field("source") {
             self.generate_node(source);
         }
+        self.generate_import_attributes(node);
         self.output.push(';');
     }
 
@@ -1301,6 +1336,7 @@ impl EstreeGenerator {
             if let Some(source) = node.field("source") {
                 self.generate_node(source);
             }
+            self.generate_import_attributes(node);
             self.output.push(';');
             return;
         }
@@ -1342,6 +1378,7 @@ impl EstreeGenerator {
         {
             self.output.push_str(" from ");
             self.generate_node(source);
+            self.generate_import_attributes(node);
         }
 
         self.output.push(';');

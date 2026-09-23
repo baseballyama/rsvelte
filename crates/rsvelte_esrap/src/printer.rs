@@ -2263,6 +2263,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 }
                 ctx.write(" from ");
                 ctx.write(Self::string_literal(&s.source));
+                Self::import_attributes(s.with_clause.as_deref(), ctx);
                 ctx.write_ascii(b';');
             }
             Statement::ImportDeclaration(d) => self.import_declaration(d, ctx),
@@ -2520,6 +2521,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         self.export_specifier_list(node.span(), &node.specifiers, node.export_kind, ctx);
         ctx.write(" from ");
         ctx.write(Self::string_literal(&node.source));
+        Self::import_attributes(node.with_clause.as_deref(), ctx);
         ctx.write_ascii(b';');
     }
 
