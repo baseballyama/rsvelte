@@ -1,20 +1,21 @@
-//! acorn-typescript's `tsLookAhead` does not set `isLookahead`, so a comment
-//! consumed while speculatively parsing an object type fires `onComment` once
-//! during the lookahead and again after the rewind. Upstream therefore prints
-//! that comment twice, and byte equality is the goal, so rsvelte reproduces it.
+//! A comment inside a speculatively-parsed object type prints ONCE, in source
+//! order, on both targets.
 //!
-//! The rewind replays everything the speculation consumed, so the unit repeated
-//! is the RUN, not the comment: two comments in a `TSTypeLiteral` head print
-//! `c d c d` and not `c c d d`. A per-comment model agrees with a per-run one
-//! for exactly one comment, which is the whole reason a grid built on a single
-//! comment could not see the difference.
+//! Until `@sveltejs/acorn-typescript` 1.0.13 (Svelte 5.57.1) it printed twice:
+//! `tsLookAhead` did not set `isLookahead`, so `onComment` fired during the
+//! lookahead and again after the rewind. The rewind replays everything the
+//! speculation consumed, so the unit repeated was the RUN — two comments in a
+//! `TSTypeLiteral` head printed `c d c d`, not `c c d d` — and rsvelte carried
+//! a port of that. Both are gone; the grid stays because a re-introduced
+//! doubling is exactly what it can see, and it distinguishes a doubling from a
+//! reordering, which a count could not.
 //!
 //! Every expected sequence below was read out of the oracle
-//! (`submodules/svelte/.../src/compiler/index.js`, `dev: false`) rather than
-//! reasoned about. The `interface` row is the negative control: upstream does
-//! not speculate over an interface body, so nothing repeats there and the cell
-//! must stay single on BOTH targets — an assertion set that only ever expects a
-//! doubling is satisfied by a compiler that doubles everything.
+//! (`submodules/svelte/.../src/compiler/index.js`, `VERSION 5.57.1`,
+//! `dev: false`) rather than reasoned about. The `interface` row no longer
+//! separates a speculating host from a non-speculating one — nothing repeats on
+//! either now — so the live axis is `the_extractor_and_the_compile_are_live`
+//! below: an extractor that always answers `""` satisfies none of it.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
@@ -122,8 +123,7 @@ let { a }: {
 
 /// A declarator with NO initializer: its declaration ends at the identifier,
 /// so upstream flushes the head's comments at the NEXT located node instead of
-/// at an initializer. rsvelte floats them the same way (#4396), and the run is
-/// repeated there exactly as it is on an initialized host.
+/// at an initializer. rsvelte floats them the same way (#4396).
 const UNINITIALIZED: &str = "<script lang=\"ts\">
 let v: {
   // c
@@ -157,38 +157,38 @@ fn cells() -> Vec<(&'static str, String, &'static str, &'static str)> {
         (
             "one line comment in the head",
             type_literal(&["  // c"], ""),
-            "c c",
-            "c c",
+            "c",
+            "c",
         ),
         (
             "one block comment in the head",
             type_literal(&["  /*c*/"], ""),
-            "c c",
-            "c c",
+            "c",
+            "c",
         ),
         (
             "two line comments in the head",
             type_literal(&["  // c", "  // d"], ""),
-            "c d c d",
-            "c d c d",
+            "c d",
+            "c d",
         ),
         (
             "three line comments in the head",
             type_literal(&["  // c", "  // d", "  // e"], ""),
-            "c d e c d e",
-            "c d e c d e",
+            "c d e",
+            "c d e",
         ),
         (
             "one in the head, one after the first member",
             type_literal(&["  // c"], " // d"),
-            "c c d",
-            "c c d",
+            "c d",
+            "c d",
         ),
         (
             "a nested literal in the first member",
             type_literal(&["  // c", "  // d"], "").replace("a: number;", "a: { e: number };"),
-            "c d c d",
-            "c d c d",
+            "c d",
+            "c d",
         ),
         (
             "an interface body does not speculate",
@@ -205,26 +205,26 @@ fn cells() -> Vec<(&'static str, String, &'static str, &'static str)> {
         (
             "an inline head on a destructured `$props()`",
             INLINE_TWO.to_string(),
-            "c d c d",
-            "c d c d",
+            "c d",
+            "c d",
         ),
         (
             "one comment in an inline head on a destructured `$props()`",
             INLINE_ONE.to_string(),
-            "c c",
-            "c c",
+            "c",
+            "c",
         ),
         (
             "an inline head on an uninitialized declarator",
             UNINITIALIZED.to_string(),
-            "c d c d",
-            "c d c d",
+            "c d",
+            "c d",
         ),
     ]
 }
 
 #[test]
-fn a_speculated_comment_run_is_repeated_whole_on_both_targets() {
+fn a_speculated_comment_run_prints_once_in_order_on_both_targets() {
     let mut wrong: Vec<String> = Vec::new();
     for (name, source, client, server) in cells() {
         for (generate, expected, target) in [
