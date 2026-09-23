@@ -664,10 +664,6 @@ fn strip_typescript_from_program_impl(
 
     let mut removals: Vec<(u32, u32)> = Vec::new();
     collect_ts_removals_from_program(program, source, &mut removals);
-    // Not gated on `include_projection`: the repeat is in the emitted text now,
-    // so gating it would make the two strips disagree — and the server reads the
-    // projection-less one while the client reads the other.
-    let repeat_regions = collect_speculative_type_head_regions(program);
     let declarator_annotations = collect_declarator_annotations(program);
     let uninit_float_targets = collect_uninit_annotation_float_targets(program);
     let pattern_flushes = collect_pattern_annotation_flushes(program);
@@ -779,9 +775,7 @@ fn strip_typescript_from_program_impl(
         if !removed.contains("/*") && !removed.contains("//") {
             continue;
         }
-        for (comment_start, comment_end) in
-            plan_reemitted_comments(*remove_start, removed, &repeat_regions)
-        {
+        for (comment_start, comment_end) in plan_reemitted_comments(*remove_start, removed) {
             pending.push((*flush_at, comment_start, comment_end));
         }
     }
@@ -841,7 +835,7 @@ fn strip_typescript_from_program_impl(
             if (removed.contains("/*") || removed.contains("//"))
                 && let Some(flush_at) = flush_at
             {
-                let plan = plan_reemitted_comments(*remove_start, removed, &repeat_regions);
+                let plan = plan_reemitted_comments(*remove_start, removed);
                 if let Some(init_start) = flush_at {
                     for (comment_start, comment_end) in plan {
                         pending.push((init_start, comment_start, comment_end));
@@ -903,56 +897,23 @@ fn strip_typescript_from_program_impl(
     (output, projection)
 }
 
-/// The comments a removed region re-emits, in order, with the RUNS upstream
-/// prints twice already doubled.
+/// The comments a removed region re-emits, in order.
 ///
-/// acorn-typescript's `tsLookAhead` does not set `isLookahead`, so a comment
-/// consumed while speculatively parsing an object type fires `onComment` once
-/// during the lookahead and again after the rewind. The rewind replays the whole
-/// speculated run, so two comments in a `TSTypeLiteral` head come out `c d c d`
-/// and not `c c d d` — a per-comment model agrees with a per-run one only for a
-/// single comment, which is why nothing had seen the difference. The region a
-/// speculation covers is the braces up to the end of the first member, which is
-/// why an `interface` body never doubles and a comment after the first member is
-/// left alone.
-///
-/// Doubling here rather than in a phase-3 consumer is what keeps this ONE port:
-/// the stripped text is what both the client's text pipeline and the server's
-/// parse read, so neither has to carry the rule.
-fn plan_reemitted_comments(
-    base: u32,
-    removed: &str,
-    repeat_regions: &[(u32, u32)],
-) -> Vec<(u32, u32)> {
-    let items: Vec<(u32, u32, Option<usize>)> =
-        crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet_with_pos(removed)
-            .into_iter()
-            .map(|(comment_offset, comment)| {
-                let start = base + comment_offset as u32;
-                let end = start + comment.len() as u32;
-                let region = repeat_regions
-                    .iter()
-                    .position(|(from, to)| start >= *from && end <= *to);
-                (start, end, region)
-            })
-            .collect();
-
-    let mut plan: Vec<(u32, u32)> = Vec::new();
-    let mut run_start = 0usize;
-    while run_start < items.len() {
-        let region = items[run_start].2;
-        let mut run_end = run_start;
-        while run_end < items.len() && items[run_end].2 == region {
-            run_end += 1;
-        }
-        let run = &items[run_start..run_end];
-        plan.extend(run.iter().map(|&(start, end, _)| (start, end)));
-        if region.is_some() {
-            plan.extend(run.iter().map(|&(start, end, _)| (start, end)));
-        }
-        run_start = run_end;
-    }
-    plan
+/// `@sveltejs/acorn-typescript` used to print a comment consumed during a
+/// speculative type parse twice (`tsLookAhead` left `isLookahead` unset, so
+/// `onComment` fired during the lookahead and again after the rewind), and
+/// rsvelte carried a port of that doubling keyed on the speculated regions.
+/// 1.0.13 fixed it and Svelte 5.57.1 brings it in — measured on the 33-cell
+/// grid in `tests/type_literal_head_comment_repeat.rs`, every cell is now 1 —
+/// so the region collector and the doubling are gone.
+fn plan_reemitted_comments(base: u32, removed: &str) -> Vec<(u32, u32)> {
+    crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet_with_pos(removed)
+        .into_iter()
+        .map(|(comment_offset, comment)| {
+            let start = base + comment_offset as u32;
+            (start, start + comment.len() as u32)
+        })
+        .collect()
 }
 
 /// Copy `source_range`, splitting it at every pending flush point it spans so an
@@ -1218,32 +1179,6 @@ fn collect_ts_removals_from_program(
     ts_removals::TsRemovalCollector { source, removals }.visit_program(program);
 }
 
-/// Source regions in which a comment is printed twice by the official compiler.
-///
-/// acorn-typescript decides what an opening token starts by parsing ahead and
-/// rewinding, and its `tsLookAhead` leaves `isLookahead` unset — so every
-/// comment consumed before the decision point fires `onComment` twice. The
-/// region is therefore the opener to the first token that settles the
-/// ambiguity. Measured against the oracle on 29 cells: a `{` opening an object
-/// or mapped type doubles (through intersections, unions, nesting, generics and
-/// an `as` clause), and so does the `(` of a function type's parameter list,
-/// including an empty one. An `interface` body, a `new (` constructor type, a
-/// method signature's `(`, a tuple's `[`, a type argument list's `<` and every
-/// position after the first member do NOT.
-fn collect_speculative_type_head_regions(program: &oxc_ast::ast::Program) -> Vec<(u32, u32)> {
-    use oxc_ast_visit::Visit;
-    let mut regions = Vec::new();
-    SpeculativeTypeHeads {
-        regions: &mut regions,
-    }
-    .visit_program(program);
-    regions
-}
-
-struct SpeculativeTypeHeads<'r> {
-    regions: &'r mut Vec<(u32, u32)>,
-}
-
 /// For each uninitialized declarator that carries a type annotation, the offset of
 /// the statement that follows its declaration in the same list — the next node
 /// upstream locates, and so where a comment left by the erased annotation is
@@ -1379,43 +1314,6 @@ fn collect_declarator_annotations(program: &oxc_ast::ast::Program) -> Vec<(u32, 
     let mut spans = Vec::new();
     V { spans: &mut spans }.visit_program(program);
     spans
-}
-
-impl<'a> oxc_ast_visit::Visit<'a> for SpeculativeTypeHeads<'_> {
-    fn visit_ts_type_literal(&mut self, it: &oxc_ast::ast::TSTypeLiteral<'a>) {
-        use oxc_span::GetSpan;
-        let end = it
-            .members
-            .first()
-            .map_or(it.span.end, |member| member.span().start);
-        self.regions.push((it.span.start, end));
-        oxc_ast_visit::walk::walk_ts_type_literal(self, it);
-    }
-
-    fn visit_ts_mapped_type(&mut self, it: &oxc_ast::ast::TSMappedType<'a>) {
-        self.regions.push((it.span.start, it.key.span.start));
-        oxc_ast_visit::walk::walk_ts_mapped_type(self, it);
-    }
-
-    fn visit_ts_function_type(&mut self, it: &oxc_ast::ast::TSFunctionType<'a>) {
-        use oxc_span::GetSpan;
-        // The `(` is the parameter list's own start, not the node's: a generic
-        // function type opens at `<` and no comment there is doubled.
-        let end = it
-            .params
-            .items
-            .first()
-            .map_or(it.params.span.end, |param| param.span().start);
-        self.regions.push((it.params.span.start, end));
-        oxc_ast_visit::walk::walk_ts_function_type(self, it);
-    }
-
-    fn visit_ts_parenthesized_type(&mut self, it: &oxc_ast::ast::TSParenthesizedType<'a>) {
-        use oxc_span::GetSpan;
-        self.regions
-            .push((it.span.start, it.type_annotation.span().start));
-        oxc_ast_visit::walk::walk_ts_parenthesized_type(self, it);
-    }
 }
 
 /// Span collector behind [`collect_ts_removals_from_program`].
