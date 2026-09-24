@@ -861,10 +861,7 @@ pub fn transform_module(
 /// 'input.svelte.js')` and always fills `sourcesContent`, and its map carries no
 /// `file` key because esrap's `print()` sets none. Its `'input.svelte.js'`
 /// default is dead — `validate_module_options` has already replaced an absent
-/// filename with `(unknown)` — so that is the string this passes, and the
-/// component path's own `"input.svelte"` default is the same defect one port
-/// over (#4704). `filename_or_unknown` is that substitution, so the third
-/// argument here can never be read.
+/// filename with `(unknown)` — so that is the string this passes.
 fn module_sourcemap_json(js: &str, source: &str, options: &CompileOptions) -> String {
     use js_ast::codegen::{encode_vlq_mappings, generate_sourcemap_json, get_source_name};
 
@@ -885,7 +882,7 @@ fn module_sourcemap_json(js: &str, source: &str, options: &CompileOptions) -> St
     }
     generate_sourcemap_json(
         None,
-        &get_source_name(Some(options.filename_or_unknown()), None, ""),
+        &get_source_name(options.filename_or_unknown(), None),
         Some(source),
         &mappings_str,
         &[],
