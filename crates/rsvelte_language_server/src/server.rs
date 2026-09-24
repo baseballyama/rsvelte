@@ -1,6 +1,6 @@
 //! The LSP message loop.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -392,6 +392,24 @@ struct TsgoRuntime {
     resolved_dirs: HashSet<PathBuf>,
 }
 
+/// Every config nearer to one of an overlay's `.svelte` documents than the
+/// config the overlay was built from, with the directory its shadows mirror.
+fn nested_project_configs(overlays: &[TsgoOverlay]) -> BTreeSet<(PathBuf, PathBuf)> {
+    let mut configs = BTreeSet::new();
+    for overlay in overlays {
+        for shadow in overlay.eager_shadows() {
+            let source = uri_to_path(shadow.source_uri.as_str());
+            let Some(owner) = tsgo_overlay::nearest_tsconfig(&source, overlay.workspace()) else {
+                continue;
+            };
+            if overlay.source_tsconfig() != Some(owner.as_path()) {
+                configs.insert((owner, overlay.mirror_root().to_path_buf()));
+            }
+        }
+    }
+    configs
+}
+
 struct PreprocessRuntime {
     client: PreprocessSidecar,
     generation: Option<u64>,
@@ -442,6 +460,28 @@ impl TsgoRuntime {
         }
         if overlays.is_empty() {
             return None;
+        }
+        // The projects nested configs own are built here, before tsgo starts,
+        // rather than when their first document opens: building one writes its
+        // config into the enclosing workspace, and tsgo reloads that workspace's
+        // project on the file event, so a lazy build changes the answer for
+        // documents that have nothing to do with the nested config depending on
+        // which request reaches tsgo first.
+        let nested = nested_project_configs(&overlays);
+        for (owner, mirror_root) in nested {
+            let Some(root) = owner.parent() else {
+                continue;
+            };
+            if overlays.iter().any(|overlay| overlay.workspace() == root) {
+                continue;
+            }
+            match TsgoOverlay::build_nested(root, &owner, &mirror_root) {
+                Ok(overlay) => overlays.push(overlay),
+                Err(error) => log::warn(format_args!(
+                    "could not prepare tsgo overlay for {}: {error}",
+                    root.display()
+                )),
+            }
         }
 
         let binary = match rsvelte_check::tsgo::find_compiler(&primary, true) {
@@ -498,12 +538,15 @@ impl TsgoRuntime {
         }
         // Only cache once a workspace answers: before `initialize` has built
         // one, "no project" is a state, not the answer for this directory.
-        let Some((boundary, serving_config)) = self.overlay_for_source(source).map(|serving| {
-            (
-                serving.workspace().to_path_buf(),
-                serving.source_tsconfig().map(Path::to_path_buf),
-            )
-        }) else {
+        let Some((boundary, mirror_root, serving_config)) =
+            self.overlay_for_source(source).map(|serving| {
+                (
+                    serving.workspace().to_path_buf(),
+                    serving.mirror_root().to_path_buf(),
+                    serving.source_tsconfig().map(Path::to_path_buf),
+                )
+            })
+        else {
             return false;
         };
         self.resolved_dirs.insert(dir.to_path_buf());
@@ -523,7 +566,7 @@ impl TsgoRuntime {
         {
             return false;
         }
-        match TsgoOverlay::build(&root, Some(&owner)) {
+        match TsgoOverlay::build_nested(&root, &owner, &mirror_root) {
             Ok(overlay) => {
                 for shadow in overlay.eager_shadows() {
                     let _ = self.client.open_buffer(OpenBuffer::new(
@@ -3507,6 +3550,16 @@ impl Server {
                     if method == "textDocument/diagnostic" {
                         fill_diagnostic_tags(result);
                         adjust_diagnostic_messages(result);
+                        let javascript = source_path.as_deref().is_some_and(|source| {
+                            self.tsgo
+                                .as_ref()
+                                .and_then(|runtime| runtime.overlay_for_source(source))
+                                .and_then(|overlay| overlay.shadow_for_source(source))
+                                .is_some_and(|shadow| shadow.language_id == "javascriptreact")
+                        });
+                        if javascript {
+                            label_javascript_diagnostics(result);
+                        }
                     }
                     if let Some(fallback) = fallback_result {
                         merge_tsgo_result(&method, result, fallback);
@@ -4423,6 +4476,21 @@ const COMPONENT_CONSTRUCTOR_HINT: &str = "\n\nPossible causes:\n\
 const DECLARE_STATEMENT_HINT: &str =
     "\nIf this is a declare statement, move it into <script context=\"module\">..</script>";
 
+/// `DiagnosticsProvider` names a diagnostic's source after the document's
+/// script kind — `ts` for TS/TSX, `js` otherwise — where tsgo always says `ts`.
+fn label_javascript_diagnostics(result: &mut serde_json::Value) {
+    for item in result
+        .get_mut("items")
+        .and_then(serde_json::Value::as_array_mut)
+        .into_iter()
+        .flatten()
+    {
+        if item.get("source").and_then(serde_json::Value::as_str) == Some("ts") {
+            item["source"] = serde_json::Value::String("js".to_string());
+        }
+    }
+}
+
 fn adjust_diagnostic_messages(result: &mut serde_json::Value) {
     fn adjust_items(value: &mut serde_json::Value) {
         let Some(items) = value
@@ -4887,6 +4955,20 @@ mod diagnostic_tag_tests {
             .collect()
     }
 
+    #[test]
+    fn a_javascript_document_labels_its_type_diagnostics_js() {
+        let mut result = serde_json::json!({
+            "kind": "full",
+            "items": [
+                { "source": "ts", "code": 2304, "message": "Cannot find name 'hi'." },
+                { "source": "svelte", "code": "a11y", "message": "kept" }
+            ]
+        });
+        super::label_javascript_diagnostics(&mut result);
+        assert_eq!(result["items"][0]["source"], "js");
+        assert_eq!(result["items"][1]["source"], "svelte");
+    }
+
     /// tsgo sends no `tags` at all, and upstream's `getDiagnosticTag` returns `[]`
     /// rather than `undefined` — so an untagged diagnostic still carries the key.
     #[test]
@@ -5096,5 +5178,41 @@ mod inlay_hint_preference_tests {
         assert!(!inlay_hints_enabled_in([&on, &off, &Value::Null]));
         assert!(inlay_hints_enabled_in([&off, &on, &Value::Null]));
         assert!(!inlay_hints_enabled_in([&Value::Null, &on, &off]));
+    }
+}
+
+#[cfg(test)]
+mod nested_project_tests {
+    use super::nested_project_configs;
+    use crate::tsgo_overlay::TsgoOverlay;
+    use std::fs;
+    use std::path::Path;
+
+    fn write(path: &Path, text: &str) {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, text).unwrap();
+    }
+
+    #[test]
+    fn only_configs_that_own_a_component_become_projects() {
+        let dir =
+            std::env::temp_dir().join(format!("rsvelte-nested-configs-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        write(&dir.join("tsconfig.json"), "{}");
+        write(&dir.join("src/App.svelte"), "<p />");
+        write(&dir.join("docs/tsconfig.json"), "{}");
+        write(&dir.join("docs/src/Page.svelte"), "<p />");
+        write(&dir.join("tools/tsconfig.json"), "{}");
+        write(&dir.join("tools/build.ts"), "export {};");
+        let root = fs::canonicalize(&dir).unwrap();
+
+        let overlay = TsgoOverlay::build_with(&root, None, None).unwrap();
+        let configs = nested_project_configs(std::slice::from_ref(&overlay));
+        assert_eq!(
+            configs.into_iter().collect::<Vec<_>>(),
+            vec![(root.join("docs/tsconfig.json"), root.clone())],
+            "the root's own config is not nested, and `tools` owns no component"
+        );
+        let _ = fs::remove_dir_all(&dir);
     }
 }
