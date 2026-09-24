@@ -283,6 +283,25 @@ fn write_borrowed_comment_span<const DIRECT: bool>(
     ctx.newline();
 }
 
+/// esrap's `/(?:^|\n)\s*\*\s*@type\s*{/` over a block comment's
+/// delimiter-stripped body.
+fn is_jsdoc_type_head(value: &str) -> bool {
+    let mut offset = 0;
+    loop {
+        let rest = value[offset..].trim_start();
+        if let Some(rest) = rest.strip_prefix('*')
+            && let Some(rest) = rest.trim_start().strip_prefix("@type")
+            && rest.trim_start().starts_with('{')
+        {
+            return true;
+        }
+        match value[offset..].find('\n') {
+            Some(index) => offset += index + 1,
+            None => return false,
+        }
+    }
+}
+
 struct BorrowedCommentDriver<'a> {
     comments: &'a [oxc_ast::ast::Comment],
     source: &'a str,
@@ -618,18 +637,6 @@ fn expr_precedence(expr: &Expression) -> u8 {
         // reaches here.
         _ => 18,
     }
-}
-
-/// A `class`, `function` or object literal is a `PrimaryExpression`, so it is
-/// already a legal `extends` operand even though its precedence sits below a
-/// `MemberExpression`'s.
-fn heritage_needs_no_parens(expr: &Expression) -> bool {
-    matches!(
-        unparen(expr),
-        Expression::ClassExpression(_)
-            | Expression::FunctionExpression(_)
-            | Expression::ObjectExpression(_)
-    )
 }
 
 /// Binary/logical operator precedence (esrap's `OPERATOR_PRECEDENCE`).
@@ -1347,21 +1354,23 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         to: u32,
         from: Option<u32>,
         pad: bool,
-    ) {
+        is_next_to_expression: bool,
+    ) -> u32 {
         if !HAS_COMMENTS || self.comment_index == self.comment_len() {
-            return;
+            return 0;
         }
         if !self.has_loc(to) {
             self.flush_comments_before_source(ctx, to, pad);
-            return;
+            return 0;
         }
         let Some(next_comment) = self.comment_at(self.comment_index) else {
-            return;
+            return 0;
         };
         if next_comment.start >= to {
-            return;
+            return 0;
         }
         let mut first = true;
+        let mut jsdoc_type_casts = 0;
         while self.comment_index < self.comment_len() {
             let cmt = self
                 .comment_at(self.comment_index)
@@ -1378,13 +1387,19 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             }
             first = false;
             self.write_comment_at(self.comment_index, ctx);
+            let is_cast = is_next_to_expression && self.is_jsdoc_type_cast(self.comment_index);
+            if is_cast {
+                ctx.write(" (");
+                jsdoc_type_casts += 1;
+            }
             if !cmt.block || self.has_newline_between(cmt.end, to) {
                 ctx.newline();
-            } else if pad {
+            } else if pad && !is_cast {
                 ctx.write_ascii(b' ');
             }
             self.comment_index += 1;
         }
+        jsdoc_type_casts
     }
 
     /// esrap's `flush_trailing_comments`: emit comments on the same line as a
@@ -1465,7 +1480,46 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if !HAS_COMMENTS {
             return;
         }
-        self.flush_comments_until(ctx, node_start, None, true);
+        self.flush_comments_until(ctx, node_start, None, true, false);
+    }
+
+    /// [`Self::flush_leading`] at an expression position (esrap's
+    /// `node.type in EXPRESSIONS_PRECEDENCE && !BINDINGS.has(node)`). Returns
+    /// the number of JSDoc `@type` casts opened, which the caller closes after
+    /// the expression. oxc keeps binding positions in `BindingPattern`, so the
+    /// `BINDINGS` exclusion is the split between this and `flush_leading`.
+    fn flush_leading_expression(&mut self, ctx: &mut Context<DIRECT>, node_start: u32) -> u32 {
+        if !HAS_COMMENTS {
+            return 0;
+        }
+        self.flush_comments_until(ctx, node_start, None, true, true)
+    }
+
+    /// esrap's JSDoc `@type` cast detection (sveltejs/esrap#164): acorn drops
+    /// the parentheses that give `/** @type {T} */ (expr)` its cast semantics,
+    /// so esrap re-adds them from the comment alone — a block comment whose
+    /// body has a line starting `* @type {`.
+    fn is_jsdoc_type_cast(&self, index: usize) -> bool {
+        let Some(cmt) = self.comment_at(index) else {
+            return false;
+        };
+        if !cmt.block {
+            return false;
+        }
+        if let Some(source) = self.comment_source {
+            let raw = source
+                .get(cmt.start as usize..cmt.end as usize)
+                .unwrap_or_default();
+            let value = raw
+                .strip_prefix("/*")
+                .and_then(|text| text.strip_suffix("*/"))
+                .unwrap_or(raw);
+            is_jsdoc_type_head(value)
+        } else {
+            self.comments
+                .get(index)
+                .is_some_and(|comment| is_jsdoc_type_head(&comment.value))
+        }
     }
 
     /// Port of esrap's `sequence` (`languages/ts/index.js`). Lays `nodes` out as
@@ -1563,7 +1617,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         // esrap: flush_comments_until(context, lastNode.loc.end, until, false).
         if let Some(until) = until {
             let from = nodes.last().and_then(|node| node.end);
-            self.flush_comments_until(parent, until, from, false);
+            self.flush_comments_until(parent, until, from, false, false);
         }
 
         if multiline {
@@ -1602,7 +1656,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         let direct_layout = DIRECT && !has_sequence_comments;
         if n == 0 {
             if let Some(until) = until {
-                self.flush_comments_until(parent, until, None, false);
+                self.flush_comments_until(parent, until, None, false, false);
             }
             return;
         }
@@ -1651,7 +1705,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             }
 
             if let Some(until) = until {
-                self.flush_comments_until(parent, until, node_meta.end, false);
+                self.flush_comments_until(parent, until, node_meta.end, false, false);
             }
 
             if multiline {
@@ -1746,7 +1800,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             }
 
             if let Some(until) = until {
-                self.flush_comments_until(parent, until, meta(n - 1).end, false);
+                self.flush_comments_until(parent, until, meta(n - 1).end, false, false);
             }
 
             if multiline {
@@ -1844,7 +1898,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
 
         if let Some(until) = until {
             let from = n.checked_sub(1).and_then(|i| meta(i).end);
-            self.flush_comments_until(parent, until, from, false);
+            self.flush_comments_until(parent, until, from, false, false);
         }
 
         if multiline {
@@ -2062,7 +2116,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         }
 
         ctx.newline();
-        self.flush_comments_until(ctx, body_end, last_end, false);
+        self.flush_comments_until(ctx, body_end, last_end, false, false);
     }
 
     /// The element-based core of [`Self::body`], shared by `print_program` so a
@@ -2156,7 +2210,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             && body_start.is_some_and(|start| self.has_loc(start))
             && self.has_loc(body_end)
         {
-            self.flush_comments_until(ctx, body_end, last_end, false);
+            self.flush_comments_until(ctx, body_end, last_end, false, false);
         }
     }
 
@@ -2263,6 +2317,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 }
                 ctx.write(" from ");
                 ctx.write(Self::string_literal(&s.source));
+                Self::import_attributes(s.with_clause.as_deref(), ctx);
                 ctx.write_ascii(b';');
             }
             Statement::ImportDeclaration(d) => self.import_declaration(d, ctx),
@@ -2520,6 +2575,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         self.export_specifier_list(node.span(), &node.specifiers, node.export_kind, ctx);
         ctx.write(" from ");
         ctx.write(Self::string_literal(&node.source));
+        Self::import_attributes(node.with_clause.as_deref(), ctx);
         ctx.write_ascii(b';');
     }
 
@@ -2744,15 +2800,11 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         }
         if let Some(heritage) = &node.heritage {
             ctx.write("extends ");
-            // esrap visits the superclass with no parenthesisation at all, which
-            // prints text no parser accepts for anything looser than a
-            // LeftHandSideExpression; parens are kept for those and dropped for
-            // the primary expressions that need none (`extends class {}`).
-            if heritage_needs_no_parens(&heritage.expression) {
-                self.print_expression(&heritage.expression, ctx);
-            } else {
-                self.child_with_parens(&heritage.expression, 19, ctx);
-            }
+            // esrap's `wrap_super`: the `extends` clause is a
+            // LeftHandSideExpression, so anything below a `NewExpression`'s
+            // precedence is parenthesized — a `class`/`function`/object literal
+            // included, even though each is a legal operand on its own.
+            self.child_with_parens(&heritage.expression, 19, ctx);
             if let Some(ta) = &heritage.type_arguments {
                 self.type_parameter_instantiation(ta, ctx);
             }
@@ -2863,7 +2915,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         }
 
         ctx.newline();
-        self.flush_comments_until(ctx, span.end, last_end, false);
+        self.flush_comments_until(ctx, span.end, last_end, false, false);
     }
 
     /// esrap's `BlockStatement|ClassBody`: route class members through the shared
@@ -3771,15 +3823,23 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
 
     // ----- expressions ------------------------------------------------------
 
-    #[allow(clippy::too_many_lines)]
     fn print_expression(&mut self, expr: &Expression, ctx: &mut Context<DIRECT>) {
         // esrap's `_` wildcard: emit comments positioned before this node first.
         // acorn elides parentheses, so the node whose start bounds that flush is
         // the expression INSIDE them — bounding it at the `(` puts a comment that
         // precedes the parens on the same line as the operand it opens.
+        let start = unparen(expr).span().start;
+        let jsdoc_type_casts = self.flush_leading_expression(ctx, start);
+        self.print_expression_after_leading(expr, ctx);
+        for _ in 0..jsdoc_type_casts {
+            ctx.write_ascii(b')');
+        }
+    }
+
+    #[allow(clippy::too_many_lines)]
+    fn print_expression_after_leading(&mut self, expr: &Expression, ctx: &mut Context<DIRECT>) {
         let span = expr.span();
         let start = unparen(expr).span().start;
-        self.flush_leading(ctx, start);
         if HAS_COMMENTS
             && DIRECT
             && self.has_loc(start)
@@ -4589,10 +4649,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             return;
         }
         // Method / accessor shorthand: `key() {}`, `get key() {}`, `*key() {}`.
-        // esrap takes this branch for ANY property whose value is a
-        // FunctionExpression (regardless of the `method` flag or key kind), so a
-        // string-keyed function property prints as `"k"() {}`, not `"k": function`.
-        if let Expression::FunctionExpression(f) = &prop.value {
+        // esrap 2.3.x takes this branch only when the property itself carries the
+        // concise form (`method`, or a `get`/`set` kind); it no longer infers it
+        // from a function value, so `{ k: function () {} }` stays spelled that way.
+        if let Expression::FunctionExpression(f) = &prop.value
+            && (prop.method || prop.kind != PropertyKind::Init)
+        {
             match prop.kind {
                 PropertyKind::Get => ctx.write_ascii_bytes(b"get "),
                 PropertyKind::Set => ctx.write_ascii_bytes(b"set "),
@@ -4922,8 +4984,15 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             let second_start = second
                 .as_expression()
                 .map_or_else(|| second.span().start, |e| unparen(e).span().start);
+            // Only a comment *between* the two arguments wraps the call. One
+            // inside the first argument is that argument's business: upstream
+            // prints `$.tag($.state(1 // c\n), 'a')` on one argument line.
+            let first_end = first
+                .as_expression()
+                .map_or_else(|| first.span().end, |e| unparen(e).span().end);
             let force_multiline = self.comment_at(self.comment_index).is_some_and(|c| {
-                c.start < second_start
+                c.start >= first_end
+                    && c.start < second_start
                     && (!c.block || self.comment_starts_on_earlier_line(c, second_start))
             });
 

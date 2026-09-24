@@ -1,5 +1,46 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.28
+
+### Patch Changes
+
+- 001ce1a: svelte2tsx: a `use:` action's generated call keeps the action name's and its parameter expression's source ranges, so hovers, diagnostics and inlay hints on an action resolve to the attribute instead of the element's `<`
+- a77fe46: The component tag name in `__sveltets_2_ensureComponent` maps back to the source
+- d1f456b: svelte2tsx: a `transition:` / `in:` / `out:` / `animate:` directive's own name and its parameter expression keep their source ranges, so every position inside the attribute maps back to itself instead of to the element's `<`
+- c57afc2: svelte2tsx: the source-map walk emits the segments magic-string emits
+
+  `MagicString`'s mapping walk diverged from `magic-string@0.30.11` on four
+  points, verified by replaying the same calls through the oracle: an unedited
+  chunk emitted one segment past its last character, a surrogate pair mapped once
+  instead of once per UTF-16 unit, a multi-line edited chunk mapped only its first
+  generated line, and the trailing `outro` advanced the cursor so the encoded
+  mappings carried lines upstream never writes.
+
+- 1eab367: svelte2tsx: relocate the `this={…}` expression of `<svelte:component>` / `<svelte:element>` instead of baking it, so both it and the attributes written before it keep their source mappings
+- 1a3c4bf: svelte2tsx: the whitespace after a component tag name carries no source-map segment, as in official svelte2tsx
+- Updated dependencies [001ce1a]
+- Updated dependencies [5b9dac9]
+- Updated dependencies [de270aa]
+- Updated dependencies [4bfc8a3]
+- Updated dependencies [957265f]
+- Updated dependencies [d1f456b]
+- Updated dependencies [058db33]
+- Updated dependencies [3a0ae7b]
+- Updated dependencies [1eaf5b9]
+- Updated dependencies [3ebf157]
+- Updated dependencies [9a59761]
+- Updated dependencies [2fae099]
+- Updated dependencies [a5836e8]
+- Updated dependencies [c57afc2]
+- Updated dependencies [9fa2850]
+- Updated dependencies [708e42b]
+- Updated dependencies [4bf5b77]
+- Updated dependencies [639674b]
+- Updated dependencies [1eab367]
+- Updated dependencies [1a3c4bf]
+- Updated dependencies [da9b6c0]
+  - @rsvelte/compiler@0.12.4
+
 ## 0.2.27
 
 ### Patch Changes

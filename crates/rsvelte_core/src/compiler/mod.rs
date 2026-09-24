@@ -1217,12 +1217,12 @@ pub fn compile_module(
     // emitting the raw source with a header comment instead, which silently
     // hid real compile failures from users. Component compilation uses `?`
     // for the same path. (issue #450, H-086)
-    let js_code = transform_result?.js;
+    let transform_result = transform_result?;
 
     Ok(CompileResult {
         js: CompileOutput {
-            code: js_code,
-            map: None,
+            code: transform_result.js,
+            map: transform_result.js_map,
         },
         css: None,
         warnings: if analysis.warnings.is_empty() {

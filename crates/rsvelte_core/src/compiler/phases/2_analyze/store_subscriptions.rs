@@ -288,7 +288,7 @@ pub fn detect_store_subscriptions(
                 // treat $derived as the rune, not a store subscription.
                 if ref_name == "$derived"
                     && binding.declaration_kind == DeclarationKind::Import
-                    && is_import_from_svelte_store(store_name, &analysis.source)
+                    && binding.import_source.as_deref() == Some("svelte/store")
                 {
                     continue;
                 }
@@ -1761,29 +1761,6 @@ fn starts_a_class_member(chars: &[char], prev_code: Option<usize>) -> bool {
     }
 }
 
-/// Check if a given name is imported from 'svelte/store' in the source code.
-/// This checks for patterns like:
-///   import { derived } from 'svelte/store'
-///   import { derived } from "svelte/store"
-///   import { writable, derived } from 'svelte/store'
-fn is_import_from_svelte_store(name: &str, source: &str) -> bool {
-    // Look for import statements containing the name from 'svelte/store'
-    for line in source.lines() {
-        let trimmed = line.trim();
-        if !trimmed.starts_with("import ") {
-            continue;
-        }
-        // Check if this import line includes the name and 'svelte/store'
-        if (memchr::memmem::find(trimmed.as_bytes(), b"'svelte/store'").is_some()
-            || memchr::memmem::find(trimmed.as_bytes(), b"\"svelte/store\"").is_some())
-            && trimmed.contains(name)
-        {
-            return true;
-        }
-    }
-    false
-}
-
 /// Collect $xxx identifiers from a template fragment.
 fn collect_dollar_refs_from_fragment(fragment: &Fragment, source: &str, refs: &mut Vec<StoreRef>) {
     for node in &fragment.nodes {
@@ -2080,6 +2057,12 @@ fn collect_dollar_refs_from_if_block(block: &IfBlock, source: &str, refs: &mut V
 /// Collect $xxx identifiers from an each block.
 fn collect_dollar_refs_from_each_block(block: &EachBlock, source: &str, refs: &mut Vec<StoreRef>) {
     collect_dollar_refs_from_expression(&block.expression, source, refs);
+    // 写経 `scope.js`'s `EachBlock`: the fallback is visited in the enclosing
+    // scope, before the body (sveltejs/svelte#18803). The order decides where
+    // each `$store` getter is declared relative to its siblings.
+    if let Some(ref fallback) = block.fallback {
+        collect_dollar_refs_from_fragment(fallback, source, refs);
+    }
     let mut bindings = pattern_binding_names(block.context.as_ref());
     if let Some(index) = &block.index {
         bindings.push(index.to_string());
@@ -2091,9 +2074,6 @@ fn collect_dollar_refs_from_each_block(block: &EachBlock, source: &str, refs: &m
         remove_scoped_refs(refs, first, &binding_set);
     }
     collect_dollar_refs_from_scoped_fragment(&block.body, source, refs, bindings);
-    if let Some(ref fallback) = block.fallback {
-        collect_dollar_refs_from_fragment(fallback, source, refs);
-    }
 }
 
 /// Collect $xxx identifiers from an await block.

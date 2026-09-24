@@ -42,15 +42,16 @@ fn a_shadowing_each_item_keeps_the_nullish_guard() {
 }
 
 #[test]
-fn the_else_fallback_resolves_to_the_each_binding() {
-    // Upstream visits the fallback with the each scope, so the read is the
-    // (unbound) item rather than the instance literal.
+fn the_else_fallback_resolves_to_the_instance_binding() {
+    // Upstream visits the fallback in the ENCLOSING scope, as an await block's
+    // `pending` is (sveltejs/svelte#18803), so the read is the instance literal
+    // and folds. It resolved to the (unbound) item until Svelte 5.57.1.
     let out = client("{#each items as n}<b>{n}</b>{:else}<i>{n}</i>{/each}");
+    assert!(out.contains("i.textContent = '7'"), "{out}");
     assert!(
-        out.contains("$.template_effect(() => $.set_text(text_1, n))"),
+        !out.contains("$.template_effect(() => $.set_text(text_1, n))"),
         "{out}"
     );
-    assert!(!out.contains("nodeValue = '7'"), "{out}");
 }
 
 #[test]

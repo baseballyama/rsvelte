@@ -290,7 +290,7 @@ impl<'a> Parser<'a> {
         let leading_comments: Vec<String> = self
             .pending_leading_comments
             .last()
-            .cloned()
+            .map(|comment| comment.data.to_string())
             .into_iter()
             .collect();
 

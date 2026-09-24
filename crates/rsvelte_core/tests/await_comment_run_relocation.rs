@@ -142,12 +142,14 @@ fn a_paren_that_opens_no_node_does_not_break_the_run() {
 }
 
 /// The JSDoc cast that motivated it: `/** @type {T} */ (` wraps the operand in
-/// parens that belong to nothing else, and the run has to cross them.
+/// parens that belong to nothing else, and the run has to cross them. The pair
+/// in the expectation is esrap 2.3.x's own, re-added around the cast operand
+/// after the run has already moved.
 #[test]
 fn a_cast_comment_crosses_the_cast_parens() {
     assert_contains(
         &module("\tconst r = /** @type {R} */ (await load());\n\treturn r;\n"),
-        "const r = (await $.track_reactivity_loss(/** @type {R} */ load()))();",
+        "const r = (await $.track_reactivity_loss(/** @type {R} */ (load())))();",
     );
 }
 

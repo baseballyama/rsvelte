@@ -2430,7 +2430,14 @@ fn parse_expression_with_typescript<'a>(
                 return None;
             }
 
-            // Adjust positions: subtract 1 for the opening paren we added
+            // Adjust positions: subtract 1 for the opening paren we added.
+            // Upstream picks one acorn variant per component, so a template
+            // expression in a `lang="ts"` component is parsed by
+            // acorn-typescript and carries its shapes too.
+            let _ts_guard = TsProgramGuard {
+                arena,
+                previous: arena.set_ts_program(use_typescript),
+            };
             let expr = convert_expression(arena, &expr_stmt.expression, offset, line_offsets);
 
             // Attach comments to the expression
@@ -5141,13 +5148,21 @@ fn convert_expression<'a>(
             let start = offset + import_expr.span.start as usize - 1;
             let end = offset + import_expr.span.end as usize - 1;
             let source = convert_expression(arena, &import_expr.source, offset, line_offsets);
+            let options = import_expr
+                .options
+                .as_ref()
+                .map(|opt| {
+                    let node = expr_to_node(convert_expression(arena, opt, offset, line_offsets));
+                    arena.alloc_js_children(vec![node])
+                })
+                .unwrap_or_else(IdRange::empty);
             Expression::from_node(JsNode::ImportExpression {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 source: arena.alloc_js_node(expr_to_node(source)),
-                options: IdRange::empty(),
-                ts: false,
+                options,
+                ts: arena.is_ts_program(),
             })
         }
         OxcExpression::AwaitExpression(await_expr) => {
@@ -6381,10 +6396,7 @@ fn create_assignment_expression<'a>(
     line_offsets: &[usize],
 ) -> Expression<'a> {
     let operator = assignment_operator_to_str(&assign.operator);
-    let left = match simple_assignment_lhs_inner(assign) {
-        Some(inner) => expr_to_node(convert_expression(arena, inner, offset, line_offsets)),
-        None => convert_assignment_target(arena, &assign.left, offset, line_offsets),
-    };
+    let left = convert_assignment_target(arena, &assign.left, offset, line_offsets);
     let right = convert_expression(arena, &assign.right, offset, line_offsets);
 
     Expression::from_node(JsNode::AssignmentExpression {
@@ -6395,27 +6407,6 @@ fn create_assignment_expression<'a>(
         left: arena.alloc_js_node(left),
         right: arena.alloc_js_node(expr_to_node(right)),
     })
-}
-
-/// The expression a **plain `=`** LHS unwraps to when it carries TS assertion
-/// wrappers (`x! = 1` -> `x`), or `None` when the LHS must be kept as-is.
-///
-/// svelte/compiler gets this from acorn-typescript's `toAssignable`, which
-/// unwraps the wrapper but whose return value only `parseMaybeAssign` (the `=`
-/// case) uses. So a compound assignment (`x! += 1`), an update (`x!++`) and every
-/// nested destructuring position keep the wrapper, while a plain `=` loses it.
-fn simple_assignment_lhs_inner<'x>(
-    assign: &'x oxc_ast::ast::AssignmentExpression<'x>,
-) -> Option<&'x oxc_ast::ast::Expression<'x>> {
-    if assign.operator != oxc_ast::ast::AssignmentOperator::Assign {
-        return None;
-    }
-    let inner = assign
-        .left
-        .as_simple_assignment_target()?
-        .get_expression()?
-        .get_inner_expression();
-    Some(inner)
 }
 
 fn assignment_operator_to_str(op: &oxc_ast::ast::AssignmentOperator) -> &'static str {
@@ -7806,24 +7797,8 @@ fn get_line_column_for_binding(pos: usize, line_offsets: &[usize]) -> (u32, u32)
     let line = line_offsets
         .partition_point(|&offset| offset <= pos)
         .saturating_sub(1);
-
-    // Check if this line immediately follows an empty line
-    // An empty line has length 1 (just the newline character)
-    let adjusted_line_start = if line > 0 {
-        let current_line_start = line_offsets.get(line).copied().unwrap_or(0);
-        let prev_line_start = line_offsets.get(line - 1).copied().unwrap_or(0);
-        // If the previous line was empty (current - prev == 1), use prev as line_start
-        if current_line_start - prev_line_start == 1 {
-            prev_line_start
-        } else {
-            current_line_start
-        }
-    } else {
-        line_offsets.get(line).copied().unwrap_or(0)
-    };
-
-    let column = pos - adjusted_line_start;
-    ((line + 1) as u32, column as u32)
+    let line_start = line_offsets.get(line).copied().unwrap_or(0);
+    ((line + 1) as u32, (pos - line_start) as u32)
 }
 
 /// Create loc for binding patterns (complex patterns like ObjectPattern, ArrayPattern).
@@ -12149,17 +12124,8 @@ fn convert_expression_for_program<'a>(
             let start = offset + assign.span.start as usize;
             let end = offset + assign.span.end as usize;
 
-            let left = match simple_assignment_lhs_inner(assign) {
-                Some(inner) => expr_to_node(convert_expression_for_program(
-                    arena,
-                    inner,
-                    offset,
-                    line_offsets,
-                )),
-                None => {
-                    convert_assignment_target_for_program(arena, &assign.left, offset, line_offsets)
-                }
-            };
+            let left =
+                convert_assignment_target_for_program(arena, &assign.left, offset, line_offsets);
             let right = convert_expression_for_program(arena, &assign.right, offset, line_offsets);
             let operator = assignment_operator_to_str(&assign.operator);
 

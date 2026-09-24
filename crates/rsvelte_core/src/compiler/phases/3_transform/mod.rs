@@ -423,6 +423,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
             .css
             .as_ref()
             .and_then(|css| css.content.comment.as_ref())
+            .and_then(|comment| comment.get("data").and_then(serde_json::Value::as_str))
             .is_some_and(|comment| {
                 crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore(
                     comment,
@@ -503,8 +504,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
         // Generate JS source map if we have mappings
         if !js_mappings.is_empty() {
             let output_filename = options.output_filename.as_deref();
-            let filename = options.filename.as_deref();
-            let source_name = get_source_name(filename, output_filename, "input.svelte");
+            let source_name = get_source_name(options.filename_or_unknown(), output_filename);
 
             // Upstream's JS map comes out of esrap's `print()`, which sets no
             // `file` key; only the CSS map names its output file.
@@ -586,11 +586,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                                 } else {
                                     pp_src.clone()
                                 };
-                                multi_sources.push(get_source_name(
-                                    Some(&source_path),
-                                    output_filename,
-                                    pp_src,
-                                ));
+                                multi_sources.push(get_source_name(&source_path, output_filename));
                             }
                         } else {
                             multi_sources.push(pp_src.clone());
@@ -658,7 +654,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
             let output_filename = options.output_filename.as_deref();
             let filename = options.filename.as_deref();
             if output_filename.is_some() || filename.is_some() {
-                let source_name = get_source_name(filename, output_filename, "input.svelte");
+                let source_name = get_source_name(options.filename_or_unknown(), output_filename);
                 let file_name: Option<&str> = None;
 
                 // Generate line-level identity mappings (each generated line maps to line 0, col 0)
@@ -775,13 +771,7 @@ pub(crate) fn remap_css_sourcemap(
     let source_name = options
         .css_output_filename
         .as_ref()
-        .map(|css_out| {
-            get_source_name(
-                options.filename.as_deref(),
-                Some(css_out.as_str()),
-                "input.svelte",
-            )
-        })
+        .map(|css_out| get_source_name(options.filename_or_unknown(), Some(css_out.as_str())))
         .unwrap_or_else(|| {
             css_map
                 .field("sources")
@@ -849,12 +839,54 @@ pub fn transform_module(
     };
     let js = shared::class_body::terminate_export_default_class(&js).unwrap_or(js);
 
+    // Upstream's `transform_module` prints the module through esrap and returns
+    // its map, so a module result always carries one. rsvelte's module pipeline
+    // rewrites text rather than printing an AST, so the mappings come from the
+    // same token scan the server component path is mapped by.
+    let js_map = options
+        .enable_sourcemap
+        .then(|| module_sourcemap_json(&js, source, options));
+
     Ok(TransformResult {
         js,
-        js_map: None,
+        js_map,
         css: None,
         warnings: Vec::new(),
     })
+}
+
+/// The JSON source map for a module's generated JavaScript.
+///
+/// Upstream names the source with `get_source_name(filename, undefined,
+/// 'input.svelte.js')` and always fills `sourcesContent`, and its map carries no
+/// `file` key because esrap's `print()` sets none. Its `'input.svelte.js'`
+/// default is dead — `validate_module_options` has already replaced an absent
+/// filename with `(unknown)` — so that is the string this passes.
+fn module_sourcemap_json(js: &str, source: &str, options: &CompileOptions) -> String {
+    use js_ast::codegen::{encode_vlq_mappings, generate_sourcemap_json, get_source_name};
+
+    let starts = MappingLineStarts::new(js, source);
+    let mut mappings = generate_token_mappings_inner(js, source, true, &starts, None);
+    js_ast::codegen::sort_mappings_by_generated_position(&mut mappings);
+    let mut mappings_str = encode_vlq_mappings(&mappings);
+    // `decode()` yields one entry per generated line, so the encoding has to
+    // reach the last line even when nothing on it is mapped.
+    let output_line_count = js.as_bytes().iter().filter(|&&c| c == b'\n').count();
+    let mapped_lines = mappings_str
+        .as_bytes()
+        .iter()
+        .filter(|&&c| c == b';')
+        .count();
+    for _ in mapped_lines..output_line_count {
+        mappings_str.push(';');
+    }
+    generate_sourcemap_json(
+        None,
+        &get_source_name(options.filename_or_unknown(), None),
+        Some(source),
+        &mappings_str,
+        &[],
+    )
 }
 
 /// Error type for transform failures.

@@ -3698,6 +3698,20 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Visit an each block.
     fn visit_each_block(&mut self, block: &EachBlock) {
+        // The fallback renders when there is nothing to iterate, so upstream
+        // visits it in the ENCLOSING scope, as an await block's `pending` is
+        // (sveltejs/svelte#18803) — the loop's name must not resolve to the
+        // each context there. It is still visited as a `Fragment`, so it gets
+        // a child scope of its own: a `{@const}` naming the item duplicates it
+        // in the body and shadows it here.
+        if let Some(ref fallback) = block.fallback {
+            let fallback_outer = self.push_scope();
+            self.each_fallback_scope_map
+                .insert(block.start, self.current_scope);
+            self.visit_fragment(fallback);
+            self.pop_scope(fallback_outer);
+        }
+
         // Each blocks create a new scope for the item and index
         let old_scope = self.push_scope();
 
@@ -3743,18 +3757,6 @@ impl<'a> ScopeBuilder<'a> {
 
         // Visit body
         self.visit_fragment(&block.body);
-
-        // Upstream walks the body's NODES with the each scope but visits the
-        // fallback as a `Fragment`, so only the fallback reaches the `Fragment`
-        // visitor's `scope.child(...)`: a `{@const}` naming the item duplicates
-        // it in the body and shadows it here.
-        if let Some(ref fallback) = block.fallback {
-            let fallback_outer = self.push_scope();
-            self.each_fallback_scope_map
-                .insert(block.start, self.current_scope);
-            self.visit_fragment(fallback);
-            self.pop_scope(fallback_outer);
-        }
 
         // Official Svelte compiler logic (index.js lines 638-674):
         // "if an `each` binding is reassigned/mutated, treat the expression as being mutated as well"

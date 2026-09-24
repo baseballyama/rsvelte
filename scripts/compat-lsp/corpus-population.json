@@ -1,10 +1,22 @@
 {
-  "bits-ui": { "files": 617, "identifiers": 135920, "requests": 407760 },
+  "bits-ui": {
+    "files": 620,
+    "identifiers": 136367,
+    "requests": 409101
+  },
   "flowbite-svelte": {
     "files": 1296,
     "identifiers": 211845,
     "requests": 635535
   },
-  "melt-ui": { "files": 43, "identifiers": 12043, "requests": 36129 },
-  "shadcn-svelte": { "files": 1748, "identifiers": 285961, "requests": 857883 }
+  "melt-ui": {
+    "files": 43,
+    "identifiers": 12043,
+    "requests": 36129
+  },
+  "shadcn-svelte": {
+    "files": 1753,
+    "identifiers": 287007,
+    "requests": 861021
+  }
 }

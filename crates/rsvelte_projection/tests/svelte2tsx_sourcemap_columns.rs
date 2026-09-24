@@ -158,11 +158,8 @@ fn copied_non_ascii_script_line_maps_utf16_columns() {
     let generated_line = generated_line_of(&result.code, copied);
     let segments = &mappings_of(&result)[generated_line];
 
-    // UTF-16 columns: `名`/`前` are one unit each, `😀` at column 14 is two, so the
-    // segment after it lands on column 16.
-    let expected: Vec<[i64; 4]> = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18]
-        .into_iter()
-        .map(|column| [column, 0, 1, column])
-        .collect();
+    // UTF-16 columns: `名`/`前` are one unit each and `😀` at column 14 is two, and
+    // upstream walks units, so both halves of the pair map (#4650).
+    let expected: Vec<[i64; 4]> = (0..=18).map(|column| [column, 0, 1, column]).collect();
     assert_eq!(segments, &expected);
 }

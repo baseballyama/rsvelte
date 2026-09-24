@@ -4123,11 +4123,11 @@ pub(crate) fn is_js_comments_and_whitespace_only(src: &str) -> bool {
 /// in pure-code state — so an `import …` line living inside a backtick template
 /// literal (e.g. a code-sample string) is not mis-hoisted as a real import.
 #[derive(Default, Clone)]
-struct ScanState {
+pub(super) struct ScanState {
     /// One entry per open template literal. `0` = in template text; `>=1` =
     /// inside a `${ }` hole, value is the brace-nesting depth.
     template_brace_depth: Vec<i32>,
-    in_block_comment: bool,
+    pub(super) in_block_comment: bool,
 }
 
 impl ScanState {
@@ -4139,7 +4139,7 @@ impl ScanState {
     /// Advance the carried state across one line. Single/double-quoted strings
     /// and `//` comments cannot cross a newline, so only template literals and
     /// block comments persist between lines.
-    fn advance(&mut self, line: &str) {
+    pub(super) fn advance(&mut self, line: &str) {
         let b = line.as_bytes();
         let n = b.len();
         let mut i = 0;
@@ -4305,10 +4305,10 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
             let trimmed = line.trim();
             let scanned = scan_import_line(trimmed, line_starts_in_block_comment, carry);
             let attributes_follow =
-                scanned.ends_at_specifier(trimmed.len()) && starts_import_attributes(following);
+                scanned.ends_at_specifier() && starts_import_attributes(following);
             carry = scanned.carry;
             carry.expect_attributes |= attributes_follow;
-            if scanned.closes(trimmed.len()) && !attributes_follow {
+            if scanned.closes() && !attributes_follow {
                 carry = ImportCarry::default();
                 if let Some(end) = scanned.end()
                     && end < trimmed.len()
@@ -4334,12 +4334,10 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
             }
         } else {
             let trimmed = line.trim();
-            if scan && (trimmed.starts_with("import ") || trimmed.starts_with("import{")) {
+            if scan && starts_import_declaration(trimmed, &script[line_end..]) {
                 // Check if this import is complete on one line
                 let scanned = scan_import_line(trimmed, false, ImportCarry::default());
-                let ends_at_specifier = is_complete_side_effect_import(trimmed)
-                    || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
-                        && scanned.last_string_end == Some(trimmed.len()));
+                let ends_at_specifier = scanned.ends_at_specifier();
                 let attributes_follow = ends_at_specifier && starts_import_attributes(following);
                 if !attributes_follow
                     && (scanned.semicolon.is_some()
@@ -4476,10 +4474,10 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
             let trimmed = line.trim();
             let scanned = scan_import_line(trimmed, line_starts_in_block_comment, carry);
             let attributes_follow =
-                scanned.ends_at_specifier(trimmed.len()) && starts_import_attributes(following);
+                scanned.ends_at_specifier() && starts_import_attributes(following);
             carry = scanned.carry;
             carry.expect_attributes |= attributes_follow;
-            if scanned.closes(trimmed.len()) && !attributes_follow {
+            if scanned.closes() && !attributes_follow {
                 carry = ImportCarry::default();
                 if let Some(end) = scanned.end()
                     && end < trimmed.len()
@@ -4531,11 +4529,11 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
             }
         } else {
             let trimmed = line.trim();
-            if scan && (trimmed.starts_with("import ") || trimmed.starts_with("import{")) {
+            if scan
+                && starts_import_declaration(trimmed, &script[line_start + physical_line.len()..])
+            {
                 let scanned = scan_import_line(trimmed, false, ImportCarry::default());
-                let ends_at_specifier = is_complete_side_effect_import(trimmed)
-                    || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
-                        && scanned.last_string_end == Some(trimmed.len()));
+                let ends_at_specifier = scanned.ends_at_specifier();
                 let attributes_follow = ends_at_specifier && starts_import_attributes(following);
                 if !attributes_follow
                     && (scanned.semicolon.is_some()
@@ -4675,22 +4673,15 @@ fn compose_script_projection(
     }
 }
 
-/// Check whether `trimmed` is a complete *side-effect* import statement —
-/// `import "module"` or `import 'module'` with no `from` clause and no
-/// terminating semicolon. ASI in real JavaScript allows this form to stand
-/// alone on its own line, so it must not be merged with the following line
-/// the way `extract_imports` accumulates incomplete multi-line imports.
-///
-/// The line is considered complete iff after `import` there is whitespace,
-/// then a single string literal (single or double quoted), then optional
-/// whitespace until end-of-line. Anything else (bindings, `from`, trailing
-/// content, dynamic `import(...)` calls) returns `false`.
 #[derive(Default)]
 struct ImportLineScan {
     /// Just past the first `;` that is code.
     semicolon: Option<usize>,
     /// Just past the last string or template literal that is code.
     last_string_end: Option<usize>,
+    /// Just past the last byte on the line that is code — whitespace and
+    /// comments after it do not continue the statement (#4668).
+    last_code_end: Option<usize>,
     /// Just past the `}` that closes an import-attributes clause.
     attributes_end: Option<usize>,
     /// Brace nesting and clause state to carry to the statement's next line.
@@ -4720,19 +4711,20 @@ impl ImportLineScan {
     }
 
     /// True when the statement would end — by ASI — at the module specifier that
-    /// finishes this line, so whether it really ends there depends on what
-    /// follows on the next line.
-    fn ends_at_specifier(&self, line_len: usize) -> bool {
+    /// finishes this line's code, so whether it really ends there depends on
+    /// what follows on the next line. A comment after the specifier is not
+    /// part of the statement, and reading it as one swallowed the next line
+    /// (#4668).
+    fn ends_at_specifier(&self) -> bool {
         self.semicolon.is_none()
             && self.attributes_end.is_none()
             && self.carry.depth == 0
-            && self.last_string_end == Some(line_len)
+            && self.last_string_end.is_some()
+            && self.last_string_end == self.last_code_end
     }
 
-    fn closes(&self, line_len: usize) -> bool {
-        self.semicolon.is_some()
-            || self.attributes_end.is_some()
-            || self.ends_at_specifier(line_len)
+    fn closes(&self) -> bool {
+        self.semicolon.is_some() || self.attributes_end.is_some() || self.ends_at_specifier()
     }
 }
 
@@ -4765,6 +4757,7 @@ fn scan_import_line(s: &str, in_block_comment: bool, carry: ImportCarry) -> Impo
             }
             if !is_comment {
                 prev = Some(b'x');
+                out.last_code_end = Some(next);
             }
             i = next;
             continue;
@@ -4795,6 +4788,7 @@ fn scan_import_line(s: &str, in_block_comment: bool, carry: ImportCarry) -> Impo
         }
         if !bytes[i].is_ascii_whitespace() {
             prev = Some(bytes[i]);
+            out.last_code_end = Some(i + 1);
         }
         i += 1;
     }
@@ -4900,7 +4894,7 @@ fn peel_leading_imports_ref<'a>(
 ) -> (&'a str, usize) {
     let mut offset = s.len() - s.trim_start().len();
     let mut cur = &s[offset..];
-    while cur.starts_with("import ") || cur.starts_with("import{") {
+    while starts_import_declaration(cur, "") {
         let Some(end) = import_statement_end(cur) else {
             break;
         };
@@ -4920,45 +4914,26 @@ fn peel_leading_imports_ref<'a>(
     (cur, offset)
 }
 
-fn is_complete_side_effect_import(trimmed: &str) -> bool {
-    // Must start with `import ` (we already know this from the caller, but
-    // re-check defensively to keep the helper standalone).
-    let after_import = if let Some(rest) = trimmed.strip_prefix("import ") {
-        rest.trim_start()
-    } else {
+/// Does `s` open an `import` declaration? `import(…)`, `import.meta` and an
+/// `import:` property key on its own line do not.
+///
+/// No separator is required between the keyword and a string, `{` or `*`, so
+/// the token after it decides; `following` is consulted when it is on a later
+/// line, and is the raw tail because a block comment opened after the keyword
+/// may close there.
+fn starts_import_declaration(s: &str, following: &str) -> bool {
+    let Some(after) = after_keyword(s, "import") else {
         return false;
     };
-
-    // Side-effect imports start directly with a string literal — `"…"` or `'…'`.
-    let bytes = after_import.as_bytes();
-    let quote = match bytes.first() {
-        Some(&b'"') => b'"',
-        Some(&b'\'') => b'\'',
-        _ => return false,
-    };
-
-    // Walk the string literal, honouring escapes.
-    let mut i = 1;
-    let mut closed = false;
-    while i < bytes.len() {
-        match bytes[i] {
-            b'\\' if i + 1 < bytes.len() => i += 2,
-            c if c == quote => {
-                closed = true;
-                i += 1;
-                break;
-            }
-            _ => i += 1,
-        }
-    }
-    if !closed {
-        return false;
-    }
-
-    // After the closing quote only optional whitespace is allowed for this to
-    // be a *complete* side-effect import. Anything else (e.g. `from`, more
-    // tokens) means we should not treat the line as complete here.
-    after_import[i..].trim().is_empty()
+    let at = skip_js_whitespace_and_comments(s, after);
+    let next = s.as_bytes().get(at).copied().or_else(|| {
+        let joined = format!("{}\n{following}", &s[after..]);
+        joined
+            .as_bytes()
+            .get(skip_js_whitespace_and_comments(&joined, 0))
+            .copied()
+    });
+    next.is_some_and(|b| matches!(b, b'"' | b'\'' | b'{' | b'*') || is_ident_byte(b))
 }
 
 /// True when `text` is a `let`/`const`/`var` declaration whose whole initializer
@@ -8991,7 +8966,7 @@ fn transform_instance_script_for_visitors(
         let at_statement_boundary = accumulated_lines.is_empty();
 
         // Skip import statements (already extracted)
-        if at_statement_boundary && trimmed.starts_with("import ") {
+        if at_statement_boundary && starts_import_declaration(trimmed, "") {
             line_idx += 1;
             continue;
         }

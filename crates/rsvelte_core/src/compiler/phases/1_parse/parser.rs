@@ -116,7 +116,7 @@ pub struct Parser<'a> {
     pub(crate) svelte_options_raw:
         Option<crate::compiler::phases::phase1_parse::read::options::SvelteOptionsRaw<'a>>,
     /// Pending comments that could become leading comments for a script.
-    pub(crate) pending_leading_comments: Vec<String>,
+    pub(crate) pending_leading_comments: Vec<crate::ast::template::Comment>,
     /// Whether we're in TypeScript mode.
     ///
     /// Corresponds to `ts` field in JavaScript Parser.
