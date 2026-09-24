@@ -203,7 +203,7 @@
 		"oxfmt": "^0.67.0",
 		"prettier": "^3.9.4",
 		"prettier-plugin-svelte": "^4.1.0",
-		"sass": "1.104.1",
+		"sass": "1.105.0",
 		"svelte": "5.57.1",
 		"svelte-preprocess-markdown": "^2.7.3"
 	},
