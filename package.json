@@ -207,5 +207,5 @@
 		"svelte": "5.57.1",
 		"svelte-preprocess-markdown": "^2.7.3"
 	},
-	"packageManager": "pnpm@12.5.1"
+	"packageManager": "pnpm@12.6.0"
 }
