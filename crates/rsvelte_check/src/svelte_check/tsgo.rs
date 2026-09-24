@@ -240,7 +240,8 @@ fn which(program: &str) -> bool {
 /// # Errors
 ///
 /// Returns an error when the compiler cannot be invoked, or when it did not
-/// complete a type check (see [`check_exit`]).
+/// complete a type check: killed by a signal, crashed, or exited non-zero
+/// without reporting an error.
 pub fn run_tsgo(
     binary: &TsgoBinary,
     tsconfig_path: &Path,
