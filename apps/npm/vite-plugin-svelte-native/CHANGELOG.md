@@ -1,5 +1,26 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.3.15
+
+### Patch Changes
+
+- 3a0ae7b: fix(client): hoist an `import` written with no whitespace after the keyword. `import"pkg";` — the form Bun's TypeScript transpiler prints — was left inside the component function, which is a syntax error; `import*as ns from"pkg"` and the semicolon-free `import{x}from"pkg"` were affected the same way. `import ("pkg")` is no longer mistaken for a declaration.
+- 1eaf5b9: fix(compiler): `compileModule` returns a source map. `compile_module` hard-coded `map: None`, so every `.svelte.js` / `.svelte.ts` came back with `js.map === null` while upstream returns esrap's own `SourceMap` (#4702) — and a consumer that branches on it, such as `@rsvelte/vite-plugin-svelte`'s dependency optimizer (`result.map ? … : result.code`), silently skipped the module path. The map's header is upstream's (no `file`, `sources` from the filename's basename, `sourcesContent` filled, empty `names`); its mappings come from the same token scan the server component path is mapped by, so they resolve a generated statement to its own source line but anchor columns more coarsely than esrap's.
+- 9a59761: `parse()`: a class `implements` clause is the `TSExpressionWithTypeArguments` array acorn-typescript emits, not the boolean `true`
+- 2fae099: parse(): a `<script>` directive prologue is an `ExpressionStatement` carrying `directive`
+
+  OXC lifts a directive prologue out of `Program::body` into `Program::directives`; ESTree
+  keeps those statements in `body` with an extra `directive` field. The script-program
+  converter read only `body`, so `"use strict"` at the top of a `<script>` disappeared from
+  `parse()`'s AST.
+
+- a5836e8: `parse()` now returns `TSParameterProperty` with its `accessibility`, `readonly` and `parameter`,
+  and a class `Decorator` with its `loc` and `expression`. Both nodes were emitted as bare
+  `{type, start, end}` objects.
+- 639674b: fix(compiler): follow Svelte 5.57.1. `<input defaultValue>` / `defaultChecked` now deopt the SSR element to the spread path so the default is applied before `value` / `checked` (sveltejs/svelte#18733); an `{#each}` fallback resolves names in the enclosing scope instead of the loop's (sveltejs/svelte#18803); an object property is printed in the concise method form only when it carries `method` or a `get` / `set` kind, matching esrap 2.3.x — `{ click: function () {} }` is no longer rewritten to `{ click() {} }`; a destructuring binding pattern reports its real `loc.*.column` again, upstream having dropped the `(pattern = 1)` prefix-blanking that shifted it (sveltejs/svelte#18738); `/** @type {T} */ (expr)` keeps the parentheses acorn elides, as esrap 2.3.x re-adds them (sveltejs/esrap#164), while the same comment on a binding gains none; a comment consumed by a speculative type parse is emitted once rather than twice, `@sveltejs/acorn-typescript` 1.0.13 having fixed the doubling; `export … from '…' with { … }` keeps its attribute clause; an `extends` operand whose precedence is below a `NewExpression`'s is parenthesized, so `class C extends class {} {}` prints as `extends (class {})` instead of text no parser accepts; and a CSS selector that is global end to end is kept even when the component renders no scopable element (sveltejs/svelte#18793).
+- da9b6c0: fix(compiler): an unnamed `compile()` names its source `(unknown)`, not `input.svelte`. `validate_options` replaces an absent `filename` with `(unknown)` before anything reads it, so upstream's `get_source_name(filename, output_filename, fallback)` never sees an absent filename and its `fallback` argument is unused in the body — rsvelte's port kept the argument and used it, so `js.map.sources` came back `["input.svelte"]` where upstream says `["(unknown)"]`, and `["../input.svelte"]` where upstream says `["../(unknown)"]` (#4704). The parameter is gone, so no caller can reintroduce the dead default; the CSS map and the preprocessor remap path took the same substitution.
+- b4b5b8e: fix(vps-native): `js.map` / `css.map` carry magic-string's `toString()` and `toUrl()`. `svelte/compiler` returns every map as a `SourceMap` instance, so tooling inlines one with `map.toUrl()` — `prebundleSvelteLibraries` crashed with `result.map.toUrl is not a function` because the NAPI boundary hands back a plain Source Map v3 object (#4695). The methods are non-enumerable, so a serialized map is unchanged.
+
 ## 0.3.14
 
 ### Patch Changes

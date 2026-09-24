@@ -1,5 +1,48 @@
 # @rsvelte/language-server
 
+## 0.7.11
+
+### Patch Changes
+
+- a77fe46: The component tag name in `__sveltets_2_ensureComponent` maps back to the source
+- 85c56cc: Run `getDocumentSymbols`' post-processing over tsgo's document symbols
+
+  `TypeScriptPlugin.getDocumentSymbols` rewrites and drops symbols after mapping
+  them back — a container the navigation tree's root owns becomes `script`, a
+  zero-length range, a `__sveltets_` name and a `$$_` local that is not an `$on`
+  callback are dropped, a generated constructor's `props` and a property that is
+  really an attribute are dropped, and `<function>` is renamed after its source.
+  None of that ran. The native outline also spelled "no container" as an absent
+  field where `vscode-html-languageservice` spells it `''`, and gave `<script>`
+  and `<style>` `Module` where every other element gets `Field`.
+
+- e72e848: fix(lsp): hide generated snippet functions from the document outline
+
+  Ports `svelte-language-server`'s `<function>` handling in `getDocumentSymbols`
+  (sveltejs/language-tools#3114): an anonymous function in tsgo's outline of a component is kept and
+  named after its source text only when it sits in a `<script>` or inside a function expression the
+  user wrote in the template; the functions svelte2tsx generates for snippets and for the template
+  callback that replaces the instance script's end tag are dropped. The outline's other passes ran
+  over `SymbolInformation` alone, so a client with `hierarchicalDocumentSymbolSupport` — which is
+  the shape tsgo then answers with — got none of them; they now read `range` as well as
+  `location.range`, and a dropped nested symbol leaves its children in its place.
+
+- 27c7bb0: `textDocument/inlayHint`: hints svelte2tsx generates for a `transition:` / `in:` / `out:` / `animate:` / `use:` directive's own call, and for a bare `on:` handler, are dropped — the post-mapping filter `checkGeneratedFunctionHintWithSource` is now ported
+- bdc2ce9: A parameter hint whose label points into a svelte2tsx shim is generated code
+- 04ec5dc: fix(lsp): an inlay-hint viewport that starts at `0:0` is clamped, not dropped
+
+  `textDocument/inlayHint`'s request range is the window the editor is painting, so
+  upstream's `convertToTargetTextSpan` maps its two endpoints independently and
+  substitutes offset 0 / the snapshot's length for whichever one has no shadow
+  position. rsvelte mapped the range as a unit and then rejected it when it landed
+  in generated code, and since an editor asks for the visible range — which starts
+  at `0:0`, before the shadow's prologue — the practical effect was that a
+  `.svelte` file got no inlay hints at all.
+
+- 61c594d: `textDocument/inlayHint`: the generated `$$render` header's return-type slot is found from the shadow's AST instead of a text needle, so the hint is dropped on components that import anything
+- 698fc40: Bump the `svelte` runtime dependency to 5.57.1.
+- 567bd50: A hover on a `.svelte` module specifier answers instead of returning `null`
+
 ## 0.7.10
 
 ### Patch Changes
