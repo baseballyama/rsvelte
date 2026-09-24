@@ -7811,7 +7811,11 @@ fn create_loc_for_binding(start: usize, end: usize, line_offsets: &[usize]) -> O
 // Typed loc helper functions (return typed_expr::Loc instead of serde_json::Value)
 // ============================================================================
 
-fn create_typed_loc(start: usize, end: usize, line_offsets: &[usize]) -> Option<Box<Loc>> {
+pub(crate) fn create_typed_loc(
+    start: usize,
+    end: usize,
+    line_offsets: &[usize],
+) -> Option<Box<Loc>> {
     if line_offsets.is_empty() {
         return None;
     }

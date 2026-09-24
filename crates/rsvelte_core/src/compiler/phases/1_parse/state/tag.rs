@@ -17,6 +17,7 @@ use crate::ast::template::{
     FragmentType, HtmlTag, IfBlock, KeyBlock, RenderTag, SnippetBlock, TemplateNode,
 };
 use crate::ast::typed_expr::JsNode;
+use crate::compiler::phases::phase1_parse::read::expression::create_typed_loc;
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
 use crate::compiler::phases::phase3_transform::shared::js_scan::slash_starts_regex_at;
 use crate::compiler::utils::is_escaped;
@@ -513,6 +514,7 @@ impl<'a> Parser<'a> {
             decl_start,
             body_end,
             kind,
+            self.expression_line_offsets(),
         );
 
         Ok(Some(TemplateNode::DeclarationTag(Box::new(
@@ -613,6 +615,13 @@ impl<'a> Parser<'a> {
             declarator.insert("init".to_string(), init_value);
             declarator.insert("start".to_string(), Value::Number((id_start as i64).into()));
             declarator.insert("end".to_string(), Value::Number((decl_end as i64).into()));
+            if let Some(loc) = loc_json(
+                id_start as usize,
+                decl_end as usize,
+                self.expression_line_offsets(),
+            ) {
+                declarator.insert("loc".to_string(), loc);
+            }
             declarators.push(Value::Object(declarator));
         }
 
@@ -628,6 +637,9 @@ impl<'a> Parser<'a> {
             Value::Number((decl_start as i64).into()),
         );
         declaration.insert("end".to_string(), Value::Number((body_end as i64).into()));
+        if let Some(loc) = loc_json(decl_start, body_end, self.expression_line_offsets()) {
+            declaration.insert("loc".to_string(), loc);
+        }
 
         TemplateNode::DeclarationTag(Box::new(DeclarationTag {
             start: start as u32,
@@ -3265,8 +3277,18 @@ fn build_kind_variable_declaration<'a>(
     decl_start: usize,
     decl_end: usize,
     kind: &str,
+    line_offsets: &[usize],
 ) -> Expression<'a> {
-    build_variable_declaration(arena, pattern, init, decl_start, decl_end, None, kind)
+    build_variable_declaration(
+        arena,
+        pattern,
+        init,
+        decl_start,
+        decl_end,
+        None,
+        kind,
+        line_offsets,
+    )
 }
 
 fn build_const_variable_declaration<'a>(
@@ -3285,6 +3307,7 @@ fn build_const_variable_declaration<'a>(
         decl_end,
         Some(declarator_end),
         "const",
+        &[],
     )
 }
 
@@ -3301,6 +3324,7 @@ fn build_variable_declaration<'a>(
     decl_end: usize,
     declarator_end: Option<usize>,
     kind: &str,
+    line_offsets: &[usize],
 ) -> Expression<'a> {
     let pattern_node = expression_into_node(pattern);
     let init_node = expression_into_node(init);
@@ -3311,10 +3335,11 @@ fn build_variable_declaration<'a>(
     let id = arena.alloc_js_node(pattern_node);
     let init_id = arena.alloc_js_node(init_node);
 
+    let declarator_end = declarator_end.map_or(init_end, |e| e as u32);
     let declarations = arena.alloc_js_children(vec![JsNode::VariableDeclarator {
         start: id_start,
-        end: declarator_end.map_or(init_end, |e| e as u32),
-        loc: None,
+        end: declarator_end,
+        loc: create_typed_loc(id_start as usize, declarator_end as usize, line_offsets),
         id,
         init: Some(init_id),
         definite: false,
@@ -3323,11 +3348,20 @@ fn build_variable_declaration<'a>(
     Expression::from_node(JsNode::VariableDeclaration {
         start: decl_start as u32,
         end: decl_end as u32,
-        loc: None,
+        loc: create_typed_loc(decl_start, decl_end, line_offsets),
         declarations,
         kind: kind.into(),
         declare: false,
     })
+}
+
+/// `create_typed_loc` in the JSON shape the multi-declarator tag is built in.
+fn loc_json(start: usize, end: usize, line_offsets: &[usize]) -> Option<serde_json::Value> {
+    let loc = create_typed_loc(start, end, line_offsets)?;
+    Some(serde_json::json!({
+        "start": { "line": loc.start.line, "column": loc.start.column },
+        "end": { "line": loc.end.line, "column": loc.end.column },
+    }))
 }
 
 /// Take ownership of an expression's typed node. `Lazy` cannot reach these
