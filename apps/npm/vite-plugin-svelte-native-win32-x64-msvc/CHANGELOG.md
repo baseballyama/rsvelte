@@ -1,5 +1,9 @@
 # @rsvelte/vite-plugin-svelte-native-win32-x64-msvc
 
+## 0.3.15
+
+No changes in this release.
+
 ## 0.3.14
 
 No changes in this release.

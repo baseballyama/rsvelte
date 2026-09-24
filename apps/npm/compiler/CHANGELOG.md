@@ -1,5 +1,75 @@
 # @rsvelte/compiler
 
+## 0.12.4
+
+### Patch Changes
+
+- 001ce1a: svelte2tsx: a `use:` action's generated call keeps the action name's and its parameter expression's source ranges, so hovers, diagnostics and inlay hints on an action resolve to the attribute instead of the element's `<`
+- 5b9dac9: fix(client): keep a multi-line block comment's continuation lines with their opener. A comment opening on the instance script's first line kept the source indentation on top of the output's, so `let q = 1 /* c` … `more */` emitted the continuation line three tabs deep where the official compiler emits one.
+- de270aa: client: a block comment before a template variable no longer forces the declarator onto the next line
+- 4bfc8a3: compile(): a `<script>`'s directive prologue reaches the generated module
+
+  Phase 3 re-parses generated text and rebuilt each result from `Program::body`,
+  but OXC lifts a directive prologue into `Program::directives` — so `"use strict"`
+  was deleted from the client and server output. The server's re-parse is
+  per statement, which made _any_ top-level string-literal statement the whole
+  prologue of its own parse, so it lost one that was not even first.
+
+- 957265f: `parse()` gives `<svelte:options customElement={{…}}>` the shape upstream builds: `props` is the evaluated `{ [name]: { attribute?, reflect?, type? } }` object rather than the option's AST, a `ShadowRootInit` goes into `shadow` itself rather than a second `shadow_object` field, and the four options are read in upstream's `tag` → `props` → `shadow` → `extend` order from each key's first occurrence, so which option a malformed object is reported on no longer depends on the order the source wrote them in.
+- d1f456b: svelte2tsx: a `transition:` / `in:` / `out:` / `animate:` directive's own name and its parameter expression keep their source ranges, so every position inside the attribute maps back to itself instead of to the element's `<`
+- 058db33: fix(client): end a semicolon-free `import` at its module specifier when a comment follows it. `import x from "m" // c` merged the next line into the import statement, so the emitted module did not parse and the swallowed declaration was missing from the component function.
+- 3a0ae7b: fix(client): hoist an `import` written with no whitespace after the keyword. `import"pkg";` — the form Bun's TypeScript transpiler prints — was left inside the component function, which is a syntax error; `import*as ns from"pkg"` and the semicolon-free `import{x}from"pkg"` were affected the same way. `import ("pkg")` is no longer mistaken for a declaration.
+- 1eaf5b9: fix(compiler): `compileModule` returns a source map. `compile_module` hard-coded `map: None`, so every `.svelte.js` / `.svelte.ts` came back with `js.map === null` while upstream returns esrap's own `SourceMap` (#4702) — and a consumer that branches on it, such as `@rsvelte/vite-plugin-svelte`'s dependency optimizer (`result.map ? … : result.code`), silently skipped the module path. The map's header is upstream's (no `file`, `sources` from the filename's basename, `sourcesContent` filled, empty `names`); its mappings come from the same token scan the server component path is mapped by, so they resolve a generated statement to its own source line but anchor columns more coarsely than esrap's.
+- 3ebf157: `parse()`: a dynamic `import()` inside a template expression now reports `options` and `ts` like the script path does, and `css.content.comment` stores the preceding HTML comment node instead of its text
+- 9a59761: `parse()`: a class `implements` clause is the `TSExpressionWithTypeArguments` array acorn-typescript emits, not the boolean `true`
+- 2fae099: parse(): a `<script>` directive prologue is an `ExpressionStatement` carrying `directive`
+
+  OXC lifts a directive prologue out of `Program::body` into `Program::directives`; ESTree
+  keeps those statements in `body` with an extra `directive` field. The script-program
+  converter read only `body`, so `"use strict"` at the top of a `<script>` disappeared from
+  `parse()`'s AST.
+
+- a5836e8: `parse()` now returns `TSParameterProperty` with its `accessibility`, `readonly` and `parameter`,
+  and a class `Decorator` with its `loc` and `expression`. Both nodes were emitted as bare
+  `{type, start, end}` objects.
+- c57afc2: svelte2tsx: the source-map walk emits the segments magic-string emits
+
+  `MagicString`'s mapping walk diverged from `magic-string@0.30.11` on four
+  points, verified by replaying the same calls through the oracle: an unedited
+  chunk emitted one segment past its last character, a surrogate pair mapped once
+  instead of once per UTF-16 unit, a multi-line edited chunk mapped only its first
+  generated line, and the trailing `outro` advanced the cursor so the encoded
+  mappings carried lines upstream never writes.
+
+- 9fa2850: fix(sourcemap): a segment's original column stays inside the line it names
+
+  Both ports derived a source column by _arithmetic_ on a resolved one, so nothing
+  re-checked which line the result landed on. The client printer anchors a
+  keyword's end at `column + keyword.len()`, which runs off the end of the line
+  whenever the keyword is longer than the source token it stands for; the server
+  token scan read `text.is_ascii()` as "this token stays on one line", which a
+  string literal with a line continuation does not. Over
+  `compatibility/pattern-corpus` that produced 87 segments (client 77, server 10)
+  naming a column the source line cannot hold; it is now 0, and
+  `compatibility/sourcemap-known-failures.json` is empty.
+
+- 708e42b: A comment trailing a `$state(...)` declaration is emitted inside the call the
+  declaration lowers to, the way upstream places it. Once the wrapper call is
+  synthesized there is no node left for the comment to trail, so upstream's
+  printer flushes it before the call's `)`; rsvelte closed the call first and left
+  the comment after the statement's `;`. Two stages were wrong: the declarator
+  rewrite only collected comments between the argument and the closing paren, so
+  one past the `)` (or past the `;`) was never a candidate; and the printer's
+  call-argument layout treated a comment _inside_ the first argument as a reason to
+  wrap the enclosing call one-argument-per-line, which broke `$.tag($.state(…), 'x')`
+  across lines in dev where upstream keeps it on one. A comment genuinely between
+  two arguments, and a structurally multiline first argument, still wrap as before.
+- 4bf5b77: fix(analyze): decide `$derived`-beside-`derived` by the import's source, not by scanning the script text. `import{derived}from"svelte/store"` — no space after the keyword — was not recognised as a `svelte/store` import, so `$derived(...)` compiled as a store subscription on both the client and the server.
+- 639674b: fix(compiler): follow Svelte 5.57.1. `<input defaultValue>` / `defaultChecked` now deopt the SSR element to the spread path so the default is applied before `value` / `checked` (sveltejs/svelte#18733); an `{#each}` fallback resolves names in the enclosing scope instead of the loop's (sveltejs/svelte#18803); an object property is printed in the concise method form only when it carries `method` or a `get` / `set` kind, matching esrap 2.3.x — `{ click: function () {} }` is no longer rewritten to `{ click() {} }`; a destructuring binding pattern reports its real `loc.*.column` again, upstream having dropped the `(pattern = 1)` prefix-blanking that shifted it (sveltejs/svelte#18738); `/** @type {T} */ (expr)` keeps the parentheses acorn elides, as esrap 2.3.x re-adds them (sveltejs/esrap#164), while the same comment on a binding gains none; a comment consumed by a speculative type parse is emitted once rather than twice, `@sveltejs/acorn-typescript` 1.0.13 having fixed the doubling; `export … from '…' with { … }` keeps its attribute clause; an `extends` operand whose precedence is below a `NewExpression`'s is parenthesized, so `class C extends class {} {}` prints as `extends (class {})` instead of text no parser accepts; and a CSS selector that is global end to end is kept even when the component renders no scopable element (sveltejs/svelte#18793).
+- 1eab367: svelte2tsx: relocate the `this={…}` expression of `<svelte:component>` / `<svelte:element>` instead of baking it, so both it and the attributes written before it keep their source mappings
+- 1a3c4bf: svelte2tsx: the whitespace after a component tag name carries no source-map segment, as in official svelte2tsx
+- da9b6c0: fix(compiler): an unnamed `compile()` names its source `(unknown)`, not `input.svelte`. `validate_options` replaces an absent `filename` with `(unknown)` before anything reads it, so upstream's `get_source_name(filename, output_filename, fallback)` never sees an absent filename and its `fallback` argument is unused in the body — rsvelte's port kept the argument and used it, so `js.map.sources` came back `["input.svelte"]` where upstream says `["(unknown)"]`, and `["../input.svelte"]` where upstream says `["../(unknown)"]` (#4704). The parameter is gone, so no caller can reintroduce the dead default; the CSS map and the preprocessor remap path took the same substitution.
+
 ## 0.12.3
 
 ### Patch Changes
