@@ -85,6 +85,7 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `4117-svelte-class-shorthand-reaches-attributes-untransformed.md` | sveltejs/svelte | #4117 | unrecorded |
 | `4177-svelte2tsx-is-attribute-mustache-first-chunk-crash.md` | sveltejs/language-tools (svelte2tsx) | #4177 | unrecorded |
 | `4197-svelte-class-index-signature-typeerror.md` | sveltejs/svelte | #4197 | unrecorded |
+| `4717-prettier-plugin-svelte-drops-svelte-element-this-interpolation.md` | sveltejs/prettier-plugin-svelte | #4717 | unrecorded |
 | `eslint-plugin-svelte-no-add-event-listener-suggestion.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
 | `eslint-plugin-svelte-no-goto-without-base-namespace-import-crash.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
 | `eslint-plugin-svelte-no-navigation-without-base-empty-href-crash.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
