@@ -215080,17 +215080,17 @@
 		"differential:fixtures/css-unknown-property|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=49b4c4f91695]": [
 			"diagnostic-identity-source-and-code"
 		],
-		"differential:fixtures/diagnostics-filter-namespace|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=e180d0999b5c]": [
-			"diagnostic-mixed"
+		"differential:fixtures/diagnostics-filter-namespace|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=684f38902e44]": [
+			"diagnostic-identity-code"
 		],
-		"differential:fixtures/diagnostics-filter-namespace|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=ab16a98a575a]": [
-			"diagnostic-mixed"
+		"differential:fixtures/diagnostics-filter-namespace|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=5a48f14cf734]": [
+			"diagnostic-identity-code"
 		],
-		"differential:fixtures/diagnostics-filter-namespace|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=e180d0999b5c]": [
-			"diagnostic-mixed"
+		"differential:fixtures/diagnostics-filter-namespace|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=684f38902e44]": [
+			"diagnostic-identity-code"
 		],
-		"differential:fixtures/diagnostics-filter-namespace|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=ab16a98a575a]": [
-			"diagnostic-mixed"
+		"differential:fixtures/diagnostics-filter-namespace|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=5a48f14cf734]": [
+			"diagnostic-identity-code"
 		],
 		"differential:fixtures/fold-incomplete|textDocument/foldingRange|:missing-rsvelte[count=1,hash=f9dfee6e5a95]": [
 			"folding-range-set-missing"
@@ -215290,17 +215290,17 @@
 		"differential:fixtures/selection-embedded-null|textDocument/selectionRange|0:7|phase=edit|:missing-rsvelte[count=1,hash=2ad33667a7d6]": [
 			"selection-range-chain-rsvelte-deeper"
 		],
-		"differential:fixtures/svelte-diagnostic-filter|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=7955679e6e84]": [
-			"diagnostic-mixed"
+		"differential:fixtures/svelte-diagnostic-filter|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=684f38902e44]": [
+			"diagnostic-identity-code"
 		],
-		"differential:fixtures/svelte-diagnostic-filter|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=c0beb87a5e96]": [
-			"diagnostic-mixed"
+		"differential:fixtures/svelte-diagnostic-filter|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=5a48f14cf734]": [
+			"diagnostic-identity-code"
 		],
-		"differential:fixtures/svelte-diagnostic-filter|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=7955679e6e84]": [
-			"diagnostic-mixed"
+		"differential:fixtures/svelte-diagnostic-filter|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=684f38902e44]": [
+			"diagnostic-identity-code"
 		],
-		"differential:fixtures/svelte-diagnostic-filter|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=c0beb87a5e96]": [
-			"diagnostic-mixed"
+		"differential:fixtures/svelte-diagnostic-filter|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=5a48f14cf734]": [
+			"diagnostic-identity-code"
 		],
 		"differential:fixtures/svelte-element-selection|textDocument/selectionRange|0:14|:extra-rsvelte[count=1,hash=0ebc7c90752a]": [
 			"selection-range-chain-rsvelte-deeper"
@@ -215680,52 +215680,46 @@
 		"differential:upstream-features/bindings/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=4,hash=58db714dd96a]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=15,hash=b7aed0ed584b]": [
-			"diagnostic-item-set-extra-rsvelte"
+		"differential:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=17,hash=9add36147868]": [
+			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=9,hash=4309595352ac]": [
+		"differential:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=c14c79144b23]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=15,hash=b7aed0ed584b]": [
-			"diagnostic-item-set-extra-rsvelte"
+		"differential:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=17,hash=9add36147868]": [
+			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=9,hash=4309595352ac]": [
+		"differential:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=c14c79144b23]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=19,hash=38e8d401761a]": [
+		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=17,hash=e88c8f8ace74]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=4e95e45a02cc]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items/@diagnostic-fa9731980a6c/message:value-mismatch[official=e512d2c89d45,rsvelte=2fc4543450de]": [
-			"diagnostic-item-message"
-		],
-		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=19,hash=38e8d401761a]": [
+		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=17,hash=e88c8f8ace74]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=4e95e45a02cc]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-fa9731980a6c/message:value-mismatch[official=e512d2c89d45,rsvelte=2fc4543450de]": [
-			"diagnostic-item-message"
+		"differential:upstream-features/checkjs-nostrict/each-anytype/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=9fcea3b78cc6]": [
+			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/checkjs-nostrict/each-anytype/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=68985ce1b137]": [
-			"diagnostic-item-set-extra-rsvelte"
+		"differential:upstream-features/checkjs-nostrict/each-anytype/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=9fcea3b78cc6]": [
+			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/checkjs-nostrict/each-anytype/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=68985ce1b137]": [
-			"diagnostic-item-set-extra-rsvelte"
+		"differential:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=17,hash=9add36147868]": [
+			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=15,hash=b7aed0ed584b]": [
-			"diagnostic-item-set-extra-rsvelte"
-		],
-		"differential:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=11,hash=0a8caa536353]": [
+		"differential:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=c14c79144b23]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=15,hash=b7aed0ed584b]": [
-			"diagnostic-item-set-extra-rsvelte"
+		"differential:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=17,hash=9add36147868]": [
+			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=11,hash=0a8caa536353]": [
+		"differential:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=c14c79144b23]": [
 			"diagnostic-item-set-missing-js"
 		],
 		"differential:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=17,hash=e88c8f8ace74]": [
@@ -215740,17 +215734,11 @@
 		"differential:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=4e95e45a02cc]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/checkjs/no-script-tag/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=0223df0efbe9]": [
-			"diagnostic-item-set-missing-js"
+		"differential:upstream-features/coffeescript-ignore/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=41,hash=87c7bc8099d5]": [
+			"diagnostic-item-set-extra-js"
 		],
-		"differential:upstream-features/checkjs/no-script-tag/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=0223df0efbe9]": [
-			"diagnostic-item-set-missing-js"
-		],
-		"differential:upstream-features/coffeescript-ignore/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=41,hash=db88b55bd673]": [
-			"diagnostic-item-set-extra-ts"
-		],
-		"differential:upstream-features/coffeescript-ignore/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=41,hash=db88b55bd673]": [
-			"diagnostic-item-set-extra-ts"
+		"differential:upstream-features/coffeescript-ignore/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=41,hash=87c7bc8099d5]": [
+			"diagnostic-item-set-extra-js"
 		],
 		"differential:upstream-features/component-handler/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=3,hash=31ea7107ecb7]": [
 			"inlay-hint-set-extra-mixed"
@@ -215776,17 +215764,17 @@
 		"differential:upstream-features/const-tag/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=6a27c33c1530]": [
 			"diagnostic-item-set-extra-rsvelte"
 		],
-		"differential:upstream-features/custom-types/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=10,hash=c32c433c6cc3]": [
-			"diagnostic-mixed"
+		"differential:upstream-features/custom-types/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=a4a4af84aa66]": [
+			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-features/custom-types/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=8,hash=4d86e150c0b4]": [
-			"diagnostic-mixed"
+		"differential:upstream-features/custom-types/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=cba9433770c7]": [
+			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/custom-types/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=10,hash=c32c433c6cc3]": [
-			"diagnostic-mixed"
+		"differential:upstream-features/custom-types/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=a4a4af84aa66]": [
+			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-features/custom-types/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=8,hash=4d86e150c0b4]": [
-			"diagnostic-mixed"
+		"differential:upstream-features/custom-types/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=cba9433770c7]": [
+			"diagnostic-item-set-missing-ts"
 		],
 		"differential:upstream-features/declaration-tag.v5/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=68985ce1b137]": [
 			"diagnostic-item-set-extra-rsvelte"
@@ -215974,13 +215962,13 @@
 		"differential:upstream-features/key-block/input.svelte|textDocument/foldingRange|phase=edit|:missing-rsvelte[count=1,hash=7a59d1eac7b8]": [
 			"folding-range-set-missing"
 		],
-		"differential:upstream-features/node16/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=adaa415a4bd2]": [
+		"differential:upstream-features/node16/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=d694baa656bf]": [
 			"diagnostic-mixed"
 		],
 		"differential:upstream-features/node16/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=a44d73c6dac3]": [
 			"diagnostic-identity-code"
 		],
-		"differential:upstream-features/node16/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=adaa415a4bd2]": [
+		"differential:upstream-features/node16/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=d694baa656bf]": [
 			"diagnostic-mixed"
 		],
 		"differential:upstream-features/node16/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=a44d73c6dac3]": [
@@ -216051,18 +216039,6 @@
 		],
 		"differential:upstream-features/reactive-statement-unused-label/ignores-unused-label/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=d036457922f8]": [
 			"diagnostic-item-set-extra-mixed"
-		],
-		"differential:upstream-features/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=45df72f79037]": [
-			"diagnostic-identity-source"
-		],
-		"differential:upstream-features/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=7715c799f736]": [
-			"diagnostic-identity-source"
-		],
-		"differential:upstream-features/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=45df72f79037]": [
-			"diagnostic-identity-source"
-		],
-		"differential:upstream-features/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=7715c799f736]": [
-			"diagnostic-identity-source"
 		],
 		"differential:upstream-features/script/input.svelte|textDocument/foldingRange|:extra-rsvelte[count=2,hash=a9502920a1d5]": [
 			"folding-range-character"
@@ -216220,41 +216196,35 @@
 		"differential:upstream-testfiles/call-hierarchy/outgoing-component.svelte|textDocument/foldingRange|phase=edit|:missing-rsvelte[count=1,hash=28fcc9f8e0c8]": [
 			"folding-range-set-missing"
 		],
-		"differential:upstream-testfiles/code-actions/check-js/codeaction-custom-fix-all-component3.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=f156bb12c32b]": [
-			"diagnostic-item-set-missing-js"
-		],
-		"differential:upstream-testfiles/code-actions/check-js/codeaction-custom-fix-all-component3.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=f156bb12c32b]": [
-			"diagnostic-item-set-missing-js"
-		],
 		"differential:upstream-testfiles/code-actions/codeaction-add-jsdoc.svelte|textDocument/documentSymbol|:missing-rsvelte[count=1,hash=0cf1558bb269]": [
 			"document-symbol-set-missing"
 		],
 		"differential:upstream-testfiles/code-actions/codeaction-add-jsdoc.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=0cf1558bb269]": [
 			"document-symbol-set-missing"
 		],
-		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=9ddb553081fd]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=800cad55090c]": [
+			"diagnostic-identity-code"
 		],
-		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=3,hash=6ca523e30dd2]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=fd1b235b5c0b]": [
+			"diagnostic-identity-code"
 		],
-		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=9ddb553081fd]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=800cad55090c]": [
+			"diagnostic-identity-code"
 		],
-		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=6ca523e30dd2]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=fd1b235b5c0b]": [
+			"diagnostic-identity-code"
 		],
-		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=19997c251af2]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=b0878aac2345]": [
+			"diagnostic-identity-code"
 		],
-		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=3,hash=068d87d37c96]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=1b426f0a6649]": [
+			"diagnostic-identity-code"
 		],
-		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=19997c251af2]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=b0878aac2345]": [
+			"diagnostic-identity-code"
 		],
-		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=068d87d37c96]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=1b426f0a6649]": [
+			"diagnostic-identity-code"
 		],
 		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts.svelte|textDocument/foldingRange|:extra-rsvelte[count=1,hash=f7141d70b277]": [
 			"folding-range-character"
@@ -216262,17 +216232,11 @@
 		"differential:upstream-testfiles/code-actions/codeaction-add-lang-ts.svelte|textDocument/foldingRange|phase=edit|:extra-rsvelte[count=1,hash=f7141d70b277]": [
 			"folding-range-character"
 		],
-		"differential:upstream-testfiles/code-actions/codeaction-checkJs-module.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=d501e3466860]": [
-			"diagnostic-identity-source"
+		"differential:upstream-testfiles/code-actions/codeaction-checkJs-module.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=f9bec1101510]": [
+			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-testfiles/code-actions/codeaction-checkJs-module.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=7f667f559a02]": [
-			"diagnostic-mixed"
-		],
-		"differential:upstream-testfiles/code-actions/codeaction-checkJs-module.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=d501e3466860]": [
-			"diagnostic-identity-source"
-		],
-		"differential:upstream-testfiles/code-actions/codeaction-checkJs-module.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=7f667f559a02]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/code-actions/codeaction-checkJs-module.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=f9bec1101510]": [
+			"diagnostic-item-set-missing-js"
 		],
 		"differential:upstream-testfiles/code-actions/codeaction-checkJs-module.svelte|textDocument/inlayHint|:extra-rsvelte[count=1,hash=5386f0b023da]": [
 			"inlay-hint-set-extra-type"
@@ -216400,17 +216364,17 @@
 		"differential:upstream-testfiles/code-actions/codeactions.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=1,hash=3fc18e4355e3]": [
 			"inlay-hint-set-extra-type"
 		],
-		"differential:upstream-testfiles/code-actions/fix-add-async.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=4,hash=202009a9aca7]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/code-actions/fix-add-async.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=63ba562f66da]": [
+			"diagnostic-identity-source-and-code"
 		],
-		"differential:upstream-testfiles/code-actions/fix-add-async.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=4,hash=b71c0fad8101]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/code-actions/fix-add-async.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=739a86e08cfa]": [
+			"diagnostic-identity-source-and-code"
 		],
-		"differential:upstream-testfiles/code-actions/fix-add-async.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=4,hash=202009a9aca7]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/code-actions/fix-add-async.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=63ba562f66da]": [
+			"diagnostic-identity-source-and-code"
 		],
-		"differential:upstream-testfiles/code-actions/fix-add-async.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=4,hash=b71c0fad8101]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/code-actions/fix-add-async.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=739a86e08cfa]": [
+			"diagnostic-identity-source-and-code"
 		],
 		"differential:upstream-testfiles/code-actions/fix-add-async.svelte|textDocument/foldingRange|:extra-rsvelte[count=2,hash=9021421e18d7]": [
 			"folding-range-character"
@@ -216442,13 +216406,13 @@
 		"differential:upstream-testfiles/code-actions/organize-import-all-remove.svelte|textDocument/foldingRange|phase=edit|:extra-rsvelte[count=1,hash=9063885f4bf7]": [
 			"folding-range-character"
 		],
-		"differential:upstream-testfiles/code-actions/organize-imports-error.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=81cb9e4ac3d8]": [
+		"differential:upstream-testfiles/code-actions/organize-imports-error.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=c588a08b90b4]": [
 			"diagnostic-mixed"
 		],
 		"differential:upstream-testfiles/code-actions/organize-imports-error.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=c5dd32c0dcb5]": [
 			"diagnostic-mixed"
 		],
-		"differential:upstream-testfiles/code-actions/organize-imports-error.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=81cb9e4ac3d8]": [
+		"differential:upstream-testfiles/code-actions/organize-imports-error.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=c588a08b90b4]": [
 			"diagnostic-mixed"
 		],
 		"differential:upstream-testfiles/code-actions/organize-imports-error.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=c5dd32c0dcb5]": [
@@ -216520,17 +216484,11 @@
 		"differential:upstream-testfiles/code-actions/organize-imports-snippet.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=5994629050d2]": [
 			"document-symbol-kind"
 		],
-		"differential:upstream-testfiles/code-actions/organize-imports-unchanged1.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=3eca5eb31d66]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/code-actions/organize-imports-unchanged1.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=5af0a97cb26f]": [
+			"diagnostic-item-set-extra-rsvelte"
 		],
-		"differential:upstream-testfiles/code-actions/organize-imports-unchanged1.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=c43f99cf57a4]": [
-			"diagnostic-identity-source"
-		],
-		"differential:upstream-testfiles/code-actions/organize-imports-unchanged1.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=3eca5eb31d66]": [
-			"diagnostic-mixed"
-		],
-		"differential:upstream-testfiles/code-actions/organize-imports-unchanged1.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=c43f99cf57a4]": [
-			"diagnostic-identity-source"
+		"differential:upstream-testfiles/code-actions/organize-imports-unchanged1.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=5af0a97cb26f]": [
+			"diagnostic-item-set-extra-rsvelte"
 		],
 		"differential:upstream-testfiles/code-actions/organize-imports-unchanged1.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=e9b9dd308655]": [
 			"document-symbol-kind"
@@ -216544,17 +216502,11 @@
 		"differential:upstream-testfiles/code-actions/organize-imports-unchanged1.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=30335e356879]": [
 			"document-symbol-kind"
 		],
-		"differential:upstream-testfiles/code-actions/organize-imports-unchanged2.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=f22007827844]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/code-actions/organize-imports-unchanged2.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=38ea72f71b32]": [
+			"diagnostic-item-set-extra-rsvelte"
 		],
-		"differential:upstream-testfiles/code-actions/organize-imports-unchanged2.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=c1c7c946fa9c]": [
-			"diagnostic-identity-source"
-		],
-		"differential:upstream-testfiles/code-actions/organize-imports-unchanged2.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=f22007827844]": [
-			"diagnostic-mixed"
-		],
-		"differential:upstream-testfiles/code-actions/organize-imports-unchanged2.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=c1c7c946fa9c]": [
-			"diagnostic-identity-source"
+		"differential:upstream-testfiles/code-actions/organize-imports-unchanged2.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=38ea72f71b32]": [
+			"diagnostic-item-set-extra-rsvelte"
 		],
 		"differential:upstream-testfiles/code-actions/organize-imports-unchanged2.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=0c294527dee2]": [
 			"document-symbol-kind"
@@ -216634,13 +216586,13 @@
 		"differential:upstream-testfiles/code-actions/organize-imports-with-module.svelte|textDocument/foldingRange|phase=edit|:missing-rsvelte[count=1,hash=28fcc9f8e0c8]": [
 			"folding-range-set-missing"
 		],
-		"differential:upstream-testfiles/code-actions/remove-imports-inline.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=335e8f8219f8]": [
+		"differential:upstream-testfiles/code-actions/remove-imports-inline.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=d2b22a2d9f1d]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/code-actions/remove-imports-inline.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=4cfb89555396]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-testfiles/code-actions/remove-imports-inline.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=335e8f8219f8]": [
+		"differential:upstream-testfiles/code-actions/remove-imports-inline.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=d2b22a2d9f1d]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/code-actions/remove-imports-inline.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=4cfb89555396]": [
@@ -216712,28 +216664,34 @@
 		"differential:upstream-testfiles/completions/completions-in-reactive-statement.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=7,hash=21620e378e79]": [
 			"inlay-hint-mixed"
 		],
-		"differential:upstream-testfiles/completions/completions.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=30ddacc7b1e4]": [
+		"differential:upstream-testfiles/completions/completions.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=55d4401e86fa]": [
+			"diagnostic-identity-source-and-code"
+		],
+		"differential:upstream-testfiles/completions/completions.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=1f0dfa360ece]": [
+			"diagnostic-identity-source-and-code"
+		],
+		"differential:upstream-testfiles/completions/completions.svelte|textDocument/diagnostic|/items/@diagnostic-6d5cc98610cc/range/end/character:value-mismatch[official=1a6562590ef1,rsvelte=0e17daca5f3e]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/completions.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=55d4401e86fa]": [
+			"diagnostic-identity-source-and-code"
+		],
+		"differential:upstream-testfiles/completions/completions.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=1f0dfa360ece]": [
+			"diagnostic-identity-source-and-code"
+		],
+		"differential:upstream-testfiles/completions/completions.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-6d5cc98610cc/range/end/character:value-mismatch[official=1a6562590ef1,rsvelte=0e17daca5f3e]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/completionsstyle.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=f003a7e13434]": [
+			"diagnostic-identity-code"
+		],
+		"differential:upstream-testfiles/completions/completionsstyle.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=3,hash=2e1d426160ed]": [
 			"diagnostic-mixed"
 		],
-		"differential:upstream-testfiles/completions/completions.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=b41a08bdabcc]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/completions/completionsstyle.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=f003a7e13434]": [
+			"diagnostic-identity-code"
 		],
-		"differential:upstream-testfiles/completions/completions.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=30ddacc7b1e4]": [
-			"diagnostic-mixed"
-		],
-		"differential:upstream-testfiles/completions/completions.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=b41a08bdabcc]": [
-			"diagnostic-mixed"
-		],
-		"differential:upstream-testfiles/completions/completionsstyle.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=148e913bf6d0]": [
-			"diagnostic-mixed"
-		],
-		"differential:upstream-testfiles/completions/completionsstyle.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=4,hash=442c6a1c2b42]": [
-			"diagnostic-mixed"
-		],
-		"differential:upstream-testfiles/completions/completionsstyle.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=148e913bf6d0]": [
-			"diagnostic-mixed"
-		],
-		"differential:upstream-testfiles/completions/completionsstyle.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=4,hash=442c6a1c2b42]": [
+		"differential:upstream-testfiles/completions/completionsstyle.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=2e1d426160ed]": [
 			"diagnostic-mixed"
 		],
 		"differential:upstream-testfiles/completions/completionsstyle.svelte|textDocument/documentSymbol|:missing-rsvelte[count=3,hash=e0340cd21c5c]": [
@@ -216748,11 +216706,11 @@
 		"differential:upstream-testfiles/completions/completionsstyle.svelte|textDocument/foldingRange|phase=edit|:missing-rsvelte[count=2,hash=2e56ea6b771d]": [
 			"folding-range-set-missing"
 		],
-		"differential:upstream-testfiles/completions/component-events-completion-ts-def.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=445e3c86a293]": [
-			"diagnostic-item-set-extra-ts"
+		"differential:upstream-testfiles/completions/component-events-completion-ts-def.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=06e54d3f536a]": [
+			"diagnostic-item-set-extra-js"
 		],
-		"differential:upstream-testfiles/completions/component-events-completion-ts-def.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=445e3c86a293]": [
-			"diagnostic-item-set-extra-ts"
+		"differential:upstream-testfiles/completions/component-events-completion-ts-def.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=06e54d3f536a]": [
+			"diagnostic-item-set-extra-js"
 		],
 		"differential:upstream-testfiles/completions/component-events-completion-ts-def.svelte|textDocument/inlayHint|:extra-rsvelte[count=3,hash=c894605435ad]": [
 			"inlay-hint-set-extra-parameter"
@@ -216880,17 +216838,83 @@
 		"differential:upstream-testfiles/completions/custom-element-tag.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=256960ba1932]": [
 			"diagnostic-identity-code"
 		],
-		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=18,hash=300256d89197]": [
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=4,hash=615e1012c609]": [
 			"diagnostic-mixed"
 		],
-		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=18,hash=8fdfae3d44c2]": [
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=4,hash=06eb1d9efe3d]": [
 			"diagnostic-mixed"
 		],
-		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=18,hash=300256d89197]": [
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|/items/@diagnostic-001054e67d39/range/end/character:value-mismatch[official=535fa30d7e25,rsvelte=785f3ec7eb32]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|/items/@diagnostic-28aaa66416a3/range/end/character:value-mismatch[official=19581e27de7c,rsvelte=2c624232cdd2]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|/items/@diagnostic-5d0cd5e2fff3/range/end/character:value-mismatch[official=4ec9599fc203,rsvelte=4523540f1504]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|/items/@diagnostic-5f1bdaeabbf6/range/end/character:value-mismatch[official=2c624232cdd2,rsvelte=7902699be42c]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|/items/@diagnostic-77c0fc2ee2e1/range/end/character:value-mismatch[official=c2356069e9d1,rsvelte=535fa30d7e25]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|/items/@diagnostic-a11bef1a7373/range/end/character:value-mismatch[official=b7a56873cd77,rsvelte=c2356069e9d1]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|/items/@diagnostic-b7b5a48ef9da/range/end/character:value-mismatch[official=c2356069e9d1,rsvelte=535fa30d7e25]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|/items/@diagnostic-b7c2567335be/range/end/character:value-mismatch[official=670671cd9740,rsvelte=5f9c4ab08cac]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|/items/@diagnostic-be077a73c97a/range/end/character:value-mismatch[official=4523540f1504,rsvelte=b17ef6d19c7a]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|/items/@diagnostic-d655eae39301/range/end/character:value-mismatch[official=b7a56873cd77,rsvelte=c2356069e9d1]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|/items/@diagnostic-e6e719a6d121/range/end/character:value-mismatch[official=785f3ec7eb32,rsvelte=6f4b6612125f]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=4,hash=615e1012c609]": [
 			"diagnostic-mixed"
 		],
-		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=18,hash=8fdfae3d44c2]": [
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=4,hash=06eb1d9efe3d]": [
 			"diagnostic-mixed"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-001054e67d39/range/end/character:value-mismatch[official=535fa30d7e25,rsvelte=785f3ec7eb32]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-28aaa66416a3/range/end/character:value-mismatch[official=19581e27de7c,rsvelte=2c624232cdd2]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-5d0cd5e2fff3/range/end/character:value-mismatch[official=4ec9599fc203,rsvelte=4523540f1504]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-5f1bdaeabbf6/range/end/character:value-mismatch[official=2c624232cdd2,rsvelte=7902699be42c]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-77c0fc2ee2e1/range/end/character:value-mismatch[official=c2356069e9d1,rsvelte=535fa30d7e25]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-a11bef1a7373/range/end/character:value-mismatch[official=b7a56873cd77,rsvelte=c2356069e9d1]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-b7b5a48ef9da/range/end/character:value-mismatch[official=c2356069e9d1,rsvelte=535fa30d7e25]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-b7c2567335be/range/end/character:value-mismatch[official=670671cd9740,rsvelte=5f9c4ab08cac]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-be077a73c97a/range/end/character:value-mismatch[official=4523540f1504,rsvelte=b17ef6d19c7a]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-d655eae39301/range/end/character:value-mismatch[official=b7a56873cd77,rsvelte=c2356069e9d1]": [
+			"diagnostic-item-range-end"
+		],
+		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-e6e719a6d121/range/end/character:value-mismatch[official=785f3ec7eb32,rsvelte=6f4b6612125f]": [
+			"diagnostic-item-range-end"
 		],
 		"differential:upstream-testfiles/completions/editingCompletion.svelte|textDocument/documentSymbol|:extra-rsvelte[count=8,hash=e1ddf03a6f99]": [
 			"document-symbol-mixed-kind-range-set-extra"
@@ -217018,13 +217042,13 @@
 		"differential:upstream-testfiles/completions/importcompletions3.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=45231e02ec4f]": [
 			"diagnostic-identity-code"
 		],
-		"differential:upstream-testfiles/completions/importcompletions4.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=d96c93dcd47c]": [
+		"differential:upstream-testfiles/completions/importcompletions4.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=f109417eb3a2]": [
 			"diagnostic-mixed"
 		],
 		"differential:upstream-testfiles/completions/importcompletions4.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=45adda4f346c]": [
 			"diagnostic-identity-code"
 		],
-		"differential:upstream-testfiles/completions/importcompletions4.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=d96c93dcd47c]": [
+		"differential:upstream-testfiles/completions/importcompletions4.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=f109417eb3a2]": [
 			"diagnostic-mixed"
 		],
 		"differential:upstream-testfiles/completions/importcompletions4.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=45adda4f346c]": [
@@ -217054,13 +217078,13 @@
 		"differential:upstream-testfiles/completions/importcompletions5.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=2edac0783fd2]": [
 			"diagnostic-identity-code"
 		],
-		"differential:upstream-testfiles/completions/importcompletions6.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=c0a52681dffa]": [
+		"differential:upstream-testfiles/completions/importcompletions6.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=69fd07b58b37]": [
 			"diagnostic-mixed"
 		],
 		"differential:upstream-testfiles/completions/importcompletions6.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=73c0bc049fae]": [
 			"diagnostic-mixed"
 		],
-		"differential:upstream-testfiles/completions/importcompletions6.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=c0a52681dffa]": [
+		"differential:upstream-testfiles/completions/importcompletions6.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=69fd07b58b37]": [
 			"diagnostic-mixed"
 		],
 		"differential:upstream-testfiles/completions/importcompletions6.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=73c0bc049fae]": [
@@ -217078,13 +217102,13 @@
 		"differential:upstream-testfiles/completions/importcompletions6.svelte|textDocument/inlayHint|phase=edit|:extra-rsvelte[count=1,hash=d78108a61919]": [
 			"inlay-hint-set-extra-type"
 		],
-		"differential:upstream-testfiles/completions/importcompletions7.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=b423f6e8bd5c]": [
+		"differential:upstream-testfiles/completions/importcompletions7.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=55a27767751b]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/completions/importcompletions7.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=c60347abc261]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-testfiles/completions/importcompletions7.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=b423f6e8bd5c]": [
+		"differential:upstream-testfiles/completions/importcompletions7.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=55a27767751b]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/completions/importcompletions7.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=c60347abc261]": [
@@ -217138,17 +217162,11 @@
 		"differential:upstream-testfiles/completions/importstatementcompletions2.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=2e637ad034f1]": [
 			"document-symbol-range"
 		],
-		"differential:upstream-testfiles/completions/jsdoc-completions.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=5,hash=d6f1cffa7160]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/completions/jsdoc-completions.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=fe207bdb913b]": [
+			"diagnostic-item-set-extra-rsvelte"
 		],
-		"differential:upstream-testfiles/completions/jsdoc-completions.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=3,hash=d1a5ae61fefc]": [
-			"diagnostic-identity-source"
-		],
-		"differential:upstream-testfiles/completions/jsdoc-completions.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=5,hash=d6f1cffa7160]": [
-			"diagnostic-mixed"
-		],
-		"differential:upstream-testfiles/completions/jsdoc-completions.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=d1a5ae61fefc]": [
-			"diagnostic-identity-source"
+		"differential:upstream-testfiles/completions/jsdoc-completions.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=fe207bdb913b]": [
+			"diagnostic-item-set-extra-rsvelte"
 		],
 		"differential:upstream-testfiles/completions/jsdoc-completions.svelte|textDocument/foldingRange|:extra-rsvelte[count=1,hash=66f639ba81df]": [
 			"folding-range-character"
@@ -217162,17 +217180,17 @@
 		"differential:upstream-testfiles/completions/jsdoc-completions.svelte|textDocument/foldingRange|phase=edit|:missing-rsvelte[count=1,hash=8065512eb951]": [
 			"folding-range-character"
 		],
-		"differential:upstream-testfiles/completions/mustache.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=f77b26e91812]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/completions/mustache.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=5b2e288abd92]": [
+			"diagnostic-identity-source-and-code"
 		],
-		"differential:upstream-testfiles/completions/mustache.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=3,hash=88025d4b86bc]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/completions/mustache.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=59558c3ed63c]": [
+			"diagnostic-identity-source-and-code"
 		],
-		"differential:upstream-testfiles/completions/mustache.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=f77b26e91812]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/completions/mustache.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=5b2e288abd92]": [
+			"diagnostic-identity-source-and-code"
 		],
-		"differential:upstream-testfiles/completions/mustache.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=88025d4b86bc]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/completions/mustache.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=59558c3ed63c]": [
+			"diagnostic-identity-source-and-code"
 		],
 		"differential:upstream-testfiles/completions/mustache.svelte|textDocument/inlayHint|:extra-rsvelte[count=2,hash=ef632de184ae]": [
 			"inlay-hint-mixed"
@@ -217276,25 +217294,25 @@
 		"differential:upstream-testfiles/completions/string-completion.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-47abf651aebb/message:value-mismatch[official=f84c01220a0f,rsvelte=06e470071d65]": [
 			"diagnostic-item-message"
 		],
-		"differential:upstream-testfiles/declaration-map/import-from-base64-sourcemap.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=a6194fa340d8]": [
+		"differential:upstream-testfiles/declaration-map/import-from-base64-sourcemap.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=38bfcf184ebd]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/declaration-map/import-from-base64-sourcemap.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=7eee1a2a4972]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-testfiles/declaration-map/import-from-base64-sourcemap.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=a6194fa340d8]": [
+		"differential:upstream-testfiles/declaration-map/import-from-base64-sourcemap.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=38bfcf184ebd]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/declaration-map/import-from-base64-sourcemap.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=7eee1a2a4972]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-testfiles/declaration-map/importing.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=a6194fa340d8]": [
+		"differential:upstream-testfiles/declaration-map/importing.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=38bfcf184ebd]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/declaration-map/importing.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=7eee1a2a4972]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-testfiles/declaration-map/importing.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=a6194fa340d8]": [
+		"differential:upstream-testfiles/declaration-map/importing.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=38bfcf184ebd]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/declaration-map/importing.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=7eee1a2a4972]": [
@@ -217360,23 +217378,35 @@
 		"differential:upstream-testfiles/diagnostics/different-ts-service.svelte|textDocument/foldingRange|phase=edit|:extra-rsvelte[count=1,hash=bff73b37036a]": [
 			"folding-range-character"
 		],
+		"differential:upstream-testfiles/diagnostics/different-ts-service/different-ts-service.svelte|textDocument/diagnostic|/items/@diagnostic-330793e82a61/message:value-mismatch[official=1333042e364e,rsvelte=880abf2fbb4c]": [
+			"diagnostic-item-message"
+		],
+		"differential:upstream-testfiles/diagnostics/different-ts-service/different-ts-service.svelte|textDocument/diagnostic|/items/@diagnostic-b2e7152447a3/message:value-mismatch[official=a73ae6bdc7e0,rsvelte=a8e157614058]": [
+			"diagnostic-item-message"
+		],
+		"differential:upstream-testfiles/diagnostics/different-ts-service/different-ts-service.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-330793e82a61/message:value-mismatch[official=1333042e364e,rsvelte=880abf2fbb4c]": [
+			"diagnostic-item-message"
+		],
+		"differential:upstream-testfiles/diagnostics/different-ts-service/different-ts-service.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-b2e7152447a3/message:value-mismatch[official=a73ae6bdc7e0,rsvelte=a8e157614058]": [
+			"diagnostic-item-message"
+		],
 		"differential:upstream-testfiles/diagnostics/different-ts-service/different-ts-service.svelte|textDocument/foldingRange|:extra-rsvelte[count=1,hash=815d3d32f3ef]": [
 			"folding-range-character"
 		],
 		"differential:upstream-testfiles/diagnostics/different-ts-service/different-ts-service.svelte|textDocument/foldingRange|phase=edit|:extra-rsvelte[count=1,hash=815d3d32f3ef]": [
 			"folding-range-character"
 		],
-		"differential:upstream-testfiles/diagnostics/shared-comp.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=7aa343b85919]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/diagnostics/shared-comp.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=879be3f66709]": [
+			"diagnostic-identity-source-and-code"
 		],
-		"differential:upstream-testfiles/diagnostics/shared-comp.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=9df134d8e782]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/diagnostics/shared-comp.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=7d8b03d08afd]": [
+			"diagnostic-item-set-missing-svelte"
 		],
-		"differential:upstream-testfiles/diagnostics/shared-comp.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=7aa343b85919]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/diagnostics/shared-comp.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=879be3f66709]": [
+			"diagnostic-identity-source-and-code"
 		],
-		"differential:upstream-testfiles/diagnostics/shared-comp.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=9df134d8e782]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/diagnostics/shared-comp.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=7d8b03d08afd]": [
+			"diagnostic-item-set-missing-svelte"
 		],
 		"differential:upstream-testfiles/diagnostics/shared-comp.svelte|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=1e92cf6d8925]": [
 			"document-symbol-kind"
@@ -217450,13 +217480,13 @@
 		"differential:upstream-testfiles/documentsymbols-snippets.v5/input.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=1,hash=2c8f502aa95c]": [
 			"inlay-hint-label"
 		],
-		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=8,hash=96b8a9c58303]": [
+		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=8,hash=781ac09b7188]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=4,hash=010b8393e10c]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=8,hash=96b8a9c58303]": [
+		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=8,hash=781ac09b7188]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/documentsymbols.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=4,hash=010b8393e10c]": [
@@ -217756,17 +217786,11 @@
 		"differential:upstream-testfiles/hover/hover-events-interface.svelte|textDocument/foldingRange|phase=edit|:missing-rsvelte[count=1,hash=9a6f373772b6]": [
 			"folding-range-character"
 		],
-		"differential:upstream-testfiles/hover/hoverinfo.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=7,hash=322834d361a6]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/hover/hoverinfo.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=4,hash=42bcac40b522]": [
+			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-testfiles/hover/hoverinfo.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=3,hash=f7c9b506d935]": [
-			"diagnostic-identity-source"
-		],
-		"differential:upstream-testfiles/hover/hoverinfo.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=7,hash=322834d361a6]": [
-			"diagnostic-mixed"
-		],
-		"differential:upstream-testfiles/hover/hoverinfo.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=3,hash=f7c9b506d935]": [
-			"diagnostic-identity-source"
+		"differential:upstream-testfiles/hover/hoverinfo.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=4,hash=42bcac40b522]": [
+			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/hover/hoverinfo.svelte|textDocument/documentSymbol|:extra-rsvelte[count=3,hash=8b3b47dd4b92]": [
 			"document-symbol-kind"
@@ -217918,18 +217942,6 @@
 		"differential:upstream-testfiles/rename/rename-ignore-generated.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=2,hash=c8e1a0b81145]": [
 			"inlay-hint-label"
 		],
-		"differential:upstream-testfiles/rename/rename-prop-with-slot-events.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=c33b32c5f11e]": [
-			"diagnostic-identity-source"
-		],
-		"differential:upstream-testfiles/rename/rename-prop-with-slot-events.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=bb24dd10af95]": [
-			"diagnostic-identity-source"
-		],
-		"differential:upstream-testfiles/rename/rename-prop-with-slot-events.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=c33b32c5f11e]": [
-			"diagnostic-identity-source"
-		],
-		"differential:upstream-testfiles/rename/rename-prop-with-slot-events.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=bb24dd10af95]": [
-			"diagnostic-identity-source"
-		],
 		"differential:upstream-testfiles/rename/rename-prop-with-slot-events.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=b3b34a34a975]": [
 			"document-symbol-mixed-kind-set-extra"
 		],
@@ -217978,11 +217990,11 @@
 		"differential:upstream-testfiles/rename/rename-shorthand.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=1,hash=b98eb16202ce]": [
 			"document-symbol-kind"
 		],
-		"differential:upstream-testfiles/rename/rename-slot-events-importer.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=d1fc8e660ad0]": [
-			"diagnostic-item-set-extra-ts"
+		"differential:upstream-testfiles/rename/rename-slot-events-importer.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=cb5b558c0e48]": [
+			"diagnostic-item-set-extra-js"
 		],
-		"differential:upstream-testfiles/rename/rename-slot-events-importer.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=d1fc8e660ad0]": [
-			"diagnostic-item-set-extra-ts"
+		"differential:upstream-testfiles/rename/rename-slot-events-importer.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=cb5b558c0e48]": [
+			"diagnostic-item-set-extra-js"
 		],
 		"differential:upstream-testfiles/rename/rename-slot-events-importer.svelte|textDocument/documentSymbol|:missing-rsvelte[count=2,hash=9024663149b6]": [
 			"document-symbol-set-missing"
@@ -218002,14 +218014,14 @@
 		"differential:upstream-testfiles/rename/rename-slot-events-importer.svelte|textDocument/inlayHint|phase=edit|:missing-rsvelte[count=1,hash=259516d10c88]": [
 			"inlay-hint-set-missing-type"
 		],
-		"differential:upstream-testfiles/rename/rename-slot-let.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=393a38b5e386]": [
-			"diagnostic-item-set-extra-ts"
+		"differential:upstream-testfiles/rename/rename-slot-let.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=2d8bbe2bcf4a]": [
+			"diagnostic-item-set-extra-js"
 		],
 		"differential:upstream-testfiles/rename/rename-slot-let.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=4c641f83089b]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-testfiles/rename/rename-slot-let.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=393a38b5e386]": [
-			"diagnostic-item-set-extra-ts"
+		"differential:upstream-testfiles/rename/rename-slot-let.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=2d8bbe2bcf4a]": [
+			"diagnostic-item-set-extra-js"
 		],
 		"differential:upstream-testfiles/rename/rename-slot-let.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=4c641f83089b]": [
 			"diagnostic-item-set-missing-js"
@@ -218080,35 +218092,17 @@
 		"differential:upstream-testfiles/rename/rename3.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=31ef7bd833e7]": [
 			"document-symbol-set-missing"
 		],
-		"differential:upstream-testfiles/rename/rename4.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=f3995ecba5a9]": [
-			"diagnostic-identity-source"
-		],
-		"differential:upstream-testfiles/rename/rename4.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=c1c7c946fa9c]": [
-			"diagnostic-identity-source"
-		],
-		"differential:upstream-testfiles/rename/rename4.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=f3995ecba5a9]": [
-			"diagnostic-identity-source"
-		],
-		"differential:upstream-testfiles/rename/rename4.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=c1c7c946fa9c]": [
-			"diagnostic-identity-source"
-		],
 		"differential:upstream-testfiles/rename/rename4.svelte|textDocument/foldingRange|:missing-rsvelte[count=1,hash=48fedaa1cdd7]": [
 			"folding-range-set-missing"
 		],
 		"differential:upstream-testfiles/rename/rename4.svelte|textDocument/foldingRange|phase=edit|:missing-rsvelte[count=1,hash=48fedaa1cdd7]": [
 			"folding-range-set-missing"
 		],
-		"differential:upstream-testfiles/rename/rename5.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=1b26dc8afaa6]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/rename/rename5.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=b2f8b39063bd]": [
+			"diagnostic-item-set-extra-rsvelte"
 		],
-		"differential:upstream-testfiles/rename/rename5.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=e8aa12f2cd85]": [
-			"diagnostic-identity-source"
-		],
-		"differential:upstream-testfiles/rename/rename5.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=1b26dc8afaa6]": [
-			"diagnostic-mixed"
-		],
-		"differential:upstream-testfiles/rename/rename5.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=e8aa12f2cd85]": [
-			"diagnostic-identity-source"
+		"differential:upstream-testfiles/rename/rename5.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=b2f8b39063bd]": [
+			"diagnostic-item-set-extra-rsvelte"
 		],
 		"differential:upstream-testfiles/rename/rename5.svelte|textDocument/documentSymbol|:extra-rsvelte[count=2,hash=add3cdcd5003]": [
 			"document-symbol-mixed-kind-set-extra"
@@ -218140,13 +218134,13 @@
 		"differential:upstream-testfiles/rename/rename6.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=3,hash=7161eb55a3ca]": [
 			"document-symbol-mixed-kind-range-set-missing"
 		],
-		"differential:upstream-testfiles/selection-range/selection-range-import.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=baf60f8c4257]": [
+		"differential:upstream-testfiles/selection-range/selection-range-import.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=96091e75d748]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/selection-range/selection-range-import.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=26f0db4a309a]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-testfiles/selection-range/selection-range-import.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=baf60f8c4257]": [
+		"differential:upstream-testfiles/selection-range/selection-range-import.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=96091e75d748]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/selection-range/selection-range-import.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=26f0db4a309a]": [
@@ -218158,17 +218152,11 @@
 		"differential:upstream-testfiles/selection-range/selection-range-import.svelte|textDocument/foldingRange|phase=edit|:extra-rsvelte[count=1,hash=e38d76bcb082]": [
 			"folding-range-character"
 		],
-		"differential:upstream-testfiles/selection-range/selection-range.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=3c9c8cf549f3]": [
-			"diagnostic-mixed"
+		"differential:upstream-testfiles/selection-range/selection-range.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=419d4cc7e4ca]": [
+			"diagnostic-item-set-extra-rsvelte"
 		],
-		"differential:upstream-testfiles/selection-range/selection-range.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=746f23223ec7]": [
-			"diagnostic-identity-source"
-		],
-		"differential:upstream-testfiles/selection-range/selection-range.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=3c9c8cf549f3]": [
-			"diagnostic-mixed"
-		],
-		"differential:upstream-testfiles/selection-range/selection-range.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=746f23223ec7]": [
-			"diagnostic-identity-source"
+		"differential:upstream-testfiles/selection-range/selection-range.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=419d4cc7e4ca]": [
+			"diagnostic-item-set-extra-rsvelte"
 		],
 		"differential:upstream-testfiles/semantic-tokens/imported.svelte|textDocument/documentSymbol|:missing-rsvelte[count=1,hash=54b34516dab1]": [
 			"document-symbol-set-missing"
@@ -218248,13 +218236,13 @@
 		"differential:upstream-testfiles/typedefinition/typedefinition.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=80c60f55dfde]": [
 			"diagnostic-item-set-extra-rsvelte"
 		],
-		"differential:upstream-testfiles/update-imports/+page.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=a07741126c34]": [
+		"differential:upstream-testfiles/update-imports/+page.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=d073dd5b2b91]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/update-imports/+page.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=fddfdde3dfd0]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-testfiles/update-imports/+page.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=a07741126c34]": [
+		"differential:upstream-testfiles/update-imports/+page.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=d073dd5b2b91]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/update-imports/+page.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=fddfdde3dfd0]": [
@@ -218272,13 +218260,13 @@
 		"differential:upstream-testfiles/update-imports/+page.svelte|textDocument/documentSymbol|phase=edit|:missing-rsvelte[count=2,hash=c030e0aafbad]": [
 			"document-symbol-mixed-kind-range"
 		],
-		"differential:upstream-testfiles/update-imports/updateimports.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=d64963235ff1]": [
+		"differential:upstream-testfiles/update-imports/updateimports.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=14964554c53c]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/update-imports/updateimports.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=ade5e1d23415]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"differential:upstream-testfiles/update-imports/updateimports.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=d64963235ff1]": [
+		"differential:upstream-testfiles/update-imports/updateimports.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=14964554c53c]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"differential:upstream-testfiles/update-imports/updateimports.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=ade5e1d23415]": [
@@ -218680,58 +218668,46 @@
 		"expected:upstream-features/bindings/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=4,hash=58db714dd96a]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=15,hash=b7aed0ed584b]": [
-			"diagnostic-item-set-extra-rsvelte"
+		"expected:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=17,hash=9add36147868]": [
+			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=9,hash=4309595352ac]": [
+		"expected:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=c14c79144b23]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"expected:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=15,hash=b7aed0ed584b]": [
-			"diagnostic-item-set-extra-rsvelte"
+		"expected:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=17,hash=9add36147868]": [
+			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=9,hash=4309595352ac]": [
+		"expected:upstream-features/checkjs-nostrict/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=c14c79144b23]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=19,hash=38e8d401761a]": [
+		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=17,hash=e88c8f8ace74]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=4e95e45a02cc]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|/items/@diagnostic-fa9731980a6c/message:value-mismatch[official=e512d2c89d45,rsvelte=2fc4543450de]": [
-			"diagnostic-item-message"
-		],
-		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=19,hash=38e8d401761a]": [
+		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=17,hash=e88c8f8ace74]": [
 			"diagnostic-item-set-extra-mixed"
 		],
 		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=4e95e45a02cc]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/checkjs-nostrict/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items/@diagnostic-fa9731980a6c/message:value-mismatch[official=e512d2c89d45,rsvelte=2fc4543450de]": [
-			"diagnostic-item-message"
-		],
 		"expected:upstream-features/checkjs-nostrict/each-anytype/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=68985ce1b137]": [
 			"diagnostic-item-set-extra-rsvelte"
-		],
-		"expected:upstream-features/checkjs-nostrict/each-anytype/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=3301af34973a]": [
-			"diagnostic-item-set-missing-js"
 		],
 		"expected:upstream-features/checkjs-nostrict/each-anytype/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=68985ce1b137]": [
 			"diagnostic-item-set-extra-rsvelte"
 		],
-		"expected:upstream-features/checkjs-nostrict/each-anytype/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=3301af34973a]": [
+		"expected:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=17,hash=9add36147868]": [
+			"diagnostic-item-set-extra-mixed"
+		],
+		"expected:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=c14c79144b23]": [
 			"diagnostic-item-set-missing-js"
 		],
-		"expected:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=15,hash=b7aed0ed584b]": [
-			"diagnostic-item-set-extra-rsvelte"
+		"expected:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=17,hash=9add36147868]": [
+			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=11,hash=0a8caa536353]": [
-			"diagnostic-item-set-missing-js"
-		],
-		"expected:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=15,hash=b7aed0ed584b]": [
-			"diagnostic-item-set-extra-rsvelte"
-		],
-		"expected:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=11,hash=0a8caa536353]": [
+		"expected:upstream-features/checkjs/component-props-js/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=c14c79144b23]": [
 			"diagnostic-item-set-missing-js"
 		],
 		"expected:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=17,hash=e88c8f8ace74]": [
@@ -218746,17 +218722,11 @@
 		"expected:upstream-features/checkjs/component-props-ts/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=4e95e45a02cc]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/checkjs/no-script-tag/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=0223df0efbe9]": [
-			"diagnostic-item-set-missing-js"
+		"expected:upstream-features/coffeescript-ignore/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=41,hash=87c7bc8099d5]": [
+			"diagnostic-item-set-extra-js"
 		],
-		"expected:upstream-features/checkjs/no-script-tag/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=0223df0efbe9]": [
-			"diagnostic-item-set-missing-js"
-		],
-		"expected:upstream-features/coffeescript-ignore/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=41,hash=db88b55bd673]": [
-			"diagnostic-item-set-extra-ts"
-		],
-		"expected:upstream-features/coffeescript-ignore/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=41,hash=db88b55bd673]": [
-			"diagnostic-item-set-extra-ts"
+		"expected:upstream-features/coffeescript-ignore/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=41,hash=87c7bc8099d5]": [
+			"diagnostic-item-set-extra-js"
 		],
 		"expected:upstream-features/component-handler/input.svelte|textDocument/inlayHint|:extra-rsvelte[count=3,hash=31ea7107ecb7]": [
 			"inlay-hint-set-extra-mixed"
@@ -218788,17 +218758,17 @@
 		"expected:upstream-features/const-tag/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=6a27c33c1530]": [
 			"diagnostic-item-set-extra-rsvelte"
 		],
-		"expected:upstream-features/custom-types/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=24,hash=845509bb2e01]": [
-			"diagnostic-mixed"
+		"expected:upstream-features/custom-types/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=16,hash=2c3bf88e4129]": [
+			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/custom-types/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=8,hash=4d86e150c0b4]": [
-			"diagnostic-mixed"
+		"expected:upstream-features/custom-types/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=cba9433770c7]": [
+			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/custom-types/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=24,hash=845509bb2e01]": [
-			"diagnostic-mixed"
+		"expected:upstream-features/custom-types/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=16,hash=2c3bf88e4129]": [
+			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/custom-types/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=8,hash=4d86e150c0b4]": [
-			"diagnostic-mixed"
+		"expected:upstream-features/custom-types/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=cba9433770c7]": [
+			"diagnostic-item-set-missing-ts"
 		],
 		"expected:upstream-features/declaration-tag.v5/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=68985ce1b137]": [
 			"diagnostic-item-set-extra-rsvelte"
@@ -218992,13 +218962,13 @@
 		"expected:upstream-features/key-block/input.svelte|textDocument/foldingRange|phase=edit|:missing-rsvelte[count=1,hash=7a59d1eac7b8]": [
 			"folding-range-set-missing"
 		],
-		"expected:upstream-features/node16/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=adaa415a4bd2]": [
+		"expected:upstream-features/node16/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=d694baa656bf]": [
 			"diagnostic-mixed"
 		],
 		"expected:upstream-features/node16/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=a44d73c6dac3]": [
 			"diagnostic-identity-code"
 		],
-		"expected:upstream-features/node16/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=adaa415a4bd2]": [
+		"expected:upstream-features/node16/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=d694baa656bf]": [
 			"diagnostic-mixed"
 		],
 		"expected:upstream-features/node16/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=a44d73c6dac3]": [
@@ -219069,18 +219039,6 @@
 		],
 		"expected:upstream-features/reactive-statement-unused-label/ignores-unused-label/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=d036457922f8]": [
 			"diagnostic-item-set-extra-mixed"
-		],
-		"expected:upstream-features/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=45df72f79037]": [
-			"diagnostic-identity-source"
-		],
-		"expected:upstream-features/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=7715c799f736]": [
-			"diagnostic-identity-source"
-		],
-		"expected:upstream-features/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=45df72f79037]": [
-			"diagnostic-identity-source"
-		],
-		"expected:upstream-features/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=7715c799f736]": [
-			"diagnostic-identity-source"
 		],
 		"expected:upstream-features/script/input.svelte|textDocument/foldingRange|:extra-rsvelte[count=3,hash=db51de4e5051]": [
 			"folding-range-mixed-character-set-extra"

@@ -27,6 +27,7 @@ use sourcemap::{SourceMap, SourceMapBuilder};
 use crate::text::LineIndex;
 
 const CACHE_DIRECTORY: &str = ".rsvelte-language-server";
+const NESTED_PROJECTS_DIRECTORY: &str = "projects";
 const TSGO_DIRECTORY: &str = "tsgo";
 const SHADOW_DIRECTORY: &str = "svelte";
 const OVERLAY_TSCONFIG: &str = "tsconfig.json";
@@ -203,6 +204,10 @@ struct ShadowState {
 /// Workspace-scoped diskless overlay used by the tsgo LSP proxy.
 pub struct TsgoOverlay {
     workspace: PathBuf,
+    /// The directory the shadow tree mirrors. The workspace itself, except for
+    /// a nested project, whose documents may import `.svelte` files beside its
+    /// own directory: those need a shadow at the same relative position.
+    mirror_root: PathBuf,
     cache_dir: PathBuf,
     shadow_dir: PathBuf,
     tsconfig_path: PathBuf,
@@ -242,6 +247,31 @@ impl TsgoOverlay {
         tsconfig: Option<&Path>,
         svelte_fallback_root: Option<&Path>,
     ) -> Result<Self, TsgoOverlayError> {
+        Self::build_mirrored(workspace, tsconfig, svelte_fallback_root, None)
+    }
+
+    /// Build the project a nested `tsconfig` owns, rooted at `workspace` but
+    /// with its shadow tree mirroring `mirror_root` — the enclosing workspace —
+    /// so a relative import that leaves the project directory still resolves.
+    pub fn build_nested(
+        workspace: &Path,
+        tsconfig: &Path,
+        mirror_root: &Path,
+    ) -> Result<Self, TsgoOverlayError> {
+        Self::build_mirrored(
+            workspace,
+            Some(tsconfig),
+            server_svelte_root().as_deref(),
+            Some(mirror_root),
+        )
+    }
+
+    fn build_mirrored(
+        workspace: &Path,
+        tsconfig: Option<&Path>,
+        svelte_fallback_root: Option<&Path>,
+        mirror_root: Option<&Path>,
+    ) -> Result<Self, TsgoOverlayError> {
         let workspace = absolute_normalized(workspace);
         let workspace = fs::canonicalize(&workspace)?;
         if !workspace.is_dir() {
@@ -250,11 +280,29 @@ impl TsgoOverlay {
                 reason: "workspace is not a directory",
             });
         }
+        let mirror_root = match mirror_root {
+            Some(root) => fs::canonicalize(absolute_normalized(root))?,
+            None => workspace.clone(),
+        };
+        if !workspace.starts_with(&mirror_root) {
+            return Err(TsgoOverlayError::InvalidSource {
+                path: workspace,
+                reason: "workspace is outside the directory its shadows mirror",
+            });
+        }
 
-        let cache_root = workspace.join(CACHE_DIRECTORY);
-        let cache_dir = cache_root.join(TSGO_DIRECTORY);
+        // A nested project keeps its cache beside the enclosing workspace's, so
+        // its shadows sit under a `rootDirs` entry exactly as a root project's do.
+        let cache_root = mirror_root.join(CACHE_DIRECTORY);
+        let cache_dir = match workspace.strip_prefix(&mirror_root) {
+            Ok(relative) if !relative.as_os_str().is_empty() => cache_root
+                .join(NESTED_PROJECTS_DIRECTORY)
+                .join(relative)
+                .join(TSGO_DIRECTORY),
+            _ => cache_root.join(TSGO_DIRECTORY),
+        };
         let shadow_dir = cache_dir.join(SHADOW_DIRECTORY);
-        reject_symlink_components(&cache_dir, &workspace)?;
+        reject_symlink_components(&cache_dir, &mirror_root)?;
         fs::create_dir_all(&shadow_dir)?;
         reject_symlink_components(&shadow_dir, &cache_dir)?;
         write_cache_gitignore(&cache_root);
@@ -265,6 +313,7 @@ impl TsgoOverlay {
         let compiler = rsvelte_check::config::load_compiler_options(&workspace);
         let mut overlay = Self {
             workspace,
+            mirror_root,
             cache_dir,
             shadow_dir,
             tsconfig_path,
@@ -278,7 +327,7 @@ impl TsgoOverlay {
         };
         overlay.materialize_support_files()?;
 
-        for path in rsvelte_check::find_svelte_files(&overlay.workspace, &[]) {
+        for path in overlay.discover_sources() {
             let text = fs::read_to_string(&path)?;
             overlay.open_or_update(&path, &text, 0)?;
         }
@@ -292,6 +341,13 @@ impl TsgoOverlay {
         &self.workspace
     }
 
+    /// The directory the shadow tree mirrors: the workspace, or for a nested
+    /// project the workspace that encloses it.
+    #[must_use]
+    pub fn mirror_root(&self) -> &Path {
+        &self.mirror_root
+    }
+
     /// Directory containing the persisted config, shims, and skeleton.
     #[must_use]
     pub fn cache_dir(&self) -> &Path {
@@ -302,6 +358,13 @@ impl TsgoOverlay {
     #[must_use]
     pub fn tsconfig_path(&self) -> &Path {
         &self.tsconfig_path
+    }
+
+    /// The project config this overlay was built from, when the workspace has
+    /// one. `None` is upstream's configless fallback project.
+    #[must_use]
+    pub fn source_tsconfig(&self) -> Option<&Path> {
+        self.source_tsconfig.as_deref()
     }
 
     /// Generate or replace one virtual shadow buffer.
@@ -521,7 +584,7 @@ impl TsgoOverlay {
         language_id: &str,
     ) -> Result<ShadowDocument, TsgoOverlayError> {
         let source_path = self.confined_any_source(source_path)?;
-        let relative = source_path.strip_prefix(&self.workspace).map_err(|_| {
+        let relative = source_path.strip_prefix(&self.mirror_root).map_err(|_| {
             TsgoOverlayError::InvalidSource {
                 path: source_path.clone(),
                 reason: "source escapes the workspace",
@@ -620,10 +683,7 @@ impl TsgoOverlay {
 
     /// Reconcile eager shadows with the current workspace tree.
     pub fn refresh(&mut self) -> Result<OverlayUpdate, TsgoOverlayError> {
-        let discovered = rsvelte_check::find_svelte_files(&self.workspace, &[])
-            .into_iter()
-            .map(|path| fs::canonicalize(&path).unwrap_or(path))
-            .collect::<BTreeSet<_>>();
+        let discovered = self.discover_sources();
         let known = self
             .entries
             .iter()
@@ -656,6 +716,41 @@ impl TsgoOverlay {
                 .push(self.open_or_update(path, &text, version)?);
         }
         Ok(update)
+    }
+
+    /// Every `.svelte` source this overlay shadows eagerly: the ones under the
+    /// project directory, plus — for a nested project — each one outside it
+    /// that a shadowed source reaches through a relative import, transitively.
+    fn discover_sources(&self) -> BTreeSet<PathBuf> {
+        let mut discovered = rsvelte_check::find_svelte_files(&self.workspace, &[])
+            .into_iter()
+            .map(|path| fs::canonicalize(&path).unwrap_or(path))
+            .collect::<BTreeSet<_>>();
+        if self.mirror_root == self.workspace {
+            return discovered;
+        }
+        let mut pending = discovered.iter().cloned().collect::<Vec<_>>();
+        while let Some(path) = pending.pop() {
+            let Ok(text) = fs::read_to_string(&path) else {
+                continue;
+            };
+            let Some(directory) = path.parent() else {
+                continue;
+            };
+            for specifier in relative_svelte_specifiers(&text) {
+                let target = absolute_normalized(&directory.join(specifier));
+                let Ok(target) = fs::canonicalize(&target) else {
+                    continue;
+                };
+                if target.starts_with(&self.mirror_root)
+                    && target.is_file()
+                    && discovered.insert(target.clone())
+                {
+                    pending.push(target);
+                }
+            }
+        }
+        discovered
     }
 
     /// Resolve a source path to its virtual shadow document.
@@ -993,7 +1088,7 @@ impl TsgoOverlay {
             .map(|entry| ShadowResolutionInfo {
                 source_path: entry.source_path.clone(),
                 shadow_path: entry.shadow_path.clone(),
-                source_in_workspace: entry.source_path.starts_with(&self.workspace),
+                source_in_workspace: entry.source_path.starts_with(&self.mirror_root),
                 shadow_in_cache: entry.shadow_path.starts_with(&self.shadow_dir),
                 parent_directory_exists: entry.shadow_path.parent().is_some_and(Path::is_dir),
                 shadow_registered: self
@@ -1113,7 +1208,7 @@ impl TsgoOverlay {
                 // The source target stays first, so nothing that resolves today
                 // can start resolving somewhere else.
                 candidates.push(json!(absolute));
-                if let Ok(relative) = Path::new(&absolute).strip_prefix(&self.workspace) {
+                if let Ok(relative) = Path::new(&absolute).strip_prefix(&self.mirror_root) {
                     candidates.push(json!(path_for_tsconfig(&self.shadow_dir.join(relative))));
                 }
             }
@@ -1182,7 +1277,7 @@ impl TsgoOverlay {
                 "jsx": "preserve",
                 "noEmit": true,
                 "rootDirs": [
-                    path_for_tsconfig(&self.workspace),
+                    path_for_tsconfig(&self.mirror_root),
                     path_for_tsconfig(&self.shadow_dir)
                 ]
             },
@@ -1208,7 +1303,7 @@ impl TsgoOverlay {
     }
 
     fn shadow_path_for(&self, source_path: &Path) -> Result<PathBuf, TsgoOverlayError> {
-        let relative = source_path.strip_prefix(&self.workspace).map_err(|_| {
+        let relative = source_path.strip_prefix(&self.mirror_root).map_err(|_| {
             TsgoOverlayError::InvalidSource {
                 path: source_path.to_path_buf(),
                 reason: "source escapes the workspace",
@@ -1271,7 +1366,7 @@ impl TsgoOverlay {
             .strip_prefix(existing)
             .expect("nearest existing path is an ancestor");
         let real = join_existing_suffix(real_existing, suffix);
-        if !real.starts_with(&self.workspace) {
+        if !real.starts_with(&self.mirror_root) {
             return Err(TsgoOverlayError::InvalidSource {
                 path: lexical,
                 reason: "source is redirected outside the workspace by a symlink",
@@ -1292,7 +1387,7 @@ impl TsgoOverlay {
             .strip_prefix(existing)
             .expect("nearest existing path is an ancestor");
         let real = join_existing_suffix(real_existing, suffix);
-        if !real.starts_with(&self.workspace) {
+        if !real.starts_with(&self.mirror_root) {
             return Err(TsgoOverlayError::InvalidSource {
                 path: lexical,
                 reason: "source is redirected outside the workspace by a symlink",
@@ -1349,6 +1444,35 @@ fn server_svelte_root() -> Option<PathBuf> {
     }
     let exe = std::env::current_exe().ok()?;
     Some(exe.parent()?.to_path_buf())
+}
+
+/// The project config that owns `source`: the nearest `tsconfig.json` — then
+/// `jsconfig.json` — at or above its directory, without leaving `boundary` and
+/// without crossing a `node_modules`. This is `findTsConfigPath`
+/// (`plugins/typescript/utils.ts:146-167`), which resolves a project **per
+/// document** rather than once per workspace root.
+#[must_use]
+pub fn nearest_tsconfig(source: &Path, boundary: &Path) -> Option<PathBuf> {
+    let mut cursor = source.parent();
+    while let Some(dir) = cursor {
+        if !dir.starts_with(boundary) {
+            return None;
+        }
+        if dir.file_name().is_some_and(|name| name == "node_modules") {
+            return None;
+        }
+        for name in ["tsconfig.json", "jsconfig.json"] {
+            let candidate = dir.join(name);
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+        if dir == boundary {
+            return None;
+        }
+        cursor = dir.parent();
+    }
+    None
 }
 
 fn resolve_tsconfig(workspace: &Path, explicit: Option<&Path>) -> Option<PathBuf> {
@@ -1827,6 +1951,20 @@ fn shadow_language_id(source: &str) -> &'static str {
     } else {
         "javascriptreact"
     }
+}
+
+/// The relative `.svelte` module specifiers in `source`, found the same way
+/// [`rewrite_plain_svelte_imports`] finds the ones it suffixes.
+fn relative_svelte_specifiers(source: &str) -> Vec<&str> {
+    let (_, insertions) = rewrite_plain_svelte_imports(source);
+    insertions
+        .into_iter()
+        .filter_map(|(end, _)| {
+            let start = source[..end].rfind(['\'', '"', '`'])? + 1;
+            let specifier = &source[start..end];
+            (specifier.starts_with("./") || specifier.starts_with("../")).then_some(specifier)
+        })
+        .collect()
 }
 
 fn rewrite_plain_svelte_imports(source: &str) -> (String, Vec<(usize, std::ops::Range<usize>)>) {
@@ -3555,5 +3693,165 @@ mod tests {
         // the response range maps back to the source specifier.
         assert!(overlay.touches_generated_range(&shadow_path, range));
         assert!(!overlay.is_generated_range(&shadow_path, range));
+    }
+
+    #[test]
+    fn a_nested_config_owns_the_documents_beneath_it() {
+        // `findTsConfigPath` searches from the DOCUMENT's directory upward, so a
+        // subdirectory carrying its own config is its own project (#4391).
+        let workspace = TestWorkspace::new("nearest-tsconfig");
+        let root = fs::canonicalize(&workspace.0).unwrap();
+        write(&root.join("tsconfig.json"), "{}");
+        write(&root.join("docs/tsconfig.json"), "{}");
+        write(&root.join("docs/src/App.svelte"), "<p />");
+        write(&root.join("src/App.svelte"), "<p />");
+
+        assert_eq!(
+            nearest_tsconfig(&root.join("docs/src/App.svelte"), &root),
+            Some(root.join("docs/tsconfig.json"))
+        );
+        assert_eq!(
+            nearest_tsconfig(&root.join("src/App.svelte"), &root),
+            Some(root.join("tsconfig.json"))
+        );
+    }
+
+    #[test]
+    fn a_jsconfig_answers_only_where_no_tsconfig_does() {
+        let workspace = TestWorkspace::new("nearest-jsconfig");
+        let root = fs::canonicalize(&workspace.0).unwrap();
+        write(&root.join("docs/jsconfig.json"), "{}");
+        write(&root.join("docs/src/App.svelte"), "<p />");
+        assert_eq!(
+            nearest_tsconfig(&root.join("docs/src/App.svelte"), &root),
+            Some(root.join("docs/jsconfig.json"))
+        );
+
+        // Upstream prefers the closest, and at one directory that is tsconfig.
+        write(&root.join("docs/tsconfig.json"), "{}");
+        assert_eq!(
+            nearest_tsconfig(&root.join("docs/src/App.svelte"), &root),
+            Some(root.join("docs/tsconfig.json"))
+        );
+    }
+
+    #[test]
+    fn the_search_stops_at_the_boundary_and_at_node_modules() {
+        let workspace = TestWorkspace::new("nearest-boundary");
+        let root = fs::canonicalize(&workspace.0).unwrap();
+        write(&root.join("tsconfig.json"), "{}");
+        write(&root.join("node_modules/dep/src/App.svelte"), "<p />");
+        write(&root.join("plain/App.svelte"), "<p />");
+
+        // A dependency's document does not join the workspace project.
+        assert_eq!(
+            nearest_tsconfig(&root.join("node_modules/dep/src/App.svelte"), &root),
+            None
+        );
+        // Nothing above the boundary is reachable either, even though this
+        // workspace's own config would otherwise answer.
+        assert_eq!(
+            nearest_tsconfig(&root.join("plain/App.svelte"), &root.join("plain")),
+            None
+        );
+        assert_eq!(
+            nearest_tsconfig(&root.join("plain/App.svelte"), &root),
+            Some(root.join("tsconfig.json"))
+        );
+    }
+
+    #[test]
+    fn a_nested_project_shadows_the_svelte_files_it_imports_from_beside_it() {
+        // upstream-testfiles' `different-ts-service`: the project directory
+        // imports `../shared-comp.svelte`, which only a shadow at the same
+        // position relative to the workspace can resolve.
+        let workspace = TestWorkspace::new("nested-outside-import");
+        let root = fs::canonicalize(&workspace.0).unwrap();
+        write(&root.join("tsconfig.json"), "{}");
+        write(&root.join("nested/tsconfig.json"), "{}");
+        write(
+            &root.join("nested/App.svelte"),
+            "<script lang=\"ts\">import { foo } from '../shared.svelte';</script>",
+        );
+        write(
+            &root.join("shared.svelte"),
+            "<script lang=\"ts\">import X from './deeper/Leaf.svelte';</script>",
+        );
+        write(&root.join("deeper/Leaf.svelte"), "<p />");
+        write(&root.join("unrelated.svelte"), "<p />");
+
+        let nested = TsgoOverlay::build_nested(
+            &root.join("nested"),
+            &root.join("nested/tsconfig.json"),
+            &root,
+        )
+        .unwrap();
+        let shadowed = |path: &str| {
+            nested
+                .shadow_for_source(&root.join(path))
+                .map(|doc| doc.shadow_uri.clone())
+        };
+        assert!(shadowed("nested/App.svelte").is_some());
+        assert_eq!(
+            shadowed("shared.svelte"),
+            Some(path_to_uri(&nested.shadow_dir.join("shared.svelte.tsx")).unwrap()),
+            "the import leaves the project, so its shadow sits where `../` finds it"
+        );
+        assert!(
+            shadowed("deeper/Leaf.svelte").is_some(),
+            "followed transitively"
+        );
+        assert!(
+            shadowed("unrelated.svelte").is_none(),
+            "only what is imported"
+        );
+        assert_eq!(
+            overlay_config(&nested)["compilerOptions"]["rootDirs"][0],
+            json!(path_for_tsconfig(&root))
+        );
+
+        // Live control: a project that is not nested mirrors itself.
+        let rooted = build_overlay(&root).unwrap();
+        assert_eq!(rooted.mirror_root(), rooted.workspace());
+    }
+
+    #[test]
+    fn relative_svelte_specifiers_are_the_ones_the_import_rewrite_finds() {
+        let source = "import A from './A.svelte';\nimport B from '../b/B.svelte';\n\
+                      import C from 'pkg/C.svelte';\nconst s = './not-an-import.svelte';";
+        assert_eq!(
+            relative_svelte_specifiers(source),
+            vec!["./A.svelte", "../b/B.svelte"]
+        );
+    }
+
+    #[test]
+    fn a_nested_overlay_resolves_the_nested_configs_own_paths() {
+        // The reason the split matters: `paths` declared one level down are
+        // invisible to a single workspace-root project.
+        let workspace = TestWorkspace::new("nested-paths");
+        let root = fs::canonicalize(&workspace.0).unwrap();
+        write(&root.join("tsconfig.json"), "{}");
+        write(
+            &root.join("docs/tsconfig.json"),
+            r#"{ "compilerOptions": { "paths": { "@/*": ["./src/*"] } } }"#,
+        );
+        write(&root.join("docs/src/App.svelte"), "<p />");
+
+        let owner = nearest_tsconfig(&root.join("docs/src/App.svelte"), &root).unwrap();
+        let nested = TsgoOverlay::build_with(owner.parent().unwrap(), Some(&owner), None).unwrap();
+        let config = overlay_config(&nested);
+        assert_eq!(
+            config["compilerOptions"]["paths"]["@/*"],
+            json!([
+                path_for_tsconfig(&root.join("docs/src/*")),
+                path_for_tsconfig(&nested.shadow_dir.join("src/*"))
+            ])
+        );
+
+        // Live control: the root project, which is what the server used to hand
+        // every document, has no such mapping.
+        let rooted = build_overlay(&root).unwrap();
+        assert!(overlay_config(&rooted)["compilerOptions"]["paths"].is_null());
     }
 }
