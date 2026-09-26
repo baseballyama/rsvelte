@@ -4576,7 +4576,7 @@ fn convert_ts_signature(
             }
             obj.set_field(
                 "key",
-                convert_ts_property_key(&prop.key, offset, line_offsets),
+                convert_ts_property_key(arena, &prop.key, offset, line_offsets),
             );
             if let Some(type_ann) = &prop.type_annotation {
                 obj.set_field(
@@ -4597,7 +4597,7 @@ fn convert_ts_signature(
             obj.set_field("computed", Value::Bool(method.computed));
             obj.set_field(
                 "key",
-                convert_ts_property_key(&method.key, offset, line_offsets),
+                convert_ts_property_key(arena, &method.key, offset, line_offsets),
             );
             obj.set_field(
                 "kind",
@@ -4758,6 +4758,7 @@ fn convert_ts_index_signature(
 
 /// Convert a `TSPropertySignature` key (Identifier / string / numeric).
 fn convert_ts_property_key(
+    arena: &ParseArena,
     key: &oxc_ast::ast::PropertyKey,
     offset: AdjustedOffset,
     line_offsets: &[usize],
@@ -4792,12 +4793,7 @@ fn convert_ts_property_key(
                 line_offsets,
             )
         }
-        _ => {
-            let span = key.span();
-            let start = offset + span.start as usize;
-            let end = offset + span.end as usize;
-            ts_identifier_value("", start, end, line_offsets)
-        }
+        _ => convert_property_key_for_param_as_node(arena, key, offset, line_offsets).to_value(),
     }
 }
 
