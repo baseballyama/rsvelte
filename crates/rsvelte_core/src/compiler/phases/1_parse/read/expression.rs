@@ -1668,7 +1668,7 @@ pub fn parse_destructuring_pattern<'a>(
     // The component's mode only. Trying the other one accepts a TypeScript
     // annotation in a component that never declared `lang="ts"`.
     let source_type = if ts {
-        SourceType::ts()
+        SourceType::ts().with_module(true)
     } else {
         SourceType::mjs()
     };
@@ -1761,9 +1761,11 @@ pub fn parse_expression_with_end<'a>(
 /// The `SourceType` a template expression is parsed with. Upstream picks the
 /// acorn variant once per component from `parser.ts`, so a component with no
 /// `lang="ts"` script never reaches the TypeScript grammar.
+// acorn is always given `sourceType: 'module'`; `ts()` alone is unambiguous,
+// which reads `await (a)` as a call.
 fn expression_source_type(ts: bool) -> SourceType {
     if ts {
-        SourceType::ts()
+        SourceType::ts().with_module(true)
     } else {
         SourceType::mjs()
     }
@@ -2026,7 +2028,7 @@ pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize
 
     with_oxc_allocator(|allocator| {
         let source_type = if ts {
-            SourceType::ts()
+            SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
         };
@@ -2071,7 +2073,7 @@ pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String
     }
     with_oxc_allocator(|allocator| {
         let source_type = if ts {
-            SourceType::ts()
+            SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
         };
@@ -2389,7 +2391,7 @@ fn parse_expression_with_typescript<'a>(
 ) -> Option<Expression<'a>> {
     with_oxc_allocator(|allocator| {
         let source_type = if use_typescript {
-            SourceType::ts()
+            SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
         };
@@ -2732,7 +2734,7 @@ pub fn parse_typescript_params<'a>(
     line_offsets: &[usize],
 ) -> Vec<Expression<'a>> {
     // Use TypeScript source type to parse type annotations
-    let source_type = SourceType::ts();
+    let source_type = SourceType::ts().with_module(true);
 
     // Wrap as arrow function to parse parameters: "(msg: string) => {}"
     let wrapped = wrap_for_parse("(", content, ") => {}");
@@ -8020,7 +8022,7 @@ pub fn parse_program_with_error<'a>(
 ) -> (Expression<'a>, Option<crate::error::ParseError>) {
     with_oxc_allocator(|allocator| {
         let source_type = if params.is_typescript {
-            SourceType::ts()
+            SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
         };
@@ -8692,7 +8694,8 @@ pub(crate) fn repair_ts_newline_import_assert(
     let mut changed = false;
     loop {
         let allocator = Allocator::default();
-        let parsed = OxcParser::new(&allocator, &repaired, SourceType::ts()).parse();
+        let parsed =
+            OxcParser::new(&allocator, &repaired, SourceType::ts().with_module(true)).parse();
         let Some(diagnostic) = first_reportable_diagnostic(&parsed.diagnostics) else {
             return changed.then_some(repaired);
         };
@@ -14546,7 +14549,7 @@ pub fn validate_template_binding_pattern(
     }
 
     let source_type = if ts {
-        SourceType::ts()
+        SourceType::ts().with_module(true)
     } else {
         SourceType::mjs()
     };
@@ -14689,7 +14692,7 @@ fn read_binding_type_annotation(
 ) -> Option<(Value, usize)> {
     with_oxc_allocator(|allocator| {
         let source_type = if ts {
-            SourceType::ts()
+            SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
         };
@@ -14740,7 +14743,7 @@ pub fn parse_binding_pattern<'a>(
         // upstream's `read_pattern` parses it with the same `parser.ts` every
         // other template expression gets.
         let source_type = if ts {
-            SourceType::ts()
+            SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
         };
