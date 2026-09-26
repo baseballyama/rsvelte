@@ -564,6 +564,7 @@ impl<'source> PreparedComponent<'source> {
             let positions = crate::compiler::legacy::Utf8ToUtf16::new(self.source);
             crate::compiler::legacy::convert_positions_to_utf16(&mut value, &positions);
         }
+        crate::compiler::acorn_lines::apply_acorn_line_terminators(&mut value, self.source);
         serde_json::to_string(&value).expect("the public AST JSON is serializable")
     }
 

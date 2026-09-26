@@ -639,6 +639,7 @@ fn convert_to_legacy_inner(source: &str, ast: &Root) -> Value {
     // Convert all positions from UTF-8 to UTF-16
     let mut final_result = Value::Object(result);
     convert_positions_to_utf16(&mut final_result, &pos_conv);
+    crate::compiler::acorn_lines::apply_acorn_line_terminators(&mut final_result, source);
 
     final_result
 }
