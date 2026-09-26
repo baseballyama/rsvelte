@@ -219,6 +219,7 @@ pub fn print_split(
     // print again only when that pass dropped something.
     let total = comments.len();
     let mut written = Vec::new();
+    let mut late = Vec::new();
     let first = print_split_impl::<true>(
         program,
         loc_base,
@@ -231,19 +232,24 @@ pub fn print_split(
         line_starts,
         map_line_starts,
         Vec::new(),
-        Some(&mut written),
+        Some((&mut written, &mut late)),
     );
     written.sort_unstable();
     written.dedup();
-    if written.len() == total {
+    late.sort_unstable();
+    late.dedup();
+    if written.len() == total && late.is_empty() {
         return first;
     }
     let (comments, line_starts) = comments_and_line_starts(program, comment_source);
     let map_line_starts = map_source.map(printer::line_starts).unwrap_or_default();
+    // A comment only a body's closing flush placed was never reached by a
+    // located node either: under split coordinates the node that follows it in
+    // the source may sit below `loc_base`, so it is recoverable the same way.
     let dropped: Vec<u32> = comments
         .iter()
         .map(|cmt| cmt.start)
-        .filter(|start| written.binary_search(start).is_err())
+        .filter(|start| written.binary_search(start).is_err() || late.binary_search(start).is_ok())
         .collect();
     if dropped.is_empty() {
         return first;
@@ -277,7 +283,7 @@ fn print_split_impl<const HAS_COMMENTS: bool>(
     line_starts: Vec<u32>,
     map_line_starts: Vec<u32>,
     src_flushable: Vec<u32>,
-    written_out: Option<&mut Vec<u32>>,
+    written_out: Option<(&mut Vec<u32>, &mut Vec<u32>)>,
 ) -> PrintWithMap {
     if !HAS_COMMENTS && map_source.is_none() {
         let mut printer =
@@ -289,8 +295,9 @@ fn print_split_impl<const HAS_COMMENTS: bool>(
                 .with_src_flushable(src_flushable);
         let mut ctx = context::Context::new_direct(&options.indent, program.source_text.len());
         printer.print_program(program, &mut ctx);
-        if let Some(out) = written_out {
-            *out = printer.take_written();
+        if let Some((written, late)) = written_out {
+            *written = printer.take_written();
+            *late = printer.take_late();
         }
         let (buffer, returned, indent, dirty) = ctx.into_direct_parts();
         let (code, buffer) = command::finish_direct(buffer, &indent, dirty);
@@ -315,8 +322,9 @@ fn print_split_impl<const HAS_COMMENTS: bool>(
             .with_src_flushable(src_flushable);
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
-    if let Some(out) = written_out {
-        *out = printer.take_written();
+    if let Some((written, late)) = written_out {
+        *written = printer.take_written();
+        *late = printer.take_late();
     }
     let capacity = ctx.measure();
     let (buffer, returned) = ctx.into_parts();

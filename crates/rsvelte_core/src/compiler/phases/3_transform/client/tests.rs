@@ -1236,6 +1236,58 @@ fn a_script_comment_maps_before_the_template_expression_it_precedes() {
 }
 
 #[test]
+fn a_template_element_past_the_longest_chunk_maps_to_its_source() {
+    // The template ends past every chunk the converter notes, so the element's
+    // offset must still read as source, not as the comment buffer (#4521).
+    let source = r#"<script lang="ts">
+    const {onfoo}:{ // onfoo: (e: { detail: number; }) => void, onfoo: (e: { detail: number; }) => void
+        onfoo: (e: { detail: number }) => void // onfoo: (e: { detail: number; }) => void, e: { detail: number; }
+    } = $props() // $props(): { onfoo: (e: { detail: number; }) => void; }
+    onfoo({detail: 1}) // onfoo({detail: 1}): void
+</script>
+
+<button onclick="{e=>{ // e: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement; }
+    e.currentTarget; // e.currentTarget: EventTarget & HTMLButtonElement
+}}"></button>
+<input oninput="{e=>{ // e: Event & { currentTarget: EventTarget & HTMLInputElement; }
+    e.currentTarget; // e.currentTarget: EventTarget & HTMLInputElement
+}}">
+"#;
+    let result = crate::compiler::compile(
+        source,
+        crate::compiler::CompileOptions {
+            filename: Some("ts-event03-type-output.svelte".to_string()),
+            enable_sourcemap: true,
+            ..Default::default()
+        },
+    )
+    .expect("compiles");
+    let map: serde_json::Value =
+        serde_json::from_str(result.js.map.as_deref().expect("map")).expect("valid source map");
+    let mappings = crate::compiler::phases::phase3_transform::js_ast::codegen::decode_vlq_mappings(
+        map["mappings"].as_str().expect("VLQ mappings"),
+    );
+    let mut button_segments = Vec::new();
+    for (line, generated) in result.js.code.lines().enumerate() {
+        for segment in mappings.get(line).into_iter().flatten() {
+            let column = usize::try_from(segment[0]).unwrap();
+            if generated[column..].starts_with("button") && segment.len() >= 4 {
+                button_segments.push((line, segment[2], segment[3]));
+            }
+        }
+    }
+
+    assert!(!button_segments.is_empty(), "{}", result.js.code);
+    assert!(
+        button_segments
+            .iter()
+            .all(|&(_, line, column)| (line, column) == (7, 1)),
+        "{button_segments:?}\n{}",
+        result.js.code
+    );
+}
+
+#[test]
 fn a_snippet_shadowing_a_prop_still_reads_the_prop_statically() {
     // The read transform receives the identifier inside its span wrapper, and a
     // member property is chosen by variant: `$$props[children]` is what an

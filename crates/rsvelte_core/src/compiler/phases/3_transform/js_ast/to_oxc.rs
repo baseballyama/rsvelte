@@ -230,7 +230,11 @@ pub fn program_to_oxc_with_islands<'a, 'source>(
     if !synth.saw_comments {
         return Some(probe);
     }
-    let loc_base = synth.max_span.saturating_add(2);
+    // Every real source offset has to sit below the comment buffer, or a
+    // source span reads as comment space (#4521); `max_span` alone only bounds
+    // the spans the probe pass happened to note.
+    let source_end = source.map_or(0, |text| u32::try_from(text.len()).unwrap_or(u32::MAX));
+    let loc_base = synth.max_span.max(source_end).saturating_add(2);
     let (converted, synth) =
         convert_once(program, arena, allocator, islands, source, Some(loc_base))?;
     // Every span the pass produced outside a chunk region must stay below

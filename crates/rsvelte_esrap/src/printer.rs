@@ -173,6 +173,9 @@ pub struct Printer<'opt, const HAS_COMMENTS: bool = true, const DIRECT: bool = f
     src_flushable: Vec<u32>,
     /// Comment-space starts this print has emitted, in emission order.
     written: Vec<u32>,
+    /// The subset of `written` a body's closing flush emitted: placed only
+    /// because nothing located in comment space came after them.
+    late: Vec<u32>,
     /// Decorator expressions have no esrap mapping visitor, so their nested
     /// tokens must stay unmapped too.
     map_nodes: bool,
@@ -797,6 +800,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             brace_mappings: Vec::new(),
             src_flushable: Vec::new(),
             written: Vec::new(),
+            late: Vec::new(),
             map_nodes: true,
         }
     }
@@ -826,6 +830,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             brace_mappings: Vec::new(),
             src_flushable: Vec::new(),
             written: Vec::new(),
+            late: Vec::new(),
             map_nodes: true,
         }
     }
@@ -893,6 +898,11 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         std::mem::take(&mut self.written)
     }
 
+    /// The comment-space starts a body's closing flush emitted.
+    pub fn take_late(&mut self) -> Vec<u32> {
+        std::mem::take(&mut self.late)
+    }
+
     /// Enable source-map anchor events for this print.
     pub const fn with_source_map(mut self) -> Self {
         self.emit_locations = true;
@@ -927,6 +937,26 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             || comment.start_line < self.line_of(offset),
             |_| self.has_newline_between(comment.start, offset),
         )
+    }
+
+    /// The call-layout pre-checks order a pending comment against an argument's
+    /// start by comparing offsets, which cannot order a comment-space comment
+    /// against a source-space argument. For a comment the source-space flush will
+    /// write, compare its source position instead.
+    fn source_comment_wraps(&self, comment: CommentMeta, after: Option<u32>, offset: u32) -> bool {
+        if self.has_loc(offset) || self.src_flushable.binary_search(&comment.start).is_err() {
+            return false;
+        }
+        let Some(source) = self.comment_source_offset(comment.start) else {
+            return false;
+        };
+        source < offset
+            && after.is_none_or(|after| after == u32::MAX || source >= after)
+            && (!comment.block
+                || self.map_text.is_some_and(|text| {
+                    text.get(source as usize..offset as usize)
+                        .is_some_and(contains_line_terminator)
+                }))
     }
 
     /// The text placement decisions are read from, if the caller supplied one.
@@ -2210,7 +2240,10 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             && body_start.is_some_and(|start| self.has_loc(start))
             && self.has_loc(body_end)
         {
+            let first = self.written.len();
             self.flush_comments_until(ctx, body_end, last_end, false, false);
+            let emitted = self.written[first..].to_vec();
+            self.late.extend(emitted);
         }
     }
 
@@ -4938,7 +4971,8 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 .as_expression()
                 .map_or_else(|| arg.span().start, |e| unparen(e).span().start);
             let wrap = self.comment_at(self.comment_index).is_some_and(|c| {
-                c.start < arg_start && self.comment_starts_on_earlier_line(c, arg_start)
+                (c.start < arg_start && self.comment_starts_on_earlier_line(c, arg_start))
+                    || self.source_comment_wraps(c, None, arg_start)
             });
 
             ctx.write_ascii(b'(');
@@ -4991,9 +5025,10 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 .as_expression()
                 .map_or_else(|| first.span().end, |e| unparen(e).span().end);
             let force_multiline = self.comment_at(self.comment_index).is_some_and(|c| {
-                c.start >= first_end
+                (c.start >= first_end
                     && c.start < second_start
-                    && (!c.block || self.comment_starts_on_earlier_line(c, second_start))
+                    && (!c.block || self.comment_starts_on_earlier_line(c, second_start)))
+                    || self.source_comment_wraps(c, Some(first_end), second_start)
             });
 
             ctx.write_ascii(b'(');
@@ -5031,7 +5066,8 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 .as_expression()
                 .map_or_else(|| last.span().start, |e| unparen(e).span().start);
             let force_multiline = self.comment_at(self.comment_index).is_some_and(|c| {
-                c.start < last_start && self.comment_starts_on_earlier_line(c, last_start)
+                (c.start < last_start && self.comment_starts_on_earlier_line(c, last_start))
+                    || self.source_comment_wraps(c, None, last_start)
             });
             ctx.write_ascii(b'(');
             let start = ctx.event_mark();
@@ -5092,8 +5128,8 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
 
             if is_last
                 && let Some(c) = self.comment_at(self.comment_index)
-                && c.start < arg_start
-                && self.comment_starts_on_earlier_line(c, arg_start)
+                && ((c.start < arg_start && self.comment_starts_on_earlier_line(c, arg_start))
+                    || self.source_comment_wraps(c, None, arg_start))
             {
                 force_multiline = true;
             }
