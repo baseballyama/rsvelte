@@ -225,6 +225,9 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
                     let conv = rsvelte_core::compiler::legacy::Utf8ToUtf16::new(source);
                     rsvelte_core::compiler::legacy::convert_positions_to_utf16(&mut value, &conv);
                 }
+                rsvelte_core::compiler::acorn_lines::apply_acorn_line_terminators(
+                    &mut value, source,
+                );
                 serde_json::to_string(&value)
                     .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))
             };
@@ -232,7 +235,9 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
                 // Serialize within the AST's arena so `JsNodeId`s in the
                 // Serialize impls resolve (mirrors `wasm::parse_svelte`).
                 rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
-                    if source.is_ascii() {
+                    if source.is_ascii()
+                        && !rsvelte_core::compiler::acorn_lines::has_non_lf_line_breaks(source)
+                    {
                         return serde_json::to_string(&ast)
                             .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")));
                     }

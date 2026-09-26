@@ -1371,7 +1371,10 @@ pub enum ShadowMode {
 #[serde(untagged)]
 pub enum ShadowOption {
     Mode(ShadowMode),
-    Init(serde_json::Value),
+    Init(
+        #[serde(serialize_with = "crate::ast::typed_expr::serialize_value_with_comments")]
+        serde_json::Value,
+    ),
 }
 
 // =============================================================================

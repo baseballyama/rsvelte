@@ -477,6 +477,14 @@ pub fn convert_positions_to_utf16(value: &mut Value, pos_conv: &Utf8ToUtf16) {
             {
                 map.insert("end".to_string(), json!(pos_conv.convert(pos as usize)));
             }
+            if let Some(Value::Number(n)) = map.field("trailingComma")
+                && let Some(pos) = n.as_u64()
+            {
+                map.insert(
+                    "trailingComma".to_string(),
+                    json!(pos_conv.convert(pos as usize)),
+                );
+            }
             if let Some(Value::Number(n)) = map.field("character")
                 && let Some(pos) = n.as_u64()
             {
@@ -631,6 +639,7 @@ fn convert_to_legacy_inner(source: &str, ast: &Root) -> Value {
     // Convert all positions from UTF-8 to UTF-16
     let mut final_result = Value::Object(result);
     convert_positions_to_utf16(&mut final_result, &pos_conv);
+    crate::compiler::acorn_lines::apply_acorn_line_terminators(&mut final_result, source);
 
     final_result
 }
@@ -1135,15 +1144,8 @@ fn convert_await_block(source: &str, await_block: &AwaitBlock, positions: &Utf8T
             .or(first_start)
             .unwrap_or_else(|| find_closing_brace_after(source, expr_end));
 
-        // In legacy format, empty then blocks in error recovery have end = await_block.start - 2
-        let end = last_end.unwrap_or_else(|| {
-            if then.nodes.is_empty() {
-                // Error recovery case: end points backwards
-                await_block.start.saturating_sub(2) as usize
-            } else {
-                find_closing_brace_after(source, pending_end.unwrap_or(expr_end))
-            }
-        });
+        let end = last_end
+            .unwrap_or_else(|| brace_end_at_or_before(source, pending_end.unwrap_or(expr_end)));
 
         then_block = estree_obj! {
             "type": "ThenBlock",
@@ -1168,14 +1170,8 @@ fn convert_await_block(source: &str, await_block: &AwaitBlock, positions: &Utf8T
             .or(first_start)
             .unwrap_or_else(|| find_closing_brace_after(source, expr_end));
 
-        // In legacy format, empty catch blocks in error recovery have end = await_block.start - 2
         let end = last_end.unwrap_or_else(|| {
-            if catch.nodes.is_empty() {
-                // Error recovery case: end points backwards
-                await_block.start.saturating_sub(2) as usize
-            } else {
-                find_closing_brace_after(source, then_end.or(pending_end).unwrap_or(expr_end))
-            }
+            brace_end_at_or_before(source, then_end.or(pending_end).unwrap_or(expr_end))
         });
 
         catch_block = estree_obj! {
@@ -1926,6 +1922,19 @@ fn find_last_brace_before(source: &str, pos: usize) -> usize {
         }
     }
     pos
+}
+
+/// `source.lastIndexOf('}', pos) + 1`: the search includes `pos`, and a miss yields 0.
+fn brace_end_at_or_before(source: &str, pos: usize) -> usize {
+    let bytes = source.as_bytes();
+    if bytes.is_empty() {
+        return 0;
+    }
+    let from = pos.min(bytes.len() - 1);
+    bytes[..=from]
+        .iter()
+        .rposition(|&b| b == b'}')
+        .map_or(0, |i| i + 1)
 }
 
 fn find_closing_brace_after(source: &str, pos: usize) -> usize {

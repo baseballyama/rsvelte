@@ -70,7 +70,10 @@ pub(crate) fn resolve_lazy_expressions_with_line_offsets<'a>(
             stylesheet.content.start as usize,
             parser_content_end,
         ) {
-            Ok(children) => stylesheet.children = children,
+            Ok((children, comments)) => {
+                stylesheet.children = children;
+                stylesheet.comments = comments;
+            }
             Err(err) => {
                 if first_error.is_none() {
                     first_error = Some(err);

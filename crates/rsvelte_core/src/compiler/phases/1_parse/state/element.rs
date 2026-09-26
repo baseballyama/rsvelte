@@ -1176,7 +1176,12 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            if let Some(attr) = self.parse_attribute()? {
+            let parsed = if self.in_root_script_or_style {
+                self.parse_static_attribute()?
+            } else {
+                self.parse_attribute()?
+            };
+            if let Some(attr) = parsed {
                 // Check for duplicate attributes - linear scan over existing attributes.
                 // No separate data structure needed (most elements have < 10 attributes).
                 let (attr_type_prefix, attr_name): (u8, &str) = match &attr {
@@ -1291,6 +1296,85 @@ impl<'a> Parser<'a> {
         } else {
             false
         }
+    }
+
+    /// `read_static_attribute`: top-level `<script>` / `<style>` attributes are
+    /// read as raw name/value text, so `{...}` is part of the name, not an expression.
+    fn parse_static_attribute(&mut self) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
+        let start = self.index;
+        while self.index < self.bytes.len() {
+            let c = self.source[self.index..].chars().next().unwrap_or('\0');
+            if is_js_whitespace(c) || matches!(c, '/' | '>' | '"' | '\'' | '=') {
+                break;
+            }
+            self.index += c.len_utf8();
+        }
+        let name_end = self.index;
+        if name_end == start {
+            return Ok(None);
+        }
+        let name = CompactString::from(&self.source[start..name_end]);
+        let name_loc = self.create_name_loc_optional(start, name_end);
+
+        let mut value = AttributeValue::True(true);
+        if self.eat_optional("=") {
+            self.skip_whitespace();
+            let rest = &self.source[self.index..];
+            // /(?:"([^"]*)"|'([^'])*'|([^>\s]+))/y
+            let raw_len = match rest.as_bytes().first() {
+                Some(&q @ (b'"' | b'\'')) if memchr(q, &rest.as_bytes()[1..]).is_some() => {
+                    memchr(q, &rest.as_bytes()[1..]).map_or(0, |i| i + 2)
+                }
+                _ => rest
+                    .char_indices()
+                    .find(|&(_, c)| c == '>' || is_js_whitespace(c))
+                    .map_or(rest.len(), |(i, _)| i),
+            };
+            if raw_len == 0 {
+                return Err(crate::error::ParseError::svelte(
+                    "expected_attribute_value",
+                    "Expected attribute value\nhttps://svelte.dev/e/expected_attribute_value",
+                    (self.index, self.index),
+                ));
+            }
+            let raw_full = &rest[..raw_len];
+            self.index += raw_len;
+            let quoted = raw_full.starts_with(['"', '\'']);
+            let raw = if quoted {
+                let inner = &raw_full[1..];
+                match inner.char_indices().last() {
+                    Some((i, _)) => &inner[..i],
+                    None => inner,
+                }
+            } else {
+                raw_full
+            };
+            let text_end = if quoted { self.index - 1 } else { self.index };
+            let text_start = text_end - raw.len();
+            value = AttributeValue::Sequence(vec![AttributeValuePart::Text(Text {
+                start: text_start as u32,
+                end: text_end as u32,
+                raw: Cow::Borrowed(raw),
+                data: Cow::Owned(decode_html_entities(raw, true)),
+            })]);
+        }
+
+        if matches!(self.bytes.get(self.index), Some(b'"' | b'\'')) {
+            return Err(crate::error::ParseError::svelte(
+                "expected_token",
+                "Expected token =\nhttps://svelte.dev/e/expected_token",
+                (self.index, self.index),
+            ));
+        }
+
+        Ok(Some(crate::ast::Attribute::Attribute(AttributeNode {
+            start: start as u32,
+            end: self.index as u32,
+            name,
+            name_loc,
+            value,
+            metadata: Default::default(),
+        })))
     }
 
     /// Parse a single attribute.
@@ -1889,6 +1973,14 @@ impl<'a> Parser<'a> {
                     }));
                 }
 
+                if parts.is_empty() {
+                    parts.push(AttributeValuePart::Text(crate::ast::template::Text {
+                        start: self.index as u32,
+                        end: self.index as u32,
+                        raw: Cow::Borrowed(""),
+                        data: Cow::Borrowed(""),
+                    }));
+                }
                 self.advance(); // consume closing quote
                 AttributeValue::Sequence(parts)
             } else {

@@ -94,11 +94,16 @@ fn visit_atrule(context: &mut Context, node: &Value) {
         context.write("@");
         context.write(&escape_identifier(name));
 
-        if let Some(prelude) = node.field("prelude").and_then(|p| p.as_str())
-            && !prelude.is_empty()
-        {
+        let prelude = node.field("prelude").and_then(|p| p.as_str()).unwrap_or("");
+        let prelude_end = node
+            .field("block")
+            .and_then(|block| block.field("start"))
+            .or_else(|| node.field("end"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        if !prelude.is_empty() || context.has_css_comment_before(prelude_end) {
             context.write(" ");
-            context.write(prelude);
+            context.write_css_value(prelude, prelude_end);
         }
 
         if let Some(block) = node.field("block") {
@@ -326,7 +331,8 @@ fn visit_declaration(context: &mut Context, node: &Value) {
     {
         context.write(property);
         context.write(": ");
-        context.write(value);
+        let end = node.field("end").and_then(Value::as_u64).unwrap_or(0);
+        context.write_css_value(value, end);
         context.write(";");
     }
 }

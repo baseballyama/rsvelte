@@ -170,6 +170,22 @@ impl<'a> Context<'a> {
         written
     }
 
+    /// Upstream's `write_value`: re-inserts the comments `read_value` cut out.
+    pub fn write_css_value(&mut self, value: &str, end: u64) {
+        let mut offset = 0;
+        while self.has_css_comment_before(end) {
+            let position = self.css_comments[self.css_comment_index]
+                .field("position")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0) as usize;
+            let position = utf16_to_byte_offset(value, position).max(offset);
+            self.write(&value[offset..position]);
+            self.write_next_css_comment();
+            offset = position;
+        }
+        self.write(&value[offset..]);
+    }
+
     pub fn write_next_css_comment(&mut self) {
         let value = self.css_comments[self.css_comment_index]
             .field("value")
@@ -369,6 +385,18 @@ impl<'a> std::fmt::Display for Context<'a> {
         }
         Ok(())
     }
+}
+
+/// Byte index of the `units`-th UTF-16 code unit, clamped to `text.len()`.
+fn utf16_to_byte_offset(text: &str, units: usize) -> usize {
+    let mut seen = 0;
+    for (index, ch) in text.char_indices() {
+        if seen >= units {
+            return index;
+        }
+        seen += ch.len_utf16();
+    }
+    text.len()
 }
 
 #[cfg(test)]

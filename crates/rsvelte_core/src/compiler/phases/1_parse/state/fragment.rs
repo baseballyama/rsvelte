@@ -67,7 +67,7 @@ impl<'a> Parser<'a> {
         use super::super::parser::StackEntry;
         use super::super::utils::is_void_element;
 
-        let mut fragment = self.parse_fragment()?;
+        let fragment = self.parse_fragment()?;
 
         // Check for unclosed elements or blocks on the stack (unless in loose mode)
         if !self.options.loose
@@ -186,35 +186,6 @@ impl<'a> Parser<'a> {
         // misplaced meta tag anywhere in the file outranks an attribute-value
         // error and an attribute-value error outranks the element's children.
         self.read_svelte_options()?;
-
-        // Determine the end position of script/style tags
-        let script_end = self
-            .instance_script
-            .as_ref()
-            .map(|s| s.end)
-            .unwrap_or(0)
-            .max(self.module_script.as_ref().map(|s| s.end).unwrap_or(0));
-        let style_end = self.stylesheet.as_ref().map(|s| s.end).unwrap_or(0);
-        let max_special_end = script_end.max(style_end);
-
-        // Remove trailing whitespace-only Text nodes (Svelte doesn't include them)
-        // But only if they're at the very end of the file (after script/style too)
-        while let Some(TemplateNode::Text(text)) = fragment.nodes.last() {
-            let after_special = text.end >= max_special_end;
-            // ASCII-only by design: the parser already dropped every trailing
-            // run of JS whitespace when it set `content_end`, so a wider test
-            // here would be unreachable, not more correct.
-            let is_whitespace = text
-                .data
-                .as_bytes()
-                .iter()
-                .all(|&b| b == b' ' || b == b'\t' || b == b'\n' || b == b'\r');
-            if is_whitespace && after_special {
-                fragment.nodes.pop();
-            } else {
-                break;
-            }
-        }
 
         // Upstream parses `template.trimEnd()` but sets `this.root.end =
         // template.length` on the UNTRIMMED source (`phases/1-parse/index.js`).
@@ -491,6 +462,7 @@ impl<'a> Parser<'a> {
                 {
                     self.pending_leading_comments.clear();
                 }
+                self.last_fragment_node_end = Some(node.span().1);
                 nodes.push(node);
             }
         }

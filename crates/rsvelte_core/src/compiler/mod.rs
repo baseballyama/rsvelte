@@ -38,6 +38,7 @@
 //! println!("{}", result.js.code);
 //! ```
 
+pub mod acorn_lines;
 pub mod constants;
 pub(crate) mod identifier_escapes;
 pub mod legacy;

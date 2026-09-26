@@ -1082,6 +1082,20 @@ macro_rules! ser_opaque_ts {
 /// the parse-only arena side table on every nested ESTree node. Unlike ordinary
 /// typed children, these nodes are serialized from `Value`, so their serializers
 /// cannot consult `ser_comments!` individually.
+/// `serialize_with` for an ESTree subtree kept as a `Value` outside a `JsNode`.
+pub(crate) fn serialize_value_with_comments<S: serde::Serializer>(
+    value: &Value,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    if crate::ast::arena::try_with_current_serialize_arena(|arena| arena.has_node_comments())
+        .unwrap_or(false)
+    {
+        opaque_ts_with_comments(value).serialize(serializer)
+    } else {
+        value.serialize(serializer)
+    }
+}
+
 fn opaque_ts_with_comments(value: &Value) -> Value {
     let mut value = value.clone();
     crate::ast::arena::try_with_current_serialize_arena(|arena| {

@@ -29,9 +29,20 @@ fn script_is_typescript(script: &Script<'_>) -> bool {
 
 /// The lexical sniff this decision used before it was parsed. Kept only for
 /// sources the parser rejects, which never reach an overlay anyway.
+/// Whitespace around `=` is tolerated because upstream's own attribute reader
+/// accepts `lang = "ts"`, which the compiler's static script-attribute reader rejects.
 fn looks_like_typescript(source: &str) -> bool {
     let lower = source.to_ascii_lowercase();
-    lower.contains("lang=\"ts\"") || lower.contains("lang='ts'") || lower.contains("lang=ts")
+    lower.match_indices("lang").any(|(i, _)| {
+        let rest = lower[i + 4..].trim_start();
+        let Some(rest) = rest.strip_prefix('=') else {
+            return false;
+        };
+        let rest = rest.trim_start();
+        ["\"ts\"", "'ts'", "ts"]
+            .iter()
+            .any(|value| rest.starts_with(value))
+    })
 }
 
 /// Whether a component's scripts are TypeScript, deciding it the way upstream's
