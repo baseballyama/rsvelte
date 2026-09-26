@@ -2521,7 +2521,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_check"
-version = "0.5.31"
+version = "0.5.32"
 dependencies = [
  "clap",
  "mimalloc",
