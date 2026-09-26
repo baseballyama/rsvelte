@@ -12558,6 +12558,27 @@ fn convert_expression_for_program<'a>(
                 right: arena.alloc_js_node(expr_to_node(right)),
             })
         }
+        OxcExpression::PrivateInExpression(private_in) => {
+            let start = offset + private_in.span.start as usize;
+            let end = offset + private_in.span.end as usize;
+            let left_start = offset + private_in.left.span.start as usize;
+            let left_end = offset + private_in.left.span.end as usize;
+            let right =
+                convert_expression_for_program(arena, &private_in.right, offset, line_offsets);
+            Expression::from_node(JsNode::BinaryExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                left: arena.alloc_js_node(JsNode::PrivateIdentifier {
+                    start: left_start as u32,
+                    end: left_end as u32,
+                    loc: create_typed_loc(left_start, left_end, line_offsets),
+                    name: CompactString::from(private_in.left.name.as_str()),
+                }),
+                operator: CompactString::from("in"),
+                right: arena.alloc_js_node(expr_to_node(right)),
+            })
+        }
         OxcExpression::LogicalExpression(logical) => {
             let start = offset + logical.span.start as usize;
             let end = offset + logical.span.end as usize;
