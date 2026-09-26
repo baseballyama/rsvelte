@@ -33,6 +33,16 @@ fn legacy(src: &str) -> Value {
 }
 
 #[test]
+fn an_empty_quoted_style_directive_value_is_one_empty_text() {
+    let src = "<div style:color=\"\"></div>";
+    let value = modern(src)["fragment"]["nodes"][0]["attributes"][0]["value"].clone();
+    assert_eq!(
+        value,
+        json!([{ "start": 18, "end": 18, "type": "Text", "raw": "", "data": "" }])
+    );
+}
+
+#[test]
 fn whitespace_before_a_trailing_svelte_options_is_kept() {
     let src = "<p>a</p>\n\n<svelte:options runes />";
     let nodes = modern(src)["fragment"]["nodes"].clone();

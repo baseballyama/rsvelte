@@ -1973,6 +1973,14 @@ impl<'a> Parser<'a> {
                     }));
                 }
 
+                if parts.is_empty() {
+                    parts.push(AttributeValuePart::Text(crate::ast::template::Text {
+                        start: self.index as u32,
+                        end: self.index as u32,
+                        raw: Cow::Borrowed(""),
+                        data: Cow::Borrowed(""),
+                    }));
+                }
                 self.advance(); // consume closing quote
                 AttributeValue::Sequence(parts)
             } else {
