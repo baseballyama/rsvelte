@@ -12033,7 +12033,7 @@ fn convert_expression_for_program<'a>(
                 loc: create_typed_loc(start, end, line_offsets),
                 callee: arena.alloc_js_node(expr_to_node(callee)),
                 arguments: arena.alloc_js_children(args),
-                optional: false,
+                optional: call.optional,
                 type_arguments: opt_type_args(
                     arena,
                     call.type_arguments.as_deref(),
