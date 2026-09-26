@@ -7340,7 +7340,8 @@ fn transform_atrule_preserving<'a>(
         return;
     }
 
-    // Handle media, supports, layer, etc. - need to transform nested rules
+    // Handle media, supports, layer, etc. - need to transform nested rules.
+    // The header is source text (upstream never rewrites it); the parsed prelude lacks its comments.
     let mut header = String::from("@");
     header.push_str(name);
 
@@ -7354,7 +7355,17 @@ fn transform_atrule_preserving<'a>(
     if let Some(block) = block {
         let block_start = block.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
 
-        header.push_str(" {");
+        let source_header = node_start
+            .checked_sub(css_start)
+            .zip((block_start + 1).checked_sub(css_start))
+            .and_then(|(from, to)| css_source.get(from..to));
+        let header = match source_header {
+            Some(text) => text.to_string(),
+            None => {
+                header.push_str(" {");
+                header
+            }
+        };
         mark_node(output, block);
         output.copy_verbatim(css_source, css_start, node_start, &header);
 
@@ -7388,6 +7399,14 @@ fn transform_atrule_preserving<'a>(
 
         let block_end = block.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
         output.copy_verbatim(css_source, css_start, block_end.saturating_sub(1), "}");
+    } else if let Some(text) = node_start
+        .checked_sub(css_start)
+        .zip(node_end.checked_sub(css_start))
+        .and_then(|(from, to)| css_source.get(from..to))
+        .filter(|text| text.ends_with(';'))
+    {
+        mark_tree(output, node);
+        output.copy(node_start, text);
     } else {
         output.push_str(&header);
         output.push(';');

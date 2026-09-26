@@ -68,17 +68,18 @@ pub fn parse_css(content: &str, offset: usize) -> Vec<Value> {
 /// of silently swallowing them. Used by the style-tag parser to surface
 /// `css_expected_identifier` (and similar) errors that the official Svelte
 /// CSS parser raises in `read_identifier` / `read_selector`.
+/// Returns the stylesheet's children and its `comments`.
 pub(crate) fn parse_css_strict(
     content: &str,
     offset: usize,
     template_end: usize,
-) -> Result<Vec<Value>, crate::error::ParseError> {
+) -> Result<(Vec<Value>, Vec<Value>), crate::error::ParseError> {
     let mut parser = CssParser::new(content, offset, template_end);
     let rules = parser.parse();
     if let Some(err) = parser.error.take() {
         return Err(err);
     }
-    Ok(rules)
+    Ok((rules, parser.comments.into_inner()))
 }
 
 fn collect_css_comments(content: &str, offset: usize) -> Vec<Value> {
@@ -812,23 +813,26 @@ impl<'a> Parser<'a> {
         // by the underlying CSS parser (e.g. `css_expected_identifier` for
         // tokens like `$blue`) propagate to the user instead of being
         // silently dropped.
-        let css_children = if self.should_defer_template_parse() {
+        let (css_children, css_comments) = if self.should_defer_template_parse() {
             if let Some(err) = no_rule_error {
                 return Err(err);
             }
-            Vec::new() // Will be resolved by ensure_css_parsed() before analysis
+            (Vec::new(), Vec::new()) // Will be resolved by ensure_css_parsed() before analysis
         } else if lenient_non_css {
             // Non-CSS `lang` block in lint mode: the body is sass/scss/stylus/…,
             // not CSS — don't parse it as CSS (CSS-aware rules handle the raw
             // text themselves via their own `lang` branch). Yields no CSS AST
             // children, so the surrounding template still lints normally.
-            Vec::new()
+            (
+                Vec::new(),
+                collect_css_comments(style_content, content_start),
+            )
         } else {
-            let children = parse_css_strict(style_content, content_start, self.content_end)?;
+            let parsed = parse_css_strict(style_content, content_start, self.content_end)?;
             if let Some(err) = no_rule_error {
                 return Err(err);
             }
-            children
+            parsed
         };
 
         // Capture the preceding HTML comment for svelte-ignore support.
@@ -844,7 +848,7 @@ impl<'a> Parser<'a> {
             end: end as u32,
             attributes: style_attributes,
             children: css_children,
-            comments: collect_css_comments(style_content, content_start),
+            comments: css_comments,
             content: StyleSheetContent {
                 start: content_start as u32,
                 end: content_end as u32,
@@ -880,6 +884,8 @@ struct CssParser<'a> {
     template_end: usize,
     /// Current nested-rule depth, bounded by `MAX_NESTING_DEPTH`.
     depth: u32,
+    /// `parser.css_comments`, in the order upstream's reader pushes them.
+    comments: std::cell::RefCell<Vec<Value>>,
 }
 
 impl<'a> CssParser<'a> {
@@ -891,7 +897,145 @@ impl<'a> CssParser<'a> {
             error: std::cell::Cell::new(None),
             template_end,
             depth: 0,
+            comments: std::cell::RefCell::new(Vec::new()),
         }
+    }
+
+    /// Record the comment spanning `start..end` (relative, `/*` through `*/`).
+    fn record_comment(&self, start: usize, end: usize, position: Option<usize>) {
+        let value_end = if self.source[..end].ends_with("*/") && end >= start + 4 {
+            end - 2
+        } else {
+            end
+        };
+        let value = self.source.get(start + 2..value_end).unwrap_or("");
+        let mut comment = Map::new();
+        comment.insert("type".to_string(), Value::String("CSSComment".to_string()));
+        comment.insert("value".to_string(), Value::String(value.to_string()));
+        comment.insert(
+            "start".to_string(),
+            Value::Number(((self.offset + start) as i64).into()),
+        );
+        comment.insert(
+            "end".to_string(),
+            Value::Number(((self.offset + end) as i64).into()),
+        );
+        if let Some(position) = position {
+            comment.insert(
+                "position".to_string(),
+                Value::Number((position as i64).into()),
+            );
+        }
+        self.comments.borrow_mut().push(Value::Object(comment));
+    }
+
+    /// `allow_comment_or_whitespace`'s capturing `read_comment`.
+    fn consume_comment(&mut self) {
+        let start = self.index;
+        self.skip_block_comment();
+        self.record_comment(start, self.index, None);
+    }
+
+    /// Record the comments `read_selector_list` captures inside a rule prelude.
+    fn record_selector_comments(&self, start: usize, end: usize) {
+        let bytes = self.source.as_bytes();
+        let mut i = start;
+        let mut quote: Option<u8> = None;
+        while i < end {
+            let b = bytes[i];
+            if b == b'\\' {
+                i += 2;
+                continue;
+            }
+            if let Some(q) = quote {
+                if b == q {
+                    quote = None;
+                }
+                i += 1;
+                continue;
+            }
+            if b == b'"' || b == b'\'' {
+                quote = Some(b);
+                i += 1;
+                continue;
+            }
+            if b == b'/' && bytes.get(i + 1) == Some(&b'*') {
+                let comment_start = i;
+                i += 2;
+                while i < end && !(bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/')) {
+                    i += 1;
+                }
+                i = (i + 2).min(end);
+                self.record_comment(comment_start, i, None);
+                continue;
+            }
+            i += 1;
+        }
+    }
+
+    /// Upstream's `read_value`: comments outside strings and `url(` are cut out
+    /// of the value and recorded with their UTF-16 offset into the trimmed value.
+    fn read_value(&mut self, terminates: impl Fn(char) -> bool) -> String {
+        let value_start = self.index;
+        let mut comment_spans: Vec<(usize, usize)> = Vec::new();
+        let mut in_url = false;
+        let mut quote: Option<char> = None;
+        let mut tail = [0u8; 3];
+        let push_tail = |tail: &mut [u8; 3], c: char| {
+            tail[0] = tail[1];
+            tail[1] = tail[2];
+            tail[2] = if c.is_ascii() { c as u8 } else { 0 };
+        };
+        while !self.is_eof() {
+            let c = self.current_char();
+            if c == '\\' {
+                push_tail(&mut tail, '\\');
+                self.advance();
+                if !self.is_eof() {
+                    push_tail(&mut tail, self.current_char());
+                    self.advance();
+                }
+                continue;
+            }
+            if Some(c) == quote {
+                quote = None;
+            } else if c == ')' {
+                in_url = false;
+            } else if quote.is_none() && (c == '"' || c == '\'') {
+                quote = Some(c);
+            } else if c == '(' && &tail == b"url" {
+                in_url = true;
+            } else if !in_url && quote.is_none() && terminates(c) {
+                break;
+            } else if c == '/' && !in_url && quote.is_none() && self.match_str("/*") {
+                let start = self.index;
+                self.skip_block_comment();
+                comment_spans.push((start, self.index));
+                continue;
+            }
+            push_tail(&mut tail, c);
+            self.advance();
+        }
+        self.finish_value(value_start, &comment_spans)
+    }
+
+    fn finish_value(&self, value_start: usize, comment_spans: &[(usize, usize)]) -> String {
+        let mut raw = String::new();
+        let mut positions = Vec::with_capacity(comment_spans.len());
+        let mut cursor = value_start;
+        for &(start, end) in comment_spans {
+            raw.push_str(&self.source[cursor..start]);
+            positions.push(raw.encode_utf16().count());
+            cursor = end;
+        }
+        raw.push_str(&self.source[cursor..self.index]);
+        let leading = raw[..raw.len() - raw.trim_start_ws().len()]
+            .encode_utf16()
+            .count();
+        for (&(start, end), position) in comment_spans.iter().zip(positions) {
+            self.record_comment(start, end, Some(position.saturating_sub(leading)));
+        }
+        raw.trim_ws().to_string()
     }
 
     fn parse(&mut self) -> Vec<Value> {
@@ -905,7 +1049,7 @@ impl<'a> CssParser<'a> {
 
             // Check for comments (CSS and HTML)
             if self.match_str("/*") {
-                self.skip_block_comment();
+                self.consume_comment();
                 continue;
             }
             if self.match_str("<!--") {
@@ -956,23 +1100,7 @@ impl<'a> CssParser<'a> {
             );
             return None;
         }
-        self.skip_whitespace();
-
-        // Read prelude (until { or ;)
-        let prelude_start = self.index;
-        let mut depth = 0;
-        while !self.is_eof() {
-            let c = self.current_char();
-            if c == '(' {
-                depth += 1;
-            } else if c == ')' {
-                depth -= 1;
-            } else if depth == 0 && (c == '{' || c == ';') {
-                break;
-            }
-            self.advance();
-        }
-        let prelude = self.source[prelude_start..self.index].trim_ws().to_string();
+        let prelude = self.read_value(|c| matches!(c, ';' | '{' | '}'));
 
         // Check if there's a block
         let block = if self.current_char() == '{' {
@@ -1013,7 +1141,7 @@ impl<'a> CssParser<'a> {
             // Skip comments so they don't get folded into the next child's
             // span (they're preserved via source gap copying in the printer).
             if self.match_str("/*") {
-                self.skip_block_comment();
+                self.consume_comment();
                 continue;
             }
 
@@ -1163,6 +1291,7 @@ impl<'a> CssParser<'a> {
         self.skip_until_block_start();
         let selector_end = self.index;
         let selector_text = &self.source[selector_start..selector_end];
+        self.record_selector_comments(selector_start, selector_end);
 
         if selector_text.trim_ws().is_empty() {
             // An empty selector at a block start (e.g. `{}`) mirrors the official
@@ -1839,7 +1968,7 @@ impl<'a> CssParser<'a> {
         while !self.is_eof() && self.current_char() != '}' {
             // Skip comments
             if self.match_str("/*") {
-                self.skip_block_comment();
+                self.consume_comment();
                 self.skip_whitespace();
                 continue;
             }
@@ -1985,6 +2114,7 @@ impl<'a> CssParser<'a> {
         let mut bracket_depth = 0;
         let mut brace_depth = 0;
         let mut in_string: Option<char> = None;
+        let mut comment_spans: Vec<(usize, usize)> = Vec::new();
         while !self.is_eof() {
             let c = self.current_char();
             // CSS escape: `\<x>` — consume both bytes verbatim.
@@ -2016,8 +2146,10 @@ impl<'a> CssParser<'a> {
             // is left to the quote scanner below, an apostrophe in prose such
             // as `/* it's a comment */` opens a string and makes the real
             // declaration terminator disappear.
-            if self.match_str("/*") {
+            if !in_url && self.match_str("/*") {
+                let comment_start = self.index;
                 self.skip_block_comment();
+                comment_spans.push((comment_start, self.index));
                 continue;
             }
 
@@ -2048,7 +2180,7 @@ impl<'a> CssParser<'a> {
             push_tail(&mut tail, c);
             self.advance();
         }
-        let value = self.source[value_start..self.index].trim_ws().to_string();
+        let value = self.finish_value(value_start, &comment_spans);
 
         if value.is_empty() && !property.starts_with("--") {
             record_first_error(
@@ -2666,12 +2798,15 @@ impl<'a> SelectorParser<'a> {
             self.advance(); // consume ')'
 
             let content = &self.source[content_start..content_end];
-            let leading = content.len() - content.trim_start_ws().len();
-            let trailing = content.len() - content.trim_end_ws().len();
+            // `read_selector_list` skips comments before its start and ends at its last selector.
+            let leading = CssParser::leading_ws_and_comments_len(content);
+            let trimmed_end = (content.len()
+                - CssParser::css_safe_trailing_ws_and_comments_len(content))
+            .max(leading);
             Some(self.parse_args_selector_list(
-                content.trim_ws(),
+                &content[leading..trimmed_end],
                 args_start + leading,
-                self.offset + content_end - trailing,
+                args_start + trimmed_end,
             ))
         } else {
             None
