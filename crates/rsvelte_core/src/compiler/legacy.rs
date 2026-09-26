@@ -477,6 +477,14 @@ pub fn convert_positions_to_utf16(value: &mut Value, pos_conv: &Utf8ToUtf16) {
             {
                 map.insert("end".to_string(), json!(pos_conv.convert(pos as usize)));
             }
+            if let Some(Value::Number(n)) = map.field("trailingComma")
+                && let Some(pos) = n.as_u64()
+            {
+                map.insert(
+                    "trailingComma".to_string(),
+                    json!(pos_conv.convert(pos as usize)),
+                );
+            }
             if let Some(Value::Number(n)) = map.field("character")
                 && let Some(pos) = n.as_u64()
             {

@@ -263,6 +263,7 @@ impl<'a> Parser<'a> {
         // Discard any comments left in the per-thread expression sink from
         // a previous (possibly errored) parse on this thread.
         let _ = crate::compiler::phases::phase1_parse::read::expression::take_expr_comments();
+        crate::compiler::phases::phase1_parse::read::expression::set_doc_source(source);
 
         // Calculate line offsets for directive `name_loc` values. Compilation
         // omits expression locations, but name locations remain part of the
@@ -356,6 +357,7 @@ impl<'a> Parser<'a> {
         self.root_comments.borrow_mut().clear();
         self.depth = 0;
         let _ = crate::compiler::phases::phase1_parse::read::expression::take_expr_comments();
+        crate::compiler::phases::phase1_parse::read::expression::set_doc_source(source);
         self.arena = ParseArena::new(); // Fresh arena per file
     }
 

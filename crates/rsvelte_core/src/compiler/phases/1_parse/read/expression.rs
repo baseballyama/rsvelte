@@ -54,6 +54,147 @@ thread_local! {
     /// `parser.root.comments` which is shared between the Svelte parser
     /// and acorn's `onComment` handler.
     static EXPR_COMMENT_SINK: RefCell<Vec<crate::ast::template::JsComment>> = const { RefCell::new(Vec::new()) };
+    /// The document the current parse converts positions into; lets a
+    /// converter read tokens oxc does not keep (a type-parameter trailing comma).
+    static DOC_SOURCE: RefCell<String> = const { RefCell::new(String::new()) };
+}
+
+pub(crate) fn set_doc_source(source: &str) {
+    DOC_SOURCE.with(|doc| {
+        let mut doc = doc.borrow_mut();
+        doc.clear();
+        doc.push_str(source);
+    });
+}
+
+/// The first index at or after `i` (and before `limit`) that is not
+/// whitespace or a comment.
+fn skip_doc_trivia(doc: &str, mut i: usize, limit: usize) -> usize {
+    let bytes = doc.as_bytes();
+    while i < limit {
+        match bytes[i] {
+            b' ' | b'\t' | b'\n' | b'\r' | 0x0b | 0x0c => i += 1,
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                i = memchr::memchr(b'\n', &bytes[i..limit]).map_or(limit, |n| i + n);
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i = memchr::memmem::find(&bytes[(i + 2).min(limit)..limit], b"*/")
+                    .map_or(limit, |n| i + 2 + n + 2);
+            }
+            b if b >= 0x80 => match doc.get(i..).and_then(|rest| rest.chars().next()) {
+                Some(c) if crate::compiler::phases::phase1_parse::parser::is_js_whitespace(c) => {
+                    i += c.len_utf8();
+                }
+                _ => return i,
+            },
+            _ => return i,
+        }
+    }
+    i
+}
+
+/// acorn-typescript's `extra.trailingComma` for a `<…>` list: the comma after
+/// the last element, if the rest of the list up to its closing `>` is only
+/// that comma plus whitespace and comments.
+fn doc_trailing_comma(from: usize, close: usize) -> Option<usize> {
+    DOC_SOURCE.with(|doc| {
+        let doc = doc.borrow();
+        let bytes = doc.as_bytes();
+        if from > close || bytes.get(close) != Some(&b'>') {
+            return None;
+        }
+        let comma = skip_doc_trivia(&doc, from, close);
+        if comma >= close || bytes[comma] != b',' {
+            return None;
+        }
+        (skip_doc_trivia(&doc, comma + 1, close) == close).then_some(comma)
+    })
+}
+
+/// Index of the first token after the `@` at `at`, when it is `(`.
+fn doc_decorator_paren(at: usize, limit: usize) -> Option<usize> {
+    DOC_SOURCE.with(|doc| {
+        let doc = doc.borrow();
+        if doc.as_bytes().get(at) != Some(&b'@') || limit > doc.len() {
+            return None;
+        }
+        let i = skip_doc_trivia(&doc, at + 1, limit);
+        (doc.as_bytes().get(i) == Some(&b'(')).then_some(i)
+    })
+}
+
+/// acorn-typescript's `parseDecorator` builds `@a.b(c)`'s member spine and its
+/// one call itself, without `optional`; `@(expr)` parses `expr` normally and
+/// only a call wrapped around the parentheses lacks it.
+fn strip_decorator_spine_optional(expression: &mut Value, paren: Option<usize>) {
+    let is = |v: &Value, ty: &str| v.field("type").and_then(Value::as_str) == Some(ty);
+    if let Some(paren) = paren {
+        if is(expression, "CallExpression")
+            && expression.field("start").and_then(Value::as_u64) == Some(paren as u64)
+            && let Some(obj) = expression.as_object_mut()
+        {
+            obj.remove("optional");
+            // `startNodeAtNode(expr)`: the call starts where the unparenthesized callee does.
+            let callee_start = obj.get("callee").and_then(|c| c.field("start")).cloned();
+            let callee_loc_start = obj
+                .get("callee")
+                .and_then(|c| c.field("loc"))
+                .and_then(|l| l.field("start"))
+                .cloned();
+            if let Some(start) = callee_start {
+                obj.insert("start".to_string(), start);
+            }
+            if let (Some(loc_start), Some(Value::Object(loc))) =
+                (callee_loc_start, obj.get_mut("loc"))
+            {
+                loc.insert("start".to_string(), loc_start);
+            }
+        }
+        return;
+    }
+    let mut node = expression;
+    if is(node, "CallExpression") {
+        let Some(obj) = node.as_object_mut() else {
+            return;
+        };
+        obj.remove("optional");
+        match obj.get_mut("callee") {
+            Some(callee) => node = callee,
+            None => return,
+        }
+    }
+    while is(node, "MemberExpression") {
+        let Some(obj) = node.as_object_mut() else {
+            return;
+        };
+        obj.remove("optional");
+        match obj.get_mut("object") {
+            Some(object) => node = object,
+            None => return,
+        }
+    }
+}
+
+/// `async (...a: T) =>` is first read as call arguments, so acorn-typescript's
+/// rest element keeps the spread's end, before the annotation.
+fn async_arrow_rest_end(
+    arrow: &oxc_ast::ast::ArrowFunctionExpression,
+    rest: &oxc_ast::ast::FormalParameterRest,
+) -> u32 {
+    if arrow.r#async {
+        rest.rest.argument.span().end
+    } else {
+        rest.span.end
+    }
+}
+
+/// oxc starts a method's function at its `<T>`; acorn-typescript reads the
+/// type parameters first and starts the `FunctionExpression` at `(`.
+fn function_value_start(func: &oxc_ast::ast::Function) -> u32 {
+    match &func.type_parameters {
+        Some(tp) if tp.span.start == func.span.start => func.params.span.start,
+        _ => func.span.start,
+    }
 }
 
 /// Push a comment to the per-thread expression-comment sink. Called from
@@ -4435,6 +4576,15 @@ fn convert_ts_type_parameter_declaration(
         .map(|p| convert_ts_type_parameter(arena, p, offset, line_offsets))
         .collect();
     obj.set_field("params", Value::Array(params));
+    if let Some(comma) = decl
+        .params
+        .last()
+        .and_then(|last| doc_trailing_comma(offset + last.span.end as usize, end.checked_sub(1)?))
+    {
+        let mut extra = Map::new();
+        extra.set_field("trailingComma", Value::from(comma));
+        obj.set_field("extra", Value::Object(extra));
+    }
     Value::Object(obj)
 }
 
@@ -5264,7 +5414,7 @@ fn convert_expression<'a>(
             })
         }
         OxcExpression::FunctionExpression(func) => {
-            let start = offset + func.span.start as usize - 1;
+            let start = offset + function_value_start(func) as usize - 1;
             let end = offset + func.span.end as usize - 1;
             let type_parameters =
                 function_expression_type_parameters(arena, func, offset, line_offsets);
@@ -6276,7 +6426,7 @@ fn convert_class_element_for_expr(
 
             // value (function expression). A method's generics live on the
             // MethodDefinition (acorn-typescript), not the inner function.
-            let value_start = offset + method.value.span.start as usize - 1;
+            let value_start = offset + function_value_start(&method.value) as usize - 1;
             let value_end = offset + method.value.span.end as usize - 1;
             let value = create_function_expression(
                 arena,
@@ -7118,7 +7268,7 @@ fn create_arrow_function<'a>(
     // Handle rest parameter (`...args`) which is stored separately in OXC.
     if let Some(rest) = &arrow.params.rest {
         let rest_start = offset + rest.span.start as usize - 1;
-        let rest_end = offset + rest.span.end as usize - 1;
+        let rest_end = offset + async_arrow_rest_end(arrow, rest) as usize - 1;
         let argument = convert_binding_pattern_for_param_as_node(
             arena,
             &rest.rest.argument,
@@ -11436,7 +11586,12 @@ fn convert_class_declaration_as_node(
                 push_span_fields(&mut obj, dec_start, dec_end, line_offsets);
                 let expression =
                     convert_expression_for_program(arena, &dec.expression, offset, line_offsets);
-                obj.set_field("expression", expression.as_json().clone());
+                let mut expression = expression.as_json().clone();
+                strip_decorator_spine_optional(
+                    &mut expression,
+                    doc_decorator_paren(dec_start, dec_end),
+                );
+                obj.set_field("expression", expression);
                 JsNode::from_value(Value::Object(obj))
             })
             .collect();
@@ -12261,7 +12416,7 @@ fn convert_expression_for_program<'a>(
                 .collect();
             if let Some(rest) = &arrow.params.rest {
                 let rest_start = offset + rest.span.start as usize;
-                let rest_end = offset + rest.span.end as usize;
+                let rest_end = offset + async_arrow_rest_end(arrow, rest) as usize;
                 let argument = convert_binding_pattern(
                     arena,
                     &rest.rest.argument,
@@ -13565,7 +13720,7 @@ fn convert_function_expression_for_program(
     offset: usize,
     line_offsets: &[usize],
 ) -> Value {
-    let start = offset + func.span.start as usize;
+    let start = offset + function_value_start(func) as usize;
     let end = offset + func.span.end as usize;
     let mut obj = Map::new();
     obj.set_field("type", Value::String("FunctionExpression".to_string()));
@@ -13671,7 +13826,7 @@ fn convert_function_expression_for_program_as_node(
     // them after `body` (acorn-typescript), unlike declarations/expressions.
     type_parameters_after_body: bool,
 ) -> JsNode {
-    let start = offset + func.span.start as usize;
+    let start = offset + function_value_start(func) as usize;
     let end = offset + func.span.end as usize;
 
     // params
@@ -15832,7 +15987,7 @@ fn create_arrow_function_with_adjustment(
     }
     if let Some(rest) = &arrow.params.rest {
         let rest_start = doc_offset + rest.span.start as usize - prefix_len;
-        let rest_end = doc_offset + rest.span.end as usize - prefix_len;
+        let rest_end = doc_offset + async_arrow_rest_end(arrow, rest) as usize - prefix_len;
         let argument = convert_binding_pattern_for_param(
             arena,
             &rest.rest.argument,
