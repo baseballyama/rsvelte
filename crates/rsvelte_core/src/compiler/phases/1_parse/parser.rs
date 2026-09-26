@@ -117,6 +117,9 @@ pub struct Parser<'a> {
         Option<crate::compiler::phases::phase1_parse::read::options::SvelteOptionsRaw<'a>>,
     /// Pending comments that could become leading comments for a script.
     pub(crate) pending_leading_comments: Vec<crate::ast::template::Comment>,
+    /// End of the most recently appended fragment node; upstream's backward scan
+    /// for a script's leading comment requires the last node to end at the tag.
+    pub(crate) last_fragment_node_end: Option<u32>,
     /// Whether we're in TypeScript mode.
     ///
     /// Corresponds to `ts` field in JavaScript Parser.
@@ -238,6 +241,21 @@ pub enum ElementType {
 }
 
 impl<'a> Parser<'a> {
+    /// The HTML comment upstream's `element.js` scan hands a top-level `<script>` /
+    /// `<style>` starting at `tag_start`.
+    pub(crate) fn preceding_html_comment(
+        &self,
+        tag_start: usize,
+    ) -> Option<&crate::ast::template::Comment> {
+        if self
+            .last_fragment_node_end
+            .is_some_and(|end| end as usize != tag_start)
+        {
+            return None;
+        }
+        self.pending_leading_comments.last()
+    }
+
     /// Create a new parser.
     ///
     /// Corresponds to the `Parser` constructor in `svelte/packages/svelte/src/compiler/phases/1-parse/index.js`.
@@ -281,6 +299,7 @@ impl<'a> Parser<'a> {
             svelte_options: None,
             svelte_options_raw: None,
             pending_leading_comments: Vec::new(),
+            last_fragment_node_end: None,
             ts,
             script_ts: false,
             in_root_script_or_style: false,
@@ -329,6 +348,7 @@ impl<'a> Parser<'a> {
         self.svelte_options = None;
         self.svelte_options_raw = None;
         self.pending_leading_comments.clear();
+        self.last_fragment_node_end = None;
         self.meta_tags.clear();
         self.last_auto_closed_tag = None;
         self.implicit_close_at = None;

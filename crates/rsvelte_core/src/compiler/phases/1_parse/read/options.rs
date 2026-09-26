@@ -94,7 +94,10 @@ impl<'a> Parser<'a> {
             children,
         });
 
-        // svelte:options doesn't produce a node in the fragment
+        // Upstream appends it to the fragment until the parse ends, so it ends a
+        // later `<script>`'s backward scan for a leading HTML comment.
+        self.pending_leading_comments.clear();
+        self.last_fragment_node_end = Some(self.index as u32);
         Ok(None)
     }
 

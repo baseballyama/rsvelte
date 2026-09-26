@@ -2440,143 +2440,167 @@ fn parse_expression_with_typescript<'a>(
             };
             let expr = convert_expression(arena, &expr_stmt.expression, offset, line_offsets);
 
-            // Attach comments to the expression
-            if !result.program.comments.is_empty() {
-                // Mirror upstream `parser.root.comments`: every comment seen
-                // by acorn is pushed there in source order, *in addition* to
-                // being attached as leading/trailing on the inner node.
-                for comment in result.program.comments.iter() {
-                    let comment_start = offset + comment.span.start as usize - 1;
-                    let comment_end = offset + comment.span.end as usize - 1;
-                    let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
-                    let mut value = extract_comment_value(raw, comment.kind);
-                    if matches!(
-                        comment.kind,
-                        oxc_ast::ast::CommentKind::SingleLineBlock
-                            | oxc_ast::ast::CommentKind::MultiLineBlock
-                    ) {
-                        value = normalize_block_comment_indentation(
-                            &value,
-                            content,
-                            comment.span.start as usize - 1,
-                        );
-                    }
-                    record_oxc_comment(
-                        comment.kind,
-                        value,
-                        comment_start,
-                        comment_end,
-                        line_offsets,
-                    );
-                }
-
-                if !crate::ast::arena::comment_capture_active() {
-                    return Some(expr);
-                }
-
-                // Upstream runs the same `add_comments` walk over a template
-                // expression as over a script program (`read_expression` shares
-                // `get_comment_handlers`), so the trailing-comment rules — the
-                // last-in-body case and the `/^[,) \t]*$/` separator — hold here too.
-                let mut comment_entries: Vec<CommentEntry> =
-                    Vec::with_capacity(result.program.comments.len());
-                let mut comment_values: Vec<Value> =
-                    Vec::with_capacity(result.program.comments.len());
-                for comment in result.program.comments.iter() {
-                    // -1 for the paren the expression was wrapped in.
-                    let comment_start = offset + comment.span.start as usize - 1;
-                    let comment_end = offset + comment.span.end as usize - 1;
-                    let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
-                    let mut value = extract_comment_value(raw, comment.kind);
-                    if matches!(
-                        comment.kind,
-                        oxc_ast::ast::CommentKind::SingleLineBlock
-                            | oxc_ast::ast::CommentKind::MultiLineBlock
-                    ) {
-                        value = normalize_block_comment_indentation(
-                            &value,
-                            content,
-                            comment.span.start as usize - 1,
-                        );
-                    }
-                    let comment_text = CompactString::from(value.as_str());
-                    let comment_value = create_comment_object(
-                        comment.kind,
-                        value,
-                        comment_start,
-                        comment_end,
-                        line_offsets,
-                    )
-                    .to_value();
-                    comment_entries.push(CommentEntry {
-                        start: comment_start as u32,
-                        text: comment_text,
-                        value: comment_value.clone(),
-                    });
-                    comment_values.push(comment_value);
-                }
-
-                let json_val = expr.as_json();
-                let root_type = json_val
-                    .field("type")
-                    .and_then(Value::as_str)
-                    .map(str::to_owned);
-                let root_span = json_val
-                    .field("start")
-                    .and_then(Value::as_u64)
-                    .zip(json_val.field("end").and_then(Value::as_u64))
-                    .map(|(s, e)| (s as u32, e as u32));
-                let mut ignore_comment_map: Vec<(u32, Vec<CompactString>)> = Vec::new();
-                let mut attacher = CommentAttacher {
-                    comments: &comment_entries,
-                    next: 0,
-                    content,
-                    offset: offset as u32,
-                    map: &mut ignore_comment_map,
-                    captured: Some(std::collections::HashMap::default()),
-                };
-                attacher.visit(json_val, None);
-                let claimed = attacher.next;
-                if let Some(captured) = attacher.captured.take() {
-                    for ((node_type, start, end), (leading, trailing)) in captured {
-                        arena.record_node_comments(
-                            &node_type,
-                            start,
-                            end,
-                            (!leading.is_empty()).then_some(leading),
-                            (!trailing.is_empty()).then_some(trailing),
-                        );
-                    }
-                }
-
-                // Upstream's "trailing comments after the root node" case, which
-                // is what lets a caller find the end of the expression tag.
-                if let (Some(root_type), Some((root_start, root_end))) =
-                    (root_type.as_deref(), root_span)
-                    && comment_entries
-                        .get(claimed)
-                        .is_some_and(|c| c.start >= root_end)
-                {
-                    let (leading, claimed_trailing) = arena
-                        .node_comments(root_type, root_start, root_end)
-                        .unwrap_or((None, None));
-                    let mut trailing = claimed_trailing.unwrap_or_default();
-                    trailing.extend(comment_values[claimed..].iter().cloned());
-                    arena.record_node_comments(
-                        root_type,
-                        root_start,
-                        root_end,
-                        leading,
-                        Some(trailing),
-                    );
-                }
-            }
+            attach_wrapped_comments(
+                arena,
+                &result.program,
+                wrapped,
+                content,
+                offset,
+                line_offsets,
+                || expr.as_json(),
+                true,
+            );
 
             return Some(expr);
         }
 
         None
     })
+}
+
+/// Record a one-byte-wrapped parse's comments in `Root.comments` and, on the
+/// public `parse()` path, run upstream's `add_comments` walk from `json_val`.
+#[allow(clippy::too_many_arguments)]
+fn attach_wrapped_comments<R: std::borrow::Borrow<Value>>(
+    arena: &ParseArena,
+    program: &OxcProgram,
+    wrapped: &str,
+    content: &str,
+    offset: usize,
+    line_offsets: &[usize],
+    root: impl FnOnce() -> R,
+    remove_parens: bool,
+) {
+    if !program.comments.is_empty() {
+        // Mirror upstream `parser.root.comments`: every comment seen
+        // by acorn is pushed there in source order, *in addition* to
+        // being attached as leading/trailing on the inner node.
+        for comment in program.comments.iter() {
+            let comment_start = offset + comment.span.start as usize - 1;
+            let comment_end = offset + comment.span.end as usize - 1;
+            let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
+            let mut value = extract_comment_value(raw, comment.kind);
+            if matches!(
+                comment.kind,
+                oxc_ast::ast::CommentKind::SingleLineBlock
+                    | oxc_ast::ast::CommentKind::MultiLineBlock
+            ) {
+                value = normalize_block_comment_indentation(
+                    &value,
+                    content,
+                    comment.span.start as usize - 1,
+                );
+            }
+            record_oxc_comment(
+                comment.kind,
+                value,
+                comment_start,
+                comment_end,
+                line_offsets,
+            );
+        }
+
+        if !crate::ast::arena::comment_capture_active() {
+            return;
+        }
+
+        // Upstream runs the same `add_comments` walk over a template
+        // expression as over a script program (`read_expression` shares
+        // `get_comment_handlers`), so the trailing-comment rules — the
+        // last-in-body case and the `/^[,) \t]*$/` separator — hold here too.
+        let mut comment_entries: Vec<CommentEntry> = Vec::with_capacity(program.comments.len());
+        let mut comment_values: Vec<Value> = Vec::with_capacity(program.comments.len());
+        for comment in program.comments.iter() {
+            // -1 for the paren the expression was wrapped in.
+            let comment_start = offset + comment.span.start as usize - 1;
+            let comment_end = offset + comment.span.end as usize - 1;
+            let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
+            let mut value = extract_comment_value(raw, comment.kind);
+            if matches!(
+                comment.kind,
+                oxc_ast::ast::CommentKind::SingleLineBlock
+                    | oxc_ast::ast::CommentKind::MultiLineBlock
+            ) {
+                value = normalize_block_comment_indentation(
+                    &value,
+                    content,
+                    comment.span.start as usize - 1,
+                );
+            }
+            let comment_text = CompactString::from(value.as_str());
+            let comment_value = create_comment_object(
+                comment.kind,
+                value,
+                comment_start,
+                comment_end,
+                line_offsets,
+            )
+            .to_value();
+            comment_entries.push(CommentEntry {
+                start: comment_start as u32,
+                text: comment_text,
+                value: comment_value.clone(),
+            });
+            comment_values.push(comment_value);
+        }
+
+        let root = root();
+        let json_val: &Value = root.borrow();
+        let root_type = json_val
+            .field("type")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+        let root_span = json_val
+            .field("start")
+            .and_then(Value::as_u64)
+            .zip(json_val.field("end").and_then(Value::as_u64))
+            .map(|(s, e)| (s as u32, e as u32));
+        let parens = if remove_parens {
+            collect_parens(program, offset)
+        } else {
+            std::collections::HashMap::default()
+        };
+        // A parenthesized root is `remove_parens`d away with what it claimed.
+        let root_span = root_span.filter(|span| !parens.contains_key(span));
+        let mut ignore_comment_map: Vec<(u32, Vec<CompactString>)> = Vec::new();
+        let mut attacher = CommentAttacher {
+            comments: &comment_entries,
+            next: 0,
+            content,
+            offset: offset as u32,
+            map: &mut ignore_comment_map,
+            captured: Some(std::collections::HashMap::default()),
+            parens,
+        };
+        attacher.visit(json_val, None);
+        let claimed = attacher.next;
+        if let Some(captured) = attacher.captured.take() {
+            for ((node_type, start, end), (leading, trailing)) in captured {
+                arena.record_node_comments(
+                    &node_type,
+                    start,
+                    end,
+                    (!leading.is_empty()).then_some(leading),
+                    (!trailing.is_empty()).then_some(trailing),
+                );
+            }
+        }
+
+        // Upstream's "trailing comments after the root node" case, which
+        // is what lets a caller find the end of the expression tag.
+        if let (Some(root_type), Some((root_start, root_end))) = (root_type.as_deref(), root_span)
+            && comment_entries
+                .get(claimed)
+                .is_some_and(|c| c.start >= root_end)
+        {
+            let (leading, claimed_trailing) = arena
+                .node_comments(root_type, root_start, root_end)
+                .unwrap_or((None, None));
+            let mut trailing = claimed_trailing.unwrap_or_default();
+            trailing.extend(comment_values[claimed..].iter().cloned());
+            arena.record_node_comments(root_type, root_start, root_end, leading, Some(trailing));
+        }
+    }
 }
 
 /// Strip optional markers (`?`) from TypeScript parameter names.
@@ -2765,6 +2789,30 @@ pub fn parse_typescript_params<'a>(
                         ))
                     }),
                 }));
+            }
+            if !result.program.comments.is_empty() {
+                // Upstream walks the whole `(params) => {}` it parsed.
+                let arrow = || {
+                    let mut arrow = Map::new();
+                    arrow.set_field("type", Value::String("ArrowFunctionExpression".to_string()));
+                    arrow.set_field("start", Value::from(offset.saturating_sub(1) as u64));
+                    arrow.set_field("end", Value::from((offset + wrapped.len()) as u64));
+                    arrow.set_field(
+                        "params",
+                        Value::Array(p.iter().map(|param| param.as_json().clone()).collect()),
+                    );
+                    Value::Object(arrow)
+                };
+                attach_wrapped_comments(
+                    arena,
+                    &result.program,
+                    &wrapped,
+                    content,
+                    offset,
+                    line_offsets,
+                    arrow,
+                    false,
+                );
             }
             ParseOutcome::Ok(p)
         } else {
@@ -9104,6 +9152,7 @@ fn convert_parsed_program<'ast>(
                 offset: offset as u32,
                 map: &mut ignore_comment_map,
                 captured: capture.then(std::collections::HashMap::default),
+                parens: std::collections::HashMap::default(),
             };
             // OXC lifts a script's directive prologue out of `body`; ESTree
             // keeps them as the first `ExpressionStatement`s, so they are
@@ -9330,10 +9379,56 @@ struct CommentAttacher<'a> {
     /// there would cost every component and change no output.
     captured:
         Option<std::collections::HashMap<(CompactString, u32, u32), (Vec<Value>, Vec<Value>)>>,
+    /// Template expressions keep acorn's `preserveParens` nodes during the walk and
+    /// drop them afterwards (`remove_parens`), so the comments a
+    /// `ParenthesizedExpression` claims vanish. Maps a wrapped node's span to the
+    /// span of the parenthesis around it.
+    parens: std::collections::HashMap<(u32, u32), (u32, u32)>,
 }
 
 impl CommentAttacher<'_> {
     fn visit(&mut self, node: &Value, parent: Option<ParentInfo>) {
+        let span = node.as_object().and_then(|obj| {
+            let start = obj.field("start").and_then(Value::as_u64)?;
+            let end = obj.field("end").and_then(Value::as_u64)?;
+            Some((start as u32, end as u32))
+        });
+        let mut wrappers = Vec::new();
+        if let Some(mut key) = span {
+            while let Some(paren) = self.parens.remove(&key) {
+                wrappers.push(paren);
+                key = paren;
+            }
+        }
+        self.visit_wrapped(node, parent, &wrappers);
+    }
+
+    /// Visit `node` inside `wrappers` (innermost first), as the removed
+    /// `ParenthesizedExpression`s would have been walked.
+    fn visit_wrapped(&mut self, node: &Value, parent: Option<ParentInfo>, wrappers: &[(u32, u32)]) {
+        let Some((&(paren_start, paren_end), inner)) = wrappers.split_last() else {
+            self.visit_node(node, parent);
+            return;
+        };
+        while self
+            .comments
+            .get(self.next)
+            .is_some_and(|comment| comment.start < paren_start)
+        {
+            self.next += 1;
+        }
+        self.visit_wrapped(
+            node,
+            Some(ParentInfo {
+                end: Some(paren_end),
+                is_last_in_body: false,
+            }),
+            inner,
+        );
+        self.claim_trailing(None, Some(paren_start), Some(paren_end), parent.as_ref());
+    }
+
+    fn visit_node(&mut self, node: &Value, parent: Option<ParentInfo>) {
         let Some(obj) = node.as_object() else {
             return;
         };
@@ -9344,6 +9439,7 @@ impl CommentAttacher<'_> {
         let end = obj.field("end").and_then(|v| v.as_u64()).map(|v| v as u32);
         let node_type = obj.field("type").and_then(|t| t.as_str());
 
+        let first_leading = self.next;
         if let Some(start) = start {
             while self
                 .comments
@@ -9354,6 +9450,7 @@ impl CommentAttacher<'_> {
                 self.next += 1;
             }
         }
+        let leading = first_leading..self.next;
 
         // Only these parents let their last child swallow the comments that follow it.
         let last_body_field = match node_type.unwrap_or("") {
@@ -9399,7 +9496,82 @@ impl CommentAttacher<'_> {
             }
         }
 
+        // zimmerframe reaches the `leadingComments` just added as children too, and
+        // `indexOf` returning -1 makes a comment "last in body" of an empty body.
+        if !leading.is_empty() {
+            let empty_body = last_body_field
+                .and_then(|field| obj.field(field))
+                .and_then(Value::as_array)
+                .is_some_and(Vec::is_empty);
+            for index in leading {
+                self.claim_trailing_of_comment(node_type, start, end, index, empty_body);
+            }
+        }
+
         self.claim_trailing(node_type, start, end, parent.as_ref());
+    }
+
+    /// `add_comments`' trailing step for a leading comment walked as a node whose
+    /// parent is the node (`owner_*`) it leads.
+    fn claim_trailing_of_comment(
+        &mut self,
+        owner_type: Option<&str>,
+        owner_start: Option<u32>,
+        owner_end: Option<u32>,
+        index: usize,
+        owner_body_empty: bool,
+    ) {
+        if self.next >= self.comments.len() {
+            return;
+        }
+        let comment_end = self.comment_end(index);
+        let mut claimed = Vec::new();
+        if owner_body_empty {
+            while let Some(next) = self.comments.get(self.next) {
+                if owner_end.is_some_and(|end| next.start >= end) {
+                    break;
+                }
+                claimed.push(self.next);
+                self.next += 1;
+            }
+        } else if let Some(next) = self.comments.get(self.next)
+            && comment_end <= next.start
+            && self.is_separator_slice(comment_end, next.start)
+        {
+            claimed.push(self.next);
+            self.next += 1;
+        }
+        if claimed.is_empty() {
+            return;
+        }
+        let (Some(owner_type), Some(owner_start), Some(owner_end), Some(map)) =
+            (owner_type, owner_start, owner_end, self.captured.as_mut())
+        else {
+            return;
+        };
+        let comment_start = self.comments[index].start;
+        let Some(slot) = map.get_mut(&(CompactString::from(owner_type), owner_start, owner_end))
+        else {
+            return;
+        };
+        let Some(Value::Object(comment)) = slot.0.iter_mut().find(|value| {
+            value.field("start").and_then(Value::as_u64) == Some(u64::from(comment_start))
+        }) else {
+            return;
+        };
+        let trailing: Vec<Value> = claimed
+            .into_iter()
+            .map(|i| self.comments[i].value.clone())
+            .collect();
+        comment.set_field("trailingComments", Value::Array(trailing));
+    }
+
+    fn comment_end(&self, index: usize) -> u32 {
+        self.comments[index]
+            .value
+            .field("end")
+            .and_then(Value::as_u64)
+            .map_or(self.comments[index].start, |end| end as u32)
     }
 
     fn capture(
@@ -9497,6 +9669,43 @@ impl CommentAttacher<'_> {
             _ => self.map.push((start, vec![text])),
         }
     }
+}
+
+/// `ParenthesizedExpression` spans of a template expression parsed with a one-byte
+/// wrapper, keyed by the span of the expression each one wraps.
+fn collect_parens(
+    program: &OxcProgram,
+    offset: usize,
+) -> std::collections::HashMap<(u32, u32), (u32, u32)> {
+    use oxc_ast_visit::Visit;
+
+    struct Collector {
+        base: u32,
+        parens: std::collections::HashMap<(u32, u32), (u32, u32)>,
+    }
+    impl<'a> Visit<'a> for Collector {
+        fn visit_parenthesized_expression(
+            &mut self,
+            it: &oxc_ast::ast::ParenthesizedExpression<'a>,
+        ) {
+            // The wrapper `(` at byte 0 is rsvelte's, not the template's.
+            if it.span.start > 0 {
+                let inner = it.expression.span();
+                self.parens.insert(
+                    (self.base + inner.start - 1, self.base + inner.end - 1),
+                    (self.base + it.span.start - 1, self.base + it.span.end - 1),
+                );
+            }
+            oxc_ast_visit::walk::walk_parenthesized_expression(self, it);
+        }
+    }
+
+    let mut collector = Collector {
+        base: offset as u32,
+        parens: std::collections::HashMap::default(),
+    };
+    collector.visit_program(program);
+    collector.parens
 }
 
 /// Zimmerframe treats any object carrying a string `type` as a node; mirror that.

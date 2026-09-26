@@ -491,6 +491,7 @@ impl<'a> Parser<'a> {
                 {
                     self.pending_leading_comments.clear();
                 }
+                self.last_fragment_node_end = Some(node.span().1);
                 nodes.push(node);
             }
         }

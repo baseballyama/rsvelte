@@ -288,8 +288,7 @@ impl<'a> Parser<'a> {
         // Only the nearest one is kept, because upstream's scan stops at the
         // first Comment and stores exactly `[{ type: 'Line', value: … }]`.
         let leading_comments: Vec<String> = self
-            .pending_leading_comments
-            .last()
+            .preceding_html_comment(start)
             .map(|comment| comment.data.to_string())
             .into_iter()
             .collect();

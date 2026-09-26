@@ -542,7 +542,7 @@ impl<'a> Parser<'a> {
                     start: here as u32,
                     end: here as u32,
                     styles: String::new(),
-                    comment: self.pending_leading_comments.last().map(comment_json),
+                    comment: self.preceding_html_comment(start).map(comment_json),
                 },
             });
             return Ok(None);
@@ -819,7 +819,7 @@ impl<'a> Parser<'a> {
         // HTML comment in `content.content.comment` so that the analysis phase can check
         // if `svelte-ignore css_unused_selector` is present.
         // We use `pending_leading_comments` which accumulates comment data as comments are parsed.
-        let comment = self.pending_leading_comments.last().map(comment_json);
+        let comment = self.preceding_html_comment(start).map(comment_json);
 
         let stylesheet = StyleSheet {
             node_type: StyleSheetType::StyleSheet,
