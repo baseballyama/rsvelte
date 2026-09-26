@@ -390,6 +390,9 @@ struct TsgoRuntime {
     /// Directories whose owning project has already been resolved. The walk is
     /// a handful of `stat`s and `sync_tsgo_document` runs on every keystroke.
     resolved_dirs: HashSet<PathBuf>,
+    /// Nested projects built before tsgo started whose shadows have not been
+    /// handed to tsgo yet; each one is opened when its first document arrives.
+    unopened: HashSet<PathBuf>,
 }
 
 /// Every config nearer to one of an overlay's `.svelte` documents than the
@@ -468,6 +471,7 @@ impl TsgoRuntime {
         // documents that have nothing to do with the nested config depending on
         // which request reaches tsgo first.
         let nested = nested_project_configs(&overlays);
+        let mut unopened = HashSet::new();
         for (owner, mirror_root) in nested {
             let Some(root) = owner.parent() else {
                 continue;
@@ -476,7 +480,10 @@ impl TsgoRuntime {
                 continue;
             }
             match TsgoOverlay::build_nested(root, &owner, &mirror_root) {
-                Ok(overlay) => overlays.push(overlay),
+                Ok(overlay) => {
+                    unopened.insert(overlay.workspace().to_path_buf());
+                    overlays.push(overlay);
+                }
                 Err(error) => log::warn(format_args!(
                     "could not prepare tsgo overlay for {}: {error}",
                     root.display()
@@ -506,7 +513,13 @@ impl TsgoRuntime {
                 return None;
             }
         };
-        for shadow in overlays.iter().flat_map(TsgoOverlay::eager_shadows) {
+        // Opening every nested project's shadows here makes tsgo load all of
+        // those programs before it answers anything.
+        for shadow in overlays
+            .iter()
+            .filter(|overlay| !unopened.contains(overlay.workspace()))
+            .flat_map(TsgoOverlay::eager_shadows)
+        {
             let _ = client.open_buffer(OpenBuffer::new(
                 shadow.shadow_uri.clone(),
                 shadow.language_id.clone(),
@@ -519,6 +532,7 @@ impl TsgoRuntime {
             overlays,
             generation: None,
             resolved_dirs: HashSet::new(),
+            unopened,
         })
     }
 
@@ -549,6 +563,9 @@ impl TsgoRuntime {
         else {
             return false;
         };
+        if self.unopened.remove(&boundary) {
+            self.open_overlay_shadows(&boundary);
+        }
         self.resolved_dirs.insert(dir.to_path_buf());
         let Some(owner) = tsgo_overlay::nearest_tsconfig(source, &boundary) else {
             return false;
@@ -586,6 +603,24 @@ impl TsgoRuntime {
                 ));
                 false
             }
+        }
+    }
+
+    fn open_overlay_shadows(&self, workspace: &Path) {
+        let Some(overlay) = self
+            .overlays
+            .iter()
+            .find(|overlay| overlay.workspace() == workspace)
+        else {
+            return;
+        };
+        for shadow in overlay.eager_shadows() {
+            let _ = self.client.open_buffer(OpenBuffer::new(
+                shadow.shadow_uri.clone(),
+                shadow.language_id.clone(),
+                shadow.version,
+                shadow.text.clone(),
+            ));
         }
     }
 
