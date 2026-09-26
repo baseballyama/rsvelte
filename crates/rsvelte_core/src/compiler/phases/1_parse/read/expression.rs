@@ -4839,13 +4839,107 @@ fn convert_ts_literal(
                 line_offsets,
             )
         }
-        _ => {
-            let span = literal.span();
-            let start = offset + span.start as usize;
-            let end = offset + span.end as usize;
-            ts_literal_value(start, end, Value::Null, None, line_offsets)
+        TSLiteral::BigIntLiteral(b) => ts_bigint_literal_value(b, offset, line_offsets),
+        TSLiteral::TemplateLiteral(t) => {
+            let mut obj = Map::new();
+            obj.set_field("type", Value::String("TemplateLiteral".to_string()));
+            push_span_fields(
+                &mut obj,
+                offset + t.span.start as usize,
+                offset + t.span.end as usize,
+                line_offsets,
+            );
+            obj.set_field("expressions", Value::Array(Vec::new()));
+            let quasis: Vec<Value> = t
+                .quasis
+                .iter()
+                .map(|quasi| {
+                    let mut q = Map::new();
+                    q.set_field("type", Value::String("TemplateElement".to_string()));
+                    push_span_fields(
+                        &mut q,
+                        offset + quasi.span.start as usize,
+                        offset + quasi.span.end as usize,
+                        line_offsets,
+                    );
+                    let mut value = Map::new();
+                    value.set_field("raw", Value::String(quasi.value.raw.to_string()));
+                    value.set_field(
+                        "cooked",
+                        quasi
+                            .value
+                            .cooked
+                            .as_ref()
+                            .map(|s| Value::String(s.to_string()))
+                            .unwrap_or(Value::Null),
+                    );
+                    q.set_field("value", Value::Object(value));
+                    q.set_field("tail", Value::Bool(quasi.tail));
+                    Value::Object(q)
+                })
+                .collect();
+            obj.set_field("quasis", Value::Array(quasis));
+            Value::Object(obj)
+        }
+        // acorn-typescript keeps `-1` / `-1n` as a value-space `UnaryExpression`.
+        TSLiteral::UnaryExpression(u) => {
+            use oxc_ast::ast::Expression as E;
+            let argument = match &u.argument {
+                E::NumericLiteral(n) => ts_literal_value(
+                    offset + n.span.start as usize,
+                    offset + n.span.end as usize,
+                    number_value(n.value),
+                    n.raw.as_ref().map(|r| r.to_string()),
+                    line_offsets,
+                ),
+                E::BigIntLiteral(b) => ts_bigint_literal_value(b, offset, line_offsets),
+                other => {
+                    let span = other.span();
+                    ts_literal_value(
+                        offset + span.start as usize,
+                        offset + span.end as usize,
+                        Value::Null,
+                        None,
+                        line_offsets,
+                    )
+                }
+            };
+            let mut obj = Map::new();
+            obj.set_field("type", Value::String("UnaryExpression".to_string()));
+            push_span_fields(
+                &mut obj,
+                offset + u.span.start as usize,
+                offset + u.span.end as usize,
+                line_offsets,
+            );
+            obj.set_field("operator", Value::String(u.operator.as_str().to_string()));
+            obj.set_field("prefix", Value::Bool(true));
+            obj.set_field("argument", argument);
+            Value::Object(obj)
         }
     }
+}
+
+fn ts_bigint_literal_value(
+    b: &oxc_ast::ast::BigIntLiteral,
+    offset: AdjustedOffset,
+    line_offsets: &[usize],
+) -> Value {
+    let mut obj = Map::new();
+    obj.set_field("type", Value::String("Literal".to_string()));
+    push_span_fields(
+        &mut obj,
+        offset + b.span.start as usize,
+        offset + b.span.end as usize,
+        line_offsets,
+    );
+    obj.set_field("value", Value::Null);
+    obj.set_field(
+        "raw",
+        Value::String(b.raw.as_ref().map(|r| r.to_string()).unwrap_or_default()),
+    );
+    obj.set_field("bigint", Value::String(b.value.to_string()));
+    Value::Object(obj)
 }
 
 /// Build an ESTree `Identifier` node `{ type, start, end, loc, name }` as a
