@@ -390,9 +390,6 @@ struct TsgoRuntime {
     /// Directories whose owning project has already been resolved. The walk is
     /// a handful of `stat`s and `sync_tsgo_document` runs on every keystroke.
     resolved_dirs: HashSet<PathBuf>,
-    /// Nested projects built before tsgo started whose shadows have not been
-    /// handed to tsgo yet; each one is opened when its first document arrives.
-    unopened: HashSet<PathBuf>,
 }
 
 /// Every config nearer to one of an overlay's `.svelte` documents than the
@@ -411,6 +408,48 @@ fn nested_project_configs(overlays: &[TsgoOverlay]) -> BTreeSet<(PathBuf, PathBu
         }
     }
     configs
+}
+
+fn add_nested_overlays(overlays: &mut Vec<TsgoOverlay>) {
+    for (owner, mirror_root) in nested_project_configs(overlays) {
+        let Some(root) = owner.parent() else {
+            continue;
+        };
+        if overlays.iter().any(|overlay| overlay.workspace() == root) {
+            continue;
+        }
+        match TsgoOverlay::build_nested(root, &owner, &mirror_root) {
+            Ok(overlay) => overlays.push(overlay),
+            Err(error) => log::warn(format_args!(
+                "could not prepare tsgo overlay for {}: {error}",
+                root.display()
+            )),
+        }
+    }
+}
+
+/// The shadows handed to tsgo. A workspace without a config of its own has no
+/// project upstream would put a nested project's documents in
+/// (`service.ts:172-201` keys services by the nearest config), so its copy of
+/// them is left closed rather than loaded as a second program.
+fn replayed_shadows(overlays: &[TsgoOverlay]) -> Vec<&tsgo_overlay::ShadowDocument> {
+    let serving = |source: &Path| {
+        overlays
+            .iter()
+            .filter(|overlay| source.starts_with(overlay.workspace()))
+            .max_by_key(|overlay| overlay.workspace().components().count())
+            .map(TsgoOverlay::workspace)
+    };
+    overlays
+        .iter()
+        .flat_map(|overlay| {
+            overlay.eager_shadows().into_iter().filter(move |shadow| {
+                overlay.source_tsconfig().is_some()
+                    || serving(&uri_to_path(shadow.source_uri.as_str()))
+                        .is_none_or(|workspace| workspace == overlay.workspace())
+            })
+        })
+        .collect()
 }
 
 struct PreprocessRuntime {
@@ -470,26 +509,7 @@ impl TsgoRuntime {
         // project on the file event, so a lazy build changes the answer for
         // documents that have nothing to do with the nested config depending on
         // which request reaches tsgo first.
-        let nested = nested_project_configs(&overlays);
-        let mut unopened = HashSet::new();
-        for (owner, mirror_root) in nested {
-            let Some(root) = owner.parent() else {
-                continue;
-            };
-            if overlays.iter().any(|overlay| overlay.workspace() == root) {
-                continue;
-            }
-            match TsgoOverlay::build_nested(root, &owner, &mirror_root) {
-                Ok(overlay) => {
-                    unopened.insert(overlay.workspace().to_path_buf());
-                    overlays.push(overlay);
-                }
-                Err(error) => log::warn(format_args!(
-                    "could not prepare tsgo overlay for {}: {error}",
-                    root.display()
-                )),
-            }
-        }
+        add_nested_overlays(&mut overlays);
 
         let binary = match rsvelte_check::tsgo::find_compiler(&primary, true) {
             Ok(binary) => binary,
@@ -513,13 +533,7 @@ impl TsgoRuntime {
                 return None;
             }
         };
-        // Opening every nested project's shadows here makes tsgo load all of
-        // those programs before it answers anything.
-        for shadow in overlays
-            .iter()
-            .filter(|overlay| !unopened.contains(overlay.workspace()))
-            .flat_map(TsgoOverlay::eager_shadows)
-        {
+        for shadow in replayed_shadows(&overlays) {
             let _ = client.open_buffer(OpenBuffer::new(
                 shadow.shadow_uri.clone(),
                 shadow.language_id.clone(),
@@ -532,7 +546,6 @@ impl TsgoRuntime {
             overlays,
             generation: None,
             resolved_dirs: HashSet::new(),
-            unopened,
         })
     }
 
@@ -563,9 +576,6 @@ impl TsgoRuntime {
         else {
             return false;
         };
-        if self.unopened.remove(&boundary) {
-            self.open_overlay_shadows(&boundary);
-        }
         self.resolved_dirs.insert(dir.to_path_buf());
         let Some(owner) = tsgo_overlay::nearest_tsconfig(source, &boundary) else {
             return false;
@@ -603,24 +613,6 @@ impl TsgoRuntime {
                 ));
                 false
             }
-        }
-    }
-
-    fn open_overlay_shadows(&self, workspace: &Path) {
-        let Some(overlay) = self
-            .overlays
-            .iter()
-            .find(|overlay| overlay.workspace() == workspace)
-        else {
-            return;
-        };
-        for shadow in overlay.eager_shadows() {
-            let _ = self.client.open_buffer(OpenBuffer::new(
-                shadow.shadow_uri.clone(),
-                shadow.language_id.clone(),
-                shadow.version,
-                shadow.text.clone(),
-            ));
         }
     }
 
@@ -2559,6 +2551,7 @@ impl Server {
         let roots = runtime
             .overlays
             .iter()
+            .filter(|overlay| overlay.mirror_root() == overlay.workspace())
             .map(|overlay| overlay.workspace().to_path_buf())
             .collect::<Vec<_>>();
         let mut rebuilt = Vec::with_capacity(roots.len());
@@ -2574,12 +2567,13 @@ impl Server {
         if rebuilt.is_empty() {
             return;
         }
+        add_nested_overlays(&mut rebuilt);
         runtime.resolved_dirs.clear();
         for shadow in runtime.overlays.iter().flat_map(TsgoOverlay::open_shadows) {
             let _ = runtime.client.close_buffer(shadow.shadow_uri.clone());
         }
         runtime.overlays = rebuilt;
-        for shadow in runtime.overlays.iter().flat_map(TsgoOverlay::eager_shadows) {
+        for shadow in replayed_shadows(&runtime.overlays) {
             let _ = runtime.client.open_buffer(OpenBuffer::new(
                 shadow.shadow_uri.clone(),
                 shadow.language_id.clone(),
@@ -5218,8 +5212,9 @@ mod inlay_hint_preference_tests {
 
 #[cfg(test)]
 mod nested_project_tests {
-    use super::nested_project_configs;
+    use super::{add_nested_overlays, nested_project_configs, replayed_shadows};
     use crate::tsgo_overlay::TsgoOverlay;
+    use crate::uri::uri_to_path;
     use std::fs;
     use std::path::Path;
 
@@ -5247,6 +5242,60 @@ mod nested_project_tests {
             configs.into_iter().collect::<Vec<_>>(),
             vec![(root.join("docs/tsconfig.json"), root.clone())],
             "the root's own config is not nested, and `tools` owns no component"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    fn replayed(dir: &Path) -> Vec<(String, String)> {
+        let root = fs::canonicalize(dir).unwrap();
+        let mut overlays = vec![TsgoOverlay::build_with(&root, None, None).unwrap()];
+        add_nested_overlays(&mut overlays);
+        let mut replayed = replayed_shadows(&overlays)
+            .into_iter()
+            .map(|shadow| {
+                let source = uri_to_path(shadow.source_uri.as_str());
+                let shadow = uri_to_path(shadow.shadow_uri.as_str());
+                let nested = root.join(".rsvelte-language-server/projects/docs");
+                let project = if shadow.starts_with(nested) {
+                    "docs"
+                } else {
+                    "root"
+                };
+                (
+                    source.strip_prefix(&root).unwrap().display().to_string(),
+                    project.to_string(),
+                )
+            })
+            .collect::<Vec<_>>();
+        replayed.sort();
+        replayed
+    }
+
+    #[test]
+    fn a_root_without_a_config_leaves_a_nested_projects_documents_to_it() {
+        let dir =
+            std::env::temp_dir().join(format!("rsvelte-nested-replay-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        write(&dir.join("src/App.svelte"), "<p />");
+        write(&dir.join("docs/tsconfig.json"), "{}");
+        write(&dir.join("docs/src/Page.svelte"), "<p />");
+        assert_eq!(
+            replayed(&dir),
+            vec![
+                ("docs/src/Page.svelte".into(), "docs".into()),
+                ("src/App.svelte".into(), "root".into()),
+            ]
+        );
+
+        write(&dir.join("tsconfig.json"), "{}");
+        assert_eq!(
+            replayed(&dir),
+            vec![
+                ("docs/src/Page.svelte".into(), "docs".into()),
+                ("docs/src/Page.svelte".into(), "root".into()),
+                ("src/App.svelte".into(), "root".into()),
+            ],
+            "a root config's own project still includes the nested documents"
         );
         let _ = fs::remove_dir_all(&dir);
     }
