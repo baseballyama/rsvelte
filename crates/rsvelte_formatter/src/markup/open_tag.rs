@@ -203,10 +203,27 @@ fn render_this_attr(
     // than `this={expr}`. Preserve the string form (`this="value"`) rather
     // than converting to the brace form, which would turn `this="div"` into
     // `this={div}` (an identifier reference, not a string literal).
-    let prev_byte = (expr_start as usize)
-        .checked_sub(1)
-        .and_then(|i| source.as_bytes().get(i))
-        .copied();
+    let bytes = source.as_bytes();
+    let byte_at = |index: Option<usize>| index.and_then(|i| bytes.get(i)).copied();
+    let prev_byte = byte_at((expr_start as usize).checked_sub(1));
+    // The parser keeps only the first chunk of a quoted `this` value
+    // (`this="h{n}"` is `'h'`), so a value that does not close right after that
+    // chunk cannot be rebuilt from the node; leave the opener as written.
+    if matches!(prev_byte, Some(b'"' | b'\'')) && byte_at(Some(expr_end as usize)) != prev_byte {
+        return Ok(None);
+    }
+    if prev_byte == Some(b'{')
+        && let Some(quote @ (b'"' | b'\'')) = byte_at((expr_start as usize).checked_sub(2))
+    {
+        let rest = source.get(expr_end as usize..).unwrap_or("");
+        let rest = rest.trim_start_matches(|c: char| c.is_ascii_whitespace());
+        if !rest
+            .strip_prefix('}')
+            .is_some_and(|after| after.as_bytes().first() == Some(&quote))
+        {
+            return Ok(None);
+        }
+    }
     let this_attr = if matches!(prev_byte, Some(b'"' | b'\'')) {
         let raw = source
             .get(expr_start as usize..expr_end as usize)
