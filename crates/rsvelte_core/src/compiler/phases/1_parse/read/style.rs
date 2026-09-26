@@ -149,6 +149,23 @@ fn collect_css_comments(content: &str, offset: usize) -> Vec<Value> {
     comments
 }
 
+/// `read_identifier` consumes the whitespace that ends a hex escape
+/// (`\61 `), so that byte belongs to the selector, not to the combinator.
+fn trim_keeping_escape_terminator(text: &str) -> &str {
+    let text = text.trim_start_ws();
+    let trimmed = text.trim_end_ws();
+    if trimmed.len() == text.len() || !CssParser::ends_with_css_hex_escape(trimmed) {
+        return trimmed;
+    }
+    let rest = &text[trimmed.len()..];
+    let terminator = if rest.starts_with("\r\n") {
+        2
+    } else {
+        rest.chars().next().map_or(0, char::len_utf8)
+    };
+    &text[..trimmed.len() + terminator]
+}
+
 /// Helper: build a CSS `Block` node.
 /// The combinator token starting at `i`, mirroring upstream's
 /// `REGEX_COMBINATOR = /(\+|~|>|\|\|)/y` — a lone `|` is a namespace separator.
@@ -1521,7 +1538,7 @@ impl<'a> CssParser<'a> {
 
             // Check for combinators (+, >, ~)
             if let Some(comb_name) = combinator_at(bytes, i) {
-                let selector_text = text[current_start..i].trim_ws();
+                let selector_text = trim_keeping_escape_terminator(&text[current_start..i]);
                 if !selector_text.is_empty() {
                     let selector_offset = base_offset + current_start;
                     let rel_selector = self.create_relative_selector(
@@ -1581,7 +1598,7 @@ impl<'a> CssParser<'a> {
                         || bytes[j] == b'&'
                     {
                         // This is a descendant combinator (space)
-                        let selector_text = text[current_start..i].trim_ws();
+                        let selector_text = trim_keeping_escape_terminator(&text[current_start..i]);
                         // Only treat as descendant if there's actual selector content before the whitespace
                         // (not just whitespace and comments)
                         if !selector_text.is_empty()
@@ -3118,7 +3135,7 @@ impl<'a> SelectorParser<'a> {
             // Check for combinators
             if let Some(comb_name) = combinator_at(bytes, i) {
                 // Found a combinator
-                let selector_text = text[current_start..i].trim_ws();
+                let selector_text = trim_keeping_escape_terminator(&text[current_start..i]);
                 if !selector_text.is_empty() {
                     let selector_offset = base_offset + current_start;
                     let rel_selector = self.create_relative_selector(
@@ -3166,7 +3183,7 @@ impl<'a> SelectorParser<'a> {
                         || bytes[j] == b'&'
                     {
                         // This is a descendant combinator (space)
-                        let selector_text = text[current_start..i].trim_ws();
+                        let selector_text = trim_keeping_escape_terminator(&text[current_start..i]);
                         if !selector_text.is_empty() {
                             let selector_offset = base_offset + current_start;
                             let rel_selector = self.create_relative_selector(

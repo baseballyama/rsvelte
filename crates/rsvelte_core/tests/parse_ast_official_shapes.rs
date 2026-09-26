@@ -33,6 +33,22 @@ fn legacy(src: &str) -> Value {
 }
 
 #[test]
+fn a_hex_escape_terminator_belongs_to_the_selector_before_a_combinator() {
+    let src = "<style>\n\t.\\61  b { color: red; }\n</style>";
+    let css = modern(src)["css"].clone();
+    let rel = &css["children"][0]["prelude"]["children"][0]["children"];
+    assert_eq!(
+        (rel[0]["start"].clone(), rel[0]["end"].clone()),
+        (json!(9), json!(14))
+    );
+    assert_eq!(rel[0]["selectors"][0]["end"], 14);
+    assert_eq!(
+        (rel[1]["start"].clone(), rel[1]["end"].clone()),
+        (json!(14), json!(16))
+    );
+}
+
+#[test]
 fn an_empty_quoted_style_directive_value_is_one_empty_text() {
     let src = "<div style:color=\"\"></div>";
     let value = modern(src)["fragment"]["nodes"][0]["attributes"][0]["value"].clone();
