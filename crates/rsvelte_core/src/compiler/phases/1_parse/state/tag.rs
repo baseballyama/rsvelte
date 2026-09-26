@@ -244,6 +244,11 @@ impl<'a> Parser<'a> {
         self.skip_whitespace();
         let body_start = self.index;
         let body_text = self.source[body_start..body_end].trim_end_ws();
+        // acorn ends the statement at its last token, not at the `}`.
+        let statement_end = body_start + body_text.len();
+        let body_text = body_text
+            .strip_suffix(';')
+            .map_or(body_text, TrimWs::trim_end_ws);
         self.index = body_end;
         self.advance(); // consume `}`
 
@@ -256,7 +261,12 @@ impl<'a> Parser<'a> {
             let owned: Vec<(usize, String)> =
                 segments.iter().map(|(o, s)| (*o, s.to_string())).collect();
             return Ok(Some(self.build_multi_declarator_tag(
-                start, decl_start, body_start, body_end, kind, &owned,
+                start,
+                decl_start,
+                body_start,
+                statement_end,
+                kind,
+                &owned,
             )));
         }
 
@@ -512,7 +522,8 @@ impl<'a> Parser<'a> {
             pattern_expr,
             init_expr,
             decl_start,
-            body_end,
+            statement_end,
+            init_offset + init_str.len(),
             kind,
             self.expression_line_offsets(),
         );
@@ -601,10 +612,15 @@ impl<'a> Parser<'a> {
                 .field("start")
                 .and_then(|v| v.as_u64())
                 .unwrap_or(seg_off as u64);
-            let decl_end = init_value
-                .field("end")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(id_start + seg.len() as u64);
+            // The init's text, not its node, so wrapping parentheses count.
+            let decl_end = if init_str.is_empty() {
+                init_value
+                    .field("end")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(id_start + seg.len() as u64)
+            } else {
+                (init_off + init_str.len()) as u64
+            };
 
             let mut declarator = Map::new();
             declarator.insert(
@@ -3276,6 +3292,7 @@ fn build_kind_variable_declaration<'a>(
     init: Expression<'a>,
     decl_start: usize,
     decl_end: usize,
+    declarator_end: usize,
     kind: &str,
     line_offsets: &[usize],
 ) -> Expression<'a> {
@@ -3285,7 +3302,7 @@ fn build_kind_variable_declaration<'a>(
         init,
         decl_start,
         decl_end,
-        None,
+        Some(declarator_end),
         kind,
         line_offsets,
     )

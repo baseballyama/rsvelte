@@ -19,15 +19,34 @@ const MODERN: &[Declaration] = &[
     ("VariableDeclarator", 55, 60, None),
 ];
 
+/// Trailing whitespace, a trailing `;`, a parenthesized initializer and a typed
+/// identifier: acorn ends each node at its own last token.
+const EDGES: &str =
+    "<script lang=\"ts\"></script>\n{ let a = 1 }\n{let b = (2);}\n{const c: number = 3}\n";
+
+const EDGES_MODERN: &[Declaration] = &[
+    ("VariableDeclaration", 30, 39, Some([2, 2, 2, 11])),
+    ("VariableDeclarator", 34, 39, Some([2, 6, 2, 11])),
+    ("VariableDeclaration", 43, 55, Some([3, 1, 3, 13])),
+    ("VariableDeclarator", 47, 54, Some([3, 5, 3, 12])),
+    ("VariableDeclaration", 58, 77, Some([4, 1, 4, 20])),
+    ("VariableDeclarator", 64, 77, Some([4, 7, 4, 20])),
+    ("Identifier", 64, 73, Some([4, 7, 4, 16])),
+];
+
 fn declarations(modern: bool) -> Vec<(String, u64, u64, Option<[u64; 4]>)> {
+    declarations_of(SOURCE, modern)
+}
+
+fn declarations_of(source: &str, modern: bool) -> Vec<(String, u64, u64, Option<[u64; 4]>)> {
     let allocator = rsvelte_core::Allocator::default();
-    let ast = parse(SOURCE, &allocator, ParseOptions::public_api()).expect("parses");
+    let ast = parse(source, &allocator, ParseOptions::public_api()).expect("parses");
     let value: serde_json::Value = if modern {
         rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
             serde_json::to_value(&ast).expect("serializes")
         })
     } else {
-        serde_json::to_value(rsvelte_core::convert_to_legacy(SOURCE, ast)).expect("serializes")
+        serde_json::to_value(rsvelte_core::convert_to_legacy(source, ast)).expect("serializes")
     };
     let mut out = Vec::new();
     collect(&value, &mut out);
@@ -37,8 +56,10 @@ fn declarations(modern: bool) -> Vec<(String, u64, u64, Option<[u64; 4]>)> {
 fn collect(value: &serde_json::Value, out: &mut Vec<(String, u64, u64, Option<[u64; 4]>)>) {
     match value {
         serde_json::Value::Object(map) => {
-            if let Some(kind @ ("VariableDeclaration" | "VariableDeclarator")) =
-                map.get("type").and_then(serde_json::Value::as_str)
+            let kind = map.get("type").and_then(serde_json::Value::as_str);
+            let typed_identifier = kind == Some("Identifier") && map.contains_key("typeAnnotation");
+            if let Some(kind @ ("VariableDeclaration" | "VariableDeclarator" | "Identifier")) = kind
+                && (kind != "Identifier" || typed_identifier)
             {
                 let number = |v: &serde_json::Value| v.as_u64().expect("number");
                 let loc = map.get("loc").map(|loc| {
@@ -79,4 +100,10 @@ fn a_declaration_tag_carries_acorn_locations_and_a_const_tag_does_not() {
 #[test]
 fn the_legacy_shape_keeps_the_declaration_tag_locations() {
     assert_eq!(declarations(false), expected(&MODERN[..5]));
+}
+
+#[test]
+fn a_declaration_tag_ends_each_node_at_its_last_token() {
+    assert_eq!(declarations_of(EDGES, true), expected(EDGES_MODERN));
+    assert_eq!(declarations_of(EDGES, false), expected(EDGES_MODERN));
 }

@@ -14927,9 +14927,11 @@ pub fn attach_pattern_type_annotation<'a>(
         return expr;
     };
     let mut node = expr_to_node(expr);
-    // `id.name !== ''` upstream: an identifier keeps its own `end`, a
-    // destructured pattern takes the annotation's.
-    let extend_end = !matches!(node, JsNode::Identifier { .. });
+    // `read_pattern`'s `id.name !== ''`: an identifier keeps its own `end` and a
+    // destructured pattern takes the annotation's. acorn-typescript, behind
+    // `read_declaration`, extends both.
+    let extend_end = reader == PatternAnnotationReader::ReadDeclaration
+        || !matches!(node, JsNode::Identifier { .. });
     let pattern_end = node.end().unwrap_or(0) as usize;
     attach_template_binding_annotation(
         &mut node,
@@ -14939,6 +14941,17 @@ pub fn attach_pattern_type_annotation<'a>(
         extend_end,
         reader,
     );
+    // The parser behind `read_declaration` moves `loc` with `end`.
+    if reader == PatternAnnotationReader::ReadDeclaration
+        && !line_offsets.is_empty()
+        && let JsNode::Identifier { loc: Some(loc), .. }
+        | JsNode::ObjectPattern { loc: Some(loc), .. }
+        | JsNode::ArrayPattern { loc: Some(loc), .. } = &mut node
+    {
+        let (line, column) = get_line_column(annotation_end, line_offsets);
+        loc.end.line = line;
+        loc.end.column = column;
+    }
     Expression::from_node(node)
 }
 
