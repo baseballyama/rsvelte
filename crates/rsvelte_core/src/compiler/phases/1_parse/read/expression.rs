@@ -6098,7 +6098,15 @@ fn create_regex_literal<'a>(
     line_offsets: &[usize],
 ) -> Expression<'a> {
     let pattern_str = regex.regex.pattern.text.to_string();
-    let flags_str = regex.regex.flags.to_string();
+    // acorn keeps the flags in source order; oxc's bitflags print them canonically.
+    let flags_str = match regex
+        .raw
+        .as_ref()
+        .and_then(|raw| raw.rfind('/').map(|i| &raw[i + 1..]))
+    {
+        Some(source_flags) => source_flags.to_string(),
+        None => regex.regex.flags.to_string(),
+    };
 
     let raw = if let Some(ref raw_str) = regex.raw {
         raw_str.to_string()
@@ -6112,12 +6120,12 @@ fn create_regex_literal<'a>(
         loc: create_typed_loc(start, end, line_offsets),
         value: LiteralValue::Regex(Box::new(RegexValue {
             pattern: CompactString::from(pattern_str),
-            flags: CompactString::from(flags_str),
+            flags: CompactString::from(flags_str.as_str()),
         })),
         raw: CompactString::from(raw),
         regex: Some(Box::new(RegexValue {
             pattern: CompactString::from(regex.regex.pattern.text.as_ref()),
-            flags: CompactString::from(regex.regex.flags.to_string()),
+            flags: CompactString::from(flags_str),
         })),
     })
 }
