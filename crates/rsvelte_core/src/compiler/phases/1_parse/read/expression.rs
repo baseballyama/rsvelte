@@ -54,6 +54,147 @@ thread_local! {
     /// `parser.root.comments` which is shared between the Svelte parser
     /// and acorn's `onComment` handler.
     static EXPR_COMMENT_SINK: RefCell<Vec<crate::ast::template::JsComment>> = const { RefCell::new(Vec::new()) };
+    /// The document the current parse converts positions into; lets a
+    /// converter read tokens oxc does not keep (a type-parameter trailing comma).
+    static DOC_SOURCE: RefCell<String> = const { RefCell::new(String::new()) };
+}
+
+pub(crate) fn set_doc_source(source: &str) {
+    DOC_SOURCE.with(|doc| {
+        let mut doc = doc.borrow_mut();
+        doc.clear();
+        doc.push_str(source);
+    });
+}
+
+/// The first index at or after `i` (and before `limit`) that is not
+/// whitespace or a comment.
+fn skip_doc_trivia(doc: &str, mut i: usize, limit: usize) -> usize {
+    let bytes = doc.as_bytes();
+    while i < limit {
+        match bytes[i] {
+            b' ' | b'\t' | b'\n' | b'\r' | 0x0b | 0x0c => i += 1,
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                i = memchr::memchr(b'\n', &bytes[i..limit]).map_or(limit, |n| i + n);
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i = memchr::memmem::find(&bytes[(i + 2).min(limit)..limit], b"*/")
+                    .map_or(limit, |n| i + 2 + n + 2);
+            }
+            b if b >= 0x80 => match doc.get(i..).and_then(|rest| rest.chars().next()) {
+                Some(c) if crate::compiler::phases::phase1_parse::parser::is_js_whitespace(c) => {
+                    i += c.len_utf8();
+                }
+                _ => return i,
+            },
+            _ => return i,
+        }
+    }
+    i
+}
+
+/// acorn-typescript's `extra.trailingComma` for a `<…>` list: the comma after
+/// the last element, if the rest of the list up to its closing `>` is only
+/// that comma plus whitespace and comments.
+fn doc_trailing_comma(from: usize, close: usize) -> Option<usize> {
+    DOC_SOURCE.with(|doc| {
+        let doc = doc.borrow();
+        let bytes = doc.as_bytes();
+        if from > close || bytes.get(close) != Some(&b'>') {
+            return None;
+        }
+        let comma = skip_doc_trivia(&doc, from, close);
+        if comma >= close || bytes[comma] != b',' {
+            return None;
+        }
+        (skip_doc_trivia(&doc, comma + 1, close) == close).then_some(comma)
+    })
+}
+
+/// Index of the first token after the `@` at `at`, when it is `(`.
+fn doc_decorator_paren(at: usize, limit: usize) -> Option<usize> {
+    DOC_SOURCE.with(|doc| {
+        let doc = doc.borrow();
+        if doc.as_bytes().get(at) != Some(&b'@') || limit > doc.len() {
+            return None;
+        }
+        let i = skip_doc_trivia(&doc, at + 1, limit);
+        (doc.as_bytes().get(i) == Some(&b'(')).then_some(i)
+    })
+}
+
+/// acorn-typescript's `parseDecorator` builds `@a.b(c)`'s member spine and its
+/// one call itself, without `optional`; `@(expr)` parses `expr` normally and
+/// only a call wrapped around the parentheses lacks it.
+fn strip_decorator_spine_optional(expression: &mut Value, paren: Option<usize>) {
+    let is = |v: &Value, ty: &str| v.field("type").and_then(Value::as_str) == Some(ty);
+    if let Some(paren) = paren {
+        if is(expression, "CallExpression")
+            && expression.field("start").and_then(Value::as_u64) == Some(paren as u64)
+            && let Some(obj) = expression.as_object_mut()
+        {
+            obj.remove("optional");
+            // `startNodeAtNode(expr)`: the call starts where the unparenthesized callee does.
+            let callee_start = obj.get("callee").and_then(|c| c.field("start")).cloned();
+            let callee_loc_start = obj
+                .get("callee")
+                .and_then(|c| c.field("loc"))
+                .and_then(|l| l.field("start"))
+                .cloned();
+            if let Some(start) = callee_start {
+                obj.insert("start".to_string(), start);
+            }
+            if let (Some(loc_start), Some(Value::Object(loc))) =
+                (callee_loc_start, obj.get_mut("loc"))
+            {
+                loc.insert("start".to_string(), loc_start);
+            }
+        }
+        return;
+    }
+    let mut node = expression;
+    if is(node, "CallExpression") {
+        let Some(obj) = node.as_object_mut() else {
+            return;
+        };
+        obj.remove("optional");
+        match obj.get_mut("callee") {
+            Some(callee) => node = callee,
+            None => return,
+        }
+    }
+    while is(node, "MemberExpression") {
+        let Some(obj) = node.as_object_mut() else {
+            return;
+        };
+        obj.remove("optional");
+        match obj.get_mut("object") {
+            Some(object) => node = object,
+            None => return,
+        }
+    }
+}
+
+/// `async (...a: T) =>` is first read as call arguments, so acorn-typescript's
+/// rest element keeps the spread's end, before the annotation.
+fn async_arrow_rest_end(
+    arrow: &oxc_ast::ast::ArrowFunctionExpression,
+    rest: &oxc_ast::ast::FormalParameterRest,
+) -> u32 {
+    if arrow.r#async {
+        rest.rest.argument.span().end
+    } else {
+        rest.span.end
+    }
+}
+
+/// oxc starts a method's function at its `<T>`; acorn-typescript reads the
+/// type parameters first and starts the `FunctionExpression` at `(`.
+fn function_value_start(func: &oxc_ast::ast::Function) -> u32 {
+    match &func.type_parameters {
+        Some(tp) if tp.span.start == func.span.start => func.params.span.start,
+        _ => func.span.start,
+    }
 }
 
 /// Push a comment to the per-thread expression-comment sink. Called from
@@ -1668,7 +1809,7 @@ pub fn parse_destructuring_pattern<'a>(
     // The component's mode only. Trying the other one accepts a TypeScript
     // annotation in a component that never declared `lang="ts"`.
     let source_type = if ts {
-        SourceType::ts()
+        SourceType::ts().with_module(true)
     } else {
         SourceType::mjs()
     };
@@ -1761,9 +1902,11 @@ pub fn parse_expression_with_end<'a>(
 /// The `SourceType` a template expression is parsed with. Upstream picks the
 /// acorn variant once per component from `parser.ts`, so a component with no
 /// `lang="ts"` script never reaches the TypeScript grammar.
+// acorn is always given `sourceType: 'module'`; `ts()` alone is unambiguous,
+// which reads `await (a)` as a call.
 fn expression_source_type(ts: bool) -> SourceType {
     if ts {
-        SourceType::ts()
+        SourceType::ts().with_module(true)
     } else {
         SourceType::mjs()
     }
@@ -2026,7 +2169,7 @@ pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize
 
     with_oxc_allocator(|allocator| {
         let source_type = if ts {
-            SourceType::ts()
+            SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
         };
@@ -2071,7 +2214,7 @@ pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String
     }
     with_oxc_allocator(|allocator| {
         let source_type = if ts {
-            SourceType::ts()
+            SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
         };
@@ -2389,7 +2532,7 @@ fn parse_expression_with_typescript<'a>(
 ) -> Option<Expression<'a>> {
     with_oxc_allocator(|allocator| {
         let source_type = if use_typescript {
-            SourceType::ts()
+            SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
         };
@@ -2440,143 +2583,167 @@ fn parse_expression_with_typescript<'a>(
             };
             let expr = convert_expression(arena, &expr_stmt.expression, offset, line_offsets);
 
-            // Attach comments to the expression
-            if !result.program.comments.is_empty() {
-                // Mirror upstream `parser.root.comments`: every comment seen
-                // by acorn is pushed there in source order, *in addition* to
-                // being attached as leading/trailing on the inner node.
-                for comment in result.program.comments.iter() {
-                    let comment_start = offset + comment.span.start as usize - 1;
-                    let comment_end = offset + comment.span.end as usize - 1;
-                    let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
-                    let mut value = extract_comment_value(raw, comment.kind);
-                    if matches!(
-                        comment.kind,
-                        oxc_ast::ast::CommentKind::SingleLineBlock
-                            | oxc_ast::ast::CommentKind::MultiLineBlock
-                    ) {
-                        value = normalize_block_comment_indentation(
-                            &value,
-                            content,
-                            comment.span.start as usize - 1,
-                        );
-                    }
-                    record_oxc_comment(
-                        comment.kind,
-                        value,
-                        comment_start,
-                        comment_end,
-                        line_offsets,
-                    );
-                }
-
-                if !crate::ast::arena::comment_capture_active() {
-                    return Some(expr);
-                }
-
-                // Upstream runs the same `add_comments` walk over a template
-                // expression as over a script program (`read_expression` shares
-                // `get_comment_handlers`), so the trailing-comment rules — the
-                // last-in-body case and the `/^[,) \t]*$/` separator — hold here too.
-                let mut comment_entries: Vec<CommentEntry> =
-                    Vec::with_capacity(result.program.comments.len());
-                let mut comment_values: Vec<Value> =
-                    Vec::with_capacity(result.program.comments.len());
-                for comment in result.program.comments.iter() {
-                    // -1 for the paren the expression was wrapped in.
-                    let comment_start = offset + comment.span.start as usize - 1;
-                    let comment_end = offset + comment.span.end as usize - 1;
-                    let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
-                    let mut value = extract_comment_value(raw, comment.kind);
-                    if matches!(
-                        comment.kind,
-                        oxc_ast::ast::CommentKind::SingleLineBlock
-                            | oxc_ast::ast::CommentKind::MultiLineBlock
-                    ) {
-                        value = normalize_block_comment_indentation(
-                            &value,
-                            content,
-                            comment.span.start as usize - 1,
-                        );
-                    }
-                    let comment_text = CompactString::from(value.as_str());
-                    let comment_value = create_comment_object(
-                        comment.kind,
-                        value,
-                        comment_start,
-                        comment_end,
-                        line_offsets,
-                    )
-                    .to_value();
-                    comment_entries.push(CommentEntry {
-                        start: comment_start as u32,
-                        text: comment_text,
-                        value: comment_value.clone(),
-                    });
-                    comment_values.push(comment_value);
-                }
-
-                let json_val = expr.as_json();
-                let root_type = json_val
-                    .field("type")
-                    .and_then(Value::as_str)
-                    .map(str::to_owned);
-                let root_span = json_val
-                    .field("start")
-                    .and_then(Value::as_u64)
-                    .zip(json_val.field("end").and_then(Value::as_u64))
-                    .map(|(s, e)| (s as u32, e as u32));
-                let mut ignore_comment_map: Vec<(u32, Vec<CompactString>)> = Vec::new();
-                let mut attacher = CommentAttacher {
-                    comments: &comment_entries,
-                    next: 0,
-                    content,
-                    offset: offset as u32,
-                    map: &mut ignore_comment_map,
-                    captured: Some(std::collections::HashMap::default()),
-                };
-                attacher.visit(json_val, None);
-                let claimed = attacher.next;
-                if let Some(captured) = attacher.captured.take() {
-                    for ((node_type, start, end), (leading, trailing)) in captured {
-                        arena.record_node_comments(
-                            &node_type,
-                            start,
-                            end,
-                            (!leading.is_empty()).then_some(leading),
-                            (!trailing.is_empty()).then_some(trailing),
-                        );
-                    }
-                }
-
-                // Upstream's "trailing comments after the root node" case, which
-                // is what lets a caller find the end of the expression tag.
-                if let (Some(root_type), Some((root_start, root_end))) =
-                    (root_type.as_deref(), root_span)
-                    && comment_entries
-                        .get(claimed)
-                        .is_some_and(|c| c.start >= root_end)
-                {
-                    let (leading, claimed_trailing) = arena
-                        .node_comments(root_type, root_start, root_end)
-                        .unwrap_or((None, None));
-                    let mut trailing = claimed_trailing.unwrap_or_default();
-                    trailing.extend(comment_values[claimed..].iter().cloned());
-                    arena.record_node_comments(
-                        root_type,
-                        root_start,
-                        root_end,
-                        leading,
-                        Some(trailing),
-                    );
-                }
-            }
+            attach_wrapped_comments(
+                arena,
+                &result.program,
+                wrapped,
+                content,
+                offset,
+                line_offsets,
+                || expr.as_json(),
+                true,
+            );
 
             return Some(expr);
         }
 
         None
     })
+}
+
+/// Record a one-byte-wrapped parse's comments in `Root.comments` and, on the
+/// public `parse()` path, run upstream's `add_comments` walk from `json_val`.
+#[allow(clippy::too_many_arguments)]
+fn attach_wrapped_comments<R: std::borrow::Borrow<Value>>(
+    arena: &ParseArena,
+    program: &OxcProgram,
+    wrapped: &str,
+    content: &str,
+    offset: usize,
+    line_offsets: &[usize],
+    root: impl FnOnce() -> R,
+    remove_parens: bool,
+) {
+    if !program.comments.is_empty() {
+        // Mirror upstream `parser.root.comments`: every comment seen
+        // by acorn is pushed there in source order, *in addition* to
+        // being attached as leading/trailing on the inner node.
+        for comment in program.comments.iter() {
+            let comment_start = offset + comment.span.start as usize - 1;
+            let comment_end = offset + comment.span.end as usize - 1;
+            let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
+            let mut value = extract_comment_value(raw, comment.kind);
+            if matches!(
+                comment.kind,
+                oxc_ast::ast::CommentKind::SingleLineBlock
+                    | oxc_ast::ast::CommentKind::MultiLineBlock
+            ) {
+                value = normalize_block_comment_indentation(
+                    &value,
+                    content,
+                    comment.span.start as usize - 1,
+                );
+            }
+            record_oxc_comment(
+                comment.kind,
+                value,
+                comment_start,
+                comment_end,
+                line_offsets,
+            );
+        }
+
+        if !crate::ast::arena::comment_capture_active() {
+            return;
+        }
+
+        // Upstream runs the same `add_comments` walk over a template
+        // expression as over a script program (`read_expression` shares
+        // `get_comment_handlers`), so the trailing-comment rules — the
+        // last-in-body case and the `/^[,) \t]*$/` separator — hold here too.
+        let mut comment_entries: Vec<CommentEntry> = Vec::with_capacity(program.comments.len());
+        let mut comment_values: Vec<Value> = Vec::with_capacity(program.comments.len());
+        for comment in program.comments.iter() {
+            // -1 for the paren the expression was wrapped in.
+            let comment_start = offset + comment.span.start as usize - 1;
+            let comment_end = offset + comment.span.end as usize - 1;
+            let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
+            let mut value = extract_comment_value(raw, comment.kind);
+            if matches!(
+                comment.kind,
+                oxc_ast::ast::CommentKind::SingleLineBlock
+                    | oxc_ast::ast::CommentKind::MultiLineBlock
+            ) {
+                value = normalize_block_comment_indentation(
+                    &value,
+                    content,
+                    comment.span.start as usize - 1,
+                );
+            }
+            let comment_text = CompactString::from(value.as_str());
+            let comment_value = create_comment_object(
+                comment.kind,
+                value,
+                comment_start,
+                comment_end,
+                line_offsets,
+            )
+            .to_value();
+            comment_entries.push(CommentEntry {
+                start: comment_start as u32,
+                text: comment_text,
+                value: comment_value.clone(),
+            });
+            comment_values.push(comment_value);
+        }
+
+        let root = root();
+        let json_val: &Value = root.borrow();
+        let root_type = json_val
+            .field("type")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+        let root_span = json_val
+            .field("start")
+            .and_then(Value::as_u64)
+            .zip(json_val.field("end").and_then(Value::as_u64))
+            .map(|(s, e)| (s as u32, e as u32));
+        let parens = if remove_parens {
+            collect_parens(program, offset)
+        } else {
+            std::collections::HashMap::default()
+        };
+        // A parenthesized root is `remove_parens`d away with what it claimed.
+        let root_span = root_span.filter(|span| !parens.contains_key(span));
+        let mut ignore_comment_map: Vec<(u32, Vec<CompactString>)> = Vec::new();
+        let mut attacher = CommentAttacher {
+            comments: &comment_entries,
+            next: 0,
+            content,
+            offset: offset as u32,
+            map: &mut ignore_comment_map,
+            captured: Some(std::collections::HashMap::default()),
+            parens,
+        };
+        attacher.visit(json_val, None);
+        let claimed = attacher.next;
+        if let Some(captured) = attacher.captured.take() {
+            for ((node_type, start, end), (leading, trailing)) in captured {
+                arena.record_node_comments(
+                    &node_type,
+                    start,
+                    end,
+                    (!leading.is_empty()).then_some(leading),
+                    (!trailing.is_empty()).then_some(trailing),
+                );
+            }
+        }
+
+        // Upstream's "trailing comments after the root node" case, which
+        // is what lets a caller find the end of the expression tag.
+        if let (Some(root_type), Some((root_start, root_end))) = (root_type.as_deref(), root_span)
+            && comment_entries
+                .get(claimed)
+                .is_some_and(|c| c.start >= root_end)
+        {
+            let (leading, claimed_trailing) = arena
+                .node_comments(root_type, root_start, root_end)
+                .unwrap_or((None, None));
+            let mut trailing = claimed_trailing.unwrap_or_default();
+            trailing.extend(comment_values[claimed..].iter().cloned());
+            arena.record_node_comments(root_type, root_start, root_end, leading, Some(trailing));
+        }
+    }
 }
 
 /// Strip optional markers (`?`) from TypeScript parameter names.
@@ -2708,7 +2875,7 @@ pub fn parse_typescript_params<'a>(
     line_offsets: &[usize],
 ) -> Vec<Expression<'a>> {
     // Use TypeScript source type to parse type annotations
-    let source_type = SourceType::ts();
+    let source_type = SourceType::ts().with_module(true);
 
     // Wrap as arrow function to parse parameters: "(msg: string) => {}"
     let wrapped = wrap_for_parse("(", content, ") => {}");
@@ -2765,6 +2932,30 @@ pub fn parse_typescript_params<'a>(
                         ))
                     }),
                 }));
+            }
+            if !result.program.comments.is_empty() {
+                // Upstream walks the whole `(params) => {}` it parsed.
+                let arrow = || {
+                    let mut arrow = Map::new();
+                    arrow.set_field("type", Value::String("ArrowFunctionExpression".to_string()));
+                    arrow.set_field("start", Value::from(offset.saturating_sub(1) as u64));
+                    arrow.set_field("end", Value::from((offset + wrapped.len()) as u64));
+                    arrow.set_field(
+                        "params",
+                        Value::Array(p.iter().map(|param| param.as_json().clone()).collect()),
+                    );
+                    Value::Object(arrow)
+                };
+                attach_wrapped_comments(
+                    arena,
+                    &result.program,
+                    &wrapped,
+                    content,
+                    offset,
+                    line_offsets,
+                    arrow,
+                    false,
+                );
             }
             ParseOutcome::Ok(p)
         } else {
@@ -4385,6 +4576,15 @@ fn convert_ts_type_parameter_declaration(
         .map(|p| convert_ts_type_parameter(arena, p, offset, line_offsets))
         .collect();
     obj.set_field("params", Value::Array(params));
+    if let Some(comma) = decl
+        .params
+        .last()
+        .and_then(|last| doc_trailing_comma(offset + last.span.end as usize, end.checked_sub(1)?))
+    {
+        let mut extra = Map::new();
+        extra.set_field("trailingComma", Value::from(comma));
+        obj.set_field("extra", Value::Object(extra));
+    }
     Value::Object(obj)
 }
 
@@ -4526,7 +4726,7 @@ fn convert_ts_signature(
             }
             obj.set_field(
                 "key",
-                convert_ts_property_key(&prop.key, offset, line_offsets),
+                convert_ts_property_key(arena, &prop.key, offset, line_offsets),
             );
             if let Some(type_ann) = &prop.type_annotation {
                 obj.set_field(
@@ -4547,7 +4747,7 @@ fn convert_ts_signature(
             obj.set_field("computed", Value::Bool(method.computed));
             obj.set_field(
                 "key",
-                convert_ts_property_key(&method.key, offset, line_offsets),
+                convert_ts_property_key(arena, &method.key, offset, line_offsets),
             );
             obj.set_field(
                 "kind",
@@ -4708,6 +4908,7 @@ fn convert_ts_index_signature(
 
 /// Convert a `TSPropertySignature` key (Identifier / string / numeric).
 fn convert_ts_property_key(
+    arena: &ParseArena,
     key: &oxc_ast::ast::PropertyKey,
     offset: AdjustedOffset,
     line_offsets: &[usize],
@@ -4742,12 +4943,7 @@ fn convert_ts_property_key(
                 line_offsets,
             )
         }
-        _ => {
-            let span = key.span();
-            let start = offset + span.start as usize;
-            let end = offset + span.end as usize;
-            ts_identifier_value("", start, end, line_offsets)
-        }
+        _ => convert_property_key_for_param_as_node(arena, key, offset, line_offsets).to_value(),
     }
 }
 
@@ -4793,13 +4989,107 @@ fn convert_ts_literal(
                 line_offsets,
             )
         }
-        _ => {
-            let span = literal.span();
-            let start = offset + span.start as usize;
-            let end = offset + span.end as usize;
-            ts_literal_value(start, end, Value::Null, None, line_offsets)
+        TSLiteral::BigIntLiteral(b) => ts_bigint_literal_value(b, offset, line_offsets),
+        TSLiteral::TemplateLiteral(t) => {
+            let mut obj = Map::new();
+            obj.set_field("type", Value::String("TemplateLiteral".to_string()));
+            push_span_fields(
+                &mut obj,
+                offset + t.span.start as usize,
+                offset + t.span.end as usize,
+                line_offsets,
+            );
+            obj.set_field("expressions", Value::Array(Vec::new()));
+            let quasis: Vec<Value> = t
+                .quasis
+                .iter()
+                .map(|quasi| {
+                    let mut q = Map::new();
+                    q.set_field("type", Value::String("TemplateElement".to_string()));
+                    push_span_fields(
+                        &mut q,
+                        offset + quasi.span.start as usize,
+                        offset + quasi.span.end as usize,
+                        line_offsets,
+                    );
+                    let mut value = Map::new();
+                    value.set_field("raw", Value::String(quasi.value.raw.to_string()));
+                    value.set_field(
+                        "cooked",
+                        quasi
+                            .value
+                            .cooked
+                            .as_ref()
+                            .map(|s| Value::String(s.to_string()))
+                            .unwrap_or(Value::Null),
+                    );
+                    q.set_field("value", Value::Object(value));
+                    q.set_field("tail", Value::Bool(quasi.tail));
+                    Value::Object(q)
+                })
+                .collect();
+            obj.set_field("quasis", Value::Array(quasis));
+            Value::Object(obj)
+        }
+        // acorn-typescript keeps `-1` / `-1n` as a value-space `UnaryExpression`.
+        TSLiteral::UnaryExpression(u) => {
+            use oxc_ast::ast::Expression as E;
+            let argument = match &u.argument {
+                E::NumericLiteral(n) => ts_literal_value(
+                    offset + n.span.start as usize,
+                    offset + n.span.end as usize,
+                    number_value(n.value),
+                    n.raw.as_ref().map(|r| r.to_string()),
+                    line_offsets,
+                ),
+                E::BigIntLiteral(b) => ts_bigint_literal_value(b, offset, line_offsets),
+                other => {
+                    let span = other.span();
+                    ts_literal_value(
+                        offset + span.start as usize,
+                        offset + span.end as usize,
+                        Value::Null,
+                        None,
+                        line_offsets,
+                    )
+                }
+            };
+            let mut obj = Map::new();
+            obj.set_field("type", Value::String("UnaryExpression".to_string()));
+            push_span_fields(
+                &mut obj,
+                offset + u.span.start as usize,
+                offset + u.span.end as usize,
+                line_offsets,
+            );
+            obj.set_field("operator", Value::String(u.operator.as_str().to_string()));
+            obj.set_field("prefix", Value::Bool(true));
+            obj.set_field("argument", argument);
+            Value::Object(obj)
         }
     }
+}
+
+fn ts_bigint_literal_value(
+    b: &oxc_ast::ast::BigIntLiteral,
+    offset: AdjustedOffset,
+    line_offsets: &[usize],
+) -> Value {
+    let mut obj = Map::new();
+    obj.set_field("type", Value::String("Literal".to_string()));
+    push_span_fields(
+        &mut obj,
+        offset + b.span.start as usize,
+        offset + b.span.end as usize,
+        line_offsets,
+    );
+    obj.set_field("value", Value::Null);
+    obj.set_field(
+        "raw",
+        Value::String(b.raw.as_ref().map(|r| r.to_string()).unwrap_or_default()),
+    );
+    obj.set_field("bigint", Value::String(b.value.to_string()));
+    Value::Object(obj)
 }
 
 /// Build an ESTree `Identifier` node `{ type, start, end, loc, name }` as a
@@ -5124,7 +5414,7 @@ fn convert_expression<'a>(
             })
         }
         OxcExpression::FunctionExpression(func) => {
-            let start = offset + func.span.start as usize - 1;
+            let start = offset + function_value_start(func) as usize - 1;
             let end = offset + func.span.end as usize - 1;
             let type_parameters =
                 function_expression_type_parameters(arena, func, offset, line_offsets);
@@ -6048,7 +6338,15 @@ fn create_regex_literal<'a>(
     line_offsets: &[usize],
 ) -> Expression<'a> {
     let pattern_str = regex.regex.pattern.text.to_string();
-    let flags_str = regex.regex.flags.to_string();
+    // acorn keeps the flags in source order; oxc's bitflags print them canonically.
+    let flags_str = match regex
+        .raw
+        .as_ref()
+        .and_then(|raw| raw.rfind('/').map(|i| &raw[i + 1..]))
+    {
+        Some(source_flags) => source_flags.to_string(),
+        None => regex.regex.flags.to_string(),
+    };
 
     let raw = if let Some(ref raw_str) = regex.raw {
         raw_str.to_string()
@@ -6062,12 +6360,12 @@ fn create_regex_literal<'a>(
         loc: create_typed_loc(start, end, line_offsets),
         value: LiteralValue::Regex(Box::new(RegexValue {
             pattern: CompactString::from(pattern_str),
-            flags: CompactString::from(flags_str),
+            flags: CompactString::from(flags_str.as_str()),
         })),
         raw: CompactString::from(raw),
         regex: Some(Box::new(RegexValue {
             pattern: CompactString::from(regex.regex.pattern.text.as_ref()),
-            flags: CompactString::from(regex.regex.flags.to_string()),
+            flags: CompactString::from(flags_str),
         })),
     })
 }
@@ -6128,7 +6426,7 @@ fn convert_class_element_for_expr(
 
             // value (function expression). A method's generics live on the
             // MethodDefinition (acorn-typescript), not the inner function.
-            let value_start = offset + method.value.span.start as usize - 1;
+            let value_start = offset + function_value_start(&method.value) as usize - 1;
             let value_end = offset + method.value.span.end as usize - 1;
             let value = create_function_expression(
                 arena,
@@ -6970,7 +7268,7 @@ fn create_arrow_function<'a>(
     // Handle rest parameter (`...args`) which is stored separately in OXC.
     if let Some(rest) = &arrow.params.rest {
         let rest_start = offset + rest.span.start as usize - 1;
-        let rest_end = offset + rest.span.end as usize - 1;
+        let rest_end = offset + async_arrow_rest_end(arrow, rest) as usize - 1;
         let argument = convert_binding_pattern_for_param_as_node(
             arena,
             &rest.rest.argument,
@@ -7811,7 +8109,11 @@ fn create_loc_for_binding(start: usize, end: usize, line_offsets: &[usize]) -> O
 // Typed loc helper functions (return typed_expr::Loc instead of serde_json::Value)
 // ============================================================================
 
-fn create_typed_loc(start: usize, end: usize, line_offsets: &[usize]) -> Option<Box<Loc>> {
+pub(crate) fn create_typed_loc(
+    start: usize,
+    end: usize,
+    line_offsets: &[usize],
+) -> Option<Box<Loc>> {
     if line_offsets.is_empty() {
         return None;
     }
@@ -7968,7 +8270,7 @@ pub fn parse_program_with_error<'a>(
 ) -> (Expression<'a>, Option<crate::error::ParseError>) {
     with_oxc_allocator(|allocator| {
         let source_type = if params.is_typescript {
-            SourceType::ts()
+            SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
         };
@@ -8640,7 +8942,8 @@ pub(crate) fn repair_ts_newline_import_assert(
     let mut changed = false;
     loop {
         let allocator = Allocator::default();
-        let parsed = OxcParser::new(&allocator, &repaired, SourceType::ts()).parse();
+        let parsed =
+            OxcParser::new(&allocator, &repaired, SourceType::ts().with_module(true)).parse();
         let Some(diagnostic) = first_reportable_diagnostic(&parsed.diagnostics) else {
             return changed.then_some(repaired);
         };
@@ -9100,6 +9403,7 @@ fn convert_parsed_program<'ast>(
                 offset: offset as u32,
                 map: &mut ignore_comment_map,
                 captured: capture.then(std::collections::HashMap::default),
+                parens: std::collections::HashMap::default(),
             };
             // OXC lifts a script's directive prologue out of `body`; ESTree
             // keeps them as the first `ExpressionStatement`s, so they are
@@ -9326,10 +9630,56 @@ struct CommentAttacher<'a> {
     /// there would cost every component and change no output.
     captured:
         Option<std::collections::HashMap<(CompactString, u32, u32), (Vec<Value>, Vec<Value>)>>,
+    /// Template expressions keep acorn's `preserveParens` nodes during the walk and
+    /// drop them afterwards (`remove_parens`), so the comments a
+    /// `ParenthesizedExpression` claims vanish. Maps a wrapped node's span to the
+    /// span of the parenthesis around it.
+    parens: std::collections::HashMap<(u32, u32), (u32, u32)>,
 }
 
 impl CommentAttacher<'_> {
     fn visit(&mut self, node: &Value, parent: Option<ParentInfo>) {
+        let span = node.as_object().and_then(|obj| {
+            let start = obj.field("start").and_then(Value::as_u64)?;
+            let end = obj.field("end").and_then(Value::as_u64)?;
+            Some((start as u32, end as u32))
+        });
+        let mut wrappers = Vec::new();
+        if let Some(mut key) = span {
+            while let Some(paren) = self.parens.remove(&key) {
+                wrappers.push(paren);
+                key = paren;
+            }
+        }
+        self.visit_wrapped(node, parent, &wrappers);
+    }
+
+    /// Visit `node` inside `wrappers` (innermost first), as the removed
+    /// `ParenthesizedExpression`s would have been walked.
+    fn visit_wrapped(&mut self, node: &Value, parent: Option<ParentInfo>, wrappers: &[(u32, u32)]) {
+        let Some((&(paren_start, paren_end), inner)) = wrappers.split_last() else {
+            self.visit_node(node, parent);
+            return;
+        };
+        while self
+            .comments
+            .get(self.next)
+            .is_some_and(|comment| comment.start < paren_start)
+        {
+            self.next += 1;
+        }
+        self.visit_wrapped(
+            node,
+            Some(ParentInfo {
+                end: Some(paren_end),
+                is_last_in_body: false,
+            }),
+            inner,
+        );
+        self.claim_trailing(None, Some(paren_start), Some(paren_end), parent.as_ref());
+    }
+
+    fn visit_node(&mut self, node: &Value, parent: Option<ParentInfo>) {
         let Some(obj) = node.as_object() else {
             return;
         };
@@ -9340,6 +9690,7 @@ impl CommentAttacher<'_> {
         let end = obj.field("end").and_then(|v| v.as_u64()).map(|v| v as u32);
         let node_type = obj.field("type").and_then(|t| t.as_str());
 
+        let first_leading = self.next;
         if let Some(start) = start {
             while self
                 .comments
@@ -9350,6 +9701,7 @@ impl CommentAttacher<'_> {
                 self.next += 1;
             }
         }
+        let leading = first_leading..self.next;
 
         // Only these parents let their last child swallow the comments that follow it.
         let last_body_field = match node_type.unwrap_or("") {
@@ -9395,7 +9747,82 @@ impl CommentAttacher<'_> {
             }
         }
 
+        // zimmerframe reaches the `leadingComments` just added as children too, and
+        // `indexOf` returning -1 makes a comment "last in body" of an empty body.
+        if !leading.is_empty() {
+            let empty_body = last_body_field
+                .and_then(|field| obj.field(field))
+                .and_then(Value::as_array)
+                .is_some_and(Vec::is_empty);
+            for index in leading {
+                self.claim_trailing_of_comment(node_type, start, end, index, empty_body);
+            }
+        }
+
         self.claim_trailing(node_type, start, end, parent.as_ref());
+    }
+
+    /// `add_comments`' trailing step for a leading comment walked as a node whose
+    /// parent is the node (`owner_*`) it leads.
+    fn claim_trailing_of_comment(
+        &mut self,
+        owner_type: Option<&str>,
+        owner_start: Option<u32>,
+        owner_end: Option<u32>,
+        index: usize,
+        owner_body_empty: bool,
+    ) {
+        if self.next >= self.comments.len() {
+            return;
+        }
+        let comment_end = self.comment_end(index);
+        let mut claimed = Vec::new();
+        if owner_body_empty {
+            while let Some(next) = self.comments.get(self.next) {
+                if owner_end.is_some_and(|end| next.start >= end) {
+                    break;
+                }
+                claimed.push(self.next);
+                self.next += 1;
+            }
+        } else if let Some(next) = self.comments.get(self.next)
+            && comment_end <= next.start
+            && self.is_separator_slice(comment_end, next.start)
+        {
+            claimed.push(self.next);
+            self.next += 1;
+        }
+        if claimed.is_empty() {
+            return;
+        }
+        let (Some(owner_type), Some(owner_start), Some(owner_end), Some(map)) =
+            (owner_type, owner_start, owner_end, self.captured.as_mut())
+        else {
+            return;
+        };
+        let comment_start = self.comments[index].start;
+        let Some(slot) = map.get_mut(&(CompactString::from(owner_type), owner_start, owner_end))
+        else {
+            return;
+        };
+        let Some(Value::Object(comment)) = slot.0.iter_mut().find(|value| {
+            value.field("start").and_then(Value::as_u64) == Some(u64::from(comment_start))
+        }) else {
+            return;
+        };
+        let trailing: Vec<Value> = claimed
+            .into_iter()
+            .map(|i| self.comments[i].value.clone())
+            .collect();
+        comment.set_field("trailingComments", Value::Array(trailing));
+    }
+
+    fn comment_end(&self, index: usize) -> u32 {
+        self.comments[index]
+            .value
+            .field("end")
+            .and_then(Value::as_u64)
+            .map_or(self.comments[index].start, |end| end as u32)
     }
 
     fn capture(
@@ -9493,6 +9920,43 @@ impl CommentAttacher<'_> {
             _ => self.map.push((start, vec![text])),
         }
     }
+}
+
+/// `ParenthesizedExpression` spans of a template expression parsed with a one-byte
+/// wrapper, keyed by the span of the expression each one wraps.
+fn collect_parens(
+    program: &OxcProgram,
+    offset: usize,
+) -> std::collections::HashMap<(u32, u32), (u32, u32)> {
+    use oxc_ast_visit::Visit;
+
+    struct Collector {
+        base: u32,
+        parens: std::collections::HashMap<(u32, u32), (u32, u32)>,
+    }
+    impl<'a> Visit<'a> for Collector {
+        fn visit_parenthesized_expression(
+            &mut self,
+            it: &oxc_ast::ast::ParenthesizedExpression<'a>,
+        ) {
+            // The wrapper `(` at byte 0 is rsvelte's, not the template's.
+            if it.span.start > 0 {
+                let inner = it.expression.span();
+                self.parens.insert(
+                    (self.base + inner.start - 1, self.base + inner.end - 1),
+                    (self.base + it.span.start - 1, self.base + it.span.end - 1),
+                );
+            }
+            oxc_ast_visit::walk::walk_parenthesized_expression(self, it);
+        }
+    }
+
+    let mut collector = Collector {
+        base: offset as u32,
+        parens: std::collections::HashMap::default(),
+    };
+    collector.visit_program(program);
+    collector.parens
 }
 
 /// Zimmerframe treats any object carrying a string `type` as a node; mirror that.
@@ -11122,7 +11586,12 @@ fn convert_class_declaration_as_node(
                 push_span_fields(&mut obj, dec_start, dec_end, line_offsets);
                 let expression =
                     convert_expression_for_program(arena, &dec.expression, offset, line_offsets);
-                obj.set_field("expression", expression.as_json().clone());
+                let mut expression = expression.as_json().clone();
+                strip_decorator_spine_optional(
+                    &mut expression,
+                    doc_decorator_paren(dec_start, dec_end),
+                );
+                obj.set_field("expression", expression);
                 JsNode::from_value(Value::Object(obj))
             })
             .collect();
@@ -11809,7 +12278,7 @@ fn convert_expression_for_program<'a>(
                 loc: create_typed_loc(start, end, line_offsets),
                 callee: arena.alloc_js_node(expr_to_node(callee)),
                 arguments: arena.alloc_js_children(args),
-                optional: false,
+                optional: call.optional,
                 type_arguments: opt_type_args(
                     arena,
                     call.type_arguments.as_deref(),
@@ -11947,7 +12416,7 @@ fn convert_expression_for_program<'a>(
                 .collect();
             if let Some(rest) = &arrow.params.rest {
                 let rest_start = offset + rest.span.start as usize;
-                let rest_end = offset + rest.span.end as usize;
+                let rest_end = offset + async_arrow_rest_end(arrow, rest) as usize;
                 let argument = convert_binding_pattern(
                     arena,
                     &rest.rest.argument,
@@ -12331,6 +12800,27 @@ fn convert_expression_for_program<'a>(
                 loc: create_typed_loc(start, end, line_offsets),
                 left: arena.alloc_js_node(expr_to_node(left)),
                 operator: CompactString::from(binary_operator_to_str(&bin.operator)),
+                right: arena.alloc_js_node(expr_to_node(right)),
+            })
+        }
+        OxcExpression::PrivateInExpression(private_in) => {
+            let start = offset + private_in.span.start as usize;
+            let end = offset + private_in.span.end as usize;
+            let left_start = offset + private_in.left.span.start as usize;
+            let left_end = offset + private_in.left.span.end as usize;
+            let right =
+                convert_expression_for_program(arena, &private_in.right, offset, line_offsets);
+            Expression::from_node(JsNode::BinaryExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                left: arena.alloc_js_node(JsNode::PrivateIdentifier {
+                    start: left_start as u32,
+                    end: left_end as u32,
+                    loc: create_typed_loc(left_start, left_end, line_offsets),
+                    name: CompactString::from(private_in.left.name.as_str()),
+                }),
+                operator: CompactString::from("in"),
                 right: arena.alloc_js_node(expr_to_node(right)),
             })
         }
@@ -13230,7 +13720,7 @@ fn convert_function_expression_for_program(
     offset: usize,
     line_offsets: &[usize],
 ) -> Value {
-    let start = offset + func.span.start as usize;
+    let start = offset + function_value_start(func) as usize;
     let end = offset + func.span.end as usize;
     let mut obj = Map::new();
     obj.set_field("type", Value::String("FunctionExpression".to_string()));
@@ -13336,7 +13826,7 @@ fn convert_function_expression_for_program_as_node(
     // them after `body` (acorn-typescript), unlike declarations/expressions.
     type_parameters_after_body: bool,
 ) -> JsNode {
-    let start = offset + func.span.start as usize;
+    let start = offset + function_value_start(func) as usize;
     let end = offset + func.span.end as usize;
 
     // params
@@ -14333,7 +14823,7 @@ pub fn validate_template_binding_pattern(
     }
 
     let source_type = if ts {
-        SourceType::ts()
+        SourceType::ts().with_module(true)
     } else {
         SourceType::mjs()
     };
@@ -14437,9 +14927,11 @@ pub fn attach_pattern_type_annotation<'a>(
         return expr;
     };
     let mut node = expr_to_node(expr);
-    // `id.name !== ''` upstream: an identifier keeps its own `end`, a
-    // destructured pattern takes the annotation's.
-    let extend_end = !matches!(node, JsNode::Identifier { .. });
+    // `read_pattern`'s `id.name !== ''`: an identifier keeps its own `end` and a
+    // destructured pattern takes the annotation's. acorn-typescript, behind
+    // `read_declaration`, extends both.
+    let extend_end = reader == PatternAnnotationReader::ReadDeclaration
+        || !matches!(node, JsNode::Identifier { .. });
     let pattern_end = node.end().unwrap_or(0) as usize;
     attach_template_binding_annotation(
         &mut node,
@@ -14449,6 +14941,17 @@ pub fn attach_pattern_type_annotation<'a>(
         extend_end,
         reader,
     );
+    // The parser behind `read_declaration` moves `loc` with `end`.
+    if reader == PatternAnnotationReader::ReadDeclaration
+        && !line_offsets.is_empty()
+        && let JsNode::Identifier { loc: Some(loc), .. }
+        | JsNode::ObjectPattern { loc: Some(loc), .. }
+        | JsNode::ArrayPattern { loc: Some(loc), .. } = &mut node
+    {
+        let (line, column) = get_line_column(annotation_end, line_offsets);
+        loc.end.line = line;
+        loc.end.column = column;
+    }
     Expression::from_node(node)
 }
 
@@ -14476,7 +14979,7 @@ fn read_binding_type_annotation(
 ) -> Option<(Value, usize)> {
     with_oxc_allocator(|allocator| {
         let source_type = if ts {
-            SourceType::ts()
+            SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
         };
@@ -14527,7 +15030,7 @@ pub fn parse_binding_pattern<'a>(
         // upstream's `read_pattern` parses it with the same `parser.ts` every
         // other template expression gets.
         let source_type = if ts {
-            SourceType::ts()
+            SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
         };
@@ -15497,7 +16000,7 @@ fn create_arrow_function_with_adjustment(
     }
     if let Some(rest) = &arrow.params.rest {
         let rest_start = doc_offset + rest.span.start as usize - prefix_len;
-        let rest_end = doc_offset + rest.span.end as usize - prefix_len;
+        let rest_end = doc_offset + async_arrow_rest_end(arrow, rest) as usize - prefix_len;
         let argument = convert_binding_pattern_for_param(
             arena,
             &rest.rest.argument,

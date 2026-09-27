@@ -97,12 +97,21 @@ pub fn parse_svelte(source: &str) -> ParseResultWasm {
             // "unreachable" trap.
             let ast_json = rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
                 // Compact JSON shares the serializer used by the compiler.
-                if source.is_ascii() {
+                if source.is_ascii()
+                    && !rsvelte_core::compiler::acorn_lines::has_non_lf_line_breaks(source)
+                {
                     serde_json::to_string(&ast).unwrap_or_default()
                 } else {
                     let mut value = serde_json::to_value(&ast).unwrap_or(serde_json::Value::Null);
-                    let conv = rsvelte_core::compiler::legacy::Utf8ToUtf16::new(source);
-                    rsvelte_core::compiler::legacy::convert_positions_to_utf16(&mut value, &conv);
+                    if !source.is_ascii() {
+                        let conv = rsvelte_core::compiler::legacy::Utf8ToUtf16::new(source);
+                        rsvelte_core::compiler::legacy::convert_positions_to_utf16(
+                            &mut value, &conv,
+                        );
+                    }
+                    rsvelte_core::compiler::acorn_lines::apply_acorn_line_terminators(
+                        &mut value, source,
+                    );
                     serde_json::to_string(&value).unwrap_or_default()
                 }
             });
