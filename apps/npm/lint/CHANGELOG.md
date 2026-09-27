@@ -1,5 +1,11 @@
 # @rsvelte/lint
 
+## 0.12.5
+
+### Patch Changes
+
+- 9951ee1: fix(lint): `svelte/no-unused-props` no longer reports words from comments inside a Props type (e.g. a `/** … */` JSDoc on a member) as unused Props properties; the declared members are now read from the script's TypeScript AST.
+
 ## 0.12.4
 
 No changes in this release.

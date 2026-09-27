@@ -1,5 +1,38 @@
 # @rsvelte/language-server
 
+## 0.7.12
+
+### Patch Changes
+
+- 74fa992: fix(parser): when a component contains a bare `\r`, ` ` or ` `, `parse()` numbers JavaScript `loc` lines the way acorn does. Upstream only hands acorn a `\n`-based start location when the template breaks lines on `\n` alone; otherwise acorn counts every ECMAScript line terminator itself (lines before a template expression are counted up to its last `\n`, script-prefix characters are blanked to spaces). rsvelte always used the `\n` locator, so every `loc` after such a character was off by the number of terminators it skipped.
+- 8d6578d: Format an inline element that wraps its attributes inside `{#if}` / `{#each}` / `{#key}` after a mustache or inline element (`<div>{value}{#if unit}<sup class="…">{unit}</sup>{/if}</div>`) the same way on every run, instead of alternating between two placements of its open `>` (#4725).
+- 74fa992: fix(parser): `parse()` returns the same AST as `svelte/compiler` on every corpus component except five known shapes. Comments now attach where acorn attaches them. TypeScript literal types, computed signature keys, `#x in obj`, optional calls inside chains and regex flags all convert to the shapes acorn-typescript produces. Declaration tags carry acorn's `loc` and end at their last token. Top-level `<script>`/`<style>` attributes are read statically. CSS comments and hex escapes follow upstream's reader. Legacy empty `{#await}` branches, empty quoted style directives and whitespace before a trailing `<svelte:options>` match upstream.
+- e8f0e92: fix(lsp): a subdirectory's own tsconfig applies to the documents beneath it
+
+  The tsgo overlay built one project from the workspace root's config, while
+  `svelte-language-server` resolves a project **per document** — the nearest ancestor
+  `tsconfig.json` / `jsconfig.json`. In any repository whose subdirectories carry their own config,
+  every option those configs declare was invisible: a `paths` alias one level down produced a
+  `null` hover and a `2307`, with the relative import beside it still resolving. Each config that owns
+  a component is now a project of its own, built before tsgo starts so the order documents open in
+  cannot change another project's answers; one that appears later is built when its first document
+  opens.
+
+  A nested project's shadow tree mirrors the enclosing workspace and lives in that workspace's
+  `.rsvelte-language-server/`, so a relative import of a `.svelte` file outside the project
+  directory (`../shared.svelte`) still resolves; the files it reaches that way are shadowed too.
+
+  Type diagnostics on a component without `lang="ts"` now carry `source: "js"`, as
+  `DiagnosticsProvider` labels them by script kind; tsgo always says `ts`.
+
+- 0b953a4: fix(fmt): a `<svelte:element this="h{n}">` opener is left as written instead of losing `{n}`
+
+  The parser keeps only the first chunk of a quoted `this` value (Svelte 5 compiles `this="h{n}"`
+  as `'h'`, with a warning), and the formatter rebuilt the attribute from that node, so everything
+  after the first chunk was silently deleted (#4717). When the value does not close right after its
+  first chunk the opener is now kept verbatim. prettier-plugin-svelte deletes the text the same way;
+  the two corpus files carrying the shape are excluded from formatter parity as an oracle bug.
+
 ## 0.7.11
 
 ### Patch Changes

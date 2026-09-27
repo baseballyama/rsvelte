@@ -1,5 +1,15 @@
 # @rsvelte/oxlint-plugin
 
+## 0.2.6
+
+### Patch Changes
+
+- 9951ee1: fix(lint): `svelte/no-unused-props` no longer reports words from comments inside a Props type (e.g. a `/** … */` JSDoc on a member) as unused Props properties; the declared members are now read from the script's TypeScript AST.
+- Updated dependencies [74fa992]
+- Updated dependencies [4c4d01e]
+- Updated dependencies [74fa992]
+  - @rsvelte/compiler@0.12.5
+
 ## 0.2.5
 
 ### Patch Changes

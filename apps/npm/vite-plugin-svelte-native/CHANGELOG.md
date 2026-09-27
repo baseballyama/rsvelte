@@ -1,5 +1,12 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.3.16
+
+### Patch Changes
+
+- 74fa992: fix(parser): when a component contains a bare `\r`, ` ` or ` `, `parse()` numbers JavaScript `loc` lines the way acorn does. Upstream only hands acorn a `\n`-based start location when the template breaks lines on `\n` alone; otherwise acorn counts every ECMAScript line terminator itself (lines before a template expression are counted up to its last `\n`, script-prefix characters are blanked to spaces). rsvelte always used the `\n` locator, so every `loc` after such a character was off by the number of terminators it skipped.
+- 74fa992: fix(parser): `parse()` returns the same AST as `svelte/compiler` on every corpus component except five known shapes. Comments now attach where acorn attaches them. TypeScript literal types, computed signature keys, `#x in obj`, optional calls inside chains and regex flags all convert to the shapes acorn-typescript produces. Declaration tags carry acorn's `loc` and end at their last token. Top-level `<script>`/`<style>` attributes are read statically. CSS comments and hex escapes follow upstream's reader. Legacy empty `{#await}` branches, empty quoted style directives and whitespace before a trailing `<svelte:options>` match upstream.
+
 ## 0.3.15
 
 ### Patch Changes

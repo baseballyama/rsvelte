@@ -1,5 +1,18 @@
 # @rsvelte/fmt
 
+## 0.7.25
+
+### Patch Changes
+
+- 8d6578d: Format an inline element that wraps its attributes inside `{#if}` / `{#each}` / `{#key}` after a mustache or inline element (`<div>{value}{#if unit}<sup class="…">{unit}</sup>{/if}</div>`) the same way on every run, instead of alternating between two placements of its open `>` (#4725).
+- 0b953a4: fix(fmt): a `<svelte:element this="h{n}">` opener is left as written instead of losing `{n}`
+
+  The parser keeps only the first chunk of a quoted `this` value (Svelte 5 compiles `this="h{n}"`
+  as `'h'`, with a warning), and the formatter rebuilt the attribute from that node, so everything
+  after the first chunk was silently deleted (#4717). When the value does not close right after its
+  first chunk the opener is now kept verbatim. prettier-plugin-svelte deletes the text the same way;
+  the two corpus files carrying the shape are excluded from formatter parity as an oracle bug.
+
 ## 0.7.24
 
 ### Patch Changes
