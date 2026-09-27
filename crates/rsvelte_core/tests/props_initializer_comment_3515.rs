@@ -54,14 +54,18 @@ fn a_plain_pattern_comment_flushes_at_the_next_generated_node() {
 }
 
 #[test]
-fn a_rest_pattern_comment_flushes_after_the_declaration() {
-    let rest = client(
-        "let { a, ...rest } = // rest\n\t\t$props();",
-        "{a}{rest.x}",
-        false,
-    );
-    assert_contains(&rest, "let rest = $.rest_props($$props,");
-    assert_contains(&rest, ");\n\t// rest");
+fn a_rest_pattern_comment_flushes_before_the_template_member_it_precedes() {
+    // `rest.x` stays upstream's own MemberExpression, so it is the first node
+    // after the comment that carries a `loc`.
+    for dev in [false, true] {
+        let rest = client(
+            "let { a, ...rest } = // rest\n\t\t$props();",
+            "{a}{rest.x}",
+            dev,
+        );
+        assert_contains(&rest, "${// rest\n\t$$props.x ?? ''}`)");
+        assert_eq!(rest.matches("// rest").count(), 1, "{rest}");
+    }
 }
 
 #[test]

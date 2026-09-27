@@ -230,7 +230,12 @@ pub fn program_to_oxc_with_islands<'a, 'source>(
     if !synth.saw_comments {
         return Some(probe);
     }
-    let loc_base = synth.max_span.saturating_add(2);
+    // `max_span` bounds only the spans the probe noted; an identifier span a
+    // node carries for the source map is not noted, and one above the
+    // boundary would read as comment space (#4521). Only the source length
+    // bounds every source offset.
+    let source_end = source.map_or(0, |text| u32::try_from(text.len()).unwrap_or(u32::MAX));
+    let loc_base = synth.max_span.max(source_end).saturating_add(2);
     let (converted, synth) =
         convert_once(program, arena, allocator, islands, source, Some(loc_base))?;
     // Every span the pass produced outside a chunk region must stay below
@@ -429,8 +434,9 @@ fn restore_raw_mapped_spans(stmts: &mut [Statement<'_>], spans: &[RawMappedSpan]
 /// The client transform rebuilds effect calls but retains their callback from
 /// the source AST. Keep that split when a raw chunk is reparsed: the callback
 /// remains located for comment placement while the generated call does not.
-struct GeneratedEffectCallUnlocator<'a> {
-    effect_spans: &'a [(bool, u32, u32)],
+struct GeneratedEffectCallUnlocator<'a, 'b> {
+    ab: &'b AstBuilder<'a>,
+    effect_spans: &'b [(bool, u32, u32)],
     effect_index: usize,
 }
 
@@ -442,7 +448,7 @@ impl<'a> VisitMut<'a> for SpanUnlocator {
     }
 }
 
-impl<'a> VisitMut<'a> for GeneratedEffectCallUnlocator<'_> {
+impl<'a> VisitMut<'a> for GeneratedEffectCallUnlocator<'a, '_> {
     fn visit_expression(&mut self, expr: &mut Expression<'a>) {
         walk_mut::walk_expression(self, expr);
         let Expression::CallExpression(call) = expr else {
@@ -464,36 +470,36 @@ impl<'a> VisitMut<'a> for GeneratedEffectCallUnlocator<'_> {
             || is_dollar_call(&call.callee, "user_pre_effect")
         {
             let pre = is_dollar_call(&call.callee, "user_pre_effect");
-            let mut span = None;
             if let Some((_, start, end)) = self
                 .effect_spans
                 .get(self.effect_index)
                 .filter(|span| span.0 == pre)
                 .or_else(|| self.effect_spans.iter().find(|span| span.0 == pre))
             {
-                let mapped = Span::new(*start, *end);
-                span = Some(mapped);
-                *call.callee.span_mut() = mapped;
-                if let Expression::StaticMemberExpression(member) = &mut call.callee {
-                    member.property.span = mapped;
-                    if let Expression::Identifier(object) = &mut member.object {
-                        object.span = mapped;
-                    }
-                }
+                // Upstream builds the callee as one identifier, `b.id('$.user_effect')`,
+                // and gives it the rune's `loc`; the call itself stays unlocated.
+                let name = if pre {
+                    "$.user_pre_effect"
+                } else {
+                    "$.user_effect"
+                };
+                call.callee = Expression::new_identifier(Span::new(*start, *end), name, self.ab);
             }
             self.effect_index += 1;
-            call.span = span.unwrap_or(SPAN);
+            call.span = SPAN;
         } else if is_dollar_call(&call.callee, "effect_root") {
             call.span = SPAN;
         }
     }
 }
 
-fn erase_generated_effect_call_locs(
-    stmts: &mut [Statement<'_>],
+fn erase_generated_effect_call_locs<'a>(
+    ab: &AstBuilder<'a>,
+    stmts: &mut [Statement<'a>],
     effect_spans: &[(bool, u32, u32)],
 ) {
     let mut unlocator = GeneratedEffectCallUnlocator {
+        ab,
         effect_spans,
         effect_index: 0,
     };
@@ -598,6 +604,8 @@ struct Synth {
     /// can tell whether it sits after those comments in the *source* (which is
     /// the order upstream compares in) and not merely after them in the buffer.
     last_region_source: Option<u32>,
+    /// Buffer cursor right after the last comment-bearing chunk was appended.
+    last_region_cursor: Option<u32>,
     /// Original-source end of the last comment the previous chunk region
     /// carried, so an anchor can make upstream's `comment.loc.end.line <
     /// to.line` comparison in SOURCE lines (#4500).
@@ -631,6 +639,7 @@ impl Synth {
             loc_map: Vec::new(),
             pending_region: None,
             last_region_source: None,
+            last_region_cursor: None,
             last_region_comment_source_end: None,
             last_region_ends_with_removed_inspect_comment: false,
             saw_comments: false,
@@ -862,6 +871,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         }
         synth.last_region_comment_source_end = Self::last_comment_source_end(&synth, region);
         synth.last_region_source = source_offset;
+        synth.last_region_cursor = Some(synth.cursor());
         Some(region)
     }
 
@@ -910,6 +920,31 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         // trailing comment.
         synth.source.push('\n');
         Span::new(at, at)
+    }
+
+    /// [`Self::comment_anchor`] for a template node upstream prints with its
+    /// own `loc`, which is where esrap flushes a comment the instance script
+    /// left pending (one before a declaration the transform removed). The
+    /// anchor sits at the buffer cursor and so claims every comment appended
+    /// before it; it stands for the source node only while those are still
+    /// the script chunk's own.
+    fn script_comment_anchor(&self, source_offset: u32) -> Span {
+        let Some((_, script_start, script_end)) = self.component_brace_span else {
+            return SPAN;
+        };
+        {
+            let synth = self.synth.borrow();
+            let pending_from_script = synth
+                .last_region_source
+                .is_some_and(|chunk| (script_start..script_end).contains(&chunk));
+            if source_offset < script_end
+                || !pending_from_script
+                || synth.last_region_cursor != Some(synth.cursor())
+            {
+                return SPAN;
+            }
+        }
+        self.comment_anchor(Some(source_offset))
     }
 
     /// Original-source end of the last comment inside `region`, when its buffer
@@ -2047,7 +2082,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         self.restore_legacy_pre_effect_deps(&mut stmts);
         self.restore_single_target_destructure_sequences(&mut stmts);
         if unlocate_effect_calls {
-            erase_generated_effect_call_locs(&mut stmts, effect_spans);
+            erase_generated_effect_call_locs(&self.ab, &mut stmts, effect_spans);
         }
         Some(stmts)
     }
@@ -2340,7 +2375,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                     return Some(stmts);
                 }
                 restore_raw_mapped_spans(&mut stmts, copied_spans, code);
-                erase_generated_effect_call_locs(&mut stmts, effect_spans);
+                erase_generated_effect_call_locs(&self.ab, &mut stmts, effect_spans);
                 let sp = Span::new(*source_offset, *source_offset);
                 for s in &mut stmts {
                     if s.span().is_empty() {
@@ -2592,6 +2627,11 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     /// Build a [`MemberExpression`] node from the IR member expression. Shared
     /// by the `Member` expression arm and the assignment-target helper.
     fn member_expr(&self, m: &JsMemberExpression) -> Option<oxc_ast::ast::MemberExpression<'a>> {
+        // Claimed before the object converts: the member prints first.
+        let anchor = match &m.property {
+            JsMemberProperty::SpannedIdentifier { start, .. } => self.script_comment_anchor(*start),
+            _ => SPAN,
+        };
         let object = self.member_object(m.object)?;
         let member = match &m.property {
             JsMemberProperty::Identifier(name) => {
@@ -2603,6 +2643,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             JsMemberProperty::SpannedIdentifier { name, start, end } => {
                 let span = Span::new(*start, *end);
                 let property = IdentifierName::new(span, self.str(name), &self.ab);
+                let span = if anchor == SPAN { span } else { anchor };
                 MemberExpression::StaticMemberExpression(StaticMemberExpression::boxed(
                     span, object, property, m.optional, &self.ab,
                 ))

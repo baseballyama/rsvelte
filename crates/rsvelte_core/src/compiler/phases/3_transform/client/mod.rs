@@ -3290,11 +3290,24 @@ fn script_raw_statement(
                     let tail = &original[start..];
                     let pre = tail.starts_with("$effect.pre");
                     let len = if pre { 11 } else { 7 };
-                    (
-                        pre,
-                        original_offset + start as u32,
-                        original_offset + start as u32 + len,
-                    )
+                    let start = start as u32;
+                    // `original` is the type-erased script, so a TypeScript
+                    // offset has to be projected back into the source. An
+                    // unprojectable one stays empty, i.e. unmapped, rather
+                    // than naming whatever source byte shares its offset.
+                    let source = match projection {
+                        None => Some(original_offset + start),
+                        Some(projection) => projection
+                            .copied_chunks
+                            .iter()
+                            .find(|chunk| {
+                                chunk.output.start <= start && start + len <= chunk.output.end
+                            })
+                            .map(|chunk| {
+                                original_offset + chunk.source.start + start - chunk.output.start
+                            }),
+                    };
+                    source.map_or((pre, 0, 0), |source| (pre, source, source + len))
                 })
                 .collect(),
             copied_spans,

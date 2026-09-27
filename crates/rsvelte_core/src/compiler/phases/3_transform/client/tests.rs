@@ -1235,6 +1235,105 @@ fn a_script_comment_maps_before_the_template_expression_it_precedes() {
     );
 }
 
+/// `(generated line, source line, source column)` of every segment whose
+/// generated text starts with `needle`, all 0-based.
+fn segments_starting_with(
+    result: &crate::compiler::CompileResult,
+    needle: &str,
+) -> Vec<(usize, i64, i64)> {
+    let map: serde_json::Value =
+        serde_json::from_str(result.js.map.as_deref().expect("map")).expect("valid source map");
+    let mappings = crate::compiler::phases::phase3_transform::js_ast::codegen::decode_vlq_mappings(
+        map["mappings"].as_str().expect("VLQ mappings"),
+    );
+    let mut segments = Vec::new();
+    for (line, generated) in result.js.code.lines().enumerate() {
+        for segment in mappings.get(line).into_iter().flatten() {
+            let column = usize::try_from(segment[0]).unwrap();
+            if generated[column..].starts_with(needle) && segment.len() >= 4 {
+                segments.push((line, segment[2], segment[3]));
+            }
+        }
+    }
+    segments
+}
+
+#[test]
+fn a_template_element_past_the_longest_chunk_maps_to_its_source() {
+    // The template ends past every chunk the converter notes, so the element's
+    // offset must still read as source, not as the comment buffer (#4521).
+    let source = r#"<script lang="ts">
+    const {onfoo}:{ // onfoo: (e: { detail: number; }) => void, onfoo: (e: { detail: number; }) => void
+        onfoo: (e: { detail: number }) => void // onfoo: (e: { detail: number; }) => void, e: { detail: number; }
+    } = $props() // $props(): { onfoo: (e: { detail: number; }) => void; }
+    onfoo({detail: 1}) // onfoo({detail: 1}): void
+</script>
+
+<button onclick="{e=>{ // e: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement; }
+    e.currentTarget; // e.currentTarget: EventTarget & HTMLButtonElement
+}}"></button>
+<input oninput="{e=>{ // e: Event & { currentTarget: EventTarget & HTMLInputElement; }
+    e.currentTarget; // e.currentTarget: EventTarget & HTMLInputElement
+}}">
+"#;
+    let result = crate::compiler::compile(
+        source,
+        crate::compiler::CompileOptions {
+            filename: Some("ts-event03-type-output.svelte".to_string()),
+            enable_sourcemap: true,
+            ..Default::default()
+        },
+    )
+    .expect("compiles");
+
+    let button_segments = segments_starting_with(&result, "button");
+    assert!(!button_segments.is_empty(), "{}", result.js.code);
+    assert!(
+        button_segments
+            .iter()
+            .all(|&(_, line, column)| (line, column) == (7, 1)),
+        "{button_segments:?}\n{}",
+        result.js.code
+    );
+}
+
+#[test]
+fn a_typescript_effect_maps_its_callee_to_the_rune() {
+    // The rune offsets are found in the type-erased script, so they have to be
+    // projected back into the source; upstream maps the callee as one
+    // identifier and leaves the call itself unlocated.
+    let source = "<script lang=\"ts\">\n  let a: number = $state(1);\n  // c\n  $effect(() => {\n    console.log(a);\n  });\n</script>\n";
+    let result = crate::compiler::compile(
+        source,
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            enable_sourcemap: true,
+            ..Default::default()
+        },
+    )
+    .expect("compiles");
+
+    let effect_line = result
+        .js
+        .code
+        .lines()
+        .position(|line| line.trim_start().starts_with("$.user_effect("))
+        .expect("an effect call");
+    let on_effect_line: Vec<_> = segments_starting_with(&result, "")
+        .into_iter()
+        .filter(|&(line, _, _)| line == effect_line)
+        .map(|(_, line, column)| (line, column))
+        .collect();
+    // The official compiler's segments on this line: the callee start and
+    // end, then the arrow body's opening brace.
+    assert_eq!(
+        on_effect_line,
+        vec![(3, 2), (3, 9), (3, 16), (3, 17)],
+        "{}",
+        result.js.code
+    );
+}
+
 #[test]
 fn a_snippet_shadowing_a_prop_still_reads_the_prop_statically() {
     // The read transform receives the identifier inside its span wrapper, and a
