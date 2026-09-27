@@ -1,10 +1,7 @@
 {
 	"legacy::ConditionalExpression#span": "span",
 	"legacy::LogicalExpression#span": "span",
-	"legacy::ParenthesizedExpression.type#value": "node-type",
 	"loose:unclosed-attribute-quote::(accepted)#official-rejects": "accepts-what-official-rejects",
-	"loose:unclosed-element::RegularElement#span": "span",
 	"modern::ConditionalExpression#span": "span",
-	"modern::LogicalExpression#span": "span",
-	"modern::ParenthesizedExpression.type#value": "node-type"
+	"modern::LogicalExpression#span": "span"
 }
