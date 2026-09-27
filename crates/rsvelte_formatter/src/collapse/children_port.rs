@@ -24,12 +24,37 @@ fn child_profile(fragment: &Fragment) -> (bool, bool, bool, bool) {
         .nodes
         .iter()
         .any(|node| matches!(node, TemplateNode::Text(_)));
-    let block_run = has_any_text
-        && fragment.nodes.iter().all(|node| match node {
+    let blank_or = |allowed: fn(&TemplateNode) -> bool| {
+        fragment.nodes.iter().all(|node| match node {
             TemplateNode::Text(text) => super::split_html_ws(&text.data).next().is_none(),
-            TemplateNode::IfBlock(_) | TemplateNode::RenderTag(_) => true,
-            _ => false,
-        });
+            _ => allowed(node),
+        })
+    };
+    let flow_block = |node: &TemplateNode| {
+        matches!(
+            node,
+            TemplateNode::IfBlock(_) | TemplateNode::EachBlock(_) | TemplateNode::KeyBlock(_)
+        )
+    };
+    // The port lays `<div>{a}{#if b}…{/if}</div>` out on indented lines, which
+    // adds blank edges; declining that shape would hand the port's own output to
+    // passes that lay it out differently on the next run. Components stay out:
+    // admitting them moves a nested `<Breadcrumb>` run away from the oracle.
+    let block_run = has_any_text
+        && (blank_or(|node| matches!(node, TemplateNode::IfBlock(_) | TemplateNode::RenderTag(_)))
+            || (fragment.nodes.iter().any(flow_block)
+                && blank_or(|node| {
+                    matches!(
+                        node,
+                        TemplateNode::IfBlock(_)
+                            | TemplateNode::EachBlock(_)
+                            | TemplateNode::KeyBlock(_)
+                            | TemplateNode::ExpressionTag(_)
+                            | TemplateNode::HtmlTag(_)
+                            | TemplateNode::RenderTag(_)
+                            | TemplateNode::RegularElement(_)
+                    )
+                })));
     (has_prose_word, has_non_text, has_any_text, block_run)
 }
 
