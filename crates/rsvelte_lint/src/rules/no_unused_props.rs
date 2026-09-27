@@ -18,6 +18,14 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use crate::type_backend::TypeId;
+use oxc_allocator::Allocator;
+use oxc_ast::ast::{
+    PropertyKey, Statement, TSInterfaceDeclaration, TSSignature, TSType, TSTypeAliasDeclaration,
+    TSTypeLiteral,
+};
+use oxc_ast_visit::{Visit, walk};
+use oxc_parser::{ParseOptions as OxcParseOptions, Parser};
+use oxc_span::SourceType;
 use rsvelte_diagnostics::Diagnostic;
 
 use crate::config::LintConfig;
@@ -178,7 +186,7 @@ fn diagnostics_typed_flat(
                 let Some(nested) = types
                     .iter()
                     .find(|t| t.trim_start().starts_with('{'))
-                    .and_then(|t| parse_prop_members(t, 0))
+                    .and_then(|t| parse_prop_members(t))
                 else {
                     continue;
                 };
@@ -782,43 +790,9 @@ pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagno
             continue;
         }
 
-        // 3. Resolve Props type body.
-        let resolved = if props_info.type_name.trim_start().starts_with('{') {
-            // Inline type literal.
-            let type_name_in_content = props_info
-                .type_abs_offset
-                .saturating_sub(block.content_start);
-            let brace_offset = content[type_name_in_content..]
-                .find('{')
-                .map(|r| type_name_in_content + r);
-            let Some(brace_offset) = brace_offset else {
-                continue;
-            };
-            extract_balanced_braces(content, brace_offset)
-                .map(|body| (body, block.content_start + brace_offset))
-        } else {
-            let name = props_info.type_name.trim();
-            // Skip if type name contains angle brackets (generic).
-            if name.contains('<') {
-                continue;
-            }
-            // Skip if type annotation text contains intersection.
-            if props_info.type_name.contains('&') {
-                continue;
-            }
-            // Skip if type name is imported.
-            if is_type_imported(&blanked, name) {
-                continue;
-            }
-            find_named_type_body_no_extends(content, &blanked, name, block.content_start)
-        };
-
-        let Some((body_text, body_abs_offset)) = resolved else {
-            continue;
-        };
-
-        // 4. Parse members; skip if index signature present.
-        let Some(mut members) = parse_prop_members(&body_text, body_abs_offset) else {
+        // 3. Resolve the local Props type's members; skip if it has an index signature.
+        let Some(mut members) = local_props_members(content, &props_info, block.content_start)
+        else {
             continue;
         };
         members.retain(|name| !any_match(&ignore_prop_patterns, name));
@@ -1128,7 +1102,7 @@ fn find_props_info(content: &str, blanked: &str, content_start: usize) -> Option
         // Destructure form: `const { a, b }: Props = $props()`.
         let close_brace_rel = blanked[..colon_rel].rfind('}')?;
         let open_brace_rel = find_matching_open_brace(blanked, close_brace_rel)?;
-        let pattern_text = content[open_brace_rel..=close_brace_rel].to_string();
+        let pattern_text = blanked[open_brace_rel..=close_brace_rel].to_string();
         let has_rest = pattern_text.contains("...");
         PropForm::Destructure {
             pattern_open_brace_abs: content_start + open_brace_rel,
@@ -1186,116 +1160,6 @@ fn find_matching_open_brace(s: &str, close_pos: usize) -> Option<usize> {
     None
 }
 
-/// Check if `name` appears in an import statement in the blanked script content.
-fn is_type_imported(blanked: &str, name: &str) -> bool {
-    let nb = name.as_bytes();
-    let bytes = blanked.as_bytes();
-    let mut i = 0;
-    while i + 6 <= bytes.len() {
-        if &bytes[i..i + 6] == b"import" {
-            let before_ok = !ident_continues_before(blanked, i);
-            if before_ok {
-                let end = blanked[i..]
-                    .find(';')
-                    .map(|r| i + r + 1)
-                    .or_else(|| blanked[i..].find('\n').map(|r| i + r + 1))
-                    .unwrap_or(blanked.len());
-                let import_stmt = &blanked[i..end];
-                if let Some(name_pos) = import_stmt.find(name) {
-                    let before_ok2 = !ident_continues_before(import_stmt, name_pos);
-                    let after_ok = !ident_continues_at(import_stmt, name_pos + nb.len());
-                    if before_ok2 && after_ok {
-                        return true;
-                    }
-                }
-                i = end;
-                continue;
-            }
-        }
-        i += 1;
-    }
-    false
-}
-
-/// Find the Props type body for a named type, skipping if it has `extends` or
-/// `&` (intersection) between the name and the opening brace.
-fn find_named_type_body_no_extends(
-    content: &str,
-    blanked: &str,
-    name: &str,
-    content_start: usize,
-) -> Option<(String, usize)> {
-    let nb = name.as_bytes();
-
-    for kw in ["interface", "type"] {
-        let mut search_from = 0usize;
-        while let Some(rel) = blanked[search_from..].find(kw) {
-            let kw_start = search_from + rel;
-            let kw_end = kw_start + kw.len();
-            let before_ok = !ident_continues_before(blanked, kw_start);
-            if !before_ok {
-                search_from = kw_end;
-                continue;
-            }
-            // After keyword, skip whitespace, match name.
-            let rest = blanked[kw_end..].trim_start();
-            let rest_start = kw_end + (blanked[kw_end..].len() - rest.len());
-            if !rest.as_bytes().starts_with(nb) {
-                search_from = kw_end;
-                continue;
-            }
-            let after_name = rest_start + nb.len();
-            if ident_continues_at(blanked, after_name) {
-                search_from = kw_end;
-                continue;
-            }
-            // For `type`, find `=` first.
-            let search_brace_from = if kw == "type" {
-                blanked[after_name..]
-                    .find('=')
-                    .map(|r| after_name + r + 1)?
-            } else {
-                after_name
-            };
-            // Find the opening `{`.
-            let open_brace_rel = blanked[search_brace_from..].find('{')?;
-            let open_brace = search_brace_from + open_brace_rel;
-            // Check for `extends` or `&` between name-end and `{`.
-            let between = &blanked[after_name..open_brace];
-            if between.contains("extends") || between.contains('&') {
-                return None;
-            }
-            let body = extract_balanced_braces(content, open_brace)?;
-            return Some((body, content_start + open_brace));
-        }
-    }
-    None
-}
-
-/// Extract balanced `{…}` block from `content` at `start`.
-fn extract_balanced_braces(content: &str, start: usize) -> Option<String> {
-    let bytes = content.as_bytes();
-    if bytes.get(start) != Some(&b'{') {
-        return None;
-    }
-    let mut depth = 0i32;
-    let mut i = start;
-    while i < bytes.len() {
-        match bytes[i] {
-            b'{' => depth += 1,
-            b'}' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(content[start..=i].to_string());
-                }
-            }
-            _ => {}
-        }
-        i += 1;
-    }
-    None
-}
-
 /// Find the `:` before the type annotation by scanning right-to-left.
 /// Handles nested `<>`, `{}`, `()`.
 fn find_type_colon_before(s: &str) -> Option<usize> {
@@ -1326,57 +1190,149 @@ fn find_type_colon_before(s: &str) -> Option<usize> {
     None
 }
 
-/// Parse member names from a type body `{ … }`.
+/// Parse member names from a rendered object type `{ … }`.
 /// Returns `None` if an index signature is present (skip the whole check).
-fn parse_prop_members(body: &str, _body_abs_offset: usize) -> Option<Vec<String>> {
-    let inner = if body.starts_with('{') && body.ends_with('}') {
-        &body[1..body.len() - 1]
-    } else {
-        body
-    };
-
-    let mut members = Vec::new();
-    let segments = split_top_level(inner, b";\n,");
-
-    for seg in segments {
-        let seg = seg.trim();
-        if seg.is_empty() {
-            continue;
-        }
-        // Index signature: starts with `[`
-        if seg.starts_with('[') {
-            // Index signature present — skip this entire type (return None).
-            return None;
-        }
-        if let Some(name) = extract_member_name(seg) {
-            members.push(name);
-        }
+fn parse_prop_members(type_text: &str) -> Option<Vec<String>> {
+    let allocator = Allocator::default();
+    let source = format!("type __Props = {type_text};");
+    let parsed = Parser::new(&allocator, &source, SourceType::ts()).parse();
+    if !parsed.diagnostics.is_empty() {
+        return None;
     }
-
-    Some(members)
+    let [Statement::TSTypeAliasDeclaration(alias)] = parsed.program.body.as_slice() else {
+        return None;
+    };
+    let TSType::TSTypeLiteral(literal) = &alias.type_annotation else {
+        return None;
+    };
+    signature_names(&literal.members)
 }
 
-/// Extract the property name from a type member segment.
-fn extract_member_name(seg: &str) -> Option<String> {
-    let seg = seg.trim();
-    if seg.is_empty() {
+/// Resolve the members of the local Props type named by the `$props()`
+/// annotation from the script's AST, so comments and string contents inside
+/// the type never become member names. `None` skips the check: the type is
+/// not a local flat type literal, or it has an index signature.
+fn local_props_members(
+    content: &str,
+    props_info: &PropsInfo,
+    content_start: usize,
+) -> Option<Vec<String>> {
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, content, SourceType::ts().with_module(true))
+        .with_options(OxcParseOptions {
+            allow_return_outside_function: true,
+            ..OxcParseOptions::default()
+        })
+        .parse();
+    let annotation = props_info.type_name.trim();
+    let mut finder = PropsTypeFinder {
+        name: annotation,
+        inline_start: annotation
+            .starts_with('{')
+            .then(|| source_offset(props_info.type_abs_offset - content_start)),
+        members: None,
+        declarations: 0,
+        flat: true,
+    };
+    if finder.inline_start.is_none()
+        && !annotation
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+    {
         return None;
     }
-    let bytes = seg.as_bytes();
-
-    // Quoted name: 'foo' or "foo"
-    if bytes[0] == b'\'' || bytes[0] == b'"' {
-        let q = bytes[0];
-        let end = bytes[1..].iter().position(|&c| c == q)?;
-        return Some(seg[1..=end].to_string());
-    }
-
-    // Plain identifier (possibly followed by `?`, `:`, `(`)
-    let name_end = ident_run_end(seg, 0);
-    if name_end == 0 {
+    finder.visit_program(&parsed.program);
+    if !finder.flat {
         return None;
     }
-    Some(seg[..name_end].to_string())
+    finder.members
+}
+
+struct PropsTypeFinder<'n> {
+    name: &'n str,
+    inline_start: Option<u32>,
+    members: Option<Vec<String>>,
+    declarations: usize,
+    /// Cleared when a declaration can only be enumerated with a type checker
+    /// (`extends`, a non-literal alias, an index signature).
+    flat: bool,
+}
+
+impl PropsTypeFinder<'_> {
+    fn add(&mut self, signatures: &[TSSignature]) {
+        self.declarations += 1;
+        match signature_names(signatures) {
+            Some(names) => self.members.get_or_insert_with(Vec::new).extend(names),
+            None => self.flat = false,
+        }
+    }
+}
+
+impl<'a> Visit<'a> for PropsTypeFinder<'_> {
+    fn visit_ts_interface_declaration(&mut self, it: &TSInterfaceDeclaration<'a>) {
+        if self.inline_start.is_none() && it.id.name == self.name {
+            if it.extends.is_empty() {
+                self.add(&it.body.body);
+            } else {
+                self.flat = false;
+            }
+        }
+        walk::walk_ts_interface_declaration(self, it);
+    }
+
+    fn visit_ts_type_alias_declaration(&mut self, it: &TSTypeAliasDeclaration<'a>) {
+        if self.inline_start.is_none() && it.id.name == self.name {
+            match &it.type_annotation {
+                TSType::TSTypeLiteral(literal) => self.add(&literal.members),
+                TSType::TSIntersectionType(intersection)
+                    if intersection
+                        .types
+                        .iter()
+                        .all(|t| matches!(t, TSType::TSTypeLiteral(_))) =>
+                {
+                    for t in &intersection.types {
+                        if let TSType::TSTypeLiteral(literal) = t {
+                            self.add(&literal.members);
+                        }
+                    }
+                }
+                _ => self.flat = false,
+            }
+        }
+        walk::walk_ts_type_alias_declaration(self, it);
+    }
+
+    fn visit_ts_type_literal(&mut self, it: &TSTypeLiteral<'a>) {
+        if self.inline_start == Some(it.span.start) && self.declarations == 0 {
+            self.add(&it.members);
+        }
+        walk::walk_ts_type_literal(self, it);
+    }
+}
+
+/// Member names of a type literal or interface body; `None` when an index
+/// signature or a non-static computed key makes the set open-ended.
+fn signature_names(signatures: &[TSSignature]) -> Option<Vec<String>> {
+    let mut names = Vec::new();
+    for signature in signatures {
+        let (key, computed) = match signature {
+            TSSignature::TSPropertySignature(sig) => (&sig.key, sig.computed),
+            TSSignature::TSMethodSignature(sig) => (&sig.key, sig.computed),
+            TSSignature::TSIndexSignature(_) => return None,
+            TSSignature::TSCallSignatureDeclaration(_)
+            | TSSignature::TSConstructSignatureDeclaration(_) => continue,
+        };
+        let name = match key {
+            PropertyKey::StaticIdentifier(id) if !computed => id.name.to_string(),
+            PropertyKey::StringLiteral(s) => s.value.to_string(),
+            PropertyKey::NumericLiteral(n) => n.value.to_string(),
+            _ => return None,
+        };
+        if !names.contains(&name) {
+            names.push(name);
+        }
+    }
+    Some(names)
 }
 
 /// Split at top-level occurrences of any delimiter byte, respecting nesting of
@@ -1478,7 +1434,7 @@ mod tests {
 
     #[test]
     fn members_from_interface_body() {
-        let m = parse_prop_members("{ test: string; 'aria-label'?: string }", 0).unwrap();
+        let m = parse_prop_members("{ test: string; 'aria-label'?: string }").unwrap();
         assert!(m.contains(&"test".to_string()));
         assert!(m.contains(&"aria-label".to_string()));
     }
@@ -1486,7 +1442,85 @@ mod tests {
     #[test]
     fn index_signature_body_skips() {
         // An index signature means we can't enumerate members → skip (None).
-        assert!(parse_prop_members("{ [key: string]: unknown }", 0).is_none());
+        assert!(parse_prop_members("{ [key: string]: unknown }").is_none());
+    }
+
+    fn native_msgs(script: &str) -> Vec<String> {
+        let source = format!("<script lang=\"ts\">\n{script}\n</script>\n");
+        let config =
+            LintConfig::from_json_str(r#"{"rules":{"svelte/no-unused-props":"error"}}"#).unwrap();
+        diagnostics(&source, Path::new("T.svelte"), &config)
+            .into_iter()
+            .map(|d| d.message)
+            .collect()
+    }
+
+    #[test]
+    fn native_path_ignores_words_in_member_comments() {
+        let msgs = native_msgs(
+            "interface Props {\n\t/** Cancel path: X button, backdrop click, or Esc. */\n\tonClose: () => void;\n}\nlet { onClose }: Props = $props();\nonClose();",
+        );
+        assert_eq!(msgs, Vec::<String>::new());
+    }
+
+    #[test]
+    fn native_path_ignores_comment_and_string_text_in_every_type_form() {
+        let bodies = [
+            "\t// line comment: first, second; third\n\ta: string;\n\t/* don't { open */\n\tb: 'x, y' | \"z;w\";\n\tc: { /** nested, words */ inner: number };\n\tunusedReal?: boolean;",
+            "\t/**\n\t * Multi-line, with: colons; and `ticks`\n\t */\n\ta: string, b: string\n\tc(): void\n\tunusedReal: 1",
+        ];
+        for body in bodies {
+            for (decl, annotation) in [
+                (
+                    format!("interface Props {{\n{body}\n}}"),
+                    "Props".to_string(),
+                ),
+                (format!("type Props = {{\n{body}\n}};"), "Props".to_string()),
+                (String::new(), format!("{{\n{body}\n}}")),
+            ] {
+                let script = format!(
+                    "{decl}\nlet {{ a, // don't, 'c\n\tb, /* d, e */ c }}: {annotation} = $props();"
+                );
+                assert_eq!(
+                    native_msgs(&script),
+                    vec!["'unusedReal' is an unused Props property.".to_string()],
+                    "{script}"
+                );
+                let script = format!(
+                    "{decl}\nconst props: {annotation} = $props();\nprops.a; props.b; props.c;"
+                );
+                assert_eq!(
+                    native_msgs(&script),
+                    vec!["'unusedReal' is an unused Props property.".to_string()],
+                    "{script}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn native_path_skips_open_ended_props_types() {
+        for decl in [
+            "interface Base { x: string }\ninterface Props extends Base { a: string; b: string }",
+            "type Props = { a: string; b: string } & Base;",
+            "interface Props { a: string; b: string; [key: string]: unknown }",
+        ] {
+            let script = format!("{decl}\nlet {{ a }}: Props = $props();");
+            assert_eq!(native_msgs(&script), Vec::<String>::new(), "{script}");
+        }
+    }
+
+    #[test]
+    fn native_path_unions_an_intersection_of_type_literals() {
+        assert_eq!(
+            native_msgs(
+                "type Props = { a: string; /* b, x */ b: string } & { c: string };\nlet { a }: Props = $props();"
+            ),
+            vec![
+                "'b' is an unused Props property.".to_string(),
+                "'c' is an unused Props property.".to_string(),
+            ]
+        );
     }
 
     #[test]
