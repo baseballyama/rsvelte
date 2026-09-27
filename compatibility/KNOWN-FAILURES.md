@@ -7306,10 +7306,11 @@ target, so an id that diverges on all four targets is one ratchet entry rather t
 **Current baseline**, from the enrolling CI run (`Corpus Compat` 34430947366, tree
 `7b270ecbc`, 668 `pattern/issues/` manifest entries per target) less the two client entries of
 `008-comment-props-destructure.svelte`, which #4563 retired, plus the two server entries of
-`4079-annotated-private-read-comment-placement.svelte.js` that the Svelte 5.57.1 upgrade added:
-12 distinct ids, 30 `(id, target)`
-pairs, filed as `pattern-exact-known-failures.client.json`, 5 entries;
-`pattern-exact-known-failures.client-dev.json`, 5 entries;
+`4079-annotated-private-read-comment-placement.svelte.js` that the Svelte 5.57.1 upgrade added,
+less the two client entries of `3515-props-rest-line-comment.svelte`, which #4521 retired:
+11 distinct ids, 28 `(id, target)`
+pairs, filed as `pattern-exact-known-failures.client.json`, 4 entries;
+`pattern-exact-known-failures.client-dev.json`, 4 entries;
 `pattern-exact-known-failures.server.json`, 10 entries; and
 `pattern-exact-known-failures.server-dev.json`, 10 entries. The two client targets and the two dev
 targets agree entry for entry, which is what makes the server/client split the real axis here.
@@ -7338,7 +7339,7 @@ so a repro failing gate 1 for an ordinary text mismatch can be listed in both. E
 would mean that *fixing* a gate-1 entry adds a row here; two rows for one divergence is the
 cheaper failure.
 
-### The 12 entries, with the direction each one runs in
+### The 11 entries, with the direction each one runs in
 
 Every line below is the first differing line the run reported, so `expected` is the official
 compiler and `actual` is rsvelte. `45c` says this family does not decide who is wrong, and the
@@ -7355,7 +7356,6 @@ different place, which is a shape the tally above has no bucket for.
 | `3515-props-default-multiline-comment.svelte` | all 4 | **mixed.** Server is the same extra `/* initializer` as the line-comment sibling; client is an indentation difference *inside* a kept block comment (`\t\t` vs `\t\t\t\t`), which is the continuation-line half of the same divergence. |
 | `3515-props-plain-line-comment.svelte` | server, server-dev | **rsvelte emits extra**, as the `default` sibling. |
 | `3515-props-plain-multiline-comment.svelte` | all 4 | **mixed**, as the `default` multiline sibling (`\t\t` vs `\t\t\t`). |
-| `3515-props-rest-line-comment.svelte` | client, client-dev | **rsvelte drops.** Official breaks `$.template_effect(() =>` across lines because a comment sits in the arrow body; rsvelte emits the one-line form, so the break is the visible half of a dropped comment. |
 | `3603-each-key-comment.svelte` | server, server-dev | **rsvelte drops.** `$.ensure_array_like(rows /* key */)` against `$.ensure_array_like(rows)`. |
 | `4046-snippet-parameter-comment.svelte` | all 4 | **rsvelte drops** on three targets (`/* parameter */` before the snippet call) and misplaces on `client-dev`, where official writes `() => /* parameter */ body(...)`. |
 | `destructure-rhs-ends-before-a-trailing-comment.svelte` | client, client-dev | **misplaced.** Official closes the effect (`});`) where rsvelte still has `/* } c */` — the comment is kept but a statement late. |
