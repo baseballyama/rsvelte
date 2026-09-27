@@ -568,6 +568,7 @@ impl<'a> Parser<'a> {
             if found_closing_tag && !self.stack.is_empty() {
                 self.stack.pop();
             }
+            self.note_left_open(found_closing_tag, start as u32);
         }
 
         // Calculate end position

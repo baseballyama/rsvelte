@@ -216,9 +216,24 @@ impl<'a> Parser<'a> {
             module: self.module_script.take().map(Box::new),
             skip_expression_loc: self.options.skip_expression_loc,
             parse_warnings: std::mem::take(&mut self.parse_warnings),
+            // Upstream assigns `end` only to the innermost node still open at
+            // EOF (`1-parse/index.js`); every other keeps the `-1` it was
+            // created with.
+            unclosed_ancestors: self
+                .eof_open
+                .split_first()
+                .map_or_else(Vec::new, |(_, rest)| rest.to_vec()),
             source: None,
             arena: std::mem::take(&mut self.arena),
         })
+    }
+
+    /// Record a node that ends without its close. In a loose parse that is
+    /// at EOF, it is one of the nodes upstream leaves open.
+    pub(crate) fn note_left_open(&mut self, found_closing: bool, start: u32) {
+        if !found_closing && self.options.loose && self.remaining_is_whitespace_only() {
+            self.eof_open.push(start);
+        }
     }
 
     /// Check if the remaining content from current position to EOF is only whitespace.

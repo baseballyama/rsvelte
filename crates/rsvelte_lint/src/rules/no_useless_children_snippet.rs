@@ -113,6 +113,7 @@ mod tests {
             expression: expr,
             type_params: None,
             parameters,
+            parameter_parens: Vec::new(),
             body: Default::default(),
             metadata: Default::default(),
         }

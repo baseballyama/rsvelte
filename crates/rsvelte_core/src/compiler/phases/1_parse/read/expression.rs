@@ -32,6 +32,7 @@ use serde_json::{Map, Value};
 use super::super::utils::TrimWs;
 use crate::ast::arena::{IdRange, ParseArena};
 use crate::ast::js::Expression;
+use crate::ast::template::ParenthesizedSpan;
 use crate::ast::typed_expr::{
     JsNode, LiteralValue, Loc, RegexValue, SourcePosition, TemplateElementValue, TsMemberModifiers,
     alloc_deser_children, alloc_deser_node, child_node_from_value,
@@ -2866,14 +2867,15 @@ fn split_top_level_params(content: &str) -> Vec<String> {
     parts
 }
 
-/// Parse TypeScript function parameters and return them as Expressions.
+/// Parse TypeScript function parameters and return them as Expressions, with
+/// the parentheses written inside them.
 /// Input is the content inside parentheses, e.g., "msg: string, count: number"
 pub fn parse_typescript_params<'a>(
     arena: &ParseArena,
     content: &str,
     offset: usize,
     line_offsets: &[usize],
-) -> Vec<Expression<'a>> {
+) -> (Vec<Expression<'a>>, Vec<ParenthesizedSpan>) {
     // Use TypeScript source type to parse type annotations
     let source_type = SourceType::ts().with_module(true);
 
@@ -2882,7 +2884,7 @@ pub fn parse_typescript_params<'a>(
     let mut params = Vec::new();
 
     enum ParseOutcome<'a> {
-        Ok(Vec<Expression<'a>>),
+        Ok(Vec<Expression<'a>>, Vec<ParenthesizedSpan>),
         HasErrors,
     }
 
@@ -2957,14 +2959,19 @@ pub fn parse_typescript_params<'a>(
                     false,
                 );
             }
-            ParseOutcome::Ok(p)
+            let parens = if content.contains('(') {
+                collect_parameter_parens(&arrow.params, offset, line_offsets)
+            } else {
+                Vec::new()
+            };
+            ParseOutcome::Ok(p, parens)
         } else {
             ParseOutcome::HasErrors
         }
     });
 
     match outcome {
-        ParseOutcome::Ok(p) => return p,
+        ParseOutcome::Ok(p, parens) => return (p, parens),
         ParseOutcome::HasErrors => {}
     }
 
@@ -3008,7 +3015,7 @@ pub fn parse_typescript_params<'a>(
     });
 
     if let Some(p) = cleaned_ok {
-        return p;
+        return (p, Vec::new());
     }
 
     // Still failed - try parsing each parameter individually
@@ -3086,7 +3093,51 @@ pub fn parse_typescript_params<'a>(
         }
     }
 
-    params
+    (params, Vec::new())
+}
+
+/// The `(…)` pairs written inside a snippet's parameters, parsed as the
+/// parameter list of `(content) => {}`.
+fn collect_parameter_parens(
+    params: &oxc_ast::ast::FormalParameters,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Vec<ParenthesizedSpan> {
+    use oxc_ast_visit::Visit;
+
+    struct Collector<'l> {
+        base: AdjustedOffset,
+        line_offsets: &'l [usize],
+        parens: Vec<ParenthesizedSpan>,
+    }
+    impl<'a> Visit<'a> for Collector<'_> {
+        fn visit_parenthesized_expression(
+            &mut self,
+            it: &oxc_ast::ast::ParenthesizedExpression<'a>,
+        ) {
+            let inner = it.expression.span();
+            let start = self.base + it.span.start as usize;
+            let end = self.base + it.span.end as usize;
+            self.parens.push(ParenthesizedSpan {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, self.line_offsets),
+                inner: (
+                    (self.base + inner.start as usize) as u32,
+                    (self.base + inner.end as usize) as u32,
+                ),
+            });
+            oxc_ast_visit::walk::walk_parenthesized_expression(self, it);
+        }
+    }
+
+    let mut collector = Collector {
+        base: AdjustedOffset::wrapped(offset, 1),
+        line_offsets,
+        parens: Vec::new(),
+    };
+    collector.visit_formal_parameters(params);
+    collector.parens
 }
 
 /// Convert an OXC FormalParameter to our Expression format, remapping span positions

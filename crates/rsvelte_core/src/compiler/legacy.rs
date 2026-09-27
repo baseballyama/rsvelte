@@ -638,6 +638,21 @@ fn convert_to_legacy_inner(source: &str, ast: &Root) -> Value {
 
     // Convert all positions from UTF-8 to UTF-16
     let mut final_result = Value::Object(result);
+    if !ast.unclosed_ancestors.is_empty() {
+        crate::ast::template::mark_unclosed_ancestors(&mut final_result, &ast.unclosed_ancestors);
+        // Upstream's `html.end` is its last child's `end`.
+        if let Some(html) = final_result.get_mut("html")
+            && html
+                .get("children")
+                .and_then(Value::as_array)
+                .and_then(|children| children.last())
+                .and_then(|last| last.get("end"))
+                .and_then(Value::as_i64)
+                == Some(-1)
+        {
+            html["end"] = (-1).into();
+        }
+    }
     convert_positions_to_utf16(&mut final_result, &pos_conv);
     crate::compiler::acorn_lines::apply_acorn_line_terminators(&mut final_result, source);
 
@@ -1225,6 +1240,12 @@ fn convert_snippet_block(
     let mut body_nodes = snippet_block.body.nodes.clone();
     remove_surrounding_whitespace_nodes(&mut body_nodes);
 
+    let mut parameters = snippet_block
+        .parameters
+        .iter()
+        .map(|p| expression_json(p, positions))
+        .collect::<Vec<_>>();
+    crate::ast::template::wrap_parenthesized(&mut parameters, &snippet_block.parameter_parens);
     let mut result = Map::new();
     estree_fields!(
         result,
@@ -1232,11 +1253,7 @@ fn convert_snippet_block(
         "start": snippet_block.start,
         "end": snippet_block.end,
         "expression" => binding_json(&snippet_block.expression, positions),
-        "parameters": snippet_block
-            .parameters
-            .iter()
-            .map(|p| expression_json(p, positions))
-            .collect::<Vec<_>>(),
+        "parameters": parameters,
         "children" => children_json(source, &body_nodes, &[], positions),
     );
     if let Some(ref type_params) = snippet_block.type_params {

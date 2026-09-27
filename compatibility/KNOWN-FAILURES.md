@@ -6644,7 +6644,7 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
 ## Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **8 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **5 entries**.
 
 ### The question it asks
 
@@ -6714,30 +6714,16 @@ parsed all 11 without complaint. The verdict named the loudest thing it could se
 one line of the harness. Serialization now sits outside the parse `try`, and a bigint goes through
 a replacer so its value stays comparable instead of being dropped.
 
-#### Why this ratchet carries no attribution block
+#### Attribution
 
 The DoD gate (`scripts/ci/attribution-check.mjs`) allows three end states per entry: the entry is
 gone, it names a filed `upstream_issues/` report, or it names `deliberate-divergences` with a test
-pinning the behaviour. **This population has no targets of the second or third kind — not a
-missing column, an absent domain.** Measured rather than argued:
+pinning the behaviour. **Every remaining entry names an upstream report** (the attribution table
+below); none is a `deliberate-divergence`. Running the gate's own `diffKeys` with the official
+compiler on **both** sides over the same population yields **0 keys from 28,178 self-compared
+pairs** (recorded above), so the comparator invents none of them.
 
-* Running the gate's own `diffKeys` with the official compiler on **both** sides over the same
-  population yields **0 keys from 28,178 self-compared pairs** (recorded above). The comparator
-  invents none of these, so each one is a real difference between rsvelte's `parse()` and
-  official's.
-* Exactly **one** key is answered by an upstream report, and its output is attached
-  below rather than inferred.
-* **Zero** are `deliberate-divergences`: nothing in this ratchet is a behaviour rsvelte intends to
-  keep, and no test pins one.
-
-So every entry but that one is an rsvelte defect of its own, whose only permitted end state is
-elimination.
-Writing a block here would mean inventing a target for each, which is the failure the gate exists
-to prevent — a target that is not true is worse than an absent one, because it reads as an answer.
-This ratchet therefore belongs on the pending list until it is burned down, and the default mode's
-exit 1 is the correct verdict meanwhile.
-
-**The one upstream-answered key**, measured against `submodules/svelte` (the source path, `VERSION`
+**The loose-crash key**, measured against `submodules/svelte` (the source path, `VERSION`
 5.56.10) rather than reasoned from the issue text:
 
 ```
@@ -6752,33 +6738,37 @@ stray-closing-tag            "</div>"                     THROW TypeError: … (
 official does not *reject* that document, it **crashes** on it, and `loose` is the mode that exists
 to return an AST for a document still being typed.
 
-**The neighbouring key is not, and the reason is a name collision worth recording.** The issue's
+**The neighbouring key was not, and the reason is a name collision worth recording.** The issue's
 second crashing input is `</div>`, and this gate has a source called `unclosed-element` — but that
 source is `<div><b>x`, which official parses fine (above); `</div>` is the gate's
 `stray-closing-tag`, a deliberate control both sides must still reject, and it is not in the
-ratchet at all. So `loose:unclosed-element::RegularElement#span` is an ordinary rsvelte span
-defect. Reading the issue and the gate as sharing a vocabulary would have attributed an rsvelte
-defect upstream.
+ratchet at all. `loose:unclosed-element::RegularElement#span` was an rsvelte span defect: upstream
+assigns `end` only to the innermost node still open at EOF (`1-parse/index.js`), so every open
+ancestor keeps the `-1` it was created with. rsvelte now reports the same `-1` in the public AST
+(`Root::unclosed_ancestors`) and keeps a real end in the tree its own tools read.
 
-Partition of `parse-ast-known-failures.json` by cluster: `5 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `4 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
-| `span` | 5 | 3 | `start` / `end` / `loc` disagree on a node type. Four of the five are the upstream-attributed `LogicalExpression#span` / `ConditionalExpression#span` below; the fifth is the loose `unclosed-element` source, where official ends the unclosed `RegularElement` at `-1` and matching it would mean emitting an out-of-range offset. |
-| `node-type` | 2 | 1 | `ParenthesizedExpression.type#value` — acorn-typescript keeps a parenthesized snippet-parameter default as a `ParenthesizedExpression` node; OXC elides the parentheses, so the node is not in the AST rsvelte reads. |
-| `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
+| `span` | 4 | 2 | `start` / `end` / `loc` disagree on a node type: the upstream-attributed `LogicalExpression#span` / `ConditionalExpression#span` below. |
+| `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See above. |
 
-**#4133 burned the ratchet down from 100 keys to these 8.** The `comment-attachment`,
-`estree-fields`, `unclustered`, `css-shape`, `child-count`, `loc-presence` and `ast-mode` clusters
-are empty; each fix carries a Rust test whose expected value is the official compiler's output for
-the test's own source.
+**#4133 burned the ratchet down from 100 keys to these 5.** The `comment-attachment`,
+`estree-fields`, `unclustered`, `css-shape`, `child-count`, `loc-presence`, `ast-mode` and
+`node-type` clusters are empty; each fix carries a Rust test whose expected value is the official
+compiler's output for the test's own source. The last `node-type` key was a snippet parameter's
+`(…)`: upstream reads that list with `preserveParens` and, unlike every other template expression,
+never calls `remove_parens` on it, so its AST keeps a `ParenthesizedExpression`. OXC keeps the node
+too; rsvelte's converter unwrapped it, and the public AST now re-wraps it
+(`SnippetBlock::parameter_parens`).
 
 **Read the `keys` column as `bases x axis`, not as work.** A key is
-`<axis>::<NodeType>.<field>#<kind>`; the 8 keys are **5 distinct bases**: 3 appear on both the
-`modern` and `legacy` axes and 2 are `loose`-only (3x2 + 2 = 8).
+`<axis>::<NodeType>.<field>#<kind>`; the 5 keys are **3 distinct bases**: 2 appear on both the
+`modern` and `legacy` axes and 1 is `loose`-only (2x2 + 1 = 5).
 
-**No base's two axes sit in different clusters** (0 of the 3 bases that appear on both axes).
-Measured directly from the JSON, which is authoritative for the partition: the three rows above
+**No base's two axes sit in different clusters** (0 of the 2 bases that appear on both axes).
+Measured directly from the JSON, which is authoritative for the partition: the two rows above
 are its `Counter(values())`.
 
 **The Svelte 5.57.1 bump retired 16 keys at once, and nothing rsvelte does moved.** They were the

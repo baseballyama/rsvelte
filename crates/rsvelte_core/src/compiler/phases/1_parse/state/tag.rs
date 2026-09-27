@@ -836,6 +836,7 @@ impl<'a> Parser<'a> {
         if found_closing && !self.stack.is_empty() {
             self.stack.pop();
         }
+        self.note_left_open(found_closing, start as u32);
 
         // Update end positions of all elseif blocks recursively
         if found_closing && let Some(alt_fragment) = &mut alternate {
@@ -898,10 +899,23 @@ impl<'a> Parser<'a> {
 
             let alt_test =
                 self.parse_head_expression(alt_expr_content.trim_ws(), alt_expr_start, false, '}')?;
+            // Upstream pushes the `elseif` block and pops it only at `{/if}`, so
+            // at EOF it is the node left open.
+            self.stack.push(StackEntry::IfBlock {
+                start: else_block_start as u32,
+            });
             let alt_consequent = self.parse_fragment()?;
 
             // Recursively check for another else/else-if
             let alt_alternate = self.parse_if_alternate()?;
+
+            if !self.remaining_is_whitespace_only()
+                && matches!(self.stack.last(), Some(StackEntry::IfBlock { start })
+                    if *start == else_block_start as u32)
+            {
+                self.stack.pop();
+            }
+            self.note_left_open(false, else_block_start as u32);
 
             // Don't consume {/if} here - let parse_if_block handle it
 
@@ -1302,6 +1316,7 @@ impl<'a> Parser<'a> {
             if found_closing && !self.stack.is_empty() {
                 self.stack.pop();
             }
+            self.note_left_open(found_closing, start as u32);
 
             return Ok(Some(TemplateNode::EachBlock(Box::new(EachBlock {
                 start: start as u32,
@@ -1542,6 +1557,7 @@ impl<'a> Parser<'a> {
         if found_closing && !self.stack.is_empty() {
             self.stack.pop();
         }
+        self.note_left_open(found_closing, start as u32);
 
         Ok(Some(TemplateNode::EachBlock(Box::new(EachBlock {
             start: start as u32,
@@ -1951,6 +1967,7 @@ impl<'a> Parser<'a> {
         if found_closing && !self.stack.is_empty() {
             self.stack.pop();
         }
+        self.note_left_open(found_closing, start as u32);
 
         Ok(Some(TemplateNode::AwaitBlock(Box::new(AwaitBlock {
             start: start as u32,
@@ -1996,6 +2013,7 @@ impl<'a> Parser<'a> {
         if found_closing && !self.stack.is_empty() {
             self.stack.pop();
         }
+        self.note_left_open(found_closing, start as u32);
 
         Ok(Some(TemplateNode::KeyBlock(Box::new(KeyBlock {
             start: start as u32,
@@ -2084,6 +2102,7 @@ impl<'a> Parser<'a> {
         // false)` requires the opener outside loose mode.
         self.skip_whitespace();
         let mut parameters = Vec::new();
+        let mut parameter_parens = Vec::new();
 
         let opened = self.eat_optional("(");
         if !opened && !self.options.loose {
@@ -2170,7 +2189,7 @@ impl<'a> Parser<'a> {
                     ));
                 }
 
-                parameters = super::super::expression::parse_typescript_params(
+                (parameters, parameter_parens) = super::super::expression::parse_typescript_params(
                     &self.arena,
                     params_content,
                     params_start,
@@ -2208,6 +2227,7 @@ impl<'a> Parser<'a> {
         if found_closing && !self.stack.is_empty() {
             self.stack.pop();
         }
+        self.note_left_open(found_closing, start as u32);
 
         Ok(Some(TemplateNode::SnippetBlock(Box::new(SnippetBlock {
             start: start as u32,
@@ -2215,6 +2235,7 @@ impl<'a> Parser<'a> {
             expression,
             type_params,
             parameters,
+            parameter_parens,
             body,
             metadata: Default::default(),
         }))))

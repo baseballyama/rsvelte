@@ -1156,6 +1156,7 @@ pub fn compile_module(
             leading_comments: Vec::new(),
         })),
         parse_warnings: Vec::new(),
+        unclosed_ancestors: Vec::new(),
         source: None,
         arena,
     };

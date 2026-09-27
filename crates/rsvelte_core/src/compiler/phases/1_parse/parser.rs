@@ -157,6 +157,8 @@ pub struct Parser<'a> {
     pub(crate) implicit_close_at: Option<usize>,
     /// Parser-level warnings (e.g., element_implicitly_closed).
     pub(crate) parse_warnings: Vec<crate::ast::template::ParseWarning>,
+    /// `start` of each node a loose parse leaves open at EOF, innermost first.
+    pub(crate) eof_open: Vec<u32>,
     /// JS-style comments collected across the parse. Mirrors upstream
     /// `parser.root.comments`. Populated by:
     /// - `parse_attribute` for `// …` / `/* … */` comments between attributes
@@ -309,6 +311,7 @@ impl<'a> Parser<'a> {
             last_auto_closed_tag: None,
             implicit_close_at: None,
             parse_warnings: Vec::new(),
+            eof_open: Vec::new(),
             root_comments: std::cell::RefCell::new(Vec::new()),
             arena: ParseArena::new(),
             depth: 0,
@@ -354,6 +357,7 @@ impl<'a> Parser<'a> {
         self.last_auto_closed_tag = None;
         self.implicit_close_at = None;
         self.parse_warnings.clear();
+        self.eof_open.clear();
         self.root_comments.borrow_mut().clear();
         self.depth = 0;
         let _ = crate::compiler::phases::phase1_parse::read::expression::take_expr_comments();

@@ -237,14 +237,18 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
                 rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
                     if source.is_ascii()
                         && !rsvelte_core::compiler::acorn_lines::has_non_lf_line_breaks(source)
+                        && ast.unclosed_ancestors.is_empty()
                     {
                         return serde_json::to_string(&ast)
                             .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")));
                     }
-                    remap(
-                        serde_json::to_value(&ast)
-                            .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))?,
-                    )
+                    let mut value = serde_json::to_value(&ast)
+                        .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))?;
+                    rsvelte_core::ast::template::mark_unclosed_ancestors(
+                        &mut value,
+                        &ast.unclosed_ancestors,
+                    );
+                    remap(value)
                 })
             } else {
                 // `convert_to_legacy` consumes the AST, installs the serialize

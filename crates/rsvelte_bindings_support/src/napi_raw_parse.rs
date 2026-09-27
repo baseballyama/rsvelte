@@ -887,8 +887,15 @@ fn write_snippet_block<W: Writer>(w: &mut W, b: &SnippetBlock) -> std::io::Resul
     write_expression(w, &b.expression)?;
     write_opt_str(w, b.type_params.as_deref());
     write_u32(w, parse_envelope_u32(b.parameters.len()));
-    for p in &b.parameters {
-        write_expression(w, p)?;
+    if let Some(parameters) = b.parameters_json() {
+        for p in &parameters {
+            let span = |key| p.get(key).and_then(serde_json::Value::as_u64).unwrap_or(0) as u32;
+            write_json_node(w, span("start"), span("end"), p)?;
+        }
+    } else {
+        for p in &b.parameters {
+            write_expression(w, p)?;
+        }
     }
     write_fragment(w, &b.body)
 }

@@ -55,6 +55,11 @@ pub struct Root<'a> {
     /// These are collected during parsing and forwarded to the analysis phase.
     #[serde(skip)]
     pub parse_warnings: Vec<ParseWarning>,
+    /// `start` of every node loose parsing left open beneath another open
+    /// node. Upstream never assigns their `end`, so its public AST reports
+    /// `-1` there; the tree keeps a real end for the tools that read it.
+    #[serde(skip)]
+    pub unclosed_ancestors: Vec<u32>,
     /// Source text is NOT stored here anymore - pass it separately to `print()`.
     /// This avoids cloning the entire source during parsing.
     #[serde(skip)]
@@ -67,6 +72,41 @@ pub struct Root<'a> {
     /// make the same `loc` decision the parser did rather than a fresh one.
     #[serde(skip)]
     pub skip_expression_loc: bool,
+}
+
+/// Set `end` to `-1` on each template node `Root::unclosed_ancestors` names.
+/// Runs on byte offsets, before any UTF-16 remap.
+pub fn mark_unclosed_ancestors(value: &mut serde_json::Value, starts: &[u32]) {
+    use serde_json::Value;
+    if starts.is_empty() {
+        return;
+    }
+    match value {
+        Value::Array(items) => {
+            for item in items {
+                mark_unclosed_ancestors(item, starts);
+            }
+        }
+        Value::Object(map) => {
+            let is_template_node = map
+                .get("type")
+                .and_then(Value::as_str)
+                .is_some_and(|ty| ty != "Fragment" && ty != "Root");
+            if is_template_node
+                && map.contains_key("end")
+                && map
+                    .get("start")
+                    .and_then(Value::as_u64)
+                    .is_some_and(|start| starts.iter().any(|s| u64::from(*s) == start))
+            {
+                map.insert("end".into(), (-1).into());
+            }
+            for child in map.values_mut() {
+                mark_unclosed_ancestors(child, starts);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// A JavaScript-style comment captured during parsing.
@@ -583,18 +623,130 @@ pub struct SnippetBlockMetadata {
 }
 
 /// A snippet block: `{#snippet name(params)}...{/snippet}`.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct SnippetBlock<'a> {
     pub start: u32,
     pub end: u32,
     pub expression: Expression<'a>,
-    #[serde(rename = "typeParams", skip_serializing_if = "Option::is_none")]
     pub type_params: Option<CompactString>,
     pub parameters: Vec<Expression<'a>>,
+    /// Parentheses written inside `parameters`, which the public AST keeps.
+    pub parameter_parens: Vec<ParenthesizedSpan>,
     pub body: Fragment<'a>,
     /// Metadata (not serialized)
-    #[serde(skip)]
     pub metadata: SnippetBlockMetadata,
+}
+
+/// One `(…)` pair in a snippet's parameter list. Upstream parses that list with
+/// `preserveParens` and, unlike every other template expression, never calls
+/// `remove_parens` on it (`1-parse/state/tag.js`), so its `parse()` output keeps
+/// a `ParenthesizedExpression` where rsvelte's converter unwrapped one.
+#[derive(Debug, Clone)]
+pub struct ParenthesizedSpan {
+    pub start: u32,
+    pub end: u32,
+    pub loc: Option<Box<super::typed_expr::Loc>>,
+    /// `(start, end)` of the node the pair encloses.
+    pub inner: (u32, u32),
+}
+
+impl SnippetBlock<'_> {
+    /// `parameters` as the public AST spells them, or `None` when no pair is
+    /// written and the typed nodes serialize as they are.
+    #[must_use]
+    pub fn parameters_json(&self) -> Option<Vec<serde_json::Value>> {
+        if self.parameter_parens.is_empty() {
+            return None;
+        }
+        let mut parameters: Vec<serde_json::Value> = self
+            .parameters
+            .iter()
+            .map(|p| serde_json::to_value(p).unwrap_or(serde_json::Value::Null))
+            .collect();
+        wrap_parenthesized(&mut parameters, &self.parameter_parens);
+        Some(parameters)
+    }
+}
+
+/// Wrap each node `parens` names in a `ParenthesizedExpression`. A pair
+/// encloses the outermost node with its inner span, so a parent claims it
+/// before a child that shares the span (`(a?.b)` wraps the `ChainExpression`).
+pub fn wrap_parenthesized(nodes: &mut [serde_json::Value], parens: &[ParenthesizedSpan]) {
+    let mut pending: Vec<&ParenthesizedSpan> = parens.iter().collect();
+    for node in nodes {
+        wrap_node(node, &mut pending);
+    }
+}
+
+fn wrap_node(value: &mut serde_json::Value, pending: &mut Vec<&ParenthesizedSpan>) {
+    use serde_json::Value;
+    if pending.is_empty() {
+        return;
+    }
+    let mut wraps = Vec::new();
+    match value {
+        Value::Array(items) => {
+            for item in items {
+                wrap_node(item, pending);
+            }
+            return;
+        }
+        Value::Object(map) => {
+            if map.contains_key("type")
+                && let (Some(start), Some(end)) = (
+                    map.get("start").and_then(Value::as_u64),
+                    map.get("end").and_then(Value::as_u64),
+                )
+            {
+                let mut span = (start, end);
+                while let Some(i) = pending
+                    .iter()
+                    .position(|p| (u64::from(p.inner.0), u64::from(p.inner.1)) == span)
+                {
+                    let paren = pending.swap_remove(i);
+                    span = (u64::from(paren.start), u64::from(paren.end));
+                    wraps.push(paren);
+                }
+            }
+            for child in map.values_mut() {
+                wrap_node(child, pending);
+            }
+        }
+        _ => return,
+    }
+    for paren in wraps {
+        let mut node = serde_json::Map::new();
+        node.insert("type".into(), "ParenthesizedExpression".into());
+        node.insert("start".into(), paren.start.into());
+        node.insert("end".into(), paren.end.into());
+        if let Some(loc) = &paren.loc
+            && let Ok(loc) = serde_json::to_value(loc)
+        {
+            node.insert("loc".into(), loc);
+        }
+        node.insert("expression".into(), std::mem::take(value));
+        *value = Value::Object(node);
+    }
+}
+
+impl Serialize for SnippetBlock<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let mut s = serializer.serialize_struct("SnippetBlock", 6)?;
+        s.serialize_field("start", &self.start)?;
+        s.serialize_field("end", &self.end)?;
+        s.serialize_field("expression", &self.expression)?;
+        match &self.type_params {
+            Some(type_params) => s.serialize_field("typeParams", type_params)?,
+            None => s.skip_field("typeParams")?,
+        }
+        match self.parameters_json() {
+            Some(parameters) => s.serialize_field("parameters", &parameters)?,
+            None => s.serialize_field("parameters", &self.parameters)?,
+        }
+        s.serialize_field("body", &self.body)?;
+        s.end()
+    }
 }
 
 // =============================================================================
