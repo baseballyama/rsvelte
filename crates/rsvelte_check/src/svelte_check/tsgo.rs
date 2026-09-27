@@ -53,6 +53,9 @@ pub enum TsgoError {
     },
     /// Spawning the subprocess failed at the OS level.
     Spawn(std::io::Error),
+    /// The compiler ran but did not complete a type check: killed by a
+    /// signal, crashed, or exited non-zero without reporting an error.
+    Failed { status: String, output: String },
 }
 
 impl std::fmt::Display for TsgoError {
@@ -70,6 +73,14 @@ impl std::fmt::Display for TsgoError {
                  npm install --save-dev typescript@~6 @typescript/native@npm:typescript@7\n"
             ),
             Self::Spawn(e) => write!(f, "failed to spawn TypeScript compiler: {e}"),
+            Self::Failed { status, output } => {
+                write!(f, "TypeScript compiler {status}")?;
+                if output.is_empty() {
+                    write!(f, " (no output)")
+                } else {
+                    write!(f, ":\n{output}")
+                }
+            }
         }
     }
 }
@@ -228,7 +239,9 @@ fn which(program: &str) -> bool {
 ///
 /// # Errors
 ///
-/// Returns an error when the compiler cannot be invoked or its output is invalid.
+/// Returns an error when the compiler cannot be invoked, or when it did not
+/// complete a type check: killed by a signal, crashed, or exited non-zero
+/// without reporting an error.
 pub fn run_tsgo(
     binary: &TsgoBinary,
     tsconfig_path: &Path,
@@ -246,7 +259,64 @@ pub fn run_tsgo(
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let combined = format!("{stdout}\n{stderr}");
-    Ok(parse_diagnostics(&combined))
+    let diags = parse_diagnostics(&combined);
+    check_exit(&output.status, &combined, &diags)?;
+    Ok(diags)
+}
+
+/// Fails closed on a compiler run that did not finish checking, so a crash
+/// cannot read as a clean pass with zero diagnostics.
+///
+/// tsc/tsgo exit non-zero whenever they report an error (1 and 2 for
+/// diagnostics, 3 and 4 for an invalid project, which also prints them), so a
+/// non-zero status is accepted only alongside a parsed error. A Go runtime
+/// crash exits 2 as well, which is why its banner is checked separately.
+fn check_exit(
+    status: &std::process::ExitStatus,
+    output: &str,
+    diags: &[RawTsDiagnostic],
+) -> Result<(), TsgoError> {
+    let crashed = output.lines().any(is_go_crash_banner);
+    if status.success() && !crashed {
+        return Ok(());
+    }
+    let reported_error = diags.iter().any(|d| d.severity == "error");
+    let failed = match status.code() {
+        None => true,
+        Some(0) => crashed,
+        Some(1..=4) => crashed || !reported_error,
+        Some(_) => true,
+    };
+    if !failed {
+        return Ok(());
+    }
+    let status = match status.code() {
+        Some(code) if crashed => format!("crashed (exit code {code})"),
+        Some(code) => format!("exited with code {code} without reporting an error"),
+        None => format!("was terminated ({status})"),
+    };
+    Err(TsgoError::Failed {
+        status,
+        output: tail_lines(output.trim(), 40),
+    })
+}
+
+/// `panic: …` or `fatal error: …` (e.g. `runtime: out of memory`) at the
+/// start of a line; a diagnostic line starts with its file path.
+fn is_go_crash_banner(line: &str) -> bool {
+    line.starts_with("panic: ") || line.starts_with("fatal error: ")
+}
+
+fn tail_lines(text: &str, max: usize) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    if lines.len() <= max {
+        return text.to_string();
+    }
+    let omitted = lines.len() - max;
+    format!(
+        "... {omitted} earlier line(s) omitted\n{}",
+        lines[omitted..].join("\n")
+    )
 }
 
 /// Parse the textual diagnostic stream emitted by `tsc --pretty=false`
@@ -337,6 +407,90 @@ mod tests {
         assert_eq!(diags[0].code, "TS2688");
         assert_eq!(diags[0].file, PathBuf::new());
         assert_eq!(diags[0].severity, "error");
+    }
+
+    #[cfg(unix)]
+    fn run_script(script: &str) -> Result<Vec<RawTsDiagnostic>, TsgoError> {
+        let binary = TsgoBinary {
+            program: "sh".to_string(),
+            args_prefix: vec!["-c".to_string(), script.to_string(), "tsgo".to_string()],
+        };
+        run_tsgo(&binary, Path::new("tsconfig.json"), &std::env::temp_dir())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_compiler_killed_by_a_signal_is_an_error() {
+        let err = run_script("kill -9 $$").expect_err("SIGKILL must not pass");
+        assert!(matches!(err, TsgoError::Failed { .. }), "got {err:?}");
+        assert!(err.to_string().contains("terminated"), "{err}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_go_panic_is_an_error_even_with_the_diagnostics_exit_code() {
+        let err = run_script(
+            "echo 'panic: runtime error: index out of range' >&2; \
+             echo 'goroutine 1 [running]:' >&2; exit 2",
+        )
+        .expect_err("a panic must not pass");
+        assert!(err.to_string().contains("crashed (exit code 2)"), "{err}");
+        assert!(err.to_string().contains("panic: runtime error"), "{err}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_go_out_of_memory_crash_after_diagnostics_is_an_error() {
+        let err = run_script(
+            "echo \"src/a.ts(1,1): error TS2322: Type 'string' is not assignable.\"; \
+             echo 'fatal error: runtime: out of memory' >&2; exit 2",
+        )
+        .expect_err("a crash must not pass on the diagnostics printed before it");
+        assert!(err.to_string().contains("crashed"), "{err}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_nonzero_exit_without_an_error_diagnostic_is_an_error() {
+        for script in ["exit 1", "echo 'Killed'; exit 137", "exit 5"] {
+            let err = run_script(script).expect_err(script);
+            assert!(matches!(err, TsgoError::Failed { .. }), "{script}: {err:?}");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn reported_errors_keep_their_nonzero_exit_code() {
+        for code in [1, 2, 3] {
+            let diags = run_script(&format!(
+                "echo \"src/a.ts(1,1): error TS2322: Type 'string' is not assignable.\"; exit {code}"
+            ))
+            .unwrap_or_else(|e| panic!("exit {code}: {e}"));
+            assert_eq!(diags.len(), 1, "exit {code}");
+        }
+        let diags = run_script("echo 'error TS5058: The specified path does not exist.'; exit 1")
+            .expect("a config-level error is a reported error");
+        assert_eq!(diags[0].code, "TS5058");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_clean_run_passes() {
+        assert!(run_script("exit 0").expect("clean").is_empty());
+    }
+
+    #[test]
+    fn long_crash_output_keeps_its_tail_and_says_what_it_dropped() {
+        let text = (1..=50)
+            .map(|i| format!("line {i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let tail = tail_lines(&text, 40);
+        assert!(
+            tail.starts_with("... 10 earlier line(s) omitted\nline 11\n"),
+            "{tail}"
+        );
+        assert!(tail.ends_with("line 50"));
     }
 
     /// A TS 7 install under the `@typescript/native` alias, plus a stale
