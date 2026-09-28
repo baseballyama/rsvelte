@@ -350,7 +350,34 @@ impl P<'_> {
 
 fn trim(src: &str, s: Span) -> Span {
     let t = s.text(src);
-    let lead = t.len() - t.trim_start().len();
-    let trail = t.len() - t.trim_end().len();
+    let rest = t.trim_start();
+    let lead = t.len() - rest.len();
+    // Measured on what the leading trim left, so an all-whitespace span is not trimmed twice.
+    let trail = rest.len() - rest.trim_end().len();
     Span::new(s.lo + lead as u32, s.hi - trail as u32)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ast::RuleKind;
+
+    fn prelude(css: &str) -> &str {
+        let sheet = parse(css, Span::new(0, css.len() as u32)).expect("parses");
+        match sheet.rules[0].kind {
+            RuleKind::At { prelude, .. } => prelude.text(css),
+            _ => panic!("not an at-rule"),
+        }
+    }
+
+    #[test]
+    fn an_at_rule_prelude_is_trimmed() {
+        assert_eq!(prelude("@media  screen and (x) { }"), "screen and (x)");
+    }
+
+    #[test]
+    fn a_whitespace_only_prelude_is_empty() {
+        assert_eq!(prelude("@font-face { src: local(x); }"), "");
+        assert_eq!(prelude("@font-face   \n{ src: local(x); }"), "");
+    }
 }
