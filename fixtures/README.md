@@ -1,22 +1,26 @@
 # fixtures
 
-実プロジェクトからハードコピーした入力と、公式ツールが出力した snapshot を置く場所です。1 つの入力ファイル（unit）につき 1 ディレクトリを使い、その中に入力・期待値・実装の出力・手書きの調整をまとめて置きます。
+This directory holds test inputs copied from real projects, and the output that the official tools
+produce for them. We use this output as the expected result when we test rsvelte.
 
-設計の背景と運用の詳細は [docs/fixtures.md](../docs/fixtures.md) にあります。
+Each input file is one **unit**. Each unit has its own directory. That directory holds everything
+about the unit: the input, the expected output, rsvelte's output, and any manual notes.
 
-## 全体の構成
+For the reasons behind this design, see [docs/fixtures.md](../docs/fixtures.md) (in Japanese).
+
+## Layout
 
 ```
 fixtures/
-├── README.md                  このファイル
-├── _registry/                 言語をまたいで共有する台帳（言語ディレクトリと混ざらないよう _ を付けている）
+├── README.md                  this file
+├── _registry/                 shared data for all languages (the "_" keeps it apart from language folders)
 │   ├── sources.json
 │   ├── oracles.json
 │   ├── import-report.json
-│   └── licenses/<source>/…
-└── <family>/                  言語ファミリー（現在は svelte のみ。今後 vue, html, css, … を追加）
-    └── <source>/              取り込み元リポジトリの id（sources.json の id）
-        └── <元のパス>/         unit ディレクトリ。例: svelte/bits-ui/src/lib/button.svelte/
+│   └── licenses/<source>/...
+└── <family>/                  a language family: today only "svelte"; later "vue", "html", "css", ...
+    └── <source>/              the id of the repository the files came from (see sources.json)
+        └── <original path>/   one unit directory, e.g. svelte/bits-ui/src/lib/button.svelte/
             ├── input.svelte
             ├── meta.json
             ├── fixture.toml
@@ -25,57 +29,159 @@ fixtures/
             └── cache/<task>/<variant>.<ext>
 ```
 
-## 各ファイルの役割
+Words used below:
+
+- **source**: a repository that we copied files from.
+- **unit**: one copied input file.
+- **task**: one thing we test on a unit, for example `svelte.compile`.
+- **variant**: one set of options for a task, for example `client` or `server`.
+- **oracle**: the official tool that makes the expected output, for example the `svelte` npm package.
+
+## What each file is for
+
+"Written by" tells you who creates or changes the file. "In git" tells you if the file is committed.
 
 ### `_registry/`
 
-| ファイル | 役割 | 書くのは | git |
+| File | Purpose | Written by | In git |
 |---|---|---|---|
-| `sources.json` | 取り込み元の台帳。id、URL、固定 commit、ローカルのチェックアウト位置、ライセンス（SPDX と LICENSE ファイル）を持つ。取り込まないものも、除外理由（`excluded`）付きで残す | 人（ライセンス審査）。commit は `import --accept-commit` でも更新される | ✓ |
-| `oracles.json` | タスクごとに、snapshot を生成したオラクルの版（例: `svelte` 5.57.1）と、AST 正規化器の版（acorn）を記録する | `regen` | ✓ |
-| `import-report.json` | 取り込み元ごとの件数（担当言語にマッチした数、採用数、重複数、除外理由ごとの数） | `import` | ✓ |
-| `licenses/<source>/…` | 取り込んだファイルを律する LICENSE の写し（元のパスのまま） | `import` | ✓ |
+| `sources.json` | The list of source repositories. For each one: id, URL, the exact commit we copied from, where the local checkout is, and the license (SPDX id and license file). Repositories we do **not** use stay in the list with an `excluded` reason. | A person (after checking the license). `import --accept-commit` also updates the commit. | yes |
+| `oracles.json` | For each task, the oracle version that made the expected output (for example `svelte` 5.57.1), and the version of the parser we use to compare JavaScript (`acorn`). | `regen` | yes |
+| `import-report.json` | For each source: how many files matched a known language, how many we took, how many were duplicates, and how many we skipped for each reason. | `import` | yes |
+| `licenses/<source>/...` | Copies of the license files that cover the copied inputs, at their original paths. | `import` | yes |
 
-### unit ディレクトリ（`<family>/<source>/<元のパス>/`）
+### Unit directory (`<family>/<source>/<original path>/`)
 
-| ファイル | 役割 | 書くのは | git |
+| File | Purpose | Written by | In git |
 |---|---|---|---|
-| `input<ext>` | 取り込み元からハードコピーした入力。拡張子は言語が決める（`.svelte`、`.svelte.js`、`.svelte.ts`） | `import` | ✓ |
-| `meta.json` | unit の属性。`lang`（言語）、`sha256`、`mode`（測定するモード。Svelte はすべて `runes`）、`inferredMode`（オプション無しで公式が推論したモード: `runes` / `neutral`） | `import` | ✓ |
-| `fixture.toml` | 手書きの例外。`[skip]`（このタスク／variant を当てない理由）と `[[adjust]]`（期待側 AST のピンポイント調整）。**importer は触らない** | 人 | ✓ |
-| `expected/<task>/<variant>.js` | オラクルの出力（JS）。比較は AST で行う | `regen` | ✓ |
-| `expected/<task>/<variant>.css` | オラクルの出力（CSS）。比較はテキストの完全一致 | `regen` | ✓ |
-| `expected/<task>/<variant>.warnings.json` | オラクルが出した警告（code、message、位置）。警告が無い unit には作らない | `regen` | ✓ |
-| `expected/<task>/<variant>.error.json` | オラクルが compile エラーを投げた場合の、そのエラー。これ自体が期待値になる | `regen` | ✓ |
-| `actual/<task>/<variant>.<ext>` | 実装（rsvelte）の出力。`expected/` と同じ名前で書く | 実装のテストハーネス | ✗ |
-| `cache/<task>/<variant>.<ext>` | 巨大すぎてコミットしないタスク（`storage: 'cached'`）の snapshot | `regen` | ✗ |
+| `input<ext>` | The input file, copied as is from the source. The language decides the extension: `.svelte`, `.svelte.js` or `.svelte.ts`. | `import` | yes |
+| `meta.json` | Facts about the unit: `lang` (language), `sha256` (hash of the input), `mode` (the mode we test; for Svelte this is always `runes`), and `inferredMode` (the mode the official compiler picks when we give no option: `runes` or `neutral`). | `import` | yes |
+| `fixture.toml` | Manual notes for this unit. `[skip]` lists tasks or variants that do not apply, with a reason. `[[adjust]]` lists small, exact changes to the expected output (see below). **`import` never changes this file.** | A person | yes |
+| `expected/<task>/<variant>.js` | The JavaScript that the oracle produced. We compare it as a syntax tree (AST), not as text. | `regen` | yes |
+| `expected/<task>/<variant>.css` | The CSS that the oracle produced. We compare it as exact text. | `regen` | yes |
+| `expected/<task>/<variant>.warnings.json` | The warnings the oracle reported (code, message, position). Only present if there are warnings. | `regen` | yes |
+| `expected/<task>/<variant>.error.json` | If the oracle failed with a compile error, the error itself. In that case this error is the expected result. | `regen` | yes |
+| `actual/<task>/<variant>.<ext>` | rsvelte's output, with the same file names as in `expected/`. | the rsvelte test harness | no |
+| `cache/<task>/<variant>.<ext>` | Expected output for tasks that are too large to commit (tasks with `storage: 'cached'`). | `regen` | no |
 
-`<task>` はタスク id（`svelte.compile`、`svelte.compileModule`）、`<variant>` はオプションの組の名前（`client`、`server`）です。
+Today there are two tasks: `svelte.compile` (for `.svelte` files) and `svelte.compileModule` (for
+`.svelte.js` files). Each has two variants: `client` and `server`.
 
-## 元のパスが予約名と衝突する場合
+## How we compare JavaScript
 
-元のパスの要素が `expected`、`actual`、`cache`、`meta.json`、`fixture.toml`、`input.*` のいずれかと同じ名前なら、先頭に `~` を付けて保存します。すでに `~` で始まる要素にも `~` を 1 つ足すので、元のパスは一意に復元できます。
+We parse both the expected and the actual JavaScript and compare the syntax trees. The comparison
+ignores:
 
-例: svelte 本体のテストの `…/samples/foo/input.svelte` は、`…/samples/foo/~input.svelte/input.svelte` になります。
+- positions,
+- the way a literal is written (`'a'` and `"a"` are equal; `0x10` and `16` are equal),
+- comments.
 
-オラクルや実装に `filename` として渡すのは、復元した**元のパス**です。
+The comparison does **not** ignore `/* @__PURE__ */` comments, because they change what a bundler
+may remove.
 
-## よく使うコマンド
+The exact rules are in `tools/fixtures/src/canonical.ts`.
 
-`mise.toml` で固定した Node 26 で、TypeScript のまま実行します。
+## Changing the expected output for one unit (`[[adjust]]`)
 
-```sh
-cd tools/fixtures && pnpm install                                 # 初回のみ
-F="tools/fixtures/bin/fixtures.ts"
-mise exec -- node $F stats                                        # unit 数とタスクの適用数
-mise exec -- node $F compare --task svelte.compile --variant client --report /tmp/r.txt
-mise exec -- node $F adjust                                       # 調整の再検証（--write で rebased を書き換え）
-mise exec -- node $F upgrade                                      # オラクルの版上げ後: 全再生成＋調整の再検証
-mise exec -- node $F import --from <submodule を持つチェックアウト>   # 取り込み元からの再取り込み
+Sometimes rsvelte's output is different from the oracle's output but means the same thing, for
+example `void 0` and `undefined`. For such a case, add an entry to the unit's `fixture.toml`:
+
+```toml
+[[adjust]]
+task = "svelte.compile"
+variant = "client"          # optional; if you leave it out, the entry applies to all variants
+at = "body.5.declaration.body.body.0.declarations.0.init.arguments.0"
+expect = "void 0"           # what the oracle has at this place
+replace = "undefined"       # what we accept instead
+reason = "an absent initial value is undefined either way"
 ```
 
-zsh では、`$F` にオプションまで入れると 1 語として扱われます。上のようにパスだけを入れてください。
+- `at` is a path in the syntax tree. The `compare` command prints this path for the first place
+  where two trees differ, so you can copy it.
+- The change only happens if the oracle really has `expect` at `at`. This check lets us find
+  entries that no longer fit after an oracle update.
 
-## 著作権
+When the oracle changes, `adjust` gives each entry one of four states:
 
-入力ファイルの著作権は、各取り込み元に帰属します。各ファイルを律するライセンスは `_registry/licenses/<source>/` にあり、取り込み元の URL と commit は `_registry/sources.json` にあります。
+| State | Meaning | What to do |
+|---|---|---|
+| `ok` | `expect` is at `at`. | Nothing. |
+| `rebased` | `expect` is not at `at`, but it is at exactly one other place. | Run `adjust --write` to update `at`. (If the entry has no `variant`, update it by hand.) |
+| `redundant` | `replace` is already at `at`: the oracle now gives the output we wanted. | Delete the entry. |
+| `stale` | `expect` is at zero places, or at more than one place. | A person must decide. |
+
+## Skipping a task for one unit (`[skip]`)
+
+```toml
+[skip]
+"svelte.compile/client" = "svelte 5.57.1 emits invalid JS here"
+```
+
+The key is a task id (`svelte.compile`) or a task and a variant (`svelte.compile/client`).
+
+## Original paths that use a reserved name
+
+A unit directory has children with fixed names. So if a part of the original path is one of these
+names, we add `~` to the front of that part:
+
+- `expected`, `actual`, `cache`, `meta.json`, `fixture.toml`, or any name that starts with `input.`
+
+We also add `~` to any part that already starts with `~`. Because of this, we can always get the
+original path back.
+
+Example: `.../samples/foo/input.svelte` is stored as `.../samples/foo/~input.svelte/input.svelte`.
+
+Tools always pass the **original** path to the compiler as `filename`, because the file name changes
+the output (the component name and the CSS hash).
+
+## Commands
+
+The tools are written in TypeScript. Node 26 runs them directly, without a build step. The Node
+version is set in `mise.toml` at the repository root.
+
+```sh
+(cd tools/fixtures && pnpm install)              # first time only
+F=tools/fixtures/bin/fixtures.ts
+
+mise exec -- node $F stats                        # count units, and units per task
+mise exec -- node $F compare --task svelte.compile --variant client --report /tmp/report.txt
+                                                  # compare actual/ with expected/ (add --family or --source to limit)
+mise exec -- node $F adjust                       # check all [[adjust]] entries (add --write to fix "rebased")
+mise exec -- node $F regen                        # make expected/ again from the oracles
+mise exec -- node $F import --from <checkout>     # copy the inputs again from the source repositories
+```
+
+`<checkout>` is a directory that has every source at the path given by `checkout` in
+`sources.json` (for example the `main` branch of rsvelte, which has them as git submodules).
+
+In zsh, put only the path in `$F`, as above. zsh does not split a variable into words, so a
+variable that also holds `mise exec -- node` does not work.
+
+## Updating an oracle (for example a new Svelte version)
+
+1. Change the version of `svelte` in `tools/fixtures/package.json` and run `pnpm install`.
+2. Run `mise exec -- node $F upgrade`. This runs `regen` for all tasks and then checks all
+   `[[adjust]]` entries.
+3. Look at the changes: `git diff --stat -- ':(glob)fixtures/**/expected/**'`. **Each changed file
+   is a change in the official tool's behavior.** Fix the `[[adjust]]` entries (see the table
+   above).
+4. Commit the expected output, the `fixture.toml` changes, `_registry/oracles.json` and the
+   lock file together, in one commit.
+
+Also run `import` again: the new version may accept or reject different input files.
+
+## Adding a language or a task
+
+- **Language** (for example Vue): add an entry to `tools/fixtures/src/languages.ts` with a
+  `family` (the top folder, for example `vue`), an input extension, and a rule for which files to
+  accept. Then add source repositories to `sources.json`, after you check their licenses.
+- **Task** (for example lint or format): add a file to `tools/fixtures/src/tasks/`. A task
+  names its oracle packages, its variants, which units it applies to, and how to compare each output
+  file. Pin the oracle package to an exact version in `tools/fixtures/package.json`.
+
+## Licenses
+
+We only copy files from repositories with a permissive license (MIT, Apache-2.0, ISC,
+BSD-3-Clause, Unlicense). The copyright of each input file stays with its source. The license that
+covers each file is in `_registry/licenses/<source>/`. The URL and commit of each source are in
+`_registry/sources.json`.
