@@ -863,6 +863,19 @@ mod tests {
     }
 
     #[test]
+    fn fill_breaks_the_separator_after_content_holding_a_broken_group() {
+        let mut d = Docs::new();
+        let a = d.lit("a");
+        let l = d.line();
+        let b = d.lit("b");
+        let content = d.group_broken(&[a, l, b]);
+        let sep = d.line();
+        let c = d.lit("c");
+        let f = d.fill(&[content, sep, c]);
+        assert_eq!(print(&mut d, f, &PrintOptions::default()), "a\nb\nc");
+    }
+
+    #[test]
     fn if_break_follows_a_named_group() {
         let mut d = Docs::new();
         let id = d.new_group_id();
