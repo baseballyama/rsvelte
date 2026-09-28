@@ -2,12 +2,24 @@
 	"name": "@rsvelte-experimental/fixtures-tools",
 	"private": true,
 	"type": "module",
-	"description": "Fixture import, oracle snapshot generation and expected-AST adjustment tooling",
-	"bin": { "fixtures": "./bin/fixtures.mjs" },
-	"engines": { "node": ">=22" },
+	"description": "Fixture import, oracle snapshot generation and expected-AST adjustment tooling (TypeScript, run directly by Node 26)",
+	"bin": {
+		"fixtures": "./bin/fixtures.ts"
+	},
+	"engines": {
+		"node": ">=26"
+	},
+	"scripts": {
+		"fixtures": "node bin/fixtures.ts",
+		"typecheck": "tsc -p ."
+	},
 	"dependencies": {
 		"acorn": "8.18.0",
 		"smol-toml": "1.9.0",
 		"svelte": "5.57.1"
+	},
+	"devDependencies": {
+		"@types/node": "26.6.3",
+		"typescript": "7.0.2"
 	}
 }

@@ -1,6 +1,10 @@
 # The shared .git/info/exclude ignores `fixtures` for main's generated tree; this branch commits it.
 !fixtures
-node_modules/
-target/
-/fixtures/.cache/
+# Anchored: unanchored names would also hide fixture inputs whose original path contains them.
+/target/
+/tools/*/node_modules/
+# Per-unit implementation output and cached snapshots. Original path segments with these names are
+# stored as `~actual` / `~cache` (tools/fixtures/src/paths.ts), so the patterns reach only unit children.
+/fixtures/**/actual/
+/fixtures/**/cache/
 .DS_Store

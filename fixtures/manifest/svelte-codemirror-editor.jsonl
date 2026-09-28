@@ -1,7 +1,0 @@
-{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/CodeMirror.svelte","sha256":"7f2631988e15e8ef582daec8ebaafda8a4ec37abb2b8adb15ebb78538491d2a2"}
-{"inferredMode":"neutral","lang":"svelte","mode":"runes","path":"src/routes/+layout.svelte","sha256":"f75abd5d2589776c4b43cb050e086d3c3e5952e39388428af34730211f48381d"}
-{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/routes/+page.svelte","sha256":"100183c282e942ba06740061a9b2cabfbc39a36895acef61a496fa4966c9fbcc"}
-{"inferredMode":"neutral","lang":"svelte","mode":"runes","path":"src/routes/css/+page.svelte","sha256":"0fb40962b8605b4b5a008136dc4ee2ea8b9e9bd90ca379a442fedb4cd0438641"}
-{"inferredMode":"neutral","lang":"svelte","mode":"runes","path":"src/routes/html/+page.svelte","sha256":"41739fe7c30cad88ede5b640d1fe68c1c632c973e651fc1450cfc66122cedf6c"}
-{"inferredMode":"neutral","lang":"svelte","mode":"runes","path":"src/routes/javascript/+page.svelte","sha256":"11aedd38693c1c7e19cc9d2d742adfcffcd51ac40e9f378ba4033f9c91d520ca"}
-{"inferredMode":"neutral","lang":"svelte","mode":"runes","path":"src/routes/typescript/+page.svelte","sha256":"505b3ffa6274700c15b871e0e9629181a302fd309dd2f346679d84a372a918e9"}

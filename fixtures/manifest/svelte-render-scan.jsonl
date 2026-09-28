@@ -1,5 +1,0 @@
-{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/components/Logo.svelte","sha256":"335b3e4ab673bcf112779b5a3dfe2ac19df2ac9d92ea8ea9ecfb9db372a7c071"}
-{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/components/RenderScan.svelte","sha256":"6982083efeb6569db8b75cb0b4c2b0f9d3373a8fc0d848aba431a5023949d052"}
-{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/components/RenderScanObserver.svelte","sha256":"766eedd9ca14e09150d7fdf6c1b75e08657098f2d352517844934a118ca1a281"}
-{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/routes/+layout.svelte","sha256":"755e5e596f0b577be987a1d6bab4474069a8e821457c02042fe63e4185241501"}
-{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/routes/+page.svelte","sha256":"f2ff528524a86e54e776e7e01337fd7f89923360314df4e2db78aedda184e60a"}

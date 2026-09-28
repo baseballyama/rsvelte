@@ -1,0 +1,2 @@
+[skip]
+"svelte.compile/client" = "svelte 5.57.1 emits invalid JS here (duplicate declaration of `foo`); the sample expects a compile error"

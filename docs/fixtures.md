@@ -1,7 +1,8 @@
 # Fixtures — 設計と運用
 
 - 日付: 2026-09-29
-- 実装: `tools/fixtures/`（Node。オラクルが JS のパッケージなので、ツール側は Node で書く）
+- 実装: `tools/fixtures/`（TypeScript。Node 26 の型除去でそのまま実行する。`mise.toml` で Node 26.7.0 を固定。オラクルが JS のパッケージなので、ツールも JS 側で書く）
+- ファイルごとの役割: [fixtures/README.md](../fixtures/README.md)
 - データ: `fixtures/`
 - コンセプト上の位置づけ: [concept.md](concept.md) §3-C2、§8
 
@@ -24,11 +25,11 @@
 
 | 概念 | 定義 | 置き場所 |
 |---|---|---|
-| **source** | 取り込み元のリポジトリ。URL、固定 commit、ライセンス（SPDX と LICENSE ファイル）、除外理由 | `fixtures/sources.json` |
-| **unit** | 1 つの入力ファイル。キーは `<source>/<元のパス>`。言語とモードなどの属性を持つ | `fixtures/inputs/<source>/<path>` と `fixtures/manifest/<source>.jsonl` |
-| **language** | どのファイルを担当し、どれを受け入れるか（admission）を決める | `tools/fixtures/src/languages.mjs` |
+| **source** | 取り込み元のリポジトリ。URL、固定 commit、ライセンス（SPDX と LICENSE ファイル）、除外理由 | `fixtures/_registry/sources.json` |
+| **unit** | 1 つの入力ファイル。キーは `<family>/<source>/<元のパス>`。1 unit につき 1 ディレクトリで、入力・属性・期待値・実装の出力・調整を同じ場所に置く | `fixtures/<family>/<source>/<元のパス>/` |
+| **language** | どのファイルを担当し、どれを受け入れるか（admission）を決める。所属する **family**（最上位ディレクトリ）と入力の拡張子も持つ | `tools/fixtures/src/languages.ts` |
 | **task** | unit に対する 1 つの測定。オラクル、variant（オプションの組）、成果物（artifact）、成果物ごとの比較方法を持つ | `tools/fixtures/src/tasks/` |
-| **adjustment** | 期待側の AST の 1 ノードを書き換える、ピンポイントの調整 | `fixtures/adjust/<source>/<path>.toml` |
+| **adjustment** | 期待側の AST の 1 ノードを書き換える、ピンポイントの調整 | unit の `fixture.toml` |
 
 `expected = snapshot(oracle, unit, task, variant) + adjustments(unit, task, variant)`
 
@@ -36,33 +37,35 @@
 
 ## 3. ディレクトリ構成
 
+各ファイルの役割の一覧は [fixtures/README.md](../fixtures/README.md) にある。
+
 ```
 fixtures/
-  sources.json                 取り込み元の台帳（ライセンス審査の結果。除外したものも理由付きで残す）
-  import-report.json           source ごとの取り込み件数と除外理由の集計
-  oracles.json                 task ごとの、snapshot を生成したオラクルと正規化器の版
-  overrides.json               unit ごとの手書きの例外（task の skip など）。importer は上書きしない
-  inputs/<source>/<path>       ハードコピーした入力（元の拡張子のまま）
-  manifest/<source>.jsonl      unit の属性（1 行 1 unit、path 順）
-  licenses/<source>/…          取り込んだファイルを律する LICENSE の写し
-  expected/<task>/<variant>/<source>/<path>.<ext>   committed のタスクの snapshot
-  adjust/<source>/<path>.toml  調整（必要な unit にだけ置く。疎）
-  .cache/                      cached のタスクの snapshot（git 管理外）
+  _registry/                   言語をまたいで共有する台帳（sources.json、oracles.json、import-report.json、licenses/）
+  <family>/<source>/<元のパス>/  unit ディレクトリ（例: svelte/bits-ui/src/lib/button.svelte/）
+    input<ext>                 ハードコピーした入力
+    meta.json                  生成した属性
+    fixture.toml               手書きの例外（skip と adjust）。importer は触らない
+    expected/<task>/<variant>.<ext>   committed のタスクの snapshot
+    actual/<task>/<variant>.<ext>     実装の出力（git 管理外）
+    cache/<task>/<variant>.<ext>      cached のタスクの snapshot（git 管理外）
 tools/fixtures/
-  package.json / pnpm-lock.yaml  オラクルの exact pin（svelte 5.57.1、acorn 8.18.0 …）
-  bin/fixtures.mjs             CLI
-  src/…                        import / regen / adjust / compare / canonical / languages / tasks
+  package.json / pnpm-lock.yaml  オラクルの exact pin（svelte 5.57.1、acorn 8.18.0 …）と TypeScript 7
+  bin/fixtures.ts              CLI
+  src/*.ts                     import / regen / adjust / compare / canonical / languages / tasks
 ```
 
-入力と期待値を別々の木に置き、期待値の木を `task/variant` で分けているのは、次の 3 つを実現するため。
-- あるタスクだけを再生成できること。
-- `git diff fixtures/expected/<task>` が、そのタスクの上流の挙動変化そのものになること。
-- 実装側が、同じレイアウトで出力ディレクトリを書けば比較できること。
+設計上の判断:
+- **unit 単位で同じ場所に置く。** 1 つの fixture を開けば、入力・期待値・実装の出力・調整がすべて並ぶ。
+- **最上位を言語ファミリーで分ける。** Svelte と Vue が混ざらない。Tailwind 付き Svelte は言語ではなく文脈なので、`svelte/` の下に置く（§9）。
+- **タスク単位のビューは git の glob で取る。** 例: `git diff --stat -- ':(glob)fixtures/**/expected/svelte.compile/**'`。
+- **予約名の退避。** 元のパスの要素が予約名（`expected` `actual` `cache` `meta.json` `fixture.toml` `input.*`）なら `~` を前置する。`~` で始まる要素にも前置するので、変換は可逆になる。これで `.gitignore` の `/fixtures/**/actual/` は unit の子にしか当たらない。実コーパスでは 543 要素が退避された（svelte 本体のテストが `input.svelte` という名前を多用しているため）。
+- **`.gitignore` の規則は必ずアンカーする。** 当初の `target/` は、元のパスに `target` を含む sveltekit のテストアプリの入力 9 件と snapshot 20 件を黙って無視していた。配置を移行したときの照合で、件数が合わないことから見つかった。
 
 ## 4. 取り込み（`fixtures import`）
 
 ```
-node tools/fixtures/bin/fixtures.mjs import --from <submodule を持つチェックアウト> [--source id,...] [--accept-commit]
+mise exec -- node tools/fixtures/bin/fixtures.ts import --from <submodule を持つチェックアウト> [--source id,...] [--accept-commit]
 ```
 
 1. `sources.json` のうち `excluded` の無い source を、台帳の順に処理する。
@@ -76,7 +79,7 @@ node tools/fixtures/bin/fixtures.mjs import --from <submodule を持つチェッ
    - `svelte`: `compile(src, { runes: true, generate: false })` が通ること。通らないもの（legacy 構文など）は、理由のコード付きで除外する。
    - `svelte-module-js`: `compileModule` が通ること。
    - `svelte-module-ts`: 無条件で受け入れる（§9 の未決事項を参照）。
-7. `inputs/` にコピーし、manifest と LICENSE の写しを書く。source 単位で `inputs/<source>` を作り直すので、上流で消えたファイルは消える。
+7. unit ディレクトリに `input<ext>` と `meta.json` を書き、LICENSE の写しを置く。上流で消えた unit はディレクトリごと消す。ただし `fixture.toml`（手書き）を持つ unit は消さずに残して列挙し、終了コードを 1 にする。
 
 ### 2026-09-29 時点の取り込み結果
 
@@ -89,18 +92,19 @@ node tools/fixtures/bin/fixtures.mjs import --from <submodule を持つチェッ
 | 採用した unit | **18,056**（`svelte` 17,476 = 推論 runes 9,488 ＋ 中立 7,988、`svelte-module-js` 38、`svelte-module-ts` 542） |
 | 除外 | runes 非互換 4,837、`compileModule` が拒否 107、重複 789、入れ子 LICENSE による除外 0 |
 | サイズ | 入力 35.1 MB。snapshot は 44,561 ファイル・112.9 MB（gzip で 16.7 MB） |
+| 予約名の退避 | 543 要素 |
 | 所要時間（1 スレッド） | import 36 s、regen 107 s |
 
 ## 5. snapshot の生成（`fixtures regen`）
 
 ```
-node tools/fixtures/bin/fixtures.mjs regen [--task id,...] [--source id,...]
+mise exec -- node tools/fixtures/bin/fixtures.ts regen [--task id,...] [--source id,...]
 ```
 
 - 各タスク × variant × 適用される unit についてオラクルを走らせ、成果物を `expected/` に書く。内容が同じなら書かない。
 - オラクルが compile エラーを投げた場合は、そのエラー（`code`・`message`・位置）を `error.json` という成果物にする。エラーも期待値の一部である。
 - JS の成果物は、その場で正規化器（§6）に通す。正規化できない出力があれば列挙し、終了コードを 1 にする。
-  - 現時点で該当は 1 件ある。svelte 本体の `compiler-errors/samples/const-tag-snippet-invalid-reference-1` で、5.57.1 が重複宣言を含む JS を出力する。これは `overrides.json` で `svelte.compile/client` を skip し、理由を書いてある。
+  - 現時点で該当は 1 件ある。svelte 本体の `compiler-errors/samples/const-tag-snippet-invalid-reference-1` で、5.57.1 が重複宣言を含む JS を出力する。これは、その unit の `fixture.toml` の `[skip]` で `svelte.compile/client` を外し、理由を書いてある。
 - `oracles.json` に、タスクごとのオラクルと正規化器の版を記録する。
 - タスクの `storage` は 2 種類ある。
   - `committed`: git に入れる。
@@ -119,7 +123,7 @@ node tools/fixtures/bin/fixtures.mjs regen [--task id,...] [--source id,...]
 
 ## 6. AST 比較の定義（canonical AST）
 
-`tools/fixtures/src/canonical.mjs` が仕様である。Rust 側のハーネスも、同じテキストから同じ木を作らなければならない。
+`tools/fixtures/src/canonical.ts` が仕様である。Rust 側のハーネスも、同じテキストから同じ木を作らなければならない。
 
 - acorn（`ecmaVersion: 'latest'`、`sourceType: 'module'`）の ESTree を土台にする。
 - 位置（`start` `end` `loc` `range`）を落とす。
@@ -132,7 +136,7 @@ node tools/fixtures/bin/fixtures.mjs regen [--task id,...] [--source id,...]
 ## 7. 調整（adjustment）
 
 ```toml
-# fixtures/adjust/bits-ui/docs/src/lib/components/demos/portal-demo.svelte.toml
+# fixtures/svelte/bits-ui/docs/src/lib/components/demos/portal-demo.svelte/fixture.toml
 [[adjust]]
 task = "svelte.compile"
 variant = "client"          # 省略すると、そのタスクの全 variant に当てる
@@ -170,9 +174,9 @@ reason = "an absent initial value is undefined either way"
 ## 8. Svelte の版上げ（`fixtures upgrade`）
 
 1. `tools/fixtures/package.json` の `svelte` を新しい版の exact pin に変えて、`pnpm install` する。
-2. `node tools/fixtures/bin/fixtures.mjs upgrade` を実行する。全タスクを再生成し、全調整を再検証する。
+2. `mise exec -- node tools/fixtures/bin/fixtures.ts upgrade` を実行する。全タスクを再生成し、全調整を再検証する。
 3. 結果をレビューする。
-   - `git diff --stat fixtures/expected`: **変わった snapshot の一つひとつが、上流の挙動変化**である。
+   - `git diff --stat -- ':(glob)fixtures/**/expected/**'`: **変わった snapshot の一つひとつが、上流の挙動変化**である。
    - `rebased` は `fixtures adjust --write` で書き換え、`redundant` は削除し、`stale` は判断する。
 4. snapshot、調整、`oracles.json`、lockfile を **1 コミット**にまとめる（例: `oracle: svelte 5.57.1 → 5.58.0`）。そのコミットの後で実装側が落とす fixture が、追従すべき作業の一覧になる。
 
@@ -182,7 +186,7 @@ admission（どのファイルが runes 互換か）も、オラクルの版に�
 
 ### 新しい言語（Vue、HTML、CSS、Markdown、…）
 
-1. `languages.mjs` に、`matches`（担当する拡張子）と `admit`（受け入れ条件。可能ならその言語のオラクルでパースできること）を足す。
+1. `languages.ts` に、`family`（最上位ディレクトリ。例: `vue`）、`ext`、`matches`（担当する拡張子）と `admit`（受け入れ条件。可能ならその言語のオラクルでパースできること）を足す。
 2. その言語を含むリポジトリを、ライセンスを審査したうえで `sources.json` に足す。
 3. その言語に当てるタスク（`vue.compile` なら `@vue/compiler-sfc` をオラクルにする、など）を `tasks/` に足し、オラクルのパッケージを `package.json` に exact pin する。
 
@@ -191,7 +195,7 @@ admission（どのファイルが runes 互換か）も、オラクルの版に�
 Tailwind のクラス並べ替えや lint、型検査、preprocess は、ファイル単体では決まらない。次の形で拡張する（未実装）。
 
 - `sources.json` の source に `contexts: [{ name, files: [...] }]` を宣言する（Tailwind の CSS エントリ、`tsconfig.json`、`svelte.config.js` など）。importer は、同じライセンス規則で `fixtures/contexts/<source>/<name>/` にコピーする。
-- manifest の unit に `context: "<name>"` を持たせる。文脈を要するタスクは、`appliesTo` で文脈の有無を見る。
+- unit の `meta.json` に `context: "<name>"` を持たせる。文脈を要するタスクは、`appliesTo` で文脈の有無を見る。
 - 例: タスク `tailwind.sort`（オラクルは prettier-plugin-tailwindcss）、`svelte.check`（オラクルは svelte-check、成果物は diagnostics の JSON）。
 
 ### lint・fmt などのタスク
@@ -208,12 +212,12 @@ Tailwind のクラス並べ替えや lint、型検査、preprocess は、ファ�
 
 ### ユニット単位の例外
 
-`fixtures/overrides.json` にキー `<source>/<path>` で書く。いまは `skip`（task id または `task/variant` → 理由）だけを持つ。今後、lint 設定の差し替えなど、タスク固有の per-unit オプションもここに置く。
+unit の `fixture.toml` に書く。いまは `[skip]`（task id または `task/variant` → 理由）と `[[adjust]]` を持つ。今後、lint 設定の差し替えやコンパイルオプション（`experimental.async` など）といった、タスク固有の per-unit オプションもここに置く。
 
 ## 10. 実装との接続
 
-- 実装は、`fixtures/expected/<task>/<variant>/` と同じレイアウトの出力ディレクトリを書く。
-- `node tools/fixtures/bin/fixtures.mjs compare --task svelte.compile --variant client --candidate <dir> [--report <file>]` で比較する。
+- 実装は、各 unit の `actual/<task>/<variant>.<ext>` に出力を書く（`expected/` と同じ名前）。
+- `mise exec -- node tools/fixtures/bin/fixtures.ts compare --task svelte.compile --variant client [--family svelte] [--source id,...] [--report <file>]` で比較する。
   - verdict は `match` / `mismatch` / `missing` / `unexpected` / `unparseable` の 5 種類。
   - 画面に出すのは先頭 20 件だけで、`… and N more` を必ず添える。全件は `--report` のファイルに書く。
 - Rust のテストハーネスは M0 で作る。§6 の canonical AST を Rust でも実装し、Node 側と同じ JSON を出すことを、それ自体をテストにして保証する。
@@ -226,4 +230,5 @@ Tailwind のクラス並べ替えや lint、型検査、preprocess は、ファ�
 | CSS の比較 | 現在はテキストの完全一致。CSS の AST 比較は、CSS パーサを実装するときに決める |
 | 生成コーパス（matrix / mutation） | 実コーパスだけでは相互作用のバグが出ない。旧 `pattern-corpus` はライセンス上の理由で除外したので、生成器を作り直して `fixtures/` に別の source として置く |
 | 並列化 | regen は 1 スレッドで 107 s。タスクが増えたら worker に分ける |
+| `experimental.async` を使う runes ファイル | `await` を使うコンポーネント 304 件が、`experimental_async` で admission に落ちている。legacy ではなく、元プロジェクトが `svelte.config` で有効にしている正しい runes ファイル。per-unit のコンパイルオプション（`fixture.toml`、または source 単位の既定値）を入れてから取り込む |
 | svelte 本体のテスト fixture | 本体の `_config.js` にあるコンパイルオプション（`dev` など）は、まだ取り込んでいない。取り込むまでは既定オプションの unit として扱う |

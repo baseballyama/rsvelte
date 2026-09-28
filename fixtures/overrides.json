@@ -1,7 +1,0 @@
-{
-	"svelte/packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte": {
-		"skip": {
-			"svelte.compile/client": "svelte 5.57.1 emits invalid JS here (duplicate declaration of `foo`); the sample expects a compile error"
-		}
-	}
-}

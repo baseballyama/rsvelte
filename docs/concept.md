@@ -377,6 +377,6 @@ Tier 2 の言語（§3-C4）は、M4 の後に「埋め込みと lowering の AP
 
 | # | 問い | 決定 |
 |---|---|---|
-| Q1 | ライセンスが怪しいソース | **入れない**。permissive（MIT / Apache-2.0 / ISC / BSD-3-Clause / Unlicense）のリポジトリだけを取り込む。GPL / AGPL / EPL / MPL / 独自ライセンス / ライセンス無しに加えて、旧リポジトリの `pattern-corpus` も除外した（除外対象プロジェクトから縮約した repro が混ざっているため）。台帳は `fixtures/sources.json` |
+| Q1 | ライセンスが怪しいソース | **入れない**。permissive（MIT / Apache-2.0 / ISC / BSD-3-Clause / Unlicense）のリポジトリだけを取り込む。GPL / AGPL / EPL / MPL / 独自ライセンス / ライセンス無しに加えて、旧リポジトリの `pattern-corpus` も除外した（除外対象プロジェクトから縮約した repro が混ざっているため）。台帳は `fixtures/_registry/sources.json` |
 | Q2 | compile の正しさの基準 | **AST 比較**。最初の 1 回だけ公式コンパイラの出力を snapshot にし、それ以降は snapshot と比較する。無害な差（`void 0` と `undefined` など）は、fixture ごとにピンポイントで**期待側の AST を調整**して吸収する。Svelte の版上げでは snapshot を再生成し、調整を自動で再検証する（ok / rebased / redundant / stale の 4 状態）。詳細は [fixtures.md](fixtures.md) |
 | Q3 | 中立ファイル | **fixture に入れ、runes として扱う**（`runes: true` で compile する）。manifest の `inferredMode` に、公式が推論したモードを残す |
