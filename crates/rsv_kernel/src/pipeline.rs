@@ -125,6 +125,11 @@ impl Registry {
         &self.artifacts
     }
 
+    /// Tasks that run per document only (no project pass).
+    pub fn document_task_ids(&self) -> Vec<&'static str> {
+        self.tasks.iter().map(|t| t.id()).collect()
+    }
+
     pub fn task_ids(&self) -> Vec<&'static str> {
         self.tasks
             .iter()
@@ -305,19 +310,62 @@ fn finish_project(task: &dyn ProjectTask, k: usize, results: &mut [DocResult]) {
     }
 }
 
-pub fn run(reg: &Registry, docs: &[Document], opts: &RunOptions) -> Vec<DocResult> {
+/// Runs the pipeline and hands each document's result to `sink` as soon as it is final, on
+/// whichever worker finished it: a document is dropped from memory when its sink call returns,
+/// so peak memory follows the working set, not the corpus. Documents waiting for a project pass
+/// are held until it finishes.
+pub fn run_each(
+    reg: &Registry,
+    docs: &[Document],
+    opts: &RunOptions,
+    sink: &(dyn Fn(usize, DocResult) + Sync),
+) {
     let (tasks, project_tasks) = reg.selected(opts.tasks);
     let work = || {
-        let mut results: Vec<DocResult> = docs
-            .par_iter()
-            .map(|d| run_document(reg, d, &tasks, &project_tasks, opts.sharing))
-            .collect();
+        let waiting = std::sync::Mutex::new(Vec::new());
+        docs.par_iter().enumerate().for_each(|(i, d)| {
+            let r = run_document(reg, d, &tasks, &project_tasks, opts.sharing);
+            if r.parts.is_empty() {
+                sink(i, r);
+            } else {
+                waiting
+                    .lock()
+                    .expect("no panics under the lock")
+                    .push((i, r));
+            }
+        });
+        let mut waiting = waiting.into_inner().expect("no panics under the lock");
+        waiting.sort_unstable_by_key(|(i, _)| *i);
+        let (index, mut results): (Vec<usize>, Vec<DocResult>) = waiting.into_iter().unzip();
         for (k, task) in project_tasks.iter().enumerate() {
             finish_project(*task, k, &mut results);
         }
-        results
+        for (i, r) in index.into_iter().zip(results) {
+            sink(i, r);
+        }
     };
-    match opts.threads {
+    in_pool(opts.threads, work);
+}
+
+/// [`run_each`], collected in document order.
+pub fn run(reg: &Registry, docs: &[Document], opts: &RunOptions) -> Vec<DocResult> {
+    let slots: Vec<std::sync::Mutex<Option<DocResult>>> =
+        docs.iter().map(|_| std::sync::Mutex::new(None)).collect();
+    run_each(reg, docs, opts, &|i, r| {
+        *slots[i].lock().expect("each slot is written once") = Some(r);
+    });
+    slots
+        .into_iter()
+        .map(|s| {
+            s.into_inner()
+                .expect("each slot is written once")
+                .expect("every document reaches the sink")
+        })
+        .collect()
+}
+
+fn in_pool(threads: Option<usize>, work: impl FnOnce() + Send) {
+    match threads {
         Some(n) => rayon::ThreadPoolBuilder::new()
             .num_threads(n)
             .build()

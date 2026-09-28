@@ -16,6 +16,8 @@ metrics = ["rsv_kernel/metrics"]
 [dependencies]
 rsv_kernel.workspace = true
 rsv_svelte.workspace = true
+rayon.workspace = true
+libc.workspace = true
 
 [lints]
 workspace = true

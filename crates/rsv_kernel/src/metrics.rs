@@ -2,6 +2,8 @@
 //!
 //! - [`CountingAlloc`]: a global allocator wrapper a binary opts into; it counts allocations and
 //!   bytes per thread. Allocation counts are deterministic, so they can gate CI where time cannot.
+//!   With [`track_global`] on it also keeps process-wide totals and the peak of live heap growth;
+//!   that costs shared atomics per allocation, so timed runs leave it off.
 //! - [`phase`]: a scope guard attributing wall time and allocations to a named phase, **exclusive**
 //!   of nested phases. Artifacts and tasks are phases, so an artifact computed on behalf of a task
 //!   is charged to the artifact, not to whichever task asked first.
@@ -10,33 +12,81 @@
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering::Relaxed};
 
 thread_local! {
     static ALLOCS: Cell<u64> = const { Cell::new(0) };
     static BYTES: Cell<u64> = const { Cell::new(0) };
 }
 
+static TRACK: AtomicBool = AtomicBool::new(false);
+static G_ALLOCS: AtomicU64 = AtomicU64::new(0);
+static G_BYTES: AtomicU64 = AtomicU64::new(0);
+static LIVE: AtomicI64 = AtomicI64::new(0);
+static PEAK: AtomicI64 = AtomicI64::new(0);
+
 /// `#[global_allocator] static A: CountingAlloc = CountingAlloc;` in a binary enables counting.
 pub struct CountingAlloc;
 
+#[inline]
+fn counted(size: usize, freed: usize) {
+    let _ = ALLOCS.try_with(|c| c.set(c.get() + 1));
+    let _ = BYTES.try_with(|c| c.set(c.get() + size as u64));
+    if TRACK.load(Relaxed) {
+        G_ALLOCS.fetch_add(1, Relaxed);
+        G_BYTES.fetch_add(size as u64, Relaxed);
+        let delta = size as i64 - freed as i64;
+        let live = LIVE.fetch_add(delta, Relaxed) + delta;
+        PEAK.fetch_max(live, Relaxed);
+    }
+}
+
 unsafe impl GlobalAlloc for CountingAlloc {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let _ = ALLOCS.try_with(|c| c.set(c.get() + 1));
-        let _ = BYTES.try_with(|c| c.set(c.get() + layout.size() as u64));
+        counted(layout.size(), 0);
         // SAFETY: forwarded unchanged.
         unsafe { System.alloc(layout) }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        if TRACK.load(Relaxed) {
+            LIVE.fetch_sub(layout.size() as i64, Relaxed);
+        }
         // SAFETY: forwarded unchanged.
         unsafe { System.dealloc(ptr, layout) }
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        let _ = ALLOCS.try_with(|c| c.set(c.get() + 1));
-        let _ = BYTES.try_with(|c| c.set(c.get() + new_size as u64));
+        counted(new_size, layout.size());
         // SAFETY: forwarded unchanged.
         unsafe { System.realloc(ptr, layout, new_size) }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct GlobalStats {
+    pub allocs: u64,
+    pub bytes: u64,
+    /// The highest live heap reached above the level at [`track_global`]`(true)`.
+    pub peak_live_growth: u64,
+}
+
+/// Starts (from zero) or stops process-wide tracking. Only meaningful with [`CountingAlloc`].
+pub fn track_global(on: bool) {
+    if on {
+        G_ALLOCS.store(0, Relaxed);
+        G_BYTES.store(0, Relaxed);
+        LIVE.store(0, Relaxed);
+        PEAK.store(0, Relaxed);
+    }
+    TRACK.store(on, Relaxed);
+}
+
+pub fn global() -> GlobalStats {
+    GlobalStats {
+        allocs: G_ALLOCS.load(Relaxed),
+        bytes: G_BYTES.load(Relaxed),
+        peak_live_growth: PEAK.load(Relaxed).max(0) as u64,
     }
 }
 

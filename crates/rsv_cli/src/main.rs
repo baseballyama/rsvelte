@@ -1,9 +1,12 @@
 //! `rsv fixtures <source-dir> [--task <id>]...` runs tasks over every fixture unit below a source
 //! directory (`fixtures/<family>/<source>`) and writes `actual/<task>.<ext>` next to `expected/`.
 //! `rsv run <file> --task <id>` prints one task's outputs for one file.
+//! `rsv bench <dir> [--task <id>]... [rounds=N] [json=<file>]` measures the pipeline (see `bench.rs`).
 //!
 //! `svelte.check` also needs `--tsc <native tsc>` and `--svelte <svelte package dir>`; its project
 //! configuration is `--tsconfig <file>`, by default the source directory's `tsconfig.json`.
+
+mod bench;
 
 use rsv_kernel::json::JsonWriter;
 use rsv_kernel::pipeline::{DocResult, Document, Registry, RunOptions, Sharing, TaskOutput};
@@ -78,7 +81,11 @@ fn main() -> ExitCode {
     match positional.as_slice() {
         ["fixtures", dir] => fixtures(&reg, Path::new(dir), &tasks),
         ["run", file] => run_file(&reg, Path::new(file), &tasks),
-        _ => usage("expected `fixtures <source-dir>` or `run <file>`"),
+        ["bench", dir, rest @ ..] => match bench::Options::parse(rest) {
+            Ok(opts) => bench::bench(&reg, Path::new(dir), &tasks, &opts),
+            Err(e) => usage(&e),
+        },
+        _ => usage("expected `fixtures <source-dir>`, `run <file>` or `bench <dir>`"),
     }
 }
 
@@ -152,7 +159,9 @@ fn units(root: &Path) -> Vec<(PathBuf, String)> {
     out
 }
 
-fn fixtures(reg: &Registry, root: &Path, tasks: &[&str]) -> ExitCode {
+/// Every unit below `root` a registered language claims, with its unit directory, and the number
+/// of units that were unreadable or unclaimed.
+pub fn load(reg: &Registry, root: &Path) -> (Vec<Document>, Vec<PathBuf>, usize) {
     let mut docs = Vec::new();
     let mut dirs = Vec::new();
     let mut skipped = 0usize;
@@ -174,29 +183,44 @@ fn fixtures(reg: &Registry, root: &Path, tasks: &[&str]) -> ExitCode {
             Err(_) => skipped += 1,
         }
     }
+    (docs, dirs, skipped)
+}
+
+fn fixtures(reg: &Registry, root: &Path, tasks: &[&str]) -> ExitCode {
+    let (docs, dirs, skipped) = load(reg, root);
     let opts = RunOptions {
         tasks,
         sharing: Sharing::Shared,
         threads: None,
     };
+    use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
+    let (panics, files, failed) = (
+        AtomicUsize::new(0),
+        AtomicUsize::new(0),
+        AtomicUsize::new(0),
+    );
     let started = std::time::Instant::now();
-    let results = rsv_kernel::pipeline::run(reg, &docs, &opts);
-    let elapsed = started.elapsed();
-    let (mut panics, mut files, mut failed) = (0, 0, 0);
-    for ((doc, dir), result) in docs.iter().zip(&dirs).zip(&results) {
-        let actual = dir.join("actual");
+    // Each unit's outputs are written as soon as they are final, so memory stays at the working set.
+    rsv_kernel::pipeline::run_each(reg, &docs, &opts, &|i, result| {
+        let actual = dirs[i].join("actual");
         let _ = std::fs::remove_dir_all(&actual);
         if let Some(p) = &result.panic {
-            panics += 1;
-            eprintln!("panic: {}: {p}", doc.path);
-            continue;
+            panics.fetch_add(1, Relaxed);
+            eprintln!("panic: {}: {p}", docs[i].path);
+            return;
         }
-        files += write_outputs(doc, &actual, result, &mut failed);
-    }
+        let mut f = 0;
+        files.fetch_add(write_outputs(&docs[i], &actual, &result, &mut f), Relaxed);
+        failed.fetch_add(f, Relaxed);
+    });
+    let elapsed = started.elapsed();
+    let panics = panics.into_inner();
     eprintln!(
-        "{} units ({skipped} unreadable or unclaimed), {files} files written, {failed} task(s) \
-         with diagnostics, {panics} panic(s), {:.1} ms",
+        "{} units ({skipped} unreadable or unclaimed), {} files written, {} task(s) with \
+         diagnostics, {panics} panic(s), {:.1} ms including writing",
         docs.len(),
+        files.into_inner(),
+        failed.into_inner(),
         elapsed.as_secs_f64() * 1e3
     );
     report_metrics();
