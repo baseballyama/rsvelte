@@ -1,5 +1,11 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.3.17
+
+### Patch Changes
+
+- 9f5513b: fix(parser): `parse()` keeps a `ParenthesizedExpression` written inside a snippet parameter, as `svelte/compiler` does. A `loose` parse gives `end: -1` to every node left open except the innermost, as upstream does. An unclosed `{:else if}` is now the block reported as left open.
+
 ## 0.3.16
 
 ### Patch Changes

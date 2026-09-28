@@ -1,5 +1,9 @@
 # @rsvelte/language-server-linux-arm64-gnu
 
+## 0.7.13
+
+No changes in this release.
+
 ## 0.7.12
 
 No changes in this release.
