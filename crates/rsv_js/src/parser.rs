@@ -61,6 +61,26 @@ pub fn parse_expression(ast: &mut Ast, src: &str, range: Span, ts: bool) -> R<No
     Ok(e)
 }
 
+/// Parses the longest expression starting at `start` (reading no further than `limit`) and
+/// returns it with the start of the next token. Embedding languages use this to find where an
+/// expression ends: `{count}` ends where the parser stops, not at a brace found by scanning.
+pub fn parse_expression_prefix(
+    ast: &mut Ast,
+    src: &str,
+    start: u32,
+    limit: u32,
+    ts: bool,
+) -> R<(NodeId, u32)> {
+    let mut p = Parser::new(ast, src, Span::new(start, limit), ts)?;
+    let e = p.expression()?;
+    let next = if p.tok.t == T::Eof {
+        limit
+    } else {
+        p.tok.span.lo
+    };
+    Ok((e, next))
+}
+
 const RESERVED: &[&str] = &[
     "break", "case", "catch", "class", "continue", "debugger", "default", "do", "else", "enum",
     "export", "extends", "finally", "for", "if", "import", "return", "super", "switch", "throw",

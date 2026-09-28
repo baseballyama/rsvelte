@@ -148,17 +148,25 @@ impl Edits {
         self.items.push((span.lo, span.hi, text.into()));
     }
 
-    pub fn apply(mut self, src: &str) -> String {
+    pub fn apply(self, src: &str) -> String {
+        self.apply_in(src, Span::new(0, src.len() as u32))
+    }
+
+    /// Applies the edits and returns only `range` of the result. Inserts at the same offset keep
+    /// the order they were added in.
+    pub fn apply_in(mut self, src: &str, range: Span) -> String {
         self.items.sort_by_key(|&(lo, hi, _)| (lo, hi));
-        let mut out =
-            String::with_capacity(src.len() + self.items.iter().map(|i| i.2.len()).sum::<usize>());
-        let mut pos = 0usize;
+        let extra: usize = self.items.iter().map(|i| i.2.len()).sum();
+        let mut out = String::with_capacity(range.len() as usize + extra);
+        let mut pos = range.lo as usize;
         for (lo, hi, text) in self.items {
+            debug_assert!(lo as usize >= pos, "overlapping edits at {lo}");
+            debug_assert!(range.lo <= lo && hi <= range.hi, "edit outside the range");
             out.push_str(&src[pos..lo as usize]);
             out.push_str(&text);
             pos = hi as usize;
         }
-        out.push_str(&src[pos..]);
+        out.push_str(&src[pos..range.hi as usize]);
         out
     }
 }

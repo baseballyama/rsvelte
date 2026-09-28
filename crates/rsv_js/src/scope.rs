@@ -33,10 +33,22 @@ pub struct Binding {
     pub node: NodeId,
     pub scope: ScopeId,
     /// The declarator (`let x = …`) or import specifier the binding came from, if any.
-    pub decl: NodeId,
+    pub decl: Option<NodeId>,
     pub reads: u32,
     /// Assignments and updates after declaration.
     pub writes: u32,
+    /// Assignments and updates through a member (`x.y = 1`, `x[i]++`).
+    pub mutations: u32,
+}
+
+impl Binding {
+    /// The initialiser of the declarator the binding came from (`init` in `let x = init`).
+    pub fn init(&self, ast: &Ast) -> Option<NodeId> {
+        match ast.kind(self.decl?) {
+            Kind::Declarator { init, .. } => init,
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -98,7 +110,7 @@ struct Analyzer<'a> {
     s: Semantic,
     stack: Vec<ScopeId>,
     /// The declarator/specifier being declared in pass 1.
-    current_decl: NodeId,
+    current_decl: Option<NodeId>,
 }
 
 pub fn analyze(ast: &Ast, program: NodeId, extra_roots: &[NodeId]) -> Semantic {
@@ -116,7 +128,7 @@ pub fn analyze(ast: &Ast, program: NodeId, extra_roots: &[NodeId]) -> Semantic {
             names: FxHashMap::default(),
         },
         stack: vec![0],
-        current_decl: NodeId::NONE,
+        current_decl: None,
     };
     a.s.node_scope.insert(program, 0);
     a.declare_children(program);
@@ -167,6 +179,7 @@ impl Analyzer<'_> {
                 decl: self.current_decl,
                 reads: 0,
                 writes: 0,
+                mutations: 0,
             });
             self.s.bindings.len() as BindingId - 1
         });
@@ -193,9 +206,9 @@ impl Analyzer<'_> {
                 };
                 for &d in decls {
                     if let Kind::Declarator { id: target, init } = self.ast.kind(d) {
-                        self.current_decl = d;
+                        self.current_decl = Some(d);
                         self.declare_pattern(target, dk);
-                        self.current_decl = NodeId::NONE;
+                        self.current_decl = None;
                         if let Some(i) = init {
                             self.declare(i);
                         }
@@ -248,7 +261,7 @@ impl Analyzer<'_> {
             }
             Kind::Import { specifiers, .. } => {
                 for &sp in specifiers {
-                    self.current_decl = sp;
+                    self.current_decl = Some(sp);
                     let local = match self.ast.kind(sp) {
                         Kind::ImportDefault(l) | Kind::ImportNamespace(l) => l,
                         Kind::ImportNamed { local, .. } => local,
@@ -256,7 +269,7 @@ impl Analyzer<'_> {
                     };
                     self.add_binding(local, DeclKind::Import, 0);
                 }
-                self.current_decl = NodeId::NONE;
+                self.current_decl = None;
             }
             _ => self.declare_children(id),
         }
@@ -453,6 +466,15 @@ impl Analyzer<'_> {
                 self.resolve(object, Ctx::Expr);
                 if computed {
                     self.resolve(property, Ctx::Expr);
+                }
+                if let Ctx::Target { .. } = ctx {
+                    let mut root = object;
+                    while let Kind::Member { object, .. } = self.ast.kind(root) {
+                        root = object;
+                    }
+                    if let Some(b) = self.s.binding_of(root) {
+                        self.s.bindings[b as usize].mutations += 1;
+                    }
                 }
             }
             (
