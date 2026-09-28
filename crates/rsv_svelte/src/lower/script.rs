@@ -217,6 +217,17 @@ pub fn lower_instance(
         match from.kind(stmt) {
             Kind::TsDecl => {}
             Kind::Import { .. } => hoisted.push(copy(from, to, rw, stmt)),
+            // Upstream turns these into the component's exports; copying them would put an
+            // `export` inside the component function.
+            Kind::ExportNamed(_) | Kind::ExportDefault(_) => {
+                return Err(Diagnostic::error(
+                    "unsupported",
+                    "exports from the instance script are not supported yet",
+                    from.loc(stmt)
+                        .span()
+                        .expect("a parsed statement has a source range"),
+                ));
+            }
             Kind::VarDecl { kind, decls } => {
                 let mut lowered = Vec::with_capacity(decls.len());
                 for &d in decls {
