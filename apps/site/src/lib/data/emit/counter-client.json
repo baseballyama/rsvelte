@@ -1,0 +1,41 @@
+{
+	"src": "<script>\n\tlet count = $state(0);\n</script>\n\n<button onclick={() => count++}>clicks: {count}</button>\n",
+	"out": "import 'svelte/internal/disclose-version';\n\nimport * as $ from 'svelte/internal/client';\n\nvar root = $.from_html(`<button> </button>`);\n\nexport default function Counter($$anchor) {\n\tlet count = $.state(0);\n\tvar button = root();\n\tvar text = $.only_child(button);\n\t$.template_effect(() => $.set_text(text, `clicks: ${$.get(count) ?? ''}`));\n\t$.delegated('click', button, () => $.update(count));\n\t$.append($$anchor, button);\n}\n\n$.delegate(['click']);\n",
+	"mappings": [
+		[
+			182,
+			10,
+			0
+		],
+		[
+			186,
+			14,
+			0
+		],
+		[
+			202,
+			29,
+			0
+		],
+		[
+			321,
+			85,
+			0
+		],
+		[
+			369,
+			61,
+			0
+		],
+		[
+			384,
+			67,
+			0
+		]
+	],
+	"source_map": "{\"version\":3,\"sources\":[\"App.svelte\"],\"names\":[],\"mappings\":\";;;;;;;CACC,IAAI,gBAAe;;;2DAGqB;8BAAxB,eAAM\"}",
+	"fixture": "fixtures/svelte/rsvelte/minimal/counter.svelte/input.svelte",
+	"file": "Counter.svelte",
+	"target": "client",
+	"rev": "d1fd0accfaafc1c12af19c5c832c16c7c9b32024"
+}

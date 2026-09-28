@@ -1,0 +1,36 @@
+import counter from '$lib/data/emit/counter-client.json';
+import plainA from '$lib/data/bench/plain-a.json';
+import metricsA from '$lib/data/bench/metrics-a.json';
+import { corpus, units } from '$lib/data/status';
+import { crateSizes } from '$lib/server/source';
+
+export const prerender = true;
+
+export const load = () => {
+	const alloc = (name: string) => {
+		const a = metricsA.arms.find((x) => x.name === name);
+		if (!a || typeof a.allocs !== 'number' || typeof a.peak_live_growth_bytes !== 'number') {
+			throw new Error(`metrics-a.json has no allocation figures for arm ${name}`);
+		}
+		return a;
+	};
+	return {
+		counter,
+		crates: crateSizes(),
+		units,
+		corpus,
+		bench: {
+			rev: plainA.build.rev,
+			threads: plainA.threads,
+			documents: plainA.population.documents,
+			bytes: plainA.population.bytes,
+			rounds: plainA.rounds,
+			arms: plainA.arms.map((a) => ({
+				name: a.name,
+				median: a.median_ms,
+				peak: alloc(a.name).peak_live_growth_bytes,
+				allocs: alloc(a.name).allocs
+			}))
+		}
+	};
+};

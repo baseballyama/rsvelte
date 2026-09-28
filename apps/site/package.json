@@ -1,0 +1,38 @@
+{
+	"name": "@rsvelte-experimental/site",
+	"private": true,
+	"type": "module",
+	"description": "The rsvelte site: landing page and the /learn developer guide. SvelteKit on Cloudflare Workers.",
+	"engines": {
+		"node": ">=26"
+	},
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "wrangler dev",
+		"deploy": "vite build && wrangler deploy",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"test": "vitest run"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-cloudflare": "7.2.9",
+		"@sveltejs/kit": "2.70.3",
+		"@sveltejs/vite-plugin-svelte": "7.3.1",
+		"@tailwindcss/vite": "4.3.3",
+		"@types/node": "24.19.0",
+		"shiki": "4.4.3",
+		"svelte": "5.57.1",
+		"svelte-check": "4.7.6",
+		"tailwindcss": "4.3.3",
+		"typescript": "6.0.3",
+		"vite": "8.3.1",
+		"vitest": "5.0.2",
+		"wrangler": "4.143.0"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"esbuild",
+			"workerd"
+		]
+	}
+}

@@ -1,0 +1,11 @@
+import { excerpts } from '$lib/server/source';
+
+export const load = () => ({
+	code: excerpts({
+		interner: 'kernel/intern/Interner',
+		get: 'kernel/intern/Interner::get',
+		intern: 'kernel/intern/Interner::intern',
+		grow: 'kernel/intern/Interner::grow',
+		lookup: 'kernel/intern/Interner::lookup'
+	})
+});

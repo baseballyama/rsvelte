@@ -1,0 +1,210 @@
+{
+	"build": {
+		"rev": "12c3db7a70bb6fdb53222eebfa42357dc5e1568e",
+		"profile": "release",
+		"metrics": true
+	},
+	"threads": 10,
+	"population": {
+		"root": "fixtures/svelte",
+		"documents": 17488,
+		"unclaimed": 580,
+		"bytes": 32258838,
+		"output_bytes": 12547497,
+		"panicked": [],
+		"tasks": {
+			"svelte.compile/client": {
+				"ran": 17488,
+				"clean": 4643,
+				"diagnostics": 12845
+			},
+			"svelte.compile/server": {
+				"ran": 17488,
+				"clean": 4648,
+				"diagnostics": 12840
+			},
+			"svelte.format/default": {
+				"ran": 17488,
+				"clean": 4199,
+				"diagnostics": 13289
+			},
+			"svelte.lint/default": {
+				"ran": 17488,
+				"clean": 5410,
+				"diagnostics": 12078
+			}
+		}
+	},
+	"rounds": 5,
+	"arms": [
+		{
+			"name": "shared",
+			"wall_ms": [
+				63.672,
+				63.146,
+				63.488,
+				63.022,
+				62.665
+			],
+			"median_ms": 63.146,
+			"allocs": 4322759,
+			"alloc_bytes": 418903174,
+			"allocs_per_source_byte": 0.134,
+			"peak_live_growth_bytes": 44694895
+		},
+		{
+			"name": "isolated",
+			"wall_ms": [
+				142.125,
+				144.511,
+				149.930,
+				150.162,
+				141.225
+			],
+			"median_ms": 144.511,
+			"allocs": 7404138,
+			"alloc_bytes": 648882774,
+			"allocs_per_source_byte": 0.230,
+			"peak_live_growth_bytes": 44789881
+		},
+		{
+			"name": "nopool",
+			"wall_ms": [
+				69.789,
+				67.574,
+				68.658,
+				71.188,
+				72.947
+			],
+			"median_ms": 69.789,
+			"allocs": 4865012,
+			"alloc_bytes": 521695666,
+			"allocs_per_source_byte": 0.151,
+			"peak_live_growth_bytes": 44756269
+		},
+		{
+			"name": "serial",
+			"wall_ms": [
+				469.891,
+				471.851,
+				484.404,
+				507.487,
+				474.395
+			],
+			"median_ms": 474.395,
+			"allocs": 4322900,
+			"alloc_bytes": 419092642,
+			"allocs_per_source_byte": 0.134,
+			"peak_live_growth_bytes": 44733686
+		},
+		{
+			"name": "streaming",
+			"wall_ms": [
+				63.222,
+				64.307,
+				65.572,
+				67.777,
+				62.495
+			],
+			"median_ms": 64.307,
+			"allocs": 4305269,
+			"alloc_bytes": 414706070,
+			"allocs_per_source_byte": 0.133,
+			"peak_live_growth_bytes": 805780
+		}
+	],
+	"phases": [
+		{
+			"name": "svelte.parse",
+			"calls": 17488,
+			"self_ms": 273.076,
+			"self_allocs": 806415,
+			"self_bytes": 66086246
+		},
+		{
+			"name": "svelte.format/default",
+			"calls": 17488,
+			"self_ms": 117.923,
+			"self_allocs": 1024096,
+			"self_bytes": 164404407
+		},
+		{
+			"name": "svelte.lower.client",
+			"calls": 5410,
+			"self_ms": 84.459,
+			"self_allocs": 974032,
+			"self_bytes": 59801431
+		},
+		{
+			"name": "svelte.lower.server",
+			"calls": 5410,
+			"self_ms": 66.797,
+			"self_allocs": 783990,
+			"self_bytes": 49737986
+		},
+		{
+			"name": "js.print",
+			"calls": 9291,
+			"self_ms": 31.987,
+			"self_allocs": 218541,
+			"self_bytes": 34139688
+		},
+		{
+			"name": "svelte.analyze",
+			"calls": 5410,
+			"self_ms": 26.101,
+			"self_allocs": 292226,
+			"self_bytes": 13480418
+		},
+		{
+			"name": "svelte.lint/default",
+			"calls": 17488,
+			"self_ms": 15.238,
+			"self_allocs": 91847,
+			"self_bytes": 11285630
+		},
+		{
+			"name": "svelte.compile/client",
+			"calls": 17488,
+			"self_ms": 4.648,
+			"self_allocs": 25573,
+			"self_bytes": 3742781
+		},
+		{
+			"name": "svelte.compile/server",
+			"calls": 17488,
+			"self_ms": 2.859,
+			"self_allocs": 25568,
+			"self_bytes": 3741501
+		},
+		{
+			"name": "js.parents",
+			"calls": 5410,
+			"self_ms": 2.317,
+			"self_allocs": 5410,
+			"self_bytes": 598860
+		},
+		{
+			"name": "no-unused-vars",
+			"calls": 5410,
+			"self_ms": 2.100,
+			"self_allocs": 13888,
+			"self_bytes": 1709676
+		},
+		{
+			"name": "svelte.css",
+			"calls": 4649,
+			"self_ms": 0.515,
+			"self_allocs": 7737,
+			"self_bytes": 283266
+		},
+		{
+			"name": "svelte/button-has-type",
+			"calls": 5410,
+			"self_ms": 0.466,
+			"self_allocs": 970,
+			"self_bytes": 106148
+		}
+	],
+	"max_rss_bytes": 117440512
+}

@@ -1,0 +1,21 @@
+import { describe, expect, it } from 'vitest';
+import { computeCounts, simulate, TASKS } from './artifacts-sim.ts';
+
+describe('artifact model', () => {
+	it('parses once when shared and once per task when isolated', () => {
+		const doc = { parses: true, checkConfigured: false };
+		expect(computeCounts(simulate(TASKS, doc, 'shared'))['svelte.parse']).toBe(1);
+		expect(computeCounts(simulate(TASKS, doc, 'isolated'))['svelte.parse']).toBe(5);
+	});
+
+	it('records Ctx::computed in the order the kernel pushes (before compute runs)', () => {
+		const [client] = simulate(['svelte.compile/client'], { parses: true, checkConfigured: false }, 'shared');
+		expect(client.computed).toEqual(['svelte.parse', 'svelte.analyze', 'svelte.css']);
+		expect(client.gets.filter((g) => g.depth > 0).every((g) => !g.computed)).toBe(true);
+	});
+
+	it('stops after the parse error', () => {
+		const traces = simulate(TASKS, { parses: false, checkConfigured: true }, 'shared');
+		expect(computeCounts(traces)).toEqual({ 'svelte.parse': 1, 'svelte.analyze': 0, 'svelte.css': 0, 'svelte.project.ts': 0 });
+	});
+});
