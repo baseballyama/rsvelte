@@ -55,6 +55,8 @@ impl Binding {
 pub struct Scope {
     pub parent: ScopeId,
     pub function: bool,
+    /// The node that opens the scope (program, function, arrow or block).
+    pub node: NodeId,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -64,6 +66,11 @@ pub struct Reference {
     pub binding: BindingId,
     pub read: bool,
     pub write: bool,
+    /// The write a declarator's initialiser or a default value makes (`let x = 1`, `(x = 1) => …`).
+    /// Not counted in [`Binding::writes`], which are the writes after declaration.
+    pub init: bool,
+    /// The scope the reference occurs in.
+    pub scope: ScopeId,
 }
 
 pub struct Semantic {
@@ -74,6 +81,10 @@ pub struct Semantic {
     pub node_binding: Vec<u32>,
     node_scope: FxHashMap<NodeId, ScopeId>,
     names: FxHashMap<(ScopeId, Atom), BindingId>,
+    /// Indices into `references`, grouped by binding: binding `b` owns
+    /// `by_binding[by_binding_start[b]..by_binding_start[b + 1]]`, in source order.
+    by_binding: Vec<u32>,
+    by_binding_start: Vec<u32>,
 }
 
 impl Semantic {
@@ -90,7 +101,43 @@ impl Semantic {
     }
 
     pub fn references_to(&self, b: BindingId) -> impl Iterator<Item = &Reference> {
-        self.references.iter().filter(move |r| r.binding == b)
+        let (lo, hi) = (
+            self.by_binding_start[b as usize] as usize,
+            self.by_binding_start[b as usize + 1] as usize,
+        );
+        self.by_binding[lo..hi]
+            .iter()
+            .map(|&i| &self.references[i as usize])
+    }
+
+    /// The nearest enclosing function scope (ESLint's `variableScope`); the program counts as one.
+    pub fn variable_scope(&self, mut s: ScopeId) -> ScopeId {
+        while !self.scopes[s as usize].function {
+            s = self.scopes[s as usize].parent;
+        }
+        s
+    }
+
+    fn index_references(&mut self) {
+        let mut start = vec![0u32; self.bindings.len() + 1];
+        for r in &self.references {
+            if r.binding != NONE {
+                start[r.binding as usize + 1] += 1;
+            }
+        }
+        for i in 1..start.len() {
+            start[i] += start[i - 1];
+        }
+        let mut fill = start.clone();
+        let mut by_binding = vec![0u32; start[self.bindings.len()] as usize];
+        for (i, r) in self.references.iter().enumerate() {
+            if r.binding != NONE {
+                by_binding[fill[r.binding as usize] as usize] = i as u32;
+                fill[r.binding as usize] += 1;
+            }
+        }
+        self.by_binding = by_binding;
+        self.by_binding_start = start;
     }
 }
 
@@ -98,7 +145,10 @@ impl Semantic {
 enum Ctx {
     Expr,
     /// A binding pattern: identifiers declare, defaults and computed keys are expressions.
-    Pattern,
+    /// `init` when the identifiers are also written (an initialised declarator, a default value).
+    Pattern {
+        init: bool,
+    },
     /// An assignment target; `read` for compound operators.
     Target {
         read: bool,
@@ -120,12 +170,15 @@ pub fn analyze(ast: &Ast, program: NodeId, extra_roots: &[NodeId]) -> Semantic {
             scopes: vec![Scope {
                 parent: NONE,
                 function: true,
+                node: program,
             }],
             bindings: Vec::new(),
             references: Vec::new(),
             node_binding: vec![NONE; ast.len()],
             node_scope: FxHashMap::default(),
             names: FxHashMap::default(),
+            by_binding: Vec::new(),
+            by_binding_start: Vec::new(),
         },
         stack: vec![0],
         current_decl: None,
@@ -139,6 +192,7 @@ pub fn analyze(ast: &Ast, program: NodeId, extra_roots: &[NodeId]) -> Semantic {
     for &r in extra_roots {
         a.resolve(r, Ctx::Expr);
     }
+    a.s.index_references();
     a.s
 }
 
@@ -148,11 +202,7 @@ impl Analyzer<'_> {
     }
 
     fn function_scope(&self) -> ScopeId {
-        let mut s = self.cur();
-        while !self.s.scopes[s as usize].function {
-            s = self.s.scopes[s as usize].parent;
-        }
-        s
+        self.s.variable_scope(self.cur())
     }
 
     fn push_scope(&mut self, node: NodeId, function: bool) -> ScopeId {
@@ -160,6 +210,7 @@ impl Analyzer<'_> {
         self.s.scopes.push(Scope {
             parent: self.cur(),
             function,
+            node,
         });
         self.s.node_scope.insert(node, id);
         self.stack.push(id);
@@ -348,11 +399,27 @@ impl Analyzer<'_> {
             binding.reads += read as u32;
             binding.writes += write as u32;
         }
+        let scope = self.cur();
         self.s.references.push(Reference {
             node: ident,
             binding: b,
             read,
             write,
+            init: false,
+            scope,
+        });
+    }
+
+    fn init_reference(&mut self, ident: NodeId) {
+        let b = self.s.node_binding[ident.idx()];
+        let scope = self.cur();
+        self.s.references.push(Reference {
+            node: ident,
+            binding: b,
+            read: false,
+            write: true,
+            init: true,
+            scope,
         });
     }
 
@@ -376,7 +443,11 @@ impl Analyzer<'_> {
 
     fn resolve(&mut self, id: NodeId, ctx: Ctx) {
         match (self.ast.kind(id), ctx) {
-            (Kind::Ident(_), Ctx::Pattern) => {}
+            (Kind::Ident(_), Ctx::Pattern { init }) => {
+                if init {
+                    self.init_reference(id)
+                }
+            }
             (Kind::Ident(_), Ctx::Target { read }) => self.reference(id, read, true),
             (Kind::Ident(_), Ctx::Expr) => self.reference(id, true, false),
             (Kind::ObjectPat(props), _) => {
@@ -404,12 +475,21 @@ impl Analyzer<'_> {
                 }
             }
             (Kind::AssignPat(l, r), _) => {
-                self.resolve(l, ctx);
+                let left = match ctx {
+                    Ctx::Pattern { .. } => Ctx::Pattern { init: true },
+                    other => other,
+                };
+                self.resolve(l, left);
                 self.resolve(r, Ctx::Expr);
             }
             (Kind::Rest(a), _) => self.resolve(a, ctx),
             (Kind::Declarator { id: target, init }, _) => {
-                self.resolve(target, Ctx::Pattern);
+                self.resolve(
+                    target,
+                    Ctx::Pattern {
+                        init: init.is_some(),
+                    },
+                );
                 if let Some(i) = init {
                     self.resolve(i, Ctx::Expr);
                 }
@@ -417,7 +497,7 @@ impl Analyzer<'_> {
             (Kind::Function { params, body, .. }, _) => {
                 let entered = self.enter(id);
                 for &p in params {
-                    self.resolve(p, Ctx::Pattern);
+                    self.resolve(p, Ctx::Pattern { init: false });
                 }
                 self.resolve_children(body);
                 if entered {
@@ -435,7 +515,7 @@ impl Analyzer<'_> {
             ) => {
                 let entered = self.enter(id);
                 for &p in params {
-                    self.resolve(p, Ctx::Pattern);
+                    self.resolve(p, Ctx::Pattern { init: false });
                 }
                 if expr_body {
                     self.resolve(body, Ctx::Expr)

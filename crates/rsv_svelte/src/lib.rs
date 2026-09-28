@@ -13,6 +13,7 @@ pub mod analyze;
 pub mod ast;
 pub mod evaluate;
 pub mod format;
+pub mod lint;
 pub mod lower;
 pub mod parse;
 pub mod tasks;

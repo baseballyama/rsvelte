@@ -587,6 +587,16 @@ impl Ast {
         }
     }
 
+    /// Per node, its parent (`NodeId::NONE` for roots). A side table built on demand: the tree
+    /// itself stores no back edges, so it stays immutable and compact for the tasks that never ask.
+    pub fn parents(&self) -> Vec<NodeId> {
+        let mut parents = vec![NodeId::NONE; self.len()];
+        for i in 0..self.len() as u32 {
+            self.for_each_child(NodeId(i), |c| parents[c.idx()] = NodeId(i));
+        }
+        parents
+    }
+
     /// The name of an identifier node.
     pub fn name(&self, id: NodeId) -> &str {
         match self.kind(id) {

@@ -9,6 +9,7 @@ pub mod codegen;
 pub mod copy;
 pub mod format;
 pub mod lexer;
+pub mod lint;
 pub mod ops;
 pub mod parser;
 pub mod scope;

@@ -7,6 +7,7 @@ pub mod doc;
 pub mod emit;
 pub mod intern;
 pub mod json;
+pub mod lint;
 pub mod metrics;
 pub mod pipeline;
 pub mod pool;

@@ -16,7 +16,8 @@ pub fn register(reg: &mut Registry) {
     .task(Compile {
         target: Target::Server,
     })
-    .task(Format);
+    .task(Format)
+    .task(Lint);
 }
 
 /// One task per target, both from the same artifacts: parsing and analysis happen once when both run.
@@ -106,5 +107,51 @@ impl Task for Format {
                 Span::new(0, 0),
             )),
         }
+    }
+}
+
+/// ESLint with eslint-plugin-svelte, the rules of [`crate::lint::rules`]. Writes the findings as
+/// ESLint reports them (`json`); a document that does not parse gets the parse error instead.
+pub struct Lint;
+
+impl Task for Lint {
+    fn id(&self) -> &'static str {
+        "svelte.lint/default"
+    }
+
+    fn applies(&self, doc: &Document) -> bool {
+        doc.lang == "svelte"
+    }
+
+    fn run(&self, ctx: &Ctx, out: &mut TaskOutput) {
+        let c = match ctx.get::<Parsed>() {
+            Ok(c) => c,
+            Err(e) => {
+                out.diagnostics.push(e.clone());
+                return;
+            }
+        };
+        let an = ctx
+            .get::<Analyzed>()
+            .as_ref()
+            .expect("a parsed component is analysed");
+        let parents = {
+            let _p = metrics::phase("js.parents");
+            c.js.parents()
+        };
+        let cx = crate::lint::LintCx {
+            c,
+            src: ctx.src(),
+            js: rsv_js::lint::JsFacts {
+                ast: &c.js,
+                sem: &an.sem,
+                parents: &parents,
+            },
+        };
+        let findings = rsv_kernel::lint::run(&crate::lint::rules(), &cx);
+        out.file(
+            "json",
+            rsv_kernel::lint::render_json(ctx.src(), ctx.line_index(), &findings),
+        );
     }
 }
