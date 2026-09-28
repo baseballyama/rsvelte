@@ -1,5 +1,16 @@
 [
 	{
+		"id": "rsvelte",
+		"url": null,
+		"commit": null,
+		"checkout": ".",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		},
+		"local": true
+	},
+	{
 		"id": "svelte",
 		"url": "https://github.com/sveltejs/svelte.git",
 		"commit": "7bc0a70fe64dbb3fa3848b741963f31d1e10a8dc",

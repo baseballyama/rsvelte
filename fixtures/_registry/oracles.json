@@ -16,5 +16,27 @@
 			"svelte": "5.57.1"
 		},
 		"storage": "committed"
+	},
+	"svelte.format": {
+		"canonicalizer": {
+			"acorn": "8.18.0"
+		},
+		"oracles": {
+			"prettier": "3.9.9",
+			"prettier-plugin-svelte": "4.1.1"
+		},
+		"storage": "committed"
+	},
+	"svelte.lint": {
+		"canonicalizer": {
+			"acorn": "8.18.0"
+		},
+		"oracles": {
+			"@typescript-eslint/parser": "8.71.0",
+			"eslint": "10.11.0",
+			"eslint-plugin-svelte": "3.23.0",
+			"svelte-eslint-parser": "1.8.1"
+		},
+		"storage": "committed"
 	}
 }

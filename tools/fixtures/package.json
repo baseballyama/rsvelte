@@ -11,15 +11,22 @@
 	},
 	"scripts": {
 		"fixtures": "node bin/fixtures.ts",
-		"typecheck": "tsc -p ."
+		"typecheck": "node node_modules/typescript-7/bin/tsc -p ."
 	},
 	"dependencies": {
+		"@typescript-eslint/parser": "8.71.0",
 		"acorn": "8.18.0",
+		"eslint": "10.11.0",
+		"eslint-plugin-svelte": "3.23.0",
+		"prettier": "3.9.9",
+		"prettier-plugin-svelte": "4.1.1",
 		"smol-toml": "1.9.0",
-		"svelte": "5.57.1"
+		"svelte": "5.57.1",
+		"svelte-eslint-parser": "1.8.1",
+		"typescript": "6.0.3"
 	},
 	"devDependencies": {
 		"@types/node": "26.6.3",
-		"typescript": "7.0.2"
+		"typescript-7": "npm:typescript@7.0.2"
 	}
 }

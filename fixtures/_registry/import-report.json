@@ -167,6 +167,9 @@
 		"duplicate": 3,
 		"not-runes-compatible:legacy_export_invalid": 1
 	},
+	"rsvelte": {
+		"admitted": 10
+	},
 	"runed": {
 		"admitted": 91,
 		"claimed": 91,

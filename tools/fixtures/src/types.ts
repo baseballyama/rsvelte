@@ -7,6 +7,8 @@ export interface Source {
 	checkout: string;
 	license?: { spdx: string; file: string };
 	excluded?: string;
+	/** Units written by hand in fixtures/<family>/<id>/; `import` only refreshes their meta.json. */
+	local?: true;
 }
 
 /** The generated part of a unit, stored in its meta.json. */
@@ -78,5 +80,5 @@ export interface Task {
 	oracles: string[];
 	variants: Variant[];
 	appliesTo(unit: Unit): boolean;
-	run(unit: Unit, src: string, variant: Variant): Record<string, Artifact>;
+	run(unit: Unit, src: string, variant: Variant): Record<string, Artifact> | Promise<Record<string, Artifact>>;
 }

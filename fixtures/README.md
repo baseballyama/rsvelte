@@ -17,11 +17,11 @@ and `<path>` is the file's path in that repository.
 
 | File | Purpose | Written by | In git |
 |---|---|---|---|
-| `_registry/sources.json` | Source repositories: URL, commit, license. Unused ones stay listed with the reason. | a person | yes |
+| `_registry/sources.json` | Source repositories: URL, commit, license. Unused ones stay listed with the reason. A source with `"local": true` (`rsvelte`) holds units written by hand in this repository. | a person | yes |
 | `_registry/oracles.json` | Versions of the official tools that made `expected/`. | `regen` | yes |
 | `_registry/import-report.json` | Per source: files taken, and files skipped per reason. | `import` | yes |
 | `_registry/licenses/` | License files of the sources. | `import` | yes |
-| `<unit>/input.*` | The copied input. | `import` | yes |
+| `<unit>/input.*` | The copied input (written by hand in a local source). | `import` or a person | yes |
 | `<unit>/meta.json` | Language, hash, and mode of the input. | `import` | yes |
 | `<unit>/fixture.toml` | Manual notes: `[skip]` and `[[adjust]]` (below). `import` never changes it. | a person | yes |
 | `<unit>/expected/<task>/<variant>.*` | Output of the official tool: `.js`, `.css`, `.warnings.json`, or `.error.json`. | `regen` | yes |

@@ -45,10 +45,10 @@ switch (positionals[0]) {
 		break;
 	}
 	case 'regen':
-		failures += regen({ taskIds: list(values.task), sourceIds: list(values.source) }).unparseable.length;
+		failures += (await regen({ taskIds: list(values.task), sourceIds: list(values.source) })).unparseable.length;
 		break;
 	case 'upgrade':
-		failures += regen({}).unparseable.length;
+		failures += (await regen({})).unparseable.length;
 		failures += reportAdjustments(false);
 		console.log("review `git diff --stat -- ':(glob)fixtures/**/expected/**'`: every changed snapshot is an upstream behaviour change");
 		break;

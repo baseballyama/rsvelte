@@ -33,7 +33,7 @@ export interface RegenOptions {
 	sourceIds?: string[];
 }
 
-export function regen({ taskIds, sourceIds }: RegenOptions): { unparseable: string[] } {
+export async function regen({ taskIds, sourceIds }: RegenOptions): Promise<{ unparseable: string[] }> {
 	const tasks = taskIds ? taskIds.map(taskById) : TASKS;
 	const units = allUnits(sourceIds);
 	const unparseable: string[] = [];
@@ -45,7 +45,7 @@ export function regen({ taskIds, sourceIds }: RegenOptions): { unparseable: stri
 				const keep = new Set<string>();
 				if (applies(task, variant.id, unit)) {
 					counts.units++;
-					const artifacts = task.run(unit, fs.readFileSync(inputFile(unit, unit.ext), 'utf8'), variant);
+					const artifacts = await task.run(unit, fs.readFileSync(inputFile(unit, unit.ext), 'utf8'), variant);
 					if (artifacts.error) counts.error++;
 					for (const [name, art] of Object.entries(artifacts)) {
 						if (art.compare === 'js-ast') {
