@@ -2,14 +2,18 @@
 //! (`svelte.compile/client` → `expected/svelte.compile/client.*`).
 
 use crate::lower::{self, Target};
-use crate::{Analyzed, Parsed, ScopedCss};
+use crate::project::Projection;
+use crate::{Analyzed, CheckConfig, Config, Parsed, ScopedCss, TsProjection};
+use rsv_js::check::{CheckRequest, Tsc};
 use rsv_kernel::db::Ctx;
 use rsv_kernel::diag::Diagnostic;
+use rsv_kernel::emit::Emitter;
+use rsv_kernel::json::JsonWriter;
 use rsv_kernel::metrics;
-use rsv_kernel::pipeline::{Document, Registry, Task, TaskOutput};
-use rsv_kernel::source::Span;
+use rsv_kernel::pipeline::{Document, Part, ProjectTask, Registry, Task, TaskOutput};
+use rsv_kernel::source::{LineIndex, Span};
 
-pub fn register(reg: &mut Registry) {
+pub fn register(reg: &mut Registry, config: &Config) {
     reg.task(Compile {
         target: Target::Client,
     })
@@ -17,7 +21,10 @@ pub fn register(reg: &mut Registry) {
         target: Target::Server,
     })
     .task(Format)
-    .task(Lint);
+    .task(Lint)
+    .project_task(Check {
+        config: config.check.clone(),
+    });
 }
 
 /// One task per target, both from the same artifacts: parsing and analysis happen once when both run.
@@ -154,4 +161,150 @@ impl Task for Lint {
             rsv_kernel::lint::render_json(ctx.src(), ctx.line_index(), &findings),
         );
     }
+}
+
+/// svelte-check's TypeScript diagnostics (`--diagnostic-sources js`): every TypeScript component
+/// of the run is projected on its worker, then one `tsc` checks them all. Writes the findings as
+/// svelte-check reports them (`json`, 0-based lines, UTF-16 characters).
+pub struct Check {
+    pub config: Option<CheckConfig>,
+}
+
+struct Prepared {
+    mappings: Emitter,
+    src: String,
+}
+
+const SHIM: (&str, &str) = (
+    "svelte-jsx-v4.d.ts",
+    include_str!("../vendor/svelte-jsx-v4.d.ts"),
+);
+
+impl ProjectTask for Check {
+    fn id(&self) -> &'static str {
+        "svelte.check/default"
+    }
+
+    fn applies(&self, doc: &Document) -> bool {
+        doc.lang == "svelte"
+    }
+
+    fn prepare(&self, ctx: &Ctx, out: &mut TaskOutput) -> Option<Part> {
+        if let Err(e) = ctx.get::<Parsed>() {
+            out.diagnostics.push(e.clone());
+            return None;
+        }
+        if self.config.is_none() {
+            out.diagnostics.push(Diagnostic::error(
+                "check_unconfigured",
+                "svelte.check needs a tsc executable and the svelte package",
+                Span::new(0, 0),
+            ));
+            return None;
+        }
+        match ctx
+            .get::<TsProjection>()
+            .as_ref()
+            .expect("a parsed component is projected")
+        {
+            Err(u) => {
+                out.diagnostics.push(Diagnostic::error(
+                    "check_unsupported",
+                    format!("not supported by the type-check projection yet: {}", u.0),
+                    Span::new(0, 0),
+                ));
+                None
+            }
+            Ok(Projection::Js) => {
+                out.file("json", render_check(ctx.src(), ctx.line_index(), &mut []));
+                None
+            }
+            Ok(Projection::Ts(e)) => Some(Box::new(Prepared {
+                mappings: Emitter {
+                    out: e.out.clone(),
+                    mappings: e.mappings.clone(),
+                },
+                src: ctx.src().to_owned(),
+            })),
+        }
+    }
+
+    fn finish(&self, parts: Vec<Part>, mut outs: Vec<&mut TaskOutput>) {
+        let config = self
+            .config
+            .as_ref()
+            .expect("prepare returns parts only when configured");
+        let mut prepared: Vec<Prepared> = parts
+            .into_iter()
+            .map(|p| *p.downcast::<Prepared>().expect("parts are this task's"))
+            .collect();
+        let req = CheckRequest {
+            files: prepared
+                .iter_mut()
+                .map(|p| std::mem::take(&mut p.mappings.out))
+                .collect(),
+            declarations: vec![SHIM],
+            include: vec![config.svelte.join("types/index.d.ts")],
+            paths: vec![
+                ("svelte", config.svelte.join("types/index.d.ts")),
+                ("svelte/elements", config.svelte.join("elements.d.ts")),
+            ],
+        };
+        let tsc = Tsc {
+            binary: config.tsc.clone(),
+            tsconfig: config.tsconfig.clone(),
+        };
+        let found = match tsc.check(&req) {
+            Ok(found) => found,
+            Err(msg) => {
+                for out in outs {
+                    out.diagnostics.push(Diagnostic::error(
+                        "check_failed",
+                        msg.clone(),
+                        Span::new(0, 0),
+                    ));
+                }
+                return;
+            }
+        };
+        let mut per_doc: Vec<Vec<(Span, u32, String)>> = vec![Vec::new(); prepared.len()];
+        for d in found {
+            // Upstream drops what lands in generated code; so does this.
+            if let Some(span) = prepared[d.file].mappings.lookup_span(d.span) {
+                per_doc[d.file].push((span, d.code, d.message));
+            }
+        }
+        for ((p, out), mut found) in prepared.iter().zip(outs.iter_mut()).zip(per_doc) {
+            out.file(
+                "json",
+                render_check(&p.src, &LineIndex::new(&p.src), &mut found),
+            );
+        }
+    }
+}
+
+fn render_check(src: &str, lines: &LineIndex, found: &mut [(Span, u32, String)]) -> String {
+    found.sort_by_key(|(span, _, _)| span.lo);
+    let mut w = JsonWriter::new(true);
+    w.begin_array();
+    for (span, code, message) in found.iter() {
+        w.begin_object()
+            .key("code")
+            .num(code)
+            .key("message")
+            .str(message);
+        for (key, at) in [("start", span.lo), ("end", span.hi)] {
+            let lc = lines.line_col(src, at);
+            w.key(key)
+                .begin_object()
+                .key("line")
+                .num(lc.line - 1)
+                .key("character")
+                .num(lc.column)
+                .end_object();
+        }
+        w.end_object();
+    }
+    w.end_array();
+    w.finish()
 }

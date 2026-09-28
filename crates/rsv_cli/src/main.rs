@@ -1,6 +1,9 @@
 //! `rsv fixtures <source-dir> [--task <id>]...` runs tasks over every fixture unit below a source
 //! directory (`fixtures/<family>/<source>`) and writes `actual/<task>.<ext>` next to `expected/`.
 //! `rsv run <file> --task <id>` prints one task's outputs for one file.
+//!
+//! `svelte.check` also needs `--tsc <native tsc>` and `--svelte <svelte package dir>`; its project
+//! configuration is `--tsconfig <file>`, by default the source directory's `tsconfig.json`.
 
 use rsv_kernel::json::JsonWriter;
 use rsv_kernel::pipeline::{DocResult, Document, Registry, RunOptions, Sharing, TaskOutput};
@@ -12,9 +15,9 @@ use std::process::ExitCode;
 #[global_allocator]
 static ALLOC: rsv_kernel::metrics::CountingAlloc = rsv_kernel::metrics::CountingAlloc;
 
-fn registry() -> Registry {
+fn registry(config: &rsv_svelte::Config) -> Registry {
     let mut reg = Registry::new();
-    rsv_svelte::register(&mut reg);
+    rsv_svelte::register(&mut reg, config);
     reg
 }
 
@@ -22,17 +25,48 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut tasks = Vec::new();
     let mut positional = Vec::new();
+    let (mut tsc, mut svelte, mut tsconfig) = (None, None, None);
     let mut it = args.iter();
     while let Some(a) = it.next() {
-        match a.as_str() {
-            "--task" => match it.next() {
-                Some(t) => tasks.push(t.as_str()),
-                None => return usage("--task needs a value"),
+        let slot = match a.as_str() {
+            "--task" => None,
+            "--tsc" => Some(&mut tsc),
+            "--svelte" => Some(&mut svelte),
+            "--tsconfig" => Some(&mut tsconfig),
+            _ => {
+                positional.push(a.as_str());
+                continue;
+            }
+        };
+        let Some(value) = it.next() else {
+            return usage(&format!("{a} needs a value"));
+        };
+        match slot {
+            Some(s) => match std::path::absolute(value) {
+                Ok(p) => *s = Some(p),
+                Err(e) => return usage(&format!("{a} {value}: {e}")),
             },
-            _ => positional.push(a.as_str()),
+            None => tasks.push(value.as_str()),
         }
     }
-    let reg = registry();
+    if let (None, ["fixtures", dir]) = (&tsconfig, positional.as_slice()) {
+        let default = Path::new(dir).join("tsconfig.json");
+        tsconfig = default
+            .is_file()
+            .then(|| std::path::absolute(&default).expect("a non-empty path"));
+    }
+    let config = rsv_svelte::Config {
+        check: match (tsc, svelte) {
+            (Some(tsc), Some(svelte)) => Some(rsv_svelte::CheckConfig {
+                tsc,
+                tsconfig,
+                svelte,
+            }),
+            (None, None) => None,
+            _ => return usage("--tsc and --svelte go together"),
+        },
+    };
+    let reg = registry(&config);
     for t in &tasks {
         if !reg.task_ids().contains(t) {
             return usage(&format!(

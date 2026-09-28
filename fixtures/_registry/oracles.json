@@ -1,4 +1,15 @@
 {
+	"svelte.check": {
+		"canonicalizer": {
+			"acorn": "8.18.0"
+		},
+		"oracles": {
+			"svelte": "5.57.1",
+			"svelte-check": "4.7.6",
+			"typescript": "6.0.3"
+		},
+		"storage": "committed"
+	},
 	"svelte.compile": {
 		"canonicalizer": {
 			"acorn": "8.18.0"

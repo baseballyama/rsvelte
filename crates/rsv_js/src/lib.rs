@@ -5,6 +5,7 @@
 //! not one per expression.
 
 pub mod ast;
+pub mod check;
 pub mod codegen;
 pub mod copy;
 pub mod format;

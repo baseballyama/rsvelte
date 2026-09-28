@@ -8,6 +8,7 @@
 //! | [`Parsed`] | the surface tree ([`ast::Component`]) or the parse error |
 //! | [`Analyzed`] | bindings, expression facts, CSS usage ([`analyze::Analysis`]) |
 //! | [`ScopedCss`] | the component's CSS with scoping applied |
+//! | [`TsProjection`] | the TypeScript view type checking reads ([`project::Projection`]) |
 
 pub mod analyze;
 pub mod ast;
@@ -16,6 +17,7 @@ pub mod format;
 pub mod lint;
 pub mod lower;
 pub mod parse;
+pub mod project;
 pub mod tasks;
 
 use rsv_kernel::db::{Artifact, Ctx};
@@ -81,10 +83,41 @@ impl Artifact for ScopedCss {
     }
 }
 
-pub fn register(reg: &mut Registry) {
+pub struct TsProjection;
+
+impl Artifact for TsProjection {
+    /// `None` when the document did not parse.
+    type Output = Option<Result<project::Projection, rsv_kernel::diag::Unsupported>>;
+    const NAME: &'static str = "svelte.project.ts";
+
+    fn compute(ctx: &Ctx) -> Self::Output {
+        let c = ctx.get::<Parsed>().as_ref().ok()?;
+        Some(project::project(c, ctx.src()))
+    }
+}
+
+/// What the plugin needs from its host beyond the documents.
+#[derive(Default, Clone)]
+pub struct Config {
+    /// `None`: `svelte.check` reports that it is not configured.
+    pub check: Option<CheckConfig>,
+}
+
+#[derive(Clone)]
+pub struct CheckConfig {
+    /// The native `tsc` (TypeScript 7).
+    pub tsc: std::path::PathBuf,
+    /// The project's tsconfig.json.
+    pub tsconfig: Option<std::path::PathBuf>,
+    /// The installed `svelte` package: its types declare the runes and `svelte/elements`.
+    pub svelte: std::path::PathBuf,
+}
+
+pub fn register(reg: &mut Registry, config: &Config) {
     reg.language(Svelte)
         .artifact::<Parsed>()
         .artifact::<Analyzed>()
-        .artifact::<ScopedCss>();
-    tasks::register(reg);
+        .artifact::<ScopedCss>()
+        .artifact::<TsProjection>();
+    tasks::register(reg, config);
 }

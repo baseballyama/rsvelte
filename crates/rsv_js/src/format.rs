@@ -19,8 +19,7 @@ use crate::ops::{BinOp, LogicalOp, UnaryOp};
 use rsv_kernel::doc::{DocId, Docs};
 use rsv_kernel::source::{LineIndex, Span};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Unsupported(pub &'static str);
+pub use rsv_kernel::diag::Unsupported;
 
 type R<T> = Result<T, Unsupported>;
 
