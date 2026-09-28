@@ -128,6 +128,18 @@ pub fn copy_node<R: Rewrite + ?Sized>(f: &Ast, to: &mut Ast, rw: &mut R, id: Nod
             to.export_default(d, span)
         }
         Kind::TsDecl => to.ts_decl(span),
+        Kind::TsInterface { name, members } => {
+            let n = copy_node(f, to, rw, name);
+            let m = members
+                .iter()
+                .map(|&m| copy_node(f, to, rw, m))
+                .collect::<Vec<_>>();
+            to.ts_interface(n, &m, span)
+        }
+        Kind::TsPropSig { key, optional } => {
+            let k = copy_node(f, to, rw, key);
+            to.ts_prop_sig(k, optional, span)
+        }
         Kind::Ident(a) => to.ident(f.atoms.get(a), span),
         Kind::Num(v) => to.num(v, span),
         Kind::Str => {

@@ -63,6 +63,10 @@ pub enum Tag {
     /// A TypeScript-only statement (`type`, `interface`, `declare …`): erased by compilation, kept
     /// verbatim by source-preserving consumers.
     TsDecl,
+    /// `interface Name { key?: T; … }` with property members only; any other interface is a `TsDecl`.
+    TsInterface,
+    /// A property member of a [`Tag::TsInterface`]; its type is a [`TsKind::Annotation`].
+    TsPropSig,
     Ident,
     Num,
     Str,
@@ -157,6 +161,14 @@ pub enum Kind<'a> {
     ExportNamed(NodeId),
     ExportDefault(NodeId),
     TsDecl,
+    TsInterface {
+        name: NodeId,
+        members: &'a [NodeId],
+    },
+    TsPropSig {
+        key: NodeId,
+        optional: bool,
+    },
     Ident(Atom),
     Num(f64),
     Str,
@@ -237,8 +249,36 @@ pub struct Ast {
     pub atoms: Interner,
     /// Comment locs in source order (`//…` and `/*…*/`, delimiters included).
     pub comments: Vec<Span>,
-    /// TypeScript annotations kept by span: (annotated node, span of the type after `:`).
-    pub type_annotations: Vec<(NodeId, Span)>,
+    /// TypeScript syntax the tree erases, in source order. Compilation ignores it; source-preserving
+    /// consumers (the formatter, the type-check projection) read it back by node.
+    pub ts: Vec<TsSyntax>,
+}
+
+/// One piece of erased TypeScript syntax, attached to the node it belongs to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TsSyntax {
+    pub node: NodeId,
+    pub kind: TsKind,
+    /// The type (after `:` / `as` / `satisfies`), the `<…>` list, or the `!` / `?` token.
+    pub span: Span,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TsKind {
+    /// `x: T` on a binding or parameter.
+    Annotation,
+    /// `(…): T` on a function or arrow.
+    ReturnType,
+    /// `<T>` on a function or arrow.
+    TypeParams,
+    /// `e as T`, on `e`.
+    As,
+    /// `e satisfies T`, on `e`.
+    Satisfies,
+    /// `e!`, on `e`.
+    NonNull,
+    /// `p?` on a parameter.
+    Optional,
 }
 
 impl Default for Ast {
@@ -269,7 +309,7 @@ impl Ast {
             strs: String::new(),
             atoms: Interner::new(),
             comments: pool::take(),
-            type_annotations: Vec::new(),
+            ts: Vec::new(),
         }
     }
 
@@ -375,6 +415,14 @@ impl Ast {
             Tag::ExportNamed => Kind::ExportNamed(Self::nid(a)),
             Tag::ExportDefault => Kind::ExportDefault(Self::nid(a)),
             Tag::TsDecl => Kind::TsDecl,
+            Tag::TsInterface => Kind::TsInterface {
+                name: Self::nid(a),
+                members: self.list_at(b),
+            },
+            Tag::TsPropSig => Kind::TsPropSig {
+                key: Self::nid(a),
+                optional: f & flag::OPTIONAL != 0,
+            },
             Tag::Ident => Kind::Ident(Atom(a)),
             Tag::Num => Kind::Num(f64::from_bits((a as u64) | ((b as u64) << 32))),
             Tag::Str => Kind::Str,
@@ -523,7 +571,10 @@ impl Ast {
             | Kind::Assign(_, l, r)
             | Kind::AssignPat(l, r) => each(&[l, r]),
             Kind::Cond { test, cons, alt } => each(&[test, cons, alt]),
+            // Types are not scope-visible: an interface's names never resolve as values.
             Kind::TsDecl
+            | Kind::TsInterface { .. }
+            | Kind::TsPropSig { .. }
             | Kind::Ident(_)
             | Kind::Num(_)
             | Kind::Str
@@ -718,6 +769,21 @@ impl Ast {
 
     pub fn ts_decl(&mut self, loc: impl Into<Loc>) -> NodeId {
         self.push(Tag::TsDecl, 0, [0, 0], loc)
+    }
+
+    pub fn ts_interface(
+        &mut self,
+        name: NodeId,
+        members: &[NodeId],
+        loc: impl Into<Loc>,
+    ) -> NodeId {
+        let l = self.list(members);
+        self.push(Tag::TsInterface, 0, [name.0, l], loc)
+    }
+
+    pub fn ts_prop_sig(&mut self, key: NodeId, optional: bool, loc: impl Into<Loc>) -> NodeId {
+        let f = if optional { flag::OPTIONAL } else { 0 };
+        self.push(Tag::TsPropSig, f, [key.0, 0], loc)
     }
 
     pub fn ident_atom(&mut self, atom: Atom, loc: impl Into<Loc>) -> NodeId {

@@ -79,7 +79,7 @@ impl Gen<'_> {
     /// Whether a statement produces output (TypeScript-only statements do not).
     fn emits(&self, s: NodeId) -> bool {
         match self.ast.kind(s) {
-            Kind::TsDecl => false,
+            Kind::TsDecl | Kind::TsInterface { .. } => false,
             Kind::Import {
                 specifiers,
                 type_only,
@@ -230,7 +230,7 @@ impl Gen<'_> {
                     self.e.push(";");
                 }
             }
-            Kind::TsDecl => {}
+            Kind::TsDecl | Kind::TsInterface { .. } => {}
             _ => {
                 self.expr(id, prec::SEQ);
                 self.e.push(";");
@@ -605,7 +605,9 @@ impl Gen<'_> {
             | Kind::ImportNamespace(_)
             | Kind::ExportNamed(_)
             | Kind::ExportDefault(_)
-            | Kind::TsDecl) => unreachable!("statement in expression position: {k:?}"),
+            | Kind::TsDecl
+            | Kind::TsInterface { .. }
+            | Kind::TsPropSig { .. }) => unreachable!("statement in expression position: {k:?}"),
         }
     }
 }

@@ -4,12 +4,12 @@
 //! TypeScript is accepted where Svelte components use it: type annotations on bindings, parameters
 //! and return types, `as` / `satisfies` / `!`, `import type`, and `type` / `interface` / `declare`
 //! statements. Types are not parsed into nodes; their spans are recorded
-//! ([`Ast::type_annotations`], [`crate::ast::Tag::TsDecl`]) so compilation drops them and
+//! ([`Ast::ts`], [`crate::ast::Tag::TsDecl`]) so compilation drops them and
 //! source-preserving consumers (the type-check projection) copy them verbatim.
 //!
 //! Anything outside the subset is a [`ParseError`], never a panic.
 
-use crate::ast::{Ast, Kind, NodeId, flag};
+use crate::ast::{Ast, Kind, NodeId, TsKind, TsSyntax, flag};
 use crate::lexer::{LexError, Lexer, T, Tok, decode_string};
 use crate::ops::{AssignOp, BinOp, LogicalOp, UnaryOp, UpdateOp};
 use rsv_kernel::source::Span;
@@ -306,18 +306,15 @@ impl<'a, 'b> Parser<'a, 'b> {
         } else {
             None
         };
-        if self.ts && self.is_op("<") {
-            self.skip_type_params()?;
-        }
+        let type_params = self.maybe_type_params()?;
         let params = self.params()?;
-        if self.ts && self.tok.t == T::Colon {
-            self.bump()?;
-            self.skip_type(false)?;
-        }
+        let ret = self.maybe_return_type(false)?;
         let body = self.block()?;
-        Ok(self
+        let f = self
             .ast
-            .function(decl, name, &params, body, is_async, self.span_from(lo)))
+            .function(decl, name, &params, body, is_async, self.span_from(lo));
+        self.signature_ts(f, type_params, ret);
+        Ok(f)
     }
 
     fn params(&mut self) -> R<Vec<NodeId>> {
@@ -342,7 +339,8 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
         let target = self.binding_target()?;
         if self.ts && self.tok.t == T::Question {
-            self.bump()?;
+            let q = self.bump()?;
+            self.ts(target, TsKind::Optional, q.span);
         }
         self.maybe_type_annotation(target)?;
         if self.eat_op("=")? {
@@ -474,6 +472,9 @@ impl<'a, 'b> Parser<'a, 'b> {
         let is_interface = self.is_kw("interface");
         self.bump()?;
         if is_interface {
+            if let Some(i) = self.ts_interface(lo)? {
+                return Ok(i);
+            }
             while self.tok.t != T::LBrace {
                 if self.tok.t == T::Eof {
                     return self.fail("unterminated interface");
@@ -514,6 +515,72 @@ impl<'a, 'b> Parser<'a, 'b> {
         Ok(self.ast.ts_decl(self.span_from(lo)))
     }
 
+    /// `interface Name { key?: T; … }` with only property members, positioned after `interface`.
+    /// `None` (having consumed up to the point of doubt) when the interface has any other shape;
+    /// the caller then skips the rest as an opaque declaration.
+    fn ts_interface(&mut self, lo: u32) -> R<Option<NodeId>> {
+        if self.tok.t != T::Ident || self.peek().t != T::LBrace {
+            return Ok(None);
+        }
+        let t = self.bump()?;
+        let name = self.ast.ident(self.text(t), t.span);
+        self.bump()?; // `{`
+        let mut members = Vec::new();
+        while self.tok.t != T::RBrace {
+            match self.ts_prop_sig()? {
+                Some(m) => members.push(m),
+                None => return self.opaque_body_rest(lo).map(Some),
+            }
+        }
+        self.bump()?; // `}`
+        Ok(Some(self.ast.ts_interface(
+            name,
+            &members,
+            self.span_from(lo),
+        )))
+    }
+
+    /// `key?: T;` inside an interface body; `None` at the first token of any other member shape.
+    fn ts_prop_sig(&mut self) -> R<Option<NodeId>> {
+        let k = self.tok;
+        if k.t != T::Ident
+            || self.is_kw("readonly")
+            || !matches!(self.peek().t, T::Colon | T::Question)
+        {
+            return Ok(None);
+        }
+        self.bump()?;
+        let key = self.ast.ident(self.text(k), k.span);
+        let optional = self.eat(T::Question)?;
+        if self.tok.t != T::Colon {
+            return Ok(None);
+        }
+        let m = self.ast.ts_prop_sig(key, optional, k.span);
+        self.maybe_type_annotation(m)?;
+        let terminated = self.eat(T::Semi)?
+            || self.eat(T::Comma)?
+            || self.tok.nl_before
+            || self.tok.t == T::RBrace;
+        Ok(terminated.then_some(m))
+    }
+
+    /// Skips to the `}` closing a body whose `{` is already consumed; the declaration is opaque.
+    fn opaque_body_rest(&mut self, lo: u32) -> R<NodeId> {
+        let mut depth = 1i32;
+        loop {
+            match self.tok.t {
+                T::LParen | T::LBrace | T::LBracket => depth += 1,
+                T::RParen | T::RBrace | T::RBracket => depth -= 1,
+                T::Eof => return self.fail("unbalanced brackets"),
+                _ => {}
+            }
+            self.bump()?;
+            if depth == 0 {
+                return Ok(self.ast.ts_decl(self.span_from(lo)));
+            }
+        }
+    }
+
     /// A token at the start of a line that still belongs to a type (`| B`, `& C`, `= …`).
     fn continues_type(&self) -> bool {
         self.tok.t == T::Op && matches!(self.text(self.tok), "|" | "&" | "=")
@@ -540,11 +607,42 @@ impl<'a, 'b> Parser<'a, 'b> {
             self.bump()?;
             let lo = self.tok.span.lo;
             self.skip_type(false)?;
-            self.ast
-                .type_annotations
-                .push((target, Span::new(lo, self.prev_end)));
+            self.ts(target, TsKind::Annotation, Span::new(lo, self.prev_end));
         }
         Ok(())
+    }
+
+    fn ts(&mut self, node: NodeId, kind: TsKind, span: Span) {
+        self.ast.ts.push(TsSyntax { node, kind, span });
+    }
+
+    /// `: T` after a parameter list; the span is recorded once the function node exists.
+    fn maybe_return_type(&mut self, stop_at_arrow: bool) -> R<Option<Span>> {
+        if !(self.ts && self.tok.t == T::Colon) {
+            return Ok(None);
+        }
+        self.bump()?;
+        let lo = self.tok.span.lo;
+        self.skip_type(stop_at_arrow)?;
+        Ok(Some(Span::new(lo, self.prev_end)))
+    }
+
+    fn maybe_type_params(&mut self) -> R<Option<Span>> {
+        if !(self.ts && self.is_op("<")) {
+            return Ok(None);
+        }
+        let lo = self.tok.span.lo;
+        self.skip_type_params()?;
+        Ok(Some(Span::new(lo, self.prev_end)))
+    }
+
+    fn signature_ts(&mut self, f: NodeId, type_params: Option<Span>, ret: Option<Span>) {
+        if let Some(s) = type_params {
+            self.ts(f, TsKind::TypeParams, s);
+        }
+        if let Some(s) = ret {
+            self.ts(f, TsKind::ReturnType, s);
+        }
     }
 
     fn skip_type_params(&mut self) -> R<()> {
@@ -677,6 +775,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             self.bump()?;
             is_async = true;
         }
+        let mut ret = None;
         let params =
             if self.tok.t == T::Ident && self.peek().t == T::Arrow && !self.peek().nl_before {
                 let t = self.bump()?;
@@ -684,10 +783,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             } else if self.tok.t == T::LParen && Self::paren_arrow_ahead(self.lex, &mut Vec::new())?
             {
                 let p = self.params()?;
-                if self.ts && self.tok.t == T::Colon {
-                    self.bump()?;
-                    self.skip_type(true)?;
-                }
+                ret = self.maybe_return_type(true)?;
                 p
             } else {
                 return Ok(None);
@@ -701,13 +797,11 @@ impl<'a, 'b> Parser<'a, 'b> {
         } else {
             (self.assignment()?, true)
         };
-        Ok(Some(self.ast.arrow(
-            &params,
-            body,
-            expr_body,
-            is_async,
-            self.span_from(lo),
-        )))
+        let f = self
+            .ast
+            .arrow(&params, body, expr_body, is_async, self.span_from(lo));
+        self.signature_ts(f, None, ret);
+        Ok(Some(f))
     }
 
     /// With the lexer positioned just after a `(`, whether the matching `)` is followed by `=>`
@@ -789,8 +883,15 @@ impl<'a, 'b> Parser<'a, 'b> {
                 && matches!(self.text(self.tok), "as" | "satisfies")
                 && !self.tok.nl_before
             {
+                let kind = if self.text(self.tok) == "as" {
+                    TsKind::As
+                } else {
+                    TsKind::Satisfies
+                };
                 self.bump()?;
+                let tlo = self.tok.span.lo;
                 self.skip_type(true)?;
+                self.ts(left, kind, Span::new(tlo, self.prev_end));
                 continue;
             }
             let Some((prec, op)) = self.binary_op() else {
@@ -917,7 +1018,8 @@ impl<'a, 'b> Parser<'a, 'b> {
                 }
                 T::Template { .. } => return self.fail("tagged templates are not supported"),
                 T::Op if self.ts && self.text(self.tok) == "!" && !self.tok.nl_before => {
-                    self.bump()?;
+                    let bang = self.bump()?;
+                    self.ts(e, TsKind::NonNull, bang.span);
                 }
                 _ => return Ok(e),
             }
@@ -1116,10 +1218,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                 let (key, computed, key_tok) = self.property_key()?;
                 if self.tok.t == T::LParen {
                     let params = self.params()?;
-                    if self.ts && self.tok.t == T::Colon {
-                        self.bump()?;
-                        self.skip_type(false)?;
-                    }
+                    let ret = self.maybe_return_type(false)?;
                     let body = self.block()?;
                     let f = self.ast.function(
                         false,
@@ -1129,6 +1228,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                         is_async,
                         Span::new(key_tok.lo, self.prev_end),
                     );
+                    self.signature_ts(f, None, ret);
                     props.push(self.ast.property(
                         key,
                         f,

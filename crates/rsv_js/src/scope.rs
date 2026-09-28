@@ -6,7 +6,7 @@
 //! in the program's top-level scope, which is what makes script-and-template facts ("is this
 //! variable used anywhere?") one query instead of two analyses.
 
-use crate::ast::{Ast, Kind, NodeId, Tag, flag};
+use crate::ast::{Ast, Kind, NodeId, flag};
 use crate::ops::AssignOp;
 use rsv_kernel::intern::Atom;
 use rustc_hash::FxHashMap;
@@ -503,9 +503,6 @@ impl Analyzer<'_> {
             }
             (Kind::Update { arg, .. }, _) => self.resolve(arg, Ctx::Target { read: true }),
             _ => {
-                if self.ast.tag(id) == Tag::TsDecl {
-                    return;
-                }
                 self.resolve_children(id);
             }
         }
