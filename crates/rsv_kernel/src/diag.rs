@@ -46,3 +46,7 @@ impl Diagnostic {
         }
     }
 }
+
+/// A construct a port does not cover yet. Tasks report it instead of approximating the output.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Unsupported(pub &'static str);
