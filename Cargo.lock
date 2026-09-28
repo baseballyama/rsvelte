@@ -54,6 +54,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsv_cli"
+version = "0.0.0"
+dependencies = [
+ "rsv_kernel",
+ "rsv_svelte",
+]
+
+[[package]]
+name = "rsv_css"
+version = "0.0.0"
+dependencies = [
+ "rsv_kernel",
+]
+
+[[package]]
 name = "rsv_js"
 version = "0.0.0"
 dependencies = [
@@ -66,6 +81,16 @@ name = "rsv_kernel"
 version = "0.0.0"
 dependencies = [
  "rayon",
+ "rustc-hash",
+]
+
+[[package]]
+name = "rsv_svelte"
+version = "0.0.0"
+dependencies = [
+ "rsv_css",
+ "rsv_js",
+ "rsv_kernel",
  "rustc-hash",
 ]
 
