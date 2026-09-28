@@ -1,0 +1,16 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h1>b</h1>`);
+
+export default function _page($$anchor) {
+	var h1 = root();
+
+	$.head('1muy295', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'b';
+		});
+	});
+
+	$.append($$anchor, h1);
+}

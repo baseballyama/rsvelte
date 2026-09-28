@@ -1,0 +1,10 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div class="table-wrap"><table class="table"><thead><tr><th>Class</th><th>Preview</th></tr></thead><tbody><tr><td><code class="code">preset-typo-display-4</code></td><td><h1 class="preset-typo-display-4 svelte-zg7dyt">Aa</h1></td></tr><tr><td><code class="code">preset-typo-display-3</code></td><td><h2 class="preset-typo-display-3 svelte-zg7dyt">Aa</h2></td></tr><tr><td><code class="code">preset-typo-display-2</code></td><td><h3 class="preset-typo-display-2 svelte-zg7dyt">Aa</h3></td></tr><tr><td><code class="code">preset-typo-display-1</code></td><td><h4 class="preset-typo-display-1 svelte-zg7dyt">Aa</h4></td></tr><tr><td><code class="code">preset-typo-headline</code></td><td><p class="preset-typo-headline svelte-zg7dyt">Headline</p></td></tr><tr><td><code class="code">preset-typo-title</code></td><td><p class="preset-typo-title svelte-zg7dyt">Title</p></td></tr><tr><td><code class="code">preset-typo-subtitle</code></td><td><p class="preset-typo-subtitle svelte-zg7dyt">Subtitle</p></td></tr><tr><td><code class="code">preset-typo-body-1</code></td><td><p class="preset-typo-body-1 svelte-zg7dyt">Body 1</p></td></tr><tr><td><code class="code">preset-typo-body-2</code></td><td><p class="preset-typo-body-2 svelte-zg7dyt">Body 2</p></td></tr><tr><td><code class="code">preset-typo-caption</code></td><td><span class="preset-typo-caption svelte-zg7dyt">Caption</span></td></tr><tr><td><code class="code">preset-typo-menu</code></td><td><span class="preset-typo-menu svelte-zg7dyt">Menu</span></td></tr><tr><td><code class="code">preset-typo-button</code></td><td><span class="preset-typo-button svelte-zg7dyt">Button</span></td></tr></tbody></table></div>`);
+
+export default function Semantic($$anchor) {
+	var div = root();
+
+	$.append($$anchor, div);
+}

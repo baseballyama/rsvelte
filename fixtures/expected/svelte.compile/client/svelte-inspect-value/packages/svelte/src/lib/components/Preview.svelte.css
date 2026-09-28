@@ -1,0 +1,116 @@
+
+  .comma.svelte-ol42oa {
+    margin-right: 0.5em;
+    margin-left: 0;
+    color: var(--_text-color);
+  }
+
+  .ellipsis.svelte-ol42oa {
+    color: var(--_preview-ellipsis-color);
+  }
+
+  .preview.svelte-ol42oa {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    transform-origin: bottom right;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--_text-color);
+    font-size: var(--inspect-font-size);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .inner.svelte-ol42oa {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .key-type-preview.svelte-ol42oa {
+    display: inline-flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 0.25em;
+  }
+
+  .pre.svelte-ol42oa {
+    margin-right: 0.25em;
+  }
+
+  .post.svelte-ol42oa {
+    margin-left: 0.25em;
+  }
+
+  .pre.svelte-ol42oa,
+  .post.svelte-ol42oa {
+    color: var(--_text-color);
+
+    &.level-0 {
+      color: var(--_comment-color);
+    }
+    &.level-1 {
+      color: var(--_text-color);
+    }
+    &.level-2 {
+      color: var(--green);
+    }
+    &.level-3 {
+      color: var(--blue);
+    }
+    &.level-4 {
+      color: var(--red);
+    }
+    &.level-5 {
+      color: var(--green);
+    }
+    &.level-6 {
+      color: var(--blue);
+    }
+    &.level-7 {
+      color: var(--red);
+    }
+    &.level-8 {
+      color: var(--green);
+    }
+    &.level-9 {
+      color: var(--blue);
+    }
+    &.level-10 {
+      color: var(--red);
+    }
+    &.level-11 {
+      color: var(--green);
+    }
+    &.level-12 {
+      color: var(--blue);
+    }
+    &.level-13 {
+      color: var(--red);
+    }
+    &.level-14 {
+      color: var(--green);
+    }
+    &.level-15 {
+      color: var(--blue);
+    }
+    &.level-16 {
+      color: var(--red);
+    }
+    &.level-17 {
+      color: var(--green);
+    }
+    &.level-18 {
+      color: var(--blue);
+    }
+    &.level-19 {
+      color: var(--red);
+    }
+  }

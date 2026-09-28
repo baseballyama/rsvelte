@@ -1,0 +1,16 @@
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<my-custom-element ...></my-custom-element>` rather than `<my-custom-element ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 25,
+			"column": 0,
+			"character": 377
+		},
+		"end": {
+			"line": 25,
+			"column": 51,
+			"character": 428
+		}
+	}
+]

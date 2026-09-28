@@ -1,0 +1,13 @@
+
+	.wx-cell.svelte-16l51lz {
+		box-sizing: border-box;
+		padding: 0;
+		background-color: var(--wx-background);
+		color: var(--wx-color-font);
+		position: relative;
+		z-index: 2;
+	}
+	.wx-cell.svelte-16l51lz .wx-dropdown {
+		border: var(--wx-table-editor-dropdown-border);
+		box-shadow: var(--wx-table-editor-dropdown-shadow);
+	}

@@ -1,0 +1,114 @@
+[
+	{
+		"code": "legacy_code",
+		"message": "`non-top-level-reactive-declaration` is no longer valid — please use `reactive_declaration_invalid_placement` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 3,
+			"column": 19,
+			"character": 46
+		},
+		"end": {
+			"line": 3,
+			"column": 53,
+			"character": 80
+		}
+	},
+	{
+		"code": "legacy_code",
+		"message": "`a11y-missing-attribute` is no longer valid — please use `a11y_missing_attribute` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 8,
+			"column": 19,
+			"character": 126
+		},
+		"end": {
+			"line": 8,
+			"column": 41,
+			"character": 148
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 10,
+			"column": 1,
+			"character": 160
+		},
+		"end": {
+			"line": 10,
+			"column": 29,
+			"character": 188
+		}
+	},
+	{
+		"code": "legacy_code",
+		"message": "`a11y-misplaced-scope` is no longer valid — please use `a11y_misplaced_scope` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 13,
+			"column": 19,
+			"character": 216
+		},
+		"end": {
+			"line": 13,
+			"column": 39,
+			"character": 236
+		}
+	},
+	{
+		"code": "a11y_misplaced_scope",
+		"message": "The scope attribute should only be used with `<th>` elements\nhttps://svelte.dev/e/a11y_misplaced_scope",
+		"start": {
+			"line": 14,
+			"column": 5,
+			"character": 246
+		},
+		"end": {
+			"line": 14,
+			"column": 10,
+			"character": 251
+		}
+	},
+	{
+		"code": "legacy_code",
+		"message": "`a11y-missing-attribute` is no longer valid — please use `a11y_missing_attribute` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 16,
+			"column": 19,
+			"character": 279
+		},
+		"end": {
+			"line": 16,
+			"column": 41,
+			"character": 301
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 18,
+			"column": 1,
+			"character": 334
+		},
+		"end": {
+			"line": 18,
+			"column": 29,
+			"character": 362
+		}
+	},
+	{
+		"code": "a11y_misplaced_scope",
+		"message": "The scope attribute should only be used with `<th>` elements\nhttps://svelte.dev/e/a11y_misplaced_scope",
+		"start": {
+			"line": 19,
+			"column": 6,
+			"character": 369
+		},
+		"end": {
+			"line": 19,
+			"column": 11,
+			"character": 374
+		}
+	}
+]

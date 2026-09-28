@@ -1,0 +1,58 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`rejectedMax` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 130
+		},
+		"end": {
+			"line": 5,
+			"column": 17,
+			"character": 141
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`filesMax` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 155
+		},
+		"end": {
+			"line": 7,
+			"column": 14,
+			"character": 163
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`filesPrepend` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 6,
+			"character": 177
+		},
+		"end": {
+			"line": 9,
+			"column": 18,
+			"character": 189
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`filesIcon` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 6,
+			"character": 203
+		},
+		"end": {
+			"line": 11,
+			"column": 15,
+			"character": 212
+		}
+	}
+]

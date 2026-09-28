@@ -1,0 +1,44 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 8,
+			"column": 43,
+			"character": 159
+		},
+		"end": {
+			"line": 8,
+			"column": 74,
+			"character": 190
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 6,
+			"character": 77
+		},
+		"end": {
+			"line": 4,
+			"column": 10,
+			"character": 81
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`anchor` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 97
+		},
+		"end": {
+			"line": 5,
+			"column": 12,
+			"character": 103
+		}
+	}
+]

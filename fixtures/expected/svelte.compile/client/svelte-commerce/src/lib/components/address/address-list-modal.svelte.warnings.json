@@ -1,0 +1,58 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `paginateAddress`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 24,
+			"column": 46,
+			"character": 740
+		},
+		"end": {
+			"line": 24,
+			"column": 61,
+			"character": 755
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `onaddnew`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 24,
+			"column": 63,
+			"character": 757
+		},
+		"end": {
+			"line": 24,
+			"column": 71,
+			"character": 765
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `onedit`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 24,
+			"column": 73,
+			"character": 767
+		},
+		"end": {
+			"line": 24,
+			"column": 79,
+			"character": 773
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `onselect`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 24,
+			"column": 81,
+			"character": 775
+		},
+		"end": {
+			"line": 24,
+			"column": 89,
+			"character": 783
+		}
+	}
+]

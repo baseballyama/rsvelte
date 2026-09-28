@@ -1,0 +1,114 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 83,
+			"column": 16,
+			"character": 3154
+		},
+		"end": {
+			"line": 83,
+			"column": 20,
+			"character": 3158
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 84,
+			"column": 23,
+			"character": 3199
+		},
+		"end": {
+			"line": 84,
+			"column": 27,
+			"character": 3203
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 85,
+			"column": 22,
+			"character": 3250
+		},
+		"end": {
+			"line": 85,
+			"column": 26,
+			"character": 3254
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 86,
+			"column": 23,
+			"character": 3301
+		},
+		"end": {
+			"line": 86,
+			"column": 27,
+			"character": 3305
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 87,
+			"column": 22,
+			"character": 3352
+		},
+		"end": {
+			"line": 87,
+			"column": 26,
+			"character": 3356
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 88,
+			"column": 22,
+			"character": 3402
+		},
+		"end": {
+			"line": 88,
+			"column": 26,
+			"character": 3406
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 89,
+			"column": 21,
+			"character": 3451
+		},
+		"end": {
+			"line": 89,
+			"column": 25,
+			"character": 3455
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 90,
+			"column": 20,
+			"character": 3498
+		},
+		"end": {
+			"line": 90,
+			"column": 24,
+			"character": 3502
+		}
+	}
+]

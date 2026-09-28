@@ -1,0 +1,44 @@
+[
+	{
+		"code": "a11y_incorrect_aria_attribute_type",
+		"message": "The value of 'aria-valuemax' must be a number\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type",
+		"start": {
+			"line": 1,
+			"column": 5,
+			"character": 5
+		},
+		"end": {
+			"line": 1,
+			"column": 24,
+			"character": 24
+		}
+	},
+	{
+		"code": "a11y_incorrect_aria_attribute_type",
+		"message": "The value of 'aria-valuemax' must be a number\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type",
+		"start": {
+			"line": 2,
+			"column": 5,
+			"character": 37
+		},
+		"end": {
+			"line": 2,
+			"column": 23,
+			"character": 55
+		}
+	},
+	{
+		"code": "a11y_incorrect_aria_attribute_type",
+		"message": "The value of 'aria-valuemax' must be a number\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 135
+		},
+		"end": {
+			"line": 5,
+			"column": 25,
+			"character": 155
+		}
+	}
+]

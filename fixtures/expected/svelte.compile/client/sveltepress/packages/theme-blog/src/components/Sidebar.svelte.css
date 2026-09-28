@@ -1,0 +1,192 @@
+
+  .sp-sidebar.svelte-1lk6cpv {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding: 1.5rem 1.25rem;
+    background: var(--sp-blog-surface);
+    border-right: 1px solid var(--sp-blog-border);
+    min-height: 100vh;
+  }
+  .sp-sidebar__brand.svelte-1lk6cpv {
+    font-family: var(--sp-font-serif);
+    font-variation-settings:
+      'opsz' 144,
+      'wght' 700,
+      'SOFT' 80,
+      'WONK' 1;
+    font-style: italic;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--sp-blog-primary);
+    letter-spacing: -0.01em;
+    text-decoration: none;
+  }
+  .sp-sidebar__profile.svelte-1lk6cpv {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .sp-sidebar__avatar.svelte-1lk6cpv {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--sp-blog-primary);
+  }
+  .sp-sidebar__name.svelte-1lk6cpv {
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: var(--sp-blog-text);
+  }
+  .sp-sidebar__bio.svelte-1lk6cpv {
+    color: var(--sp-blog-content);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin: 0;
+  }
+  .sp-sidebar__socials.svelte-1lk6cpv {
+    list-style: none;
+    padding: 0;
+    margin: 0.25rem 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .sp-sidebar__socials.svelte-1lk6cpv a:where(.svelte-1lk6cpv) {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border: 1px solid var(--sp-blog-border);
+    border-radius: 9999px;
+    color: var(--sp-blog-primary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .sp-sidebar__socials.svelte-1lk6cpv a:where(.svelte-1lk6cpv):hover {
+    background: var(--sp-blog-border);
+  }
+  .sp-sidebar__about.svelte-1lk6cpv {
+    color: var(--sp-blog-content);
+    font-size: 0.85rem;
+    line-height: 1.55;
+    margin-top: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed var(--sp-blog-border);
+  }
+  .sp-sidebar__about.svelte-1lk6cpv p {
+    margin: 0 0 0.5rem;
+  }
+  .sp-sidebar__about.svelte-1lk6cpv a {
+    color: var(--sp-blog-primary);
+  }
+  .sp-sidebar__nav.svelte-1lk6cpv {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--sp-blog-border);
+  }
+  .sp-sidebar__nav.svelte-1lk6cpv a:where(.svelte-1lk6cpv) {
+    color: var(--sp-blog-content);
+    text-decoration: none;
+    font-size: 0.9rem;
+    padding: 0.3rem 0;
+    transition: color 0.15s;
+  }
+  .sp-sidebar__nav.svelte-1lk6cpv a:where(.svelte-1lk6cpv):hover {
+    color: var(--sp-blog-primary);
+  }
+  .sp-sidebar__actions.svelte-1lk6cpv {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: auto;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--sp-blog-border);
+  }
+  .sp-sidebar__search.svelte-1lk6cpv {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    height: 32px;
+    padding: 0 0.6rem;
+    border: 1px solid var(--sp-blog-border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--sp-blog-muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.8rem;
+    transition:
+      border-color 0.15s,
+      color 0.15s;
+  }
+  .sp-sidebar__search.svelte-1lk6cpv:hover {
+    border-color: var(--sp-blog-primary);
+    color: var(--sp-blog-primary);
+  }
+  .sp-sidebar__search-kbd.svelte-1lk6cpv {
+    font-family: inherit;
+    font-size: 0.72rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: var(--sp-blog-bg);
+    color: var(--sp-blog-muted);
+    margin-left: auto;
+  }
+
+  /* On narrow viewports the sidebar stacks above main content and hides
+     the verbose bits (bio + socials + about). */
+  @media (max-width: 1023px) {
+    .sp-sidebar.svelte-1lk6cpv {
+      min-height: auto;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-right: none;
+      border-bottom: 1px solid var(--sp-blog-border);
+    }
+    .sp-sidebar__brand.svelte-1lk6cpv {
+      margin-right: auto;
+    }
+    .sp-sidebar__profile.svelte-1lk6cpv {
+      flex-direction: row;
+      align-items: center;
+      gap: 0.5rem;
+      order: -1;
+    }
+    .sp-sidebar__avatar.svelte-1lk6cpv {
+      width: 32px;
+      height: 32px;
+      border-width: 1px;
+    }
+    .sp-sidebar__name.svelte-1lk6cpv {
+      font-size: 0.9rem;
+    }
+    .sp-sidebar__bio.svelte-1lk6cpv,
+    .sp-sidebar__socials.svelte-1lk6cpv,
+    .sp-sidebar__about.svelte-1lk6cpv {
+      display: none;
+    }
+    .sp-sidebar__nav.svelte-1lk6cpv {
+      flex-direction: row;
+      gap: 1rem;
+      padding-top: 0;
+      border-top: none;
+    }
+    .sp-sidebar__actions.svelte-1lk6cpv {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+    }
+    .sp-sidebar__search.svelte-1lk6cpv {
+      flex: 0 0 auto;
+    }
+    .sp-sidebar__search-label.svelte-1lk6cpv {
+      display: none;
+    }
+  }

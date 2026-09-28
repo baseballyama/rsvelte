@@ -1,0 +1,31 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<button> </button>`);
+
+export default function Main($$anchor, $$props) {
+	$.push($$props, true);
+
+	let count = $.state(0);
+
+	function increment() {
+		$.set(count, $.get(count) + 1);
+		console.log("in-increment", $.get(count));
+	}
+
+	$.user_effect(() => {
+		console.log("effect", $.get(count));
+	});
+
+	;;
+
+	var button = root();
+	var text = $.only_child(button);
+
+	$.template_effect(() => $.set_text(text, `clicks: ${$.get(count) ?? ''}`));
+	$.delegated('click', button, increment);
+	$.append($$anchor, button);
+	$.pop();
+}
+
+$.delegate(['click']);

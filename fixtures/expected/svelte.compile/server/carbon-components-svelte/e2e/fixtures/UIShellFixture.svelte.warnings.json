@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_invalid_attribute",
+		"message": "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
+		"start": {
+			"line": 38,
+			"column": 25,
+			"character": 957
+		},
+		"end": {
+			"line": 38,
+			"column": 33,
+			"character": 965
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`isSideNavOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 21,
+			"column": 6,
+			"character": 356
+		},
+		"end": {
+			"line": 21,
+			"column": 19,
+			"character": 369
+		}
+	}
+]

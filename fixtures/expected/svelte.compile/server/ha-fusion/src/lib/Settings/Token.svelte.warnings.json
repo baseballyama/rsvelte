@@ -1,0 +1,44 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:focus` to listen to the focus event is deprecated. Use the event attribute `onfocus` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 27,
+			"column": 1,
+			"character": 583
+		},
+		"end": {
+			"line": 27,
+			"column": 23,
+			"character": 605
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:blur` to listen to the blur event is deprecated. Use the event attribute `onblur` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 28,
+			"column": 1,
+			"character": 607
+		},
+		"end": {
+			"line": 28,
+			"column": 22,
+			"character": 628
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`token` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 77
+		},
+		"end": {
+			"line": 4,
+			"column": 10,
+			"character": 82
+		}
+	}
+]

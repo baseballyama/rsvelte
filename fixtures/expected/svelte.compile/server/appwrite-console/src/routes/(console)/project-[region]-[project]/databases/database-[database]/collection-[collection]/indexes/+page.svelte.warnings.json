@@ -1,0 +1,30 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `databaseType`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 20,
+			"column": 80,
+			"character": 654
+		},
+		"end": {
+			"line": 20,
+			"column": 92,
+			"character": 666
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`createIndexRef` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 17,
+			"column": 8,
+			"character": 469
+		},
+		"end": {
+			"line": 17,
+			"column": 39,
+			"character": 500
+		}
+	}
+]

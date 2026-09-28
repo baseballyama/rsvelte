@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`activeIndex` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 115,
+			"column": 6,
+			"character": 5732
+		},
+		"end": {
+			"line": 115,
+			"column": 17,
+			"character": 5743
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`isDropdownOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 116,
+			"column": 6,
+			"character": 5755
+		},
+		"end": {
+			"line": 116,
+			"column": 20,
+			"character": 5769
+		}
+	}
+]

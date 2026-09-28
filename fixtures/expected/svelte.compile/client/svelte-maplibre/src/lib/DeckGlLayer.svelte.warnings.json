@@ -1,0 +1,16 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `id`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 65,
+			"column": 18,
+			"character": 1677
+		},
+		"end": {
+			"line": 65,
+			"column": 20,
+			"character": 1679
+		}
+	}
+]

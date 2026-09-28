@@ -1,0 +1,106 @@
+import * as $ from 'svelte/internal/server';
+
+import {
+	Column,
+	Content,
+	Grid,
+	Header,
+	HeaderNav,
+	HeaderNavItem,
+	HeaderNavMenu,
+	Row,
+	SkipToContent
+} from "carbon-components-svelte";
+
+export default function Header_1($$renderer) {
+	let isSideNavOpen = false;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Header($$renderer, {
+			companyName: 'IBM',
+			platformName: 'Cloud',
+			get isSideNavOpen() {
+				return isSideNavOpen;
+			},
+
+			set isSideNavOpen($$value) {
+				isSideNavOpen = $$value;
+				$$settled = false;
+			},
+
+			children: ($$renderer) => {
+				HeaderNav($$renderer, {
+					children: ($$renderer) => {
+						HeaderNavItem($$renderer, { href: '/catalog', text: 'Catalog' });
+						$$renderer.push(`<!----> `);
+						HeaderNavItem($$renderer, { href: '/docs', text: 'Docs' });
+						$$renderer.push(`<!----> `);
+						HeaderNavItem($$renderer, { href: '/support', text: 'Support' });
+						$$renderer.push(`<!----> `);
+
+						HeaderNavMenu($$renderer, {
+							text: 'Manage',
+							children: ($$renderer) => {
+								HeaderNavItem($$renderer, { href: '/account', text: 'Account' });
+								$$renderer.push(`<!----> `);
+								HeaderNavItem($$renderer, { href: '/iam', text: 'Access (IAM)' });
+								$$renderer.push(`<!----> `);
+								HeaderNavItem($$renderer, { href: '/billing', text: 'Billing and usage' });
+								$$renderer.push(`<!---->`);
+							},
+							$$slots: { default: true }
+						});
+
+						$$renderer.push(`<!---->`);
+					},
+					$$slots: { default: true }
+				});
+			},
+
+			$$slots: {
+				default: true,
+				skipToContent: ($$renderer) => {
+					{
+						SkipToContent($$renderer, {});
+					}
+				}
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Content($$renderer, {
+			children: ($$renderer) => {
+				Grid($$renderer, {
+					children: ($$renderer) => {
+						Row($$renderer, {
+							children: ($$renderer) => {
+								Column($$renderer, {
+									children: ($$renderer) => {
+										$$renderer.push(`<h1>Dashboard</h1>`);
+									},
+									$$slots: { default: true }
+								});
+							},
+							$$slots: { default: true }
+						});
+					},
+					$$slots: { default: true }
+				});
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!---->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}

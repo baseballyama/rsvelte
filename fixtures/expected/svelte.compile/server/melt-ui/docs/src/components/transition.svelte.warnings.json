@@ -1,0 +1,86 @@
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 18,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"column": 34,
+			"character": 34
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `show`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 102,
+			"column": 16,
+			"character": 3035
+		},
+		"end": {
+			"line": 102,
+			"column": 20,
+			"character": 3039
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `applyImmediately`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 106,
+			"column": 55,
+			"character": 3232
+		},
+		"end": {
+			"line": 106,
+			"column": 71,
+			"character": 3248
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `show`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 115,
+			"column": 22,
+			"character": 3403
+		},
+		"end": {
+			"line": 115,
+			"column": 26,
+			"character": 3407
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `unmount`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 116,
+			"column": 23,
+			"character": 3484
+		},
+		"end": {
+			"line": 116,
+			"column": 30,
+			"character": 3491
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `show`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 116,
+			"column": 34,
+			"character": 3495
+		},
+		"end": {
+			"line": 116,
+			"column": 38,
+			"character": 3499
+		}
+	}
+]

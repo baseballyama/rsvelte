@@ -1,0 +1,18 @@
+
+	div.layout-wrapper.svelte-yzcc6p > div.tp-rotv_c {
+		display: flex;
+		flex-wrap: wrap;
+	}
+
+	div.layout-wrapper.svelte-yzcc6p > div.tp-lblv {
+		flex-grow: 1;
+	}
+
+	div.layout-wrapper.svelte-yzcc6p > .tp-lblv:has(.tp-ckbv) {
+		flex-direction: row-reverse;
+		flex-grow: 0;
+	}
+
+	div.layout-wrapper.svelte-yzcc6p > .tp-lblv_v:has(.tp-ckbv) {
+		width: fit-content;
+	}

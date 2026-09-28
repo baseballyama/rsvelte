@@ -1,0 +1,10 @@
+
+  .form-grid.svelte-1clo6a0 {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-lg);
+  }
+
+  .form-group.svelte-1clo6a0 label:where(.svelte-1clo6a0) {
+    flex-direction: column;
+  }

@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`files` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 128
+		},
+		"end": {
+			"line": 8,
+			"column": 11,
+			"character": 133
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`rejectedFiles` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 6,
+			"character": 146
+		},
+		"end": {
+			"line": 9,
+			"column": 19,
+			"character": 159
+		}
+	}
+]

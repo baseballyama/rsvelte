@@ -1,0 +1,86 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`filteredRowIds` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 25,
+			"column": 6,
+			"character": 857
+		},
+		"end": {
+			"line": 25,
+			"column": 46,
+			"character": 897
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`searchValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 26,
+			"column": 6,
+			"character": 910
+		},
+		"end": {
+			"line": 26,
+			"column": 17,
+			"character": 921
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`numericFilteredRowIds` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 42,
+			"column": 6,
+			"character": 1380
+		},
+		"end": {
+			"line": 42,
+			"column": 60,
+			"character": 1434
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`numericSearchValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 43,
+			"column": 6,
+			"character": 1447
+		},
+		"end": {
+			"line": 43,
+			"column": 24,
+			"character": 1465
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`productFilteredRowIds` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 64,
+			"column": 6,
+			"character": 2072
+		},
+		"end": {
+			"line": 64,
+			"column": 60,
+			"character": 2126
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`productSearchValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 65,
+			"column": 6,
+			"character": 2139
+		},
+		"end": {
+			"line": 65,
+			"column": 24,
+			"character": 2157
+		}
+	}
+]

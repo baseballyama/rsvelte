@@ -1,0 +1,58 @@
+
+  .sp-post__body.svelte-1str98b {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  @media (min-width: 1024px) {
+    .sp-post__body.svelte-1str98b {
+      grid-template-columns: 1fr 220px;
+    }
+  }
+  .sp-post__content-wrap.svelte-1str98b {
+    min-width: 0;
+  }
+  .sp-post-content.svelte-1str98b {
+    line-height: 1.75;
+    color: var(--sp-blog-content);
+  }
+  .sp-post-content.svelte-1str98b h2,
+  .sp-post-content.svelte-1str98b h3 {
+    color: var(--sp-blog-text);
+    font-weight: 700;
+    margin: 2rem 0 0.75rem;
+  }
+  .sp-post-content.svelte-1str98b h2 {
+    font-size: 1.35rem;
+  }
+  .sp-post-content.svelte-1str98b h3 {
+    font-size: 1.1rem;
+  }
+  .sp-post-content.svelte-1str98b p {
+    margin-bottom: 1.15rem;
+  }
+  /* Inline code only — Shiki <pre> blocks are styled in GlobalLayout */
+  .sp-post-content.svelte-1str98b code:not(pre code) {
+    background: var(--sp-blog-surface);
+    color: var(--sp-blog-primary);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.875em;
+  }
+  .sp-post-content.svelte-1str98b blockquote {
+    border-left: 3px solid var(--sp-blog-primary);
+    padding-left: 1rem;
+    color: var(--sp-blog-muted);
+    margin: 1.25rem 0;
+  }
+  .sp-post-content.svelte-1str98b a {
+    color: var(--sp-blog-primary);
+  }
+  .sp-post__toc.svelte-1str98b {
+    display: none;
+  }
+  @media (min-width: 1024px) {
+    .sp-post__toc.svelte-1str98b {
+      display: block;
+    }
+  }

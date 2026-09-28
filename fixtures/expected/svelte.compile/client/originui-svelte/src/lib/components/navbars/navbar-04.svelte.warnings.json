@@ -1,0 +1,16 @@
+[
+	{
+		"code": "a11y_invalid_attribute",
+		"message": "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
+		"start": {
+			"line": 96,
+			"column": 7,
+			"character": 3514
+		},
+		"end": {
+			"line": 96,
+			"column": 15,
+			"character": 3522
+		}
+	}
+]

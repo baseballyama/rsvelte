@@ -1,0 +1,21 @@
+
+  .Placeholder__root.svelte-2g746g {
+    font-size: 15px;
+    color: #999;
+    overflow: hidden;
+    position: absolute;
+    text-overflow: ellipsis;
+    top: 8px;
+    left: 10px; /* 10px instead of 28px as we don't have the re-arrange handle implemented yet*/
+    right: 28px;
+    user-select: none;
+    white-space: nowrap;
+    display: inline-block;
+    pointer-events: none;
+  }
+
+  @media (max-width: 1025px) {
+    .Placeholder__root.svelte-2g746g {
+      left: 8px;
+    }
+  }

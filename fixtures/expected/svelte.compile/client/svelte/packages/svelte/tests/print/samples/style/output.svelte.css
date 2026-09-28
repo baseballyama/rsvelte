@@ -1,0 +1,88 @@
+
+	/* (unused) .foo {
+		color: red;
+	}*/
+
+	/* (unused) .foo.bar {
+		color: blue;
+	}*/
+
+	@media (max-width: 600px) {
+		/* (unused) .box {
+			display: none;
+		}*/
+	}
+
+	@keyframes svelte-1so0rqf-fade {
+		from {
+			opacity: 0;
+		}
+		50% {
+			opacity: 0.5;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	@font-face {
+		font-family: "MyFont";
+		src: url("/fonts/MyFont.woff2") format("woff2");
+	}
+
+	/* (unused) .container .item {
+		color: red;
+	}*/
+
+	/* (unused) nav > ul.menu {
+		display: flex;
+	}*/
+
+	/* (unused) h2 + p.note {
+		margin-top: 0;
+	}*/
+
+	/* (unused) li:nth-child(2n + 1) {
+		color: red;
+	}*/
+
+	/* (unused) .button:hover {
+		opacity: 0.5;
+	}*/
+
+	/* (unused) .card::before {
+		content: "";
+		display: block;
+	}*/
+
+	/* (unused) .container > .item {
+		color: red;
+	}*/
+
+	/* (unused) h1 + p {
+		margin-top: 0;
+	}*/
+
+	/* (unused) .container .item,
+	nav > ul.menu {
+		color: red;
+	}*/
+
+	/* (unused) #id-selector {
+		color: red;
+	}*/
+
+	/* (unused) [data-attribute] {
+		color: red;
+	}*/
+
+	/* (unused) [data-attribute="value"] {
+		color: red;
+	}*/
+
+	/* (unused) .card {
+		background: white;
+		&:hover {
+			background: gray;
+		}
+	}*/

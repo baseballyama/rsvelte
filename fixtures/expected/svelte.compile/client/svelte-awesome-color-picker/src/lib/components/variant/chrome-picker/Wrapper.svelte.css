@@ -1,0 +1,26 @@
+
+	div.svelte-1q15mvd {
+		background-color: var(--cp-bg-color, white);
+		margin: 0 10px 15px;
+		border: 1px solid var(--cp-border-color, black);
+		border-radius: 8px;
+		display: none;
+
+		--text-input-margin: 5px 5px 6px;
+		--picker-radius: 8px 8px 0 0;
+		--picker-width: 260px;
+	}
+	.is-open.svelte-1q15mvd {
+		display: flex;
+		flex-direction: column;
+	}
+	[role='dialog'].svelte-1q15mvd {
+		position: absolute;
+		top: calc(var(--input-size, 25px) + 12px);
+		left: 0;
+		z-index: var(--picker-z-index, 2);
+	}
+	div.svelte-1q15mvd:not([role='dialog']) {
+		display: inline-flex;
+		flex-direction: column;
+	}

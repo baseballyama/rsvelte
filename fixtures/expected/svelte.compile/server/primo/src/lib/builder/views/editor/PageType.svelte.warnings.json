@@ -1,0 +1,72 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `page_type`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 27,
+			"column": 30,
+			"character": 1544
+		},
+		"end": {
+			"line": 27,
+			"column": 39,
+			"character": 1553
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `page_type`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 30,
+			"column": 33,
+			"character": 1655
+		},
+		"end": {
+			"line": 30,
+			"column": 42,
+			"character": 1664
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `page_type`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 47,
+			"column": 19,
+			"character": 2427
+		},
+		"end": {
+			"line": 47,
+			"column": 28,
+			"character": 2436
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `page_type`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 48,
+			"column": 19,
+			"character": 2468
+		},
+		"end": {
+			"line": 48,
+			"column": 28,
+			"character": 2477
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `page_type`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 58,
+			"column": 43,
+			"character": 2718
+		},
+		"end": {
+			"line": 58,
+			"column": 52,
+			"character": 2727
+		}
+	}
+]

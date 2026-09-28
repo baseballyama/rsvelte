@@ -1,0 +1,18 @@
+
+	/* Refined Editorial — default theme only. In-flow block only (Sheet is portaled). */
+	[data-theme='default'] .edp-store {
+		border-top: 1px solid var(--ed-line);
+		padding-top: 16px;
+	}
+
+	[data-theme='default'] .edp-store-title {
+		font-family: var(--ed-body);
+		font-weight: 600;
+		letter-spacing: 0.01em;
+		color: var(--ed-ink);
+	}
+
+	[data-theme='default'] .edp-store-text {
+		color: var(--ed-soft);
+		line-height: 1.6;
+	}

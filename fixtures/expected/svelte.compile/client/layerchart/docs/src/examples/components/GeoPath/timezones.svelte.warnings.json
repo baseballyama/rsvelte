@@ -1,0 +1,44 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `countriesGeojson`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 88,
+			"column": 2,
+			"character": 2721
+		},
+		"end": {
+			"line": 88,
+			"column": 18,
+			"character": 2737
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `statesGeojson`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 89,
+			"column": 2,
+			"character": 2741
+		},
+		"end": {
+			"line": 89,
+			"column": 15,
+			"character": 2754
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `timezoneGeojson`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 90,
+			"column": 2,
+			"character": 2758
+		},
+		"end": {
+			"line": 90,
+			"column": 17,
+			"character": 2773
+		}
+	}
+]

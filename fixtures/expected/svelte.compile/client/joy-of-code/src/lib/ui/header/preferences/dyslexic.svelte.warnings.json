@@ -1,0 +1,30 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&[data-state='checked']\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 86,
+			"column": 2,
+			"character": 1597
+		},
+		"end": {
+			"line": 86,
+			"column": 25,
+			"character": 1620
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".thumb\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 89,
+			"column": 3,
+			"character": 1669
+		},
+		"end": {
+			"line": 89,
+			"column": 9,
+			"character": 1675
+		}
+	}
+]

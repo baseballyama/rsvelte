@@ -1,0 +1,30 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `size`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 30,
+			"column": 2,
+			"character": 699
+		},
+		"end": {
+			"line": 30,
+			"column": 6,
+			"character": 703
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `variant`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 31,
+			"column": 2,
+			"character": 707
+		},
+		"end": {
+			"line": 31,
+			"column": 9,
+			"character": 714
+		}
+	}
+]

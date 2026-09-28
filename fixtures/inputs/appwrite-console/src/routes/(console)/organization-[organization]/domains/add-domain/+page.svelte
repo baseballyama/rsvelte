@@ -1,0 +1,74 @@
+<script lang="ts">
+    import { base } from '$app/paths';
+    import { page } from '$app/state';
+    import { goto } from '$app/navigation';
+    import { Button, Form } from '$lib/elements/forms';
+    import { InputDomain } from '$lib/elements/forms/index.js';
+    import { Wizard } from '$lib/layout';
+    import { addNotification } from '$lib/stores/notifications';
+    import { sdk } from '$lib/stores/sdk';
+    import { Divider, Fieldset, Layout } from '@appwrite.io/pink-svelte';
+    import RecordsCard from '../recordsCard.svelte';
+    import { afterNavigate, invalidate } from '$app/navigation';
+    import { Dependencies } from '$lib/constants';
+    import type { Models } from '@appwrite.io/console';
+
+    let backPage = `${base}/organization-${page.params.organization}/domains`;
+
+    let domainName = '';
+    let domain: Models.Domain;
+
+    async function addDomain() {
+        try {
+            domain = await sdk.forConsole.domains.create({
+                teamId: page.params.organization,
+                domain: domainName.toLocaleLowerCase()
+            });
+
+            await invalidate(Dependencies.DOMAINS);
+            const verified = domain.nameservers.toLowerCase() === 'appwrite';
+            if (verified) {
+                await goto(backPage);
+                addNotification({
+                    type: 'success',
+                    message: 'Domain verified successfully'
+                });
+            }
+        } catch (error) {
+            addNotification({
+                type: 'error',
+                message: error.message
+            });
+        }
+    }
+
+    afterNavigate(({ from }) => {
+        backPage = from.url?.pathname ?? `${base}/`;
+    });
+</script>
+
+<Wizard title="Add domain" href={backPage} column columnSize="s" hideFooter>
+    {#if domain}
+        <RecordsCard {domain} />
+    {:else}
+        <Fieldset legend="Configuration">
+            <Form onSubmit={addDomain}>
+                <Layout.Stack gap="xl">
+                    <InputDomain
+                        label="Domain"
+                        id="domain"
+                        name="domain"
+                        bind:value={domainName}
+                        required
+                        autofocus
+                        placeholder="example.com" />
+
+                    <Divider />
+                    <Layout.Stack alignItems="flex-end">
+                        <Button submit>Add</Button>
+                    </Layout.Stack>
+                </Layout.Stack>
+            </Form>
+        </Fieldset>
+    {/if}
+</Wizard>

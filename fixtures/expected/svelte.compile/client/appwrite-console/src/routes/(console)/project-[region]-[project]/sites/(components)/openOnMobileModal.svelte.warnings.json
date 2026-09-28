@@ -1,0 +1,58 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `proxyRuleList`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 23,
+			"column": 20,
+			"character": 832
+		},
+		"end": {
+			"line": 23,
+			"column": 33,
+			"character": 845
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `proxyRuleList`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 24,
+			"column": 10,
+			"character": 863
+		},
+		"end": {
+			"line": 24,
+			"column": 23,
+			"character": 876
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `selectedUrl`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 32,
+			"column": 21,
+			"character": 1083
+		},
+		"end": {
+			"line": 32,
+			"column": 32,
+			"character": 1094
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `selectedUrl`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 32,
+			"column": 55,
+			"character": 1117
+		},
+		"end": {
+			"line": 32,
+			"column": 66,
+			"character": 1128
+		}
+	}
+]

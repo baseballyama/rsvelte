@@ -1,0 +1,16 @@
+
+	body {
+		background-color: tan;
+		display: flex;
+		flex-direction: column;
+	}
+
+	a.svelte-17setk9 {
+		display: block;
+		margin: 20px;
+	}
+
+	div.svelte-17setk9 {
+		background-color: hotpink;
+		height: 180vh;
+	}

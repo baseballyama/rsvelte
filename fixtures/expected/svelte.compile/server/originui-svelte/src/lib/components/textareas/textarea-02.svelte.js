@@ -1,0 +1,21 @@
+import * as $ from 'svelte/internal/server';
+import Label from '$lib/components/ui/label.svelte';
+import Textarea from '$lib/components/ui/textarea.svelte';
+
+export default function Textarea_02($$renderer) {
+	const uid = $.props_id($$renderer);
+
+	$$renderer.push(`<div class="space-y-2">`);
+
+	Label($$renderer, {
+		for: uid,
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Required textarea <span class="text-destructive">*</span>`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----> `);
+	Textarea($$renderer, { id: uid, placeholder: 'Leave a message', required: true });
+	$$renderer.push(`<!----></div>`);
+}

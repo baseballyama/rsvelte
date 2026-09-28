@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`applicationId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 8,
+			"character": 610
+		},
+		"end": {
+			"line": 15,
+			"column": 29,
+			"character": 631
+		}
+	}
+]

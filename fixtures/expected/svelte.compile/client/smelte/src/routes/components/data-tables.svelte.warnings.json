@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`data` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 185
+		},
+		"end": {
+			"line": 7,
+			"column": 10,
+			"character": 189
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`loading` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 202
+		},
+		"end": {
+			"line": 8,
+			"column": 13,
+			"character": 209
+		}
+	}
+]

@@ -1,0 +1,11 @@
+
+  @layer base {
+    :where(.lc-layout-webgl.svelte-jilr8m) {
+      position: absolute;
+      inset: 0;
+
+      &.disablePointerEvents {
+        pointer-events: none;
+      }
+    }
+  }

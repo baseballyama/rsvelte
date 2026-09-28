@@ -1,0 +1,38 @@
+
+    main.svelte-1wbdv87 {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+
+        /* Prevent margin collapsing */
+        overflow: hidden;
+    }
+
+    .canvas-container.svelte-1wbdv87 {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: -1;
+
+        width: 100%;
+        height: 100%;
+
+        background-color: black;
+    }
+
+    h1.svelte-1wbdv87 {
+        font-family: "SUSE", sans-serif;
+        font-size: 12rem;
+
+        mix-blend-mode: difference;
+        color: var(--color);
+
+        margin: 10rem 0 0 10rem;
+    }
+
+    @media (max-width: 1000px) {
+        h1.svelte-1wbdv87 {
+            font-size: 4rem;
+            margin: 2rem;
+        }
+    }

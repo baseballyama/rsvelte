@@ -1,0 +1,30 @@
+[
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 63,
+			"column": 8,
+			"character": 2072
+		},
+		"end": {
+			"line": 63,
+			"column": 74,
+			"character": 2138
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 71,
+			"column": 8,
+			"character": 2339
+		},
+		"end": {
+			"line": 74,
+			"column": 10,
+			"character": 2441
+		}
+	}
+]

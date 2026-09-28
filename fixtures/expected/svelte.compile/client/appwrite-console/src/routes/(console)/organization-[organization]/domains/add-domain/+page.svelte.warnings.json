@@ -1,0 +1,44 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`backPage` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 16,
+			"column": 8,
+			"character": 719
+		},
+		"end": {
+			"line": 16,
+			"column": 16,
+			"character": 727
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`domainName` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 18,
+			"column": 8,
+			"character": 799
+		},
+		"end": {
+			"line": 18,
+			"column": 18,
+			"character": 809
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`domain` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 19,
+			"column": 8,
+			"character": 824
+		},
+		"end": {
+			"line": 19,
+			"column": 29,
+			"character": 845
+		}
+	}
+]

@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`from` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 136
+		},
+		"end": {
+			"line": 5,
+			"column": 9,
+			"character": 140
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`to` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 210
+		},
+		"end": {
+			"line": 8,
+			"column": 7,
+			"character": 212
+		}
+	}
+]

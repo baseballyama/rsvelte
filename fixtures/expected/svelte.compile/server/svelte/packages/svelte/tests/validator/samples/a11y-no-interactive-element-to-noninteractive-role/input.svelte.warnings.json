@@ -1,0 +1,828 @@
+[
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<a>` cannot have role 'article'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 2,
+			"column": 0,
+			"character": 11
+		},
+		"end": {
+			"line": 2,
+			"column": 38,
+			"character": 49
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<a>` cannot have role 'banner'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 3,
+			"column": 0,
+			"character": 50
+		},
+		"end": {
+			"line": 3,
+			"column": 37,
+			"character": 87
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<a>` cannot have role 'complementary'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 4,
+			"column": 0,
+			"character": 88
+		},
+		"end": {
+			"line": 4,
+			"column": 44,
+			"character": 132
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<a>` cannot have role 'img'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 5,
+			"column": 0,
+			"character": 133
+		},
+		"end": {
+			"line": 5,
+			"column": 34,
+			"character": 167
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<a>` cannot have role 'listitem'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 6,
+			"column": 0,
+			"character": 168
+		},
+		"end": {
+			"line": 6,
+			"column": 39,
+			"character": 207
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<a>` cannot have role 'main'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 7,
+			"column": 0,
+			"character": 208
+		},
+		"end": {
+			"line": 7,
+			"column": 35,
+			"character": 243
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<a>` cannot have role 'region'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 8,
+			"column": 0,
+			"character": 244
+		},
+		"end": {
+			"line": 8,
+			"column": 37,
+			"character": 281
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<a>` cannot have role 'tooltip'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 9,
+			"column": 0,
+			"character": 282
+		},
+		"end": {
+			"line": 9,
+			"column": 38,
+			"character": 320
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<button>` cannot have role 'article'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 13,
+			"column": 0,
+			"character": 376
+		},
+		"end": {
+			"line": 13,
+			"column": 38,
+			"character": 414
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<button>` cannot have role 'banner'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 14,
+			"column": 0,
+			"character": 415
+		},
+		"end": {
+			"line": 14,
+			"column": 37,
+			"character": 452
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<button>` cannot have role 'complementary'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 15,
+			"column": 0,
+			"character": 453
+		},
+		"end": {
+			"line": 15,
+			"column": 44,
+			"character": 497
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<button>` cannot have role 'img'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 16,
+			"column": 0,
+			"character": 498
+		},
+		"end": {
+			"line": 16,
+			"column": 34,
+			"character": 532
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<button>` cannot have role 'listitem'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 17,
+			"column": 0,
+			"character": 533
+		},
+		"end": {
+			"line": 17,
+			"column": 39,
+			"character": 572
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<button>` cannot have role 'main'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 18,
+			"column": 0,
+			"character": 573
+		},
+		"end": {
+			"line": 18,
+			"column": 35,
+			"character": 608
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<button>` cannot have role 'region'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 19,
+			"column": 0,
+			"character": 609
+		},
+		"end": {
+			"line": 19,
+			"column": 37,
+			"character": 646
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<button>` cannot have role 'tooltip'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 20,
+			"column": 0,
+			"character": 647
+		},
+		"end": {
+			"line": 20,
+			"column": 38,
+			"character": 685
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'button'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 21,
+			"column": 8,
+			"character": 694
+		},
+		"end": {
+			"line": 21,
+			"column": 21,
+			"character": 707
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<input>` cannot have role 'article'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 24,
+			"column": 0,
+			"character": 740
+		},
+		"end": {
+			"line": 24,
+			"column": 24,
+			"character": 764
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<input>` cannot have role 'banner'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 25,
+			"column": 0,
+			"character": 765
+		},
+		"end": {
+			"line": 25,
+			"column": 23,
+			"character": 788
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<input>` cannot have role 'complementary'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 26,
+			"column": 0,
+			"character": 789
+		},
+		"end": {
+			"line": 26,
+			"column": 30,
+			"character": 819
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<input>` cannot have role 'img'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 27,
+			"column": 0,
+			"character": 820
+		},
+		"end": {
+			"line": 27,
+			"column": 20,
+			"character": 840
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<input>` cannot have role 'listitem'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 28,
+			"column": 0,
+			"character": 841
+		},
+		"end": {
+			"line": 28,
+			"column": 25,
+			"character": 866
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<input>` cannot have role 'main'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 29,
+			"column": 0,
+			"character": 867
+		},
+		"end": {
+			"line": 29,
+			"column": 21,
+			"character": 888
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<input>` cannot have role 'region'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 30,
+			"column": 0,
+			"character": 889
+		},
+		"end": {
+			"line": 30,
+			"column": 23,
+			"character": 912
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<input>` cannot have role 'tooltip'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 31,
+			"column": 0,
+			"character": 913
+		},
+		"end": {
+			"line": 31,
+			"column": 24,
+			"character": 937
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<select>` cannot have role 'article'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 35,
+			"column": 0,
+			"character": 979
+		},
+		"end": {
+			"line": 35,
+			"column": 32,
+			"character": 1011
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<select>` cannot have role 'banner'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 36,
+			"column": 0,
+			"character": 1012
+		},
+		"end": {
+			"line": 36,
+			"column": 31,
+			"character": 1043
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<select>` cannot have role 'complementary'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 37,
+			"column": 0,
+			"character": 1044
+		},
+		"end": {
+			"line": 37,
+			"column": 38,
+			"character": 1082
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<select>` cannot have role 'img'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 38,
+			"column": 0,
+			"character": 1083
+		},
+		"end": {
+			"line": 38,
+			"column": 28,
+			"character": 1111
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<select>` cannot have role 'listitem'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 39,
+			"column": 0,
+			"character": 1112
+		},
+		"end": {
+			"line": 39,
+			"column": 33,
+			"character": 1145
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<select>` cannot have role 'main'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 40,
+			"column": 0,
+			"character": 1146
+		},
+		"end": {
+			"line": 40,
+			"column": 29,
+			"character": 1175
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<select>` cannot have role 'region'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 41,
+			"column": 0,
+			"character": 1176
+		},
+		"end": {
+			"line": 41,
+			"column": 31,
+			"character": 1207
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<select>` cannot have role 'tooltip'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 42,
+			"column": 0,
+			"character": 1208
+		},
+		"end": {
+			"line": 42,
+			"column": 32,
+			"character": 1240
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<textarea>` cannot have role 'article'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 46,
+			"column": 0,
+			"character": 1292
+		},
+		"end": {
+			"line": 46,
+			"column": 36,
+			"character": 1328
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<textarea>` cannot have role 'banner'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 47,
+			"column": 0,
+			"character": 1329
+		},
+		"end": {
+			"line": 47,
+			"column": 35,
+			"character": 1364
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<textarea>` cannot have role 'complementary'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 48,
+			"column": 0,
+			"character": 1365
+		},
+		"end": {
+			"line": 48,
+			"column": 42,
+			"character": 1407
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<textarea>` cannot have role 'img'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 49,
+			"column": 0,
+			"character": 1408
+		},
+		"end": {
+			"line": 49,
+			"column": 32,
+			"character": 1440
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<textarea>` cannot have role 'listitem'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 50,
+			"column": 0,
+			"character": 1441
+		},
+		"end": {
+			"line": 50,
+			"column": 37,
+			"character": 1478
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<textarea>` cannot have role 'main'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 51,
+			"column": 0,
+			"character": 1479
+		},
+		"end": {
+			"line": 51,
+			"column": 33,
+			"character": 1512
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<textarea>` cannot have role 'region'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 52,
+			"column": 0,
+			"character": 1513
+		},
+		"end": {
+			"line": 52,
+			"column": 35,
+			"character": 1548
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<textarea>` cannot have role 'tooltip'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 53,
+			"column": 0,
+			"character": 1549
+		},
+		"end": {
+			"line": 53,
+			"column": 36,
+			"character": 1585
+		}
+	},
+	{
+		"code": "a11y_no_abstract_role",
+		"message": "Abstract role 'command' is forbidden\nhttps://svelte.dev/e/a11y_no_abstract_role",
+		"start": {
+			"line": 57,
+			"column": 5,
+			"character": 1684
+		},
+		"end": {
+			"line": 57,
+			"column": 19,
+			"character": 1698
+		}
+	},
+	{
+		"code": "a11y_no_abstract_role",
+		"message": "Abstract role 'composite' is forbidden\nhttps://svelte.dev/e/a11y_no_abstract_role",
+		"start": {
+			"line": 58,
+			"column": 5,
+			"character": 1711
+		},
+		"end": {
+			"line": 58,
+			"column": 21,
+			"character": 1727
+		}
+	},
+	{
+		"code": "a11y_no_abstract_role",
+		"message": "Abstract role 'input' is forbidden\nhttps://svelte.dev/e/a11y_no_abstract_role",
+		"start": {
+			"line": 59,
+			"column": 5,
+			"character": 1740
+		},
+		"end": {
+			"line": 59,
+			"column": 17,
+			"character": 1752
+		}
+	},
+	{
+		"code": "a11y_no_abstract_role",
+		"message": "Abstract role 'landmark' is forbidden\nhttps://svelte.dev/e/a11y_no_abstract_role",
+		"start": {
+			"line": 60,
+			"column": 5,
+			"character": 1765
+		},
+		"end": {
+			"line": 60,
+			"column": 20,
+			"character": 1780
+		}
+	},
+	{
+		"code": "a11y_no_abstract_role",
+		"message": "Abstract role 'range' is forbidden\nhttps://svelte.dev/e/a11y_no_abstract_role",
+		"start": {
+			"line": 61,
+			"column": 5,
+			"character": 1793
+		},
+		"end": {
+			"line": 61,
+			"column": 17,
+			"character": 1805
+		}
+	},
+	{
+		"code": "a11y_no_abstract_role",
+		"message": "Abstract role 'roletype' is forbidden\nhttps://svelte.dev/e/a11y_no_abstract_role",
+		"start": {
+			"line": 62,
+			"column": 5,
+			"character": 1818
+		},
+		"end": {
+			"line": 62,
+			"column": 20,
+			"character": 1833
+		}
+	},
+	{
+		"code": "a11y_no_abstract_role",
+		"message": "Abstract role 'section' is forbidden\nhttps://svelte.dev/e/a11y_no_abstract_role",
+		"start": {
+			"line": 63,
+			"column": 5,
+			"character": 1846
+		},
+		"end": {
+			"line": 63,
+			"column": 19,
+			"character": 1860
+		}
+	},
+	{
+		"code": "a11y_no_abstract_role",
+		"message": "Abstract role 'sectionhead' is forbidden\nhttps://svelte.dev/e/a11y_no_abstract_role",
+		"start": {
+			"line": 64,
+			"column": 5,
+			"character": 1873
+		},
+		"end": {
+			"line": 64,
+			"column": 23,
+			"character": 1891
+		}
+	},
+	{
+		"code": "a11y_no_abstract_role",
+		"message": "Abstract role 'select' is forbidden\nhttps://svelte.dev/e/a11y_no_abstract_role",
+		"start": {
+			"line": 65,
+			"column": 5,
+			"character": 1904
+		},
+		"end": {
+			"line": 65,
+			"column": 18,
+			"character": 1917
+		}
+	},
+	{
+		"code": "a11y_no_abstract_role",
+		"message": "Abstract role 'structure' is forbidden\nhttps://svelte.dev/e/a11y_no_abstract_role",
+		"start": {
+			"line": 66,
+			"column": 5,
+			"character": 1930
+		},
+		"end": {
+			"line": 66,
+			"column": 21,
+			"character": 1946
+		}
+	},
+	{
+		"code": "a11y_no_abstract_role",
+		"message": "Abstract role 'widget' is forbidden\nhttps://svelte.dev/e/a11y_no_abstract_role",
+		"start": {
+			"line": 71,
+			"column": 5,
+			"character": 2065
+		},
+		"end": {
+			"line": 71,
+			"column": 18,
+			"character": 2078
+		}
+	},
+	{
+		"code": "a11y_no_abstract_role",
+		"message": "Abstract role 'window' is forbidden\nhttps://svelte.dev/e/a11y_no_abstract_role",
+		"start": {
+			"line": 72,
+			"column": 5,
+			"character": 2091
+		},
+		"end": {
+			"line": 72,
+			"column": 18,
+			"character": 2104
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<menuitem>` cannot have role 'listitem'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 143,
+			"column": 0,
+			"character": 4277
+		},
+		"end": {
+			"line": 143,
+			"column": 37,
+			"character": 4314
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<option>` cannot have role 'listitem'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 144,
+			"column": 0,
+			"character": 4315
+		},
+		"end": {
+			"line": 144,
+			"column": 45,
+			"character": 4360
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<select>` cannot have role 'listitem'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 145,
+			"column": 0,
+			"character": 4361
+		},
+		"end": {
+			"line": 145,
+			"column": 45,
+			"character": 4406
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<textarea>` cannot have role 'listitem'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 146,
+			"column": 0,
+			"character": 4407
+		},
+		"end": {
+			"line": 146,
+			"column": 49,
+			"character": 4456
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<tr>` cannot have role 'listitem'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 147,
+			"column": 0,
+			"character": 4457
+		},
+		"end": {
+			"line": 147,
+			"column": 25,
+			"character": 4482
+		}
+	},
+	{
+		"code": "a11y_no_interactive_element_to_noninteractive_role",
+		"message": "`<summary>` cannot have role 'listitem'\nhttps://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role",
+		"start": {
+			"line": 148,
+			"column": 0,
+			"character": 4483
+		},
+		"end": {
+			"line": 148,
+			"column": 35,
+			"character": 4518
+		}
+	}
+]

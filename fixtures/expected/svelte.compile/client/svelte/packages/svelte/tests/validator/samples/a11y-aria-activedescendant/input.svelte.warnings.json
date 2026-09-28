@@ -1,0 +1,16 @@
+[
+	{
+		"code": "a11y_aria_activedescendant_has_tabindex",
+		"message": "An element with an aria-activedescendant attribute should have a tabindex value\nhttps://svelte.dev/e/a11y_aria_activedescendant_has_tabindex",
+		"start": {
+			"line": 16,
+			"column": 5,
+			"character": 641
+		},
+		"end": {
+			"line": 16,
+			"column": 36,
+			"character": 672
+		}
+	}
+]

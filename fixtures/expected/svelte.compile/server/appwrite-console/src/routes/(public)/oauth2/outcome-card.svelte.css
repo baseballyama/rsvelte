@@ -1,0 +1,175 @@
+
+    .outcome.svelte-5dangw {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .header.svelte-5dangw {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.25rem;
+        padding: 2.5rem 1.75rem 0.5rem;
+        background: radial-gradient(
+            120% 100% at 50% 0%,
+            var(--bgcolor-neutral-secondary) 0%,
+            transparent 70%
+        );
+    }
+
+    /* Same identity row as the consent card, now resolved: the dashed "pending"
+       connector becomes a solid line with a status node when approved; stays
+       dashed with an X when the request was cancelled. */
+    .identity.svelte-5dangw {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Fallback when no account is known: the status sits on the app avatar's
+       corner instead of in the connector. */
+    .status-badge.svelte-5dangw {
+        position: absolute;
+        right: -0.5rem;
+        bottom: -0.35rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.5rem;
+        height: 1.5rem;
+        border-radius: 50%;
+        border: 1px solid var(--border-neutral);
+        background: var(--bgcolor-neutral-primary);
+        color: var(--fgcolor-neutral-secondary);
+    }
+
+    .status-badge.approved.svelte-5dangw {
+        border-color: var(--border-success, rgba(16, 185, 129, 0.45));
+        background: var(--bgcolor-success-weaker, rgba(16, 185, 129, 0.12));
+        color: var(--fgcolor-success);
+    }
+
+    .avatar.svelte-5dangw {
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: var(--border-radius-l, 0.85rem);
+        flex-shrink: 0;
+        border: 1px solid var(--border-neutral-strong);
+        background: var(--bgcolor-neutral-primary);
+    }
+
+    /* Keep wordmarks readable inside the square avatar (cover crops them). */
+    img.avatar.svelte-5dangw {
+        object-fit: contain;
+        padding: 0.4rem;
+        box-sizing: border-box;
+    }
+
+    .avatar.placeholder.svelte-5dangw {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bgcolor-neutral-secondary);
+        color: var(--fgcolor-neutral-secondary);
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+
+    .avatar.account.svelte-5dangw {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bgcolor-neutral-invert);
+        color: var(--fgcolor-neutral-on-invert, var(--bgcolor-neutral-primary));
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+
+    .connector.svelte-5dangw {
+        display: flex;
+        align-items: center;
+        margin-inline: 0.35rem;
+    }
+
+    .connector-line.svelte-5dangw {
+        width: 1.1rem;
+        height: 0;
+        border-top: 2px dashed var(--border-neutral-strong);
+    }
+
+    .connector-node.svelte-5dangw {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.75rem;
+        height: 1.75rem;
+        border-radius: 50%;
+        border: 1px solid var(--border-neutral);
+        background: var(--bgcolor-neutral-primary);
+        color: var(--fgcolor-neutral-secondary);
+    }
+
+    .approved.svelte-5dangw .connector-line:where(.svelte-5dangw) {
+        border-top-style: solid;
+        border-top-color: var(--border-success, rgba(16, 185, 129, 0.45));
+    }
+
+    .approved.svelte-5dangw .connector-node:where(.svelte-5dangw) {
+        border-color: var(--border-success, rgba(16, 185, 129, 0.45));
+        background: var(--bgcolor-success-weaker, rgba(16, 185, 129, 0.12));
+        color: var(--fgcolor-success);
+        animation: svelte-5dangw-node-pop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+    }
+
+    @keyframes svelte-5dangw-node-pop {
+        from {
+            transform: scale(0.5);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .approved.svelte-5dangw .connector-node:where(.svelte-5dangw) {
+            animation: none;
+        }
+    }
+
+    .headline.svelte-5dangw {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        max-width: 22rem;
+    }
+
+    .body.svelte-5dangw {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+        padding: 1.25rem 1.75rem 1.75rem;
+    }
+
+    .close-hint.svelte-5dangw {
+        margin: 0;
+        text-align: center;
+        font-size: 0.78rem;
+        color: var(--fgcolor-neutral-tertiary);
+    }
+
+    .footnote.svelte-5dangw {
+        margin: 0.25rem 0 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        font-size: 0.78rem;
+        color: var(--fgcolor-neutral-tertiary);
+        text-align: center;
+    }

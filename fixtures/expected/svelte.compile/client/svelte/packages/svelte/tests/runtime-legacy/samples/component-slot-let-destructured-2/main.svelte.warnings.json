@@ -1,0 +1,86 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 11,
+			"column": 9,
+			"character": 213
+		},
+		"end": {
+			"line": 11,
+			"column": 37,
+			"character": 241
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 19,
+			"column": 9,
+			"character": 387
+		},
+		"end": {
+			"line": 19,
+			"column": 37,
+			"character": 415
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 27,
+			"column": 9,
+			"character": 571
+		},
+		"end": {
+			"line": 27,
+			"column": 37,
+			"character": 599
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`c` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 3,
+			"column": 5,
+			"character": 53
+		},
+		"end": {
+			"line": 3,
+			"column": 6,
+			"character": 54
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 3,
+			"column": 12,
+			"character": 60
+		},
+		"end": {
+			"line": 3,
+			"column": 13,
+			"character": 61
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`e` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 3,
+			"column": 19,
+			"character": 67
+		},
+		"end": {
+			"line": 3,
+			"column": 20,
+			"character": 68
+		}
+	}
+]

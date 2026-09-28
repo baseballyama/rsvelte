@@ -1,0 +1,23 @@
+
+	.demo.svelte-l0ke6q {
+		--wx-checkbox-border-width: 1px;
+		width: 100%;
+		height: 100%;
+		overflow: auto;
+	}
+	.wrapper.svelte-l0ke6q {
+		max-width: 1232px;
+		overflow: hidden;
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 26px;
+		padding: 26px;
+		margin: 0 auto;
+	}
+	.columns.svelte-l0ke6q {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 20px;
+		min-height: 474px;
+	}

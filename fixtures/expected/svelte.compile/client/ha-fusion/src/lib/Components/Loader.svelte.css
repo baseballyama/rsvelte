@@ -1,0 +1,46 @@
+
+	div.svelte-1e75gt5 {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 3;
+	}
+
+	svg.svelte-1e75gt5 {
+		-webkit-animation: svelte-1e75gt5-rotate 2s linear infinite;
+		animation: svelte-1e75gt5-rotate 2s linear infinite;
+		z-index: 2;
+		width: 8em;
+		height: 8em;
+		fill: none;
+		stroke-width: 3;
+	}
+
+	circle.svelte-1e75gt5 {
+		stroke: white;
+		stroke-linecap: round;
+		-webkit-animation: svelte-1e75gt5-dash 1.5s ease-in-out infinite;
+		animation: svelte-1e75gt5-dash 1.5s ease-in-out infinite;
+	}
+
+	@keyframes svelte-1e75gt5-rotate {
+		100% {
+			transform: rotate(360deg);
+		}
+	}
+
+	@keyframes svelte-1e75gt5-dash {
+		0% {
+			stroke-dasharray: 1, 150;
+			stroke-dashoffset: 0;
+		}
+		50% {
+			stroke-dasharray: 90, 150;
+			stroke-dashoffset: -35;
+		}
+		100% {
+			stroke-dasharray: 90, 150;
+			stroke-dashoffset: -124;
+		}
+	}

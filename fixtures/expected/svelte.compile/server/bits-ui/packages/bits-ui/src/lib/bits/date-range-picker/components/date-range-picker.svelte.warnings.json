@@ -1,0 +1,44 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `granularity`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 86,
+			"column": 2,
+			"character": 2468
+		},
+		"end": {
+			"line": 86,
+			"column": 13,
+			"character": 2479
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `minValue`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 88,
+			"column": 2,
+			"character": 2513
+		},
+		"end": {
+			"line": 88,
+			"column": 10,
+			"character": 2521
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `maxValue`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 89,
+			"column": 2,
+			"character": 2525
+		},
+		"end": {
+			"line": 89,
+			"column": 10,
+			"character": 2533
+		}
+	}
+]

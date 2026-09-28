@@ -1,0 +1,21 @@
+
+	.math-menu {
+		display: flex;
+		height: fit-content;
+		width: fit-content;
+		flex-direction: column;
+		align-items: center;
+		gap: 4px;
+		border-radius: var(--edra-radius-lg);
+		border: 1px solid var(--edra-border);
+		padding: 6px;
+		background-color: var(--edra-canvas);
+		box-shadow: var(--edra-shadow-5);
+	}
+	.math-textarea.svelte-16ww29m {
+		height: 12rem;
+		width: 24rem;
+		font-family: var(--edra-font-mono);
+		font-size: 0.875rem;
+		line-height: 1.625;
+	}

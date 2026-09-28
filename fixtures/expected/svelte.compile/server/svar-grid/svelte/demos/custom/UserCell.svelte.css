@@ -1,0 +1,35 @@
+
+	.container.svelte-1x76k6c {
+		display: flex;
+		align-items: center;
+		height: 56px;
+		padding: 0 12px;
+	}
+
+	.avatar.svelte-1x76k6c {
+		width: 70px;
+	}
+
+	.name.svelte-1x76k6c {
+		flex: 1;
+	}
+
+	.mail.svelte-1x76k6c {
+		flex: 1;
+	}
+
+	.user-avatar.svelte-1x76k6c {
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		background-color: #dfe2e6;
+		text-align: center;
+	}
+
+	.user-photo.svelte-1x76k6c {
+		display: block;
+		width: 100%;
+		height: 100%;
+		border-radius: 50%;
+		background-color: #dfe2e6;
+	}

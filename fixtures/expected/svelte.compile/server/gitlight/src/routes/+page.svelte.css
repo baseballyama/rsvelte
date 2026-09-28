@@ -1,0 +1,229 @@
+
+	[data-slide].svelte-1uha8ag {
+		@keyframes svelte-1uha8ag-slide {
+			from {
+				opacity: 0;
+				translate: 0 0.5rem;
+			}
+
+			to {
+				opacity: 1;
+				translate: 0;
+			}
+		}
+		--stagger: 1;
+
+		animation: svelte-1uha8ag-slide 0.3s calc(var(--stagger) * 0.1s) ease-in-out backwards;
+	}
+
+	.wrapper.svelte-1uha8ag {
+		position: relative;
+		display: flex;
+		overflow: hidden;
+		height: 100vh;
+		flex-direction: column;
+		align-items: center;
+		padding: 0 2rem;
+
+		@include screens.mobile {
+			height: 100svh;
+			padding: 0 1.5rem 2rem;
+		}
+	}
+
+	.header.svelte-1uha8ag {
+		display: flex;
+		width: min(64rem, 100%);
+		align-items: center;
+		justify-content: space-between;
+		padding-top: 2rem;
+
+		.title-container:where(.svelte-1uha8ag) {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+
+			.logo:where(.svelte-1uha8ag) {
+				width: 2rem;
+				height: 2rem;
+			}
+
+			.title:where(.svelte-1uha8ag) {
+				@include typography.heading-1;
+			}
+		}
+
+		.links:where(.svelte-1uha8ag) {
+			display: flex;
+			align-items: center;
+			gap: 1rem;
+
+			.icon-link:where(.svelte-1uha8ag) {
+				transition: opacity variables.$transition;
+
+				&:hover {
+					opacity: 0.75;
+				}
+
+				svg {
+					height: 1.5rem;
+				}
+			}
+		}
+	}
+
+	.main.svelte-1uha8ag {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2rem;
+
+		@include screens.mobile {
+			width: 100vw;
+			padding: 0 1.5rem;
+			margin-top: 4rem;
+		}
+
+		@include screens.desktop {
+			padding-top: 10vh;
+
+			@media (height >= 1000px) {
+				padding-top: 16vh;
+			}
+		}
+
+		.hero-container:where(.svelte-1uha8ag) {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+
+			.hero:where(.svelte-1uha8ag) {
+				@include typography.bold;
+
+				padding-bottom: 1rem;
+				-webkit-background-clip: text;
+				-moz-background-clip: text;
+				background-clip: text;
+				background-image: linear-gradient(variables.$bg-6, transparent 175%);
+				font-size: 2.5rem;
+				text-align: center;
+				-webkit-text-fill-color: transparent;
+				-moz-text-fill-color: transparent;
+
+				@include screens.desktop {
+					max-width: 45rem;
+					font-size: 3rem;
+				}
+			}
+
+			.subhero:where(.svelte-1uha8ag) {
+				color: variables.$bg-5;
+				font-size: 1.25rem;
+				text-align: center;
+			}
+		}
+
+		.buttons-container:where(.svelte-1uha8ag) {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+			gap: 1rem;
+		}
+
+		.separator:where(.svelte-1uha8ag) {
+			width: 20rem;
+			height: 1px;
+			background-image: linear-gradient(to right, transparent, variables.$blue, transparent);
+		}
+
+		.features-list:where(.svelte-1uha8ag) {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+
+			@include screens.mobile {
+				gap: 2rem;
+			}
+
+			.feature:where(.svelte-1uha8ag) {
+				display: flex;
+				width: 16rem;
+				flex-direction: column;
+				align-items: center;
+				gap: 0.5rem;
+
+				svg {
+					height: 2rem;
+					color: variables.$light-blue;
+				}
+
+				.title:where(.svelte-1uha8ag) {
+					@include typography.bold;
+				}
+
+				.description:where(.svelte-1uha8ag) {
+					color: variables.$bg-5;
+				}
+			}
+		}
+
+		.image-container:where(.svelte-1uha8ag) {
+			@include screens.mobile {
+				display: none;
+			}
+
+			@keyframes svelte-1uha8ag-slide-3d {
+				from {
+					opacity: 0;
+					transform: perspective(500px) rotate3d(1, 0, 0, 10deg);
+					translate: 0 4rem;
+				}
+
+				to {
+					opacity: 1;
+					transform: perspective(500px) rotate3d(1, 0, 0, 2deg);
+					translate: 0;
+				}
+			}
+
+			position: relative;
+			overflow: hidden;
+			border-radius: 0.8rem;
+			margin-top: 2rem;
+			animation: svelte-1uha8ag-slide-3d 1.5s cubic-bezier(0.8, 0, 0.2, 1) both;
+			box-shadow:
+				0 0 8rem rgba(variables.$blue, 0.25),
+				0 0 2rem rgba(variables.$light-blue, 0.25);
+
+			@media (height >= 1000px) {
+				margin-top: 4rem;
+			}
+
+			.image:where(.svelte-1uha8ag) {
+				max-width: unset;
+			}
+
+			&::before {
+				@keyframes svelte-1uha8ag-reflect-appear {
+					0% {
+						opacity: 0;
+						translate: -40% 90%;
+					}
+
+					100% {
+						opacity: 1;
+						translate: -30% 100%;
+					}
+				}
+
+				position: absolute;
+				width: 150%;
+				height: 20rem;
+				animation: svelte-1uha8ag-reflect-appear 1.5s cubic-bezier(0.8, 0, 0.2, 1) both;
+				background-image: linear-gradient(transparent, rgba(white, 0.03));
+				content: '';
+				inset: 0;
+				rotate: 135deg;
+			}
+		}
+	}

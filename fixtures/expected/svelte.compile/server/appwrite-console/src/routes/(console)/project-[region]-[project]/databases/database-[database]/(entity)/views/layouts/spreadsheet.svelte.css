@@ -1,0 +1,33 @@
+
+    .spreadsheet-wrapper.svelte-88spcx {
+        transition: height 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+        &.has-json-editor {
+            gap: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+
+            & .cm-indent-markers {
+                --indent-markers: unset !important;
+            }
+
+            @media (max-width: 768px) {
+                grid-template-columns: 1fr;
+            }
+
+            &:has(.no-sql-editor:where(.svelte-88spcx):empty),
+            &:has(.no-sql-editor.desktop:where(.svelte-88spcx):empty) {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .no-sql-editor:where(.svelte-88spcx) {
+            &:empty {
+                display: none;
+            }
+
+            &:has(.sheet-container:empty) {
+                display: none;
+            }
+        }
+    }

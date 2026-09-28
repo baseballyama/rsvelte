@@ -1,0 +1,58 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"::highlight(rainbow-color-1)\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 9,
+			"column": 1,
+			"character": 171
+		},
+		"end": {
+			"line": 9,
+			"column": 29,
+			"character": 199
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"custom-element::part(foo)\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 12,
+			"column": 1,
+			"character": 220
+		},
+		"end": {
+			"line": 12,
+			"column": 26,
+			"character": 245
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"::slotted(.content)\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 15,
+			"column": 1,
+			"character": 266
+		},
+		"end": {
+			"line": 15,
+			"column": 20,
+			"character": 285
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \":is( /*button*/\n\t\tbutton, /*p after h1*/\n\t\th1 + p\n\t\t)\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 18,
+			"column": 1,
+			"character": 306
+		},
+		"end": {
+			"line": 21,
+			"column": 3,
+			"character": 359
+		}
+	}
+]

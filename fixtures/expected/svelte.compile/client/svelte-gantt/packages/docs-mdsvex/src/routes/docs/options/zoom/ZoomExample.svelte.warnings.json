@@ -1,0 +1,86 @@
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 8,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"column": 24,
+			"character": 24
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 80,
+			"column": 84,
+			"character": 1873
+		},
+		"end": {
+			"line": 80,
+			"column": 125,
+			"character": 1914
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`headers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 56,
+			"column": 5,
+			"character": 1119
+		},
+		"end": {
+			"line": 56,
+			"column": 12,
+			"character": 1126
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`minWidth` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 57,
+			"column": 5,
+			"character": 1175
+		},
+		"end": {
+			"line": 57,
+			"column": 13,
+			"character": 1183
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`columnUnit` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 59,
+			"column": 5,
+			"character": 1218
+		},
+		"end": {
+			"line": 59,
+			"column": 15,
+			"character": 1228
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`columnOffset` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 60,
+			"column": 5,
+			"character": 1243
+		},
+		"end": {
+			"line": 60,
+			"column": 17,
+			"character": 1255
+		}
+	}
+]

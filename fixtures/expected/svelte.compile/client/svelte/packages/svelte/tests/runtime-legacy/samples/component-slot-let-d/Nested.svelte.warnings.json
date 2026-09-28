@@ -1,0 +1,72 @@
+[
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<div>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 5,
+			"column": 0,
+			"character": 36
+		},
+		"end": {
+			"line": 7,
+			"column": 6,
+			"character": 98
+		}
+	},
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a click handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 5,
+			"column": 0,
+			"character": 36
+		},
+		"end": {
+			"line": 7,
+			"column": 6,
+			"character": 98
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 41
+		},
+		"end": {
+			"line": 5,
+			"column": 33,
+			"character": 69
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 6,
+			"column": 1,
+			"character": 72
+		},
+		"end": {
+			"line": 6,
+			"column": 20,
+			"character": 91
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`foo` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 2,
+			"column": 5,
+			"character": 14
+		},
+		"end": {
+			"line": 2,
+			"column": 8,
+			"character": 17
+		}
+	}
+]

@@ -1,0 +1,22 @@
+import * as $ from 'svelte/internal/server';
+import { Layer } from '$lib';
+
+export default function ResizableLayerSurface($$renderer, $$props) {
+	let { bounds, show = false, $$slots, $$events, ...eventHandlers } = $$props;
+
+	const render = ({ context }) => {
+		const { x0, y0, x1, y1 } = bounds;
+
+		if (show) {
+			context.strokeStyle = '#444';
+			context.lineWidth = 2;
+			context.strokeRect(x0, y0, x1 - x0, y1 - y0);
+		}
+
+		context.globalAlpha = 0;
+		context.fillRect(x0, y0, x1 - x0, y1 - y0);
+		context.globalAlpha = 1;
+	};
+
+	Layer($$renderer, $.spread_props([{ render }, eventHandlers]));
+}

@@ -1,0 +1,6 @@
+
+  @layer base {
+    :where(.lc-computed-styles) {
+      display: none;
+    }
+  }

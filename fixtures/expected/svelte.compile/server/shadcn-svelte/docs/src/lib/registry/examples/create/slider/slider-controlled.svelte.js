@@ -1,0 +1,56 @@
+import * as $ from 'svelte/internal/server';
+import { Label } from "$lib/registry/ui/label/index.js";
+import { Slider } from "$lib/registry/ui/slider/index.js";
+import Example from "../../../../../routes/(app)/(layout)/(create)/components/example.svelte";
+
+export default function Slider_controlled($$renderer) {
+	let value = [0.3, 0.7];
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Example($$renderer, {
+			title: 'Controlled',
+			children: ($$renderer) => {
+				$$renderer.push(`<div class="grid w-full gap-3"><div class="flex items-center justify-between gap-2">`);
+
+				Label($$renderer, {
+					for: 'slider-demo-temperature',
+					children: ($$renderer) => {
+						$$renderer.push(`<!---->Temperature`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!----> <span class="text-sm text-muted-foreground">${$.escape(value.join(", "))}</span></div> `);
+
+				Slider($$renderer, {
+					id: 'slider-demo-temperature',
+					type: 'multiple',
+					min: 0,
+					max: 1,
+					step: 0.1,
+					get value() {
+						return value;
+					},
+
+					set value($$value) {
+						value = $$value;
+						$$settled = false;
+					}
+				});
+
+				$$renderer.push(`<!----></div>`);
+			},
+			$$slots: { default: true }
+		});
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}

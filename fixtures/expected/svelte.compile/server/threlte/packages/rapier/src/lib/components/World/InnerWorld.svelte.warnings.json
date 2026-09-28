@@ -1,0 +1,282 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `gravity`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 31,
+			"column": 11,
+			"character": 762
+		},
+		"end": {
+			"line": 31,
+			"column": 18,
+			"character": 769
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `gravity`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 31,
+			"column": 26,
+			"character": 777
+		},
+		"end": {
+			"line": 31,
+			"column": 33,
+			"character": 784
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `gravity`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 31,
+			"column": 41,
+			"character": 792
+		},
+		"end": {
+			"line": 31,
+			"column": 48,
+			"character": 799
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rawIntegrationParameters`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 32,
+			"column": 6,
+			"character": 812
+		},
+		"end": {
+			"line": 32,
+			"column": 30,
+			"character": 836
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rawIslands`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 33,
+			"column": 6,
+			"character": 844
+		},
+		"end": {
+			"line": 33,
+			"column": 16,
+			"character": 854
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rawBroadPhase`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 34,
+			"column": 6,
+			"character": 862
+		},
+		"end": {
+			"line": 34,
+			"column": 19,
+			"character": 875
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rawNarrowPhase`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 35,
+			"column": 6,
+			"character": 883
+		},
+		"end": {
+			"line": 35,
+			"column": 20,
+			"character": 897
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rawBodies`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 36,
+			"column": 6,
+			"character": 905
+		},
+		"end": {
+			"line": 36,
+			"column": 15,
+			"character": 914
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rawColliders`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 37,
+			"column": 6,
+			"character": 922
+		},
+		"end": {
+			"line": 37,
+			"column": 18,
+			"character": 934
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rawImpulseJoints`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 38,
+			"column": 6,
+			"character": 942
+		},
+		"end": {
+			"line": 38,
+			"column": 22,
+			"character": 958
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rawMultibodyJoints`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 39,
+			"column": 6,
+			"character": 966
+		},
+		"end": {
+			"line": 39,
+			"column": 24,
+			"character": 984
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rawCCDSolver`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 40,
+			"column": 6,
+			"character": 992
+		},
+		"end": {
+			"line": 40,
+			"column": 18,
+			"character": 1004
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rawQueryPipeline`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 41,
+			"column": 6,
+			"character": 1012
+		},
+		"end": {
+			"line": 41,
+			"column": 22,
+			"character": 1028
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rawPhysicsPipeline`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 42,
+			"column": 6,
+			"character": 1036
+		},
+		"end": {
+			"line": 42,
+			"column": 24,
+			"character": 1054
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rawSerializationPipeline`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 43,
+			"column": 6,
+			"character": 1062
+		},
+		"end": {
+			"line": 43,
+			"column": 30,
+			"character": 1086
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rawDebugRenderPipeline`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 44,
+			"column": 6,
+			"character": 1094
+		},
+		"end": {
+			"line": 44,
+			"column": 28,
+			"character": 1116
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `framerate`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 47,
+			"column": 6,
+			"character": 1136
+		},
+		"end": {
+			"line": 47,
+			"column": 15,
+			"character": 1145
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `autoStart`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 48,
+			"column": 6,
+			"character": 1153
+		},
+		"end": {
+			"line": 48,
+			"column": 15,
+			"character": 1162
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `simulationStageOptions`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 49,
+			"column": 6,
+			"character": 1170
+		},
+		"end": {
+			"line": 49,
+			"column": 28,
+			"character": 1192
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `synchronizationStageOptions`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 50,
+			"column": 6,
+			"character": 1200
+		},
+		"end": {
+			"line": 50,
+			"column": 33,
+			"character": 1227
+		}
+	}
+]

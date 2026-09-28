@@ -1,0 +1,35 @@
+
+	.svelte-19dl7vy:not(.foo) {
+		color: green;
+	}
+	.svelte-19dl7vy:not(.unused) {
+		color: green;
+	}
+	.svelte-19dl7vy:not(p) {
+		color: green;
+	}
+
+	.svelte-19dl7vy:not(.foo):not(.unused) {
+		color: green;
+	}
+
+	p.svelte-19dl7vy:not(.foo) {
+		color: green;
+	}
+	/* (unused) span :not(.foo) {
+		color: red;
+	}*/
+	/* (unused) span :not(.unused) {
+		color: red;
+	}*/
+
+	span.svelte-19dl7vy:not(p:where(.svelte-19dl7vy) span:where(.svelte-19dl7vy)) {
+		color: green;
+	}
+	span.svelte-19dl7vy:not(:focus) {
+		color: green;
+	}
+
+	p.svelte-19dl7vy:not(:has(span)) {
+		color: green;
+	}

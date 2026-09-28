@@ -1,0 +1,16 @@
+[
+	{
+		"code": "perf_avoid_nested_class",
+		"message": "Avoid declaring classes below the top level scope\nhttps://svelte.dev/e/perf_avoid_nested_class",
+		"start": {
+			"line": 3,
+			"column": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"column": 3,
+			"character": 63
+		}
+	}
+]

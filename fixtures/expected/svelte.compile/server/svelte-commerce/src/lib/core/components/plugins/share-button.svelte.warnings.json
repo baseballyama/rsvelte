@@ -1,0 +1,240 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `productName`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 24,
+			"column": 33,
+			"character": 1033
+		},
+		"end": {
+			"line": 24,
+			"column": 44,
+			"character": 1044
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `url`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 24,
+			"column": 48,
+			"character": 1048
+		},
+		"end": {
+			"line": 24,
+			"column": 51,
+			"character": 1051
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `productName`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 29,
+			"column": 47,
+			"character": 1160
+		},
+		"end": {
+			"line": 29,
+			"column": 58,
+			"character": 1171
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `url`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 29,
+			"column": 66,
+			"character": 1179
+		},
+		"end": {
+			"line": 29,
+			"column": 69,
+			"character": 1182
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `url`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 34,
+			"column": 53,
+			"character": 1297
+		},
+		"end": {
+			"line": 34,
+			"column": 56,
+			"character": 1300
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `productName`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 34,
+			"column": 66,
+			"character": 1310
+		},
+		"end": {
+			"line": 34,
+			"column": 77,
+			"character": 1321
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `productName`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 39,
+			"column": 51,
+			"character": 1426
+		},
+		"end": {
+			"line": 39,
+			"column": 62,
+			"character": 1437
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `url`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 39,
+			"column": 193,
+			"character": 1568
+		},
+		"end": {
+			"line": 39,
+			"column": 196,
+			"character": 1571
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `url`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 44,
+			"column": 57,
+			"character": 1692
+		},
+		"end": {
+			"line": 44,
+			"column": 60,
+			"character": 1695
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `productImage`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 44,
+			"column": 70,
+			"character": 1705
+		},
+		"end": {
+			"line": 44,
+			"column": 82,
+			"character": 1717
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `productName`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 44,
+			"column": 98,
+			"character": 1733
+		},
+		"end": {
+			"line": 44,
+			"column": 109,
+			"character": 1744
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `url`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 49,
+			"column": 64,
+			"character": 1870
+		},
+		"end": {
+			"line": 49,
+			"column": 67,
+			"character": 1873
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `productName`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 54,
+			"column": 112,
+			"character": 2041
+		},
+		"end": {
+			"line": 54,
+			"column": 123,
+			"character": 2052
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `url`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 54,
+			"column": 132,
+			"character": 2061
+		},
+		"end": {
+			"line": 54,
+			"column": 135,
+			"character": 2064
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 102,
+			"column": 4,
+			"character": 4053
+		},
+		"end": {
+			"line": 110,
+			"column": 13,
+			"character": 4576
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 164,
+			"column": 5,
+			"character": 7415
+		},
+		"end": {
+			"line": 172,
+			"column": 14,
+			"character": 8026
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 191,
+			"column": 4,
+			"character": 8695
+		},
+		"end": {
+			"line": 199,
+			"column": 13,
+			"character": 9213
+		}
+	}
+]

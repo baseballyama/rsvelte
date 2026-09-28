@@ -1,0 +1,38 @@
+
+	.item.svelte-vd97sx {
+		width: 100%;
+		display: flex;
+		align-items: center;
+		min-height: 56px;
+		padding: 0 12px;
+		overflow: hidden;
+	}
+
+	.avatar.svelte-vd97sx {
+		margin-right: 12px;
+	}
+
+	.name.svelte-vd97sx {
+		flex: 1;
+	}
+
+	.mail.svelte-vd97sx {
+		flex: 1;
+	}
+
+	.user-avatar.svelte-vd97sx {
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		background-color: #dfe2e6;
+		text-align: center;
+	}
+
+	.user-photo.svelte-vd97sx {
+		display: block;
+		width: 100%;
+		height: 100%;
+		border-radius: 50%;
+		background-color: #dfe2e6;
+		object-fit: cover;
+	}

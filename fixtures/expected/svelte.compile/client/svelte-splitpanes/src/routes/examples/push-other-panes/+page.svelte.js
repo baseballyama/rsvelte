@@ -1,0 +1,19 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+
+var root = $.from_html(`<h2>Lots of splitters & push other panes - all panes have a min width of 5%</h2> <!>`, 1);
+
+export default function _page($$anchor) {
+	var fragment = root();
+	var node = $.sibling($.first_child(fragment), 2);
+
+	ExampleArea(node, {
+		get example() {
+			return example;
+		}
+	});
+
+	$.append($$anchor, fragment);
+}

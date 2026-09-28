@@ -1,0 +1,12 @@
+
+	h1.svelte-1fx24xx ~ span:where(.svelte-1fx24xx) {
+		color: green;
+	}
+
+  h1.svelte-1fx24xx ~ p:where(.svelte-1fx24xx) {
+    color: red;
+  }
+
+	span.svelte-1fx24xx ~ p:where(.svelte-1fx24xx) {
+		color: blue;
+	}

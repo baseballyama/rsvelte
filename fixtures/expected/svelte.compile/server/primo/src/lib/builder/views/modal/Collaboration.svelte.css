@@ -1,0 +1,122 @@
+
+	.Invitation.svelte-1ch7xb9 {
+		padding: 1rem 1.5rem;
+		color: var(--color-gray-1);
+		background: #111;
+		overflow: auto;
+		width: 100%;
+	}
+	main.svelte-1ch7xb9 {
+		display: grid;
+		gap: 1.5rem;
+	}
+	h2.svelte-1ch7xb9 {
+		font-weight: 700;
+		font-size: 1rem;
+	}
+	.subheading.svelte-1ch7xb9 {
+		font-weight: 700;
+		font-size: 0.75rem;
+	}
+	.link.svelte-1ch7xb9 {
+		margin-top: 0.5rem;
+		padding: 1rem;
+		background-color: #1c1c1c;
+		white-space: pre-wrap;
+		word-break: break-all;
+		user-select: all;
+	}
+	form.svelte-1ch7xb9 {
+		display: grid;
+		gap: 0.5rem;
+
+		div:where(.svelte-1ch7xb9) {
+			display: flex;
+			gap: 0.5rem;
+			font-size: 0.75rem;
+			align-items: center;
+
+			.input-group:where(.svelte-1ch7xb9) {
+				flex: 1;
+				border-radius: 4px;
+				border: 1px solid var(--color-gray-7);
+				color: var(--color-gray-2);
+				height: 2.5rem;
+			}
+
+			input:where(.svelte-1ch7xb9) {
+				height: 100%;
+				flex: 1;
+				padding: 0.25rem 0.5rem;
+				border-right: 1px solid var(--color-gray-8);
+				background: transparent;
+
+				&:focus-visible {
+					outline: none;
+				}
+			}
+
+			select:where(.svelte-1ch7xb9) {
+				background: transparent;
+				margin-right: 0.5rem;
+				outline: 0 !important;
+			}
+
+			button:where(.svelte-1ch7xb9) {
+				padding: 10px 12px;
+				background: var(--color-gray-7);
+				border-radius: 4px;
+			}
+
+			.error:where(.svelte-1ch7xb9) {
+				color: #f72228;
+			}
+		}
+	}
+	ul.svelte-1ch7xb9 {
+		margin-top: 0.5rem;
+		display: grid;
+		gap: 0.75rem;
+	}
+	li.svelte-1ch7xb9 {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-weight: 400;
+		font-size: 0.75rem;
+		/* color: #3a3d45; */
+		/* (unused) .letter {
+			height: 26px;
+			width: 26px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			background: #81a6fd;
+			color: white;
+			font-weight: 700;
+			font-size: 0.875rem;
+			line-height: 0;
+			border-radius: 50%;
+		}*/
+		.email:where(.svelte-1ch7xb9) {
+			flex: 1;
+		}
+		/* (unused) .status-pill {
+			padding: 2px 8px;
+			border-radius: 12px;
+			font-size: 0.625rem;
+			font-weight: 500;
+			text-transform: uppercase;
+			letter-spacing: 0.025em;
+
+			&.pending {
+				background: rgba(251, 191, 36, 0.2);
+				color: #fbbf24;
+			}
+
+			&.sent {
+				background: rgba(129, 140, 248, 0.2);
+				color: #818cf8;
+			}
+		}*/
+	}

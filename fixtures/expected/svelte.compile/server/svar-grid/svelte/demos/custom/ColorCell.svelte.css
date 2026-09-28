@@ -1,0 +1,10 @@
+
+	.color_block.svelte-1wiuuwy {
+		height: 20px;
+		width: 20px;
+		border-radius: 3px;
+		border: var(--wx-table-cell-border);
+	}
+	span.svelte-1wiuuwy {
+		padding-left: 26px;
+	}

@@ -1,0 +1,32 @@
+
+  @layer base {
+    :where(.lc-marker) {
+      overflow: visible;
+
+      &[data-type='arrow'],
+      &[data-type='circle-stroke'],
+      &[data-type='square-stroke'],
+      &[data-type='line'] {
+        fill: none;
+        stroke: context-stroke;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      &[data-type='circle'] {
+        stroke: var(--color-surface-100, light-dark(white, black));
+      }
+
+      &[data-type='triangle'],
+      &[data-type='dot'],
+      &[data-type='circle'],
+      &[data-type='square'] {
+        fill: context-stroke;
+      }
+
+      &[data-type='circle-stroke'],
+      &[data-type='square-stroke'] {
+        fill: var(--color-surface-100, light-dark(white, black));
+      }
+    }
+  }

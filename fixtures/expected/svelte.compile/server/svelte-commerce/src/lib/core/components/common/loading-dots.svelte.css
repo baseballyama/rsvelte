@@ -1,0 +1,41 @@
+
+	.loading-dots.svelte-1i86j2l {
+		display: inline-flex;
+		align-items: center;
+		height: 1em;
+		visibility: hidden;
+	}
+
+	.visible.svelte-1i86j2l {
+		visibility: visible;
+	}
+
+	.dot.svelte-1i86j2l {
+		width: 0.1em;
+		height: 0.1em;
+		border-radius: 50%;
+		background-color: currentColor;
+		margin: 0 0.1em;
+		animation: svelte-1i86j2l-pulse 1.4s infinite ease-in-out;
+	}
+
+	.dot.svelte-1i86j2l:nth-child(2) {
+		animation-delay: 0.2s;
+	}
+
+	.dot.svelte-1i86j2l:nth-child(3) {
+		animation-delay: 0.4s;
+	}
+
+	@keyframes svelte-1i86j2l-pulse {
+		0%,
+		80%,
+		100% {
+			transform: scale(0);
+			opacity: 0;
+		}
+		40% {
+			transform: scale(1);
+			opacity: 1;
+		}
+	}

@@ -1,0 +1,44 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 11,
+			"column": 9,
+			"character": 241
+		},
+		"end": {
+			"line": 11,
+			"column": 43,
+			"character": 275
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 15,
+			"column": 9,
+			"character": 333
+		},
+		"end": {
+			"line": 15,
+			"column": 43,
+			"character": 367
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 19,
+			"column": 9,
+			"character": 425
+		},
+		"end": {
+			"line": 19,
+			"column": 43,
+			"character": 459
+		}
+	}
+]

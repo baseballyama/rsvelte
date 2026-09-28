@@ -1,0 +1,87 @@
+<script lang="ts">
+    import { InputText } from '$lib/elements/forms';
+    import Button from '$lib/elements/forms/button.svelte';
+    import { debounce } from '$lib/helpers/debounce';
+    import { sdk } from '$lib/stores/sdk';
+    import { ConsoleResourceType } from '@appwrite.io/console';
+    import { Fieldset, Layout, Status, Typography } from '@appwrite.io/pink-svelte';
+    import { regionalConsoleVariables } from '$routes/(console)/project-[region]-[project]/store';
+
+    let {
+        domain = $bindable(),
+        domainIsValid = $bindable(true)
+    }: {
+        domain: string;
+        domainIsValid?: boolean;
+    } = $props();
+
+    const originalDomain = domain;
+
+    let newDomain = $state(domain);
+    let domainStatus: 'complete' | 'failed' | 'pending' = $state(domain ? 'pending' : 'complete');
+
+    function setDomainLabel(status: typeof domainStatus) {
+        switch (status) {
+            case 'complete':
+                return 'Domain is available';
+            case 'failed':
+                return 'Domain is not available';
+            case 'pending':
+                return 'Checking domain availability';
+        }
+    }
+
+    const checkDomain = debounce(async (value: string) => {
+        if (!value) {
+            domainStatus = 'failed';
+            domainIsValid = false;
+            domain = newDomain;
+            return;
+        }
+        try {
+            await sdk.forConsole.console.getResource({
+                value: `${value}.${$regionalConsoleVariables._APP_DOMAIN_SITES}`,
+                type: ConsoleResourceType.Rules
+            });
+            domainStatus = 'complete';
+            domainIsValid = true;
+        } catch {
+            domainStatus = 'failed';
+            domainIsValid = false;
+        } finally {
+            domain = newDomain;
+        }
+    }, 500);
+
+    $effect(() => {
+        domainIsValid; /* silences lint for unused var */
+
+        if (newDomain) {
+            if (domain !== newDomain) {
+                domainStatus = 'pending';
+            }
+            checkDomain(newDomain);
+        }
+    });
+</script>
+
+<Fieldset legend="Domains">
+    <Layout.Stack gap="s">
+        <Layout.Stack gap="s" direction="row" alignItems="center">
+            <InputText id="domain" placeholder="my-domain" bind:value={newDomain}>
+                <svelte:fragment slot="end">
+                    <Typography.Text variant="m-400" color="--fgcolor-neutral-tertiary">
+                        .{$regionalConsoleVariables._APP_DOMAIN_SITES}
+                    </Typography.Text>
+                </svelte:fragment>
+            </InputText>
+            <Button
+                secondary
+                disabled={originalDomain === newDomain}
+                on:click={() => (newDomain = originalDomain)}>Reset</Button>
+        </Layout.Stack>
+        {#if newDomain}
+            <Status status={domainStatus} label={setDomainLabel(domainStatus)}></Status>
+        {/if}
+    </Layout.Stack>
+</Fieldset>

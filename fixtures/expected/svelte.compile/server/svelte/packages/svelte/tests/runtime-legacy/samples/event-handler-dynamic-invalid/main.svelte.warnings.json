@@ -1,0 +1,86 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 11,
+			"column": 8,
+			"character": 157
+		},
+		"end": {
+			"line": 11,
+			"column": 31,
+			"character": 180
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 12,
+			"column": 8,
+			"character": 204
+		},
+		"end": {
+			"line": 12,
+			"column": 30,
+			"character": 226
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 13,
+			"column": 8,
+			"character": 249
+		},
+		"end": {
+			"line": 13,
+			"column": 33,
+			"character": 274
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`handlerUndef` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 2,
+			"column": 5,
+			"character": 14
+		},
+		"end": {
+			"line": 2,
+			"column": 17,
+			"character": 26
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`handlerNull` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 3,
+			"column": 5,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"column": 16,
+			"character": 44
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`handlerInvalid` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 51
+		},
+		"end": {
+			"line": 4,
+			"column": 19,
+			"character": 65
+		}
+	}
+]

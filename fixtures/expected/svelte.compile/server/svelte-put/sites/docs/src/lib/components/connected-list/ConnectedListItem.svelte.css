@@ -1,0 +1,5 @@
+
+	.connected-step.svelte-wud7kk::after {
+		content: counter(connected-list);
+		counter-increment: connected-list;
+	}

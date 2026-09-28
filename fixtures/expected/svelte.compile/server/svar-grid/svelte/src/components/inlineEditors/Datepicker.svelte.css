@@ -1,0 +1,16 @@
+
+	.wx-value.svelte-1vdx3gg {
+		width: 100%;
+		height: 100%;
+		padding: 8px;
+		overflow: hidden;
+		outline: none;
+		border: 1px solid var(--wx-color-primary);
+	}
+	.wx-text.svelte-1vdx3gg {
+		width: 100%;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		display: block;
+	}

@@ -1,0 +1,9 @@
+import * as $ from 'svelte/internal/server';
+
+export default function Main($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		$$renderer.push(`<button><!--[-->`);
+		$.slot($$renderer, $$props, 'default', {}, null);
+		$$renderer.push(`<!--]--></button>`);
+	});
+}

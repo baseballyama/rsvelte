@@ -1,0 +1,114 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".a + .h\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 58,
+			"column": 1,
+			"character": 1229
+		},
+		"end": {
+			"line": 58,
+			"column": 8,
+			"character": 1236
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".a + .i\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 59,
+			"column": 1,
+			"character": 1256
+		},
+		"end": {
+			"line": 59,
+			"column": 8,
+			"character": 1263
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".c + .h\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 60,
+			"column": 1,
+			"character": 1283
+		},
+		"end": {
+			"line": 60,
+			"column": 8,
+			"character": 1290
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".c + .i\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 61,
+			"column": 1,
+			"character": 1310
+		},
+		"end": {
+			"line": 61,
+			"column": 8,
+			"character": 1317
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".d + .f\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 62,
+			"column": 1,
+			"character": 1337
+		},
+		"end": {
+			"line": 62,
+			"column": 8,
+			"character": 1344
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".d + .g\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 63,
+			"column": 1,
+			"character": 1364
+		},
+		"end": {
+			"line": 63,
+			"column": 8,
+			"character": 1371
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".e + .g\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 64,
+			"column": 1,
+			"character": 1391
+		},
+		"end": {
+			"line": 64,
+			"column": 8,
+			"character": 1398
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".g + .i\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 65,
+			"column": 1,
+			"character": 1418
+		},
+		"end": {
+			"line": 65,
+			"column": 8,
+			"character": 1425
+		}
+	}
+]

@@ -1,0 +1,16 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"[data-melt-dropdown-menu-arrow]\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 43,
+			"column": 2,
+			"character": 1113
+		},
+		"end": {
+			"line": 43,
+			"column": 33,
+			"character": 1144
+		}
+	}
+]

@@ -1,0 +1,28 @@
+
+  @keyframes svelte-1wz86od-spin {
+    from {
+      rotate: 0deg;
+    }
+    to {
+      rotate: 360deg;
+    }
+  }
+
+  .minus.svelte-1wz86od {
+    rotate: 0deg;
+    animation-duration: calc(var(--__transition-duration) * 1.8);
+    animation-timing-function: linear;
+  }
+
+  .expanding.svelte-1wz86od {
+    animation-delay: calc(var(--__transition-duration) * 3);
+    animation-iteration-count: infinite;
+    animation-name: svelte-1wz86od-spin;
+  }
+
+  .collapsing.svelte-1wz86od {
+    /* animation-delay: calc(var(--__transition-duration) * 0.8); */
+    animation-iteration-count: infinite;
+    animation-direction: reverse;
+    animation-name: svelte-1wz86od-spin;
+  }

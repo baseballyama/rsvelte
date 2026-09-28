@@ -1,0 +1,37 @@
+
+	/* Refined Editorial footer — scoped to the default theme via `.ed`, so wine/organic
+	   (which share this footer) are untouched. Fonts come from the global default-theme
+	   type system; here we set the warm surface, hairline rules, and quiet text. */
+	.ed.svelte-fypvjl {
+		background: var(--ed-canvas);
+		border-top: 1px solid var(--ed-line);
+		color: var(--ed-ink);
+		font-family: var(--ed-body);
+	}
+
+	/* Gutters for EVERY theme that uses this footer (was scoped to `.ed`, so wine/organic still
+	   ran edge-to-edge and clipped the logo / copyright on narrow screens). Reads the shared
+	   container tokens from app.css, so the footer sits on the same rail as the header and the
+	   theme homepage; the .ed background below still spans full width. */
+	.ed-foot-inner.svelte-fypvjl {
+		width: min(var(--container-max, 1240px), 100% - 2 * var(--container-gutter, 16px));
+		margin-inline: auto;
+	}
+
+	.ed.svelte-fypvjl .border-t {
+		border-top-color: var(--ed-line);
+	}
+
+	.ed.svelte-fypvjl .border-b {
+		border-bottom-color: var(--ed-line);
+	}
+
+	.ed.svelte-fypvjl .text-muted-foreground {
+		color: var(--ed-soft);
+	}
+
+	.ed.svelte-fypvjl a.hover\:text-foreground:hover,
+	.ed.svelte-fypvjl a.hover\:text-primary:hover {
+		color: hsl(var(--primary));
+	}
+

@@ -1,0 +1,58 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `falloff`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 19,
+			"column": 22,
+			"character": 525
+		},
+		"end": {
+			"line": 19,
+			"column": 29,
+			"character": 532
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `glowInternalRadius`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 20,
+			"column": 33,
+			"character": 569
+		},
+		"end": {
+			"line": 20,
+			"column": 51,
+			"character": 587
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `glowColor`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 21,
+			"column": 34,
+			"character": 625
+		},
+		"end": {
+			"line": 21,
+			"column": 43,
+			"character": 634
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `glowSharpness`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 22,
+			"column": 28,
+			"character": 667
+		},
+		"end": {
+			"line": 22,
+			"column": 41,
+			"character": 680
+		}
+	}
+]

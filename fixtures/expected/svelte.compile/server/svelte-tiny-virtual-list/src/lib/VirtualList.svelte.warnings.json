@@ -1,0 +1,254 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 53,
+			"column": 59,
+			"character": 1208
+		},
+		"end": {
+			"line": 53,
+			"column": 67,
+			"character": 1216
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemCount`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 53,
+			"column": 69,
+			"character": 1218
+		},
+		"end": {
+			"line": 53,
+			"column": 78,
+			"character": 1227
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `estimatedItemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 53,
+			"column": 80,
+			"character": 1229
+		},
+		"end": {
+			"line": 53,
+			"column": 97,
+			"character": 1246
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollOffset`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 64,
+			"column": 10,
+			"character": 1537
+		},
+		"end": {
+			"line": 64,
+			"column": 22,
+			"character": 1549
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollToIndex`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 64,
+			"column": 27,
+			"character": 1554
+		},
+		"end": {
+			"line": 64,
+			"column": 40,
+			"character": 1567
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollToIndex`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 64,
+			"column": 76,
+			"character": 1603
+		},
+		"end": {
+			"line": 64,
+			"column": 89,
+			"character": 1616
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scroll`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 67,
+			"column": 34,
+			"character": 1711
+		},
+		"end": {
+			"line": 67,
+			"column": 40,
+			"character": 1717
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollToIndex`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 72,
+			"column": 33,
+			"character": 1945
+		},
+		"end": {
+			"line": 72,
+			"column": 46,
+			"character": 1958
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollToAlignment`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 73,
+			"column": 37,
+			"character": 1998
+		},
+		"end": {
+			"line": 73,
+			"column": 54,
+			"character": 2015
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollOffset`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 74,
+			"column": 32,
+			"character": 2050
+		},
+		"end": {
+			"line": 74,
+			"column": 44,
+			"character": 2062
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemCount`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 75,
+			"column": 29,
+			"character": 2094
+		},
+		"end": {
+			"line": 75,
+			"column": 38,
+			"character": 2103
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 76,
+			"column": 19,
+			"character": 2125
+		},
+		"end": {
+			"line": 76,
+			"column": 27,
+			"character": 2133
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 76,
+			"column": 45,
+			"character": 2151
+		},
+		"end": {
+			"line": 76,
+			"column": 53,
+			"character": 2159
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 76,
+			"column": 72,
+			"character": 2178
+		},
+		"end": {
+			"line": 76,
+			"column": 80,
+			"character": 2186
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `estimatedItemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 77,
+			"column": 37,
+			"character": 2226
+		},
+		"end": {
+			"line": 77,
+			"column": 54,
+			"character": 2243
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `heightNumber`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 78,
+			"column": 32,
+			"character": 2278
+		},
+		"end": {
+			"line": 78,
+			"column": 44,
+			"character": 2290
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `widthNumber`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 79,
+			"column": 31,
+			"character": 2324
+		},
+		"end": {
+			"line": 79,
+			"column": 42,
+			"character": 2335
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `stickyIndices`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 80,
+			"column": 33,
+			"character": 2371
+		},
+		"end": {
+			"line": 80,
+			"column": 46,
+			"character": 2384
+		}
+	}
+]

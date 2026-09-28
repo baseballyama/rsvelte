@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a pointermove or pointerleave handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 44,
+			"column": 6,
+			"character": 1091
+		},
+		"end": {
+			"line": 57,
+			"column": 12,
+			"character": 1535
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`data` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 12,
+			"column": 7,
+			"character": 401
+		},
+		"end": {
+			"line": 12,
+			"column": 11,
+			"character": 405
+		}
+	}
+]

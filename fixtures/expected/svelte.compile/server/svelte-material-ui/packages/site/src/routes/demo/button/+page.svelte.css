@@ -1,0 +1,9 @@
+
+  .svelte-d3xzgl .mdc-button,
+  .svelte-d3xzgl .smui-button__group {
+    margin-bottom: 8px;
+  }
+  .svelte-d3xzgl .smui-button__group > .mdc-button,
+  .svelte-d3xzgl .smui-button__group-item > .mdc-button {
+    margin-bottom: 0;
+  }

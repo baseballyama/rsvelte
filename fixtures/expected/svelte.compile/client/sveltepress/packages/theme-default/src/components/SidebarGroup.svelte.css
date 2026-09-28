@@ -1,0 +1,36 @@
+
+  .nested.svelte-145wssf {
+    --at-apply: 'pl-4 mt-2';
+  }
+  .with-mb.svelte-145wssf {
+    --at-apply: 'mb-1 sm:mb-2';
+  }
+  .sidebar-group.svelte-145wssf:not(:last-of-type) {
+    --at-apply: 'border-b-solid border-b border-black/5 dark:border-b-white/8 mb-3 pb-3';
+  }
+  /* pl matches the links' inner padding so every label lines up on one edge,
+     while pills and the group rule share the outer edge */
+  .group-title.svelte-145wssf {
+    --at-apply: 'font-600 text-zinc-8 dark:text-zinc-2 flex items-center justify-between pl-3';
+  }
+  .links.svelte-145wssf {
+    --at-apply: 'overflow-hidden text-[14px]';
+  }
+  .links.svelte-145wssf > .link {
+    --at-apply: 'px-3 py-1.5 my-px leading-5 rounded-md transition-colors transition-150 text-zinc-7 dark:text-zinc-3';
+  }
+  .links.svelte-145wssf > .link:not(.active):hover {
+    --at-apply: 'bg-black/4 dark:bg-white/6';
+  }
+  .links.svelte-145wssf > .link.active {
+    --at-apply: 'bg-svp-primary/8 dark:bg-svp-primary/12 text-svp-primary-deep dark:text-svp-primary font-600';
+  }
+  .collapse-control.svelte-145wssf {
+    --at-apply: 'transition transition-200 transition-bg transition-transform cursor-pointer text-5 hover:bg-gray-2 active:bg-gray-3 dark:hover:bg-gray-8 dark:active:bg-gray-7 w-[28px] h-[28px] flex items-center justify-center rounded';
+  }
+  .arrow.svelte-145wssf {
+    --at-apply: 'flex items-center transition-300 transition-transform';
+  }
+  .collapsed.svelte-145wssf {
+    --at-apply: 'rotate--90';
+  }

@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_no_noninteractive_tabindex",
+		"message": "noninteractive element cannot have nonnegative tabIndex value\nhttps://svelte.dev/e/a11y_no_noninteractive_tabindex",
+		"start": {
+			"line": 500,
+			"column": 9,
+			"character": 15148
+		},
+		"end": {
+			"line": 523,
+			"column": 15,
+			"character": 16121
+		}
+	},
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a click or keydown handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 500,
+			"column": 9,
+			"character": 15148
+		},
+		"end": {
+			"line": 523,
+			"column": 15,
+			"character": 16121
+		}
+	}
+]

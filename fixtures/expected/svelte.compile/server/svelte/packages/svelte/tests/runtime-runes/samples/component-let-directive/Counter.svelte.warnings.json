@@ -1,0 +1,44 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 9,
+			"column": 8,
+			"character": 94
+		},
+		"end": {
+			"line": 9,
+			"column": 28,
+			"character": 114
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 10,
+			"column": 1,
+			"character": 117
+		},
+		"end": {
+			"line": 10,
+			"column": 17,
+			"character": 133
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 13,
+			"column": 0,
+			"character": 145
+		},
+		"end": {
+			"line": 13,
+			"column": 21,
+			"character": 166
+		}
+	}
+]

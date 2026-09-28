@@ -1,0 +1,18 @@
+
+  .center.svelte-voieyz {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .theme-display.svelte-voieyz {
+    display: flex;
+    gap: 1ch;
+    padding: 2ch;
+    width: 100%;
+    max-width: 640px;
+    font-size: 12px;
+    font-family: monospace;
+    text-align: left;
+  }

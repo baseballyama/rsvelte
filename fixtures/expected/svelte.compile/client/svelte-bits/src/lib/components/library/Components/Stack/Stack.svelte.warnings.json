@@ -1,0 +1,44 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `cardsData`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 51,
+			"column": 33,
+			"character": 1658
+		},
+		"end": {
+			"line": 51,
+			"column": 42,
+			"character": 1667
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `cardsData`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 51,
+			"column": 53,
+			"character": 1678
+		},
+		"end": {
+			"line": 51,
+			"column": 62,
+			"character": 1687
+		}
+	},
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a pointerdown, pointermove, pointerup or pointercancel handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 192,
+			"column": 2,
+			"character": 6185
+		},
+		"end": {
+			"line": 210,
+			"column": 8,
+			"character": 7067
+		}
+	}
+]

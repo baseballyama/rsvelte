@@ -1,0 +1,29 @@
+
+  .tools.svelte-201b35 {
+    display: flex;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    flex-wrap: nowrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.25em;
+    opacity: 0;
+    z-index: calc(var(--index) + 1);
+    backdrop-filter: blur(1px);
+    transition: opacity var(--__transition-duration) ease-in-out allow-discrete;
+    border-left: 1px solid var(--_tools-border-color);
+    background-color: var(--_tools-background-color);
+    padding-inline: 0.5em;
+    max-height: 1.5em;
+    overflow: clip;
+    font-size: 1em;
+  }
+
+  .line:hover .tools.svelte-201b35,
+  .line:focus-within .tools.svelte-201b35 {
+    display: flex;
+    opacity: 1;
+    transition: opacity var(--__transition-duration) ease-in-out allow-discrete;
+  }

@@ -1,0 +1,18 @@
+
+	.container.svelte-15bpv6s {
+		text-align: left;
+	}
+
+	ul.svelte-15bpv6s {
+		margin-block: var(--spacing-24);
+	}
+
+	ul.svelte-15bpv6s li:where(.svelte-15bpv6s)::before {
+		content: '';
+	}
+
+	input.svelte-15bpv6s {
+		padding: var(--spacing-16);
+		color: #000;
+		border-radius: var(--rounded-20);
+	}

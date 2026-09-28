@@ -1,0 +1,30 @@
+[
+	{
+		"code": "block_empty",
+		"message": "Empty block\nhttps://svelte.dev/e/block_empty",
+		"start": {
+			"line": 15,
+			"column": 18,
+			"character": 231
+		},
+		"end": {
+			"line": 16,
+			"column": 0,
+			"character": 232
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 18,
+			"column": 0,
+			"character": 239
+		},
+		"end": {
+			"line": 18,
+			"column": 40,
+			"character": 279
+		}
+	}
+]

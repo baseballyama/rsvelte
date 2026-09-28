@@ -1,0 +1,9 @@
+
+	.a.svelte-14qxl6w + .b:where(.svelte-14qxl6w) { color: green; }
+	.a.svelte-14qxl6w + .c:where(.svelte-14qxl6w) { color: green; }
+	.a.svelte-14qxl6w + .d:where(.svelte-14qxl6w) { color: green; }
+	.b.svelte-14qxl6w + .d:where(.svelte-14qxl6w) { color: green; }
+	.c.svelte-14qxl6w + .d:where(.svelte-14qxl6w) { color: green; }
+
+	/* no match */
+	/* (unused) .b + .c { color: green; }*/

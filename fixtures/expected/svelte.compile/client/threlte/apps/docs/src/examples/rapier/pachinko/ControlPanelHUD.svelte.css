@@ -1,0 +1,109 @@
+
+  .score-card.svelte-k1v5oq {
+    background: rgba(20, 12, 40, 0.85);
+    border: 1px solid rgba(255, 200, 80, 0.35);
+    border-radius: 6px;
+    padding: 0.6rem 1rem;
+    color: #f0e8ff;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    box-shadow: 0 0 24px rgba(255, 100, 200, 0.18);
+    width: 180px;
+  }
+
+  .score-label.svelte-k1v5oq {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #ffb074;
+  }
+
+  .score-value.svelte-k1v5oq {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #ffdd80;
+    text-shadow: 0 0 12px rgba(255, 200, 80, 0.6);
+    line-height: 1.1;
+  }
+
+  .last-hit.svelte-k1v5oq {
+    margin-top: 0.25rem;
+    font-size: 0.85rem;
+    color: #88ffcc;
+    animation: svelte-k1v5oq-pop 0.6s ease-out;
+  }
+
+  .last-hit.jackpot.svelte-k1v5oq {
+    color: #ff66cc;
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(255, 100, 200, 0.8);
+  }
+
+  .power.svelte-k1v5oq {
+    width: 220px;
+    background: rgba(20, 12, 40, 0.85);
+    border: 1px solid rgba(120, 100, 180, 0.4);
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    color: #f0e8ff;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .power-label.svelte-k1v5oq {
+    font-size: 0.75rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .autofire.svelte-k1v5oq {
+    color: #ff3d8a;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-shadow: 0 0 8px rgba(255, 60, 140, 0.9);
+    animation: svelte-k1v5oq-blink 0.35s steps(2, end) infinite;
+  }
+
+  .power-bar.svelte-k1v5oq {
+    height: 10px;
+    background: rgba(60, 40, 100, 0.6);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .power-fill.svelte-k1v5oq {
+    height: 100%;
+    background: linear-gradient(90deg, #88ffcc, #ffdd80, #ff66cc);
+    transition: width 60ms linear;
+  }
+
+  .power-fill.max.svelte-k1v5oq {
+    background: linear-gradient(90deg, #ff66cc, #ff3d8a);
+    box-shadow: 0 0 12px rgba(255, 60, 140, 0.8);
+  }
+
+  kbd.svelte-k1v5oq {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 3px;
+    padding: 0 4px;
+    font-family: inherit;
+    font-size: 0.7rem;
+  }
+
+  @keyframes svelte-k1v5oq-pop {
+    0% {
+      transform: translateY(4px);
+      opacity: 0;
+    }
+    20% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes svelte-k1v5oq-blink {
+    50% {
+      opacity: 0.55;
+    }
+  }

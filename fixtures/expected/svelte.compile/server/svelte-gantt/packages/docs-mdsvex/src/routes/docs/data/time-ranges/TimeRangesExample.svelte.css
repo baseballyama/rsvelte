@@ -1,0 +1,8 @@
+
+	.example.svelte-1n4uhxb .gradient {
+		@apply bg-gradient-to-tr from-pink-500 to-violet-500 rounded-md;
+		background-size: unset !important;
+	}
+	.example.svelte-1n4uhxb .gradient:hover {
+		@apply bg-gradient-to-tr from-pink-600 to-violet-600 rounded-md shadow-xl;
+	}

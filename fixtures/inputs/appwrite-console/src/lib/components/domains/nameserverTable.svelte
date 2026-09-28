@@ -1,0 +1,59 @@
+<script lang="ts">
+    import { regionalConsoleVariables } from '$routes/(console)/project-[region]-[project]/store';
+    import { getProxyRuleStatusBadge } from './status';
+
+    import { Badge, Layout, Typography, Table, InteractiveText } from '@appwrite.io/pink-svelte';
+
+    let {
+        domain,
+        verified,
+        ruleStatus
+    }: {
+        domain: string;
+        verified?: boolean;
+        ruleStatus?: 'created' | 'verifying' | 'unverified' | 'verified';
+    } = $props();
+
+    const nameserverList = $regionalConsoleVariables?._APP_DOMAINS_NAMESERVERS
+        ? $regionalConsoleVariables?._APP_DOMAINS_NAMESERVERS?.split(',')
+        : ['ns1.appwrite.io', 'ns2.appwrite.io'];
+</script>
+
+<Layout.Stack gap="s">
+    <Layout.Stack gap="s" direction="row" alignItems="center">
+        <Typography.Text variant="l-500" color="--fgcolor-neutral-primary">
+            {domain}
+        </Typography.Text>
+        {#if verified !== undefined}
+            {@const statusBadge = getProxyRuleStatusBadge(ruleStatus)}
+            {#if statusBadge}
+                <Badge
+                    variant="secondary"
+                    type={statusBadge.type}
+                    size="xs"
+                    content={statusBadge.content} />
+            {:else if verified === true}
+                <Badge variant="secondary" type="success" size="xs" content="Verified" />
+            {/if}
+        {/if}
+    </Layout.Stack>
+    <Typography.Text variant="m-400">
+        Add the following nameservers on your DNS provider. Note that DNS changes may take up to 48
+        hours to propagate fully.
+    </Typography.Text>
+</Layout.Stack>
+
+<Table.Root columns={2} let:root>
+    <svelte:fragment slot="header" let:root>
+        <Table.Header.Cell {root}>Type</Table.Header.Cell>
+        <Table.Header.Cell {root}>Value</Table.Header.Cell>
+    </svelte:fragment>
+    {#each nameserverList as nameserver}
+        <Table.Row.Base {root}>
+            <Table.Cell {root}>NS</Table.Cell>
+            <Table.Cell {root}>
+                <InteractiveText variant="copy" isVisible text={nameserver} />
+            </Table.Cell>
+        </Table.Row.Base>
+    {/each}
+</Table.Root>

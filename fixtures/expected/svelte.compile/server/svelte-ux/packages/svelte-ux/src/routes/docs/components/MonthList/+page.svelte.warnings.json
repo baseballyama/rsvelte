@@ -1,0 +1,58 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 17,
+			"column": 6,
+			"character": 376
+		},
+		"end": {
+			"line": 17,
+			"column": 28,
+			"character": 398
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selectedArr` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 18,
+			"column": 6,
+			"character": 413
+		},
+		"end": {
+			"line": 18,
+			"column": 25,
+			"character": 432
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selectedRange` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 19,
+			"column": 6,
+			"character": 445
+		},
+		"end": {
+			"line": 19,
+			"column": 30,
+			"character": 469
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selectedQuarter` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 20,
+			"column": 6,
+			"character": 504
+		},
+		"end": {
+			"line": 20,
+			"column": 32,
+			"character": 530
+		}
+	}
+]

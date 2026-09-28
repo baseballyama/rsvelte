@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`confirmed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 70
+		},
+		"end": {
+			"line": 4,
+			"column": 35,
+			"character": 100
+		}
+	}
+]

@@ -1,0 +1,86 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 17,
+			"column": 39,
+			"character": 697
+		},
+		"end": {
+			"line": 17,
+			"column": 80,
+			"character": 738
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 18,
+			"column": 47,
+			"character": 788
+		},
+		"end": {
+			"line": 18,
+			"column": 83,
+			"character": 824
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 19,
+			"column": 39,
+			"character": 882
+		},
+		"end": {
+			"line": 19,
+			"column": 80,
+			"character": 923
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 20,
+			"column": 48,
+			"character": 974
+		},
+		"end": {
+			"line": 20,
+			"column": 84,
+			"character": 1010
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 21,
+			"column": 16,
+			"character": 1046
+		},
+		"end": {
+			"line": 21,
+			"column": 64,
+			"character": 1094
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 24,
+			"column": 0,
+			"character": 1129
+		},
+		"end": {
+			"line": 24,
+			"column": 13,
+			"character": 1142
+		}
+	}
+]

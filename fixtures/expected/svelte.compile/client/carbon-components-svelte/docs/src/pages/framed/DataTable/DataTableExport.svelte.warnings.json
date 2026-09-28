@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`filteredRowIds` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 27,
+			"column": 6,
+			"character": 563
+		},
+		"end": {
+			"line": 27,
+			"column": 20,
+			"character": 577
+		}
+	}
+]

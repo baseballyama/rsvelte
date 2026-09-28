@@ -1,0 +1,30 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `pageSize`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 149,
+			"column": 12,
+			"character": 3740
+		},
+		"end": {
+			"line": 149,
+			"column": 20,
+			"character": 3748
+		}
+	},
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a click or keydown handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 231,
+			"column": 9,
+			"character": 5611
+		},
+		"end": {
+			"line": 255,
+			"column": 15,
+			"character": 6637
+		}
+	}
+]

@@ -1,0 +1,44 @@
+[
+	{
+		"code": "attribute_illegal_colon",
+		"message": "Attributes should not contain ':' characters to prevent ambiguity with Svelte directives\nhttps://svelte.dev/e/attribute_illegal_colon",
+		"start": {
+			"line": 17,
+			"column": 57,
+			"character": 481
+		},
+		"end": {
+			"line": 17,
+			"column": 72,
+			"character": 496
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 36,
+			"column": 2,
+			"character": 981
+		},
+		"end": {
+			"line": 36,
+			"column": 23,
+			"character": 1002
+		}
+	},
+	{
+		"code": "attribute_illegal_colon",
+		"message": "Attributes should not contain ':' characters to prevent ambiguity with Svelte directives\nhttps://svelte.dev/e/attribute_illegal_colon",
+		"start": {
+			"line": 48,
+			"column": 33,
+			"character": 1290
+		},
+		"end": {
+			"line": 48,
+			"column": 48,
+			"character": 1305
+		}
+	}
+]

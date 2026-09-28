@@ -1,0 +1,93 @@
+
+  .reference-section.svelte-8i5au {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    margin: var(--spacing-lg) 0;
+  }
+
+  .reference-card.svelte-8i5au {
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    background: var(--bg-secondary);
+    padding: var(--spacing-md);
+    transition: all var(--transition-fast);
+
+    &:hover {
+      border-color: var(--color-primary);
+      background-color: var(--surface-hover);
+      box-shadow: var(--shadow-md);
+    }
+  }
+
+  .card-header-inline.svelte-8i5au {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-sm);
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--spacing-sm);
+    }
+  }
+
+  .class-info.svelte-8i5au {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+
+  .class-badge.svelte-8i5au {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--text-primary);
+
+    &.a {
+      background-color: var(--color-info);
+    }
+    &.b {
+      background-color: var(--color-success);
+    }
+    &.c {
+      background-color: var(--color-warning);
+    }
+  }
+
+  .class-details.svelte-8i5au {
+    h3:where(.svelte-8i5au) {
+      margin: 0;
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+  }
+
+  .mask-info.svelte-8i5au {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+  }
+
+  .range-badge.svelte-8i5au {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    background-color: var(--bg-tertiary);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+  }
+
+  .class-description.svelte-8i5au {
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+  }
+  .usage-info.svelte-8i5au {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+  }

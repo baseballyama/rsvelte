@@ -1,0 +1,14 @@
+
+	.calendar.svelte-6me0l2 {
+		border: var(--wx-border);
+		border-radius: 3px;
+	}
+	.bar.svelte-6me0l2 {
+		display: flex;
+		margin-top: 20px;
+		gap: 20px;
+		align-items: center;
+	}
+	.text.svelte-6me0l2 {
+		width: 150px;
+	}

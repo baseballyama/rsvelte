@@ -1,0 +1,17 @@
+
+	.dropdown-item.svelte-v96tkx {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.375rem 0.5rem;
+		font-size: 0.875rem;
+		border-radius: var(--edra-radius-sm);
+		cursor: pointer;
+		user-select: none;
+		transition: all 150ms ease;
+		outline: none;
+	}
+	.dropdown-item.svelte-v96tkx:hover,
+	.dropdown-item.svelte-v96tkx:focus {
+		background-color: var(--edra-canvas-soft-2);
+	}

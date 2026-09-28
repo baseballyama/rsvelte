@@ -1,0 +1,110 @@
+
+	.remove-from-recent.svelte-qth84j {
+		color: var(--warning);
+		position: absolute;
+		right: -10px;
+		top: 50%;
+		transform: translateY(-50%);
+	}
+
+	.play-button.svelte-qth84j {
+		background: var(--bg);
+		border: 2px solid var(--fg);
+		color: var(--fg);
+		padding: 5px 3px 5px 5px;
+		box-shadow: none;
+		--icon_size: 14px;
+		height: 31px;
+		width: 31px;
+		&:hover {
+			color: var(--accent);
+		}
+	}
+
+	ul.svelte-qth84j {
+		position: relative;
+		margin: 0;
+		padding: 0;
+	}
+
+	li.svelte-qth84j {
+		list-style: none;
+		position: relative;
+		padding: 0 10px;
+		display: flex;
+		align-items: center;
+		overflow: hidden;
+		margin-bottom: 0;
+	}
+
+	li.svelte-qth84j:last-child {
+		margin-bottom: 0;
+	}
+
+	a.svelte-qth84j {
+		display: block;
+		text-decoration: none;
+		line-height: 1;
+		padding: 1rem;
+		overflow: hidden;
+	}
+
+	li.svelte-qth84j:hover {
+		background: var(--subtle);
+	}
+
+	a.svelte-qth84j strong:where(.svelte-qth84j),
+	a.svelte-qth84j span:where(.svelte-qth84j) {
+		display: block;
+		white-space: nowrap;
+		line-height: 1.5;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	a.svelte-qth84j strong.wrap:where(.svelte-qth84j) {
+		white-space: normal;
+	}
+
+	a.svelte-qth84j strong:where(.svelte-qth84j) {
+		color: var(--sk-text-2);
+	}
+
+	a.svelte-qth84j span:where(.svelte-qth84j) {
+		color: #737373;
+		margin: 0.4rem 0 0 0;
+	}
+
+	a.svelte-qth84j mark {
+		--highlight-color: var(--primary);
+		--sk-text-1: var(--black);
+	}
+
+	a.svelte-qth84j span:where(.svelte-qth84j) mark {
+		background: none;
+		color: var(--sk-text-1);
+		background: var(--highlight-color);
+		border-top: 2px solid var(--highlight-color);
+		/* mix-blend-mode: darken; */
+	}
+
+	a.svelte-qth84j:focus span:where(.svelte-qth84j) {
+		color: rgba(255, 255, 255, 0.6);
+	}
+
+	a.svelte-qth84j:focus strong:where(.svelte-qth84j) {
+		color: white;
+	}
+
+	a.svelte-qth84j:focus span:where(.svelte-qth84j) mark,
+	a.svelte-qth84j:focus strong:where(.svelte-qth84j) mark {
+		--highlight-color: hsl(240, 8%, 54%);
+		mix-blend-mode: lighten;
+		color: white;
+	}
+
+	a.svelte-qth84j strong:where(.svelte-qth84j) mark {
+		color: var(--sk-text-1);
+		background: var(--highlight-color);
+		/* border-top: 2px solid var(--highlight-color); */
+		border-radius: 1px;
+	}

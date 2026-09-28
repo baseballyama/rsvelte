@@ -1,0 +1,18 @@
+
+  @layer base {
+    :where(.lc-rect) {
+      --fill-color: var(--color-surface-content, currentColor);
+      --stroke-color: initial;
+    }
+
+    /* Html layers */
+    :where(.lc-layout-html .lc-rect) {
+      box-sizing: border-box;
+    }
+    :where(.lc-layout-html .lc-rect):not([background]) {
+      background: var(--fill-color);
+    }
+    :where(.lc-layout-html .lc-rect):not([border-color]) {
+      border-color: var(--stroke-color);
+    }
+  }

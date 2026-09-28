@@ -1,0 +1,16 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `restProps`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 167,
+			"column": 25,
+			"character": 4568
+		},
+		"end": {
+			"line": 167,
+			"column": 34,
+			"character": 4577
+		}
+	}
+]

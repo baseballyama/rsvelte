@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`videoRef` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 76,
+			"column": 5,
+			"character": 2291
+		},
+		"end": {
+			"line": 76,
+			"column": 31,
+			"character": 2317
+		}
+	}
+]

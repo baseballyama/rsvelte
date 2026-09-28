@@ -1,0 +1,185 @@
+
+  .example-protocols.svelte-1qp7td {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    margin-top: var(--spacing-xs);
+    background: var(--bg-tertiary);
+    padding: 2px var(--spacing-xs);
+    border-radius: var(--radius-xs);
+  }
+
+  .protocol-presets.svelte-1qp7td {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-xs);
+  }
+
+  .preset-label.svelte-1qp7td {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    margin-right: var(--spacing-xs);
+  }
+
+  .preset-btn.svelte-1qp7td {
+    font-size: var(--font-size-xs);
+    padding: 2px var(--spacing-xs);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-xs);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    &:hover {
+      background: var(--color-primary);
+      color: var(--bg-primary);
+      border-color: var(--color-primary);
+    }
+  }
+
+  .status-title.svelte-1qp7td {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .status-desc.svelte-1qp7td {
+    font-size: var(--font-size-xs);
+    margin: 2px 0 0 0;
+    opacity: 0.8;
+  }
+
+  .protocols-section.svelte-1qp7td {
+    margin: var(--spacing-lg) 0;
+
+    h4:where(.svelte-1qp7td) {
+      color: var(--text-primary);
+      margin: 0 0 var(--spacing-md) 0;
+      border-bottom: 1px solid var(--border-primary);
+      padding-bottom: var(--spacing-xs);
+    }
+  }
+
+  .protocol-details.svelte-1qp7td {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+  }
+
+  .detail-section.svelte-1qp7td {
+    h5:where(.svelte-1qp7td) {
+      color: var(--text-primary);
+      margin: 0 0 var(--spacing-md) 0;
+      font-size: var(--font-size-md);
+    }
+  }
+
+  .protocol-list.svelte-1qp7td {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .protocol-item.svelte-1qp7td {
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-md);
+
+    &.requested {
+      background: var(--bg-secondary);
+    }
+
+    &.selected {
+      background: color-mix(in srgb, var(--color-success), transparent 95%);
+      border-color: var(--color-success);
+    }
+  }
+
+  .protocol-header.svelte-1qp7td {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .protocol-name.svelte-1qp7td {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .protocol-id.svelte-1qp7td {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+  }
+
+  .protocol-priority.svelte-1qp7td {
+    font-size: var(--font-size-xs);
+    background: var(--bg-tertiary);
+    padding: 2px var(--spacing-xs);
+    border-radius: var(--radius-xs);
+    color: var(--text-secondary);
+    margin-left: auto;
+  }
+
+  .protocol-desc.svelte-1qp7td {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  .selected-protocol.svelte-1qp7td {
+    .success-icon:where(.svelte-1qp7td) {
+      color: var(--color-success);
+    }
+  }
+
+  .no-selection.svelte-1qp7td {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: color-mix(in srgb, var(--color-error), transparent 95%);
+    border: 1px solid var(--color-error);
+    border-radius: var(--radius-sm);
+    color: var(--color-error);
+  }
+
+  .connection-section.svelte-1qp7td {
+    margin-top: var(--spacing-lg);
+
+    h4:where(.svelte-1qp7td) {
+      color: var(--text-primary);
+      margin: 0 0 var(--spacing-md) 0;
+      border-bottom: 1px solid var(--border-primary);
+      padding-bottom: var(--spacing-xs);
+    }
+  }
+
+  .detail-grid.svelte-1qp7td {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .detail-item.svelte-1qp7td {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+
+  .detail-label.svelte-1qp7td {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  .detail-value.svelte-1qp7td {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .mono.svelte-1qp7td {
+    font-family: var(--font-mono);
+  }

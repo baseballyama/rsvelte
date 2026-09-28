@@ -1,0 +1,72 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `disableCache`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 30,
+			"column": 20,
+			"character": 650
+		},
+		"end": {
+			"line": 30,
+			"column": 32,
+			"character": 662
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `url`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 30,
+			"column": 35,
+			"character": 665
+		},
+		"end": {
+			"line": 30,
+			"column": 38,
+			"character": 668
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `x`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 30,
+			"column": 39,
+			"character": 669
+		},
+		"end": {
+			"line": 30,
+			"column": 40,
+			"character": 670
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `y`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 30,
+			"column": 42,
+			"character": 672
+		},
+		"end": {
+			"line": 30,
+			"column": 43,
+			"character": 673
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `z`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 30,
+			"column": 45,
+			"character": 675
+		},
+		"end": {
+			"line": 30,
+			"column": 46,
+			"character": 676
+		}
+	}
+]

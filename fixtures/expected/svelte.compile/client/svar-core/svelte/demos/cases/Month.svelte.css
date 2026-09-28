@@ -1,0 +1,27 @@
+
+	.custom.svelte-t2pv3 {
+		--wx-calendar-cell-size: 64px;
+		--wx-color-font-disabled: transparent;
+	}
+	.custom.svelte-t2pv3 .days .day {
+		padding: 3px;
+		align-items: start;
+		justify-content: left;
+	}
+	.custom.svelte-t2pv3 .weekdays .weekday {
+		padding: 3px;
+		text-align: left;
+	}
+
+	.row.svelte-t2pv3 {
+		display: flex;
+		flex-direction: row;
+		justify-content: flex-start;
+		gap: 4px;
+		flex-wrap: wrap;
+	}
+
+	.cell.svelte-t2pv3 {
+		margin: 20px;
+		width: 220px;
+	}

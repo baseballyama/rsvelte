@@ -1,0 +1,42 @@
+
+    .upload-box.svelte-lmslu2 {
+        display: flex;
+        max-height: 320px;
+        flex-direction: column;
+    }
+
+    .upload-box-header.svelte-lmslu2 {
+        flex-shrink: 0;
+    }
+
+    .upload-box-title.svelte-lmslu2 {
+        font-size: 11px;
+    }
+
+    .upload-box-content-list.svelte-lmslu2 {
+        overflow-y: auto;
+    }
+
+    .upload-box-content.svelte-lmslu2 {
+        width: 324px;
+    }
+
+    .upload-box-button.svelte-lmslu2 {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .progress-bar-container.svelte-lmslu2 {
+        height: 4px;
+
+        &::before {
+            height: 4px;
+            background-color: var(--bgcolor-neutral-invert);
+        }
+
+        &.is-danger::before {
+            height: 4px;
+            background-color: var(--bgcolor-error);
+        }
+    }

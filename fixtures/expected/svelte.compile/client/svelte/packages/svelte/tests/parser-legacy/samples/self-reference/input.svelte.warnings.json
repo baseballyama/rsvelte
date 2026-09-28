@@ -1,0 +1,30 @@
+[
+	{
+		"code": "svelte_self_deprecated",
+		"message": "`<svelte:self>` is deprecated — use self-imports (e.g. `import Input from './input.svelte'`) instead\nhttps://svelte.dev/e/svelte_self_deprecated",
+		"start": {
+			"line": 2,
+			"column": 1,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"column": 35,
+			"character": 51
+		}
+	},
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 2,
+			"column": 14,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"column": 33,
+			"character": 49
+		}
+	}
+]

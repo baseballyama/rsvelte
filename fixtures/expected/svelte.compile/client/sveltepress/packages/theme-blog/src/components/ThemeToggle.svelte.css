@@ -1,0 +1,21 @@
+
+  .sp-theme-toggle.svelte-1m0y0gq {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--sp-blog-border);
+    background: transparent;
+    color: var(--sp-blog-content);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+      background 0.15s,
+      color 0.15s;
+    flex-shrink: 0;
+  }
+  .sp-theme-toggle.svelte-1m0y0gq:hover {
+    background: var(--sp-blog-surface);
+    color: var(--sp-blog-primary);
+  }

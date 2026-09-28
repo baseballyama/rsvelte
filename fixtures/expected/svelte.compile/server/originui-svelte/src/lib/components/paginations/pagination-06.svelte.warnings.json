@@ -1,0 +1,44 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `currentPage`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 27,
+			"column": 2,
+			"character": 539
+		},
+		"end": {
+			"line": 27,
+			"column": 13,
+			"character": 550
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `paginationItemsToDisplay`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 28,
+			"column": 2,
+			"character": 554
+		},
+		"end": {
+			"line": 28,
+			"column": 26,
+			"character": 578
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `totalPages`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 29,
+			"column": 2,
+			"character": 582
+		},
+		"end": {
+			"line": 29,
+			"column": 12,
+			"character": 592
+		}
+	}
+]

@@ -1,0 +1,58 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 189
+		},
+		"end": {
+			"line": 7,
+			"column": 11,
+			"character": 194
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`value2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 206
+		},
+		"end": {
+			"line": 8,
+			"column": 12,
+			"character": 212
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`value3` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 6,
+			"character": 224
+		},
+		"end": {
+			"line": 9,
+			"column": 12,
+			"character": 230
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`disabled` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 6,
+			"character": 242
+		},
+		"end": {
+			"line": 10,
+			"column": 14,
+			"character": 250
+		}
+	}
+]

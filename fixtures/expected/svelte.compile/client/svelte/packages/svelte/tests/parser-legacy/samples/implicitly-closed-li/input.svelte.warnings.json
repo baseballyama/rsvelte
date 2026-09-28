@@ -1,0 +1,44 @@
+[
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `<li>`, which can cause an unexpected DOM structure. Add an explicit `</li>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 2,
+			"column": 1,
+			"character": 6
+		},
+		"end": {
+			"line": 2,
+			"column": 5,
+			"character": 10
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `<li>`, which can cause an unexpected DOM structure. Add an explicit `</li>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 3,
+			"column": 1,
+			"character": 13
+		},
+		"end": {
+			"line": 3,
+			"column": 5,
+			"character": 17
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `</ul>`, which can cause an unexpected DOM structure. Add an explicit `</li>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 4,
+			"column": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 4,
+			"column": 5,
+			"character": 24
+		}
+	}
+]

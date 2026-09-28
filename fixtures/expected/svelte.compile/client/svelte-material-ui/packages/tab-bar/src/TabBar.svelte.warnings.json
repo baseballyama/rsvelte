@@ -1,0 +1,58 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `tabs`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 129,
+			"column": 8,
+			"character": 3472
+		},
+		"end": {
+			"line": 129,
+			"column": 12,
+			"character": 3476
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `focusOnActivate`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 135,
+			"column": 41,
+			"character": 3758
+		},
+		"end": {
+			"line": 135,
+			"column": 56,
+			"character": 3773
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `key`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 137,
+			"column": 36,
+			"character": 3853
+		},
+		"end": {
+			"line": 137,
+			"column": 39,
+			"character": 3856
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `key`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 138,
+			"column": 4,
+			"character": 3870
+		},
+		"end": {
+			"line": 138,
+			"column": 7,
+			"character": 3873
+		}
+	}
+]

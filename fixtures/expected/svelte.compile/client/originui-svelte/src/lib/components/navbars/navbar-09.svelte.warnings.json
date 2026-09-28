@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_invalid_attribute",
+		"message": "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
+		"start": {
+			"line": 82,
+			"column": 7,
+			"character": 3161
+		},
+		"end": {
+			"line": 82,
+			"column": 15,
+			"character": 3169
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 124,
+			"column": 5,
+			"character": 4509
+		},
+		"end": {
+			"line": 127,
+			"column": 7,
+			"character": 4618
+		}
+	}
+]

@@ -1,0 +1,9 @@
+
+	x.svelte-1rwx1av + y:where(.svelte-1rwx1av) { color: green; }
+	x.svelte-1rwx1av + v:where(.svelte-1rwx1av) { color: green; }
+	x.svelte-1rwx1av + z:where(.svelte-1rwx1av) { color: green; }
+	y.svelte-1rwx1av + z:where(.svelte-1rwx1av) { color: green; }
+	v.svelte-1rwx1av + z:where(.svelte-1rwx1av) { color: green; }
+	.component + z.svelte-1rwx1av { color: green; }
+
+	/* (unused) n + m { color: red; }*/

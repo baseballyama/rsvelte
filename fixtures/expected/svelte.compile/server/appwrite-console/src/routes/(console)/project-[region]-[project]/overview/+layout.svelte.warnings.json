@@ -1,0 +1,30 @@
+[
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 171,
+			"column": 20,
+			"character": 6277
+		},
+		"end": {
+			"line": 171,
+			"column": 55,
+			"character": 6312
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 174,
+			"column": 12,
+			"character": 6375
+		},
+		"end": {
+			"line": 174,
+			"column": 20,
+			"character": 6383
+		}
+	}
+]

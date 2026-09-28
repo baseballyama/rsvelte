@@ -1,0 +1,23 @@
+
+	/* boundary of each */
+	.a.svelte-rojdwx ~ .b:where(.svelte-rojdwx) {
+		color: green;
+	}
+	.c.svelte-rojdwx ~ .d:where(.svelte-rojdwx) {
+		color: green;
+	}
+	/* if array is empty */
+	.a.svelte-rojdwx ~ .d:where(.svelte-rojdwx) {
+		color: green;
+	}
+	/* if array has multiple items */
+	.c.svelte-rojdwx ~ .b:where(.svelte-rojdwx) {
+		color: green;
+	}
+	/* normal sibling */
+	.b.svelte-rojdwx ~ .c:where(.svelte-rojdwx) {
+		color: green;
+	}
+	.a.svelte-rojdwx ~ .c:where(.svelte-rojdwx) {
+		color: green;
+	}

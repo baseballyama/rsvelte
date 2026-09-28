@@ -1,0 +1,28 @@
+
+  @layer components {
+    :where(.lc-highlight-area) {
+      --fill-color: color-mix(in oklab, var(--color-surface-content, currentColor) 5%, transparent);
+    }
+
+    :where(.lc-highlight-bar) {
+      --fill-color: var(--color-primary, currentColor);
+    }
+
+    :where(.lc-highlight-line) {
+      --stroke-color: color-mix(
+        in oklab,
+        var(--color-surface-content, currentColor) 20%,
+        transparent
+      );
+      stroke-width: 2;
+      stroke-dasharray: 2 2;
+      pointer-events: none;
+    }
+
+    :where(.lc-highlight-point) {
+      --stroke-color: white;
+      --fill-color: var(--color-primary, currentColor);
+      paint-order: stroke;
+      filter: drop-shadow(var(--drop-shadow-sm, 0 1px 2px rgb(0 0 0 / 0.15)));
+    }
+  }

@@ -1,0 +1,9 @@
+
+	.striped-background {
+		outline: 1px solid color-mix(in lch, var(--color-secondary) 50%, transparent);
+		background: repeating-linear-gradient(
+			135deg,
+			color-mix(in lch, var(--color-secondary) 30%, transparent) 0 1px,
+			color-mix(in lch, var(--color-secondary) 10%, transparent) 0 6px
+		);
+	}

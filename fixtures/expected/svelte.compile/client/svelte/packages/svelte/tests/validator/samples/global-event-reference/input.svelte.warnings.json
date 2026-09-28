@@ -1,0 +1,30 @@
+[
+	{
+		"code": "attribute_global_event_reference",
+		"message": "You are referencing `globalThis.onkeydown`. Did you forget to declare a variable with that name?\nhttps://svelte.dev/e/attribute_global_event_reference",
+		"start": {
+			"line": 8,
+			"column": 8,
+			"character": 126
+		},
+		"end": {
+			"line": 8,
+			"column": 19,
+			"character": 137
+		}
+	},
+	{
+		"code": "attribute_global_event_reference",
+		"message": "You are referencing `globalThis.onkeydown`. Did you forget to declare a variable with that name?\nhttps://svelte.dev/e/attribute_global_event_reference",
+		"start": {
+			"line": 9,
+			"column": 8,
+			"character": 164
+		},
+		"end": {
+			"line": 9,
+			"column": 29,
+			"character": 185
+		}
+	}
+]

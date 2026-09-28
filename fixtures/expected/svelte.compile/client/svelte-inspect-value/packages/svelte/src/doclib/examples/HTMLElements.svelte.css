@@ -1,0 +1,40 @@
+
+  fieldset.svelte-e2q7hj {
+    display: flex;
+    gap: 1em;
+
+    label:where(.svelte-e2q7hj) {
+      display: inline-flex;
+      flex-direction: row;
+      gap: 1em;
+    }
+  }
+
+  .demo-div.svelte-e2q7hj {
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: flex-start;
+    align-items: flex-start;
+    transition: all 0.2s ease-in-out;
+    background-color: cadetblue;
+    height: 150px;
+    overflow: auto;
+
+    input:where(.svelte-e2q7hj) {
+      max-width: 50%;
+    }
+
+    &.red {
+      background-color: pink;
+      color: black;
+    }
+
+    &.blue {
+      background-color: lightblue;
+      color: black;
+    }
+
+    &.radius {
+      border-radius: 16px;
+    }
+  }

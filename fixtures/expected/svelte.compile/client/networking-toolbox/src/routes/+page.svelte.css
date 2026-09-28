@@ -1,0 +1,8 @@
+
+  .loading-layout.svelte-1uha8ag {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 50vh;
+    color: var(--text-secondary);
+  }

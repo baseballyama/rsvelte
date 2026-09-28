@@ -1,0 +1,40 @@
+import * as $ from 'svelte/internal/server';
+import { Button } from "$lib/components/ui/button";
+import ChevronRight from "@lucide/svelte/icons/chevron-right";
+import CirclePlay from "@lucide/svelte/icons/circle-play";
+import Header from "./header.svelte";
+
+export default function Hero_one($$renderer) {
+	Header($$renderer, {});
+
+	$$renderer.push(`<!----> <main class="overflow-hidden [--color-primary:var(--color-indigo-500)]"><section class="bg-linear-to-b from-background to-muted"><div class="relative py-36"><div class="relative z-10 mx-auto w-full max-w-5xl px-6"><div class="md:w-1/2"><div><h1 class="max-w-md text-5xl font-medium text-balance md:text-6xl">Simple payments for startups</h1> <p class="my-8 max-w-2xl text-xl text-balance text-muted-foreground">One tool that does it all. Search, generate, analyze, and chat—right
+							inside Tailark.</p> <div class="flex items-center gap-3">`);
+
+	Button($$renderer, {
+		variant: 'mdefault',
+		size: 'lg',
+		class: 'pr-4.5',
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Get Started `);
+			ChevronRight($$renderer, { class: 'opacity-50' });
+			$$renderer.push(`<!---->`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----> `);
+
+	Button($$renderer, {
+		href: '/',
+		size: 'lg',
+		variant: 'outline',
+		class: 'pl-5',
+		children: ($$renderer) => {
+			CirclePlay($$renderer, { class: 'fill-primary/25 stroke-primary' });
+			$$renderer.push(`<!----> Watch Video`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></div></div> <div class="mt-10"><p class="text-muted-foreground">Trusted by teams at :</p> <div class="mt-6 grid max-w-sm grid-cols-3 gap-6"><div class="flex"><img class="h-4 w-fit" src="https://html.tailus.io/blocks/customers/column.svg" alt="Column Logo" height="16" width="auto"/></div> <div class="flex"><img class="h-5 w-fit" src="https://html.tailus.io/blocks/customers/nvidia.svg" alt="Nvidia Logo" height="20" width="auto"/></div> <div class="flex"><img class="h-4 w-fit" src="https://html.tailus.io/blocks/customers/github.svg" alt="GitHub Logo" height="16" width="auto"/></div></div></div></div></div> <div class="mt-24 translate-x-12 perspective-near md:absolute md:top-40 md:-right-6 md:bottom-16 md:left-1/2 md:mt-0 md:translate-x-0"><div class="relative h-full before:absolute before:-inset-x-4 before:top-0 before:bottom-7 before:skew-x-6 before:rounded-[calc(var(--radius)+1rem)] before:border before:border-foreground/5 before:bg-foreground/5"><div class="relative h-full -translate-y-12 skew-x-6 overflow-hidden rounded-(--radius) border border-transparent bg-background shadow-md ring-1 shadow-foreground/10"><img src="/mist/tailark.png" alt="app screen" width="2880" height="1842" class="size-full object-cover object-top-left"/></div></div></div></div></section></main>`);
+}

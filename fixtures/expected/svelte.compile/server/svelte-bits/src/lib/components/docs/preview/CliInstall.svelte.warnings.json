@@ -1,0 +1,16 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".cli-hint-inline\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 334,
+			"column": 1,
+			"character": 7600
+		},
+		"end": {
+			"line": 334,
+			"column": 17,
+			"character": 7616
+		}
+	}
+]

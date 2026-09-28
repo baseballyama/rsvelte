@@ -1,0 +1,9 @@
+
+	.demo.svelte-19uo3vq {
+		--wx-table-header-cell-border: var(--wx-table-cell-border);
+		--wx-table-footer-cell-border: var(--wx-table-cell-border);
+	}
+
+	.demo.svelte-19uo3vq .wx-footer {
+		border-bottom: none;
+	}

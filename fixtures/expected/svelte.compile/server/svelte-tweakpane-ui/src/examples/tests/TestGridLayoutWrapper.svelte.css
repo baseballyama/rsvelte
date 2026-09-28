@@ -1,0 +1,10 @@
+
+	div.grid-wrapper.svelte-2vxm84 {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		max-width: 337px;
+	}
+
+	div.grid-wrapper.svelte-2vxm84 > div:first-child {
+		grid-column: span 2;
+	}

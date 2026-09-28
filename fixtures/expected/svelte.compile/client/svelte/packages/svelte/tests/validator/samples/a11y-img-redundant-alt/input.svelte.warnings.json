@@ -1,0 +1,44 @@
+[
+	{
+		"code": "a11y_img_redundant_alt",
+		"message": "Screenreaders already announce `<img>` elements as an image\nhttps://svelte.dev/e/a11y_img_redundant_alt",
+		"start": {
+			"line": 3,
+			"column": 0,
+			"character": 131
+		},
+		"end": {
+			"line": 3,
+			"column": 49,
+			"character": 180
+		}
+	},
+	{
+		"code": "a11y_img_redundant_alt",
+		"message": "Screenreaders already announce `<img>` elements as an image\nhttps://svelte.dev/e/a11y_img_redundant_alt",
+		"start": {
+			"line": 4,
+			"column": 0,
+			"character": 181
+		},
+		"end": {
+			"line": 4,
+			"column": 45,
+			"character": 226
+		}
+	},
+	{
+		"code": "a11y_img_redundant_alt",
+		"message": "Screenreaders already announce `<img>` elements as an image\nhttps://svelte.dev/e/a11y_img_redundant_alt",
+		"start": {
+			"line": 5,
+			"column": 0,
+			"character": 227
+		},
+		"end": {
+			"line": 5,
+			"column": 52,
+			"character": 279
+		}
+	}
+]

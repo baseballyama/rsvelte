@@ -1,0 +1,100 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:pointerdown` to listen to the pointerdown event is deprecated. Use the event attribute `onpointerdown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 110,
+			"column": 1,
+			"character": 2420
+		},
+		"end": {
+			"line": 110,
+			"column": 34,
+			"character": 2453
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:pointerup` to listen to the pointerup event is deprecated. Use the event attribute `onpointerup` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 111,
+			"column": 1,
+			"character": 2455
+		},
+		"end": {
+			"line": 111,
+			"column": 31,
+			"character": 2485
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:pointerleave` to listen to the pointerleave event is deprecated. Use the event attribute `onpointerleave` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 112,
+			"column": 1,
+			"character": 2487
+		},
+		"end": {
+			"line": 112,
+			"column": 34,
+			"character": 2520
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`recognizing` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 12,
+			"column": 5,
+			"character": 300
+		},
+		"end": {
+			"line": 12,
+			"column": 25,
+			"character": 320
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`interim` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 5,
+			"character": 346
+		},
+		"end": {
+			"line": 15,
+			"column": 12,
+			"character": 353
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`final` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 16,
+			"column": 5,
+			"character": 365
+		},
+		"end": {
+			"line": 16,
+			"column": 10,
+			"character": 370
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`response` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 17,
+			"column": 5,
+			"character": 382
+		},
+		"end": {
+			"line": 17,
+			"column": 33,
+			"character": 410
+		}
+	}
+]

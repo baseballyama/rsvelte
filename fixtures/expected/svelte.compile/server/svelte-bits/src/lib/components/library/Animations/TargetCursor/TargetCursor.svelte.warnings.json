@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`cursor` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 27,
+			"column": 5,
+			"character": 569
+		},
+		"end": {
+			"line": 27,
+			"column": 27,
+			"character": 591
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`dot` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 28,
+			"column": 5,
+			"character": 598
+		},
+		"end": {
+			"line": 28,
+			"column": 24,
+			"character": 617
+		}
+	}
+]

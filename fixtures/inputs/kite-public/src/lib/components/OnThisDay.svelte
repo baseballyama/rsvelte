@@ -1,0 +1,66 @@
+<script lang="ts">
+import type { OnThisDayEvent } from '$lib/types';
+import OnThisDayEventTimeline from './onthisday/OnThisDayEventTimeline.svelte';
+import OnThisDayPeopleCarousel from './onthisday/OnThisDayPeopleCarousel.svelte';
+import OnThisDaySkeleton from './onthisday/OnThisDaySkeleton.svelte';
+import WikipediaTooltip from './WikipediaTooltip.svelte';
+
+// Props
+interface Props {
+	stories: OnThisDayEvent[];
+	language?: string; // Language used for the OnThisDay content (for Wikipedia lookups)
+	onWikipediaClick?: (title: string, content: string, imageUrl?: string) => void;
+}
+
+let { stories, language = 'en', onWikipediaClick }: Props = $props();
+
+// Split stories into events and people
+const events = $derived(stories.filter((story) => story.type === 'event'));
+const people = $derived(
+	stories.filter((story) => story.type === 'person' || story.type === 'people'),
+);
+
+// Reference to Wikipedia tooltip component
+let wikipediaTooltip: WikipediaTooltip | null = $state(null);
+
+// Handle Wikipedia interactions
+function handleWikipediaInteraction(event: Event) {
+	wikipediaTooltip?.handleWikipediaInteraction(event);
+}
+
+function handleWikipediaLeave(event: Event) {
+	wikipediaTooltip?.handleWikipediaLeave(event);
+}
+</script>
+
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<div
+  class="py-4"
+  role="region"
+  aria-label="OnThisDay events with Wikipedia links"
+  onmouseover={handleWikipediaInteraction}
+  onmouseleave={handleWikipediaLeave}
+  onfocus={handleWikipediaInteraction}
+  onblur={handleWikipediaLeave}
+  onclick={handleWikipediaInteraction}
+  onkeydown={(e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      handleWikipediaInteraction(e);
+    }
+  }}
+>
+  {#if stories.length === 0}
+    <OnThisDaySkeleton />
+  {:else}
+    <!-- Events Section -->
+    <OnThisDayEventTimeline {events} />
+
+    <!-- People Section -->
+    {#if people.length > 0}
+      <OnThisDayPeopleCarousel {people} />
+    {/if}
+  {/if}
+</div>
+
+<!-- Wikipedia Tooltip Handler -->
+<WikipediaTooltip bind:this={wikipediaTooltip} {language} {onWikipediaClick} />

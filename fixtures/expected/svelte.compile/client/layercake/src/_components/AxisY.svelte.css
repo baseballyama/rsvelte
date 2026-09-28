@@ -1,0 +1,19 @@
+
+	.tick.svelte-ncu2zh {
+		font-size: 11px;
+	}
+
+	.tick.svelte-ncu2zh line:where(.svelte-ncu2zh) {
+		stroke: #aaa;
+	}
+	.tick.svelte-ncu2zh .gridline:where(.svelte-ncu2zh) {
+		stroke-dasharray: 2;
+	}
+
+	.tick.svelte-ncu2zh text:where(.svelte-ncu2zh) {
+		fill: #666;
+	}
+
+	.tick.tick-0.svelte-ncu2zh line:where(.svelte-ncu2zh) {
+		stroke-dasharray: 0;
+	}

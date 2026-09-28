@@ -1,0 +1,141 @@
+<script lang="ts">
+	import { useProductState } from '$lib/core/composables/index.js'
+	import { getSettingState } from '$lib/core/stores/index.js'
+	import QrCodeDisplayer from '$lib/core/components/common/qr-code.svelte'
+	import { page } from '$app/state'
+	import { ChevronDown, ChevronUp } from '@lucide/svelte'
+
+	const productState = useProductState()
+	const settingState = getSettingState()
+	const data = $derived(page.data)
+
+	let isOpen = $state(true)
+</script>
+
+<div class="edp-spec">
+	<button class="flex w-full items-center justify-between gap-2 text-semibold font-bold pb-2 text-gray-900 intra-pt" onclick={() => (isOpen = !isOpen)}>
+		<span class="edp-acc-label">Product Specifications</span>
+
+		{#if isOpen}
+			<ChevronUp class="h-4 w-4 text-gray-800" />
+		{:else}
+			<ChevronDown class="h-4 w-4 text-gray-800" />
+		{/if}
+	</button>
+
+	{#if isOpen}
+		<div class="grid grid-cols-2 gap-y-4">
+			<!-- SKU and Barcode Section -->
+				{#if productState.selectedVariant?.sku || data?.product?.sku}
+					<div class="flex flex-col gap-1">
+						<p class="text-[10px] font-bold uppercase tracking-tighter text-gray-400">SKU</p>
+						<p class="break-words break-all text-sm font-medium text-gray-600">
+							{String(productState.selectedVariant?.sku || data?.product?.sku)}
+						</p>
+					</div>
+				{/if}
+
+				{#if productState.selectedVariant?.barcode || data?.product?.barcode}
+					<div class="flex flex-col gap-1 text-left">
+						<p class="text-[10px] font-bold uppercase tracking-tighter text-gray-400">Barcode</p>
+						<p class="text-sm font-medium text-gray-900">
+							{productState.selectedVariant?.barcode || data?.product?.barcode}
+						</p>
+					</div>
+				{/if}
+
+			<!-- Dimensions and Weight Section -->
+				{#if productState.selectedVariant?.width || data?.product?.width || productState.selectedVariant?.height || data?.product?.height || productState.selectedVariant?.length || data?.product?.length}
+					<div class="flex flex-col gap-1">
+						<p class="text-[10px] font-bold uppercase tracking-tighter text-gray-400">Dimensions</p>
+						<p class="text-sm font-medium text-gray-900">
+							{#if productState.selectedVariant?.width || data?.product?.width}
+								W-{productState.selectedVariant?.width || data?.product?.width}
+							{/if}
+
+							{#if (productState.selectedVariant?.width || data?.product?.width) && (productState.selectedVariant?.height || data?.product?.height)}
+								x
+							{/if}
+
+							{#if productState.selectedVariant?.height || data?.product?.height}
+								H-{productState.selectedVariant?.height || data?.product?.height}
+							{/if}
+
+							{#if (productState.selectedVariant?.height || data?.product?.height || productState.selectedVariant?.width || data?.product?.width) && (productState.selectedVariant?.length || data?.product?.length)}
+								x
+							{/if}
+
+							{#if productState.selectedVariant?.length || data?.product?.length}
+								L-{productState.selectedVariant?.length || data?.product?.length}
+							{/if}
+						</p>
+					</div>
+				{/if}
+
+				{#if productState.selectedVariant?.weight || data?.product?.weight}
+					<div class="flex flex-col gap-1 text-right">
+						<p class="text-[10px] font-bold uppercase tracking-tighter text-gray-400">Weight</p>
+						<p class="text-sm font-medium text-gray-900">
+							{productState.selectedVariant?.weight || data?.product?.weight}
+							{page?.data?.store.weight_unit || settingState?.selectedStore?.weight_unit}
+						</p>
+					</div>
+				{/if}
+
+				{#if data?.product?.originCountry}
+					<div class="flex flex-col gap-1">
+						<p class="text-[10px] font-bold uppercase tracking-tighter text-gray-400">Origin</p>
+						<p class="text-sm font-medium text-gray-900">{data?.product?.originCountry}</p>
+					</div>
+				{/if}
+
+			{#each data?.product?.attributes as { name, value }}
+				<div class="grid grid-cols-1 gap-4 border-b border-gray-50 pb-4 last:border-0 last:pb-0">
+					<div class="flex flex-col gap-1">
+						<p class="text-[10px] font-bold uppercase tracking-tighter text-gray-400">{name.replaceAll('_', ' ')}</p>
+						<p class="text-sm font-medium text-gray-900">{value}</p>
+					</div>
+				</div>
+			{/each}
+
+			{#if productState.selectedVariant?.qrcode || data?.product?.qrcode}
+				<div class="mt-4 flex flex-col items-center gap-2 rounded-lg bg-gray-50 p-4 edp-spec-qr">
+					<p class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Product Authenticity</p>
+					<QrCodeDisplayer base64Data={productState.selectedVariant?.qrcode || data?.product?.qrcode} />
+				</div>
+			{/if}
+		</div>
+	{/if}
+</div>
+
+<style>
+	/* Refined Editorial — default theme only. */
+	:global([data-theme='default'] .edp-spec) {
+		border-top: 1px solid var(--ed-line);
+	}
+
+	:global([data-theme='default'] .edp-spec .edp-acc-label) {
+		font-family: var(--ed-body);
+		font-size: 0.78rem;
+		font-weight: 600;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: var(--ed-ink);
+	}
+
+	:global([data-theme='default'] .edp-spec .text-gray-400) {
+		color: var(--ed-soft);
+		letter-spacing: 0.1em;
+	}
+
+	:global([data-theme='default'] .edp-spec .text-gray-900),
+	:global([data-theme='default'] .edp-spec .text-gray-600) {
+		color: var(--ed-ink);
+	}
+
+	:global([data-theme='default'] .edp-spec-qr) {
+		border: 1px solid var(--ed-line);
+		border-radius: var(--ed-radius);
+		background: var(--ed-canvas);
+	}
+</style>

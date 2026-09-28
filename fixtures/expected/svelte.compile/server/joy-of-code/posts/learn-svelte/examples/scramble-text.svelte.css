@@ -1,0 +1,10 @@
+
+	p.svelte-1739996 {
+		font-family: 'JetBrains Mono';
+		font-size: var(--font-32);
+	}
+
+	button.svelte-1739996 {
+		margin-inline: auto;
+		align-self: start;
+	}

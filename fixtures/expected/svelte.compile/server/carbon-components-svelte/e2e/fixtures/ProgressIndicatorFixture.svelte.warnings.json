@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`currentIndex` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 6,
+			"character": 94
+		},
+		"end": {
+			"line": 4,
+			"column": 18,
+			"character": 106
+		}
+	}
+]

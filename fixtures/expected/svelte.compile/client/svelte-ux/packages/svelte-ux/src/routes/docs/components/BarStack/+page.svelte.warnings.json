@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`randomData` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 31,
+			"column": 6,
+			"character": 950
+		},
+		"end": {
+			"line": 31,
+			"column": 16,
+			"character": 960
+		}
+	}
+]

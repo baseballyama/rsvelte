@@ -1,0 +1,16 @@
+
+  @layer base {
+    :where(.lc-layout-svg.svelte-1phxlxb) {
+      position: absolute;
+      inset: 0;
+      overflow: visible; /* match html and allow viewing outside of bounds (useful for axis that leak and general debugging)*/
+
+      &.disablePointerEvents {
+        pointer-events: none;
+      }
+
+      &.clip {
+        overflow: hidden;
+      }
+    }
+  }

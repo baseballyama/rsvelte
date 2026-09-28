@@ -1,0 +1,69 @@
+
+	.join.svelte-13iisdc {
+		margin: 3rem 0;
+	}
+
+	strong.svelte-13iisdc {
+		font-variation-settings: var(--fw-800-italic);
+	}
+
+	@layer theme {
+		.newsletter-layout.svelte-13iisdc {
+			container: newsletter-form / inline-size;
+			display: flex;
+			flex-flow: wrap;
+			justify-content: center;
+			flex-direction: row;
+
+			.newsletter-logo-container:where(.svelte-13iisdc) {
+				display: flex;
+				align-items: center;
+				flex: 0 0 250px;
+				margin: 0 0 2rem;
+			}
+		}
+
+		form.svelte-13iisdc {
+			flex: 1 0 500px;
+			text-align: center;
+			/* max-width: 500px; */
+			> :where(.svelte-13iisdc):first-child {
+				margin-top: 0;
+			}
+			> :where(.svelte-13iisdc):last-child {
+				margin-bottom: 0;
+			}
+		}
+
+		.newsletter.svelte-13iisdc {
+			display: flex;
+			gap: 10px;
+			justify-content: center;
+			flex-wrap: wrap;
+			margin: 2rem 0;
+			.input {
+				width: clamp(200px, 300px, 400px);
+			}
+		}
+
+		@container newsletter-form (width < 600px) {
+			form.svelte-13iisdc {
+				/* shrink form when small container */
+				flex: 1 1 100%;
+			}
+			p.svelte-13iisdc {
+				font-size: var(--font-size-sm);
+			}
+
+			.newsletter.svelte-13iisdc button:where(.svelte-13iisdc) {
+				width: 100%;
+				max-width: 300px;
+			}
+		}
+
+		@container newsletter-form (width >= 600px) {
+			button.svelte-13iisdc {
+				width: auto;
+			}
+		}
+	}

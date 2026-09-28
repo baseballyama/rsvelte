@@ -1,0 +1,69 @@
+
+	.a.svelte-gussnq {
+		color: green;
+
+		/* implicit & */
+		.b:where(.svelte-gussnq) /* (unused) .unused*/ {
+			color: green;
+
+			.c:where(.svelte-gussnq) {
+				color: green;
+			}
+
+			/* (unused) .unused {
+				color: red;
+
+				.c {
+					color: red;
+				}
+			}*/
+		}
+
+		/* (empty) .d {
+			.unused {
+				color: red;
+			}
+		}*/
+
+		/* explicit & */
+		& .b:where(.svelte-gussnq) {
+			color: green;
+
+			/* (empty) .c {
+				& & {
+					color: red;
+				}
+			}*/
+		}
+
+		&:hover {
+			color: green;
+		}
+
+		& & {
+			color: green;
+		}
+
+		/* silly but valid */
+		&& {
+			color: green;
+		}
+
+		.container:where(.svelte-gussnq) & {
+			color: green;
+		}
+
+		/* (unused) &.b {
+			color: red;
+		}*/
+
+		/* (unused) .unused {
+			color: red;
+		}*/
+	}
+
+	blah {
+		.a.svelte-gussnq {
+			color: green;
+		}
+	}

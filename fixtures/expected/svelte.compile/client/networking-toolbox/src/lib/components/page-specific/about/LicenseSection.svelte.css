@@ -1,0 +1,82 @@
+
+  .license-tldr.svelte-5z3xh9 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-sm);
+    list-style: none;
+    padding: 0;
+    max-width: 38rem;
+    @media (max-width: 600px) {
+      grid-template-columns: 1fr;
+    }
+    .license-tldr-item:where(.svelte-5z3xh9) {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-sm);
+      .item-head:where(.svelte-5z3xh9) {
+        font-weight: 600;
+        margin-bottom: var(--spacing-xs);
+        background: var(--color-primary);
+        color: var(--bg-secondary);
+        padding: var(--spacing-xs);
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-md);
+        text-align: center;
+        font-weight: bold;
+      }
+      &.can {
+        .item-head:where(.svelte-5z3xh9) {
+          background: var(--color-success);
+        }
+        ul:where(.svelte-5z3xh9) li:where(.svelte-5z3xh9):before {
+          content: '✓';
+          color: var(--color-success);
+        }
+      }
+      &.cannot {
+        .item-head:where(.svelte-5z3xh9) {
+          background: var(--color-error);
+        }
+        ul:where(.svelte-5z3xh9) li:where(.svelte-5z3xh9):before {
+          content: '✕';
+          color: var(--color-error);
+        }
+      }
+      &.must {
+        .item-head:where(.svelte-5z3xh9) {
+          background: var(--color-info);
+        }
+        ul:where(.svelte-5z3xh9) li:where(.svelte-5z3xh9):before {
+          content: '!';
+          color: var(--color-info);
+        }
+      }
+
+      ul:where(.svelte-5z3xh9) {
+        list-style: none;
+        margin: 0;
+        padding: var(--spacing-sm) 0;
+        li:where(.svelte-5z3xh9) {
+          padding: 0 var(--spacing-sm);
+          &:not(:last-child) {
+            border-bottom: 1px solid var(--border-primary);
+          }
+          &:before {
+            margin-right: var(--spacing-sm);
+            font-weight: bold;
+          }
+        }
+      }
+    }
+  }
+
+  .license-content.svelte-5z3xh9 {
+    overflow-x: auto;
+    width: fit-content;
+    max-width: 100%;
+    padding: var(--spacing-sm);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    box-shadow: var(--shadow-sm);
+  }

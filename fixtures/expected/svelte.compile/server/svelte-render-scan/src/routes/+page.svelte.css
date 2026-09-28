@@ -1,0 +1,38 @@
+
+	.code-block.svelte-1uha8ag {
+		@apply block w-full overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-gray-100 p-5 font-mono text-sm;
+	}
+
+	input[type='radio'].svelte-1uha8ag {
+		@apply hidden appearance-none;
+	}
+
+	label.svelte-1uha8ag {
+		cursor: pointer;
+		@apply rounded-full px-3 py-1;
+	}
+
+	label.checked.svelte-1uha8ag {
+		@apply font-bold;
+	}
+
+	label.checked.svelte-1uha8ag span:where(.svelte-1uha8ag) {
+		@apply rounded-full px-3 py-1;
+	}
+
+	input[type='color'].svelte-1uha8ag {
+		@apply cursor-pointer rounded border border-gray-200;
+	}
+
+	.animate-\[spin_1s_ease-in-out\] {
+		animation: svelte-1uha8ag-spin 1s ease-in-out;
+	}
+
+	@keyframes svelte-1uha8ag-spin {
+		0% {
+			transform: rotate(0deg);
+		}
+		100% {
+			transform: rotate(360deg);
+		}
+	}

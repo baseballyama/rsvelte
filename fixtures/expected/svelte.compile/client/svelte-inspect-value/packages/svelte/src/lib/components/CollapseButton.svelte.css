@@ -1,0 +1,46 @@
+
+  .collapse.svelte-upkuqn {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    transition-duration: var(--__transition-duration);
+    transition-property: color, rotate, transform, filter;
+    transition-timing-function: var(--_back-out);
+    aspect-ratio: 1 / 1;
+    width: 1em;
+    min-width: 1em;
+    max-width: 1em;
+    height: 1em;
+    overflow: visible;
+    color: var(--_caret-color);
+    user-select: none;
+
+    &:hover {
+      background-color: transparent;
+      color: var(--_caret-hover-color);
+    }
+
+    &:focus {
+      color: var(--_caret-focus-color);
+    }
+
+    &.flashing {
+      transform: scale(1.2, 1.2);
+      filter: drop-shadow(0px 0px 2px var(--_update-flash-color));
+      transition-duration: var(--flash-duration);
+      color: var(--_update-flash-color);
+    }
+
+    &.child-flash {
+      transition-duration: var(--flash-duration);
+      color: var(--_child-update-flash-color);
+    }
+
+    .caret-transition:where(.svelte-upkuqn) {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+    }
+  }

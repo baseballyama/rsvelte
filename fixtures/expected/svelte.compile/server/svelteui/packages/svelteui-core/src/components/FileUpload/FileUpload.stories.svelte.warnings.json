@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`files` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 5,
+			"character": 415
+		},
+		"end": {
+			"line": 13,
+			"column": 10,
+			"character": 420
+		}
+	}
+]

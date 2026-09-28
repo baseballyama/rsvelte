@@ -1,0 +1,61 @@
+
+	/* boundary of each */
+	.a.svelte-z4nn9b + .d:where(.svelte-z4nn9b) { color: green; }
+	.a.svelte-z4nn9b + .e:where(.svelte-z4nn9b) { color: green; }
+	.a.svelte-z4nn9b + .f:where(.svelte-z4nn9b) { color: green; }
+	.a.svelte-z4nn9b + .g:where(.svelte-z4nn9b) { color: green; }
+	.c.svelte-z4nn9b + .d:where(.svelte-z4nn9b) { color: green; }
+	.c.svelte-z4nn9b + .e:where(.svelte-z4nn9b) { color: green; }
+	.c.svelte-z4nn9b + .f:where(.svelte-z4nn9b) { color: green; }
+	.c.svelte-z4nn9b + .g:where(.svelte-z4nn9b) { color: green; }
+
+	/* nested boundary of each */
+	.j.svelte-z4nn9b + .m:where(.svelte-z4nn9b) { color: green; }
+	.j.svelte-z4nn9b + .n:where(.svelte-z4nn9b) { color: green; }
+	.j.svelte-z4nn9b + .o:where(.svelte-z4nn9b) { color: green; }
+	.k.svelte-z4nn9b + .m:where(.svelte-z4nn9b) { color: green; }
+	.k.svelte-z4nn9b + .n:where(.svelte-z4nn9b) { color: green; }
+	.k.svelte-z4nn9b + .o:where(.svelte-z4nn9b) { color: green; }
+	.l.svelte-z4nn9b + .m:where(.svelte-z4nn9b) { color: green; }
+	.l.svelte-z4nn9b + .n:where(.svelte-z4nn9b) { color: green; }
+	.l.svelte-z4nn9b + .o:where(.svelte-z4nn9b) { color: green; }
+
+	/* parent each */
+	.d.svelte-z4nn9b + .e:where(.svelte-z4nn9b) { color: green; }
+	.e.svelte-z4nn9b + .f:where(.svelte-z4nn9b) { color: green; }
+
+	/* child each */
+	.g.svelte-z4nn9b + .h:where(.svelte-z4nn9b) { color: green; }
+
+	/* wrap around */
+	.f.svelte-z4nn9b + .d:where(.svelte-z4nn9b) { color: green; }
+	.f.svelte-z4nn9b + .e:where(.svelte-z4nn9b) { color: green; }
+	.f.svelte-z4nn9b + .f:where(.svelte-z4nn9b) { color: green; }
+
+	.h.svelte-z4nn9b + .g:where(.svelte-z4nn9b) { color: green; }
+	.i.svelte-z4nn9b + .h:where(.svelte-z4nn9b) { color: green; }
+	.i.svelte-z4nn9b + .g:where(.svelte-z4nn9b) { color: green; }
+
+	/* wrap around self */
+	.d.svelte-z4nn9b + .d:where(.svelte-z4nn9b) { color: green; }
+	.e.svelte-z4nn9b + .e:where(.svelte-z4nn9b) { color: green; }
+	.f.svelte-z4nn9b + .f:where(.svelte-z4nn9b) { color: green; }
+	.g.svelte-z4nn9b + .g:where(.svelte-z4nn9b) { color: green; }
+	.h.svelte-z4nn9b + .h:where(.svelte-z4nn9b) { color: green; }
+	.i.svelte-z4nn9b + .i:where(.svelte-z4nn9b) { color: green; }
+
+	/* wrap around self + next */
+	.e.svelte-z4nn9b + .e:where(.svelte-z4nn9b) + .f:where(.svelte-z4nn9b) { color: green; }
+	.e.svelte-z4nn9b + .e:where(.svelte-z4nn9b) + .d:where(.svelte-z4nn9b) { color: green; }
+	.h.svelte-z4nn9b + .h:where(.svelte-z4nn9b) + .i:where(.svelte-z4nn9b) { color: green; }
+	.h.svelte-z4nn9b + .h:where(.svelte-z4nn9b) + .g:where(.svelte-z4nn9b) { color: green; }
+
+	/* no match */
+	/* (unused) .a + .h { color: green; }*/
+	/* (unused) .a + .i { color: green; }*/
+	/* (unused) .c + .h { color: green; }*/
+	/* (unused) .c + .i { color: green; }*/
+	/* (unused) .d + .f { color: green; }*/
+	/* (unused) .d + .g { color: green; }*/
+	/* (unused) .e + .g { color: green; }*/
+	/* (unused) .g + .i { color: green; }*/

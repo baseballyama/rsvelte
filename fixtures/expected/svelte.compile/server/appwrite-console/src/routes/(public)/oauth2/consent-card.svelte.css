@@ -1,0 +1,643 @@
+
+    .consent.svelte-1ltsqli {
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* ---- Header ------------------------------------------------------------ */
+    .header.svelte-1ltsqli {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        padding: 2rem 1.75rem 1.5rem;
+        background: radial-gradient(
+            120% 100% at 50% 0%,
+            var(--bgcolor-neutral-secondary) 0%,
+            transparent 70%
+        );
+    }
+
+    .identity.svelte-1ltsqli {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .avatar.svelte-1ltsqli {
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: var(--border-radius-l, 0.85rem);
+        flex-shrink: 0;
+        border: 1px solid var(--border-neutral-strong);
+        background: var(--bgcolor-neutral-primary);
+    }
+
+    /* Keep wordmarks readable inside the square avatar (cover crops them). */
+    img.avatar.svelte-1ltsqli {
+        object-fit: contain;
+        padding: 0.4rem;
+        box-sizing: border-box;
+    }
+
+    .avatar.placeholder.svelte-1ltsqli {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bgcolor-neutral-secondary);
+        color: var(--fgcolor-neutral-secondary);
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+
+    .avatar.account.svelte-1ltsqli {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bgcolor-neutral-invert);
+        color: var(--fgcolor-neutral-on-invert, var(--bgcolor-neutral-primary));
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+
+    .connector.svelte-1ltsqli {
+        display: flex;
+        align-items: center;
+        margin-inline: 0.35rem;
+    }
+
+    .connector-line.svelte-1ltsqli {
+        width: 1.1rem;
+        height: 0;
+        border-top: 2px dashed var(--border-neutral-strong);
+    }
+
+    .connector-node.svelte-1ltsqli {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.75rem;
+        height: 1.75rem;
+        border-radius: 50%;
+        border: 1px solid var(--border-neutral);
+        background: var(--bgcolor-neutral-primary);
+        color: var(--fgcolor-neutral-secondary);
+    }
+
+    .headline.svelte-1ltsqli {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        max-width: 22rem;
+    }
+
+    .account-chip.svelte-1ltsqli {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        max-width: 100%;
+        padding: 0.3rem 0.85rem 0.3rem 0.35rem;
+        border: 1px solid var(--border-neutral-strong);
+        border-radius: 2rem;
+        font-size: 0.8125rem;
+        color: var(--fgcolor-neutral-secondary);
+        background: var(--bgcolor-neutral-primary);
+    }
+
+    .account-chip.interactive.svelte-1ltsqli {
+        padding-inline-end: 0.6rem;
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.8125rem;
+        transition:
+            background 0.15s ease,
+            border-color 0.15s ease;
+    }
+
+    .account-chip.interactive.svelte-1ltsqli:hover:not(:disabled),
+    .account-chip.interactive.open.svelte-1ltsqli {
+        background: var(--overlay-neutral-hover, var(--bgcolor-neutral-secondary));
+        border-color: var(--border-neutral-strong);
+    }
+
+    .account-chip.interactive.svelte-1ltsqli:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .account-menu.svelte-1ltsqli {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        max-width: 100%;
+    }
+
+    .account-dropdown.svelte-1ltsqli {
+        position: absolute;
+        top: calc(100% + 0.4rem);
+        z-index: 10;
+        width: 19rem;
+        max-width: calc(100vw - 2rem);
+        padding: 0.35rem;
+        border: 1px solid var(--border-neutral);
+        border-radius: var(--border-radius-m, 0.6rem);
+        background: var(--bgcolor-neutral-primary);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+        text-align: start;
+    }
+
+    .account-dropdown-current.svelte-1ltsqli {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.55rem 0.6rem;
+        border-radius: var(--border-radius-s, 0.5rem);
+    }
+
+    .account-dropdown-text.svelte-1ltsqli {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        min-width: 0;
+        flex: 1;
+    }
+
+    .account-dropdown-label.svelte-1ltsqli {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--fgcolor-neutral-primary);
+    }
+
+    .account-dropdown-check.svelte-1ltsqli {
+        flex-shrink: 0;
+        color: var(--fgcolor-success);
+    }
+
+    .account-dropdown-action.svelte-1ltsqli {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        width: 100%;
+        margin-top: 0.25rem;
+        padding: 0.55rem 0.6rem;
+        border: none;
+        border-top: 1px solid var(--border-neutral);
+        border-radius: 0 0 var(--border-radius-s, 0.5rem) var(--border-radius-s, 0.5rem);
+        background: transparent;
+        color: var(--fgcolor-neutral-primary);
+        font: inherit;
+        font-size: 0.85rem;
+        cursor: pointer;
+        text-align: start;
+    }
+
+    .account-dropdown-action.svelte-1ltsqli:hover:not(:disabled) {
+        background: var(--overlay-neutral-hover, var(--bgcolor-neutral-secondary));
+    }
+
+    .account-dropdown-action.svelte-1ltsqli:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .account-dropdown-action-icon.svelte-1ltsqli {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.75rem;
+        height: 1.75rem;
+        border-radius: 50%;
+        border: 1px dashed var(--border-neutral-strong);
+        color: var(--fgcolor-neutral-secondary);
+    }
+
+    .account-avatar.svelte-1ltsqli {
+        flex-shrink: 0;
+        width: 1.4rem;
+        height: 1.4rem;
+        border-radius: 50%;
+        background: var(--bgcolor-neutral-invert);
+        color: var(--fgcolor-neutral-on-invert, var(--bgcolor-neutral-primary));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+
+    .account-avatar.large.svelte-1ltsqli {
+        width: 2rem;
+        height: 2rem;
+        font-size: 0.85rem;
+    }
+
+    .account-label.svelte-1ltsqli {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--fgcolor-neutral-primary);
+    }
+
+    /* ---- Body -------------------------------------------------------------- */
+    .body.svelte-1ltsqli {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 0.5rem 1.75rem 1.75rem;
+    }
+
+    .panel.svelte-1ltsqli {
+        border: 1px solid var(--border-neutral);
+        border-radius: var(--border-radius-m, 0.6rem);
+        background: var(--bgcolor-neutral-primary);
+        overflow: hidden;
+    }
+
+    .panel-head.svelte-1ltsqli {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 0.85rem 1rem;
+        border: none;
+        background: transparent;
+        color: var(--fgcolor-neutral-primary);
+        cursor: pointer;
+    }
+
+    .panel-head.svelte-1ltsqli:hover {
+        background: var(--overlay-neutral-hover, var(--bgcolor-neutral-secondary));
+    }
+
+    .panel-head-label.svelte-1ltsqli {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--fgcolor-neutral-secondary);
+    }
+
+    .panel-body.svelte-1ltsqli {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        padding: 0.25rem 1rem 1.1rem;
+    }
+
+    .perm-group.svelte-1ltsqli {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .perm-group-head.svelte-1ltsqli {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+    }
+
+    .perm-group-heading-row.svelte-1ltsqli {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .perm-group-toggle.svelte-1ltsqli,
+    .permission-group-toggle.svelte-1ltsqli {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex: 1;
+        min-width: 0;
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        text-align: start;
+    }
+
+    .permission-group-toggle.svelte-1ltsqli {
+        width: 100%;
+    }
+
+    .perm-list.svelte-1ltsqli {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .perm.svelte-1ltsqli {
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.7rem;
+        padding: 0.7rem 0;
+    }
+
+    .perm.svelte-1ltsqli + .perm:where(.svelte-1ltsqli) {
+        border-top: 1px solid var(--border-neutral);
+    }
+
+    .perm-check.svelte-1ltsqli {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.5rem;
+        height: 1.5rem;
+        margin-top: 0.05rem;
+        border-radius: 50%;
+        background: var(--bgcolor-success-weaker, rgba(16, 185, 129, 0.12));
+        color: var(--fgcolor-success, var(--fgcolor-neutral-secondary));
+    }
+
+    .perm-text.svelte-1ltsqli {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        min-width: 0;
+        flex: 1;
+    }
+
+    .perm-row-head.svelte-1ltsqli {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        min-height: 1.35rem;
+    }
+
+    .access-chip.svelte-1ltsqli {
+        flex-shrink: 0;
+        padding: 0.05rem 0.4rem;
+        border: 1px solid var(--border-neutral-strong);
+        border-radius: 2rem;
+        font-size: 0.58rem;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        color: var(--fgcolor-neutral-secondary);
+    }
+
+    .access-chip.strong.svelte-1ltsqli {
+        border-color: var(--border-warning-weak, var(--border-warning));
+        color: var(--fgcolor-warning);
+    }
+
+    .perm-title.svelte-1ltsqli {
+        font-size: 0.875rem;
+        font-weight: 500;
+        line-height: 1.3;
+        color: var(--fgcolor-neutral-primary);
+    }
+
+    .perm-desc.svelte-1ltsqli {
+        padding-right: 2.25rem;
+        font-size: 0.78rem;
+        line-height: 1.4;
+        color: var(--fgcolor-neutral-secondary);
+    }
+
+    /* ---- MCP narrowing editor ----------------------------------------------- */
+    .editor-panel.svelte-1ltsqli {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .access-summary.svelte-1ltsqli {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.7rem;
+        padding: 1rem 1rem 0.85rem;
+    }
+
+    .customize-head.svelte-1ltsqli {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        width: 100%;
+        padding: 0.85rem 1rem;
+        border: none;
+        border-top: 1px solid var(--border-neutral);
+        background: transparent;
+        color: var(--fgcolor-neutral-primary);
+        cursor: pointer;
+        text-align: left;
+    }
+
+    .customize-head.svelte-1ltsqli:hover {
+        background: var(--overlay-neutral-hover, var(--bgcolor-neutral-secondary));
+    }
+
+    .customize-label.svelte-1ltsqli {
+        display: inline-flex;
+        align-items: flex-start;
+        gap: 0.7rem;
+        min-width: 0;
+    }
+
+    .customize-icon.svelte-1ltsqli {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: var(--border-radius-s, 0.5rem);
+        background: var(--bgcolor-neutral-secondary);
+        color: var(--fgcolor-neutral-secondary);
+    }
+
+    .editor-body.svelte-1ltsqli {
+        display: flex;
+        flex-direction: column;
+        gap: 1.1rem;
+        padding: 0.9rem 1rem 1.1rem;
+        border-top: 1px solid var(--border-neutral);
+        max-height: 24rem;
+        overflow-y: auto;
+    }
+
+    .editor-readonly.svelte-1ltsqli {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.7rem;
+        padding: 0.7rem 0.8rem;
+        border: 1px solid var(--border-neutral);
+        border-radius: var(--border-radius-s, 0.5rem);
+        background: var(--bgcolor-neutral-secondary);
+        cursor: pointer;
+    }
+
+    .editor-identity.svelte-1ltsqli {
+        display: block;
+    }
+
+    .editor-check.svelte-1ltsqli {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        cursor: pointer;
+    }
+
+    .editor-check.svelte-1ltsqli input[type='checkbox']:where(.svelte-1ltsqli),
+    .editor-readonly.svelte-1ltsqli input[type='checkbox']:where(.svelte-1ltsqli) {
+        width: 1rem;
+        height: 1rem;
+        margin: 0.15rem 0 0;
+        accent-color: var(--bgcolor-neutral-invert);
+        cursor: pointer;
+    }
+
+    .editor-row.off.svelte-1ltsqli .perm-text:where(.svelte-1ltsqli) {
+        opacity: 0.45;
+    }
+
+    .level-toggle.svelte-1ltsqli {
+        flex-shrink: 0;
+        display: inline-flex;
+        border: 1px solid var(--border-neutral-strong);
+        border-radius: 2rem;
+        overflow: hidden;
+    }
+
+    .level-toggle.disabled.svelte-1ltsqli {
+        opacity: 0.45;
+    }
+
+    .level-btn.svelte-1ltsqli {
+        padding: 0.1rem 0.55rem;
+        border: none;
+        background: transparent;
+        font-size: 0.58rem;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        color: var(--fgcolor-neutral-secondary);
+        cursor: pointer;
+    }
+
+    .level-btn.svelte-1ltsqli + .level-btn:where(.svelte-1ltsqli) {
+        border-left: 1px solid var(--border-neutral-strong);
+    }
+
+    .level-btn.active.svelte-1ltsqli {
+        background: var(--bgcolor-neutral-invert);
+        color: var(--fgcolor-neutral-on-invert, var(--bgcolor-neutral-primary));
+    }
+
+    .level-btn.svelte-1ltsqli:disabled {
+        cursor: default;
+    }
+
+    /* ---- Scope (resource) panels ------------------------------------------ */
+    .scope-panel.svelte-1ltsqli {
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+        padding: 1rem;
+        transition: border-color 0.15s ease;
+    }
+
+    .scope-panel.needs-attention.svelte-1ltsqli {
+        border-color: var(--border-warning-weak, var(--border-warning));
+    }
+
+    .scope-warning.svelte-1ltsqli {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 0.55rem 0.7rem;
+        border-radius: var(--border-radius-s, 0.5rem);
+        background: var(--bgcolor-warning-weaker, rgba(234, 179, 8, 0.12));
+        color: var(--fgcolor-warning);
+        font-size: 0.78rem;
+        line-height: 1.4;
+    }
+
+    .scope-head.svelte-1ltsqli {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.7rem;
+    }
+
+    .scope-icon.svelte-1ltsqli {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: var(--border-radius-s, 0.5rem);
+        background: var(--bgcolor-neutral-secondary);
+        color: var(--fgcolor-neutral-secondary);
+    }
+
+    .scope-head-text.svelte-1ltsqli {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        min-width: 0;
+    }
+
+    .subtext.svelte-1ltsqli {
+        font-size: 0.78rem;
+        line-height: 1.4;
+        color: var(--fgcolor-neutral-tertiary);
+    }
+
+    /* ---- Error / footer ---------------------------------------------------- */
+    .error-box.svelte-1ltsqli {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        border: 1px solid var(--border-danger, rgba(220, 38, 38, 0.2));
+        background: var(--bgcolor-danger-secondary, rgba(220, 38, 38, 0.1));
+        border-radius: var(--border-radius-s, 0.5rem);
+        padding: 0.75rem;
+    }
+
+    .footnote.svelte-1ltsqli {
+        margin: 0.25rem 0 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: 0.78rem;
+        color: var(--fgcolor-neutral-tertiary);
+        text-align: center;
+    }
+
+    .footnote-secure.svelte-1ltsqli {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .footnote.svelte-1ltsqli > * + *::before {
+        content: '·';
+        margin-inline-end: 0.5rem;
+        color: var(--fgcolor-neutral-tertiary);
+    }
+
+    .footer-link.svelte-1ltsqli {
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .footer-link.svelte-1ltsqli:hover {
+        text-decoration: underline;
+        color: var(--fgcolor-neutral-secondary);
+    }

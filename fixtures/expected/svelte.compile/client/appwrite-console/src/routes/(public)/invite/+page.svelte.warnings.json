@@ -1,0 +1,72 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`teamId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 8,
+			"character": 573
+		},
+		"end": {
+			"line": 13,
+			"column": 22,
+			"character": 587
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`membershipId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 24,
+			"character": 589
+		},
+		"end": {
+			"line": 13,
+			"column": 44,
+			"character": 609
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`userId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 46,
+			"character": 611
+		},
+		"end": {
+			"line": 13,
+			"column": 60,
+			"character": 625
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`secret` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 62,
+			"character": 627
+		},
+		"end": {
+			"line": 13,
+			"column": 76,
+			"character": 641
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`terms` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 14,
+			"column": 8,
+			"character": 651
+		},
+		"end": {
+			"line": 14,
+			"column": 13,
+			"character": 656
+		}
+	}
+]

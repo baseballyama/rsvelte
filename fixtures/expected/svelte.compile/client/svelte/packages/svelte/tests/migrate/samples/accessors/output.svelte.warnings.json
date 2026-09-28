@@ -1,0 +1,16 @@
+[
+	{
+		"code": "options_deprecated_immutable",
+		"message": "The `immutable` option has been deprecated. It will have no effect in runes mode\nhttps://svelte.dev/e/options_deprecated_immutable",
+		"start": {
+			"line": 27,
+			"column": 16,
+			"character": 286
+		},
+		"end": {
+			"line": 27,
+			"column": 25,
+			"character": 295
+		}
+	}
+]

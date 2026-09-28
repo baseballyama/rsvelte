@@ -1,0 +1,44 @@
+[
+	{
+		"code": "legacy_code",
+		"message": "`a11y-label-has-associated-control` is no longer valid — please use `a11y_label_has_associated_control` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 24,
+			"column": 21,
+			"character": 404
+		},
+		"end": {
+			"line": 24,
+			"column": 54,
+			"character": 437
+		}
+	},
+	{
+		"code": "legacy_code",
+		"message": "`a11y-label-has-associated-control` is no longer valid — please use `a11y_label_has_associated_control` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 24,
+			"column": 21,
+			"character": 404
+		},
+		"end": {
+			"line": 24,
+			"column": 54,
+			"character": 437
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`checked` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 183
+		},
+		"end": {
+			"line": 7,
+			"column": 29,
+			"character": 206
+		}
+	}
+]

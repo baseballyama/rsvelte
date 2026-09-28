@@ -1,0 +1,8 @@
+
+	h1.svelte-hcvrai,
+	a.svelte-hcvrai {
+		text-align: center;
+	}
+	h1.svelte-hcvrai {
+		color: var(--svelteui-colors-primary);
+	}

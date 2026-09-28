@@ -1,0 +1,12 @@
+
+	@media (max-width: 768px) {
+		.modal-body.svelte-1r576r1 {
+			max-height: calc(80vh - 146px) !important;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.modal-body.svelte-1r576r1 {
+			max-height: calc(626px - 146px) !important;
+		}
+	}

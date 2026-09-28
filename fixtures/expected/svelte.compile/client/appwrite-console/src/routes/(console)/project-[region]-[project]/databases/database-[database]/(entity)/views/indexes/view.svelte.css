@@ -1,0 +1,8 @@
+
+    .floating-action-bar.svelte-14osvzr {
+        left: 50%;
+        width: 100%;
+        z-index: 14;
+        position: absolute;
+        transform: translateX(-50%);
+    }

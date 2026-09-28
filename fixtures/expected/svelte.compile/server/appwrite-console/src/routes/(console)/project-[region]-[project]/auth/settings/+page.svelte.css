@@ -1,0 +1,45 @@
+
+    .auth-methods-grid.svelte-1byz0st {
+        display: grid;
+        gap: var(--space-6) var(--space-8);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .auth-method-item.svelte-1byz0st {
+        min-width: 0;
+    }
+
+    .oauth-providers-header.svelte-1byz0st {
+        align-items: center;
+        display: flex;
+        gap: var(--space-4);
+        justify-content: space-between;
+    }
+
+    .oauth-providers-search.svelte-1byz0st {
+        max-width: 20rem;
+        width: 100%;
+    }
+
+    .oauth-providers-empty.svelte-1byz0st {
+        align-items: center;
+        display: flex;
+        justify-content: flex-start;
+        padding: var(--space-4) 0;
+    }
+
+    @media (max-width: 768px) {
+        .auth-methods-grid.svelte-1byz0st {
+            grid-template-columns: 1fr;
+        }
+
+        .oauth-providers-header.svelte-1byz0st {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .oauth-providers-search.svelte-1byz0st {
+            width: 100%;
+        }
+    }

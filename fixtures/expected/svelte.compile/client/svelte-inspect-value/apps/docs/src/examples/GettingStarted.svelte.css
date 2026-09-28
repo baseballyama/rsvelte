@@ -1,0 +1,26 @@
+
+  #getting-started.svelte-1vj4tnr {
+    position: relative;
+    border-radius: 8px;
+    background-color: var(--sl-color-gray-4);
+    padding: 0.5em;
+    height: 800px;
+    overflow: hidden;
+  }
+
+  #panel-hint.svelte-1vj4tnr {
+    position: absolute;
+    top: 0.5em;
+    right: 2em;
+    padding-inline: 0.25em;
+    padding-block: 0.25em;
+  }
+
+  code.svelte-1vj4tnr {
+    display: inline-block;
+
+    margin-top: 1em !important;
+    background-color: var(--sl-color-gray-5);
+    padding: 0.25em;
+    line-height: 1;
+  }

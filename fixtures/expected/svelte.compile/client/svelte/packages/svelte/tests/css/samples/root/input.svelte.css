@@ -1,0 +1,52 @@
+
+  :root {
+    color: green;
+  }
+  .foo:root {
+    color: green;
+  }
+  :root.foo {
+    color: green;
+  }
+  :root.unknown {
+    color: green;
+  }
+
+  :root h1.svelte-c8csxf {
+    color: green;
+  }
+  /* (unused) :root .unused {
+    color: red;
+  }*/
+
+  :root:has(h1:where(.svelte-c8csxf)) {
+    color: green;
+  }
+  /* (unused) :root:has(.unused) {
+    color: red;
+  }*/
+
+  :root:not(.x) {
+    color: green;
+  }
+
+  :root {
+    h1.svelte-c8csxf {
+      color: green;
+    }
+    /* (unused) .unused {
+      color: red;
+    }*/
+    .svelte-c8csxf:has(h1:where(.svelte-c8csxf)) {
+      color: green;
+    }
+    /* (unused) :has(.unused) {
+      color: red;
+    }*/
+    &:has(h1.svelte-c8csxf) {
+      color: green;
+    }
+    /* (unused) &:has(.unused) {
+      color: red;
+    }*/
+  }

@@ -1,0 +1,218 @@
+
+	sidebar.svelte-136c6pl {
+		position: fixed;
+		background-color: #fff;
+		top: 61px;
+		left: 0;
+		display: none;
+		height: calc(100% - (2.7em + 67px));
+		width: 11.75em;
+		padding: 1.18em 1em 2em 1.5em;
+		overflow-y: auto;
+		/*box-sizing: border-box;*/
+	}
+
+	#container.svelte-136c6pl {
+		width: 100%;
+		tab-size: 2;
+		margin-top: -7rem;
+		padding: 7em 0 2em 2em;
+		box-sizing: border-box;
+	}
+
+	#dek.svelte-136c6pl a:where(.svelte-136c6pl) code:where(.svelte-136c6pl),
+	#dek.svelte-136c6pl a:where(.svelte-136c6pl) {
+		color: #ff3e00;
+		text-decoration: none;
+	}
+	#dek.svelte-136c6pl a:where(.svelte-136c6pl):hover {
+		text-decoration: underline;
+	}
+
+	#dek.svelte-136c6pl {
+		width: 80%;
+	}
+
+	sidebar.svelte-136c6pl ul:where(.svelte-136c6pl) {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+
+	a.section.svelte-136c6pl {
+		text-decoration: none;
+		display: block;
+		color: #727272;
+		font-size: 1em;
+		margin: 0;
+		padding-top: 0.075em;
+		padding-bottom: 0.4em;
+		line-height: 1.25em;
+	}
+
+	.section.active.svelte-136c6pl {
+		color: #ff3e00;
+	}
+
+	a.section.active.svelte-136c6pl:hover {
+		cursor: default;
+		text-decoration: none;
+	}
+
+	.section.svelte-136c6pl:hover {
+		text-decoration: underline;
+	}
+
+	.block-container.svelte-136c6pl {
+		display: flex;
+		flex-direction: column;
+	}
+
+	h2.svelte-136c6pl {
+		padding: 4rem 0 0 0;
+		margin: -3rem 0 1.05rem 0;
+		font-size: 2.3em;
+		font-weight: bold;
+		pointer-events: none;
+	}
+
+	h3.svelte-136c6pl {
+		font-weight: bold;
+		padding-top: 3.5em;
+	}
+
+	/* h3#axis {
+		padding-top: 4.5em;
+		top: -1em;
+	} */
+
+	h4.svelte-136c6pl {
+		display: block;
+		padding: 7px 0;
+		margin-top: 16px;
+	}
+
+	.subgroup-blocks.svelte-136c6pl {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		gap: 20px;
+	}
+	.component-block.svelte-136c6pl {
+		flex-basis: 41%;
+		height: 225px;
+		background-color: #fff;
+		box-shadow: 0 0 12px #ccc;
+		border: 1px solid #ccc;
+		padding: 14px;
+		display: inline-block;
+		vertical-align: top;
+		border-radius: 5px;
+	}
+
+	/* .component-block:nth-child(3),
+	.component-block:nth-child(6),
+	.component-block:nth-child(9),
+	.component-block:nth-child(12),
+	.component-block:nth-child(15),
+	.component-block:nth-child(18),
+	.component-block:nth-child(21) {
+		margin-right: 0;
+	} */
+
+	@media (max-width: 1150px) {
+		#dek.svelte-136c6pl {
+			width: 95%;
+		}
+		/* .component-block {
+			width: 43%;
+		} */
+		/* .component-block:nth-child(3),
+		.component-block:nth-child(6),
+		.component-block:nth-child(9),
+		.component-block:nth-child(12),
+		.component-block:nth-child(15),
+		.component-block:nth-child(18),
+		.component-block:nth-child(21) {
+			margin-right: 21px;
+		}
+		.component-block:nth-child(even) {
+			margin-right: 0 !important;
+		} */
+	}
+
+	/* @media (max-width: 860px) {
+		.component-block {
+			width: 40%;
+		}
+	} */
+
+	@media (max-width: 800px) {
+		.component-block.svelte-136c6pl {
+			flex-basis: 85%;
+		}
+		#container.svelte-136c6pl {
+			padding-right: 1em;
+		}
+	}
+
+	.component-block.svelte-136c6pl a:where(.svelte-136c6pl):hover {
+		text-decoration: underline;
+		color: #ff3e00;
+	}
+
+	.component-name.svelte-136c6pl {
+		white-space: nowrap;
+	}
+
+	span.label.svelte-136c6pl,
+	.component-blocks.svelte-136c6pl .label {
+		padding: 0 4px;
+		display: inline-block;
+		border-radius: 2px;
+		font-size: 0.9em;
+		margin-left: 3px;
+	}
+
+	.component-blocks.svelte-136c6pl .label.svg {
+		background-color: #f0c;
+		color: #fff;
+	}
+
+	.component-blocks.svelte-136c6pl .label.html {
+		background-color: #fc0;
+		color: #000;
+	}
+
+	.component-blocks.svelte-136c6pl .label.webgl {
+		background-color: #0cf;
+		color: #fff;
+	}
+
+	span.label.percent-range.svelte-136c6pl,
+	.component-blocks.svelte-136c6pl .label.percent-range {
+		background-color: #c0f;
+		color: #fff;
+	}
+
+	.component-blocks.svelte-136c6pl .label.canvas {
+		background-color: #cf0;
+		color: #000;
+	}
+
+	.block-container.svelte-136c6pl {
+		position: relative;
+		width: 100%;
+		height: calc(100% - 24px);
+	}
+
+	@media (min-width: 768px) {
+		sidebar.svelte-136c6pl {
+			display: block;
+		}
+
+		#container.svelte-136c6pl {
+			padding-left: 15em;
+			/* padding-right: 8em; */
+		}
+	}

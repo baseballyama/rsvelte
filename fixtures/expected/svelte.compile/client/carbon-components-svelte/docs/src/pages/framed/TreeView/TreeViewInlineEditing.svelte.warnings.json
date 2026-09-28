@@ -1,0 +1,58 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 70,
+			"column": 11,
+			"character": 1611
+		},
+		"end": {
+			"line": 70,
+			"column": 35,
+			"character": 1635
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 70,
+			"column": 36,
+			"character": 1636
+		},
+		"end": {
+			"line": 70,
+			"column": 62,
+			"character": 1662
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:input` to listen to the input event is deprecated. Use the event attribute `oninput` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 80,
+			"column": 12,
+			"character": 1949
+		},
+		"end": {
+			"line": 80,
+			"column": 82,
+			"character": 2019
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`nodes` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 151
+		},
+		"end": {
+			"line": 5,
+			"column": 11,
+			"character": 156
+		}
+	}
+]

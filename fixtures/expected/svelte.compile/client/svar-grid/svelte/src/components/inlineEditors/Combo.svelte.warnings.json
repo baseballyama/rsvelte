@@ -1,0 +1,30 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `editor`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 7,
+			"column": 69,
+			"character": 237
+		},
+		"end": {
+			"line": 7,
+			"column": 75,
+			"character": 243
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `editor`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 9,
+			"column": 48,
+			"character": 295
+		},
+		"end": {
+			"line": 9,
+			"column": 54,
+			"character": 301
+		}
+	}
+]

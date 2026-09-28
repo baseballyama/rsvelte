@@ -1,0 +1,24 @@
+
+  :host h1.svelte-bcym45 {
+    color: red;
+  }
+
+  :host > h1.svelte-bcym45 {
+    color: red;
+  }
+
+  :host > .svelte-bcym45 {
+    color: red;
+	}
+
+	:host span.svelte-bcym45 {
+		color: red;
+	}
+
+	/* (unused) :host > span {
+		color: red;
+	}*/
+
+  :host {
+    color: red;
+  }

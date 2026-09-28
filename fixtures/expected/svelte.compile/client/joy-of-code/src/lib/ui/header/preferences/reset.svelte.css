@@ -1,0 +1,9 @@
+
+	button.svelte-1knw26i {
+		padding: var(--spacing-8) var(--spacing-16);
+		font-weight: 700;
+		color: var(--clr-input-txt);
+		background-color: var(--clr-primary);
+		border-radius: var(--rounded-4);
+		box-shadow: var(--shadow-sm);
+	}

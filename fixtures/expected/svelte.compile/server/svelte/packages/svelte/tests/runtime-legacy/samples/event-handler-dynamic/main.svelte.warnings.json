@@ -1,0 +1,72 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 17,
+			"column": 8,
+			"character": 206
+		},
+		"end": {
+			"line": 17,
+			"column": 33,
+			"character": 231
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 18,
+			"column": 8,
+			"character": 263
+		},
+		"end": {
+			"line": 18,
+			"column": 33,
+			"character": 288
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 23,
+			"column": 8,
+			"character": 345
+		},
+		"end": {
+			"line": 23,
+			"column": 31,
+			"character": 368
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`clickHandler` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 2,
+			"column": 5,
+			"character": 14
+		},
+		"end": {
+			"line": 2,
+			"column": 17,
+			"character": 26
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`number` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 3,
+			"column": 5,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"column": 11,
+			"character": 39
+		}
+	}
+]

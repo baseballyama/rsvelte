@@ -1,0 +1,20 @@
+
+  div.svelte-9dgpfm {
+    display: flex;
+    flex-direction: row;
+    gap: 1px;
+  }
+
+  div.svelte-9dgpfm button {
+    border-radius: 0 !important;
+  }
+
+  div.svelte-9dgpfm > *:first-child button {
+    border-top-left-radius: var(--bs-br) !important;
+    border-bottom-left-radius: var(--bs-br) !important;
+  }
+
+  div.svelte-9dgpfm > *:last-child button {
+    border-top-right-radius: var(--bs-br) !important;
+    border-bottom-right-radius: var(--bs-br) !important;
+  }

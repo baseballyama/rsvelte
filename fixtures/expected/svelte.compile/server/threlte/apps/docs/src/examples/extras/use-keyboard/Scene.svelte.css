@@ -1,0 +1,28 @@
+
+  .states.svelte-dlnivw {
+    min-height: 24px;
+    display: grid;
+    justify-items: center;
+    font-family: 'Inter', system-ui, sans-serif;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .badge.svelte-dlnivw {
+    grid-row: 1;
+    grid-column: 1;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    color: white;
+    white-space: nowrap;
+  }
+
+  .just-pressed.svelte-dlnivw {
+    background: rgba(0, 200, 80, 0.7);
+  }
+
+  .just-released.svelte-dlnivw {
+    background: rgba(200, 80, 0, 0.7);
+  }

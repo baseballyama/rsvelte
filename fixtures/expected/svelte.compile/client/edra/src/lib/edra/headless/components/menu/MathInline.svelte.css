@@ -1,0 +1,25 @@
+
+	.math-inline-menu {
+		display: flex;
+		height: fit-content;
+		width: fit-content;
+		align-items: center;
+		gap: 6px;
+		border-radius: var(--edra-radius-lg);
+		border: 1px solid var(--edra-border);
+		padding: 6px;
+		background-color: var(--edra-canvas);
+		box-shadow: var(--edra-shadow-5);
+	}
+	.math-inline-input.svelte-1evyg74 {
+		width: 16rem;
+	}
+	.save-btn.svelte-1evyg74 {
+		width: 2.25rem;
+		height: 2.25rem;
+		flex-shrink: 0;
+	}
+	.action-icon {
+		width: 1rem;
+		height: 1rem;
+	}

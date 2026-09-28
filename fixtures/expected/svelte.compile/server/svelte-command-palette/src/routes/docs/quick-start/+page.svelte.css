@@ -1,0 +1,50 @@
+
+	.lead.svelte-1r7540z {
+		font-size: 1.125rem;
+		color: var(--color-text-secondary);
+		margin-bottom: var(--space-xl);
+	}
+
+	.next-steps.svelte-1r7540z {
+		margin-top: var(--space-2xl);
+	}
+
+	.next-steps-grid.svelte-1r7540z {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: var(--space-md);
+		margin-top: var(--space-lg);
+	}
+
+	.next-step-card.svelte-1r7540z {
+		display: flex;
+		flex-direction: column;
+		padding: var(--space-lg);
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		text-decoration: none;
+		transition: all var(--transition-fast);
+	}
+
+	.next-step-card.svelte-1r7540z:hover {
+		border-color: var(--color-accent);
+		transform: translateY(-2px);
+	}
+
+	.next-step-icon.svelte-1r7540z {
+		font-size: 2rem;
+		margin-bottom: var(--space-sm);
+	}
+
+	.next-step-card.svelte-1r7540z h3:where(.svelte-1r7540z) {
+		font-size: 1rem;
+		color: var(--color-text-primary);
+		margin-bottom: var(--space-xs);
+	}
+
+	.next-step-card.svelte-1r7540z p:where(.svelte-1r7540z) {
+		font-size: 0.875rem;
+		color: var(--color-text-secondary);
+		margin: 0;
+	}

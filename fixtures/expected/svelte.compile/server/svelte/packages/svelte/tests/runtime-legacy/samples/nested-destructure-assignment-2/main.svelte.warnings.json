@@ -1,0 +1,58 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 42,
+			"column": 8,
+			"character": 853
+		},
+		"end": {
+			"line": 42,
+			"column": 31,
+			"character": 876
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`firstNonStore` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 141
+		},
+		"end": {
+			"line": 6,
+			"column": 18,
+			"character": 154
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`secondNonStore` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 20,
+			"character": 156
+		},
+		"end": {
+			"line": 6,
+			"column": 34,
+			"character": 170
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`thirdNonStore` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 36,
+			"character": 172
+		},
+		"end": {
+			"line": 6,
+			"column": 49,
+			"character": 185
+		}
+	}
+]

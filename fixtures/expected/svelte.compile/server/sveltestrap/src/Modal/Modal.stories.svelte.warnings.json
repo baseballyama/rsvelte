@@ -1,0 +1,86 @@
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 8,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"column": 24,
+			"character": 24
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 208,
+			"column": 6,
+			"character": 4629
+		},
+		"end": {
+			"line": 208,
+			"column": 10,
+			"character": 4633
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`openScrollable` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 209,
+			"column": 6,
+			"character": 4649
+		},
+		"end": {
+			"line": 209,
+			"column": 20,
+			"character": 4663
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`status` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 210,
+			"column": 6,
+			"character": 4679
+		},
+		"end": {
+			"line": 210,
+			"column": 12,
+			"character": 4685
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`fullscreen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 211,
+			"column": 6,
+			"character": 4704
+		},
+		"end": {
+			"line": 211,
+			"column": 16,
+			"character": 4714
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`size` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 212,
+			"column": 6,
+			"character": 4722
+		},
+		"end": {
+			"line": 212,
+			"column": 10,
+			"character": 4726
+		}
+	}
+]

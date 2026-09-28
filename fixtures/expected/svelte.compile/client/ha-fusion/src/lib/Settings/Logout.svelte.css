@@ -1,0 +1,22 @@
+
+	div.svelte-panqhr {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 10px;
+		align-items: center;
+	}
+
+	p.svelte-panqhr {
+		margin-block-end: 0.6rem;
+		font-size: 0.9rem;
+		opacity: 0.75;
+	}
+
+	p.svelte-panqhr:hover {
+		cursor: default;
+	}
+
+	button.svelte-panqhr {
+		font-size: 1rem;
+		margin-top: 1.3rem;
+	}

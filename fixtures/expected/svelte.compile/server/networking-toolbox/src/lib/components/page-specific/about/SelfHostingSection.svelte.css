@@ -1,0 +1,8 @@
+
+  blockquote.svelte-1ejgaam {
+    border-left: 2px solid var(--color-info);
+    padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-sm) var(--spacing-lg);
+    background: color-mix(in srgb, var(--color-info), transparent 90%);
+    border-radius: var(--radius-sm);
+    margin-top: var(--spacing-md);
+  }

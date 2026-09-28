@@ -1,0 +1,4 @@
+
+  h1.svelte-1s3aw2q ~ p:where(.svelte-1s3aw2q) {
+    color: red;
+  }

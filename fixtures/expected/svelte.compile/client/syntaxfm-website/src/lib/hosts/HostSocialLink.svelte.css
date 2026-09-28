@@ -1,0 +1,12 @@
+
+	.social-icon.svelte-c97hjm {
+		display: inline-block;
+		--icon_size: 12px;
+	}
+
+	a.svelte-c97hjm {
+		color: var(--fg);
+		&:hover {
+			color: var(--accent);
+		}
+	}

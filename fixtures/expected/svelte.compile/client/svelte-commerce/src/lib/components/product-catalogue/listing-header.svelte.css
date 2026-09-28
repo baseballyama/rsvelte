@@ -1,0 +1,81 @@
+
+	/* ---- Refined Editorial · listing header (default theme only) ----
+	   Other themes keep the original markup + Tailwind classes untouched;
+	   every rule below is gated to [data-theme='default']. */
+	[data-theme='default'] .ed-lh.svelte-7ok2xa {
+		flex-wrap: wrap;
+		align-items: flex-end;
+		gap: 20px 32px;
+		padding-bottom: clamp(16px, 2vw, 22px);
+		margin-bottom: clamp(20px, 2.6vw, 34px);
+		border-bottom: 1px solid var(--ed-line);
+	}
+
+	/* Count reads as an uppercase eyebrow ABOVE the Bodoni title */
+	[data-theme='default'] .ed-lh__group.svelte-7ok2xa {
+		flex-direction: column-reverse;
+		align-items: flex-start;
+		gap: 8px;
+	}
+
+	[data-theme='default'] .ed-lh__count.svelte-7ok2xa {
+		font-family: var(--ed-body);
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: var(--ed-soft);
+	}
+
+	[data-theme='default'] .ed-lh__title.svelte-7ok2xa {
+		margin: 0;
+		font-family: var(--ed-display);
+		font-weight: 500;
+		font-size: clamp(1.9rem, 3.4vw, 3rem);
+		line-height: 1.04;
+		letter-spacing: -0.01em;
+		color: var(--ed-ink);
+	}
+
+	[data-theme='default'] .ed-lh__sortlabel.svelte-7ok2xa {
+		color: var(--ed-soft);
+		letter-spacing: 0.18em;
+	}
+
+	[data-theme='default'] .ed-lh__desc.svelte-7ok2xa {
+		flex-basis: 100%;
+		order: 9;
+		margin-top: 4px;
+		max-width: 70ch;
+		color: var(--ed-soft);
+		font-size: 0.9rem;
+		line-height: 1.7;
+	}
+
+	/* Refined sort dropdown trigger (shadcn Button rendered inside Select) */
+	[data-theme='default'] .ed-lh__select button {
+		height: 44px;
+		min-width: 200px;
+		padding: 0 14px;
+		border: 1px solid var(--ed-line-strong);
+		border-radius: var(--ed-radius);
+		background: var(--ed-surface);
+		color: var(--ed-ink);
+		font-family: var(--ed-body);
+		font-size: 0.8rem;
+		font-weight: 500;
+		letter-spacing: 0.01em;
+		box-shadow: none;
+		transition: border-color 0.2s ease;
+	}
+
+	[data-theme='default'] .ed-lh__select button:hover {
+		border-color: hsl(var(--primary));
+		background: var(--ed-surface);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		[data-theme='default'] .ed-lh__select button {
+			transition: none;
+		}
+	}

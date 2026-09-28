@@ -1,0 +1,488 @@
+<script lang="ts">
+  import { Button } from "$lib/components/ui/button/index.js";
+  import { Spinner } from "$lib/components/ui/spinner/index.js";
+  import { Badge } from "$lib/components/ui/badge/index.js";
+  import * as Table from "$lib/components/ui/table/index.js";
+  import * as Tooltip from "$lib/components/ui/tooltip/index.js";
+  import * as Select from "$lib/components/ui/select/index.js";
+  import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
+  import { Input } from "$lib/components/ui/input/index.js";
+  import { Label } from "$lib/components/ui/label/index.js";
+  import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
+  import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
+  import SearchIcon from "@lucide/svelte/icons/search";
+  import TrashIcon from "@lucide/svelte/icons/trash";
+  import FilterIcon from "@lucide/svelte/icons/filter";
+  import XIcon from "@lucide/svelte/icons/x";
+  import { format } from "date-fns";
+  import { onMount } from "svelte";
+  import { toast } from "svelte-sonner";
+  import { resolve } from "$app/paths";
+  import clientResolver from "$lib/client/resolver.js";
+  import GC, { isMonitoringStatus } from "$lib/global-constants";
+  import type { MonitoringStatus } from "$lib/types/status.js";
+
+  // Types
+  interface MonitoringData {
+    monitor_tag: string;
+    timestamp: number;
+    status: string | null;
+    latency: number | null;
+    type: string | null;
+    error_message?: string | null;
+  }
+
+  interface Monitor {
+    tag: string;
+    name: string;
+  }
+
+  type StatusFilter = "ALL" | MonitoringStatus;
+
+  // Helper to format datetime as YYYY-MM-DDTHH:mm for datetime-local input
+  function formatDateTimeForInput(date: Date): string {
+    return format(date, "yyyy-MM-dd'T'HH:mm");
+  }
+
+  // Helper to format date only as YYYY-MM-DD for min/max constraints
+  function formatDateForInput(date: Date): string {
+    return format(date, "yyyy-MM-dd");
+  }
+
+  // Helper to get date N days ago
+  function getDaysAgo(days: number): Date {
+    const date = new Date();
+    date.setDate(date.getDate() - days);
+    return date;
+  }
+
+  // Default date range: last 24 hours
+  const now = new Date();
+  const yesterday = getDaysAgo(1);
+  const maxDaysAgoDate = getDaysAgo(30);
+
+  // State
+  let loading = $state(true);
+  let deleting = $state(false);
+  let deleteDialogOpen = $state(false);
+  let monitoringData = $state<MonitoringData[]>([]);
+  let monitors = $state<Monitor[]>([]);
+  let totalPages = $state(0);
+  let totalCount = $state(0);
+  let pageNo = $state(1);
+  let showFilters = $state(false);
+  let monitorTagFilter = $state("ALL");
+  let statusFilter = $state<StatusFilter>("ALL");
+  let startDateTime = $state(formatDateTimeForInput(yesterday));
+  let endDateTime = $state(formatDateTimeForInput(now));
+  const limit = 50;
+
+  const hasActiveFilters = $derived(
+    monitorTagFilter !== "ALL" ||
+      statusFilter !== "ALL" ||
+      startDateTime !== formatDateTimeForInput(yesterday) ||
+      endDateTime !== formatDateTimeForInput(now)
+  );
+
+  // Convert datetime string (YYYY-MM-DDTHH:mm) to Unix timestamp (seconds)
+  function dateTimeStringToTimestamp(dateTimeStr: string): number {
+    const date = new Date(dateTimeStr);
+    return Math.floor(date.getTime() / 1000);
+  }
+
+  // Validate date range (max 30 days) and clamp values
+  function validateDates() {
+    const start = new Date(startDateTime);
+    const end = new Date(endDateTime);
+
+    if (start > end) {
+      startDateTime = endDateTime;
+    }
+
+    const daysDiff = Math.abs((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysDiff > 30) {
+      const newEnd = new Date(start);
+      newEnd.setDate(newEnd.getDate() + 30);
+      if (newEnd > now) {
+        endDateTime = formatDateTimeForInput(now);
+      } else {
+        endDateTime = formatDateTimeForInput(newEnd);
+      }
+    }
+  }
+
+  function applyFilters() {
+    validateDates();
+    pageNo = 1;
+    fetchData();
+  }
+
+  function clearFilters() {
+    monitorTagFilter = "ALL";
+    statusFilter = "ALL";
+    startDateTime = formatDateTimeForInput(yesterday);
+    endDateTime = formatDateTimeForInput(now);
+    pageNo = 1;
+    fetchData();
+  }
+
+  function openDeleteDialog() {
+    validateDates();
+    deleteDialogOpen = true;
+  }
+
+  async function deleteFilteredData() {
+    deleteDialogOpen = false;
+
+    const startTs = dateTimeStringToTimestamp(startDateTime);
+    const endTs = dateTimeStringToTimestamp(endDateTime);
+
+    deleting = true;
+    try {
+      const response = await fetch(clientResolver(resolve, "/manage/api"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "deleteMonitorData",
+          data: {
+            tag: monitorTagFilter === "ALL" ? "" : monitorTagFilter,
+            status: statusFilter === "ALL" ? undefined : statusFilter,
+            start: startTs,
+            end: endTs
+          }
+        })
+      });
+
+      const result = await response.json();
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Monitoring data deleted successfully");
+        monitorTagFilter = "ALL";
+        pageNo = 1;
+        fetchData();
+      }
+    } catch (e) {
+      toast.error("Failed to delete monitoring data");
+    } finally {
+      deleting = false;
+    }
+  }
+
+  // Fetch monitors for filter dropdown
+  async function fetchMonitors() {
+    try {
+      const response = await fetch(clientResolver(resolve, "/manage/api"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "getMonitors",
+          data: {}
+        })
+      });
+      const result = await response.json();
+      if (!result.error && Array.isArray(result)) {
+        monitors = result.map((m: { tag: string; name: string }) => ({ tag: m.tag, name: m.name }));
+      }
+    } catch (error) {
+      console.error("Error fetching monitors:", error);
+    }
+  }
+
+  // Fetch monitoring data
+  async function fetchData() {
+    loading = true;
+    try {
+      const requestData: {
+        page: number;
+        limit: number;
+        monitor_tag: string;
+        status: StatusFilter;
+        start_time?: number;
+        end_time?: number;
+      } = {
+        page: pageNo,
+        limit,
+        monitor_tag: monitorTagFilter,
+        status: statusFilter
+      };
+
+      if (startDateTime) {
+        requestData.start_time = dateTimeStringToTimestamp(startDateTime);
+      }
+      if (endDateTime) {
+        requestData.end_time = dateTimeStringToTimestamp(endDateTime);
+      }
+
+      const response = await fetch(clientResolver(resolve, "/manage/api"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "getMonitoringDataPaginated",
+          data: requestData
+        })
+      });
+      const result = await response.json();
+      if (!result.error) {
+        monitoringData = result.data as MonitoringData[];
+        totalCount = result.total;
+        totalPages = Math.ceil(result.total / limit);
+      }
+    } catch (error) {
+      console.error("Error fetching monitoring data:", error);
+    } finally {
+      loading = false;
+    }
+  }
+
+  // Format timestamp to date string
+  function formatTimestamp(timestamp: number): string {
+    try {
+      const date = new Date(timestamp * 1000);
+      return format(date, "yyyy-MM-dd HH:mm:ss");
+    } catch {
+      return String(timestamp);
+    }
+  }
+
+  function handleMonitorChange(value: string | undefined) {
+    if (value) {
+      monitorTagFilter = value;
+    }
+  }
+
+  function handleStatusChange(value: string | undefined) {
+    if (value === "ALL" || isMonitoringStatus(value)) {
+      statusFilter = value;
+    }
+  }
+
+  // Pagination
+  function goToPage(page: number) {
+    pageNo = page;
+    fetchData();
+  }
+
+  onMount(() => {
+    fetchMonitors();
+    fetchData();
+  });
+</script>
+
+<div class="container mx-auto space-y-6 py-6">
+  <div class="flex flex-col gap-3">
+    <div class="flex items-center gap-2">
+      <Button variant={showFilters ? "default" : "outline"} size="sm" onclick={() => (showFilters = !showFilters)}>
+        <FilterIcon class="size-4" />
+        Filters
+        {#if hasActiveFilters}
+          <Badge variant="secondary" class="ml-1 px-1.5 py-0 text-[10px]">ON</Badge>
+        {/if}
+      </Button>
+      {#if loading}
+        <Spinner class="size-5" />
+      {/if}
+    </div>
+
+    {#if showFilters}
+      <div class="bg-muted/50 flex flex-wrap items-end gap-3 rounded-lg border p-3">
+        <div class="flex flex-col gap-1">
+          <Label for="start-datetime" class="text-muted-foreground text-xs font-medium">From</Label>
+          <Input
+            id="start-datetime"
+            type="datetime-local"
+            bind:value={startDateTime}
+            min={formatDateTimeForInput(maxDaysAgoDate)}
+            max={endDateTime}
+          />
+        </div>
+        <div class="flex flex-col gap-1">
+          <Label for="end-datetime" class="text-muted-foreground text-xs font-medium">To</Label>
+          <Input
+            id="end-datetime"
+            type="datetime-local"
+            bind:value={endDateTime}
+            min={startDateTime}
+            max={formatDateTimeForInput(now)}
+          />
+        </div>
+        <div class="flex flex-col gap-1">
+          <span class="text-muted-foreground text-xs font-medium">Monitor</span>
+          <Select.Root type="single" value={monitorTagFilter} onValueChange={handleMonitorChange}>
+            <Select.Trigger class="w-48">
+              {monitorTagFilter === "ALL" ? "All Monitors" : monitorTagFilter}
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="ALL">All Monitors</Select.Item>
+              {#each monitors as monitor (monitor.tag)}
+                <Select.Item value={monitor.tag}>{monitor.name || monitor.tag}</Select.Item>
+              {/each}
+            </Select.Content>
+          </Select.Root>
+        </div>
+        <div class="flex flex-col gap-1">
+          <span class="text-muted-foreground text-xs font-medium">Status</span>
+          <Select.Root type="single" value={statusFilter} onValueChange={handleStatusChange}>
+            <Select.Trigger class="w-36" aria-label="Status">
+              {statusFilter === "ALL" ? "All Statuses" : statusFilter}
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="ALL">All Statuses</Select.Item>
+              <Select.Item value={GC.UP}>UP</Select.Item>
+              <Select.Item value={GC.DOWN}>DOWN</Select.Item>
+              <Select.Item value={GC.DEGRADED}>DEGRADED</Select.Item>
+            </Select.Content>
+          </Select.Root>
+        </div>
+        <Button size="sm" onclick={applyFilters}>
+          <SearchIcon class="size-4" />
+          Search
+        </Button>
+        <Button size="sm" variant="destructive" onclick={openDeleteDialog} disabled={deleting}>
+          {#if deleting}
+            <Spinner class="size-4" />
+            Deleting...
+          {:else}
+            <TrashIcon class="size-4" />
+            Delete
+          {/if}
+        </Button>
+        {#if hasActiveFilters}
+          <Button variant="ghost" size="sm" onclick={clearFilters}>
+            <XIcon class="size-4" />
+            Clear
+          </Button>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
+  <!-- Data Table -->
+  <div class="ktable rounded-xl border">
+    <Table.Root>
+      <Table.Header>
+        <Table.Row>
+          <Table.Head>Monitor Tag</Table.Head>
+          <Table.Head class="w-48">Timestamp</Table.Head>
+          <Table.Head class="w-24">Status</Table.Head>
+          <Table.Head class="w-24">Latency</Table.Head>
+          <Table.Head class="w-24">Type</Table.Head>
+          <Table.Head>Error Message</Table.Head>
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
+        {#if monitoringData.length === 0 && !loading}
+          <Table.Row>
+            <Table.Cell colspan={6} class="text-muted-foreground py-8 text-center">No monitoring data found</Table.Cell>
+          </Table.Row>
+        {:else}
+          {#each monitoringData as row (row.monitor_tag + "_" + row.timestamp)}
+            <Table.Row class="hover:bg-muted/50">
+              <Table.Cell>
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    <span class="line-clamp-1 max-w-xs font-medium">{row.monitor_tag}</span>
+                  </Tooltip.Trigger>
+                  <Tooltip.Content>
+                    <p>{row.monitor_tag}</p>
+                  </Tooltip.Content>
+                </Tooltip.Root>
+              </Table.Cell>
+              <Table.Cell>
+                <span class="text-muted-foreground text-sm">{formatTimestamp(row.timestamp)}</span>
+              </Table.Cell>
+              <Table.Cell>
+                <span class="text-xs font-semibold text-{row.status?.toLowerCase()}">
+                  {row.status || "N/A"}
+                </span>
+              </Table.Cell>
+              <Table.Cell>
+                {#if row.latency !== null}
+                  <span class="text-sm">{row.latency} ms</span>
+                {:else}
+                  <span class="text-muted-foreground text-sm">—</span>
+                {/if}
+              </Table.Cell>
+              <Table.Cell>
+                {#if row.type}
+                  <Badge variant="secondary">{row.type}</Badge>
+                {:else}
+                  <span class="text-muted-foreground text-sm">—</span>
+                {/if}
+              </Table.Cell>
+              <Table.Cell>
+                {#if row.error_message}
+                  <Tooltip.Root>
+                    <Tooltip.Trigger>
+                      <span class="text-destructive line-clamp-1 max-w-xs text-sm">{row.error_message}</span>
+                    </Tooltip.Trigger>
+                    <Tooltip.Content class="max-w-md">
+                      <p class="wrap-break-word">{row.error_message}</p>
+                    </Tooltip.Content>
+                  </Tooltip.Root>
+                {:else}
+                  <span class="text-muted-foreground text-sm">—</span>
+                {/if}
+              </Table.Cell>
+            </Table.Row>
+          {/each}
+        {/if}
+      </Table.Body>
+    </Table.Root>
+  </div>
+
+  <!-- Pagination -->
+  {#if totalCount > 0}
+    {@const startItem = (pageNo - 1) * limit + 1}
+    {@const endItem = Math.min(pageNo * limit, totalCount)}
+    <div class="flex items-center justify-between">
+      <span class="text-muted-foreground text-sm">Showing {startItem}-{endItem} of {totalCount}</span>
+      {#if totalPages > 1}
+        <div class="flex items-center gap-2">
+          <Button variant="outline" size="icon" disabled={pageNo === 1} onclick={() => goToPage(pageNo - 1)}>
+            <ChevronLeftIcon class="size-4" />
+          </Button>
+          <div class="flex items-center gap-1">
+            {#each Array.from({ length: totalPages }, (_, i) => i + 1) as page (page)}
+              {#if page === 1 || page === totalPages || (page >= pageNo - 1 && page <= pageNo + 1)}
+                <Button variant={page === pageNo ? "default" : "ghost"} size="sm" onclick={() => goToPage(page)}>
+                  {page}
+                </Button>
+              {:else if page === pageNo - 2 || page === pageNo + 2}
+                <span class="text-muted-foreground px-1">...</span>
+              {/if}
+            {/each}
+          </div>
+          <Button variant="outline" size="icon" disabled={pageNo === totalPages} onclick={() => goToPage(pageNo + 1)}>
+            <ChevronRightIcon class="size-4" />
+          </Button>
+        </div>
+      {/if}
+    </div>
+  {/if}
+</div>
+
+<AlertDialog.Root bind:open={deleteDialogOpen}>
+  <AlertDialog.Content>
+    <AlertDialog.Header>
+      <AlertDialog.Title>Delete Monitoring Data</AlertDialog.Title>
+      <AlertDialog.Description>
+        This will delete monitoring data for
+        {#if monitorTagFilter === "ALL"}
+          <strong>all monitors</strong>
+        {:else}
+          <strong>{monitorTagFilter}</strong>
+        {/if}
+        {#if statusFilter !== "ALL"}
+          with status <strong>{statusFilter}</strong>
+        {/if}
+        from {startDateTime} to {endDateTime}.
+        This action cannot be undone.
+      </AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+      <AlertDialog.Action onclick={deleteFilteredData}>Delete</AlertDialog.Action>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>

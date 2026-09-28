@@ -1,0 +1,86 @@
+[
+	{
+		"code": "store_rune_conflict",
+		"message": "It looks like you're using the `$state` rune, but there is a local binding called `state`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `state` to avoid the ambiguity\nhttps://svelte.dev/e/store_rune_conflict",
+		"start": {
+			"line": 4,
+			"column": 14,
+			"character": 72
+		},
+		"end": {
+			"line": 4,
+			"column": 20,
+			"character": 78
+		}
+	},
+	{
+		"code": "store_rune_conflict",
+		"message": "It looks like you're using the `$state` rune, but there is a local binding called `state`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `state` to avoid the ambiguity\nhttps://svelte.dev/e/store_rune_conflict",
+		"start": {
+			"line": 16,
+			"column": 20,
+			"character": 517
+		},
+		"end": {
+			"line": 16,
+			"column": 26,
+			"character": 523
+		}
+	},
+	{
+		"code": "store_rune_conflict",
+		"message": "It looks like you're using the `$effect` rune, but there is a local binding called `effect`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `effect` to avoid the ambiguity\nhttps://svelte.dev/e/store_rune_conflict",
+		"start": {
+			"line": 5,
+			"column": 4,
+			"character": 98
+		},
+		"end": {
+			"line": 5,
+			"column": 11,
+			"character": 105
+		}
+	},
+	{
+		"code": "store_rune_conflict",
+		"message": "It looks like you're using the `$effect` rune, but there is a local binding called `effect`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `effect` to avoid the ambiguity\nhttps://svelte.dev/e/store_rune_conflict",
+		"start": {
+			"line": 16,
+			"column": 28,
+			"character": 525
+		},
+		"end": {
+			"line": 16,
+			"column": 35,
+			"character": 532
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 20,
+			"column": 8,
+			"character": 583
+		},
+		"end": {
+			"line": 20,
+			"column": 32,
+			"character": 607
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`foo` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 8,
+			"character": 66
+		},
+		"end": {
+			"line": 4,
+			"column": 11,
+			"character": 69
+		}
+	}
+]

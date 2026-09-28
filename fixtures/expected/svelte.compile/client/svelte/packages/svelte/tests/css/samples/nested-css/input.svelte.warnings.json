@@ -1,0 +1,100 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".unused\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 20,
+			"column": 6,
+			"character": 232
+		},
+		"end": {
+			"line": 20,
+			"column": 13,
+			"character": 239
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".unused\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 27,
+			"column": 3,
+			"character": 295
+		},
+		"end": {
+			"line": 27,
+			"column": 10,
+			"character": 302
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".c\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 30,
+			"column": 4,
+			"character": 326
+		},
+		"end": {
+			"line": 30,
+			"column": 6,
+			"character": 328
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".unused\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 37,
+			"column": 3,
+			"character": 374
+		},
+		"end": {
+			"line": 37,
+			"column": 10,
+			"character": 381
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"& &\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 47,
+			"column": 4,
+			"character": 468
+		},
+		"end": {
+			"line": 47,
+			"column": 7,
+			"character": 471
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&.b\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 70,
+			"column": 2,
+			"character": 665
+		},
+		"end": {
+			"line": 70,
+			"column": 5,
+			"character": 668
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".unused\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 74,
+			"column": 2,
+			"character": 693
+		},
+		"end": {
+			"line": 74,
+			"column": 9,
+			"character": 700
+		}
+	}
+]

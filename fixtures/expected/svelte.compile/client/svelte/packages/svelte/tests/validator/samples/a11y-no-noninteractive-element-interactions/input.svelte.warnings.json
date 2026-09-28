@@ -1,0 +1,268 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:mouseup` to listen to the mouseup event is deprecated. Use the event attribute `onmouseup` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 2,
+			"column": 25,
+			"character": 40
+		},
+		"end": {
+			"line": 2,
+			"column": 46,
+			"character": 61
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 3,
+			"column": 33,
+			"character": 102
+		},
+		"end": {
+			"line": 3,
+			"column": 52,
+			"character": 121
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 3,
+			"column": 53,
+			"character": 122
+		},
+		"end": {
+			"line": 3,
+			"column": 75,
+			"character": 144
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 4,
+			"column": 40,
+			"character": 192
+		},
+		"end": {
+			"line": 4,
+			"column": 59,
+			"character": 211
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 4,
+			"column": 60,
+			"character": 212
+		},
+		"end": {
+			"line": 4,
+			"column": 82,
+			"character": 234
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 5,
+			"column": 8,
+			"character": 250
+		},
+		"end": {
+			"line": 5,
+			"column": 27,
+			"character": 269
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 6,
+			"column": 8,
+			"character": 296
+		},
+		"end": {
+			"line": 6,
+			"column": 27,
+			"character": 315
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 7,
+			"column": 27,
+			"character": 358
+		},
+		"end": {
+			"line": 7,
+			"column": 48,
+			"character": 379
+		}
+	},
+	{
+		"code": "a11y_no_noninteractive_element_interactions",
+		"message": "Non-interactive element `<div>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions",
+		"start": {
+			"line": 11,
+			"column": 0,
+			"character": 428
+		},
+		"end": {
+			"line": 11,
+			"column": 51,
+			"character": 479
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:mousedown` to listen to the mousedown event is deprecated. Use the event attribute `onmousedown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 11,
+			"column": 21,
+			"character": 449
+		},
+		"end": {
+			"line": 11,
+			"column": 44,
+			"character": 472
+		}
+	},
+	{
+		"code": "a11y_no_noninteractive_element_interactions",
+		"message": "Non-interactive element `<h1>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions",
+		"start": {
+			"line": 12,
+			"column": 0,
+			"character": 480
+		},
+		"end": {
+			"line": 12,
+			"column": 58,
+			"character": 538
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 12,
+			"column": 4,
+			"character": 484
+		},
+		"end": {
+			"line": 12,
+			"column": 23,
+			"character": 503
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 12,
+			"column": 24,
+			"character": 504
+		},
+		"end": {
+			"line": 12,
+			"column": 45,
+			"character": 525
+		}
+	},
+	{
+		"code": "a11y_no_noninteractive_element_interactions",
+		"message": "Non-interactive element `<h1>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions",
+		"start": {
+			"line": 13,
+			"column": 0,
+			"character": 539
+		},
+		"end": {
+			"line": 13,
+			"column": 50,
+			"character": 589
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keyup` to listen to the keyup event is deprecated. Use the event attribute `onkeyup` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 13,
+			"column": 18,
+			"character": 557
+		},
+		"end": {
+			"line": 13,
+			"column": 37,
+			"character": 576
+		}
+	},
+	{
+		"code": "a11y_no_noninteractive_element_interactions",
+		"message": "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions",
+		"start": {
+			"line": 14,
+			"column": 0,
+			"character": 590
+		},
+		"end": {
+			"line": 14,
+			"column": 30,
+			"character": 620
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 14,
+			"column": 3,
+			"character": 593
+		},
+		"end": {
+			"line": 14,
+			"column": 25,
+			"character": 615
+		}
+	},
+	{
+		"code": "a11y_no_noninteractive_element_interactions",
+		"message": "Non-interactive element `<div>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions",
+		"start": {
+			"line": 15,
+			"column": 0,
+			"character": 621
+		},
+		"end": {
+			"line": 15,
+			"column": 50,
+			"character": 671
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:mouseup` to listen to the mouseup event is deprecated. Use the event attribute `onmouseup` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 15,
+			"column": 22,
+			"character": 643
+		},
+		"end": {
+			"line": 15,
+			"column": 43,
+			"character": 664
+		}
+	}
+]

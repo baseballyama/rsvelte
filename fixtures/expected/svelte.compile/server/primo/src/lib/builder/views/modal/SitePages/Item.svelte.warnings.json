@@ -1,0 +1,72 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `page`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 65,
+			"column": 26,
+			"character": 2743
+		},
+		"end": {
+			"line": 65,
+			"column": 30,
+			"character": 2747
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`name_input_el` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 242,
+			"column": 5,
+			"character": 8178
+		},
+		"end": {
+			"line": 242,
+			"column": 18,
+			"character": 8191
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"hr\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 537,
+			"column": 3,
+			"character": 17315
+		},
+		"end": {
+			"line": 537,
+			"column": 5,
+			"character": 17317
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"div.url\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 616,
+			"column": 4,
+			"character": 18930
+		},
+		"end": {
+			"line": 616,
+			"column": 11,
+			"character": 18937
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"span\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 623,
+			"column": 5,
+			"character": 19083
+		},
+		"end": {
+			"line": 623,
+			"column": 9,
+			"character": 19087
+		}
+	}
+]

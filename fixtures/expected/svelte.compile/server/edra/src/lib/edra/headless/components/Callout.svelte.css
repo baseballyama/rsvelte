@@ -1,0 +1,52 @@
+
+	.callout-wrapper {
+		margin-top: 1rem;
+		margin-bottom: 1rem;
+		display: flex;
+		gap: 0.75rem;
+		padding: 1rem;
+		border-radius: var(--edra-radius-lg);
+		border: 1px solid var(--edra-border);
+		transition: background-color 150ms ease;
+		background-color: var(--edra-canvas-soft-2);
+	}
+	.emoji-trigger-container.svelte-7q149v {
+		user-select: none;
+		display: flex;
+		align-items: flex-start;
+		margin-top: 0.125rem;
+	}
+	.emoji-trigger-btn.svelte-7q149v {
+		width: 1.75rem;
+		height: 1.75rem;
+		font-size: 1.125rem;
+		padding: 0;
+	}
+	.emoji-popover-content.svelte-7q149v {
+		padding: 12px;
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		box-shadow: var(--edra-shadow-4);
+		width: 12rem;
+	}
+	.input-wrapper.svelte-7q149v {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+	.emoji-label.svelte-7q149v {
+		font-size: 10px;
+		color: var(--edra-mute);
+		text-transform: uppercase;
+		font-weight: 700;
+	}
+	.emoji-input.svelte-7q149v {
+		height: 2rem;
+		font-size: 0.875rem;
+	}
+	.callout-content-container.svelte-7q149v {
+		flex: 1;
+		min-width: 8px;
+		line-height: 1.625;
+	}

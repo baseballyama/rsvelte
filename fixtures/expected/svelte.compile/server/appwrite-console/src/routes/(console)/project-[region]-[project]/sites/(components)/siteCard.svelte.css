@@ -1,0 +1,12 @@
+
+    .card-grid.svelte-1tx0n9e {
+        display: grid;
+        grid-template-columns: 45% auto;
+        // justify-content: center;
+        align-items: center;
+        gap: var(--gap-xl);
+
+        @media (max-width: 930px) {
+            grid-template-columns: 1fr;
+        }
+    }

@@ -1,0 +1,51 @@
+
+	.component-container.svelte-2xcq4q {
+		display: flex;
+		flex-direction: row-reverse;
+		gap: 10px;
+		height: 100%;
+	}
+	/*
+		The wrapper div needs to have an explicit width and height in CSS.
+		It can also be a flexbox child or CSS grid element.
+		The point being it needs dimensions since the <LayerCake> element will
+		expand to fill it.
+	*/
+	.chart-container.svelte-2xcq4q {
+		flex: 1;
+		position: relative;
+	}
+	.props.svelte-2xcq4q {
+		flex-grow: 0;
+		flex-shrink: 1;
+		display: flex;
+		flex-direction: column;
+		user-select: none;
+		overflow-y: auto;
+		font-size: 0.9rem;
+	}
+	label.svelte-2xcq4q {
+		display: flex;
+		cursor: pointer;
+		align-items: center;
+	}
+	input[type='checkbox'].svelte-2xcq4q {
+		margin-left: 0;
+	}
+
+	label.number.svelte-2xcq4q {
+		display: flex;
+		justify-content: space-between;
+	}
+
+	input[type='number'].svelte-2xcq4q {
+		max-width: 35px;
+		margin-left: 10px;
+		float: right;
+	}
+	span.disabled.svelte-2xcq4q {
+		opacity: 0.5;
+	}
+	label.disabled.svelte-2xcq4q {
+		pointer-events: none;
+	}

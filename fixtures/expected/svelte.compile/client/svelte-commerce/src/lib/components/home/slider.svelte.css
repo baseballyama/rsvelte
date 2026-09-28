@@ -1,0 +1,11 @@
+
+	.embla.svelte-rwgio5 {
+		overflow: hidden;
+	}
+	.embla__container.svelte-rwgio5 {
+		display: flex;
+	}
+	.embla__slide.svelte-rwgio5 {
+		flex: 0 0 20%;
+		min-width: 0;
+	}

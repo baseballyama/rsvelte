@@ -1,0 +1,86 @@
+[
+	{
+		"code": "legacy_code",
+		"message": "`a11y-missing-attribute` is no longer valid — please use `a11y_missing_attribute` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 3,
+			"column": 19,
+			"character": 52
+		},
+		"end": {
+			"line": 3,
+			"column": 41,
+			"character": 74
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 5,
+			"column": 1,
+			"character": 86
+		},
+		"end": {
+			"line": 5,
+			"column": 29,
+			"character": 114
+		}
+	},
+	{
+		"code": "unknown_code",
+		"message": "`ally_missing_attribute` is not a recognised code (did you mean `a11y_missing_attribute`?)\nhttps://svelte.dev/e/unknown_code",
+		"start": {
+			"line": 8,
+			"column": 19,
+			"character": 142
+		},
+		"end": {
+			"line": 8,
+			"column": 41,
+			"character": 164
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 10,
+			"column": 1,
+			"character": 176
+		},
+		"end": {
+			"line": 10,
+			"column": 29,
+			"character": 204
+		}
+	},
+	{
+		"code": "legacy_code",
+		"message": "`a11y-misplaced-scope` is no longer valid — please use `a11y_misplaced_scope` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 13,
+			"column": 19,
+			"character": 232
+		},
+		"end": {
+			"line": 13,
+			"column": 39,
+			"character": 252
+		}
+	},
+	{
+		"code": "a11y_misplaced_scope",
+		"message": "The scope attribute should only be used with `<th>` elements\nhttps://svelte.dev/e/a11y_misplaced_scope",
+		"start": {
+			"line": 14,
+			"column": 5,
+			"character": 262
+		},
+		"end": {
+			"line": 14,
+			"column": 10,
+			"character": 267
+		}
+	}
+]

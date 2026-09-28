@@ -1,0 +1,43 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { AlertDialog as AlertDialogPrimitive } from 'bits-ui';
+import { cn } from '$lib/utils.js';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'class', 'ref']);
+
+export default function Alert_dialog_overlay($$anchor, $$props) {
+	$.push($$props, true);
+
+	let ref = $.prop($$props, 'ref', 15, null),
+		restProps = $.rest_props($$props, rest_excludes);
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	{
+		let $0 = $.derived(() => cn('data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-[1001] bg-black/80', $$props.class));
+
+		$.component(node, () => AlertDialogPrimitive.Overlay, ($$anchor, AlertDialogPrimitive_Overlay) => {
+			AlertDialogPrimitive_Overlay($$anchor, $.spread_props(
+				{
+					get class() {
+						return $.get($0);
+					}
+				},
+				() => restProps,
+				{
+					get ref() {
+						return ref();
+					},
+
+					set ref($$value) {
+						ref($$value);
+					}
+				}
+			));
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}

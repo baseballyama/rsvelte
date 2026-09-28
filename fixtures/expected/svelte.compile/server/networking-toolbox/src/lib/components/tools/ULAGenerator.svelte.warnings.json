@@ -1,0 +1,128 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 64,
+			"column": 14,
+			"character": 1824
+		},
+		"end": {
+			"line": 64,
+			"column": 37,
+			"character": 1847
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 112,
+			"column": 22,
+			"character": 3622
+		},
+		"end": {
+			"line": 112,
+			"column": 74,
+			"character": 3674
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:input` to listen to the input event is deprecated. Use the event attribute `oninput` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 192,
+			"column": 8,
+			"character": 6813
+		},
+		"end": {
+			"line": 192,
+			"column": 34,
+			"character": 6839
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`count` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 6,
+			"character": 109
+		},
+		"end": {
+			"line": 4,
+			"column": 11,
+			"character": 114
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`subnetIds` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 126
+		},
+		"end": {
+			"line": 5,
+			"column": 15,
+			"character": 135
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`result` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 6,
+			"character": 148
+		},
+		"end": {
+			"line": 6,
+			"column": 30,
+			"character": 172
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`loading` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 187
+		},
+		"end": {
+			"line": 7,
+			"column": 13,
+			"character": 194
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`parseInput` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 210
+		},
+		"end": {
+			"line": 8,
+			"column": 16,
+			"character": 220
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`parseResult` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 6,
+			"character": 233
+		},
+		"end": {
+			"line": 9,
+			"column": 53,
+			"character": 280
+		}
+	}
+]

@@ -1,0 +1,58 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `selectedIndex`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 558,
+			"column": 30,
+			"character": 15884
+		},
+		"end": {
+			"line": 558,
+			"column": 43,
+			"character": 15897
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`floatingLabel` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 535,
+			"column": 6,
+			"character": 15207
+		},
+		"end": {
+			"line": 535,
+			"column": 46,
+			"character": 15247
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`lineRipple` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 536,
+			"column": 6,
+			"character": 15267
+		},
+		"end": {
+			"line": 536,
+			"column": 40,
+			"character": 15301
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`notchedOutline` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 537,
+			"column": 6,
+			"character": 15321
+		},
+		"end": {
+			"line": 537,
+			"column": 48,
+			"character": 15363
+		}
+	}
+]

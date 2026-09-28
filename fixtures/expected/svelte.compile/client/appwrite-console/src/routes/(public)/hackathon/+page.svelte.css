@@ -1,0 +1,149 @@
+
+    .main-content {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        flex-grow: 1;
+    }
+
+    .wrapper.svelte-mj406v {
+        display: grid;
+        place-items: center;
+        justify-content: center;
+        align-items: center;
+        flex-grow: 1;
+        position: relative;
+
+        grid-template-columns: 1fr 1fr;
+        padding-block: 4rem;
+        gap: max(4rem, 10vw);
+        overflow: hidden;
+    }
+
+    .ht-cta.svelte-mj406v {
+        padding-inline-start: 4rem;
+    }
+
+    .ht-img.svelte-mj406v {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        padding-inline: 1rem;
+    }
+    /* (empty) .ht-card {
+        &-main {
+            grid-column: 1/ -1;
+            aspect-ratio: 1;
+            width: 33rem;
+            height: 16.5rem;
+        }
+    }*/
+    .ht-title.svelte-mj406v {
+        font-size: 3.5rem;
+        font-weight: 700;
+        line-height: 1.2;
+        margin-block-end: 2.5rem;
+        /* (unused) &-primary {
+            color: hsl(var(--color-primary-100));
+        }*/
+    }
+
+    .ht-tag.svelte-mj406v {
+        padding: 0.125rem 0.5rem;
+        border-radius: 0.25rem;
+        background-color: hsl(var(--color-neutral-70));
+        text-align: center;
+
+        /* (unused) &-primary {
+            background-color: hsl(var(--color-primary-100));
+        }*/
+
+        span:where(.svelte-mj406v) {
+            color: hsl(var(--color-neutral-0));
+        }
+    }
+
+    .ht-logos.svelte-mj406v {
+        margin-block-start: 5rem;
+    }
+    @media (max-width: 1068px) {
+        .wrapper.svelte-mj406v {
+            display: block;
+            padding-block: 1rem;
+
+            max-width: min(100%, 500px);
+            margin: 0 auto;
+        }
+        .ht-title.svelte-mj406v {
+            font-size: 2.5rem;
+            margin-block-end: 2rem;
+        }
+        .ht-cta.svelte-mj406v {
+            padding-inline: 1rem;
+        }
+        .ht-img.svelte-mj406v {
+            grid-template-columns: 1fr;
+            padding: 0 1rem;
+            h4:where(.svelte-mj406v),
+            div:where(.svelte-mj406v) {
+                justify-content: center;
+                align-items: center;
+            }
+        }
+        .ht-card.svelte-mj406v {
+            width: 100%;
+        }
+        .ht-logos.svelte-mj406v {
+            margin-block: 2.5rem;
+        }
+    }
+
+    .numeric-list.svelte-mj406v {
+        --p-numeric-border-color: var(--color-neutral-30);
+        --p-numeric-bg-color: var(--color-neutral-10);
+        --p-numeric-text-color: var(--color-neutral-100);
+        counter-reset: number;
+        display: grid;
+        row-gap: 1.5rem;
+        /* (unused) &-item {
+            counter-increment: number;
+            display: flex;
+            align-items: baseline;
+            column-gap: 1.5rem;
+
+            &::before {
+                content: counter(number);
+                flex-shrink: 0;
+                display: grid;
+                place-content: center;
+                inline-size: 2rem;
+                block-size: 2rem;
+                background-color: hsl(var(--p-numeric-bg-color));
+                color: hsl(var(--p-numeric-text-color));
+                border: 1px solid hsl(var(--p-numeric-border-color));
+                border-radius: var(--border-radius-circular);
+            }
+        }*/
+    }
+    .theme-dark {
+        .ht-text.svelte-mj406v {
+            color: hsl(var(--color-neutral-0));
+        }
+        .ht-tag.svelte-mj406v {
+            background-color: hsl(var(--color-neutral-150));
+            /* (unused) &-primary {
+                background-color: hsl(var(--color-primary-100));
+            }*/
+        }
+        .card.svelte-mj406v {
+            background-color: hsl(var(--color-neutral-300));
+        }
+        .numeric-list.svelte-mj406v {
+            --p-numeric-border-color: var(--color-neutral-150);
+            --p-numeric-bg-color: var(--color-neutral-200);
+            --p-numeric-text-color: var(--color-neutral-50);
+            /* (unused) &-item {
+                color: hsl(var(--color-neutral-30));
+            }*/
+        }
+    }

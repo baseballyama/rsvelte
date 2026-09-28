@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`createIndex` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 66,
+			"column": 8,
+			"character": 2146
+		},
+		"end": {
+			"line": 66,
+			"column": 32,
+			"character": 2170
+		}
+	}
+]

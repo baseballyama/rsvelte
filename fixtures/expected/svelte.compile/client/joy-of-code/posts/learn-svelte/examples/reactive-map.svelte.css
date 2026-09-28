@@ -1,0 +1,29 @@
+
+	.container.svelte-2hwqol {
+		text-align: left;
+	}
+
+	input.svelte-2hwqol,
+	button.svelte-2hwqol {
+		width: 100%;
+	}
+
+	input.svelte-2hwqol {
+		margin-bottom: var(--spacing-32);
+		padding: var(--spacing-16);
+		color: #000;
+		border-radius: var(--rounded-20);
+	}
+
+	summary.svelte-2hwqol {
+		text-transform: capitalize;
+	}
+
+	details.svelte-2hwqol {
+		overflow: hidden;
+		margin-bottom: var(--spacing-32);
+
+		.data:where(.svelte-2hwqol) {
+			height: 200px;
+		}
+	}

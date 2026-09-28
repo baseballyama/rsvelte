@@ -1,0 +1,14 @@
+
+	.container.svelte-1tjsi4d {
+		text-align: left;
+	}
+
+	input.svelte-1tjsi4d {
+		color: #000;
+		padding: var(--spacing-16);
+		border-radius: var(--rounded-20);
+	}
+
+	ul.svelte-1tjsi4d {
+		margin-top: var(--spacing-32);
+	}

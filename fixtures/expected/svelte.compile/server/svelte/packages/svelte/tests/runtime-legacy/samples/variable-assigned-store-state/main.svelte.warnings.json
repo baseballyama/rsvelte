@@ -1,0 +1,44 @@
+[
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 8,
+			"column": 0,
+			"character": 143
+		},
+		"end": {
+			"line": 8,
+			"column": 62,
+			"character": 205
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 8,
+			"column": 8,
+			"character": 151
+		},
+		"end": {
+			"line": 8,
+			"column": 52,
+			"character": 195
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`store` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 106
+		},
+		"end": {
+			"line": 5,
+			"column": 10,
+			"character": 111
+		}
+	}
+]

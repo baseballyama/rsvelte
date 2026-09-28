@@ -1,0 +1,72 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:submit` to listen to the submit event is deprecated. Use the event attribute `onsubmit` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 52,
+			"column": 30,
+			"character": 907
+		},
+		"end": {
+			"line": 52,
+			"column": 69,
+			"character": 946
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 6,
+			"character": 244
+		},
+		"end": {
+			"line": 15,
+			"column": 10,
+			"character": 248
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`step` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 16,
+			"column": 6,
+			"character": 264
+		},
+		"end": {
+			"line": 16,
+			"column": 10,
+			"character": 268
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`name` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 17,
+			"column": 6,
+			"character": 280
+		},
+		"end": {
+			"line": 17,
+			"column": 10,
+			"character": 284
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`region` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 18,
+			"column": 6,
+			"character": 297
+		},
+		"end": {
+			"line": 18,
+			"column": 12,
+			"character": 303
+		}
+	}
+]

@@ -1,0 +1,7 @@
+
+	.match.svelte-1u6f6f4 > :where(.svelte-1u6f6f4) + :where(.svelte-1u6f6f4) {
+		margin-left: 4px;
+	}
+	/* (unused) .not-match > * + * {
+		margin-left: 4px;
+	}*/

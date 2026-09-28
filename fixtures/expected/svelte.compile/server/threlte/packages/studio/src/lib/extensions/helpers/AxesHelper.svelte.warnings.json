@@ -1,0 +1,58 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `width`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 31,
+			"column": 17,
+			"character": 916
+		},
+		"end": {
+			"line": 31,
+			"column": 22,
+			"character": 921
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `opacity`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 33,
+			"column": 19,
+			"character": 974
+		},
+		"end": {
+			"line": 33,
+			"column": 26,
+			"character": 981
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `opacity`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 34,
+			"column": 6,
+			"character": 993
+		},
+		"end": {
+			"line": 34,
+			"column": 13,
+			"character": 1000
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `overlay`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 35,
+			"column": 10,
+			"character": 1012
+		},
+		"end": {
+			"line": 35,
+			"column": 17,
+			"character": 1019
+		}
+	}
+]

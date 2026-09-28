@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`plan` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 6,
+			"character": 196
+		},
+		"end": {
+			"line": 11,
+			"column": 10,
+			"character": 200
+		}
+	}
+]

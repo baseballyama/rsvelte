@@ -1,0 +1,45 @@
+
+    .sheet-container.svelte-i1ah7x {
+        top: 0;
+        position: absolute;
+
+        @media (max-width: 768px) {
+            & aside header {
+                margin-top: 6rem;
+            }
+        }
+
+        & .sheet-content {
+            // overflow-y: auto;
+            padding-bottom: 5rem;
+
+            @media (max-width: 768px) {
+                /*
+                 * different mobile browsers handle bottom spaces differently,
+                 * therefore, having extra bottom space doesn't hurt anyone imo!
+                 */
+                padding-bottom: 15rem;
+            }
+        }
+
+        &.noContentPadding section {
+            padding: unset !important;
+        }
+    }
+
+    .sheet-footer.svelte-i1ah7x {
+        left: 0;
+        right: 0;
+        bottom: 0;
+        position: absolute;
+        background: var(--bgcolor-neutral-primary);
+
+        @media (max-width: 768px) {
+            position: fixed;
+        }
+
+        & .sheet-footer-actions:where(.svelte-i1ah7x) {
+            padding-inline: var(--space-8);
+            padding-block-end: var(--space-6);
+        }
+    }

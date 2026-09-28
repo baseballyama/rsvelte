@@ -1,0 +1,47 @@
+
+	.codeblock-wrapper {
+		margin-top: 1rem;
+		margin-bottom: 1rem;
+		border-radius: var(--edra-radius-lg);
+		border: 1px solid var(--edra-border);
+		background-color: var(--edra-canvas-soft-2);
+		padding-bottom: 1rem;
+	}
+	.codeblock-actions.svelte-ds66bl {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		justify-content: flex-end;
+		padding: 0.375rem 0.5rem;
+	}
+	.codeblock-select.svelte-ds66bl {
+		height: 1.75rem;
+		font-size: 0.75rem;
+		text-transform: capitalize;
+		cursor: pointer;
+		font-weight: 500;
+	}
+	.copy-btn.svelte-ds66bl {
+		color: var(--edra-mute);
+	}
+	.sparkle-icon,
+	.copy-icon {
+		width: 0.875rem;
+		height: 0.875rem;
+	}
+	.success-icon {
+		color: var(--edra-success) !important;
+		width: 0.875rem;
+		height: 0.875rem;
+	}
+	.codeblock-pre.svelte-ds66bl {
+		margin: 0;
+		border-top: 1px solid var(--edra-border);
+		border-top-left-radius: 0;
+		border-top-right-radius: 0;
+	}
+	@media print {
+		.codeblock-actions.svelte-ds66bl {
+			display: none;
+		}
+	}

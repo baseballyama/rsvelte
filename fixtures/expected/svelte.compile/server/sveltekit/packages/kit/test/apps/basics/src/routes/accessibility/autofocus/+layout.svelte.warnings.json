@@ -1,0 +1,44 @@
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 1,
+			"column": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 1,
+			"column": 8,
+			"character": 8
+		}
+	},
+	{
+		"code": "legacy_code",
+		"message": "`a11y-autofocus` is no longer valid — please use `a11y_autofocus` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 3,
+			"column": 19,
+			"character": 29
+		},
+		"end": {
+			"line": 3,
+			"column": 33,
+			"character": 43
+		}
+	},
+	{
+		"code": "a11y_autofocus",
+		"message": "Avoid using autofocus\nhttps://svelte.dev/e/a11y_autofocus",
+		"start": {
+			"line": 4,
+			"column": 7,
+			"character": 55
+		},
+		"end": {
+			"line": 4,
+			"column": 16,
+			"character": 64
+		}
+	}
+]

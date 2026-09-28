@@ -1,0 +1,23 @@
+
+    /* test that all these are parsed correctly */
+	::view-transition-old(x-y)  {
+		color: red;
+    }
+	::view-transition-old(x-y)  {
+		color: red;
+    }
+	/* (unused) ::highlight(rainbow-color-1) {
+		color: red;
+	}*/
+	/* (unused) custom-element::part(foo) {
+		color: red;
+	}*/
+	/* (unused) ::slotted(.content) {
+		color: red;
+	}*/
+	/* (unused) :is( /*button*\/
+		button, /*p after h1*\/
+		h1 + p
+		){
+		color: red;
+	}*/

@@ -1,0 +1,19 @@
+<script>
+	import { preloadData } from '$app/navigation';
+
+	/** @type {Record<string, any> | null} */
+	let data = null;
+
+	async function onClick() {
+		const result = await preloadData('/reroute/preload-data/a');
+		if (result.type === 'loaded') {
+			data = result.data;
+		}
+	}
+</script>
+
+<button onclick={onClick}>Preload</button>
+
+{#if data}
+	<pre>{JSON.stringify(data, null, 2)}</pre>
+{/if}

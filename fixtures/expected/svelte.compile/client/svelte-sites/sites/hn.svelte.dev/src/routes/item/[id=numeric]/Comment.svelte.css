@@ -1,0 +1,62 @@
+
+	.comment.svelte-bp2yyv {
+		border-top: 1px solid rgba(0, 0, 0, 0.1);
+	}
+
+	html.dark .comment.svelte-bp2yyv {
+		border-top: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	.meta-bar.svelte-bp2yyv {
+		padding: 1em 0;
+		cursor: pointer;
+		background: 100% 50% no-repeat url(./unfold.svg);
+		background-size: 1em 1em;
+	}
+
+	.comment.svelte-bp2yyv details[open]:where(.svelte-bp2yyv) > summary:where(.svelte-bp2yyv) > .meta-bar:where(.svelte-bp2yyv) {
+		background-image: url(./fold.svg);
+	}
+
+	.comment.svelte-bp2yyv details:where(.svelte-bp2yyv) > summary:where(.svelte-bp2yyv) {
+		list-style-type: none;
+	}
+
+	.comment.svelte-bp2yyv details:where(.svelte-bp2yyv) > summary:where(.svelte-bp2yyv)::marker,
+	.comment.svelte-bp2yyv details:where(.svelte-bp2yyv) > summary:where(.svelte-bp2yyv)::-webkit-details-marker {
+		display: none;
+	}
+
+	.comment.svelte-bp2yyv .children:where(.svelte-bp2yyv) {
+		padding: 0 0 0 1em;
+		margin: 0;
+	}
+
+	@media (min-width: 720px) {
+		.comment.svelte-bp2yyv .children:where(.svelte-bp2yyv) {
+			padding: 0 0 0 2em;
+		}
+	}
+
+	li.svelte-bp2yyv {
+		list-style: none;
+	}
+
+	.meta.svelte-bp2yyv {
+		display: block;
+		font-size: 14px;
+		color: var(--fg-light);
+	}
+
+	a.svelte-bp2yyv {
+		color: var(--fg-light);
+	}
+
+	/* prevent crazy overflow layout bug on mobile */
+	.body.svelte-bp2yyv * {
+		overflow-wrap: break-word;
+	}
+
+	.comment.svelte-bp2yyv pre {
+		overflow-x: auto;
+	}

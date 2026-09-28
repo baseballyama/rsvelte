@@ -1,0 +1,117 @@
+import * as $ from 'svelte/internal/server';
+import * as Select from '$lib/components/ui/select/index.js';
+
+export default function Select_29($$renderer) {
+	const uid = $.props_id($$renderer);
+
+	const items = [
+		{ label: 'Svelte', value: 's1' },
+		{ label: 'Next.js', value: 's2' },
+		{ label: 'Astro', value: 's3' },
+		{ label: 'Gatsby', value: 's4' }
+	];
+
+	let value = '';
+	const selected = $.derived(() => items.find((i) => i.value === value));
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		$$renderer.push(`<div class="border-input bg-background focus-within:border-ring focus-within:ring-ring/20 relative rounded-lg border shadow-xs shadow-black/5 transition-shadow focus-within:ring-[3px] focus-within:outline-hidden has-disabled:cursor-not-allowed has-disabled:opacity-50 [&amp;:has(input:is(:disabled))_*]:pointer-events-none"><label${$.attr('for', uid)} class="text-foreground block px-3 pt-2 text-xs font-medium">Select with inset label</label> `);
+
+		if (Select.Root) {
+			$$renderer.push('<!--[-->');
+
+			Select.Root($$renderer, {
+				type: 'single',
+				get value() {
+					return value;
+				},
+
+				set value($$value) {
+					value = $$value;
+					$$settled = false;
+				},
+
+				children: ($$renderer) => {
+					if (Select.Trigger) {
+						$$renderer.push('<!--[-->');
+
+						Select.Trigger($$renderer, {
+							id: uid,
+							class: 'border-none bg-transparent shadow-none focus:ring-0 focus:ring-offset-0',
+							children: ($$renderer) => {
+								$$renderer.push(`<!---->${$.escape(selected()?.label ?? 'Select a framework')}`);
+							},
+							$$slots: { default: true }
+						});
+
+						$$renderer.push('<!--]-->');
+					} else {
+						$$renderer.push('<!--[!-->');
+						$$renderer.push('<!--]-->');
+					}
+
+					$$renderer.push(` `);
+
+					if (Select.Content) {
+						$$renderer.push('<!--[-->');
+
+						Select.Content($$renderer, {
+							children: ($$renderer) => {
+								$$renderer.push(`<!--[-->`);
+
+								const each_array = $.ensure_array_like(items);
+
+								for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+									let item = each_array[$$index];
+
+									if (Select.Item) {
+										$$renderer.push('<!--[-->');
+
+										Select.Item($$renderer, {
+											value: item.value,
+											children: ($$renderer) => {
+												$$renderer.push(`<!---->${$.escape(item.label)}`);
+											},
+											$$slots: { default: true }
+										});
+
+										$$renderer.push('<!--]-->');
+									} else {
+										$$renderer.push('<!--[!-->');
+										$$renderer.push('<!--]-->');
+									}
+								}
+
+								$$renderer.push(`<!--]-->`);
+							},
+							$$slots: { default: true }
+						});
+
+						$$renderer.push('<!--]-->');
+					} else {
+						$$renderer.push('<!--[!-->');
+						$$renderer.push('<!--]-->');
+					}
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push('<!--]-->');
+		} else {
+			$$renderer.push('<!--[!-->');
+			$$renderer.push('<!--]-->');
+		}
+
+		$$renderer.push(`</div>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}

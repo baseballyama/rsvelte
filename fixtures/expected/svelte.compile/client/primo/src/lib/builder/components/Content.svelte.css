@@ -1,0 +1,25 @@
+
+	.Content.svelte-aei9lh {
+		width: 100%;
+		display: grid;
+		gap: 0.5rem;
+		padding-bottom: 0.5rem;
+		/* padding-block: 0.5rem; */
+		color: var(--color-gray-2);
+		/* background: var(--primo-color-black); */
+		height: 100%;
+		overflow-y: auto;
+		place-content: flex-start;
+		justify-content: stretch;
+
+		.empty-description:where(.svelte-aei9lh) {
+			padding-inline: 0.5rem;
+			color: var(--color-gray-4);
+			font-size: var(--font-size-2);
+			height: 100%;
+			display: flex;
+			align-items: flex-start;
+			justify-content: center;
+			margin-top: 12px;
+		}
+	}

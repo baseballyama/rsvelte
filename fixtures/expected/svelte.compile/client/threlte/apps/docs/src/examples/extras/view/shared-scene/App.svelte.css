@@ -1,0 +1,15 @@
+
+  div#container.svelte-1ms9lf2 {
+    position: relative;
+    height: 100%;
+  }
+
+  div#minimap.svelte-1ms9lf2 {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    width: 25%;
+    aspect-ratio: 1;
+    z-index: 1;
+    border: 1px solid #333;
+  }

@@ -1,0 +1,35 @@
+
+	.thumbnail.svelte-wwy4r7 {
+		width: 100%;
+		overflow: hidden;
+		border-radius: var(--brad);
+	}
+
+	.related-videos.svelte-wwy4r7 {
+		margin-block: 0 2rem;
+	}
+	.prev-next.svelte-wwy4r7 {
+		--border-size: 1px;
+		border-radius: var(--brad);
+		display: grid;
+		gap: var(--border-size);
+		grid-template-columns: repeat(auto-fit, minmax(40%, 1fr));
+		margin-bottom: 1rem;
+		border: 1px solid var(--fg);
+		.prev:where(.svelte-wwy4r7) {
+			text-align: left;
+			border-right: 1px solid var(--fg);
+		}
+		.next:where(.svelte-wwy4r7) {
+			text-align: right;
+		}
+
+		p:where(.svelte-wwy4r7) {
+			margin: 0;
+			padding: 0.5rem 1rem;
+			&:first-child {
+				font-variation-settings: var(--fw-900);
+				border-bottom: 1px solid var(--fg);
+			}
+		}
+	}

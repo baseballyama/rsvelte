@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`revealImg` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 60,
+			"column": 5,
+			"character": 2984
+		},
+		"end": {
+			"line": 60,
+			"column": 32,
+			"character": 3011
+		}
+	}
+]

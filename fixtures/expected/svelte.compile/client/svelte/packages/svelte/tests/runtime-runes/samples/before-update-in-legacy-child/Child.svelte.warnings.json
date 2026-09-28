@@ -1,0 +1,16 @@
+[
+	{
+		"code": "export_let_unused",
+		"message": "Component has unused export property 'object'. If it is for external reference only, please consider using `export const object`\nhttps://svelte.dev/e/export_let_unused",
+		"start": {
+			"line": 6,
+			"column": 12,
+			"character": 96
+		},
+		"end": {
+			"line": 6,
+			"column": 18,
+			"character": 102
+		}
+	}
+]

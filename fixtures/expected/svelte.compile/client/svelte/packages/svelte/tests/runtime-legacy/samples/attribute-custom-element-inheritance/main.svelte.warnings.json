@@ -1,0 +1,16 @@
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<my-custom-inheritance-element ...></my-custom-inheritance-element>` rather than `<my-custom-inheritance-element ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 33,
+			"column": 0,
+			"character": 519
+		},
+		"end": {
+			"line": 33,
+			"column": 72,
+			"character": 591
+		}
+	}
+]

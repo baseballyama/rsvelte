@@ -1,0 +1,49 @@
+
+	.image-editor-overlay.svelte-o8c9g0 {
+		position: fixed;
+		font-size: 14px;
+		color: white;
+		z-index: 9;
+		transform-origin: top left;
+		display: flex;
+		overflow: visible;
+		cursor: pointer;
+		opacity: 0;
+		transition: opacity 0.1s;
+		overflow: hidden;
+
+		&:hover {
+			opacity: 1;
+		}
+	}
+
+	.overlay-button.svelte-o8c9g0 {
+		border: none;
+		color: white;
+		padding: 0.5rem;
+		border-radius: 2px;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 1.2rem;
+		transition: background-color 0.2s;
+	}
+
+	.edit-button.svelte-o8c9g0 {
+		background: rgba(0, 0, 0, 0.6);
+
+		flex: 1;
+
+		&:hover {
+			background: rgba(0, 0, 0, 0.8);
+		}
+	}
+
+	.delete-button.svelte-o8c9g0 {
+		background: rgba(220, 38, 38, 0.8);
+
+		&:hover {
+			background: rgba(220, 38, 38, 1);
+		}
+	}

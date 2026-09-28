@@ -1,0 +1,33 @@
+
+  @layer components {
+    :where(.lc-axis-rule) {
+      --stroke-color: color-mix(
+        in oklab,
+        var(--color-surface-content, currentColor) 50%,
+        transparent
+      );
+    }
+
+    :where(.lc-axis-tick) {
+      --stroke-color: color-mix(
+        in oklab,
+        var(--color-surface-content, currentColor) 50%,
+        transparent
+      );
+    }
+
+    :where(.lc-axis-grid) {
+      --stroke-color: color-mix(
+        in oklab,
+        var(--color-surface-content, currentColor) 10%,
+        transparent
+      );
+    }
+
+    :where(.lc-axis-label, .lc-axis-tick-label) {
+      font-size: 10px;
+      stroke: var(--color-surface-100, light-dark(white, black));
+      stroke-width: 2px;
+      font-weight: 300;
+    }
+  }

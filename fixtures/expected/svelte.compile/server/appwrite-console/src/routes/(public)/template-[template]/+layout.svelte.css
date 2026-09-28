@@ -1,0 +1,30 @@
+
+    .auth-bg.svelte-dsikgi {
+        position: fixed;
+        background: var(--bgcolor-neutral-default, #fff);
+        background-size: cover;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        justify-content: space-between;
+        section:where(.svelte-dsikgi) {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+        footer:where(.svelte-dsikgi) {
+            padding: 2rem 1rem;
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+    }

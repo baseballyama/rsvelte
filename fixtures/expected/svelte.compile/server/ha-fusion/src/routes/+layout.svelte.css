@@ -1,0 +1,41 @@
+
+	body, html {
+		margin: 0;
+		padding: 0;
+		-webkit-tap-highlight-color: transparent;
+		box-sizing: border-box;
+	}
+
+	html {
+		background-color: var(--theme-colors-background, initial);
+		color: var(--theme-colors-text, initial);
+		font-size: 100%;
+	}
+
+	body {
+		background: black;
+		font-family: var(--theme-font-family);
+		user-select: none;
+		-webkit-user-select: none;
+		background-size: cover;
+		background-repeat: no-repeat;
+		background-attachment: fixed;
+		transition: background-image 100ms ease;
+	}
+
+	*, *::before, *::after, *:focus {
+		box-sizing: inherit;
+	}
+
+	.backdrop.svelte-12qhfyh {
+		position: fixed;
+		top: 0;
+		bottom: 0;
+		right: 0;
+		left: 0;
+		z-index: 2;
+		background-size: cover;
+		background-repeat: no-repeat;
+		background-attachment: fixed;
+		transition: opacity 100ms ease-out;
+	}

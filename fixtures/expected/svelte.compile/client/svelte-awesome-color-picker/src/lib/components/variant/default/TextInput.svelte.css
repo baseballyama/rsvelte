@@ -1,0 +1,76 @@
+
+	.text-input.svelte-12x11tl {
+		margin: var(--text-input-margin, 5px 0 0);
+	}
+	.input-container.svelte-12x11tl {
+		display: flex;
+		flex: 1;
+		gap: 10px;
+	}
+	input.svelte-12x11tl,
+	button.svelte-12x11tl,
+	.button-like.svelte-12x11tl {
+		flex: 1;
+		border: none;
+		background-color: var(--cp-input-color, #eee);
+		color: var(--cp-text-color, var(--cp-border-color));
+		padding: 0;
+		border-radius: 5px;
+		height: 30px;
+		line-height: 30px;
+		text-align: center;
+	}
+	input.svelte-12x11tl {
+		width: 5px;
+		font-family: inherit;
+	}
+
+	button.svelte-12x11tl,
+	.button-like.svelte-12x11tl {
+		position: relative;
+		flex: 1;
+		margin: 8px 0 0;
+		height: 30px;
+		width: 100%;
+		transition: background-color 0.2s;
+		cursor: pointer;
+		font-family: inherit;
+	}
+
+	.button-like.svelte-12x11tl {
+		cursor: default;
+	}
+
+	.appear.svelte-12x11tl,
+	.disappear.svelte-12x11tl {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		transform: translate(-50%, -50%);
+		width: 100%;
+		transition: all 0.5s;
+	}
+	button.svelte-12x11tl:hover .disappear:where(.svelte-12x11tl),
+	.appear.svelte-12x11tl {
+		opacity: 0;
+	}
+
+	.disappear.svelte-12x11tl,
+	button.svelte-12x11tl:hover .appear:where(.svelte-12x11tl) {
+		opacity: 1;
+	}
+
+	button.svelte-12x11tl:hover {
+		background-color: var(--cp-button-hover-color, #ccc);
+	}
+
+	input.svelte-12x11tl:focus,
+	button.svelte-12x11tl:focus {
+		outline: none;
+	}
+
+	input.svelte-12x11tl:focus-visible,
+	button.svelte-12x11tl:focus-visible {
+		outline: 2px solid var(--focus-color, red);
+		outline-offset: 2px;
+	}

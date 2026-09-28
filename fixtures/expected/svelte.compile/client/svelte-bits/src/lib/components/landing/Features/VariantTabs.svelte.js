@@ -1,0 +1,23 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import iconLogo from '$lib/assets/logo/svelte-bits-icon-logo.svg';
+
+var root = $.from_html(`<div class="ln-feat-stack svelte-sdoiib"><div class="ln-feat-stack-chip ln-feat-stack-chip--svelte svelte-sdoiib"><span class="ln-feat-stack-mark ln-feat-stack-mark--svelte svelte-sdoiib" aria-hidden="true"><img alt="" class="svelte-sdoiib"/></span> <span class="ln-feat-stack-name svelte-sdoiib">Svelte&nbsp;5</span></div> <div class="ln-feat-stack-chip ln-feat-stack-chip--ts svelte-sdoiib"><span class="ln-feat-stack-mark svelte-sdoiib" aria-hidden="true"><svg viewBox="0 0 32 32" width="18" height="18" fill="none" class="svelte-sdoiib"><rect width="32" height="32" rx="4" fill="#3178C6" class="svelte-sdoiib"></rect><path d="M9.5 17.5h3v8.4h2.6v-8.4h3v-2.3h-8.6v2.3zm9.4 6.7c.6 1.2 1.9 2 3.9 2 2.4 0 4-1.2 4-3.2 0-1.7-.9-2.6-3.1-3.1l-1-.2c-1-.2-1.4-.6-1.4-1.1 0-.6.5-1 1.3-1 .8 0 1.3.4 1.5 1l2.2-.7c-.5-1.4-1.7-2.1-3.7-2.1-2.2 0-3.7 1.2-3.7 3 0 1.7 1 2.6 3.1 3l1 .3c1.1.2 1.5.6 1.5 1.2 0 .6-.6 1.1-1.6 1.1-1 0-1.6-.5-2-1.3l-2 .8z" fill="#fff" class="svelte-sdoiib"></path></svg></span> <span class="ln-feat-stack-name svelte-sdoiib">TypeScript</span></div> <div class="ln-feat-stack-chip ln-feat-stack-chip--tw svelte-sdoiib"><span class="ln-feat-stack-mark svelte-sdoiib" aria-hidden="true"><svg viewBox="0 0 32 20" width="22" height="14" fill="none" class="svelte-sdoiib"><path d="M16 0C11.733 0 9.067 2.133 8 6.4 9.6 4.267 11.467 3.467 13.6 4c1.217.305 2.087 1.187 3.05 2.165C18.218 7.756 19.97 9.6 23.6 9.6c4.267 0 6.933-2.133 8-6.4-1.6 2.133-3.467 2.933-5.6 2.4-1.217-.305-2.087-1.187-3.05-2.165C21.382 1.844 19.63 0 16 0zM8 9.6c-4.267 0-6.933 2.133-8 6.4 1.6-2.133 3.467-2.933 5.6-2.4 1.217.305 2.087 1.187 3.05 2.165C10.218 17.356 11.97 19.2 15.6 19.2c4.267 0 6.933-2.133 8-6.4-1.6 2.133-3.467 2.933-5.6 2.4-1.217-.305-2.087-1.187-3.05-2.165C13.382 11.444 11.63 9.6 8 9.6z" fill="#38BDF8" class="svelte-sdoiib"></path></svg></span> <span class="ln-feat-stack-name svelte-sdoiib">Tailwind</span></div></div>`);
+
+export default function VariantTabs($$anchor) {
+	var // Visual: the three technologies powering svelte-bits, shown as floating
+	// pills that drift gently and pulse their borders in sequence using each
+	// brand's own color (Svelte orange, TS blue, Tailwind cyan).
+	div = root();
+
+	var div_1 = $.child(div);
+	var span = $.child(div_1);
+	var img = $.only_child(span);
+
+	$.next(2);
+	$.reset(div_1);
+	$.next(4);
+	$.reset(div);
+	$.template_effect(() => $.set_attribute(img, 'src', iconLogo));
+	$.append($$anchor, div);
+}

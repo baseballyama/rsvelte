@@ -1,0 +1,20 @@
+{
+	"svelte.compile": {
+		"canonicalizer": {
+			"acorn": "8.18.0"
+		},
+		"oracles": {
+			"svelte": "5.57.1"
+		},
+		"storage": "committed"
+	},
+	"svelte.compileModule": {
+		"canonicalizer": {
+			"acorn": "8.18.0"
+		},
+		"oracles": {
+			"svelte": "5.57.1"
+		},
+		"storage": "committed"
+	}
+}

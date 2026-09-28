@@ -1,0 +1,29 @@
+
+  .svelte-28pqhw .margins {
+    margin: 18px 0 24px;
+  }
+
+  .svelte-28pqhw .columns {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .svelte-28pqhw .columns > * {
+    flex-basis: 0;
+    min-width: 245px;
+    margin-right: 12px;
+  }
+  .svelte-28pqhw .columns > *:last-child {
+    margin-right: 0;
+  }
+
+  .svelte-28pqhw .columns .mdc-text-field,
+  .svelte-28pqhw .columns .mdc-text-field + .mdc-text-field-helper-line {
+    width: 218px;
+  }
+
+  .svelte-28pqhw .columns .status {
+    width: auto;
+    word-break: break-all;
+    overflow-wrap: break-word;
+  }

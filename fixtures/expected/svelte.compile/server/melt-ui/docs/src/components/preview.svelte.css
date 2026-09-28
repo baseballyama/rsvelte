@@ -1,0 +1,17 @@
+
+	[data-preview][data-open="false"].svelte-em1rhw {
+		scale: 0.95;
+		translate: -110%;
+		opacity: 0.75;
+		transition:
+			opacity 0.15s var(--ease-out-quad),
+			scale 0.15s var(--ease-out-quad),
+			translate 0.15s var(--ease-out-quad) 0.15s;
+	}
+
+	[data-preview][data-open="true"].svelte-em1rhw {
+		transition:
+			opacity 0.15s var(--ease-out-quad) 0.15s,
+			scale 0.15s var(--ease-out-quad) 0.15s,
+			translate 0.15s var(--ease-out-quad);
+	}

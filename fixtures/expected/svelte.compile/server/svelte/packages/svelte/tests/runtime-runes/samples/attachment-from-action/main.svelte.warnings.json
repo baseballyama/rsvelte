@@ -1,0 +1,44 @@
+[
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 33,
+			"column": 1,
+			"character": 590
+		},
+		"end": {
+			"line": 33,
+			"column": 54,
+			"character": 643
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 34,
+			"column": 1,
+			"character": 645
+		},
+		"end": {
+			"line": 34,
+			"column": 79,
+			"character": 723
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 37,
+			"column": 0,
+			"character": 731
+		},
+		"end": {
+			"line": 37,
+			"column": 40,
+			"character": 771
+		}
+	}
+]

@@ -1,0 +1,303 @@
+import * as $ from 'svelte/internal/server';
+
+import {
+	LoaderCircle,
+	Plus,
+	Trash2,
+	MapPin,
+	Pencil,
+	Home,
+	Briefcase,
+	Phone,
+	MoreVertical
+} from '@lucide/svelte';
+
+import { Button } from '$lib/components/ui/button';
+import AddressFormModal from '$lib/components/address/address-form-modal.svelte';
+import * as Dialog from '$lib/components/ui/dialog';
+import Pagination from '$lib/components/common/pagination.svelte';
+import { MyAddressesModule, MyOrdersRenderer } from '$lib/core/composables/index.js';
+import { fade, fly } from 'svelte/transition';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const addressesModule = new MyAddressesModule();
+		let showDeleteConfirmation = false;
+		let addressToDelete = null;
+
+		function confirmDelete(address) {
+			addressToDelete = address;
+			showDeleteConfirmation = true;
+		}
+
+		async function handleDeleteConfirmation() {
+			if (addressToDelete) {
+				await addressesModule.handleDelete(addressToDelete);
+				showDeleteConfirmation = false;
+				addressToDelete = null;
+			}
+		}
+
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			$.head('1a119a0', $$renderer, ($$renderer) => {
+				$$renderer.title(($$renderer) => {
+					$$renderer.push(`<title>Addresses | Svelte Commerce</title>`);
+				});
+			});
+
+			$$renderer.push(`<div class="mx-auto max-w-7xl px-0 md:py-8 md:py-12"><div class="mb-10 flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center"><div><h1 class="text-lg font-bold tracking-tight text-gray-900 md:text-xl">Your Addresses</h1> <p class="mt-2 text-sm text-gray-500">Manage your shipping and billing addresses.</p></div> `);
+
+			Button($$renderer, {
+				onclick: addressesModule.handleAddNew,
+				class: 'h-12 px-6',
+				children: ($$renderer) => {
+					Plus($$renderer, { class: 'mr-2 h-4 w-4' });
+					$$renderer.push(`<!----> Add New Address`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----></div> `);
+
+			if (addressesModule.loading) {
+				$$renderer.push(`<!--[0--><div class="flex min-h-[400px] items-center justify-center">`);
+				LoaderCircle($$renderer, { class: 'h-8 w-8 animate-spin text-primary' });
+				$$renderer.push(`<!----></div>`);
+			} else if (addressesModule.addresses) {
+				$$renderer.push(`<!--[1--><div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">`);
+
+				if (addressesModule.addresses?.data?.length === 0) {
+					$$renderer.push(`<!--[0--><div class="col-span-full flex flex-col items-center justify-center py-20 text-center"><div class="relative mb-6"><div class="absolute inset-0 scale-150 animate-pulse rounded-full bg-gray-50"></div> <div class="relative flex h-24 w-24 items-center justify-center rounded-full border border-gray-100 bg-white shadow-sm">`);
+					MapPin($$renderer, { class: 'h-10 w-10 text-gray-300' });
+					$$renderer.push(`<!----></div></div> <h2 class="text-2xl font-bold text-gray-900">No addresses yet</h2> <p class="mt-2 max-w-xs text-gray-500">Add an address to speed up your checkout process.</p></div>`);
+				} else {
+					$$renderer.push(`<!--[-1--><!--[-->`);
+
+					const each_array = $.ensure_array_like(addressesModule.addresses?.data);
+
+					for (let i = 0, $$length = each_array.length; i < $$length; i++) {
+						let address = each_array[i];
+
+						$$renderer.push(`<div class="group relative flex flex-col overflow-hidden rounded-md border border-gray-200 bg-white transition-all duration-300"><div class="flex flex-1 flex-col p-6 pb-4"><div class="mb-4 flex items-start justify-between"><div><p class="text-sm font-bold uppercase tracking-widest text-gray-900">${$.escape(address.firstName)} ${$.escape(address.lastName)}</p></div></div> <div class="space-y-1 text-sm font-medium leading-relaxed text-gray-500"><p>${$.escape(address.address_1)} `);
+
+						if (address.address_2) {
+							$$renderer.push(`<!--[0-->, ${$.escape(address.address_2)}`);
+						} else {
+							$$renderer.push('<!--[-1-->');
+						}
+
+						$$renderer.push(`<!--]--></p> <p class="text-gray-900">${$.escape(address.city)}, ${$.escape(address.state)} ${$.escape(address.zip)}</p> <p>${$.escape(address.country)}</p></div> <div class="mt-6 flex items-center gap-2 text-xs font-bold text-gray-400">`);
+						Phone($$renderer, { class: 'h-3.5 w-3.5' });
+						$$renderer.push(`<!----> ${$.escape(address.phone)}</div></div> <div class="flex border-t border-gray-100">`);
+
+						Button($$renderer, {
+							variant: 'ghost',
+							onclick: () => addressesModule.handleEdit(address),
+							class: 'flex-1 h-auto py-3 rounded-none border-r border-gray-100',
+							children: ($$renderer) => {
+								Pencil($$renderer, { class: 'h-3 w-3 mr-2' });
+								$$renderer.push(`<!----> Edit`);
+							},
+							$$slots: { default: true }
+						});
+
+						$$renderer.push(`<!----> `);
+
+						Button($$renderer, {
+							variant: 'ghost',
+							onclick: () => confirmDelete(address),
+							class: 'flex-1 h-auto py-3 rounded-none text-red-500',
+							children: ($$renderer) => {
+								Trash2($$renderer, { class: 'h-3 w-3 mr-2' });
+								$$renderer.push(`<!----> Delete`);
+							},
+							$$slots: { default: true }
+						});
+
+						$$renderer.push(`<!----></div></div>`);
+					}
+
+					$$renderer.push(`<!--]-->`);
+				}
+
+				$$renderer.push(`<!--]--></div> <div class="mt-12 flex justify-center">`);
+
+				Pagination($$renderer, {
+					noOfPage: Math.ceil(addressesModule.addresses.count / addressesModule.addresses.pageSize),
+					paginateProducts: addressesModule.paginateAddress
+				});
+
+				$$renderer.push(`<!----></div>`);
+			} else {
+				$$renderer.push('<!--[-1-->');
+			}
+
+			$$renderer.push(`<!--]--> `);
+
+			AddressFormModal($$renderer, {
+				isEdit: addressesModule.isEditing,
+				onsave: addressesModule.handleSave,
+				ondelete: confirmDelete,
+				get show() {
+					return addressesModule.showAddressFormModal;
+				},
+
+				set show($$value) {
+					addressesModule.showAddressFormModal = $$value;
+					$$settled = false;
+				},
+
+				get address() {
+					return addressesModule.selectedAddress;
+				},
+
+				set address($$value) {
+					addressesModule.selectedAddress = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> `);
+
+			if (Dialog.Root) {
+				$$renderer.push('<!--[-->');
+
+				Dialog.Root($$renderer, {
+					get open() {
+						return showDeleteConfirmation;
+					},
+
+					set open($$value) {
+						showDeleteConfirmation = $$value;
+						$$settled = false;
+					},
+
+					children: ($$renderer) => {
+						if (Dialog.Content) {
+							$$renderer.push('<!--[-->');
+
+							Dialog.Content($$renderer, {
+								class: 'sm:max-w-[425px]',
+								children: ($$renderer) => {
+									if (Dialog.Header) {
+										$$renderer.push('<!--[-->');
+
+										Dialog.Header($$renderer, {
+											children: ($$renderer) => {
+												if (Dialog.Title) {
+													$$renderer.push('<!--[-->');
+
+													Dialog.Title($$renderer, {
+														children: ($$renderer) => {
+															$$renderer.push(`<!---->Delete Address`);
+														},
+														$$slots: { default: true }
+													});
+
+													$$renderer.push('<!--]-->');
+												} else {
+													$$renderer.push('<!--[!-->');
+													$$renderer.push('<!--]-->');
+												}
+
+												$$renderer.push(` `);
+
+												if (Dialog.Description) {
+													$$renderer.push('<!--[-->');
+
+													Dialog.Description($$renderer, {
+														children: ($$renderer) => {
+															$$renderer.push(`<!---->Are you sure you want to delete this address? This action cannot be undone.`);
+														},
+														$$slots: { default: true }
+													});
+
+													$$renderer.push('<!--]-->');
+												} else {
+													$$renderer.push('<!--[!-->');
+													$$renderer.push('<!--]-->');
+												}
+											},
+											$$slots: { default: true }
+										});
+
+										$$renderer.push('<!--]-->');
+									} else {
+										$$renderer.push('<!--[!-->');
+										$$renderer.push('<!--]-->');
+									}
+
+									$$renderer.push(` `);
+
+									if (Dialog.Footer) {
+										$$renderer.push('<!--[-->');
+
+										Dialog.Footer($$renderer, {
+											class: 'mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end',
+											children: ($$renderer) => {
+												Button($$renderer, {
+													variant: 'outline',
+													onclick: () => showDeleteConfirmation = false,
+													class: 'flex-1 sm:flex-none',
+													children: ($$renderer) => {
+														$$renderer.push(`<!---->Cancel`);
+													},
+													$$slots: { default: true }
+												});
+
+												$$renderer.push(`<!----> `);
+
+												Button($$renderer, {
+													variant: 'destructive',
+													onclick: handleDeleteConfirmation,
+													class: 'flex-1 sm:flex-none',
+													children: ($$renderer) => {
+														$$renderer.push(`<!---->Delete`);
+													},
+													$$slots: { default: true }
+												});
+
+												$$renderer.push(`<!---->`);
+											},
+											$$slots: { default: true }
+										});
+
+										$$renderer.push('<!--]-->');
+									} else {
+										$$renderer.push('<!--[!-->');
+										$$renderer.push('<!--]-->');
+									}
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push('<!--]-->');
+						} else {
+							$$renderer.push('<!--[!-->');
+							$$renderer.push('<!--]-->');
+						}
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push('<!--]-->');
+			} else {
+				$$renderer.push('<!--[!-->');
+				$$renderer.push('<!--]-->');
+			}
+
+			$$renderer.push(`</div>`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}

@@ -1,0 +1,16 @@
+
+  .preview.svelte-tr6xsw {
+    display: flex;
+    position: relative;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    transition: background-color 300ms;
+    border: 1px solid var(--sl-color-gray-3);
+    border-radius: 8px;
+    background-color: var(--preview-bg);
+    padding: 0.5em;
+    width: 100%;
+    height: 850px;
+    overflow: hidden;
+  }

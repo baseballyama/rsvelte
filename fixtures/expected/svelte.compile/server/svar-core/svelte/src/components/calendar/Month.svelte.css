@@ -1,0 +1,66 @@
+
+	.wx-weekdays.svelte-1bel263 {
+		display: flex;
+		flex-wrap: nowrap;
+		margin-bottom: calc(var(--wx-calendar-gap) * 1.5);
+	}
+
+	.wx-weekday.svelte-1bel263 {
+		flex: 0 0 calc(100% / 7);
+		max-width: calc(100% / 7);
+		font-size: var(--wx-font-size-sm);
+		line-height: var(--wx-line-height-sm);
+		color: var(--wx-color-font-alt);
+		text-align: center;
+	}
+
+	.wx-days.svelte-1bel263 {
+		display: flex;
+		flex-wrap: wrap;
+	}
+
+	.wx-day.svelte-1bel263 {
+		border-radius: var(--wx-calendar-border-radius);
+		flex: 0 0 calc(100% / 7);
+		max-width: calc(100% / 7);
+		height: calc(
+			var(--wx-calendar-cell-size) - var(--wx-calendar-line-gap) * 2
+		);
+		margin: calc(var(--wx-calendar-line-gap) / 2) 0;
+		display: flex;
+		flex-wrap: nowrap;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+	.wx-day.svelte-1bel263:not(.wx-out):not(.wx-selected) {
+		cursor: pointer;
+	}
+	.wx-day.svelte-1bel263:not(.wx-out):not(.wx-selected):hover {
+		background: var(--wx-background-hover);
+	}
+	.wx-day.wx-out.svelte-1bel263 {
+		color: var(--wx-color-font-disabled);
+	}
+	.wx-day.wx-selected.svelte-1bel263:not(.wx-out) {
+		background: var(--wx-color-primary);
+		color: var(--wx-color-primary-font);
+	}
+	.wx-day.wx-selected.wx-left.svelte-1bel263:not(.wx-out) {
+		border-radius: calc(var(--wx-calendar-border-radius)) 0 0
+			calc(var(--wx-calendar-border-radius));
+	}
+	.wx-day.wx-selected.wx-right.svelte-1bel263:not(.wx-out) {
+		border-radius: 0 calc(var(--wx-calendar-border-radius))
+			calc(var(--wx-calendar-border-radius)) 0;
+	}
+	.wx-day.wx-inrange.svelte-1bel263:not(.wx-out) {
+		border-radius: 0;
+		background: var(--wx-color-primary-selected);
+	}
+	.wx-day.wx-weekend.svelte-1bel263:not(.wx-selected):not(.wx-out) {
+		color: var(--wx-color-primary);
+	}
+	.wx-day.wx-inactive.svelte-1bel263 {
+		pointer-events: none;
+	}

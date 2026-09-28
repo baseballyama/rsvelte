@@ -1,0 +1,19 @@
+
+    #example-gantt-events.svelte-1fgffx2 {
+        flex-grow: 1;
+        overflow: auto;
+    }
+
+    .container.svelte-1fgffx2 {
+        display: flex;
+        overflow: auto;
+        flex: 1;
+    }
+
+    #example-gantt-events.svelte-1fgffx2 .sg-hover {
+        background-color: #00000008;
+    }
+
+    #example-gantt-events.svelte-1fgffx2 .sg-hover .sg-table-body-cell {
+        background-color: #00000008;
+    }

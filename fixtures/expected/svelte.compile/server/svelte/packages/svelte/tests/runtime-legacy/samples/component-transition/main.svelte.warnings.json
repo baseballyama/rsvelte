@@ -1,0 +1,30 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 9,
+			"column": 20,
+			"character": 156
+		},
+		"end": {
+			"line": 9,
+			"column": 37,
+			"character": 173
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`tag` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 3,
+			"column": 5,
+			"character": 58
+		},
+		"end": {
+			"line": 3,
+			"column": 8,
+			"character": 61
+		}
+	}
+]

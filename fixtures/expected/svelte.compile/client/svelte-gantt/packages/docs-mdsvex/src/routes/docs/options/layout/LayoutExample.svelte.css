@@ -1,0 +1,10 @@
+
+	.example.svelte-zuv2a .blue {
+		@apply bg-blue-400;
+	}
+	.example.svelte-zuv2a .orange {
+		@apply bg-orange-400;
+	}
+	.example.svelte-zuv2a .violet {
+		@apply bg-violet-400;
+	}

@@ -1,0 +1,11 @@
+
+	.visualizer.svelte-1d3zzc5 {
+		gap: 5px;
+		height: 60px;
+		width: 100%;
+		overflow: hidden;
+		display: none;
+		@media (--above-med) {
+			display: flex;
+		}
+	}

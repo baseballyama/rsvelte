@@ -1,0 +1,104 @@
+import * as $ from 'svelte/internal/server';
+import Label from '$lib/components/ui/label.svelte';
+import { cn } from '$lib/utils.js';
+import { PinInput } from 'bits-ui';
+
+function Cell($$renderer, cell) {
+	if (PinInput.Cell) {
+		$$renderer.push('<!--[-->');
+
+		PinInput.Cell($$renderer, {
+			cell,
+			class: cn('border-input bg-background text-foreground flex size-9 items-center justify-center rounded-md border font-medium shadow-xs transition-[color,box-shadow]', { 'border-ring ring-ring/50 z-10 ring-[3px]': cell.isActive }),
+			children: ($$renderer) => {
+				if (cell.char !== null) {
+					$$renderer.push(`<!--[0--><div>${$.escape(cell.char)}</div>`);
+				} else {
+					$$renderer.push('<!--[-1-->');
+				}
+
+				$$renderer.push(`<!--]-->`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push('<!--]-->');
+	} else {
+		$$renderer.push('<!--[!-->');
+		$$renderer.push('<!--]-->');
+	}
+}
+
+export default function Input_46($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const uid = $.props_id($$renderer);
+		let value = '';
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			$$renderer.push(`<div class="*:not-first:mt-2">`);
+
+			Label($$renderer, {
+				for: uid,
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->OTP input (spaced)`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			{
+				function children($$renderer, { cells }) {
+					$$renderer.push(`<div class="flex gap-2"><!--[-->`);
+
+					const each_array = $.ensure_array_like(cells);
+
+					for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+						let cell = each_array[$$index];
+
+						Cell($$renderer, cell);
+					}
+
+					$$renderer.push(`<!--]--></div>`);
+				}
+
+				if (PinInput.Root) {
+					$$renderer.push('<!--[-->');
+
+					PinInput.Root($$renderer, {
+						id: uid,
+						class: 'flex items-center gap-3 has-disabled:opacity-50',
+						maxlength: 4,
+						get value() {
+							return value;
+						},
+
+						set value($$value) {
+							value = $$value;
+							$$settled = false;
+						},
+						children,
+						$$slots: { default: true }
+					});
+
+					$$renderer.push('<!--]-->');
+				} else {
+					$$renderer.push('<!--[!-->');
+					$$renderer.push('<!--]-->');
+				}
+			}
+
+			$$renderer.push(` <p class="text-muted-foreground mt-2 text-xs" role="region" aria-live="polite">Built with <a class="hover:text-foreground underline" href="https://next.bits-ui.com/docs/components/pin-input" target="_blank" rel="noopener nofollow">Bits UI PIN Input</a></p></div>`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}

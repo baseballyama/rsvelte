@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_mouse_events_have_key_events",
+		"message": "'mouseover' event must be accompanied by 'focus' event\nhttps://svelte.dev/e/a11y_mouse_events_have_key_events",
+		"start": {
+			"line": 9,
+			"column": 0,
+			"character": 145
+		},
+		"end": {
+			"line": 9,
+			"column": 34,
+			"character": 179
+		}
+	},
+	{
+		"code": "a11y_mouse_events_have_key_events",
+		"message": "'mouseout' event must be accompanied by 'blur' event\nhttps://svelte.dev/e/a11y_mouse_events_have_key_events",
+		"start": {
+			"line": 15,
+			"column": 0,
+			"character": 462
+		},
+		"end": {
+			"line": 15,
+			"column": 33,
+			"character": 495
+		}
+	}
+]

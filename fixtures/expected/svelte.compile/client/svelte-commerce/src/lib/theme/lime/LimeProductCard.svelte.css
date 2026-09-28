@@ -1,0 +1,108 @@
+
+	.ll-card.svelte-1yxihk5 {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		background: #fff;
+		color: var(--lime-plum, #460032);
+	}
+
+	.ll-card-media.svelte-1yxihk5 {
+		position: relative;
+		display: block;
+	}
+
+	.ll-card-wish.svelte-1yxihk5 {
+		position: absolute;
+		top: 12px;
+		right: 12px;
+		display: grid;
+		place-items: center;
+		width: 34px;
+		height: 34px;
+		background: rgb(255 255 255 / 0.85);
+		border: none;
+		border-radius: 0;
+		cursor: pointer;
+		transition: background-color 0.2s ease;
+	}
+
+	.ll-card-wish.svelte-1yxihk5:hover {
+		background: #fff;
+	}
+
+	.ll-card-wish.svelte-1yxihk5:disabled {
+		cursor: default;
+		opacity: 0.55;
+	}
+
+	.ll-card-wish.svelte-1yxihk5 .ll-card-wish-icon {
+		width: 17px;
+		height: 17px;
+		stroke-width: 1.4;
+		color: var(--lime-plum, #460032);
+	}
+
+	.ll-card-wish.is-active.svelte-1yxihk5 .ll-card-wish-icon {
+		fill: var(--lime-plum, #460032);
+	}
+
+	.ll-card-body.svelte-1yxihk5 {
+		display: block;
+		padding-top: 15px;
+		text-align: center;
+		text-decoration: none;
+	}
+
+	.ll-card-title.svelte-1yxihk5 {
+		margin: 0;
+		color: var(--lime-plum, #460032);
+		font-family: var(--font-heading);
+		font-size: 16px;
+		font-weight: 400;
+		line-height: 1.3;
+		letter-spacing: 0.01em;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	@media (max-width: 900px) {
+		.ll-card-title.svelte-1yxihk5 {
+			font-size: 12px;
+		}
+	}
+
+	.ll-card-rating.svelte-1yxihk5 {
+		margin-top: 8px;
+		display: flex;
+		justify-content: center;
+	}
+
+	.ll-card-price.svelte-1yxihk5 {
+		margin-top: 8px;
+	}
+
+	.ll-card-actions.svelte-1yxihk5 {
+		margin-top: 14px;
+		opacity: 0;
+		transform: translateY(4px);
+		transition:
+			opacity 0.25s ease,
+			transform 0.25s ease;
+	}
+
+	.ll-card.svelte-1yxihk5:hover .ll-card-actions:where(.svelte-1yxihk5),
+	.ll-card.svelte-1yxihk5:focus-within .ll-card-actions:where(.svelte-1yxihk5) {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	/* Touch devices can't hover — keep the action visible. */
+	@media (hover: none) {
+		.ll-card-actions.svelte-1yxihk5 {
+			opacity: 1;
+			transform: none;
+		}
+	}

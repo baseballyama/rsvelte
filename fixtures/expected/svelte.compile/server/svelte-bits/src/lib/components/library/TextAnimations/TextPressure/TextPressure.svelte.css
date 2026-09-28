@@ -1,0 +1,38 @@
+
+	.text-pressure-container.svelte-flls7y {
+		position: relative;
+		width: 100%;
+		height: 100%;
+		background: transparent;
+	}
+
+	.text-pressure-title.svelte-flls7y {
+		text-transform: uppercase;
+		transform-origin: center top;
+		margin: 0;
+		text-align: center;
+		user-select: none;
+		white-space: nowrap;
+		font-weight: 100;
+		width: 100%;
+	}
+
+	.text-pressure-title.flex-layout.svelte-flls7y {
+		display: flex;
+		justify-content: space-between;
+	}
+
+	.text-pressure-title.has-stroke.svelte-flls7y span:where(.svelte-flls7y) {
+		position: relative;
+	}
+
+	.text-pressure-title.has-stroke.svelte-flls7y span:where(.svelte-flls7y)::after {
+		content: attr(data-char);
+		position: absolute;
+		left: 0;
+		top: 0;
+		color: transparent;
+		z-index: -1;
+		-webkit-text-stroke-width: 3px;
+		-webkit-text-stroke-color: var(--text-pressure-stroke, #ff0000);
+	}

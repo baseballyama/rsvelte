@@ -1,0 +1,58 @@
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 8,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"column": 24,
+			"character": 24
+		}
+	},
+	{
+		"code": "a11y_no_noninteractive_tabindex",
+		"message": "noninteractive element cannot have nonnegative tabIndex value\nhttps://svelte.dev/e/a11y_no_noninteractive_tabindex",
+		"start": {
+			"line": 428,
+			"column": 8,
+			"character": 11078
+		},
+		"end": {
+			"line": 454,
+			"column": 14,
+			"character": 12158
+		}
+	},
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a click or keydown handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 428,
+			"column": 8,
+			"character": 11078
+		},
+		"end": {
+			"line": 454,
+			"column": 14,
+			"character": 12158
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<span ...></span>` rather than `<span ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 452,
+			"column": 10,
+			"character": 12086
+		},
+		"end": {
+			"line": 452,
+			"column": 52,
+			"character": 12128
+		}
+	}
+]

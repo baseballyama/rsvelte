@@ -1,0 +1,54 @@
+
+	label.svelte-159r51c {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		cursor: pointer;
+		border-radius: 3px;
+		margin: 4px;
+		height: var(--input-size, 25px);
+		user-select: none;
+	}
+
+	.container.svelte-159r51c {
+		position: relative;
+		display: block;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: var(--input-size, 25px);
+	}
+
+	input.svelte-159r51c {
+		margin: 0;
+		padding: 0;
+		border: none;
+		width: 1px;
+		height: 1px;
+		flex-shrink: 0;
+		opacity: 0;
+	}
+
+	.alpha.svelte-159r51c {
+		clip-path: circle(50%);
+		background: var(--alpha-grid-bg);
+	}
+
+	.alpha.svelte-159r51c,
+	.color.svelte-159r51c {
+		position: absolute;
+		width: var(--input-size, 25px);
+		height: var(--input-size, 25px);
+		border-radius: 50%;
+		user-select: none;
+	}
+
+	.alpha.svelte-159r51c {
+		width: calc(var(--input-size, 25px) - 2px);
+		height: calc(var(--input-size, 25px) - 2px);
+	}
+
+	input.svelte-159r51c:focus-visible ~ .color:where(.svelte-159r51c) {
+		outline: 2px solid var(--focus-color, red);
+		outline-offset: 2px;
+	}

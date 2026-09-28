@@ -1,0 +1,8 @@
+
+  .table1 td.cell {
+    background: rgba(65, 255, 65, 0.178);
+  }
+
+  .table2 tr.row-odd {
+    background: rgba(0, 0, 0, 0.05);
+  }

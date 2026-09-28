@@ -1,0 +1,48 @@
+
+  .row-target.svelte-12dea5u {
+    all: unset;
+    display: flex;
+    position: relative;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    gap: var(--line-gap, 0.5em);
+    transform-origin: 0% 50%;
+    cursor: default;
+    box-sizing: border-box;
+    height: 100%;
+    max-height: 1.5em;
+
+    &:hover {
+      background-color: transparent;
+    }
+  }
+
+  .row-target.full-width.svelte-12dea5u {
+    width: 100%;
+  }
+
+   .row-target:focus {
+    .collapse {
+      transform: scale(1.2);
+      color: var(--_caret-focus-color);
+    }
+
+    .bullet .dash {
+      border-radius: 4px;
+      background-color: var(--_caret-focus-color);
+      width: 8px;
+    }
+  }
+
+   .row-target:hover {
+    .collapse {
+      color: var(--_caret-hover-color);
+    }
+
+    .bullet .dash {
+      border-radius: 4px;
+      background-color: var(--_caret-hover-color);
+      height: 2px;
+    }
+  }

@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`copying` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 6,
+			"character": 320
+		},
+		"end": {
+			"line": 11,
+			"column": 13,
+			"character": 327
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`copied` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 12,
+			"column": 6,
+			"character": 343
+		},
+		"end": {
+			"line": 12,
+			"column": 12,
+			"character": 349
+		}
+	}
+]

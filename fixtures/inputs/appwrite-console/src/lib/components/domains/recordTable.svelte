@@ -1,0 +1,169 @@
+<script lang="ts">
+    import { Link } from '$lib/elements';
+    import {
+        Badge,
+        Layout,
+        Typography,
+        Table,
+        InteractiveText,
+        Alert
+    } from '@appwrite.io/pink-svelte';
+    import { regionalConsoleVariables } from '$routes/(console)/project-[region]-[project]/store';
+    import { getSubdomain } from '$lib/helpers/tlds';
+    import { isCloud } from '$lib/system';
+    import { getProxyRuleStatusBadge } from './status';
+
+    let {
+        domain,
+        verified,
+        variant,
+        service = 'general',
+        ruleStatus,
+        onNavigateToNameservers = () => {},
+        onNavigateToA = () => {},
+        onNavigateToAAAA = () => {}
+    }: {
+        domain: string;
+        verified?: boolean;
+        variant: 'cname' | 'a' | 'aaaa';
+        service?: 'sites' | 'functions' | 'general';
+        ruleStatus?: 'created' | 'verifying' | 'unverified' | 'verified';
+        onNavigateToNameservers?: () => void;
+        onNavigateToA?: () => void;
+        onNavigateToAAAA?: () => void;
+    } = $props();
+
+    const subdomain = $derived(getSubdomain(domain));
+    const caaText = $derived(
+        $regionalConsoleVariables._APP_DOMAIN_TARGET_CAA?.includes(' ')
+            ? $regionalConsoleVariables._APP_DOMAIN_TARGET_CAA
+            : `0 issue "${$regionalConsoleVariables._APP_DOMAIN_TARGET_CAA}"`
+    );
+    const aTabVisible = $derived(
+        !isCloud &&
+            Boolean($regionalConsoleVariables._APP_DOMAIN_TARGET_A) &&
+            $regionalConsoleVariables._APP_DOMAIN_TARGET_A !== '127.0.0.1'
+    );
+    const aaaaTabVisible = $derived(
+        !isCloud &&
+            Boolean($regionalConsoleVariables._APP_DOMAIN_TARGET_AAAA) &&
+            $regionalConsoleVariables._APP_DOMAIN_TARGET_AAAA !== '::1'
+    );
+
+    function setTarget() {
+        switch (variant) {
+            case 'cname':
+                if (service === 'sites') {
+                    return $regionalConsoleVariables._APP_DOMAIN_SITES;
+                } else {
+                    return $regionalConsoleVariables._APP_DOMAIN_TARGET_CNAME;
+                }
+            case 'a':
+                return $regionalConsoleVariables._APP_DOMAIN_TARGET_A;
+            case 'aaaa':
+                return $regionalConsoleVariables._APP_DOMAIN_TARGET_AAAA;
+        }
+    }
+</script>
+
+<Layout.Stack gap="xl">
+    <Layout.Stack gap="s">
+        <Layout.Stack gap="s" direction="row" alignItems="center">
+            <Typography.Text variant="l-500" color="--fgcolor-neutral-primary">
+                {domain}
+            </Typography.Text>
+            {#if verified !== undefined}
+                {@const statusBadge = getProxyRuleStatusBadge(ruleStatus)}
+                {#if statusBadge}
+                    <Badge
+                        variant="secondary"
+                        type={statusBadge.type}
+                        size="xs"
+                        content={statusBadge.content} />
+                {:else if verified === true}
+                    <Badge variant="secondary" type="success" size="xs" content="Verified" />
+                {/if}
+            {/if}
+        </Layout.Stack>
+        <Typography.Text variant="m-400">
+            Add the following {$regionalConsoleVariables._APP_DOMAIN_TARGET_CAA
+                ? 'records'
+                : 'record'} on your DNS provider. Note that DNS changes may take up to 48 hours to propagate
+            fully.
+        </Typography.Text>
+    </Layout.Stack>
+
+    <Table.Root
+        class="responsive-table"
+        columns={[
+            { id: 'type', width: { min: 150 } },
+            { id: 'name', width: { min: 80 } },
+            { id: 'value', width: { min: 100 } }
+        ]}
+        let:root>
+        <svelte:fragment slot="header" let:root>
+            <Table.Header.Cell column="type" {root}>Type</Table.Header.Cell>
+            <Table.Header.Cell column="name" {root}>Name</Table.Header.Cell>
+            <Table.Header.Cell column="value" {root}>Value</Table.Header.Cell>
+        </svelte:fragment>
+        <Table.Row.Base {root}>
+            <Table.Cell column="type" {root}>{variant.toUpperCase()}</Table.Cell>
+            <Table.Cell column="name" {root}>
+                <InteractiveText variant="copy" isVisible text={subdomain || '@'} />
+            </Table.Cell>
+            <Table.Cell column="value" {root}>
+                <InteractiveText variant="copy" isVisible text={setTarget()} />
+            </Table.Cell>
+        </Table.Row.Base>
+        {#if $regionalConsoleVariables._APP_DOMAIN_TARGET_CAA}
+            <Table.Row.Base {root}>
+                <Table.Cell column="type" {root}>
+                    <Layout.Stack gap="s" direction="row" alignItems="center">
+                        <span>CAA</span>
+                        <Badge variant="secondary" size="xs" content="Recommended" />
+                    </Layout.Stack>
+                </Table.Cell>
+                <Table.Cell column="name" {root}>@</Table.Cell>
+                <Table.Cell column="value" {root}>
+                    <InteractiveText variant="copy" isVisible text={caaText} />
+                </Table.Cell>
+            </Table.Row.Base>
+        {/if}
+    </Table.Root>
+    <Layout.Stack gap="s" direction="row" alignItems="center">
+        {#if variant === 'cname' && !subdomain}
+            {#if isCloud}
+                <Alert.Inline>
+                    Since <Badge variant="secondary" size="s" content={domain} /> is an apex domain, CNAME
+                    record is only supported by certain providers. If yours doesn't, please verify using
+                    <Link variant="muted" on:click={onNavigateToNameservers}>nameservers</Link> instead.
+                    If you're using Cloudflare or another CDN, make sure the proxy is disabled (set to
+                    DNS only) for this record, since Appwrite serves your domain through its own CDN.
+                </Alert.Inline>
+            {:else if aTabVisible || aaaaTabVisible}
+                <Alert.Inline>
+                    Since <Badge variant="secondary" size="s" content={domain} /> is an apex domain, CNAME
+                    record is only supported by certain providers. If yours doesn't, please verify using
+                    {#if aTabVisible}
+                        <Link variant="muted" on:click={onNavigateToA}>A record</Link>
+                        {#if aaaaTabVisible}
+                            or <Link variant="muted" on:click={onNavigateToAAAA}>AAAA record</Link
+                            >{/if}
+                    {:else if aaaaTabVisible}
+                        <Link variant="muted" on:click={onNavigateToAAAA}>AAAA record</Link>
+                    {/if} instead. If you're using Cloudflare or another CDN, make sure the proxy is disabled
+                    (set to DNS only) for this record, since Appwrite serves your domain through its own
+                    CDN.
+                </Alert.Inline>
+            {/if}
+        {:else}
+            <Typography.Text variant="m-400" color="--fgcolor-neutral-secondary">
+                A list of all domain providers and their DNS setting is available <Link
+                    variant="muted"
+                    external
+                    href="https://appwrite.io/docs/advanced/platform/custom-domains">here</Link
+                >.
+            </Typography.Text>
+        {/if}
+    </Layout.Stack>
+</Layout.Stack>

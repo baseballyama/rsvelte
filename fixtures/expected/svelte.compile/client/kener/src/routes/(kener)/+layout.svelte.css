@@ -1,0 +1,11 @@
+
+  /* Apply the global font family using the CSS variable */
+  .svelte-yjrn1m {
+    font-family: var(--font-family);
+  }
+
+  /*
+	:global(.text-3xl) {
+		font-family: var(--font-family);
+	}
+	*/

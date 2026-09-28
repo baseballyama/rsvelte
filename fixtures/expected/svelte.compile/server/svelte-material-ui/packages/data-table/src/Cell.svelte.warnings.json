@@ -1,0 +1,44 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `sortable`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 150,
+			"column": 6,
+			"character": 4158
+		},
+		"end": {
+			"line": 150,
+			"column": 14,
+			"character": 4166
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `columnId`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 153,
+			"column": 52,
+			"character": 4374
+		},
+		"end": {
+			"line": 153,
+			"column": 60,
+			"character": 4382
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`element` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 136,
+			"column": 6,
+			"character": 3610
+		},
+		"end": {
+			"line": 136,
+			"column": 35,
+			"character": 3639
+		}
+	}
+]

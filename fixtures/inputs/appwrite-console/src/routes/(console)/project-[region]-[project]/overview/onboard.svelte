@@ -1,0 +1,821 @@
+<script lang="ts">
+    import {
+        Step,
+        Link,
+        Icon,
+        Layout,
+        Card,
+        Typography,
+        Badge,
+        ProgressCircle,
+        Button
+    } from '@appwrite.io/pink-svelte';
+    import { addPlatform, continuePlatform } from './platforms/+page.svelte';
+    import { app } from '$lib/stores/app';
+    import AuthPreview from './assets/auth-preview.svg';
+    import AuthPreviewDark from './assets/auth-preview-dark.svg';
+    import { IconArrowRight } from '@appwrite.io/pink-icons-svelte';
+    import DatabaseImgSource from './assets/database.png';
+    import DatabaseImgSourceDark from './assets/database-dark.png';
+    import DiscordImgSource from './assets/discord.png';
+    import DiscordImgSourceDark from './assets/discord-dark.png';
+    import { mcpTools } from '../store';
+    import PlatformIosImgSource from './assets/platform-ios.svg';
+    import PlatformIosImgSourceDark from './assets/platform-ios-dark.svg';
+    import PlatformAndroidImgSource from './assets/platform-android.svg';
+    import PlatformAndroidImgSourceDark from './assets/platform-android-dark.svg';
+    import PlatformFlutterImgSource from './assets/platform-flutter.svg';
+    import PlatformFlutterImgSourceDark from './assets/platform-flutter-dark.svg';
+    import PlatformSdkImgSource from './assets/platform-sdk.jpg';
+    import PlatformSdkImgSourceDark from './assets/platform-sdk-dark.png';
+    import { resolve } from '$app/paths';
+    import { isSmallViewport } from '$lib/stores/viewport';
+    import {
+        getPlatformInfo,
+        getPlatformIdentifier,
+        type AnyPlatform
+    } from '$lib/helpers/platform';
+    import { Click, trackEvent } from '$lib/actions/analytics';
+    import { goto } from '$app/navigation';
+    import { page } from '$app/state';
+    import { Platform } from './platforms/+page.svelte';
+
+    let {
+        pingCount = 0,
+        platforms = []
+    }: {
+        pingCount: number;
+        platforms: Array<AnyPlatform>;
+    } = $props();
+
+    const platformMap = $derived.by(() => {
+        const map = new Map<string, AnyPlatform>();
+        platforms.forEach((platform) => {
+            const platformInfo = getPlatformInfo(platform.type);
+            map.set(platformInfo.name, platform);
+        });
+
+        return map;
+    });
+
+    const projectRoute = $derived.by(() => {
+        return resolve('/(console)/project-[region]-[project]', {
+            region: page.params.region,
+            project: page.params.project
+        });
+    });
+
+    function createKey() {
+        trackEvent(Click.KeyCreateClick, { source: 'onboarding' });
+
+        goto(`${projectRoute}/overview/api-keys/create`, { replaceState: true });
+    }
+
+    function openPlatformWizard(type: Platform, platform?: AnyPlatform) {
+        if (platform) {
+            continuePlatform(type, platform.name, getPlatformIdentifier(platform), platform.type);
+        } else {
+            trackEvent(Click.PlatformCreateClick, { source: 'onboarding' });
+            addPlatform(type);
+        }
+    }
+</script>
+
+<div style:container-type="inline-size">
+    <div class="console-container">
+        <div class="dashboard-content">
+            {#if platforms.length === 0 || pingCount === 0}
+                <Step.List>
+                    <Step.Item state="previous"
+                        ><div>
+                            <Typography.Title color="--fgcolor-neutral-tertiary" size="s"
+                                >Create project</Typography.Title>
+                        </div></Step.Item>
+                    <Step.Item state="current">
+                        <Layout.Stack
+                            direction={$isSmallViewport ? 'column' : 'row'}
+                            gap={$isSmallViewport ? 'xl' : 'xxl'}>
+                            <div class="step-info">
+                                <Layout.Stack gap="m">
+                                    <Typography.Title color="--fgcolor-neutral-primary" size="s"
+                                        >Connect your platform</Typography.Title>
+                                    <div class="build-info">
+                                        <span>
+                                            Start building with your preferred web, mobile, and
+                                            native frameworks.
+                                        </span>
+                                    </div>
+                                </Layout.Stack>
+                            </div>
+                            <Layout.Stack gap="l">
+                                <Layout.Stack
+                                    gap="l"
+                                    direction={$isSmallViewport ? 'column' : 'row'}>
+                                    <Card.Button
+                                        on:click={() => {
+                                            openPlatformWizard(
+                                                Platform.Web,
+                                                platformMap.get('Web')
+                                            );
+                                        }}
+                                        padding="s"
+                                        ><Layout.Stack
+                                            gap={platformMap.has('Web') ? 'm' : 'xl'}
+                                            height="100%"
+                                            justifyContent="space-between"
+                                            ><div class="card-top-image web-image-light"></div>
+                                            <div class="card-top-image web-image-dark"></div>
+                                            {#if platformMap.has('Web')}
+                                                <Layout.Stack alignItems="flex-start">
+                                                    <Badge
+                                                        size="s"
+                                                        variant="secondary"
+                                                        content="In progress">
+                                                        <div
+                                                            slot="start"
+                                                            style:margin="-4px 0 0 2px">
+                                                            <ProgressCircle
+                                                                size="xs"
+                                                                showAnimation={false}
+                                                                backgroundStrokeColor="--progress-background-color"
+                                                                progress={33} />
+                                                        </div>
+                                                    </Badge>
+                                                </Layout.Stack>
+                                            {/if}
+                                            <Layout.Stack
+                                                direction="row"
+                                                alignItems="center"
+                                                justifyContent="space-between">
+                                                <Typography.Title size="s">Web</Typography.Title>
+                                                {#if platformMap.has('Web')}<Button.Button size="xs"
+                                                        >Continue</Button.Button
+                                                    >{:else}
+                                                    <div class="arrow-icon">
+                                                        <Icon icon={IconArrowRight} size="s" />
+                                                    </div>
+                                                {/if}
+                                            </Layout.Stack>
+                                        </Layout.Stack></Card.Button>
+                                    <Card.Button
+                                        on:click={() => {
+                                            openPlatformWizard(
+                                                Platform.ReactNative,
+                                                platformMap.get('React Native')
+                                            );
+                                        }}
+                                        padding="s"
+                                        ><Layout.Stack
+                                            gap={platformMap.has('React Native') ? 'm' : 'xl'}
+                                            height="100%"
+                                            justifyContent="space-between">
+                                            <div class="card-top-image reactnative-image-light">
+                                            </div>
+                                            <div class="card-top-image reactnative-image-dark">
+                                            </div>
+                                            {#if platformMap.has('React Native')}
+                                                <Layout.Stack alignItems="flex-start">
+                                                    <Badge
+                                                        size="s"
+                                                        variant="secondary"
+                                                        content="In progress">
+                                                        <div
+                                                            slot="start"
+                                                            style:margin="-4px 0 0 2px">
+                                                            <ProgressCircle
+                                                                size="xs"
+                                                                showAnimation={false}
+                                                                backgroundStrokeColor="--progress-background-color"
+                                                                progress={33} />
+                                                        </div>
+                                                    </Badge>
+                                                </Layout.Stack>
+                                            {/if}
+                                            <Layout.Stack
+                                                direction="row"
+                                                alignItems="center"
+                                                justifyContent="space-between">
+                                                <Typography.Title size="s"
+                                                    >React Native</Typography.Title>
+                                                {#if platformMap.has('React Native')}<Button.Button
+                                                        size="xs">Continue</Button.Button
+                                                    >{:else}
+                                                    <div class="arrow-icon">
+                                                        <Icon icon={IconArrowRight} size="s" />
+                                                    </div>
+                                                {/if}
+                                            </Layout.Stack>
+                                        </Layout.Stack></Card.Button>
+                                </Layout.Stack>
+                                <Layout.Stack
+                                    gap="l"
+                                    direction={$isSmallViewport ? 'column' : 'row'}>
+                                    <Card.Button
+                                        on:click={() => {
+                                            openPlatformWizard(
+                                                Platform.Apple,
+                                                platformMap.get('Apple')
+                                            );
+                                        }}
+                                        padding="s">
+                                        <Layout.Stack
+                                            gap={platformMap.has('Apple') ? 's' : 'xxl'}
+                                            height="100%"
+                                            justifyContent="space-between">
+                                            <img
+                                                class="platform-image"
+                                                src={$app.themeInUse === 'dark'
+                                                    ? PlatformIosImgSourceDark
+                                                    : PlatformIosImgSource}
+                                                alt="" />
+                                            {#if platformMap.has('Apple')}
+                                                <Layout.Stack alignItems="flex-start">
+                                                    <Badge
+                                                        size="s"
+                                                        variant="secondary"
+                                                        content="In progress">
+                                                        <div
+                                                            slot="start"
+                                                            style:margin="-4px 0 0 2px">
+                                                            <ProgressCircle
+                                                                size="xs"
+                                                                showAnimation={false}
+                                                                backgroundStrokeColor="--progress-background-color"
+                                                                progress={33} />
+                                                        </div>
+                                                    </Badge>
+                                                </Layout.Stack>
+                                            {/if}
+                                            <Layout.Stack
+                                                direction="row"
+                                                alignItems="center"
+                                                justifyContent="space-between">
+                                                <Typography.Title size="s">Apple</Typography.Title>
+                                                {#if platformMap.has('Apple')}<Button.Button
+                                                        size="xs">Continue</Button.Button
+                                                    >{:else}
+                                                    <div class="arrow-icon">
+                                                        <Icon icon={IconArrowRight} size="s" />
+                                                    </div>
+                                                {/if}</Layout.Stack>
+                                        </Layout.Stack>
+                                    </Card.Button>
+                                    <Card.Button
+                                        on:click={() => {
+                                            openPlatformWizard(
+                                                Platform.Android,
+                                                platformMap.get('Android')
+                                            );
+                                        }}
+                                        padding="s">
+                                        <Layout.Stack
+                                            gap={platformMap.has('Android') ? 's' : 'xxl'}
+                                            height="100%"
+                                            justifyContent="space-between">
+                                            <img
+                                                class="platform-image"
+                                                src={$app.themeInUse === 'dark'
+                                                    ? PlatformAndroidImgSourceDark
+                                                    : PlatformAndroidImgSource}
+                                                alt="" />
+                                            {#if platformMap.has('Android')}
+                                                <Layout.Stack alignItems="flex-start">
+                                                    <Badge
+                                                        size="s"
+                                                        variant="secondary"
+                                                        content="In progress">
+                                                        <div
+                                                            slot="start"
+                                                            style:margin="-4px 0 0 2px">
+                                                            <ProgressCircle
+                                                                size="xs"
+                                                                showAnimation={false}
+                                                                backgroundStrokeColor="--progress-background-color"
+                                                                progress={33} />
+                                                        </div>
+                                                    </Badge>
+                                                </Layout.Stack>
+                                            {/if}
+                                            <Layout.Stack
+                                                direction="row"
+                                                alignItems="center"
+                                                justifyContent="space-between">
+                                                <Typography.Title size="s"
+                                                    >Android</Typography.Title>
+                                                {#if platformMap.has('Android')}<Button.Button
+                                                        size="xs">Continue</Button.Button
+                                                    >{:else}
+                                                    <div class="arrow-icon">
+                                                        <Icon icon={IconArrowRight} size="s" />
+                                                    </div>
+                                                {/if}</Layout.Stack>
+                                        </Layout.Stack>
+                                    </Card.Button>
+                                    <Card.Button
+                                        on:click={() => {
+                                            openPlatformWizard(
+                                                Platform.Flutter,
+                                                platformMap.get('Flutter')
+                                            );
+                                        }}
+                                        padding="s">
+                                        <Layout.Stack
+                                            gap={platformMap.has('Flutter') ? 's' : 'xxl'}
+                                            height="100%"
+                                            justifyContent="space-between">
+                                            <img
+                                                class="platform-image"
+                                                src={$app.themeInUse === 'dark'
+                                                    ? PlatformFlutterImgSourceDark
+                                                    : PlatformFlutterImgSource}
+                                                alt="" />
+                                            {#if platformMap.has('Flutter')}
+                                                <Layout.Stack alignItems="flex-start">
+                                                    <Badge
+                                                        size="s"
+                                                        variant="secondary"
+                                                        content="In progress">
+                                                        <div
+                                                            slot="start"
+                                                            style:margin="-4px 0 0 2px">
+                                                            <ProgressCircle
+                                                                size="xs"
+                                                                showAnimation={false}
+                                                                backgroundStrokeColor="--progress-background-color"
+                                                                progress={33} />
+                                                        </div>
+                                                    </Badge>
+                                                </Layout.Stack>
+                                            {/if}
+                                            <Layout.Stack
+                                                direction="row"
+                                                alignItems="center"
+                                                justifyContent="space-between">
+                                                <Typography.Title size="s"
+                                                    >Flutter</Typography.Title>
+                                                {#if platformMap.has('Flutter')}<Button.Button
+                                                        size="xs">Continue</Button.Button
+                                                    >{:else}
+                                                    <div class="arrow-icon">
+                                                        <Icon icon={IconArrowRight} size="s" />
+                                                    </div>
+                                                {/if}</Layout.Stack>
+                                        </Layout.Stack>
+                                    </Card.Button>
+                                </Layout.Stack>
+                                <span class="with-separators eyebrow-heading-3">or</span>
+
+                                <Card.Button on:click={createKey} padding="none">
+                                    <Layout.Stack gap="xl">
+                                        <div
+                                            class="card-top-image api-key-card-image"
+                                            style:background-image={`url('${
+                                                $app.themeInUse === 'dark'
+                                                    ? PlatformSdkImgSourceDark
+                                                    : PlatformSdkImgSource
+                                            }')`}>
+                                            <Layout.Stack
+                                                direction="row"
+                                                alignItems="center"
+                                                justifyContent="space-between">
+                                                <Layout.Stack gap="xxs">
+                                                    <Typography.Title size="s"
+                                                        >Create API key</Typography.Title>
+                                                    <Typography.Text
+                                                        >Connect your server or backend to Appwrite</Typography.Text>
+                                                </Layout.Stack>
+                                                <div class="arrow-icon">
+                                                    <Icon icon={IconArrowRight} size="s" />
+                                                </div>
+                                            </Layout.Stack>
+                                        </div>
+                                    </Layout.Stack>
+                                </Card.Button>
+                            </Layout.Stack>
+                        </Layout.Stack></Step.Item>
+                    <Step.Item state="next"
+                        ><div>
+                            <Typography.Title color="--fgcolor-neutral-tertiary" size="s"
+                                >Build your app</Typography.Title>
+                        </div></Step.Item>
+                </Step.List>
+            {:else}
+                <Step.List>
+                    <Step.Item state="previous"
+                        ><div>
+                            <Typography.Title color="--fgcolor-neutral-tertiary" size="s"
+                                >Create project</Typography.Title>
+                        </div></Step.Item>
+                    <Step.Item state="previous"
+                        ><div>
+                            <Typography.Title color="--fgcolor-neutral-tertiary" size="s"
+                                >Connect your platform</Typography.Title>
+                        </div></Step.Item>
+                    <Step.Item state="current">
+                        <Layout.Stack
+                            direction={$isSmallViewport ? 'column' : 'row'}
+                            gap={$isSmallViewport ? 'xl' : 'xxl'}>
+                            <div class="step-info">
+                                <Layout.Stack gap="m">
+                                    <Typography.Title color="--fgcolor-neutral-primary" size="s"
+                                        >Build your app</Typography.Title>
+                                    <div class="build-info">
+                                        <span>
+                                            Continue building your app by setting up services such
+                                            as Auth, Databases, Storage and Functions.
+                                        </span>
+                                    </div>
+                                </Layout.Stack>
+                            </div>
+                            <Layout.Stack gap="l">
+                                <Layout.Stack
+                                    gap="l"
+                                    direction={$isSmallViewport ? 'column' : 'row'}>
+                                    <Card.Button
+                                        on:click={() => {
+                                            trackEvent(Click.OnboardingSetupDatabaseClick);
+                                            goto(`${projectRoute}/databases`);
+                                        }}
+                                        padding="s"
+                                        ><Layout.Stack gap="xl"
+                                            ><div
+                                                class="card-top-image database-card-image"
+                                                style:background-image={`url('${
+                                                    $app.themeInUse === 'dark'
+                                                        ? DatabaseImgSourceDark
+                                                        : DatabaseImgSource
+                                                }')`}>
+                                            </div>
+                                            <Layout.Stack
+                                                direction="row"
+                                                alignItems="center"
+                                                justifyContent="space-between">
+                                                <Typography.Title size="s"
+                                                    >Set up your database</Typography.Title>
+                                                <div class="arrow-icon">
+                                                    <Icon icon={IconArrowRight} size="s" />
+                                                </div>
+                                            </Layout.Stack>
+                                        </Layout.Stack></Card.Button>
+                                    <Card.Base padding="s"
+                                        ><div class="full-height-card">
+                                            <Layout.Stack gap="xl" justifyContent="space-between">
+                                                <Typography.Title size="s"
+                                                    >Discover our docs</Typography.Title>
+                                                <Layout.Stack
+                                                    direction="column"
+                                                    gap="s"
+                                                    justifyContent="flex-end">
+                                                    <Link.Anchor
+                                                        variant="quiet-muted"
+                                                        href="https://appwrite.io/docs/references"
+                                                        on:click={() => {
+                                                            trackEvent(
+                                                                Click.OnboardingApiReferencesClick
+                                                            );
+                                                        }}
+                                                        target="_blank">API references</Link.Anchor>
+                                                    <Link.Anchor
+                                                        variant="quiet-muted"
+                                                        href="https://appwrite.io/docs/tutorials"
+                                                        on:click={() => {
+                                                            trackEvent(
+                                                                Click.OnboardingTutorialsClick
+                                                            );
+                                                        }}
+                                                        target="_blank">Tutorials</Link.Anchor>
+                                                    <Link.Anchor
+                                                        variant="quiet-muted"
+                                                        href="https://appwrite.io/docs/products/storage/quick-start"
+                                                        on:click={() => {
+                                                            trackEvent(
+                                                                Click.OnboardingStorageQuickstartClick
+                                                            );
+                                                        }}
+                                                        target="_blank"
+                                                        >Storage quick start
+                                                    </Link.Anchor>
+                                                    <Link.Anchor
+                                                        variant="quiet-muted"
+                                                        href="https://appwrite.io/docs/products/functions/quick-start"
+                                                        on:click={() => {
+                                                            trackEvent(
+                                                                Click.OnboardingFunctionsQuickstartClick
+                                                            );
+                                                        }}
+                                                        target="_blank"
+                                                        >Functions quick start</Link.Anchor>
+                                                </Layout.Stack>
+                                            </Layout.Stack>
+                                        </div></Card.Base>
+                                </Layout.Stack>
+                                <Layout.Stack
+                                    gap="l"
+                                    direction={$isSmallViewport ? 'column' : 'row'}>
+                                    <div class="double-width-card">
+                                        <Card.Base padding="s"
+                                            ><div class="full-height-card">
+                                                <Layout.Stack
+                                                    direction={$isSmallViewport ? 'column' : 'row'}>
+                                                    <Layout.Stack
+                                                        gap="xl"
+                                                        justifyContent="space-between"
+                                                        style={`flex: ${$isSmallViewport ? '1 1 auto' : '0 0 30%'}; min-width: ${$isSmallViewport ? 'auto' : '240px'}`}>
+                                                        <Typography.Title size="s"
+                                                            >Set up Auth</Typography.Title>
+                                                        <Layout.Stack
+                                                            direction="column"
+                                                            gap="s"
+                                                            justifyContent="flex-end">
+                                                            <Link.Anchor
+                                                                variant="quiet-muted"
+                                                                href={`${projectRoute}/auth/settings`}
+                                                                on:click={() => {
+                                                                    trackEvent(
+                                                                        Click.OnboardingAuthEmailPasswordClick
+                                                                    );
+                                                                }}
+                                                                >E-mail and password
+                                                            </Link.Anchor>
+                                                            <Link.Anchor
+                                                                variant="quiet-muted"
+                                                                href={`${projectRoute}/auth/settings`}
+                                                                on:click={() => {
+                                                                    trackEvent(
+                                                                        Click.OnboardingAuthOauth2Click
+                                                                    );
+                                                                }}>OAuth 2</Link.Anchor>
+                                                            <Link.Anchor
+                                                                variant="quiet-muted"
+                                                                href={`${projectRoute}/auth/settings`}
+                                                                on:click={() => {
+                                                                    trackEvent(
+                                                                        Click.OnboardingAuthAllMethodsClick
+                                                                    );
+                                                                }}>View all methods</Link.Anchor>
+                                                        </Layout.Stack>
+                                                    </Layout.Stack>
+                                                    <div
+                                                        class="auth-image"
+                                                        style="flex: 1 1 auto"
+                                                        style:background-image={`url('${
+                                                            $app.themeInUse === 'dark'
+                                                                ? AuthPreviewDark
+                                                                : AuthPreview
+                                                        }')`}>
+                                                    </div>
+                                                </Layout.Stack>
+                                            </div></Card.Base>
+                                    </div>
+                                </Layout.Stack>
+                                <Layout.Stack
+                                    gap="l"
+                                    direction={$isSmallViewport ? 'column' : 'row'}>
+                                    <Card.Base
+                                        padding="s"
+                                        style={`flex: ${$isSmallViewport ? '1 1 auto' : '1 1 70%'};`}>
+                                        <div class="full-height-card">
+                                            <Layout.Stack gap="xl" justifyContent="space-between">
+                                                <Layout.Stack gap="s">
+                                                    <Typography.Title
+                                                        color="--fgcolor-neutral-secondary"
+                                                        size="s">MCP server</Typography.Title>
+                                                    <Typography.Text
+                                                        color="--fgcolor-neutral-secondary">
+                                                        Deploy the Appwrite MCP server with a single
+                                                        click, or view the <Link.Anchor
+                                                            href="https://appwrite.io/docs/tooling/ai/mcp-servers"
+                                                            target="_blank">docs</Link.Anchor> for instructions.
+                                                    </Typography.Text>
+                                                </Layout.Stack>
+                                                <Layout.Stack gap="s">
+                                                    <Typography.Text
+                                                        color="--fgcolor-neutral-tertiary"
+                                                        size="s">Quick install</Typography.Text>
+                                                    <Layout.Stack
+                                                        direction="row"
+                                                        gap="s"
+                                                        wrap="wrap">
+                                                        {#each mcpTools as tool}
+                                                            <Button.Anchor
+                                                                href={tool.href}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                size="s"
+                                                                variant="secondary">
+                                                                <Icon
+                                                                    slot="start"
+                                                                    icon={tool.icon}
+                                                                    size="xs" />
+                                                                {tool.label}
+                                                            </Button.Anchor>
+                                                        {/each}
+                                                    </Layout.Stack>
+                                                </Layout.Stack>
+                                            </Layout.Stack>
+                                        </div>
+                                    </Card.Base>
+
+                                    <Card.Link
+                                        href="https://appwrite.io/discord"
+                                        padding="s"
+                                        on:click={() => {
+                                            trackEvent(Click.OnboardingDiscordClick);
+                                        }}
+                                        style={`flex: ${$isSmallViewport ? '1 1 auto' : '1 1 28%'};`}>
+                                        <div class="full-height-card">
+                                            <Layout.Stack gap="xs" justifyContent="space-between">
+                                                <Layout.Stack
+                                                    direction="row"
+                                                    alignItems="center"
+                                                    justifyContent="space-between"
+                                                    class="discord-header">
+                                                    <Layout.Stack
+                                                        direction="row"
+                                                        alignItems="flex-start"
+                                                        gap="xs">
+                                                        <img
+                                                            src={$app.themeInUse === 'dark'
+                                                                ? DiscordImgSourceDark
+                                                                : DiscordImgSource}
+                                                            class="discord"
+                                                            alt="" />
+                                                        <Typography.Title size="s"
+                                                            >Discord</Typography.Title>
+                                                    </Layout.Stack>
+                                                    <div class="arrow-icon arrow-icon-discord">
+                                                        <Icon icon={IconArrowRight} size="s" />
+                                                    </div>
+                                                </Layout.Stack>
+                                                <Layout.Stack
+                                                    direction="row"
+                                                    alignItems="flex-end"
+                                                    justifyContent="space-between">
+                                                    <Typography.Text
+                                                        size="m"
+                                                        color="--fgcolor-neutral-secondary">
+                                                        Join our Discord for support, tips and
+                                                        product updates</Typography.Text>
+                                                </Layout.Stack>
+                                            </Layout.Stack>
+                                        </div>
+                                    </Card.Link>
+                                </Layout.Stack>
+                            </Layout.Stack>
+                        </Layout.Stack></Step.Item>
+                </Step.List>
+            {/if}
+        </div>
+    </div>
+</div>
+
+<style lang="scss">
+    @use '@appwrite.io/pink-legacy/src/abstract/variables/devices';
+
+    :global(.theme-light) {
+        --progress-background-color: var(--neutral-200);
+        .web-image-dark,
+        .reactnative-image-dark {
+            display: none;
+        }
+    }
+
+    :global(.theme-dark) {
+        --progress-background-color: var(--neutral-600);
+        .web-image-light,
+        .reactnative-image-light {
+            display: none;
+        }
+    }
+
+    .dashboard-content {
+        .card-top-image {
+            margin-top: calc(-1 * var(--base-16, 16px));
+            margin-left: calc(-1 * var(--base-16, 16px));
+            width: calc(100% + var(--base-32, 32px));
+            height: 160px;
+            background-size: cover;
+            background-position: center;
+            border-radius: var(--border-radius-m) var(--border-radius-m) 0 0;
+
+            @media (min-width: 1200px) {
+                height: 187px;
+            }
+        }
+
+        .web-image-light {
+            background-image: url('./assets/platform-web.png');
+        }
+        .web-image-dark {
+            background-image: url('./assets/platform-web-dark.png');
+        }
+
+        .reactnative-image-light {
+            background-image: url('./assets/platform-reactnative.png');
+        }
+        .reactnative-image-dark {
+            background-image: url('./assets/platform-reactnative-dark.png');
+        }
+        .database-card-image {
+            background-size: cover;
+            background-position: bottom;
+            background-repeat: no-repeat;
+        }
+        .api-key-card-image {
+            background-size: cover;
+            background-position: right center;
+            background-repeat: no-repeat;
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            min-height: 160px;
+            border-radius: var(--border-radius-m);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: flex-start;
+            padding: var(--base-16, 16px);
+            @media (min-width: 1200px) {
+                min-height: 187px;
+            }
+        }
+        .full-height-card {
+            height: 100%;
+        }
+
+        .auth-image {
+            width: 100%;
+            height: 200px;
+            margin-right: calc(-1 * var(--base-16, 16px));
+            margin-bottom: calc(-1 * var(--base-16, 16px));
+            align-self: flex-end;
+            background-size: cover;
+            background-position: right bottom;
+            background-repeat: no-repeat;
+        }
+        :global(.full-height-card div) {
+            height: 100%;
+        }
+
+        .double-width-card {
+            @media (min-width: 768px) {
+                width: 250%;
+            }
+        }
+        .double-width-card .full-height-card {
+            height: 240px;
+            width: 100%;
+
+            @media (max-width: 1024px) {
+                height: 220px;
+            }
+
+            @media (max-width: 768px) {
+                height: auto;
+            }
+        }
+
+        .auth-image {
+            @media (max-width: 1024px) {
+                height: 180px;
+                background-position: center bottom;
+            }
+
+            @media (max-width: 768px) {
+                height: 160px;
+                margin-right: 0;
+            }
+        }
+
+        .arrow-icon {
+            color: var(--border-neutral-strong);
+            display: none;
+            @media (min-width: 768px) {
+                display: flex;
+            }
+        }
+        .arrow-icon-discord {
+            align-items: flex-start;
+        }
+
+        .platform-image {
+            width: 56px;
+            margin-left: calc(-1 * var(--base-4, 4px));
+        }
+
+        .step-info {
+            @media (min-width: 768px) {
+                max-width: 100px;
+            }
+            @media (min-width: 1024px) {
+                max-width: 200px;
+            }
+            @media (min-width: 1400px) {
+                max-width: 300px;
+            }
+        }
+    }
+    .discord {
+        width: 24px;
+    }
+</style>

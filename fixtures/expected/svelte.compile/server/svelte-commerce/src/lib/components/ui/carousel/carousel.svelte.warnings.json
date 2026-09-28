@@ -1,0 +1,44 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `orientation`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 11,
+			"column": 2,
+			"character": 423
+		},
+		"end": {
+			"line": 11,
+			"column": 13,
+			"character": 434
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `opts`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 15,
+			"column": 11,
+			"character": 516
+		},
+		"end": {
+			"line": 15,
+			"column": 15,
+			"character": 520
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `plugins`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 16,
+			"column": 2,
+			"character": 525
+		},
+		"end": {
+			"line": 16,
+			"column": 9,
+			"character": 532
+		}
+	}
+]

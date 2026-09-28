@@ -1,0 +1,106 @@
+import * as $ from 'svelte/internal/server';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "$lib/components/ui/accordion";
+import Clock from "@lucide/svelte/icons/clock";
+import CreditCard from "@lucide/svelte/icons/credit-card";
+import Truck from "@lucide/svelte/icons/truck";
+import Globe from "@lucide/svelte/icons/globe";
+import Package from "@lucide/svelte/icons/package";
+
+export default function Faq_three($$renderer) {
+	const faqItems = [
+		{
+			id: "item-1",
+			icon: Clock,
+			question: "What are your business hours?",
+			answer: "Our customer service team is available Monday through Friday from 9:00 AM to 8:00 PM EST, and weekends from 10:00 AM to 6:00 PM EST. During holidays, hours may vary and will be posted on our website."
+		},
+
+		{
+			id: "item-2",
+			icon: CreditCard,
+			question: "How do subscription payments work?",
+			answer: "Subscription payments are automatically charged to your default payment method on the same day each month or year, depending on your billing cycle. You can update your payment information and view billing history in your account dashboard."
+		},
+
+		{
+			id: "item-3",
+			icon: Truck,
+			question: "Can I expedite my shipping?",
+			answer: "Yes, we offer several expedited shipping options at checkout. Next-day and 2-day shipping are available for most U.S. addresses if orders are placed before 2:00 PM EST. International expedited shipping options vary by destination."
+		},
+
+		{
+			id: "item-4",
+			icon: Globe,
+			question: "Do you offer localized support?",
+			answer: "We offer multilingual support in English, Spanish, French, German, and Japanese. Our support team can assist customers in these languages via email, chat, and phone during standard business hours for each respective region."
+		},
+
+		{
+			id: "item-5",
+			icon: Package,
+			question: "How do I track my order?",
+			answer: "Once your order ships, you'll receive a confirmation email with a tracking number. You can use this number on our website or the carrier's website to track your package. You can also view order status and tracking information in your account dashboard under \"Order History\"."
+		}
+	];
+
+	$$renderer.push(`<section class="bg-muted py-20 dark:bg-background"><div class="mx-auto max-w-5xl px-4 md:px-6"><div class="flex flex-col gap-10 md:flex-row md:gap-16"><div class="md:w-1/3"><div class="sticky top-20"><h2 class="mt-4 text-3xl font-bold">Frequently Asked Questions</h2> <p class="mt-4 text-muted-foreground">Can't find what you're looking for? Contact our  <a href="/" class="font-medium text-primary hover:underline">customer support team</a></p></div></div> <div class="md:w-2/3">`);
+
+	Accordion($$renderer, {
+		type: 'single',
+		class: 'w-full space-y-2',
+		children: ($$renderer) => {
+			$$renderer.push(`<!--[-->`);
+
+			const each_array = $.ensure_array_like(faqItems);
+
+			for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+				let item = each_array[$$index];
+				const Icon = item.icon;
+
+				AccordionItem($$renderer, {
+					value: item.id,
+					class: 'rounded-lg border bg-background px-4 shadow-xs last:border-b',
+					children: ($$renderer) => {
+						AccordionTrigger($$renderer, {
+							class: 'cursor-pointer items-center py-5 hover:no-underline',
+							children: ($$renderer) => {
+								$$renderer.push(`<div class="flex items-center gap-3"><div class="flex size-6">`);
+
+								if (Icon) {
+									$$renderer.push('<!--[-->');
+									Icon($$renderer, { class: 'm-auto size-4' });
+									$$renderer.push('<!--]-->');
+								} else {
+									$$renderer.push('<!--[!-->');
+									$$renderer.push('<!--]-->');
+								}
+
+								$$renderer.push(`</div> <span class="text-base">${$.escape(item.question)}</span></div>`);
+							},
+							$$slots: { default: true }
+						});
+
+						$$renderer.push(`<!----> `);
+
+						AccordionContent($$renderer, {
+							class: 'pb-5',
+							children: ($$renderer) => {
+								$$renderer.push(`<div class="px-9"><p class="text-base">${$.escape(item.answer)}</p></div>`);
+							},
+							$$slots: { default: true }
+						});
+
+						$$renderer.push(`<!---->`);
+					},
+					$$slots: { default: true }
+				});
+			}
+
+			$$renderer.push(`<!--]-->`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></div></div></div></section>`);
+}

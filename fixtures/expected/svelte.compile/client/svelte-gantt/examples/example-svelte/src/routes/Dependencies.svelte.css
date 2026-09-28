@@ -1,0 +1,11 @@
+
+    #example-gantt.svelte-13ijps6 {
+        flex-grow: 1;
+        overflow: auto;
+    }
+
+    .container.svelte-13ijps6 {
+        display: flex;
+        overflow: auto;
+        flex: 1;
+    }

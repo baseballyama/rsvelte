@@ -1,0 +1,10 @@
+
+    .pink2-code-margin-fix pre {
+        margin: revert;
+    }
+
+    .responsive-padding {
+        @media (max-width: 768px) {
+            padding: 16px;
+        }
+    }

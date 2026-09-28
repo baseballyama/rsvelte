@@ -1,0 +1,44 @@
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 25,
+			"column": 2,
+			"character": 663
+		},
+		"end": {
+			"line": 25,
+			"column": 21,
+			"character": 682
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 27,
+			"column": 2,
+			"character": 705
+		},
+		"end": {
+			"line": 27,
+			"column": 21,
+			"character": 724
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`componentLoaded` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 12,
+			"column": 5,
+			"character": 362
+		},
+		"end": {
+			"line": 12,
+			"column": 20,
+			"character": 377
+		}
+	}
+]

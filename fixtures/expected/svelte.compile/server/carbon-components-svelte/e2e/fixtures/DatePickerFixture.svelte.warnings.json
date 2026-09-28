@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`singleCloseTriggers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 116
+		},
+		"end": {
+			"line": 5,
+			"column": 25,
+			"character": 135
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`rangeCloseTriggers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 174
+		},
+		"end": {
+			"line": 7,
+			"column": 24,
+			"character": 192
+		}
+	}
+]

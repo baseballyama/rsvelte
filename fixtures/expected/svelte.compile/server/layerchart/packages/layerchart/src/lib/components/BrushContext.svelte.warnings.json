@@ -1,0 +1,100 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `x`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 158,
+			"column": 4,
+			"character": 3960
+		},
+		"end": {
+			"line": 158,
+			"column": 5,
+			"character": 3961
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `y`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 159,
+			"column": 4,
+			"character": 3967
+		},
+		"end": {
+			"line": 159,
+			"column": 5,
+			"character": 3968
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `axis`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 160,
+			"column": 4,
+			"character": 3974
+		},
+		"end": {
+			"line": 160,
+			"column": 8,
+			"character": 3978
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `minExtent`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 161,
+			"column": 4,
+			"character": 3984
+		},
+		"end": {
+			"line": 161,
+			"column": 13,
+			"character": 3993
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `maxExtent`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 162,
+			"column": 4,
+			"character": 3999
+		},
+		"end": {
+			"line": 162,
+			"column": 13,
+			"character": 4008
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `constrain`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 163,
+			"column": 4,
+			"character": 4014
+		},
+		"end": {
+			"line": 163,
+			"column": 13,
+			"character": 4023
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `constrainToDomain`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 164,
+			"column": 4,
+			"character": 4029
+		},
+		"end": {
+			"line": 164,
+			"column": 21,
+			"character": 4046
+		}
+	}
+]

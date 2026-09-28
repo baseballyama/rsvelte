@@ -1,0 +1,30 @@
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 8,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"column": 24,
+			"character": 24
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<option ...></option>` rather than `<option ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 113,
+			"column": 10,
+			"character": 2404
+		},
+		"end": {
+			"line": 113,
+			"column": 20,
+			"character": 2414
+		}
+	}
+]

@@ -1,0 +1,44 @@
+[
+	{
+		"code": "a11y_incorrect_aria_attribute_type_integer",
+		"message": "The value of 'aria-level' must be an integer\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_integer",
+		"start": {
+			"line": 1,
+			"column": 5,
+			"character": 5
+		},
+		"end": {
+			"line": 1,
+			"column": 21,
+			"character": 21
+		}
+	},
+	{
+		"code": "a11y_incorrect_aria_attribute_type_integer",
+		"message": "The value of 'aria-level' must be an integer\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_integer",
+		"start": {
+			"line": 2,
+			"column": 5,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"column": 20,
+			"character": 49
+		}
+	},
+	{
+		"code": "a11y_incorrect_aria_attribute_type_integer",
+		"message": "The value of 'aria-level' must be an integer\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_integer",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 93
+		},
+		"end": {
+			"line": 4,
+			"column": 15,
+			"character": 103
+		}
+	}
+]

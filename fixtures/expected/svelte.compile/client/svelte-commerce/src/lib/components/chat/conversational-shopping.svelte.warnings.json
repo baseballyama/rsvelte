@@ -1,0 +1,16 @@
+[
+	{
+		"code": "a11y_no_noninteractive_element_to_interactive_role",
+		"message": "Non-interactive element `<section>` cannot have interactive role 'dialog'\nhttps://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role",
+		"start": {
+			"line": 193,
+			"column": 1,
+			"character": 5826
+		},
+		"end": {
+			"line": 379,
+			"column": 11,
+			"character": 11912
+		}
+	}
+]

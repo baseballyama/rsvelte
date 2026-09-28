@@ -1,0 +1,72 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `nonInteractive`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 203,
+			"column": 41,
+			"character": 5482
+		},
+		"end": {
+			"line": 203,
+			"column": 55,
+			"character": 5496
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `singleSelection`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 207,
+			"column": 8,
+			"character": 5571
+		},
+		"end": {
+			"line": 207,
+			"column": 23,
+			"character": 5586
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `radioList`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 210,
+			"column": 15,
+			"character": 5680
+		},
+		"end": {
+			"line": 210,
+			"column": 24,
+			"character": 5689
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `checkList`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 213,
+			"column": 15,
+			"character": 5785
+		},
+		"end": {
+			"line": 213,
+			"column": 24,
+			"character": 5794
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`role` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 193,
+			"column": 6,
+			"character": 5054
+		},
+		"end": {
+			"line": 193,
+			"column": 10,
+			"character": 5058
+		}
+	}
+]

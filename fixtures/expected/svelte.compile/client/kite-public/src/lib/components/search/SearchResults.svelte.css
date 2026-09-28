@@ -1,0 +1,23 @@
+
+  .line-clamp-2.svelte-1hmd7l3 {
+    display: -webkit-box;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  @keyframes svelte-1hmd7l3-fill-progress {
+    from {
+      transform: scaleX(0);
+      transform-origin: left;
+    }
+    to {
+      transform: scaleX(1);
+      transform-origin: left;
+    }
+  }
+
+  .animate-fill-progress.svelte-1hmd7l3 {
+    animation: svelte-1hmd7l3-fill-progress 3s linear;
+  }

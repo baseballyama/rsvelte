@@ -1,0 +1,35 @@
+
+  :root {
+    --toast-opacity: 0.8;
+  }
+
+  section.svelte-9ofd8p {
+    flex-grow: 1;
+    padding: 0.5em;
+    margin: 0;
+    display: flex;
+    gap: 0.5em;
+    flex-flow: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  span.svelte-9ofd8p {
+    display: flex;
+    align-items: center;
+    font-size: smaller;
+    gap: 0.5em;
+    text-overflow: ellipsis;
+  }
+
+  .error.svelte-9ofd8p {
+    background-color: rgb(192, 39, 85, var(--toast-opacity));
+  }
+
+  .warning.svelte-9ofd8p {
+    background-color: rgb(224, 194, 57, var(--toast-opacity));
+  }
+
+  .info.svelte-9ofd8p {
+    background-color: rgb(38, 99, 150, var(--toast-opacity));
+  }

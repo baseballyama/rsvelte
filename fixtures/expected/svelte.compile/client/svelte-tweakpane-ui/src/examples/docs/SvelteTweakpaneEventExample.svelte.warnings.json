@@ -1,0 +1,44 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`speed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 97
+		},
+		"end": {
+			"line": 4,
+			"column": 10,
+			"character": 102
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`internalChangeCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 298
+		},
+		"end": {
+			"line": 9,
+			"column": 24,
+			"character": 317
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`externalChangeCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 327
+		},
+		"end": {
+			"line": 10,
+			"column": 24,
+			"character": 346
+		}
+	}
+]

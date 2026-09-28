@@ -1,0 +1,20 @@
+
+  .nav-trigger.svelte-1axsvz0 {
+    --at-apply: 'ml-4 text-6 flex items-center sm:hidden';
+  }
+  .navbar-mobile.svelte-1axsvz0 {
+    --at-apply: 'fixed top-[48px] left-0 right-0 bg-white dark:bg-[#1c1c1f] z-900 shadow-lg pb-4 b-b-1 b-b-solid b-b-black/5 dark:b-b-white/8';
+  }
+  .navbar-mobile .nav-item {
+    --at-apply: 'leading-12 px-4';
+  }
+  .navbar-mobile .nav-item--icon {
+    --at-apply: 'h-12';
+  }
+
+  .navbar-mobile .c-expansion--title {
+    --at-apply: 'text-4 font-700';
+  }
+  .navbar-mobile .c-expansion .nav-item {
+    --at-apply: 'indent-[1em]';
+  }

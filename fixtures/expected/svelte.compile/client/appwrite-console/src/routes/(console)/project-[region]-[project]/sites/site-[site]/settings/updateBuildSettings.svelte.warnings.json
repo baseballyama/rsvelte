@@ -1,0 +1,114 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `site`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 30,
+			"column": 30,
+			"character": 1223
+		},
+		"end": {
+			"line": 30,
+			"column": 34,
+			"character": 1227
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `site`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 31,
+			"column": 32,
+			"character": 1272
+		},
+		"end": {
+			"line": 31,
+			"column": 36,
+			"character": 1276
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `site`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 32,
+			"column": 30,
+			"character": 1325
+		},
+		"end": {
+			"line": 32,
+			"column": 34,
+			"character": 1329
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `site`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 33,
+			"column": 30,
+			"character": 1376
+		},
+		"end": {
+			"line": 33,
+			"column": 34,
+			"character": 1380
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `site`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 34,
+			"column": 33,
+			"character": 1430
+		},
+		"end": {
+			"line": 34,
+			"column": 37,
+			"character": 1434
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `site`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 35,
+			"column": 26,
+			"character": 1480
+		},
+		"end": {
+			"line": 35,
+			"column": 30,
+			"character": 1484
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `site`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 36,
+			"column": 34,
+			"character": 1541
+		},
+		"end": {
+			"line": 36,
+			"column": 38,
+			"character": 1545
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `frameworks`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 39,
+			"column": 8,
+			"character": 1612
+		},
+		"end": {
+			"line": 39,
+			"column": 18,
+			"character": 1622
+		}
+	}
+]

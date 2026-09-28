@@ -1,0 +1,44 @@
+[
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 1,
+			"column": 11,
+			"character": 11
+		},
+		"end": {
+			"line": 1,
+			"column": 37,
+			"character": 37
+		}
+	},
+	{
+		"code": "a11y_invalid_attribute",
+		"message": "'' is not a valid xlink:href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
+		"start": {
+			"line": 2,
+			"column": 14,
+			"character": 65
+		},
+		"end": {
+			"line": 2,
+			"column": 27,
+			"character": 78
+		}
+	},
+	{
+		"code": "a11y_invalid_attribute",
+		"message": "'#' is not a valid xlink:href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
+		"start": {
+			"line": 3,
+			"column": 14,
+			"character": 130
+		},
+		"end": {
+			"line": 3,
+			"column": 28,
+			"character": 144
+		}
+	}
+]

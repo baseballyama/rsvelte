@@ -1,0 +1,33 @@
+
+	.demo-fill.svelte-1itedfe {
+		position: absolute;
+		inset: 0;
+		overflow: hidden;
+	}
+	.demo-shiny-wrap.svelte-1itedfe {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.demo-shiny-wrap.svelte-1itedfe .demo-shiny-text {
+		font-family: 'Geist', sans-serif;
+		font-size: clamp(28px, 3.5vw, 44px);
+		font-weight: 700;
+		letter-spacing: -0.03em;
+	}
+	/* Dock's panel is `position: absolute; bottom: 2px; left: 50%`.
+	   It pins to the bottom of its closest positioned ancestor. We give it
+	   a stage that is exactly the dock's own height + a couple of px for
+	   the bottom offset, then center that stage in the card with flex. */
+	.demo-dock-wrap.svelte-1itedfe {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.demo-dock-stage.svelte-1itedfe {
+		position: relative;
+		width: 100%;
+		/* Matches Dock's internal outerHeight for these props:
+		   max(panelHeight=64, baseItemSize=42 + magnification/2=32 + 4) = 78 */
+		height: 78px;
+	}

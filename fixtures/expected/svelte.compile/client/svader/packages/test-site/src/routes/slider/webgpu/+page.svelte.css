@@ -1,0 +1,38 @@
+
+    main.svelte-1jcq176 {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 5rem;
+    }
+
+    h1.svelte-1jcq176 {
+        font-family: sans-serif;
+        font-style: italic;
+        margin-bottom: 0;
+    }
+
+    span.svelte-1jcq176 {
+        display: inline-block;
+        position: relative;
+    }
+
+    .canvas-container.svelte-1jcq176 {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: -1;
+
+        width: 100%;
+        height: 100%;
+    }
+
+    input.svelte-1jcq176 {
+        opacity: 0;
+        margin: 0;
+        width: 200px;
+        height: 60px;
+        margin: 0 20px;
+
+        cursor: ew-resize;
+    }

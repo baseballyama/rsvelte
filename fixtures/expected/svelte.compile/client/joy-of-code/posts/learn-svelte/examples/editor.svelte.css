@@ -1,0 +1,11 @@
+
+	.editor.svelte-i39yxc {
+		text-align: left;
+
+		textarea:where(.svelte-i39yxc) {
+			width: 600px;
+			height: 200px;
+			padding: var(--spacing-8);
+			border-radius: var(--rounded-4);
+		}
+	}

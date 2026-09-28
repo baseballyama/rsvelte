@@ -1,0 +1,4 @@
+
+	div.svelte-ogns4s section:where(.svelte-ogns4s) p:where(.svelte-ogns4s) {
+		color: red;
+	}

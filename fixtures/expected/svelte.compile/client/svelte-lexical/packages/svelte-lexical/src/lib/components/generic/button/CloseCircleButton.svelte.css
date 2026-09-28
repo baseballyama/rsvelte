@@ -1,0 +1,20 @@
+
+  #close.svelte-cugtz2 {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    fill: #f44;
+    transition: transform 0.3s;
+  }
+
+  #close.svelte-cugtz2:hover {
+    transform: scale(1.3);
+  }
+
+  #close.svelte-cugtz2 line:where(.svelte-cugtz2) {
+    stroke: #fff;
+    stroke-width: 2;
+  }

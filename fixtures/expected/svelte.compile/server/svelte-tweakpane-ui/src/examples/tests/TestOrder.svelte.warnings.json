@@ -1,0 +1,44 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`showNumbers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 27,
+			"column": 5,
+			"character": 385
+		},
+		"end": {
+			"line": 27,
+			"column": 16,
+			"character": 396
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`folderWrap` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 28,
+			"column": 5,
+			"character": 409
+		},
+		"end": {
+			"line": 28,
+			"column": 15,
+			"character": 419
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`someNumber` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 29,
+			"column": 5,
+			"character": 433
+		},
+		"end": {
+			"line": 29,
+			"column": 15,
+			"character": 443
+		}
+	}
+]

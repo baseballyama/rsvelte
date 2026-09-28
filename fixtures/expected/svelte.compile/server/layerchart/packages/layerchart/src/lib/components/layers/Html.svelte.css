@@ -1,0 +1,15 @@
+
+  @layer base {
+    :where(.lc-layout-html.svelte-19gkgt0) {
+      position: absolute;
+      inset: 0;
+
+      &.disablePointerEvents {
+        pointer-events: none;
+      }
+
+      &.clip {
+        overflow: hidden;
+      }
+    }
+  }

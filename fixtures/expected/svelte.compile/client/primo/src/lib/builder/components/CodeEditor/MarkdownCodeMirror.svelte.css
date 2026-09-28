@@ -1,0 +1,13 @@
+
+	.MarkdownCodeMirror.svelte-vqhry .cm-editor {
+		width: 100%;
+	}
+
+	.MarkdownCodeMirror.svelte-vqhry .cm-scroller {
+		overflow: auto;
+	}
+
+	.MarkdownCodeMirror.svelte-vqhry .cm-editor.cm-focused {
+		border-color: var(--color-gray-7);
+		box-shadow: 0 0 0 1px var(--color-gray-7);
+	}

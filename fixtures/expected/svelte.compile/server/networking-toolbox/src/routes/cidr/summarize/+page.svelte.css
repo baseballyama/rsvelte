@@ -1,0 +1,168 @@
+
+  .explainer-section.svelte-cp3zw1 {
+    margin-top: var(--spacing-xl);
+    padding: var(--spacing-lg);
+    background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-secondary);
+
+    h3:where(.svelte-cp3zw1) {
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-md);
+    }
+
+    @media (max-width: 768px) {
+      padding: var(--spacing-md);
+    }
+  }
+
+  .benefits-grid.svelte-cp3zw1,
+  .modes-grid.svelte-cp3zw1,
+  .use-cases-grid.svelte-cp3zw1,
+  .formats-grid.svelte-cp3zw1 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-md);
+    margin: var(--spacing-lg) 0;
+  }
+
+  .benefit-item.svelte-cp3zw1,
+  .use-case-item.svelte-cp3zw1,
+  .format-item.svelte-cp3zw1 {
+    padding: var(--spacing-md);
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-primary);
+
+    h4:where(.svelte-cp3zw1),
+    h5:where(.svelte-cp3zw1) {
+      color: var(--color-primary);
+      margin-bottom: var(--spacing-sm);
+      font-size: var(--font-size-md);
+    }
+
+    p:where(.svelte-cp3zw1) {
+      color: var(--text-secondary);
+      font-size: var(--font-size-sm);
+      line-height: 1.5;
+      margin: 0;
+    }
+  }
+
+  .modes-section.svelte-cp3zw1,
+  .use-cases-section.svelte-cp3zw1,
+  .input-formats-section.svelte-cp3zw1 {
+    margin: var(--spacing-lg) 0;
+
+    h4:where(.svelte-cp3zw1) {
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-md);
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+    }
+  }
+
+  .mode-item.svelte-cp3zw1 {
+    border: 1px solid var(--border-primary);
+    border-left: 4px solid var(--color-info);
+    padding: var(--spacing-md);
+    background: var(--bg-secondary);
+  }
+
+  .mode-example.svelte-cp3zw1 {
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background-color: var(--bg-primary);
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-xs);
+
+    .example-label:where(.svelte-cp3zw1) {
+      font-weight: 600;
+      color: var(--color-primary);
+    }
+
+    code:where(.svelte-cp3zw1) {
+      font-family: var(--font-mono);
+      background-color: var(--bg-tertiary);
+      padding: 2px var(--spacing-xs);
+      border-radius: var(--radius-xs);
+
+      &.example-input {
+        color: var(--color-info);
+      }
+
+      &.example-output {
+        color: var(--color-success);
+      }
+    }
+
+    .arrow:where(.svelte-cp3zw1) {
+      color: var(--text-secondary);
+      text-align: center;
+      font-weight: bold;
+    }
+  }
+
+  .format-examples.svelte-cp3zw1 {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+
+    code:where(.svelte-cp3zw1) {
+      font-family: var(--font-mono);
+      background-color: var(--bg-tertiary);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--radius-xs);
+      font-size: var(--font-size-xs);
+      color: var(--color-primary);
+    }
+  }
+
+  .info-box.svelte-cp3zw1 {
+    margin-top: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: linear-gradient(135deg, rgba(9, 105, 218, 0.1), rgba(31, 111, 235, 0.05));
+    border: 1px solid var(--color-info);
+    border-radius: var(--radius-md);
+
+    h4:where(.svelte-cp3zw1) {
+      color: var(--color-info);
+      margin-bottom: var(--spacing-sm);
+      font-size: var(--font-size-md);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+
+      .icon {
+        width: 1.2rem;
+        height: 1.2rem;
+      }
+    }
+
+    p:where(.svelte-cp3zw1) {
+      color: var(--text-primary);
+      font-size: var(--font-size-sm);
+      line-height: 1.6;
+      margin: 0;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .benefits-grid.svelte-cp3zw1,
+    .modes-grid.svelte-cp3zw1,
+    .use-cases-grid.svelte-cp3zw1,
+    .formats-grid.svelte-cp3zw1 {
+      grid-template-columns: 1fr;
+    }
+
+    .mode-example.svelte-cp3zw1 {
+      .arrow:where(.svelte-cp3zw1) {
+        transform: rotate(90deg);
+      }
+    }
+  }

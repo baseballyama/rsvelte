@@ -1,0 +1,14 @@
+
+	.a.svelte-19m6ymp + .b:where(.svelte-19m6ymp) { color: green; }
+	.a.svelte-19m6ymp + .c:where(.svelte-19m6ymp) { color: green; }
+	.a.svelte-19m6ymp + .d:where(.svelte-19m6ymp) { color: green; }
+	.a.svelte-19m6ymp + .e:where(.svelte-19m6ymp) { color: green; }
+	.a.svelte-19m6ymp + .f:where(.svelte-19m6ymp) { color: green; }
+	.a.svelte-19m6ymp + .g:where(.svelte-19m6ymp) { color: green; }
+	.a.svelte-19m6ymp + .h:where(.svelte-19m6ymp) { color: green; }
+
+	.b.svelte-19m6ymp + .d:where(.svelte-19m6ymp) { color: green; }
+	.c.svelte-19m6ymp + .d:where(.svelte-19m6ymp) { color: green; }
+	.b.svelte-19m6ymp + .e:where(.svelte-19m6ymp) + .f:where(.svelte-19m6ymp) + .h:where(.svelte-19m6ymp) { color: green; }
+	.b.svelte-19m6ymp + .d:where(.svelte-19m6ymp) + .h:where(.svelte-19m6ymp) { color: green; }
+	.c.svelte-19m6ymp + .g:where(.svelte-19m6ymp) { color: green; }

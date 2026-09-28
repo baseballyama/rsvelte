@@ -1,0 +1,11 @@
+
+	.swoops.svelte-1pw0flr {
+		position: absolute;
+		max-width: 200px;
+		line-height: 14px;
+	}
+	.swoops.svelte-1pw0flr path:where(.svelte-1pw0flr) {
+		fill: none;
+		stroke: #000;
+		stroke-width: 1;
+	}

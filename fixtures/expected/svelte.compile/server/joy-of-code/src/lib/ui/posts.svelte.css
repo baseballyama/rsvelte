@@ -1,0 +1,50 @@
+
+	section.svelte-55b60l {
+		max-width: 960px;
+		margin-inline: auto;
+		margin-top: var(--spacing-64);
+	}
+
+	.card.svelte-55b60l {
+		padding-block: var(--spacing-32);
+		border-bottom: 1px solid var(--clr-menu-border);
+
+		a:where(.svelte-55b60l) {
+			--color: inherit;
+			display: inline-block;
+		}
+
+		html[data-font='dyslexic'] & .title:where(.svelte-55b60l) {
+			font-family: var(--font-dyslexic);
+			font-size: var(--font-24);
+			line-height: 32px;
+		}
+
+		.title:where(.svelte-55b60l) {
+			font-family: var(--font-serif);
+			font-size: clamp(var(--font-24), 4vw, var(--font-32));
+			line-height: 40px;
+			text-transform: capitalize;
+			text-wrap: balance;
+		}
+
+		.published:where(.svelte-55b60l) {
+			margin-block-start: var(--spacing-4);
+			font-size: var(--font-18);
+			color: var(--clr-card-txt);
+		}
+
+		.description:where(.svelte-55b60l) {
+			max-width: 60ch;
+			margin-top: var(--spacing-16);
+			font-size: var(--font-20);
+			color: var(--clr-card-txt);
+		}
+	}
+
+	a[href='/archive'] {
+		width: max-content;
+		display: flex;
+		gap: var(--spacing-4);
+		margin-top: var(--spacing-32);
+	}

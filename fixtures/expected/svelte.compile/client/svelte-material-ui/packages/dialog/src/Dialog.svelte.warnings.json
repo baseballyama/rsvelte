@@ -1,0 +1,58 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `fullscreen`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 228,
+			"column": 37,
+			"character": 6057
+		},
+		"end": {
+			"line": 228,
+			"column": 47,
+			"character": 6067
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `selection`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 256,
+			"column": 38,
+			"character": 7064
+		},
+		"end": {
+			"line": 256,
+			"column": 47,
+			"character": 7073
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `fullscreen`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 260,
+			"column": 63,
+			"character": 7251
+		},
+		"end": {
+			"line": 260,
+			"column": 73,
+			"character": 7261
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `sheet`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 262,
+			"column": 6,
+			"character": 7342
+		},
+		"end": {
+			"line": 262,
+			"column": 11,
+			"character": 7347
+		}
+	}
+]

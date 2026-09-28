@@ -1,0 +1,13 @@
+
+	.active {
+		background-color: var(--edra-canvas-soft-2) !important;
+	}
+	.chevron-icon {
+		color: var(--edra-mute);
+		width: 0.5rem;
+		height: 0.5rem;
+	}
+	.list-icon {
+		width: 1rem;
+		height: 1rem;
+	}

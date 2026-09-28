@@ -1,0 +1,30 @@
+[
+	{
+		"code": "options_missing_custom_element",
+		"message": "The `customElement` option is used when generating a custom element. Did you forget the `customElement: true` compile option?\nhttps://svelte.dev/e/options_missing_custom_element",
+		"start": {
+			"line": 1,
+			"column": 16,
+			"character": 16
+		},
+		"end": {
+			"line": 1,
+			"column": 46,
+			"character": 46
+		}
+	},
+	{
+		"code": "attribute_avoid_is",
+		"message": "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is",
+		"start": {
+			"line": 7,
+			"column": 8,
+			"character": 109
+		},
+		"end": {
+			"line": 7,
+			"column": 26,
+			"character": 127
+		}
+	}
+]

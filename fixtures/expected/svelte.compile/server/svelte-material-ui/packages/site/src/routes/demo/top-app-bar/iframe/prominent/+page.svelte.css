@@ -1,0 +1,10 @@
+
+  /* Hide everything above this component. */
+  #smui-app,
+  body,
+  html {
+    display: block !important;
+    height: auto !important;
+    width: auto !important;
+    position: static !important;
+  }

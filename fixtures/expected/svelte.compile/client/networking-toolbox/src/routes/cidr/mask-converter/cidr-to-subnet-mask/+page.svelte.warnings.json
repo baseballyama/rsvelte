@@ -1,0 +1,16 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:input` to listen to the input event is deprecated. Use the event attribute `oninput` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 23,
+			"column": 8,
+			"character": 616
+		},
+		"end": {
+			"line": 23,
+			"column": 80,
+			"character": 688
+		}
+	}
+]

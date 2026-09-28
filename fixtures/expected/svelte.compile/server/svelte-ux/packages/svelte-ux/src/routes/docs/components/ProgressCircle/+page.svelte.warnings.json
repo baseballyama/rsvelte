@@ -1,0 +1,100 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 128
+		},
+		"end": {
+			"line": 5,
+			"column": 11,
+			"character": 133
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`size` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 6,
+			"character": 146
+		},
+		"end": {
+			"line": 6,
+			"column": 10,
+			"character": 150
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`width` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 163
+		},
+		"end": {
+			"line": 7,
+			"column": 11,
+			"character": 168
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`rotate` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 180
+		},
+		"end": {
+			"line": 8,
+			"column": 12,
+			"character": 186
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`track` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 6,
+			"character": 198
+		},
+		"end": {
+			"line": 9,
+			"column": 11,
+			"character": 203
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`indeterminate` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 6,
+			"character": 219
+		},
+		"end": {
+			"line": 10,
+			"column": 19,
+			"character": 232
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`label` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 6,
+			"character": 247
+		},
+		"end": {
+			"line": 11,
+			"column": 11,
+			"character": 252
+		}
+	}
+]

@@ -1,0 +1,62 @@
+
+  @layer components {
+    :where(.lc-tooltip-root.svelte-1svrttd) {
+      position: absolute;
+      z-index: 50;
+      user-select: none;
+
+      &.portaled {
+        position: fixed;
+      }
+
+      &.disablePointerEvents {
+        pointer-events: none;
+      }
+    }
+
+    :where(.lc-tooltip-container.svelte-1svrttd) {
+      &:not([data-variant='none']) {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        padding: 4px 8px;
+        height: 100%;
+        border-radius: 0.25rem; /* rounded-sm */
+        box-shadow: /* elevation-1 */
+          0px 2px 1px -1px hsl(0 0% 0% / 20%),
+          0px 1px 1px 0px hsl(0 0% 0% / 14%),
+          0px 1px 3px 0px hsl(0 0% 0% / 12%);
+        /* STYLE-TODO: vendor prefix (-webkit?) */
+        backdrop-filter: blur(2px);
+      }
+
+      &[data-variant='default'] {
+        color: var(--color-surface-content, currentColor);
+        background-color: color-mix(
+          in oklab,
+          light-dark(var(--color-surface-100, white), var(--color-surface-300, black)) 90%,
+          transparent
+        );
+
+        & .label {
+          color: color-mix(in oklab, var(--color-surface-content, currentColor) 75%, transparent);
+        }
+      }
+
+      &[data-variant='invert'] {
+        color: var(--color-surface-100, light-dark(white, black));
+        background-color: color-mix(
+          in oklab,
+          var(--color-surface-content, currentColor) 90%,
+          transparent
+        );
+
+        & .label {
+          color: color-mix(
+            in oklab,
+            var(--color-surface-100, light-dark(white, black)) 50%,
+            transparent
+          );
+        }
+      }
+    }
+  }

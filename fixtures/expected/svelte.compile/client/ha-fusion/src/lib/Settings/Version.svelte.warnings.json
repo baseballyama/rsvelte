@@ -1,0 +1,72 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 132,
+			"column": 2,
+			"character": 2936
+		},
+		"end": {
+			"line": 135,
+			"column": 4,
+			"character": 3007
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`installed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 201
+		},
+		"end": {
+			"line": 9,
+			"column": 22,
+			"character": 218
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`latest` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 225
+		},
+		"end": {
+			"line": 10,
+			"column": 19,
+			"character": 239
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`busy` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 14,
+			"column": 5,
+			"character": 319
+		},
+		"end": {
+			"line": 14,
+			"column": 9,
+			"character": 323
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`error_code` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 5,
+			"character": 338
+		},
+		"end": {
+			"line": 15,
+			"column": 23,
+			"character": 356
+		}
+	}
+]

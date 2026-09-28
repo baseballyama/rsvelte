@@ -1,0 +1,12 @@
+
+	.calendars.svelte-1k56x1f {
+		display: flex;
+		flex-direction: row;
+		justify-content: flex-start;
+		gap: 4px;
+		flex-wrap: wrap;
+	}
+
+	.calendars.svelte-1k56x1f > * {
+		max-width: 300px;
+	}

@@ -1,0 +1,30 @@
+[
+	{
+		"code": "attribute_global_event_reference",
+		"message": "You are referencing `globalThis.onfocus`. Did you forget to declare a variable with that name?\nhttps://svelte.dev/e/attribute_global_event_reference",
+		"start": {
+			"line": 52,
+			"column": 4,
+			"character": 1769
+		},
+		"end": {
+			"line": 52,
+			"column": 13,
+			"character": 1778
+		}
+	},
+	{
+		"code": "attribute_global_event_reference",
+		"message": "You are referencing `globalThis.onblur`. Did you forget to declare a variable with that name?\nhttps://svelte.dev/e/attribute_global_event_reference",
+		"start": {
+			"line": 53,
+			"column": 4,
+			"character": 1783
+		},
+		"end": {
+			"line": 53,
+			"column": 12,
+			"character": 1791
+		}
+	}
+]

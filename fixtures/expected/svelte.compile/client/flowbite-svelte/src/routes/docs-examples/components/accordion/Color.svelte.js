@@ -1,0 +1,62 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { AccordionItem, Accordion } from "flowbite-svelte";
+
+var root = $.from_html(`<p class="mb-2 text-gray-500 dark:text-gray-400">Lorem ipsum dolor sit amet, consectetur adipisicing elit. Illo ab necessitatibus sint explicabo ...</p>`);
+var root_1 = $.from_html(`<!> <!>`, 1);
+
+export default function Color($$anchor) {
+	Accordion($$anchor, {
+		activeClass: 'bg-blue-100 dark:bg-gray-800 text-blue-600 dark:text-white focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-800',
+		inactiveClass: 'text-gray-500 dark:text-gray-400 hover:bg-blue-100 dark:hover:bg-gray-800',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_1();
+			var node = $.first_child(fragment_1);
+
+			{
+				const header = ($$anchor) => {
+					$.next();
+
+					var text = $.text('Header 2-1');
+
+					$.append($$anchor, text);
+				};
+
+				AccordionItem(node, {
+					header,
+					children: ($$anchor, $$slotProps) => {
+						var p = root();
+
+						$.append($$anchor, p);
+					},
+					$$slots: { header: true, default: true }
+				});
+			}
+
+			var node_1 = $.sibling(node, 2);
+
+			{
+				const header = ($$anchor) => {
+					$.next();
+
+					var text_1 = $.text('Header 2-2');
+
+					$.append($$anchor, text_1);
+				};
+
+				AccordionItem(node_1, {
+					header,
+					children: ($$anchor, $$slotProps) => {
+						var p_1 = root();
+
+						$.append($$anchor, p_1);
+					},
+					$$slots: { header: true, default: true }
+				});
+			}
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+}

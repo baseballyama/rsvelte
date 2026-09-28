@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a pointermove or pointerleave handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 88,
+			"column": 0,
+			"character": 3652
+		},
+		"end": {
+			"line": 118,
+			"column": 6,
+			"character": 4668
+		}
+	},
+	{
+		"code": "a11y_no_noninteractive_element_to_interactive_role",
+		"message": "Non-interactive element `<article>` cannot have interactive role 'button'\nhttps://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role",
+		"start": {
+			"line": 96,
+			"column": 2,
+			"character": 3857
+		},
+		"end": {
+			"line": 114,
+			"column": 12,
+			"character": 4563
+		}
+	}
+]

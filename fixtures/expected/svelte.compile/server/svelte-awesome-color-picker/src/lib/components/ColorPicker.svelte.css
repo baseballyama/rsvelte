@@ -1,0 +1,72 @@
+
+	span.svelte-13rslnh {
+		position: relative;
+		color: var(--cp-text-color, var(--cp-border-color));
+
+		--alpha-grid-bg:
+			linear-gradient(45deg, #eee 25%, #0000 25%, #0000 75%, #eee 75%) 0 0 / 10px 10px,
+			linear-gradient(45deg, #eee 25%, #0000 25%, #0000 75%, #eee 75%) 5px 5px / 10px 10px;
+	}
+
+	.h.svelte-13rslnh,
+	.a.svelte-13rslnh {
+		display: inline-flex;
+		justify-content: center;
+		--track-height: var(--slider-width, 10px);
+		--track-width: var(--picker-height, 200px);
+		--track-border: none;
+		--thumb-size: calc(var(--slider-width, 10px) - 3px);
+		--thumb-background: white;
+		--thumb-border: 1px solid black;
+		--margin-block: 0;
+
+		--gradient-direction: 0.5turn;
+	}
+	.horizontal.svelte-13rslnh .h:where(.svelte-13rslnh),
+	.horizontal.svelte-13rslnh .a:where(.svelte-13rslnh) {
+		--track-width: calc(var(--picker-width, 200px) - 12px);
+
+		--gradient-direction: 0.25turn;
+		margin: 4px 6px;
+	}
+	.horizontal.svelte-13rslnh .h:where(.svelte-13rslnh) {
+		margin-top: 8px;
+	}
+	.vertical.svelte-13rslnh .h:where(.svelte-13rslnh),
+	.vertical.svelte-13rslnh .a:where(.svelte-13rslnh) {
+		margin-left: 3px;
+	}
+
+	.h.svelte-13rslnh {
+		grid-area: hue;
+
+		--gradient-hue:
+			#ff1500fb, #ffff00 17.2%, #ffff00 18.2%, #00ff00 33.3%, #00ffff 49.5%, #00ffff 51.5%, #0000ff 67.7%,
+			#ff00ff 83.3%, #ff0000;
+		--track-background: linear-gradient(var(--gradient-direction), var(--gradient-hue));
+	}
+
+	.a.svelte-13rslnh {
+		grid-area: alpha;
+		margin-top: 2px;
+
+		/* redefine css variable as it may not be available in case of a portal */
+		--alpha-grid-bg:
+			linear-gradient(45deg, #eee 25%, #0000 25%, #0000 75%, #eee 75%) 0 0 / 10px 10px,
+			linear-gradient(45deg, #eee 25%, #0000 25%, #0000 75%, #eee 75%) 5px 5px / 10px 10px;
+
+		--track-background:
+			linear-gradient(var(--gradient-direction), rgba(0, 0, 0, 0), var(--alphaless-color)), var(--alpha-grid-bg);
+	}
+
+	span.svelte-13rslnh .sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border-width: 0;
+	}

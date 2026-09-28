@@ -1,0 +1,296 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`number` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 59
+		},
+		"end": {
+			"line": 4,
+			"column": 11,
+			"character": 65
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`color` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 75
+		},
+		"end": {
+			"line": 5,
+			"column": 10,
+			"character": 80
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`colorArray` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 98
+		},
+		"end": {
+			"line": 6,
+			"column": 15,
+			"character": 108
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`point` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 139
+		},
+		"end": {
+			"line": 7,
+			"column": 10,
+			"character": 144
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`text` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 167
+		},
+		"end": {
+			"line": 8,
+			"column": 9,
+			"character": 171
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`number1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 198
+		},
+		"end": {
+			"line": 10,
+			"column": 30,
+			"character": 223
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`number1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 5,
+			"character": 233
+		},
+		"end": {
+			"line": 11,
+			"column": 30,
+			"character": 258
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`number2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 12,
+			"column": 5,
+			"character": 268
+		},
+		"end": {
+			"line": 12,
+			"column": 30,
+			"character": 293
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`number2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 5,
+			"character": 303
+		},
+		"end": {
+			"line": 13,
+			"column": 30,
+			"character": 328
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`color1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 14,
+			"column": 5,
+			"character": 338
+		},
+		"end": {
+			"line": 14,
+			"column": 29,
+			"character": 362
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`color1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 5,
+			"character": 372
+		},
+		"end": {
+			"line": 15,
+			"column": 29,
+			"character": 396
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`color2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 16,
+			"column": 5,
+			"character": 406
+		},
+		"end": {
+			"line": 16,
+			"column": 29,
+			"character": 430
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`color2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 17,
+			"column": 5,
+			"character": 440
+		},
+		"end": {
+			"line": 17,
+			"column": 29,
+			"character": 464
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`point1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 18,
+			"column": 5,
+			"character": 474
+		},
+		"end": {
+			"line": 18,
+			"column": 29,
+			"character": 498
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`point1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 19,
+			"column": 5,
+			"character": 508
+		},
+		"end": {
+			"line": 19,
+			"column": 29,
+			"character": 532
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`point2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 20,
+			"column": 5,
+			"character": 542
+		},
+		"end": {
+			"line": 20,
+			"column": 29,
+			"character": 566
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`point2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 21,
+			"column": 5,
+			"character": 576
+		},
+		"end": {
+			"line": 21,
+			"column": 29,
+			"character": 600
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`text1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 22,
+			"column": 5,
+			"character": 610
+		},
+		"end": {
+			"line": 22,
+			"column": 28,
+			"character": 633
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`text1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 23,
+			"column": 5,
+			"character": 643
+		},
+		"end": {
+			"line": 23,
+			"column": 28,
+			"character": 666
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`text2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 24,
+			"column": 5,
+			"character": 676
+		},
+		"end": {
+			"line": 24,
+			"column": 28,
+			"character": 699
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`text2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 25,
+			"column": 5,
+			"character": 709
+		},
+		"end": {
+			"line": 25,
+			"column": 28,
+			"character": 732
+		}
+	}
+]

@@ -1,0 +1,86 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `column`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 55,
+			"column": 29,
+			"character": 2032
+		},
+		"end": {
+			"line": 55,
+			"column": 35,
+			"character": 2038
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `column`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 57,
+			"column": 18,
+			"character": 2114
+		},
+		"end": {
+			"line": 57,
+			"column": 24,
+			"character": 2120
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `column`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 58,
+			"column": 15,
+			"character": 2156
+		},
+		"end": {
+			"line": 58,
+			"column": 21,
+			"character": 2162
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `column`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 59,
+			"column": 17,
+			"character": 2197
+		},
+		"end": {
+			"line": 59,
+			"column": 23,
+			"character": 2203
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `column`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 60,
+			"column": 18,
+			"character": 2240
+		},
+		"end": {
+			"line": 60,
+			"column": 24,
+			"character": 2246
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `column`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 61,
+			"column": 11,
+			"character": 2303
+		},
+		"end": {
+			"line": 61,
+			"column": 17,
+			"character": 2309
+		}
+	}
+]

@@ -1,0 +1,7 @@
+
+	/* Refined Editorial — default theme only. */
+	[data-theme='default'] .edp-gallery-float {
+		background: var(--ed-surface);
+		border: 1px solid var(--ed-line);
+		box-shadow: 0 6px 20px -12px rgba(27, 26, 23, 0.3);
+	}

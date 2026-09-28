@@ -1,0 +1,58 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `field`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 100,
+			"column": 25,
+			"character": 3549
+		},
+		"end": {
+			"line": 100,
+			"column": 30,
+			"character": 3554
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `field`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 126,
+			"column": 38,
+			"character": 4153
+		},
+		"end": {
+			"line": 126,
+			"column": 43,
+			"character": 4158
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `field`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 223,
+			"column": 27,
+			"character": 7641
+		},
+		"end": {
+			"line": 223,
+			"column": 32,
+			"character": 7646
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `field`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 224,
+			"column": 31,
+			"character": 7690
+		},
+		"end": {
+			"line": 224,
+			"column": 36,
+			"character": 7695
+		}
+	}
+]

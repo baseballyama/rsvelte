@@ -1,0 +1,16 @@
+
+	.icon.svelte-4zcatm {
+		width: 1.5rem;
+		background: none;
+		transform: rotate(90deg);
+	}
+
+	div.svelte-4zcatm {
+		cursor: move;
+		margin: 0 0.4rem;
+		background-color: var(--theme-button-background-color-off);
+		align-items: center;
+		border-radius: 0.4rem;
+		display: grid;
+		overflow: hidden;
+	}

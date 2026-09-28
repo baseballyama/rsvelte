@@ -1,0 +1,44 @@
+[
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 9,
+			"column": 2,
+			"character": 352
+		},
+		"end": {
+			"line": 9,
+			"column": 85,
+			"character": 435
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 21,
+			"column": 4,
+			"character": 757
+		},
+		"end": {
+			"line": 21,
+			"column": 41,
+			"character": 794
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 28,
+			"column": 4,
+			"character": 945
+		},
+		"end": {
+			"line": 28,
+			"column": 43,
+			"character": 984
+		}
+	}
+]

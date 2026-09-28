@@ -1,0 +1,35 @@
+
+    .upload-box-title.svelte-5ux59m {
+        font-size: 11px;
+    }
+
+    .upload-box-content.svelte-5ux59m {
+        min-width: 320px;
+        max-width: min(420px, calc(100vw - 2rem));
+    }
+
+    .upload-box-button.svelte-5ux59m {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        &.is-danger {
+            color: var(--fgcolor-error);
+        }
+
+        &.is-success {
+            color: var(--fgcolor-success);
+        }
+    }
+
+    .upload-box-item.svelte-5ux59m {
+        align-items: center;
+    }
+
+    .file-name.svelte-5ux59m {
+        display: flex;
+        min-width: 0;
+        flex: 1;
+        flex-direction: column;
+        gap: 0.25rem;
+    }

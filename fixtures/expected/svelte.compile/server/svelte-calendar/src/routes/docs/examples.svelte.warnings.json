@@ -1,0 +1,72 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 91,
+			"column": 7,
+			"character": 2197
+		},
+		"end": {
+			"line": 91,
+			"column": 48,
+			"character": 2238
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:blurr` to listen to the blurr event is deprecated. Use the event attribute `onblurr` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 104,
+			"column": 4,
+			"character": 2419
+		},
+		"end": {
+			"line": 104,
+			"column": 27,
+			"character": 2442
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 113,
+			"column": 15,
+			"character": 2687
+		},
+		"end": {
+			"line": 113,
+			"column": 38,
+			"character": 2710
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 116,
+			"column": 7,
+			"character": 2769
+		},
+		"end": {
+			"line": 116,
+			"column": 52,
+			"character": 2814
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`example` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 20,
+			"column": 5,
+			"character": 796
+		},
+		"end": {
+			"line": 20,
+			"column": 12,
+			"character": 803
+		}
+	}
+]

@@ -1,0 +1,15 @@
+
+  .target.svelte-7r5djw {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 1em;
+    position: relative;
+    text-align: center;
+    width: 120px;
+    height: 120px;
+    transform: translate3d(0, 0, 0);
+    z-index: 0;
+    background-color: var(--mdc-theme-primary);
+    color: var(--mdc-theme-on-primary);
+  }

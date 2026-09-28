@@ -1,0 +1,13 @@
+
+	.a.svelte-165ndqy ~ .b:where(.svelte-165ndqy) { color: green; }
+	.a.svelte-165ndqy ~ .c:where(.svelte-165ndqy) { color: green; }
+	.a.svelte-165ndqy ~ .d:where(.svelte-165ndqy) { color: green; }
+	.b.svelte-165ndqy ~ .d:where(.svelte-165ndqy) { color: green; }
+	.c.svelte-165ndqy ~ .d:where(.svelte-165ndqy) { color: green; }
+
+	.a.svelte-165ndqy ~ .c:where(.svelte-165ndqy) ~ .c:where(.svelte-165ndqy) { color: green; }
+	.c.svelte-165ndqy ~ .c:where(.svelte-165ndqy) ~ .d:where(.svelte-165ndqy) { color: green; }
+	.a.svelte-165ndqy ~ .c:where(.svelte-165ndqy) ~ .c:where(.svelte-165ndqy) ~ .d:where(.svelte-165ndqy) { color: green; }
+
+	/* no match */
+	/* (unused) .b ~ .c { color: green; }*/

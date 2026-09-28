@@ -1,0 +1,44 @@
+[
+	{
+		"code": "a11y_media_has_caption",
+		"message": "`<video>` elements must have a `<track kind=\"captions\">`\nhttps://svelte.dev/e/a11y_media_has_caption",
+		"start": {
+			"line": 2,
+			"column": 0,
+			"character": 48
+		},
+		"end": {
+			"line": 2,
+			"column": 23,
+			"character": 71
+		}
+	},
+	{
+		"code": "a11y_media_has_caption",
+		"message": "`<video>` elements must have a `<track kind=\"captions\">`\nhttps://svelte.dev/e/a11y_media_has_caption",
+		"start": {
+			"line": 3,
+			"column": 0,
+			"character": 72
+		},
+		"end": {
+			"line": 3,
+			"column": 32,
+			"character": 104
+		}
+	},
+	{
+		"code": "a11y_media_has_caption",
+		"message": "`<video>` elements must have a `<track kind=\"captions\">`\nhttps://svelte.dev/e/a11y_media_has_caption",
+		"start": {
+			"line": 6,
+			"column": 0,
+			"character": 164
+		},
+		"end": {
+			"line": 6,
+			"column": 43,
+			"character": 207
+		}
+	}
+]

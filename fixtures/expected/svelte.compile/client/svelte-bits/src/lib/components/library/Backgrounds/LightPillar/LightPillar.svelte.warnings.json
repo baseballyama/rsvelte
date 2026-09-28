@@ -1,0 +1,30 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rotationSpeed`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 69,
+			"column": 31,
+			"character": 2106
+		},
+		"end": {
+			"line": 69,
+			"column": 44,
+			"character": 2119
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`containerRef` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 38,
+			"column": 5,
+			"character": 887
+		},
+		"end": {
+			"line": 38,
+			"column": 33,
+			"character": 915
+		}
+	}
+]

@@ -1,0 +1,13 @@
+
+	.items.svelte-flcjwr {
+		width: 400px;
+		display: grid;
+		grid-template-columns: repeat(10, 1fr);
+		gap: var(--spacing-16);
+	}
+
+	button.svelte-flcjwr {
+		margin-top: var(--spacing-32);
+		margin-inline: auto;
+		justify-self: start;
+	}

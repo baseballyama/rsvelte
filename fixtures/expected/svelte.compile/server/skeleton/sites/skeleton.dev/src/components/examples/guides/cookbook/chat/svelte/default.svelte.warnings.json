@@ -1,0 +1,44 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`currentPersonId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 34,
+			"column": 5,
+			"character": 934
+		},
+		"end": {
+			"line": 34,
+			"column": 28,
+			"character": 957
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`messageFeed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 37,
+			"column": 5,
+			"character": 993
+		},
+		"end": {
+			"line": 37,
+			"column": 31,
+			"character": 1019
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`currentMessage` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 75,
+			"column": 5,
+			"character": 1661
+		},
+		"end": {
+			"line": 75,
+			"column": 19,
+			"character": 1675
+		}
+	}
+]

@@ -1,0 +1,24 @@
+
+	.RichTextButton.svelte-ul78pw {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.5rem 0.75rem;
+		transition: var(--transition-colors);
+		font-size: 0.825rem;
+
+		&:hover:not(.disabled) {
+			background: var(--primo-primary-color);
+			color: var(--color-gray-1);
+		}
+
+		&.active:not(:hover) {
+			background: initial;
+			color: var(--primo-primary-color);
+		}
+
+		&.disabled {
+			opacity: 0.5;
+			cursor: not-allowed;
+		}
+	}

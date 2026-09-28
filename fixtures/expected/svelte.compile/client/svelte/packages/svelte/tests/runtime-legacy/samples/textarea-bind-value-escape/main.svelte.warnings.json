@@ -1,0 +1,30 @@
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<textarea ...></textarea>` rather than `<textarea ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 5,
+			"column": 0,
+			"character": 90
+		},
+		"end": {
+			"line": 5,
+			"column": 23,
+			"character": 113
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 2,
+			"column": 5,
+			"character": 14
+		},
+		"end": {
+			"line": 2,
+			"column": 10,
+			"character": 19
+		}
+	}
+]

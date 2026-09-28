@@ -1,0 +1,72 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `startFrame`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 71,
+			"column": 21,
+			"character": 1626
+		},
+		"end": {
+			"line": 71,
+			"column": 31,
+			"character": 1636
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `flipX`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 73,
+			"column": 19,
+			"character": 1676
+		},
+		"end": {
+			"line": 73,
+			"column": 24,
+			"character": 1681
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `textureUrl`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 93,
+			"column": 15,
+			"character": 2295
+		},
+		"end": {
+			"line": 93,
+			"column": 25,
+			"character": 2305
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `dataUrl`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 106,
+			"column": 4,
+			"character": 2732
+		},
+		"end": {
+			"line": 106,
+			"column": 11,
+			"character": 2739
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `dataUrl`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 107,
+			"column": 35,
+			"character": 2775
+		},
+		"end": {
+			"line": 107,
+			"column": 42,
+			"character": 2782
+		}
+	}
+]

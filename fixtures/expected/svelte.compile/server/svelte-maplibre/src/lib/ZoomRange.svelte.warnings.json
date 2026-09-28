@@ -1,0 +1,30 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `minzoom`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 19,
+			"column": 33,
+			"character": 675
+		},
+		"end": {
+			"line": 19,
+			"column": 40,
+			"character": 682
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `maxzoom`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 19,
+			"column": 42,
+			"character": 684
+		},
+		"end": {
+			"line": 19,
+			"column": 49,
+			"character": 691
+		}
+	}
+]

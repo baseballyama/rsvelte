@@ -1,0 +1,16 @@
+[
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 8,
+			"column": 0,
+			"character": 186
+		},
+		"end": {
+			"line": 8,
+			"column": 22,
+			"character": 208
+		}
+	}
+]

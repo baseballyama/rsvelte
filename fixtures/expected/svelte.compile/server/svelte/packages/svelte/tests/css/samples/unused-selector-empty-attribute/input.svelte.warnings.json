@@ -1,0 +1,16 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"img[alt=\"\"]\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 8,
+			"column": 1,
+			"character": 87
+		},
+		"end": {
+			"line": 8,
+			"column": 12,
+			"character": 98
+		}
+	}
+]

@@ -1,0 +1,44 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \":global([data-theme='default']) .ed-sub-btn\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 93,
+			"column": 1,
+			"character": 3201
+		},
+		"end": {
+			"line": 93,
+			"column": 44,
+			"character": 3244
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \":global([data-theme='default']) .ed-sub-btn:hover\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 106,
+			"column": 1,
+			"character": 3542
+		},
+		"end": {
+			"line": 106,
+			"column": 50,
+			"character": 3591
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \":global([data-theme='default']) .ed-sub-btn\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 112,
+			"column": 2,
+			"character": 3691
+		},
+		"end": {
+			"line": 112,
+			"column": 45,
+			"character": 3734
+		}
+	}
+]

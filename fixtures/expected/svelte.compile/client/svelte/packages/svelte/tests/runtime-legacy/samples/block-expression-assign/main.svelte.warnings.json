@@ -1,0 +1,142 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 42,
+			"column": 8,
+			"character": 554
+		},
+		"end": {
+			"line": 42,
+			"column": 22,
+			"character": 568
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`a` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 2,
+			"column": 8,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"column": 9,
+			"character": 18
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`b` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 2,
+			"column": 15,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"column": 16,
+			"character": 25
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`c` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 2,
+			"column": 22,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"column": 23,
+			"character": 32
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 2,
+			"column": 29,
+			"character": 38
+		},
+		"end": {
+			"line": 2,
+			"column": 30,
+			"character": 39
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`e` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 2,
+			"column": 36,
+			"character": 45
+		},
+		"end": {
+			"line": 2,
+			"column": 37,
+			"character": 46
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`f` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 2,
+			"column": 43,
+			"character": 52
+		},
+		"end": {
+			"line": 2,
+			"column": 44,
+			"character": 53
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`g` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 2,
+			"column": 50,
+			"character": 59
+		},
+		"end": {
+			"line": 2,
+			"column": 51,
+			"character": 60
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`h` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 2,
+			"column": 57,
+			"character": 66
+		},
+		"end": {
+			"line": 2,
+			"column": 58,
+			"character": 67
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`i` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 2,
+			"column": 64,
+			"character": 73
+		},
+		"end": {
+			"line": 2,
+			"column": 65,
+			"character": 74
+		}
+	}
+]

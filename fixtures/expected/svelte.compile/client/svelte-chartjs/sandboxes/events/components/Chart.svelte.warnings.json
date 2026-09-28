@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`chart` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 57,
+			"column": 6,
+			"character": 1072
+		},
+		"end": {
+			"line": 57,
+			"column": 11,
+			"character": 1077
+		}
+	}
+]

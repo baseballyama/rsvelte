@@ -1,0 +1,16 @@
+[
+	{
+		"code": "component_name_lowercase",
+		"message": "`<thisShouldWarnMe>` will be treated as an HTML element unless it begins with a capital letter\nhttps://svelte.dev/e/component_name_lowercase",
+		"start": {
+			"line": 8,
+			"column": 0,
+			"character": 121
+		},
+		"end": {
+			"line": 8,
+			"column": 37,
+			"character": 158
+		}
+	}
+]

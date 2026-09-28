@@ -1,0 +1,7 @@
+
+	.badge.svelte-1ivuhw7 {
+		background: color-mix(in lch, var(--fg), transparent 94%);
+		color: var(--fg);
+		padding: 2px 4px;
+		border-radius: 2px;
+	}

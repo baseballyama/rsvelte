@@ -1,0 +1,22 @@
+
+  ul.svelte-1ktby0k {
+    border-radius: 8px;
+    background-color: var(--bg);
+    font-size: 12px;
+    font-family: monospace;
+
+    a:where(.svelte-1ktby0k) {
+      text-decoration: none;
+    }
+
+    .type:where(.svelte-1ktby0k) a:where(.svelte-1ktby0k) {
+      color: var(--class);
+    }
+    .fn:where(.svelte-1ktby0k) {
+      color: var(--function);
+    }
+  }
+
+  li.svelte-1ktby0k {
+    list-style: none;
+  }

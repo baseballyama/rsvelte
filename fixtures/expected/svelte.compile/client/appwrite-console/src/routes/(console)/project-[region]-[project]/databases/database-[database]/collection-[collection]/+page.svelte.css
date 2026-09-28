@@ -1,0 +1,18 @@
+
+    .small-button-dimensions {
+        width: 32px !important;
+        height: 32px !important;
+    }
+
+    .rotating {
+        animation: svelte-e0bhgx-rotate 1s linear infinite;
+    }
+
+    @keyframes svelte-e0bhgx-rotate {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }

@@ -1,0 +1,7 @@
+
+	.match.svelte-q01frn > :where(.svelte-q01frn) ~ :where(.svelte-q01frn) {
+		margin-left: 4px;
+	}
+	/* (unused) .not-match > * ~ * {
+		margin-left: 4px;
+	}*/

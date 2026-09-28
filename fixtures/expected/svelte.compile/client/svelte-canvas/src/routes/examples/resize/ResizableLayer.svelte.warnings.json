@@ -1,0 +1,58 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `initialBounds`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 16,
+			"column": 18,
+			"character": 394
+		},
+		"end": {
+			"line": 16,
+			"column": 31,
+			"character": 407
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `initialBounds`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 17,
+			"column": 18,
+			"character": 431
+		},
+		"end": {
+			"line": 17,
+			"column": 31,
+			"character": 444
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `initialBounds`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 18,
+			"column": 18,
+			"character": 468
+		},
+		"end": {
+			"line": 18,
+			"column": 31,
+			"character": 481
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `initialBounds`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 19,
+			"column": 18,
+			"character": 505
+		},
+		"end": {
+			"line": 19,
+			"column": 31,
+			"character": 518
+		}
+	}
+]

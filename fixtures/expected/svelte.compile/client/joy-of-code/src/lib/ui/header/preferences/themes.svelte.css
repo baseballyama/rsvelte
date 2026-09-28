@@ -1,0 +1,30 @@
+
+	.trigger.svelte-6ji32x,
+	.menu.svelte-6ji32x {
+		background-color: var(--clr-primary);
+		color: var(--clr-theme-txt);
+		border-radius: var(--rounded-4);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.trigger.svelte-6ji32x {
+		width: 180px;
+		padding: var(--spacing-16) var(--spacing-24);
+		font-weight: 700;
+	}
+
+	.menu.svelte-6ji32x {
+		display: grid;
+		overflow: hidden;
+		z-index: 1000;
+
+		> :where(.svelte-6ji32x) {
+			padding: var(--spacing-16);
+			transition: background 0.1s ease;
+
+			&:hover {
+				background-color: #fff;
+				cursor: pointer;
+			}
+		}
+	}

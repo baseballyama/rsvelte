@@ -1,0 +1,4 @@
+
+	div.svelte-hbiswh p:where(.svelte-hbiswh) {
+		color: red;
+	}

@@ -1,0 +1,56 @@
+
+	section.svelte-12p41x1 {
+		height: 100%;
+	}
+
+	.hotkeys.svelte-12p41x1 {
+		display: grid;
+		grid-gap: 20px;
+		padding: 20px;
+	}
+
+	.hotkey-container.svelte-12p41x1 {
+		display: flex;
+		align-items: center;
+		gap: 20px;
+	}
+	header.svelte-12p41x1 {
+		--border: var(--fg);
+		border-bottom: solid 4px var(--border);
+		display: flex;
+		justify-content: center;
+		position: sticky;
+		top: 0;
+		z-index: 10;
+	}
+
+	header.svelte-12p41x1:focus-within {
+		--border: var(--primary);
+		background-color: var(--bg-sheet);
+	}
+
+	.close.svelte-12p41x1 {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+	}
+
+	dialog.svelte-12p41x1 {
+		--search-height: 40vh;
+		padding: 0;
+		background-color: var(--bg-1);
+		height: var(--search-height);
+		border: var(--border);
+		border-color: var(--fg);
+		border-radius: var(--brad);
+
+		max-width: 100%;
+		width: 100%;
+		@media (--above-med) {
+			width: clamp(600px, 40vw, 950px);
+		}
+	}
+
+	dialog.svelte-12p41x1::backdrop {
+		background: rgba(0, 0, 0, 0.8);
+	}

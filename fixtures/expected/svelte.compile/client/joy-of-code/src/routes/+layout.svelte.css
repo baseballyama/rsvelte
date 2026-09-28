@@ -1,0 +1,22 @@
+
+	.container.svelte-12qhfyh {
+		min-height: 100%;
+		padding-block-start: var(--spacing-24);
+	}
+
+	.layout.svelte-12qhfyh {
+		height: 100%;
+		max-inline-size: 1200px;
+		display: grid;
+		grid-template-rows: 1fr auto;
+		gap: var(--spacing-24);
+		margin-inline: auto;
+
+		@media (width >= 300px) {
+			padding: 0px var(--spacing-16);
+		}
+
+		@media (width >= 1240px) {
+			padding: 0px;
+		}
+	}

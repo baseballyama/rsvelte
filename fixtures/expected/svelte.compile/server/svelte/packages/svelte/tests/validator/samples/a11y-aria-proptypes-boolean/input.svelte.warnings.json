@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_incorrect_aria_attribute_type_boolean",
+		"message": "The value of 'aria-disabled' must be either 'true' or 'false'. It cannot be empty\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_boolean",
+		"start": {
+			"line": 5,
+			"column": 8,
+			"character": 51
+		},
+		"end": {
+			"line": 5,
+			"column": 27,
+			"character": 70
+		}
+	},
+	{
+		"code": "a11y_incorrect_aria_attribute_type_boolean",
+		"message": "The value of 'aria-disabled' must be either 'true' or 'false'. It cannot be empty\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_boolean",
+		"start": {
+			"line": 6,
+			"column": 8,
+			"character": 97
+		},
+		"end": {
+			"line": 6,
+			"column": 26,
+			"character": 115
+		}
+	}
+]

@@ -1,0 +1,58 @@
+
+	.single-avatars-row.svelte-15yo1bu {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		gap: 24px 32px;
+		align-items: flex-end;
+	}
+
+	.single-avatar-item.svelte-15yo1bu {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 8px;
+	}
+
+	.single-avatar-slot.svelte-15yo1bu {
+		width: 32px;
+		height: 32px;
+		min-width: 32px;
+		min-height: 32px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		overflow: hidden;
+		border-radius: 50%;
+	}
+
+	.single-avatar-slot.svelte-15yo1bu .wx-avatar-root {
+		width: 32px;
+		height: 32px;
+		max-width: 32px;
+		max-height: 32px;
+	}
+
+	.single-avatar-item.svelte-15yo1bu span:where(.svelte-15yo1bu) {
+		font-size: 13px;
+		text-align: center;
+	}
+
+	.sizes.svelte-15yo1bu {
+		display: flex;
+		align-items: center;
+		gap: 16px;
+		flex-wrap: wrap;
+	}
+
+	.avatar-resizable.svelte-15yo1bu {
+		width: 500px;
+		resize: horizontal;
+		overflow: auto;
+		min-width: 80px;
+		max-width: 100%;
+		border: 1px dashed var(--wx-border-color);
+		padding: 8px;
+	}

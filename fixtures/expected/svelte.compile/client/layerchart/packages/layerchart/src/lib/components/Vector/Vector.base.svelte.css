@@ -1,0 +1,21 @@
+
+  @layer base {
+    :where(.lc-vector) {
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    :where(.lc-layout-svg .lc-vector-stroked, svg.lc-vector-stroked):not([stroke]) {
+      stroke: var(--color-surface-content, currentColor);
+    }
+    :where(.lc-layout-svg .lc-vector-stroked, svg.lc-vector-stroked):not([fill]) {
+      fill: none;
+    }
+
+    :where(.lc-layout-svg .lc-vector-filled, svg.lc-vector-filled):not([fill]) {
+      fill: var(--color-surface-content, currentColor);
+    }
+    :where(.lc-layout-svg .lc-vector-filled, svg.lc-vector-filled):not([stroke]) {
+      stroke: none;
+    }
+  }

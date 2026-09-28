@@ -1,0 +1,19 @@
+
+	fieldset.svelte-jwlrms {
+		display: flex;
+		gap: 0.5em;
+		border-radius: 0.5em;
+		corner-shape: squircle;
+		margin: 0 0 1em 0;
+		padding: 0.2em 0.8em 0.8em;
+	}
+
+	legend.svelte-jwlrms {
+		padding: 0.2em 0.5em;
+		left: -0.2em;
+		position: relative;
+	}
+
+	.error.svelte-jwlrms {
+		color: red;
+	}

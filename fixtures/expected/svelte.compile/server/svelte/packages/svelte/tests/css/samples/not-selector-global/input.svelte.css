@@ -1,0 +1,38 @@
+
+	.svelte-1s6p4ms:not(.foo) {
+		color: green;
+	}
+	.svelte-1s6p4ms:not(.foo):not(.unused) {
+		color: green;
+	}
+	.x:not(.foo) {
+		color: green;
+	}
+	.x .svelte-1s6p4ms:not(p) {
+		color: green;
+	}
+	.x:not(p) {
+		color: green;
+	}
+	.x .svelte-1s6p4ms:not(.unused) {
+		color: green;
+	}
+
+	span:not(p.svelte-1s6p4ms span:where(.svelte-1s6p4ms)) {
+		color: green;
+	}
+	span.svelte-1s6p4ms:not(p span) {
+		color: green;
+	}
+	span:not(p span) {
+		color: green;
+	}
+
+	.x {
+		.svelte-1s6p4ms:not(.foo) {
+			color: green;
+		}
+		&:not(.foo) {
+			color: green;
+		}
+	}

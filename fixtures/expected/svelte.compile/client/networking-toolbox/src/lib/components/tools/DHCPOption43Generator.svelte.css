@@ -1,0 +1,345 @@
+
+  .input-card.svelte-16rb1ok {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .card.svelte-16rb1ok {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-primary);
+
+    h3:where(.svelte-16rb1ok) {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      margin: 0 0 var(--spacing-md);
+      font-size: 1.25rem;
+      color: var(--text-primary);
+    }
+  }
+
+  .inputs.svelte-16rb1ok {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .input-group.svelte-16rb1ok {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+
+    label:where(.svelte-16rb1ok) {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .label-hint:where(.svelte-16rb1ok) {
+      font-size: 0.875rem;
+      font-weight: 400;
+      color: var(--text-secondary);
+    }
+
+    select:where(.svelte-16rb1ok),
+    textarea:where(.svelte-16rb1ok) {
+      padding: var(--spacing-sm);
+      background: var(--bg-primary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 0.9375rem;
+      transition: all 0.2s ease;
+
+      &:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary), transparent 90%);
+      }
+    }
+
+    textarea:where(.svelte-16rb1ok) {
+      resize: vertical;
+      min-height: 80px;
+      font-family: var(--font-mono);
+    }
+
+    .help-text:where(.svelte-16rb1ok) {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+  }
+
+  .input-actions.svelte-16rb1ok {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: flex-end;
+    margin: var(--spacing-sm) auto 0 auto;
+  }
+
+  .btn-primary.svelte-16rb1ok {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-md);
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--color-primary);
+    color: var(--bg-primary);
+
+    &:hover {
+      background: color-mix(in srgb, var(--color-primary), black 10%);
+      transform: translateY(-1px);
+    }
+  }
+
+  .errors.svelte-16rb1ok {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+
+  .error-message.svelte-16rb1ok {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: color-mix(in srgb, var(--color-error), transparent 90%);
+    border-left: 3px solid var(--color-error);
+    border-radius: var(--radius-md);
+    color: var(--color-error);
+    font-size: 0.9375rem;
+  }
+
+  .results.svelte-16rb1ok {
+    animation: svelte-16rb1ok-slideIn 0.3s ease-out;
+    background: var(--bg-tertiary);
+  }
+
+  @keyframes svelte-16rb1ok-slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .ios-command-section.svelte-16rb1ok {
+    padding: var(--spacing-md);
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-success), transparent 95%),
+      color-mix(in srgb, var(--color-success), transparent 98%)
+    );
+    border-left: 3px solid var(--color-success);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .ios-header.svelte-16rb1ok {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-sm);
+
+    h4:where(.svelte-16rb1ok) {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+  }
+
+  .ios-command.svelte-16rb1ok {
+    display: block;
+    padding: var(--spacing-md);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-success);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+    margin: 0 0 var(--spacing-md);
+  }
+
+  .workings.svelte-16rb1ok {
+    h5:where(.svelte-16rb1ok) {
+      margin: 0 0 var(--spacing-xs);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    ul:where(.svelte-16rb1ok) {
+      margin: 0;
+      padding-left: var(--spacing-lg);
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+
+      li:where(.svelte-16rb1ok) {
+        font-family: var(--font-mono);
+        font-size: 0.875rem;
+        color: var(--text-primary);
+        line-height: 1.6;
+      }
+    }
+  }
+
+  .explanation.svelte-16rb1ok {
+    display: flex;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: color-mix(in srgb, var(--color-info), transparent 92%);
+    border-left: 3px solid var(--color-info);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-lg);
+
+    p:where(.svelte-16rb1ok) {
+      margin: 0;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+  }
+
+  .output-formats.svelte-16rb1ok {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+  }
+
+  .output-group.svelte-16rb1ok {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+
+  .output-header.svelte-16rb1ok {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    h4:where(.svelte-16rb1ok) {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+  }
+
+  .copy-btn.svelte-16rb1ok {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: transparent;
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: var(--surface-hover);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+
+    &.copied {
+      background: color-mix(in srgb, var(--color-success), transparent 90%);
+      border-color: var(--color-success);
+      color: var(--color-success);
+    }
+  }
+
+  .output-value.svelte-16rb1ok {
+    padding: var(--spacing-md);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    color: var(--color-primary);
+    word-break: break-all;
+    overflow-x: auto;
+  }
+
+  .code-block.svelte-16rb1ok {
+    white-space: pre;
+    word-break: normal;
+    overflow-x: auto;
+  }
+
+  .format-hint.svelte-16rb1ok {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+  }
+
+  .info.svelte-16rb1ok {
+    margin-top: var(--spacing-lg);
+    background: color-mix(in srgb, var(--color-warning), transparent 95%);
+    border-color: var(--color-warning);
+    h3:where(.svelte-16rb1ok) {
+      margin-bottom: var(--spacing-sm);
+    }
+    .notes-list:where(.svelte-16rb1ok) {
+      padding-left: var(--spacing-lg);
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+
+      li:where(.svelte-16rb1ok) {
+        line-height: 1.6;
+        color: var(--text-primary);
+
+        strong:where(.svelte-16rb1ok) {
+          color: var(--color-primary);
+        }
+      }
+    }
+  }
+
+  @media (max-width: 768px) {
+    .card.svelte-16rb1ok {
+      padding: var(--spacing-md);
+    }
+
+    .input-actions.svelte-16rb1ok {
+      flex-direction: column;
+      button:where(.svelte-16rb1ok) {
+        width: 100%;
+      }
+    }
+
+    .output-header.svelte-16rb1ok {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--spacing-xs);
+
+      .copy-btn:where(.svelte-16rb1ok) {
+        align-self: flex-end;
+      }
+    }
+  }

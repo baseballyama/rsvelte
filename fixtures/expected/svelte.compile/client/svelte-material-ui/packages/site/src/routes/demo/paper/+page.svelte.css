@@ -1,0 +1,14 @@
+
+  .svelte-x2s8yd .paper-container {
+    padding: 24px;
+    background-color: var(--mdc-theme-background, #f8f8f8);
+  }
+
+  .svelte-x2s8yd .smui-paper {
+    margin: 0 auto 24px;
+    max-width: 800px;
+  }
+
+  .svelte-x2s8yd .smui-paper:last-child {
+    margin-bottom: 0;
+  }

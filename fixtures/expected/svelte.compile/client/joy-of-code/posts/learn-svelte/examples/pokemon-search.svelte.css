@@ -1,0 +1,12 @@
+
+	input.svelte-m5x4cx {
+		padding: var(--spacing-16);
+		color: #000;
+		border-radius: var(--rounded-20);
+	}
+
+	img.svelte-m5x4cx {
+		width: 200px;
+		margin-top: var(--spacing-24);
+		image-rendering: pixelated;
+	}

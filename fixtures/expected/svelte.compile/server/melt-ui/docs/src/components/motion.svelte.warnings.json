@@ -1,0 +1,30 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `initial`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 107,
+			"column": 46,
+			"character": 3118
+		},
+		"end": {
+			"line": 107,
+			"column": 53,
+			"character": 3125
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `animate`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 107,
+			"column": 57,
+			"character": 3129
+		},
+		"end": {
+			"line": 107,
+			"column": 64,
+			"character": 3136
+		}
+	}
+]

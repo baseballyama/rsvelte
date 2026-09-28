@@ -1,0 +1,58 @@
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 17,
+			"column": 4,
+			"character": 511
+		},
+		"end": {
+			"line": 17,
+			"column": 12,
+			"character": 519
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 23,
+			"column": 12,
+			"character": 641
+		},
+		"end": {
+			"line": 23,
+			"column": 33,
+			"character": 662
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 26,
+			"column": 8,
+			"character": 749
+		},
+		"end": {
+			"line": 26,
+			"column": 28,
+			"character": 769
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 29,
+			"column": 12,
+			"character": 872
+		},
+		"end": {
+			"line": 29,
+			"column": 31,
+			"character": 891
+		}
+	}
+]

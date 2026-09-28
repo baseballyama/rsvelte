@@ -1,0 +1,16 @@
+[
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 30,
+			"column": 0,
+			"character": 836
+		},
+		"end": {
+			"line": 30,
+			"column": 37,
+			"character": 873
+		}
+	}
+]

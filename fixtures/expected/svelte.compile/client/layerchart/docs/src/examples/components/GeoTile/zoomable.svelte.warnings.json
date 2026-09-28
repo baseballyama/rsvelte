@@ -1,0 +1,30 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `states`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 31,
+			"column": 25,
+			"character": 1060
+		},
+		"end": {
+			"line": 31,
+			"column": 31,
+			"character": 1066
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `filteredStates`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 31,
+			"column": 33,
+			"character": 1068
+		},
+		"end": {
+			"line": 31,
+			"column": 47,
+			"character": 1082
+		}
+	}
+]

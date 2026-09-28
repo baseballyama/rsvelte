@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`anchor` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 6,
+			"character": 183
+		},
+		"end": {
+			"line": 10,
+			"column": 12,
+			"character": 189
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 6,
+			"character": 197
+		},
+		"end": {
+			"line": 11,
+			"column": 10,
+			"character": 201
+		}
+	}
+]

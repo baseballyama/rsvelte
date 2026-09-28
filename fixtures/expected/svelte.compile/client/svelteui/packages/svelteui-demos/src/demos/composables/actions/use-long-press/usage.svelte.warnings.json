@@ -1,0 +1,44 @@
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 18,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"column": 34,
+			"character": 34
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`pressed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 41,
+			"column": 5,
+			"character": 902
+		},
+		"end": {
+			"line": 41,
+			"column": 12,
+			"character": 909
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`duration` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 42,
+			"column": 5,
+			"character": 924
+		},
+		"end": {
+			"line": 42,
+			"column": 13,
+			"character": 932
+		}
+	}
+]

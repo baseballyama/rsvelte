@@ -1,0 +1,25 @@
+
+	.accordion-item.svelte-sjmdz8 {
+		&:not(:last-child) {
+			margin-bottom: var(--spacing-24);
+		}
+
+		.accordion-heading:where(.svelte-sjmdz8) {
+			display: flex;
+			gap: var(--spacing-32);
+			padding: 0px;
+			border: none;
+		}
+
+		.accordion-trigger:where(.svelte-sjmdz8) {
+			transition: rotate 0.2s ease;
+
+			&.open {
+				rotate: -90deg;
+			}
+		}
+
+		.accordion-content:where(.svelte-sjmdz8) {
+			margin-top: var(--spacing-8);
+		}
+	}

@@ -1,0 +1,58 @@
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 8,
+			"column": 0,
+			"character": 77
+		},
+		"end": {
+			"line": 8,
+			"column": 27,
+			"character": 104
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 9,
+			"column": 0,
+			"character": 105
+		},
+		"end": {
+			"line": 9,
+			"column": 38,
+			"character": 143
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 9,
+			"column": 8,
+			"character": 113
+		},
+		"end": {
+			"line": 9,
+			"column": 28,
+			"character": 133
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`dummy` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 2,
+			"column": 5,
+			"character": 14
+		},
+		"end": {
+			"line": 2,
+			"column": 10,
+			"character": 19
+		}
+	}
+]

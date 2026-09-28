@@ -1,0 +1,44 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `panelHeight`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 104,
+			"column": 26,
+			"character": 2744
+		},
+		"end": {
+			"line": 104,
+			"column": 37,
+			"character": 2755
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `items`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 107,
+			"column": 30,
+			"character": 2852
+		},
+		"end": {
+			"line": 107,
+			"column": 35,
+			"character": 2857
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `items`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 116,
+			"column": 38,
+			"character": 3091
+		},
+		"end": {
+			"line": 116,
+			"column": 43,
+			"character": 3096
+		}
+	}
+]

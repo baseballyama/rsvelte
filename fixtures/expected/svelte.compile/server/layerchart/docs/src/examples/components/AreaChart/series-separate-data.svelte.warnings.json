@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`dataByFruit` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 16,
+			"column": 7,
+			"character": 404
+		},
+		"end": {
+			"line": 16,
+			"column": 18,
+			"character": 415
+		}
+	}
+]

@@ -1,0 +1,282 @@
+[
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `<li>`, which can cause an unexpected DOM structure. Add an explicit `</li>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 1,
+			"column": 4,
+			"character": 4
+		},
+		"end": {
+			"line": 1,
+			"column": 8,
+			"character": 8
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `</ul>`, which can cause an unexpected DOM structure. Add an explicit `</li>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 1,
+			"column": 8,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"column": 12,
+			"character": 12
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `<dd>`, which can cause an unexpected DOM structure. Add an explicit `</dt>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 2,
+			"column": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"column": 8,
+			"character": 26
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `<dd>`, which can cause an unexpected DOM structure. Add an explicit `</dd>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 2,
+			"column": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"column": 12,
+			"character": 30
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `</dl>`, which can cause an unexpected DOM structure. Add an explicit `</dd>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 2,
+			"column": 12,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"column": 16,
+			"character": 34
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `<p>`, which can cause an unexpected DOM structure. Add an explicit `</p>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 3,
+			"column": 0,
+			"character": 40
+		},
+		"end": {
+			"line": 3,
+			"column": 3,
+			"character": 43
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `<div>`, which can cause an unexpected DOM structure. Add an explicit `</p>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 3,
+			"column": 3,
+			"character": 43
+		},
+		"end": {
+			"line": 3,
+			"column": 6,
+			"character": 46
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `<rt>`, which can cause an unexpected DOM structure. Add an explicit `</rp>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 4,
+			"column": 6,
+			"character": 64
+		},
+		"end": {
+			"line": 4,
+			"column": 10,
+			"character": 68
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `<rt>`, which can cause an unexpected DOM structure. Add an explicit `</rt>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 4,
+			"column": 10,
+			"character": 68
+		},
+		"end": {
+			"line": 4,
+			"column": 14,
+			"character": 72
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `</ruby>`, which can cause an unexpected DOM structure. Add an explicit `</rt>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 4,
+			"column": 14,
+			"character": 72
+		},
+		"end": {
+			"line": 4,
+			"column": 18,
+			"character": 76
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `<optgroup>`, which can cause an unexpected DOM structure. Add an explicit `</option>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 5,
+			"column": 8,
+			"character": 92
+		},
+		"end": {
+			"line": 5,
+			"column": 16,
+			"character": 100
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `<optgroup>`, which can cause an unexpected DOM structure. Add an explicit `</optgroup>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 5,
+			"column": 16,
+			"character": 100
+		},
+		"end": {
+			"line": 5,
+			"column": 26,
+			"character": 110
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `</select>`, which can cause an unexpected DOM structure. Add an explicit `</optgroup>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 5,
+			"column": 26,
+			"character": 110
+		},
+		"end": {
+			"line": 5,
+			"column": 36,
+			"character": 120
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `<tbody>`, which can cause an unexpected DOM structure. Add an explicit `</thead>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 6,
+			"column": 7,
+			"character": 137
+		},
+		"end": {
+			"line": 6,
+			"column": 14,
+			"character": 144
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `<tfoot>`, which can cause an unexpected DOM structure. Add an explicit `</tbody>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 6,
+			"column": 14,
+			"character": 144
+		},
+		"end": {
+			"line": 6,
+			"column": 21,
+			"character": 151
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `<tbody>`, which can cause an unexpected DOM structure. Add an explicit `</tfoot>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 6,
+			"column": 21,
+			"character": 151
+		},
+		"end": {
+			"line": 6,
+			"column": 28,
+			"character": 158
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `<th>`, which can cause an unexpected DOM structure. Add an explicit `</td>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 6,
+			"column": 39,
+			"character": 169
+		},
+		"end": {
+			"line": 6,
+			"column": 43,
+			"character": 173
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `</tr>`, which can cause an unexpected DOM structure. Add an explicit `</th>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 6,
+			"column": 43,
+			"character": 173
+		},
+		"end": {
+			"line": 6,
+			"column": 47,
+			"character": 177
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `</table>`, which can cause an unexpected DOM structure. Add an explicit `</tr>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 6,
+			"column": 52,
+			"character": 182
+		},
+		"end": {
+			"line": 6,
+			"column": 56,
+			"character": 186
+		}
+	},
+	{
+		"code": "element_implicitly_closed",
+		"message": "This element is implicitly closed by the following `</table>`, which can cause an unexpected DOM structure. Add an explicit `</tbody>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+		"start": {
+			"line": 6,
+			"column": 28,
+			"character": 158
+		},
+		"end": {
+			"line": 6,
+			"column": 35,
+			"character": 165
+		}
+	}
+]

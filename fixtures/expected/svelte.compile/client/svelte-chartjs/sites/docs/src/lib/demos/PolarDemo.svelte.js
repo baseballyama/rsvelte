@@ -1,0 +1,43 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { PolarArea } from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	ArcElement,
+	RadialLinearScale
+} from 'chart.js';
+
+export default function PolarDemo($$anchor, $$props) {
+	$.push($$props, true);
+	ChartJS.register(Title, Tooltip, Legend, ArcElement, RadialLinearScale);
+
+	const data = {
+		datasets: [
+			{
+				data: [300, 50, 100, 40, 120],
+				backgroundColor: [
+					'rgba(247, 70, 74, 0.5)',
+					'rgba(70, 191, 189, 0.5)',
+					'rgba(253, 180, 92, 0.5)',
+					'rgba(148, 159, 177, 0.5)',
+					'rgba(77, 83, 96, 0.5)'
+				],
+				label: 'My dataset'
+			}
+		],
+		labels: ['Red', 'Green', 'Yellow', 'Grey', 'Dark Grey']
+	};
+
+	PolarArea($$anchor, {
+		get data() {
+			return data;
+		},
+		options: { responsive: true }
+	});
+
+	$.pop();
+}

@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`enabled` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 18,
+			"column": 8,
+			"character": 748
+		},
+		"end": {
+			"line": 18,
+			"column": 24,
+			"character": 764
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showFailed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 24,
+			"column": 8,
+			"character": 846
+		},
+		"end": {
+			"line": 24,
+			"column": 18,
+			"character": 856
+		}
+	}
+]

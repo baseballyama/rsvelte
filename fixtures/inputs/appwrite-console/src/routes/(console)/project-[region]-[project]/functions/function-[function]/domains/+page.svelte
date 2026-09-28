@@ -1,0 +1,125 @@
+<script lang="ts">
+    import { base } from '$app/paths';
+    import { page } from '$app/state';
+    import { EmptySearch, PaginationWithLimit } from '$lib/components/index.js';
+    import { Button } from '$lib/elements/forms';
+    import Container from '$lib/layout/container.svelte';
+    import type { Models } from '@appwrite.io/console';
+    import { IconPlus } from '@appwrite.io/pink-icons-svelte';
+    import { Card, Empty, Icon, Layout, Tooltip } from '@appwrite.io/pink-svelte';
+    import DeleteDomainModal from './deleteDomainModal.svelte';
+    import RetryDomainModal from './retryDomainModal.svelte';
+    import SearchQuery from '$lib/components/searchQuery.svelte';
+    import { app } from '$lib/stores/app';
+    import { Click, trackEvent } from '$lib/actions/analytics';
+    import {
+        BODY_TOOLTIP_MAX_WIDTH,
+        BODY_TOOLTIP_WRAPPER_STYLE_PRELINE
+    } from '$lib/helpers/tooltipContent';
+    import { isServiceLimited } from '$lib/stores/billing';
+    import { organization } from '$lib/stores/organization';
+    import Table from './table.svelte';
+
+    let { data } = $props();
+
+    const isDomainLimitReached = $derived(
+        isServiceLimited('domains', $organization, data.proxyRules.total)
+    );
+
+    let showDelete = $state(false);
+    let showRetry = $state(false);
+    let selectedProxyRule: Models.ProxyRule = null;
+</script>
+
+<Container>
+    <Layout.Stack direction="row" justifyContent="space-between">
+        <SearchQuery placeholder="Search domain" />
+        <Tooltip disabled={!isDomainLimitReached} maxWidth={BODY_TOOLTIP_MAX_WIDTH}>
+            <div>
+                <Button
+                    disabled={isDomainLimitReached}
+                    href={isDomainLimitReached
+                        ? undefined
+                        : `${base}/project-${page.params.region}-${page.params.project}/functions/function-${page.params.function}/domains/add-domain`}
+                    on:click={() => {
+                        trackEvent(Click.DomainCreateClick, {
+                            source: 'functions_domain_overview'
+                        });
+                    }}>
+                    <Icon icon={IconPlus} size="s" />
+                    Add domain
+                </Button>
+            </div>
+            <svelte:fragment slot="tooltip">
+                <div style={BODY_TOOLTIP_WRAPPER_STYLE_PRELINE}>
+                    You have reached the maximum number of custom domains for your plan.
+                </div>
+            </svelte:fragment>
+        </Tooltip>
+    </Layout.Stack>
+    {#if data.proxyRules.total}
+        <Table proxyRules={data.proxyRules} organizationDomains={data.organizationDomains} />
+
+        <PaginationWithLimit
+            name="Domains"
+            limit={data.limit}
+            offset={data.offset}
+            total={data.proxyRules.total} />
+    {:else if data?.search}
+        <EmptySearch hidePages bind:search={data.search} target="domains" hidePagination>
+            <svelte:fragment slot="actions">
+                <Button
+                    secondary
+                    on:click={() => {
+                        data.search = '';
+                    }}>Clear search</Button>
+            </svelte:fragment>
+        </EmptySearch>
+    {:else}
+        <Card.Base padding="none">
+            <Empty
+                src={$app.themeInUse === 'dark'
+                    ? `${base}/images/domains/empty-domain-dark.svg`
+                    : `${base}/images/domains/empty-domain-light.svg`}
+                title="Use a custom domain for your function"
+                description="Make your function easier to access and integrate by assigning it a custom domain.">
+                <svelte:fragment slot="actions">
+                    <Button
+                        external
+                        href="https://appwrite.io/docs/products/functions/domains"
+                        text
+                        event="empty_documentation"
+                        size="s"
+                        ariaLabel="add domain">Documentation</Button>
+
+                    <Tooltip disabled={!isDomainLimitReached} maxWidth={BODY_TOOLTIP_MAX_WIDTH}>
+                        <div>
+                            <Button
+                                secondary
+                                disabled={isDomainLimitReached}
+                                href={isDomainLimitReached
+                                    ? undefined
+                                    : `${base}/project-${page.params.region}-${page.params.project}/functions/function-${page.params.function}/domains/add-domain`}
+                                size="s">
+                                Add domain
+                            </Button>
+                        </div>
+                        <svelte:fragment slot="tooltip">
+                            <div style={BODY_TOOLTIP_WRAPPER_STYLE_PRELINE}>
+                                You have reached the maximum number of custom domains for your plan.
+                            </div>
+                        </svelte:fragment>
+                    </Tooltip>
+                </svelte:fragment>
+            </Empty>
+        </Card.Base>
+    {/if}
+</Container>
+
+{#if showDelete}
+    <DeleteDomainModal bind:show={showDelete} {selectedProxyRule} />
+{/if}
+
+{#if showRetry}
+    <RetryDomainModal bind:show={showRetry} {selectedProxyRule} />
+{/if}

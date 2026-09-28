@@ -1,0 +1,5 @@
+
+  /* Apply the global font family using the CSS variable */
+  .svelte-rcuoo6 {
+    font-family: var(--font-family);
+  }

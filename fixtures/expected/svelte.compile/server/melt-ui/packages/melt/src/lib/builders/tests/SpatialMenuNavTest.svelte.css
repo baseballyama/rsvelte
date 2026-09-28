@@ -1,0 +1,20 @@
+
+	[data-melt-spatial-menu-root].svelte-13vftyf {
+		display: grid;
+
+		padding: 0.5rem;
+		border: 1px solid #ccc;
+	}
+
+	[data-melt-spatial-menu-item].svelte-13vftyf {
+		padding: 0.5rem;
+		border: 1px solid #ccc;
+	}
+
+	[data-melt-spatial-menu-item][data-highlighted].svelte-13vftyf {
+		background-color: #ccc;
+	}
+
+	[data-melt-spatial-menu-item][data-disabled].svelte-13vftyf {
+		opacity: 0.5;
+	}

@@ -1,0 +1,8 @@
+
+	.wx-cell.wx-filter div.wx-multiselect {
+		min-height: 28px;
+		height: 28px;
+	}
+	.wx-cell.wx-filter div.wx-multiselect .wx-label {
+		padding: 4px 8px;
+	}

@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`stackData` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 26,
+			"column": 7,
+			"character": 459
+		},
+		"end": {
+			"line": 26,
+			"column": 16,
+			"character": 468
+		}
+	}
+]

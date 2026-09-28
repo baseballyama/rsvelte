@@ -1,0 +1,44 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`expanded` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 3,
+			"column": 5,
+			"character": 71
+		},
+		"end": {
+			"line": 3,
+			"column": 13,
+			"character": 79
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`darkMode` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 92
+		},
+		"end": {
+			"line": 4,
+			"column": 13,
+			"character": 100
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`numbers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 113
+		},
+		"end": {
+			"line": 5,
+			"column": 12,
+			"character": 120
+		}
+	}
+]

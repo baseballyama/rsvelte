@@ -1,0 +1,58 @@
+[
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'button' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 58,
+			"column": 12,
+			"character": 1773
+		},
+		"end": {
+			"line": 63,
+			"column": 13,
+			"character": 1983
+		}
+	},
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<i>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 58,
+			"column": 12,
+			"character": 1773
+		},
+		"end": {
+			"line": 63,
+			"column": 13,
+			"character": 1983
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'button' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 77,
+			"column": 12,
+			"character": 2341
+		},
+		"end": {
+			"line": 83,
+			"column": 16,
+			"character": 2570
+		}
+	},
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<i>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 77,
+			"column": 12,
+			"character": 2341
+		},
+		"end": {
+			"line": 83,
+			"column": 16,
+			"character": 2570
+		}
+	}
+]

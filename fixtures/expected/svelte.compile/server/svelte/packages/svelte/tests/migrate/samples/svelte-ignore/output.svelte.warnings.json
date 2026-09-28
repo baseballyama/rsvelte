@@ -1,0 +1,44 @@
+[
+	{
+		"code": "unknown_code",
+		"message": "`a11y_something_something` is not a recognised code\nhttps://svelte.dev/e/unknown_code",
+		"start": {
+			"line": 8,
+			"column": 19,
+			"character": 130
+		},
+		"end": {
+			"line": 8,
+			"column": 43,
+			"character": 154
+		}
+	},
+	{
+		"code": "unknown_code",
+		"message": "`a11y_something_something` is not a recognised code\nhttps://svelte.dev/e/unknown_code",
+		"start": {
+			"line": 11,
+			"column": 19,
+			"character": 191
+		},
+		"end": {
+			"line": 11,
+			"column": 43,
+			"character": 215
+		}
+	},
+	{
+		"code": "unknown_code",
+		"message": "`a11y_something_something2` is not a recognised code\nhttps://svelte.dev/e/unknown_code",
+		"start": {
+			"line": 11,
+			"column": 45,
+			"character": 217
+		},
+		"end": {
+			"line": 11,
+			"column": 70,
+			"character": 242
+		}
+	}
+]

@@ -1,0 +1,58 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".letter\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 457,
+			"column": 2,
+			"character": 12139
+		},
+		"end": {
+			"line": 457,
+			"column": 9,
+			"character": 12146
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".status-pill\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 473,
+			"column": 2,
+			"character": 12413
+		},
+		"end": {
+			"line": 473,
+			"column": 14,
+			"character": 12425
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&.pending\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 481,
+			"column": 3,
+			"character": 12580
+		},
+		"end": {
+			"line": 481,
+			"column": 12,
+			"character": 12589
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&.sent\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 486,
+			"column": 3,
+			"character": 12662
+		},
+		"end": {
+			"line": 486,
+			"column": 9,
+			"character": 12668
+		}
+	}
+]

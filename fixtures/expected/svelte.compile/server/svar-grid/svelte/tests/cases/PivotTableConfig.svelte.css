@@ -1,0 +1,6 @@
+
+	.demo.svelte-1715t4m .wx-h-row .wx-cell,
+	.demo.svelte-1715t4m .wx-f-row .wx-cell {
+		border-right: var(--wx-border);
+		border-bottom: var(--wx-border);
+	}

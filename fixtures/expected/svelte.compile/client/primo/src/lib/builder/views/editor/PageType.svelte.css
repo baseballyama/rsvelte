@@ -1,0 +1,179 @@
+
+	.spinner.svelte-wiu0gb {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 100vh;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 5;
+		--Spinner-font-size: 3rem;
+		--Spinner-color: var(--primo-primary-color);
+		--Spinner-color-opaque: rgba(248, 68, 73, 0.2);
+	}
+	main.svelte-wiu0gb {
+		padding: 0;
+		background-color: var(--color-gray-950);
+		transition: 0.2s opacity;
+		opacity: 0;
+		border-top: 0;
+		height: 100%;
+		overflow-y: auto;
+		box-sizing: border-box;
+	}
+
+	.page-content.svelte-wiu0gb {
+		padding: 1rem 0.5rem;
+		min-height: 100%;
+	}
+
+	.head-editor-container.svelte-wiu0gb {
+		margin-bottom: 1rem;
+	}
+
+	.resize-handle.svelte-wiu0gb {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		height: 8px;
+		background: var(--color-gray-900);
+		border-top: 1px solid var(--color-gray-800);
+		border-bottom: 1px solid var(--color-gray-800);
+		cursor: row-resize;
+		user-select: none;
+		-webkit-user-select: none;
+		margin-top: -1px;
+	}
+
+	.resize-handle.svelte-wiu0gb:hover,
+	.resize-handle.resizing.svelte-wiu0gb {
+		background: var(--color-gray-800);
+	}
+
+	.resize-handle.svelte-wiu0gb .grab-handle:where(.svelte-wiu0gb) {
+		color: var(--color-gray-600);
+		transition: color 0.2s;
+		transform: rotate(90deg);
+	}
+
+	.resize-handle.svelte-wiu0gb:hover .grab-handle:where(.svelte-wiu0gb),
+	.resize-handle.resizing.svelte-wiu0gb .grab-handle:where(.svelte-wiu0gb) {
+		color: var(--color-gray-400);
+	}
+
+	.zones-container.svelte-wiu0gb {
+		padding: 0;
+	}
+
+	main.fadein.svelte-wiu0gb {
+		opacity: 1;
+	}
+	main.dragging.svelte-wiu0gb iframe {
+		pointer-events: none !important;
+	}
+	main.resizing-editor.svelte-wiu0gb [data-section]:where(.svelte-wiu0gb) {
+		pointer-events: none !important;
+	}
+
+	.page-zone.svelte-wiu0gb {
+		padding: 0.5rem;
+		position: relative;
+		border: 2px dashed rgba(255, 255, 255, 0.1);
+		transition: all 0.2s ease;
+		overflow-y: auto;
+		border-radius: 8px;
+	}
+
+	.page-zone.dragging-over.svelte-wiu0gb {
+		border-color: rgba(59, 130, 246, 0.6) !important;
+		background-color: rgba(59, 130, 246, 0.05) !important;
+		box-shadow: 0 0 10px rgba(59, 130, 246, 0.2) !important;
+	}
+
+	.page-zone.header-zone.svelte-wiu0gb {
+		border-style: solid;
+		margin-bottom: 1rem;
+	}
+
+	.page-zone.header-zone.dragging-over.svelte-wiu0gb {
+		border-color: rgba(59, 130, 246, 0.8) !important;
+	}
+
+	.page-zone.body-zone.svelte-wiu0gb {
+		border-style: solid;
+		max-height: none; /* Override the general max-height for body zone */
+		margin-bottom: 1rem;
+	}
+
+	.page-zone.body-zone.dragging-over.svelte-wiu0gb {
+		border-color: rgba(59, 130, 246, 0.8) !important;
+	}
+
+	.page-zone.footer-zone.svelte-wiu0gb {
+		border-style: solid;
+		margin-bottom: 1rem;
+	}
+
+	.page-zone.footer-zone.dragging-over.svelte-wiu0gb {
+		border-color: rgba(59, 130, 246, 0.8) !important;
+	}
+
+	.zone-label.svelte-wiu0gb {
+		font-size: 0.75rem;
+		/* font-weight: 500; */
+		color: white;
+		/* margin-left: 0.5rem; */
+		/* margin-top: 0.75rem; */
+		margin-bottom: 0.25rem;
+		user-select: none;
+	}
+
+	.zone-mode.svelte-wiu0gb {
+		font-weight: 400;
+		color: rgba(255, 255, 255, 0.5);
+		font-size: 0.65rem;
+		user-select: none;
+	}
+
+	.empty-zone.svelte-wiu0gb {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		min-height: 80px;
+		color: rgba(107, 114, 128, 0.8);
+		font-size: 0.875rem;
+		font-style: italic;
+		border: 1px dashed rgba(107, 114, 128, 0.3);
+		border-radius: 4px;
+		user-select: none;
+	}
+
+	.empty-zone.main-body.svelte-wiu0gb {
+		min-height: 45vh;
+		font-size: 1rem;
+	}
+
+	/* Make sections proper drop targets */
+	[data-section].svelte-wiu0gb {
+		overflow: hidden;
+		position: relative;
+		min-height: 3rem;
+	}
+
+	.code-zone.svelte-wiu0gb {
+		position: relative;
+		overflow: hidden;
+		/* border: 2px solid rgba(255, 255, 255, 0.2); */
+		/* background: var(--color-gray-900); */
+	}
+
+	.code-zone.head-zone.svelte-wiu0gb {
+		border-color: rgba(76, 175, 80, 0.3);
+	}
+
+	.code-zone.foot-zone.svelte-wiu0gb {
+		border-color: rgba(255, 152, 0, 0.3);
+	}

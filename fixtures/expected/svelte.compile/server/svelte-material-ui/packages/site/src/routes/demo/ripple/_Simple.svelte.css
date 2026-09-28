@@ -1,0 +1,9 @@
+
+  div.svelte-wz4sgq {
+    padding: 10px;
+    border-radius: 5px;
+  }
+
+  [tabindex='0'].svelte-wz4sgq {
+    cursor: pointer;
+  }

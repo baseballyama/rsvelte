@@ -1,0 +1,13 @@
+
+	.map-labels.svelte-12yrd1l {
+		pointer-events: none;
+		position: relative;
+	}
+	.map-label.svelte-12yrd1l {
+		position: absolute;
+		text-align: center;
+		font-size: 8px;
+		color: #333;
+		margin-top: -3px; /* To match the SVG labels, it needs a slight tweak */
+		transform: translate(-50%, -50%);
+	}

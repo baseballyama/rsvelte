@@ -1,0 +1,17 @@
+
+	.cards.svelte-jot9ci {
+		display: grid;
+		row-gap: var(--spacing-32);
+		max-width: var(--post-txt-length);
+		margin: var(--spacing-64) 0;
+		margin-inline: auto;
+	}
+
+	.title.svelte-jot9ci {
+		width: fit-content;
+		margin-inline: auto;
+	}
+
+	.published.svelte-jot9ci {
+		margin-top: var(--spacing-24);
+	}

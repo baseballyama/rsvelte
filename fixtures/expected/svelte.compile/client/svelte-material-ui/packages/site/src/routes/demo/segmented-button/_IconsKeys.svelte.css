@@ -1,0 +1,14 @@
+
+  .format-bar.svelte-6mmqfv {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .format-bar.svelte-6mmqfv > * {
+    margin-right: 18px;
+    margin-bottom: 18px;
+  }
+
+  .format-bar.svelte-6mmqfv svg:focus {
+    outline: 0;
+  }

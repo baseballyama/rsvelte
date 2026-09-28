@@ -1,0 +1,93 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import CalendarIcon from '@lucide/svelte/icons/calendar';
+import CircleUserIcon from '@lucide/svelte/icons/circle-user';
+import MenuIcon from '@lucide/svelte/icons/menu';
+import SearchIcon from '@lucide/svelte/icons/search';
+import { AppBar } from '@skeletonlabs/skeleton-svelte';
+
+var root = $.from_html(`<button type="button" class="btn-icon btn-icon-lg hover:preset-tonal"><!></button>`);
+var root_1 = $.from_html(`<button type="button" class="btn-icon hover:preset-tonal"><!></button> <button type="button" class="btn-icon hover:preset-tonal"><!></button> <button type="button" class="btn-icon hover:preset-tonal"><!></button>`, 1);
+var root_2 = $.from_html(`<!> <!>`, 1);
+var root_3 = $.from_html(`<h2 class="h2">Headline</h2>`);
+
+export default function Extended($$anchor) {
+	AppBar($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_2();
+			var node = $.first_child(fragment_1);
+
+			$.component(node, () => AppBar.Toolbar, ($$anchor, AppBar_Toolbar) => {
+				AppBar_Toolbar($$anchor, {
+					class: 'grid-cols-[auto_auto]',
+					children: ($$anchor, $$slotProps) => {
+						var fragment_2 = root_2();
+						var node_1 = $.first_child(fragment_2);
+
+						$.component(node_1, () => AppBar.Lead, ($$anchor, AppBar_Lead) => {
+							AppBar_Lead($$anchor, {
+								children: ($$anchor, $$slotProps) => {
+									var button = root();
+									var node_2 = $.child(button);
+
+									MenuIcon(node_2, {});
+									$.reset(button);
+									$.append($$anchor, button);
+								},
+								$$slots: { default: true }
+							});
+						});
+
+						var node_3 = $.sibling(node_1, 2);
+
+						$.component(node_3, () => AppBar.Trail, ($$anchor, AppBar_Trail) => {
+							AppBar_Trail($$anchor, {
+								children: ($$anchor, $$slotProps) => {
+									var fragment_3 = root_1();
+									var button_1 = $.first_child(fragment_3);
+									var node_4 = $.child(button_1);
+
+									SearchIcon(node_4, { class: 'size-6' });
+									$.reset(button_1);
+
+									var button_2 = $.sibling(button_1, 2);
+									var node_5 = $.child(button_2);
+
+									CalendarIcon(node_5, { class: 'size-6' });
+									$.reset(button_2);
+
+									var button_3 = $.sibling(button_2, 2);
+									var node_6 = $.child(button_3);
+
+									CircleUserIcon(node_6, { class: 'size-6' });
+									$.reset(button_3);
+									$.append($$anchor, fragment_3);
+								},
+								$$slots: { default: true }
+							});
+						});
+
+						$.append($$anchor, fragment_2);
+					},
+					$$slots: { default: true }
+				});
+			});
+
+			var node_7 = $.sibling(node, 2);
+
+			$.component(node_7, () => AppBar.Headline, ($$anchor, AppBar_Headline) => {
+				AppBar_Headline($$anchor, {
+					children: ($$anchor, $$slotProps) => {
+						var h2 = root_3();
+
+						$.append($$anchor, h2);
+					},
+					$$slots: { default: true }
+				});
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+}

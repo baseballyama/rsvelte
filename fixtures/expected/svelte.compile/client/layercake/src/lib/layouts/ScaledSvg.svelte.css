@@ -1,0 +1,10 @@
+
+	svg.svelte-r99skn {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+	}
+	svg.svelte-r99skn * {
+		vector-effect: non-scaling-stroke;
+	}

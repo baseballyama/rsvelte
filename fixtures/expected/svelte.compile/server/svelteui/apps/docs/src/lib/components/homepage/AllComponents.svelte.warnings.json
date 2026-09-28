@@ -1,0 +1,58 @@
+[
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 37,
+			"column": 7,
+			"character": 915
+		},
+		"end": {
+			"line": 37,
+			"column": 54,
+			"character": 962
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 54,
+			"column": 6,
+			"character": 1380
+		},
+		"end": {
+			"line": 56,
+			"column": 25,
+			"character": 1491
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 55,
+			"column": 7,
+			"character": 1428
+		},
+		"end": {
+			"line": 55,
+			"column": 44,
+			"character": 1465
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 58,
+			"column": 6,
+			"character": 1511
+		},
+		"end": {
+			"line": 58,
+			"column": 48,
+			"character": 1553
+		}
+	}
+]

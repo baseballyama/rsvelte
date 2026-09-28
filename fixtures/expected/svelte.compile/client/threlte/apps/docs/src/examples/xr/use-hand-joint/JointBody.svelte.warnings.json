@@ -1,0 +1,30 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `hand`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 16,
+			"column": 29,
+			"character": 449
+		},
+		"end": {
+			"line": 16,
+			"column": 33,
+			"character": 453
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `jointIndex`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 16,
+			"column": 46,
+			"character": 466
+		},
+		"end": {
+			"line": 16,
+			"column": 56,
+			"character": 476
+		}
+	}
+]

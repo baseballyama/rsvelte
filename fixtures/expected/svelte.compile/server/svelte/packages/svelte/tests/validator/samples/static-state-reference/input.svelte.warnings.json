@@ -1,0 +1,86 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `count`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 5,
+			"column": 22,
+			"character": 130
+		},
+		"end": {
+			"line": 5,
+			"column": 27,
+			"character": 135
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `count`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 8,
+			"column": 13,
+			"character": 175
+		},
+		"end": {
+			"line": 8,
+			"column": 18,
+			"character": 180
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `doubled`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 9,
+			"column": 13,
+			"character": 196
+		},
+		"end": {
+			"line": 9,
+			"column": 20,
+			"character": 203
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `prop`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 15,
+			"column": 25,
+			"character": 282
+		},
+		"end": {
+			"line": 15,
+			"column": 29,
+			"character": 286
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `prop`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 17,
+			"column": 13,
+			"character": 338
+		},
+		"end": {
+			"line": 17,
+			"column": 17,
+			"character": 342
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `prop_derived`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 18,
+			"column": 13,
+			"character": 358
+		},
+		"end": {
+			"line": 18,
+			"column": 25,
+			"character": 370
+		}
+	}
+]

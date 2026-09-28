@@ -1,0 +1,72 @@
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 61,
+			"column": 2,
+			"character": 1692
+		},
+		"end": {
+			"line": 61,
+			"column": 23,
+			"character": 1713
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showSnackbar` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 6,
+			"character": 271
+		},
+		"end": {
+			"line": 9,
+			"column": 18,
+			"character": 283
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showSnackbarTop` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 6,
+			"character": 299
+		},
+		"end": {
+			"line": 10,
+			"column": 21,
+			"character": 314
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showSnackbarBottomLeft` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 6,
+			"character": 330
+		},
+		"end": {
+			"line": 11,
+			"column": 28,
+			"character": 352
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`message` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 28,
+			"column": 6,
+			"character": 594
+		},
+		"end": {
+			"line": 28,
+			"column": 13,
+			"character": 601
+		}
+	}
+]

@@ -1,0 +1,58 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".lime-product img\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 365,
+			"column": 1,
+			"character": 9212
+		},
+		"end": {
+			"line": 365,
+			"column": 18,
+			"character": 9229
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".lime-product h4\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 372,
+			"column": 1,
+			"character": 9315
+		},
+		"end": {
+			"line": 372,
+			"column": 17,
+			"character": 9331
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".lime-product p\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 382,
+			"column": 1,
+			"character": 9498
+		},
+		"end": {
+			"line": 382,
+			"column": 16,
+			"character": 9513
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".lime-faq details[open] .lime-faq-icon\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 538,
+			"column": 1,
+			"character": 12130
+		},
+		"end": {
+			"line": 538,
+			"column": 39,
+			"character": 12168
+		}
+	}
+]

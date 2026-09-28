@@ -1,0 +1,44 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `dracoLoader`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 33,
+			"column": 4,
+			"character": 818
+		},
+		"end": {
+			"line": 33,
+			"column": 15,
+			"character": 829
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `meshoptDecoder`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 34,
+			"column": 4,
+			"character": 835
+		},
+		"end": {
+			"line": 34,
+			"column": 18,
+			"character": 849
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `ktx2Loader`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 35,
+			"column": 4,
+			"character": 855
+		},
+		"end": {
+			"line": 35,
+			"column": 14,
+			"character": 865
+		}
+	}
+]

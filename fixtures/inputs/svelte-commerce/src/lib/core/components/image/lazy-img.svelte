@@ -1,0 +1,220 @@
+<script lang="ts">
+	import { onMount } from 'svelte'
+	import { page } from '$app/state'
+	import { getImageCDNUrl } from '@misiki/kitcommerce-core/utils'
+
+	let {
+		class: klass,
+		alt = '',
+		height = 'auto',
+		src = '',
+		aspectRatio = page?.data?.store?.productImageAspectRatio,
+		width = 'auto',
+		priority = false,
+		loading = priority ? 'eager' : 'lazy',
+		fetchpriority = priority ? 'high' : 'auto',
+		sizes = undefined,
+		...rest
+	}: {
+		class?: string
+		alt?: string
+		height?: string | number
+		src?: string
+		aspectRatio?: string
+		width?: string | number
+		priority?: boolean
+		loading?: 'lazy' | 'eager'
+		fetchpriority?: 'auto' | 'high' | 'low'
+		sizes?: string
+		[key: string]: any
+	} = $props()
+
+	// Fallback CDN resize width for responsive (w-full) images that pass no explicit
+	// width. Without it the CDN URL omits width=/height= and serves the full-res original.
+	const DEFAULT_CDN_WIDTH = 1280
+
+	// Candidate widths offered to the browser when `sizes` is set. The browser picks the
+	// smallest one that satisfies the rendered size at the device's pixel density, so image
+	// resolution adapts to the device instead of always fetching DEFAULT_CDN_WIDTH.
+	const SRCSET_WIDTHS = [160, 240, 320, 480, 640, 768, 1024, 1280]
+
+	const h = $derived(height === 'auto' ? '0' : +height * 2)
+	const w = $derived(width === 'auto' ? '0' : +width * 2)
+	// Intrinsic-size ATTRIBUTES, as opposed to the CDN resize hints above. Omitted entirely when
+	// the caller sizes the image responsively (`auto`, the default used by every product card):
+	// `width="0" height="0"` is what Lighthouse, axe and crawlers read as the real intrinsic
+	// size, and browsers that infer a ratio from the pair get 0/0 — defeating the very CLS
+	// protection the surrounding aspect-ratio box exists to provide.
+	const attrW = $derived(width === 'auto' ? undefined : +w)
+	const attrH = $derived(height === 'auto' ? undefined : +h)
+	// Width fed to the CDN URL builder: real width when given, else the fallback.
+	const cdnW = $derived(width === 'auto' ? DEFAULT_CDN_WIDTH : +width * 2)
+	// Device-responsive srcset (width descriptors) built from the CDN. Only emitted when a
+	// caller supplies `sizes`, so existing single-src usage is unchanged.
+	const cdnSrcset = $derived(sizes ? SRCSET_WIDTHS.map((sw) => `${getImageCDNUrl(src, sw, 0)} ${sw}w`).join(', ') : undefined)
+
+	const [aspectWidth, aspectHeight] = $derived(aspectRatio?.split(':') || ['1', '1'])
+
+	const extension = $derived(src?.split('.').pop())
+
+	let loaded = $state(false)
+	let error = $state(false)
+	let isIntersecting = $state(false)
+	let containerRef: HTMLDivElement
+	let usingFallback = $state(false) // Track if we're using fallback
+
+	// Transparent placeholder
+	const transparentPlaceholder = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+
+	let observer: IntersectionObserver
+
+	onMount(() => {
+		observer = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+          if (!isIntersecting) {
+					  isIntersecting = entry.isIntersecting
+          }
+				}
+			},
+			{
+				rootMargin: '50px',
+				threshold: 0
+			}
+		)
+
+		if (containerRef) {
+			observer.observe(containerRef)
+		}
+
+		return () => {
+			if (observer) {
+				observer.disconnect()
+			}
+		}
+	})
+
+	$effect(() => {
+		if (src) {
+			loaded = false
+			error = false
+			usingFallback = false
+		}
+	})
+</script>
+
+<div
+	bind:this={containerRef}
+	class="relative bg-transparent w-full"
+	style="aspect-ratio: {aspectWidth}/{aspectHeight}; {height !== 'auto' ? `height: ${height}px;` : ''} {width !== 'auto' ? `width: ${width}px;` : ''}"
+>
+	{#if (!loaded || error) && !priority}
+		<!-- Visible loading placeholder (skipped for priority images, which render eagerly). -->
+		<div class="absolute inset-0 flex items-center justify-center bg-gray-50 animate-pulse">
+			<!-- <ImageIcon class="h-8 w-8 text-gray-400" /> -->
+		</div>
+	{/if}
+	<!-- {#if !loaded && !error}
+		<div class="absolute inset-0 flex items-center justify-center bg-gray-50/50" transition:fade={{ duration: 150 }}>
+			<div class="h-1 w-1/3 overflow-hidden rounded-full bg-primary/20">
+				<div class="h-full w-1/3 animate-[shimmer_1.5s_ease-in-out_infinite] rounded-full bg-primary"></div>
+			</div>
+		</div>
+	{/if} -->
+	{#if page?.data?.store?.plugins?.imageCdn?.active && !usingFallback}
+		<div class={klass}>
+			{#if isIntersecting || priority}
+				<!-- srcset/sizes are declared BEFORE src on purpose. This <img> is created by the
+				     client (behind the IntersectionObserver gate), not by the HTML parser, so Svelte
+				     applies attributes in source order and setting src first starts a load for the
+				     full-width candidate before srcset is ever considered — a 96px thumbnail ends up
+				     fetching the 1280px render despite carrying a correct srcset. -->
+				<img
+					onload={() => {
+						loaded = true
+						error = false
+					}}
+					onerror={(e) => {
+						if (!usingFallback) {
+							usingFallback = true
+							loaded = false
+							error = false
+						} else {
+							error = true
+							loaded = false
+						}
+					}}
+					{alt}
+					draggable="false"
+					{fetchpriority}
+					decoding="async"
+	        style="aspect-ratio: {aspectWidth}/{aspectHeight}; {height !== 'auto' ? `height: ${height}px;` : ''} {width !== 'auto' ? `width: ${width}px;` : ''}"
+					data-nimg="1"
+					{loading}
+					srcset={cdnSrcset}
+					{sizes}
+					src={getImageCDNUrl(src, cdnW, h)}
+					height={attrH}
+					width={attrW}
+					class="h-full w-full object-contain object-center transition-opacity duration-300 {klass}"
+					class:opacity-0={!(loaded || priority)}
+					class:opacity-100={loaded || priority}
+					{...rest}
+				/>
+			{/if}
+		</div>
+	{:else}
+		<!-- Guarded the same way the CDN branch's wrapper is: with the `auto` defaults this used
+		     to emit the literal `style="width: autopx; height: autopx;"`, which the CSS parser
+		     silently drops. `klass` stays on this wrapper — callers such as the lime theme's
+		     ll-image rely on it to size the box that holds the <img>. -->
+		<div
+			class={klass}
+			style="{width !== 'auto' ? `width: ${width}px;` : ''} {height !== 'auto' ? `height: ${height}px;` : ''}"
+		>
+			{#if isIntersecting || priority}
+				<img
+					onload={() => {
+						loaded = true
+						error = false
+					}}
+					onerror={(ev) => {
+						error = true
+						loaded = false
+					}}
+					{alt}
+					{src}
+					draggable="false"
+					{loading}
+					{fetchpriority}
+					decoding="async"
+					data-nimg="1"
+	        style="aspect-ratio: {aspectWidth}/{aspectHeight}; {height !== 'auto' ? `height: ${height}px;` : ''} {width !== 'auto' ? `width: ${width}px;` : ''}"
+					height={attrH}
+					width={attrW}
+					class="h-full w-full object-contain object-center transition-opacity duration-300 {klass}"
+					class:opacity-0={!(loaded || priority)}
+					class:opacity-100={loaded || priority}
+					{...rest}
+				/>
+			{/if}
+		</div>
+	{/if}
+</div>
+
+<style>
+	@keyframes shimmer {
+		0% {
+			background-position: -200% 0;
+		}
+		100% {
+			background-position: 200% 0;
+		}
+	}
+
+	.shimmer {
+		background: linear-gradient(90deg, #f0f0f0 25%, #f8f8f8 50%, #f0f0f0 75%);
+		background-size: 200% 100%;
+		animation: shimmer 1.5s infinite;
+	}
+</style>

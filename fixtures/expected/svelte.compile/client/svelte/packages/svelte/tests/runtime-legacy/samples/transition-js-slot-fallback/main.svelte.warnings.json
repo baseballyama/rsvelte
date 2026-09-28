@@ -1,0 +1,44 @@
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 25,
+			"column": 2,
+			"character": 311
+		},
+		"end": {
+			"line": 25,
+			"column": 21,
+			"character": 330
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`visible` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 2,
+			"column": 5,
+			"character": 14
+		},
+		"end": {
+			"line": 2,
+			"column": 12,
+			"character": 21
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`data` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 3,
+			"column": 5,
+			"character": 35
+		},
+		"end": {
+			"line": 3,
+			"column": 9,
+			"character": 39
+		}
+	}
+]

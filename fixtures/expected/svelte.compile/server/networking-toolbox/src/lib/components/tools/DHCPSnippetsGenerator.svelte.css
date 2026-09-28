@@ -1,0 +1,255 @@
+
+  .card.svelte-1hp7r6i {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-primary);
+    margin-bottom: var(--spacing-lg);
+
+    &.input-card {
+      background: var(--bg-tertiary);
+      .card-header:where(.svelte-1hp7r6i) {
+        margin-bottom: var(--spacing-sm);
+      }
+    }
+
+    h3:where(.svelte-1hp7r6i) {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      margin: 0 0 var(--spacing-sm);
+      font-size: 1.25rem;
+      color: var(--text-primary);
+    }
+  }
+
+  .card-content.svelte-1hp7r6i {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .input-group.svelte-1hp7r6i {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+
+    label:where(.svelte-1hp7r6i) {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    input:where(.svelte-1hp7r6i),
+    select:where(.svelte-1hp7r6i) {
+      padding: var(--spacing-sm);
+      background: var(--bg-primary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 0.9375rem;
+      transition: all 0.2s ease;
+
+      &:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary), transparent 90%);
+      }
+    }
+  }
+
+  .input-row.svelte-1hp7r6i {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .checkbox-group.svelte-1hp7r6i {
+    display: flex;
+    flex-direction: row;
+    gap: var(--spacing-md);
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+
+    .checkbox-label:where(.svelte-1hp7r6i) {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      font-weight: normal;
+      cursor: pointer;
+      font-size: var(--font-size-sm);
+
+      input[type='checkbox']:where(.svelte-1hp7r6i) {
+        width: auto;
+      }
+    }
+  }
+
+  .pool-row.svelte-1hp7r6i {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+
+    input:where(.svelte-1hp7r6i) {
+      flex: 1;
+    }
+
+    span:where(.svelte-1hp7r6i) {
+      color: var(--text-secondary);
+    }
+  }
+
+  .btn-icon.svelte-1hp7r6i {
+    padding: var(--spacing-xs);
+    background: transparent;
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-sm);
+    color: var(--color-error);
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: color-mix(in srgb, var(--color-error), transparent 90%);
+      border-color: var(--color-error);
+    }
+  }
+
+  .btn-add.svelte-1hp7r6i {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm);
+    background: transparent;
+    border: 1px dashed var(--border-secondary);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: var(--surface-hover);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+  }
+
+  .errors-card.svelte-1hp7r6i {
+    background: color-mix(in srgb, var(--color-error), transparent 95%);
+    border-color: var(--color-error);
+  }
+
+  .error-message.svelte-1hp7r6i {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    color: var(--color-error);
+    font-size: 0.9375rem;
+  }
+
+  .summary-card.svelte-1hp7r6i {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    background: color-mix(in srgb, var(--color-info), transparent 95%);
+    border-color: var(--color-info);
+
+    p:where(.svelte-1hp7r6i) {
+      margin: 0;
+      color: var(--text-primary);
+      font-size: 0.9375rem;
+    }
+  }
+
+  .results.svelte-1hp7r6i {
+    background: var(--bg-tertiary);
+    animation: svelte-1hp7r6i-slideIn 0.3s ease-out;
+  }
+
+  @keyframes svelte-1hp7r6i-slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .output-group.svelte-1hp7r6i {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-lg);
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .output-header.svelte-1hp7r6i {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    h4:where(.svelte-1hp7r6i) {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+  }
+
+  .copy-btn.svelte-1hp7r6i {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: transparent;
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: var(--surface-hover);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+
+    &.copied {
+      background: color-mix(in srgb, var(--color-success), transparent 90%);
+      border-color: var(--color-success);
+      color: var(--color-success);
+    }
+  }
+
+  .output-value.svelte-1hp7r6i {
+    padding: var(--spacing-md);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    color: var(--color-primary);
+    overflow-x: auto;
+  }
+
+  .code-block.svelte-1hp7r6i {
+    white-space: pre;
+    word-break: normal;
+  }

@@ -1,0 +1,42 @@
+
+    .upload-box.svelte-gu82dd {
+        display: flex;
+        max-height: 320px;
+        flex-direction: column;
+    }
+
+    .upload-box-header.svelte-gu82dd {
+        flex-shrink: 0;
+    }
+
+    .upload-box-title.svelte-gu82dd {
+        font-size: 11px;
+    }
+
+    .upload-box-content-list.svelte-gu82dd {
+        overflow-y: auto;
+    }
+
+    .upload-box-content.svelte-gu82dd {
+        width: 304px;
+    }
+
+    .upload-box-button.svelte-gu82dd {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .progress-bar-container.svelte-gu82dd {
+        height: 4px;
+
+        &::before {
+            height: 4px;
+            background-color: var(--bgcolor-neutral-invert);
+        }
+
+        &.is-danger::before {
+            height: 4px;
+            background-color: var(--bgcolor-error);
+        }
+    }

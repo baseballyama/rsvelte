@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`selectedRowIds` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 6,
+			"character": 72
+		},
+		"end": {
+			"line": 4,
+			"column": 20,
+			"character": 86
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`expandedRowIds` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 107
+		},
+		"end": {
+			"line": 5,
+			"column": 20,
+			"character": 121
+		}
+	}
+]

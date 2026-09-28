@@ -1,0 +1,86 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:move:start` to listen to the move:start event is deprecated. Use the event attribute `onmove:start` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 24,
+			"column": 2,
+			"character": 464
+		},
+		"end": {
+			"line": 24,
+			"column": 33,
+			"character": 495
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:move` to listen to the move event is deprecated. Use the event attribute `onmove` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 25,
+			"column": 2,
+			"character": 498
+		},
+		"end": {
+			"line": 25,
+			"column": 22,
+			"character": 518
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:move:stop` to listen to the move:stop event is deprecated. Use the event attribute `onmove:stop` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 26,
+			"column": 2,
+			"character": 521
+		},
+		"end": {
+			"line": 26,
+			"column": 31,
+			"character": 550
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 29,
+			"column": 2,
+			"character": 655
+		},
+		"end": {
+			"line": 34,
+			"column": 4,
+			"character": 876
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`moving` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 128
+		},
+		"end": {
+			"line": 5,
+			"column": 11,
+			"character": 134
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`position` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 149
+		},
+		"end": {
+			"line": 6,
+			"column": 13,
+			"character": 157
+		}
+	}
+]

@@ -1,0 +1,16 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"[data-active='true'] > span\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 10,
+			"column": 1,
+			"character": 100
+		},
+		"end": {
+			"line": 10,
+			"column": 28,
+			"character": 127
+		}
+	}
+]

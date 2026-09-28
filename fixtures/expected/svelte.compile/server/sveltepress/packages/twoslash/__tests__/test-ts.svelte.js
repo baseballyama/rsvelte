@@ -1,0 +1,22 @@
+import * as $ from 'svelte/internal/server';
+
+export default function Test_ts($$renderer) {
+	$$renderer.push(`<pre class="shiki shiki-themes github-light vitesse-dark twoslash lsp" style="background-color:#fff;--shiki-dark-bg:#121212;color:#24292e;--shiki-dark:#dbd7caee" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#CB7676">const</span><span style="color:#005CC5;--shiki-dark:#BD976A"> </span><span style="color:#005CC5;--shiki-dark:#BD976A">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#D73A49;--shiki-dark:#CB7676">const</span><span style="color:#005CC5;--shiki-dark:#BD976A"> count</span><span style="color:#D73A49;--shiki-dark:#666666">:</span><span style="color:#005CC5;--shiki-dark:#4C9A91"> 1</span></code></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>count</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#D73A49;--shiki-dark:#666666"> =</span><span style="color:#005CC5;--shiki-dark:#4C9A91"> 1</span></span></code></pre>`);
+}

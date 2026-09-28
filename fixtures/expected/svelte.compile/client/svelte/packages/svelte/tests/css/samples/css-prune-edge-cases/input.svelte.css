@@ -1,0 +1,80 @@
+
+	/* === ~= word matching === */
+
+	/* Should match: "foo" is a whole word in class="foo bar" */
+	.foo.svelte-kocmi3 { color: green; }
+
+	/* Should match: "bar" is a whole word in class="foo bar" */
+	.bar.svelte-kocmi3 { color: green; }
+
+	/* Should match: "foobar" is the whole class value */
+	.foobar.svelte-kocmi3 { color: green; }
+
+	/* Should match: "bar-foo" is a whole word (hyphen not whitespace) */
+	.bar-foo.svelte-kocmi3 { color: green; }
+
+	/* Should match: "baz" is a whole word in class="bar-foo baz" */
+	.baz.svelte-kocmi3 { color: green; }
+
+	/* Should NOT match: "foob" is not a word in any element's class */
+	/* (unused) .foob { color: red; }*/
+
+	/* Should NOT match: "afoo" is a word but "foo-x" is not "foo" */
+	[class~="foo-x"].svelte-kocmi3 { color: green; }
+
+	/* Attribute selector with ~= operator directly */
+	[class~="afoo"].svelte-kocmi3 { color: green; }
+
+	/* === Deep combinator chains (4+ levels) === */
+
+	/* Should match: exact chain main > article > section > div > span */
+	main.svelte-kocmi3 > article:where(.svelte-kocmi3) > section:where(.svelte-kocmi3) > div:where(.svelte-kocmi3) > span:where(.svelte-kocmi3) { color: green; }
+
+	/* Should match: descendant chain */
+	main.svelte-kocmi3 article:where(.svelte-kocmi3) section:where(.svelte-kocmi3) div:where(.svelte-kocmi3) span:where(.svelte-kocmi3) { color: green; }
+
+	/* Should match: mixed combinators */
+	main.svelte-kocmi3 > article:where(.svelte-kocmi3) section:where(.svelte-kocmi3) > div:where(.svelte-kocmi3) span:where(.svelte-kocmi3) { color: green; }
+
+	/* Should NOT match: wrong nesting order */
+	/* (unused) main > article > div > section > span { color: red; }*/
+
+	/* === :has() combined with other selectors === */
+
+	/* Should match: nav.primary has <a> descendant */
+	nav:has(a:where(.svelte-kocmi3)).primary.svelte-kocmi3 { color: green; }
+
+	/* Should match: nav.secondary has <button> descendant */
+	nav:has(button:where(.svelte-kocmi3)).secondary.svelte-kocmi3 { color: green; }
+
+	/* Should NOT match: nav.primary doesn't have <button> */
+	/* (unused) nav:has(button).primary { color: red; }*/
+
+	/* Multiple :has() on same element */
+	main.svelte-kocmi3:has(article:where(.svelte-kocmi3)):has(span:where(.svelte-kocmi3)) { color: green; }
+
+	/* :has() with child combinator */
+	main.svelte-kocmi3:has(> article:where(.svelte-kocmi3)) { color: green; }
+
+	/* === Escaped selectors === */
+	.a\-b.svelte-kocmi3 { color: green; }
+
+	/* === :is()/:where()/:not() with deep selectors === */
+
+	/* :is() with matching selector */
+	header.svelte-kocmi3 :is(h1:where(.svelte-kocmi3)) { color: green; }
+
+	/* :where() with matching selector */
+	ul.svelte-kocmi3 :where(li:where(.svelte-kocmi3)) { color: green; }
+
+	/* :not() — should match span since it's not a div */
+	span.svelte-kocmi3:not(div) { color: green; }
+
+	/* :is() with deep combinator */
+	ul.svelte-kocmi3 :is(li:where(.svelte-kocmi3) > span:where(.svelte-kocmi3)) { color: green; }
+
+	/* :not() with class — p.a-b is :not(.unused) */
+	p.svelte-kocmi3:not(.unused) { color: green; }
+
+	/* Complex: :has() + :is() */
+	ul.svelte-kocmi3:has(li:where(.svelte-kocmi3)) :is(span:where(.svelte-kocmi3)) { color: green; }

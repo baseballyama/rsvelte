@@ -1,0 +1,11 @@
+
+    #example-gantt.svelte-f3hdr2 {
+        flex-grow: 1;
+        overflow: auto;
+    }
+
+    .container.svelte-f3hdr2 {
+        display: flex;
+        overflow: auto;
+        flex: 1;
+    }

@@ -1,0 +1,58 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `variant`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 148,
+			"column": 29,
+			"character": 3963
+		},
+		"end": {
+			"line": 148,
+			"column": 36,
+			"character": 3970
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `prominent`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 148,
+			"column": 38,
+			"character": 3972
+		},
+		"end": {
+			"line": 148,
+			"column": 47,
+			"character": 3981
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `dense`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 148,
+			"column": 49,
+			"character": 3983
+		},
+		"end": {
+			"line": 148,
+			"column": 54,
+			"character": 3988
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `variant`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 180,
+			"column": 19,
+			"character": 4737
+		},
+		"end": {
+			"line": 180,
+			"column": 26,
+			"character": 4744
+		}
+	}
+]

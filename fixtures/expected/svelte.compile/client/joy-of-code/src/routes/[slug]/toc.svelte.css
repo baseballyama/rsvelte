@@ -1,0 +1,78 @@
+
+	aside.svelte-1it2h8m {
+		max-width: 400px;
+		position: fixed;
+		top: 50%;
+		right: 8px;
+		translate: 0% -50%;
+		z-index: 10;
+	}
+
+	.sidebar-toggle.svelte-1it2h8m,
+	.table-of-contents.svelte-1it2h8m {
+		padding: var(--spacing-16);
+		background-color: var(--clr-footer-bg);
+		border: 1px solid var(--clr-menu-border);
+		border-radius: var(--rounded-20);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.table-of-contents.svelte-1it2h8m {
+		counter-reset: section;
+
+		button:where(.svelte-1it2h8m) {
+			padding-block: var(--spacing-8);
+			display: flex;
+			align-items: center;
+			gap: var(--spacing-4);
+		}
+
+		ul:where(.svelte-1it2h8m) {
+			max-height: 400px;
+			padding: var(--spacing-4);
+			overflow-y: auto;
+			scrollbar-width: thin;
+		}
+
+		li:where(.svelte-1it2h8m) {
+			padding-block: var(--spacing-16);
+			font-size: var(--font-18);
+
+			&:not(:last-of-type) {
+				border-bottom: 0.5px solid var(--clr-menu-border);
+			}
+		}
+
+		a:where(.svelte-1it2h8m) {
+			display: inline-block;
+			font-weight: 400;
+
+			&[data-active='true'] {
+				color: var(--clr-primary);
+			}
+
+			&::before {
+				all: unset;
+				counter-increment: section;
+				content: counter(section) '. ';
+			}
+		}
+	}
+
+	.table-of-contents-title.svelte-1it2h8m {
+		font-size: var(--font-24);
+	}
+
+	/* :global {*/
+		[data-theme='🌛 Night'] .table-of-contents a {
+			--color: hsl(224 28% 78%);
+		}
+
+		[data-theme='☀️ Daylight'] .table-of-contents a {
+			--color: hsl(0 0% 40%);
+		}
+
+		[data-theme='🧠 Night Mind'] .table-of-contents a {
+			--color: hsl(280 20% 80%);
+		}
+	/*}*/

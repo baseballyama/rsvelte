@@ -1,0 +1,66 @@
+
+	.demo.svelte-4e3hfn {
+		display: flex;
+		gap: 20px;
+		padding: 20px;
+		height: 440px;
+		box-sizing: border-box;
+	}
+	.grid-box.svelte-4e3hfn {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+	/* hint that rows can be grabbed */
+	.grid-box.svelte-4e3hfn .wx-row {
+		cursor: grab;
+	}
+	.drop-box.svelte-4e3hfn {
+		width: 260px;
+		flex: 0 0 auto;
+		border: 2px dashed var(--wx-color-font-alt);
+		border-radius: 8px;
+		padding: 12px;
+		overflow: auto;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		background: var(--wx-background-alt);
+		transition:
+			border-color 0.15s,
+			background 0.15s;
+	}
+	.drop-box.active.svelte-4e3hfn {
+		border-color: var(--wx-color-primary);
+		background: var(--wx-color-secondary-hover);
+	}
+	.drop-box.svelte-4e3hfn h4:where(.svelte-4e3hfn) {
+		margin: 0;
+	}
+	.empty.svelte-4e3hfn {
+		margin: 0;
+		font-size: 13px;
+		color: var(--wx-color-font-alt);
+	}
+	.card.svelte-4e3hfn {
+		border: var(--wx-border);
+		border-radius: 6px;
+		padding: 10px 12px;
+		background: var(--wx-background);
+		color: var(--wx-color-font);
+		box-shadow: var(--wx-shadow-light);
+	}
+	.card-name.svelte-4e3hfn {
+		font-weight: 600;
+	}
+	.card-meta.svelte-4e3hfn {
+		display: flex;
+		gap: 6px;
+		font-size: 13px;
+		color: var(--wx-color-font-alt);
+		margin-top: 2px;
+	}
+	.card-email.svelte-4e3hfn {
+		font-size: 12px;
+		color: var(--wx-color-font-alt);
+		margin-top: 2px;
+	}

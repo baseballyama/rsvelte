@@ -1,0 +1,17 @@
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/components/action.svelte","sha256":"635943f093ab8c5c114ccfee455758f6de9c7d6a660dec4c3f8d917a63e9c9c5"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/components/code.svelte","sha256":"26fa8f68b6b3c16947ea9d19b2f5cb926e330eb0aa3a382ba747581b59b4c7e5"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/components/embed.svelte","sha256":"21063f2b4c3c2b4f989c63a46ee18566e276d0d89b4dda317a7c00c1e9c9e7f6"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/components/notes.svelte","sha256":"6a963fb0c51f574a813470667325d1a805f3953e30f4ed4131d7ae01a97591d6"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/components/presentation.svelte","sha256":"7435db6e45ff5661f288edbf7735f104f0d6d90c7ad8d7b27bfb861ec4b210c0"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/components/recorder.svelte","sha256":"202035d6b9f3c60f6062a8819c15d23a8dcddf29c046d69ab760d7f4eb2b595f"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/components/slide.svelte","sha256":"f9d118c391c6ad3bd4af891006a47ac253eef2e1a68f7e72e5eb34a0caf0d9c3"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/components/slides.svelte","sha256":"aaae7c98f9392d19e4325aab7ac6fe78eadd08c4797fc42332beb4210f442db8"}
+{"lang":"svelte-module-ts","mode":"runes","path":"src/lib/components/store.svelte.ts","sha256":"caace0b2b50932e7013f7280f0fe4928a01adbb0b12a56e7d81821da4dbab13c"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/components/transition.svelte","sha256":"a71aed6db869f2cc378bffd2e649694dd62ed22a9d0f7a5766e7174b3503f20f"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/routes/+layout.svelte","sha256":"c8488d75296b0ab7b1b468d7fdf0d334dadc277b344cb603f6d14161d21287d6"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/routes/+page.svelte","sha256":"fac67758aec769e18e7b440332bdff77d3e1bb44fd06a61728aefb885067c315"}
+{"inferredMode":"neutral","lang":"svelte","mode":"runes","path":"src/routes/file-based/+page.svelte","sha256":"590ae44c56cee65d723fbd5b12b7a3f2808c9685c2f758c3881a3432ac95b3ea"}
+{"inferredMode":"neutral","lang":"svelte","mode":"runes","path":"src/slides/100/slide.svelte","sha256":"28d927aeb7847af286f35949aeea7a7a9441c8866b8aaea90f44a96c96f9160c"}
+{"inferredMode":"neutral","lang":"svelte","mode":"runes","path":"src/slides/200/slide.svelte","sha256":"9e0d9d2e64847630fd090c403d7f0da0ea60023681b8f46e808f9764a398d3f6"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/slides/300/slide.svelte","sha256":"8f8d22e56933aacca27670f2da6b48a8e271974614cf973c07142a9b026baa85"}
+{"inferredMode":"neutral","lang":"svelte","mode":"runes","path":"src/slides/400/slide.svelte","sha256":"34c0e951b6e1ad80e1e7ad9ccbc31b6a0f87baa051c3dd1db50bda59ed5ad196"}

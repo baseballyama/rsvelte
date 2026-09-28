@@ -1,0 +1,13 @@
+
+	.masonry.svelte-99y4nj {
+		display: grid;
+		gap: 1rem;
+		overflow: auto;
+		min-height: 0;
+	}
+
+	ul.svelte-99y4nj {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}

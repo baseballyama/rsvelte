@@ -1,0 +1,58 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 6,
+			"character": 81
+		},
+		"end": {
+			"line": 4,
+			"column": 11,
+			"character": 86
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`clickStepperEvents` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 98
+		},
+		"end": {
+			"line": 5,
+			"column": 24,
+			"character": 116
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`blurEvents` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 6,
+			"character": 129
+		},
+		"end": {
+			"line": 6,
+			"column": 16,
+			"character": 139
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`blurStepperEvents` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 152
+		},
+		"end": {
+			"line": 7,
+			"column": 23,
+			"character": 169
+		}
+	}
+]

@@ -1,0 +1,12 @@
+
+	.toolbar-container.svelte-177aoc0 {
+		display: flex;
+		align-items: center;
+		height: 100%;
+		width: fit-content;
+		gap: 0.5rem;
+	}
+	.active.svelte-177aoc0 {
+		background-color: var(--edra-canvas-soft-2) !important;
+		color: var(--edra-ink) !important;
+	}

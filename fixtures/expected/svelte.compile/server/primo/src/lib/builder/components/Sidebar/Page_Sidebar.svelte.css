@@ -1,0 +1,27 @@
+
+	.sidebar.svelte-1871myv {
+		width: 100%;
+		/* background: #171717; */
+		background: #111;
+		z-index: 9;
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+		flex: 1;
+		/* gap: 0.5rem; */
+		z-index: 9;
+		position: relative;
+		overflow: auto;
+		/* padding-top: 0.5rem; */
+	}
+
+	.page-type-fields.svelte-1871myv {
+		flex: 1;
+	}
+
+	.symbols.svelte-1871myv {
+		gap: 1rem;
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+	}

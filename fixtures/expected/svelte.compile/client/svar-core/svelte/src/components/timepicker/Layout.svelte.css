@@ -1,0 +1,41 @@
+
+	.wx-timepicker.svelte-sxn4ra {
+		position: relative;
+		width: var(--wx-input-width);
+	}
+
+	.wx-wrapper.svelte-sxn4ra {
+		padding: 10px 20px;
+	}
+
+	.wx-timer.svelte-sxn4ra {
+		display: flex;
+		text-align: center;
+		justify-content: center;
+		margin-bottom: 10px;
+	}
+
+	.wx-digit.svelte-sxn4ra {
+		display: block;
+		width: 50px;
+		height: 38px;
+		border: none;
+		border-bottom: var(--wx-input-border);
+		font-family: var(--wx-input-font-family);
+		font-size: 24px;
+		line-height: 28px;
+		padding: 5px;
+		text-align: center;
+		color: var(--wx-input-font-color);
+		background-color: transparent;
+		outline: none;
+	}
+
+	.wx-digit.svelte-sxn4ra:focus {
+		border-bottom: var(--wx-input-border-focus);
+	}
+
+	.wx-separator.svelte-sxn4ra {
+		font-size: 24px;
+		line-height: 38px;
+	}

@@ -1,0 +1,36 @@
+
+	.demo .wx-cell {
+		word-break: normal;
+		white-space: normal;
+		border-right: none;
+	}
+
+	.demo .checkbox-cell {
+		padding: 12px 12px 12px 16px;
+	}
+
+	.demo .wx-body .task-cell {
+		padding-left: 4px;
+	}
+
+	.demo .wx-cell:not(:last-child) {
+		border-right: none;
+	}
+	/*wx-color-background-alt from new tokens*/
+	.demo .wx-row:hover {
+		background-color: #f7f7f7;
+	}
+	.demo .wx-table-box.wx-active .wx-row.wx-selected:hover {
+		background-color: #f7f7f7;
+	}
+	.wx-willow-dark-theme .demo .wx-row:hover {
+		background-color: #2f343c;
+	}
+	
+			.wx-willow-dark-theme
+				.demo
+				.wx-table-box.wx-active
+				.wx-row.wx-selected:hover
+		 {
+		background-color: #2f343c;
+	}

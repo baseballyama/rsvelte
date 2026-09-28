@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 12,
+			"column": 0,
+			"character": 116
+		},
+		"end": {
+			"line": 12,
+			"column": 37,
+			"character": 153
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`x` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 61
+		},
+		"end": {
+			"line": 4,
+			"column": 6,
+			"character": 62
+		}
+	}
+]

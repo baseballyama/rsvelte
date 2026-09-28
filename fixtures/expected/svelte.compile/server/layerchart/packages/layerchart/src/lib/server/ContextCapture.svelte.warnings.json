@@ -1,0 +1,44 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `capture`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 23,
+			"column": 8,
+			"character": 563
+		},
+		"end": {
+			"line": 23,
+			"column": 15,
+			"character": 570
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `capture`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 24,
+			"column": 20,
+			"character": 594
+		},
+		"end": {
+			"line": 24,
+			"column": 27,
+			"character": 601
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `onCapture`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 28,
+			"column": 4,
+			"character": 654
+		},
+		"end": {
+			"line": 28,
+			"column": 13,
+			"character": 663
+		}
+	}
+]

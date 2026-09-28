@@ -1,0 +1,72 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 17,
+			"column": 6,
+			"character": 335
+		},
+		"end": {
+			"line": 17,
+			"column": 27,
+			"character": 356
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selectedArr` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 18,
+			"column": 6,
+			"character": 371
+		},
+		"end": {
+			"line": 18,
+			"column": 25,
+			"character": 390
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selectedRange` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 19,
+			"column": 6,
+			"character": 403
+		},
+		"end": {
+			"line": 19,
+			"column": 30,
+			"character": 427
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selectedWeek` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 20,
+			"column": 6,
+			"character": 462
+		},
+		"end": {
+			"line": 20,
+			"column": 29,
+			"character": 485
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selectedMultiMonth` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 21,
+			"column": 6,
+			"character": 520
+		},
+		"end": {
+			"line": 21,
+			"column": 35,
+			"character": 549
+		}
+	}
+]

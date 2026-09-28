@@ -1,0 +1,9 @@
+
+  div.svelte-180xget {
+    padding: 10px;
+    border-radius: 5px;
+  }
+
+  [tabindex='0'].svelte-180xget {
+    cursor: pointer;
+  }

@@ -1,0 +1,44 @@
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 18,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"column": 34,
+			"character": 34
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 34,
+			"column": 9,
+			"character": 816
+		},
+		"end": {
+			"line": 34,
+			"column": 58,
+			"character": 865
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`isNotClosable` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 30,
+			"column": 5,
+			"character": 750
+		},
+		"end": {
+			"line": 30,
+			"column": 18,
+			"character": 763
+		}
+	}
+]

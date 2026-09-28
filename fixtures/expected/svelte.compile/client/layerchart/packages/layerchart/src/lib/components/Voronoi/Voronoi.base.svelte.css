@@ -1,0 +1,7 @@
+
+  @layer components {
+    :where(.lc-voronoi-path, .lc-voronoi-geo-path) {
+      fill: transparent;
+      stroke: transparent;
+    }
+  }

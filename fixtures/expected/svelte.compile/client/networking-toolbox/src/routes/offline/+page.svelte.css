@@ -1,0 +1,45 @@
+
+  .offline-page.svelte-swcdds {
+    width: 100%;
+    max-width: none;
+    padding: 2rem;
+  }
+
+  .status-section.svelte-swcdds {
+    text-align: center;
+    margin-bottom: 3rem;
+
+    h1:where(.svelte-swcdds) {
+      margin: 1rem 0 0.5rem;
+    }
+
+    .status:where(.svelte-swcdds) {
+      font-weight: 500;
+      padding: 0.75rem;
+      border-radius: var(--radius);
+
+      &.online {
+        color: var(--color-success);
+        background: color-mix(in srgb, var(--color-success), transparent 90%);
+      }
+
+      &.offline {
+        color: var(--color-warning);
+        background: color-mix(in srgb, var(--color-warning), transparent 90%);
+      }
+    }
+  }
+
+  .empty-state.svelte-swcdds {
+    text-align: center;
+    color: var(--color-text-muted);
+
+    a:where(.svelte-swcdds) {
+      color: var(--color-primary);
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }

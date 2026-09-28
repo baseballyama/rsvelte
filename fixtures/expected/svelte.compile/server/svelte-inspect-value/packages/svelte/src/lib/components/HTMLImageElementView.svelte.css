@@ -1,0 +1,11 @@
+
+  .image.svelte-1h2yw57 {
+    width: 100px;
+    height: 100px;
+    overflow: scroll;
+    resize: both;
+  }
+
+  img.svelte-1h2yw57 {
+    object-fit: contain;
+  }

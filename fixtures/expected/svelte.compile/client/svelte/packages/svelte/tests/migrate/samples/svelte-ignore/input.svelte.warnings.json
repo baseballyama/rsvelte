@@ -1,0 +1,44 @@
+[
+	{
+		"code": "legacy_code",
+		"message": "`non-top-level-reactive-declaration` is no longer valid — please use `reactive_declaration_invalid_placement` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 3,
+			"column": 19,
+			"character": 46
+		},
+		"end": {
+			"line": 3,
+			"column": 53,
+			"character": 80
+		}
+	},
+	{
+		"code": "unknown_code",
+		"message": "`a11y-something-something` is not a recognised code\nhttps://svelte.dev/e/unknown_code",
+		"start": {
+			"line": 8,
+			"column": 19,
+			"character": 126
+		},
+		"end": {
+			"line": 8,
+			"column": 43,
+			"character": 150
+		}
+	},
+	{
+		"code": "unknown_code",
+		"message": "`a11y-something-something` is not a recognised code\nhttps://svelte.dev/e/unknown_code",
+		"start": {
+			"line": 11,
+			"column": 19,
+			"character": 187
+		},
+		"end": {
+			"line": 11,
+			"column": 43,
+			"character": 211
+		}
+	}
+]

@@ -1,0 +1,16 @@
+
+	div.svelte-1k6x07n {
+		position: absolute;
+		left: calc(var(--pos-x) * (var(--picker-width, 200px) - 2px) / 100 - var(--picker-indicator-size, 10px) / 2 + 1px);
+		top: calc(var(--pos-y) * (var(--picker-height, 200px) - 2px) / 100 - var(--picker-indicator-size, 10px) / 2 + 1px);
+
+		width: var(--picker-indicator-size, 10px);
+		height: var(--picker-indicator-size, 10px);
+		background-color: white;
+		box-shadow: 0 0 4px black;
+		border-radius: 50%;
+
+		pointer-events: none;
+		z-index: 1;
+		transition: box-shadow 0.2s;
+	}

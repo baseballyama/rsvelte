@@ -1,0 +1,30 @@
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 66,
+			"column": 4,
+			"character": 2468
+		},
+		"end": {
+			"line": 66,
+			"column": 12,
+			"character": 2476
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`isRTL` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 6,
+			"character": 321
+		},
+		"end": {
+			"line": 9,
+			"column": 11,
+			"character": 326
+		}
+	}
+]

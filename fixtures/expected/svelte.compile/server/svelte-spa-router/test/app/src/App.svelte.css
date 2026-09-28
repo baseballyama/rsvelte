@@ -1,0 +1,9 @@
+
+/* Style for "active" links; need to mark this :global because the router adds the class directly */
+a.active {
+    color: crimson;
+}
+/* Style for "inactive" links; need to mark this :global because the router adds the class directly */
+a.inactive {
+    color: gray;
+}

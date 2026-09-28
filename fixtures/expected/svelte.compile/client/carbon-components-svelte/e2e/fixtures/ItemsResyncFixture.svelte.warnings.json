@@ -1,0 +1,492 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 110,
+			"column": 41,
+			"character": 2711
+		},
+		"end": {
+			"line": 110,
+			"column": 56,
+			"character": 2726
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 111,
+			"column": 43,
+			"character": 2792
+		},
+		"end": {
+			"line": 111,
+			"column": 60,
+			"character": 2809
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 114,
+			"column": 47,
+			"character": 2885
+		},
+		"end": {
+			"line": 114,
+			"column": 67,
+			"character": 2905
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 120,
+			"column": 2,
+			"character": 2994
+		},
+		"end": {
+			"line": 120,
+			"column": 32,
+			"character": 3024
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 127,
+			"column": 2,
+			"character": 3123
+		},
+		"end": {
+			"line": 127,
+			"column": 30,
+			"character": 3151
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 134,
+			"column": 2,
+			"character": 3255
+		},
+		"end": {
+			"line": 134,
+			"column": 36,
+			"character": 3289
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`cbPreloadSelectedId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 33,
+			"column": 6,
+			"character": 970
+		},
+		"end": {
+			"line": 33,
+			"column": 25,
+			"character": 989
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`cbPreloadValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 34,
+			"column": 6,
+			"character": 1008
+		},
+		"end": {
+			"line": 34,
+			"column": 20,
+			"character": 1022
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`cbFillItems` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 36,
+			"column": 6,
+			"character": 1036
+		},
+		"end": {
+			"line": 36,
+			"column": 17,
+			"character": 1047
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`cbFillSelectedId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 37,
+			"column": 6,
+			"character": 1060
+		},
+		"end": {
+			"line": 37,
+			"column": 22,
+			"character": 1076
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`cbFillValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 38,
+			"column": 6,
+			"character": 1095
+		},
+		"end": {
+			"line": 38,
+			"column": 17,
+			"character": 1106
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`cbSwapItems` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 40,
+			"column": 6,
+			"character": 1120
+		},
+		"end": {
+			"line": 40,
+			"column": 17,
+			"character": 1131
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`cbSwapSelectedId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 41,
+			"column": 6,
+			"character": 1148
+		},
+		"end": {
+			"line": 41,
+			"column": 22,
+			"character": 1164
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`cbSwapValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 42,
+			"column": 6,
+			"character": 1183
+		},
+		"end": {
+			"line": 42,
+			"column": 17,
+			"character": 1194
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`cbRemoveItems` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 44,
+			"column": 6,
+			"character": 1221
+		},
+		"end": {
+			"line": 44,
+			"column": 19,
+			"character": 1234
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`cbRemoveSelectedId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 45,
+			"column": 6,
+			"character": 1251
+		},
+		"end": {
+			"line": 45,
+			"column": 24,
+			"character": 1269
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`cbRemoveValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 46,
+			"column": 6,
+			"character": 1288
+		},
+		"end": {
+			"line": 46,
+			"column": 19,
+			"character": 1301
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`cbKeepItems` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 48,
+			"column": 6,
+			"character": 1315
+		},
+		"end": {
+			"line": 48,
+			"column": 17,
+			"character": 1326
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`cbKeepSelectedId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 49,
+			"column": 6,
+			"character": 1343
+		},
+		"end": {
+			"line": 49,
+			"column": 22,
+			"character": 1359
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`cbKeepValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 50,
+			"column": 6,
+			"character": 1378
+		},
+		"end": {
+			"line": 50,
+			"column": 17,
+			"character": 1389
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selFillItems` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 52,
+			"column": 6,
+			"character": 1416
+		},
+		"end": {
+			"line": 52,
+			"column": 18,
+			"character": 1428
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selFillSelected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 53,
+			"column": 6,
+			"character": 1441
+		},
+		"end": {
+			"line": 53,
+			"column": 21,
+			"character": 1456
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selSwapItems` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 55,
+			"column": 6,
+			"character": 1476
+		},
+		"end": {
+			"line": 55,
+			"column": 18,
+			"character": 1488
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selSwapSelected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 56,
+			"column": 6,
+			"character": 1505
+		},
+		"end": {
+			"line": 56,
+			"column": 21,
+			"character": 1520
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selRemoveItems` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 58,
+			"column": 6,
+			"character": 1540
+		},
+		"end": {
+			"line": 58,
+			"column": 20,
+			"character": 1554
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selRemoveSelected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 59,
+			"column": 6,
+			"character": 1571
+		},
+		"end": {
+			"line": 59,
+			"column": 23,
+			"character": 1588
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selNoSelectionExtra` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 61,
+			"column": 6,
+			"character": 1608
+		},
+		"end": {
+			"line": 61,
+			"column": 25,
+			"character": 1627
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`msSwapItems` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 63,
+			"column": 6,
+			"character": 1644
+		},
+		"end": {
+			"line": 63,
+			"column": 17,
+			"character": 1655
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`msSwapSelectedIds` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 64,
+			"column": 6,
+			"character": 1672
+		},
+		"end": {
+			"line": 64,
+			"column": 23,
+			"character": 1689
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`msRemoveItems` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 66,
+			"column": 6,
+			"character": 1711
+		},
+		"end": {
+			"line": 66,
+			"column": 19,
+			"character": 1724
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`msRemoveSelectedIds` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 67,
+			"column": 6,
+			"character": 1741
+		},
+		"end": {
+			"line": 67,
+			"column": 25,
+			"character": 1760
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`msFillItems` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 69,
+			"column": 6,
+			"character": 1782
+		},
+		"end": {
+			"line": 69,
+			"column": 17,
+			"character": 1793
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`msFillSelectedIds` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 70,
+			"column": 6,
+			"character": 1806
+		},
+		"end": {
+			"line": 70,
+			"column": 23,
+			"character": 1823
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`dropFillItems` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 72,
+			"column": 6,
+			"character": 1845
+		},
+		"end": {
+			"line": 72,
+			"column": 19,
+			"character": 1858
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`dropFillSelectedId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 73,
+			"column": 6,
+			"character": 1871
+		},
+		"end": {
+			"line": 73,
+			"column": 24,
+			"character": 1889
+		}
+	}
+]

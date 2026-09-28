@@ -1,0 +1,155 @@
+
+	/* ---- Refined Editorial · desktop filter sidebar (default theme only) ----
+	   Every rule is gated to [data-theme='default']; wine/organic/lime/noor
+	   keep the original Tailwind styling. */
+	[data-theme='default'] .ed-df__panel.svelte-1xbwik7 {
+		font-family: var(--ed-body);
+		color: var(--ed-ink);
+	}
+
+	/* Panel title + Clear */
+	[data-theme='default'] .ed-df__title.svelte-1xbwik7 {
+		font-family: var(--ed-body);
+		font-size: 0.8rem;
+		font-weight: 600;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: var(--ed-ink);
+	}
+
+	[data-theme='default'] .ed-df__clear {
+		color: var(--ed-soft);
+		font-family: var(--ed-body);
+		font-weight: 600;
+		letter-spacing: 0.04em;
+	}
+
+	[data-theme='default'] .ed-df__clear:hover {
+		color: hsl(var(--primary));
+	}
+
+	/* Hairline group dividers */
+	[data-theme='default'] .ed-df__rule.svelte-1xbwik7 {
+		border-color: var(--ed-line);
+	}
+
+	/* Quiet uppercase section labels */
+	[data-theme='default'] .ed-df__label.svelte-1xbwik7 {
+		font-family: var(--ed-body);
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: var(--ed-soft);
+	}
+
+	/* Category links + option (tag / attribute) labels */
+	[data-theme='default'] .ed-df__cat.svelte-1xbwik7,
+	[data-theme='default'] .ed-df__opt.svelte-1xbwik7 {
+		color: var(--ed-soft);
+		font-family: var(--ed-body);
+		transition: color 0.15s ease;
+	}
+
+	[data-theme='default'] .ed-df__opt.svelte-1xbwik7:hover {
+		color: var(--ed-ink);
+	}
+
+	[data-theme='default'] .group:hover .ed-df__cat {
+		color: hsl(var(--primary));
+	}
+
+	/* +N more / Show less */
+	[data-theme='default'] .ed-df__more {
+		color: var(--ed-soft);
+		font-family: var(--ed-body);
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		text-decoration: none;
+	}
+
+	[data-theme='default'] .ed-df__more:hover {
+		color: hsl(var(--primary));
+		text-decoration: none;
+	}
+
+	/* Editorial checkboxes */
+	[data-theme='default'] .ed-df__panel [role='checkbox'] {
+		border-color: var(--ed-line-strong);
+		border-radius: 3px;
+		box-shadow: none;
+	}
+
+	/* Search-within inputs */
+	[data-theme='default'] .ed-df__search.svelte-1xbwik7 {
+		border: 1px solid var(--ed-line-strong);
+		border-radius: var(--ed-radius);
+		background: var(--ed-surface);
+		box-shadow: none;
+		color: var(--ed-ink);
+		font-family: var(--ed-body);
+	}
+
+	[data-theme='default'] .ed-df__search.svelte-1xbwik7:focus {
+		outline: none;
+		border-color: hsl(var(--primary));
+		box-shadow: none;
+	}
+
+	/* Price range slider */
+	[data-theme='default'] .ed-df__track.svelte-1xbwik7 {
+		height: 3px;
+		background: var(--ed-line);
+	}
+
+	[data-theme='default'] .ed-df__fill.svelte-1xbwik7 {
+		height: 3px;
+		background: hsl(var(--primary));
+	}
+
+	[data-theme='default'] .ed-df__slider input[type='range']::-webkit-slider-thumb {
+		width: 15px;
+		height: 15px;
+		border: 1px solid hsl(var(--primary));
+		background: var(--ed-surface);
+		box-shadow: 0 1px 4px rgba(27, 26, 23, 0.22);
+	}
+
+	[data-theme='default'] .ed-df__slider input[type='range']::-moz-range-thumb {
+		width: 15px;
+		height: 15px;
+		border: 1px solid hsl(var(--primary));
+		background: var(--ed-surface);
+		box-shadow: 0 1px 4px rgba(27, 26, 23, 0.22);
+	}
+
+	/* Editable price bound inputs + labels */
+	[data-theme='default'] .ed-df__prices input {
+		border: 1px solid var(--ed-line-strong);
+		border-radius: var(--ed-radius);
+		background: var(--ed-surface);
+		color: var(--ed-ink);
+		font-family: var(--ed-body);
+	}
+
+	[data-theme='default'] .ed-df__prices input:focus {
+		outline: none;
+		border-color: hsl(var(--primary));
+	}
+
+	[data-theme='default'] .ed-df__prices label {
+		font-family: var(--ed-body);
+		font-size: 0.72rem;
+		font-weight: 500;
+		letter-spacing: 0.04em;
+		color: var(--ed-soft);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		[data-theme='default'] .ed-df__cat.svelte-1xbwik7,
+		[data-theme='default'] .ed-df__opt.svelte-1xbwik7 {
+			transition: none;
+		}
+	}

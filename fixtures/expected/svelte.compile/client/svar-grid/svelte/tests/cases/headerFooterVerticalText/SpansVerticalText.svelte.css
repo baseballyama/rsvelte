@@ -1,0 +1,13 @@
+
+	.demo.svelte-1l9cqfc {
+		--wx-table-header-cell-border: var(--wx-table-cell-border);
+		--wx-table-footer-cell-border: var(--wx-table-cell-border);
+	}
+
+	.demo.svelte-1l9cqfc .wx-footer {
+		border-bottom: none;
+	}
+
+	.demo.svelte-1l9cqfc .right {
+		justify-content: right;
+	}

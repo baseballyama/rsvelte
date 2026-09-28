@@ -1,0 +1,86 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`text` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 64
+		},
+		"end": {
+			"line": 4,
+			"column": 9,
+			"character": 68
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`live` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 94
+		},
+		"end": {
+			"line": 5,
+			"column": 9,
+			"character": 98
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 112
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 138
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 148
+		},
+		"end": {
+			"line": 8,
+			"column": 31,
+			"character": 174
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 184
+		},
+		"end": {
+			"line": 9,
+			"column": 31,
+			"character": 210
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 220
+		},
+		"end": {
+			"line": 10,
+			"column": 31,
+			"character": 246
+		}
+	}
+]

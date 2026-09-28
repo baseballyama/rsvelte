@@ -1,0 +1,16 @@
+
+	section.svelte-jofuj8 {
+		display: grid;
+		gap: 20px;
+		margin-bottom: 20px;
+	}
+	.list-heading.svelte-jofuj8 {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		flex-direction: column;
+		margin-bottom: 2rem;
+		@media (--above_med) {
+			flex-direction: row;
+		}
+	}

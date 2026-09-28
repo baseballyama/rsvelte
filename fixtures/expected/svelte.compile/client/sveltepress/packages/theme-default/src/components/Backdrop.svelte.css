@@ -1,0 +1,7 @@
+
+  .backdrop.svelte-1xy571e {
+    --at-apply: 'svp-modal-bg';
+  }
+  .show.svelte-1xy571e {
+    --at-apply: 'svp-modal-bg-show';
+  }

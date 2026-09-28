@@ -1,0 +1,69 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import * as Field from "$lib/registry/ui/field/index.js";
+import { Textarea } from "$lib/registry/ui/textarea/index.js";
+import Example from "../../../../../routes/(app)/(layout)/(create)/components/example.svelte";
+
+var root = $.from_html(`<!> <!> <!>`, 1);
+
+export default function Textarea_with_description($$anchor) {
+	Example($$anchor, {
+		title: 'With Description',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = $.comment();
+			var node = $.first_child(fragment_1);
+
+			$.component(node, () => Field.Field, ($$anchor, Field_Field) => {
+				Field_Field($$anchor, {
+					children: ($$anchor, $$slotProps) => {
+						var fragment_2 = root();
+						var node_1 = $.first_child(fragment_2);
+
+						$.component(node_1, () => Field.Label, ($$anchor, Field_Label) => {
+							Field_Label($$anchor, {
+								for: 'textarea-demo-message-2',
+								children: ($$anchor, $$slotProps) => {
+									$.next();
+
+									var text = $.text('Message');
+
+									$.append($$anchor, text);
+								},
+								$$slots: { default: true }
+							});
+						});
+
+						var node_2 = $.sibling(node_1, 2);
+
+						Textarea(node_2, {
+							id: 'textarea-demo-message-2',
+							placeholder: 'Type your message here.',
+							rows: 6
+						});
+
+						var node_3 = $.sibling(node_2, 2);
+
+						$.component(node_3, () => Field.Description, ($$anchor, Field_Description) => {
+							Field_Description($$anchor, {
+								children: ($$anchor, $$slotProps) => {
+									$.next();
+
+									var text_1 = $.text('Type your message and press enter to send.');
+
+									$.append($$anchor, text_1);
+								},
+								$$slots: { default: true }
+							});
+						});
+
+						$.append($$anchor, fragment_2);
+					},
+					$$slots: { default: true }
+				});
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+}

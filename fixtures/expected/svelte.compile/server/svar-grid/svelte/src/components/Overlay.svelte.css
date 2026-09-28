@@ -1,0 +1,10 @@
+
+	.wx-overlay.svelte-abcd2c {
+		width: 100%;
+		height: 100%;
+		position: absolute;
+		z-index: 5;
+		background-color: var(--wx-background);
+		padding: 14px 8px;
+		text-align: center;
+	}

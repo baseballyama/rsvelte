@@ -1,0 +1,20 @@
+<script>
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+
+	function handleClick() {
+		goto('', { shallow: true, state: { active: true } });
+	}
+</script>
+
+<a id="subpage-link" href="/scroll/push-state/a">Subpage</a>
+
+{#each { length: 20 } as _, n}
+	<p>#{n}</p>
+{/each}
+
+<button id="shallow-button" type="button" onclick={handleClick}>Shallow</button>
+
+{#if page.state.active}
+	<button id="back-button" type="button" onclick={() => history.back()}>Back</button>
+{/if}

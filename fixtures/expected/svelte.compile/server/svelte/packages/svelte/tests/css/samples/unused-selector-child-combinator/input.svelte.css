@@ -1,0 +1,16 @@
+
+	/* (unused) article > * {
+		font-size: 36px;
+	}*/
+
+	/* (unused) article * {
+		font-size: 36px;
+	}*/
+
+	/* (unused) .article > * {
+		font-size: 48px;
+	}*/
+
+	div.svelte-15qwx2v > :where(.svelte-15qwx2v) {
+		color: orange;
+	}

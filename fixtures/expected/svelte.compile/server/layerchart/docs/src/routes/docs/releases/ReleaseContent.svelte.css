@@ -1,0 +1,38 @@
+
+	@reference "../../../app.css";
+
+	.release-content.svelte-1jyaygr h3 {
+		@apply text-lg font-semibold mt-6 mb-3;
+	}
+
+	.release-content.svelte-1jyaygr h4 {
+		@apply text-base font-semibold mt-4 mb-2;
+	}
+
+	.release-content.svelte-1jyaygr ul {
+		@apply list-disc pl-6 space-y-2;
+	}
+
+	.release-content.svelte-1jyaygr li {
+		@apply text-surface-content/90;
+	}
+
+	.release-content.svelte-1jyaygr p {
+		@apply mb-4;
+	}
+
+	.release-content.svelte-1jyaygr a {
+		@apply text-primary hover:underline;
+	}
+
+	.release-content.svelte-1jyaygr blockquote {
+		@apply border-l-4 border-surface-content/20 pl-4 italic text-surface-content/80;
+	}
+
+	.release-content.svelte-1jyaygr figure[data-rehype-pretty-code-figure] {
+		@apply rounded-lg outline outline-surface-content/20 dark:outline-surface-content/10 overflow-hidden my-2;
+	}
+
+	.release-content.svelte-1jyaygr figure[data-rehype-pretty-code-figure] pre {
+		@apply text-sm bg-surface-100 dark:bg-surface-300 px-4 py-3 overflow-x-auto;
+	}

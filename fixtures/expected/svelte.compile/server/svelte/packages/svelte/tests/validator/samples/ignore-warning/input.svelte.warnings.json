@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_distracting_elements",
+		"message": "Avoid `<marquee>` elements\nhttps://svelte.dev/e/a11y_distracting_elements",
+		"start": {
+			"line": 4,
+			"column": 1,
+			"character": 83
+		},
+		"end": {
+			"line": 4,
+			"column": 49,
+			"character": 131
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 10,
+			"column": 0,
+			"character": 203
+		},
+		"end": {
+			"line": 10,
+			"column": 22,
+			"character": 225
+		}
+	}
+]

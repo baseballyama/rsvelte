@@ -1,0 +1,92 @@
+import * as $ from 'svelte/internal/server';
+import { Drawer, Button, A } from "flowbite-svelte";
+import { InfoCircleSolid, ArrowRightOutline } from "flowbite-svelte-icons";
+import { sineIn } from "svelte/easing";
+
+export default function Top($$renderer) {
+	let open7 = false;
+	let transitionParamsTop = { y: -320, duration: 200, easing: sineIn };
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		$$renderer.push(`<div class="text-center">`);
+
+		Button($$renderer, {
+			onclick: () => open7 = true,
+			children: ($$renderer) => {
+				$$renderer.push(`<!---->Show drawer`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----></div> `);
+
+		Drawer($$renderer, {
+			placement: 'top',
+			class: 'w-full',
+			transitionParams: transitionParamsTop,
+			get open() {
+				return open7;
+			},
+
+			set open($$value) {
+				open7 = $$value;
+				$$settled = false;
+			},
+
+			children: ($$renderer) => {
+				$$renderer.push(`<h5 id="drawer-label" class="mb-4 inline-flex items-center text-base font-semibold text-gray-500 dark:text-gray-400">`);
+				InfoCircleSolid($$renderer, { class: 'me-2.5 h-5 w-5' });
+				$$renderer.push(`<!---->Top drawer</h5> <p class="mb-6 max-w-lg text-sm text-gray-500 dark:text-gray-400">Supercharge your hiring by taking advantage of our `);
+
+				A($$renderer, {
+					href: '/',
+					class: 'text-primary-600 dark:text-primary-500 underline hover:no-underline',
+					children: ($$renderer) => {
+						$$renderer.push(`<!---->limited-time sale`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!----> for Flowbite Docs + Job Board. Unlimited
+    access to over 190K top-ranked candidates and the #1 design job board.</p> `);
+
+				Button($$renderer, {
+					color: 'light',
+					href: '/',
+					children: ($$renderer) => {
+						$$renderer.push(`<!---->Learn more`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!----> `);
+
+				Button($$renderer, {
+					href: '/',
+					class: 'px-4',
+					children: ($$renderer) => {
+						$$renderer.push(`<!---->Get access `);
+						ArrowRightOutline($$renderer, { class: 'ms-2 h-5 w-5' });
+						$$renderer.push(`<!---->`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!---->`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!---->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}

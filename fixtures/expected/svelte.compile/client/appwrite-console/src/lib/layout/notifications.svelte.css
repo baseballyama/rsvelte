@@ -1,0 +1,14 @@
+
+    section.svelte-brvo36 {
+        right: 3.25px;
+        z-index: 1001;
+        position: fixed;
+        top: calc(var(--main-header-height) + 12px);
+    }
+
+    @media (min-width: 768px) {
+        section.svelte-brvo36 {
+            right: 24px;
+            top: calc(var(--main-header-height) + 24px);
+        }
+    }

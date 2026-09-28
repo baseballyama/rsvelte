@@ -1,0 +1,331 @@
+<script lang="ts">
+    import { base } from '$app/paths';
+    import { goto } from '$app/navigation';
+    import { Button } from '$lib/elements/forms';
+    import { Container } from '$lib/layout';
+    import CreateProject from './createProject.svelte';
+    import CreateOrganization from '../createOrganization.svelte';
+    import { GRACE_PERIOD_OVERRIDE, isCloud } from '$lib/system';
+    import { page } from '$app/state';
+    import { registerCommands } from '$lib/commandCenter';
+    import {
+        CardContainer,
+        Empty,
+        EmptySearch,
+        GridItem1,
+        PaginationWithLimit,
+        SearchQuery
+    } from '$lib/components';
+    import { trackEvent, Click } from '$lib/actions/analytics';
+    import { type Models } from '@appwrite.io/console';
+    import { getServiceLimit, readOnly, getChangePlanUrl } from '$lib/stores/billing';
+    import { hideNotification, shouldShowNotification } from '$lib/helpers/notifications';
+    import { onMount, type ComponentType } from 'svelte';
+    import { canWriteProjects } from '$lib/stores/roles';
+    import { checkPricingRefAndRedirect } from '$lib/helpers/pricingRedirect';
+    import { Alert, Badge, Icon, Layout, Tag, Tooltip, Typography } from '@appwrite.io/pink-svelte';
+    import {
+        IconAndroid,
+        IconApple,
+        IconCode,
+        IconExclamationCircle,
+        IconFlutter,
+        IconPlus,
+        IconReact,
+        IconUnity
+    } from '@appwrite.io/pink-icons-svelte';
+    import type { PageProps } from './$types';
+    import { getPlatformInfo } from '$lib/helpers/platform';
+    import {
+        BODY_TOOLTIP_MAX_WIDTH,
+        BODY_TOOLTIP_WRAPPER_STYLE
+    } from '$lib/helpers/tooltipContent';
+    import CreateProjectCloud from './createProjectCloud.svelte';
+    import { regions as regionsStore } from '$lib/stores/organization';
+
+    let { data }: PageProps = $props();
+
+    let showCreate = $state(false);
+    let addOrganization = $state(false);
+    let showCreateProjectCloud = $state(false);
+    let educationPlanAlertDismissed = $state(false);
+    let freePlanAlertDismissed = $state(false);
+
+    let searchQuery: SearchQuery | null = $state(null);
+    let handledCreateProjectQuery = $state(false);
+    const educationProgramId = 'github-student-developer';
+
+    const isEducationProgram = $derived(data.program?.$id === educationProgramId);
+    const shouldShowEducationPlanAlert = $derived(
+        isCloud && isEducationProgram && data.projects.total >= 2
+    );
+
+    const projectCreationDisabled = $derived.by(() => {
+        return (
+            (isCloud &&
+                getServiceLimit('projects', null, data.currentPlan) <= data.projects.total) ||
+            (isCloud && $readOnly && !GRACE_PERIOD_OVERRIDE) ||
+            !$canWriteProjects
+        );
+    });
+
+    const reachedProjectLimit = $derived.by(() => {
+        return (
+            isCloud && getServiceLimit('projects', null, data.currentPlan) <= data.projects.total
+        );
+    });
+
+    const projectsLimit = $derived.by(() => {
+        return getServiceLimit('projects', null, data.currentPlan);
+    });
+
+    function filterPlatforms(platforms: { name: string; icon: string }[]) {
+        return platforms.filter(
+            (value, index, self) => index === self.findIndex((t) => t.name === value.name)
+        );
+    }
+
+    function handleCreateProject() {
+        if (projectCreationDisabled) return;
+        if (isCloud) showCreateProjectCloud = true;
+        else showCreate = true;
+    }
+
+    $effect(() => {
+        if (handledCreateProjectQuery || !page.url.searchParams.has('create-project')) return;
+
+        handledCreateProjectQuery = true;
+        handleCreateProject();
+
+        const url = new URL(page.url);
+        url.searchParams.delete('create-project');
+        void goto(`${url.pathname}${url.search}${url.hash}`, {
+            replaceState: true,
+            noScroll: true,
+            keepFocus: true
+        });
+    });
+
+    function getIconForPlatform(platform: string): ComponentType {
+        switch (platform) {
+            case 'code':
+                return IconCode;
+            case 'flutter':
+                return IconFlutter;
+            case 'apple':
+                return IconApple;
+            case 'android':
+                return IconAndroid;
+            case 'react-native':
+                return IconReact;
+            case 'unity':
+                return IconUnity;
+            default:
+                return null;
+        }
+    }
+
+    function dismissFreePlanAlert() {
+        freePlanAlertDismissed = true;
+        const notificationId = `freePlanAlert_${data.organization.$id}`;
+        hideNotification(notificationId, { coolOffPeriod: 24 });
+
+        trackEvent(Click.OrganizationClickUpgrade, {
+            from: 'button',
+            source: 'free_plan_info_alert_dismiss'
+        });
+    }
+
+    function dismissEducationPlanAlert() {
+        educationPlanAlertDismissed = true;
+        const notificationId = `educationPlanAlert_${data.organization.$id}`;
+        hideNotification(notificationId, { coolOffPeriod: 24 });
+    }
+
+    onMount(async () => {
+        checkPricingRefAndRedirect(page.url.searchParams);
+        const educationNotificationId = `educationPlanAlert_${data.organization.$id}`;
+        const notificationId = `freePlanAlert_${data.organization.$id}`;
+        const shouldShowEducation = shouldShowNotification(educationNotificationId);
+        const shouldShow = shouldShowNotification(notificationId);
+        educationPlanAlertDismissed = !shouldShowEducation;
+        freePlanAlertDismissed = !shouldShow;
+    });
+
+    function findRegion(project: Models.Project) {
+        return $regionsStore.regions.find((region) => region.$id === project.region);
+    }
+
+    const activeProjectsTotal = $derived(data?.projects.total);
+
+    function clearSearch() {
+        searchQuery?.clearInput();
+    }
+
+    $effect(() => {
+        $registerCommands([
+            {
+                label: 'Create project',
+                callback: () => {
+                    showCreate = true;
+                },
+                keys: ['c'],
+                disabled: projectCreationDisabled,
+                group: 'projects',
+                icon: IconPlus
+            }
+        ]);
+    });
+</script>
+
+<Container>
+    <Layout.Stack direction="row" justifyContent="space-between" class="common-section">
+        <SearchQuery bind:this={searchQuery} placeholder="Search by name, label, or ID" />
+
+        {#if $canWriteProjects}
+            {#if projectCreationDisabled && reachedProjectLimit}
+                <Tooltip placement="bottom" maxWidth={BODY_TOOLTIP_MAX_WIDTH}>
+                    <div>
+                        <Button event="create_project" disabled>
+                            <Icon icon={IconPlus} slot="start" size="s" />
+                            Create project
+                        </Button>
+                    </div>
+                    <div slot="tooltip" style={BODY_TOOLTIP_WRAPPER_STYLE}>
+                        You have reached your limit of {projectsLimit} projects.
+                    </div>
+                </Tooltip>
+            {:else}
+                <Button
+                    on:click={handleCreateProject}
+                    event="create_project"
+                    disabled={projectCreationDisabled}>
+                    <Icon icon={IconPlus} slot="start" size="s" />
+                    Create project
+                </Button>
+            {/if}
+        {/if}
+    </Layout.Stack>
+
+    {#if shouldShowEducationPlanAlert && !educationPlanAlertDismissed}
+        <Alert.Inline status="info" dismissible on:dismiss={dismissEducationPlanAlert}>
+            <Typography.Text>
+                Education plan organizations can have up to 2 projects. To create a new project,
+                please delete an existing one or
+                <a
+                    href={getChangePlanUrl(data.organization.$id)}
+                    style="text-decoration: underline;">
+                    upgrade your plan
+                </a>.
+            </Typography.Text>
+        </Alert.Inline>
+    {/if}
+
+    {#if isCloud && !data.program && data.currentPlan?.projects && activeProjectsTotal <= data.currentPlan.projects && !freePlanAlertDismissed}
+        <Alert.Inline dismissible on:dismiss={dismissFreePlanAlert}>
+            <Typography.Text
+                >Your Free plan includes up to {data.currentPlan?.projects} projects and limited resources.
+                Upgrade to unlock more capacity and features.</Typography.Text>
+            <svelte:fragment slot="actions">
+                <Button
+                    compact
+                    size="s"
+                    href={getChangePlanUrl(data.organization.$id)}
+                    on:click={() => {
+                        trackEvent(Click.OrganizationClickUpgrade, {
+                            from: 'button',
+                            source: 'free_plan_info_alert'
+                        });
+                    }}>
+                    Upgrade to Pro
+                </Button>
+            </svelte:fragment>
+        </Alert.Inline>
+    {/if}
+
+    {#if data.projects.total > 0}
+        <CardContainer
+            disableEmpty={!$canWriteProjects}
+            total={activeProjectsTotal}
+            offset={data.offset}
+            on:click={handleCreateProject}>
+            {#each data.projects.projects as project}
+                {@const projectPlatforms = project.platforms}
+                {@const platformsTotal = project.platformsTotal}
+                {@const platforms = filterPlatforms(
+                    projectPlatforms.map((platform) => getPlatformInfo(platform.type))
+                )}
+                <GridItem1
+                    href={`${base}/project-${project.region}-${project.$id}/overview/platforms`}>
+                    <svelte:fragment slot="eyebrow">
+                        {platformsTotal ? platformsTotal : 'No'} apps
+                    </svelte:fragment>
+                    <svelte:fragment slot="title">
+                        {project.name}
+                    </svelte:fragment>
+
+                    <svelte:fragment slot="status">
+                        {#if project.status === 'paused'}
+                            <Tag size="s" style="white-space: nowrap;">
+                                <Icon icon={IconExclamationCircle} size="s" slot="start" />
+                                Paused
+                            </Tag>
+                        {/if}
+                    </svelte:fragment>
+
+                    {#each platforms.slice(0, 2) as platform}
+                        {@const icon = getIconForPlatform(platform.icon)}
+                        <Badge
+                            variant="secondary"
+                            content={platform.name}
+                            style="width: max-content;">
+                            <Icon {icon} size="s" slot="start" />
+                        </Badge>
+                    {/each}
+
+                    {#if platformsTotal > 2}
+                        <Badge
+                            variant="secondary"
+                            content={`+${platformsTotal - 2}`}
+                            style="width: max-content;" />
+                    {/if}
+
+                    <svelte:fragment slot="icons">
+                        {#if isCloud && $regionsStore?.regions}
+                            {@const region = findRegion(project)}
+                            <Typography.Text>{region.name}</Typography.Text>
+                        {/if}
+                    </svelte:fragment>
+                </GridItem1>
+            {/each}
+            <svelte:fragment slot="empty">
+                <p>Create a new project</p>
+            </svelte:fragment>
+        </CardContainer>
+    {:else if data.search}
+        <EmptySearch target="projects" hidePagination>
+            <Button size="s" secondary on:click={clearSearch}>Clear search</Button>
+        </EmptySearch>
+    {:else}
+        <Empty
+            single
+            allowCreate={$canWriteProjects}
+            on:click={handleCreateProject}
+            target="project"
+            href="https://appwrite.io/docs/quick-starts"></Empty>
+    {/if}
+
+    <PaginationWithLimit
+        name="Projects"
+        limit={data.limit}
+        offset={data.offset}
+        total={activeProjectsTotal} />
+</Container>
+<CreateOrganization bind:show={addOrganization} />
+<CreateProject bind:show={showCreate} teamId={page.params.organization} />
+<CreateProjectCloud
+    bind:showCreateProjectCloud
+    projects={data.projects.total}
+    regions={$regionsStore.regions}
+    teamId={page.params.organization}
+    currentPlan={data.currentPlan} />

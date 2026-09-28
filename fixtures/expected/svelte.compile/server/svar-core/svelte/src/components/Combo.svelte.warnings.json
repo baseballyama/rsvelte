@@ -1,0 +1,16 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `id`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 24,
+			"column": 35,
+			"character": 428
+		},
+		"end": {
+			"line": 24,
+			"column": 37,
+			"character": 430
+		}
+	}
+]

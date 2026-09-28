@@ -1,0 +1,7 @@
+
+  @layer components {
+    :where(.lc-waffle-cell) {
+      --fill-color: var(--color-primary, currentColor);
+      --stroke-color: none;
+    }
+  }

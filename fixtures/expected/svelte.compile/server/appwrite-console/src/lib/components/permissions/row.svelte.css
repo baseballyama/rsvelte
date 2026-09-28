@@ -1,0 +1,10 @@
+
+    .popover.svelte-1femmhr {
+        display: flex;
+        width: 280px;
+        min-width: 260px;
+        padding: var(--space-5, 10px) var(--space-6, 12px);
+        align-items: flex-start;
+        gap: var(--gap-XXS, 4px);
+        margin: -1rem;
+    }

@@ -1,0 +1,4 @@
+
+  h1.svelte-1bld0ev + span:where(.svelte-1bld0ev) {
+    color: red;
+  }

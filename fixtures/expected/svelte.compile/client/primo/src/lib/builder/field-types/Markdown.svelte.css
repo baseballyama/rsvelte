@@ -1,0 +1,15 @@
+
+	label.svelte-1ntnb93 {
+		display: flex;
+		flex-direction: column;
+		margin-bottom: 0.5rem;
+		font-weight: 500;
+
+		span:where(.svelte-1ntnb93) {
+			margin-bottom: 0.5rem;
+		}
+
+		.cm-editor {
+			transition: border-color 0.1s ease;
+		}
+	}

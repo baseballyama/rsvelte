@@ -1,0 +1,58 @@
+[
+	{
+		"code": "a11y_no_noninteractive_tabindex",
+		"message": "noninteractive element cannot have nonnegative tabIndex value\nhttps://svelte.dev/e/a11y_no_noninteractive_tabindex",
+		"start": {
+			"line": 13,
+			"column": 0,
+			"character": 403
+		},
+		"end": {
+			"line": 13,
+			"column": 24,
+			"character": 427
+		}
+	},
+	{
+		"code": "a11y_no_noninteractive_tabindex",
+		"message": "noninteractive element cannot have nonnegative tabIndex value\nhttps://svelte.dev/e/a11y_no_noninteractive_tabindex",
+		"start": {
+			"line": 14,
+			"column": 0,
+			"character": 428
+		},
+		"end": {
+			"line": 14,
+			"column": 39,
+			"character": 467
+		}
+	},
+	{
+		"code": "a11y_no_noninteractive_tabindex",
+		"message": "noninteractive element cannot have nonnegative tabIndex value\nhttps://svelte.dev/e/a11y_no_noninteractive_tabindex",
+		"start": {
+			"line": 15,
+			"column": 0,
+			"character": 468
+		},
+		"end": {
+			"line": 15,
+			"column": 32,
+			"character": 500
+		}
+	},
+	{
+		"code": "a11y_no_noninteractive_tabindex",
+		"message": "noninteractive element cannot have nonnegative tabIndex value\nhttps://svelte.dev/e/a11y_no_noninteractive_tabindex",
+		"start": {
+			"line": 16,
+			"column": 0,
+			"character": 501
+		},
+		"end": {
+			"line": 16,
+			"column": 34,
+			"character": 535
+		}
+	}
+]

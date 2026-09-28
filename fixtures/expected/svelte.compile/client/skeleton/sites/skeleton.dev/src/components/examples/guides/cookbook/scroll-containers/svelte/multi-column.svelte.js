@@ -1,0 +1,133 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
+import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
+
+var root = $.from_html(`<a target="_blank" class="shrink-0 w-[28%] snap-start"><img class="rounded-container-token hover:brightness-125" loading="lazy"/></a>`);
+var root_1 = $.from_html(`<div class="w-full"><div class="grid grid-cols-[auto_1fr_auto] gap-4 items-center"><button type="button" class="btn-icon preset-filled" title="Scroll left" aria-label="Scroll left"><!></button> <div class="snap-x snap-mandatory scroll-smooth flex gap-2 pb-2 overflow-x-auto"></div> <button type="button" class="btn-icon preset-filled" title="Scroll right" aria-label="Scroll right"><!></button></div></div>`);
+
+export default function Multi_column($$anchor) {
+	// Data and images via: https://www.themoviedb.org/
+	const movies = [
+		{
+			name: 'The Flash',
+			imageUrl: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/rktDFPbfHfUbArZ6OOOKsXcv0Bm.jpg',
+			url: 'https://www.themoviedb.org/movie/298618-the-flash'
+		},
+
+		{
+			name: 'Guardians of the Galaxy Vol. 3',
+			imageUrl: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/r2J02Z2OpNTctfOSN1Ydgii51I3.jpg',
+			url: 'https://www.themoviedb.org/movie/447365-guardians-of-the-galaxy-vol-3'
+		},
+
+		{
+			name: 'Black Panther: Wakanda Forever',
+			imageUrl: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/sv1xJUazXeYqALzczSZ3O6nkH75.jpg',
+			url: 'https://www.themoviedb.org/movie/505642-black-panther-wakanda-forever'
+		},
+
+		{
+			name: 'Avengers: Infinity War',
+			imageUrl: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg',
+			url: 'https://www.themoviedb.org/movie/299536-avengers-infinity-war'
+		},
+
+		{
+			name: 'Spider-Man: No Way Home',
+			imageUrl: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg',
+			url: 'https://www.themoviedb.org/movie/634649-spider-man-no-way-home'
+		},
+
+		{
+			name: 'The Batman',
+			imageUrl: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/74xTEgt7R36Fpooo50r9T25onhq.jpg',
+			url: 'https://www.themoviedb.org/movie/414906-the-batman'
+		},
+
+		{
+			name: 'Iron Man',
+			imageUrl: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/78lPtwv72eTNqFW9COBYI0dWDJa.jpg',
+			url: 'https://www.themoviedb.org/movie/1726-iron-man'
+		},
+
+		{
+			name: 'Venom: Let There Be Carnage',
+			imageUrl: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/rjkmN1dniUHVYAtwuV3Tji7FsDO.jpg',
+			url: 'https://www.themoviedb.org/movie/580489-venom-let-there-be-carnage'
+		},
+
+		{
+			name: 'Deadpool',
+			imageUrl: 'https://www.themoviedb.org/t/p/w600_and_h900_bestv2/3E53WEZJqP6aM84D8CckXx4pIHw.jpg',
+			url: 'https://www.themoviedb.org/movie/293660-deadpool'
+		}
+	];
+
+	let elemMovies;
+
+	function multiColumnLeft() {
+		if (!elemMovies) return;
+
+		let x = elemMovies.scrollWidth;
+
+		if (elemMovies.scrollLeft !== 0) {
+			x = elemMovies.scrollLeft - elemMovies.clientWidth;
+		}
+
+		elemMovies.scroll(x, 0);
+	}
+
+	function multiColumnRight() {
+		if (!elemMovies) return;
+
+		let x = 0;
+
+		// -1 is used because different browsers use different methods to round scrollWidth pixels.
+		if (elemMovies.scrollLeft < elemMovies.scrollWidth - elemMovies.clientWidth - 1) {
+			x = elemMovies.scrollLeft + elemMovies.clientWidth;
+		}
+
+		elemMovies.scroll(x, 0);
+	}
+
+	var div = root_1();
+	var div_1 = $.child(div);
+	var button = $.child(div_1);
+	var node = $.child(button);
+
+	ArrowLeftIcon(node, { size: 16 });
+	$.reset(button);
+
+	var div_2 = $.sibling(button, 2);
+
+	$.each(div_2, 21, () => movies, $.index, ($$anchor, movie) => {
+		var a = root();
+		var img = $.only_child(a);
+
+		$.template_effect(() => {
+			$.set_attribute(a, 'href', $.get(movie).url);
+			$.set_attribute(img, 'src', $.get(movie).imageUrl);
+			$.set_attribute(img, 'alt', $.get(movie).name);
+			$.set_attribute(img, 'title', $.get(movie).name);
+		});
+
+		$.append($$anchor, a);
+	});
+
+	$.reset(div_2);
+	$.bind_this(div_2, ($$value) => elemMovies = $$value, () => elemMovies);
+
+	var button_1 = $.sibling(div_2, 2);
+	var node_1 = $.child(button_1);
+
+	ArrowRightIcon(node_1, { size: 16 });
+	$.reset(button_1);
+	$.reset(div_1);
+	$.reset(div);
+	$.delegated('click', button, multiColumnLeft);
+	$.delegated('click', button_1, multiColumnRight);
+	$.append($$anchor, div);
+}
+
+$.delegate(['click']);

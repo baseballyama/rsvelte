@@ -1,0 +1,17 @@
+
+	.demo.svelte-cd1n12 {
+		padding: 20px;
+	}
+
+	.demo.svelte-cd1n12 .wx-grid.wx-responsive-1000 {
+		font-size: 15px;
+	}
+
+	.demo.svelte-cd1n12 .wx-grid.wx-responsive-600 {
+		font-size: 16px;
+
+		.wx-cell {
+			padding-top: 13.4px;
+			padding-bottom: 13.4px;
+		}
+	}

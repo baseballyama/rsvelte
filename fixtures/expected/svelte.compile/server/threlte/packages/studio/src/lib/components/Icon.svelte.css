@@ -1,0 +1,21 @@
+
+  svg.svelte-194f7vy {
+    transform: rotate(var(--r, 0deg)) scale(var(--sx, 1), var(--sy, 1));
+  }
+
+  path.svelte-194f7vy {
+    fill: currentColor;
+  }
+
+  @keyframes svelte-194f7vy-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .spin.svelte-194f7vy {
+    animation: svelte-194f7vy-spin 1s linear infinite;
+  }

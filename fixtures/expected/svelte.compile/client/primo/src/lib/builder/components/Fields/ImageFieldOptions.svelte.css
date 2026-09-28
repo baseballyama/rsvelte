@@ -1,0 +1,10 @@
+
+	.ImageFieldOptions.svelte-cllbyb {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+	.option-group.svelte-cllbyb {
+		flex: 1;
+		min-width: 100px;
+	}

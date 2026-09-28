@@ -1,0 +1,12 @@
+
+	div.svelte-11hjo1o {
+		.whatever {
+			color: green;
+		}
+	}
+
+	.whatever {
+		div.svelte-11hjo1o {
+			color: green;
+		}
+	}

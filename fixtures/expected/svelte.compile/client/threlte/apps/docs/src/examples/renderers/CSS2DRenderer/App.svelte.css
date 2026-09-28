@@ -1,0 +1,10 @@
+
+  div#main.svelte-sscyvt {
+    height: 100%;
+  }
+  #css-renderer-target.svelte-sscyvt {
+    left: 0;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+  }

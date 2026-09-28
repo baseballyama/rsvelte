@@ -1,0 +1,33 @@
+
+	.primo-button.svelte-labovz {
+		/* aspect-ratio: 1; */
+		color: white;
+		padding: 0.25rem;
+		border-radius: var(--primo-border-radius);
+		display: block;
+		height: 100%;
+		background: var(--primo-color-codeblack);
+		transition:
+			background 0.1s,
+			box-shadow 0.1s;
+		width: 2rem;
+		background-size: 2rem;
+		background-repeat: no-repeat;
+		background-position: center;
+		outline: 0;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+
+		&:hover {
+			box-shadow: var(--primo-ring);
+		}
+
+		&:focus {
+			box-shadow: var(--primo-ring-thin);
+		}
+
+		&:active {
+			background: var(--color-gray-8);
+		}
+	}

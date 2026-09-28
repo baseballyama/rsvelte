@@ -1,0 +1,15 @@
+
+	tr.svelte-19oyn9c {
+		display: grid;
+		grid-template-columns: 80px 550px 150px 90px auto auto;
+	}
+
+	fieldset.svelte-19oyn9c {
+		border: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.center.svelte-19oyn9c {
+		text-align: center;
+	}

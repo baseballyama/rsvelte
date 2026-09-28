@@ -1,0 +1,44 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 5,
+			"column": 8,
+			"character": 62
+		},
+		"end": {
+			"line": 5,
+			"column": 16,
+			"character": 70
+		}
+	},
+	{
+		"code": "attribute_illegal_colon",
+		"message": "Attributes should not contain ':' characters to prevent ambiguity with Svelte directives\nhttps://svelte.dev/e/attribute_illegal_colon",
+		"start": {
+			"line": 14,
+			"column": 8,
+			"character": 277
+		},
+		"end": {
+			"line": 14,
+			"column": 15,
+			"character": 284
+		}
+	},
+	{
+		"code": "attribute_illegal_colon",
+		"message": "Attributes should not contain ':' characters to prevent ambiguity with Svelte directives\nhttps://svelte.dev/e/attribute_illegal_colon",
+		"start": {
+			"line": 15,
+			"column": 3,
+			"character": 306
+		},
+		"end": {
+			"line": 15,
+			"column": 10,
+			"character": 313
+		}
+	}
+]

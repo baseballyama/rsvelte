@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`tabIndex` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 147
+		},
+		"end": {
+			"line": 5,
+			"column": 21,
+			"character": 163
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`tabPages` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 173
+		},
+		"end": {
+			"line": 6,
+			"column": 13,
+			"character": 181
+		}
+	}
+]

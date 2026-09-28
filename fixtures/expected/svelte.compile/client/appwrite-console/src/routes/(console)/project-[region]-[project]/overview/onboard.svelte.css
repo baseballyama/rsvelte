@@ -1,0 +1,149 @@
+
+    @use '@appwrite.io/pink-legacy/src/abstract/variables/devices';
+
+    .theme-light {
+        --progress-background-color: var(--neutral-200);
+        .web-image-dark.svelte-1cwqimf,
+        .reactnative-image-dark.svelte-1cwqimf {
+            display: none;
+        }
+    }
+
+    .theme-dark {
+        --progress-background-color: var(--neutral-600);
+        .web-image-light.svelte-1cwqimf,
+        .reactnative-image-light.svelte-1cwqimf {
+            display: none;
+        }
+    }
+
+    .dashboard-content.svelte-1cwqimf {
+        .card-top-image:where(.svelte-1cwqimf) {
+            margin-top: calc(-1 * var(--base-16, 16px));
+            margin-left: calc(-1 * var(--base-16, 16px));
+            width: calc(100% + var(--base-32, 32px));
+            height: 160px;
+            background-size: cover;
+            background-position: center;
+            border-radius: var(--border-radius-m) var(--border-radius-m) 0 0;
+
+            @media (min-width: 1200px) {
+                height: 187px;
+            }
+        }
+
+        .web-image-light:where(.svelte-1cwqimf) {
+            background-image: url('./assets/platform-web.png');
+        }
+        .web-image-dark:where(.svelte-1cwqimf) {
+            background-image: url('./assets/platform-web-dark.png');
+        }
+
+        .reactnative-image-light:where(.svelte-1cwqimf) {
+            background-image: url('./assets/platform-reactnative.png');
+        }
+        .reactnative-image-dark:where(.svelte-1cwqimf) {
+            background-image: url('./assets/platform-reactnative-dark.png');
+        }
+        .database-card-image:where(.svelte-1cwqimf) {
+            background-size: cover;
+            background-position: bottom;
+            background-repeat: no-repeat;
+        }
+        .api-key-card-image:where(.svelte-1cwqimf) {
+            background-size: cover;
+            background-position: right center;
+            background-repeat: no-repeat;
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            min-height: 160px;
+            border-radius: var(--border-radius-m);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: flex-start;
+            padding: var(--base-16, 16px);
+            @media (min-width: 1200px) {
+                min-height: 187px;
+            }
+        }
+        .full-height-card:where(.svelte-1cwqimf) {
+            height: 100%;
+        }
+
+        .auth-image:where(.svelte-1cwqimf) {
+            width: 100%;
+            height: 200px;
+            margin-right: calc(-1 * var(--base-16, 16px));
+            margin-bottom: calc(-1 * var(--base-16, 16px));
+            align-self: flex-end;
+            background-size: cover;
+            background-position: right bottom;
+            background-repeat: no-repeat;
+        }
+        .full-height-card div {
+            height: 100%;
+        }
+
+        .double-width-card:where(.svelte-1cwqimf) {
+            @media (min-width: 768px) {
+                width: 250%;
+            }
+        }
+        .double-width-card:where(.svelte-1cwqimf) .full-height-card:where(.svelte-1cwqimf) {
+            height: 240px;
+            width: 100%;
+
+            @media (max-width: 1024px) {
+                height: 220px;
+            }
+
+            @media (max-width: 768px) {
+                height: auto;
+            }
+        }
+
+        .auth-image:where(.svelte-1cwqimf) {
+            @media (max-width: 1024px) {
+                height: 180px;
+                background-position: center bottom;
+            }
+
+            @media (max-width: 768px) {
+                height: 160px;
+                margin-right: 0;
+            }
+        }
+
+        .arrow-icon:where(.svelte-1cwqimf) {
+            color: var(--border-neutral-strong);
+            display: none;
+            @media (min-width: 768px) {
+                display: flex;
+            }
+        }
+        .arrow-icon-discord:where(.svelte-1cwqimf) {
+            align-items: flex-start;
+        }
+
+        .platform-image:where(.svelte-1cwqimf) {
+            width: 56px;
+            margin-left: calc(-1 * var(--base-4, 4px));
+        }
+
+        .step-info:where(.svelte-1cwqimf) {
+            @media (min-width: 768px) {
+                max-width: 100px;
+            }
+            @media (min-width: 1024px) {
+                max-width: 200px;
+            }
+            @media (min-width: 1400px) {
+                max-width: 300px;
+            }
+        }
+    }
+    .discord.svelte-1cwqimf {
+        width: 24px;
+    }

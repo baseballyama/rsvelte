@@ -1,0 +1,117 @@
+
+	.sidebar-symbol.svelte-ykqz1w {
+		--IconButton-opacity: 0;
+
+		header:where(.svelte-ykqz1w) {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding-bottom: 0.5rem;
+			color: #e7e7e7;
+			transition: opacity 0.1s;
+			gap: 1rem;
+
+			.name:where(.svelte-ykqz1w) {
+				overflow: hidden;
+				display: flex;
+				align-items: center;
+				gap: 0.25rem;
+				font-size: 13px;
+				line-height: 16px;
+
+				h3:where(.svelte-ykqz1w) {
+					white-space: nowrap;
+					overflow: hidden;
+					text-overflow: ellipsis;
+				}
+			}
+
+			.symbol-options:where(.svelte-ykqz1w) {
+				display: flex;
+				align-items: center;
+				color: #e7e7e7;
+				gap: 3px;
+
+				svg {
+					height: 1rem;
+					width: 1rem;
+				}
+
+				.overlay-actions:where(.svelte-ykqz1w) {
+					display: flex;
+					gap: 0.25rem;
+
+					button:where(.svelte-ykqz1w) {
+						font-size: 15px;
+						padding: 7px;
+						border-radius: 0.25rem;
+						transition: 0.1s;
+						border: 1px solid transparent;
+						outline: 0;
+
+						&:hover {
+							background: var(--color-gray-8);
+						}
+
+						&:focus-visible {
+							border-color: var(--primo-primary-color);
+							outline: 0;
+						}
+					}
+
+					button.delete:where(.svelte-ykqz1w) {
+						color: var(--primo-color-danger);
+						&:hover {
+							color: white;
+							background: var(--primo-color-danger);
+						}
+					}
+				}
+			}
+		}
+	}
+	.symbol-container.svelte-ykqz1w {
+		width: 100%;
+		position: relative;
+		overflow: hidden;
+		cursor: grab;
+		min-height: 2rem;
+		transition: box-shadow 0.2s;
+
+		&:after {
+			content: '';
+			position: absolute;
+			inset: 0;
+		}
+
+		&.disabled {
+			pointer-events: none;
+		}
+	}
+	.symbol.svelte-ykqz1w {
+		border-radius: 0.25rem;
+		overflow: hidden;
+	}
+	.error.svelte-ykqz1w {
+		display: flex;
+		justify-content: center;
+		height: 100%;
+		position: absolute;
+		inset: 0;
+		align-items: center;
+		/* background: #ff0000; */
+	}
+	.loading.svelte-ykqz1w {
+		display: flex;
+		justify-content: center;
+		height: 100%;
+		position: absolute;
+		inset: 0;
+		align-items: center;
+		color: #888;
+
+		svg {
+			height: 1rem;
+			width: 1rem;
+		}
+	}

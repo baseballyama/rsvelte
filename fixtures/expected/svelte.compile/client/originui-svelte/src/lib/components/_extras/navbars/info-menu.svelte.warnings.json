@@ -1,0 +1,44 @@
+[
+	{
+		"code": "a11y_invalid_attribute",
+		"message": "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
+		"start": {
+			"line": 35,
+			"column": 7,
+			"character": 1029
+		},
+		"end": {
+			"line": 35,
+			"column": 15,
+			"character": 1037
+		}
+	},
+	{
+		"code": "a11y_invalid_attribute",
+		"message": "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
+		"start": {
+			"line": 43,
+			"column": 7,
+			"character": 1304
+		},
+		"end": {
+			"line": 43,
+			"column": 15,
+			"character": 1312
+		}
+	},
+	{
+		"code": "a11y_invalid_attribute",
+		"message": "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
+		"start": {
+			"line": 51,
+			"column": 7,
+			"character": 1577
+		},
+		"end": {
+			"line": 51,
+			"column": 15,
+			"character": 1585
+		}
+	}
+]

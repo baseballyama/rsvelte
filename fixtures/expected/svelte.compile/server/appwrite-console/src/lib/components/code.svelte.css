@@ -1,0 +1,9 @@
+
+    .noBoxPadding.svelte-1gfff2r {
+        padding: 0 !important;
+    }
+
+    .with-scroll.svelte-1gfff2r {
+        height: 100%;
+        overflow: auto !important;
+    }

@@ -1,0 +1,117 @@
+import 'svelte/internal/disclose-version';
+import { getAppleStock } from '$lib/data.remote';
+import * as $ from 'svelte/internal/client';
+import { Area, Axis, Brush, Chart, Layer, defaultChartPadding } from 'layerchart';
+import { format, PeriodType } from '@layerstack/utils';
+
+const data = await getAppleStock();
+var root = $.from_html(`<!> <!> <!>`, 1);
+var root_1 = $.from_html(`<!> <!>`, 1);
+var root_2 = $.from_html(`<div class="text-sm text-surface-content/70 mb-2 h-5"><!></div> <!>`, 1);
+
+export default function Html($$anchor, $$props) {
+	$.push($$props, true);
+
+	let brush = $.state(void 0);
+	const range = $.derived(() => $.get(brush)?.active ? $.get(brush).x : null);
+	var $$exports = { data };
+	var fragment = root_2();
+	var div = $.first_child(fragment);
+	var node = $.child(div);
+
+	{
+		var consequent = ($$anchor) => {
+			var text = $.text();
+
+			$.template_effect(($0, $1) => $.set_text(text, `${$0 ?? ''} – ${$1 ?? ''}`), [
+				() => format($.get(range)[0], PeriodType.Day),
+				() => format($.get(range)[1], PeriodType.Day)
+			]);
+
+			$.append($$anchor, text);
+		};
+
+		var alternate = ($$anchor) => {
+			var text_1 = $.text('Drag to select a range');
+
+			$.append($$anchor, text_1);
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(range)) $$render(consequent); else $$render(alternate, -1);
+		});
+	}
+
+	$.reset(div);
+
+	var node_1 = $.sibling(div, 2);
+
+	{
+		let $0 = $.derived(() => defaultChartPadding({ left: 25, bottom: 24 }));
+
+		Chart(node_1, {
+			get data() {
+				return data;
+			},
+			x: 'date',
+			y: 'value',
+			yDomain: [0, null],
+			get padding() {
+				return $.get($0);
+			},
+			height: 300,
+			children: ($$anchor, $$slotProps) => {
+				var fragment_2 = root_1();
+				var node_2 = $.first_child(fragment_2);
+
+				Layer(node_2, {
+					children: ($$anchor, $$slotProps) => {
+						var fragment_3 = root();
+						var node_3 = $.first_child(fragment_3);
+
+						Axis(node_3, { placement: 'left', grid: true, rule: true });
+
+						var node_4 = $.sibling(node_3, 2);
+
+						Axis(node_4, { placement: 'bottom', rule: true });
+
+						var node_5 = $.sibling(node_4, 2);
+
+						Area(node_5, {
+							line: { class: 'stroke-2 stroke-primary' },
+							class: 'fill-primary/20'
+						});
+
+						$.append($$anchor, fragment_3);
+					},
+					$$slots: { default: true }
+				});
+
+				var node_6 = $.sibling(node_2, 2);
+
+				Layer(node_6, {
+					type: 'html',
+					children: ($$anchor, $$slotProps) => {
+						Brush($$anchor, {
+							get state() {
+								return $.get(brush);
+							},
+
+							set state($$value) {
+								$.set(brush, $$value, true);
+							}
+						});
+					},
+					$$slots: { default: true }
+				});
+
+				$.append($$anchor, fragment_2);
+			},
+			$$slots: { default: true }
+		});
+	}
+
+	$.append($$anchor, fragment);
+
+	return $.pop($$exports);
+}

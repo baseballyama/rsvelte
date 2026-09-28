@@ -1,0 +1,139 @@
+<script lang="ts">
+    import { Button, InputPassword } from '$lib/elements/forms';
+    import { Modal } from '$lib/components';
+    import { InputText } from '$lib/elements/forms';
+    import type { Models } from '@appwrite.io/console';
+    import { base } from '$app/paths';
+    import { Icon, Layout, Selector, Button as PinkButton } from '@appwrite.io/pink-svelte';
+    import { Link } from '$lib/elements';
+    import { page } from '$app/state';
+    import { IconPlus, IconX } from '@appwrite.io/pink-icons-svelte';
+    import { validateVariables } from '$lib/helpers/variables';
+
+    export type ProductLabel = 'site' | 'function';
+
+    let {
+        show = $bindable(false),
+        variables = $bindable(),
+        productLabel = 'site'
+    }: {
+        show: boolean;
+        variables: Partial<Models.Variable>[];
+        productLabel?: ProductLabel;
+    } = $props();
+
+    let newVariables = $state<Partial<Models.Variable>[]>([{ key: '', value: '' }]);
+    let secret = $state(false);
+    let error = $state('');
+
+    $effect(() => {
+        if (!show) {
+            newVariables = [{ key: '', value: '' }];
+            secret = false;
+            error = '';
+        }
+    });
+
+    function handleVariable() {
+        try {
+            if (secret) {
+                newVariables = newVariables.map((variable) => ({ ...variable, secret: true }));
+            }
+
+            const validationError = validateVariables(
+                newVariables.filter((variable) => variable.key || variable.value)
+            );
+            if (validationError) {
+                throw new Error(validationError);
+            }
+
+            const updatedVariables = [...variables];
+            newVariables.forEach((newVar) => {
+                if (!newVar.key) {
+                    return;
+                }
+                const existingIndex = updatedVariables.findIndex((v) => v.key === newVar.key);
+                if (existingIndex !== -1) {
+                    updatedVariables[existingIndex] = {
+                        ...updatedVariables[existingIndex],
+                        ...newVar
+                    };
+                } else {
+                    updatedVariables.push(newVar);
+                }
+            });
+
+            variables = updatedVariables;
+            show = false;
+        } catch (e) {
+            error = e.message;
+        }
+    }
+
+    function removeVariable(index: number) {
+        if (newVariables.length === 1) {
+            newVariables = [{ key: '', value: '' }];
+        } else {
+            newVariables = newVariables.filter((_, i) => i !== index);
+        }
+    }
+</script>
+
+<Modal bind:show onSubmit={handleVariable} title="Create variables" bind:error>
+    <span slot="description">
+        Set the environment variables or secret that will be passed to your {productLabel}. Global
+        variables can be set in <Link
+            variant="muted"
+            href={`${base}/project-${page.params.region}-${page.params.project}/settings`}
+            >project settings</Link
+        >.
+    </span>
+    <Layout.Stack gap="xxl">
+        <Layout.Stack gap="xs">
+            {#each newVariables as pair, i}
+                <Layout.Stack direction="row" gap="s" alignItems="flex-end" inline>
+                    <InputText
+                        id="key"
+                        label={`${i === 0 ? 'Key' : ''}`}
+                        placeholder="ENTER_KEY"
+                        bind:value={pair.key}
+                        autocomplete={false}
+                        autofocus />
+                    <InputPassword
+                        id="value"
+                        label={`${i === 0 ? 'Value' : ''}`}
+                        placeholder="Enter value"
+                        bind:value={pair.value}
+                        minlength={0} />
+                    <PinkButton.Button
+                        icon
+                        variant="secondary"
+                        type="button"
+                        size="s"
+                        disabled={newVariables.length === 1 && !pair.key && !pair.value}
+                        onclick={() => removeVariable(i)}>
+                        <Icon icon={IconX} />
+                    </PinkButton.Button>
+                </Layout.Stack>
+            {/each}
+            <div>
+                <Button
+                    text
+                    compact
+                    disabled={newVariables.some((pair) => !pair.key)}
+                    on:click={() => (newVariables = [...newVariables, { key: '', value: '' }])}>
+                    <Icon slot="start" icon={IconPlus} />Add variable</Button>
+            </div>
+        </Layout.Stack>
+        <Selector.Checkbox
+            size="s"
+            id="secret"
+            label="Secret"
+            bind:checked={secret}
+            description="If selected, you and your team won't be able to read the values after creation." />
+    </Layout.Stack>
+    <svelte:fragment slot="footer">
+        <Button secondary on:click={() => (show = false)}>Cancel</Button>
+        <Button submit>Create</Button>
+    </svelte:fragment>
+</Modal>

@@ -1,0 +1,241 @@
+
+  .zone-tools-page.svelte-vncaaf {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-xl) var(--spacing-lg);
+  }
+
+  .hero-section.svelte-vncaaf {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+    padding: var(--spacing-2xl) 0;
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-primary), transparent 95%),
+      color-mix(in srgb, var(--color-secondary), transparent 95%)
+    );
+    border-radius: var(--radius-lg);
+  }
+
+  .hero-content.svelte-vncaaf {
+    h1:where(.svelte-vncaaf) {
+      font-size: var(--font-size-3xl);
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-md);
+    }
+
+    p:where(.svelte-vncaaf) {
+      font-size: var(--font-size-lg);
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+  }
+
+  .tools-grid.svelte-vncaaf {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .tool-card.svelte-vncaaf {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-xl);
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    transition: all var(--transition-fast);
+
+    &:hover {
+      background-color: var(--surface-hover);
+      border-color: var(--color-primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .tool-icon:where(.svelte-vncaaf) {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 60px;
+      height: 60px;
+      background-color: color-mix(in srgb, var(--color-primary), transparent 90%);
+      color: var(--color-primary);
+      border-radius: var(--radius-md);
+      flex-shrink: 0;
+    }
+
+    .tool-info:where(.svelte-vncaaf) {
+      flex: 1;
+
+      h3:where(.svelte-vncaaf) {
+        font-size: var(--font-size-lg);
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: var(--spacing-xs);
+      }
+
+      p:where(.svelte-vncaaf) {
+        color: var(--text-secondary);
+        line-height: 1.5;
+        margin: 0;
+      }
+    }
+
+    .tool-arrow:where(.svelte-vncaaf) {
+      color: var(--text-secondary);
+      transition: transform var(--transition-fast);
+    }
+
+    &:hover .tool-arrow:where(.svelte-vncaaf) {
+      transform: translateX(4px);
+      color: var(--color-primary);
+    }
+  }
+
+  .features-section.svelte-vncaaf {
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .features-grid.svelte-vncaaf {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .feature-card.svelte-vncaaf {
+    padding: var(--spacing-xl);
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    text-align: center;
+
+    .feature-icon:where(.svelte-vncaaf) {
+      display: flex;
+      justify-content: center;
+      margin-bottom: var(--spacing-md);
+      color: var(--color-primary);
+    }
+
+    .feature-content:where(.svelte-vncaaf) {
+      h4:where(.svelte-vncaaf) {
+        font-size: var(--font-size-md);
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: var(--spacing-sm);
+      }
+
+      p:where(.svelte-vncaaf) {
+        color: var(--text-secondary);
+        line-height: 1.6;
+        margin: 0;
+      }
+    }
+  }
+
+  .use-cases-section.svelte-vncaaf {
+    margin-bottom: var(--spacing-2xl);
+
+    h2:where(.svelte-vncaaf) {
+      text-align: center;
+      font-size: var(--font-size-2xl);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-xl);
+    }
+  }
+
+  .use-cases-grid.svelte-vncaaf {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .use-case.svelte-vncaaf {
+    padding: var(--spacing-lg);
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+
+    h4:where(.svelte-vncaaf) {
+      font-size: var(--font-size-md);
+      font-weight: 600;
+      color: var(--color-primary);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    p:where(.svelte-vncaaf) {
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin: 0;
+    }
+  }
+
+  .best-practices-section.svelte-vncaaf {
+    h2:where(.svelte-vncaaf) {
+      text-align: center;
+      font-size: var(--font-size-2xl);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-xl);
+    }
+  }
+
+  .practices-grid.svelte-vncaaf {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .practice.svelte-vncaaf {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background-color: color-mix(in srgb, var(--color-success), transparent 95%);
+    border: 1px solid color-mix(in srgb, var(--color-success), transparent 80%);
+    border-radius: var(--radius-md);
+    color: var(--color-success);
+    font-size: var(--font-size-sm);
+  }
+
+  @media (max-width: 768px) {
+    .zone-tools-page.svelte-vncaaf {
+      padding: var(--spacing-lg) var(--spacing-md);
+    }
+
+    .hero-content.svelte-vncaaf h1:where(.svelte-vncaaf) {
+      font-size: var(--font-size-2xl);
+    }
+
+    .hero-content.svelte-vncaaf p:where(.svelte-vncaaf) {
+      font-size: var(--font-size-md);
+    }
+
+    .tools-grid.svelte-vncaaf {
+      grid-template-columns: 1fr;
+    }
+
+    .tool-card.svelte-vncaaf {
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .features-grid.svelte-vncaaf {
+      grid-template-columns: 1fr;
+    }
+
+    .use-cases-grid.svelte-vncaaf {
+      grid-template-columns: 1fr;
+    }
+
+    .practices-grid.svelte-vncaaf {
+      grid-template-columns: 1fr;
+    }
+  }

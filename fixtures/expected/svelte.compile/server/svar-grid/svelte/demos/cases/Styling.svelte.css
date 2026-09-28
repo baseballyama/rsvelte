@@ -1,0 +1,12 @@
+
+	.rowStyle:not(.wx-selected) .wx-cell:not(.cellStyle) {
+		color: white;
+		background: #457b9d;
+	}
+	.columnStyle {
+		text-decoration: underline;
+	}
+	.wx-row:not(.wx-selected) .cellStyle {
+		color: white;
+		background: rgba(82, 179, 163, 0.8);
+	}

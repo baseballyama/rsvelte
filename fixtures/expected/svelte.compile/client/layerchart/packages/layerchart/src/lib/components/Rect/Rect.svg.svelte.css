@@ -1,0 +1,15 @@
+
+  @layer base {
+    :where(.lc-rect) {
+      --fill-color: var(--color-surface-content, currentColor);
+      --stroke-color: initial;
+    }
+
+    /* Svg | Canvas layers */
+    :where(.lc-layout-svg .lc-rect, svg.lc-rect):not([fill]) {
+      fill: var(--fill-color);
+    }
+    :where(.lc-layout-svg .lc-rect, svg.lc-rect):not([stroke]) {
+      stroke: var(--stroke-color);
+    }
+  }

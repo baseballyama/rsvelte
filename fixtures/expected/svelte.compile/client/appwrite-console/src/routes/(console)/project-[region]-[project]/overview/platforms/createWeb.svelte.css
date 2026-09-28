@@ -1,0 +1,16 @@
+
+    .pink2-code-margin-fix pre {
+        margin: revert;
+    }
+
+    .responsive-padding {
+        @media (max-width: 768px) {
+            padding: 16px;
+        }
+    }
+
+    .frameworks.svelte-e03ds5 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--gap-l, 16px);
+    }

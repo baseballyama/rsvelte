@@ -1,0 +1,58 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `all_site_groups`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 35,
+			"column": 39,
+			"character": 1904
+		},
+		"end": {
+			"line": 35,
+			"column": 54,
+			"character": 1919
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `marketplace_site_groups`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 50,
+			"column": 51,
+			"character": 2571
+		},
+		"end": {
+			"line": 50,
+			"column": 74,
+			"character": 2594
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `marketplace_site_groups`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 50,
+			"column": 118,
+			"character": 2638
+		},
+		"end": {
+			"line": 50,
+			"column": 141,
+			"character": 2661
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 655,
+			"column": 4,
+			"character": 26143
+		},
+		"end": {
+			"line": 660,
+			"column": 13,
+			"character": 26574
+		}
+	}
+]

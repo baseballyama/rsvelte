@@ -1,0 +1,30 @@
+[
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 7,
+			"column": 0,
+			"character": 66
+		},
+		"end": {
+			"line": 7,
+			"column": 41,
+			"character": 107
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`div` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 6,
+			"character": 51
+		},
+		"end": {
+			"line": 4,
+			"column": 9,
+			"character": 54
+		}
+	}
+]

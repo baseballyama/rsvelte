@@ -1,0 +1,32 @@
+
+	.pagination.svelte-dlb7of {
+		display: grid;
+		grid-auto-flow: column;
+		grid-auto-columns: max-content;
+		gap: 20px;
+		justify-content: center;
+		@media (--below-large) {
+			gap: 8px;
+		}
+		& > :where(.svelte-dlb7of) {
+			border-radius: var(--brad);
+			margin: 0;
+			box-shadow: inset 0 0 0 1px var(--subtle);
+			padding: 6px 15px;
+			text-align: center;
+			background-color: var(--bg-1);
+		}
+		a:where(.svelte-dlb7of) {
+			color: var(--fg);
+			transition: 0.2s ease background;
+			&.current {
+				background: var(--primary);
+				color: var(--dark);
+			}
+			@media (--below-large) {
+				&.page-number:not(.current) {
+					display: none;
+				}
+			}
+		}
+	}

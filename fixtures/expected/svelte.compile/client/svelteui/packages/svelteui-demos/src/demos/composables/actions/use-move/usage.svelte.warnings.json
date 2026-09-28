@@ -1,0 +1,100 @@
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 18,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"column": 34,
+			"character": 34
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:move:start` to listen to the move:start event is deprecated. Use the event attribute `onmove:start` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 45,
+			"column": 1,
+			"character": 1032
+		},
+		"end": {
+			"line": 45,
+			"column": 32,
+			"character": 1063
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:move` to listen to the move event is deprecated. Use the event attribute `onmove` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 46,
+			"column": 1,
+			"character": 1065
+		},
+		"end": {
+			"line": 46,
+			"column": 21,
+			"character": 1085
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:move:stop` to listen to the move:stop event is deprecated. Use the event attribute `onmove:stop` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 47,
+			"column": 1,
+			"character": 1087
+		},
+		"end": {
+			"line": 47,
+			"column": 30,
+			"character": 1116
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 50,
+			"column": 1,
+			"character": 1219
+		},
+		"end": {
+			"line": 55,
+			"column": 3,
+			"character": 1435
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`moving` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 30,
+			"column": 5,
+			"character": 759
+		},
+		"end": {
+			"line": 30,
+			"column": 11,
+			"character": 765
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`position` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 31,
+			"column": 5,
+			"character": 780
+		},
+		"end": {
+			"line": 31,
+			"column": 13,
+			"character": 788
+		}
+	}
+]

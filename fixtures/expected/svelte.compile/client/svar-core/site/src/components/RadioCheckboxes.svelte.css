@@ -1,0 +1,19 @@
+
+	.column.svelte-1b19rd6 {
+		border-radius: var(--wx-border-radius);
+		display: flex;
+		flex-direction: column;
+		width: 121px;
+		min-width: 100px;
+		gap: 26px;
+	}
+	.column.svelte-1b19rd6 .group {
+		margin-top: 0;
+	}
+	.column.svelte-1b19rd6 .checkbox-group:where(.svelte-1b19rd6) .wx-item {
+		margin-top: 6px;
+		margin-bottom: 6px;
+	}
+	.column.svelte-1b19rd6 .checkbox-group:where(.svelte-1b19rd6) .wx-item:last-child {
+		margin-bottom: 0;
+	}

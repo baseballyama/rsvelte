@@ -1,0 +1,18 @@
+
+	ol.svelte-1yu8qpq {
+		width: min(calc(100% - 2rem), 40rem);
+		transition-duration: 500ms;
+
+		&:hover {
+			transition-duration: 250ms;
+		}
+	}
+
+	li.svelte-1yu8qpq {
+		grid-column: 1;
+		grid-row: 1;
+
+		transition-timing-function: var(--default-transition-timing-function);
+		transition-duration: inherit;
+		transition-property: transform;
+	}

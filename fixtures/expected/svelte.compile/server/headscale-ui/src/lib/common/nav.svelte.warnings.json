@@ -1,0 +1,44 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 37,
+			"column": 35,
+			"character": 1321
+		},
+		"end": {
+			"line": 37,
+			"column": 142,
+			"character": 1428
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 43,
+			"column": 3,
+			"character": 1763
+		},
+		"end": {
+			"line": 43,
+			"column": 10,
+			"character": 1770
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`componentLoaded` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 290
+		},
+		"end": {
+			"line": 10,
+			"column": 20,
+			"character": 305
+		}
+	}
+]

@@ -1,0 +1,8 @@
+
+	header.svelte-1l9dban {
+		padding: var(--default-padding);
+	}
+	.newsletter-output.svelte-1l9dban {
+		border: 5px solid black;
+		background: white;
+	}

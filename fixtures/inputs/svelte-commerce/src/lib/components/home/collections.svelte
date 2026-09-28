@@ -1,0 +1,75 @@
+<script lang="ts">
+	import Product from '$lib/components/product-catalogue/product-card.svelte'
+	import { Carousel, CarouselContent, CarouselItem } from '$lib/components/ui/carousel/index.js'
+	import CarouselPrevious from '$lib/components/ui/carousel/carousel-previous.svelte'
+	import CarouselNext from '$lib/components/ui/carousel/carousel-next.svelte'
+	import { CollectionsRenderer } from '$lib/core/composables/index.js'
+</script>
+
+<!-- Collection -->
+<CollectionsRenderer>
+	{#snippet content({ displayProduct, collectionData })}
+		{#if collectionData.length > 0}
+			{#each collectionData as data, index}
+				<div class="py-10 page-width {index % 2 === 1 ? 'bg-muted/30' : ''}">
+					<div class="mx-auto w-full">
+						<div class="mb-6 flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
+							<div class="text-left">
+								<h2 class="text-3xl font-extrabold tracking-tight text-foreground lg:text-4xl">
+									{data.name}
+								</h2>
+								<div class="mt-2 h-1 w-12 bg-primary"></div>
+								<!-- <p class="mt-4 text-sm font-medium text-muted-foreground">
+									Explore our handpicked selection of {data.name.toLowerCase()}
+								</p> -->
+							</div>
+
+							<!-- <div class="hidden items-center gap-2 md:flex">
+								<a
+									href="/products"
+									class="mr-4 text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+								>
+									View collection
+								</a>
+							</div> -->
+						</div>
+
+						<div class="relative">
+							<Carousel
+								opts={{
+									align: 'start',
+									loop: true
+								}}
+								class="w-full"
+							>
+								<CarouselContent class="-ml-1">
+									{#each data?.collectionvalues as prod (prod?.id)}
+										{#if prod?.products}
+											<CarouselItem class="basis-full pl-1 mobiles:basis-[48%] sm:basis-[33%] md:basis-[25%] lg:basis-[20%] xl:basis-1/6">
+												<div class="h-full">
+													<Product
+														product={prod.products}
+														{displayProduct}
+													/>
+												</div>
+											</CarouselItem>
+										{/if}
+									{/each}
+								</CarouselContent>
+
+								<div class="absolute -right-2 -top-20 hidden items-center gap-2 md:flex">
+									<CarouselPrevious
+										class="static translate-y-0"
+									/>
+									<CarouselNext
+										class="static translate-y-0"
+									/>
+								</div>
+							</Carousel>
+						</div>
+					</div>
+				</div>
+			{/each}
+		{/if}
+	{/snippet}
+</CollectionsRenderer>

@@ -1,0 +1,21 @@
+
+  .shell.svelte-12evr8a {
+    display: flex;
+    min-height: calc(100vh - var(--header-height));
+  }
+
+  main.svelte-12evr8a {
+    flex: 1;
+    min-width: 0;
+    padding: 2rem 3rem;
+    margin-top: var(--header-height);
+    margin-left: var(--sidebar-width);
+  }
+
+  @media (max-width: 768px) {
+    main.svelte-12evr8a {
+      padding: 1.5rem 1rem;
+      margin-left: 0;
+      overflow-x: hidden;
+    }
+  }

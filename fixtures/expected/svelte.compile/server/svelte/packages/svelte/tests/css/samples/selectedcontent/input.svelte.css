@@ -1,0 +1,44 @@
+
+	select.svelte-q12eab,
+	.svelte-q12eab::picker(select) {
+	  appearance: base-select;
+	}
+	selectedcontent.svelte-q12eab b:where(.svelte-q12eab){
+		color: red;
+	}
+	e.svelte-q12eab{
+		selectedcontent:where(.svelte-q12eab) &{
+			color: green;
+		}
+	}
+	select.svelte-q12eab > button:where(.svelte-q12eab) > selectedcontent:where(.svelte-q12eab) > b:where(.svelte-q12eab) {
+		color: blue;
+	}
+
+	select.svelte-q12eab > button:where(.svelte-q12eab) > selectedcontent:where(.svelte-q12eab) i:where(.svelte-q12eab) {
+		color: blue;
+	}
+
+	selectedcontent.svelte-q12eab:has(b:where(.svelte-q12eab)){
+		background-color: rebeccapurple;
+	}
+
+	selectedcontent.svelte-q12eab:has(i:where(.svelte-q12eab)){
+		background-color: rebeccapurple;
+	}
+
+	option.svelte-q12eab > b:where(.svelte-q12eab){
+		color: orange;
+	}
+
+	option.svelte-q12eab b:where(.svelte-q12eab){
+		color: #ff3e00;
+	}
+
+	option.svelte-q12eab > b:where(.svelte-q12eab) > i:where(.svelte-q12eab){
+		text-decoration: underline;
+	}
+
+	option.svelte-q12eab i:where(.svelte-q12eab){
+		text-decoration: dashed;
+	}

@@ -1,0 +1,78 @@
+
+  @layer components {
+    :where(.lc-circle-legend-container.svelte-1hlnf2p) {
+      display: inline-block;
+      z-index: 1;
+
+      &[data-placement] {
+        position: absolute;
+      }
+
+      &[data-placement='top-left'] {
+        top: 0;
+        left: 0;
+      }
+      &[data-placement='top'] {
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      &[data-placement='top-right'] {
+        top: 0;
+        right: 0;
+      }
+      &[data-placement='left'] {
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%);
+      }
+      &[data-placement='center'] {
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+      &[data-placement='right'] {
+        top: 50%;
+        right: 0;
+        transform: translateY(-50%);
+      }
+      &[data-placement='bottom-left'] {
+        bottom: 0;
+        left: 0;
+      }
+      &[data-placement='bottom'] {
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      &[data-placement='bottom-right'] {
+        bottom: 0;
+        right: 0;
+      }
+    }
+
+    :where(.lc-circle-legend-title.svelte-1hlnf2p) {
+      font-weight: 600;
+      fill: var(--color-surface-content, currentColor);
+    }
+
+    :where(.lc-circle-legend-svg.svelte-1hlnf2p) {
+      overflow: visible;
+    }
+
+    :where(.lc-circle-legend-label.svelte-1hlnf2p) {
+      fill: var(--color-surface-content, currentColor);
+    }
+
+    :where(.lc-circle-legend-tick.svelte-1hlnf2p) {
+      stroke: var(--color-surface-content, currentColor);
+    }
+
+    :where(.lc-circle-legend-circle.svelte-1hlnf2p) {
+      stroke: var(--color-surface-content, currentColor);
+    }
+
+    :where(.lc-circle-legend-indicator.svelte-1hlnf2p) {
+      fill: var(--color-surface-content, currentColor);
+    }
+  }

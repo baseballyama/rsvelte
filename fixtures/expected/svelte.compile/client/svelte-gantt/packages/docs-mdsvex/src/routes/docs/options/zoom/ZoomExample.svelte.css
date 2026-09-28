@@ -1,0 +1,10 @@
+
+	.example.svelte-tf8ets .blue {
+		@apply bg-blue-400;
+	}
+	.example.svelte-tf8ets .orange {
+		@apply bg-orange-400;
+	}
+	.example.svelte-tf8ets .violet {
+		@apply bg-violet-400;
+	}

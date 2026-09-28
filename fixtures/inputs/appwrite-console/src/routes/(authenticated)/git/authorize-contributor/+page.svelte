@@ -1,0 +1,57 @@
+<script lang="ts">
+    import { Vcs, Client } from '@appwrite.io/console';
+    import { onMount } from 'svelte';
+    import { getApiEndpoint } from '$lib/stores/sdk';
+    import { Badge, Layout, Typography } from '@appwrite.io/pink-svelte';
+    import { Button } from '$lib/elements/forms';
+
+    const { data } = $props();
+
+    const endpoint = getApiEndpoint();
+    const client = new Client();
+    const vcs = new Vcs(client);
+
+    let error = $state('');
+    let success = $state('');
+    let loading = $state(false);
+
+    onMount(async () => {
+        client.setEndpoint(endpoint).setProject(data.projectId).setMode('admin');
+    });
+
+    async function approveDeployment() {
+        if (loading) {
+            return;
+        }
+
+        loading = true;
+        error = '';
+        success = '';
+
+        try {
+            await vcs.updateExternalDeployments({
+                installationId: data.installationId,
+                repositoryId: data.repositoryId,
+                providerPullRequestId: data.providerPullRequestId
+            });
+            success = 'Deployment approved successfully! Build will start soon.';
+        } catch (e) {
+            error = e.message;
+        } finally {
+            loading = false;
+        }
+    }
+</script>
+
+<Layout.Stack gap="l" alignItems="center" style="max-width: 500px;">
+    {#if success}
+        <Badge type="success" variant="secondary" content={success} />
+    {:else if error}
+        <Badge type="error" variant="secondary" content={error} />
+    {/if}
+    <Typography.Title size="l" align="center">
+        The deployment for pull request #{data.providerPullRequestId}
+        is awaiting approval. When authorized, deployments will be started.
+    </Typography.Title>
+    <Button on:click={approveDeployment} secondary disabled={loading}>Approve Deployment</Button>
+</Layout.Stack>

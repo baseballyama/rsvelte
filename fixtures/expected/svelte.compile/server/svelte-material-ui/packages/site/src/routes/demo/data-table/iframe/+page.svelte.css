@@ -1,0 +1,13 @@
+
+  /* Reset some of the demo app styles that interfere. */
+  body,
+  html {
+    height: auto;
+    width: auto;
+    position: static;
+  }
+  #smui-app {
+    display: block;
+    height: auto;
+    overflow: initial;
+  }

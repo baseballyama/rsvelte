@@ -1,0 +1,14 @@
+
+	.a.svelte-1x9swqa ~ .b:where(.svelte-1x9swqa) { color: green; }
+	.a.svelte-1x9swqa ~ .c:where(.svelte-1x9swqa) { color: green; }
+	.a.svelte-1x9swqa ~ .d:where(.svelte-1x9swqa) { color: green; }
+	.a.svelte-1x9swqa ~ .e:where(.svelte-1x9swqa) { color: green; }
+	.a.svelte-1x9swqa ~ .f:where(.svelte-1x9swqa) { color: green; }
+	.a.svelte-1x9swqa ~ .g:where(.svelte-1x9swqa) { color: green; }
+	.a.svelte-1x9swqa ~ .h:where(.svelte-1x9swqa) { color: green; }
+
+	.b.svelte-1x9swqa ~ .d:where(.svelte-1x9swqa) { color: green; }
+	.c.svelte-1x9swqa ~ .d:where(.svelte-1x9swqa) { color: green; }
+	.b.svelte-1x9swqa ~ .e:where(.svelte-1x9swqa) ~ .f:where(.svelte-1x9swqa) ~ .h:where(.svelte-1x9swqa) { color: green; }
+	.b.svelte-1x9swqa ~ .d:where(.svelte-1x9swqa) ~ .h:where(.svelte-1x9swqa) { color: green; }
+	.c.svelte-1x9swqa ~ .g:where(.svelte-1x9swqa) { color: green; }

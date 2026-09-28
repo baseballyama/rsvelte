@@ -1,0 +1,58 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 14,
+			"column": 4,
+			"character": 405
+		},
+		"end": {
+			"line": 14,
+			"column": 41,
+			"character": 442
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 25,
+			"column": 4,
+			"character": 679
+		},
+		"end": {
+			"line": 25,
+			"column": 39,
+			"character": 714
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`siblingOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 204
+		},
+		"end": {
+			"line": 5,
+			"column": 17,
+			"character": 215
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`childOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 6,
+			"character": 231
+		},
+		"end": {
+			"line": 6,
+			"column": 15,
+			"character": 240
+		}
+	}
+]

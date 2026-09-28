@@ -1,0 +1,58 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `id`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 51,
+			"column": 2,
+			"character": 1509
+		},
+		"end": {
+			"line": 51,
+			"column": 4,
+			"character": 1511
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `onSave`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 68,
+			"column": 2,
+			"character": 1775
+		},
+		"end": {
+			"line": 68,
+			"column": 8,
+			"character": 1781
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `onCancel`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 69,
+			"column": 2,
+			"character": 1785
+		},
+		"end": {
+			"line": 69,
+			"column": 10,
+			"character": 1793
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `validate`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 71,
+			"column": 2,
+			"character": 1843
+		},
+		"end": {
+			"line": 71,
+			"column": 10,
+			"character": 1851
+		}
+	}
+]

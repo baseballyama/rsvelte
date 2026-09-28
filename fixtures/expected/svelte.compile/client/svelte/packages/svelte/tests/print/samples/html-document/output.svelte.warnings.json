@@ -1,0 +1,16 @@
+[
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<html>` element should have a lang attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 3,
+			"column": 0,
+			"character": 17
+		},
+		"end": {
+			"line": 16,
+			"column": 7,
+			"character": 226
+		}
+	}
+]

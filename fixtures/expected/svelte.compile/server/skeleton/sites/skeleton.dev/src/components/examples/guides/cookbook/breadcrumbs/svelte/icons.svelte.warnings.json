@@ -1,0 +1,58 @@
+[
+	{
+		"code": "a11y_invalid_attribute",
+		"message": "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
+		"start": {
+			"line": 9,
+			"column": 42,
+			"character": 285
+		},
+		"end": {
+			"line": 9,
+			"column": 50,
+			"character": 293
+		}
+	},
+	{
+		"code": "a11y_incorrect_aria_attribute_type_boolean",
+		"message": "The value of 'aria-hidden' must be either 'true' or 'false'. It cannot be empty\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_boolean",
+		"start": {
+			"line": 13,
+			"column": 24,
+			"character": 360
+		},
+		"end": {
+			"line": 13,
+			"column": 35,
+			"character": 371
+		}
+	},
+	{
+		"code": "a11y_invalid_attribute",
+		"message": "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
+		"start": {
+			"line": 17,
+			"column": 42,
+			"character": 461
+		},
+		"end": {
+			"line": 17,
+			"column": 50,
+			"character": 469
+		}
+	},
+	{
+		"code": "a11y_incorrect_aria_attribute_type_boolean",
+		"message": "The value of 'aria-hidden' must be either 'true' or 'false'. It cannot be empty\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_boolean",
+		"start": {
+			"line": 21,
+			"column": 24,
+			"character": 534
+		},
+		"end": {
+			"line": 21,
+			"column": 35,
+			"character": 545
+		}
+	}
+]

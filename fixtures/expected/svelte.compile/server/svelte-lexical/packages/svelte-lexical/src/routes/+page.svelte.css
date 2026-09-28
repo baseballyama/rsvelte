@@ -1,0 +1,29 @@
+
+  main.svelte-ocq595 {
+    text-align: center;
+    padding: 1em;
+    max-width: none;
+    margin: 0 auto;
+  }
+
+  .header-container.svelte-ocq595 {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.5em 1em;
+  }
+
+  .emp-sl.svelte-ocq595 {
+    font-size: 1em;
+    background-color: #fb8500; /*#ff6600; */
+    color: white;
+    padding: 0.2em 0.2em;
+    border-radius: 0.2em;
+  }
+
+  .emp-svelte.svelte-ocq595 {
+    font-size: 1em;
+    background-color: #219ebc;
+    color: white;
+    padding: 0.2em 0.2em;
+    border-radius: 0.2em;
+  }

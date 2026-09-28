@@ -1,0 +1,30 @@
+[
+	{
+		"code": "perf_avoid_inline_class",
+		"message": "Avoid 'new class' — instead, declare the class at the top level scope\nhttps://svelte.dev/e/perf_avoid_inline_class",
+		"start": {
+			"line": 2,
+			"column": 17,
+			"character": 26
+		},
+		"end": {
+			"line": 9,
+			"column": 2,
+			"character": 144
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 12,
+			"column": 8,
+			"character": 164
+		},
+		"end": {
+			"line": 12,
+			"column": 40,
+			"character": 196
+		}
+	}
+]

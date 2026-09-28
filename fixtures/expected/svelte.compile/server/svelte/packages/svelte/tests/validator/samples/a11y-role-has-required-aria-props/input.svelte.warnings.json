@@ -1,0 +1,58 @@
+[
+	{
+		"code": "a11y_role_has_required_aria_props",
+		"message": "Elements with the ARIA role \"heading\" must have the following attributes defined: \"aria-level\"\nhttps://svelte.dev/e/a11y_role_has_required_aria_props",
+		"start": {
+			"line": 1,
+			"column": 5,
+			"character": 5
+		},
+		"end": {
+			"line": 1,
+			"column": 19,
+			"character": 19
+		}
+	},
+	{
+		"code": "a11y_role_has_required_aria_props",
+		"message": "Elements with the ARIA role \"checkbox\" must have the following attributes defined: \"aria-checked\"\nhttps://svelte.dev/e/a11y_role_has_required_aria_props",
+		"start": {
+			"line": 2,
+			"column": 6,
+			"character": 33
+		},
+		"end": {
+			"line": 2,
+			"column": 21,
+			"character": 48
+		}
+	},
+	{
+		"code": "a11y_role_has_required_aria_props",
+		"message": "Elements with the ARIA role \"meter\" must have the following attributes defined: \"aria-valuenow\"\nhttps://svelte.dev/e/a11y_role_has_required_aria_props",
+		"start": {
+			"line": 3,
+			"column": 5,
+			"character": 62
+		},
+		"end": {
+			"line": 3,
+			"column": 17,
+			"character": 74
+		}
+	},
+	{
+		"code": "a11y_role_has_required_aria_props",
+		"message": "Elements with the ARIA role \"scrollbar\" must have the following attributes defined: \"aria-controls\" and \"aria-valuenow\"\nhttps://svelte.dev/e/a11y_role_has_required_aria_props",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 87
+		},
+		"end": {
+			"line": 4,
+			"column": 21,
+			"character": 103
+		}
+	}
+]

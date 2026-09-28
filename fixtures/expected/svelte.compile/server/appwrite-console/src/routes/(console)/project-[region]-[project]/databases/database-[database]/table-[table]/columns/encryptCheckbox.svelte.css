@@ -1,0 +1,19 @@
+
+    .popover-holder.svelte-pdauwr {
+        & [role='tooltip'] {
+            margin-top: 4px;
+            left: 8rem !important;
+        }
+
+        &.disabled-checkbox button {
+            cursor: unset;
+        }
+    }
+
+    .cursor-pointer.svelte-pdauwr {
+        cursor: pointer !important;
+    }
+
+    .cursor-not-allowed.svelte-pdauwr {
+        cursor: not-allowed;
+    }

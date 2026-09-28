@@ -1,0 +1,10 @@
+
+	.layout.svelte-1kihmau {
+		gap: 48px;
+		margin-bottom: 2rem;
+	}
+
+	.col.svelte-1kihmau {
+		background-color: var(--black-3);
+		height: 200px;
+	}

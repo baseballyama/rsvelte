@@ -1,0 +1,72 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 17,
+			"column": 2,
+			"character": 407
+		},
+		"end": {
+			"line": 17,
+			"column": 13,
+			"character": 418
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 17,
+			"column": 14,
+			"character": 419
+		},
+		"end": {
+			"line": 19,
+			"column": 4,
+			"character": 458
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 37,
+			"column": 56,
+			"character": 1204
+		},
+		"end": {
+			"line": 37,
+			"column": 114,
+			"character": 1262
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 38,
+			"column": 63,
+			"character": 1357
+		},
+		"end": {
+			"line": 38,
+			"column": 128,
+			"character": 1422
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 39,
+			"column": 62,
+			"character": 1536
+		},
+		"end": {
+			"line": 39,
+			"column": 126,
+			"character": 1600
+		}
+	}
+]

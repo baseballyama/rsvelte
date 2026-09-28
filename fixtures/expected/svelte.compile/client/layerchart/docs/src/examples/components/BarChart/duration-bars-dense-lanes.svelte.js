@@ -1,0 +1,155 @@
+import 'svelte/internal/disclose-version';
+import { getUsEvents } from '$lib/data.remote';
+import * as $ from 'svelte/internal/client';
+import { BarChart, defaultChartPadding, Tooltip } from 'layerchart';
+import { scaleTime } from 'd3-scale';
+import { Duration } from 'svelte-ux';
+import { applyLanes } from 'layerchart';
+
+const usEvents = await getUsEvents();
+var root = $.from_html(`<!> <!> <!> <!>`, 1);
+var root_1 = $.from_html(`<!> <!>`, 1);
+
+export default function Duration_bars_dense_lanes($$anchor, $$props) {
+	$.push($$props, true);
+
+	const data = applyLanes(usEvents, { start: 'startDate', end: 'endDate' });
+	var $$exports = { data };
+
+	{
+		const tooltip = ($$anchor, $$arg0) => {
+			let context = () => ($$arg0?.()).context;
+			var fragment_1 = $.comment();
+			var node = $.first_child(fragment_1);
+
+			{
+				const children = ($$anchor, $$arg0) => {
+					let data = () => ($$arg0?.()).data;
+					var fragment_2 = root_1();
+					var node_1 = $.first_child(fragment_2);
+
+					$.component(node_1, () => Tooltip.Header, ($$anchor, Tooltip_Header) => {
+						Tooltip_Header($$anchor, {
+							children: ($$anchor, $$slotProps) => {
+								$.next();
+
+								var text = $.text();
+
+								$.template_effect(() => $.set_text(text, data().event));
+								$.append($$anchor, text);
+							},
+							$$slots: { default: true }
+						});
+					});
+
+					var node_2 = $.sibling(node_1, 2);
+
+					$.component(node_2, () => Tooltip.List, ($$anchor, Tooltip_List) => {
+						Tooltip_List($$anchor, {
+							children: ($$anchor, $$slotProps) => {
+								var fragment_4 = root();
+								var node_3 = $.first_child(fragment_4);
+
+								$.component(node_3, () => Tooltip.Item, ($$anchor, Tooltip_Item) => {
+									Tooltip_Item($$anchor, {
+										label: 'start',
+										get value() {
+											return data().startDate;
+										},
+										valueAlign: 'right',
+										format: 'day'
+									});
+								});
+
+								var node_4 = $.sibling(node_3, 2);
+
+								$.component(node_4, () => Tooltip.Item, ($$anchor, Tooltip_Item_1) => {
+									Tooltip_Item_1($$anchor, {
+										label: 'end',
+										get value() {
+											return data().endDate;
+										},
+										valueAlign: 'right',
+										format: 'day'
+									});
+								});
+
+								var node_5 = $.sibling(node_4, 2);
+
+								$.component(node_5, () => Tooltip.Separator, ($$anchor, Tooltip_Separator) => {
+									Tooltip_Separator($$anchor, {});
+								});
+
+								var node_6 = $.sibling(node_5, 2);
+
+								$.component(node_6, () => Tooltip.Item, ($$anchor, Tooltip_Item_2) => {
+									Tooltip_Item_2($$anchor, {
+										label: 'duration',
+										valueAlign: 'right',
+										children: ($$anchor, $$slotProps) => {
+											Duration($$anchor, {
+												get start() {
+													return data().startDate;
+												},
+
+												get end() {
+													return data().endDate;
+												},
+												totalUnits: 2
+											});
+										},
+										$$slots: { default: true }
+									});
+								});
+
+								$.append($$anchor, fragment_4);
+							},
+							$$slots: { default: true }
+						});
+					});
+
+					$.append($$anchor, fragment_2);
+				};
+
+				$.component(node, () => Tooltip.Root, ($$anchor, Tooltip_Root) => {
+					Tooltip_Root($$anchor, {
+						get context() {
+							return context();
+						},
+						children,
+						$$slots: { default: true }
+					});
+				});
+			}
+
+			$.append($$anchor, fragment_1);
+		};
+
+		let $0 = $.derived(scaleTime);
+		let $1 = $.derived(() => defaultChartPadding({ left: 10, right: 25 }));
+
+		BarChart($$anchor, {
+			get data() {
+				return data;
+			},
+			x: ['startDate', 'endDate'],
+			get xScale() {
+				return $.get($0);
+			},
+			y: 'lane',
+			axis: 'x',
+			grid: { x: true, y: false, bandAlign: 'between' },
+			rule: false,
+			orientation: 'horizontal',
+			get padding() {
+				return $.get($1);
+			},
+			height: 300,
+			props: { tooltip: { context: { mode: 'bounds' } } },
+			tooltip,
+			$$slots: { tooltip: true }
+		});
+	}
+
+	return $.pop($$exports);
+}

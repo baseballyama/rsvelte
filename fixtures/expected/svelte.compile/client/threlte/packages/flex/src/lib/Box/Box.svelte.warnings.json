@@ -1,0 +1,58 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `order`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 40,
+			"column": 38,
+			"character": 1040
+		},
+		"end": {
+			"line": 40,
+			"column": 43,
+			"character": 1045
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `props`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 48,
+			"column": 23,
+			"character": 1240
+		},
+		"end": {
+			"line": 48,
+			"column": 28,
+			"character": 1245
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `_class`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 49,
+			"column": 43,
+			"character": 1303
+		},
+		"end": {
+			"line": 49,
+			"column": 49,
+			"character": 1309
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `props`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 49,
+			"column": 59,
+			"character": 1319
+		},
+		"end": {
+			"line": 49,
+			"column": 64,
+			"character": 1324
+		}
+	}
+]

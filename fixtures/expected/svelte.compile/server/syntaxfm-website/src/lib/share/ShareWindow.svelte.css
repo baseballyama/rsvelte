@@ -1,0 +1,10 @@
+
+	.close.svelte-l3wooq {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+	}
+
+	dialog.svelte-l3wooq::backdrop {
+		background: rgba(0, 0, 0, 0.8);
+	}

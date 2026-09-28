@@ -1,0 +1,21 @@
+
+	.embed.svelte-2a7m49 {
+		aspect-ratio: 16/9;
+		place-content: center;
+		background: var(--clr-footer-bg);
+		border: 1px solid var(--clr-menu-border);
+		border-radius: var(--rounded-20);
+		overflow: hidden;
+
+		button:where(.svelte-2a7m49) {
+			display: flex;
+			align-items: center;
+			gap: 5px;
+			margin-inline: auto;
+			text-shadow: var(--shadow-sm);
+		}
+	}
+
+	iframe.svelte-2a7m49 {
+		height: 100%;
+	}

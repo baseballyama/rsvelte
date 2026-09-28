@@ -1,0 +1,7 @@
+
+	.avatar.svelte-gq0jcd {
+		width: 50px;
+		height: 50px;
+		border-radius: 50%;
+		border: solid 2px var(--white);
+	}

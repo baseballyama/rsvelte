@@ -1,0 +1,16 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `tooltip`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 53,
+			"column": 2,
+			"character": 1578
+		},
+		"end": {
+			"line": 53,
+			"column": 9,
+			"character": 1585
+		}
+	}
+]

@@ -1,0 +1,9 @@
+
+	.a.svelte-e8pcqz ~ .b:where(.svelte-e8pcqz) { color: green; }
+	.a.svelte-e8pcqz ~ .c:where(.svelte-e8pcqz) { color: green; }
+	.a.svelte-e8pcqz ~ .d:where(.svelte-e8pcqz) { color: green; }
+	.b.svelte-e8pcqz ~ .d:where(.svelte-e8pcqz) { color: green; }
+	.c.svelte-e8pcqz ~ .d:where(.svelte-e8pcqz) { color: green; }
+
+	/* no match */
+	/* (unused) .b ~ .c { color: green; }*/

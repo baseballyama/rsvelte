@@ -1,0 +1,16 @@
+[
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a mousemove handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 11,
+			"column": 0,
+			"character": 220
+		},
+		"end": {
+			"line": 13,
+			"column": 6,
+			"character": 329
+		}
+	}
+]

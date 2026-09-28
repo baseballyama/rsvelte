@@ -1,0 +1,114 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:dragstart` to listen to the dragstart event is deprecated. Use the event attribute `ondragstart` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 62,
+			"column": 4,
+			"character": 1608
+		},
+		"end": {
+			"line": 62,
+			"column": 34,
+			"character": 1638
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:drag` to listen to the drag event is deprecated. Use the event attribute `ondrag` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 63,
+			"column": 4,
+			"character": 1643
+		},
+		"end": {
+			"line": 63,
+			"column": 24,
+			"character": 1663
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:dragend` to listen to the dragend event is deprecated. Use the event attribute `ondragend` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 64,
+			"column": 4,
+			"character": 1668
+		},
+		"end": {
+			"line": 64,
+			"column": 30,
+			"character": 1694
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 65,
+			"column": 4,
+			"character": 1699
+		},
+		"end": {
+			"line": 67,
+			"column": 6,
+			"character": 1769
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`anchor` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 6,
+			"character": 91
+		},
+		"end": {
+			"line": 4,
+			"column": 12,
+			"character": 97
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 6,
+			"character": 136
+		},
+		"end": {
+			"line": 6,
+			"column": 10,
+			"character": 140
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`x` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 156
+		},
+		"end": {
+			"line": 7,
+			"column": 7,
+			"character": 157
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`y` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 169
+		},
+		"end": {
+			"line": 8,
+			"column": 7,
+			"character": 170
+		}
+	}
+]

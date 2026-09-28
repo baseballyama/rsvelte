@@ -1,0 +1,4 @@
+
+	.a.svelte-na6urp + .c:where(.svelte-na6urp) {
+		color: green;
+	}

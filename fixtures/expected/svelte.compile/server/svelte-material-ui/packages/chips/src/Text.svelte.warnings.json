@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`input` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 100,
+			"column": 6,
+			"character": 2521
+		},
+		"end": {
+			"line": 100,
+			"column": 34,
+			"character": 2549
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`primaryAction` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 101,
+			"column": 6,
+			"character": 2569
+		},
+		"end": {
+			"line": 101,
+			"column": 48,
+			"character": 2611
+		}
+	}
+]

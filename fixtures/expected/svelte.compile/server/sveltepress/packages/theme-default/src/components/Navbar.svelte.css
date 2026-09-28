@@ -1,0 +1,53 @@
+
+  /* The bar is opaque on purpose: a translucent bar let high-contrast content
+     (big headings, code) read through as a ghost image while scrolling, and
+     the colors here already match the page background, so translucency bought
+     nothing but that artifact. */
+  .header.svelte-1mx54u2 {
+    --at-apply: 'transition-transform fixed top-0 left-0 right-0 sm:h-[73px] z-888 bg-[#f6f6f6] dark:bg-[#18181b] b-b-1 b-b-solid b-b-black/5 dark:b-b-white/8';
+  }
+  .hidden-in-mobile.svelte-1mx54u2 {
+    --at-apply: 'translate-y-[-100%] sm:translate-y-0';
+  }
+  /* Mobile always shows the brand mark (wordmark hidden to save space);
+     desktop shows the full logo only on home/error, elsewhere it lives in
+     the sidebar. */
+  .logo-container.svelte-1mx54u2 {
+    --at-apply: 'block';
+  }
+  .logo-container.svelte-1mx54u2:not(.desktop-visible) {
+    --at-apply: 'sm:hidden';
+  }
+  .logo-container.svelte-1mx54u2 .title {
+    --at-apply: 'hidden sm:inline';
+  }
+  .header-inner.svelte-1mx54u2 {
+    --at-apply: 'sm:max-w-[1440px] box-border sm:px-6 h-full flex items-stretch justify-between mx-auto';
+  }
+  .left.svelte-1mx54u2 {
+    --at-apply: 'flex items-center';
+  }
+  .doc-search.svelte-1mx54u2 {
+    --at-apply: 'flex-grow flex items-center relative transition-300 transition-left ease-out';
+  }
+  .doc-search.is-home.svelte-1mx54u2 {
+    --at-apply: 'left-2';
+  }
+  /* On docs pages the sidebar panel (incl. its logo row) paints over the
+     header's left zone, so the pill starts just right of the sidebar edge —
+     i.e. aligned with the content area. */
+  .doc-search.move.svelte-1mx54u2 {
+    --at-apply: 'sm:left-[calc(min(25vw,288px)-8px)]';
+  }
+
+  .navbar-pc.svelte-1mx54u2 {
+    --at-apply: 'items-stretch flex';
+  }
+  .nav-links.svelte-1mx54u2 {
+    --at-apply: 'flex items-stretch flex-grow justify-end';
+  }
+
+  .navbar-pc.svelte-1mx54u2 .nav-item:not(.nav-item--icon),
+  .navbar-pc.svelte-1mx54u2 .nav-item--user-icon {
+    --at-apply: 'hidden sm:flex';
+  }

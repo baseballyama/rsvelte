@@ -1,0 +1,16 @@
+[
+	{
+		"code": "a11y_positive_tabindex",
+		"message": "Avoid tabindex values above zero\nhttps://svelte.dev/e/a11y_positive_tabindex",
+		"start": {
+			"line": 7,
+			"column": 8,
+			"character": 117
+		},
+		"end": {
+			"line": 7,
+			"column": 20,
+			"character": 129
+		}
+	}
+]

@@ -1,0 +1,9 @@
+
+  a.svelte-1l0717m b:where(.svelte-1l0717m) c:where(.svelte-1l0717m) span:where(.svelte-1l0717m) {
+    color: red;
+    font-size: 2em;
+    font-family: 'Comic Sans MS';
+  }
+  .foo.svelte-1l0717m {
+    color: green;
+  }

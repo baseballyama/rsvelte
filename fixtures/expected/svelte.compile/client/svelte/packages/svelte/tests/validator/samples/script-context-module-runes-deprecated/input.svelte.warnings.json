@@ -1,0 +1,16 @@
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 3,
+			"column": 8,
+			"character": 34
+		},
+		"end": {
+			"line": 3,
+			"column": 24,
+			"character": 50
+		}
+	}
+]

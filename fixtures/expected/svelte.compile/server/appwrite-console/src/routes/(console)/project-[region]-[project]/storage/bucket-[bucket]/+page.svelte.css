@@ -1,0 +1,24 @@
+
+    .drop-target.svelte-1tyzc {
+        position: relative;
+        min-height: 100%;
+    }
+
+    .drop-target.is-dragging.svelte-1tyzc {
+        outline: 2px dashed var(--color-border-neutral-strong, hsl(var(--p-body-text-color)));
+        outline-offset: -2px;
+        border-radius: var(--border-radius-s);
+    }
+
+    .drop-overlay.svelte-1tyzc {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bgcolor-neutral-default, hsl(var(--p-body-bg-color)));
+        opacity: 0.9;
+        border-radius: var(--border-radius-s);
+        pointer-events: none;
+    }

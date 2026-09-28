@@ -1,0 +1,72 @@
+[
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 13,
+			"column": 11,
+			"character": 248
+		},
+		"end": {
+			"line": 13,
+			"column": 24,
+			"character": 261
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 15,
+			"column": 0,
+			"character": 290
+		},
+		"end": {
+			"line": 15,
+			"column": 45,
+			"character": 335
+		}
+	},
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 15,
+			"column": 29,
+			"character": 319
+		},
+		"end": {
+			"line": 15,
+			"column": 42,
+			"character": 332
+		}
+	},
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 19,
+			"column": 14,
+			"character": 432
+		},
+		"end": {
+			"line": 19,
+			"column": 27,
+			"character": 445
+		}
+	},
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 22,
+			"column": 16,
+			"character": 496
+		},
+		"end": {
+			"line": 22,
+			"column": 29,
+			"character": 509
+		}
+	}
+]

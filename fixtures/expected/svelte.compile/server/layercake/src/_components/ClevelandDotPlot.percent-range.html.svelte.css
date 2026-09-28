@@ -1,0 +1,12 @@
+
+	.line.svelte-d61hq5 {
+		position: absolute;
+		border-bottom: 1px solid #000;
+	}
+	.circle.svelte-d61hq5 {
+		position: absolute;
+		border-radius: 50%;
+		border: 1px solid #000;
+		stroke: #000;
+		transform: translate(-50%, -50%);
+	}

@@ -1,0 +1,30 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \":--c-collapsible-not-fullscreen &\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 46,
+			"column": 2,
+			"character": 1293
+		},
+		"end": {
+			"line": 46,
+			"column": 35,
+			"character": 1326
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \":--c-not-collapsed &\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 50,
+			"column": 2,
+			"character": 1355
+		},
+		"end": {
+			"line": 50,
+			"column": 22,
+			"character": 1375
+		}
+	}
+]

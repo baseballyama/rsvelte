@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`hostname` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 14,
+			"column": 8,
+			"character": 597
+		},
+		"end": {
+			"line": 14,
+			"column": 24,
+			"character": 613
+		}
+	}
+]

@@ -1,0 +1,123 @@
+
+  .explainer-section.svelte-71v52x {
+    margin-top: var(--spacing-xl);
+    padding: var(--spacing-lg);
+    background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-secondary);
+
+    h3:where(.svelte-71v52x) {
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-md);
+    }
+
+    @media (max-width: 768px) {
+      padding: var(--spacing-md);
+    }
+  }
+
+  .benefits-grid.svelte-71v52x {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-md);
+    margin: var(--spacing-lg) 0;
+  }
+
+  .benefit-item.svelte-71v52x {
+    padding: var(--spacing-md);
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-primary);
+
+    h4:where(.svelte-71v52x) {
+      color: var(--color-primary);
+      margin-bottom: var(--spacing-sm);
+      font-size: var(--font-size-md);
+    }
+
+    p:where(.svelte-71v52x) {
+      color: var(--text-secondary);
+      font-size: var(--font-size-sm);
+      line-height: 1.5;
+      margin: 0;
+    }
+  }
+
+  .addressing-section.svelte-71v52x,
+  .best-practices-section.svelte-71v52x {
+    margin: var(--spacing-lg) 0;
+
+    h4:where(.svelte-71v52x) {
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-md);
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+    }
+  }
+
+  .address-types-grid.svelte-71v52x,
+  .practices-grid.svelte-71v52x {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .address-type-item.svelte-71v52x,
+  .practice-item.svelte-71v52x {
+    padding: var(--spacing-md);
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-primary);
+
+    h5:where(.svelte-71v52x) {
+      color: var(--color-primary);
+      margin-bottom: var(--spacing-sm);
+      font-size: var(--font-size-md);
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+
+    p:where(.svelte-71v52x) {
+      color: var(--text-secondary);
+      font-size: var(--font-size-sm);
+      line-height: 1.5;
+      margin: 0;
+    }
+  }
+
+  .info-box.svelte-71v52x {
+    margin-top: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: linear-gradient(135deg, rgba(9, 105, 218, 0.1), rgba(31, 111, 235, 0.05));
+    border: 1px solid var(--color-info);
+    border-radius: var(--radius-md);
+
+    h4:where(.svelte-71v52x) {
+      color: var(--color-info);
+      margin-bottom: var(--spacing-sm);
+      font-size: var(--font-size-md);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      .icon {
+        width: 1.25em;
+        height: 1.25em;
+      }
+    }
+
+    p:where(.svelte-71v52x) {
+      color: var(--text-primary);
+      font-size: var(--font-size-sm);
+      line-height: 1.6;
+      margin: 0;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .benefits-grid.svelte-71v52x,
+    .address-types-grid.svelte-71v52x,
+    .practices-grid.svelte-71v52x {
+      grid-template-columns: 1fr;
+    }
+  }

@@ -1,0 +1,226 @@
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 6,
+			"column": 2,
+			"character": 96
+		},
+		"end": {
+			"line": 6,
+			"column": 10,
+			"character": 104
+		}
+	},
+	{
+		"code": "legacy_code",
+		"message": "`css-unused-selector` is no longer valid — please use `css_unused_selector` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 9,
+			"column": 15,
+			"character": 128
+		},
+		"end": {
+			"line": 9,
+			"column": 34,
+			"character": 147
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".hero\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 12,
+			"column": 4,
+			"character": 196
+		},
+		"end": {
+			"line": 12,
+			"column": 9,
+			"character": 201
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"h2\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 14,
+			"column": 6,
+			"character": 250
+		},
+		"end": {
+			"line": 14,
+			"column": 8,
+			"character": 252
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".lead\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 18,
+			"column": 6,
+			"character": 352
+		},
+		"end": {
+			"line": 18,
+			"column": 11,
+			"character": 357
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"section\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 24,
+			"column": 4,
+			"character": 457
+		},
+		"end": {
+			"line": 24,
+			"column": 11,
+			"character": 464
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"h3\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 27,
+			"column": 6,
+			"character": 515
+		},
+		"end": {
+			"line": 27,
+			"column": 8,
+			"character": 517
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"h4\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 33,
+			"column": 6,
+			"character": 653
+		},
+		"end": {
+			"line": 33,
+			"column": 8,
+			"character": 655
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"p\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 40,
+			"column": 6,
+			"character": 830
+		},
+		"end": {
+			"line": 40,
+			"column": 7,
+			"character": 831
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"ul\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 46,
+			"column": 6,
+			"character": 955
+		},
+		"end": {
+			"line": 46,
+			"column": 8,
+			"character": 957
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"li\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 50,
+			"column": 8,
+			"character": 1047
+		},
+		"end": {
+			"line": 50,
+			"column": 10,
+			"character": 1049
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"strong\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 55,
+			"column": 10,
+			"character": 1175
+		},
+		"end": {
+			"line": 55,
+			"column": 16,
+			"character": 1181
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"a\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 61,
+			"column": 6,
+			"character": 1261
+		},
+		"end": {
+			"line": 61,
+			"column": 7,
+			"character": 1262
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&:hover\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 66,
+			"column": 8,
+			"character": 1374
+		},
+		"end": {
+			"line": 66,
+			"column": 15,
+			"character": 1381
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".updated\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 73,
+			"column": 4,
+			"character": 1475
+		},
+		"end": {
+			"line": 73,
+			"column": 12,
+			"character": 1483
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".contact\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 80,
+			"column": 4,
+			"character": 1630
+		},
+		"end": {
+			"line": 80,
+			"column": 12,
+			"character": 1638
+		}
+	}
+]

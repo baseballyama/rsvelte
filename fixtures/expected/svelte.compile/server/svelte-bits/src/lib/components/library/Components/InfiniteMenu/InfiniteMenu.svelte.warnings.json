@@ -1,0 +1,72 @@
+[
+	{
+		"code": "perf_avoid_nested_class",
+		"message": "Avoid declaring classes below the top level scope\nhttps://svelte.dev/e/perf_avoid_nested_class",
+		"start": {
+			"line": 102,
+			"column": 2,
+			"character": 3296
+		},
+		"end": {
+			"line": 105,
+			"column": 3,
+			"character": 3436
+		}
+	},
+	{
+		"code": "perf_avoid_nested_class",
+		"message": "Avoid declaring classes below the top level scope\nhttps://svelte.dev/e/perf_avoid_nested_class",
+		"start": {
+			"line": 106,
+			"column": 2,
+			"character": 3439
+		},
+		"end": {
+			"line": 113,
+			"column": 3,
+			"character": 3663
+		}
+	},
+	{
+		"code": "perf_avoid_nested_class",
+		"message": "Avoid declaring classes below the top level scope\nhttps://svelte.dev/e/perf_avoid_nested_class",
+		"start": {
+			"line": 114,
+			"column": 2,
+			"character": 3666
+		},
+		"end": {
+			"line": 168,
+			"column": 3,
+			"character": 6121
+		}
+	},
+	{
+		"code": "perf_avoid_nested_class",
+		"message": "Avoid declaring classes below the top level scope\nhttps://svelte.dev/e/perf_avoid_nested_class",
+		"start": {
+			"line": 169,
+			"column": 2,
+			"character": 6124
+		},
+		"end": {
+			"line": 184,
+			"column": 3,
+			"character": 6634
+		}
+	},
+	{
+		"code": "perf_avoid_nested_class",
+		"message": "Avoid declaring classes below the top level scope\nhttps://svelte.dev/e/perf_avoid_nested_class",
+		"start": {
+			"line": 185,
+			"column": 2,
+			"character": 6637
+		},
+		"end": {
+			"line": 202,
+			"column": 3,
+			"character": 7248
+		}
+	}
+]

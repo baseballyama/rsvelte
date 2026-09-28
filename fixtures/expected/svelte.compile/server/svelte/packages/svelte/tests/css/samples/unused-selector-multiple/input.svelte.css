@@ -1,0 +1,15 @@
+
+	h1.svelte-y3oo0k /* (unused) h2, h3*/ {
+		color: red;
+	}
+	h1.svelte-y3oo0k /* (unused) h2*/ {
+		text-decoration: underline;
+	}
+
+	h1.svelte-y3oo0k /* (unused) h2, h3*/, h4.svelte-y3oo0k {
+		text-transform: uppercase;
+	}
+
+	h1.svelte-y3oo0k /* (unused) h2, h3*/, h4.svelte-y3oo0k /* (unused) h5, h6*/ {
+		background-color: green;
+	}

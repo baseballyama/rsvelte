@@ -1,0 +1,26 @@
+
+	@keyframes svelte-duxolg-marquee {
+		0% {
+			transform: translateX(0%);
+		}
+		100% {
+			transform: translateX(-100%);
+		}
+	}
+
+	@keyframes svelte-duxolg-marquee-vertical {
+		0% {
+			transform: translateY(0%);
+		}
+		100% {
+			transform: translateY(-100%);
+		}
+	}
+
+	.animate-marquee.svelte-duxolg {
+		animation: svelte-duxolg-marquee var(--duration) linear infinite;
+	}
+
+	.animate-marquee-vertical.svelte-duxolg {
+		animation: svelte-duxolg-marquee-vertical var(--duration) linear infinite;
+	}

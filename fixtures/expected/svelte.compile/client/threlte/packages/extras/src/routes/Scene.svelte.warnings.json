@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`listenToGamepad` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 264
+		},
+		"end": {
+			"line": 8,
+			"column": 21,
+			"character": 279
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`mountGamepad` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 6,
+			"character": 293
+		},
+		"end": {
+			"line": 9,
+			"column": 18,
+			"character": 305
+		}
+	}
+]

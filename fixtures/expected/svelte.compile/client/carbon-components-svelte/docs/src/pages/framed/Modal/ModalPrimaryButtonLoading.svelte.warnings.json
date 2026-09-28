@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 6,
+			"character": 76
+		},
+		"end": {
+			"line": 4,
+			"column": 10,
+			"character": 80
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`saving` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 96
+		},
+		"end": {
+			"line": 5,
+			"column": 12,
+			"character": 102
+		}
+	}
+]

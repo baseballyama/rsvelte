@@ -1,0 +1,44 @@
+[
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<enhanced:img>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 36,
+			"column": 0,
+			"character": 850
+		},
+		"end": {
+			"line": 40,
+			"column": 2,
+			"character": 954
+		}
+	},
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<enhanced:img>` with a click handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 36,
+			"column": 0,
+			"character": 850
+		},
+		"end": {
+			"line": 40,
+			"column": 2,
+			"character": 954
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`foo` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 241
+		},
+		"end": {
+			"line": 9,
+			"column": 16,
+			"character": 252
+		}
+	}
+]

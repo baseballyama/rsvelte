@@ -1,0 +1,35 @@
+
+	.ll-rating.svelte-19vthga {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.ll-rating-stars.svelte-19vthga {
+		display: inline-flex;
+		gap: 2px;
+	}
+
+	.ll-star.svelte-19vthga svg {
+		display: block;
+	}
+
+	.ll-star--full.svelte-19vthga svg {
+		fill: var(--lime-plum, #460032);
+		color: var(--lime-plum, #460032);
+	}
+
+	.ll-star--half.svelte-19vthga svg {
+		fill: color-mix(in srgb, var(--lime-plum, #460032) 45%, transparent);
+		color: var(--lime-plum, #460032);
+	}
+
+	.ll-star--empty.svelte-19vthga svg {
+		fill: transparent;
+		color: var(--lime-line, #d9c6ba);
+	}
+
+	.ll-rating-count.svelte-19vthga {
+		color: #8a8a8a;
+		font-size: 12px;
+	}

@@ -1,0 +1,13 @@
+
+  @layer components {
+    :where(.lc-tile-image-debug-rect) {
+      fill: none;
+      stroke: var(--color-danger, red);
+    }
+
+    :where(.lc-tile-image-debug-text) {
+      --fill-color: var(--color-danger, red);
+      font-size: 14px;
+      font-weight: 500;
+    }
+  }

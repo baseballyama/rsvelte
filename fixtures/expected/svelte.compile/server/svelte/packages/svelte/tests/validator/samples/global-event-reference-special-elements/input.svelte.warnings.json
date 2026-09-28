@@ -1,0 +1,44 @@
+[
+	{
+		"code": "attribute_global_event_reference",
+		"message": "You are referencing `globalThis.onresize`. Did you forget to declare a variable with that name?\nhttps://svelte.dev/e/attribute_global_event_reference",
+		"start": {
+			"line": 5,
+			"column": 27,
+			"character": 63
+		},
+		"end": {
+			"line": 5,
+			"column": 37,
+			"character": 73
+		}
+	},
+	{
+		"code": "attribute_global_event_reference",
+		"message": "You are referencing `globalThis.onvisibilitychange`. Did you forget to declare a variable with that name?\nhttps://svelte.dev/e/attribute_global_event_reference",
+		"start": {
+			"line": 6,
+			"column": 17,
+			"character": 94
+		},
+		"end": {
+			"line": 6,
+			"column": 37,
+			"character": 114
+		}
+	},
+	{
+		"code": "attribute_global_event_reference",
+		"message": "You are referencing `globalThis.onfocus`. Did you forget to declare a variable with that name?\nhttps://svelte.dev/e/attribute_global_event_reference",
+		"start": {
+			"line": 7,
+			"column": 13,
+			"character": 131
+		},
+		"end": {
+			"line": 7,
+			"column": 22,
+			"character": 140
+		}
+	}
+]

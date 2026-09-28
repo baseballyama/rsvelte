@@ -1,0 +1,32 @@
+
+  button.svelte-1kw2gel {
+    all: unset;
+    transition: all 200ms ease-in-out;
+    cursor: pointer;
+    outline: 1px solid #b4d455;
+    border-radius: 8px;
+    padding-inline: 0.5em;
+    padding-block: 0.25em;
+    max-height: 1.6em;
+    font-size: 10px;
+    line-height: 1;
+    font-family: monospace;
+    user-select: none;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  button.svelte-1kw2gel:focus {
+    outline: 1px solid lightblue;
+    outline-offset: 2px;
+  }
+
+  button.svelte-1kw2gel:hover:not(.checked) {
+    background-color: transparent;
+    color: white;
+  }
+
+  button.checked.svelte-1kw2gel {
+    background-color: #b4d455;
+    color: black;
+  }

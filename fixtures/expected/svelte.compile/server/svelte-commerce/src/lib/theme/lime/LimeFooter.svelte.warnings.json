@@ -1,0 +1,44 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".lime-foot-plus\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 140,
+			"column": 1,
+			"character": 3341
+		},
+		"end": {
+			"line": 140,
+			"column": 16,
+			"character": 3356
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".lime-foot-plus\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 214,
+			"column": 2,
+			"character": 4436
+		},
+		"end": {
+			"line": 214,
+			"column": 17,
+			"character": 4451
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".lime-footer-col[open] .lime-foot-plus\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 223,
+			"column": 2,
+			"character": 4586
+		},
+		"end": {
+			"line": 223,
+			"column": 40,
+			"character": 4624
+		}
+	}
+]

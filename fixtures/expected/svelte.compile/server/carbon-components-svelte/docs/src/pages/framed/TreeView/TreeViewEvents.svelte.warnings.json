@@ -1,0 +1,44 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`lastEvent` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 109
+		},
+		"end": {
+			"line": 5,
+			"column": 15,
+			"character": 118
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`lastToggleChange` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 6,
+			"character": 133
+		},
+		"end": {
+			"line": 6,
+			"column": 22,
+			"character": 149
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`lastSelectChange` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 164
+		},
+		"end": {
+			"line": 7,
+			"column": 22,
+			"character": 180
+		}
+	}
+]

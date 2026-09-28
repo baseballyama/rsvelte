@@ -1,0 +1,16 @@
+[
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a keydown handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 20,
+			"column": 1,
+			"character": 430
+		},
+		"end": {
+			"line": 22,
+			"column": 7,
+			"character": 548
+		}
+	}
+]

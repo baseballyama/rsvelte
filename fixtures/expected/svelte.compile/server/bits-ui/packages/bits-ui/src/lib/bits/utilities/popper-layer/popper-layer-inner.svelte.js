@@ -1,0 +1,162 @@
+import * as $ from 'svelte/internal/server';
+import { mergeProps } from "svelte-toolbelt";
+import ScrollLock from "../scroll-lock/scroll-lock.svelte";
+import PopperContent from "./popper-content.svelte";
+import EscapeLayer from "$lib/bits/utilities/escape-layer/escape-layer.svelte";
+import DismissibleLayer from "$lib/bits/utilities/dismissible-layer/dismissible-layer.svelte";
+import TextSelectionLayer from "$lib/bits/utilities/text-selection-layer/text-selection-layer.svelte";
+import FocusScope from "$lib/bits/utilities/focus-scope/focus-scope.svelte";
+
+export default function Popper_layer_inner($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let {
+			popper,
+			onEscapeKeydown,
+			escapeKeydownBehavior,
+			preventOverflowTextSelection,
+			id,
+			onPointerDown,
+			onPointerUp,
+			side,
+			sideOffset,
+			align,
+			alignOffset,
+			arrowPadding,
+			avoidCollisions,
+			collisionBoundary,
+			collisionPadding,
+			sticky,
+			hideWhenDetached,
+			updatePositionStrategy,
+			strategy,
+			dir,
+			preventScroll,
+			wrapperId,
+			style,
+			onPlaced,
+			onInteractOutside,
+			onCloseAutoFocus,
+			onOpenAutoFocus,
+			onFocusOutside,
+			interactOutsideBehavior = "close",
+			loop,
+			trapFocus = true,
+			isValidEvent = () => false,
+			customAnchor = null,
+			isStatic = false,
+			enabled,
+			ref,
+			tooltip = false,
+			contentPointerEvents = "auto",
+			$$slots,
+			$$events,
+			...restProps
+		} = $$props;
+
+		const resolvedPreventScroll = $.derived(() => preventScroll ?? true);
+		const effectiveStrategy = $.derived(() => strategy ?? (resolvedPreventScroll() ? "fixed" : "absolute"));
+
+		{
+			function content($$renderer, { props: floatingProps, wrapperProps }) {
+				if (restProps.forceMount && enabled) {
+					$$renderer.push('<!--[0-->');
+					ScrollLock($$renderer, { preventScroll: resolvedPreventScroll() });
+				} else if (!restProps.forceMount) {
+					$$renderer.push('<!--[1-->');
+					ScrollLock($$renderer, { preventScroll: resolvedPreventScroll() });
+				} else {
+					$$renderer.push('<!--[-1-->');
+				}
+
+				$$renderer.push(`<!--]--> `);
+
+				{
+					function focusScope($$renderer, { props: focusScopeProps }) {
+						EscapeLayer($$renderer, {
+							onEscapeKeydown,
+							escapeKeydownBehavior,
+							enabled,
+							ref,
+							children: ($$renderer) => {
+								{
+									function children($$renderer, { props: dismissibleProps }) {
+										TextSelectionLayer($$renderer, {
+											id,
+											preventOverflowTextSelection,
+											onPointerDown,
+											onPointerUp,
+											enabled,
+											ref,
+											children: ($$renderer) => {
+												popper?.($$renderer, {
+													props: mergeProps(restProps, floatingProps, dismissibleProps, focusScopeProps, { style: { pointerEvents: contentPointerEvents } }),
+													wrapperProps
+												});
+
+												$$renderer.push(`<!---->`);
+											},
+											$$slots: { default: true }
+										});
+									}
+
+									DismissibleLayer($$renderer, {
+										id,
+										onInteractOutside,
+										onFocusOutside,
+										interactOutsideBehavior,
+										isValidEvent,
+										enabled,
+										ref,
+										children,
+										$$slots: { default: true }
+									});
+								}
+							},
+							$$slots: { default: true }
+						});
+					}
+
+					FocusScope($$renderer, {
+						onOpenAutoFocus,
+						onCloseAutoFocus,
+						loop,
+						enabled,
+						trapFocus,
+						forceMount: restProps.forceMount,
+						ref,
+						focusScope,
+						$$slots: { focusScope: true }
+					});
+				}
+
+				$$renderer.push(`<!---->`);
+			}
+
+			PopperContent($$renderer, {
+				isStatic,
+				id,
+				side,
+				sideOffset,
+				align,
+				alignOffset,
+				arrowPadding,
+				avoidCollisions,
+				collisionBoundary,
+				collisionPadding,
+				sticky,
+				hideWhenDetached,
+				updatePositionStrategy,
+				strategy: effectiveStrategy(),
+				dir,
+				wrapperId,
+				style,
+				onPlaced,
+				customAnchor,
+				enabled,
+				tooltip,
+				content,
+				$$slots: { content: true }
+			});
+		}
+	});
+}

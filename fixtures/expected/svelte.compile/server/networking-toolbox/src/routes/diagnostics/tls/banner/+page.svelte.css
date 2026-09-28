@@ -1,0 +1,179 @@
+
+  .results-card.svelte-cfs7gq {
+    .card-content:where(.svelte-cfs7gq) {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-md);
+      .card:where(.svelte-cfs7gq) {
+        width: 100%;
+      }
+    }
+  }
+  .info-section.svelte-cfs7gq,
+  .banner-section.svelte-cfs7gq,
+  .analysis-section.svelte-cfs7gq,
+  .tls-section.svelte-cfs7gq {
+    background: var(--bg-secondary);
+  }
+
+  .form-row.svelte-cfs7gq {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+    }
+  }
+
+  .flex-1.svelte-cfs7gq {
+    flex: 1;
+  }
+
+  .flex-2.svelte-cfs7gq {
+    flex: 2;
+  }
+
+  .info-grid.svelte-cfs7gq {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .info-item.svelte-cfs7gq {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2xs);
+  }
+
+  .info-label.svelte-cfs7gq {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .info-value.svelte-cfs7gq {
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+  }
+
+  .banner-content.svelte-cfs7gq {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+    overflow-x: auto;
+    max-height: 400px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .no-banner.svelte-cfs7gq {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-secondary);
+
+    p:where(.svelte-cfs7gq) {
+      margin: var(--spacing-sm) 0;
+      font-weight: 500;
+    }
+
+    small:where(.svelte-cfs7gq) {
+      font-size: var(--font-size-xs);
+      opacity: 0.8;
+    }
+  }
+
+  .analysis-grid.svelte-cfs7gq {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .analysis-item.svelte-cfs7gq {
+    display: flex;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: var(--color-surface-elevated);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-primary);
+
+    &.full-width {
+      grid-column: 1 / -1;
+    }
+
+    h4:where(.svelte-cfs7gq) {
+      font-size: var(--font-size-sm);
+      margin-bottom: var(--spacing-xs);
+      color: var(--text-primary);
+    }
+
+    p:where(.svelte-cfs7gq) {
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      font-size: var(--font-size-sm);
+    }
+
+    ul:where(.svelte-cfs7gq) {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    li:where(.svelte-cfs7gq) {
+      font-size: var(--font-size-sm);
+      color: var(--text-secondary);
+      padding: var(--spacing-2xs) 0;
+    }
+  }
+
+  .tls-info.svelte-cfs7gq {
+    display: grid;
+    gap: var(--spacing-sm);
+  }
+
+  .tls-item.svelte-cfs7gq {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-xs);
+    background: var(--color-surface-elevated);
+    border-radius: var(--radius-sm);
+  }
+
+  .tls-label.svelte-cfs7gq {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+  }
+
+  .tls-value.svelte-cfs7gq {
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    word-break: break-all;
+  }
+
+  select.svelte-cfs7gq {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: var(--font-size-base);
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }

@@ -1,0 +1,39 @@
+
+	.picker.svelte-1f35vwa {
+		position: relative;
+		display: inline-block;
+		width: var(--picker-width, 200px);
+		height: var(--picker-height, 200px);
+		background:
+			linear-gradient(#ffffff00, #000000ff), linear-gradient(0.25turn, #ffffffff, #00000000), var(--picker-color-bg);
+		border-radius: var(--picker-radius, 8px);
+		outline: none;
+		user-select: none;
+		cursor: pointer;
+	}
+
+	.s.svelte-1f35vwa,
+	.v.svelte-1f35vwa {
+		position: absolute;
+		--track-background: none;
+		--track-border: none;
+		--thumb-background: none;
+		--thumb-border: none;
+		--thumb-size: 2px;
+		--margin-block: 0;
+		--track-height: var(--picker-indicator-size, 10px);
+		user-select: none;
+		-webkit-user-select: none;
+	}
+
+	.s.svelte-1f35vwa {
+		top: calc(var(--pos-y) * (var(--picker-height, 200px) - var(--picker-indicator-size, 10px) - 4px) / 100 + 2px);
+		left: 2px;
+		--track-width: calc(var(--picker-width, 200px) - 4px);
+	}
+
+	.v.svelte-1f35vwa {
+		top: 2px;
+		left: calc(var(--pos-x) * (var(--picker-width, 200px) - var(--picker-indicator-size, 10px) - 4px) / 100 + 2px);
+		--track-width: calc(var(--picker-height, 200px) - 4px);
+	}

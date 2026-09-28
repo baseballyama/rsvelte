@@ -1,0 +1,345 @@
+import * as $ from 'svelte/internal/server';
+import { scaleOrdinal } from 'd3-scale';
+import { schemeTableau10 } from 'd3-scale-chromatic';
+import { cls } from '@layerstack/tailwind';
+import { Chart, Layer, Arc, ArcLabel, Tooltip } from 'layerchart';
+import { Chord, Ribbon } from 'layerchart/graph';
+
+export default function Hover($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const names = ['Asia', 'Europe', 'Africa', 'Americas', 'Oceania'];
+
+		const matrix = [
+			[11975, 5871, 8916, 2868, 1951],
+			[1951, 10048, 2060, 6171, 990],
+			[8010, 4948, 24000, 1048, 671],
+			[1813, 1868, 708, 20000, 421],
+			[1371, 901, 612, 371, 5000]
+		];
+
+		const color = scaleOrdinal(names, schemeTableau10);
+		let hoveredGroupIndex = null;
+		let hoveredChord = null;
+
+		function isChordActive(chord) {
+			if (hoveredGroupIndex != null) {
+				return chord.source.index === hoveredGroupIndex || chord.target.index === hoveredGroupIndex;
+			}
+
+			if (hoveredChord != null) {
+				return chord.source.index === hoveredChord.source.index && chord.target.index === hoveredChord.target.index;
+			}
+
+			return true;
+		}
+
+		function isGroupActive(groupIndex) {
+			if (hoveredGroupIndex != null) {
+				return groupIndex === hoveredGroupIndex;
+			}
+
+			if (hoveredChord != null) {
+				return groupIndex === hoveredChord.source.index || groupIndex === hoveredChord.target.index;
+			}
+
+			return true;
+		}
+
+		const hasHover = $.derived(() => hoveredGroupIndex != null || hoveredChord != null);
+
+		{
+			function children($$renderer, { context }) {
+				Layer($$renderer, {
+					center: true,
+					children: ($$renderer) => {
+						{
+							function children($$renderer, { groups, chords, innerRadius, outerRadius }) {
+								$$renderer.push(`<!--[-->`);
+
+								const each_array = $.ensure_array_like(chords);
+
+								for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+									let chord = each_array[$$index];
+
+									Ribbon($$renderer, {
+										chord,
+										radius: innerRadius,
+										fill: color(names[chord.source.index]),
+										fillOpacity: hasHover() ? isChordActive(chord) ? 0.8 : 0.1 : 0.67,
+										stroke: 'none',
+										class: 'transition-[fill-opacity] duration-200 cursor-pointer',
+										onpointerenter: (e) => {
+											hoveredChord = chord;
+
+											context.tooltip.show(e, {
+												source: names[chord.source.index],
+												target: names[chord.target.index],
+												sourceValue: chord.source.value,
+												targetValue: chord.target.value
+											});
+										},
+
+										onpointermove: (e) => {
+											context.tooltip.show(e, {
+												source: names[chord.source.index],
+												target: names[chord.target.index],
+												sourceValue: chord.source.value,
+												targetValue: chord.target.value
+											});
+										},
+
+										onpointerleave: () => {
+											hoveredChord = null;
+											context.tooltip.hide();
+										}
+									});
+								}
+
+								$$renderer.push(`<!--]--> <!--[-->`);
+
+								const each_array_1 = $.ensure_array_like(groups);
+
+								for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
+									let group = each_array_1[$$index_1];
+
+									{
+										function children($$renderer, arcProps) {
+											ArcLabel($$renderer, $.spread_props([
+												arcProps,
+												{
+													placement: 'centroid-rotated',
+													offset: (outerRadius - innerRadius) / 2 + 6,
+													value: names[group.index],
+													class: cls('text-xs font-medium transition-opacity duration-200', hasHover() && !isGroupActive(group.index) && 'opacity-30')
+												}
+											]));
+										}
+
+										Arc($$renderer, {
+											startAngle: group.startAngle,
+											endAngle: group.endAngle,
+											innerRadius,
+											outerRadius,
+											fill: color(names[group.index]),
+											fillOpacity: hasHover() ? isGroupActive(group.index) ? 1 : 0.3 : 1,
+											stroke: 'none',
+											class: 'transition-[fill-opacity] duration-200 cursor-pointer',
+											onpointerenter: (e) => {
+												hoveredGroupIndex = group.index;
+
+												const row = matrix[group.index];
+												const total = row.reduce((sum, v) => sum + v, 0);
+												const breakdown = names.map((name, i) => ({ name, value: row[i] }));
+
+												context.tooltip.show(e, { isGroup: true, name: names[group.index], total, breakdown });
+											},
+
+											onpointermove: (e) => {
+												const row = matrix[group.index];
+												const total = row.reduce((sum, v) => sum + v, 0);
+												const breakdown = names.map((name, i) => ({ name, value: row[i] }));
+
+												context.tooltip.show(e, { isGroup: true, name: names[group.index], total, breakdown });
+											},
+
+											onpointerleave: () => {
+												hoveredGroupIndex = null;
+												context.tooltip.hide();
+											},
+											children,
+											$$slots: { default: true }
+										});
+									}
+								}
+
+								$$renderer.push(`<!--]-->`);
+							}
+
+							Chord($$renderer, {
+								matrix,
+								padAngle: 0.05,
+								sortSubgroups: (a, b) => b - a,
+								children,
+								$$slots: { default: true }
+							});
+						}
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!----> `);
+
+				{
+					function children($$renderer, { data }) {
+						if (data.isGroup) {
+							$$renderer.push('<!--[0-->');
+
+							if (Tooltip.Header) {
+								$$renderer.push('<!--[-->');
+
+								Tooltip.Header($$renderer, {
+									children: ($$renderer) => {
+										$$renderer.push(`<!---->${$.escape(data.name)}`);
+									},
+									$$slots: { default: true }
+								});
+
+								$$renderer.push('<!--]-->');
+							} else {
+								$$renderer.push('<!--[!-->');
+								$$renderer.push('<!--]-->');
+							}
+
+							$$renderer.push(` `);
+
+							if (Tooltip.List) {
+								$$renderer.push('<!--[-->');
+
+								Tooltip.List($$renderer, {
+									children: ($$renderer) => {
+										$$renderer.push(`<!--[-->`);
+
+										const each_array_2 = $.ensure_array_like(data.breakdown);
+
+										for (let $$index_2 = 0, $$length = each_array_2.length; $$index_2 < $$length; $$index_2++) {
+											let item = each_array_2[$$index_2];
+
+											if (Tooltip.Item) {
+												$$renderer.push('<!--[-->');
+
+												Tooltip.Item($$renderer, {
+													label: `${$.stringify(data.name)} → ${$.stringify(item.name)}`,
+													value: item.value,
+													format: 'integer'
+												});
+
+												$$renderer.push('<!--]-->');
+											} else {
+												$$renderer.push('<!--[!-->');
+												$$renderer.push('<!--]-->');
+											}
+										}
+
+										$$renderer.push(`<!--]--> `);
+
+										if (Tooltip.Separator) {
+											$$renderer.push('<!--[-->');
+											Tooltip.Separator($$renderer, {});
+											$$renderer.push('<!--]-->');
+										} else {
+											$$renderer.push('<!--[!-->');
+											$$renderer.push('<!--]-->');
+										}
+
+										$$renderer.push(` `);
+
+										if (Tooltip.Item) {
+											$$renderer.push('<!--[-->');
+											Tooltip.Item($$renderer, { label: 'Total', value: data.total, format: 'integer' });
+											$$renderer.push('<!--]-->');
+										} else {
+											$$renderer.push('<!--[!-->');
+											$$renderer.push('<!--]-->');
+										}
+									},
+									$$slots: { default: true }
+								});
+
+								$$renderer.push('<!--]-->');
+							} else {
+								$$renderer.push('<!--[!-->');
+								$$renderer.push('<!--]-->');
+							}
+						} else {
+							$$renderer.push('<!--[-1-->');
+
+							if (Tooltip.Header) {
+								$$renderer.push('<!--[-->');
+
+								Tooltip.Header($$renderer, {
+									children: ($$renderer) => {
+										$$renderer.push(`<!---->${$.escape(data.source)} ↔ ${$.escape(data.target)}`);
+									},
+									$$slots: { default: true }
+								});
+
+								$$renderer.push('<!--]-->');
+							} else {
+								$$renderer.push('<!--[!-->');
+								$$renderer.push('<!--]-->');
+							}
+
+							$$renderer.push(` `);
+
+							if (Tooltip.List) {
+								$$renderer.push('<!--[-->');
+
+								Tooltip.List($$renderer, {
+									children: ($$renderer) => {
+										if (Tooltip.Item) {
+											$$renderer.push('<!--[-->');
+
+											Tooltip.Item($$renderer, {
+												label: `${$.stringify(data.source)} → ${$.stringify(data.target)}`,
+												value: data.sourceValue,
+												format: 'integer'
+											});
+
+											$$renderer.push('<!--]-->');
+										} else {
+											$$renderer.push('<!--[!-->');
+											$$renderer.push('<!--]-->');
+										}
+
+										$$renderer.push(` `);
+
+										if (Tooltip.Item) {
+											$$renderer.push('<!--[-->');
+
+											Tooltip.Item($$renderer, {
+												label: `${$.stringify(data.target)} → ${$.stringify(data.source)}`,
+												value: data.targetValue,
+												format: 'integer'
+											});
+
+											$$renderer.push('<!--]-->');
+										} else {
+											$$renderer.push('<!--[!-->');
+											$$renderer.push('<!--]-->');
+										}
+									},
+									$$slots: { default: true }
+								});
+
+								$$renderer.push('<!--]-->');
+							} else {
+								$$renderer.push('<!--[!-->');
+								$$renderer.push('<!--]-->');
+							}
+						}
+
+						$$renderer.push(`<!--]-->`);
+					}
+
+					if (Tooltip.Root) {
+						$$renderer.push('<!--[-->');
+						Tooltip.Root($$renderer, { children, $$slots: { default: true } });
+						$$renderer.push('<!--]-->');
+					} else {
+						$$renderer.push('<!--[!-->');
+						$$renderer.push('<!--]-->');
+					}
+				}
+			}
+
+			Chart($$renderer, {
+				height: 500,
+				padding: { top: 50, bottom: 30 },
+				children,
+				$$slots: { default: true }
+			});
+		}
+
+		$.bind_props($$props, { matrix });
+	});
+}

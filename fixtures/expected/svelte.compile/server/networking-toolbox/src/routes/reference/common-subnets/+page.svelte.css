@@ -1,0 +1,122 @@
+
+  .subnets-table.svelte-1ucf1rp {
+    margin: var(--spacing-lg) 0;
+
+    .tooltip-container {
+      width: 100%;
+    }
+  }
+
+  .table-header.svelte-1ucf1rp {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1.5fr 2fr;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-primary);
+    margin-bottom: var(--spacing-sm);
+
+    > span:where(.svelte-1ucf1rp) {
+      display: flex;
+      align-items: center;
+
+      &:nth-child(1),
+      &:nth-child(2),
+      &:nth-child(4) {
+        justify-content: flex-start;
+      }
+      &:nth-child(3) {
+        justify-content: flex-end;
+      }
+    }
+
+    @media (max-width: 768px) {
+      display: none;
+    }
+  }
+
+  .table-row.svelte-1ucf1rp {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1.5fr 2fr;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-xs);
+    transition: background-color var(--transition-fast);
+    cursor: help;
+
+    &:hover {
+      background-color: var(--surface-hover);
+    }
+
+    @media (max-width: 768px) {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+      padding: var(--spacing-md);
+    }
+  }
+
+  .cidr-cell.svelte-1ucf1rp,
+  .mask-cell.svelte-1ucf1rp,
+  .hosts-cell.svelte-1ucf1rp,
+  .usage-cell.svelte-1ucf1rp {
+    display: flex;
+    align-items: center;
+    font-family: var(--font-mono);
+
+    @media (max-width: 768px) {
+      &::before {
+        color: var(--text-secondary);
+        font-weight: normal;
+      }
+    }
+  }
+
+  .cidr-cell.svelte-1ucf1rp {
+    font-weight: 700;
+    color: var(--color-info-light);
+    justify-content: flex-start;
+    @media (max-width: 768px) {
+      &::before {
+        content: 'CIDR: ';
+      }
+    }
+  }
+
+  .mask-cell.svelte-1ucf1rp {
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    justify-content: flex-start;
+    @media (max-width: 768px) {
+      &::before {
+        content: 'Mask: ';
+      }
+    }
+  }
+
+  .hosts-cell.svelte-1ucf1rp {
+    font-size: var(--font-size-sm);
+    color: var(--color-success-light);
+    justify-content: flex-end;
+    @media (max-width: 768px) {
+      &::before {
+        content: 'Hosts: ';
+      }
+    }
+  }
+
+  .usage-cell.svelte-1ucf1rp {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    justify-content: flex-start;
+    font-family: inherit;
+    @media (max-width: 768px) {
+      &::before {
+        content: 'Usage: ';
+      }
+    }
+  }

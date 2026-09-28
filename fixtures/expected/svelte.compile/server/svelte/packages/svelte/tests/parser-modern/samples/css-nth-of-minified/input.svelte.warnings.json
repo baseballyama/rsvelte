@@ -1,0 +1,30 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"ul\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 21,
+			"column": 1,
+			"character": 434
+		},
+		"end": {
+			"line": 21,
+			"column": 3,
+			"character": 436
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"& li:nth-child(2n of&.important)\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 22,
+			"column": 2,
+			"character": 441
+		},
+		"end": {
+			"line": 22,
+			"column": 34,
+			"character": 473
+		}
+	}
+]

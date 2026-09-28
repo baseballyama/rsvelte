@@ -1,0 +1,162 @@
+
+	/* ============================================================
+	   Refined Editorial header + drawer — default theme only.
+	   `.ed` is added via class:ed only when activeThemeName === 'default',
+	   so wine/organic keep their existing look untouched.
+	   ============================================================ */
+	header.ed.svelte-d9v6bn {
+		background: var(--ed-surface);
+		box-shadow: none;
+		border-bottom: 1px solid var(--ed-line);
+		font-family: var(--ed-body);
+		color: var(--ed-ink);
+	}
+
+	.ed.svelte-d9v6bn .ed-row:where(.svelte-d9v6bn) {
+		background: transparent;
+	}
+
+	/* Header action icons (wishlist, account) — ink, accent on hover */
+	.ed.svelte-d9v6bn .ed-action:where(.svelte-d9v6bn) {
+		color: var(--ed-ink);
+		transition: color 0.25s ease;
+	}
+
+	.ed.svelte-d9v6bn .ed-action:where(.svelte-d9v6bn):hover {
+		color: hsl(var(--primary));
+	}
+
+	/* Mobile product-listing header */
+	.ed.svelte-d9v6bn .ed-plp-title:where(.svelte-d9v6bn) {
+		font-family: var(--ed-display);
+		font-weight: 500;
+		letter-spacing: -0.01em;
+		color: var(--ed-ink);
+	}
+
+	.ed.svelte-d9v6bn .ed-plp-count:where(.svelte-d9v6bn) {
+		color: var(--ed-soft);
+		letter-spacing: 0.02em;
+	}
+
+	/* ---------- Mobile drawer ---------- */
+	.ed.svelte-d9v6bn .ed-drawer:where(.svelte-d9v6bn) {
+		background: var(--ed-surface);
+		border-right-color: var(--ed-line);
+		color: var(--ed-ink);
+	}
+
+	.ed.svelte-d9v6bn .ed-drawer-head:where(.svelte-d9v6bn),
+	.ed.svelte-d9v6bn .ed-drawer-user:where(.svelte-d9v6bn),
+	.ed.svelte-d9v6bn .ed-drawer-foot:where(.svelte-d9v6bn) {
+		border-color: var(--ed-line);
+	}
+
+	.ed.svelte-d9v6bn .ed-drawer-user:where(.svelte-d9v6bn),
+	.ed.svelte-d9v6bn .ed-drawer-foot:where(.svelte-d9v6bn) {
+		background: var(--ed-canvas);
+	}
+
+	.ed.svelte-d9v6bn .ed-drawer-label:where(.svelte-d9v6bn) {
+		font-family: var(--ed-body);
+		color: var(--ed-soft);
+		letter-spacing: 0.18em;
+		font-weight: 600;
+	}
+
+	.ed.svelte-d9v6bn .ed-drawer-link:where(.svelte-d9v6bn) {
+		color: var(--ed-ink);
+		font-family: var(--ed-body);
+		border-radius: var(--ed-radius);
+		transition:
+			background 0.2s ease,
+			color 0.2s ease;
+	}
+
+	.ed.svelte-d9v6bn .ed-drawer-link:where(.svelte-d9v6bn):hover {
+		background: var(--ed-canvas);
+		color: hsl(var(--primary));
+	}
+
+	.ed.svelte-d9v6bn .ed-drawer-link:where(.svelte-d9v6bn) svg {
+		color: var(--ed-soft);
+		transition: color 0.2s ease;
+	}
+
+	.ed.svelte-d9v6bn .ed-drawer-link:where(.svelte-d9v6bn):hover svg {
+		color: hsl(var(--primary));
+	}
+
+	.ed.svelte-d9v6bn .ed-contact:where(.svelte-d9v6bn) {
+		color: var(--ed-soft);
+		transition: color 0.2s ease;
+	}
+
+	.ed.svelte-d9v6bn .ed-contact:where(.svelte-d9v6bn):hover {
+		color: hsl(var(--primary));
+	}
+
+	.ed.svelte-d9v6bn .ed-contact:where(.svelte-d9v6bn) svg {
+		color: var(--ed-soft);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.ed.svelte-d9v6bn .ed-action:where(.svelte-d9v6bn),
+		.ed.svelte-d9v6bn .ed-drawer-link:where(.svelte-d9v6bn),
+		.ed.svelte-d9v6bn .ed-drawer-link:where(.svelte-d9v6bn) svg,
+		.ed.svelte-d9v6bn .ed-contact:where(.svelte-d9v6bn) {
+			transition: none;
+		}
+	}
+
+	.sliding-list.svelte-d9v6bn {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		height: 1.8rem;
+		overflow: hidden;
+		position: relative;
+	}
+
+	.sliding-list.svelte-d9v6bn li:where(.svelte-d9v6bn) {
+		height: 1.8rem;
+		line-height: 1.8rem;
+		position: absolute;
+		width: 100%;
+		opacity: 0;
+		animation: svelte-d9v6bn-slideUp var(--anim-duration) linear infinite;
+		animation-delay: calc(var(--index) * (var(--anim-duration) / var(--item-count)));
+	}
+
+	.sliding-list.svelte-d9v6bn li:where(.svelte-d9v6bn):first-child {
+		opacity: 1;
+		top: 0;
+	}
+
+	@media screen and (max-width: 300px) {
+		.sliding-list.svelte-d9v6bn {
+			height: 1rem;
+		}
+		.sliding-list.svelte-d9v6bn li:where(.svelte-d9v6bn) {
+			height: 1rem;
+			line-height: 1rem;
+		}
+	}
+
+	@keyframes svelte-d9v6bn-slideUp {
+		0%,
+		3% {
+			top: 100%;
+			opacity: 0;
+		}
+		5%,
+		33% {
+			top: 0;
+			opacity: 1;
+		}
+		36%,
+		100% {
+			top: -100%;
+			opacity: 0;
+		}
+	}

@@ -1,0 +1,4 @@
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/Confetti.svelte","sha256":"39d47af5a44f2c5fb19f2be9547f9dac62badb4971285f2abe462cc08495c2ca"}
+{"inferredMode":"neutral","lang":"svelte","mode":"runes","path":"src/routes/+page.svelte","sha256":"3a0563f002b777e9e86c7f9be397b4f18f34a8349e26322d1d15388a21314e7a"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/routes/CodeBlock.svelte","sha256":"df6d69c453c8d3e5f5f18ce35c5e5aca6cb3592e488b5ce6802f27b85cead9fb"}
+{"inferredMode":"neutral","lang":"svelte","mode":"runes","path":"src/routes/ConfettiOnClick.svelte","sha256":"c8d2624f6fcdb25d3d777d0d05d6d90d8b48d2aa50e81e0c5cf194d3788a924e"}

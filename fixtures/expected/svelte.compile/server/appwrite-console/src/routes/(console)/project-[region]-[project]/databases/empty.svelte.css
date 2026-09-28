@@ -1,0 +1,24 @@
+
+    .database-image.svelte-19miacw {
+        border-radius: var(--border-radius-s) 0 0 var(--border-radius-s);
+
+        &.adaptive-height {
+            max-height: 236px;
+            object-fit: cover;
+            object-position: center 5%;
+            border-radius: var(--border-radius-s) var(--border-radius-s) 0 0;
+        }
+
+        @media (max-width: 768px) {
+            max-height: 236px;
+            object-fit: cover;
+            object-position: center 10%;
+            border-radius: var(--border-radius-s) var(--border-radius-s) 0 0;
+        }
+
+        @media (min-width: 768px) and (max-width: 1023px) {
+            max-height: 236px;
+            object-fit: cover;
+            border-radius: var(--border-radius-s) var(--border-radius-s) 0 0;
+        }
+    }

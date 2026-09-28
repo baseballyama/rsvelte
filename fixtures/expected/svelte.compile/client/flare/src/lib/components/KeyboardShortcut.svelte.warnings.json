@@ -1,0 +1,58 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `shortcut`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 41,
+			"column": 21,
+			"character": 861
+		},
+		"end": {
+			"line": 41,
+			"column": 29,
+			"character": 869
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `shortcut`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 44,
+			"column": 17,
+			"character": 1013
+		},
+		"end": {
+			"line": 44,
+			"column": 25,
+			"character": 1021
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `shortcut`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 44,
+			"column": 34,
+			"character": 1030
+		},
+		"end": {
+			"line": 44,
+			"column": 42,
+			"character": 1038
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `shortcut`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 44,
+			"column": 73,
+			"character": 1069
+		},
+		"end": {
+			"line": 44,
+			"column": 81,
+			"character": 1077
+		}
+	}
+]

@@ -1,0 +1,31 @@
+
+  .wrapper.svelte-12y4zxs {
+    position: relative;
+    border: 1px solid var(--docs-border-color);
+    border-radius: 8px;
+    background-color: #1e2c3e;
+    padding: 0.5em;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .wrapper.svelte-12y4zxs:focus-within {
+    border-color: var(--red);
+
+    &.valid {
+      border-color: var(--green);
+    }
+  }
+
+  .ace.svelte-12y4zxs {
+    width: 100%;
+    height: auto;
+  }
+
+  span.svelte-12y4zxs {
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-size: 10px;
+    font-family: monospace;
+  }

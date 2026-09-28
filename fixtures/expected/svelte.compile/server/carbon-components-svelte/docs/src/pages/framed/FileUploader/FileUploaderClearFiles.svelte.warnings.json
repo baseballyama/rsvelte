@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`fileUploader` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 6,
+			"character": 83
+		},
+		"end": {
+			"line": 4,
+			"column": 18,
+			"character": 95
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`files` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 103
+		},
+		"end": {
+			"line": 5,
+			"column": 11,
+			"character": 108
+		}
+	}
+]

@@ -1,0 +1,16 @@
+[
+	{
+		"code": "bind_invalid_each_rest",
+		"message": "The rest operator (...) will create a new object and binding 'rest' with the original object will not work\nhttps://svelte.dev/e/bind_invalid_each_rest",
+		"start": {
+			"line": 5,
+			"column": 28,
+			"character": 146
+		},
+		"end": {
+			"line": 5,
+			"column": 32,
+			"character": 150
+		}
+	}
+]

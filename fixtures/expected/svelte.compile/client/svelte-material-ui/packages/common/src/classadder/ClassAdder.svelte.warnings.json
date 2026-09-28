@@ -1,0 +1,58 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `_smuiClassMap`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 97,
+			"column": 17,
+			"character": 2272
+		},
+		"end": {
+			"line": 97,
+			"column": 30,
+			"character": 2285
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `_smuiContexts`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 109,
+			"column": 22,
+			"character": 2585
+		},
+		"end": {
+			"line": 109,
+			"column": 35,
+			"character": 2598
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `_smuiContexts`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 110,
+			"column": 8,
+			"character": 2610
+		},
+		"end": {
+			"line": 110,
+			"column": 21,
+			"character": 2623
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `_smuiContexts`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 111,
+			"column": 26,
+			"character": 2677
+		},
+		"end": {
+			"line": 111,
+			"column": 39,
+			"character": 2690
+		}
+	}
+]

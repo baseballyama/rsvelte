@@ -1,0 +1,34 @@
+
+	.main.svelte-1oatjoc {
+		position: relative;
+		padding-top: 1rem;
+	}
+	svg.svelte-1oatjoc {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 1rem;
+		height: 1rem;
+		opacity: 0.75;
+	}
+	.main.info-field h1 {
+		font-size: 1.75rem;
+	}
+
+	.main.info-field h2 {
+		font-size: 1.25rem;
+	}
+
+	.main.info-field a {
+		color: cornflowerblue;
+		text-decoration: underline cornflowerblue;
+	}
+
+	.main.info-field img {
+		width: 100%;
+	}
+
+	.main.info-field ul, .main.info-field ol {
+		list-style: initial;
+		padding-left: 1rem;
+	}

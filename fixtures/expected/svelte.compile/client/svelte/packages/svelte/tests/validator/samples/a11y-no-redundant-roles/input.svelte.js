@@ -1,0 +1,11 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<a href="/" role="link">a link</a> <article role="article"></article> <aside role="complementary"></aside> <body role="document"></body> <button role="button">click me</button> <datalist role="listbox"></datalist> <dd role="definition"></dd> <dfn role="term"></dfn> <details role="group"></details> <dialog role="dialog"></dialog> <dt role="term"></dt> <fieldset role="group"></fieldset> <figure role="figure"></figure> <form role="form">foo</form> <h1 role="heading">heading</h1> <h2 role="heading">heading</h2> <h3 role="heading">heading</h3> <h4 role="heading">heading</h4> <h5 role="heading">heading</h5> <h6 role="heading">heading</h6> <hr role="separator"/> <link role="link"/> <main role="main"></main> <nav role="navigation"></nav> <optgroup role="group"></optgroup> <option role="option"></option> <output role="status"></output> <progress role="progressbar"></progress> <section role="region"></section> <summary role="button"></summary> <table role="table"></table> <tbody role="rowgroup"></tbody> <textarea role="textbox"></textarea> <tfoot role="rowgroup"></tfoot> <thead role="rowgroup"></thead> <tr role="row"></tr>  <header role="banner"></header> <footer role="contentinfo"></footer>  <menu role="menu"></menu>`, 1);
+
+export default function Input($$anchor) {
+	var fragment = root();
+
+	$.next(76);
+	$.append($$anchor, fragment);
+}

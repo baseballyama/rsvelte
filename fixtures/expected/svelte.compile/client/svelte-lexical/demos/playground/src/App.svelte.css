@@ -1,0 +1,17 @@
+
+  main.svelte-346k45 {
+    text-align: center;
+    padding: 1em;
+    max-width: none;
+    margin: 0 auto;
+  }
+
+  .header-container.svelte-346k45 {
+    display: flex;
+    justify-content: flex-end;
+    /* padding: 0.5em 1em; */ /* this somehow affects a unit test for selection*/
+  }
+
+  a.svelte-346k45 {
+    color: var(--link-color);
+  }

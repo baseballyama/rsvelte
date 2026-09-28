@@ -1,0 +1,37 @@
+<script lang="ts">
+  import * as maplibregl from 'maplibre-gl';
+  import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+  import MapLibre from '$lib/MapLibre.svelte';
+  import GeoJSON from '$lib/GeoJSON.svelte';
+  import { mapClasses } from '../styles.js';
+  import code from './+page.svelte?raw';
+  import CodeSample from '$site/CodeSample.svelte';
+  import states from '$site/states.json?url';
+  import MarkerLayer from '$lib/MarkerLayer.svelte';
+  import Popup from '$lib/Popup.svelte';
+
+  maplibregl.setWorkerUrl(maplibreWorkerUrl);
+</script>
+
+<MapLibre
+  style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
+  class={mapClasses}
+  standardControls
+  center={[-98.137, 40.137]}
+  zoom={4}
+>
+  <GeoJSON id="states" data={states} promoteId="STATEFP">
+    <MarkerLayer interactive>
+      {#snippet children({ feature })}
+        <div class="rounded-full bg-gray-200 p-2 shadow">
+          <div class="text-sm font-bold">{feature.properties?.NAME}</div>
+        </div>
+        <Popup openOn="hover">
+          {feature.properties?.NAME} has FIPS code {feature.properties?.STATEFP}
+        </Popup>
+      {/snippet}
+    </MarkerLayer>
+  </GeoJSON>
+</MapLibre>
+
+<CodeSample {code} />

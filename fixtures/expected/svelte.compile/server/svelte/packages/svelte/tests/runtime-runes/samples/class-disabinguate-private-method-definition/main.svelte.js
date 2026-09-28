@@ -1,0 +1,13 @@
+import * as $ from 'svelte/internal/server';
+
+export default function Main($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		class Repo {
+			tree;
+
+			async #tree() {}
+		}
+
+		const repo = new Repo();
+	});
+}

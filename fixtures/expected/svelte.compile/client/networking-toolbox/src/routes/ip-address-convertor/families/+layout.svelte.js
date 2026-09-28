@@ -1,0 +1,49 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import '../../../styles/pages.scss';
+import '../../../styles/converters.scss';
+import '../../../styles/components.scss';
+import Icon from '$lib/components/global/Icon.svelte';
+
+var root = $.from_html(`<div class="container"><!> <div class="info-cards-section svelte-r8ryd6"><div class="explainer-card no-hover svelte-r8ryd6"><h3 class="svelte-r8ryd6"><!> Understanding IPv4 and IPv6</h3> <div class="explainer-content"><div class="format-explanations svelte-r8ryd6"><div class="format-explanation svelte-r8ryd6"><h4 class="svelte-r8ryd6"><span class="format-badge ipv4 svelte-r8ryd6">IPv4 (Internet Protocol version 4)</span></h4> <p><strong>Address Length:</strong> 32 bits (4 bytes)</p> <p><strong>Format:</strong> Dotted decimal notation (e.g., 192.168.1.1)</p> <p><strong>Total Addresses:</strong> ~4.3 billion addresses</p> <p><strong>Example:</strong> <code>203.0.113.45</code></p> <p><strong>Status:</strong> Widely deployed but address space exhausted</p></div> <div class="format-explanation svelte-r8ryd6"><h4 class="svelte-r8ryd6"><span class="format-badge ipv6 svelte-r8ryd6">IPv6 (Internet Protocol version 6)</span></h4> <p><strong>Address Length:</strong> 128 bits (16 bytes)</p> <p><strong>Format:</strong> Hexadecimal with colons (e.g., 2001:db8::1)</p> <p><strong>Total Addresses:</strong> ~340 undecillion addresses</p> <p><strong>Example:</strong> <code>2001:0db8:85a3:0000:0000:8a2e:0370:7334</code></p> <p><strong>Status:</strong> Modern standard with virtually unlimited address space</p></div> <div class="format-explanation svelte-r8ryd6"><h4 class="svelte-r8ryd6"><span class="format-badge mapped svelte-r8ryd6">IPv4-mapped IPv6</span></h4> <p><strong>Purpose:</strong> Represent IPv4 addresses within IPv6 format</p> <p><strong>Format:</strong> <code>::ffff:192.0.2.1</code> or <code>::ffff:c000:0201</code></p> <p><strong>Usage:</strong> Transition mechanism and dual-stack implementations</p> <p><strong>Structure:</strong> 80 zero bits + 16 one bits (ffff) + 32-bit IPv4 address</p></div></div></div></div> <div class="explainer-card no-hover svelte-r8ryd6"><h3 class="svelte-r8ryd6"><!> Conversion Methods & Use Cases</h3> <div class="explainer-content"><div class="usage-scenarios svelte-r8ryd6"><div class="usage-scenario svelte-r8ryd6"><h4 class="svelte-r8ryd6">IPv4 to IPv6 Conversion</h4> <ul class="svelte-r8ryd6"><li class="svelte-r8ryd6"><strong>IPv4-mapped:</strong> Embed IPv4 addresses in IPv6 format</li> <li class="svelte-r8ryd6"><strong>Dual-stack:</strong> Run both protocols simultaneously</li> <li class="svelte-r8ryd6"><strong>Tunneling:</strong> Encapsulate IPv4 traffic in IPv6 packets</li> <li class="svelte-r8ryd6"><strong>Migration:</strong> Gradual transition from IPv4 to IPv6</li></ul></div> <div class="usage-scenario svelte-r8ryd6"><h4 class="svelte-r8ryd6">IPv6 to IPv4 Extraction</h4> <ul class="svelte-r8ryd6"><li class="svelte-r8ryd6"><strong>Legacy Support:</strong> Extract IPv4 from mapped addresses</li> <li class="svelte-r8ryd6"><strong>Compatibility:</strong> Interface with IPv4-only systems</li> <li class="svelte-r8ryd6"><strong>Debugging:</strong> Identify original IPv4 addresses</li> <li class="svelte-r8ryd6"><strong>Analysis:</strong> Traffic analysis and monitoring</li></ul></div> <div class="usage-scenario svelte-r8ryd6"><h4 class="svelte-r8ryd6">Real-world Applications</h4> <ul class="svelte-r8ryd6"><li class="svelte-r8ryd6"><strong>Web Servers:</strong> Handle both IPv4 and IPv6 clients</li> <li class="svelte-r8ryd6"><strong>Load Balancers:</strong> Route traffic between IP versions</li> <li class="svelte-r8ryd6"><strong>Network Monitoring:</strong> Unified logging and analysis</li> <li class="svelte-r8ryd6"><strong>API Integration:</strong> Service compatibility layers</li></ul></div></div></div></div> <div class="explainer-card no-hover svelte-r8ryd6"><h3 class="svelte-r8ryd6"><!> Important Considerations</h3> <div class="explainer-content"><div class="class-notes svelte-r8ryd6"><h4 class="svelte-r8ryd6">Limitations & Best Practices</h4> <ul class="svelte-r8ryd6"><li class="svelte-r8ryd6"><strong>IPv4-mapped IPv6:</strong> Only works for representing IPv4 addresses, not true IPv6 migration</li> <li class="svelte-r8ryd6"><strong>Security:</strong> IPv4-mapped addresses may bypass IPv6-specific security rules</li> <li class="svelte-r8ryd6"><strong>Performance:</strong> Native IPv6 is preferred over IPv4-mapped when possible</li> <li class="svelte-r8ryd6"><strong>Compatibility:</strong> Not all applications handle IPv4-mapped IPv6 correctly</li> <li class="svelte-r8ryd6"><strong>Best Practice:</strong> Use dual-stack configuration rather than relying solely on mapping</li> <li class="svelte-r8ryd6"><strong>Future-proofing:</strong> Plan for IPv6-native implementations</li></ul></div></div></div></div></div>`);
+
+export default function _layout($$anchor, $$props) {
+	var div = root();
+	var node = $.child(div);
+
+	$.slot(node, $$props, 'default', {}, null);
+
+	var div_1 = $.sibling(node, 2);
+	var div_2 = $.child(div_1);
+	var h3 = $.child(div_2);
+	var node_1 = $.child(h3);
+
+	Icon(node_1, { name: 'info', size: 'md' });
+	$.next();
+	$.reset(h3);
+	$.next(2);
+	$.reset(div_2);
+
+	var div_3 = $.sibling(div_2, 2);
+	var h3_1 = $.child(div_3);
+	var node_2 = $.child(h3_1);
+
+	Icon(node_2, { name: 'lightbulb', size: 'md' });
+	$.next();
+	$.reset(h3_1);
+	$.next(2);
+	$.reset(div_3);
+
+	var div_4 = $.sibling(div_3, 2);
+	var h3_2 = $.child(div_4);
+	var node_3 = $.child(h3_2);
+
+	Icon(node_3, { name: 'warning', size: 'md' });
+	$.next();
+	$.reset(h3_2);
+	$.next(2);
+	$.reset(div_4);
+	$.reset(div_1);
+	$.reset(div);
+	$.append($$anchor, div);
+}

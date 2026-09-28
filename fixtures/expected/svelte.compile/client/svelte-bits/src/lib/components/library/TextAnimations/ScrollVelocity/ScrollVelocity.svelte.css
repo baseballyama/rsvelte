@@ -1,0 +1,24 @@
+
+	section.svelte-185a7au .parallax {
+		position: relative;
+		overflow: hidden;
+	}
+	section.svelte-185a7au .scroller {
+		display: flex;
+		white-space: nowrap;
+		text-align: center;
+		font-family: sans-serif;
+		font-size: 2.25rem;
+		font-weight: bold;
+		letter-spacing: -0.02em;
+		filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1));
+	}
+	section.svelte-185a7au .scroller span {
+		flex-shrink: 0;
+	}
+	@media (min-width: 768px) {
+		section.svelte-185a7au .scroller {
+			font-size: 5rem;
+			line-height: 5rem;
+		}
+	}

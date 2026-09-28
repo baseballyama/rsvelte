@@ -1,0 +1,37 @@
+
+  .svp-tab.svelte-st05z8 {
+    --at-apply: 'b-1 b-solid b-black/6 rounded-lg dark:b-white/8 overflow-hidden';
+  }
+  /* Code blocks sitting flush inside a tab (bodyPadding={false}, e.g. the
+     install-pkg tabs) inherit the tab container's border and radius — their
+     own card chrome would double the borders and mismatch the corners. */
+  .svp-tab.svelte-st05z8 > div:where(.svelte-st05z8):not(.padding) .svp-code-block-wrapper {
+    --at-apply: 'b-none rounded-none';
+    box-shadow: none;
+  }
+  .svp-tab .svp-live-code--container {
+    margin-bottom: 0;
+  }
+  .padding.svelte-st05z8 {
+    --at-apply: 'p-4';
+  }
+  .tab-body.svelte-st05z8 {
+    --at-apply: 'relative overflow-hidden';
+  }
+  .tab-header.svelte-st05z8 {
+    --at-apply: 'relative flex items-center justify-center sm:justify-start bg-white dark:bg-[#1c1c1f] rounded-t-lg text-4 b-b-1 b-b-black/6 dark:b-b-white/8 b-b-solid';
+  }
+  .tab-header-item.svelte-st05z8 {
+    --at-apply: 'py-3 px-4 sm:px-8 sm:py-4 cursor-pointer hover:text-svp-hover transition-color flex items-center text-zinc-6 dark:text-zinc-4';
+  }
+  .tab-header-item.active.svelte-st05z8 {
+    --at-apply: 'text-svp-primary-deep dark:text-svp-primary font-500';
+  }
+  .name.svelte-st05z8 {
+    --at-apply: 'ml-2';
+  }
+  .active-bar.svelte-st05z8 {
+    --at-apply: 'absolute bottom-0 h-[2px] bg-svp-primary';
+    width: var(--bar-width);
+    left: var(--bar-left);
+  }

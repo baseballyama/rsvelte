@@ -1,0 +1,15 @@
+
+  @keyframes svelte-1el4mnz-custom-pulse {
+    50% {
+      opacity: 0;
+    }
+  }
+  .pulse-1.svelte-1el4mnz {
+    animation: svelte-1el4mnz-custom-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  .pulse-2.svelte-1el4mnz {
+    animation: svelte-1el4mnz-custom-pulse 2s 0.3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  .pulse-3.svelte-1el4mnz {
+    animation: svelte-1el4mnz-custom-pulse 2s 0.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }

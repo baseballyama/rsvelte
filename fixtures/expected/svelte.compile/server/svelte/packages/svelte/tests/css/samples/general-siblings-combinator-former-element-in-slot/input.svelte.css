@@ -1,0 +1,4 @@
+
+  h1.svelte-9oquys ~ p:where(.svelte-9oquys) {
+    color: red;
+  }

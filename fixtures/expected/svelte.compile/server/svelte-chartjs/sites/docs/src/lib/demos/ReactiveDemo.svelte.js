@@ -1,0 +1,107 @@
+import * as $ from 'svelte/internal/server';
+import { Line } from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	LineElement,
+	LinearScale,
+	PointElement,
+	CategoryScale
+} from 'chart.js';
+
+export default function ReactiveDemo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, LineElement, LinearScale, PointElement, CategoryScale);
+
+		const COLORS = [
+			'rgb(255, 99, 132)',
+			'rgb(75, 192, 192)',
+			'rgb(53, 162, 235)',
+			'rgb(255, 205, 86)',
+			'rgb(153, 102, 255)'
+		];
+
+		let nextLabel = 7;
+
+		let data = {
+			labels: ['1', '2', '3', '4', '5', '6'],
+			datasets: [
+				{
+					label: 'Dataset 1',
+					data: [65, 59, 80, 81, 56, 55],
+					borderColor: COLORS[0],
+					backgroundColor: COLORS[0],
+					tension: 0.3
+				}
+			]
+		};
+
+		function randomValue() {
+			return Math.floor(Math.random() * 100);
+		}
+
+		function addDataPoint() {
+			data = {
+				...data,
+				labels: [...data.labels, String(nextLabel)],
+				datasets: data.datasets.map((ds) => ({ ...ds, data: [...ds.data, randomValue()] }))
+			};
+
+			nextLabel++;
+		}
+
+		function removeDataPoint() {
+			if (data.labels.length <= 1) return;
+
+			data = {
+				...data,
+				labels: data.labels.slice(0, -1),
+				datasets: data.datasets.map((ds) => ({ ...ds, data: ds.data.slice(0, -1) }))
+			};
+		}
+
+		function randomizeData() {
+			data = {
+				...data,
+				datasets: data.datasets.map((ds) => ({ ...ds, data: ds.data.map(() => randomValue()) }))
+			};
+		}
+
+		function addDataset() {
+			const colorIndex = data.datasets.length % COLORS.length;
+
+			data = {
+				...data,
+				datasets: [
+					...data.datasets,
+					{
+						label: `Dataset ${data.datasets.length + 1}`,
+						data: data.labels.map(() => randomValue()),
+						borderColor: COLORS[colorIndex],
+						backgroundColor: COLORS[colorIndex],
+						tension: 0.3
+					}
+				]
+			};
+		}
+
+		function removeDataset() {
+			if (data.datasets.length <= 1) return;
+
+			data = { ...data, datasets: data.datasets.slice(0, -1) };
+		}
+
+		const options = {
+			responsive: true,
+			plugins: { title: { display: true, text: 'Reactive Data Demo' } },
+			scales: { y: { beginAtZero: true } }
+		};
+
+		$$renderer.push(`<div class="controls svelte-13cablb"><button class="svelte-13cablb">Add Data</button> <button class="svelte-13cablb">Remove Data</button> <button class="svelte-13cablb">Randomize</button> <button class="svelte-13cablb">Add Dataset</button> <button class="svelte-13cablb">Remove Dataset</button></div> `);
+		Line($$renderer, { data, options });
+		$$renderer.push(`<!---->`);
+	});
+}

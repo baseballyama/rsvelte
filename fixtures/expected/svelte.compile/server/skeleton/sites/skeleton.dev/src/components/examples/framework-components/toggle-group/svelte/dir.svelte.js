@@ -1,0 +1,70 @@
+import * as $ from 'svelte/internal/server';
+import BoldIcon from '@lucide/svelte/icons/bold';
+import ItalicIcon from '@lucide/svelte/icons/italic';
+import UnderlineIcon from '@lucide/svelte/icons/underline';
+import { ToggleGroup } from '@skeletonlabs/skeleton-svelte';
+
+export default function Dir($$renderer) {
+	ToggleGroup($$renderer, {
+		defaultValue: ['bold'],
+		multiple: true,
+		dir: 'rtl',
+		children: ($$renderer) => {
+			if (ToggleGroup.Item) {
+				$$renderer.push('<!--[-->');
+
+				ToggleGroup.Item($$renderer, {
+					value: 'bold',
+					children: ($$renderer) => {
+						BoldIcon($$renderer, { class: 'size-4' });
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push('<!--]-->');
+			} else {
+				$$renderer.push('<!--[!-->');
+				$$renderer.push('<!--]-->');
+			}
+
+			$$renderer.push(` `);
+
+			if (ToggleGroup.Item) {
+				$$renderer.push('<!--[-->');
+
+				ToggleGroup.Item($$renderer, {
+					value: 'italic',
+					children: ($$renderer) => {
+						ItalicIcon($$renderer, { class: 'size-4' });
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push('<!--]-->');
+			} else {
+				$$renderer.push('<!--[!-->');
+				$$renderer.push('<!--]-->');
+			}
+
+			$$renderer.push(` `);
+
+			if (ToggleGroup.Item) {
+				$$renderer.push('<!--[-->');
+
+				ToggleGroup.Item($$renderer, {
+					value: 'underline',
+					children: ($$renderer) => {
+						UnderlineIcon($$renderer, { class: 'size-4' });
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push('<!--]-->');
+			} else {
+				$$renderer.push('<!--[!-->');
+				$$renderer.push('<!--]-->');
+			}
+		},
+		$$slots: { default: true }
+	});
+}

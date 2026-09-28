@@ -1,0 +1,391 @@
+<script>
+	import MarkdownIt from 'markdown-it';
+	import hljs from 'highlight.js';
+
+	import CopyBtn from '../../_site-components/CopyBtn.svelte';
+	import DownloadComponentBtn from '../../_site-components/DownloadComponentBtn.svelte';
+	import hljsDefineSvelte from '../../../_modules/hljsDefineSvelte.js';
+
+	import components from '../../_components.js';
+
+	/**
+	 * @typedef {{
+	 *   kind: string,
+	 *   type: string,
+	 *   name: string,
+	 *   required: boolean,
+	 *   defaultValue: string | null,
+	 *   description: string
+	 * }} JsdocProp
+	 *
+	 * @typedef {{
+	 *   slug: string,
+	 *   name?: string,
+	 *   component: import('svelte').Component
+	 * }} ComponentEntry
+	 *
+	 * @typedef {{
+	 *   name: string,
+	 *   components: ComponentEntry[]
+	 * }} ComponentGroup
+	 */
+
+	const md = new MarkdownIt({ html: true, linkify: true });
+
+	hljs.registerLanguage('svelte', hljsDefineSvelte);
+	hljsDefineSvelte(hljs);
+
+	/** @type {import('./$types').PageProps} */
+	let { data } = $props();
+
+	let active = $derived(data.active);
+
+	/**
+	 * Converts markdown text to HTML.
+	 * @param {string} text - The markdown text to convert.
+	 * @returns {string} The converted HTML.
+	 */
+	function markdownToHtml(text) {
+		return md.render(text);
+	}
+
+	/**
+	 * @param {string} str
+	 * @param {string} s
+	 * @returns {string} highlighted code
+	 */
+	function highlight(str, s) {
+		const parts = s.split('.');
+		let ext = parts[parts.length - 1];
+		if (ext === 'csv') ext = 'diff';
+		return hljs.highlight(str, { language: ext }).value;
+	}
+
+	let pages = $derived([data.content.main].concat(data.content.modules));
+
+	const lookup = new Map();
+	components
+		.flatMap(/** @param {ComponentGroup} d */ d => d.components)
+		.forEach(
+			/** @param {ComponentEntry} d */ d => {
+				lookup.set(d.slug, d);
+			}
+		);
+
+	let component = $derived(lookup.get(data.slug));
+
+	/**
+	 * @param {string} type
+	 * @returns {string}
+	 */
+	function printTypes(type) {
+		if (type.includes('|')) {
+			const escaped = type
+				.split('|')
+				.map(/** @param {string} d */ d => `\`${d}\``)
+				.join(' &vert; ');
+			return `(${escaped})`;
+		} else return `\`${type}\``;
+	}
+
+	/**
+	 * @param {string | null | undefined} def
+	 * @returns {string}
+	 */
+	function printDefault(def) {
+		if (!def) return 'None';
+		return `\`${def}\``;
+	}
+
+	/**
+	 * @param {boolean|undefined} required
+	 * @returns {string}
+	 */
+	function printRequired(required) {
+		const str = required ? 'yes' : 'no';
+		return `<center>${str}</center>`;
+	}
+
+	const jsdocTableHeader = `|Param|Default|Required|Description|
+|-----|-------|--------|-----------|`;
+
+	let jsdocTableBody = '';
+	let jsdocTable = $state('');
+
+	// svelte-ignore state_referenced_locally
+	if (data.content.hasjsDoctable === true) {
+		// svelte-ignore state_referenced_locally
+		jsdocTableBody = `${data.content.jsdocParsed
+			.map(
+				/** @param {JsdocProp} d */ d =>
+					`**${d.name}** ${printTypes(d.type)}|${printDefault(d.defaultValue)}|${printRequired(
+						d.required
+					)}|${d.description?.replace(/^(-|–|—)/g, '').trim()}`
+			)
+			.join('\n')}`;
+		// svelte-ignore state_referenced_locally
+		jsdocTable = data.content.jsdocParsed.length ? `${jsdocTableHeader}\n${jsdocTableBody}` : '';
+	}
+</script>
+
+<svelte:head>
+	<title>{component.slug} component</title>
+</svelte:head>
+
+<div class="main">
+	<div class="all-components">
+		<a href="/components">← View all components</a>
+	</div>
+	<h1>{component.slug} component</h1>
+
+	<div class="chart-hero">
+		<component.component />
+	</div>
+
+	<div class="download">
+		<DownloadComponentBtn data={data.content} slug={data.slug} />
+	</div>
+
+	<div class="dek">
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+		{@html markdownToHtml(data.content.componentDescription)}
+	</div>
+	{#if data.content.hasjsDoctable === true}
+		<div id="params-table">
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+			{@html markdownToHtml(jsdocTable)}
+		</div>
+	{/if}
+	<div id="used-in">
+		{#if data.content.usedIn[0].matches.length > 0 || data.content.usedIn[1].matches.length > 0}
+			<h3>
+				Used in these{data.content.usedIn[0].matches.length === 0 &&
+				data.content.usedIn[1].matches.length > 0
+					? ' SSR'
+					: ''} examples:
+			</h3>
+			{#each data.content.usedIn as group}
+				{#if group.matches.length > 0}
+					{#if group.group === 'SSR' && data.content.usedIn[0].matches.length > 0}
+						<h3>SSR Examples:</h3>
+					{/if}
+					<ul>
+						{#each group.matches as link}
+							<li><a href={link}>{link.split('/').pop()}</a></li>
+						{/each}
+					</ul>
+				{/if}
+			{/each}
+		{/if}
+	</div>
+
+	<div id="pages" class={data.content.dek ? 'has-dek' : ''}>
+		<ul id="page-nav">
+			{#each pages as page}
+				<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+				<li
+					class="tab {active === page.slug ? 'active' : ''}"
+					onclick={() => (active = page.slug)}
+					onkeypress={() => (active = page.slug)}
+				>
+					{page.slug}
+				</li>
+			{/each}
+		</ul>
+		<div id="contents-container">
+			<CopyBtn getText={() => pages[0].contents} />
+			<!-- svelte-ignore element_invalid_self_closing_tag -->
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<!-- <div class="copy" onclick={copyToClipboard} onkeypress={copyToClipboard}></div> -->
+			{#each pages as page}
+				<div class="contents" style="display: {active === page.slug ? 'block' : 'none'};">
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+					<pre>{@html highlight(page.contents, page.slug)}</pre>
+				</div>
+			{/each}
+		</div>
+	</div>
+</div>
+
+<style>
+	.main {
+		position: relative;
+		max-width: 54em;
+		background-color: white;
+		padding: 1.5em 2em 2em 2em;
+		margin: 0 auto;
+		box-sizing: border-box;
+		overflow: hidden;
+	}
+
+	.chart-hero {
+		width: 100%;
+		height: 200px;
+		margin: 1.5em 0 2em 0;
+		position: relative;
+	}
+
+	.dek {
+		width: calc(100% - 80px);
+	}
+
+	.dek :global(p a) {
+		color: #ff3e00;
+		text-decoration: none;
+	}
+
+	.dek :global(p a:hover) {
+		text-decoration: underline;
+	}
+
+	.chart-hero :global(.chart-container) {
+		height: 100% !important;
+	}
+
+	#pages {
+		margin-top: 50px;
+	}
+
+	#pages.has-dek {
+		margin-top: 35px;
+	}
+
+	.dek {
+		width: calc(100% - 80px);
+	}
+
+	#used-in a,
+	.dek :global(p a) {
+		color: #ff3e00;
+		text-decoration: none;
+	}
+
+	#used-in a:hover,
+	.dek :global(p a:hover) {
+		text-decoration: underline;
+	}
+
+	#contents-container {
+		position: relative;
+		border-left: 3px solid #ccc;
+		margin-top: 7px;
+	}
+
+	pre {
+		margin-top: 7px 0 0 0;
+		padding-left: 14px;
+		overflow-x: auto;
+	}
+
+	#page-nav {
+		margin: 0;
+		padding: 0;
+	}
+
+	.tab {
+		display: inline-block;
+		vertical-align: top;
+		margin-right: 14px;
+		margin-bottom: 8px;
+		border-bottom: 2px solid transparent;
+		color: #ccc;
+	}
+
+	.tab:hover {
+		border-bottom: 2px solid #aaa;
+		cursor: pointer;
+	}
+
+	#page-nav :global(.tab.active) {
+		color: #000;
+		pointer-events: none;
+		border-bottom: 2px solid #000;
+	}
+
+	h3 {
+		font-weight: bold;
+	}
+
+	h1 {
+		margin-top: 10px;
+	}
+
+	.all-components a {
+		color: #ff3e00;
+		text-decoration: none;
+		text-transform: uppercase;
+		font-size: 11px;
+		position: absolute;
+		top: 12px;
+	}
+	.all-components a:hover {
+		text-decoration: underline;
+	}
+
+	#params-table,
+	#used-in {
+		width: 100%;
+	}
+	#params-table {
+		margin-top: 25px;
+		margin-bottom: 35px;
+	}
+
+	#used-in h3 {
+		margin-bottom: 0;
+	}
+
+	#used-in ul {
+		margin: 8px 0 21px 0;
+	}
+
+	#params-table :global(table) {
+		border-collapse: collapse;
+		width: 100%;
+	}
+	#params-table :global(thead tr) {
+		background: #f6f8fa;
+	}
+	#params-table :global(th:first-child) {
+		border-left-width: 1px;
+	}
+	#params-table :global(th:last-child) {
+		border-right-width: 1px;
+	}
+	#params-table :global(th),
+	#params-table :global(td) {
+		text-align: left;
+		padding: 8px;
+	}
+	#params-table :global(th) {
+		border: 0px solid #ddd;
+		border-top-width: 1px;
+	}
+	#params-table :global(td) {
+		border: 1px solid #ddd;
+	}
+
+	#params-table :global(a) {
+		color: #ff3e00;
+		text-decoration: none;
+	}
+	#params-table :global(a:hover) {
+		text-decoration: underline;
+	}
+
+	@media (max-width: 475px) {
+		#pages {
+			margin-top: 21px;
+		}
+		.tab {
+			margin-top: 8px;
+			margin-bottom: 0;
+		}
+		.download {
+			display: none;
+		}
+		.dek {
+			width: 100%;
+		}
+	}
+</style>

@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<span>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 203,
+			"column": 8,
+			"character": 5990
+		},
+		"end": {
+			"line": 213,
+			"column": 15,
+			"character": 6341
+		}
+	},
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<span>` with a click handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 203,
+			"column": 8,
+			"character": 5990
+		},
+		"end": {
+			"line": 213,
+			"column": 15,
+			"character": 6341
+		}
+	}
+]

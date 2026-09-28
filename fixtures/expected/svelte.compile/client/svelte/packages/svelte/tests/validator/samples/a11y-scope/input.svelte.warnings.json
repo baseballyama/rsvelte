@@ -1,0 +1,16 @@
+[
+	{
+		"code": "a11y_misplaced_scope",
+		"message": "The scope attribute should only be used with `<th>` elements\nhttps://svelte.dev/e/a11y_misplaced_scope",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 114
+		},
+		"end": {
+			"line": 6,
+			"column": 10,
+			"character": 119
+		}
+	}
+]

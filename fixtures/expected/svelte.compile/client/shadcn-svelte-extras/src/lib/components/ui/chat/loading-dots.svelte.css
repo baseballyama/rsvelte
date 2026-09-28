@@ -1,0 +1,27 @@
+
+	span.svelte-k2x6sv {
+		animation-name: svelte-k2x6sv-loading-dots;
+		animation-duration: 1.4s;
+		animation-iteration-count: infinite;
+		animation-fill-mode: both;
+	}
+
+	span.svelte-k2x6sv:nth-of-type(2) {
+		animation-delay: 0.2s;
+	}
+
+	span.svelte-k2x6sv:nth-of-type(3) {
+		animation-delay: 0.4s;
+	}
+
+	@keyframes svelte-k2x6sv-loading-dots {
+		0% {
+			opacity: 0.2;
+		}
+		20% {
+			opacity: 1;
+		}
+		to {
+			opacity: 0.2;
+		}
+	}

@@ -1,0 +1,107 @@
+
+  .connectivity-status.svelte-xcuhlg {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-md);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+
+    &.success {
+      background: var(--color-success-bg);
+      color: var(--color-success);
+    }
+
+    &.error {
+      background: var(--color-error-bg);
+      color: var(--color-error);
+    }
+  }
+
+  .info-list.svelte-xcuhlg {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .info-item.svelte-xcuhlg {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: row;
+    gap: var(--spacing-sm);
+  }
+
+  .info-content.svelte-xcuhlg {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    flex: 1;
+  }
+
+  .info-label.svelte-xcuhlg {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    font-weight: 500;
+  }
+
+  .info-value.svelte-xcuhlg {
+    font-family: var(--font-mono);
+    color: var(--color-text);
+    font-weight: 500;
+
+    &.success {
+      color: var(--color-success);
+      font-weight: 600;
+    }
+
+    &.preferred {
+      color: var(--color-primary);
+      font-weight: 600;
+    }
+  }
+
+  .info-note.svelte-xcuhlg {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs);
+    background: var(--color-surface);
+    border-radius: var(--border-radius);
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    margin-top: var(--spacing-xs);
+  }
+
+  .error-text.svelte-xcuhlg {
+    color: var(--color-error);
+    font-style: italic;
+    padding: var(--spacing-sm);
+    background: var(--color-error-bg);
+    border-radius: var(--border-radius);
+  }
+
+  .error-message.svelte-xcuhlg {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    color: var(--color-error);
+    font-weight: 500;
+  }
+
+  .result-card.svelte-xcuhlg {
+    background: var(--border-primary);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card-content.svelte-xcuhlg {
+    ul:where(.svelte-xcuhlg) {
+      list-style-type: disc;
+      padding-left: var(--spacing-lg);
+      margin-top: var(--spacing-sm);
+      margin-bottom: var(--spacing-md);
+    }
+  }

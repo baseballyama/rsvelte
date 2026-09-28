@@ -1,0 +1,47 @@
+
+	.card.svelte-ssx89u {
+		position: relative;
+		padding: var(--spacing-32);
+		border: 4px solid var(--clr-primary);
+		border-radius: var(--rounded-20);
+
+		.decorative:where(.svelte-ssx89u) {
+			display: grid;
+			place-content: center;
+			width: 48px;
+			height: 48px;
+			position: absolute;
+			top: 0;
+			left: 0;
+			transform: translateX(-50%) translateY(-50%);
+			border-radius: 50%;
+			background-color: var(--clr-bg);
+
+			svg {
+				color: var(--clr-primary);
+			}
+		}
+
+		.title:where(.svelte-ssx89u) {
+			font-size: var(--font-24);
+			font-weight: 700;
+			line-height: 32px;
+		}
+
+		.text:where(.svelte-ssx89u) {
+			color: var(--clr-card-txt);
+			margin-top: var(--spacing-8);
+			margin-bottom: var(--spacing-32);
+		}
+
+		.link:where(.svelte-ssx89u) {
+			width: max-content;
+			display: flex;
+			gap: var(--spacing-16);
+		}
+
+		form {
+			margin: var(--spacing-16) 0;
+			background: red;
+		}
+	}

@@ -1,0 +1,12 @@
+
+  .editor.svelte-1gwhju2 {
+    position: relative;
+  }
+
+  .reset-button.svelte-1gwhju2 {
+    position: absolute;
+    right: 0.5em;
+    bottom: 0.5em;
+    z-index: 10;
+    font-family: monospace;
+  }

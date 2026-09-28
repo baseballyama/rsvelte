@@ -1,0 +1,86 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`sponsors` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 19,
+			"column": 6,
+			"character": 644
+		},
+		"end": {
+			"line": 19,
+			"column": 74,
+			"character": 712
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`contributors` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 20,
+			"column": 6,
+			"character": 725
+		},
+		"end": {
+			"line": 20,
+			"column": 64,
+			"character": 783
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`stargazers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 21,
+			"column": 6,
+			"character": 796
+		},
+		"end": {
+			"line": 21,
+			"column": 62,
+			"character": 852
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`loadingSponsors` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 22,
+			"column": 6,
+			"character": 865
+		},
+		"end": {
+			"line": 22,
+			"column": 21,
+			"character": 880
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`loadingContributors` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 23,
+			"column": 6,
+			"character": 895
+		},
+		"end": {
+			"line": 23,
+			"column": 25,
+			"character": 914
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`loadingStargazers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 24,
+			"column": 6,
+			"character": 929
+		},
+		"end": {
+			"line": 24,
+			"column": 23,
+			"character": 946
+		}
+	}
+]

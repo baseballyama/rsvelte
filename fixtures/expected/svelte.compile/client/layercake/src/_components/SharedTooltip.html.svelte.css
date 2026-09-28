@@ -1,0 +1,32 @@
+
+	.tooltip.svelte-1tl6dx2 {
+		position: absolute;
+		font-size: 13px;
+		pointer-events: none;
+		border: 1px solid #ccc;
+		background: rgba(255, 255, 255, 0.85);
+		transform: translate(-50%, -100%);
+		padding: 5px;
+		z-index: 15;
+		pointer-events: none;
+	}
+	.line.svelte-1tl6dx2 {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		width: 1px;
+		border-left: 1px dotted #666;
+		pointer-events: none;
+	}
+	.tooltip.svelte-1tl6dx2,
+	.line.svelte-1tl6dx2 {
+		transition:
+			left 250ms ease-out,
+			top 250ms ease-out;
+	}
+	.title.svelte-1tl6dx2 {
+		font-weight: bold;
+	}
+	.key.svelte-1tl6dx2 {
+		color: #999;
+	}

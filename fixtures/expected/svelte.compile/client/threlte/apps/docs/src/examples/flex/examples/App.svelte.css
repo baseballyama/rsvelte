@@ -1,0 +1,40 @@
+
+  body {
+    margin: 0;
+  }
+
+  nav.svelte-1tlet67 {
+    padding: 20px;
+    position: relative;
+  }
+
+  .split-view.svelte-1tlet67 {
+    width: 100vw;
+    display: flex;
+    flex-direction: row;
+  }
+
+  .split-view.svelte-1tlet67 > :where(.svelte-1tlet67) {
+    flex: 1;
+  }
+
+  .split-view.svelte-1tlet67 > :where(.svelte-1tlet67):nth-child(2) {
+    border-left: 1px solid #404550;
+  }
+
+  .example-view.svelte-1tlet67 {
+    position: absolute;
+    top: 0;
+    height: 100vh;
+  }
+
+  .threlte.svelte-1tlet67 {
+    height: 100%;
+  }
+
+  .dom.svelte-1tlet67 {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+  }

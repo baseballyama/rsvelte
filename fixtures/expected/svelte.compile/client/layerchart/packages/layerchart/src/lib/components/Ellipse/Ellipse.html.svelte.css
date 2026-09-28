@@ -1,0 +1,17 @@
+
+  @layer base {
+    :where(.lc-ellipse) {
+      --fill-color: var(--color-surface-content, currentColor);
+      --stroke-color: initial;
+    }
+
+    :where(.lc-layout-html .lc-ellipse) {
+      box-sizing: border-box;
+    }
+    :where(.lc-layout-html .lc-ellipse):not([background]) {
+      background: var(--fill-color);
+    }
+    :where(.lc-layout-html .lc-ellipse):not([border-color]) {
+      border-color: var(--stroke-color);
+    }
+  }

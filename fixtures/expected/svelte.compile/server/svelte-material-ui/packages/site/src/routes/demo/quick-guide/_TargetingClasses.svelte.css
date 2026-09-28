@@ -1,0 +1,7 @@
+
+  /* Accessing the class with "*" in front limits
+    the scope to anything under this component's
+    elements. */
+  .svelte-847l7 .myClass {
+    font-style: italic;
+  }

@@ -1,0 +1,17 @@
+
+    .custom-inline-alert.svelte-giax55 {
+        & article {
+            border-radius: var(--border-radius-medium);
+            padding: var(--space-4, 8px);
+            background: var(--bgcolor-neutral-primary);
+            border: var(--border-width-s) solid var(--border-neutral);
+        }
+
+        & div:first-child > :nth-child(2) {
+            align-self: center;
+        }
+
+        & .ai-icon-holder.notification {
+            height: 36px !important;
+        }
+    }

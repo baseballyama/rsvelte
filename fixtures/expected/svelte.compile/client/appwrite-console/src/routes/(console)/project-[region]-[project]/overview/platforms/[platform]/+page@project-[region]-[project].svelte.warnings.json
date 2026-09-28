@@ -1,0 +1,44 @@
+[
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 114,
+			"column": 4,
+			"character": 4152
+		},
+		"end": {
+			"line": 114,
+			"column": 53,
+			"character": 4201
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showDelete` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 29,
+			"column": 8,
+			"character": 1130
+		},
+		"end": {
+			"line": 29,
+			"column": 18,
+			"character": 1140
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`name` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 30,
+			"column": 8,
+			"character": 1158
+		},
+		"end": {
+			"line": 30,
+			"column": 20,
+			"character": 1170
+		}
+	}
+]

@@ -1,0 +1,15 @@
+
+	div.svelte-xap6i ~ article:where(.svelte-xap6i) { color: green; }
+	span.svelte-xap6i ~ b:where(.svelte-xap6i) { color: green; }
+	div.svelte-xap6i span:where(.svelte-xap6i) ~ b:where(.svelte-xap6i) { color: green; }
+	.a.svelte-xap6i ~ article:where(.svelte-xap6i) { color: green; }
+	div.svelte-xap6i ~ .b:where(.svelte-xap6i) { color: green; }
+	.a.svelte-xap6i ~ .c:where(.svelte-xap6i) { color: green; }
+	article.svelte-xap6i ~ details:where(.svelte-xap6i) { color: green; }
+	.a.svelte-xap6i ~ details:where(.svelte-xap6i) { color: green; }
+
+	/* no match */
+	/* (unused) article ~ div { color: green; }*/
+	/* (unused) span ~ article { color: green; }*/
+	/* (unused) b ~ article { color: green; }*/
+	/* (unused) span ~ div { color: green; }*/

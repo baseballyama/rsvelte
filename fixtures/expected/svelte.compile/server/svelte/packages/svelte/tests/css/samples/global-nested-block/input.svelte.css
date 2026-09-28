@@ -1,0 +1,41 @@
+
+	div.svelte-ra5qly {
+		/* :global {*/
+			.x {
+				color: green;
+			}
+		/*}*/
+
+		.x {
+			color: green;
+			&:hover {
+				color: green;
+			}
+			&div {
+				color: green;
+			}
+			/* (unused) .unused {
+				color: red;
+			}*/
+		}
+
+		p:where(.svelte-ra5qly) {
+			.y {
+				color: green;
+			}
+		}
+
+		p:where(.svelte-ra5qly) .y {
+			color: green;
+		}
+
+		/* (unused) .unused :global {
+			.z {
+				color: red;
+			}
+		}*/
+
+		/* (unused) .unused :global(.z) {
+			color: red;
+		}*/
+	}

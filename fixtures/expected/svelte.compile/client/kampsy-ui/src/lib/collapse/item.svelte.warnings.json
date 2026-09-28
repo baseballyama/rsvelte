@@ -1,0 +1,44 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `size`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 20,
+			"column": 8,
+			"character": 384
+		},
+		"end": {
+			"line": 20,
+			"column": 12,
+			"character": 388
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `value`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 21,
+			"column": 9,
+			"character": 399
+		},
+		"end": {
+			"line": 21,
+			"column": 14,
+			"character": 404
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `defaultExpanded`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 22,
+			"column": 19,
+			"character": 425
+		},
+		"end": {
+			"line": 22,
+			"column": 34,
+			"character": 440
+		}
+	}
+]

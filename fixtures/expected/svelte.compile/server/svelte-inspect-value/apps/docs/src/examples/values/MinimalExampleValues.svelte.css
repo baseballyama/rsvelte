@@ -1,0 +1,11 @@
+
+  div.svelte-qov40i {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-items: center;
+  }
+
+  input.svelte-qov40i {
+    max-width: 4em;
+  }

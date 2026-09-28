@@ -1,0 +1,127 @@
+
+	figure.svelte-5isbmk {
+		--spa-ran-wrap-bg: var(--black);
+		border-bottom: solid var(--fg) 1px;
+		position: relative;
+		z-index: 1;
+		margin: 0;
+		height: 230px;
+		overflow: hidden;
+		padding: 20px;
+		background-size: contain;
+		background-image: var(--bg-grit-dark),
+			radial-gradient(farthest-side circle at 50% 0%, #3a006b66 4% 4%, #000 100%);
+	}
+	p.svelte-5isbmk {
+		margin-top: 0;
+	}
+
+	.overtake.svelte-5isbmk {
+		position: absolute;
+		background: var(--bg);
+		inset: 0;
+		z-index: 1;
+		padding: 20px;
+		display: flex;
+		height: 100%;
+		align-content: center;
+		justify-content: center;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.close.svelte-5isbmk {
+		top: 10px;
+		right: 10px;
+		position: absolute;
+	}
+
+	h1.svelte-5isbmk {
+		font-size: var(--font-size-md);
+		height: 64px;
+	}
+
+	media-time-range.svelte-5isbmk {
+		width: 100%;
+	}
+	.player-container.svelte-5isbmk {
+		width: 100%;
+		display: flex;
+		gap: 20px;
+	}
+
+	.media-range-bookmarks.svelte-5isbmk {
+		position: relative;
+		width: 100%;
+	}
+
+	.show-page-date.svelte-5isbmk {
+		font-size: var(--font-size-sm);
+	}
+
+	.show-number.svelte-5isbmk {
+		position: absolute;
+		right: 0;
+		top: 0;
+		transform: translate(6.9%, -22%);
+		--max-font-size: 15rem;
+		--ideal-font-size: 45cqw;
+		font-size: clamp(1.5rem, var(--ideal-font-size), var(--max-font-size));
+		@media (prefers-color-scheme: dark) {
+			--ideal-font-size: 22cqw;
+		}
+		color: var(--primary);
+		line-height: 1;
+		z-index: -1;
+	}
+
+	.media-range.svelte-5isbmk {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 10px;
+		grid-column: range / range;
+		grid-row: 1;
+	}
+
+	.media-bar.svelte-5isbmk {
+		display: grid;
+		height: 100%;
+		align-items: center;
+		gap: 10px;
+		grid-template-columns: [start controls] auto [controls range] 1fr [range sound] auto [sound end];
+		grid-template-rows: 1fr;
+		grid-column: range / range;
+	}
+
+	media-controller.svelte-5isbmk {
+		flex-grow: 1;
+	}
+
+	.media-controls.svelte-5isbmk {
+		display: flex;
+		gap: 16px;
+		align-items: baseline;
+		grid-column: controls / controls;
+		grid-row: 1;
+	}
+	.embed-actions.svelte-5isbmk {
+		display: flex;
+		gap: 10px;
+		justify-content: flex-end;
+		position: absolute;
+		right: 10px;
+		bottom: 12px;
+
+		button {
+			padding: 0;
+		}
+	}
+
+	a[href^='http']:not(.social-icon, .button, .icon, .naked)::after {
+		content: '';
+	}
+
+	media-controller button {
+		padding: 0;
+	}

@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`functionScopes` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 19,
+			"column": 8,
+			"character": 921
+		},
+		"end": {
+			"line": 19,
+			"column": 42,
+			"character": 955
+		}
+	}
+]

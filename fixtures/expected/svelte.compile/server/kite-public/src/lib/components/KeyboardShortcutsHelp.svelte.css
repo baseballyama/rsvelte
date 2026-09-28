@@ -1,0 +1,28 @@
+
+	/* Help page body text styling */
+	.help-page.svelte-1wy194f {
+		font-family: 'Chivo Mono', monospace;
+		font-size: 14px;
+		font-feature-settings: "liga" 0;
+		font-synthesis: none;
+		letter-spacing: -0.025em;
+		line-height: 1.5;
+	}
+
+	/* kbd element styling */
+	.kbd-key.svelte-1wy194f {
+		padding: 0.25rem 0.5rem;
+		background-color: rgb(24, 24, 26);
+		color: rgb(250, 250, 250);
+		border-radius: 0.25rem;
+		font-family: 'Chivo Mono', monospace;
+		font-size: 1em;
+		font-weight: 600;
+		font-feature-settings: "liga" 0;
+		font-variation-settings: normal;
+	}
+
+	.dark .kbd-key.svelte-1wy194f {
+		background-color: rgb(229, 229, 229);
+		color: rgb(24, 24, 26);
+	}

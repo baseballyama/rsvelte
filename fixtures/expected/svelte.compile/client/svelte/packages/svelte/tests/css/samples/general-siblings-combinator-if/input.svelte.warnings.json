@@ -1,0 +1,44 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".b ~ .c\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 16,
+			"column": 1,
+			"character": 269
+		},
+		"end": {
+			"line": 16,
+			"column": 8,
+			"character": 276
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".b ~ .d\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 17,
+			"column": 1,
+			"character": 296
+		},
+		"end": {
+			"line": 17,
+			"column": 8,
+			"character": 303
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".c ~ .d\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 18,
+			"column": 1,
+			"character": 323
+		},
+		"end": {
+			"line": 18,
+			"column": 8,
+			"character": 330
+		}
+	}
+]

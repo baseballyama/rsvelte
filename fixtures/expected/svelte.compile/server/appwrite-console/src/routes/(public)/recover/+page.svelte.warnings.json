@@ -1,0 +1,72 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`email` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 8,
+			"character": 577
+		},
+		"end": {
+			"line": 13,
+			"column": 21,
+			"character": 590
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`userId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 14,
+			"column": 8,
+			"character": 600
+		},
+		"end": {
+			"line": 14,
+			"column": 22,
+			"character": 614
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`secret` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 8,
+			"character": 624
+		},
+		"end": {
+			"line": 15,
+			"column": 22,
+			"character": 638
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`password` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 17,
+			"column": 8,
+			"character": 649
+		},
+		"end": {
+			"line": 17,
+			"column": 24,
+			"character": 665
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`confirmPassword` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 18,
+			"column": 8,
+			"character": 675
+		},
+		"end": {
+			"line": 18,
+			"column": 31,
+			"character": 698
+		}
+	}
+]

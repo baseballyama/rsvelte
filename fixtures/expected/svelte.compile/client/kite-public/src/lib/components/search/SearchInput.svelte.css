@@ -1,0 +1,11 @@
+
+  /* Simple placeholder styling for contenteditable */
+  [contenteditable].svelte-oeoh2d:empty:before {
+    content: attr(placeholder);
+    color: #9ca3af;
+    pointer-events: none;
+  }
+
+  [contenteditable].svelte-oeoh2d:focus:empty:before {
+    opacity: 0.5;
+  }

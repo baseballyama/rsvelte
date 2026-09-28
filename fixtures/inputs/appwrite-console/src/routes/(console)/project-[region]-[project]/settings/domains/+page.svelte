@@ -1,0 +1,111 @@
+<script lang="ts">
+    import { base } from '$app/paths';
+    import { page } from '$app/state';
+    import { EmptySearch, PaginationWithLimit } from '$lib/components/index.js';
+    import { Button } from '$lib/elements/forms';
+    import Container from '$lib/layout/container.svelte';
+    import { IconPlus } from '@appwrite.io/pink-icons-svelte';
+    import { Card, Empty, Icon, Tooltip } from '@appwrite.io/pink-svelte';
+    import { app } from '$lib/stores/app';
+    import { Click, trackEvent } from '$lib/actions/analytics';
+    import {
+        BODY_TOOLTIP_MAX_WIDTH,
+        BODY_TOOLTIP_WRAPPER_STYLE_PRELINE
+    } from '$lib/helpers/tooltipContent';
+    import { isServiceLimited } from '$lib/stores/billing';
+    import { organization } from '$lib/stores/organization';
+    import Table from './table.svelte';
+    import { ResponsiveContainerHeader } from '$lib/layout';
+
+    let { data } = $props();
+
+    const isDomainLimitReached = $derived(
+        isServiceLimited('domains', $organization, data.rules.total)
+    );
+</script>
+
+<Container>
+    <ResponsiveContainerHeader
+        hasSearch
+        hideView
+        searchPlaceholder="Search by domain"
+        analyticsSource="settings_domain_overview">
+        <Tooltip disabled={!isDomainLimitReached} maxWidth={BODY_TOOLTIP_MAX_WIDTH}>
+            <div>
+                <Button
+                    disabled={isDomainLimitReached}
+                    href={isDomainLimitReached
+                        ? undefined
+                        : `${base}/project-${page.params.region}-${page.params.project}/settings/domains/add-domain`}
+                    on:click={() => {
+                        trackEvent(Click.DomainCreateClick, {
+                            source: 'settings_domain_overview'
+                        });
+                    }}>
+                    <Icon icon={IconPlus} size="s" />
+                    Add domain
+                </Button>
+            </div>
+            <svelte:fragment slot="tooltip">
+                <div style={BODY_TOOLTIP_WRAPPER_STYLE_PRELINE}>
+                    You have reached the maximum number of custom domains for your plan.
+                </div>
+            </svelte:fragment>
+        </Tooltip>
+    </ResponsiveContainerHeader>
+    {#if data.rules.total}
+        <Table domains={data.rules} organizationDomains={data.organizationDomains} />
+
+        <PaginationWithLimit
+            name="Domains"
+            limit={data.limit}
+            offset={data.offset}
+            total={data.rules.total} />
+    {:else if data?.search}
+        <EmptySearch hidePages bind:search={data.search} target="domains" hidePagination>
+            <Button
+                secondary
+                on:click={() => {
+                    data.search = '';
+                }}>Clear search</Button>
+        </EmptySearch>
+    {:else}
+        <Card.Base padding="none">
+            <Empty
+                src={$app.themeInUse === 'dark'
+                    ? `${base}/images/domains/empty-domain-dark.svg`
+                    : `${base}/images/domains/empty-domain-light.svg`}
+                title="Use a custom domain for your API"
+                description="Connect your own domain to Appwrite, so your API is accessible from a custom URL instead of the default Appwrite endpoint.">
+                <svelte:fragment slot="actions">
+                    <Button
+                        external
+                        href="https://appwrite.io/docs/advanced/platform/custom-domains"
+                        text
+                        event="empty_documentation"
+                        size="s"
+                        ariaLabel="add domain">Documentation</Button>
+
+                    <Tooltip disabled={!isDomainLimitReached} maxWidth={BODY_TOOLTIP_MAX_WIDTH}>
+                        <div>
+                            <Button
+                                secondary
+                                disabled={isDomainLimitReached}
+                                href={isDomainLimitReached
+                                    ? undefined
+                                    : `${base}/project-${page.params.region}-${page.params.project}/settings/domains/add-domain`}
+                                size="s">
+                                Add domain
+                            </Button>
+                        </div>
+                        <svelte:fragment slot="tooltip">
+                            <div style={BODY_TOOLTIP_WRAPPER_STYLE_PRELINE}>
+                                You have reached the maximum number of custom domains for your plan.
+                            </div>
+                        </svelte:fragment>
+                    </Tooltip>
+                </svelte:fragment>
+            </Empty>
+        </Card.Base>
+    {/if}
+</Container>

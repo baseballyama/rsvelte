@@ -1,0 +1,7 @@
+
+	.drag-region.svelte-tovx2c {
+		position: fixed;
+		z-index: 9999;
+		height: 28px;
+		inset: 0 0 auto;
+	}

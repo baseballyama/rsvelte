@@ -1,0 +1,58 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".list-table table\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 28,
+			"column": 2,
+			"character": 595
+		},
+		"end": {
+			"line": 28,
+			"column": 19,
+			"character": 612
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".list-table td\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 29,
+			"column": 2,
+			"character": 616
+		},
+		"end": {
+			"line": 29,
+			"column": 16,
+			"character": 630
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".list-table th\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 30,
+			"column": 2,
+			"character": 634
+		},
+		"end": {
+			"line": 30,
+			"column": 16,
+			"character": 648
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".list-table table\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 33,
+			"column": 2,
+			"character": 685
+		},
+		"end": {
+			"line": 33,
+			"column": 19,
+			"character": 702
+		}
+	}
+]

@@ -1,0 +1,9 @@
+
+  .controls.svelte-erjzvw {
+    position: absolute;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 1em;
+    padding: 0.25em;
+  }

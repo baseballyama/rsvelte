@@ -1,0 +1,203 @@
+
+	.docs-link.svelte-2objix {
+		color: var(--color-accent);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+	}
+	.docs-link.svelte-2objix:hover {
+		color: var(--color-primary);
+	}
+
+	.docs-paragraph.short.svelte-2objix {
+		margin-bottom: 0.5rem;
+	}
+
+	/* ── Method selector cards ── */
+
+	.installation-methods.svelte-2objix {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 14px;
+		margin: 18px 0 32px;
+	}
+
+	.installation-method.svelte-2objix {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		padding: 32px 16px;
+		border-radius: 12px;
+		border: 1px solid var(--border-primary);
+		background: var(--bg-card);
+		color: rgba(255, 255, 255, 0.55);
+		cursor: pointer;
+		transition: border-color 0.18s, color 0.18s, background 0.18s, transform 0.18s;
+	}
+
+	.installation-method.svelte-2objix:hover {
+		color: rgba(255, 255, 255, 0.9);
+		border-color: rgba(255, 255, 255, 0.18);
+		transform: translateY(-1px);
+	}
+
+	.installation-method.method-active.svelte-2objix {
+		color: var(--color-accent);
+		border-color: rgba(255, 138, 76, 0.5);
+		background: rgba(255, 138, 76, 0.06);
+	}
+
+	.installation-method-label.svelte-2objix {
+		font-family: 'Geist Mono', monospace;
+		font-size: 13px;
+		font-weight: 500;
+		letter-spacing: 0.02em;
+	}
+
+	.installation-method-logo.svelte-2objix {
+		width: 44px;
+		height: 44px;
+		object-fit: contain;
+		flex-shrink: 0;
+		transition:
+			opacity 0.18s ease,
+			filter 0.18s ease;
+		pointer-events: none;
+	}
+
+	.installation-method.svelte-2objix:not(.method-active) .installation-method-logo:where(.svelte-2objix) {
+		opacity: 0.48;
+		filter: grayscale(0.15);
+	}
+
+	.installation-method.svelte-2objix:hover:not(.method-active) .installation-method-logo:where(.svelte-2objix) {
+		opacity: 0.85;
+		filter: grayscale(0.08);
+	}
+
+	.installation-method.method-active.svelte-2objix .installation-method-logo:where(.svelte-2objix) {
+		opacity: 1;
+		filter: none;
+	}
+
+	@media (max-width: 720px) {
+		.installation-methods.svelte-2objix {
+			grid-template-columns: 1fr;
+		}
+		.installation-method.svelte-2objix {
+			padding: 24px 16px;
+		}
+	}
+
+	/* ── Runner dropdown (CLI step) ── */
+
+	.install-runner-row.svelte-2objix {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin: 14px 0 10px;
+	}
+
+	.install-runner-label.svelte-2objix {
+		font-family: 'Geist Mono', monospace;
+		font-size: 12px;
+		color: rgba(255, 255, 255, 0.45);
+	}
+
+	.install-runner-dropdown.svelte-2objix {
+		position: relative;
+	}
+
+	.install-runner-trigger.svelte-2objix {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		font-family: 'Geist Mono', monospace;
+		font-size: 12px;
+		color: rgba(255, 255, 255, 0.85);
+		background: var(--bg-card);
+		border: 1px solid var(--border-primary);
+		border-radius: 7px;
+		padding: 6px 10px 6px 12px;
+		cursor: pointer;
+		transition: border-color 0.15s, background 0.15s;
+	}
+
+	.install-runner-trigger.svelte-2objix:hover {
+		border-color: rgba(255, 255, 255, 0.18);
+		background: rgba(255, 255, 255, 0.03);
+	}
+
+	.install-runner-caret.svelte-2objix {
+		transition: transform 0.18s ease;
+		opacity: 0.7;
+	}
+
+	.install-runner-caret.open.svelte-2objix {
+		transform: rotate(180deg);
+	}
+
+	.install-runner-menu.svelte-2objix {
+		position: absolute;
+		top: calc(100% + 6px);
+		left: 0;
+		min-width: 140px;
+		display: flex;
+		flex-direction: column;
+		padding: 4px;
+		border-radius: 9px;
+		border: 1px solid var(--border-primary);
+		background: rgba(29, 24, 20, 0.98);
+		backdrop-filter: blur(20px) saturate(1.3);
+		-webkit-backdrop-filter: blur(20px) saturate(1.3);
+		box-shadow:
+			0 8px 28px rgba(0, 0, 0, 0.4),
+			inset 0 0.5px 0 rgba(255, 255, 255, 0.06);
+		z-index: 20;
+		opacity: 0;
+		transform: translateY(-4px);
+		pointer-events: none;
+		transition: opacity 0.15s ease, transform 0.15s ease;
+	}
+
+	.install-runner-menu.open.svelte-2objix {
+		opacity: 1;
+		transform: translateY(0);
+		pointer-events: auto;
+	}
+
+	.install-runner-item.svelte-2objix {
+		font-family: 'Geist Mono', monospace;
+		font-size: 12px;
+		text-align: left;
+		color: rgba(255, 255, 255, 0.7);
+		background: transparent;
+		border: none;
+		border-radius: 6px;
+		padding: 7px 10px;
+		cursor: pointer;
+		transition: color 0.12s, background 0.12s;
+	}
+
+	.install-runner-item.svelte-2objix:hover {
+		color: rgba(255, 255, 255, 0.95);
+		background: rgba(255, 255, 255, 0.05);
+	}
+
+	.install-runner-item.active.svelte-2objix {
+		color: var(--color-accent);
+		background: rgba(255, 138, 76, 0.08);
+	}
+
+	.install-tip.svelte-2objix {
+		margin-top: 1rem;
+	}
+
+	/* The global .docs-separator has 2.5em top+bottom margins, and
+	   .docs-category-title also has margin-top: 2.5em, so the gap below the
+	   divider ends up doubled. Collapse it back to symmetric spacing. */
+	.docs-separator + .docs-category-title,
+	.docs-separator + .docs-category-subtitle {
+		margin-top: 0;
+	}

@@ -1,0 +1,9 @@
+
+	.reveal.svelte-2a7m49 {
+		height: 200px;
+		margin-block: var(--size-3);
+
+		@media (width > 600px) {
+			height: 480px;
+		}
+	}

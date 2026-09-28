@@ -1,0 +1,4 @@
+
+	.a.svelte-1y4h2no ~ .b:where(.svelte-1y4h2no) { color: green; }
+	.a.svelte-1y4h2no ~ .c:where(.svelte-1y4h2no) { color: green; }
+	.b.svelte-1y4h2no ~ .c:where(.svelte-1y4h2no) { color: green; }

@@ -1,0 +1,16 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \":--g-fullscreen-focus label\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 92,
+			"column": 1,
+			"character": 2730
+		},
+		"end": {
+			"line": 92,
+			"column": 28,
+			"character": 2757
+		}
+	}
+]

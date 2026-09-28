@@ -1,0 +1,534 @@
+[
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'link'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 1,
+			"column": 12,
+			"character": 12
+		},
+		"end": {
+			"line": 1,
+			"column": 23,
+			"character": 23
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'article'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 2,
+			"column": 9,
+			"character": 44
+		},
+		"end": {
+			"line": 2,
+			"column": 23,
+			"character": 58
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'complementary'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 3,
+			"column": 7,
+			"character": 77
+		},
+		"end": {
+			"line": 3,
+			"column": 27,
+			"character": 97
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'document'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 4,
+			"column": 6,
+			"character": 113
+		},
+		"end": {
+			"line": 4,
+			"column": 21,
+			"character": 128
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'button'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 5,
+			"column": 8,
+			"character": 145
+		},
+		"end": {
+			"line": 5,
+			"column": 21,
+			"character": 158
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'listbox'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 6,
+			"column": 10,
+			"character": 187
+		},
+		"end": {
+			"line": 6,
+			"column": 24,
+			"character": 201
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'definition'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 7,
+			"column": 4,
+			"character": 218
+		},
+		"end": {
+			"line": 7,
+			"column": 21,
+			"character": 235
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'term'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 247
+		},
+		"end": {
+			"line": 8,
+			"column": 16,
+			"character": 258
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'group'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 9,
+			"column": 9,
+			"character": 275
+		},
+		"end": {
+			"line": 9,
+			"column": 21,
+			"character": 287
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'dialog'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 10,
+			"column": 8,
+			"character": 307
+		},
+		"end": {
+			"line": 10,
+			"column": 21,
+			"character": 320
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'term'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 11,
+			"column": 4,
+			"character": 335
+		},
+		"end": {
+			"line": 11,
+			"column": 15,
+			"character": 346
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'group'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 12,
+			"column": 10,
+			"character": 363
+		},
+		"end": {
+			"line": 12,
+			"column": 22,
+			"character": 375
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'figure'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 13,
+			"column": 8,
+			"character": 396
+		},
+		"end": {
+			"line": 13,
+			"column": 21,
+			"character": 409
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'form'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 14,
+			"column": 6,
+			"character": 426
+		},
+		"end": {
+			"line": 14,
+			"column": 17,
+			"character": 437
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'heading'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 15,
+			"column": 4,
+			"character": 453
+		},
+		"end": {
+			"line": 15,
+			"column": 18,
+			"character": 467
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'heading'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 16,
+			"column": 4,
+			"character": 485
+		},
+		"end": {
+			"line": 16,
+			"column": 18,
+			"character": 499
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'heading'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 17,
+			"column": 4,
+			"character": 517
+		},
+		"end": {
+			"line": 17,
+			"column": 18,
+			"character": 531
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'heading'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 18,
+			"column": 4,
+			"character": 549
+		},
+		"end": {
+			"line": 18,
+			"column": 18,
+			"character": 563
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'heading'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 19,
+			"column": 4,
+			"character": 581
+		},
+		"end": {
+			"line": 19,
+			"column": 18,
+			"character": 595
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'heading'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 20,
+			"column": 4,
+			"character": 613
+		},
+		"end": {
+			"line": 20,
+			"column": 18,
+			"character": 627
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'separator'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 21,
+			"column": 4,
+			"character": 645
+		},
+		"end": {
+			"line": 21,
+			"column": 20,
+			"character": 661
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'link'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 23,
+			"column": 6,
+			"character": 786
+		},
+		"end": {
+			"line": 23,
+			"column": 17,
+			"character": 797
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'main'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 24,
+			"column": 6,
+			"character": 807
+		},
+		"end": {
+			"line": 24,
+			"column": 17,
+			"character": 818
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'navigation'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 26,
+			"column": 5,
+			"character": 891
+		},
+		"end": {
+			"line": 26,
+			"column": 22,
+			"character": 908
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'group'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 28,
+			"column": 10,
+			"character": 981
+		},
+		"end": {
+			"line": 28,
+			"column": 22,
+			"character": 993
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'option'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 29,
+			"column": 8,
+			"character": 1014
+		},
+		"end": {
+			"line": 29,
+			"column": 21,
+			"character": 1027
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'status'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 30,
+			"column": 8,
+			"character": 1046
+		},
+		"end": {
+			"line": 30,
+			"column": 21,
+			"character": 1059
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'progressbar'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 31,
+			"column": 10,
+			"character": 1080
+		},
+		"end": {
+			"line": 31,
+			"column": 28,
+			"character": 1098
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'region'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 32,
+			"column": 9,
+			"character": 1120
+		},
+		"end": {
+			"line": 32,
+			"column": 22,
+			"character": 1133
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'button'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 33,
+			"column": 9,
+			"character": 1154
+		},
+		"end": {
+			"line": 33,
+			"column": 22,
+			"character": 1167
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'table'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 34,
+			"column": 7,
+			"character": 1186
+		},
+		"end": {
+			"line": 34,
+			"column": 19,
+			"character": 1198
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'rowgroup'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 35,
+			"column": 7,
+			"character": 1215
+		},
+		"end": {
+			"line": 35,
+			"column": 22,
+			"character": 1230
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'textbox'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 36,
+			"column": 10,
+			"character": 1250
+		},
+		"end": {
+			"line": 36,
+			"column": 24,
+			"character": 1264
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'rowgroup'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 37,
+			"column": 7,
+			"character": 1284
+		},
+		"end": {
+			"line": 37,
+			"column": 22,
+			"character": 1299
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'rowgroup'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 38,
+			"column": 7,
+			"character": 1316
+		},
+		"end": {
+			"line": 38,
+			"column": 22,
+			"character": 1331
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'row'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 39,
+			"column": 4,
+			"character": 1345
+		},
+		"end": {
+			"line": 39,
+			"column": 14,
+			"character": 1355
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'banner'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 43,
+			"column": 8,
+			"character": 1485
+		},
+		"end": {
+			"line": 43,
+			"column": 21,
+			"character": 1498
+		}
+	},
+	{
+		"code": "a11y_no_redundant_roles",
+		"message": "Redundant role 'contentinfo'\nhttps://svelte.dev/e/a11y_no_redundant_roles",
+		"start": {
+			"line": 44,
+			"column": 8,
+			"character": 1517
+		},
+		"end": {
+			"line": 44,
+			"column": 26,
+			"character": 1535
+		}
+	}
+]

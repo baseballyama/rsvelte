@@ -1,0 +1,86 @@
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 8,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"column": 24,
+			"character": 24
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`changeValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 197,
+			"column": 6,
+			"character": 3689
+		},
+		"end": {
+			"line": 197,
+			"column": 17,
+			"character": 3700
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`focused` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 198,
+			"column": 6,
+			"character": 3713
+		},
+		"end": {
+			"line": 198,
+			"column": 13,
+			"character": 3720
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`inner` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 199,
+			"column": 6,
+			"character": 3736
+		},
+		"end": {
+			"line": 199,
+			"column": 11,
+			"character": 3741
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`inputValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 200,
+			"column": 6,
+			"character": 3754
+		},
+		"end": {
+			"line": 200,
+			"column": 16,
+			"character": 3764
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`radioGroup` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 201,
+			"column": 6,
+			"character": 3777
+		},
+		"end": {
+			"line": 201,
+			"column": 16,
+			"character": 3787
+		}
+	}
+]

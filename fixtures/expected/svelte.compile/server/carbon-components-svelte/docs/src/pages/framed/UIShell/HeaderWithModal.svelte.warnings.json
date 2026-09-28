@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`isSideNavOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 21,
+			"column": 6,
+			"character": 293
+		},
+		"end": {
+			"line": 21,
+			"column": 19,
+			"character": 306
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 22,
+			"column": 6,
+			"character": 322
+		},
+		"end": {
+			"line": 22,
+			"column": 10,
+			"character": 326
+		}
+	}
+]

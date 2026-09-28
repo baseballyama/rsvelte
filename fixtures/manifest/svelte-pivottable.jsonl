@@ -1,0 +1,15 @@
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/PivotTable.svelte","sha256":"a1b676fbb778aeaf5ddb659cd808f136d1b0dd2c9ff1eb5b48ea98f76a63a488"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/PivotTableUI.svelte","sha256":"c963e6917b221844162133d0795975fbcb837c04ef366e2e4c9fb74254e091e1"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/PlotlyRenderer.svelte","sha256":"db16ef077a84e87586421d509c9001b5fa79783a21406eebd95478c61d9b01b8"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/ScatterRenderer.svelte","sha256":"d3471d74440eb7ca53cef09370edbddebb01337b1b5ac87f6798e90c8213bb08"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/TSVExportRenderer.svelte","sha256":"f036270db89b9a677d8c7277c4c179103047e0defb6aab3b4fcf29de12c4c707"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/TableRenderer.svelte","sha256":"e29db389a98660df12b34edd48b7231313dffe5c0f16d0a92df83800e7211832"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/UI/Aggregators.svelte","sha256":"7629bc6c0362d25569da56063ba48a15b8a4fd788f184998a6b70b02cc75d8e4"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/UI/DnDCell.svelte","sha256":"c55652b454d2094ddb7c575af4beedf3fc6c95c55bcc139c06f4ff72784d20a1"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/UI/Draggable.svelte","sha256":"f3ce27c2e0ecda71f04c22deafbf60e19eacc8d73103594e119e5d6c8bd0c9eb"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/UI/DraggableAttribute.svelte","sha256":"83e660260ef657b1f96ced822a0893e928587db822d1ed023b76d05aa014b7c5"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/UI/Dropdown.svelte","sha256":"42710676d8e3821be46cb84bed3e35fa88bd6cd5589b1ddc676f553a142b3cc2"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/UI/FilterBox.svelte","sha256":"dfa483e302d532e514b04ae56740ea234b7741d38b40bf2181b7101ada7a7199"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/UI/MainTable.svelte","sha256":"650c640e0569071d4b590fae7ba54da656ce9f5f1005e207986976babc4a25c6"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/lib/UI/Plotly.svelte","sha256":"cf54809287264b6f4d199ed084176e5c09a086fff6d8419a6daf82afa32b728a"}
+{"inferredMode":"runes","lang":"svelte","mode":"runes","path":"src/routes/+page.svelte","sha256":"e6cd121a0f465a2cf341b0208348ac45c6a7f4e72296ae4188dd0cb6a3f4abf4"}

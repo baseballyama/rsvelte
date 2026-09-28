@@ -1,0 +1,23 @@
+
+	.example.svelte-l9ubyg {
+		position: relative;
+		display: inline-block;
+		padding: 0.5rem;
+		border: 1px solid orangered;
+
+		.text:where(.svelte-l9ubyg) {
+			font-size: 2rem;
+		}
+
+		.size:where(.svelte-l9ubyg) {
+			position: absolute;
+			left: 50%;
+			bottom: 0px;
+			padding: 0.5rem;
+			translate: -50% 100%;
+			color: black;
+			background-color: orangered;
+			font-weight: 700;
+			white-space: pre;
+		}
+	}

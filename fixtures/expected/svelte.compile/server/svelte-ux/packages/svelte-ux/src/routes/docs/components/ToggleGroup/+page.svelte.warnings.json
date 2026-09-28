@@ -1,0 +1,142 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 6,
+			"character": 465
+		},
+		"end": {
+			"line": 15,
+			"column": 14,
+			"character": 473
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selectedStr` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 16,
+			"column": 6,
+			"character": 485
+		},
+		"end": {
+			"line": 16,
+			"column": 44,
+			"character": 523
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selectedObj` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 17,
+			"column": 6,
+			"character": 539
+		},
+		"end": {
+			"line": 17,
+			"column": 44,
+			"character": 577
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`variant` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 19,
+			"column": 6,
+			"character": 600
+		},
+		"end": {
+			"line": 19,
+			"column": 53,
+			"character": 647
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`size` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 20,
+			"column": 6,
+			"character": 667
+		},
+		"end": {
+			"line": 20,
+			"column": 47,
+			"character": 708
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`rounded` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 21,
+			"column": 6,
+			"character": 723
+		},
+		"end": {
+			"line": 21,
+			"column": 53,
+			"character": 770
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`inset` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 22,
+			"column": 6,
+			"character": 785
+		},
+		"end": {
+			"line": 22,
+			"column": 49,
+			"character": 828
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`gap` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 23,
+			"column": 6,
+			"character": 844
+		},
+		"end": {
+			"line": 23,
+			"column": 45,
+			"character": 883
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`vertical` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 24,
+			"column": 6,
+			"character": 899
+		},
+		"end": {
+			"line": 24,
+			"column": 55,
+			"character": 948
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showPanes` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 25,
+			"column": 6,
+			"character": 964
+		},
+		"end": {
+			"line": 25,
+			"column": 15,
+			"character": 973
+		}
+	}
+]

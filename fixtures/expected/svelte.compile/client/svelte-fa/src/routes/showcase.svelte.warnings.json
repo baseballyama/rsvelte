@@ -1,0 +1,44 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:submit` to listen to the submit event is deprecated. Use the event attribute `onsubmit` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 78,
+			"column": 12,
+			"character": 2629
+		},
+		"end": {
+			"line": 78,
+			"column": 36,
+			"character": 2653
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 111,
+			"column": 18,
+			"character": 3814
+		},
+		"end": {
+			"line": 111,
+			"column": 45,
+			"character": 3841
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 131,
+			"column": 18,
+			"character": 4498
+		},
+		"end": {
+			"line": 131,
+			"column": 45,
+			"character": 4525
+		}
+	}
+]

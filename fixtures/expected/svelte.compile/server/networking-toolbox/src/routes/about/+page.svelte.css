@@ -1,0 +1,21 @@
+
+  .hero.svelte-cwls5q {
+    margin-bottom: var(--spacing-xl);
+    h2:where(.svelte-cwls5q) {
+      font-size: var(--font-size-2xl);
+      margin-bottom: var(--spacing-lg);
+    }
+    .lead:where(.svelte-cwls5q) {
+      font-size: var(--font-size-md);
+      color: var(--text-secondary);
+    }
+  }
+
+  .contents.svelte-cwls5q {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-2xl);
+    @media (max-width: 700px) {
+      grid-template-columns: 1fr;
+    }
+  }

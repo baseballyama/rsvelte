@@ -1,0 +1,58 @@
+[
+	{
+		"code": "block_empty",
+		"message": "Empty block\nhttps://svelte.dev/e/block_empty",
+		"start": {
+			"line": 13,
+			"column": 23,
+			"character": 261
+		},
+		"end": {
+			"line": 15,
+			"column": 0,
+			"character": 263
+		}
+	},
+	{
+		"code": "block_empty",
+		"message": "Empty block\nhttps://svelte.dev/e/block_empty",
+		"start": {
+			"line": 16,
+			"column": 10,
+			"character": 281
+		},
+		"end": {
+			"line": 16,
+			"column": 11,
+			"character": 282
+		}
+	},
+	{
+		"code": "block_empty",
+		"message": "Empty block\nhttps://svelte.dev/e/block_empty",
+		"start": {
+			"line": 17,
+			"column": 13,
+			"character": 301
+		},
+		"end": {
+			"line": 17,
+			"column": 14,
+			"character": 302
+		}
+	},
+	{
+		"code": "block_empty",
+		"message": "Empty block\nhttps://svelte.dev/e/block_empty",
+		"start": {
+			"line": 18,
+			"column": 16,
+			"character": 325
+		},
+		"end": {
+			"line": 18,
+			"column": 17,
+			"character": 326
+		}
+	}
+]

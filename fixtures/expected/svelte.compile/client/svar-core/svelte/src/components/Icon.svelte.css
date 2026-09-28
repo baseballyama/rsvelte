@@ -1,0 +1,13 @@
+
+	.wx-icon.svelte-1tklajd {
+		color: var(--wx-color-font-alt);
+		cursor: pointer;
+		font-size: var(--wx-button-icon-size);
+		padding: var(--wx-button-icon-indent);
+
+		line-height: var(--wx-button-line-height);
+		display: inline-block;
+	}
+	.wx-icon.svelte-1tklajd:hover {
+		background-color: var(--wx-background-hover);
+	}

@@ -1,0 +1,44 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`isOpen1` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 18,
+			"column": 6,
+			"character": 377
+		},
+		"end": {
+			"line": 18,
+			"column": 13,
+			"character": 384
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`isOpen2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 19,
+			"column": 6,
+			"character": 400
+		},
+		"end": {
+			"line": 19,
+			"column": 13,
+			"character": 407
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`isOpen3` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 20,
+			"column": 6,
+			"character": 423
+		},
+		"end": {
+			"line": 20,
+			"column": 13,
+			"character": 430
+		}
+	}
+]

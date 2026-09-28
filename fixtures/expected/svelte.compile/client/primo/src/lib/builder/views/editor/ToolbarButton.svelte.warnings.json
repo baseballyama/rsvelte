@@ -1,0 +1,16 @@
+[
+	{
+		"code": "a11y_incorrect_aria_attribute_type_boolean",
+		"message": "The value of 'aria-hidden' must be either 'true' or 'false'. It cannot be empty\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_boolean",
+		"start": {
+			"line": 83,
+			"column": 26,
+			"character": 2032
+		},
+		"end": {
+			"line": 83,
+			"column": 37,
+			"character": 2043
+		}
+	}
+]

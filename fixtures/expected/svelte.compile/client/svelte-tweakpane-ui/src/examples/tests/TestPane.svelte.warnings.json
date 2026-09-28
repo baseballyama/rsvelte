@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`tpPane` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 145
+		},
+		"end": {
+			"line": 6,
+			"column": 19,
+			"character": 159
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`speed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 5,
+			"character": 286
+		},
+		"end": {
+			"line": 15,
+			"column": 10,
+			"character": 291
+		}
+	}
+]

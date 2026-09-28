@@ -1,0 +1,58 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 42,
+			"column": 6,
+			"character": 1130
+		},
+		"end": {
+			"line": 42,
+			"column": 11,
+			"character": 1135
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`numberValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 43,
+			"column": 6,
+			"character": 1148
+		},
+		"end": {
+			"line": 43,
+			"column": 17,
+			"character": 1159
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`multilineValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 44,
+			"column": 6,
+			"character": 1171
+		},
+		"end": {
+			"line": 44,
+			"column": 20,
+			"character": 1185
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`inputEl` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 46,
+			"column": 6,
+			"character": 1214
+		},
+		"end": {
+			"line": 46,
+			"column": 60,
+			"character": 1268
+		}
+	}
+]

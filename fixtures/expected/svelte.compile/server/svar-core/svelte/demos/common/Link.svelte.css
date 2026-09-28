@@ -1,0 +1,24 @@
+
+	.demo.svelte-3ib7bl {
+		display: flex;
+		align-items: center;
+		height: 37px;
+		font-weight: 400;
+		padding-left: 16px;
+		border-left: 4px solid transparent;
+		color: var(--demo-link-fg);
+		list-style: none;
+		cursor: pointer;
+		text-decoration: none;
+	}
+
+	.demo.active.svelte-3ib7bl {
+		border-left-color: var(--demo-framework-color);
+	}
+
+	.demo.active.svelte-3ib7bl,
+	.demo.svelte-3ib7bl:hover {
+		font-weight: 500;
+		color: var(--demo-link-active-fg);
+		background-color: var(--demo-link-active-bg);
+	}

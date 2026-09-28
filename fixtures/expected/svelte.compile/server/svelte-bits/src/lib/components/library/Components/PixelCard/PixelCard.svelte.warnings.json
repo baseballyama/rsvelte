@@ -1,0 +1,16 @@
+[
+	{
+		"code": "a11y_no_noninteractive_tabindex",
+		"message": "noninteractive element cannot have nonnegative tabIndex value\nhttps://svelte.dev/e/a11y_no_noninteractive_tabindex",
+		"start": {
+			"line": 176,
+			"column": 0,
+			"character": 6061
+		},
+		"end": {
+			"line": 188,
+			"column": 6,
+			"character": 6616
+		}
+	}
+]

@@ -1,0 +1,72 @@
+[
+	{
+		"code": "legacy_code",
+		"message": "`a11y-invalid-attribute` is no longer valid — please use `a11y_invalid_attribute` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 24,
+			"column": 19,
+			"character": 766
+		},
+		"end": {
+			"line": 24,
+			"column": 41,
+			"character": 788
+		}
+	},
+	{
+		"code": "a11y_invalid_attribute",
+		"message": "'' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
+		"start": {
+			"line": 25,
+			"column": 12,
+			"character": 805
+		},
+		"end": {
+			"line": 25,
+			"column": 19,
+			"character": 812
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`times_triggered` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 66
+		},
+		"end": {
+			"line": 4,
+			"column": 20,
+			"character": 81
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`unload` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 92
+		},
+		"end": {
+			"line": 5,
+			"column": 11,
+			"character": 98
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`navigation_type` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 178
+		},
+		"end": {
+			"line": 7,
+			"column": 20,
+			"character": 193
+		}
+	}
+]

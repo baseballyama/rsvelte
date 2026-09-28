@@ -1,0 +1,58 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`performanceInfo` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 6,
+			"character": 205
+		},
+		"end": {
+			"line": 13,
+			"column": 21,
+			"character": 220
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`nodes` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 71,
+			"column": 6,
+			"character": 1423
+		},
+		"end": {
+			"line": 71,
+			"column": 11,
+			"character": 1428
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`treeType` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 72,
+			"column": 6,
+			"character": 1458
+		},
+		"end": {
+			"line": 72,
+			"column": 14,
+			"character": 1466
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selectedIndex` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 74,
+			"column": 6,
+			"character": 1513
+		},
+		"end": {
+			"line": 74,
+			"column": 19,
+			"character": 1526
+		}
+	}
+]

@@ -1,0 +1,61 @@
+
+	.Card.svelte-4b7mq8 {
+		background: #1a1a1a;
+		display: grid;
+		position: relative; /* for absolutelty positioned button in top right corner */
+	}
+	button.header-button.svelte-4b7mq8 {
+		padding: 1rem;
+		&:not(:only-child) {
+			border-bottom: 1px solid var(--color-gray-9);
+		}
+	}
+	.Card.minimal.svelte-4b7mq8 .card-body:where(.svelte-4b7mq8) {
+		margin: 0 !important;
+	}
+	button.svelte-4b7mq8 {
+		width: 100%;
+		padding: 1rem;
+
+		& + .card-body:where(.svelte-4b7mq8) {
+			padding-top: 0.5rem;
+		}
+	}
+
+	header.svelte-4b7mq8 {
+		width: 100%;
+		font-size: var(--label-font-size);
+		/* padding: 1rem; */
+		/* font-weight: var(--label-font-weight); */
+		font-weight: 400;
+		display: flex;
+		justify-content: space-between;
+		font-size: 0.875rem;
+		font-weight: 500;
+		align-items: center;
+		gap: 1rem;
+
+		.title:where(.svelte-4b7mq8) {
+			font-weight: 400;
+			text-align: left;
+		}
+
+		.pill:where(.svelte-4b7mq8) {
+			background: #b6b6b6;
+			border-radius: 100px;
+			padding: 3px 7px;
+			font-size: 12px;
+			font-weight: 500;
+			color: #121212;
+			margin-left: 0.5rem;
+		}
+	}
+	.card-body.svelte-4b7mq8 {
+		/* margin: 1.5rem; */
+		margin: 1rem;
+		overflow-x: hidden; /* for richtext field */
+		overflow-x: initial; /* 'hidden' causes weird clipping */
+		&:not(:only-child) {
+			margin-top: 0;
+		}
+	}

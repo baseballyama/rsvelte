@@ -1,0 +1,18 @@
+
+  .stack.svelte-12rq7fr {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: 1em;
+    width: 100%;
+  }
+
+  @media (min-width: 1024px) {
+    .stack.svelte-12rq7fr {
+      flex-direction: row;
+      flex-wrap: nowrap;
+      justify-content: flex-start;
+      align-items: flex-start;
+    }
+  }

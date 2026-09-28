@@ -1,0 +1,21 @@
+
+	main.svelte-1s728sz {
+		display: grid;
+		min-height: 100vh;
+		background: var(--color-gray-9);
+		color: white;
+	}
+	.box.svelte-1s728sz {
+		width: 100%;
+		max-width: 450px;
+		padding: 2.5rem;
+		border-radius: 6px;
+		background-color: #1a1a1a;
+	}
+	.left.svelte-1s728sz {
+		padding: 3rem clamp(3rem, 10vw, 160px);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+	}

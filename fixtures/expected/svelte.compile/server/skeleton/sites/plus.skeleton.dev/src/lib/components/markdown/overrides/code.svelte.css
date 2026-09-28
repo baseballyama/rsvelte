@@ -1,0 +1,16 @@
+
+	.shiki {
+		background-color: var(--color-neutral-50);
+		border-radius: var(--radius-container);
+		padding: 1rem;
+		font-size: var(--text-xs);
+	}
+	@media (prefers-color-scheme: dark) {
+		.shiki {
+			background-color: var(--color-neutral-950) !important;
+			color: var(--shiki-dark) !important;
+		}
+		.shiki span {
+			color: var(--shiki-dark) !important;
+		}
+	}

@@ -1,0 +1,10 @@
+
+	h1.svelte-16050j7 {
+		--replace-me-once: red;
+	}
+	h2.svelte-16050j7 {
+		--replace-me-twice: green;
+	}
+	div.svelte-16050j7 {
+		--keep-me: blue;
+	}

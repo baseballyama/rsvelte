@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_unknown_aria_attribute",
+		"message": "Unknown aria attribute 'aria-labeledby'. Did you mean 'labelledby'?\nhttps://svelte.dev/e/a11y_unknown_aria_attribute",
+		"start": {
+			"line": 1,
+			"column": 20,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"column": 40,
+			"character": 40
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<input type=\"image\">` element should have an alt, aria-label or aria-labelledby attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 1,
+			"column": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 1,
+			"column": 41,
+			"character": 41
+		}
+	}
+]

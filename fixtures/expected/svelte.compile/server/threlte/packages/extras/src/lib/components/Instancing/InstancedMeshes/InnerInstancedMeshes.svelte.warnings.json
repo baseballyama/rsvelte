@@ -1,0 +1,30 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `meshes`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 14,
+			"column": 15,
+			"character": 384
+		},
+		"end": {
+			"line": 14,
+			"column": 21,
+			"character": 390
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `index`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 14,
+			"column": 22,
+			"character": 391
+		},
+		"end": {
+			"line": 14,
+			"column": 27,
+			"character": 396
+		}
+	}
+]

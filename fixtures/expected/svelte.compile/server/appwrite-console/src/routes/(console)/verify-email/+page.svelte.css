@@ -1,0 +1,40 @@
+
+    .verify-email-page.svelte-1ul38ce {
+        display: flex;
+        min-height: 100vh;
+        position: relative;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+
+        /* :global {*/
+            .sidebar {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                height: 100vh !important;
+                z-index: 1000 !important;
+                filter: blur(4px);
+                opacity: 0.6;
+            }
+
+            .navbar,
+            [data-pink-navbar],
+            header {
+                filter: blur(2px);
+                opacity: 0.4;
+                z-index: 1;
+            }
+
+            .email-verification-scrim {
+                z-index: 9999 !important;
+                filter: none !important;
+                opacity: 1 !important;
+
+                * {
+                    filter: none !important;
+                    opacity: 1 !important;
+                }
+            }
+        /*}*/
+    }

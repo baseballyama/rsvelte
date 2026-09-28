@@ -1,0 +1,86 @@
+[
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 43,
+			"column": 24,
+			"character": 1277
+		},
+		"end": {
+			"line": 43,
+			"column": 50,
+			"character": 1303
+		}
+	},
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 44,
+			"column": 36,
+			"character": 1343
+		},
+		"end": {
+			"line": 44,
+			"column": 62,
+			"character": 1369
+		}
+	},
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 45,
+			"column": 28,
+			"character": 1401
+		},
+		"end": {
+			"line": 45,
+			"column": 46,
+			"character": 1419
+		}
+	},
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 46,
+			"column": 32,
+			"character": 1455
+		},
+		"end": {
+			"line": 46,
+			"column": 54,
+			"character": 1477
+		}
+	},
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 47,
+			"column": 30,
+			"character": 1511
+		},
+		"end": {
+			"line": 47,
+			"column": 50,
+			"character": 1531
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showOptions` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 12,
+			"column": 8,
+			"character": 490
+		},
+		"end": {
+			"line": 12,
+			"column": 19,
+			"character": 501
+		}
+	}
+]

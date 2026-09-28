@@ -1,0 +1,16 @@
+
+    .empty.svelte-13go8dp {
+        block-size: 365px;
+        text-align: center;
+        align-content: center;
+    }
+
+    @media (min-width: 768px) {
+        .policies-holder-card.svelte-13go8dp {
+            min-width: 330px;
+        }
+    }
+
+    .backups-page .common-section {
+        margin-block-start: 0 !important;
+    }

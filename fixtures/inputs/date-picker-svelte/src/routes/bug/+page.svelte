@@ -1,0 +1,15 @@
+<script lang="ts">
+	import DatePicker from '$lib/DatePicker.svelte'
+
+	let value: Date | undefined = $state()
+</script>
+
+<button
+	onclick={() => {
+		value = new Date(2025, 3, 19, 11, 11, 11, 111)
+	}}>Set to precise value</button
+>
+
+<DatePicker timePrecision="minute" bind:value />
+
+{value?.toISOString() ?? 'null'}

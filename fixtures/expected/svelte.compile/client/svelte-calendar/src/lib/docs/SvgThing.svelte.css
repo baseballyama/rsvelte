@@ -1,0 +1,12 @@
+
+	div.svelte-yc8gmx {
+		display: grid;
+		pointer-events: none;
+	}
+	svg.svelte-yc8gmx {
+		height: 100%;
+		width: 100%;
+	}
+	svg.svelte-yc8gmx circle:where(.svelte-yc8gmx) {
+		fill: #0f0b0c;
+	}

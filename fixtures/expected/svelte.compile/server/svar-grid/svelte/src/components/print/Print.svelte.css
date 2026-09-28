@@ -1,0 +1,33 @@
+
+	.wx-print-container {
+		display: none;
+	}
+
+	.wx-print-grid {
+		border-collapse: collapse;
+		table-layout: fixed;
+		border: var(--wx-table-border);
+		border-spacing: 0;
+		text-indent: initial;
+		print-color-adjust: exact;
+		-webkit-print-color-adjust: exact;
+	}
+
+	.wx-print-grid tr, .wx-print-grid th, .wx-print-grid td {
+		border: var(--wx-table-border);
+	}
+
+	@media print {
+		.wx-print > * {
+			display: none !important;
+		}
+
+		.wx-print-container > .wx-print-grid-wrapper {
+			page-break-after: always;
+			break-after: page;
+		}
+
+		.wx-print-container {
+			display: block !important;
+		}
+	}

@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_missing_content",
+		"message": "`<h2>` element should contain text\nhttps://svelte.dev/e/a11y_missing_content",
+		"start": {
+			"line": 17,
+			"column": 4,
+			"character": 551
+		},
+		"end": {
+			"line": 17,
+			"column": 39,
+			"character": 586
+		}
+	},
+	{
+		"code": "a11y_missing_content",
+		"message": "`<h2>` element should contain text\nhttps://svelte.dev/e/a11y_missing_content",
+		"start": {
+			"line": 19,
+			"column": 4,
+			"character": 594
+		},
+		"end": {
+			"line": 23,
+			"column": 9,
+			"character": 737
+		}
+	}
+]

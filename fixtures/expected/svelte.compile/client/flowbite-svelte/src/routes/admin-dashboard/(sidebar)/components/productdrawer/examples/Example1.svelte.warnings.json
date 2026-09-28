@@ -1,0 +1,58 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`drawerOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 17,
+			"column": 6,
+			"character": 405
+		},
+		"end": {
+			"line": 17,
+			"column": 16,
+			"character": 415
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`productData` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 18,
+			"column": 6,
+			"character": 431
+		},
+		"end": {
+			"line": 18,
+			"column": 47,
+			"character": 472
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`drawerTitle` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 19,
+			"column": 6,
+			"character": 480
+		},
+		"end": {
+			"line": 19,
+			"column": 17,
+			"character": 491
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`products` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 23,
+			"column": 6,
+			"character": 574
+		},
+		"end": {
+			"line": 23,
+			"column": 25,
+			"character": 593
+		}
+	}
+]

@@ -1,0 +1,11 @@
+import * as $ from 'svelte/internal/server';
+import Widget from './Widget.svelte';
+import ParentWidget from './ParentWidget.svelte';
+
+export default function Main($$renderer) {
+	$$renderer.push(`<div>`);
+	Widget($$renderer, {});
+	$$renderer.push(`<!----> `);
+	ParentWidget($$renderer, {});
+	$$renderer.push(`<!----></div>`);
+}

@@ -1,0 +1,29 @@
+
+	.active.svelte-17hx3sz {
+		background-color: var(--edra-canvas-soft-2) !important;
+		color: var(--edra-ink) !important;
+	}
+	.link-form.svelte-17hx3sz {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 4px;
+		min-width: 20rem;
+	}
+	.link-input.svelte-17hx3sz {
+		height: 2rem;
+		font-size: 0.875rem;
+		flex: 1;
+	}
+	.check-btn.svelte-17hx3sz {
+		width: 2rem;
+		height: 2rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.chevron-icon {
+		color: var(--edra-mute);
+		width: 0.5rem;
+		height: 0.5rem;
+	}

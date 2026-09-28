@@ -1,0 +1,58 @@
+[
+	{
+		"code": "attribute_avoid_is",
+		"message": "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is",
+		"start": {
+			"line": 39,
+			"column": 3,
+			"character": 798
+		},
+		"end": {
+			"line": 39,
+			"column": 15,
+			"character": 810
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 39,
+			"column": 0,
+			"character": 795
+		},
+		"end": {
+			"line": 39,
+			"column": 58,
+			"character": 853
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 39,
+			"column": 0,
+			"character": 795
+		},
+		"end": {
+			"line": 39,
+			"column": 58,
+			"character": 853
+		}
+	},
+	{
+		"code": "attribute_avoid_is",
+		"message": "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is",
+		"start": {
+			"line": 43,
+			"column": 5,
+			"character": 958
+		},
+		"end": {
+			"line": 43,
+			"column": 23,
+			"character": 976
+		}
+	}
+]

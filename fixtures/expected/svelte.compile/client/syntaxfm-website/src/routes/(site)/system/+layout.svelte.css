@@ -1,0 +1,10 @@
+
+	nav.svelte-9600io {
+		grid-row: span 5;
+		ul:where(.svelte-9600io) {
+			padding: 5px;
+		}
+		li:where(.svelte-9600io) {
+			list-style: none;
+		}
+	}

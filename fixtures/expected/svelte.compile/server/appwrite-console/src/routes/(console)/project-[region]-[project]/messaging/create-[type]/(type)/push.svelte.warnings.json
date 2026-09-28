@@ -1,0 +1,142 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`showExitModal` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 23,
+			"column": 8,
+			"character": 1245
+		},
+		"end": {
+			"line": 23,
+			"column": 21,
+			"character": 1258
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`isSubmitting` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 25,
+			"column": 8,
+			"character": 1305
+		},
+		"end": {
+			"line": 25,
+			"column": 20,
+			"character": 1317
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showCustomId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 26,
+			"column": 8,
+			"character": 1345
+		},
+		"end": {
+			"line": 26,
+			"column": 20,
+			"character": 1357
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`id` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 27,
+			"column": 8,
+			"character": 1375
+		},
+		"end": {
+			"line": 27,
+			"column": 25,
+			"character": 1392
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`file` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 28,
+			"column": 8,
+			"character": 1409
+		},
+		"end": {
+			"line": 28,
+			"column": 25,
+			"character": 1426
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`title` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 30,
+			"column": 8,
+			"character": 1503
+		},
+		"end": {
+			"line": 30,
+			"column": 21,
+			"character": 1516
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`body` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 31,
+			"column": 8,
+			"character": 1526
+		},
+		"end": {
+			"line": 31,
+			"column": 20,
+			"character": 1538
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`topics` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 32,
+			"column": 8,
+			"character": 1548
+		},
+		"end": {
+			"line": 32,
+			"column": 24,
+			"character": 1564
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`targets` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 34,
+			"column": 8,
+			"character": 1599
+		},
+		"end": {
+			"line": 34,
+			"column": 25,
+			"character": 1616
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`scheduledAt` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 36,
+			"column": 8,
+			"character": 1650
+		},
+		"end": {
+			"line": 36,
+			"column": 27,
+			"character": 1669
+		}
+	}
+]

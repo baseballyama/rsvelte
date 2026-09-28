@@ -1,0 +1,203 @@
+<script lang="ts">
+    import { Button } from '$lib/elements/forms';
+    import { Container } from '$lib/layout';
+    import { realtime } from '$lib/stores/sdk';
+    import { onMount } from 'svelte';
+    import { type Models } from '@appwrite.io/console';
+    import { page } from '$app/state';
+    import { invalidate } from '$app/navigation';
+    import { Dependencies } from '$lib/constants';
+    import Activate from '../(modals)/activateModal.svelte';
+    import Cancel from '../(modals)/cancelDeploymentModal.svelte';
+    import DeploymentCard from '../(components)/deploymentCard.svelte';
+    import Delete from '../(modals)/deleteModal.svelte';
+    import {
+        Accordion,
+        ActionMenu,
+        Card,
+        Icon,
+        Layout,
+        Logs,
+        Spinner,
+        Tooltip,
+        Typography
+    } from '@appwrite.io/pink-svelte';
+    import { capitalize } from '$lib/helpers/string';
+    import { formatTimeDetailed } from '$lib/helpers/timeConversion';
+    import { getEffectiveBuildStatus } from '$lib/helpers/buildTimeout';
+    import { regionalConsoleVariables } from '$routes/(console)/project-[region]-[project]/store';
+    import { timer } from '$lib/actions/timer';
+    import { app } from '$lib/stores/app';
+    import { IconDotsHorizontal, IconRefresh, IconTrash } from '@appwrite.io/pink-icons-svelte';
+    import { Menu } from '$lib/components/menu';
+    import { canWriteFunctions } from '$lib/stores/roles';
+    import { Click, trackEvent } from '$lib/actions/analytics';
+    import DownloadActionMenuItem from '../(components)/downloadActionMenuItem.svelte';
+    import { base } from '$app/paths';
+    import { isCloud } from '$lib/system';
+    import { readOnly } from '$lib/stores/billing';
+    import RedeployModal from '../(modals)/redeployModal.svelte';
+
+    let { data } = $props();
+
+    const effectiveStatus = $derived(
+        getEffectiveBuildStatus(data.deployment, $regionalConsoleVariables)
+    );
+    const displayStatus = $derived(effectiveStatus === 'finalizing' ? 'ready' : effectiveStatus);
+    let showDelete = $state(false);
+    let showCancel = $state(false);
+    let showActivate = $state(false);
+    let showRedeploy = $state(false);
+
+    onMount(() => {
+        return realtime.forConsole(page.params.region, 'console', (message) => {
+            if (
+                message.events.includes(
+                    `functions.${page.params.function}.deployments.${page.params.deployment}.update`
+                )
+            ) {
+                const payload = message.payload as Models.Deployment;
+                if (['ready', 'failed'].includes(payload.status)) {
+                    invalidate(Dependencies.DEPLOYMENT);
+                }
+            }
+        });
+    });
+
+    export function badgeTypeDeployment(status: string) {
+        switch (status) {
+            case 'failed':
+                return 'error';
+            case 'ready':
+                return 'success';
+            case 'building':
+                return 'warning';
+            case 'processing':
+                return undefined;
+            default:
+                return undefined;
+        }
+    }
+</script>
+
+<Container>
+    <DeploymentCard proxyRuleList={data.proxyRuleList} deployment={data.deployment}>
+        {#snippet footer()}
+            <Layout.Stack direction="row" alignItems="center" inline>
+                {#if effectiveStatus === 'processing' || effectiveStatus === 'building' || effectiveStatus === 'waiting'}
+                    <Button
+                        text
+                        on:click={() => {
+                            showCancel = true;
+                        }}>Cancel</Button>
+                {/if}
+
+                <Menu>
+                    <Button secondary icon text>
+                        <Icon icon={IconDotsHorizontal} />
+                    </Button>
+                    <svelte:fragment slot="menu" let:toggle>
+                        <ActionMenu.Root>
+                            {#if $canWriteFunctions}
+                                <Tooltip
+                                    disabled={data.deployment.sourceSize !== 0}
+                                    placement={'bottom'}>
+                                    <div>
+                                        <ActionMenu.Item.Button
+                                            leadingIcon={IconRefresh}
+                                            disabled={data.deployment.sourceSize === 0}
+                                            on:click={() => {
+                                                showRedeploy = true;
+                                                trackEvent(Click.FunctionsRedeployClick);
+                                                toggle();
+                                            }}
+                                            style="width: 100%">
+                                            Redeploy
+                                        </ActionMenu.Item.Button>
+                                    </div>
+                                    <div slot="tooltip">Source is empty</div>
+                                </Tooltip>
+                            {/if}
+                            {#if !!data.deployment?.sourceSize || !!data.deployment?.sourceSize}
+                                <DownloadActionMenuItem deployment={data.deployment} {toggle} />
+                            {/if}
+                            {#if $canWriteFunctions && ['ready', 'failed'].includes(data.deployment.status)}
+                                <ActionMenu.Item.Button
+                                    status="danger"
+                                    leadingIcon={IconTrash}
+                                    on:click={() => {
+                                        showDelete = true;
+                                        toggle();
+                                    }}
+                                    style="width: 100%">
+                                    Delete
+                                </ActionMenu.Item.Button>
+                            {/if}
+                        </ActionMenu.Root>
+                    </svelte:fragment>
+                </Menu>
+                {#if data.func.deploymentId === data.deployment.$id && data.deployment.status === 'ready'}
+                    <Button
+                        href={`${base}/project-${page.params.region}-${page.params.project}/functions/function-${page.params.function}/executions/execute-function`}
+                        disabled={isCloud && $readOnly}>
+                        Execute
+                    </Button>
+                {/if}
+
+                {#if data.func.deploymentId !== data.deployment.$id && data.deployment.status === 'ready'}
+                    <Button
+                        disabled={data.activeDeployment}
+                        on:click={() => {
+                            showActivate = true;
+                        }}>Activate</Button>
+                {/if}
+            </Layout.Stack>
+        {/snippet}
+    </DeploymentCard>
+
+    <Card.Base padding="s">
+        <Accordion
+            title="Deployment logs"
+            badge={capitalize(displayStatus)}
+            open
+            badgeType={badgeTypeDeployment(displayStatus)}
+            hideDivider>
+            <Layout.Stack gap="xl">
+                {#key data.deployment.buildLogs}
+                    <Logs
+                        showScrollButton
+                        logs={data.deployment.buildLogs || 'No logs available yet...'}
+                        bind:theme={$app.themeInUse} />
+                {/key}
+            </Layout.Stack>
+
+            <svelte:fragment slot="end">
+                <Layout.Stack direction="row" alignItems="center" inline>
+                    {#if ['processing', 'building'].includes(effectiveStatus)}
+                        <Typography.Code color="--fgcolor-neutral-secondary">
+                            <Layout.Stack direction="row" alignItems="center" inline>
+                                <p use:timer={{ start: data.deployment.$createdAt }}></p>
+                                <Spinner size="s" />
+                            </Layout.Stack>
+                        </Typography.Code>
+                    {:else}
+                        <Typography.Code color="--fgcolor-neutral-secondary">
+                            {formatTimeDetailed(data.deployment.buildDuration)}
+                        </Typography.Code>
+                    {/if}
+                </Layout.Stack>
+            </svelte:fragment>
+        </Accordion>
+    </Card.Base>
+</Container>
+
+<Delete selectedDeployment={data.deployment} bind:showDelete />
+<Cancel selectedDeployment={data.deployment} bind:showCancel />
+<Activate
+    selectedDeployment={data.deployment}
+    bind:showActivate
+    on:activated={() => invalidate(Dependencies.DEPLOYMENTS)} />
+
+{#if showRedeploy}
+    <RedeployModal bind:show={showRedeploy} selectedDeployment={data.deployment} redirect />
+{/if}

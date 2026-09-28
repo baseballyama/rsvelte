@@ -1,0 +1,56 @@
+import * as $ from 'svelte/internal/server';
+import { scaleBand } from 'd3-scale';
+import { Bars, Axis, Chart, Layer, LinearGradient } from 'layerchart';
+import { createDateSeries } from '$lib/utils/data.js';
+
+export default function Horizontal_gradient($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const data = createDateSeries({
+			count: 10,
+			min: 20,
+			max: 100,
+			value: 'integer',
+			keys: ['value', 'baseline']
+		});
+
+		Chart($$renderer, {
+			data,
+			x: 'value',
+			xDomain: [0, null],
+			xNice: true,
+			y: 'date',
+			yScale: scaleBand().padding(0.4),
+			padding: { left: 32, bottom: 20, right: 8 },
+			height: 300,
+			children: ($$renderer) => {
+				Layer($$renderer, {
+					children: ($$renderer) => {
+						Axis($$renderer, { placement: 'bottom', grid: true, rule: true });
+						$$renderer.push(`<!----> `);
+						Axis($$renderer, { placement: 'left', rule: true });
+						$$renderer.push(`<!----> `);
+
+						{
+							function children($$renderer, { gradient }) {
+								Bars($$renderer, { strokeWidth: 1, fill: gradient, class: 'stroke-blue-900' });
+							}
+
+							LinearGradient($$renderer, {
+								class: 'from-green-400 to-blue-500',
+								units: 'userSpaceOnUse',
+								children,
+								$$slots: { default: true }
+							});
+						}
+
+						$$renderer.push(`<!---->`);
+					},
+					$$slots: { default: true }
+				});
+			},
+			$$slots: { default: true }
+		});
+
+		$.bind_props($$props, { data });
+	});
+}

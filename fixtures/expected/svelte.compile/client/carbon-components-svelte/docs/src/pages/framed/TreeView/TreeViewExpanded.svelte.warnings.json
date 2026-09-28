@@ -1,0 +1,44 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`activeId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 6,
+			"character": 78
+		},
+		"end": {
+			"line": 4,
+			"column": 14,
+			"character": 86
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selectedIds` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 98
+		},
+		"end": {
+			"line": 5,
+			"column": 17,
+			"character": 109
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`expandedIds` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 6,
+			"character": 122
+		},
+		"end": {
+			"line": 6,
+			"column": 17,
+			"character": 133
+		}
+	}
+]

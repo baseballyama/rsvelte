@@ -1,0 +1,44 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 189
+		},
+		"end": {
+			"line": 7,
+			"column": 10,
+			"character": 193
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`openAsync` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 209
+		},
+		"end": {
+			"line": 8,
+			"column": 15,
+			"character": 218
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`loading` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 6,
+			"character": 234
+		},
+		"end": {
+			"line": 9,
+			"column": 13,
+			"character": 241
+		}
+	}
+]

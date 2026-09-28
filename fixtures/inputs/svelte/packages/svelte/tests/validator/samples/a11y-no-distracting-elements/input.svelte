@@ -1,0 +1,2 @@
+<marquee></marquee>
+<blink></blink>

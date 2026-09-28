@@ -1,0 +1,61 @@
+
+	/* boundary of each */
+	.a.svelte-zjyzgs ~ .d:where(.svelte-zjyzgs) { color: green; }
+	.a.svelte-zjyzgs ~ .e:where(.svelte-zjyzgs) { color: green; }
+	.a.svelte-zjyzgs ~ .f:where(.svelte-zjyzgs) { color: green; }
+	.a.svelte-zjyzgs ~ .g:where(.svelte-zjyzgs) { color: green; }
+	.c.svelte-zjyzgs ~ .d:where(.svelte-zjyzgs) { color: green; }
+	.c.svelte-zjyzgs ~ .e:where(.svelte-zjyzgs) { color: green; }
+	.c.svelte-zjyzgs ~ .f:where(.svelte-zjyzgs) { color: green; }
+	.c.svelte-zjyzgs ~ .g:where(.svelte-zjyzgs) { color: green; }
+
+	/* nested boundary of each */
+	.j.svelte-zjyzgs ~ .m:where(.svelte-zjyzgs) { color: green; }
+	.j.svelte-zjyzgs ~ .n:where(.svelte-zjyzgs) { color: green; }
+	.j.svelte-zjyzgs ~ .o:where(.svelte-zjyzgs) { color: green; }
+	.k.svelte-zjyzgs ~ .m:where(.svelte-zjyzgs) { color: green; }
+	.k.svelte-zjyzgs ~ .n:where(.svelte-zjyzgs) { color: green; }
+	.k.svelte-zjyzgs ~ .o:where(.svelte-zjyzgs) { color: green; }
+	.l.svelte-zjyzgs ~ .m:where(.svelte-zjyzgs) { color: green; }
+	.l.svelte-zjyzgs ~ .n:where(.svelte-zjyzgs) { color: green; }
+	.l.svelte-zjyzgs ~ .o:where(.svelte-zjyzgs) { color: green; }
+
+	/* parent each */
+	.d.svelte-zjyzgs ~ .e:where(.svelte-zjyzgs) { color: green; }
+	.e.svelte-zjyzgs ~ .f:where(.svelte-zjyzgs) { color: green; }
+
+	/* child each */
+	.g.svelte-zjyzgs ~ .h:where(.svelte-zjyzgs) { color: green; }
+
+	/* wrap around */
+	.f.svelte-zjyzgs ~ .d:where(.svelte-zjyzgs) { color: green; }
+	.f.svelte-zjyzgs ~ .e:where(.svelte-zjyzgs) { color: green; }
+	.f.svelte-zjyzgs ~ .f:where(.svelte-zjyzgs) { color: green; }
+
+	.h.svelte-zjyzgs ~ .g:where(.svelte-zjyzgs) { color: green; }
+	.i.svelte-zjyzgs ~ .h:where(.svelte-zjyzgs) { color: green; }
+	.i.svelte-zjyzgs ~ .g:where(.svelte-zjyzgs) { color: green; }
+
+	/* wrap around self */
+	.d.svelte-zjyzgs ~ .d:where(.svelte-zjyzgs) { color: green; }
+	.e.svelte-zjyzgs ~ .e:where(.svelte-zjyzgs) { color: green; }
+	.f.svelte-zjyzgs ~ .f:where(.svelte-zjyzgs) { color: green; }
+	.g.svelte-zjyzgs ~ .g:where(.svelte-zjyzgs) { color: green; }
+	.h.svelte-zjyzgs ~ .h:where(.svelte-zjyzgs) { color: green; }
+	.i.svelte-zjyzgs ~ .i:where(.svelte-zjyzgs) { color: green; }
+
+	/* wrap around self ~ next */
+	.e.svelte-zjyzgs ~ .e:where(.svelte-zjyzgs) ~ .f:where(.svelte-zjyzgs) { color: green; }
+	.e.svelte-zjyzgs ~ .e:where(.svelte-zjyzgs) ~ .d:where(.svelte-zjyzgs) { color: green; }
+	.h.svelte-zjyzgs ~ .h:where(.svelte-zjyzgs) ~ .i:where(.svelte-zjyzgs) { color: green; }
+	.h.svelte-zjyzgs ~ .h:where(.svelte-zjyzgs) ~ .g:where(.svelte-zjyzgs) { color: green; }
+
+	/* general siblings */
+	.a.svelte-zjyzgs ~ .h:where(.svelte-zjyzgs) { color: green; }
+	.a.svelte-zjyzgs ~ .i:where(.svelte-zjyzgs) { color: green; }
+	.c.svelte-zjyzgs ~ .h:where(.svelte-zjyzgs) { color: green; }
+	.c.svelte-zjyzgs ~ .i:where(.svelte-zjyzgs) { color: green; }
+	.d.svelte-zjyzgs ~ .f:where(.svelte-zjyzgs) { color: green; }
+	.d.svelte-zjyzgs ~ .g:where(.svelte-zjyzgs) { color: green; }
+	.e.svelte-zjyzgs ~ .g:where(.svelte-zjyzgs) { color: green; }
+	.g.svelte-zjyzgs ~ .i:where(.svelte-zjyzgs) { color: green; }

@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`timeout` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 16,
+			"column": 8,
+			"character": 727
+		},
+		"end": {
+			"line": 16,
+			"column": 23,
+			"character": 742
+		}
+	}
+]

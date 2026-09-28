@@ -1,0 +1,28 @@
+
+    .consent-page.svelte-7g7ins {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    .consent-card-wrapper.svelte-7g7ins {
+        width: 100%;
+        max-width: 28rem;
+    }
+
+    .spinner-wrap.svelte-7g7ins {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 16rem;
+    }
+
+    .error-icon-wrap.svelte-7g7ins {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 50%;
+        background: var(--bgcolor-danger-secondary, rgba(220, 38, 38, 0.1));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }

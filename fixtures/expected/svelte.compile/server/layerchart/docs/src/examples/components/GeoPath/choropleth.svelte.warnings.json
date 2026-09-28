@@ -1,0 +1,16 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `enrichedCountiesFeatures`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 51,
+			"column": 71,
+			"character": 1633
+		},
+		"end": {
+			"line": 51,
+			"column": 95,
+			"character": 1657
+		}
+	}
+]

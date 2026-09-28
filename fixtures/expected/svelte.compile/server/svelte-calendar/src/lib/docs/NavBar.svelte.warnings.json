@@ -1,0 +1,30 @@
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 14,
+			"column": 3,
+			"character": 366
+		},
+		"end": {
+			"line": 14,
+			"column": 11,
+			"character": 374
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<section ...></section>` rather than `<section ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 16,
+			"column": 2,
+			"character": 390
+		},
+		"end": {
+			"line": 16,
+			"column": 13,
+			"character": 401
+		}
+	}
+]

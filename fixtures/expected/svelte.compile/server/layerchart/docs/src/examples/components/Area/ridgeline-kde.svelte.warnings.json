@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`seriesData` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 123,
+			"column": 7,
+			"character": 4951
+		},
+		"end": {
+			"line": 123,
+			"column": 17,
+			"character": 4961
+		}
+	}
+]

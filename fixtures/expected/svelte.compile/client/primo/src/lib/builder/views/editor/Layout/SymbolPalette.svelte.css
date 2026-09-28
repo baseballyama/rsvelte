@@ -1,0 +1,15 @@
+
+	.SymbolPalette.svelte-l8lq2s {
+		line-height: 1.5rem;
+		color: var(--color-gray-6);
+		font-size: 0.875rem;
+		padding: 20%;
+		text-align: center;
+		min-height: 500px;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		background: var(--color-gray-1);
+		border: 3px dashed var(--color-gray-3);
+		font-family: sans-serif;
+	}

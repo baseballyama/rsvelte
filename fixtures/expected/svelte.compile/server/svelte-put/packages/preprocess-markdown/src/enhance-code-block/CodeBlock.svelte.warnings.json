@@ -1,0 +1,30 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `collapsed`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 58,
+			"column": 36,
+			"character": 1521
+		},
+		"end": {
+			"line": 58,
+			"column": 45,
+			"character": 1530
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \":--g-not-fullscreen :--c-first-of-group &\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 250,
+			"column": 2,
+			"character": 6238
+		},
+		"end": {
+			"line": 250,
+			"column": 43,
+			"character": 6279
+		}
+	}
+]

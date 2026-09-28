@@ -1,0 +1,44 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `shouldRemoveOnTrailingIconClick`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 197,
+			"column": 4,
+			"character": 5379
+		},
+		"end": {
+			"line": 197,
+			"column": 35,
+			"character": 5410
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `selected`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 207,
+			"column": 35,
+			"character": 5670
+		},
+		"end": {
+			"line": 207,
+			"column": 43,
+			"character": 5678
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `selected`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 221,
+			"column": 16,
+			"character": 6080
+		},
+		"end": {
+			"line": 221,
+			"column": 24,
+			"character": 6088
+		}
+	}
+]

@@ -1,0 +1,11 @@
+
+	.box.svelte-s15w6y {
+		width: 100px;
+		height: 100px;
+		background-color: orangered;
+		border-radius: 1rem;
+	}
+
+	button.svelte-s15w6y {
+		margin-top: var(--spacing-32);
+	}

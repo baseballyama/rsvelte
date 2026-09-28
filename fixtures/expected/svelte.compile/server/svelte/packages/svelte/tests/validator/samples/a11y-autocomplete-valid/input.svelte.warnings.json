@@ -1,0 +1,44 @@
+[
+	{
+		"code": "a11y_autocomplete_valid",
+		"message": "'true' is an invalid value for 'autocomplete' on `<input type=\"text\">`\nhttps://svelte.dev/e/a11y_autocomplete_valid",
+		"start": {
+			"line": 25,
+			"column": 19,
+			"character": 984
+		},
+		"end": {
+			"line": 25,
+			"column": 31,
+			"character": 996
+		}
+	},
+	{
+		"code": "a11y_autocomplete_valid",
+		"message": "'incorrect' is an invalid value for 'autocomplete' on `<input type=\"text\">`\nhttps://svelte.dev/e/a11y_autocomplete_valid",
+		"start": {
+			"line": 26,
+			"column": 19,
+			"character": 1019
+		},
+		"end": {
+			"line": 26,
+			"column": 43,
+			"character": 1043
+		}
+	},
+	{
+		"code": "a11y_autocomplete_valid",
+		"message": "'webauthn' is an invalid value for 'autocomplete' on `<input type=\"text\">`\nhttps://svelte.dev/e/a11y_autocomplete_valid",
+		"start": {
+			"line": 27,
+			"column": 19,
+			"character": 1066
+		},
+		"end": {
+			"line": 27,
+			"column": 42,
+			"character": 1089
+		}
+	}
+]

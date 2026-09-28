@@ -1,0 +1,16 @@
+[
+	{
+		"code": "a11y_accesskey",
+		"message": "Avoid using accesskey\nhttps://svelte.dev/e/a11y_accesskey",
+		"start": {
+			"line": 1,
+			"column": 5,
+			"character": 5
+		},
+		"end": {
+			"line": 1,
+			"column": 18,
+			"character": 18
+		}
+	}
+]

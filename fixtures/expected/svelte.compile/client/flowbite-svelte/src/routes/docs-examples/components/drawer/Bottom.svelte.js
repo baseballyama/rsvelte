@@ -1,0 +1,96 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Drawer, Button } from "flowbite-svelte";
+import { InfoCircleSolid, ArrowRightOutline } from "flowbite-svelte-icons";
+import { sineIn } from "svelte/easing";
+
+var root = $.from_html(`Get access <!>`, 1);
+var root_1 = $.from_html(`<h5 id="drawer-label" class="mb-4 inline-flex items-center text-base font-semibold text-gray-500 dark:text-gray-400"><!>Info</h5> <p class="mb-6 max-w-lg text-sm text-gray-500 dark:text-gray-400">Supercharge your hiring by taking advantage of our <a href="/" class="text-primary-600 dark:text-primary-500 underline hover:no-underline">limited-time sale</a> for Flowbite Docs + Job Board. Unlimited access to over 190K top-ranked candidates and the #1 design job board.</p> <!> <!>`, 1);
+var root_2 = $.from_html(`<div class="text-center"><!></div> <!>`, 1);
+
+export default function Bottom($$anchor) {
+	let open8 = $.state(false);
+	let transitionParamsBottom = { y: 320, duration: 200, easing: sineIn };
+	var fragment = root_2();
+	var div = $.first_child(fragment);
+	var node = $.child(div);
+
+	Button(node, {
+		onclick: () => $.set(open8, true),
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text = $.text('Show drawer');
+
+			$.append($$anchor, text);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div);
+
+	var node_1 = $.sibling(div, 2);
+
+	Drawer(node_1, {
+		placement: 'bottom',
+		class: 'w-full',
+		get transitionParams() {
+			return transitionParamsBottom;
+		},
+
+		get open() {
+			return $.get(open8);
+		},
+
+		set open($$value) {
+			$.set(open8, $$value, true);
+		},
+
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_1();
+			var h5 = $.first_child(fragment_1);
+			var node_2 = $.child(h5);
+
+			InfoCircleSolid(node_2, { class: 'me-2.5 h-5 w-5' });
+			$.next();
+			$.reset(h5);
+
+			var node_3 = $.sibling(h5, 4);
+
+			Button(node_3, {
+				color: 'light',
+				href: '/',
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_1 = $.text('Learn more');
+
+					$.append($$anchor, text_1);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_4 = $.sibling(node_3, 2);
+
+			Button(node_4, {
+				href: '/',
+				class: 'px-4',
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var fragment_2 = root();
+					var node_5 = $.sibling($.first_child(fragment_2));
+
+					ArrowRightOutline(node_5, { class: 'ms-2 h-5 w-5' });
+					$.append($$anchor, fragment_2);
+				},
+				$$slots: { default: true }
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.append($$anchor, fragment);
+}

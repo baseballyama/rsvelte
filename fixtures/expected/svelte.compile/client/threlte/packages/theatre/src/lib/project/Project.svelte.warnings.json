@@ -1,0 +1,58 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `name`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 23,
+			"column": 31,
+			"character": 568
+		},
+		"end": {
+			"line": 23,
+			"column": 35,
+			"character": 572
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `name`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 23,
+			"column": 51,
+			"character": 588
+		},
+		"end": {
+			"line": 23,
+			"column": 55,
+			"character": 592
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `config`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 23,
+			"column": 57,
+			"character": 594
+		},
+		"end": {
+			"line": 23,
+			"column": 63,
+			"character": 600
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `name`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 24,
+			"column": 21,
+			"character": 623
+		},
+		"end": {
+			"line": 24,
+			"column": 25,
+			"character": 627
+		}
+	}
+]

@@ -1,0 +1,12 @@
+
+	/* The .docs-drawer Sidebar component is .sidebar (sticky) — override
+	   inside the drawer so it flows naturally. */
+	.docs-drawer.svelte-fxrvrl .sidebar {
+		position: static;
+		padding: 0;
+		margin-left: 0;
+		max-width: none;
+		width: 100%;
+		height: auto;
+		display: block;
+	}

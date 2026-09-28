@@ -1,0 +1,21 @@
+
+	.star-sweep-bottom.svelte-1367xib {
+		animation-name: svelte-1367xib-star-movement-bottom;
+		animation-timing-function: linear;
+		animation-iteration-count: infinite;
+		animation-direction: alternate;
+	}
+	.star-sweep-top.svelte-1367xib {
+		animation-name: svelte-1367xib-star-movement-top;
+		animation-timing-function: linear;
+		animation-iteration-count: infinite;
+		animation-direction: alternate;
+	}
+	@keyframes svelte-1367xib-star-movement-bottom {
+		0% { transform: translate(0%, 0%); opacity: 1; }
+		100% { transform: translate(-100%, 0%); opacity: 0; }
+	}
+	@keyframes svelte-1367xib-star-movement-top {
+		0% { transform: translate(0%, 0%); opacity: 1; }
+		100% { transform: translate(100%, 0%); opacity: 0; }
+	}

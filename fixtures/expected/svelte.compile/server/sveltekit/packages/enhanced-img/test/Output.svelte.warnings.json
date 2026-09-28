@@ -1,0 +1,44 @@
+[
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<img>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 34,
+			"column": 172,
+			"character": 2591
+		},
+		"end": {
+			"line": 34,
+			"column": 280,
+			"character": 2699
+		}
+	},
+	{
+		"code": "a11y_no_noninteractive_element_interactions",
+		"message": "Non-interactive element `<img>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions",
+		"start": {
+			"line": 34,
+			"column": 172,
+			"character": 2591
+		},
+		"end": {
+			"line": 34,
+			"column": 280,
+			"character": 2699
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`foo` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 5,
+			"character": 245
+		},
+		"end": {
+			"line": 11,
+			"column": 16,
+			"character": 256
+		}
+	}
+]

@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_unknown_role",
+		"message": "Unknown role 'toooltip'. Did you mean 'tooltip'?\nhttps://svelte.dev/e/a11y_unknown_role",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 101
+		},
+		"end": {
+			"line": 6,
+			"column": 20,
+			"character": 116
+		}
+	},
+	{
+		"code": "a11y_unknown_role",
+		"message": "Unknown role 'toooltip'. Did you mean 'tooltip'?\nhttps://svelte.dev/e/a11y_unknown_role",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 129
+		},
+		"end": {
+			"line": 7,
+			"column": 27,
+			"character": 151
+		}
+	}
+]

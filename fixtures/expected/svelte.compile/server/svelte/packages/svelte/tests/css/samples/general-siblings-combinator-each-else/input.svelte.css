@@ -1,0 +1,9 @@
+
+	.a.svelte-dm7ine ~ .b:where(.svelte-dm7ine) { color: green; }
+	.a.svelte-dm7ine ~ .c:where(.svelte-dm7ine) { color: green; }
+	.b.svelte-dm7ine ~ .d:where(.svelte-dm7ine) { color: green; }
+	.c.svelte-dm7ine ~ .d:where(.svelte-dm7ine) { color: green; }
+	.a.svelte-dm7ine ~ .d:where(.svelte-dm7ine) { color: green; }
+
+	/* no match */
+	/* (unused) .b ~ .c { color: green; }*/

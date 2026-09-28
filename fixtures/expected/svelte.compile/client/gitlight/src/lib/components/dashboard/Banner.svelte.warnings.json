@@ -1,0 +1,58 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 80,
+			"column": 27,
+			"character": 1923
+		},
+		"end": {
+			"line": 80,
+			"column": 49,
+			"character": 1945
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 84,
+			"column": 25,
+			"character": 2050
+		},
+		"end": {
+			"line": 84,
+			"column": 47,
+			"character": 2072
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`show` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 5,
+			"character": 396
+		},
+		"end": {
+			"line": 11,
+			"column": 9,
+			"character": 400
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`canDownload` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 5,
+			"character": 437
+		},
+		"end": {
+			"line": 13,
+			"column": 16,
+			"character": 448
+		}
+	}
+]

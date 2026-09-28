@@ -1,0 +1,22 @@
+
+	/* Refined Editorial — default theme only. Hairline definition blocks, no card+shadow. */
+	[data-theme='default'] .edp-meta-item {
+		border-top: 1px solid var(--ed-line);
+		padding-top: 12px;
+	}
+
+	[data-theme='default'] .edp-meta-key {
+		font-family: var(--ed-body);
+		font-size: 0.7rem;
+		font-weight: 600;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--ed-soft);
+		margin: 0 0 4px;
+	}
+
+	[data-theme='default'] .edp-meta-val {
+		font-family: var(--ed-body);
+		font-size: 0.92rem;
+		color: var(--ed-ink);
+	}

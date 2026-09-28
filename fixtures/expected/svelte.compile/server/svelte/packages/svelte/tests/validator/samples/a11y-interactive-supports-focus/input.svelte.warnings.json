@@ -1,0 +1,758 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 2,
+			"column": 38,
+			"character": 53
+		},
+		"end": {
+			"line": 2,
+			"column": 60,
+			"character": 75
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 3,
+			"column": 40,
+			"character": 123
+		},
+		"end": {
+			"line": 3,
+			"column": 62,
+			"character": 145
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 4,
+			"column": 28,
+			"character": 181
+		},
+		"end": {
+			"line": 4,
+			"column": 50,
+			"character": 203
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 5,
+			"column": 25,
+			"character": 236
+		},
+		"end": {
+			"line": 5,
+			"column": 47,
+			"character": 258
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 6,
+			"column": 8,
+			"character": 274
+		},
+		"end": {
+			"line": 6,
+			"column": 27,
+			"character": 293
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 7,
+			"column": 34,
+			"character": 346
+		},
+		"end": {
+			"line": 7,
+			"column": 53,
+			"character": 365
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 7,
+			"column": 54,
+			"character": 366
+		},
+		"end": {
+			"line": 7,
+			"column": 76,
+			"character": 388
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 8,
+			"column": 33,
+			"character": 429
+		},
+		"end": {
+			"line": 8,
+			"column": 52,
+			"character": 448
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 8,
+			"column": 53,
+			"character": 449
+		},
+		"end": {
+			"line": 8,
+			"column": 75,
+			"character": 471
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'button' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 11,
+			"column": 0,
+			"character": 497
+		},
+		"end": {
+			"line": 11,
+			"column": 48,
+			"character": 545
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 11,
+			"column": 19,
+			"character": 516
+		},
+		"end": {
+			"line": 11,
+			"column": 41,
+			"character": 538
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'menuitem' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 12,
+			"column": 0,
+			"character": 546
+		},
+		"end": {
+			"line": 12,
+			"column": 51,
+			"character": 597
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 12,
+			"column": 22,
+			"character": 568
+		},
+		"end": {
+			"line": 12,
+			"column": 43,
+			"character": 589
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'button' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 13,
+			"column": 0,
+			"character": 598
+		},
+		"end": {
+			"line": 13,
+			"column": 45,
+			"character": 643
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keyup` to listen to the keyup event is deprecated. Use the event attribute `onkeyup` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 13,
+			"column": 19,
+			"character": 617
+		},
+		"end": {
+			"line": 13,
+			"column": 38,
+			"character": 636
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'menuitem' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 14,
+			"column": 0,
+			"character": 644
+		},
+		"end": {
+			"line": 14,
+			"column": 72,
+			"character": 716
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 14,
+			"column": 22,
+			"character": 666
+		},
+		"end": {
+			"line": 14,
+			"column": 41,
+			"character": 685
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 14,
+			"column": 42,
+			"character": 686
+		},
+		"end": {
+			"line": 14,
+			"column": 64,
+			"character": 708
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'button' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 15,
+			"column": 0,
+			"character": 717
+		},
+		"end": {
+			"line": 15,
+			"column": 51,
+			"character": 768
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:contextmenu` to listen to the contextmenu event is deprecated. Use the event attribute `oncontextmenu` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 15,
+			"column": 19,
+			"character": 736
+		},
+		"end": {
+			"line": 15,
+			"column": 44,
+			"character": 761
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'menuitem' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 16,
+			"column": 0,
+			"character": 769
+		},
+		"end": {
+			"line": 16,
+			"column": 52,
+			"character": 821
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:dblclick` to listen to the dblclick event is deprecated. Use the event attribute `ondblclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 16,
+			"column": 22,
+			"character": 791
+		},
+		"end": {
+			"line": 16,
+			"column": 44,
+			"character": 813
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'button' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 17,
+			"column": 0,
+			"character": 822
+		},
+		"end": {
+			"line": 17,
+			"column": 44,
+			"character": 866
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:drag` to listen to the drag event is deprecated. Use the event attribute `ondrag` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 17,
+			"column": 19,
+			"character": 841
+		},
+		"end": {
+			"line": 17,
+			"column": 37,
+			"character": 859
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'menuitem' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 18,
+			"column": 0,
+			"character": 867
+		},
+		"end": {
+			"line": 18,
+			"column": 51,
+			"character": 918
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:dragend` to listen to the dragend event is deprecated. Use the event attribute `ondragend` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 18,
+			"column": 22,
+			"character": 889
+		},
+		"end": {
+			"line": 18,
+			"column": 43,
+			"character": 910
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'button' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 19,
+			"column": 0,
+			"character": 919
+		},
+		"end": {
+			"line": 19,
+			"column": 49,
+			"character": 968
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:dragenter` to listen to the dragenter event is deprecated. Use the event attribute `ondragenter` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 19,
+			"column": 19,
+			"character": 938
+		},
+		"end": {
+			"line": 19,
+			"column": 42,
+			"character": 961
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'menuitem' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 20,
+			"column": 0,
+			"character": 969
+		},
+		"end": {
+			"line": 20,
+			"column": 52,
+			"character": 1021
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:dragexit` to listen to the dragexit event is deprecated. Use the event attribute `ondragexit` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 20,
+			"column": 22,
+			"character": 991
+		},
+		"end": {
+			"line": 20,
+			"column": 44,
+			"character": 1013
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'button' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 21,
+			"column": 0,
+			"character": 1022
+		},
+		"end": {
+			"line": 21,
+			"column": 49,
+			"character": 1071
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:dragleave` to listen to the dragleave event is deprecated. Use the event attribute `ondragleave` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 21,
+			"column": 19,
+			"character": 1041
+		},
+		"end": {
+			"line": 21,
+			"column": 42,
+			"character": 1064
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'menuitem' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 22,
+			"column": 0,
+			"character": 1072
+		},
+		"end": {
+			"line": 22,
+			"column": 52,
+			"character": 1124
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:dragover` to listen to the dragover event is deprecated. Use the event attribute `ondragover` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 22,
+			"column": 22,
+			"character": 1094
+		},
+		"end": {
+			"line": 22,
+			"column": 44,
+			"character": 1116
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'button' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 23,
+			"column": 0,
+			"character": 1125
+		},
+		"end": {
+			"line": 23,
+			"column": 49,
+			"character": 1174
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:dragstart` to listen to the dragstart event is deprecated. Use the event attribute `ondragstart` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 23,
+			"column": 19,
+			"character": 1144
+		},
+		"end": {
+			"line": 23,
+			"column": 42,
+			"character": 1167
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'menuitem' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 24,
+			"column": 0,
+			"character": 1175
+		},
+		"end": {
+			"line": 24,
+			"column": 48,
+			"character": 1223
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:drop` to listen to the drop event is deprecated. Use the event attribute `ondrop` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 24,
+			"column": 22,
+			"character": 1197
+		},
+		"end": {
+			"line": 24,
+			"column": 40,
+			"character": 1215
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'button' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 25,
+			"column": 0,
+			"character": 1224
+		},
+		"end": {
+			"line": 25,
+			"column": 49,
+			"character": 1273
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:mousedown` to listen to the mousedown event is deprecated. Use the event attribute `onmousedown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 25,
+			"column": 19,
+			"character": 1243
+		},
+		"end": {
+			"line": 25,
+			"column": 42,
+			"character": 1266
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'menuitem' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 26,
+			"column": 0,
+			"character": 1274
+		},
+		"end": {
+			"line": 26,
+			"column": 54,
+			"character": 1328
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:mouseenter` to listen to the mouseenter event is deprecated. Use the event attribute `onmouseenter` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 26,
+			"column": 22,
+			"character": 1296
+		},
+		"end": {
+			"line": 26,
+			"column": 46,
+			"character": 1320
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'button' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 27,
+			"column": 0,
+			"character": 1329
+		},
+		"end": {
+			"line": 27,
+			"column": 50,
+			"character": 1379
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:mouseleave` to listen to the mouseleave event is deprecated. Use the event attribute `onmouseleave` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 27,
+			"column": 19,
+			"character": 1348
+		},
+		"end": {
+			"line": 27,
+			"column": 43,
+			"character": 1372
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'menuitem' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 28,
+			"column": 0,
+			"character": 1380
+		},
+		"end": {
+			"line": 28,
+			"column": 53,
+			"character": 1433
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 28,
+			"column": 22,
+			"character": 1402
+		},
+		"end": {
+			"line": 28,
+			"column": 45,
+			"character": 1425
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'button' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 29,
+			"column": 0,
+			"character": 1434
+		},
+		"end": {
+			"line": 29,
+			"column": 48,
+			"character": 1482
+		}
+	},
+	{
+		"code": "a11y_mouse_events_have_key_events",
+		"message": "'mouseout' event must be accompanied by 'blur' event\nhttps://svelte.dev/e/a11y_mouse_events_have_key_events",
+		"start": {
+			"line": 29,
+			"column": 0,
+			"character": 1434
+		},
+		"end": {
+			"line": 29,
+			"column": 48,
+			"character": 1482
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:mouseout` to listen to the mouseout event is deprecated. Use the event attribute `onmouseout` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 29,
+			"column": 19,
+			"character": 1453
+		},
+		"end": {
+			"line": 29,
+			"column": 41,
+			"character": 1475
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'menuitem' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 30,
+			"column": 0,
+			"character": 1483
+		},
+		"end": {
+			"line": 30,
+			"column": 53,
+			"character": 1536
+		}
+	},
+	{
+		"code": "a11y_mouse_events_have_key_events",
+		"message": "'mouseover' event must be accompanied by 'focus' event\nhttps://svelte.dev/e/a11y_mouse_events_have_key_events",
+		"start": {
+			"line": 30,
+			"column": 0,
+			"character": 1483
+		},
+		"end": {
+			"line": 30,
+			"column": 53,
+			"character": 1536
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:mouseover` to listen to the mouseover event is deprecated. Use the event attribute `onmouseover` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 30,
+			"column": 22,
+			"character": 1505
+		},
+		"end": {
+			"line": 30,
+			"column": 45,
+			"character": 1528
+		}
+	},
+	{
+		"code": "a11y_interactive_supports_focus",
+		"message": "Elements with the 'button' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus",
+		"start": {
+			"line": 31,
+			"column": 0,
+			"character": 1537
+		},
+		"end": {
+			"line": 31,
+			"column": 47,
+			"character": 1584
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:mouseup` to listen to the mouseup event is deprecated. Use the event attribute `onmouseup` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 31,
+			"column": 19,
+			"character": 1556
+		},
+		"end": {
+			"line": 31,
+			"column": 40,
+			"character": 1577
+		}
+	}
+]

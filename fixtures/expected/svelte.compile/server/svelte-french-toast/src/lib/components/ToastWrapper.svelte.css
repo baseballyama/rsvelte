@@ -1,0 +1,20 @@
+
+	._sft-wrapper.svelte-148ohzq {
+		left: 0;
+		right: 0;
+		display: flex;
+		position: absolute;
+		transform: translateY(calc(var(--offset, 16px) * var(--factor) * 1px));
+	}
+
+	._sft-transition.svelte-148ohzq {
+		transition: all 230ms cubic-bezier(0.21, 1.02, 0.73, 1);
+	}
+
+	._sft-active.svelte-148ohzq {
+		z-index: 9999;
+	}
+
+	._sft-active.svelte-148ohzq > * {
+		pointer-events: auto;
+	}

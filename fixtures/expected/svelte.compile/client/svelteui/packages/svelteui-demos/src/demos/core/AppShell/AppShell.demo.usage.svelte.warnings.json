@@ -1,0 +1,58 @@
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 18,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"column": 34,
+			"character": 34
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 87,
+			"column": 1,
+			"character": 1935
+		},
+		"end": {
+			"line": 87,
+			"column": 38,
+			"character": 1972
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`isDark` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 47,
+			"column": 5,
+			"character": 1070
+		},
+		"end": {
+			"line": 47,
+			"column": 11,
+			"character": 1076
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`opened` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 48,
+			"column": 5,
+			"character": 1091
+		},
+		"end": {
+			"line": 48,
+			"column": 11,
+			"character": 1097
+		}
+	}
+]

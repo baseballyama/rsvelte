@@ -1,0 +1,30 @@
+[
+	{
+		"code": "attribute_invalid_property_name",
+		"message": "'className' is not a valid HTML attribute. Did you mean 'class'?\nhttps://svelte.dev/e/attribute_invalid_property_name",
+		"start": {
+			"line": 1,
+			"column": 5,
+			"character": 5
+		},
+		"end": {
+			"line": 1,
+			"column": 20,
+			"character": 20
+		}
+	},
+	{
+		"code": "attribute_invalid_property_name",
+		"message": "'htmlFor' is not a valid HTML attribute. Did you mean 'for'?\nhttps://svelte.dev/e/attribute_invalid_property_name",
+		"start": {
+			"line": 2,
+			"column": 7,
+			"character": 35
+		},
+		"end": {
+			"line": 2,
+			"column": 18,
+			"character": 46
+		}
+	}
+]

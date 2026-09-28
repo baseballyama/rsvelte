@@ -1,0 +1,33 @@
+
+	.key.svelte-1yljwon {
+		display: flex;
+	}
+	.key-item.svelte-1yljwon {
+		margin-right: 14px;
+	}
+	.chip.svelte-1yljwon {
+		display: inline-block;
+		position: relative;
+		width: 12px;
+		height: 12px;
+	}
+	.chip__circle.svelte-1yljwon {
+		border-radius: 50%;
+	}
+	.chip__line.svelte-1yljwon:after {
+		content: '';
+		position: absolute;
+		border-width: 3px;
+		width: 14px;
+		transform: rotate(-45deg);
+		transform-origin: 14px 5px;
+	}
+	.name.svelte-1yljwon {
+		display: inline;
+		font-size: 14px;
+		text-shadow:
+			-1px -1px 0 #fff,
+			1px -1px 0 #fff,
+			-1px 1px 0 #fff,
+			1px 1px 0 #fff;
+	}

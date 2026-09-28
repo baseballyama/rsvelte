@@ -1,0 +1,10 @@
+
+	.demo-container.svelte-ygh8xg {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+		padding: 20px;
+	}
+	.demo-button-sort {
+		margin-bottom: 16px;
+	}

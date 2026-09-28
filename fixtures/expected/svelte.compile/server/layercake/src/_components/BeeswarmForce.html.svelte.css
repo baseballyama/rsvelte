@@ -1,0 +1,22 @@
+
+	.bee.svelte-1w8jvdv {
+		position: absolute;
+		border-style: solid;
+		border-radius: 50%;
+		transform: translate(-50%, -50%);
+	}
+	.title.svelte-1w8jvdv {
+		display: none;
+		white-space: nowrap;
+		padding: 0 3px;
+		border-radius: 3px;
+		font-size: 12px;
+		pointer-events: none;
+		position: absolute;
+		top: -15px;
+		left: 5px;
+		z-index: 9999;
+	}
+	.bee.svelte-1w8jvdv:hover .title:where(.svelte-1w8jvdv) {
+		display: block;
+	}

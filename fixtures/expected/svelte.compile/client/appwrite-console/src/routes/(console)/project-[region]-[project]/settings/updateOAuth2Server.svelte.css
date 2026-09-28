@@ -1,0 +1,7 @@
+
+    .duration-field.svelte-4wcrp9 {
+        display: grid;
+        grid-template-columns: 1fr 8rem;
+        gap: var(--space-4);
+        align-items: end;
+    }

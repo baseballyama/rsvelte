@@ -1,0 +1,13 @@
+
+	.controls.svelte-nopl95 {
+		display: flex;
+		gap: 0.5rem;
+		margin: 1rem 0;
+	}
+
+	.output.svelte-nopl95 {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		margin: 1rem 0;
+	}

@@ -1,0 +1,44 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`menuState` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 16,
+			"column": 5,
+			"character": 498
+		},
+		"end": {
+			"line": 16,
+			"column": 14,
+			"character": 507
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`isScrolled` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 17,
+			"column": 5,
+			"character": 522
+		},
+		"end": {
+			"line": 17,
+			"column": 15,
+			"character": 532
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`isLarge` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 18,
+			"column": 5,
+			"character": 547
+		},
+		"end": {
+			"line": 18,
+			"column": 12,
+			"character": 554
+		}
+	}
+]

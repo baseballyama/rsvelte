@@ -1,0 +1,2522 @@
+[
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-setsize' is not supported by the role 'link'. This role is implicit on the element `<a>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 2,
+			"column": 3,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"column": 19,
+			"character": 36
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-pressed' is not supported by the role 'link'. This role is implicit on the element `<area>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 3,
+			"column": 6,
+			"character": 61
+		},
+		"end": {
+			"line": 3,
+			"column": 25,
+			"character": 80
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-autocomplete' is not supported by the role 'article'. This role is implicit on the element `<article>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 4,
+			"column": 9,
+			"character": 100
+		},
+		"end": {
+			"line": 4,
+			"column": 35,
+			"character": 126
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-modal' is not supported by the role 'complementary'. This role is implicit on the element `<aside>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 5,
+			"column": 7,
+			"character": 145
+		},
+		"end": {
+			"line": 5,
+			"column": 24,
+			"character": 162
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-invalid' is not supported by the role 'document'. This role is implicit on the element `<body>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 6,
+			"column": 6,
+			"character": 178
+		},
+		"end": {
+			"line": 6,
+			"column": 25,
+			"character": 197
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-valuemax' is not supported by the role 'button'. This role is implicit on the element `<button>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 7,
+			"column": 8,
+			"character": 214
+		},
+		"end": {
+			"line": 7,
+			"column": 25,
+			"character": 231
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-valuenow' is not supported by the role 'listbox'. This role is implicit on the element `<datalist>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 8,
+			"column": 10,
+			"character": 260
+		},
+		"end": {
+			"line": 8,
+			"column": 27,
+			"character": 277
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-rowindex' is not supported by the role 'definition'. This role is implicit on the element `<dd>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 9,
+			"column": 4,
+			"character": 294
+		},
+		"end": {
+			"line": 9,
+			"column": 21,
+			"character": 311
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-colcount' is not supported by the role 'term'. This role is implicit on the element `<dfn>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 323
+		},
+		"end": {
+			"line": 10,
+			"column": 22,
+			"character": 340
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-posinset' is not supported by the role 'dialog'. This role is implicit on the element `<dialog>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 11,
+			"column": 8,
+			"character": 356
+		},
+		"end": {
+			"line": 11,
+			"column": 25,
+			"character": 373
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-orientation' is not supported by the role 'group'. This role is implicit on the element `<details>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 12,
+			"column": 9,
+			"character": 393
+		},
+		"end": {
+			"line": 12,
+			"column": 37,
+			"character": 421
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-valuemin' is not supported by the role 'term'. This role is implicit on the element `<dt>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 13,
+			"column": 4,
+			"character": 437
+		},
+		"end": {
+			"line": 13,
+			"column": 21,
+			"character": 454
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-orientation' is not supported by the role 'group'. This role is implicit on the element `<fieldset>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 14,
+			"column": 10,
+			"character": 471
+		},
+		"end": {
+			"line": 14,
+			"column": 38,
+			"character": 499
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-disabled' is not supported by the role 'form'. This role is implicit on the element `<form>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 15,
+			"column": 6,
+			"character": 518
+		},
+		"end": {
+			"line": 15,
+			"column": 26,
+			"character": 538
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-selected' is not supported by the role 'heading'. This role is implicit on the element `<h1>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 16,
+			"column": 4,
+			"character": 551
+		},
+		"end": {
+			"line": 16,
+			"column": 24,
+			"character": 571
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-selected' is not supported by the role 'heading'. This role is implicit on the element `<h2>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 17,
+			"column": 4,
+			"character": 584
+		},
+		"end": {
+			"line": 17,
+			"column": 24,
+			"character": 604
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-expanded' is not supported by the role 'heading'. This role is implicit on the element `<h3>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 18,
+			"column": 4,
+			"character": 617
+		},
+		"end": {
+			"line": 18,
+			"column": 24,
+			"character": 637
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-valuemin' is not supported by the role 'heading'. This role is implicit on the element `<h4>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 19,
+			"column": 4,
+			"character": 650
+		},
+		"end": {
+			"line": 19,
+			"column": 21,
+			"character": 667
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-readonly' is not supported by the role 'heading'. This role is implicit on the element `<h5>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 20,
+			"column": 4,
+			"character": 680
+		},
+		"end": {
+			"line": 20,
+			"column": 24,
+			"character": 700
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-valuemin' is not supported by the role 'heading'. This role is implicit on the element `<h6>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 21,
+			"column": 4,
+			"character": 713
+		},
+		"end": {
+			"line": 21,
+			"column": 21,
+			"character": 730
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-required' is not supported by the role 'separator'. This role is implicit on the element `<hr>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 22,
+			"column": 4,
+			"character": 743
+		},
+		"end": {
+			"line": 22,
+			"column": 24,
+			"character": 763
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-level' is not supported by the role 'img'. This role is implicit on the element `<img>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 23,
+			"column": 5,
+			"character": 772
+		},
+		"end": {
+			"line": 23,
+			"column": 19,
+			"character": 786
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-required' is not supported by the role 'listitem'. This role is implicit on the element `<li>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 24,
+			"column": 4,
+			"character": 813
+		},
+		"end": {
+			"line": 24,
+			"column": 24,
+			"character": 833
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-rowcount' is not supported by the role 'link'. This role is implicit on the element `<link>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 25,
+			"column": 6,
+			"character": 846
+		},
+		"end": {
+			"line": 25,
+			"column": 23,
+			"character": 863
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-valuemin' is not supported by the role 'list'. This role is implicit on the element `<menu>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 26,
+			"column": 6,
+			"character": 873
+		},
+		"end": {
+			"line": 26,
+			"column": 23,
+			"character": 890
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-colspan' is not supported by the role 'progressbar'. This role is implicit on the element `<meter>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 27,
+			"column": 7,
+			"character": 906
+		},
+		"end": {
+			"line": 27,
+			"column": 23,
+			"character": 922
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-valuetext' is not supported by the role 'navigation'. This role is implicit on the element `<nav>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 28,
+			"column": 5,
+			"character": 937
+		},
+		"end": {
+			"line": 28,
+			"column": 23,
+			"character": 955
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-sort' is not supported by the role 'list'. This role is implicit on the element `<ol>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 29,
+			"column": 4,
+			"character": 967
+		},
+		"end": {
+			"line": 29,
+			"column": 20,
+			"character": 983
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-invalid' is not supported by the role 'option'. This role is implicit on the element `<option>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 30,
+			"column": 8,
+			"character": 998
+		},
+		"end": {
+			"line": 30,
+			"column": 27,
+			"character": 1017
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-sort' is not supported by the role 'group'. This role is implicit on the element `<optgroup>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 31,
+			"column": 10,
+			"character": 1038
+		},
+		"end": {
+			"line": 31,
+			"column": 26,
+			"character": 1054
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-multiline' is not supported by the role 'status'. This role is implicit on the element `<output>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 32,
+			"column": 8,
+			"character": 1075
+		},
+		"end": {
+			"line": 32,
+			"column": 29,
+			"character": 1096
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-rowcount' is not supported by the role 'progressbar'. This role is implicit on the element `<progress>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 33,
+			"column": 10,
+			"character": 1117
+		},
+		"end": {
+			"line": 33,
+			"column": 27,
+			"character": 1134
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-invalid' is not supported by the role 'region'. This role is implicit on the element `<section>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 34,
+			"column": 9,
+			"character": 1156
+		},
+		"end": {
+			"line": 34,
+			"column": 28,
+			"character": 1175
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-rowcount' is not supported by the role 'button'. This role is implicit on the element `<summary>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 35,
+			"column": 9,
+			"character": 1196
+		},
+		"end": {
+			"line": 35,
+			"column": 26,
+			"character": 1213
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-colspan' is not supported by the role 'rowgroup'. This role is implicit on the element `<tbody>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 36,
+			"column": 7,
+			"character": 1232
+		},
+		"end": {
+			"line": 36,
+			"column": 23,
+			"character": 1248
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-valuenow' is not supported by the role 'textbox'. This role is implicit on the element `<textarea>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 37,
+			"column": 10,
+			"character": 1268
+		},
+		"end": {
+			"line": 37,
+			"column": 27,
+			"character": 1285
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-required' is not supported by the role 'rowgroup'. This role is implicit on the element `<tfoot>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 38,
+			"column": 7,
+			"character": 1305
+		},
+		"end": {
+			"line": 38,
+			"column": 27,
+			"character": 1325
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-valuemin' is not supported by the role 'rowgroup'. This role is implicit on the element `<thead>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 39,
+			"column": 7,
+			"character": 1342
+		},
+		"end": {
+			"line": 39,
+			"column": 24,
+			"character": 1359
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-pressed' is not supported by the role 'row'. This role is implicit on the element `<tr>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 40,
+			"column": 4,
+			"character": 1373
+		},
+		"end": {
+			"line": 40,
+			"column": 23,
+			"character": 1392
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-multiselectable' is not supported by the role 'list'. This role is implicit on the element `<ul>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 41,
+			"column": 4,
+			"character": 1403
+		},
+		"end": {
+			"line": 41,
+			"column": 31,
+			"character": 1430
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-colspan' is not supported by the role 'alert'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 43,
+			"column": 18,
+			"character": 1456
+		},
+		"end": {
+			"line": 43,
+			"column": 34,
+			"character": 1472
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-autocomplete' is not supported by the role 'alertdialog'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 44,
+			"column": 24,
+			"character": 1504
+		},
+		"end": {
+			"line": 44,
+			"column": 50,
+			"character": 1530
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-required' is not supported by the role 'application'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 45,
+			"column": 24,
+			"character": 1562
+		},
+		"end": {
+			"line": 45,
+			"column": 44,
+			"character": 1582
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-multiline' is not supported by the role 'article'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 46,
+			"column": 20,
+			"character": 1610
+		},
+		"end": {
+			"line": 46,
+			"column": 41,
+			"character": 1631
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-autocomplete' is not supported by the role 'banner'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 47,
+			"column": 19,
+			"character": 1658
+		},
+		"end": {
+			"line": 47,
+			"column": 45,
+			"character": 1684
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-valuetext' is not supported by the role 'blockquote'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 48,
+			"column": 23,
+			"character": 1715
+		},
+		"end": {
+			"line": 48,
+			"column": 41,
+			"character": 1733
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-colspan' is not supported by the role 'button'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 49,
+			"column": 19,
+			"character": 1760
+		},
+		"end": {
+			"line": 49,
+			"column": 35,
+			"character": 1776
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-setsize' is not supported by the role 'caption'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 50,
+			"column": 20,
+			"character": 1804
+		},
+		"end": {
+			"line": 50,
+			"column": 36,
+			"character": 1820
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-multiline' is not supported by the role 'cell'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 51,
+			"column": 17,
+			"character": 1845
+		},
+		"end": {
+			"line": 51,
+			"column": 38,
+			"character": 1866
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-multiline' is not supported by the role 'checkbox'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 52,
+			"column": 21,
+			"character": 1895
+		},
+		"end": {
+			"line": 52,
+			"column": 42,
+			"character": 1916
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-invalid' is not supported by the role 'code'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 53,
+			"column": 17,
+			"character": 1961
+		},
+		"end": {
+			"line": 53,
+			"column": 36,
+			"character": 1980
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-colcount' is not supported by the role 'columnheader'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 54,
+			"column": 25,
+			"character": 2013
+		},
+		"end": {
+			"line": 54,
+			"column": 42,
+			"character": 2030
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-multiselectable' is not supported by the role 'combobox'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 55,
+			"column": 21,
+			"character": 2059
+		},
+		"end": {
+			"line": 55,
+			"column": 48,
+			"character": 2086
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-readonly' is not supported by the role 'complementary'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 56,
+			"column": 26,
+			"character": 2160
+		},
+		"end": {
+			"line": 56,
+			"column": 46,
+			"character": 2180
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-valuetext' is not supported by the role 'contentinfo'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 57,
+			"column": 24,
+			"character": 2212
+		},
+		"end": {
+			"line": 57,
+			"column": 42,
+			"character": 2230
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-multiline' is not supported by the role 'definition'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 58,
+			"column": 23,
+			"character": 2261
+		},
+		"end": {
+			"line": 58,
+			"column": 44,
+			"character": 2282
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-expanded' is not supported by the role 'deletion'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 59,
+			"column": 21,
+			"character": 2311
+		},
+		"end": {
+			"line": 59,
+			"column": 41,
+			"character": 2331
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-multiline' is not supported by the role 'dialog'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 60,
+			"column": 19,
+			"character": 2358
+		},
+		"end": {
+			"line": 60,
+			"column": 40,
+			"character": 2379
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-rowcount' is not supported by the role 'directory'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 61,
+			"column": 22,
+			"character": 2409
+		},
+		"end": {
+			"line": 61,
+			"column": 39,
+			"character": 2426
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-valuemin' is not supported by the role 'document'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 62,
+			"column": 21,
+			"character": 2455
+		},
+		"end": {
+			"line": 62,
+			"column": 38,
+			"character": 2472
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-rowindex' is not supported by the role 'emphasis'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 63,
+			"column": 21,
+			"character": 2501
+		},
+		"end": {
+			"line": 63,
+			"column": 38,
+			"character": 2518
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-colindex' is not supported by the role 'feed'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 64,
+			"column": 17,
+			"character": 2543
+		},
+		"end": {
+			"line": 64,
+			"column": 34,
+			"character": 2560
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-valuemax' is not supported by the role 'figure'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 65,
+			"column": 19,
+			"character": 2587
+		},
+		"end": {
+			"line": 65,
+			"column": 36,
+			"character": 2604
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-readonly' is not supported by the role 'form'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 66,
+			"column": 17,
+			"character": 2629
+		},
+		"end": {
+			"line": 66,
+			"column": 37,
+			"character": 2649
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-valuemax' is not supported by the role 'generic'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 67,
+			"column": 20,
+			"character": 2677
+		},
+		"end": {
+			"line": 67,
+			"column": 37,
+			"character": 2694
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-checked' is not supported by the role 'grid'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 68,
+			"column": 17,
+			"character": 2719
+		},
+		"end": {
+			"line": 68,
+			"column": 36,
+			"character": 2738
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-level' is not supported by the role 'gridcell'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 69,
+			"column": 21,
+			"character": 2767
+		},
+		"end": {
+			"line": 69,
+			"column": 35,
+			"character": 2781
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-colspan' is not supported by the role 'group'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 70,
+			"column": 18,
+			"character": 2807
+		},
+		"end": {
+			"line": 70,
+			"column": 34,
+			"character": 2823
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-activedescendant' is not supported by the role 'heading'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 71,
+			"column": 20,
+			"character": 2851
+		},
+		"end": {
+			"line": 71,
+			"column": 46,
+			"character": 2877
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-errormessage' is not supported by the role 'insertion'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 72,
+			"column": 22,
+			"character": 2936
+		},
+		"end": {
+			"line": 72,
+			"column": 47,
+			"character": 2961
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-multiline' is not supported by the role 'link'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 73,
+			"column": 17,
+			"character": 2986
+		},
+		"end": {
+			"line": 73,
+			"column": 38,
+			"character": 3007
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-selected' is not supported by the role 'list'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 74,
+			"column": 17,
+			"character": 3032
+		},
+		"end": {
+			"line": 74,
+			"column": 37,
+			"character": 3052
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-haspopup' is not supported by the role 'listbox'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 75,
+			"column": 20,
+			"character": 3080
+		},
+		"end": {
+			"line": 75,
+			"column": 40,
+			"character": 3100
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-activedescendant' is not supported by the role 'listitem'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 76,
+			"column": 21,
+			"character": 3129
+		},
+		"end": {
+			"line": 76,
+			"column": 47,
+			"character": 3155
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-required' is not supported by the role 'log'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 77,
+			"column": 16,
+			"character": 3193
+		},
+		"end": {
+			"line": 77,
+			"column": 36,
+			"character": 3213
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-sort' is not supported by the role 'main'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 78,
+			"column": 17,
+			"character": 3238
+		},
+		"end": {
+			"line": 78,
+			"column": 33,
+			"character": 3254
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-autocomplete' is not supported by the role 'marquee'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 79,
+			"column": 20,
+			"character": 3282
+		},
+		"end": {
+			"line": 79,
+			"column": 46,
+			"character": 3308
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-multiline' is not supported by the role 'math'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 80,
+			"column": 17,
+			"character": 3333
+		},
+		"end": {
+			"line": 80,
+			"column": 38,
+			"character": 3354
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-checked' is not supported by the role 'menu'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 81,
+			"column": 17,
+			"character": 3379
+		},
+		"end": {
+			"line": 81,
+			"column": 36,
+			"character": 3398
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-errormessage' is not supported by the role 'menubar'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 82,
+			"column": 20,
+			"character": 3426
+		},
+		"end": {
+			"line": 82,
+			"column": 45,
+			"character": 3451
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-checked' is not supported by the role 'menuitem'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 83,
+			"column": 21,
+			"character": 3480
+		},
+		"end": {
+			"line": 83,
+			"column": 40,
+			"character": 3499
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-pressed' is not supported by the role 'menuitemcheckbox'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 84,
+			"column": 29,
+			"character": 3536
+		},
+		"end": {
+			"line": 84,
+			"column": 48,
+			"character": 3555
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-rowspan' is not supported by the role 'menuitemradio'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 85,
+			"column": 26,
+			"character": 3610
+		},
+		"end": {
+			"line": 85,
+			"column": 42,
+			"character": 3626
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-haspopup' is not supported by the role 'meter'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 86,
+			"column": 36,
+			"character": 3691
+		},
+		"end": {
+			"line": 86,
+			"column": 56,
+			"character": 3711
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-expanded' is not supported by the role 'navigation'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 87,
+			"column": 23,
+			"character": 3742
+		},
+		"end": {
+			"line": 87,
+			"column": 43,
+			"character": 3762
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-placeholder' is not supported by the role 'none'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 88,
+			"column": 17,
+			"character": 3787
+		},
+		"end": {
+			"line": 88,
+			"column": 37,
+			"character": 3807
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-modal' is not supported by the role 'note'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 89,
+			"column": 17,
+			"character": 3832
+		},
+		"end": {
+			"line": 89,
+			"column": 34,
+			"character": 3849
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-valuemax' is not supported by the role 'option'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 90,
+			"column": 40,
+			"character": 3897
+		},
+		"end": {
+			"line": 90,
+			"column": 57,
+			"character": 3914
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-level' is not supported by the role 'paragraph'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 91,
+			"column": 22,
+			"character": 3944
+		},
+		"end": {
+			"line": 91,
+			"column": 36,
+			"character": 3958
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-disabled' is not supported by the role 'presentation'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 92,
+			"column": 25,
+			"character": 3991
+		},
+		"end": {
+			"line": 92,
+			"column": 45,
+			"character": 4011
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-expanded' is not supported by the role 'progressbar'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 93,
+			"column": 24,
+			"character": 4043
+		},
+		"end": {
+			"line": 93,
+			"column": 44,
+			"character": 4063
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-rowindex' is not supported by the role 'radio'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 94,
+			"column": 38,
+			"character": 4109
+		},
+		"end": {
+			"line": 94,
+			"column": 55,
+			"character": 4126
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-valuenow' is not supported by the role 'radiogroup'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 95,
+			"column": 23,
+			"character": 4157
+		},
+		"end": {
+			"line": 95,
+			"column": 40,
+			"character": 4174
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-rowspan' is not supported by the role 'region'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 96,
+			"column": 19,
+			"character": 4201
+		},
+		"end": {
+			"line": 96,
+			"column": 35,
+			"character": 4217
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-required' is not supported by the role 'row'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 97,
+			"column": 16,
+			"character": 4241
+		},
+		"end": {
+			"line": 97,
+			"column": 36,
+			"character": 4261
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-expanded' is not supported by the role 'rowgroup'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 98,
+			"column": 21,
+			"character": 4290
+		},
+		"end": {
+			"line": 98,
+			"column": 41,
+			"character": 4310
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-activedescendant' is not supported by the role 'rowheader'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 99,
+			"column": 22,
+			"character": 4340
+		},
+		"end": {
+			"line": 99,
+			"column": 48,
+			"character": 4366
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-rowspan' is not supported by the role 'scrollbar'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 100,
+			"column": 59,
+			"character": 4446
+		},
+		"end": {
+			"line": 100,
+			"column": 75,
+			"character": 4462
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-autocomplete' is not supported by the role 'search'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 101,
+			"column": 19,
+			"character": 4489
+		},
+		"end": {
+			"line": 101,
+			"column": 45,
+			"character": 4515
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-colindex' is not supported by the role 'searchbox'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 102,
+			"column": 22,
+			"character": 4545
+		},
+		"end": {
+			"line": 102,
+			"column": 39,
+			"character": 4562
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-sort' is not supported by the role 'separator'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 103,
+			"column": 22,
+			"character": 4592
+		},
+		"end": {
+			"line": 103,
+			"column": 38,
+			"character": 4608
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-placeholder' is not supported by the role 'slider'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 104,
+			"column": 37,
+			"character": 4653
+		},
+		"end": {
+			"line": 104,
+			"column": 57,
+			"character": 4673
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-posinset' is not supported by the role 'spinbutton'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 105,
+			"column": 23,
+			"character": 4704
+		},
+		"end": {
+			"line": 105,
+			"column": 40,
+			"character": 4721
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-valuemin' is not supported by the role 'status'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 106,
+			"column": 19,
+			"character": 4748
+		},
+		"end": {
+			"line": 106,
+			"column": 36,
+			"character": 4765
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-valuemin' is not supported by the role 'strong'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 107,
+			"column": 19,
+			"character": 4792
+		},
+		"end": {
+			"line": 107,
+			"column": 36,
+			"character": 4809
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-colcount' is not supported by the role 'subscript'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 108,
+			"column": 22,
+			"character": 4839
+		},
+		"end": {
+			"line": 108,
+			"column": 39,
+			"character": 4856
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-level' is not supported by the role 'superscript'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 109,
+			"column": 24,
+			"character": 4888
+		},
+		"end": {
+			"line": 109,
+			"column": 38,
+			"character": 4902
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-valuenow' is not supported by the role 'switch'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 110,
+			"column": 39,
+			"character": 4949
+		},
+		"end": {
+			"line": 110,
+			"column": 56,
+			"character": 4966
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-required' is not supported by the role 'tab'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 111,
+			"column": 16,
+			"character": 4990
+		},
+		"end": {
+			"line": 111,
+			"column": 36,
+			"character": 5010
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-modal' is not supported by the role 'table'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 112,
+			"column": 18,
+			"character": 5036
+		},
+		"end": {
+			"line": 112,
+			"column": 35,
+			"character": 5053
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-setsize' is not supported by the role 'tablist'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 113,
+			"column": 20,
+			"character": 5081
+		},
+		"end": {
+			"line": 113,
+			"column": 36,
+			"character": 5097
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-multiselectable' is not supported by the role 'tabpanel'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 114,
+			"column": 21,
+			"character": 5126
+		},
+		"end": {
+			"line": 114,
+			"column": 48,
+			"character": 5153
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-posinset' is not supported by the role 'term'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 115,
+			"column": 17,
+			"character": 5178
+		},
+		"end": {
+			"line": 115,
+			"column": 34,
+			"character": 5195
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-colspan' is not supported by the role 'textbox'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 116,
+			"column": 20,
+			"character": 5223
+		},
+		"end": {
+			"line": 116,
+			"column": 36,
+			"character": 5239
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-selected' is not supported by the role 'time'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 117,
+			"column": 17,
+			"character": 5264
+		},
+		"end": {
+			"line": 117,
+			"column": 37,
+			"character": 5284
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-sort' is not supported by the role 'timer'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 118,
+			"column": 18,
+			"character": 5310
+		},
+		"end": {
+			"line": 118,
+			"column": 34,
+			"character": 5326
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-valuetext' is not supported by the role 'toolbar'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 119,
+			"column": 20,
+			"character": 5354
+		},
+		"end": {
+			"line": 119,
+			"column": 38,
+			"character": 5372
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-multiline' is not supported by the role 'tooltip'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 120,
+			"column": 20,
+			"character": 5400
+		},
+		"end": {
+			"line": 120,
+			"column": 41,
+			"character": 5421
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-expanded' is not supported by the role 'tree'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 121,
+			"column": 17,
+			"character": 5446
+		},
+		"end": {
+			"line": 121,
+			"column": 37,
+			"character": 5466
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-level' is not supported by the role 'treegrid'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 122,
+			"column": 21,
+			"character": 5495
+		},
+		"end": {
+			"line": 122,
+			"column": 35,
+			"character": 5509
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-activedescendant' is not supported by the role 'treeitem'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 123,
+			"column": 42,
+			"character": 5559
+		},
+		"end": {
+			"line": 123,
+			"column": 68,
+			"character": 5585
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-colindex' is not supported by the role 'doc-abstract'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 124,
+			"column": 25,
+			"character": 5632
+		},
+		"end": {
+			"line": 124,
+			"column": 42,
+			"character": 5649
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-setsize' is not supported by the role 'doc-acknowledgments'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 125,
+			"column": 32,
+			"character": 5689
+		},
+		"end": {
+			"line": 125,
+			"column": 48,
+			"character": 5705
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-modal' is not supported by the role 'doc-afterword'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 126,
+			"column": 26,
+			"character": 5739
+		},
+		"end": {
+			"line": 126,
+			"column": 43,
+			"character": 5756
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-activedescendant' is not supported by the role 'doc-appendix'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 127,
+			"column": 25,
+			"character": 5789
+		},
+		"end": {
+			"line": 127,
+			"column": 51,
+			"character": 5815
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-colspan' is not supported by the role 'doc-backlink'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 128,
+			"column": 25,
+			"character": 5862
+		},
+		"end": {
+			"line": 128,
+			"column": 41,
+			"character": 5878
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-valuemax' is not supported by the role 'doc-biblioentry'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 129,
+			"column": 28,
+			"character": 5914
+		},
+		"end": {
+			"line": 129,
+			"column": 45,
+			"character": 5931
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-level' is not supported by the role 'doc-bibliography'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 130,
+			"column": 29,
+			"character": 5968
+		},
+		"end": {
+			"line": 130,
+			"column": 43,
+			"character": 5982
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-checked' is not supported by the role 'doc-biblioref'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 131,
+			"column": 26,
+			"character": 6016
+		},
+		"end": {
+			"line": 131,
+			"column": 45,
+			"character": 6035
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-required' is not supported by the role 'doc-chapter'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 132,
+			"column": 24,
+			"character": 6067
+		},
+		"end": {
+			"line": 132,
+			"column": 44,
+			"character": 6087
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-setsize' is not supported by the role 'doc-colophon'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 133,
+			"column": 25,
+			"character": 6120
+		},
+		"end": {
+			"line": 133,
+			"column": 41,
+			"character": 6136
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-colindex' is not supported by the role 'doc-conclusion'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 134,
+			"column": 27,
+			"character": 6171
+		},
+		"end": {
+			"line": 134,
+			"column": 44,
+			"character": 6188
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-modal' is not supported by the role 'doc-cover'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 135,
+			"column": 22,
+			"character": 6218
+		},
+		"end": {
+			"line": 135,
+			"column": 39,
+			"character": 6235
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-selected' is not supported by the role 'doc-credit'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 136,
+			"column": 23,
+			"character": 6266
+		},
+		"end": {
+			"line": 136,
+			"column": 43,
+			"character": 6286
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-orientation' is not supported by the role 'doc-credits'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 137,
+			"column": 24,
+			"character": 6318
+		},
+		"end": {
+			"line": 137,
+			"column": 52,
+			"character": 6346
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-level' is not supported by the role 'doc-dedication'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 138,
+			"column": 27,
+			"character": 6381
+		},
+		"end": {
+			"line": 138,
+			"column": 41,
+			"character": 6395
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-checked' is not supported by the role 'doc-endnote'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 139,
+			"column": 24,
+			"character": 6427
+		},
+		"end": {
+			"line": 139,
+			"column": 43,
+			"character": 6446
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-colcount' is not supported by the role 'doc-endnotes'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 140,
+			"column": 25,
+			"character": 6479
+		},
+		"end": {
+			"line": 140,
+			"column": 42,
+			"character": 6496
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-multiline' is not supported by the role 'doc-epigraph'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 141,
+			"column": 25,
+			"character": 6529
+		},
+		"end": {
+			"line": 141,
+			"column": 46,
+			"character": 6550
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-colcount' is not supported by the role 'doc-epilogue'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 142,
+			"column": 25,
+			"character": 6583
+		},
+		"end": {
+			"line": 142,
+			"column": 42,
+			"character": 6600
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-sort' is not supported by the role 'doc-errata'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 143,
+			"column": 23,
+			"character": 6631
+		},
+		"end": {
+			"line": 143,
+			"column": 39,
+			"character": 6647
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-multiselectable' is not supported by the role 'doc-example'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 144,
+			"column": 24,
+			"character": 6679
+		},
+		"end": {
+			"line": 144,
+			"column": 51,
+			"character": 6706
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-rowcount' is not supported by the role 'doc-footnote'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 145,
+			"column": 25,
+			"character": 6739
+		},
+		"end": {
+			"line": 145,
+			"column": 42,
+			"character": 6756
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-valuenow' is not supported by the role 'doc-foreword'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 146,
+			"column": 25,
+			"character": 6789
+		},
+		"end": {
+			"line": 146,
+			"column": 42,
+			"character": 6806
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-valuetext' is not supported by the role 'doc-glossary'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 147,
+			"column": 25,
+			"character": 6839
+		},
+		"end": {
+			"line": 147,
+			"column": 43,
+			"character": 6857
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-placeholder' is not supported by the role 'doc-glossref'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 148,
+			"column": 25,
+			"character": 6890
+		},
+		"end": {
+			"line": 148,
+			"column": 45,
+			"character": 6910
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-rowcount' is not supported by the role 'doc-index'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 149,
+			"column": 22,
+			"character": 6940
+		},
+		"end": {
+			"line": 149,
+			"column": 39,
+			"character": 6957
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-pressed' is not supported by the role 'doc-introduction'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 150,
+			"column": 29,
+			"character": 6994
+		},
+		"end": {
+			"line": 150,
+			"column": 48,
+			"character": 7013
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-valuenow' is not supported by the role 'doc-noteref'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 151,
+			"column": 24,
+			"character": 7045
+		},
+		"end": {
+			"line": 151,
+			"column": 41,
+			"character": 7062
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-selected' is not supported by the role 'doc-notice'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 152,
+			"column": 23,
+			"character": 7093
+		},
+		"end": {
+			"line": 152,
+			"column": 43,
+			"character": 7113
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-rowcount' is not supported by the role 'doc-pagebreak'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 153,
+			"column": 26,
+			"character": 7147
+		},
+		"end": {
+			"line": 153,
+			"column": 43,
+			"character": 7164
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-modal' is not supported by the role 'doc-pagelist'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 154,
+			"column": 25,
+			"character": 7197
+		},
+		"end": {
+			"line": 154,
+			"column": 42,
+			"character": 7214
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-setsize' is not supported by the role 'doc-part'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 155,
+			"column": 21,
+			"character": 7243
+		},
+		"end": {
+			"line": 155,
+			"column": 37,
+			"character": 7259
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-orientation' is not supported by the role 'doc-preface'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 156,
+			"column": 24,
+			"character": 7291
+		},
+		"end": {
+			"line": 156,
+			"column": 52,
+			"character": 7319
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-required' is not supported by the role 'doc-prologue'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 157,
+			"column": 25,
+			"character": 7352
+		},
+		"end": {
+			"line": 157,
+			"column": 45,
+			"character": 7372
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-rowcount' is not supported by the role 'doc-pullquote'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 158,
+			"column": 26,
+			"character": 7406
+		},
+		"end": {
+			"line": 158,
+			"column": 43,
+			"character": 7423
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-setsize' is not supported by the role 'doc-qna'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 159,
+			"column": 20,
+			"character": 7451
+		},
+		"end": {
+			"line": 159,
+			"column": 36,
+			"character": 7467
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-rowindex' is not supported by the role 'doc-subtitle'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 160,
+			"column": 25,
+			"character": 7500
+		},
+		"end": {
+			"line": 160,
+			"column": 42,
+			"character": 7517
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-valuenow' is not supported by the role 'doc-tip'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 161,
+			"column": 20,
+			"character": 7545
+		},
+		"end": {
+			"line": 161,
+			"column": 37,
+			"character": 7562
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props",
+		"message": "The attribute 'aria-posinset' is not supported by the role 'doc-toc'\nhttps://svelte.dev/e/a11y_role_supports_aria_props",
+		"start": {
+			"line": 162,
+			"column": 20,
+			"character": 7590
+		},
+		"end": {
+			"line": 162,
+			"column": 37,
+			"character": 7607
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-rowspan' is not supported by the role 'textbox'. This role is implicit on the element `<input>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 166,
+			"column": 19,
+			"character": 7789
+		},
+		"end": {
+			"line": 166,
+			"column": 35,
+			"character": 7805
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-pressed' is not supported by the role 'textbox'. This role is implicit on the element `<input>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 167,
+			"column": 18,
+			"character": 7859
+		},
+		"end": {
+			"line": 167,
+			"column": 37,
+			"character": 7878
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-level' is not supported by the role 'textbox'. This role is implicit on the element `<input>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 168,
+			"column": 18,
+			"character": 7932
+		},
+		"end": {
+			"line": 168,
+			"column": 32,
+			"character": 7946
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-pressed' is not supported by the role 'textbox'. This role is implicit on the element `<input>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 169,
+			"column": 20,
+			"character": 8002
+		},
+		"end": {
+			"line": 169,
+			"column": 39,
+			"character": 8021
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-valuetext' is not supported by the role 'searchbox'. This role is implicit on the element `<input>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 170,
+			"column": 21,
+			"character": 8078
+		},
+		"end": {
+			"line": 170,
+			"column": 42,
+			"character": 8099
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-valuemin' is not supported by the role 'combobox'. This role is implicit on the element `<input>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 171,
+			"column": 33,
+			"character": 8170
+		},
+		"end": {
+			"line": 171,
+			"column": 50,
+			"character": 8187
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-colspan' is not supported by the role 'combobox'. This role is implicit on the element `<input>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 172,
+			"column": 32,
+			"character": 8256
+		},
+		"end": {
+			"line": 172,
+			"column": 48,
+			"character": 8272
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-posinset' is not supported by the role 'combobox'. This role is implicit on the element `<input>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 173,
+			"column": 32,
+			"character": 8341
+		},
+		"end": {
+			"line": 173,
+			"column": 49,
+			"character": 8358
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-modal' is not supported by the role 'combobox'. This role is implicit on the element `<input>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 174,
+			"column": 34,
+			"character": 8429
+		},
+		"end": {
+			"line": 174,
+			"column": 51,
+			"character": 8446
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-rowindex' is not supported by the role 'combobox'. This role is implicit on the element `<input>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 175,
+			"column": 35,
+			"character": 8518
+		},
+		"end": {
+			"line": 175,
+			"column": 52,
+			"character": 8535
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-valuemax' is not supported by the role 'button'. This role is implicit on the element `<input>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 176,
+			"column": 36,
+			"character": 8608
+		},
+		"end": {
+			"line": 176,
+			"column": 53,
+			"character": 8625
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-modal' is not supported by the role 'button'. This role is implicit on the element `<input>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 177,
+			"column": 20,
+			"character": 8680
+		},
+		"end": {
+			"line": 177,
+			"column": 37,
+			"character": 8697
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-placeholder' is not supported by the role 'button'. This role is implicit on the element `<input>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 178,
+			"column": 21,
+			"character": 8753
+		},
+		"end": {
+			"line": 178,
+			"column": 51,
+			"character": 8783
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-rowindex' is not supported by the role 'checkbox'. This role is implicit on the element `<input>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 179,
+			"column": 23,
+			"character": 8841
+		},
+		"end": {
+			"line": 179,
+			"column": 40,
+			"character": 8858
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-valuetext' is not supported by the role 'radio'. This role is implicit on the element `<input>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 180,
+			"column": 20,
+			"character": 8915
+		},
+		"end": {
+			"line": 180,
+			"column": 41,
+			"character": 8936
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-checked' is not supported by the role 'slider'. This role is implicit on the element `<input>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 181,
+			"column": 20,
+			"character": 8990
+		},
+		"end": {
+			"line": 181,
+			"column": 39,
+			"character": 9009
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-colindex' is not supported by the role 'menuitem'. This role is implicit on the element `<menuitem>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 182,
+			"column": 25,
+			"character": 9069
+		},
+		"end": {
+			"line": 182,
+			"column": 42,
+			"character": 9086
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-colcount' is not supported by the role 'menuitemcheckbox'. This role is implicit on the element `<menuitem>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 183,
+			"column": 26,
+			"character": 9158
+		},
+		"end": {
+			"line": 183,
+			"column": 43,
+			"character": 9175
+		}
+	},
+	{
+		"code": "a11y_role_supports_aria_props_implicit",
+		"message": "The attribute 'aria-placeholder' is not supported by the role 'menuitemradio'. This role is implicit on the element `<menuitem>`\nhttps://svelte.dev/e/a11y_role_supports_aria_props_implicit",
+		"start": {
+			"line": 184,
+			"column": 23,
+			"character": 9252
+		},
+		"end": {
+			"line": 184,
+			"column": 53,
+			"character": 9282
+		}
+	},
+	{
+		"code": "a11y_incorrect_aria_attribute_type_integer",
+		"message": "The value of 'aria-level' must be an integer\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_integer",
+		"start": {
+			"line": 256,
+			"column": 20,
+			"character": 12166
+		},
+		"end": {
+			"line": 256,
+			"column": 33,
+			"character": 12179
+		}
+	}
+]

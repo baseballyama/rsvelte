@@ -1,0 +1,67 @@
+
+  .container.svelte-p2yhcs {
+    word-spacing: -6px;
+  }
+  .floating-content-wrapper.svelte-p2yhcs {
+    z-index: -1;
+    position: fixed;
+    display: none;
+    max-width: 60vw;
+    font-size: 14px;
+    border: 1px solid #d6d3d1;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    background-color: white;
+  }
+  html.dark .floating-content-wrapper.svelte-p2yhcs {
+    border-color: #2d2d2d;
+    background-color: #0f0f0f;
+  }
+  .show.svelte-p2yhcs:not(.always-show) {
+    z-index: 99999;
+  }
+  .always-show.svelte-p2yhcs {
+    z-index: 99998;
+  }
+  .show.svelte-p2yhcs {
+    display: block;
+  }
+  .arrow.svelte-p2yhcs {
+    position: absolute;
+    background-color: inherit;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-style: solid;
+    border-color: #d6d3d1;
+    color: white;
+    font-weight: bold;
+    font-size: 90%;
+  }
+  html.dark .arrow {
+    border-color: #2d2d2d;
+  }
+
+  .twoslash-popup-code {
+    background-color: transparent !important;
+  }
+
+  .twoslash-popup-docs-tag {
+    display: block;
+  }
+
+  .twoslash-popup-docs {
+    --at-apply: 'text-gray-5 dark:text-gray-4';
+  }
+
+  .twoslash-popup-docs-tag-name {
+    padding-right: 4px;
+  }
+
+  .twoslash-completion-list {
+    margin: 0;
+    padding: 0;
+  }
+
+  .twoslash-hover {
+    word-spacing: -6px;
+  }

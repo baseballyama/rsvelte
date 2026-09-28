@@ -1,0 +1,26 @@
+
+	form.svelte-ekl2j1 {
+		padding: 0.25rem;
+		display: grid;
+		grid-template-columns: 1fr 1fr auto;
+		gap: 0.5rem;
+		padding: 0.825rem 1.125rem;
+		align-items: flex-end;
+		background: #1a1a1a;
+		--TextInput-label-font-size: 0.75rem;
+
+		&.has-page-types {
+			grid-template-columns: 1fr 1fr 1fr auto;
+		}
+
+		button:where(.svelte-ekl2j1) {
+			border: 1px solid var(--primo-primary-color);
+			border-radius: 0.25rem;
+			padding: 9px 0.75rem;
+			margin-top: 23px;
+
+			&:disabled {
+				opacity: 20%;
+			}
+		}
+	}

@@ -1,0 +1,44 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`error` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 8,
+			"character": 760
+		},
+		"end": {
+			"line": 15,
+			"column": 21,
+			"character": 773
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showDelete` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 16,
+			"column": 8,
+			"character": 783
+		},
+		"end": {
+			"line": 16,
+			"column": 18,
+			"character": 793
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`name` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 17,
+			"column": 8,
+			"character": 811
+		},
+		"end": {
+			"line": 17,
+			"column": 20,
+			"character": 823
+		}
+	}
+]

@@ -1,0 +1,184 @@
+
+	.lime-topbar.svelte-3tnr1h {
+		display: flex;
+		justify-content: flex-end;
+		align-items: center;
+		height: 45px;
+		padding: 6px 40px;
+		background: #f5f5f5;
+		font-size: 14px;
+		line-height: 1;
+		font-family: var(--font-body);
+	}
+
+	.lime-header.svelte-3tnr1h a:where(.svelte-3tnr1h) {
+		color: inherit;
+	}
+
+	.lime-find-store.svelte-3tnr1h {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		padding: 7px 16px;
+		border-radius: 999px;
+		background: var(--lime-plum, #460032);
+		color: #fff;
+		font-size: 14px;
+		line-height: 1;
+		white-space: nowrap;
+	}
+
+	.lime-find-store.svelte-3tnr1h:hover {
+		background: var(--lime-wine, #6f1648);
+	}
+
+	.lime-find-store.svelte-3tnr1h svg {
+		width: 15px;
+		height: 15px;
+		stroke-width: 1.75;
+	}
+
+	.lime-header.svelte-3tnr1h {
+		position: sticky;
+		top: 0;
+		z-index: 20;
+		display: grid;
+		grid-template-columns: 200px minmax(0, 1fr) 156px;
+		align-items: center;
+		height: 82px;
+		padding: 12px 40px;
+		background: #fff;
+		color: var(--lime-plum, #460032);
+		font-family: var(--font-body);
+	}
+
+	.lime-logo.svelte-3tnr1h img:where(.svelte-3tnr1h) {
+		width: 200px;
+		height: auto;
+		display: block;
+	}
+
+	/* Shown when the store has not uploaded a logo. */
+	.lime-wordmark.svelte-3tnr1h {
+		display: block;
+		max-width: 200px;
+		color: var(--lime-plum, #460032);
+		font-family: var(--font-heading);
+		font-size: 26px;
+		line-height: 1.1;
+		letter-spacing: 0.02em;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.lime-nav.svelte-3tnr1h {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 20px;
+		padding-left: 10px;
+		font-size: 12px;
+		font-weight: 400;
+		line-height: 28.8px;
+		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
+	.lime-actions.svelte-3tnr1h {
+		display: flex;
+		justify-content: flex-end;
+		gap: 17px;
+		align-items: center;
+	}
+
+	.lime-actions.svelte-3tnr1h svg,
+	.lime-mobile-trigger.svelte-3tnr1h svg {
+		width: 18px;
+		height: 18px;
+		stroke-width: 1.5;
+	}
+
+	.lime-mobile-trigger.svelte-3tnr1h {
+		display: none;
+	}
+
+	@media (max-width: 1200px) {
+		.lime-header.svelte-3tnr1h {
+			grid-template-columns: 170px minmax(0, 1fr) 132px;
+			padding: 12px 24px;
+		}
+
+		.lime-logo.svelte-3tnr1h img:where(.svelte-3tnr1h) {
+			width: 170px;
+		}
+
+		.lime-wordmark.svelte-3tnr1h {
+			max-width: 170px;
+			font-size: 22px;
+		}
+
+		.lime-nav.svelte-3tnr1h {
+			gap: 12px;
+			font-size: 11px;
+		}
+	}
+
+	@media (max-width: 900px) {
+		.lime-topbar.svelte-3tnr1h {
+			height: auto;
+			padding: 6px 14px;
+			font-size: 12px;
+		}
+
+		.lime-find-store.svelte-3tnr1h {
+			padding: 6px 12px;
+			font-size: 12px;
+		}
+
+		.lime-find-store.svelte-3tnr1h svg {
+			width: 13px;
+			height: 13px;
+		}
+
+		.lime-account.svelte-3tnr1h {
+			display: none;
+		}
+
+		.lime-header.svelte-3tnr1h {
+			grid-template-columns: 1fr auto 1fr;
+			height: 52px;
+			padding: 8px 14px;
+		}
+
+		.lime-mobile-trigger.svelte-3tnr1h {
+			display: flex;
+			justify-self: start;
+			background: transparent;
+			border: none;
+			padding: 0;
+			cursor: pointer;
+		}
+
+		.lime-logo.svelte-3tnr1h {
+			justify-self: center;
+		}
+
+		.lime-logo.svelte-3tnr1h img:where(.svelte-3tnr1h) {
+			width: 126px;
+		}
+
+		.lime-wordmark.svelte-3tnr1h {
+			max-width: 126px;
+			font-size: 18px;
+		}
+
+		.lime-nav.svelte-3tnr1h {
+			display: none;
+		}
+
+		.lime-actions.svelte-3tnr1h {
+			justify-self: end;
+			gap: 12px;
+		}
+	}

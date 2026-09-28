@@ -1,0 +1,41 @@
+
+	.progress-container.svelte-1mgdynx {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 4px;
+		z-index: 999;
+	}
+
+	.progress.svelte-1mgdynx {
+		position: absolute;
+		left: 0;
+		top: 0;
+		height: 100%;
+		background-color: #ff6600;
+		transition: width 0.4s;
+	}
+
+	.fade.svelte-1mgdynx {
+		position: fixed;
+		width: 100%;
+		height: 100%;
+		background-color: rgba(255, 255, 255, 0.3);
+		pointer-events: none;
+		z-index: 998;
+		animation: svelte-1mgdynx-fade 0.4s;
+	}
+
+	html.dark .fade.svelte-1mgdynx {
+		background-color: rgba(0, 0, 0, 0.3);
+	}
+
+	@keyframes svelte-1mgdynx-fade {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}

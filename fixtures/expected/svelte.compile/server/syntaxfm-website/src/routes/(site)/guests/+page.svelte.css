@@ -1,0 +1,66 @@
+
+	.guests.svelte-mhd6i5 {
+		display: grid;
+		gap: 10px;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	}
+	.guest.svelte-mhd6i5 {
+		display: grid;
+		box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+		border-radius: 10px;
+		overflow: hidden;
+		container: guest / inline-size;
+		h2:where(.svelte-mhd6i5) {
+			/* Size the font by the number of chars, but don't
+        go smaller than 8cqw */
+			font-size: min(calc(135cqw / var(--chars)), 8cqw);
+			color: var(--dark);
+			background: var(--primary);
+			text-align: center;
+			width: max-content;
+			margin: 0 auto;
+			padding: 0 5px;
+			margin-top: -5cqw;
+			transform: rotate(-0.5deg);
+		}
+		& > :where(.svelte-mhd6i5) {
+			grid-row: 1;
+			grid-column: 1;
+			width: 100%;
+		}
+		.info:where(.svelte-mhd6i5) {
+			grid-row: 2;
+			grid-column: 1;
+		}
+
+		img:where(.svelte-mhd6i5) {
+			width: 100%;
+			height: 100%;
+			aspect-ratio: 1/1;
+			object-fit: cover;
+		}
+	}
+	.show-links.svelte-mhd6i5 {
+		text-align: center;
+		display: flex;
+		gap: 10px;
+		place-items: center;
+		justify-content: center;
+		a:where(.svelte-mhd6i5) {
+			background: var(--primary);
+			color: var(--dark);
+			display: block;
+			font-variation-settings: var(--fw-600);
+			padding: 1px;
+			line-height: 1;
+		}
+	}
+	.of.svelte-mhd6i5 {
+		margin: 0;
+		text-align: center;
+		padding: 0;
+		font-size: var(--font-size-xs);
+	}
+	.info.svelte-mhd6i5 {
+		padding-bottom: 1rem;
+	}

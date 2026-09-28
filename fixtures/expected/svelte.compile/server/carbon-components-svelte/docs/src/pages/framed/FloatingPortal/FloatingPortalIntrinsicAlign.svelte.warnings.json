@@ -1,0 +1,86 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`anchorStart` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 6,
+			"character": 91
+		},
+		"end": {
+			"line": 4,
+			"column": 17,
+			"character": 102
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`anchorCenter` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"character": 117
+		},
+		"end": {
+			"line": 5,
+			"column": 18,
+			"character": 129
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`anchorEnd` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 6,
+			"character": 144
+		},
+		"end": {
+			"line": 6,
+			"column": 15,
+			"character": 153
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`openStart` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 168
+		},
+		"end": {
+			"line": 7,
+			"column": 15,
+			"character": 177
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`openCenter` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 193
+		},
+		"end": {
+			"line": 8,
+			"column": 16,
+			"character": 203
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`openEnd` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 6,
+			"character": 219
+		},
+		"end": {
+			"line": 9,
+			"column": 13,
+			"character": 226
+		}
+	}
+]

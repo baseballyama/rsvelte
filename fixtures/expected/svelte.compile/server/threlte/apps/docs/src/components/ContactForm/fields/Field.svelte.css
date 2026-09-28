@@ -1,0 +1,40 @@
+
+  div.svelte-23lrp4 {
+    background-color: white;
+    opacity: 0.85;
+    flex-grow: 1;
+    display: flex;
+    flex-flow: column nowrap;
+    gap: 0.5em;
+    padding: 0.5em;
+    border-radius: 0.5rem;
+  }
+  div.svelte-23lrp4:focus-within {
+    outline: 2px solid #fe3d00;
+  }
+
+  div.svelte-23lrp4 * {
+    color: #222;
+  }
+  div.svelte-23lrp4 input {
+    background-color: transparent;
+    border: none;
+    width: 100%;
+    line-height: 30px;
+  }
+  div.svelte-23lrp4 textarea {
+    background-color: transparent;
+    border: none;
+  }
+  div.svelte-23lrp4 *:focus-within {
+    border: none;
+    outline-style: none;
+  }
+
+  span.svelte-23lrp4 {
+    color: var(--highlight-color, var(--hex-primary));
+  }
+
+  label.svelte-23lrp4 {
+    font-size: smaller;
+  }

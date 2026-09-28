@@ -1,0 +1,198 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `modeStorageKeyProp`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 35,
+			"column": 26,
+			"character": 1191
+		},
+		"end": {
+			"line": 35,
+			"column": 44,
+			"character": 1209
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `themeStorageKeyProp`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 36,
+			"column": 27,
+			"character": 1238
+		},
+		"end": {
+			"line": 36,
+			"column": 46,
+			"character": 1257
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `darkClassNamesProp`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 37,
+			"column": 26,
+			"character": 1285
+		},
+		"end": {
+			"line": 37,
+			"column": 44,
+			"character": 1303
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `lightClassNamesProp`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 38,
+			"column": 27,
+			"character": 1332
+		},
+		"end": {
+			"line": 38,
+			"column": 46,
+			"character": 1351
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `disableTransitionsProp`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 39,
+			"column": 30,
+			"character": 1383
+		},
+		"end": {
+			"line": 39,
+			"column": 52,
+			"character": 1405
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `themeColorsProp`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 40,
+			"column": 23,
+			"character": 1430
+		},
+		"end": {
+			"line": 40,
+			"column": 38,
+			"character": 1445
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `synchronousModeChangesProp`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 41,
+			"column": 34,
+			"character": 1481
+		},
+		"end": {
+			"line": 41,
+			"column": 60,
+			"character": 1507
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `defaultMode`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 88,
+			"column": 2,
+			"character": 2559
+		},
+		"end": {
+			"line": 88,
+			"column": 13,
+			"character": 2570
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `themeColorsProp`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 89,
+			"column": 15,
+			"character": 2587
+		},
+		"end": {
+			"line": 89,
+			"column": 30,
+			"character": 2602
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `darkClassNamesProp`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 90,
+			"column": 18,
+			"character": 2622
+		},
+		"end": {
+			"line": 90,
+			"column": 36,
+			"character": 2640
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `lightClassNamesProp`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 91,
+			"column": 19,
+			"character": 2661
+		},
+		"end": {
+			"line": 91,
+			"column": 38,
+			"character": 2680
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `defaultTheme`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 92,
+			"column": 2,
+			"character": 2684
+		},
+		"end": {
+			"line": 92,
+			"column": 14,
+			"character": 2696
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `modeStorageKeyProp`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 93,
+			"column": 18,
+			"character": 2716
+		},
+		"end": {
+			"line": 93,
+			"column": 36,
+			"character": 2734
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `themeStorageKeyProp`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 94,
+			"column": 19,
+			"character": 2755
+		},
+		"end": {
+			"line": 94,
+			"column": 38,
+			"character": 2774
+		}
+	}
+]

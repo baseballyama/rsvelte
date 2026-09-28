@@ -1,0 +1,6 @@
+
+	@supports (display: grid) {
+		.maybe-grid.svelte-nmmjue {
+			display: grid;
+		}
+	}

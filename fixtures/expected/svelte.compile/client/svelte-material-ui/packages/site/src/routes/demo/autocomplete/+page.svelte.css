@@ -1,0 +1,23 @@
+
+  .svelte-l7exe9 .margins {
+    margin: 18px 0 24px;
+  }
+
+  .svelte-l7exe9 .columns {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .svelte-l7exe9 .columns > * {
+    flex-basis: 0;
+    min-width: 245px;
+    margin-right: 12px;
+  }
+  .svelte-l7exe9 .columns > *:last-child {
+    margin-right: 0;
+  }
+
+  .svelte-l7exe9 .columns .smui-autocomplete,
+  .svelte-l7exe9 .columns .mdc-text-field {
+    width: 218px;
+  }
