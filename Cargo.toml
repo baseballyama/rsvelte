@@ -1,0 +1,33 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+edition = "2024"
+version = "0.0.0"
+license = "MIT"
+publish = false
+
+[workspace.dependencies]
+rsv_kernel = { path = "crates/rsv_kernel" }
+rsv_js = { path = "crates/rsv_js" }
+rsv_css = { path = "crates/rsv_css" }
+rsv_svelte = { path = "crates/rsv_svelte" }
+rayon = "1.12"
+rustc-hash = "2.1"
+libc = "0.2"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[profile.release]
+debug = "line-tables-only"
+lto = "thin"
+codegen-units = 1
+
+# The profile benchmarks and perf gates measure: release plus symbols for profilers.
+[profile.bench]
+inherits = "release"
