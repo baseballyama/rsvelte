@@ -1,0 +1,13 @@
+{
+	"name": "@rsvelte-experimental/fixtures-tools",
+	"private": true,
+	"type": "module",
+	"description": "Fixture import, oracle snapshot generation and expected-AST adjustment tooling",
+	"bin": { "fixtures": "./bin/fixtures.mjs" },
+	"engines": { "node": ">=22" },
+	"dependencies": {
+		"acorn": "8.18.0",
+		"smol-toml": "1.9.0",
+		"svelte": "5.57.1"
+	}
+}

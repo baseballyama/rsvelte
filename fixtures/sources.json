@@ -1,0 +1,961 @@
+[
+	{
+		"id": "svelte",
+		"url": "https://github.com/sveltejs/svelte.git",
+		"commit": "7bc0a70fe64dbb3fa3848b741963f31d1e10a8dc",
+		"checkout": "submodules/svelte",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE.md"
+		}
+	},
+	{
+		"id": "svelte.dev",
+		"url": "https://github.com/sveltejs/svelte.dev.git",
+		"commit": "fa53d1446916ab42d8dae0a359d2358cd0c51f7a",
+		"checkout": "submodules/svelte.dev",
+		"excluded": "no license file at repository root"
+	},
+	{
+		"id": "bits-ui",
+		"url": "https://github.com/huntabyte/bits-ui.git",
+		"commit": "d9cc7ccd804e781596c68ca755d0ebb373d0776b",
+		"checkout": "submodules/bits-ui",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "flowbite-svelte",
+		"url": "https://github.com/themesberg/flowbite-svelte.git",
+		"commit": "85f20a048ec51598e2be099bd57b5f555fe7a5b4",
+		"checkout": "submodules/flowbite-svelte",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "melt-ui",
+		"url": "https://github.com/melt-ui/next-gen.git",
+		"commit": "3450a91f47c1c7392c5c9385c12b3d4897e85ffe",
+		"checkout": "submodules/melt-ui",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "shadcn-svelte",
+		"url": "https://github.com/huntabyte/shadcn-svelte.git",
+		"commit": "dabbd4c00fbca1feef29a2a155b2eecf6bb4ea7a",
+		"checkout": "submodules/shadcn-svelte",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE.md"
+		}
+	},
+	{
+		"id": "sveltestrap",
+		"url": "https://github.com/sveltestrap/sveltestrap",
+		"commit": "559a8c04c6a1c1b80f30a6d074d776efdae3e785",
+		"checkout": "submodules/sveltestrap",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "attractions",
+		"url": "https://github.com/illright/attractions",
+		"commit": "aad470e9372a053a5316bb5835739b62c1539134",
+		"checkout": "submodules/attractions",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-ux",
+		"url": "https://github.com/techniq/svelte-ux",
+		"commit": "7172294e25f587700608e44e6555f4a4b8879ea9",
+		"checkout": "submodules/svelte-ux",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "smelte",
+		"url": "https://github.com/matyunya/smelte",
+		"commit": "d47f086682f12b4c951cee394583279e9f144a72",
+		"checkout": "submodules/smelte",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svar-core",
+		"url": "https://github.com/svar-widgets/core",
+		"commit": "8c22871d51c1e04a875938b135f4564d1633fdab",
+		"checkout": "submodules/svar-core",
+		"license": {
+			"spdx": "MIT",
+			"file": "license.txt"
+		}
+	},
+	{
+		"id": "svelte-table",
+		"url": "https://github.com/dasDaniel/svelte-table",
+		"commit": "4c9537f0b1bbbd311d06fcf19af3b17a77e7bdc1",
+		"checkout": "submodules/svelte-table",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "powertable",
+		"url": "https://github.com/muonw/powertable",
+		"commit": "ce50210afc9aead43bb28a9493a8a9e3b100789a",
+		"checkout": "submodules/powertable",
+		"excluded": "custom \"Unenforceable\" license"
+	},
+	{
+		"id": "svelte-pivottable",
+		"url": "https://github.com/jjagielka/svelte-pivottable",
+		"commit": "701b2336d5bb1269403e372e4fd9cd56f61057bf",
+		"checkout": "submodules/svelte-pivottable",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE.md"
+		}
+	},
+	{
+		"id": "svelte-toast",
+		"url": "https://github.com/zerodevx/svelte-toast",
+		"commit": "1c9ac2bef17249abadf0a1d2393bfaee3e756b7b",
+		"checkout": "submodules/svelte-toast",
+		"license": {
+			"spdx": "ISC",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-sonner",
+		"url": "https://github.com/wobsoriano/svelte-sonner",
+		"commit": "844ac255a78bcec2afb3c85df471eb5f4aa761e9",
+		"checkout": "submodules/svelte-sonner",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-notifications",
+		"url": "https://github.com/beyonk-adventures/svelte-notifications",
+		"commit": "6ec9ccce69ffebf7b83554253bd2144eaef58991",
+		"checkout": "submodules/svelte-notifications",
+		"excluded": "no license file at repository root"
+	},
+	{
+		"id": "svelte-fa",
+		"url": "https://github.com/Cweili/svelte-fa",
+		"commit": "cff04bcaf87c489fd6014835fb1104b03db4bc49",
+		"checkout": "submodules/svelte-fa",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-heroicons",
+		"url": "https://github.com/krowten/svelte-heroicons",
+		"commit": "d31f747047721ce33456c216b5ae76dc31262a93",
+		"checkout": "submodules/svelte-heroicons",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE.md"
+		}
+	},
+	{
+		"id": "svelte-calendar",
+		"url": "https://github.com/6eDesign/svelte-calendar",
+		"commit": "71b864dd0a3bd0d35b81c266bc9e6e49b287fbf2",
+		"checkout": "submodules/svelte-calendar",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "date-picker-svelte",
+		"url": "https://github.com/probablykasper/date-picker-svelte",
+		"commit": "1dcdbad66c8f60d0255fec9196029626cb4bfebc",
+		"checkout": "submodules/date-picker-svelte",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-maplibre",
+		"url": "https://github.com/dimfeld/svelte-maplibre",
+		"commit": "ba174661c6b3f160b72964c1cd193866162bd0d6",
+		"checkout": "submodules/svelte-maplibre",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "layercake",
+		"url": "https://github.com/mhkeller/layercake",
+		"commit": "e7b421e30e31fd5189b65a6bca0f6d4cc8edb129",
+		"checkout": "submodules/layercake",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "layerchart",
+		"url": "https://github.com/techniq/layerchart",
+		"commit": "a3c51c5ce0def724c92d8d4c4c2937c19ed65d71",
+		"checkout": "submodules/layerchart",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-splitpanes",
+		"url": "https://github.com/orefalo/svelte-splitpanes",
+		"commit": "7425e6a25cd53b87cf91d829c272e74b2b0546d9",
+		"checkout": "submodules/svelte-splitpanes",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-stepper",
+		"url": "https://github.com/efstajas/svelte-stepper",
+		"commit": "182e87687d3381c376815f21a8b3f484bfafda90",
+		"checkout": "submodules/svelte-stepper",
+		"excluded": "no license file at repository root"
+	},
+	{
+		"id": "svelte-formly",
+		"url": "https://github.com/arabdevelop/svelte-formly",
+		"commit": "0307b83c3db928b293820b2d8e1f603a361a2657",
+		"checkout": "submodules/svelte-formly",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-form-builder",
+		"url": "https://github.com/pragmatic-engineering/svelte-form-builder-community",
+		"commit": "3c0b9b916ae5ab9c5a46154913b6a19612ab27ea",
+		"checkout": "submodules/svelte-form-builder",
+		"excluded": "copyleft license (GPL/AGPL family): GNU GENERAL PUBLIC LICENSE Version 3, 2"
+	},
+	{
+		"id": "svelte-checkbox",
+		"url": "https://github.com/HosseinShabani/svelte-checkbox",
+		"commit": "37888f7beeadd233aa2d1222a413b16986c85e9f",
+		"checkout": "submodules/svelte-checkbox",
+		"excluded": "no license file at repository root"
+	},
+	{
+		"id": "svelte-toggle",
+		"url": "https://github.com/beyonk-adventures/svelte-toggle",
+		"commit": "ec1615ac32d4fd5ac5b1b3d7d1f68901660e7494",
+		"checkout": "submodules/svelte-toggle",
+		"excluded": "no license file at repository root"
+	},
+	{
+		"id": "svelthree",
+		"url": "https://github.com/vatro/svelthree",
+		"commit": "f2e75c4498982e82f1ba4a49ddf6285ec676dcee",
+		"checkout": "submodules/svelthree",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "runed",
+		"url": "https://github.com/svecosystem/runed.git",
+		"commit": "a12cd68fdfc07a5a49e656435b192077151007ad",
+		"checkout": "submodules/runed",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "mode-watcher",
+		"url": "https://github.com/svecosystem/mode-watcher.git",
+		"commit": "1eb14b4c519d179728dcf1c7352d97fad6f168b9",
+		"checkout": "submodules/mode-watcher",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-toolbelt",
+		"url": "https://github.com/huntabyte/svelte-toolbelt.git",
+		"commit": "7b0e2a6d90d2b0e9e4ec8e25b183cc889639388a",
+		"checkout": "submodules/svelte-toolbelt",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "cmsaasstarter",
+		"url": "https://github.com/CriticalMoments/CMSaasStarter",
+		"commit": "2e61406c0764585031b40e657ebebf50187c8429",
+		"checkout": "submodules/cmsaasstarter",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "skeleton",
+		"url": "https://github.com/skeletonlabs/skeleton.git",
+		"commit": "d910f5096c4e96b5901eda84d5a5b46e582806f1",
+		"checkout": "submodules/skeleton",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "huly",
+		"url": "https://github.com/hcengineering/platform.git",
+		"commit": "1be6047c8a7c7b7a6674c9495834777f301f3379",
+		"checkout": "submodules/huly",
+		"excluded": "EPL-2.0 (copyleft)"
+	},
+	{
+		"id": "open-webui",
+		"url": "https://github.com/open-webui/open-webui.git",
+		"commit": "01f4282f1ffe0d6212f58d3afbeae21fffd0c4be",
+		"checkout": "submodules/open-webui",
+		"excluded": "custom BSD variant with branding clause"
+	},
+	{
+		"id": "carbon-components-svelte",
+		"url": "https://github.com/carbon-design-system/carbon-components-svelte.git",
+		"commit": "deda01e78cc8443fe86cbe492ff201576d8f3ae3",
+		"checkout": "submodules/carbon-components-svelte",
+		"license": {
+			"spdx": "Apache-2.0",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-material-ui",
+		"url": "https://github.com/hperrin/svelte-material-ui.git",
+		"commit": "1f1b25838d635a1eeb6a29b3b21111197db3c43b",
+		"checkout": "submodules/svelte-material-ui",
+		"license": {
+			"spdx": "Apache-2.0",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "immich",
+		"url": "https://github.com/immich-app/immich.git",
+		"commit": "47dccf72834b7fe121893ea0f0a7521fed2d75ea",
+		"checkout": "submodules/immich",
+		"excluded": "copyleft license (GPL/AGPL family): GNU AFFERO GENERAL PUBLIC LICENSE Versi"
+	},
+	{
+		"id": "sveltekit",
+		"url": "https://github.com/sveltejs/kit.git",
+		"commit": "2c179e9b19e1f0c23c1374cea404363a7c12acf3",
+		"checkout": "submodules/sveltekit",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "cobalt",
+		"url": "https://github.com/imputnet/cobalt.git",
+		"commit": "a636575b09de1fc55d9b8cd98cac88f5f2f16b42",
+		"checkout": "submodules/cobalt",
+		"excluded": "copyleft license (GPL/AGPL family): GNU AFFERO GENERAL PUBLIC LICENSE Versi"
+	},
+	{
+		"id": "vert",
+		"url": "https://github.com/VERT-sh/VERT.git",
+		"commit": "e0ffd34310f9c988b16e22334b13e18de030b0ae",
+		"checkout": "submodules/vert",
+		"excluded": "copyleft license (GPL/AGPL family): GNU AFFERO GENERAL PUBLIC LICENSE Versi"
+	},
+	{
+		"id": "neohtop",
+		"url": "https://github.com/Abdenasser/neohtop.git",
+		"commit": "a034e4b931d6e8daf183205e9d122f0d6a8f0f41",
+		"checkout": "submodules/neohtop",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "kener",
+		"url": "https://github.com/rajnandan1/kener.git",
+		"commit": "880080cea1ef162e4945c9f306fba98ca3e99898",
+		"checkout": "submodules/kener",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "mathesar",
+		"url": "https://github.com/mathesar-foundation/mathesar.git",
+		"commit": "0c05987885c93cdbe5bf9f7fa49b833d02a312cc",
+		"checkout": "submodules/mathesar",
+		"excluded": "copyleft license (GPL/AGPL family): GNU GENERAL PUBLIC LICENSE Version 3, 2"
+	},
+	{
+		"id": "adventurelog",
+		"url": "https://github.com/seanmorley15/AdventureLog.git",
+		"commit": "5673ef5bb5aaa96081bc250ef1d16da8b45977e3",
+		"checkout": "submodules/adventurelog",
+		"excluded": "copyleft license (GPL/AGPL family): AdventureLog: Self-hostable travel trac"
+	},
+	{
+		"id": "threlte",
+		"url": "https://github.com/threlte/threlte.git",
+		"commit": "ca3e1977acfbe8c30491b4020cab8f859017b8a6",
+		"checkout": "submodules/threlte",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE.md"
+		}
+	},
+	{
+		"id": "ha-fusion",
+		"url": "https://github.com/matt8707/ha-fusion.git",
+		"commit": "7bb033b7fcd1a6702ec5034e24034e0f7b213309",
+		"checkout": "submodules/ha-fusion",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelvet",
+		"url": "https://github.com/open-source-labs/Svelvet.git",
+		"commit": "a4a42eb5e5a6894156e7dcabaabbc235b593e484",
+		"checkout": "submodules/svelvet",
+		"excluded": "no license file at repository root"
+	},
+	{
+		"id": "headscale-ui",
+		"url": "https://github.com/gurucomputing/headscale-ui.git",
+		"commit": "ce7569c8473b70f6f8359385f2dbd6af66f21e55",
+		"checkout": "submodules/headscale-ui",
+		"license": {
+			"spdx": "BSD-3-Clause",
+			"file": "LICENSE.md"
+		}
+	},
+	{
+		"id": "networking-toolbox",
+		"url": "https://github.com/lissy93/networking-toolbox.git",
+		"commit": "776805f692c20e59fe5de1942e999ccf91944f54",
+		"checkout": "submodules/networking-toolbox",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "sparrow-app",
+		"url": "https://github.com/sparrowapp-dev/sparrow-app.git",
+		"commit": "80618b7a23ac1b31246cfdcbc0f40cc91bb0baa9",
+		"checkout": "submodules/sparrow-app",
+		"excluded": "copyleft license (GPL/AGPL family): GNU AFFERO GENERAL PUBLIC LICENSE Versi"
+	},
+	{
+		"id": "primo",
+		"url": "https://github.com/primocms/primo.git",
+		"commit": "b836c7dac2aa7805b197a9a5baa7b6a6247945ed",
+		"checkout": "submodules/primo",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "chatgpt-web",
+		"url": "https://github.com/Niek/chatgpt-web.git",
+		"commit": "19b399e72babd467ce46e675931e6e20b77c75b1",
+		"checkout": "submodules/chatgpt-web",
+		"excluded": "copyleft license (GPL/AGPL family): GNU GENERAL PUBLIC LICENSE Version 3, 2"
+	},
+	{
+		"id": "svelte-commerce",
+		"url": "https://github.com/itswadesh/svelte-commerce.git",
+		"commit": "40e0965ecf720acfa38628abbab1982d4d676a15",
+		"checkout": "submodules/svelte-commerce",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "animotion",
+		"url": "https://github.com/animotionjs/animotion.git",
+		"commit": "53100ef031db1251f0f2f10fa718959984e285c2",
+		"checkout": "submodules/animotion",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "haptic",
+		"url": "https://github.com/chroxify/haptic.git",
+		"commit": "e3cf1cfcb47691d367d60c6684579f47cb8e20af",
+		"checkout": "submodules/haptic",
+		"excluded": "copyleft license (GPL/AGPL family): GNU AFFERO GENERAL PUBLIC LICENSE Versi"
+	},
+	{
+		"id": "svelte-spa-router",
+		"url": "https://github.com/ItalyPaleAle/svelte-spa-router.git",
+		"commit": "d5d28fe2a8d2a485be1aa1211d799c47c6177ee0",
+		"checkout": "submodules/svelte-spa-router",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE.md"
+		}
+	},
+	{
+		"id": "flare",
+		"url": "https://github.com/ByteAtATime/flare.git",
+		"commit": "09e126fc77f7716d912c85ce8f308ce708bc2530",
+		"checkout": "submodules/flare",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelteui",
+		"url": "https://github.com/svelteuidev/svelteui.git",
+		"commit": "f40812b5e2000ff41b63a51c0870e030d2796be0",
+		"checkout": "submodules/svelteui",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "syntaxfm-website",
+		"url": "https://github.com/syntaxfm/website.git",
+		"commit": "0320d6e4b878dd8bafddba1175c59070dd22b431",
+		"checkout": "submodules/syntaxfm-website",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "kite-public",
+		"url": "https://github.com/kagisearch/kite-public.git",
+		"commit": "c4fc3b579c3bbdcce5277d1956347131283170e5",
+		"checkout": "submodules/kite-public",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-french-toast",
+		"url": "https://github.com/kbrgl/svelte-french-toast.git",
+		"commit": "4ce829f15c3a6f1cb0dcbbfd193d789c878b86e5",
+		"checkout": "submodules/svelte-french-toast",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE.md"
+		}
+	},
+	{
+		"id": "svelte-put",
+		"url": "https://github.com/vnphanquang/svelte-put.git",
+		"commit": "5dfb433d251532f3e7d6bb986c5d58ae02ddb574",
+		"checkout": "submodules/svelte-put",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "gitlight",
+		"url": "https://github.com/colinlienard/gitlight.git",
+		"commit": "231c6bb6729e8532abd4477db6211b6e8f52446a",
+		"checkout": "submodules/gitlight",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "musicat",
+		"url": "https://github.com/basharovV/musicat.git",
+		"commit": "e7f29f2f56072b486cd9c6cd209e463ba29341bf",
+		"checkout": "submodules/musicat",
+		"excluded": "copyleft license (GPL/AGPL family): GNU GENERAL PUBLIC LICENSE Version 3, 2"
+	},
+	{
+		"id": "photon",
+		"url": "https://github.com/Xyphyn/photon.git",
+		"commit": "b2751c76f7127f4b0ff2dcfaad9df6966fd388e2",
+		"checkout": "submodules/photon",
+		"excluded": "copyleft license (GPL/AGPL family): GNU AFFERO GENERAL PUBLIC LICENSE Versio"
+	},
+	{
+		"id": "sveltepress",
+		"url": "https://github.com/SveltePress/sveltepress.git",
+		"commit": "75a3083a36724eccc5e69649299d9fb3d66bd124",
+		"checkout": "submodules/sveltepress",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "joy-of-code",
+		"url": "https://github.com/matiadev/joy-of-code.git",
+		"commit": "73dc40eac5b5a93d80346cd613d53506173464cb",
+		"checkout": "submodules/joy-of-code",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-lexical",
+		"url": "https://github.com/umaranis/svelte-lexical.git",
+		"commit": "94d90c180c43119ec1724287df26623a8909e9e7",
+		"checkout": "submodules/svelte-lexical",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "shadcn-svelte-extras",
+		"url": "https://github.com/ieedan/shadcn-svelte-extras.git",
+		"commit": "e130961b6e9676c5c01cfa582d91d2d2b34e6b2f",
+		"checkout": "submodules/shadcn-svelte-extras",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "cpi-ide",
+		"url": "https://github.com/cpinitiative/ide.git",
+		"commit": "e1f0afb07b8cc63d58e10778a666341f5d9c17ec",
+		"checkout": "submodules/cpi-ide",
+		"excluded": "MPL-2.0 (file-level copyleft)"
+	},
+	{
+		"id": "paaster",
+		"url": "https://github.com/WardPearce/paaster.git",
+		"commit": "7023b1ef6fcf27894baa68ecae0a142e85cfc2fa",
+		"checkout": "submodules/paaster",
+		"excluded": "copyleft license (GPL/AGPL family): GNU AFFERO GENERAL PUBLIC LICENSE Versi"
+	},
+	{
+		"id": "edra",
+		"url": "https://github.com/Tsuzat/Edra.git",
+		"commit": "2b9b02599bb8775a3718defc70364101e656105d",
+		"checkout": "submodules/edra",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-gantt",
+		"url": "https://github.com/ANovokmet/svelte-gantt.git",
+		"commit": "eee1c5dc428cfd65535cb99361684c913c6c318d",
+		"checkout": "submodules/svelte-gantt",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE.txt"
+		}
+	},
+	{
+		"id": "svelte-bits",
+		"url": "https://github.com/DavidHDev/svelte-bits.git",
+		"commit": "d05265c80f8b9ef7e20e55e8cbc5842ade1eb1bd",
+		"checkout": "submodules/svelte-bits",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE.md"
+		}
+	},
+	{
+		"id": "kampsy-ui",
+		"url": "https://github.com/kampsy/ui.git",
+		"commit": "e3e4a51e996afc7919b34b04e657ccce25dc1a65",
+		"checkout": "submodules/kampsy-ui",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE.md"
+		}
+	},
+	{
+		"id": "cnblocks",
+		"url": "https://github.com/SikandarJODD/cnblocks.git",
+		"commit": "81c7209fc9696bd7823911a4b9d076f657202ef4",
+		"checkout": "submodules/cnblocks",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-maplibre-gl",
+		"url": "https://github.com/MIERUNE/svelte-maplibre-gl.git",
+		"commit": "8d34f93cbc24002ef68a4131cb05af6ea2e903dc",
+		"checkout": "submodules/svelte-maplibre-gl",
+		"excluded": "no license file at repository root"
+	},
+	{
+		"id": "svelte-tweakpane-ui",
+		"url": "https://github.com/kitschpatrol/svelte-tweakpane-ui.git",
+		"commit": "e218694c40b52a5d0a50f658f5b60ef11c3a2b29",
+		"checkout": "submodules/svelte-tweakpane-ui",
+		"license": {
+			"spdx": "MIT",
+			"file": "license.txt"
+		}
+	},
+	{
+		"id": "svelte-typeahead",
+		"url": "https://github.com/metonym/svelte-typeahead.git",
+		"commit": "174ba395e5933476a96f241bdc076b3ba6b475a2",
+		"checkout": "submodules/svelte-typeahead",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-simple-modal",
+		"url": "https://github.com/flekschas/svelte-simple-modal.git",
+		"commit": "7f188625b4007d5010fe91246a92e17a27d1c705",
+		"checkout": "submodules/svelte-simple-modal",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-canvas",
+		"url": "https://github.com/dnass/svelte-canvas.git",
+		"commit": "dd3e175ce2eba8c93250f4162f8a4b2e8d1b8815",
+		"checkout": "submodules/svelte-canvas",
+		"license": {
+			"spdx": "ISC",
+			"file": "LICENSE.md"
+		}
+	},
+	{
+		"id": "svelte-chartjs",
+		"url": "https://github.com/SauravKanchan/svelte-chartjs.git",
+		"commit": "b69782003f62ae709924cb3cbb1a58619cf0ef04",
+		"checkout": "submodules/svelte-chartjs",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-tags-input",
+		"url": "https://github.com/agustinl/svelte-tags-input.git",
+		"commit": "5c8e7ff10deab4858a36da8bf71ab5942da5a390",
+		"checkout": "submodules/svelte-tags-input",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-confetti",
+		"url": "https://github.com/Mitcheljager/svelte-confetti.git",
+		"commit": "2c47dc66b0434fe2bc931d0e64e02f223d2aa192",
+		"checkout": "submodules/svelte-confetti",
+		"license": {
+			"spdx": "Unlicense",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-tiny-virtual-list",
+		"url": "https://github.com/jonasgeiler/svelte-tiny-virtual-list.git",
+		"commit": "eec28f19e0242277f0d49ace137e9903c6b7a5c1",
+		"checkout": "submodules/svelte-tiny-virtual-list",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE.md"
+		}
+	},
+	{
+		"id": "svelte-codemirror-editor",
+		"url": "https://github.com/touchifyapp/svelte-codemirror-editor.git",
+		"commit": "034a0873b2f53065265f220887b499c7d1ed1e90",
+		"checkout": "submodules/svelte-codemirror-editor",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-command-palette",
+		"url": "https://github.com/rohitpotato/svelte-command-palette.git",
+		"commit": "17a479638020b95ce68483e15232625b36a2e9fb",
+		"checkout": "submodules/svelte-command-palette",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelty-picker",
+		"url": "https://github.com/mskocik/svelty-picker.git",
+		"commit": "4a131ed9ca1a08e75b4d0d3fa64e8dec98eb3e28",
+		"checkout": "submodules/svelty-picker",
+		"excluded": "no license file at repository root"
+	},
+	{
+		"id": "svelte-awesome-color-picker",
+		"url": "https://github.com/Ennoriel/svelte-awesome-color-picker.git",
+		"commit": "b696795ed9bcb9ca26c748d4e2c8bc9bcbf66e2f",
+		"checkout": "submodules/svelte-awesome-color-picker",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-virtuallists",
+		"url": "https://github.com/orefalo/svelte-virtuallists.git",
+		"commit": "2921b5b151a575e540209a3e89262da7d082fe62",
+		"checkout": "submodules/svelte-virtuallists",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-inspect-value",
+		"url": "https://github.com/ampled/svelte-inspect-value.git",
+		"commit": "f57329acf22dc8ab81aa2d7d90613e258460b8a9",
+		"checkout": "submodules/svelte-inspect-value",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svar-grid",
+		"url": "https://github.com/svar-widgets/grid.git",
+		"commit": "2f4cabd9d24c70316da25e1093764855bd642dea",
+		"checkout": "submodules/svar-grid",
+		"license": {
+			"spdx": "MIT",
+			"file": "license.txt"
+		}
+	},
+	{
+		"id": "tipex",
+		"url": "https://github.com/friendofsvelte/tipex.git",
+		"commit": "692339093c20f9c20d431abf40a22d1243c4a400",
+		"checkout": "submodules/tipex",
+		"excluded": "no license file at repository root"
+	},
+	{
+		"id": "originui-svelte",
+		"url": "https://github.com/max-got/originui-svelte.git",
+		"commit": "0499ba8041b526cf4a6cc677faeacc90c8ce4ce8",
+		"checkout": "submodules/originui-svelte",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE.md"
+		}
+	},
+	{
+		"id": "svelte-sites",
+		"url": "https://github.com/sveltejs/sites.git",
+		"commit": "ca05cd1b6491b97ab062be66de60fd2cbb819466",
+		"checkout": "submodules/svelte-sites",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svelte-render-scan",
+		"url": "https://github.com/khromov/svelte-render-scan.git",
+		"commit": "a4c8049b57bf5c22aa238c484047b5073d302650",
+		"checkout": "submodules/svelte-render-scan",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "svader",
+		"url": "https://github.com/sockmaster27/svader.git",
+		"commit": "348617e72080217edf05ffc282cb464ad348e43d",
+		"checkout": "submodules/svader",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE.md"
+		}
+	},
+	{
+		"id": "appwrite-console",
+		"url": "https://github.com/appwrite/console.git",
+		"commit": "95d2265c7802723a4908e004a1e4d209c163d7b6",
+		"checkout": "submodules/appwrite-console",
+		"license": {
+			"spdx": "BSD-3-Clause",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "trakt-web",
+		"url": "https://github.com/trakt/trakt-web.git",
+		"commit": "f0349970c22a7e388f031fb09a26aeaad1ec523d",
+		"checkout": "submodules/trakt-web",
+		"excluded": "copyleft license (GPL/AGPL family): GNU GENERAL PUBLIC LICENSE Version 3, 29"
+	},
+	{
+		"id": "pattern",
+		"url": null,
+		"commit": null,
+		"checkout": "compatibility/pattern-corpus",
+		"excluded": "rsvelte pattern corpus: some repros are reductions of copyleft projects"
+	}
+]

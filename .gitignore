@@ -1,0 +1,6 @@
+# The shared .git/info/exclude ignores `fixtures` for main's generated tree; this branch commits it.
+!fixtures
+node_modules/
+target/
+/fixtures/.cache/
+.DS_Store
