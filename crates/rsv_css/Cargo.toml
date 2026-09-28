@@ -1,0 +1,11 @@
+[package]
+name = "rsv_css"
+version = "0.0.0"
+edition.workspace = true
+publish = false
+
+[dependencies]
+rsv_kernel.workspace = true
+
+[lints]
+workspace = true
