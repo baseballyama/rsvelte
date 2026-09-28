@@ -19,7 +19,7 @@
 	},
 	"dependencies": {
 		"@monaco-editor/loader": "^1.7.0",
-		"monaco-editor": "^0.56.0",
+		"monaco-editor": "^0.57.0",
 		"shiki": "^4.4.2"
 	},
 	"devDependencies": {
