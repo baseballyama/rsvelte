@@ -92,9 +92,13 @@ pub enum Part {
     },
 }
 
+/// An attribute of a `<script>` or `<style>` start tag: name and quoted value.
+pub type TagAttr = (Span, Option<Span>);
+
 #[derive(Debug)]
 pub struct Script {
     pub span: Span,
+    pub attrs: Vec<TagAttr>,
     pub content: Span,
     pub program: NodeId,
     pub ts: bool,
@@ -103,6 +107,7 @@ pub struct Script {
 #[derive(Debug)]
 pub struct Style {
     pub span: Span,
+    pub attrs: Vec<TagAttr>,
     pub sheet: StyleSheet,
 }
 

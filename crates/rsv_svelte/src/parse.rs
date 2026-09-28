@@ -560,6 +560,7 @@ impl<'a> P<'a> {
         let span = Span::new(lo as u32, self.pos as u32);
         self.c.instance = Some(Script {
             span,
+            attrs,
             content,
             program,
             ts,
@@ -569,7 +570,7 @@ impl<'a> P<'a> {
 
     fn style(&mut self) -> R<()> {
         let lo = self.pos;
-        self.open_tag_attrs()?;
+        let attrs = self.open_tag_attrs()?;
         let (content, _) = self.raw_text("style")?;
         if self.c.style.is_some() {
             return self.err_at(content, "a component can have only one style");
@@ -578,6 +579,7 @@ impl<'a> P<'a> {
             .map_err(|e| Diagnostic::error("css_parse_error", e.message, e.span))?;
         self.c.style = Some(Style {
             span: Span::new(lo as u32, self.pos as u32),
+            attrs,
             sheet,
         });
         Ok(())
