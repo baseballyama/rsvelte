@@ -254,7 +254,12 @@ impl ProjectTask for Check {
             binary: config.tsc.clone(),
             tsconfig: config.tsconfig.clone(),
         };
-        let found = match tsc.check(&req) {
+        let checked = tsc.check(&req);
+        // Mapping a position back reads the generated text around it.
+        for (p, file) in prepared.iter_mut().zip(req.files) {
+            p.mappings.out = file;
+        }
+        let found = match checked {
             Ok(found) => found,
             Err(msg) => {
                 for out in outs {

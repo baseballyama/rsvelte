@@ -63,29 +63,64 @@ impl Emitter {
     }
 
     /// The original offset of the generated character at `pos`, as a per-character source map
-    /// answers it (greatest lower bound): inside a verbatim copy 1:1, in inserted text the last
-    /// mapped character before it.
+    /// answers it (greatest lower bound on the same generated line): inside a verbatim copy 1:1,
+    /// in inserted text the last mapped character before it, and `None` when no mapping precedes
+    /// it on its line. [`Emitter::source_map`] writes exactly these answers.
     pub fn lookup(&self, pos: u32) -> Option<u32> {
         let i = self.mappings.partition_point(|m| m.generated <= pos);
         let m = self.mappings.get(i.checked_sub(1)?)?;
-        Some(if pos < m.generated + m.len {
-            m.src + (pos - m.generated)
-        } else {
-            m.src + m.len.saturating_sub(1)
-        })
+        if pos < m.generated + m.len {
+            return Some(m.src + (pos - m.generated));
+        }
+        let (at, src) = self.last_point(m);
+        let between = self.out.as_bytes().get(at as usize..pos as usize)?;
+        (!between.contains(&b'\n')).then_some(src)
+    }
+
+    /// The generated and original offsets of the last character a mapping maps.
+    fn last_point(&self, m: &Mapping) -> (u32, u32) {
+        let copied = &self.out[m.generated as usize..(m.generated + m.len) as usize];
+        let back = copied
+            .chars()
+            .next_back()
+            .map_or(0, |c| c.len_utf8() as u32);
+        (m.generated + m.len - back, m.src + m.len - back)
     }
 
     /// Both ends through [`Emitter::lookup`], which is how language tools map a diagnostic back
     /// through a source map. An end that falls in inserted text therefore lands on the start of the
     /// last mapped character, so a producer that wants exact ends marks the character after a copy.
-    /// `None` when the range starts before any mapping.
+    /// `None` when either end has no mapping before it on its line.
     pub fn lookup_span(&self, span: Span) -> Option<Span> {
         let lo = self.lookup(span.lo)?;
         let hi = self.lookup(span.hi)?;
         Some(Span::new(lo, hi.max(lo)))
     }
 
-    /// Encodes the mappings as a source map v3 JSON document.
+    /// Every mapped character as (generated, original): one point per character of a copy, one per
+    /// point mapping; a later mapping at the same generated offset replaces an earlier one.
+    fn points(&self) -> Vec<(u32, u32)> {
+        let mut sorted = self.mappings.clone();
+        sorted.sort_by_key(|m| m.generated);
+        let mut points: Vec<(u32, u32)> = Vec::with_capacity(sorted.len());
+        let mut put = |g: u32, s: u32| match points.last_mut() {
+            Some(last) if last.0 == g => *last = (g, s),
+            _ => points.push((g, s)),
+        };
+        for m in &sorted {
+            if m.len == 0 {
+                put(m.generated, m.src);
+                continue;
+            }
+            let copied = &self.out[m.generated as usize..(m.generated + m.len) as usize];
+            for (i, _) in copied.char_indices() {
+                put(m.generated + i as u32, m.src + i as u32);
+            }
+        }
+        points
+    }
+
+    /// Encodes the mappings as a source map v3 JSON document, one segment per mapped character.
     pub fn source_map(&self, source: &str, source_name: &str) -> String {
         let src_index = LineIndex::new(source);
         let gen_index = LineIndex::new(&self.out);
@@ -93,11 +128,9 @@ impl Emitter {
         let (mut prev_gen_line, mut prev_gen_col, mut prev_src_line, mut prev_src_col) =
             (1u32, 0i64, 0i64, 0i64);
         let mut first_in_line = true;
-        let mut sorted = self.mappings.clone();
-        sorted.sort_by_key(|m| m.generated);
-        for m in &sorted {
-            let g = gen_index.line_col(&self.out, m.generated);
-            let s = src_index.line_col(source, m.src);
+        for (generated, src) in self.points() {
+            let g = gen_index.line_col(&self.out, generated);
+            let s = src_index.line_col(source, src);
             while prev_gen_line < g.line {
                 mappings.push(';');
                 prev_gen_line += 1;
@@ -172,8 +205,8 @@ impl Edits {
         let mut out = String::with_capacity(range.len() as usize + extra);
         let mut pos = range.lo as usize;
         for (lo, hi, text) in self.items {
-            debug_assert!(lo as usize >= pos, "overlapping edits at {lo}");
-            debug_assert!(range.lo <= lo && hi <= range.hi, "edit outside the range");
+            assert!(lo as usize >= pos, "overlapping edits at {lo}");
+            assert!(range.lo <= lo && hi <= range.hi, "edit outside the range");
             out.push_str(&src[pos..lo as usize]);
             out.push_str(&text);
             pos = hi as usize;
@@ -229,6 +262,79 @@ mod tests {
         marked.mark(16);
         marked.push(";");
         assert_eq!(marked.lookup_span(Span::new(0, 1)), Some(Span::new(15, 16)));
+    }
+
+    /// A source map consumer's answer (greatest lower bound on the generated line), as a byte offset.
+    fn consume(map: &str, source: &str, out: &str, pos: u32) -> Option<u32> {
+        fn unvlq(s: &mut std::str::Bytes) -> Option<i64> {
+            const B64: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+            let (mut v, mut shift) = (0i64, 0);
+            loop {
+                let byte = s.next()?;
+                let d = B64.iter().position(|&c| c == byte)? as i64;
+                v |= (d & 31) << shift;
+                shift += 5;
+                if d & 32 == 0 {
+                    return Some(if v & 1 == 1 { -(v >> 1) } else { v >> 1 });
+                }
+            }
+        }
+        let mappings = map.split("\"mappings\":\"").nth(1)?.trim_end_matches("\"}");
+        let target = LineIndex::new(out).line_col(out, pos);
+        let (mut src_line, mut src_col, mut best) = (0i64, 0i64, None);
+        for (line, segs) in mappings.split(';').enumerate() {
+            let mut col = 0i64;
+            for seg in segs.split(',').filter(|s| !s.is_empty()) {
+                let mut b = seg.bytes();
+                col += unvlq(&mut b)?;
+                unvlq(&mut b)?;
+                src_line += unvlq(&mut b)?;
+                src_col += unvlq(&mut b)?;
+                if line as u32 + 1 == target.line && col <= target.column as i64 {
+                    best = Some((src_line, src_col));
+                }
+            }
+        }
+        let (l, c) = best?;
+        LineIndex::new(source).offset(source, l as u32 + 1, c as u32)
+    }
+
+    #[test]
+    fn source_map_answers_what_lookup_answers() {
+        let src = "<script>\n  let é = '😀';\n  count += 1;\n</script>\n<p>{é}</p>";
+        let at = |s: &str| src.find(s).unwrap() as u32;
+        let mut e = Emitter::new();
+        e.push("import * as $ from 'svelte';\n");
+        e.copy(src, Span::new(at("let"), at("</script>")));
+        e.push("\nfunction App() {\n\t");
+        e.mark(at("<p>"));
+        e.push("$.text(");
+        e.copy(src, Span::new(at("{é}") + 1, at("{é}") + 3));
+        e.push(");\n}\n");
+        let map = e.source_map(src, "App.svelte");
+        let mut checked = 0;
+        for (pos, _) in e.out.char_indices().chain([(e.out.len(), ' ')]) {
+            assert_eq!(
+                consume(&map, src, &e.out, pos as u32),
+                e.lookup(pos as u32),
+                "at {pos}"
+            );
+            checked += 1;
+        }
+        assert_eq!(checked, e.out.chars().count() + 1);
+        let second = e.out.find("count").unwrap() as u32;
+        assert_eq!(
+            e.lookup(second),
+            Some(at("count")),
+            "the copy's second line is mapped"
+        );
+        let after = e.out.find(");").unwrap() as u32;
+        assert_eq!(
+            e.lookup(after),
+            Some(at("é}")),
+            "the last character's start, not its last byte"
+        );
+        assert_eq!(e.lookup(e.out.find("function").unwrap() as u32), None);
     }
 
     #[test]
