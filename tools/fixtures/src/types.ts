@@ -59,7 +59,7 @@ export interface Language {
 	admit(src: string, path: string): Admission;
 }
 
-export type Compare = 'js-ast' | 'text' | 'json';
+export type Compare = 'js-ast' | 'text' | 'json' | 'lint';
 
 export interface Artifact {
 	text: string;

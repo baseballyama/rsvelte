@@ -27,14 +27,28 @@ pub struct HirCx<'a> {
     pub src: &'a str,
 }
 
+type EarlyRule = dyn for<'a> Rule<AstCx<'a>>;
+type LateRule = dyn for<'a> Rule<HirCx<'a>>;
+
+static EARLY: &[&EarlyRule] = &[&NoUnusedVars];
+static LATE: &[&LateRule] = &[&ButtonHasType];
+
 /// The enabled rules, in the order the oracle configuration lists them: every early rule comes
 /// before every late one, so running the layers in that order keeps ties in configuration order.
 #[must_use]
 pub fn lint(early: &AstCx<'_>, late: &HirCx<'_>) -> Vec<Diagnostic> {
     let mut f = Findings::new();
-    f.run::<AstCx<'_>>(&[&NoUnusedVars], early)
-        .run::<HirCx<'_>>(&[&ButtonHasType], late);
+    f.run::<AstCx<'_>>(EARLY, early)
+        .run::<HirCx<'_>>(LATE, late);
     f.finish()
+}
+
+/// The ids of the rules [`lint`] runs, in the order it runs them.
+pub fn rule_ids() -> impl Iterator<Item = &'static str> {
+    EARLY
+        .iter()
+        .map(|r| r.id())
+        .chain(LATE.iter().map(|r| r.id()))
 }
 
 #[derive(Debug)]
@@ -136,7 +150,8 @@ mod tests {
             src,
         };
         let findings = super::lint(&early, &late);
-        rsv_kernel::lint::render_json(src, &LineIndex::new(src), &findings)
+        let rules: Vec<&str> = super::rule_ids().collect();
+        rsv_kernel::lint::render_json(src, &LineIndex::new(src), &rules, &findings)
     }
 
     // Expected value from the oracle (tools/fixtures svelte.lint on this input).
@@ -145,14 +160,14 @@ mod tests {
         let got = lint(
             "<script>\n\texport const e = 1;\n\texport function k() {}\n\tlet u = 1;\n</script>",
         );
-        let want = "[\
-                    \n\t{\
-                    \n\t\t\"rule\": \"no-unused-vars\",\
-                    \n\t\t\"message\": \"'u' is assigned a value but never used.\",\
-                    \n\t\t\"start\": {\n\t\t\t\"line\": 4,\n\t\t\t\"column\": 6\n\t\t},\
-                    \n\t\t\"end\": {\n\t\t\t\"line\": 4,\n\t\t\t\"column\": 7\n\t\t}\
-                    \n\t}\
-                    \n]\n";
-        assert_eq!(got, want);
+        let want = "\"findings\": [\
+                    \n\t\t{\
+                    \n\t\t\t\"rule\": \"no-unused-vars\",\
+                    \n\t\t\t\"message\": \"'u' is assigned a value but never used.\",\
+                    \n\t\t\t\"start\": {\n\t\t\t\t\"line\": 4,\n\t\t\t\t\"column\": 6\n\t\t\t},\
+                    \n\t\t\t\"end\": {\n\t\t\t\t\"line\": 4,\n\t\t\t\t\"column\": 7\n\t\t\t}\
+                    \n\t\t}\
+                    \n\t]\n}\n";
+        assert!(got.ends_with(want), "{got}");
     }
 }

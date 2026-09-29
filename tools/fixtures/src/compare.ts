@@ -29,6 +29,24 @@ function artifactExts(task: ReturnType<typeof taskById>, variantId: string, unit
 	return [...exts].sort();
 }
 
+interface LintFile {
+	rules: string[];
+	findings: { rule: string | null }[];
+}
+
+/**
+ * The oracle runs every rule; an implementation runs the rules it has and says which. It matches
+ * when its findings are the oracle's findings from those rules (plus the rule-less ones: a fatal
+ * parse error, an unused disable directive). A rule the oracle did not run is a mismatch.
+ */
+function compareLint(exp: LintFile, act: LintFile): { verdict: Verdict; detail?: string } {
+	const extra = act.rules.filter((r) => !exp.rules.includes(r));
+	if (extra.length > 0) return { verdict: 'mismatch', detail: `not run by the oracle: ${extra.join(', ')}` };
+	const ran = new Set(act.rules);
+	const want = exp.findings.filter((f) => f.rule === null || ran.has(f.rule));
+	return { verdict: JSON.stringify(want) === JSON.stringify(act.findings) ? 'match' : 'mismatch' };
+}
+
 export interface CompareOptions {
 	taskId: string;
 	variantId: string;
@@ -72,6 +90,8 @@ export function compare({ taskId, variantId, sourceIds, families }: CompareOptio
 				const d = firstDiff(tree, actual);
 				const detail = [d !== null && `first diff at ${d || '<root>'}`, stale && `${stale} stale adjustment(s)`].filter(Boolean).join('; ');
 				rows.push({ key, ext, verdict: d === null ? 'match' : 'mismatch', ...(detail && { detail }) });
+			} else if (ext === 'lint.json') {
+				rows.push({ key, ext, ...compareLint(JSON.parse(fs.readFileSync(expFile, 'utf8')), JSON.parse(act)) });
 			} else if (ext.endsWith('.json')) {
 				rows.push({ key, ext, verdict: same(JSON.parse(fs.readFileSync(expFile, 'utf8')), JSON.parse(act)) ? 'match' : 'mismatch' });
 			} else {

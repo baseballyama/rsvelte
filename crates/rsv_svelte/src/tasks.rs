@@ -125,8 +125,10 @@ impl Task for Format {
     }
 }
 
-/// `ESLint` with eslint-plugin-svelte, the rules of [`crate::lint::lint`]. Writes the findings as
-/// `ESLint` reports them (`json`); a document that does not parse gets the parse error instead.
+/// `ESLint` with eslint-plugin-svelte, the rules of [`crate::lint::lint`].
+///
+/// Writes the rules it ran and their findings as `ESLint` reports them (`lint.json`); a document
+/// that does not parse gets the parse error instead.
 #[derive(Debug)]
 pub struct Lint;
 
@@ -174,9 +176,10 @@ impl Task for Lint {
             src: ctx.src(),
         };
         let findings = crate::lint::lint(&early, &late);
+        let rules: Vec<&str> = crate::lint::rule_ids().collect();
         out.file(
-            "json",
-            rsv_kernel::lint::render_json(ctx.src(), ctx.line_index(), &findings),
+            "lint.json",
+            rsv_kernel::lint::render_json(ctx.src(), ctx.line_index(), &rules, &findings),
         );
     }
 }

@@ -204,7 +204,7 @@ Tailwind のクラス並べ替えや lint、型検査、preprocess は、ファ�
 |---|---|---|---|
 | `svelte.parse` | `svelte/compiler` の `parse(modern)` | AST の JSON。入力の約 16 倍になるので cached | cached |
 | `js.parse` | acorn / typescript-estree | canonical AST（パーサ適合性、concept C10） | cached |
-| `svelte.lint` | eslint + eslint-plugin-svelte（variant = 設定の組） | diagnostics の JSON（rule、message、範囲）＋ fix 後のテキスト | committed |
+| `svelte.lint` | eslint + eslint-plugin-svelte（variant = 設定の組。default は全ルール） | `lint.json`: 走らせたルールの一覧（`rules`）と指摘（`findings`: rule、message、範囲）。比較は実装側が走らせたルールの指摘に絞る | committed |
 | `svelte.fmt` | prettier + prettier-plugin-svelte | テキスト（**バイト一致**。fmt は書式そのものが仕様）＋冪等性 | committed |
 | `svelte.check` | svelte-check | diagnostics の JSON（位置と種類。メッセージ文字列は比較しない。concept C9） | committed |
 

@@ -12,7 +12,12 @@ export const units = {
 			result: '11/12',
 			note: 'check-cases は { label: string } 型を整形できず拒否'
 		},
-		{ task: 'svelte.lint/default', oracle: 'eslint 10.11.0 + eslint-plugin-svelte 3.23.0', result: '12/12', note: '' },
+		{
+			task: 'svelte.lint/default',
+			oracle: 'eslint 10.11.0 + eslint-plugin-svelte 3.23.0',
+			result: '12/12',
+			note: 'オラクルは全 282 ルール。rsvelte が実装した 2 ルールの指摘を比較'
+		},
 		{
 			task: 'svelte.check/default',
 			oracle: 'svelte-check 4.7.6 + typescript 6.0.3',

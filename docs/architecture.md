@@ -87,7 +87,7 @@ Parsed ─► TsProjection（Svelte、文書パス）
 |---|---|---|
 | `svelte.compile/client` / `server` | svelte 5.57.1 | 14/14 行一致（JS と CSS） |
 | `svelte.format/default` | prettier 3.9.9 + prettier-plugin-svelte 4.1.1 | 11/12。`check-cases` は `{ label: string }` 型を整形できず拒否 |
-| `svelte.lint/default` | eslint 10.11.0 + eslint-plugin-svelte 3.23.0 | 12/12 |
+| `svelte.lint/default` | eslint 10.11.0 + eslint-plugin-svelte 3.23.0（全ルール: 中核の非推奨でない全ルール + `configs.all`、282 ルール） | 12/12（rsvelte が実装した 2 ルールの指摘を比較） |
 | `svelte.check/default` | svelte-check 4.7.6 + typescript 6.0.3（rsvelte 側は tsc 7.0.2） | 12/12。属性の型エラー 6 件と、`{#if}` による絞り込みを含む |
 
 ### 型検査の位置の一致
