@@ -1,30 +1,45 @@
 //! eslint-plugin-svelte's rules and the JavaScript rules that see a component's template reads.
-//! Every rule reads the one parse and the one scope analysis the compiler uses.
+//! Early rules read the surface tree, late rules the HIR; both read the one parse and the one name
+//! resolution the compiler uses.
 
-use crate::ast::{AttrValue, Component, Part, TNode, decode_text};
+use crate::ast::Component;
+use crate::hir::{AttrValue, Hir};
+use crate::resolve::Resolution;
 use rsv_js::lint::JsFacts;
 use rsv_kernel::diag::Diagnostic;
-use rsv_kernel::lint::Rule;
+use rsv_kernel::lint::{Findings, Rule};
 
-pub struct LintCx<'a> {
+/// What early rules read: the surface tree as written, and the JavaScript facts over it.
+pub struct AstCx<'a> {
     pub c: &'a Component,
     pub src: &'a str,
     pub js: JsFacts<'a>,
 }
 
-/// The enabled rules, in the order the oracle configuration lists them.
-pub fn rules<'a>() -> [&'a dyn Rule<LintCx<'a>>; 2] {
-    [&NoUnusedVars, &ButtonHasType]
+/// What late rules read: the HIR and name resolution.
+pub struct HirCx<'a> {
+    pub hir: &'a Hir,
+    pub res: &'a Resolution,
+    pub src: &'a str,
+}
+
+/// The enabled rules, in the order the oracle configuration lists them: every early rule comes
+/// before every late one, so running the layers in that order keeps ties in configuration order.
+pub fn lint(early: &AstCx, late: &HirCx) -> Vec<Diagnostic> {
+    let mut f = Findings::new();
+    f.run::<AstCx>(&[&NoUnusedVars], early)
+        .run::<HirCx>(&[&ButtonHasType], late);
+    f.finish()
 }
 
 pub struct NoUnusedVars;
 
-impl<'a> Rule<LintCx<'a>> for NoUnusedVars {
+impl<'a> Rule<AstCx<'a>> for NoUnusedVars {
     fn id(&self) -> &'static str {
         "no-unused-vars"
     }
 
-    fn check(&self, cx: &LintCx<'a>, out: &mut Vec<Diagnostic>) {
+    fn check(&self, cx: &AstCx<'a>, out: &mut Vec<Diagnostic>) {
         rsv_js::lint::no_unused_vars(&cx.js, self.id(), out);
     }
 }
@@ -34,79 +49,60 @@ impl<'a> Rule<LintCx<'a>> for NoUnusedVars {
 /// upstream's `bind:type` and spread branches have no input to decide yet.
 pub struct ButtonHasType;
 
-impl<'a> Rule<LintCx<'a>> for ButtonHasType {
+impl<'a> Rule<HirCx<'a>> for ButtonHasType {
     fn id(&self) -> &'static str {
         "svelte/button-has-type"
     }
 
-    fn check(&self, cx: &LintCx<'a>, out: &mut Vec<Diagnostic>) {
-        let (c, src) = (cx.c, cx.src);
-        for node in &c.nodes {
-            let TNode::Element {
-                name,
-                attrs,
-                start_tag,
-                ..
-            } = node
-            else {
-                continue;
-            };
-            if name.text(src) != "button" {
+    fn check(&self, cx: &HirCx<'a>, out: &mut Vec<Diagnostic>) {
+        let (hir, src) = (cx.hir, cx.src);
+        for (_, el) in hir.elements() {
+            if el.name.text(src) != "button" {
                 continue;
             }
-            let attrs = c.attrs(*attrs);
+            let attrs = hir.attrs(el.attrs);
+            let named_type = |a: &&crate::hir::Attribute| a.name.text(src) == "type";
             // A shorthand `{type}` is its own node kind upstream; `findAttribute` skips it.
-            let is_shorthand = |a: &crate::ast::Attr| src.as_bytes()[a.span.lo as usize] == b'{';
             if let Some(a) = attrs
                 .iter()
-                .find(|a| !is_shorthand(a) && a.name.text(src) == "type")
+                .filter(named_type)
+                .find(|a| !matches!(a.value, AttrValue::Shorthand(_)))
             {
-                let parts = match a.value {
-                    AttrValue::True => &[][..],
-                    AttrValue::Parts(r) => c.parts(r),
-                };
-                if parts
-                    .iter()
-                    .all(|p| matches!(p, Part::Text(s) if s.is_empty()))
-                {
-                    out.push(Diagnostic::error(
-                        self.id(),
-                        "A value must be set for button type attribute.",
-                        a.span,
-                    ));
-                    continue;
-                }
-                let mut value = String::new();
-                for p in parts {
-                    match p {
-                        Part::Text(s) => value.push_str(&decode_text(s.text(src))),
-                        Part::Expr { .. } => break,
+                match &a.value {
+                    AttrValue::Boolean => {
+                        out.push(Diagnostic::error(self.id(), EMPTY, a.span));
                     }
-                }
-                let is_static = parts.iter().all(|p| matches!(p, Part::Text(_)));
-                if is_static && !matches!(value.as_str(), "button" | "submit" | "reset") {
-                    out.push(Diagnostic::error(
-                        self.id(),
-                        format!("{value} is an invalid value for button type attribute."),
-                        a.span,
-                    ));
+                    AttrValue::Static(v) if v.is_empty() => {
+                        out.push(Diagnostic::error(self.id(), EMPTY, a.span));
+                    }
+                    AttrValue::Static(v) if !matches!(&**v, "button" | "submit" | "reset") => {
+                        out.push(Diagnostic::error(
+                            self.id(),
+                            format!("{v} is an invalid value for button type attribute."),
+                            a.span,
+                        ));
+                    }
+                    _ => {}
                 }
                 continue;
             }
             if attrs
                 .iter()
-                .any(|a| is_shorthand(a) && a.name.text(src) == "type")
+                .filter(named_type)
+                .any(|a| matches!(a.value, AttrValue::Shorthand(_)))
             {
                 continue;
             }
             out.push(Diagnostic::error(
                 self.id(),
                 "Missing an explicit type attribute for button.",
-                *start_tag,
+                el.start_tag,
             ));
         }
     }
 }
+
+const EMPTY: &str = "A value must be set for button type attribute.";
 
 #[cfg(test)]
 mod tests {
@@ -115,8 +111,9 @@ mod tests {
     fn lint(src: &str) -> String {
         let c = crate::parse::parse(src).expect("parses");
         let res = crate::resolve::resolve(&c.js, c.program, &c.template_exprs);
+        let hir = crate::hir::lower(&c, src);
         let parents = c.js.parents();
-        let cx = super::LintCx {
+        let early = super::AstCx {
             c: &c,
             src,
             js: rsv_js::lint::JsFacts {
@@ -125,7 +122,12 @@ mod tests {
                 parents: &parents,
             },
         };
-        let findings = rsv_kernel::lint::run(&super::rules(), &cx);
+        let late = super::HirCx {
+            hir: &hir,
+            res: &res,
+            src,
+        };
+        let findings = super::lint(&early, &late);
         rsv_kernel::lint::render_json(src, &LineIndex::new(src), &findings)
     }
 

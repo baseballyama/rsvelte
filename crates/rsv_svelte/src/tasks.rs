@@ -3,7 +3,7 @@
 
 use crate::lower::{self, Target};
 use crate::project::Projection;
-use crate::{Analyzed, CheckConfig, Config, Parsed, Resolved, ScopedCss, TsProjection};
+use crate::{Analyzed, CheckConfig, Config, Normalized, Parsed, Resolved, ScopedCss, TsProjection};
 use rsv_js::check::{CheckRequest, Tsc};
 use rsv_kernel::db::Ctx;
 use rsv_kernel::diag::Diagnostic;
@@ -121,7 +121,7 @@ impl Task for Format {
     }
 }
 
-/// ESLint with eslint-plugin-svelte, the rules of [`crate::lint::rules`]. Writes the findings as
+/// ESLint with eslint-plugin-svelte, the rules of [`crate::lint::lint`]. Writes the findings as
 /// ESLint reports them (`json`); a document that does not parse gets the parse error instead.
 pub struct Lint;
 
@@ -150,7 +150,11 @@ impl Task for Lint {
             let _p = metrics::phase("js.parents");
             c.js.parents()
         };
-        let cx = crate::lint::LintCx {
+        let hir = ctx
+            .get::<Normalized>()
+            .as_ref()
+            .expect("a parsed component is lowered");
+        let early = crate::lint::AstCx {
             c,
             src: ctx.src(),
             js: rsv_js::lint::JsFacts {
@@ -159,7 +163,12 @@ impl Task for Lint {
                 parents: &parents,
             },
         };
-        let findings = rsv_kernel::lint::run(&crate::lint::rules(), &cx);
+        let late = crate::lint::HirCx {
+            hir,
+            res,
+            src: ctx.src(),
+        };
+        let findings = crate::lint::lint(&early, &late);
         out.file(
             "json",
             rsv_kernel::lint::render_json(ctx.src(), ctx.line_index(), &findings),
