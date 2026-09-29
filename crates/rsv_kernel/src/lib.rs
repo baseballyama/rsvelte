@@ -5,6 +5,7 @@ pub mod db;
 pub mod diag;
 pub mod doc;
 pub mod emit;
+pub mod idx;
 pub mod intern;
 pub mod json;
 pub mod lint;
@@ -15,5 +16,6 @@ pub mod source;
 
 pub use db::{Artifact, Ctx};
 pub use diag::{Diagnostic, Severity};
+pub use idx::{Idx, IdxRange, IndexVec};
 pub use intern::{Atom, Interner};
 pub use source::{LineIndex, Span};
