@@ -1,6 +1,8 @@
 //! The component's HIR: the template as the compiler understands it rather than as it was written.
 //!
-//! Built from the surface tree ([`crate::ast`]) and never from source text. What changes on the way:
+//! Built from the surface tree ([`crate::ast`]). Source text is read only for names and for the
+//! one fact the surface tree does not record, whether an attribute was written as a shorthand
+//! `{a}`. What changes on the way:
 //!
 //! - an `{#if}…{:else if}…{:else}` chain is one node with its branches, not nested `If`s;
 //! - every element knows its kind (regular, component, `<title>` in `<svelte:head>`, `<slot>`,
