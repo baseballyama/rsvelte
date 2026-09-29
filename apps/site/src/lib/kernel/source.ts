@@ -91,11 +91,12 @@ export class LineIndex {
 		let byte = start;
 		const rest = new TextDecoder().decode(this.bytes.subarray(start));
 		for (const ch of rest) {
-			if (units >= column || ch === '\n') return byte;
+			if (units === column) return byte;
+			if (units > column || ch === '\n') return null;
 			units += ch.length;
 			byte += utf8Len(ch.codePointAt(0)!);
 		}
-		return this.bytes.length;
+		return units === column ? this.bytes.length : null;
 	}
 
 	/** The byte range of every char, for drawing the text byte by byte. */

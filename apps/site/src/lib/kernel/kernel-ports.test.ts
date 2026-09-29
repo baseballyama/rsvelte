@@ -29,14 +29,15 @@ describe('source', () => {
 		expect(idx.offset(1, 3)).toBe(b);
 	});
 
-	it('matches the oracle on every char boundary, including the clamping offset', () => {
+	it('matches the oracle on every char boundary, and refuses columns that do not exist', () => {
 		const idx = new LineIndex('é😀\nab');
 		const lc = [0, 2, 6, 7, 8, 9].map((b) => {
 			const x = idx.lineCol(b);
 			return `${b}:${x.line}:${x.column}:${x.character}`;
 		});
 		expect(lc.join(',')).toBe('0:1:0:0,2:1:1:1,6:1:3:3,7:2:0:4,8:2:1:5,9:2:2:6');
-		expect([idx.offset(1, 9), idx.offset(2, 9), idx.offset(3, 0), idx.offset(1, 1)]).toEqual([6, 9, null, 2]);
+		const cells: [number, number][] = [[1, 9], [2, 9], [3, 0], [1, 1], [1, 2], [2, 2]];
+		expect(cells.map(([l, c]) => idx.offset(l, c))).toEqual([null, null, null, 2, null, 9]);
 	});
 
 	it('keeps no wide table for ASCII', () => {
@@ -99,16 +100,27 @@ describe('emit', () => {
 	it('matches the oracle source map and per-byte lookup', () => {
 		const { src, e } = ariaExample();
 		expect(e.sourceMap(src, 'App.svelte')).toBe(
-			'{"version":3,"sources":["App.svelte"],"names":[],"mappings":"IAAG,CAAA,aAAY"}'
+			'{"version":3,"sources":["App.svelte"],"names":[],"mappings":"IAAG,CAAA,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,IAAG"}'
 		);
 		const lookups = Array.from(e.out, (_, p) => e.lookup(p));
 		expect(lookups).toEqual([null, null, null, null, 3, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 12, 12, 12, 15, 15, 15, 15, 15]);
 	});
 
-	it('shows where a standard consumer and lookup disagree inside a copy', () => {
+	it('a standard consumer answers what lookup answers', () => {
 		const { src, e } = ariaExample();
 		const segs = decodeMappings(JSON.parse(e.sourceMap(src, 'App.svelte')).mappings);
-		expect(consumerLookup(segs, 1, 10)).toEqual({ srcLine: 1, srcCol: 3 });
-		expect(e.lookup(10)).toBe(8);
+		for (let p = 0; p <= e.out.length; p++) {
+			const c = consumerLookup(segs, 1, p);
+			expect(c && new LineIndex(src).offset(c.srcLine, c.srcCol)).toBe(e.lookup(p));
+		}
+	});
+
+	it('matches the oracle across generated lines', () => {
+		const m = new Emitter();
+		m.copy('ab\ncd', { lo: 0, hi: 5 });
+		m.push('\n;');
+		expect(m.sourceMap('ab\ncd', 'a')).toBe('{"version":3,"sources":["a"],"names":[],"mappings":"AAAA,CAAC,CAAC;AACF,CAAC"}');
+		const lookups = Array.from({ length: m.out.length + 1 }, (_, p) => m.lookup(p));
+		expect(lookups).toEqual([0, 1, 2, 3, 4, 4, null, null]);
 	});
 });

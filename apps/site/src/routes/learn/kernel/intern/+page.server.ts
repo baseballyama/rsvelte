@@ -5,6 +5,7 @@ export const load = () => ({
 		interner: 'kernel/intern/Interner',
 		get: 'kernel/intern/Interner::get',
 		intern: 'kernel/intern/Interner::intern',
+		probe: 'kernel/intern/Interner::probe',
 		grow: 'kernel/intern/Interner::grow',
 		lookup: 'kernel/intern/Interner::lookup'
 	})

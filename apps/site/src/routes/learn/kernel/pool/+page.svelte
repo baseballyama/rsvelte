@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Caution from '$lib/components/Caution.svelte';
 	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
 	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
 	import Code from '$lib/components/Code.svelte';
@@ -65,12 +64,16 @@
 
 <Code item={data.code.drop} />
 
-<Caution>
-	プールはスレッドローカルです。ワーカーがずっと同じなら効きますが、<code>RunOptions::threads</code> を指定して走らせるたびに、<code
-		>in_pool</code
-	>
-	は新しいスレッドプールを作ります。スレッドが変われば、前の実行で貯めた容量は使えず、そのスレッドとともに解放されます。
-</Caution>
+<div class="prose-learn">
+	<p>
+		プールはスレッドローカルなので、ワーカーが同じであるあいだだけ効きます。rayon の既定のスレッドは実行をまたいで残ります。<code
+			>RunOptions::threads</code
+		>
+		を指定した実行も、<code>in_pool</code> がスレッド数ごとのプールをプロセスのあいだ残すので、同じスレッドと、そのスレッドが貯めた容量を使い回します（<a
+			href="/learn/kernel/pipeline#run">05</a
+		>）。
+	</p>
+</div>
 
 <div class="prose-learn">
 	<H2 id="measure" />

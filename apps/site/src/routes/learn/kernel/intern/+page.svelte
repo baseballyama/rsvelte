@@ -55,13 +55,15 @@
 	</p>
 </div>
 
-<Code item={data.code.intern} mark={['(self.ends.len() + 1) * 2 > self.table.len()', '_ => i = (i + 1) & mask']} />
+<Code item={data.code.probe} mark={['_ => i = (i + 1) & mask']} />
+<Code item={data.code.intern} mark={['Ok(atom) => return atom,', '(self.ends.len() + 1) * 2 > self.table.len()']} />
 
 <InternerViz />
 
 <div class="prose-learn">
 	<p>
-		<code>lookup</code> は同じ探索を、挿入せずに行います。テーブルがまだないときは、探索せずに <code>None</code> を返します。
+		探索は <code>probe</code> 一つにまとめてあり、見つかれば Atom を、なければ入れるべき空き slot を返します。<code>lookup</code>
+		は同じ探索を挿入せずに使います。テーブルがまだないときは、探索せずに <code>None</code> を返します。
 	</p>
 </div>
 
@@ -73,10 +75,8 @@
 		名前の数がテーブルの容量の半分を超えそうになると、容量を倍にして全員を入れ直します。最初の容量は 64 です。負荷率を 0.5
 		以下に保つので、線形プローブの列は短く済みます。図の「+20」を二回押すと、33 個目の名前で容量が 128 に増えるのが見えます。</p>
 	<p>
-		拡張の判定は、名前を探すより前にあります。そのため、32 個入った状態で次に <code>intern</code>
-		を呼ぶと、それがすでにある名前でも、表は拡張されます<Note
-			>結果は正しいままです。表が一回早く大きくなるだけです。挿入のときだけ拡張したいなら、探索して空き slot に着いたところで判定する形になります。</Note
-		>。
+		拡張の判定は、探索して名前がなかったとき（空き slot に着いたとき）にだけ行います。負荷率を上げるのは新しい名前だけなので、すでにある名前を引いても表は大きくなりません。拡張したときは、新しい表でもう一度空き
+		slot を探します。
 	</p>
 </div>
 

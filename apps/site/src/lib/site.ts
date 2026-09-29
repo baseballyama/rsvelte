@@ -161,7 +161,7 @@ export const chapters: Chapter[] = [
 			s('lookup', '逆引きは最大下界'),
 			s('lookup-span', '範囲を写す'),
 			s('source-map', 'source map v3 と VLQ'),
-			s('disagreement', 'lookup と source_map のずれ'),
+			s('disagreement', 'lookup と source_map を揃える'),
 			s('edits', 'Edits')
 		]
 	},
@@ -222,7 +222,7 @@ export const chapters: Chapter[] = [
 		href: '/learn/polish',
 		number: '13',
 		title: '磨きどころ',
-		abstract: 'コードを読んで見つけた、直す価値のある箇所。事実と根拠つき。',
+		abstract: 'コードを読んで見つけた、直す価値のある箇所と、それぞれをどうしたか。',
 		minutes: 12,
 		sections: [
 			s('correctness', '正しさ'),

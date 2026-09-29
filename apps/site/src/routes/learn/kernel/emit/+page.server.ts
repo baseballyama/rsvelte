@@ -12,6 +12,7 @@ export const load = () => ({
 		lookup: 'kernel/emit/Emitter::lookup',
 		lookupSpan: 'kernel/emit/Emitter::lookup_span',
 		spansTest: 'kernel/emit/tests::spans_map_back_through_copies_and_quotes',
+		points: 'kernel/emit/Emitter::points',
 		sourceMap: 'kernel/emit/Emitter::source_map',
 		vlq: 'kernel/emit/vlq',
 		edits: 'kernel/emit/Edits',

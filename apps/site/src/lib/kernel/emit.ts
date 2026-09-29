@@ -1,6 +1,7 @@
 // Port of `rsv_kernel::emit`: an output buffer that records where each piece came from, the
 // greatest-lower-bound reverse lookup, and source map v3 encoding. Offsets are UTF-8 bytes as in
-// Rust; `out` is kept as a string and every example on the site is ASCII, which `push` checks.
+// Rust; `out` is kept as a string, so every piece pushed must be ASCII (checked), which makes a
+// string index a byte offset and every character one byte.
 
 import { LineIndex, byteLength, spanText, type Span } from './source.ts';
 import { writeStr } from './json.ts';
@@ -21,7 +22,7 @@ export class Emitter {
 	}
 
 	push(s: string) {
-		this.out += s;
+		this.out += ascii(s);
 	}
 
 	mark(src: number) {
@@ -30,12 +31,12 @@ export class Emitter {
 
 	copy(source: string, span: Span) {
 		this.mappings.push({ generated: this.pos, src: span.lo, len: span.hi - span.lo });
-		this.out += spanText(source, span);
+		this.out += ascii(spanText(source, span));
 	}
 
 	pushFor(s: string, span: Span | null) {
 		if (span) this.mark(span.lo);
-		this.out += s;
+		this.out += ascii(s);
 	}
 
 	/** Index of the mapping that answers `pos`, or -1: Rust's `partition_point(generated <= pos) - 1`. */
@@ -54,7 +55,25 @@ export class Emitter {
 		const i = this.mappingAt(pos);
 		if (i < 0) return null;
 		const m = this.mappings[i];
-		return pos < m.generated + m.len ? m.src + (pos - m.generated) : m.src + Math.max(0, m.len - 1);
+		if (pos < m.generated + m.len) return m.src + (pos - m.generated);
+		const back = Math.min(1, m.len);
+		const at = m.generated + m.len - back;
+		return this.out.slice(at, pos).includes('\n') ? null : m.src + m.len - back;
+	}
+
+	/** Every mapped character as [generated, original]; a later mapping at the same offset replaces one. */
+	points(): [number, number][] {
+		const points: [number, number][] = [];
+		const put = (g: number, s: number) => {
+			const last = points[points.length - 1];
+			if (last && last[0] === g) last[1] = s;
+			else points.push([g, s]);
+		};
+		for (const m of [...this.mappings].sort((a, b) => a.generated - b.generated)) {
+			if (m.len === 0) put(m.generated, m.src);
+			for (let k = 0; k < m.len; k++) put(m.generated + k, m.src + k);
+		}
+		return points;
 	}
 
 	lookupSpan(span: Span): Span | null {
@@ -69,13 +88,11 @@ export class Emitter {
 	segments(source: string): { genLine: number; genCol: number; srcLine: number; srcCol: number }[] {
 		const src = new LineIndex(source);
 		const gen = new LineIndex(this.out);
-		return [...this.mappings]
-			.sort((a, b) => a.generated - b.generated)
-			.map((m) => {
-				const g = gen.lineCol(m.generated);
-				const s = src.lineCol(m.src);
-				return { genLine: g.line, genCol: g.column, srcLine: s.line, srcCol: s.column };
-			});
+		return this.points().map(([generated, original]) => {
+			const g = gen.lineCol(generated);
+			const s = src.lineCol(original);
+			return { genLine: g.line, genCol: g.column, srcLine: s.line, srcCol: s.column };
+		});
 	}
 
 	sourceMap(source: string, sourceName: string): string {
@@ -101,6 +118,11 @@ export class Emitter {
 		}
 		return `{"version":3,"sources":[${writeStr(sourceName)}],"names":[],"mappings":${writeStr(mappings)}}`;
 	}
+}
+
+function ascii(s: string): string {
+	if (!/^[\x00-\x7f]*$/.test(s)) throw new Error(`the emit port takes ASCII only: ${JSON.stringify(s)}`);
+	return s;
 }
 
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';

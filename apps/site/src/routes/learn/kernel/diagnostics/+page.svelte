@@ -44,14 +44,18 @@
 </div>
 
 <Code item={data.code.unsupported} />
+<Code item={data.code.unsupportedImpl} />
 
 <div class="prose-learn">
 	<p>
-		整形タスクは、<code>Unsupported</code> を受け取ると、ファイルを書かずに診断だけを残します。
+		<code>Unsupported</code> は、何に対応していないか（<code>what</code>）と、それがどこにあるか（<code>loc</code>）を持ちます。位置は
+		<code>Loc</code> なので、特定の構文のせいではない拒否（文書全体のレイアウトが一行に収まらない、など）は
+		<code>nowhere</code> で「位置なし」と明示します（<a href="/learn/kernel/source#loc">02</a>）。整形タスクは、<code>Unsupported</code>
+		を受け取るとファイルを書かずに、その構文を指す診断だけを残します。
 	</p>
 </div>
 
-<Code item={data.code.format} mark={['Err(u) => out.diagnostics.push']} />
+<Code item={data.code.format} mark={['Err(u) => out.diagnostics.push', 'u.span(),']} />
 
 <div class="prose-learn">
 	<p>
@@ -60,11 +64,9 @@
 		>。
 	</p>
 
-	<DeepDive title="Unsupported は場所を持たない">
+	<DeepDive title="位置を持たせる理由">
 		<p>
-			<code>Unsupported</code> は <code>&amp;'static str</code> の説明しか持たず、診断の位置は <code>Span::new(0, 0)</code>
-			になります。どの構文が原因かはメッセージの文字列でしか分からず、エディタでその場所を示すこともできません。未対応の構文の Span
-			を運べば、コーパスで「どの構文が何件拒否されたか」を集計する役にも立ちます。
+			位置がなければ、どの構文が原因かはメッセージの文字列でしか分からず、エディタでその場所を示すこともできません。位置があれば、コーパスで「どの構文が、どこで、何件拒否されたか」を集計できます。どちらも、次に何を移植するかを決める材料です。
 		</p>
 	</DeepDive>
 
@@ -98,7 +100,7 @@
 	</p>
 </div>
 
-<Code item={data.code.run} mark={['metrics::phase(rule.id())', 'debug_assert!', 'sort_by_key']} />
+<Code item={data.code.run} mark={['metrics::phase(rule.id())', 'assert!(', 'sort_by_key']} />
 
 <div class="prose-learn">
 	<p>
@@ -111,8 +113,10 @@
 
 <div class="prose-learn">
 	<p>
-		<code>debug_assert!</code> は、ルールが自分の ID 以外のコードで報告していないかを確かめます。release
-		ビルドでは確かめません。
+		<code>assert!</code> は、ルールが自分の ID 以外のコードで報告していないかを確かめます。release
+		ビルドでも確かめるので、契約を破ったルールはその場で panic し、<code>run_document</code> がその文書の panic として報告します（<a
+			href="/learn/kernel/pipeline#run-document">05</a
+		>）。コストはルールが出した指摘の数だけの比較です。
 	</p>
 
 	<H2 id="render" />

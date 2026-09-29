@@ -14,23 +14,36 @@
 	e.push(' });');
 
 	const map = e.sourceMap(src, 'App.svelte');
-	const segments = decodeMappings(JSON.parse(map).mappings);
-	const rows = Array.from(e.out, (ch, pos) => {
-		const k = e.lookup(pos);
-		const c = consumerLookup(segments, 1, pos);
-		return { ch, pos, kernel: k, consumer: c ? c.srcCol : null };
-	});
+	const perChar = decodeMappings(JSON.parse(map).mappings);
+	// One segment per mapping: the example is one ASCII line, so a byte offset is also the column.
+	const perMapping = [...e.mappings]
+		.sort((a, b) => a.generated - b.generated)
+		.map((m) => ({ genLine: 1, genCol: m.generated, srcLine: 1, srcCol: m.src }));
+
+	let coarse = $state(false);
+	const segments = $derived(coarse ? perMapping : perChar);
+	const rows = $derived(
+		Array.from(e.out, (ch, pos) => {
+			const c = consumerLookup(segments, 1, pos);
+			return { ch, pos, kernel: e.lookup(pos), consumer: c ? c.srcCol : null };
+		})
+	);
+	const differ = $derived(rows.filter((r) => r.kernel !== r.consumer).length);
 	let at = $state(10);
 	const row = $derived(rows[at]);
-	const mappingStarts = new Set(e.mappings.map((m) => m.generated));
+	const segmentStarts = $derived(new Set(segments.map((s) => s.genCol)));
 </script>
 
 <Figure label="図 8.1 · lookup と source map の答え" wide>
+	{#snippet controls()}
+		<button type="button" class="btn-ghost" aria-pressed={!coarse} onclick={() => (coarse = false)}>文字ごと（今の実装）</button>
+		<button type="button" class="btn-ghost" aria-pressed={coarse} onclick={() => (coarse = true)}>Mapping ごと</button>
+	{/snippet}
 	<div class="overflow-x-auto p-4">
 		<table class="border-collapse font-mono text-[12.5px] tracking-normal">
 			<tbody>
 				<tr>
-					<th class="pr-3 text-left font-normal text-muted">generated</th>
+					<th class="pr-3 text-left font-normal whitespace-nowrap text-muted">generated</th>
 					{#each rows as r (r.pos)}
 						<td class="p-0">
 							<button
@@ -38,7 +51,7 @@
 								class={[
 									'block w-[1.9em] border border-line py-1 text-center',
 									r.pos === at ? 'bg-fg text-bg' : 'hover:bg-surface',
-									mappingStarts.has(r.pos) && r.pos !== at && 'border-b-2 border-b-accent'
+									segmentStarts.has(r.pos) && r.pos !== at && 'border-b-2 border-b-accent'
 								]}
 								onmouseenter={() => (at = r.pos)}
 								onfocus={() => (at = r.pos)}>{r.ch === ' ' ? '·' : r.ch}</button
@@ -47,15 +60,15 @@
 					{/each}
 				</tr>
 				<tr>
-					<th class="pr-3 text-left font-normal text-muted">位置</th>
+					<th class="pr-3 text-left font-normal whitespace-nowrap text-muted">位置</th>
 					{#each rows as r (r.pos)}<td class="text-center text-[10.5px] text-muted tnum">{r.pos}</td>{/each}
 				</tr>
 				<tr>
-					<th class="pr-3 text-left font-normal text-c-src">lookup</th>
+					<th class="pr-3 text-left font-normal whitespace-nowrap text-c-src">lookup</th>
 					{#each rows as r (r.pos)}<td class="text-center tnum">{r.kernel ?? '–'}</td>{/each}
 				</tr>
 				<tr>
-					<th class="pr-3 text-left font-normal text-c-gen">source map</th>
+					<th class="pr-3 text-left font-normal whitespace-nowrap text-c-gen">source map</th>
 					{#each rows as r (r.pos)}
 						<td class={['text-center tnum', r.kernel !== r.consumer && 'bg-accent-wash text-accent']}>{r.consumer ?? '–'}</td>
 					{/each}
@@ -73,13 +86,18 @@
 				>{/each}
 		</p>
 		<p class="mt-2 font-mono text-[12px] tracking-normal text-muted">
-			source_map = {map}
+			{rows.length} 文字のうち食い違い <span class={differ > 0 ? 'text-accent' : 'text-fg'}>{differ}</span> · セグメント
+			{segments.length} 個
 		</p>
+		{#if !coarse}
+			<p class="mt-1 font-mono text-[12px] tracking-normal break-all text-muted">source_map = {map}</p>
+		{/if}
 	</div>
 	{#snippet caption()}
-		上の段は生成した文字列、橙の下線は写像の始まり、下の二段はその文字の元の位置です。<span class="c-src">lookup</span>
-		はコピーの内側を 1 対 1 に写し、<span class="c-gen">source map</span>（<code>source_map</code> が書いた JSON
-		を標準的な方法で読んだもの）はコピーの先頭に写します。食い違う箇所に色を付けています。値は移植した Emitter で計算し、source
-		map の文字列は Rust の出力と一致することをテストで確かめています。
+		上の段は生成した文字列、橙の下線はセグメントの位置、下の二段はその文字の元の位置です。<span class="c-src">lookup</span>
+		はコピーの内側を 1 対 1 に写します。<span class="c-gen">source map</span> は、書き出した JSON
+		を標準的な読み方（同じ行で、その列以前の最後のセグメント）で読んだ答えです。「Mapping ごと」は Mapping
+		一つにつき一セグメントしか書かなかった場合で、コピーの内側がコピーの先頭に写ります。値は移植した Emitter で計算し、今の実装の source
+		map の文字列が Rust の出力と一致することはテストで確かめています。
 	{/snippet}
 </Figure>

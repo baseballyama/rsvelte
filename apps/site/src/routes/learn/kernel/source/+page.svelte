@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Caution from '$lib/components/Caution.svelte';
 	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
 	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
 	import Code from '$lib/components/Code.svelte';
@@ -39,7 +38,8 @@
 	</p>
 	<p>
 		<code>Span::new</code> は <code>lo &lt;= hi</code> と上限を確かめますが、<code>debug_assert!</code> なので、release
-		ビルドでは何も確かめません<Note
+		ビルドでは何も確かめません。パーサは読んだテキストから Span を作るので、ここは一番よく通る道で、比較一回でも積み重なります。外から来た位置（tsc
+		のレポート）は、Span を作る前に解析の側で確かめています<Note
 			>範囲を外れた Span で <code>Span::text</code> を呼ぶと、release でもスライスの境界チェックで panic します。黙って壊れるわけではありませんが、壊れた値が作られた場所ではなく、使われた場所で止まります。</Note
 		>。
 	</p>
@@ -153,11 +153,18 @@
 
 <Code item={data.code.offset} />
 
-<Caution>
-	<code>offset</code> は、存在しない行には <code>None</code> を返しますが、列が行末を越えているときは黙って行末に丸めます。最後の行で越えたときは
-	<code>src.len()</code> を返します。図の下の段で、1 行目に大きな列を入れると確かめられます。呼び出し側は「その列が存在したか」を区別できません（<a
-		href="/learn/polish#correctness">13 磨きどころ</a
-	>）。
-</Caution>
+<div class="prose-learn">
+	<p>
+		列は行末（改行の直前）までを受け付け、それを越える列と、サロゲートペアの内側を指す列には <code>None</code>
+		を返します。近くの本当にある位置に丸めて返すと、呼び出し側は「その位置が存在したか」を区別できないからです。図の下の段で、1
+		行目に大きな列を入れると確かめられます。
+	</p>
+	<p>
+		丸めに頼っていた呼び出し側が一つだけありました。tsc のレポートの解析です。tsc は幅 0 の範囲にも <code>~</code>
+		を一つ描くので、行末で起きた診断の終端は行末の一つ先の列になります。解析の側がその一つの場合だけを、理由を書いて取り戻しています。
+	</p>
+</div>
+
+<Code item={data.code.reportEnd} mark={['(end_line, end_col) == (ln, col)']} />
 
 <ChapterFooter chapter={c} />

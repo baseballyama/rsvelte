@@ -198,8 +198,9 @@
 
 <Caution>
 	同じノードを木の二か所で共有していると、<code>trim</code> で片方を整えたつもりが、もう片方も変わります。ノードは
-	<code>Copy</code> な ID で配れるので、共有は簡単に起きます。「作ったら変えない」か「変えるなら複製する」のどちらかに揃えると、この種の事故はなくなります（<a
-		href="/learn/polish#correctness">13 磨きどころ</a
+	<code>Copy</code> な ID で配れるので、共有は簡単に起きます。それでも複製する形にしないのは、上流の prettier-plugin-svelte
+	も配列をその場で書き換えていて、共有された doc についての出力を上流と揃えるためです（<a href="/learn/polish#correctness"
+		>13 磨きどころ</a
 	>）。
 </Caution>
 

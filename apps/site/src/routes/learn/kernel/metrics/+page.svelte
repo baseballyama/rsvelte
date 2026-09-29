@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Caution from '$lib/components/Caution.svelte';
 	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
 	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
 	import Code from '$lib/components/Code.svelte';
@@ -67,11 +66,15 @@
 
 <PhaseTimeline avg={data.avg} rev={data.benchRev} />
 
-<Caution>
-	行を探すのは名前の線形探索で、ガードが落ちるたびに走ります。フェーズの種類は今は十数個なので問題になっていませんが、lint
-	ルールが増えると、ルールごとのフェーズで種類が増えます。さらに、ガードが落ちるたびにそのスレッドの表の <code>Mutex</code>
-	を取ります（競合はしませんが、ただではありません）。
-</Caution>
+<div class="prose-learn">
+	<p>
+		行を探すのは名前の線形探索で、ガードが落ちるたびにそのスレッドの表の <code>Mutex</code>
+		も取ります（競合はしません）。測ると、ガード一回の時間のおよそ半分は計時のための二回の時計読みで、探索とロックの分は metrics
+		ビルドの時間の 1% に届かない見積もりでした。フェーズの種類が増えれば効いてきますが、今は単純な形のままにしています（<a
+			href="/learn/polish#performance">13 磨きどころ</a
+		>）。
+	</p>
+</div>
 
 <div class="prose-learn">
 	<H2 id="merge" />

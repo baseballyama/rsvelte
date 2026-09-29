@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Caution from '$lib/components/Caution.svelte';
 	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
 	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
 	import Code from '$lib/components/Code.svelte';
@@ -88,12 +87,15 @@
 <Code item={data.code.runOptions} />
 <Code item={data.code.selected} />
 
-<Caution>
-	<code>selected</code> は、登録されていない ID を黙って無視します。ID を打ち間違えると、何も走らずに成功します。CLI
-	は自分で ID を確かめてから渡していますが、カーネルの API としては防げていません（<a href="/learn/polish#contracts"
-		>13 磨きどころ</a
-	>）。
-</Caution>
+<div class="prose-learn">
+	<p>
+		<code>selected</code> は ID で絞るだけなので、登録されていない ID はどのタスクにも一致しません。放っておくと、ID
+		を打ち間違えた実行が何も走らずに成功してしまいます。そこで <code>run_each</code> は、入口で <code>check_task_ids</code>
+		を呼び、知らない ID があれば何も走らせずに <code>Err(UnknownTask)</code> を返します。CLI も同じ関数で引数を確かめています。
+	</p>
+</div>
+
+<Code item={data.code.checkTaskIds} />
 
 <div class="prose-learn">
 	<H2 id="run-document" />
@@ -118,10 +120,8 @@
 
 <div class="prose-learn">
 	<p>
-		panic のペイロードが <code>String</code> でも <code>&amp;str</code> でもないときは、メッセージは空文字列になります。<code
-			>std::panic::panic_any</code
-		>
-		で任意の値を投げた場合がそうです。
+		panic のペイロードは <code>String</code> か <code>&amp;str</code> であることがほとんどですが、<code>std::panic::panic_any</code>
+		を使えば任意の値を投げられます。その場合も空文字列にはせず、「文字列でないペイロードで panic した」という決まった文を入れます。空のメッセージは、値がないことと空の値を区別できないからです。
 	</p>
 
 	<H2 id="run-each" />
@@ -157,27 +157,29 @@
 
 	<H2 id="project" />
 	<p>
-		並列パスが終わると、待たせていた文書を元の順に並べ直し、プロジェクトタスクごとに <code>finish_project</code> を一回呼びます。
+		並列パスが終わると、待たせていた文書を元の順に並べ直し、<code>finish_projects</code> がプロジェクトタスクごとに <code>finish</code> を一回呼びます。
 	</p>
 </div>
 
-<Code item={data.code.finishProject} />
+<Code item={data.code.finishProjects} mark={['by_task[k].push((d, o, part));']} />
 
 <div class="prose-learn">
 	<p>
 		少し込み入っているのは、借用の都合です。<code>finish</code> には、部品と、その部品の持ち主の
 		<code>TaskOutput</code> への可変参照を、同じ順で渡す必要があります。そこで、全文書の出力への参照を
 		<code>Option</code> の表（<code>by_doc</code>）にしてから、持ち主の分だけ <code>take</code>
-		で取り出しています。部品の仕分けは、プロジェクトタスクごとに全文書の <code>parts</code> を <code>partition</code>
-		し直しています。
+		で取り出しています。部品は最初に一度だけ走査して、プロジェクトタスクごとのリストに振り分けます。手間は部品の数に比例し、タスク数 × 文書数にはなりません。
 	</p>
 	<p>
 		<code>finish</code> が panic したときは、部品を出したすべての文書を panic 扱いにします。どの文書のせいかは分からないからです。
 	</p>
-	<p>カーネルのテストは、プロジェクトタスクが部品を出した文書をちょうど一回ずつ見ることを確かめています。</p>
+	<p>
+		カーネルのテストは、プロジェクトタスクが部品を出した文書をちょうど一回ずつ見ること、プロジェクトタスクが二つあってもそれぞれが自分の部品だけを受け取ることを確かめています。
+	</p>
 </div>
 
 <Code item={data.code.test} />
+<Code item={data.code.testTwo} />
 
 <div class="prose-learn">
 	<H2 id="run" />
@@ -191,8 +193,9 @@
 
 <div class="prose-learn">
 	<p>
-		スレッド数を指定すると、<code>in_pool</code> がその数のスレッドプールを作ります。指定しなければ rayon
-		の既定（コア数）です。1 スレッドのときの中央値は {data.serial.plain[0].toFixed(1)} ms で、既定の
+		スレッド数を指定すると、<code>in_pool</code> がその数のスレッドプールで走らせます。プールはプロセスのあいだ残すので、同じスレッド数の実行を繰り返しても、スレッドとそのスレッドのバッファプール（<a
+			href="/learn/kernel/pool">11</a
+		>）を使い回せます。指定しなければ rayon の既定（コア数）です。1 スレッドのときの中央値は {data.serial.plain[0].toFixed(1)} ms で、既定の
 		{data.shared.plain[0].toFixed(1)} ms の約 {(data.serial.plain[0] / data.shared.plain[0]).toFixed(1)} 倍でした。
 	</p>
 </div>

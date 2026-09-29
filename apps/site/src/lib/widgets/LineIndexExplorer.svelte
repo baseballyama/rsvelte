@@ -87,8 +87,9 @@
 		<label class="flex items-center gap-1">column <input class="field w-16 py-0.5" type="number" min="0" bind:value={qCol} /></label>
 		<span class="text-muted">)</span>
 		<span>= {off === null ? 'None' : `Some(${off})`}</span>
-		{#if off !== null && lineEnd !== null && off === lineEnd && qCol > idx.lineCol(lineEnd).column}
-			<span class="text-warn">列が行末を越えたので行末に丸めた</span>
+		{#if off === null && lineEnd !== null}
+			{@const endCol = idx.lineCol(lineEnd).column}
+			<span class="text-muted">{qCol > endCol ? `この行の列は ${endCol} まで` : '列がサロゲートペアの内側'}</span>
 		{/if}
 	</div>
 	{#snippet caption()}

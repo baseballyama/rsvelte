@@ -1,0 +1,118 @@
+{
+	"build": {
+		"rev": "253347601c40acbfa3ac4a3889d5318dfc66ab14",
+		"profile": "release",
+		"metrics": false
+	},
+	"threads": 10,
+	"population": {
+		"root": "fixtures/svelte",
+		"documents": 17488,
+		"unclaimed": 580,
+		"bytes": 32258838,
+		"output_bytes": 12547497,
+		"panicked": [],
+		"tasks": {
+			"svelte.compile/client": {
+				"ran": 17488,
+				"clean": 4643,
+				"diagnostics": 12845
+			},
+			"svelte.compile/server": {
+				"ran": 17488,
+				"clean": 4648,
+				"diagnostics": 12840
+			},
+			"svelte.format/default": {
+				"ran": 17488,
+				"clean": 4199,
+				"diagnostics": 13289
+			},
+			"svelte.lint/default": {
+				"ran": 17488,
+				"clean": 5410,
+				"diagnostics": 12078
+			}
+		}
+	},
+	"rounds": 5,
+	"arms": [
+		{
+			"name": "shared",
+			"wall_ms": [
+				70.564,
+				60.093,
+				63.273,
+				57.588,
+				68.178
+			],
+			"median_ms": 63.273,
+			"allocs": "UNMEASURED",
+			"alloc_bytes": "UNMEASURED",
+			"allocs_per_source_byte": "UNMEASURED",
+			"peak_live_growth_bytes": "UNMEASURED"
+		},
+		{
+			"name": "isolated",
+			"wall_ms": [
+				138.768,
+				143.480,
+				139.004,
+				133.783,
+				139.194
+			],
+			"median_ms": 139.004,
+			"allocs": "UNMEASURED",
+			"alloc_bytes": "UNMEASURED",
+			"allocs_per_source_byte": "UNMEASURED",
+			"peak_live_growth_bytes": "UNMEASURED"
+		},
+		{
+			"name": "nopool",
+			"wall_ms": [
+				71.518,
+				65.542,
+				66.244,
+				71.184,
+				70.619
+			],
+			"median_ms": 70.619,
+			"allocs": "UNMEASURED",
+			"alloc_bytes": "UNMEASURED",
+			"allocs_per_source_byte": "UNMEASURED",
+			"peak_live_growth_bytes": "UNMEASURED"
+		},
+		{
+			"name": "serial",
+			"wall_ms": [
+				442.959,
+				445.241,
+				453.740,
+				444.091,
+				443.823
+			],
+			"median_ms": 444.091,
+			"allocs": "UNMEASURED",
+			"alloc_bytes": "UNMEASURED",
+			"allocs_per_source_byte": "UNMEASURED",
+			"peak_live_growth_bytes": "UNMEASURED"
+		},
+		{
+			"name": "streaming",
+			"wall_ms": [
+				58.964,
+				78.211,
+				78.556,
+				63.615,
+				57.004
+			],
+			"median_ms": 63.615,
+			"allocs": "UNMEASURED",
+			"alloc_bytes": "UNMEASURED",
+			"allocs_per_source_byte": "UNMEASURED",
+			"peak_live_growth_bytes": "UNMEASURED"
+		}
+	],
+	"phases": "UNMEASURED",
+	"max_rss_bytes": 107184128
+}

@@ -13,6 +13,7 @@ export const load = () => ({
 		lineCol: 'kernel/source/LineCol',
 		indexNew: 'kernel/source/LineIndex::new',
 		utf16: 'kernel/source/LineIndex::utf16',
-		offset: 'kernel/source/LineIndex::offset'
+		offset: 'kernel/source/LineIndex::offset',
+		reportEnd: 'js/check/parse_report'
 	})
 });

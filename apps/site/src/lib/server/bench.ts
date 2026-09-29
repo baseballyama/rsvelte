@@ -1,3 +1,7 @@
+import before1 from '$lib/data/bench-polish/before-1.json';
+import before2 from '$lib/data/bench-polish/before-2.json';
+import after1 from '$lib/data/bench-polish/after-1.json';
+import after2 from '$lib/data/bench-polish/after-2.json';
 import metricsA from '$lib/data/bench/metrics-a.json';
 import metricsB from '$lib/data/bench/metrics-b.json';
 import plainA from '$lib/data/bench/plain-a.json';
@@ -67,4 +71,32 @@ export function documents(): number {
 	const counts = Object.entries(reports()).map(([k, r]) => num(r.population.documents, `${k}.population.documents`));
 	if (new Set(counts).size !== 1) throw new Error(`reports disagree on the population: ${counts.join(', ')}`);
 	return counts[0];
+}
+
+
+export interface PolishArm {
+	name: string;
+	before: number[];
+	after: number[];
+}
+
+/**
+ * Plain-build medians around the kernel fixes, run before → after → after → before. Both builds
+ * report the same `build.rev` (the "after" binary was built from that commit plus the uncommitted
+ * fixes), so the arms are told apart by file, not by that field.
+ */
+export function polishArms(): PolishArm[] {
+	const runs = { before1, before2, after1, after2 };
+	const docs = Object.entries(runs).map(([k, r]) => num(r.population.documents, `${k}.population.documents`));
+	if (new Set([...docs, documents()]).size !== 1) throw new Error(`populations differ: ${docs.join(', ')}`);
+	const median = (r: { arms: { name: string; median_ms?: unknown }[] }, name: string) => {
+		const a = r.arms.find((x) => x.name === name);
+		if (!a) throw new Error(`arm ${name} missing`);
+		return num(a.median_ms, `${name}.median_ms`);
+	};
+	return before1.arms.map(({ name }) => ({
+		name,
+		before: [median(before1, name), median(before2, name)],
+		after: [median(after1, name), median(after2, name)]
+	}));
 }

@@ -8,6 +8,7 @@ export const load = () => ({
 		severity: 'kernel/diag/Severity',
 		diagnostic: 'kernel/diag/Diagnostic',
 		unsupported: 'kernel/diag/Unsupported',
+		unsupportedImpl: 'kernel/diag/impl Unsupported',
 		format: 'svelte/tasks/Format::run',
 		rule: 'kernel/lint/Rule',
 		run: 'kernel/lint/run',

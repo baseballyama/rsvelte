@@ -50,25 +50,37 @@ export class Interner {
 
 	intern(s: string): InternResult {
 		let grew = false;
-		if ((this.ends.length + 1) * 2 > this.table.length) {
+		if (this.table.length === 0) {
 			this.grow();
 			grew = true;
 		}
+		let { hit, slot, probes } = this.probe(s);
+		if (hit !== null) return { atom: hit, fresh: false, grew, probes };
+		if ((this.ends.length + 1) * 2 > this.table.length) {
+			this.grow();
+			grew = true;
+			({ slot, probes } = this.probe(s));
+		}
+		const i = slot;
+		this.buf += s;
+		this.ends.push(this.buf.length);
+		const atom = this.ends.length - 1;
+		this.table[i] = atom + 1;
+		return { atom, fresh: true, grew, probes };
+	}
+
+	/** The atom for `s`, or the empty slot where it would go, with every slot visited. */
+	private probe(s: string): { hit: number | null; slot: number; probes: Probe[] } {
 		const mask = this.table.length - 1;
 		let i = fnv1a(s) & mask;
 		const probes: Probe[] = [];
 		for (;;) {
 			const id = this.table[i];
 			probes.push({ slot: i, stored: id });
-			if (id === 0) break;
-			if (this.get(id - 1) === s) return { atom: id - 1, fresh: false, grew, probes };
+			if (id === 0) return { hit: null, slot: i, probes };
+			if (this.get(id - 1) === s) return { hit: id - 1, slot: i, probes };
 			i = (i + 1) & mask;
 		}
-		this.buf += s;
-		this.ends.push(this.buf.length);
-		const atom = this.ends.length - 1;
-		this.table[i] = atom + 1;
-		return { atom, fresh: true, grew, probes };
 	}
 
 	private grow() {

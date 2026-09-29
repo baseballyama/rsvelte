@@ -147,14 +147,15 @@
 	</p>
 </div>
 
-<Code item={data.code.runDocument} mark={['let shared = Ctx::new', 'catch_unwind', 'own = isolated()']} />
+<Code item={data.code.runDocument} mark={['shared.get_or_init(|| Ctx::new', 'catch_unwind', 'own = isolated()']} />
 
 <div class="prose-learn">
 	<p>
 		<code>Sharing::Shared</code> ではすべてのタスクが同じ <code>shared</code> を使うので、パースは文書ごとに一回で済みます。<code
 			>Sharing::Isolated</code
 		>
-		はタスクごとに新しい <code>Ctx</code> を作ります。こちらは製品のためではなく、共有がどれだけ効くかを測るための比較用です。
+		はタスクごとに新しい <code>Ctx</code> を作ります。こちらは製品のためではなく、共有がどれだけ効くかを測るための比較用です。<code>shared</code>
+		は最初に求められたときに作るので、Isolated では作られません。
 	</p>
 
 	<DeepDive title="なぜ文書ごとに並列化するのか">
