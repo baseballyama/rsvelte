@@ -67,7 +67,9 @@ unsafe impl GlobalAlloc for CountingAlloc {
 pub struct GlobalStats {
     pub allocs: u64,
     pub bytes: u64,
-    /// The highest live heap reached above the level at [`track_global`]`(true)`.
+    /// The highest live heap reached above the level at [`track_global`]`(true)`. Growth, not
+    /// usage: memory held before tracking starts is not in it, and freeing some of it drives the
+    /// live count below zero, which reads as no growth.
     pub peak_live_growth: u64,
 }
 
@@ -95,6 +97,9 @@ pub fn thread_allocs() -> (u64, u64) {
     (ALLOCS.with(Cell::get), BYTES.with(Cell::get))
 }
 
+/// Times are wall-clock time on the thread that ran the phase, summed over threads: not CPU time
+/// (a thread waiting inside a phase is charged), and not elapsed time (ten threads count ten times).
+/// Read them as shares of the whole.
 #[derive(Clone, Debug, Default)]
 pub struct PhaseStats {
     pub name: &'static str,
