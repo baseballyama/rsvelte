@@ -11,7 +11,7 @@
 
 use rsv_kernel::source::Span;
 
-use crate::ast::{Ast, Kind, NodeId, TsKind, TsSyntax, flag};
+use crate::ast::{Ast, Kind, NodeId, TsFeature, TsKind, TsRuntime, TsSyntax, TypeRef, flag};
 use crate::lexer::{LexError, Lexer, T, Tok, decode_string};
 use crate::ops::{AssignOp, BinOp, LogicalOp, UnaryOp, UpdateOp};
 
@@ -38,6 +38,10 @@ pub struct Parser<'a, 'b> {
     lex: Lexer<'a>,
     tok: Tok,
     prev_end: u32,
+    /// The token before [`Parser::tok`].
+    prev: Tok,
+    /// Inside type syntax: identifiers the parser consumes are noted in [`Ast::type_refs`].
+    in_type: u32,
     ast: &'b mut Ast,
     ts: bool,
     end: u32,
@@ -99,6 +103,32 @@ pub fn parse_expression_prefix(
     Ok((e, next))
 }
 
+/// Identifiers in type syntax that are never a binding's name.
+const TYPE_KEYWORDS: &[&str] = &[
+    "any",
+    "asserts",
+    "bigint",
+    "boolean",
+    "extends",
+    "false",
+    "infer",
+    "is",
+    "keyof",
+    "never",
+    "null",
+    "number",
+    "object",
+    "readonly",
+    "string",
+    "symbol",
+    "this",
+    "true",
+    "undefined",
+    "unique",
+    "unknown",
+    "void",
+];
+
 const RESERVED: &[&str] = &[
     "break", "case", "catch", "class", "continue", "debugger", "default", "do", "else", "enum",
     "export", "extends", "finally", "for", "if", "import", "return", "super", "switch", "throw",
@@ -114,6 +144,12 @@ impl<'a, 'b> Parser<'a, 'b> {
             lex,
             tok,
             prev_end: range.lo,
+            prev: Tok {
+                t: T::Eof,
+                span: Span::new(range.lo, range.lo),
+                nl_before: false,
+            },
+            in_type: 0,
             ast,
             ts,
             end: range.hi,
@@ -137,7 +173,44 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.ast.tokens.push(t.t, t.span);
         self.prev_end = t.span.hi;
         self.tok = self.lex.next(&mut self.ast.comments)?;
+        if self.in_type > 0 && t.t == T::Ident && self.names_a_binding(t) {
+            let name = self.ast.atoms.intern(self.text(t));
+            self.ast.type_refs.push(TypeRef { name, span: t.span });
+        }
+        self.prev = t;
         Ok(t)
+    }
+
+    /// Whether identifier `t`, just consumed inside a type, can refer to a binding: not a keyword,
+    /// a qualified name's member (`N.A`), a declared name (`type A`), or a member key (`{ a: T }`,
+    /// `(a: T) => U`).
+    fn names_a_binding(&self, t: Tok) -> bool {
+        if TYPE_KEYWORDS.contains(&self.text(t)) {
+            return false;
+        }
+        let prev = self.prev;
+        match prev.t {
+            T::Dot => return false,
+            T::Ident
+                if matches!(
+                    self.text(prev),
+                    "type" | "interface" | "enum" | "namespace" | "module"
+                ) =>
+            {
+                return false;
+            }
+            _ => {}
+        }
+        let key_position = matches!(
+            prev.t,
+            T::LBrace | T::LParen | T::Comma | T::Semi | T::Ellipsis
+        ) || (prev.t == T::Ident && self.text(prev) == "readonly");
+        let before_colon = match self.tok.t {
+            T::Colon | T::LParen => true,
+            T::Question => self.peek().t == T::Colon,
+            _ => false,
+        };
+        !(key_position && before_colon)
     }
 
     #[inline]
@@ -470,7 +543,10 @@ impl<'a, 'b> Parser<'a, 'b> {
             };
             return Ok(self.ast.export_default(e, self.span_from(lo)));
         }
-        if self.ts && (self.is_kw("type") || self.is_kw("interface")) && self.peek().t == T::Ident {
+        if self.ts
+            && (self.is_kw("type") || self.is_kw("interface") || self.is_kw("enum"))
+            && self.peek().t == T::Ident
+        {
             let d = self.ts_declaration(self.tok.span.lo)?;
             return Ok(self.ast.export_named(d, self.span_from(lo)));
         }
@@ -489,32 +565,50 @@ impl<'a, 'b> Parser<'a, 'b> {
         Ok(self.ast.export_named(decl, self.span_from(lo)))
     }
 
-    /// `type X = …`, `interface X {…}`, `declare …`: skipped as one opaque statement.
+    /// `type X = …`, `interface X {…}`, `declare …`, `enum …`, `namespace …`: skipped as one
+    /// opaque statement. An enum, or a namespace holding values, also goes to [`Ast::ts_runtime`].
     fn ts_declaration(&mut self, lo: u32) -> R<NodeId> {
-        let is_interface = self.is_kw("interface");
+        let kw = self.text(self.tok);
+        if kw == "abstract" {
+            return self.fail("unsupported statement `abstract class`");
+        }
+        let is_interface = kw == "interface";
+        let is_namespace = matches!(kw, "namespace" | "module");
         self.bump()?;
+        let is_enum = kw == "enum" || (kw == "declare" && self.is_kw("enum"));
+        let mut body: Option<(u32, u32)> = None;
         if is_interface {
             if let Some(i) = self.ts_interface(lo)? {
                 return Ok(i);
             }
+            self.in_type += 1;
             while self.tok.t != T::LBrace {
                 if self.tok.t == T::Eof {
                     return self.fail("unterminated interface");
                 }
                 self.bump()?;
             }
+            self.in_type -= 1;
             self.skip_balanced()?;
         } else {
             let mut depth = 0i32;
+            self.in_type += 1;
             loop {
                 match self.tok.t {
                     T::Eof => break,
+                    T::LBrace if depth == 0 && body.is_none() => {
+                        body = Some((self.tok.span.hi, self.tok.span.hi));
+                        depth += 1;
+                    }
                     T::LParen | T::LBrace | T::LBracket => depth += 1,
                     T::RParen | T::RBrace | T::RBracket => {
                         if depth == 0 {
                             break;
                         }
                         depth -= 1;
+                        if let (0, Some((open, _))) = (depth, body) {
+                            body = Some((open, self.tok.span.lo));
+                        }
                         if depth == 0 && self.peek().nl_before && self.peek().t != T::Op {
                             self.bump()?;
                             break;
@@ -532,9 +626,47 @@ impl<'a, 'b> Parser<'a, 'b> {
                 }
                 self.bump()?;
             }
+            self.in_type -= 1;
             self.eat(T::Semi)?;
         }
-        Ok(self.ast.ts_decl(self.span_from(lo)))
+        let span = self.span_from(lo);
+        if is_enum {
+            self.ast.ts_runtime.push(TsRuntime {
+                feature: TsFeature::Enum,
+                span,
+            });
+        } else if let (true, Some((open, close))) = (is_namespace, body) {
+            self.namespace_runtime(Span::new(open, close), span)?;
+        }
+        Ok(self.ast.ts_decl(span))
+    }
+
+    /// Records the first construct in a namespace body that erasing types cannot remove: an enum
+    /// anywhere inside it, else the namespace itself when any statement is not a type declaration.
+    /// The body is parsed into a scratch tree, so none of its nodes join this one.
+    fn namespace_runtime(&mut self, body: Span, span: Span) -> R<()> {
+        let mut scratch = Ast::new();
+        let root = parse_program(&mut scratch, self.src, body, true)?;
+        if let Some(&inner) = scratch.ts_runtime.first() {
+            self.ast.ts_runtime.push(inner);
+            return Ok(());
+        }
+        let Kind::Program(stmts) = scratch.kind(root) else {
+            unreachable!("parse_program returns a program")
+        };
+        let type_only =
+            |n: NodeId| matches!(scratch.kind(n), Kind::TsDecl | Kind::TsInterface { .. });
+        let values = stmts.iter().any(|&s| match scratch.kind(s) {
+            Kind::ExportNamed(d) => !type_only(d),
+            _ => !type_only(s),
+        });
+        if values {
+            self.ast.ts_runtime.push(TsRuntime {
+                feature: TsFeature::NamespaceWithValues,
+                span,
+            });
+        }
+        Ok(())
     }
 
     /// `interface Name { key?: T; … }` with only property members, positioned after `interface`.
@@ -589,6 +721,7 @@ impl<'a, 'b> Parser<'a, 'b> {
     /// Skips to the `}` closing a body whose `{` is already consumed; the declaration is opaque.
     fn opaque_body_rest(&mut self, lo: u32) -> R<NodeId> {
         let mut depth = 1i32;
+        self.in_type += 1;
         loop {
             match self.tok.t {
                 T::LParen | T::LBrace | T::LBracket => depth += 1,
@@ -598,6 +731,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             }
             self.bump()?;
             if depth == 0 {
+                self.in_type -= 1;
                 return Ok(self.ast.ts_decl(self.span_from(lo)));
             }
         }
@@ -610,6 +744,7 @@ impl<'a, 'b> Parser<'a, 'b> {
 
     fn skip_balanced(&mut self) -> R<()> {
         let mut depth = 0i32;
+        self.in_type += 1;
         loop {
             match self.tok.t {
                 T::LParen | T::LBrace | T::LBracket => depth += 1,
@@ -619,6 +754,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             }
             self.bump()?;
             if depth == 0 {
+                self.in_type -= 1;
                 return Ok(());
             }
         }
@@ -667,8 +803,73 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
+    /// `<T>` between a callee and its arguments, recorded on the callee. `false`, consuming
+    /// nothing, when the `<` is a comparison.
+    fn maybe_type_args(&mut self, callee: NodeId) -> R<bool> {
+        if !(self.ts && self.is_op("<") && self.type_args_before_call()) {
+            return Ok(false);
+        }
+        let lo = self.tok.span.lo;
+        self.skip_type_params()?;
+        self.ts(callee, TsKind::TypeArgs, Span::new(lo, self.prev_end));
+        Ok(true)
+    }
+
+    /// Whether the `<` here opens a type argument list that a `(` follows. TypeScript reads
+    /// `f<T>(x)` as a call with type arguments where JavaScript reads two comparisons; outside
+    /// brackets, a token no type can contain means a comparison.
+    fn type_args_before_call(&self) -> bool {
+        let mut l = self.lex;
+        let mut scratch = Vec::new();
+        let (mut angle, mut nest) = (1i32, 0i32);
+        loop {
+            let Ok(t) = l.next(&mut scratch) else {
+                return false;
+            };
+            match t.t {
+                T::Eof => return false,
+                T::LParen | T::LBracket | T::LBrace => nest += 1,
+                T::RParen | T::RBracket | T::RBrace => {
+                    nest -= 1;
+                    if nest < 0 {
+                        return false;
+                    }
+                }
+                T::Op => {
+                    angle -= match self.text(t) {
+                        "<" => -1,
+                        ">" => 1,
+                        ">>" => 2,
+                        ">>>" => 3,
+                        "|" | "&" | "-" => 0,
+                        _ if nest > 0 => 0,
+                        _ => return false,
+                    };
+                    if angle < 0 || (angle == 0 && nest != 0) {
+                        return false;
+                    }
+                    if angle == 0 {
+                        return l.next(&mut scratch).is_ok_and(|n| n.t == T::LParen);
+                    }
+                }
+                T::Ident
+                | T::Str
+                | T::Num
+                | T::Dot
+                | T::Comma
+                | T::Question
+                | T::Colon
+                | T::Arrow
+                | T::Ellipsis => {}
+                _ if nest > 0 => {}
+                _ => return false,
+            }
+        }
+    }
+
     fn skip_type_params(&mut self) -> R<()> {
         let mut depth = 0i32;
+        self.in_type += 1;
         loop {
             if self.is_op("<") {
                 depth += 1;
@@ -676,11 +877,14 @@ impl<'a, 'b> Parser<'a, 'b> {
                 depth -= 1;
             } else if self.is_op(">>") {
                 depth -= 2;
+            } else if self.is_op(">>>") {
+                depth -= 3;
             } else if self.tok.t == T::Eof {
                 return self.fail("unterminated type parameters");
             }
             self.bump()?;
             if depth <= 0 {
+                self.in_type -= 1;
                 return Ok(());
             }
         }
@@ -691,6 +895,7 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn skip_type(&mut self, stop_at_arrow: bool) -> R<()> {
         let mut depth = 0i32;
         let start = self.tok.span.lo;
+        self.in_type += 1;
         loop {
             let t = self.tok;
             if depth == 0 {
@@ -708,6 +913,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                     _ => t.nl_before && t.span.lo != start && !self.continues_type(),
                 };
                 if stop {
+                    self.in_type -= 1;
                     return Ok(());
                 }
             }
@@ -994,6 +1200,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             self.bump()?;
             let callee = self.primary()?;
             let callee = self.member_suffixes(callee, lo, false)?;
+            self.maybe_type_args(callee)?;
             let args = if self.tok.t == T::LParen {
                 self.arguments()?
             } else {
@@ -1048,6 +1255,9 @@ impl<'a, 'b> Parser<'a, 'b> {
                 T::Op if self.ts && self.text(self.tok) == "!" && !self.tok.nl_before => {
                     let bang = self.bump()?;
                     self.ts(e, TsKind::NonNull, bang.span);
+                }
+                T::Op if calls && self.ts && self.is_op("<") && self.type_args_before_call() => {
+                    self.maybe_type_args(e)?;
                 }
                 _ => return Ok(e),
             }

@@ -1206,6 +1206,9 @@ impl<'a> Formatter<'a> {
         optional: bool,
         is_new: bool,
     ) -> R<DocId> {
+        if self.ts_of(callee, TsKind::TypeArgs).is_some() {
+            return Err(Unsupported::at("type arguments", self.ast.loc(id)));
+        }
         let new = if is_new {
             self.lit("new ")
         } else {

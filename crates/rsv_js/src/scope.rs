@@ -9,6 +9,7 @@
 use rsv_kernel::idx::{Idx, IndexVec};
 use rsv_kernel::intern::Atom;
 use rsv_kernel::newtype_index;
+use rsv_kernel::source::Span;
 use rustc_hash::FxHashMap;
 
 use crate::ast::{Ast, Kind, NodeId, flag};
@@ -102,6 +103,9 @@ pub struct Semantic {
     /// `by_binding[by_binding_start[b]..by_binding_start[b + 1]]`, in source order.
     by_binding: Vec<u32>,
     by_binding_start: Vec<u32>,
+    /// Per binding: named in type syntax ([`crate::ast::Ast::type_refs`]). typescript-eslint's
+    /// scope analysis counts such a name as a read; the compiler's read counts do not.
+    type_referenced: Vec<bool>,
 }
 
 impl Semantic {
@@ -112,6 +116,12 @@ impl Semantic {
             .copied()
             .filter(|&b| b != NO_BINDING)
             .map(|b| BindingId::new(b as usize))
+    }
+
+    /// Whether type syntax names `b` (`x: B`, `Map<K, B>`, `typeof b`).
+    #[must_use]
+    pub fn is_type_referenced(&self, b: BindingId) -> bool {
+        self.type_referenced[b.index()]
     }
 
     /// The top-level binding named `name`, if any.
@@ -208,6 +218,7 @@ pub fn analyze(ast: &Ast, program: NodeId, extra_roots: &[NodeId]) -> Semantic {
             names: FxHashMap::default(),
             by_binding: Vec::new(),
             by_binding_start: Vec::new(),
+            type_referenced: Vec::new(),
         },
         stack: vec![ScopeId::ROOT],
         current_decl: None,
@@ -221,6 +232,7 @@ pub fn analyze(ast: &Ast, program: NodeId, extra_roots: &[NodeId]) -> Semantic {
     for &r in extra_roots {
         a.resolve(r, Ctx::Expr);
     }
+    a.resolve_type_refs();
     a.s.index_references();
     a.s
 }
@@ -408,7 +420,11 @@ impl Analyzer<'_> {
     // ---- pass 2 --------------------------------------------------------------------------------
 
     fn lookup(&self, name: Atom) -> Option<BindingId> {
-        let mut s = Some(self.cur());
+        self.lookup_from(self.cur(), name)
+    }
+
+    fn lookup_from(&self, scope: ScopeId, name: Atom) -> Option<BindingId> {
+        let mut s = Some(scope);
         while let Some(scope) = s {
             if let Some(&b) = self.s.names.get(&(scope, name)) {
                 return Some(b);
@@ -416,6 +432,29 @@ impl Analyzer<'_> {
             s = self.s.scopes[scope].parent;
         }
         None
+    }
+
+    /// Looks each type-syntax identifier up from the innermost scope whose node contains it; one
+    /// outside every scope node (a template expression's cast) is looked up from the root.
+    fn resolve_type_refs(&mut self) {
+        let ranges: Vec<(ScopeId, Span)> = self
+            .s
+            .scopes
+            .iter_enumerated()
+            .filter_map(|(id, s)| self.ast.loc(s.node).span().map(|sp| (id, sp)))
+            .collect();
+        let mut used = vec![false; self.s.bindings.len()];
+        for r in &self.ast.type_refs {
+            let scope = ranges
+                .iter()
+                .filter(|(_, sp)| sp.lo <= r.span.lo && r.span.hi <= sp.hi)
+                .min_by_key(|(_, sp)| sp.hi - sp.lo)
+                .map_or(ScopeId::ROOT, |&(id, _)| id);
+            if let Some(b) = self.lookup_from(scope, r.name) {
+                used[b.index()] = true;
+            }
+        }
+        self.s.type_referenced = used;
     }
 
     fn reference(&mut self, ident: NodeId, read: bool, write: bool) {

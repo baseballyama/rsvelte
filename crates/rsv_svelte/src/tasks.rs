@@ -1,6 +1,7 @@
 //! The tasks this plugin offers. A task id is also the fixture path of its expected output
 //! (`svelte.compile/client` → `expected/svelte.compile/client.*`).
 
+use rsv_js::ast::{TsFeature, TsRuntime};
 use rsv_js::check::{CheckRequest, Tsc};
 use rsv_kernel::db::Ctx;
 use rsv_kernel::diag::Diagnostic;
@@ -55,6 +56,10 @@ impl Task for Compile {
                 return;
             }
         };
+        if let Some(t) = c.js.ts_runtime.first() {
+            out.diagnostics.push(typescript_invalid_feature(t));
+            return;
+        }
         let res = ctx
             .get::<Resolved>()
             .as_ref()
@@ -90,6 +95,27 @@ impl Task for Compile {
             out.file("css", css.clone());
         }
     }
+}
+
+/// Upstream `remove_typescript_nodes` erases types and refuses what has a runtime value.
+fn typescript_invalid_feature(t: &TsRuntime) -> Diagnostic {
+    let feature = match t.feature {
+        TsFeature::Enum => "enums",
+        TsFeature::NamespaceWithValues => "namespaces with non-type nodes",
+    };
+    Diagnostic::error(
+        "typescript_invalid_feature",
+        format!(
+            "TypeScript language features like {feature} are not natively supported, and their \
+             use is generally discouraged. Outside of `<script>` tags, these features are not \
+             supported. For use within `<script>` tags, you will need to use a preprocessor to \
+             convert it to JavaScript before it gets passed to the Svelte compiler. If you are \
+             using `vitePreprocess`, make sure to specifically enable preprocessing script tags \
+             (`vitePreprocess({{ script: true }})`)\n\
+             https://svelte.dev/e/typescript_invalid_feature"
+        ),
+        t.span,
+    )
 }
 
 /// prettier + prettier-plugin-svelte. A construct the port does not cover is reported, not

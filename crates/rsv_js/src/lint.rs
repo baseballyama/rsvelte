@@ -140,6 +140,9 @@ fn function_definitions(f: &JsFacts<'_>, b: BindingId) -> Option<NodeId> {
 }
 
 fn is_used(f: &JsFacts<'_>, b: BindingId) -> bool {
+    if f.sem.is_type_referenced(b) {
+        return true;
+    }
     let binding = &f.sem.bindings[b];
     let function = function_definitions(f, b);
     let mut rhs = None;

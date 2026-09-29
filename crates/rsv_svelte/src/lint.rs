@@ -154,6 +154,47 @@ mod tests {
         rsv_kernel::lint::render_json(src, &LineIndex::new(src), &rules, &findings)
     }
 
+    fn unused(src: &str) -> Vec<String> {
+        let got = lint(src);
+        got.lines()
+            .filter_map(|l| l.trim().strip_prefix("\"message\": \""))
+            .map(|m| m.trim_end_matches("\",").to_owned())
+            .collect()
+    }
+
+    // Expected values from the oracle (ESLint with svelte-eslint-parser and typescript-eslint's
+    // parser, `no-unused-vars` alone) on these inputs.
+    #[test]
+    fn a_name_used_only_in_types_is_used() {
+        let ts = |body: &str| format!("<script lang=\"ts\">\n{body}\n</script>\n");
+        assert!(
+            unused(&ts(
+                "import type { A } from \"./a\";\nlet x: A = 1;\nconsole.log(x);"
+            ))
+            .is_empty()
+        );
+        assert!(
+            unused(&ts("import { B } from \"./b\";\
+                 \nlet y = $state<Map<string, B>>(new Map());\nconsole.log(y);"))
+            .is_empty()
+        );
+        assert_eq!(
+            unused(&ts("import { C } from \"./c\";")),
+            ["'C' is defined but never used."]
+        );
+        assert_eq!(
+            unused(&ts("import { D } from \"./d\";\ntype P = { D: string };\
+                 \nlet p: P = { D: \"\" };\nconsole.log(p);")),
+            ["'D' is defined but never used."]
+        );
+        assert_eq!(
+            unused(&ts(
+                "import { F } from \"./f\";\nlet v: X.F;\nconsole.log(v);"
+            )),
+            ["'F' is defined but never used."]
+        );
+    }
+
     // Expected value from the oracle (tools/fixtures svelte.lint on this input).
     #[test]
     fn exported_declarations_are_not_unused() {

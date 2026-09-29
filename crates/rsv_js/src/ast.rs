@@ -266,6 +266,12 @@ pub struct Ast {
     /// source-preserving consumers (the formatter, the type-check projection) read it back by
     /// node.
     pub ts: Vec<TsSyntax>,
+    /// TypeScript constructs with runtime meaning, which erasing types cannot remove, in source
+    /// order. A compiler that only erases types refuses them; other consumers may ignore them.
+    pub ts_runtime: Vec<TsRuntime>,
+    /// Identifiers in type syntax that may name a binding (`A` in `x: A`, `Map<K, A>`, `typeof
+    /// a`), in source order. The tree has no nodes for types, so scope analysis reads them here.
+    pub type_refs: Vec<TypeRef>,
 }
 
 /// One piece of erased TypeScript syntax, attached to the node it belongs to.
@@ -293,6 +299,30 @@ pub enum TsKind {
     NonNull,
     /// `p?` on a parameter.
     Optional,
+    /// `<T>` after a callee (`f<T>(…)`, `new C<T>(…)`), on the callee.
+    TypeArgs,
+}
+
+/// An identifier in type syntax: a candidate reference whose binding scope analysis looks up.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TypeRef {
+    pub name: Atom,
+    pub span: Span,
+}
+
+/// A TypeScript construct that has a runtime value, so it is not type syntax to erase.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TsRuntime {
+    pub feature: TsFeature,
+    pub span: Span,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TsFeature {
+    /// `enum`, `declare enum`: an enum declares an object even under `declare`'s spelling.
+    Enum,
+    /// `namespace N { … }` whose body holds a statement other than type declarations.
+    NamespaceWithValues,
 }
 
 impl Default for Ast {
@@ -326,6 +356,8 @@ impl Ast {
             comments: pool::take(),
             tokens: Tokens::new(),
             ts: Vec::new(),
+            ts_runtime: Vec::new(),
+            type_refs: Vec::new(),
         }
     }
 
