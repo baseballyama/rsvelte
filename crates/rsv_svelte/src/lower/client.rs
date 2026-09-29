@@ -1025,7 +1025,7 @@ impl<'a> Cx<'a> {
             Kind::Arrow { .. } | Kind::Function { decl: false, .. } => built,
             Kind::Ident(_)
                 if self.an.binding(handler).is_none_or(|(b, _)| {
-                    self.an.sem.bindings[b as usize].kind != rsv_js::scope::DeclKind::Import
+                    self.an.sem.bindings[b].kind != rsv_js::scope::DeclKind::Import
                 }) =>
             {
                 built

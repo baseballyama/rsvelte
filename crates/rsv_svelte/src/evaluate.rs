@@ -370,10 +370,7 @@ impl<'a> Evaluator<'a> {
     }
 
     fn identifier(&mut self, tree: Tree<'a>, e: NodeId, values: &mut Vec<Val>) {
-        let Some((b, info)) = self
-            .resolve(tree, e)
-            .map(|b| (b, self.an.bindings[b as usize]))
-        else {
+        let Some((b, info)) = self.resolve(tree, e).map(|b| (b, self.an.bindings[b])) else {
             if self.ast(tree).name(e) == "undefined" {
                 add(values, Val::Undefined);
             } else {
@@ -381,7 +378,7 @@ impl<'a> Evaluator<'a> {
             }
             return;
         };
-        let s = &self.an.sem.bindings[b as usize];
+        let s = &self.an.sem.bindings[b];
         let is_prop = matches!(
             info.kind,
             BindKind::Prop | BindKind::BindableProp | BindKind::RestProp

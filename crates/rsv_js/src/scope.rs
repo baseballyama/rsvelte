@@ -8,12 +8,24 @@
 
 use crate::ast::{Ast, Kind, NodeId, flag};
 use crate::ops::AssignOp;
+use rsv_kernel::idx::{Idx, IndexVec};
 use rsv_kernel::intern::Atom;
+use rsv_kernel::newtype_index;
 use rustc_hash::FxHashMap;
 
-pub type BindingId = u32;
-pub type ScopeId = u32;
-pub const NONE: u32 = u32::MAX;
+newtype_index!(
+    pub struct BindingId;
+);
+newtype_index!(
+    pub struct ScopeId;
+);
+
+impl ScopeId {
+    /// The program's scope; also where imports and a component's template names live.
+    pub const ROOT: ScopeId = ScopeId(0);
+}
+
+const NO_BINDING: u32 = u32::MAX;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum DeclKind {
@@ -53,7 +65,8 @@ impl Binding {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Scope {
-    pub parent: ScopeId,
+    /// `None` for [`ScopeId::ROOT`].
+    pub parent: Option<ScopeId>,
     pub function: bool,
     /// The node that opens the scope (program, function, arrow or block).
     pub node: NodeId,
@@ -62,8 +75,8 @@ pub struct Scope {
 #[derive(Clone, Copy, Debug)]
 pub struct Reference {
     pub node: NodeId,
-    /// `NONE` for a global / unresolved name.
-    pub binding: BindingId,
+    /// `None` for a global / unresolved name.
+    pub binding: Option<BindingId>,
     pub read: bool,
     pub write: bool,
     /// The write a declarator's initialiser or a default value makes (`let x = 1`, `(x = 1) => …`).
@@ -74,11 +87,12 @@ pub struct Reference {
 }
 
 pub struct Semantic {
-    pub scopes: Vec<Scope>,
-    pub bindings: Vec<Binding>,
+    pub scopes: IndexVec<ScopeId, Scope>,
+    pub bindings: IndexVec<BindingId, Binding>,
     pub references: Vec<Reference>,
-    /// Per node: the binding an identifier declares or refers to (`NONE` otherwise).
-    pub node_binding: Vec<u32>,
+    /// Per node: the binding an identifier declares or refers to (`NO_BINDING` otherwise). Raw
+    /// `u32`s rather than `Option<BindingId>` because it has one slot per node of the whole tree.
+    node_binding: Vec<u32>,
     node_scope: FxHashMap<NodeId, ScopeId>,
     names: FxHashMap<(ScopeId, Atom), BindingId>,
     /// Indices into `references`, grouped by binding: binding `b` owns
@@ -92,18 +106,19 @@ impl Semantic {
         self.node_binding
             .get(ident.idx())
             .copied()
-            .filter(|&b| b != NONE)
+            .filter(|&b| b != NO_BINDING)
+            .map(|b| BindingId::new(b as usize))
     }
 
     /// The top-level binding named `name`, if any.
     pub fn root_binding(&self, name: Atom) -> Option<BindingId> {
-        self.names.get(&(0, name)).copied()
+        self.names.get(&(ScopeId::ROOT, name)).copied()
     }
 
     pub fn references_to(&self, b: BindingId) -> impl Iterator<Item = &Reference> {
         let (lo, hi) = (
-            self.by_binding_start[b as usize] as usize,
-            self.by_binding_start[b as usize + 1] as usize,
+            self.by_binding_start[b.index()] as usize,
+            self.by_binding_start[b.index() + 1] as usize,
         );
         self.by_binding[lo..hi]
             .iter()
@@ -112,8 +127,10 @@ impl Semantic {
 
     /// The nearest enclosing function scope (ESLint's `variableScope`); the program counts as one.
     pub fn variable_scope(&self, mut s: ScopeId) -> ScopeId {
-        while !self.scopes[s as usize].function {
-            s = self.scopes[s as usize].parent;
+        while !self.scopes[s].function {
+            s = self.scopes[s]
+                .parent
+                .expect("the root scope is a function scope");
         }
         s
     }
@@ -121,8 +138,8 @@ impl Semantic {
     fn index_references(&mut self) {
         let mut start = vec![0u32; self.bindings.len() + 1];
         for r in &self.references {
-            if r.binding != NONE {
-                start[r.binding as usize + 1] += 1;
+            if let Some(b) = r.binding {
+                start[b.index() + 1] += 1;
             }
         }
         for i in 1..start.len() {
@@ -131,9 +148,9 @@ impl Semantic {
         let mut fill = start.clone();
         let mut by_binding = vec![0u32; start[self.bindings.len()] as usize];
         for (i, r) in self.references.iter().enumerate() {
-            if r.binding != NONE {
-                by_binding[fill[r.binding as usize] as usize] = i as u32;
-                fill[r.binding as usize] += 1;
+            if let Some(b) = r.binding {
+                by_binding[fill[b.index()] as usize] = i as u32;
+                fill[b.index()] += 1;
             }
         }
         self.by_binding = by_binding;
@@ -167,23 +184,23 @@ pub fn analyze(ast: &Ast, program: NodeId, extra_roots: &[NodeId]) -> Semantic {
     let mut a = Analyzer {
         ast,
         s: Semantic {
-            scopes: vec![Scope {
-                parent: NONE,
+            scopes: IndexVec::from(vec![Scope {
+                parent: None,
                 function: true,
                 node: program,
-            }],
-            bindings: Vec::new(),
+            }]),
+            bindings: IndexVec::new(),
             references: Vec::new(),
-            node_binding: vec![NONE; ast.len()],
+            node_binding: vec![NO_BINDING; ast.len()],
             node_scope: FxHashMap::default(),
             names: FxHashMap::default(),
             by_binding: Vec::new(),
             by_binding_start: Vec::new(),
         },
-        stack: vec![0],
+        stack: vec![ScopeId::ROOT],
         current_decl: None,
     };
-    a.s.node_scope.insert(program, 0);
+    a.s.node_scope.insert(program, ScopeId::ROOT);
     a.declare_children(program);
     for &r in extra_roots {
         a.declare(r);
@@ -206,9 +223,8 @@ impl Analyzer<'_> {
     }
 
     fn push_scope(&mut self, node: NodeId, function: bool) -> ScopeId {
-        let id = self.s.scopes.len() as ScopeId;
-        self.s.scopes.push(Scope {
-            parent: self.cur(),
+        let id = self.s.scopes.push(Scope {
+            parent: Some(self.cur()),
             function,
             node,
         });
@@ -231,10 +247,9 @@ impl Analyzer<'_> {
                 reads: 0,
                 writes: 0,
                 mutations: 0,
-            });
-            self.s.bindings.len() as BindingId - 1
+            })
         });
-        self.s.node_binding[ident.idx()] = id;
+        self.s.node_binding[ident.idx()] = id.index() as u32;
     }
 
     // ---- pass 1 --------------------------------------------------------------------------------
@@ -318,7 +333,7 @@ impl Analyzer<'_> {
                         Kind::ImportNamed { local, .. } => local,
                         _ => continue,
                     };
-                    self.add_binding(local, DeclKind::Import, 0);
+                    self.add_binding(local, DeclKind::Import, ScopeId::ROOT);
                 }
                 self.current_decl = None;
             }
@@ -377,15 +392,15 @@ impl Analyzer<'_> {
 
     // ---- pass 2 --------------------------------------------------------------------------------
 
-    fn lookup(&self, name: Atom) -> BindingId {
-        let mut s = self.cur();
-        while s != NONE {
-            if let Some(&b) = self.s.names.get(&(s, name)) {
-                return b;
+    fn lookup(&self, name: Atom) -> Option<BindingId> {
+        let mut s = Some(self.cur());
+        while let Some(scope) = s {
+            if let Some(&b) = self.s.names.get(&(scope, name)) {
+                return Some(b);
             }
-            s = self.s.scopes[s as usize].parent;
+            s = self.s.scopes[scope].parent;
         }
-        NONE
+        None
     }
 
     fn reference(&mut self, ident: NodeId, read: bool, write: bool) {
@@ -393,9 +408,9 @@ impl Analyzer<'_> {
             return;
         };
         let b = self.lookup(name);
-        if b != NONE {
-            self.s.node_binding[ident.idx()] = b;
-            let binding = &mut self.s.bindings[b as usize];
+        if let Some(b) = b {
+            self.s.node_binding[ident.idx()] = b.index() as u32;
+            let binding = &mut self.s.bindings[b];
             binding.reads += read as u32;
             binding.writes += write as u32;
         }
@@ -411,7 +426,7 @@ impl Analyzer<'_> {
     }
 
     fn init_reference(&mut self, ident: NodeId) {
-        let b = self.s.node_binding[ident.idx()];
+        let b = self.s.binding_of(ident);
         let scope = self.cur();
         self.s.references.push(Reference {
             node: ident,
@@ -553,7 +568,7 @@ impl Analyzer<'_> {
                         root = object;
                     }
                     if let Some(b) = self.s.binding_of(root) {
-                        self.s.bindings[b as usize].mutations += 1;
+                        self.s.bindings[b].mutations += 1;
                     }
                 }
             }

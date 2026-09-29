@@ -26,7 +26,7 @@ fn template_expressions_resolve_against_the_instance_scope() {
     let count = sem
         .root_binding(ast.atoms.lookup("count").unwrap())
         .expect("count is bound");
-    let b = &sem.bindings[count as usize];
+    let b = &sem.bindings[count];
     assert!(matches!(b.kind, DeclKind::Let));
     assert_eq!(
         (b.reads, b.writes),
@@ -58,13 +58,13 @@ fn shadowing_and_destructuring() {
         .map(|b| ast.atoms.get(b.name).to_string())
         .collect();
     assert_eq!(names, ["a", "c", "f", "a"]);
-    let outer_a = &sem.bindings[0];
+    let outer_a = &sem.bindings.raw()[0];
     assert_eq!(
         outer_a.reads,
         1,
         "only the default `c = a` reads the outer `a`: {:?}",
         sem.bindings.iter().map(|b| b.reads).collect::<Vec<_>>()
     );
-    assert_eq!(sem.bindings[3].reads, 1);
-    assert_eq!(sem.bindings[1].reads, 1);
+    assert_eq!(sem.bindings.raw()[3].reads, 1);
+    assert_eq!(sem.bindings.raw()[1].reads, 1);
 }

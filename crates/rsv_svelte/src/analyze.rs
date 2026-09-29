@@ -6,6 +6,7 @@ use crate::ast::{AttrValue, Component, Part, TId, TNode, decode_text};
 use rsv_css::matcher::{self, Element, Match};
 use rsv_js::scope::{self, BindingId, DeclKind, Semantic};
 use rsv_js::{Ast, Kind, NodeId};
+use rsv_kernel::idx::IndexVec;
 use rustc_hash::FxHashMap;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -42,8 +43,7 @@ pub struct ExprMeta {
 
 pub struct Analysis {
     pub sem: Semantic,
-    /// Indexed by [`BindingId`].
-    pub bindings: Vec<BindInfo>,
+    pub bindings: IndexVec<BindingId, BindInfo>,
     /// Keyed by the expression root of every template expression.
     pub exprs: FxHashMap<NodeId, ExprMeta>,
     pub name: String,
@@ -63,7 +63,7 @@ pub struct Analysis {
 impl Analysis {
     pub fn binding(&self, ident: NodeId) -> Option<(BindingId, &BindInfo)> {
         let b = self.sem.binding_of(ident)?;
-        Some((b, &self.bindings[b as usize]))
+        Some((b, &self.bindings[b]))
     }
 
     pub fn meta(&self, expr: NodeId) -> ExprMeta {
@@ -75,15 +75,14 @@ impl Analysis {
 
     /// Upstream `is_state_source`: in runes mode a `$state` needs a signal only if it is reassigned.
     pub fn is_state_source(&self, b: BindingId) -> bool {
-        let info = &self.bindings[b as usize];
-        matches!(info.kind, BindKind::State | BindKind::RawState)
-            && self.sem.bindings[b as usize].writes > 0
+        let info = &self.bindings[b];
+        matches!(info.kind, BindKind::State | BindKind::RawState) && self.sem.bindings[b].writes > 0
     }
 
     /// Upstream `is_prop_source`, runes mode.
     pub fn is_prop_source(&self, b: BindingId) -> bool {
-        let info = &self.bindings[b as usize];
-        let s = &self.sem.bindings[b as usize];
+        let info = &self.bindings[b];
+        let s = &self.sem.bindings[b];
         matches!(info.kind, BindKind::Prop | BindKind::BindableProp)
             && (s.writes > 0 || info.initial.is_some() || s.mutations > 0)
     }
@@ -265,8 +264,8 @@ fn has_props_rune(ast: &Ast, program: NodeId) -> bool {
     })
 }
 
-fn classify(ast: &Ast, sem: &Semantic, program: NodeId) -> Vec<BindInfo> {
-    let mut out: Vec<BindInfo> = sem
+fn classify(ast: &Ast, sem: &Semantic, program: NodeId) -> IndexVec<BindingId, BindInfo> {
+    let mut out: IndexVec<BindingId, BindInfo> = sem
         .bindings
         .iter()
         .map(|b| BindInfo {
@@ -309,9 +308,9 @@ fn classify(ast: &Ast, sem: &Semantic, program: NodeId) -> Vec<BindInfo> {
                         _ => BindKind::DerivedBy,
                     };
                     if let Some(b) = sem.binding_of(id) {
-                        out[b as usize].kind = kind;
-                        out[b as usize].initial = arg;
-                        out[b as usize].is_function = false;
+                        out[b].kind = kind;
+                        out[b].initial = arg;
+                        out[b].is_function = false;
                     }
                 }
                 "$props" => classify_props(ast, sem, id, &mut out),
@@ -322,11 +321,16 @@ fn classify(ast: &Ast, sem: &Semantic, program: NodeId) -> Vec<BindInfo> {
     out
 }
 
-fn classify_props(ast: &Ast, sem: &Semantic, pattern: NodeId, out: &mut [BindInfo]) {
+fn classify_props(
+    ast: &Ast,
+    sem: &Semantic,
+    pattern: NodeId,
+    out: &mut IndexVec<BindingId, BindInfo>,
+) {
     match ast.kind(pattern) {
         Kind::Ident(_) => {
             if let Some(b) = sem.binding_of(pattern) {
-                out[b as usize].kind = BindKind::RestProp;
+                out[b].kind = BindKind::RestProp;
             }
         }
         Kind::ObjectPat(props) => {
@@ -341,7 +345,7 @@ fn classify_props(ast: &Ast, sem: &Semantic, pattern: NodeId, out: &mut [BindInf
                             .and_then(|d| rune_call(ast, d))
                             .is_some_and(|(r, _)| r == "$bindable");
                         if let Some(b) = sem.binding_of(local) {
-                            let info = &mut out[b as usize];
+                            let info = &mut out[b];
                             info.kind = if bindable {
                                 BindKind::BindableProp
                             } else {
@@ -358,7 +362,7 @@ fn classify_props(ast: &Ast, sem: &Semantic, pattern: NodeId, out: &mut [BindInf
                     }
                     Kind::Rest(arg) => {
                         if let Some(b) = sem.binding_of(arg) {
-                            out[b as usize].kind = BindKind::RestProp;
+                            out[b].kind = BindKind::RestProp;
                         }
                     }
                     _ => {}
@@ -418,7 +422,7 @@ impl MetaWalker<'_> {
                 let declares = self
                     .an
                     .binding(id)
-                    .is_some_and(|(b, _)| self.an.sem.bindings[b as usize].node == id);
+                    .is_some_and(|(b, _)| self.an.sem.bindings[b].node == id);
                 self.meta.has_reference |= !declares;
                 if let Some((_, info)) = self.an.binding(id)
                     && !declares
@@ -522,7 +526,7 @@ impl MetaWalker<'_> {
         let Some((b, info)) = self.an.binding(root) else {
             return true;
         };
-        self.an.sem.bindings[b as usize].kind != DeclKind::Import
+        self.an.sem.bindings[b].kind != DeclKind::Import
             && !matches!(
                 info.kind,
                 BindKind::Prop | BindKind::BindableProp | BindKind::RestProp

@@ -17,7 +17,7 @@ impl ScriptRewrite<'_> {
     /// Upstream `build_getter` / the `read` transforms, by binding kind and target.
     fn read(&mut self, from: &Ast, to: &mut Ast, id: NodeId) -> Option<NodeId> {
         let (b, info) = self.an.binding(id)?;
-        if self.an.sem.bindings[b as usize].node == id {
+        if self.an.sem.bindings[b].node == id {
             return None;
         }
         let loc = from.loc(id);
@@ -188,7 +188,7 @@ pub fn should_proxy(ast: &Ast, an: &Analysis, e: NodeId) -> bool {
             let Some((b, _)) = an.binding(e) else {
                 return true;
             };
-            let s = &an.sem.bindings[b as usize];
+            let s = &an.sem.bindings[b];
             if s.writes > 0 {
                 return true;
             }
@@ -342,7 +342,7 @@ fn lower_client_props(
             Kind::Ident(_) => from.name(key).to_owned(),
             _ => from.str_value(key, "").to_owned(),
         };
-        let s = &rw.an.sem.bindings[b as usize];
+        let s = &rw.an.sem.bindings[b];
         let mut flags = 1 | 2; // PROPS_IS_IMMUTABLE | PROPS_IS_RUNES
         if info.kind == BindKind::BindableProp {
             flags |= 8;

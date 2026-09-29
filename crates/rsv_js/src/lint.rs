@@ -6,6 +6,7 @@ use crate::ast::{Ast, Kind, NodeId, TsKind};
 use crate::ops::AssignOp;
 use crate::scope::{BindingId, DeclKind, Reference, Semantic};
 use rsv_kernel::diag::Diagnostic;
+use rsv_kernel::idx::Idx;
 use rsv_kernel::source::Span;
 
 pub struct JsFacts<'a> {
@@ -46,8 +47,7 @@ impl JsFacts<'_> {
 /// The parser has no loop, class or catch syntax yet, so `isInLoop`, `isForInOfRef` and the
 /// class/catch skips have nothing to decide and are absent; they arrive with that syntax.
 pub fn no_unused_vars(f: &JsFacts, rule: &'static str, out: &mut Vec<Diagnostic>) {
-    for (b, binding) in f.sem.bindings.iter().enumerate() {
-        let b = b as BindingId;
+    for (b, binding) in f.sem.bindings.iter_enumerated() {
         if binding.kind == DeclKind::Function
             && matches!(
                 f.parent(binding.node).map(|p| f.ast.kind(p)),
@@ -100,7 +100,7 @@ fn identifier_range(f: &JsFacts, ident: NodeId) -> Span {
 }
 
 fn is_exported(f: &JsFacts, b: BindingId) -> bool {
-    let binding = &f.sem.bindings[b as usize];
+    let binding = &f.sem.bindings[b];
     let owner = match binding.kind {
         DeclKind::Param => return false,
         DeclKind::Function => f.parent(binding.node),
@@ -116,16 +116,17 @@ fn is_exported(f: &JsFacts, b: BindingId) -> bool {
 }
 
 fn is_after_last_used_arg(f: &JsFacts, b: BindingId) -> bool {
-    let scope = f.sem.bindings[b as usize].scope;
-    !f.sem.bindings[b as usize + 1..]
-        .iter()
-        .enumerate()
+    let scope = f.sem.bindings[b].scope;
+    !f.sem
+        .bindings
+        .iter_enumerated()
+        .skip(b.index() + 1)
         .filter(|(_, v)| v.scope == scope && v.kind == DeclKind::Param)
-        .any(|(i, _)| f.sem.references_to(b + 1 + i as BindingId).next().is_some())
+        .any(|(later, _)| f.sem.references_to(later).next().is_some())
 }
 
 fn function_definitions(f: &JsFacts, b: BindingId) -> Option<NodeId> {
-    let binding = &f.sem.bindings[b as usize];
+    let binding = &f.sem.bindings[b];
     match binding.kind {
         DeclKind::Function => f.parent(binding.node),
         _ => binding
@@ -135,7 +136,7 @@ fn function_definitions(f: &JsFacts, b: BindingId) -> Option<NodeId> {
 }
 
 fn is_used(f: &JsFacts, b: BindingId) -> bool {
-    let binding = &f.sem.bindings[b as usize];
+    let binding = &f.sem.bindings[b];
     let function = function_definitions(f, b);
     let mut rhs = None;
     f.sem.references_to(b).any(|r| {
@@ -146,12 +147,12 @@ fn is_used(f: &JsFacts, b: BindingId) -> bool {
 }
 
 fn is_self_reference(f: &JsFacts, r: &Reference, func: NodeId) -> bool {
-    let mut s = r.scope;
-    while s != crate::scope::NONE {
-        if f.sem.scopes[s as usize].node == func {
+    let mut s = Some(r.scope);
+    while let Some(scope) = s {
+        if f.sem.scopes[scope].node == func {
             return true;
         }
-        s = f.sem.scopes[s as usize].parent;
+        s = f.sem.scopes[scope].parent;
     }
     false
 }
