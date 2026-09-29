@@ -21,9 +21,10 @@ pub fn run<C: ?Sized>(rules: &[&dyn Rule<C>], cx: &C) -> Vec<Diagnostic> {
         let _p = metrics::phase(rule.id());
         let before = out.len();
         rule.check(cx, &mut out);
-        debug_assert!(
+        assert!(
             out[before..].iter().all(|d| d.code == rule.id()),
-            "a rule reports under its own id"
+            "rule {} reported under another id",
+            rule.id()
         );
     }
     out.sort_by_key(|d| d.span.lo);
