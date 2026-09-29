@@ -13,6 +13,7 @@ pub mod metrics;
 pub mod pipeline;
 pub mod pool;
 pub mod source;
+pub mod token;
 
 pub use db::{Artifact, Ctx};
 pub use diag::{Diagnostic, Severity};
