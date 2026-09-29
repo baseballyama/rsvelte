@@ -118,11 +118,12 @@ fn run_arm(reg: &Registry, docs: &[Document], tasks: &[&str], arm: &Arm) -> Vec<
         sharing: arm.sharing,
         threads: arm.threads,
     };
+    // `main` has checked the task ids.
     if arm.stream {
-        pipeline::run_each(reg, docs, &opts, &|_, r| drop(r));
+        pipeline::run_each(reg, docs, &opts, &|_, r| drop(r)).expect("known task ids");
         return Vec::new();
     }
-    pipeline::run(reg, docs, &opts)
+    pipeline::run(reg, docs, &opts).expect("known task ids")
 }
 
 fn timed(reg: &Registry, docs: &[Document], tasks: &[&str], arm: &Arm) -> u64 {

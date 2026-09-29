@@ -70,13 +70,8 @@ fn main() -> ExitCode {
         },
     };
     let reg = registry(&config);
-    for t in &tasks {
-        if !reg.task_ids().contains(t) {
-            return usage(&format!(
-                "unknown task {t}; known: {}",
-                reg.task_ids().join(", ")
-            ));
-        }
+    if let Err(e) = reg.check_task_ids(&tasks) {
+        return usage(&e.to_string());
     }
     match positional.as_slice() {
         ["fixtures", dir] => fixtures(&reg, Path::new(dir), &tasks),
@@ -108,7 +103,10 @@ fn run_file(reg: &Registry, file: &Path, tasks: &[&str]) -> ExitCode {
         sharing: Sharing::Shared,
         threads: None,
     };
-    let result = rsv_kernel::pipeline::run(reg, std::slice::from_ref(&doc), &opts).remove(0);
+    let result = match rsv_kernel::pipeline::run(reg, std::slice::from_ref(&doc), &opts) {
+        Ok(mut r) => r.remove(0),
+        Err(e) => return usage(&e.to_string()),
+    };
     if let Some(p) = &result.panic {
         eprintln!("panic: {p}");
         return ExitCode::FAILURE;
@@ -201,7 +199,7 @@ fn fixtures(reg: &Registry, root: &Path, tasks: &[&str]) -> ExitCode {
     );
     let started = std::time::Instant::now();
     // Each unit's outputs are written as soon as they are final, so memory stays at the working set.
-    rsv_kernel::pipeline::run_each(reg, &docs, &opts, &|i, result| {
+    let ran = rsv_kernel::pipeline::run_each(reg, &docs, &opts, &|i, result| {
         let actual = dirs[i].join("actual");
         let _ = std::fs::remove_dir_all(&actual);
         if let Some(p) = &result.panic {
@@ -213,6 +211,9 @@ fn fixtures(reg: &Registry, root: &Path, tasks: &[&str]) -> ExitCode {
         files.fetch_add(write_outputs(&docs[i], &actual, &result, &mut f), Relaxed);
         failed.fetch_add(f, Relaxed);
     });
+    if let Err(e) = ran {
+        return usage(&e.to_string());
+    }
     let elapsed = started.elapsed();
     let panics = panics.into_inner();
     eprintln!(
