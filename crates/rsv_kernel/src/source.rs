@@ -109,17 +109,22 @@ impl LineIndex {
         }
     }
 
-    /// Byte offset of a 1-based line and 0-based UTF-16 column.
+    /// Byte offset of a 1-based line and 0-based UTF-16 column. The column may be the line's end;
+    /// `None` past it or inside a surrogate pair, so a position that does not exist is never
+    /// replaced by a nearby one that does.
     pub fn offset(&self, src: &str, line: u32, column: u32) -> Option<u32> {
         let start = *self.line_starts.get(line.checked_sub(1)? as usize)?;
         let mut units = 0;
         for (i, ch) in src[start as usize..].char_indices() {
-            if units >= column || ch == '\n' {
+            if units == column {
                 return Some(start + i as u32);
+            }
+            if units > column || ch == '\n' {
+                return None;
             }
             units += ch.len_utf16() as u32;
         }
-        Some(src.len() as u32)
+        (units == column).then_some(src.len() as u32)
     }
 
     pub fn line_count(&self) -> usize {
@@ -142,6 +147,19 @@ mod tests {
         let lc = idx.line_col(src, c);
         assert_eq!((lc.line, lc.column, lc.character), (2, 0, 5));
         assert_eq!(idx.offset(src, 1, 3), Some(b));
+    }
+
+    #[test]
+    fn offset_accepts_a_line_end_and_nothing_past_it() {
+        let src = "a😀\nbc";
+        let idx = LineIndex::new(src);
+        assert_eq!(idx.offset(src, 1, 3), Some(src.find('\n').unwrap() as u32));
+        assert_eq!(idx.offset(src, 1, 4), None);
+        assert_eq!(idx.offset(src, 1, 2), None, "inside the surrogate pair");
+        assert_eq!(idx.offset(src, 2, 2), Some(src.len() as u32));
+        assert_eq!(idx.offset(src, 2, 3), None);
+        assert_eq!(idx.offset(src, 3, 0), None);
+        assert_eq!(idx.offset(src, 0, 0), None);
     }
 }
 

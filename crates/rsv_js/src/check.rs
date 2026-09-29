@@ -256,10 +256,16 @@ fn parse_report(
         while i < lines.len() && (lines[i].is_empty() || lines[i].starts_with(' ')) {
             i += 1;
         }
-        let (Some(lo), Some(hi)) = (offset(file, ln, col - 1), offset(file, end_line, end_col))
-        else {
+        // tsc draws at least one `~`, so a span that is empty at a line's end underlines the
+        // column past it; only that column is taken back.
+        let hi = offset(file, end_line, end_col)
+            .or_else(|| offset(file, ln, col - 1).filter(|_| (end_line, end_col) == (ln, col)));
+        let (Some(lo), Some(hi)) = (offset(file, ln, col - 1), hi) else {
             return bad(line, "position outside the generated file");
         };
+        if hi < lo {
+            return bad(line, "underline ends before the diagnostic starts");
+        }
         out.push(TsDiagnostic {
             file,
             code,
@@ -332,6 +338,17 @@ Errors  Files
             REPORT.split("f1.ts:3:3").next().unwrap().to_string() + "Found 2 errors in 2 files.\n";
         let got = parse_report(&truncated, |f, l, c| index.offset(&files[f], l, c));
         assert!(got.unwrap_err().contains("reported 2 error(s), parsed 1"));
+    }
+
+    #[test]
+    fn an_empty_span_at_a_line_end_is_empty() {
+        // tsc 7.0.2 `--pretty true`, colours stripped: the underline sits one column past the line.
+        let report = "f0.ts:2:12 - error TS1109: Expression expected.\n\n2 let t = s +\n             ~\n\n\nFound 1 error in f0.ts:2\n\n";
+        let files = ["let s = 1;\nlet t = s +\n".to_string()];
+        let index = LineIndex::new(&files[0]);
+        let got = parse_report(report, |f, l, c| index.offset(&files[f], l, c)).unwrap();
+        let end = files[0].find(" +").unwrap() as u32 + 2;
+        assert_eq!(got[0].span, Span::new(end, end));
     }
 
     #[test]
