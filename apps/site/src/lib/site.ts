@@ -107,6 +107,7 @@ export const chapters: Chapter[] = [
 		sections: [
 			s('why', 'なぜ層を重ねるのか'),
 			s('ids', '型付き ID と side table'),
+			s('tokens', '欠損ゼロ — トークン表'),
 			s('stack', 'Svelte の層'),
 			s('resolve', '名前解決'),
 			s('hir', 'HIR'),

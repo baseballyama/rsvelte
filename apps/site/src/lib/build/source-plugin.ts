@@ -28,6 +28,7 @@ function sources(cratesDir: string): { key: string; file: string }[] {
 		.map((f) => ({ key: `kernel/${f.slice(0, -3)}`, file: `rsv_kernel/src/${f}` }));
 	const examples = [
 		'rsv_svelte/src/lib.rs',
+		'rsv_svelte/src/ast.rs',
 		'rsv_svelte/src/tasks.rs',
 		'rsv_svelte/src/lint.rs',
 		'rsv_svelte/src/resolve.rs',

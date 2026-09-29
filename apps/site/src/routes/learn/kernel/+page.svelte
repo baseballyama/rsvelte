@@ -117,7 +117,10 @@
 <div class="prose-learn">
 	<p>役割でまとめると、四つのグループに分かれます。</p>
 	<ul>
-		<li><strong>位置と名前</strong>: <code>source</code>、<code>intern</code>。どのモジュールもこれを使います。</li>
+		<li>
+			<strong>位置と名前</strong>: <code>source</code>、<code>intern</code>、<code>token</code>。どのモジュールもこれを使います。<code>token</code>
+			は、表層の層がソースを何も落としていないことを確かめます。
+		</li>
 		<li>
 			<strong>計算の骨格</strong>: <code>db</code>、<code>idx</code>、<code>pipeline</code>。何を一度だけ計算し、層ごとの事実をどこに置き、どの順に誰が走るか。
 		</li>
