@@ -9,6 +9,7 @@ rsv_kernel.workspace = true
 rsv_js.workspace = true
 rsv_css.workspace = true
 rustc-hash.workspace = true
+unicode-id-start.workspace = true
 
 [lints]
 workspace = true

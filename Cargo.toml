@@ -16,6 +16,7 @@ rsv_svelte = { path = "crates/rsv_svelte" }
 rayon = "1.12"
 rustc-hash = "2.1"
 libc = "0.2"
+unicode-id-start = "1.4"
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "deny"

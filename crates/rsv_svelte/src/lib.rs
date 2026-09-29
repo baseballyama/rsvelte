@@ -7,6 +7,7 @@
 //! |---|---|
 //! | [`Parsed`] | the surface tree ([`ast::Component`]) or the parse error |
 //! | [`Resolved`] | scopes, references resolved to bindings, rune kinds ([`resolve::Resolution`]) |
+//! | [`Normalized`] | the template as the compiler understands it ([`hir::Hir`]) |
 //! | [`Analyzed`] | what compilation derives: expression facts, dynamic fragments, CSS usage ([`analyze::Analysis`]) |
 //! | [`ScopedCss`] | the component's CSS with scoping applied |
 //! | [`TsProjection`] | the TypeScript view type checking reads ([`project::Projection`]) |
@@ -15,6 +16,7 @@ pub mod analyze;
 pub mod ast;
 pub mod evaluate;
 pub mod format;
+pub mod hir;
 pub mod lint;
 pub mod lower;
 pub mod parse;
@@ -59,6 +61,19 @@ impl Artifact for Resolved {
     fn compute(ctx: &Ctx) -> Self::Output {
         let c = ctx.get::<Parsed>().as_ref().ok()?;
         Some(resolve::resolve(&c.js, c.program, &c.template_exprs))
+    }
+}
+
+pub struct Normalized;
+
+impl Artifact for Normalized {
+    /// `None` when the document did not parse.
+    type Output = Option<hir::Hir>;
+    const NAME: &'static str = "svelte.hir";
+
+    fn compute(ctx: &Ctx) -> Self::Output {
+        let c = ctx.get::<Parsed>().as_ref().ok()?;
+        Some(hir::lower(c, ctx.src()))
     }
 }
 
@@ -133,6 +148,7 @@ pub fn register(reg: &mut Registry, config: &Config) {
     reg.language(Svelte)
         .artifact::<Parsed>()
         .artifact::<Resolved>()
+        .artifact::<Normalized>()
         .artifact::<Analyzed>()
         .artifact::<ScopedCss>()
         .artifact::<TsProjection>();
