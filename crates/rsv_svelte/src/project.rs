@@ -107,7 +107,7 @@ impl Projector<'_> {
             AttrValue::Parts(r) => self.c.parts(r),
         };
         self.e.push(" ");
-        if src.as_bytes()[a.span.lo as usize] == b'{' {
+        if a.shorthand {
             // `{name}` is a shorthand property: TypeScript reports an undeclared name on it.
             self.expression(a.span);
             self.e.push(",");

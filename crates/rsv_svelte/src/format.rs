@@ -676,7 +676,11 @@ impl<'a> Printer<'a, '_> {
 
     fn element(&mut self, id: TId) -> R<DocId> {
         let TNode::Element {
-            name, attrs, span, ..
+            name,
+            attrs,
+            span,
+            self_closing: did_self_close,
+            ..
         } = *self.c.node(id)
         else {
             unreachable!("an element")
@@ -695,7 +699,6 @@ impl<'a> Printer<'a, '_> {
         }
         let children = self.children(id);
         let is_empty = children.iter().all(|&c| self.is_empty_text(c));
-        let did_self_close = self.src.as_bytes()[span.hi as usize - 2] == b'/';
         let kind = Self::element_kind(name);
         let self_closing = is_empty && (did_self_close || SELF_CLOSING.contains(&name));
         let was_pre = self.in_pre;

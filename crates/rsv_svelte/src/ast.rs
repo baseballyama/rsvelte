@@ -5,6 +5,7 @@
 use rsv_css::StyleSheet;
 use rsv_js::{Ast, NodeId};
 use rsv_kernel::source::Span;
+use rsv_kernel::token::{TokenKind, Tokens};
 use std::borrow::Cow;
 
 pub type TId = u32;
@@ -41,6 +42,8 @@ pub enum TNode {
         children: Range,
         /// `<name …>` (or `<name … />`).
         start_tag: Span,
+        /// Written `<name … />`.
+        self_closing: bool,
         span: Span,
     },
     If {
@@ -72,6 +75,8 @@ pub struct Attr {
     pub span: Span,
     /// `a="…"` rather than `a={…}`; upstream keeps the two apart and a few rules differ.
     pub quoted: bool,
+    /// Written `{a}` rather than `a={a}`.
+    pub shorthand: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -124,6 +129,50 @@ pub struct Component {
     pub style: Option<Style>,
     /// Every template expression, in document order; roots for scope analysis.
     pub template_exprs: Vec<NodeId>,
+    /// The whole document as tokens: markup, the JavaScript parser's tokens and comments, and the
+    /// whitespace between them. The style sheet is one [`Tk::Css`] token.
+    pub tokens: Tokens<Tk>,
+}
+
+/// A token of a component. Punctuation is split the way the parser reads it: `{#if`, `{:else`
+/// and `{/if` are one [`Tk::BlockOpen`] each, the `}` that ends them a [`Tk::MustacheClose`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Tk {
+    Text,
+    HtmlComment,
+    /// `<`
+    TagOpen,
+    /// `</`
+    EndTagOpen,
+    TagName,
+    /// `>`
+    TagEnd,
+    /// `/>`
+    SelfClose,
+    AttrName,
+    /// `=`
+    Eq,
+    Quote,
+    /// The text chunks of an attribute value.
+    AttrText,
+    /// `{`
+    MustacheOpen,
+    /// `}`
+    MustacheClose,
+    BlockOpen,
+    /// `if` in `{:else if`.
+    BlockKeyword,
+    Js(rsv_js::lexer::T),
+    JsComment,
+    Whitespace,
+    /// A style sheet's content, until the CSS parser records its own tokens.
+    Css,
+}
+
+impl TokenKind for Tk {
+    fn is_trivia(self) -> bool {
+        matches!(self, Tk::Whitespace | Tk::JsComment)
+    }
 }
 
 impl Component {
@@ -164,6 +213,7 @@ impl Component {
             + self.kids.capacity() * 4
             + self.attrs.capacity() * size_of::<Attr>()
             + self.parts.capacity() * size_of::<Part>()
+            + self.tokens.heap_bytes()
     }
 }
 

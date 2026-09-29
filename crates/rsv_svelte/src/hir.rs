@@ -1,8 +1,7 @@
 //! The component's HIR: the template as the compiler understands it rather than as it was written.
 //!
-//! Built from the surface tree ([`crate::ast`]). Source text is read only for names and for the
-//! one fact the surface tree does not record, whether an attribute was written as a shorthand
-//! `{a}`. What changes on the way:
+//! Built from the surface tree ([`crate::ast`]); source text is read only for names. What changes
+//! on the way:
 //!
 //! - an `{#if}…{:else if}…{:else}` chain is one node with its branches, not nested `If`s;
 //! - every element knows its kind (regular, component, `<title>` in `<svelte:head>`, `<slot>`,
@@ -388,10 +387,8 @@ fn attr_value(c: &Component, src: &str, a: &ast::Attr) -> AttrValue {
         ast::AttrValue::True => return AttrValue::Boolean,
         ast::AttrValue::Parts(r) => c.parts(r),
     };
-    // The parser gives a shorthand `{a}` the braces' span and `a=…` the name's start.
-    let shorthand = src.as_bytes()[a.span.lo as usize] == b'{';
     match parts {
-        [ast::Part::Expr { expr, .. }] if shorthand => AttrValue::Shorthand(*expr),
+        [ast::Part::Expr { expr, .. }] if a.shorthand => AttrValue::Shorthand(*expr),
         [ast::Part::Expr { expr, .. }] => AttrValue::Expression {
             expr: *expr,
             quoted: a.quoted,
