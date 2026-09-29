@@ -54,7 +54,7 @@
 	<p>次の図は、rsvelte のコンパイラが実際に出力した JavaScript と、その写像です。トップページの図と同じものです。</p>
 </div>
 
-<SpanFigure data={data.counter} label="図 8.0 · Counter.svelte の出力（本物）" />
+<SpanFigure data={data.counter} label="図 9.0 · Counter.svelte の出力（本物）" />
 
 <div class="prose-learn">
 	<p>

@@ -14,7 +14,7 @@
 	const cur = $derived(steps[Math.min(step, steps.length - 1)]);
 </script>
 
-<Figure label="図 9.1 · JsonWriter の状態">
+<Figure label="図 10.1 · JsonWriter の状態">
 	{#snippet controls()}
 		<button type="button" class="btn-ghost" aria-pressed={!pretty} onclick={() => (pretty = false)}>compact</button>
 		<button type="button" class="btn-ghost" aria-pressed={pretty} onclick={() => (pretty = true)}>pretty</button>

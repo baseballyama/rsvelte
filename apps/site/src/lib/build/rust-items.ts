@@ -26,7 +26,7 @@ export interface RustModule {
 	items: RustItem[];
 }
 
-const KEYWORDS = /^(?:pub(?:\([^)]*\))?\s+)?(?:unsafe\s+|async\s+|const\s+(?=fn)|extern\s+"[^"]*"\s+)*(fn|struct|enum|trait|impl|mod|const|static|type|macro_rules!|thread_local!)\b/;
+const KEYWORDS = /^(?:pub(?:\([^)]*\))?\s+)?(?:unsafe\s+|async\s+|const\s+(?=fn)|extern\s+"[^"]*"\s+)*(fn|struct|enum|trait|impl|mod|const|static|type|macro_rules!|thread_local!)(?:(?<=!)|\b)/;
 
 /** Per byte: brace depth before that byte, or -1 inside a comment or literal. */
 function scan(src: string): Int32Array {

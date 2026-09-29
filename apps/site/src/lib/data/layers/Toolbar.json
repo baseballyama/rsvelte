@@ -1,0 +1,438 @@
+{
+	"src": "<script>\n\tlet { label = 'Save', kind, size } = $props();\n\tlet count = $state(0);\n\tconst double = $derived(count * 2);\n</script>\n\n<svelte:head><title>{label}</title></svelte:head>\n{#if count > 10}\n\t<p>many &amp; more</p>\n{:else if count > 0}\n\t<Counter {count} />\n{:else}\n\t<button onclick={() => count++}>{label}</button>\n{/if}\n<button type=\"submit\" class=\"btn {kind}\">{double}</button>\n",
+	"ast": [
+		{
+			"depth": 0,
+			"label": "Element <svelte:head>",
+			"span": [
+				129,
+				178
+			],
+			"id": 3
+		},
+		{
+			"depth": 1,
+			"label": "Element <title>",
+			"span": [
+				142,
+				164
+			],
+			"id": 2
+		},
+		{
+			"depth": 2,
+			"label": "Expr {label}",
+			"span": [
+				149,
+				156
+			],
+			"id": 1
+		},
+		{
+			"depth": 0,
+			"label": "If",
+			"span": [
+				179,
+				325
+			],
+			"id": 17
+		},
+		{
+			"depth": 1,
+			"label": "Element <p>",
+			"span": [
+				197,
+				219
+			],
+			"id": 7
+		},
+		{
+			"depth": 2,
+			"label": "Text \"many &amp; more\"",
+			"span": [
+				200,
+				215
+			],
+			"id": 6
+		},
+		{
+			"depth": 1,
+			"label": "alt",
+			"span": [
+				179,
+				325
+			],
+			"id": null
+		},
+		{
+			"depth": 2,
+			"label": "If (elseif)",
+			"span": [
+				227,
+				325
+			],
+			"id": 16
+		},
+		{
+			"depth": 3,
+			"label": "Element <Counter>",
+			"span": [
+				242,
+				261
+			],
+			"id": 10
+		},
+		{
+			"depth": 3,
+			"label": "alt",
+			"span": [
+				227,
+				325
+			],
+			"id": null
+		},
+		{
+			"depth": 4,
+			"label": "Element <button>",
+			"span": [
+				271,
+				319
+			],
+			"id": 14
+		},
+		{
+			"depth": 5,
+			"label": "Expr {label}",
+			"span": [
+				303,
+				310
+			],
+			"id": 13
+		},
+		{
+			"depth": 0,
+			"label": "Element <button>",
+			"span": [
+				326,
+				384
+			],
+			"id": 20
+		},
+		{
+			"depth": 1,
+			"label": "Expr {double}",
+			"span": [
+				367,
+				375
+			],
+			"id": 19
+		}
+	],
+	"hir": [
+		{
+			"depth": 0,
+			"label": "Meta(Head) <svelte:head>",
+			"span": [
+				129,
+				178
+			],
+			"id": 1,
+			"origin": 3,
+			"attrs": []
+		},
+		{
+			"depth": 1,
+			"label": "Title <title>",
+			"span": [
+				142,
+				164
+			],
+			"id": 2,
+			"origin": 2,
+			"attrs": []
+		},
+		{
+			"depth": 2,
+			"label": "Expr {label}",
+			"span": [
+				149,
+				156
+			],
+			"id": 3,
+			"origin": 1
+		},
+		{
+			"depth": 0,
+			"label": "If, 2 branches",
+			"span": [
+				179,
+				325
+			],
+			"id": 5,
+			"origin": 17
+		},
+		{
+			"depth": 1,
+			"label": "branch count > 10",
+			"span": [
+				179,
+				325
+			],
+			"id": null,
+			"origin": 17
+		},
+		{
+			"depth": 2,
+			"label": "Regular <p>",
+			"span": [
+				197,
+				219
+			],
+			"id": 7,
+			"origin": 7,
+			"attrs": []
+		},
+		{
+			"depth": 3,
+			"label": "Text \"many & more\"",
+			"span": [
+				200,
+				215
+			],
+			"id": 8,
+			"origin": 6
+		},
+		{
+			"depth": 1,
+			"label": "branch count > 0",
+			"span": [
+				227,
+				325
+			],
+			"id": null,
+			"origin": 16
+		},
+		{
+			"depth": 2,
+			"label": "Component <Counter>",
+			"span": [
+				242,
+				261
+			],
+			"id": 11,
+			"origin": 10,
+			"attrs": [
+				{
+					"name": "count",
+					"value": "Shorthand"
+				}
+			]
+		},
+		{
+			"depth": 1,
+			"label": "else",
+			"span": [
+				179,
+				325
+			],
+			"id": null,
+			"origin": null
+		},
+		{
+			"depth": 2,
+			"label": "Regular <button>",
+			"span": [
+				271,
+				319
+			],
+			"id": 14,
+			"origin": 14,
+			"attrs": [
+				{
+					"name": "onclick",
+					"value": "Expression"
+				}
+			]
+		},
+		{
+			"depth": 3,
+			"label": "Expr {label}",
+			"span": [
+				303,
+				310
+			],
+			"id": 15,
+			"origin": 13
+		},
+		{
+			"depth": 0,
+			"label": "Regular <button>",
+			"span": [
+				326,
+				384
+			],
+			"id": 18,
+			"origin": 20,
+			"attrs": [
+				{
+					"name": "type",
+					"value": "Static \"submit\""
+				},
+				{
+					"name": "class",
+					"value": "Interpolated, 2 parts"
+				}
+			]
+		},
+		{
+			"depth": 1,
+			"label": "Expr {double}",
+			"span": [
+				367,
+				375
+			],
+			"id": 19,
+			"origin": 19
+		}
+	],
+	"bindings": [
+		{
+			"id": 0,
+			"name": "label",
+			"decl": "Let",
+			"rune": "Prop",
+			"reads": 2,
+			"writes": 0,
+			"span": [
+				16,
+				21
+			]
+		},
+		{
+			"id": 1,
+			"name": "kind",
+			"decl": "Let",
+			"rune": "Prop",
+			"reads": 1,
+			"writes": 0,
+			"span": [
+				32,
+				36
+			]
+		},
+		{
+			"id": 2,
+			"name": "size",
+			"decl": "Let",
+			"rune": "Prop",
+			"reads": 0,
+			"writes": 0,
+			"span": [
+				38,
+				42
+			]
+		},
+		{
+			"id": 3,
+			"name": "count",
+			"decl": "Let",
+			"rune": "State",
+			"reads": 5,
+			"writes": 1,
+			"span": [
+				62,
+				67
+			]
+		},
+		{
+			"id": 4,
+			"name": "double",
+			"decl": "Const",
+			"rune": "Derived",
+			"reads": 1,
+			"writes": 0,
+			"span": [
+				88,
+				94
+			]
+		}
+	],
+	"refs": [
+		{
+			"span": [
+				150,
+				155
+			],
+			"binding": 0
+		},
+		{
+			"span": [
+				184,
+				189
+			],
+			"binding": 3
+		},
+		{
+			"span": [
+				230,
+				235
+			],
+			"binding": 3
+		},
+		{
+			"span": [
+				252,
+				257
+			],
+			"binding": 3
+		},
+		{
+			"span": [
+				294,
+				299
+			],
+			"binding": 3
+		},
+		{
+			"span": [
+				304,
+				309
+			],
+			"binding": 0
+		},
+		{
+			"span": [
+				360,
+				364
+			],
+			"binding": 1
+		},
+		{
+			"span": [
+				368,
+				374
+			],
+			"binding": 4
+		}
+	],
+	"lint": [
+		{
+			"rule": "no-unused-vars",
+			"layer": "early",
+			"message": "'size' is assigned a value but never used.",
+			"span": [
+				38,
+				42
+			]
+		},
+		{
+			"rule": "svelte/button-has-type",
+			"layer": "late",
+			"message": "Missing an explicit type attribute for button.",
+			"span": [
+				271,
+				303
+			]
+		}
+	]
+}

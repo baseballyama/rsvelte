@@ -15,6 +15,11 @@ describe('parseRustModule', () => {
 		expect(m.docs).toMatch(/^Producing text/);
 	});
 
+	it('finds macros, including exported ones', () => {
+		const m = parseRustModule('k/m', 'm.rs', '/// Makes an id.\n#[macro_export]\nmacro_rules! newtype {\n    () => {};\n}\n');
+		expect(m.items.map((i) => [i.name, i.kind, i.startLine])).toEqual([['newtype!', 'macro_rules!', 1]]);
+	});
+
 	it('is not confused by braces in literals, char literals and lifetimes', () => {
 		const src = [
 			"fn a<'x>(s: &'x str) -> char { let _ = \"{\"; let _ = '{'; let _ = r#\"}\"#; '}' }",

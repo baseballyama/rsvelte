@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Figure from '$lib/components/Figure.svelte';
-	import { computeCounts, simulate, TASKS, type ArtifactName, type TaskId } from '$lib/kernel/artifacts-sim';
+	import { ARTIFACTS, computeCounts, simulate, TASKS, type ArtifactName, type TaskId } from '$lib/kernel/artifacts-sim';
 
 	let selected: TaskId[] = $state([...TASKS]);
 	let sharing: 'shared' | 'isolated' = $state('shared');
@@ -9,12 +9,15 @@
 
 	const traces = $derived(simulate(selected, { parses, checkConfigured }, sharing));
 	const counts = $derived(computeCounts(traces));
-	const artifacts: ArtifactName[] = ['svelte.parse', 'svelte.analyze', 'svelte.css', 'svelte.project.ts'];
+	const artifacts = ARTIFACTS;
+	// The layer hues of figure 5.1: surface, resolution, HIR; the rest are neutral.
 	const hue: Record<ArtifactName, string> = {
 		'svelte.parse': 'var(--c-src)',
-		'svelte.analyze': 'var(--c-gen)',
-		'svelte.css': 'var(--c-idle)',
-		'svelte.project.ts': 'var(--c-map)'
+		'svelte.resolve': 'var(--c-map)',
+		'svelte.hir': 'var(--c-gen)',
+		'svelte.analyze': 'var(--c-idle)',
+		'svelte.css': 'var(--fg-2)',
+		'svelte.project.ts': 'var(--fg-2)'
 	};
 
 	function toggle(t: TaskId) {

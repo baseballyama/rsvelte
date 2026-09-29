@@ -48,7 +48,7 @@
 <div class="prose-learn">
 	<p>
 		時間を測るラウンドは、アームを ABBA の順（奇数ラウンドは逆順）に交互に走らせ、{data.rounds} ラウンドの中央値を取ります。割り当てとピークは、プロセス全体の追跡を入れた別のラウンドで取ります（<a
-			href="/learn/kernel/metrics#global">10</a
+			href="/learn/kernel/metrics#global">11</a
 		>）。ビルドは metrics なしとありの二種類を、それぞれ二回走らせました。
 	</p>
 
@@ -89,7 +89,7 @@
 		</li>
 		<li>
 			<strong>pool</strong>: nopool → shared で時間が {((1 - a('shared').plain[0] / a('nopool').plain[0]) * 100).toFixed(0)}% 減ります（<a
-				href="/learn/kernel/pool#measure">11</a
+				href="/learn/kernel/pool#measure">12</a
 			>）。
 		</li>
 		<li>
@@ -123,7 +123,7 @@
 	<p>
 		ピーク増分は、結果を全部持つアームではどれも約 {mb(a('shared').peak)} MB で、スレッド数にもよりません（serial でも {mb(a('serial').peak)}
 		MB）。支配しているのは処理中の作業ではなく、全結果の保持だということです。<code>run_each</code> で結果をすぐ捨てると {mb(a('streaming').peak)}
-		MB になります（<a href="/learn/kernel/pipeline#run-each">05</a>）。
+		MB になります（<a href="/learn/kernel/pipeline#run-each">06</a>）。
 	</p>
 
 	<H2 id="phases" />

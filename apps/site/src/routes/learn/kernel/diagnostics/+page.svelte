@@ -60,7 +60,7 @@
 <div class="prose-learn">
 	<p>
 		ベンチマークの「診断あり」の件数が多いのは、ほとんどがこの拒否です。{data.documents.toLocaleString('en-US')} 文書のうち、整形は {data.format.diagnostics.toLocaleString('en-US')} 文書で「未対応」などの診断を出しました<Note
-			>数字は 12 実測の章のタスク表から。「診断なし」は正しさを意味しません。正しさは上流の出力と比べて別に測っています。</Note
+			>数字は 13 実測の章のタスク表から。「診断なし」は正しさを意味しません。正しさは上流の出力と比べて別に測っています。</Note
 		>。
 	</p>
 
@@ -81,7 +81,9 @@
 
 <div class="prose-learn">
 	<p>
-		Svelte プラグインのコンテキスト <code>LintCx</code> は、構文木とソースと、JavaScript のスコープ解析の結果を持ちます。ルールは上流の設定と同じ順に並べます。
+		Svelte プラグインはコンテキストを二つ持ちます。<code>AstCx</code> は書かれたとおりの構文木と JavaScript
+		のスコープ解析を、<code>HirCx</code> は HIR と名前解決を持ちます。ルールは自分の問いに答える層を選び、上流の設定と同じ順に並べます（層については
+		<a href="/learn/kernel/layers#lint">05</a>）。
 	</p>
 </div>
 
@@ -96,7 +98,8 @@
 
 	<H2 id="order" />
 	<p>
-		<code>lint::run</code> は、ルールを順に走らせ、ルールごとに計測のフェーズを開き、最後に指摘を開始位置で並べます。
+		<code>Findings</code> は、層ごとのルールの組を順に走らせ、ルールごとに計測のフェーズを開き、最後に指摘を開始位置で並べます。層が一つなら
+		<code>lint::run</code> が同じことをします。
 	</p>
 </div>
 
@@ -115,7 +118,7 @@
 	<p>
 		<code>assert!</code> は、ルールが自分の ID 以外のコードで報告していないかを確かめます。release
 		ビルドでも確かめるので、契約を破ったルールはその場で panic し、<code>run_document</code> がその文書の panic として報告します（<a
-			href="/learn/kernel/pipeline#run-document">05</a
+			href="/learn/kernel/pipeline#run-document">06</a
 		>）。コストはルールが出した指摘の数だけの比較です。
 	</p>
 

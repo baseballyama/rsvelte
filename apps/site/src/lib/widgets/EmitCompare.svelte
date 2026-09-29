@@ -34,7 +34,7 @@
 	const segmentStarts = $derived(new Set(segments.map((s) => s.genCol)));
 </script>
 
-<Figure label="図 8.1 · lookup と source map の答え" wide>
+<Figure label="図 9.1 · lookup と source map の答え" wide>
 	{#snippet controls()}
 		<button type="button" class="btn-ghost" aria-pressed={!coarse} onclick={() => (coarse = false)}>文字ごと（今の実装）</button>
 		<button type="button" class="btn-ghost" aria-pressed={coarse} onclick={() => (coarse = true)}>Mapping ごと</button>

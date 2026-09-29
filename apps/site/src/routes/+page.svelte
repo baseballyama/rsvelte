@@ -154,7 +154,7 @@
 				ベンチマークの各アームは、同じ文書・同じタスクを、仕組みをひとつだけ変えて走らせます。アームの差が、その仕組みの効果です。
 				ストリーミングは時間をほとんど変えずに、生存ヒープのピーク増分を {mb(arm('shared').peak)} MB から {mb(arm('streaming').peak)} MB にします。
 			</p>
-			<a href="/learn/measure" class="link mt-4 inline-block text-[15px]">12 実測 →</a>
+			<a href="/learn/measure" class="link mt-4 inline-block text-[15px]">13 実測 →</a>
 		</div>
 		<div class="mt-8 min-w-0 lg:col-span-8 lg:mt-0">
 			<div class="overflow-x-auto">

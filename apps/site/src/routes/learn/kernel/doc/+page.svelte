@@ -64,7 +64,7 @@
 	</p>
 </div>
 
-<DocPrinter label="図 7.1 · 文書プリンタ" presets={[call, fill, groupIds, flatOnly, remeasure]} />
+<DocPrinter label="図 8.1 · 文書プリンタ" presets={[call, fill, groupIds, flatOnly, remeasure]} />
 
 <Code item={data.code.run} mark={['Node::Group {', 'if !brk && self.fits(&flat, &stack, self.rem(), false)', 'self.remeasure = true']} />
 
@@ -129,7 +129,7 @@
 
 <Code item={data.code.mustBeFlatTest} />
 
-<DocPrinter label="図 7.2 · mustBeFlat" presets={[mustBeFlat]} />
+<DocPrinter label="図 8.2 · mustBeFlat" presets={[mustBeFlat]} />
 
 <div class="prose-learn">
 	<H2 id="group-ids" />
@@ -161,7 +161,7 @@
 	<p>
 		整形器の移植は途中で、改行したときのレイアウトをまだ移植していない構文があります。そうした構文を flat_only
 		で包んでおくと、幅に収まる限りは正しく 1 行に印字し、収まらないときは印字そのものを拒否（<code>Refused</code>）します。収まらないときに「それらしく」改行すると、Prettier
-		が出さないレイアウトを出してしまうからです。<a href="/learn/kernel/diagnostics#unsupported">06</a> の「近似しない」をプリンタに持ち込んだものです。図 7.1 の「flat_only」で、幅を狭めてみてください。
+		が出さないレイアウトを出してしまうからです。<a href="/learn/kernel/diagnostics#unsupported">07</a> の「近似しない」をプリンタに持ち込んだものです。図 8.1 の「flat_only」で、幅を狭めてみてください。
 	</p>
 </div>
 
@@ -200,7 +200,7 @@
 	同じノードを木の二か所で共有していると、<code>trim</code> で片方を整えたつもりが、もう片方も変わります。ノードは
 	<code>Copy</code> な ID で配れるので、共有は簡単に起きます。それでも複製する形にしないのは、上流の prettier-plugin-svelte
 	も配列をその場で書き換えていて、共有された doc についての出力を上流と揃えるためです（<a href="/learn/polish#correctness"
-		>13 磨きどころ</a
+		>14 磨きどころ</a
 	>）。
 </Caution>
 

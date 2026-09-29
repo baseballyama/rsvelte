@@ -10,12 +10,30 @@ describe('artifact model', () => {
 
 	it('records Ctx::computed in the order the kernel pushes (before compute runs)', () => {
 		const [client] = simulate(['svelte.compile/client'], { parses: true, checkConfigured: false }, 'shared');
-		expect(client.computed).toEqual(['svelte.parse', 'svelte.analyze', 'svelte.css']);
+		expect(client.computed).toEqual(['svelte.parse', 'svelte.resolve', 'svelte.analyze', 'svelte.css']);
 		expect(client.gets.filter((g) => g.depth > 0).every((g) => !g.computed)).toBe(true);
 	});
 
 	it('stops after the parse error', () => {
 		const traces = simulate(TASKS, { parses: false, checkConfigured: true }, 'shared');
-		expect(computeCounts(traces)).toEqual({ 'svelte.parse': 1, 'svelte.analyze': 0, 'svelte.css': 0, 'svelte.project.ts': 0 });
+		expect(computeCounts(traces)).toEqual({
+			'svelte.parse': 1,
+			'svelte.resolve': 0,
+			'svelte.hir': 0,
+			'svelte.analyze': 0,
+			'svelte.css': 0,
+			'svelte.project.ts': 0
+		});
+	});
+
+	it('computes name resolution once for compile and lint together', () => {
+		const traces = simulate(['svelte.compile/client', 'svelte.lint/default'], { parses: true, checkConfigured: false }, 'shared');
+		expect(computeCounts(traces)['svelte.resolve']).toBe(1);
+		expect(traces[1].gets.map((g) => [g.artifact, g.computed])).toEqual([
+			['svelte.parse', false],
+			['svelte.resolve', false],
+			['svelte.hir', true],
+			['svelte.parse', false]
+		]);
 	});
 });

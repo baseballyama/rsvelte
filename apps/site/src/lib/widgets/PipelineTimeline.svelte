@@ -60,7 +60,7 @@
 	$effect(() => () => cancelAnimationFrame(raf));
 </script>
 
-<Figure label="図 5.1 · run_each のモデル" wide>
+<Figure label="図 6.1 · run_each のモデル" wide>
 	{#snippet controls()}
 		<label class="flex items-center gap-2 font-mono text-[12px] tracking-normal text-fg-2">
 			ワーカー {workers}

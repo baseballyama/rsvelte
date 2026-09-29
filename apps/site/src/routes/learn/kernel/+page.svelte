@@ -72,7 +72,9 @@
 	<blockquote class="border-l-0 font-mono text-[14px] leading-[1.7] text-fg-2">{data.libDocs}</blockquote>
 	<p>
 		プラグインの側から見ると、カーネルとの接点は登録だけです。Svelte プラグインの <code>register</code>
-		は、言語を一つ、アーティファクトを四つ、タスクを登録します（タスクは <code>tasks::register</code> の中で五つ）。
+		は、言語を一つ、アーティファクトを六つ、タスクを登録します（タスクは <code>tasks::register</code> の中で五つ）。アーティファクトのうち三つは、構文木の上に意味を重ねていく層です（<a
+			href="/learn/kernel/layers">05</a
+		>）。
 	</p>
 </div>
 
@@ -87,7 +89,7 @@
 <div class="prose-learn">
 	<H2 id="modules" />
 	<p>
-		カーネルは 11 のモジュールでできています<Note>
+		カーネルは {data.modules.length} のモジュールでできています<Note>
 			<code>lib.rs</code> は <code>pub mod</code> と再エクスポートだけなので数えていません。</Note
 		>。行数はテストを含み、ビルドのたびに数え直しています。右端の列は、各ファイル冒頭の <code>//!</code>
 		コメントの最初の文です。
@@ -116,7 +118,9 @@
 	<p>役割でまとめると、四つのグループに分かれます。</p>
 	<ul>
 		<li><strong>位置と名前</strong>: <code>source</code>、<code>intern</code>。どのモジュールもこれを使います。</li>
-		<li><strong>計算の骨格</strong>: <code>db</code>、<code>pipeline</code>。何を一度だけ計算し、どの順に誰が走るか。</li>
+		<li>
+			<strong>計算の骨格</strong>: <code>db</code>、<code>idx</code>、<code>pipeline</code>。何を一度だけ計算し、層ごとの事実をどこに置き、どの順に誰が走るか。
+		</li>
 		<li>
 			<strong>出力の部品</strong>: <code>diag</code>、<code>lint</code>、<code>doc</code>、<code>emit</code>、<code>json</code>。タスクが結果を書くための道具。
 		</li>
@@ -173,7 +177,7 @@
 	<ol>
 		<li>
 			<strong>近似しない。</strong>移植していない構文に出会ったタスクは、それらしい出力を作らず、<code>Unsupported</code>
-			として報告してファイルを書きません。近似した出力は、一致率に偶然合ったものを混ぜてしまいます（<a href="/learn/kernel/diagnostics#unsupported">06</a>）。
+			として報告してファイルを書きません。近似した出力は、一致率に偶然合ったものを混ぜてしまいます（<a href="/learn/kernel/diagnostics#unsupported">07</a>）。
 		</li>
 		<li>
 			<strong>位置は u32 で持つ。</strong><code>Span</code> は 8 バイトで、ファイルの ID を持ちません。どの文書の位置かは、文脈から分かります（<a href="/learn/kernel/source#span">02</a>）。
@@ -183,7 +187,7 @@
 		</li>
 		<li>
 			<strong>計測を最初から組み込む。</strong>アーティファクトとタスクとルールは、すべて名前のついたフェーズです。<code>metrics</code>
-			feature を外すと、計測のコードはまったく残りません（<a href="/learn/kernel/metrics">10</a>）。
+			feature を外すと、計測のコードはまったく残りません（<a href="/learn/kernel/metrics">11</a>）。
 		</li>
 	</ol>
 </div>

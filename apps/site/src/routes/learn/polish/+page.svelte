@@ -49,7 +49,7 @@
 			>lookup</code
 		>
 		も読み手と同じく「同じ生成行で」探します。テストは書き出した source map を復号し、出力のすべての位置で二つの答えを比べます（<a
-			href="/learn/kernel/emit#disagreement">08</a
+			href="/learn/kernel/emit#disagreement">09</a
 		>）。
 	</p>
 	<p>直す途中で、同じ場所に欠陥がさらに三つ見つかりました。</p>
@@ -99,7 +99,7 @@
 
 	{@render item('P5', 'panic のメッセージが空になることがあった', 'fixed', 'pipeline.rs · panic_message')}
 	<p>
-		ペイロードが文字列でないときも、空文字列ではなく決まった文を入れます（<a href="/learn/kernel/pipeline#run-document">05</a>）。
+		ペイロードが文字列でないときも、空文字列ではなく決まった文を入れます（<a href="/learn/kernel/pipeline#run-document">06</a>）。
 	</p>
 
 	<H2 id="contracts" />
@@ -110,13 +110,13 @@
 	{@render item('C2', '知らないタスク ID を黙って無視していた', 'fixed', 'pipeline.rs · Registry::check_task_ids、run_each')}
 	<p>
 		<code>run_each</code> と <code>run</code> は、知らない ID があれば何も走らせずに <code>Err(UnknownTask)</code> を返します。CLI
-		も同じ関数で確かめます（<a href="/learn/kernel/pipeline#registry">05</a>）。
+		も同じ関数で確かめます（<a href="/learn/kernel/pipeline#registry">06</a>）。
 	</p>
 
 	{@render item('C3', 'Unsupported が場所を持たなかった', 'fixed', 'diag.rs · Unsupported')}
 	<p>
 		<code>Unsupported</code> は拒否した構文の <code>Loc</code> を持ち、整形と型検査の射影の診断はその構文を指します。位置を持たないのは文書全体についての判断（一行に収まらないレイアウト）だけで、それは
-		<code>nowhere</code> と明示します。CSS の整形も同じ型に揃えました（<a href="/learn/kernel/diagnostics#unsupported">06</a>）。
+		<code>nowhere</code> と明示します。CSS の整形も同じ型に揃えました（<a href="/learn/kernel/diagnostics#unsupported">07</a>）。
 	</p>
 
 	{@render item('C4', '設計メモと実装が食い違っていた', 'docs', 'docs/concept.md')}
@@ -134,7 +134,7 @@
 	</p>
 
 	{@render item('F2', 'プロジェクトパスの前処理がタスク数 × 文書数だった', 'fixed', 'pipeline.rs · finish_projects')}
-	<p>部品は一度の走査でプロジェクトタスクごとに振り分けます（<a href="/learn/kernel/pipeline#project">05</a>）。</p>
+	<p>部品は一度の走査でプロジェクトタスクごとに振り分けます（<a href="/learn/kernel/pipeline#project">06</a>）。</p>
 
 	{@render item('F3', 'プロジェクトパスを待つ文書が、全タスクの出力を抱える', 'open', 'pipeline.rs · run_each')}
 </div>

@@ -38,7 +38,7 @@ export const chapters: Chapter[] = [
 		href: '/learn/kernel',
 		number: '01',
 		title: 'カーネルの全体像',
-		abstract: 'カーネルとプラグインの境界、12 のモジュール、1 文書が通る道。',
+		abstract: 'カーネルとプラグインの境界、モジュールの地図、1 文書が通る道。',
 		minutes: 12,
 		sections: [
 			s('why', 'なぜカーネルなのか'),
@@ -97,9 +97,27 @@ export const chapters: Chapter[] = [
 		]
 	},
 	{
+		slug: 'layers',
+		href: '/learn/kernel/layers',
+		number: '05',
+		title: '層 — AST から HIR へ',
+		abstract: '型付き ID と side table。構文木の上に名前解決と HIR を重ね、lint のルールを層ごとに書く。',
+		module: 'kernel/idx',
+		minutes: 14,
+		sections: [
+			s('why', 'なぜ層を重ねるのか'),
+			s('ids', '型付き ID と side table'),
+			s('stack', 'Svelte の層'),
+			s('resolve', '名前解決'),
+			s('hir', 'HIR'),
+			s('lint', 'early と late のルール'),
+			s('next', 'この先の層')
+		]
+	},
+	{
 		slug: 'pipeline',
 		href: '/learn/kernel/pipeline',
-		number: '05',
+		number: '06',
 		title: 'スケジューラ — Registry と run_each',
 		abstract: '言語・タスク・プロジェクトタスクの登録と、文書単位の並列実行、ストリーミング。',
 		module: 'kernel/pipeline',
@@ -117,7 +135,7 @@ export const chapters: Chapter[] = [
 	{
 		slug: 'diagnostics',
 		href: '/learn/kernel/diagnostics',
-		number: '06',
+		number: '07',
 		title: '診断と lint',
 		abstract: 'Diagnostic、近似しないための Unsupported、Rule の契約と並び順。',
 		module: 'kernel/lint',
@@ -133,7 +151,7 @@ export const chapters: Chapter[] = [
 	{
 		slug: 'doc',
 		href: '/learn/kernel/doc',
-		number: '07',
+		number: '08',
 		title: 'レイアウト — Doc IR とプリンタ',
 		abstract: 'Prettier の printDocToString を移植したプリンタ。fits、fill、group id、flat_only。',
 		module: 'kernel/doc',
@@ -151,7 +169,7 @@ export const chapters: Chapter[] = [
 	{
 		slug: 'emit',
 		href: '/learn/kernel/emit',
-		number: '08',
+		number: '09',
 		title: '出力と写像 — Emitter',
 		abstract: '出力バッファと写像、最大下界の逆引き、source map v3 と VLQ。',
 		module: 'kernel/emit',
@@ -168,7 +186,7 @@ export const chapters: Chapter[] = [
 	{
 		slug: 'json',
 		href: '/learn/kernel/json',
-		number: '09',
+		number: '10',
 		title: 'JSON を直接書く — JsonWriter',
 		abstract: '値の木を作らずに書く。状態はフラグのスタックとビット 1 つ。',
 		module: 'kernel/json',
@@ -178,7 +196,7 @@ export const chapters: Chapter[] = [
 	{
 		slug: 'metrics',
 		href: '/learn/kernel/metrics',
-		number: '10',
+		number: '11',
 		title: '計測 — CountingAlloc と phase',
 		abstract: 'スレッドごとの割り当て計数、入れ子を除く排他的フェーズ、ピーク増分。',
 		module: 'kernel/metrics',
@@ -194,7 +212,7 @@ export const chapters: Chapter[] = [
 	{
 		slug: 'pool',
 		href: '/learn/kernel/pool',
-		number: '11',
+		number: '12',
 		title: 'バッファの再利用 — pool',
 		abstract: '文書をまたいで Vec の容量を使い回す、スレッドローカルのプール。',
 		module: 'kernel/pool',
@@ -204,7 +222,7 @@ export const chapters: Chapter[] = [
 	{
 		slug: 'measure',
 		href: '/learn/measure',
-		number: '12',
+		number: '13',
 		title: '実測',
 		abstract: 'コーパス全体でアームを比べる。何が効いて、何が効いていないか。',
 		minutes: 10,
@@ -220,7 +238,7 @@ export const chapters: Chapter[] = [
 	{
 		slug: 'polish',
 		href: '/learn/polish',
-		number: '13',
+		number: '14',
 		title: '磨きどころ',
 		abstract: 'コードを読んで見つけた、直す価値のある箇所と、それぞれをどうしたか。',
 		minutes: 12,

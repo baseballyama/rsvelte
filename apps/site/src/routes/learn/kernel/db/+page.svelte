@@ -106,7 +106,7 @@
 		実測では、{data.docs.toLocaleString('en-US')} 文書に 4 タスク（compile ×2、format、lint）を走らせたとき、Shared の中央値は
 		<span class="tnum">{ms(data.shared.plain[0])}</span> ms、Isolated は <span class="tnum">{ms(data.isolated.plain[0])}</span>
 		ms でした。割り当て回数は {m(data.isolated.allocs)}M 回から {m(data.shared.allocs)}M 回に減ります<Note
-			>時間は metrics なしのビルド、割り当ては metrics ありのビルドの別ラウンドの値です。詳しくは 12 実測の章にあります。</Note
+			>時間は metrics なしのビルド、割り当ては metrics ありのビルドの別ラウンドの値です。詳しくは 13 実測の章にあります。</Note
 		>。
 	</p>
 
@@ -143,10 +143,13 @@
 	<p>
 		この規則がないと、パースのコストは「たまたま最初に頼んだタスク」に付いてしまいます。タスクの順番を入れ替えるだけで、どのタスクが遅いかの答えが変わることになります。
 	</p>
-	<p>lint タスクを見ると、タスクの側はアーティファクトを求めているだけだと分かります。</p>
+	<p>
+		lint タスクを見ると、タスクの側はアーティファクトを求めているだけだと分かります。求めているのは構文木、名前解決、HIR
+		の三つで、どれも別の層です（<a href="/learn/kernel/layers">05</a>）。
+	</p>
 </div>
 
-<Code item={data.code.lint} mark={['ctx.get::<Parsed>()', '.get::<Analyzed>()', 'ctx.line_index()']} />
+<Code item={data.code.lint} mark={['ctx.get::<Parsed>()', '.get::<Resolved>()', '.get::<Normalized>()', 'ctx.line_index()']} />
 
 <div class="prose-learn">
 	<p>

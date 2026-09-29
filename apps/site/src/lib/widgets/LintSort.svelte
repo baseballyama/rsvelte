@@ -30,7 +30,7 @@
 	};
 </script>
 
-<Figure label="図 6.1 · 報告順と出力順">
+<Figure label="図 7.1 · 報告順と出力順">
 	{#snippet controls()}
 		<button type="button" class="btn-ghost" onclick={() => (order = [...order].reverse())}>ルールの順を入れ替え</button>
 	{/snippet}

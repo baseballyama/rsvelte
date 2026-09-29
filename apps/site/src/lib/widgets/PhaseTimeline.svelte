@@ -83,7 +83,7 @@
 	const x = (v: number) => (v / T) * W;
 </script>
 
-<Figure label="図 10.1 · 1 文書のフェーズ" wide>
+<Figure label="図 11.1 · 1 文書のフェーズ" wide>
 	{#snippet controls()}
 		<button type="button" class="btn-ghost" aria-pressed={!formatFirst} onclick={() => (formatFirst = false)}>登録順</button>
 		<button type="button" class="btn-ghost" aria-pressed={formatFirst} onclick={() => (formatFirst = true)}>format を先に</button>

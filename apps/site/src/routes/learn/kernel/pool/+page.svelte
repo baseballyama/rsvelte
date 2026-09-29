@@ -70,7 +70,7 @@
 			>RunOptions::threads</code
 		>
 		を指定した実行も、<code>in_pool</code> がスレッド数ごとのプールをプロセスのあいだ残すので、同じスレッドと、そのスレッドが貯めた容量を使い回します（<a
-			href="/learn/kernel/pipeline#run">05</a
+			href="/learn/kernel/pipeline#run">06</a
 		>）。
 	</p>
 </div>

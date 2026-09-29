@@ -2,7 +2,15 @@
 // artifact's `compute` is transcribed from rsv_svelte (tasks.rs, lib.rs); the kernel rule it models
 // is db.rs: the first `get` computes, later ones return the cached value.
 
-export type ArtifactName = 'svelte.parse' | 'svelte.analyze' | 'svelte.css' | 'svelte.project.ts';
+export type ArtifactName =
+	| 'svelte.parse'
+	| 'svelte.resolve'
+	| 'svelte.hir'
+	| 'svelte.analyze'
+	| 'svelte.css'
+	| 'svelte.project.ts';
+
+export const ARTIFACTS: ArtifactName[] = ['svelte.parse', 'svelte.resolve', 'svelte.hir', 'svelte.analyze', 'svelte.css', 'svelte.project.ts'];
 export type TaskId = 'svelte.compile/client' | 'svelte.compile/server' | 'svelte.format/default' | 'svelte.lint/default' | 'svelte.check/default';
 
 export const TASKS: TaskId[] = [
@@ -52,7 +60,11 @@ class SimCtx {
 		this.log.push({ artifact: a, computed: true, depth });
 		this.computed.push(a);
 		// `compute` bodies, in the order they call `get` (lib.rs).
-		if (a === 'svelte.analyze') this.get('svelte.parse', depth + 1);
+		if (a === 'svelte.resolve' || a === 'svelte.hir') this.get('svelte.parse', depth + 1);
+		if (a === 'svelte.analyze') {
+			this.get('svelte.parse', depth + 1);
+			if (this.doc.parses) this.get('svelte.resolve', depth + 1);
+		}
 		if (a === 'svelte.css') {
 			this.get('svelte.parse', depth + 1);
 			if (this.doc.parses) this.get('svelte.analyze', depth + 1);
@@ -68,6 +80,7 @@ function runTask(task: TaskId, ctx: SimCtx, doc: Doc) {
 		case 'svelte.compile/server':
 			ctx.get('svelte.parse');
 			if (!doc.parses) return;
+			ctx.get('svelte.resolve');
 			ctx.get('svelte.analyze');
 			ctx.get('svelte.css');
 			return;
@@ -77,7 +90,8 @@ function runTask(task: TaskId, ctx: SimCtx, doc: Doc) {
 		case 'svelte.lint/default':
 			ctx.get('svelte.parse');
 			if (!doc.parses) return;
-			ctx.get('svelte.analyze');
+			ctx.get('svelte.resolve');
+			ctx.get('svelte.hir');
 			return;
 		case 'svelte.check/default':
 			ctx.get('svelte.parse');
@@ -98,7 +112,7 @@ export function simulate(tasks: TaskId[], doc: Doc, sharing: 'shared' | 'isolate
 }
 
 export function computeCounts(traces: TaskTrace[]): Record<ArtifactName, number> {
-	const n: Record<ArtifactName, number> = { 'svelte.parse': 0, 'svelte.analyze': 0, 'svelte.css': 0, 'svelte.project.ts': 0 };
+	const n = Object.fromEntries(ARTIFACTS.map((a) => [a, 0])) as Record<ArtifactName, number>;
 	for (const t of traces) for (const g of t.gets) if (g.computed) n[g.artifact]++;
 	return n;
 }

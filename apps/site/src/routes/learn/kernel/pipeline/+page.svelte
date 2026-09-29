@@ -194,7 +194,7 @@
 <div class="prose-learn">
 	<p>
 		スレッド数を指定すると、<code>in_pool</code> がその数のスレッドプールで走らせます。プールはプロセスのあいだ残すので、同じスレッド数の実行を繰り返しても、スレッドとそのスレッドのバッファプール（<a
-			href="/learn/kernel/pool">11</a
+			href="/learn/kernel/pool">12</a
 		>）を使い回せます。指定しなければ rayon の既定（コア数）です。1 スレッドのときの中央値は {data.serial.plain[0].toFixed(1)} ms で、既定の
 		{data.shared.plain[0].toFixed(1)} ms の約 {(data.serial.plain[0] / data.shared.plain[0]).toFixed(1)} 倍でした。
 	</p>

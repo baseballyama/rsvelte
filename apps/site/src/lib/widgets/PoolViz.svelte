@@ -12,7 +12,7 @@
 	const maxCap = $derived(Math.max(...steps.flatMap((s) => [...s.pool, s.event.kind === 'take' ? s.event.cap : s.event.cap])));
 </script>
 
-<Figure label="図 11.1 · 1 ワーカー、1 種類のベクタ" wide>
+<Figure label="図 12.1 · 1 ワーカー、1 種類のベクタ" wide>
 	{#snippet controls()}
 		<button type="button" class="btn-ghost" aria-pressed={enabled} onclick={() => (enabled = true)}>pool あり</button>
 		<button type="button" class="btn-ghost" aria-pressed={!enabled} onclick={() => (enabled = false)}>pool なし</button>

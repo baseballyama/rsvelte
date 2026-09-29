@@ -30,6 +30,8 @@ function sources(cratesDir: string): { key: string; file: string }[] {
 		'rsv_svelte/src/lib.rs',
 		'rsv_svelte/src/tasks.rs',
 		'rsv_svelte/src/lint.rs',
+		'rsv_svelte/src/resolve.rs',
+		'rsv_svelte/src/hir.rs',
 		'rsv_svelte/src/project.rs',
 		'rsv_js/src/lint.rs',
 		'rsv_js/src/check.rs',
