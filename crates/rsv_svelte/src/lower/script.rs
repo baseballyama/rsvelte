@@ -1,7 +1,7 @@
 //! Rune lowering for both targets: one [`Rewrite`] whose only parameter is the [`Target`].
 
 use super::Target;
-use crate::analyze::{Analysis, BindKind, rune_call};
+use crate::resolve::{BindKind, Resolution, rune_call};
 use rsv_js::ast::flag;
 use rsv_js::copy::{Rewrite, copy, copy_node};
 use rsv_js::ops::{AssignOp, BinOp, LogicalOp, UpdateOp};
@@ -10,21 +10,21 @@ use rsv_kernel::diag::Diagnostic;
 
 pub struct ScriptRewrite<'a> {
     pub target: Target,
-    pub an: &'a Analysis,
+    pub res: &'a Resolution,
 }
 
 impl ScriptRewrite<'_> {
     /// Upstream `build_getter` / the `read` transforms, by binding kind and target.
     fn read(&mut self, from: &Ast, to: &mut Ast, id: NodeId) -> Option<NodeId> {
-        let (b, info) = self.an.binding(id)?;
-        if self.an.sem.bindings[b].node == id {
+        let (b, info) = self.res.binding(id)?;
+        if self.res.sem.bindings[b].node == id {
             return None;
         }
         let loc = from.loc(id);
         let name = from.name(id);
         match (self.target, info.kind) {
             (Target::Client, BindKind::State | BindKind::RawState)
-                if self.an.is_state_source(b) =>
+                if self.res.is_state_source(b) =>
             {
                 let x = to.ident(name, loc);
                 Some(to.runtime("$", "get", &[x]))
@@ -35,7 +35,7 @@ impl ScriptRewrite<'_> {
             }
             (Target::Client, BindKind::Prop | BindKind::BindableProp) => {
                 let x = to.ident(name, loc);
-                if self.an.is_prop_source(b) {
+                if self.res.is_prop_source(b) {
                     return Some(to.call0(x, &[]));
                 }
                 let key = info.prop_key.expect("props record their key");
@@ -74,10 +74,10 @@ impl ScriptRewrite<'_> {
         if self.target != Target::Client || !matches!(from.kind(target), Kind::Ident(_)) {
             return None;
         }
-        let (b, info) = self.an.binding(target)?;
-        let state = self.an.is_state_source(b)
+        let (b, info) = self.res.binding(target)?;
+        let state = self.res.is_state_source(b)
             || matches!(info.kind, BindKind::Derived | BindKind::DerivedBy);
-        let prop = self.an.is_prop_source(b);
+        let prop = self.res.is_prop_source(b);
         if !state && !prop {
             return None;
         }
@@ -104,7 +104,7 @@ impl ScriptRewrite<'_> {
                 op,
                 AssignOp::Assign | AssignOp::Or | AssignOp::And | AssignOp::Nullish
             )
-            && should_proxy(from, self.an, value);
+            && should_proxy(from, self.res, value);
         let mut args = vec![x, new_value];
         if proxy {
             args.push(to.bool(true, rsv_kernel::source::Loc::SYNTHETIC));
@@ -123,17 +123,17 @@ impl ScriptRewrite<'_> {
         if self.target != Target::Client || !matches!(from.kind(arg), Kind::Ident(_)) {
             return None;
         }
-        let (b, info) = self.an.binding(arg)?;
+        let (b, info) = self.res.binding(arg)?;
         let x = to.ident(from.name(arg), from.loc(arg));
         let mut args = vec![x];
         if op == UpdateOp::Dec {
             args.push(to.num(-1.0, rsv_kernel::source::Loc::SYNTHETIC));
         }
-        let name = if self.an.is_state_source(b)
+        let name = if self.res.is_state_source(b)
             || matches!(info.kind, BindKind::Derived | BindKind::DerivedBy)
         {
             if prefix { "update_pre" } else { "update" }
-        } else if self.an.is_prop_source(b) {
+        } else if self.res.is_prop_source(b) {
             if prefix {
                 "update_pre_prop"
             } else {
@@ -178,22 +178,22 @@ fn binary_of(op: AssignOp) -> BinOp {
 }
 
 /// Upstream `should_proxy`.
-pub fn should_proxy(ast: &Ast, an: &Analysis, e: NodeId) -> bool {
+pub fn should_proxy(ast: &Ast, res: &Resolution, e: NodeId) -> bool {
     match ast.kind(e) {
         Kind::Str | Kind::Num(_) | Kind::Bool(_) | Kind::Null => false,
         Kind::Template { .. } | Kind::Arrow { .. } | Kind::Unary(..) | Kind::Binary(..) => false,
         Kind::Function { decl: false, .. } => false,
         Kind::Ident(_) if ast.name(e) == "undefined" => false,
         Kind::Ident(_) => {
-            let Some((b, _)) = an.binding(e) else {
+            let Some((b, _)) = res.binding(e) else {
                 return true;
             };
-            let s = &an.sem.bindings[b];
+            let s = &res.sem.bindings[b];
             if s.writes > 0 {
                 return true;
             }
             match s.init(ast) {
-                Some(init) => should_proxy(ast, an, init),
+                Some(init) => should_proxy(ast, res, init),
                 None => true,
             }
         }
@@ -278,11 +278,11 @@ fn lower_declarator(
         (_, "$state" | "$state.raw") => {
             let mut v = value(to, rw);
             if rw.target == Target::Client {
-                let b = rw.an.sem.binding_of(id);
-                if rune == "$state" && arg.is_some_and(|a| should_proxy(from, rw.an, a)) {
+                let b = rw.res.sem.binding_of(id);
+                if rune == "$state" && arg.is_some_and(|a| should_proxy(from, rw.res, a)) {
                     v = to.runtime("$", "proxy", &[v]);
                 }
-                if b.is_some_and(|b| rw.an.is_state_source(b)) {
+                if b.is_some_and(|b| rw.res.is_state_source(b)) {
                     v = to.runtime("$", "state", &[v]);
                 }
             }
@@ -332,17 +332,17 @@ fn lower_client_props(
             Kind::AssignPat(l, _) => l,
             _ => value,
         };
-        let Some((b, info)) = rw.an.binding(local) else {
+        let Some((b, info)) = rw.res.binding(local) else {
             continue;
         };
-        if !rw.an.is_prop_source(b) {
+        if !rw.res.is_prop_source(b) {
             continue;
         }
         let key_name = match from.kind(key) {
             Kind::Ident(_) => from.name(key).to_owned(),
             _ => from.str_value(key, "").to_owned(),
         };
-        let s = &rw.an.sem.bindings[b];
+        let s = &rw.res.sem.bindings[b];
         let mut flags = 1 | 2; // PROPS_IS_IMMUTABLE | PROPS_IS_RUNES
         if info.kind == BindKind::BindableProp {
             flags |= 8;

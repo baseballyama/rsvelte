@@ -114,14 +114,14 @@ mod tests {
 
     fn lint(src: &str) -> String {
         let c = crate::parse::parse(src).expect("parses");
-        let an = crate::analyze::analyze(&c, src, "x.svelte");
+        let res = crate::resolve::resolve(&c.js, c.program, &c.template_exprs);
         let parents = c.js.parents();
         let cx = super::LintCx {
             c: &c,
             src,
             js: rsv_js::lint::JsFacts {
                 ast: &c.js,
-                sem: &an.sem,
+                sem: &res.sem,
                 parents: &parents,
             },
         };

@@ -6,7 +6,8 @@
 //! | artifact | output |
 //! |---|---|
 //! | [`Parsed`] | the surface tree ([`ast::Component`]) or the parse error |
-//! | [`Analyzed`] | bindings, expression facts, CSS usage ([`analyze::Analysis`]) |
+//! | [`Resolved`] | scopes, references resolved to bindings, rune kinds ([`resolve::Resolution`]) |
+//! | [`Analyzed`] | what compilation derives: expression facts, dynamic fragments, CSS usage ([`analyze::Analysis`]) |
 //! | [`ScopedCss`] | the component's CSS with scoping applied |
 //! | [`TsProjection`] | the TypeScript view type checking reads ([`project::Projection`]) |
 
@@ -18,6 +19,7 @@ pub mod lint;
 pub mod lower;
 pub mod parse;
 pub mod project;
+pub mod resolve;
 pub mod tasks;
 
 use rsv_kernel::db::{Artifact, Ctx};
@@ -47,6 +49,19 @@ impl Artifact for Parsed {
     }
 }
 
+pub struct Resolved;
+
+impl Artifact for Resolved {
+    /// `None` when the document did not parse; the parse error is on [`Parsed`].
+    type Output = Option<resolve::Resolution>;
+    const NAME: &'static str = "svelte.resolve";
+
+    fn compute(ctx: &Ctx) -> Self::Output {
+        let c = ctx.get::<Parsed>().as_ref().ok()?;
+        Some(resolve::resolve(&c.js, c.program, &c.template_exprs))
+    }
+}
+
 pub struct Analyzed;
 
 impl Artifact for Analyzed {
@@ -56,7 +71,8 @@ impl Artifact for Analyzed {
 
     fn compute(ctx: &Ctx) -> Self::Output {
         let c = ctx.get::<Parsed>().as_ref().ok()?;
-        Some(analyze::analyze(c, ctx.src(), &ctx.doc.path))
+        let res = ctx.get::<Resolved>().as_ref()?;
+        Some(analyze::analyze(c, ctx.src(), res, &ctx.doc.path))
     }
 }
 
@@ -116,6 +132,7 @@ pub struct CheckConfig {
 pub fn register(reg: &mut Registry, config: &Config) {
     reg.language(Svelte)
         .artifact::<Parsed>()
+        .artifact::<Resolved>()
         .artifact::<Analyzed>()
         .artifact::<ScopedCss>()
         .artifact::<TsProjection>();

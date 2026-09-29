@@ -3,7 +3,7 @@
 
 use crate::lower::{self, Target};
 use crate::project::Projection;
-use crate::{Analyzed, CheckConfig, Config, Parsed, ScopedCss, TsProjection};
+use crate::{Analyzed, CheckConfig, Config, Parsed, Resolved, ScopedCss, TsProjection};
 use rsv_js::check::{CheckRequest, Tsc};
 use rsv_kernel::db::Ctx;
 use rsv_kernel::diag::Diagnostic;
@@ -52,6 +52,10 @@ impl Task for Compile {
                 return;
             }
         };
+        let res = ctx
+            .get::<Resolved>()
+            .as_ref()
+            .expect("a parsed component is resolved");
         let an = ctx
             .get::<Analyzed>()
             .as_ref()
@@ -62,8 +66,8 @@ impl Task for Compile {
                 Target::Server => "svelte.lower.server",
             });
             match self.target {
-                Target::Client => lower::client::lower(c, ctx.src(), an),
-                Target::Server => lower::server::lower(c, ctx.src(), an),
+                Target::Client => lower::client::lower(c, ctx.src(), res, an),
+                Target::Server => lower::server::lower(c, ctx.src(), res, an),
             }
         };
         match lowered {
@@ -138,10 +142,10 @@ impl Task for Lint {
                 return;
             }
         };
-        let an = ctx
-            .get::<Analyzed>()
+        let res = ctx
+            .get::<Resolved>()
             .as_ref()
-            .expect("a parsed component is analysed");
+            .expect("a parsed component is resolved");
         let parents = {
             let _p = metrics::phase("js.parents");
             c.js.parents()
@@ -151,7 +155,7 @@ impl Task for Lint {
             src: ctx.src(),
             js: rsv_js::lint::JsFacts {
                 ast: &c.js,
-                sem: &an.sem,
+                sem: &res.sem,
                 parents: &parents,
             },
         };

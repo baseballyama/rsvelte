@@ -9,6 +9,7 @@ use super::{
 use crate::analyze::{Analysis, ExprMeta};
 use crate::ast::{AttrValue, Component, Part, TId, TNode, decode_text};
 use crate::parse::is_void;
+use crate::resolve::Resolution;
 use rsv_js::ast::flag;
 use rsv_js::copy::copy;
 use rsv_js::ops::{AssignOp, LogicalOp};
@@ -223,6 +224,7 @@ enum Prev {
 struct Cx<'a> {
     c: &'a Component,
     src: &'a str,
+    res: &'a Resolution,
     an: &'a Analysis,
     out: Ast,
     names: Names,
@@ -231,12 +233,13 @@ struct Cx<'a> {
     events: Vec<String>,
 }
 
-pub fn lower(c: &Component, src: &str, an: &Analysis) -> R<(Ast, NodeId)> {
-    let declared = an.sem.bindings.iter().map(|b| c.js.atoms.get(b.name));
-    let referenced = an.sem.references.iter().map(|r| c.js.name(r.node));
+pub fn lower(c: &Component, src: &str, res: &Resolution, an: &Analysis) -> R<(Ast, NodeId)> {
+    let declared = res.sem.bindings.iter().map(|b| c.js.atoms.get(b.name));
+    let referenced = res.sem.references.iter().map(|r| c.js.name(r.node));
     let mut cx = Cx {
         c,
         src,
+        res,
         an,
         out: Ast::new(),
         names: Names::new(declared, referenced),
@@ -246,7 +249,7 @@ pub fn lower(c: &Component, src: &str, an: &Analysis) -> R<(Ast, NodeId)> {
     };
     let mut rw = ScriptRewrite {
         target: Target::Client,
-        an,
+        res,
     };
     let instance = lower_instance(&c.js, &mut cx.out, &mut rw, c.program, &mut cx.hoisted)?;
     let template = cx.fragment(Parent::Root, c.children(c.root))?;
@@ -266,7 +269,7 @@ pub fn lower(c: &Component, src: &str, an: &Analysis) -> R<(Ast, NodeId)> {
         body.push(o.expr_stmt(pop));
     }
     let mut params = vec![o.id("$$anchor")];
-    if an.uses_props || an.needs_context {
+    if res.uses_props || an.needs_context {
         params.push(o.id("$$props"));
     }
     let block = o.block(&body, Loc::SYNTHETIC);
@@ -297,7 +300,7 @@ impl<'a> Cx<'a> {
     fn expr(&mut self, e: NodeId) -> NodeId {
         let mut rw = ScriptRewrite {
             target: Target::Client,
-            an: self.an,
+            res: self.res,
         };
         copy(&self.c.js, &mut self.out, &mut rw, e)
     }
@@ -677,13 +680,13 @@ impl<'a> Cx<'a> {
             match js.kind(expr) {
                 Kind::Str | Kind::Num(_) | Kind::Bool(_) | Kind::Null => {
                     if !matches!(js.kind(expr), Kind::Null) {
-                        let v = self.an.evaluate(js, self.src, expr).value.to_js_string();
+                        let v = self.res.evaluate(js, self.src, expr).value.to_js_string();
                         quasis.last_mut().expect("never empty").push_str(&v);
                     }
                     continue;
                 }
                 Kind::Ident(_)
-                    if js.name(expr) == "undefined" && self.an.binding(expr).is_none() =>
+                    if js.name(expr) == "undefined" && self.res.binding(expr).is_none() =>
                 {
                     continue;
                 }
@@ -692,7 +695,7 @@ impl<'a> Cx<'a> {
             let meta = self.an.meta(expr);
             let built = self.expr(expr);
             let mut value = self.memoize(frag, built, meta);
-            let evaluated = self.an.evaluate_output(js, self.src, &self.out, value);
+            let evaluated = self.res.evaluate_output(js, self.src, &self.out, value);
             let known = evaluated.is_known.then_some(&evaluated);
             has_state |= meta.has_state && known.is_none();
             if values.len() == 1 {
@@ -1024,8 +1027,8 @@ impl<'a> Cx<'a> {
         let handler_expr = match self.c.js.kind(handler) {
             Kind::Arrow { .. } | Kind::Function { decl: false, .. } => built,
             Kind::Ident(_)
-                if self.an.binding(handler).is_none_or(|(b, _)| {
-                    self.an.sem.bindings[b].kind != rsv_js::scope::DeclKind::Import
+                if self.res.binding(handler).is_none_or(|(b, _)| {
+                    self.res.sem.bindings[b].kind != rsv_js::scope::DeclKind::Import
                 }) =>
             {
                 built

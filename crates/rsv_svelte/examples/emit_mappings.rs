@@ -5,7 +5,7 @@
 //! `cargo run -p rsv_svelte --example emit_mappings -- <file.svelte> <client|server>`
 
 use rsv_kernel::json::JsonWriter;
-use rsv_svelte::{analyze, lower, parse};
+use rsv_svelte::{analyze, lower, parse, resolve};
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
@@ -28,10 +28,11 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let an = analyze::analyze(&c, &src, path);
+    let res = resolve::resolve(&c.js, c.program, &c.template_exprs);
+    let an = analyze::analyze(&c, &src, &res, path);
     let lowered = match target.as_str() {
-        "client" => lower::client::lower(&c, &src, &an),
-        "server" => lower::server::lower(&c, &src, &an),
+        "client" => lower::client::lower(&c, &src, &res, &an),
+        "server" => lower::server::lower(&c, &src, &res, &an),
         t => {
             eprintln!("unknown target {t}");
             return ExitCode::FAILURE;

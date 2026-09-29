@@ -2,7 +2,7 @@
 //! have at runtime, as far as the compiler can tell. It decides whether output inlines a value,
 //! adds `?? ''`, or wraps in `$.stringify`, so it is ported case by case.
 
-use crate::analyze::{Analysis, BindKind, rune_call};
+use crate::resolve::{BindKind, Resolution, rune_call};
 use rsv_js::codegen::number;
 use rsv_js::ops::{BinOp, LogicalOp, UnaryOp};
 use rsv_js::scope::DeclKind;
@@ -180,16 +180,16 @@ pub enum Tree<'a> {
 pub struct Evaluator<'a> {
     source: &'a Ast,
     src: &'a str,
-    an: &'a Analysis,
+    res: &'a Resolution,
     in_progress: Vec<(bool, NodeId)>,
 }
 
 impl<'a> Evaluator<'a> {
-    pub fn new(source: &'a Ast, src: &'a str, an: &'a Analysis) -> Self {
+    pub fn new(source: &'a Ast, src: &'a str, res: &'a Resolution) -> Self {
         Evaluator {
             source,
             src,
-            an,
+            res,
             in_progress: Vec::new(),
         }
     }
@@ -360,17 +360,17 @@ impl<'a> Evaluator<'a> {
 
     fn resolve(&self, tree: Tree<'a>, e: NodeId) -> Option<rsv_js::scope::BindingId> {
         match tree {
-            Tree::Source => self.an.sem.binding_of(e),
+            Tree::Source => self.res.sem.binding_of(e),
             Tree::Output(ast) => self
                 .source
                 .atoms
                 .lookup(ast.name(e))
-                .and_then(|a| self.an.sem.root_binding(a)),
+                .and_then(|a| self.res.sem.root_binding(a)),
         }
     }
 
     fn identifier(&mut self, tree: Tree<'a>, e: NodeId, values: &mut Vec<Val>) {
-        let Some((b, info)) = self.resolve(tree, e).map(|b| (b, self.an.bindings[b])) else {
+        let Some((b, info)) = self.resolve(tree, e).map(|b| (b, self.res.bindings[b])) else {
             if self.ast(tree).name(e) == "undefined" {
                 add(values, Val::Undefined);
             } else {
@@ -378,7 +378,7 @@ impl<'a> Evaluator<'a> {
             }
             return;
         };
-        let s = &self.an.sem.bindings[b];
+        let s = &self.res.sem.bindings[b];
         let is_prop = matches!(
             info.kind,
             BindKind::Prop | BindKind::BindableProp | BindKind::RestProp

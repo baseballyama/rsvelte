@@ -9,6 +9,7 @@ use super::{
 use crate::analyze::Analysis;
 use crate::ast::{AttrValue, Component, Part, TId, TNode, decode_text};
 use crate::parse::is_void;
+use crate::resolve::Resolution;
 use rsv_js::copy::copy;
 use rsv_js::{Ast, Kind, NodeId};
 use rsv_kernel::diag::Diagnostic;
@@ -32,21 +33,23 @@ enum Piece {
 struct Sx<'a> {
     c: &'a Component,
     src: &'a str,
+    res: &'a Resolution,
     an: &'a Analysis,
     out: Ast,
 }
 
-pub fn lower(c: &Component, src: &str, an: &Analysis) -> R<(Ast, NodeId)> {
+pub fn lower(c: &Component, src: &str, res: &Resolution, an: &Analysis) -> R<(Ast, NodeId)> {
     let mut sx = Sx {
         c,
         src,
+        res,
         an,
         out: Ast::new(),
     };
     let mut hoisted = Vec::new();
     let mut rw = ScriptRewrite {
         target: Target::Server,
-        an,
+        res,
     };
     let instance = lower_instance(&c.js, &mut sx.out, &mut rw, c.program, &mut hoisted)?;
     let template = sx.fragment(Parent::Root, c.children(c.root))?;
@@ -64,7 +67,7 @@ pub fn lower(c: &Component, src: &str, an: &Analysis) -> R<(Ast, NodeId)> {
         body = vec![o.expr_stmt(call)];
     }
     let mut params = vec![o.id("$$renderer")];
-    if an.needs_context || an.uses_props {
+    if an.needs_context || res.uses_props {
         params.push(o.id("$$props"));
     }
     let block = o.block(&body, Loc::SYNTHETIC);
@@ -85,7 +88,7 @@ impl<'a> Sx<'a> {
     fn expr(&mut self, e: NodeId) -> NodeId {
         let mut rw = ScriptRewrite {
             target: Target::Server,
-            an: self.an,
+            res: self.res,
         };
         copy(&self.c.js, &mut self.out, &mut rw, e)
     }
@@ -133,7 +136,7 @@ impl<'a> Sx<'a> {
                     .expect("never empty")
                     .push_str(&escape_html(data, false)),
                 Item::Expr(e) => {
-                    let evaluated = self.an.evaluate(&self.c.js, self.src, *e);
+                    let evaluated = self.res.evaluate(&self.c.js, self.src, *e);
                     if evaluated.is_known {
                         let s = known_string(&evaluated.value);
                         quasis
@@ -344,7 +347,7 @@ impl<'a> Sx<'a> {
                     quasis.last_mut().expect("never empty").push_str(&data);
                 }
                 Part::Expr { expr, .. } => {
-                    let evaluated = self.an.evaluate(&self.c.js, self.src, *expr);
+                    let evaluated = self.res.evaluate(&self.c.js, self.src, *expr);
                     if evaluated.is_known {
                         quasis
                             .last_mut()
