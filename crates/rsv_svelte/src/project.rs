@@ -64,8 +64,9 @@ impl Projector<'_> {
             } => {
                 let tag = name.text(self.src);
                 if !tag.starts_with(|c: char| c.is_ascii_lowercase()) || tag.contains(['-', ':']) {
-                    return Err(Unsupported(
+                    return Err(Unsupported::at(
                         "components, custom elements and svelte: elements",
+                        name,
                     ));
                 }
                 self.e.push("{ svelteHTML.createElement(\"");

@@ -140,8 +140,8 @@ impl<'a> Formatter<'a> {
     fn check_comments(&self, range: Span) -> R<()> {
         let c = &self.ast.comments;
         let i = c.partition_point(|s| s.lo < range.lo);
-        if c.get(i).is_some_and(|s| s.hi <= range.hi) {
-            return Err(Unsupported("comments"));
+        if let Some(&s) = c.get(i).filter(|s| s.hi <= range.hi) {
+            return Err(Unsupported::at("comments", s));
         }
         Ok(())
     }
@@ -154,7 +154,7 @@ impl<'a> Formatter<'a> {
             .filter(|t| t.span.lo >= range.lo && t.span.hi <= range.hi)
             .count();
         if self.ts_printed - before != expected {
-            return Err(Unsupported("TypeScript syntax"));
+            return Err(Unsupported::at("TypeScript syntax", range));
         }
         Ok(())
     }
@@ -175,7 +175,10 @@ impl<'a> Formatter<'a> {
         };
         let text = span.text(self.src);
         if !is_plain_type(text) {
-            return Err(Unsupported("TypeScript type other than a plain reference"));
+            return Err(Unsupported::at(
+                "TypeScript type other than a plain reference",
+                span,
+            ));
         }
         self.ts_printed += 1;
         let s = self.docs.lit(sep);
@@ -269,8 +272,8 @@ impl<'a> Formatter<'a> {
                 let e = self.lit("export ");
                 Ok(self.cat(&[e, d]))
             }
-            Kind::TsDecl => Err(Unsupported("TypeScript declaration")),
-            _ => Err(Unsupported("statement kind")),
+            Kind::TsDecl => Err(Unsupported::at("TypeScript declaration", self.ast.loc(id))),
+            _ => Err(Unsupported::at("statement kind", self.ast.loc(id))),
         }
     }
 
@@ -446,7 +449,7 @@ impl<'a> Formatter<'a> {
             unreachable!("a function")
         };
         if self.ts_of(id, TsKind::TypeParams).is_some() {
-            return Err(Unsupported("type parameters"));
+            return Err(Unsupported::at("type parameters", self.ast.loc(id)));
         }
         let mut parts = Vec::new();
         if is_async {
@@ -524,7 +527,7 @@ impl<'a> Formatter<'a> {
     /// Prettier's `printBlock`; `fn_body` for the bodies that print `{}` when empty.
     fn block(&mut self, id: NodeId, fn_body: bool) -> R<DocId> {
         let Kind::Block(body) = self.ast.kind(id) else {
-            return Err(Unsupported("non-block body"));
+            return Err(Unsupported::at("non-block body", self.ast.loc(id)));
         };
         let stmts = self.statements(body)?;
         let open = self.lit("{");
@@ -831,7 +834,7 @@ impl<'a> Formatter<'a> {
                 method,
             } => {
                 if method {
-                    return Err(Unsupported("object method"));
+                    return Err(Unsupported::at("object method", self.ast.loc(p)));
                 }
                 let value_doc = |f: &mut Self| {
                     if pattern {
@@ -851,7 +854,10 @@ impl<'a> Formatter<'a> {
                 } else if matches!(self.ast.kind(key), Kind::Ident(_)) {
                     self.docs.text(self.ast.name(key))
                 } else {
-                    return Err(Unsupported("quoted or numeric property key"));
+                    return Err(Unsupported::at(
+                        "quoted or numeric property key",
+                        self.ast.loc(key),
+                    ));
                 };
                 let v = value_doc(self)?;
                 // A property is an assignment-like layout (`printAssignment` with ":"); not ported.
@@ -887,7 +893,10 @@ impl<'a> Formatter<'a> {
                 )
             })
         {
-            return Err(Unsupported("concisely printed number array"));
+            return Err(Unsupported::at(
+                "concisely printed number array",
+                self.ast.loc(items[0]),
+            ));
         }
         let mut parts = Vec::new();
         for (i, &it) in items.iter().enumerate() {
@@ -896,7 +905,7 @@ impl<'a> Formatter<'a> {
                 parts.push(self.docs.line());
             }
             parts.push(match self.ast.kind(it) {
-                Kind::Hole => return Err(Unsupported("array hole")),
+                Kind::Hole => return Err(Unsupported::at("array hole", self.ast.loc(it))),
                 Kind::Rest(_) | Kind::AssignPat(..) | Kind::ObjectPat(_) | Kind::ArrayPat(_) => {
                     self.pattern(it, PatCtx::Nested)?
                 }
@@ -968,7 +977,10 @@ impl<'a> Formatter<'a> {
             )
         );
         if !simple || (cast && !cast_ok) {
-            return Err(Unsupported("TypeScript cast in this position"));
+            return Err(Unsupported::at(
+                "TypeScript cast in this position",
+                entries[0].span,
+            ));
         }
         let mut parts = vec![doc];
         for t in entries {
@@ -1089,7 +1101,7 @@ impl<'a> Formatter<'a> {
             Kind::ObjectPat(_) | Kind::ArrayPat(_) | Kind::AssignPat(..) | Kind::Rest(_) => {
                 self.pattern(id, PatCtx::Nested)
             }
-            _ => Err(Unsupported("expression kind")),
+            _ => Err(Unsupported::at("expression kind", self.ast.loc(id))),
         }
     }
 
@@ -1345,10 +1357,13 @@ impl<'a> Formatter<'a> {
         expr_body: bool,
     ) -> R<DocId> {
         if expr_body && matches!(self.ast.kind(body), Kind::Arrow { .. }) {
-            return Err(Unsupported("arrow chain"));
+            return Err(Unsupported::at("arrow chain", self.ast.loc(body)));
         }
         if expr_body && matches!(self.ast.kind(body), Kind::Cond { .. }) {
-            return Err(Unsupported("conditional arrow body"));
+            return Err(Unsupported::at(
+                "conditional arrow body",
+                self.ast.loc(body),
+            ));
         }
         let mut sig = Vec::new();
         if is_async {
@@ -1394,7 +1409,7 @@ impl<'a> Formatter<'a> {
         let mut parts = vec![self.lit("`")];
         for (i, &q) in quasis.iter().enumerate() {
             if self.ast.flags(q) & flag::OWNED != 0 {
-                return Err(Unsupported("synthesized template"));
+                return Err(Unsupported::at("synthesized template", self.ast.loc(q)));
             }
             let [lo, hi] = self.ast.raw_data(q);
             parts.push(self.docs.text(Span::new(lo, hi).text(self.src)));

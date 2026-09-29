@@ -84,7 +84,7 @@ pub fn format(c: &Component, src: &str) -> R<String> {
         tab_width: TAB_WIDTH,
     };
     docs.print(root, &opts)
-        .map_err(|_| Unsupported("a layout that does not fit on one line"))
+        .map_err(|_| Unsupported::nowhere("a layout that does not fit on one line"))
 }
 
 struct Printer<'a, 'd> {
@@ -309,13 +309,16 @@ impl<'a> Printer<'a, '_> {
             };
             let data = data.text(self.src).trim();
             if data.starts_with("prettier-ignore") {
-                return Err(Unsupported("prettier-ignore comments"));
+                return Err(Unsupported::at("prettier-ignore comments", span));
             }
             for h in &hoisted {
                 let before = span.hi <= h.lo && only_ws(&self.src[span.hi as usize..h.lo as usize]);
                 let after = h.hi <= span.lo && only_ws(&self.src[h.hi as usize..span.lo as usize]);
                 if before || (after && data.contains("endregion")) {
-                    return Err(Unsupported("comments attached to <script> or <style>"));
+                    return Err(Unsupported::at(
+                        "comments attached to <script> or <style>",
+                        span,
+                    ));
                 }
             }
         }
@@ -399,11 +402,11 @@ impl<'a> Printer<'a, '_> {
     }
 
     fn style_body(&mut self, style: &crate::ast::Style) -> R<DocId> {
-        if style.attrs.iter().any(|(n, v)| {
+        if let Some((n, _)) = style.attrs.iter().find(|(n, v)| {
             matches!(n.text(self.src), "lang" | "type")
                 && v.is_some_and(|v| v.text(self.src) != "css")
         }) {
-            return Err(Unsupported("a style language other than CSS"));
+            return Err(Unsupported::at("a style language other than CSS", *n));
         }
         let text = style.sheet.content.text(self.src);
         if text.trim().is_empty() {
@@ -413,14 +416,16 @@ impl<'a> Printer<'a, '_> {
                 self.d().hardline()
             });
         }
-        let css = rsv_css::format::format(self.src, &style.sheet, "", "  ")
-            .map_err(|e| Unsupported(e.0))?;
+        let css = rsv_css::format::format(self.src, &style.sheet, "", "  ")?;
         // The CSS printer makes no width decisions; it is exact only while no line has to wrap.
         if css
             .lines()
             .any(|l| TAB_WIDTH + rsv_kernel::doc::string_width(l) > PRINT_WIDTH)
         {
-            return Err(Unsupported("a CSS line longer than the print width"));
+            return Err(Unsupported::at(
+                "a CSS line longer than the print width",
+                style.span,
+            ));
         }
         let mut parts = Vec::new();
         for (i, line) in css.trim_end_matches('\n').split('\n').enumerate() {
@@ -566,10 +571,10 @@ impl<'a> Printer<'a, '_> {
     fn node(&mut self, id: TId) -> R<DocId> {
         match *self.c.node(id) {
             TNode::Text { .. } => Ok(self.text_node(id)),
-            TNode::Comment { data, .. } => {
+            TNode::Comment { data, span } => {
                 let data = data.text(self.src);
                 if data.trim().starts_with("prettier-ignore") {
-                    return Err(Unsupported("prettier-ignore comments"));
+                    return Err(Unsupported::at("prettier-ignore comments", span));
                 }
                 let o = self.lit("<!--");
                 let t = self.d().text(data);
@@ -678,7 +683,7 @@ impl<'a> Printer<'a, '_> {
         };
         let name = name.text(self.src);
         if name.contains(':') {
-            return Err(Unsupported("svelte: elements"));
+            return Err(Unsupported::at("svelte: elements", span));
         }
         if name == "template"
             && attrs
@@ -686,7 +691,7 @@ impl<'a> Printer<'a, '_> {
                 .iter()
                 .any(|a| matches!(a.name.text(self.src), "lang" | "type"))
         {
-            return Err(Unsupported("<template> with a language"));
+            return Err(Unsupported::at("<template> with a language", span));
         }
         let children = self.children(id);
         let is_empty = children.iter().all(|&c| self.is_empty_text(c));
@@ -1128,4 +1133,30 @@ fn normalize_class(raw: &str, is_last_part: bool) -> String {
         return s;
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn refusal(src: &str) -> (&'static str, Option<&str>) {
+        let c = crate::parse::parse(src).expect("parses");
+        let u = format(&c, src).expect_err("refused");
+        (u.what, u.loc.span().map(|s| s.text(src)))
+    }
+
+    #[test]
+    fn a_refusal_points_at_the_construct() {
+        assert_eq!(
+            refusal("<p>a</p>\n<svelte:head><title>x</title></svelte:head>\n"),
+            (
+                "svelte: elements",
+                Some("<svelte:head><title>x</title></svelte:head>")
+            )
+        );
+        assert_eq!(
+            refusal("<script>\n\tlet a = { 'b': 1 };\n</script>\n"),
+            ("quoted or numeric property key", Some("'b'"))
+        );
+    }
 }

@@ -110,8 +110,8 @@ impl Task for Format {
             Ok(text) => out.file("svelte", text),
             Err(u) => out.diagnostics.push(Diagnostic::error(
                 "format_unsupported",
-                format!("not supported by the formatter yet: {}", u.0),
-                Span::new(0, 0),
+                format!("not supported by the formatter yet: {}", u.what),
+                u.span(),
             )),
         }
     }
@@ -210,8 +210,8 @@ impl ProjectTask for Check {
             Err(u) => {
                 out.diagnostics.push(Diagnostic::error(
                     "check_unsupported",
-                    format!("not supported by the type-check projection yet: {}", u.0),
-                    Span::new(0, 0),
+                    format!("not supported by the type-check projection yet: {}", u.what),
+                    u.span(),
                 ));
                 None
             }

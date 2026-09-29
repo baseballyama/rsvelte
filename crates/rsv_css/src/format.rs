@@ -1,10 +1,8 @@
 //! Prints a style sheet the way prettier's postcss printer does, for the subset the parser reads.
 
 use crate::ast::{Rule, RuleKind, StyleSheet};
+use rsv_kernel::diag::Unsupported;
 use rsv_kernel::source::Span;
-
-#[derive(Debug)]
-pub struct Unsupported(pub &'static str);
 
 /// Each line starts with `indent`; one nesting level adds `unit`.
 pub fn format(
@@ -14,7 +12,7 @@ pub fn format(
     unit: &str,
 ) -> Result<String, Unsupported> {
     if has_comment(sheet.content.text(src)) {
-        return Err(Unsupported("comments in CSS"));
+        return Err(Unsupported::at("comments in CSS", sheet.content));
     }
     let mut out = String::new();
     rules(src, &sheet.rules, indent, unit, &mut out);

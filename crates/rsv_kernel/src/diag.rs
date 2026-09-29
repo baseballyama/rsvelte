@@ -1,7 +1,7 @@
 //! Diagnostics shared by every task. A diagnostic is positioned by a [`Span`] in its document;
 //! conversion to line/column happens once, when a task renders its output.
 
-use crate::source::Span;
+use crate::source::{Loc, Span};
 use std::borrow::Cow;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -49,4 +49,30 @@ impl Diagnostic {
 
 /// A construct a port does not cover yet. Tasks report it instead of approximating the output.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Unsupported(pub &'static str);
+pub struct Unsupported {
+    pub what: &'static str,
+    /// The construct; synthetic when the refusal is about the whole document.
+    pub loc: Loc,
+}
+
+impl Unsupported {
+    pub fn at(what: &'static str, loc: impl Into<Loc>) -> Unsupported {
+        Unsupported {
+            what,
+            loc: loc.into(),
+        }
+    }
+
+    /// A refusal no single construct explains (a layout decision over the whole document).
+    pub fn nowhere(what: &'static str) -> Unsupported {
+        Unsupported {
+            what,
+            loc: Loc::SYNTHETIC,
+        }
+    }
+
+    /// Where a diagnostic for it points: the construct, or the document's start.
+    pub fn span(&self) -> Span {
+        self.loc.span().unwrap_or_default()
+    }
+}
