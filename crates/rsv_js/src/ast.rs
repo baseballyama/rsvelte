@@ -14,10 +14,12 @@
 //! Columns are taken from and returned to the per-thread [`rsv_kernel::pool`] so that, in steady
 //! state, building a tree for the next document reuses the previous document's capacity.
 
+use crate::lexer::T;
 use crate::ops::{AssignOp, BinOp, LogicalOp, UnaryOp, UpdateOp};
 use rsv_kernel::intern::{Atom, Interner};
 use rsv_kernel::pool;
 use rsv_kernel::source::{Loc, Span};
+use rsv_kernel::token::Tokens;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 #[repr(transparent)]
@@ -249,6 +251,10 @@ pub struct Ast {
     pub atoms: Interner,
     /// Comment locs in source order (`//…` and `/*…*/`, delimiters included).
     pub comments: Vec<Span>,
+    /// Every token the parser consumed, in source order. With [`Ast::comments`] and whitespace in
+    /// the gaps, they are the parsed regions of the source (typescript-eslint's `tokens` and
+    /// `comments`).
+    pub tokens: Tokens<T>,
     /// TypeScript syntax the tree erases, in source order. Compilation ignores it; source-preserving
     /// consumers (the formatter, the type-check projection) read it back by node.
     pub ts: Vec<TsSyntax>,
@@ -309,6 +315,7 @@ impl Ast {
             strs: String::new(),
             atoms: Interner::new(),
             comments: pool::take(),
+            tokens: Tokens::new(),
             ts: Vec::new(),
         }
     }
@@ -329,6 +336,7 @@ impl Ast {
             + self.locs.capacity() * 8
             + self.extra.capacity() * 4
             + self.strs.capacity()
+            + self.tokens.heap_bytes()
     }
 
     #[inline]

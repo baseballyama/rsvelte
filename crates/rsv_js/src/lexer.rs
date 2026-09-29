@@ -36,6 +36,13 @@ pub enum T {
     Op,
 }
 
+impl rsv_kernel::token::TokenKind for T {
+    /// Comments and whitespace are not tokens here; they are [`crate::Ast::comments`] and the gaps.
+    fn is_trivia(self) -> bool {
+        false
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Tok {
     pub t: T,

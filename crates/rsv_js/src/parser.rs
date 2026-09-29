@@ -116,6 +116,7 @@ impl<'a, 'b> Parser<'a, 'b> {
 
     fn bump(&mut self) -> R<Tok> {
         let t = self.tok;
+        self.ast.tokens.push(t.t, t.span);
         self.prev_end = t.span.hi;
         self.tok = self.lex.next(&mut self.ast.comments)?;
         Ok(t)
