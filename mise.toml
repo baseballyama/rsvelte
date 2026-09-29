@@ -20,3 +20,7 @@ run = [
   # The rustdoc lints only run under `cargo doc`.
   "cargo doc --offline --workspace --no-deps --all-features",
 ]
+
+[tasks.buildtime]
+description = "Measure how long the workspace takes to compile (tools/buildtime)"
+run = "node tools/buildtime/bin/buildtime.ts"

@@ -1,0 +1,380 @@
+{
+	"schema": 1,
+	"when": "2026-09-29T06:48:06.927Z",
+	"rounds": 5,
+	"env": {
+		"gitRev": "39b65e423e30f9b6a42b75d89f4cfd9f5d81c952",
+		"dirty": false,
+		"rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+		"host": "aarch64-apple-darwin",
+		"cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)",
+		"cpu": "Apple M1 Pro",
+		"cores": 10,
+		"memGiB": 32,
+		"os": "Darwin 25.6.0",
+		"rustflags": null,
+		"incremental": null
+	},
+	"scenarios": [
+		{
+			"name": "check.clean",
+			"description": "cargo check, every target, from nothing",
+			"command": "cargo check --workspace --all-targets --all-features --offline",
+			"medianSeconds": 3.501,
+			"minSeconds": 3.367,
+			"maxSeconds": 4.271,
+			"packages": 14,
+			"samples": [
+				{
+					"seconds": 4.271,
+					"packages": 14,
+					"load1": 2.16
+				},
+				{
+					"seconds": 3.367,
+					"packages": 14,
+					"load1": 6.64
+				},
+				{
+					"seconds": 3.504,
+					"packages": 14,
+					"load1": 17.55
+				},
+				{
+					"seconds": 3.501,
+					"packages": 14,
+					"load1": 25.23
+				},
+				{
+					"seconds": 3.421,
+					"packages": 14,
+					"load1": 18.97
+				}
+			]
+		},
+		{
+			"name": "clippy.clean",
+			"description": "the lint gate, from nothing",
+			"command": "cargo clippy --workspace --all-targets --all-features --offline",
+			"medianSeconds": 3.988,
+			"minSeconds": 3.974,
+			"maxSeconds": 4.054,
+			"packages": 14,
+			"samples": [
+				{
+					"seconds": 3.974,
+					"packages": 14,
+					"load1": 3.34
+				},
+				{
+					"seconds": 4.054,
+					"packages": 14,
+					"load1": 8.91
+				},
+				{
+					"seconds": 4.04,
+					"packages": 14,
+					"load1": 16.78
+				},
+				{
+					"seconds": 3.988,
+					"packages": 14,
+					"load1": 23.85
+				},
+				{
+					"seconds": 3.984,
+					"packages": 14,
+					"load1": 17.53
+				}
+			]
+		},
+		{
+			"name": "debug.clean",
+			"description": "debug build of every target (tests included), from nothing",
+			"command": "cargo build --workspace --all-targets --all-features --offline",
+			"medianSeconds": 4.949,
+			"minSeconds": 4.81,
+			"maxSeconds": 5.045,
+			"packages": 14,
+			"samples": [
+				{
+					"seconds": 4.81,
+					"packages": 14,
+					"load1": 3.4
+				},
+				{
+					"seconds": 4.893,
+					"packages": 14,
+					"load1": 10.28
+				},
+				{
+					"seconds": 4.974,
+					"packages": 14,
+					"load1": 17.12
+				},
+				{
+					"seconds": 5.045,
+					"packages": 14,
+					"load1": 23.85
+				},
+				{
+					"seconds": 4.949,
+					"packages": 14,
+					"load1": 16.29
+				}
+			]
+		},
+		{
+			"name": "release.clean",
+			"description": "the shipped `rsv` binary (release: thin LTO, one codegen unit)",
+			"command": "cargo build --release -p rsv_cli --offline",
+			"medianSeconds": 10.46,
+			"minSeconds": 10.368,
+			"maxSeconds": 11.246,
+			"packages": 14,
+			"samples": [
+				{
+					"seconds": 11.246,
+					"packages": 14,
+					"load1": 3.36
+				},
+				{
+					"seconds": 10.368,
+					"packages": 14,
+					"load1": 10.9
+				},
+				{
+					"seconds": 10.529,
+					"packages": 14,
+					"load1": 20.63
+				},
+				{
+					"seconds": 10.46,
+					"packages": 14,
+					"load1": 22.02
+				},
+				{
+					"seconds": 10.395,
+					"packages": 14,
+					"load1": 15.14
+				}
+			]
+		},
+		{
+			"name": "debug.incr.kernel.touch",
+			"description": "debug build of every target after a `touch` edit to crates/rsv_kernel/src/lib.rs",
+			"command": "cargo build --workspace --all-targets --all-features --offline",
+			"medianSeconds": 1.293,
+			"minSeconds": 1.176,
+			"maxSeconds": 1.35,
+			"packages": 5,
+			"samples": [
+				{
+					"seconds": 1.176,
+					"packages": 5,
+					"load1": 3.73
+				},
+				{
+					"seconds": 1.293,
+					"packages": 5,
+					"load1": 13.31
+				},
+				{
+					"seconds": 1.276,
+					"packages": 5,
+					"load1": 20.42
+				},
+				{
+					"seconds": 1.301,
+					"packages": 5,
+					"load1": 17.79
+				},
+				{
+					"seconds": 1.35,
+					"packages": 5,
+					"load1": 15.66
+				}
+			]
+		},
+		{
+			"name": "debug.incr.kernel.body",
+			"description": "debug build of every target after a `body` edit to crates/rsv_kernel/src/lib.rs",
+			"command": "cargo build --workspace --all-targets --all-features --offline",
+			"medianSeconds": 1.373,
+			"minSeconds": 1.219,
+			"maxSeconds": 1.422,
+			"packages": 5,
+			"samples": [
+				{
+					"seconds": 1.219,
+					"packages": 5,
+					"load1": 4.4
+				},
+				{
+					"seconds": 1.373,
+					"packages": 5,
+					"load1": 13.31
+				},
+				{
+					"seconds": 1.277,
+					"packages": 5,
+					"load1": 21.59
+				},
+				{
+					"seconds": 1.413,
+					"packages": 5,
+					"load1": 18.45
+				},
+				{
+					"seconds": 1.422,
+					"packages": 5,
+					"load1": 15.66
+				}
+			]
+		},
+		{
+			"name": "debug.incr.kernel.api",
+			"description": "debug build of every target after a `api` edit to crates/rsv_kernel/src/lib.rs",
+			"command": "cargo build --workspace --all-targets --all-features --offline",
+			"medianSeconds": 1.352,
+			"minSeconds": 1.187,
+			"maxSeconds": 1.359,
+			"packages": 5,
+			"samples": [
+				{
+					"seconds": 1.187,
+					"packages": 5,
+					"load1": 5.33
+				},
+				{
+					"seconds": 1.32,
+					"packages": 5,
+					"load1": 15.77
+				},
+				{
+					"seconds": 1.353,
+					"packages": 5,
+					"load1": 21.59
+				},
+				{
+					"seconds": 1.359,
+					"packages": 5,
+					"load1": 18.45
+				},
+				{
+					"seconds": 1.352,
+					"packages": 5,
+					"load1": 14.97
+				}
+			]
+		},
+		{
+			"name": "debug.incr.svelte.touch",
+			"description": "debug build of every target after a `touch` edit to crates/rsv_svelte/src/lib.rs",
+			"command": "cargo build --workspace --all-targets --all-features --offline",
+			"medianSeconds": 0.814,
+			"minSeconds": 0.766,
+			"maxSeconds": 0.839,
+			"packages": 2,
+			"samples": [
+				{
+					"seconds": 0.814,
+					"packages": 2,
+					"load1": 5.06
+				},
+				{
+					"seconds": 0.8,
+					"packages": 2,
+					"load1": 15.77
+				},
+				{
+					"seconds": 0.766,
+					"packages": 2,
+					"load1": 22.9
+				},
+				{
+					"seconds": 0.838,
+					"packages": 2,
+					"load1": 18.97
+				},
+				{
+					"seconds": 0.839,
+					"packages": 2,
+					"load1": 14.97
+				}
+			]
+		},
+		{
+			"name": "debug.incr.svelte.body",
+			"description": "debug build of every target after a `body` edit to crates/rsv_svelte/src/lib.rs",
+			"command": "cargo build --workspace --all-targets --all-features --offline",
+			"medianSeconds": 0.745,
+			"minSeconds": 0.732,
+			"maxSeconds": 0.934,
+			"packages": 2,
+			"samples": [
+				{
+					"seconds": 0.732,
+					"packages": 2,
+					"load1": 6.17
+				},
+				{
+					"seconds": 0.934,
+					"packages": 2,
+					"load1": 17.55
+				},
+				{
+					"seconds": 0.745,
+					"packages": 2,
+					"load1": 22.9
+				},
+				{
+					"seconds": 0.785,
+					"packages": 2,
+					"load1": 18.97
+				},
+				{
+					"seconds": 0.744,
+					"packages": 2,
+					"load1": 14.17
+				}
+			]
+		},
+		{
+			"name": "debug.incr.svelte.api",
+			"description": "debug build of every target after a `api` edit to crates/rsv_svelte/src/lib.rs",
+			"command": "cargo build --workspace --all-targets --all-features --offline",
+			"medianSeconds": 0.854,
+			"minSeconds": 0.763,
+			"maxSeconds": 1.148,
+			"packages": 2,
+			"samples": [
+				{
+					"seconds": 0.763,
+					"packages": 2,
+					"load1": 6.64
+				},
+				{
+					"seconds": 1.002,
+					"packages": 2,
+					"load1": 17.55
+				},
+				{
+					"seconds": 1.148,
+					"packages": 2,
+					"load1": 25.23
+				},
+				{
+					"seconds": 0.854,
+					"packages": 2,
+					"load1": 18.97
+				},
+				{
+					"seconds": 0.814,
+					"packages": 2,
+					"load1": 14.17
+				}
+			]
+		}
+	]
+}
