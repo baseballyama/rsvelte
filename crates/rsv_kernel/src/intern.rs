@@ -54,29 +54,35 @@ impl Interner {
         if self.table.is_empty() {
             return None;
         }
+        self.probe(hash(s), s).ok()
+    }
+
+    /// The atom for `s`, or the empty slot where it would go. The table must not be empty.
+    fn probe(&self, h: u64, s: &str) -> Result<Atom, usize> {
         let mask = self.table.len() - 1;
-        let mut i = hash(s) as usize & mask;
+        let mut i = h as usize & mask;
         loop {
             match self.table[i] {
-                0 => return None,
-                id if self.get(Atom(id - 1)) == s => return Some(Atom(id - 1)),
+                0 => return Err(i),
+                id if self.get(Atom(id - 1)) == s => return Ok(Atom(id - 1)),
                 _ => i = (i + 1) & mask,
             }
         }
     }
 
     pub fn intern(&mut self, s: &str) -> Atom {
-        if (self.ends.len() + 1) * 2 > self.table.len() {
+        if self.table.is_empty() {
             self.grow();
         }
-        let mask = self.table.len() - 1;
-        let mut i = hash(s) as usize & mask;
-        loop {
-            match self.table[i] {
-                0 => break,
-                id if self.get(Atom(id - 1)) == s => return Atom(id - 1),
-                _ => i = (i + 1) & mask,
-            }
+        let h = hash(s);
+        let mut i = match self.probe(h, s) {
+            Ok(atom) => return atom,
+            Err(empty) => empty,
+        };
+        // Only a new atom raises the load factor, so a hit never grows the table.
+        if (self.ends.len() + 1) * 2 > self.table.len() {
+            self.grow();
+            i = self.probe(h, s).expect_err("absent before growing");
         }
         self.buf.push_str(s);
         self.ends.push(self.buf.len() as u32);
@@ -114,5 +120,20 @@ mod tests {
             assert_eq!(i.lookup(n), Some(*a));
         }
         assert_eq!(i.lookup("missing"), None);
+    }
+
+    #[test]
+    fn a_hit_does_not_grow_the_table() {
+        let mut i = Interner::new();
+        for n in 0..32 {
+            i.intern(&format!("n{n}"));
+        }
+        let cap = i.table.len();
+        assert!((i.len() + 1) * 2 > cap, "the next new name would grow it");
+        i.intern("n0");
+        assert_eq!(i.table.len(), cap);
+        i.intern("new");
+        assert!(i.table.len() > cap);
+        assert_eq!(i.lookup("new"), Some(Atom(32)));
     }
 }
