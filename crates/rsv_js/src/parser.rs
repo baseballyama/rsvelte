@@ -43,6 +43,8 @@ pub struct Parser<'a, 'b> {
 
 /// Parses `range` of `src` as a module body.
 pub fn parse_program(ast: &mut Ast, src: &str, range: Span, ts: bool) -> R<NodeId> {
+    // Svelte components average a token per 4.8 bytes (the lossless corpus test prints both).
+    ast.tokens.reserve(range.len() as usize / 4);
     let mut p = Parser::new(ast, src, range, ts)?;
     let mut body = Vec::new();
     while p.tok.t != T::Eof {

@@ -120,6 +120,10 @@ impl<I: Idx, T> IndexVec<I, T> {
     pub fn capacity(&self) -> usize {
         self.raw.capacity()
     }
+
+    pub fn reserve(&mut self, n: usize) {
+        self.raw.reserve(n);
+    }
 }
 
 impl<I: Idx, T> Default for IndexVec<I, T> {

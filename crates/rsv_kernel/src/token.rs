@@ -46,6 +46,17 @@ impl<K: TokenKind> Tokens<K> {
         Self::default()
     }
 
+    pub fn with_capacity(n: usize) -> Self {
+        Tokens {
+            toks: IndexVec::with_capacity(n),
+        }
+    }
+
+    /// Room for `n` more tokens.
+    pub fn reserve(&mut self, n: usize) {
+        self.toks.reserve(n);
+    }
+
     /// Empty spans are not tokens and are dropped.
     #[inline]
     pub fn push(&mut self, kind: K, span: Span) {

@@ -20,7 +20,11 @@ fn gaps_are_trivia(src: &str, ts: bool) {
                 continue;
             }
             let b = src.as_bytes()[i as usize];
-            assert!(b.is_ascii_whitespace(), "untokenized {:?} at {i} in {src:?}", b as char);
+            assert!(
+                b.is_ascii_whitespace(),
+                "untokenized {:?} at {i} in {src:?}",
+                b as char
+            );
             i += 1;
         }
     };
@@ -29,7 +33,10 @@ fn gaps_are_trivia(src: &str, ts: bool) {
         at = t.span.hi;
     }
     check_gap(at, src.len() as u32);
-    assert!(comments.next().is_none(), "a comment outside every gap in {src:?}");
+    assert!(
+        comments.next().is_none(),
+        "a comment outside every gap in {src:?}"
+    );
 }
 
 #[test]
@@ -42,5 +49,8 @@ fn tokens_comments_and_whitespace_are_the_source() {
     ] {
         gaps_are_trivia(src, false);
     }
-    gaps_are_trivia("let x: Array<Array<number>> = []; const f = (a: number): number => a! as number;", true);
+    gaps_are_trivia(
+        "let x: Array<Array<number>> = []; const f = (a: number): number => a! as number;",
+        true,
+    );
 }
