@@ -1,5 +1,6 @@
 //! A small streaming JSON writer. Output JSON is written directly; no intermediate value tree.
 
+#[derive(Debug)]
 pub struct JsonWriter {
     out: String,
     /// Per open container: has at least one member been written.
@@ -10,8 +11,9 @@ pub struct JsonWriter {
 }
 
 impl JsonWriter {
-    pub fn new(pretty: bool) -> JsonWriter {
-        JsonWriter {
+    #[must_use]
+    pub const fn new(pretty: bool) -> Self {
+        Self {
             out: String::new(),
             stack: Vec::new(),
             after_key: false,
@@ -19,6 +21,7 @@ impl JsonWriter {
         }
     }
 
+    #[must_use]
     pub fn finish(mut self) -> String {
         if self.pretty {
             self.out.push('\n');
@@ -98,9 +101,10 @@ impl JsonWriter {
     }
 
     pub fn num(&mut self, n: impl std::fmt::Display) -> &mut Self {
-        self.before_value();
         use std::fmt::Write;
-        let _ = write!(self.out, "{n}");
+        self.before_value();
+        // Writing to a `String` cannot fail.
+        _ = write!(self.out, "{n}");
         self
     }
 
@@ -128,7 +132,8 @@ pub fn write_str(out: &mut String, s: &str) {
             '\t' => out.push_str("\\t"),
             c if (c as u32) < 0x20 => {
                 use std::fmt::Write;
-                let _ = write!(out, "\\u{:04x}", c as u32);
+                // Writing to a `String` cannot fail.
+                _ = write!(out, "\\u{:04x}", c as u32);
             }
             c => out.push(c),
         }

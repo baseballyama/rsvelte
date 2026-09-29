@@ -1,5 +1,14 @@
 //! Client lowering: a DOM template per fragment plus the statements that walk it and keep it up to
-//! date. Mirrors upstream `3-transform/client` (Fragment, RegularElement, IfBlock, shared/fragment).
+//! date. Mirrors upstream `3-transform/client` (Fragment, `RegularElement`, `IfBlock`,
+//! shared/fragment).
+
+use rsv_js::ast::flag;
+use rsv_js::copy::copy;
+use rsv_js::ops::{AssignOp, LogicalOp};
+use rsv_js::{Ast, Kind, NodeId};
+use rsv_kernel::diag::Diagnostic;
+use rsv_kernel::source::{Loc, Span};
+use rustc_hash::FxHashMap;
 
 use super::names::Names;
 use super::script::{ScriptRewrite, lower_instance};
@@ -10,13 +19,6 @@ use crate::analyze::{Analysis, ExprMeta};
 use crate::ast::{AttrValue, Component, Part, TId, TNode, decode_text};
 use crate::parse::is_void;
 use crate::resolve::Resolution;
-use rsv_js::ast::flag;
-use rsv_js::copy::copy;
-use rsv_js::ops::{AssignOp, LogicalOp};
-use rsv_js::{Ast, Kind, NodeId};
-use rsv_kernel::diag::Diagnostic;
-use rsv_kernel::source::{Loc, Span};
-use rustc_hash::FxHashMap;
 
 const TEMPLATE_FRAGMENT: u32 = 1;
 const TEMPLATE_USE_IMPORT_NODE: u32 = 2;
@@ -58,6 +60,7 @@ fn unsupported<T>(what: &str, span: Span) -> R<T> {
 }
 
 /// Upstream `normalize_attribute`.
+#[must_use]
 pub fn normalize_attribute(name: &str) -> String {
     let lower = name.to_ascii_lowercase();
     let alias = match lower.as_str() {
@@ -233,6 +236,10 @@ struct Cx<'a> {
     events: Vec<String>,
 }
 
+/// # Errors
+///
+/// An `unsupported` [`Diagnostic`] if the component uses a construct the client lowering does not
+/// handle yet.
 pub fn lower(c: &Component, src: &str, res: &Resolution, an: &Analysis) -> R<(Ast, NodeId)> {
     let declared = res.sem.bindings.iter().map(|b| c.js.atoms.get(b.name));
     let referenced = res.sem.references.iter().map(|r| c.js.name(r.node));
@@ -388,7 +395,7 @@ impl<'a> Cx<'a> {
     }
 
     /// Upstream `Fragment` visitor: the statements of one block.
-    fn fragment(&mut self, parent: Parent, list: &[TId]) -> R<Vec<NodeId>> {
+    fn fragment(&mut self, parent: Parent<'_>, list: &[TId]) -> R<Vec<NodeId>> {
         let cleaned = clean_nodes(self.c, self.src, parent, list, false);
         let items = cleaned.items;
         if items.is_empty() {
@@ -467,7 +474,7 @@ impl<'a> Cx<'a> {
         }
         body.append(&mut l.init);
         if !l.update.is_empty() {
-            let effect = self.render_statement(&mut frag, std::mem::take(&mut l.update));
+            let effect = self.render_statement(&mut frag, &std::mem::take(&mut l.update));
             body.push(effect);
         }
         body.append(&mut l.after);
@@ -483,23 +490,22 @@ impl<'a> Cx<'a> {
     }
 
     /// Upstream `build_render_statement`.
-    fn render_statement(&mut self, frag: &mut Frag, update: Vec<NodeId>) -> NodeId {
+    fn render_statement(&mut self, frag: &mut Frag, update: &[NodeId]) -> NodeId {
         let ids: Vec<NodeId> = (0..frag.memo.len())
             .map(|i| self.out.id(&format!("${i}")))
             .collect();
-        let single = match update.as_slice() {
+        let single = match update {
             [s] => match self.out.kind(*s) {
                 Kind::ExprStmt(e) => Some(e),
                 _ => None,
             },
             _ => None,
         };
-        let body = match single {
-            Some(e) => self.out.arrow(&ids, e, true, false, Loc::SYNTHETIC),
-            None => {
-                let b = self.out.block(&update, Loc::SYNTHETIC);
-                self.out.arrow(&ids, b, false, false, Loc::SYNTHETIC)
-            }
+        let body = if let Some(e) = single {
+            self.out.arrow(&ids, e, true, false, Loc::SYNTHETIC)
+        } else {
+            let b = self.out.block(update, Loc::SYNTHETIC);
+            self.out.arrow(&ids, b, false, false, Loc::SYNTHETIC)
         };
         let values = if frag.memo.is_empty() {
             None
@@ -543,7 +549,7 @@ impl<'a> Cx<'a> {
     /// Upstream `process_children`.
     fn process_children(
         &mut self,
-        items: &[Item],
+        items: &[Item<'_>],
         initial: Prev,
         frag: &mut Frag,
         l: &mut Lists,
@@ -552,14 +558,14 @@ impl<'a> Cx<'a> {
             prev: initial,
             skipped: 0,
         };
-        let mut sequence: Vec<Item> = Vec::new();
+        let mut sequence: Vec<Item<'_>> = Vec::new();
         for item in items {
             if matches!(item, Item::Text { .. } | Item::Expr(_)) {
                 sequence.push(item.clone());
                 continue;
             }
             if !sequence.is_empty() {
-                self.flush_sequence(&std::mem::take(&mut sequence), &mut st, frag, l)?;
+                self.flush_sequence(&std::mem::take(&mut sequence), &mut st, frag, l);
             }
             let Item::Node(id) = item else {
                 unreachable!("text is part of a sequence")
@@ -578,7 +584,7 @@ impl<'a> Cx<'a> {
             }
         }
         if !sequence.is_empty() {
-            self.flush_sequence(&sequence, &mut st, frag, l)?;
+            self.flush_sequence(&sequence, &mut st, frag, l);
         }
         if st.skipped > 1 {
             st.skipped -= 1;
@@ -612,27 +618,20 @@ impl<'a> Cx<'a> {
 
     fn flush_node(&mut self, st: &mut Walk, is_text: bool, name: &str, l: &mut Lists) -> String {
         let expression = self.get_node(st, is_text);
-        let id = match self.out.kind(expression) {
-            Kind::Ident(_) => self.out.name(expression).to_owned(),
-            _ => {
-                let id = self.names.generate(name);
-                let decl = self.var(&id, expression);
-                l.init.push(decl);
-                id
-            }
+        let id = if let Kind::Ident(_) = self.out.kind(expression) {
+            self.out.name(expression).to_owned()
+        } else {
+            let id = self.names.generate(name);
+            let decl = self.var(&id, expression);
+            l.init.push(decl);
+            id
         };
         st.prev = Prev::Ident(id.clone());
         st.skipped = 1;
         id
     }
 
-    fn flush_sequence(
-        &mut self,
-        seq: &[Item],
-        st: &mut Walk,
-        frag: &mut Frag,
-        l: &mut Lists,
-    ) -> R<()> {
+    fn flush_sequence(&mut self, seq: &[Item<'_>], st: &mut Walk, frag: &mut Frag, l: &mut Lists) {
         if seq.iter().all(|i| matches!(i, Item::Text { .. })) {
             st.skipped += 1;
             let raw: String = seq
@@ -643,7 +642,7 @@ impl<'a> Cx<'a> {
                 })
                 .collect();
             frag.tpl.push_text(raw);
-            return Ok(());
+            return;
         }
         frag.tpl.push_text(" ".into());
         let (value, has_state) = self.template_chunk(seq, frag);
@@ -659,11 +658,10 @@ impl<'a> Cx<'a> {
                 .assign(AssignOp::Assign, target, value, Loc::SYNTHETIC);
             l.init.push(self.stmt(assign));
         }
-        Ok(())
     }
 
     /// Upstream `build_template_chunk`.
-    fn template_chunk(&mut self, values: &[Item], frag: &mut Frag) -> (NodeId, bool) {
+    fn template_chunk(&mut self, values: &[Item<'_>], frag: &mut Frag) -> (NodeId, bool) {
         let mut quasis: Vec<String> = vec![String::new()];
         let mut exprs: Vec<NodeId> = Vec::new();
         let mut has_state = false;
@@ -717,26 +715,21 @@ impl<'a> Cx<'a> {
                 let empty = self.out.str("");
                 value = self.out.logical(op, l, empty, self.out.loc(value));
             }
-            match known {
-                Some(k) => {
-                    let s = match &k.value {
-                        crate::evaluate::Val::Null | crate::evaluate::Val::Undefined => {
-                            String::new()
-                        }
-                        v => v.to_js_string(),
-                    };
-                    quasis.last_mut().expect("never empty").push_str(&s);
+            if let Some(k) = known {
+                let s = match &k.value {
+                    crate::evaluate::Val::Null | crate::evaluate::Val::Undefined => String::new(),
+                    v => v.to_js_string(),
+                };
+                quasis.last_mut().expect("never empty").push_str(&s);
+            } else {
+                if !evaluated.is_defined {
+                    let empty = self.out.str("");
+                    value = self
+                        .out
+                        .logical(LogicalOp::Nullish, value, empty, Loc::SYNTHETIC);
                 }
-                None => {
-                    if !evaluated.is_defined {
-                        let empty = self.out.str("");
-                        value = self
-                            .out
-                            .logical(LogicalOp::Nullish, value, empty, Loc::SYNTHETIC);
-                    }
-                    exprs.push(value);
-                    quasis.push(String::new());
-                }
+                exprs.push(value);
+                quasis.push(String::new());
             }
         }
         if exprs.is_empty() {
@@ -764,6 +757,10 @@ impl<'a> Cx<'a> {
     }
 
     /// Upstream `RegularElement`.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "ports upstream's `RegularElement` visitor in one piece"
+    )]
     fn element(&mut self, id: TId, node: &str, frag: &mut Frag, l: &mut Lists) -> R<()> {
         let TNode::Element {
             name,
@@ -815,9 +812,9 @@ impl<'a> Cx<'a> {
                 let update = self.attribute_update(node, &attr_name, value);
                 let s = self.stmt(update);
                 if has_state {
-                    l.update.push(s)
+                    l.update.push(s);
                 } else {
-                    l.init.push(s)
+                    l.init.push(s);
                 }
             }
         }
@@ -883,7 +880,7 @@ impl<'a> Cx<'a> {
     }
 
     fn static_attribute(
-        &mut self,
+        &self,
         frag: &mut Frag,
         id: TId,
         raw_name: &str,
@@ -976,7 +973,8 @@ impl<'a> Cx<'a> {
         }
     }
 
-    /// Upstream `fold_reset_into_child`: `var x = $.child(el)` + `$.reset(el)` → `$.only_child(el)`.
+    /// Upstream `fold_reset_into_child`: `var x = $.child(el)` + `$.reset(el)` →
+    /// `$.only_child(el)`.
     fn fold_reset_into_child(&mut self, init: &mut [NodeId], node: &str) -> bool {
         let Some(&last) = init.last() else {
             return false;
@@ -995,8 +993,11 @@ impl<'a> Cx<'a> {
         let Kind::Call { callee, args, .. } = self.out.kind(call) else {
             return false;
         };
-        let is_child = matches!(self.out.kind(callee), Kind::Member { object, property, computed: false, .. }
-            if self.out.name(object) == "$" && self.out.name(property) == "child");
+        let is_child = matches!(
+            self.out.kind(callee),
+            Kind::Member { object, property, computed: false, .. }
+                if self.out.name(object) == "$" && self.out.name(property) == "child"
+        );
         let first_is_node = args.first().is_some_and(|&a| {
             matches!(self.out.kind(a), Kind::Ident(_)) && self.out.name(a) == node
         });
@@ -1014,14 +1015,15 @@ impl<'a> Cx<'a> {
     /// Upstream `visit_event_attribute` + `build_event` + `build_event_handler` (non-dev).
     fn event(&mut self, raw_name: &str, handler: NodeId, node: &str, l: &mut Lists) {
         let mut event_name = &raw_name[2..];
-        let mut capture = false;
-        if event_name.ends_with("capture")
+        let capture = if event_name.ends_with("capture")
             && event_name != "gotpointercapture"
             && event_name != "lostpointercapture"
         {
             event_name = &event_name[..event_name.len() - 7];
-            capture = true;
-        }
+            true
+        } else {
+            false
+        };
         let meta = self.an.meta(handler);
         let built = self.expr(handler);
         let handler_expr = match self.c.js.kind(handler) {
@@ -1088,7 +1090,7 @@ impl<'a> Cx<'a> {
             let (test, cons) = (*test, *cons);
             let body = self.fragment(Parent::Block, self.c.children(cons))?;
             let cid = self.names.generate("consequent");
-            let arrow = self.anchor_arrow(body);
+            let arrow = self.anchor_arrow(&body);
             statements.push(self.var(&cid, arrow));
             let meta = self.an.meta(test);
             let mut t = self.expr(test);
@@ -1112,18 +1114,19 @@ impl<'a> Cx<'a> {
         let TNode::If { alt, .. } = self.c.node(last) else {
             unreachable!()
         };
-        let mut else_stmt = None;
-        if let Some(a) = alt {
+        let else_stmt = if let Some(a) = alt {
             let body = self.fragment(Parent::Block, self.c.children(*a))?;
             let aid = self.names.generate("alternate");
-            let arrow = self.anchor_arrow(body);
+            let arrow = self.anchor_arrow(&body);
             statements.push(self.var(&aid, arrow));
             let render = self.out.id("$$render");
             let x = self.out.id(&aid);
             let minus = self.out.num(-1.0, Loc::SYNTHETIC);
             let call = self.out.call(render, &[x, minus], false, Loc::SYNTHETIC);
-            else_stmt = Some(self.out.expr_stmt(call));
-        }
+            Some(self.out.expr_stmt(call))
+        } else {
+            None
+        };
         let mut chain = else_stmt;
         for (t, r) in tests_and_renders.into_iter().rev() {
             chain = Some(self.out.if_(t, r, chain, Loc::SYNTHETIC));
@@ -1143,8 +1146,8 @@ impl<'a> Cx<'a> {
         Ok(())
     }
 
-    fn anchor_arrow(&mut self, body: Vec<NodeId>) -> NodeId {
-        let block = self.out.block(&body, Loc::SYNTHETIC);
+    fn anchor_arrow(&mut self, body: &[NodeId]) -> NodeId {
+        let block = self.out.block(body, Loc::SYNTHETIC);
         let anchor = self.out.id("$$anchor");
         self.out
             .arrow(&[anchor], block, false, false, Loc::SYNTHETIC)

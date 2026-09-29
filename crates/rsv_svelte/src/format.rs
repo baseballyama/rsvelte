@@ -1,22 +1,25 @@
-//! Formats a component the way prettier-plugin-svelte 4.x does (`printWidth: 80`, two-space
+//! Formats a component the way prettier-plugin-svelte 4.x does.
+//!
+//! The options are `printWidth: 80`, two-space
 //! indentation, `svelteSortOrder: "options-scripts-markup-styles"`, `svelteIndentScriptAndStyle`,
-//! `svelteAllowShorthand`, `bracketSameLine: false`, `htmlWhitespaceSensitivity: "css"`).
+//! `svelteAllowShorthand`, `bracketSameLine: false` and `htmlWhitespaceSensitivity: "css"`.
 //!
 //! The functions below port the plugin's `print`, `printChildren`, `printSvelteBlockChildren` and
 //! its node helpers one to one, including the order in which it trims text nodes while printing:
 //! the plugin mutates the text of its tree as it goes, and this port keeps that state in a side
 //! table (`text`) instead of mutating the shared, immutable component.
 //!
-//! Script and expression bodies go through rsv_js's formatter, style bodies through rsv_css's.
+//! Script and expression bodies go through `rsv_js`'s formatter, style bodies through `rsv_css`'s.
 //! Anything neither port covers is an [`Unsupported`] error, never an approximation.
 
-use crate::ast::{Attr, AttrValue, Component, Part, TId, TNode, TagAttr};
-use rsv_js::format::{Formatter, Options as JsOptions};
-use rsv_kernel::doc::{DocId, Docs, PrintOptions};
-use rsv_kernel::source::{LineIndex, Span};
 use std::borrow::Cow;
 
 pub use rsv_js::format::Unsupported;
+use rsv_js::format::{Formatter, Options as JsOptions};
+use rsv_kernel::doc::{DocId, Docs, PrintOptions, Refused};
+use rsv_kernel::source::{LineIndex, Span};
+
+use crate::ast::{Attr, AttrValue, Component, Part, TId, TNode, TagAttr};
 
 type R<T> = Result<T, Unsupported>;
 
@@ -66,6 +69,10 @@ const BLOCK_ELEMENTS: &[&str] = &[
     "ul",
 ];
 
+/// # Errors
+///
+/// [`Unsupported`] if the component holds a construct this formatter does not print, or a
+/// flat-only layout that does not fit.
 pub fn format(c: &Component, src: &str) -> R<String> {
     let lines = LineIndex::new(src);
     let mut docs = Docs::new();
@@ -84,7 +91,7 @@ pub fn format(c: &Component, src: &str) -> R<String> {
         tab_width: TAB_WIDTH,
     };
     docs.print(root, &opts)
-        .map_err(|_| Unsupported::nowhere("a layout that does not fit on one line"))
+        .map_err(|Refused| Unsupported::nowhere("a layout that does not fit on one line"))
 }
 
 struct Printer<'a, 'd> {
@@ -110,7 +117,7 @@ enum BlockWs {
     Line,
 }
 
-fn is_collapse_ws(c: char) -> bool {
+const fn is_collapse_ws(c: char) -> bool {
     matches!(c, '\t' | '\n' | '\x0C' | '\r' | ' ')
 }
 
@@ -145,7 +152,7 @@ fn ends_with_linebreak(s: &str, n: usize) -> bool {
 }
 
 impl<'a> Printer<'a, '_> {
-    fn d(&mut self) -> &mut Docs {
+    const fn d(&mut self) -> &mut Docs {
         &mut *self.js.docs
     }
 
@@ -184,7 +191,7 @@ impl<'a> Printer<'a, '_> {
         let t = self.raw_cow(id);
         let t = match t {
             Cow::Borrowed(b) => Cow::Borrowed(b.trim_start_matches(is_collapse_ws)),
-            Cow::Owned(o) => Cow::Owned(o.trim_start_matches(is_collapse_ws).to_string()),
+            Cow::Owned(o) => Cow::Owned(o.trim_start_matches(is_collapse_ws).to_owned()),
         };
         self.set_raw(id, t);
     }
@@ -193,7 +200,7 @@ impl<'a> Printer<'a, '_> {
         let t = self.raw_cow(id);
         let t = match t {
             Cow::Borrowed(b) => Cow::Borrowed(b.trim_end_matches(is_collapse_ws)),
-            Cow::Owned(o) => Cow::Owned(o.trim_end_matches(is_collapse_ws).to_string()),
+            Cow::Owned(o) => Cow::Owned(o.trim_end_matches(is_collapse_ws).to_owned()),
         };
         self.set_raw(id, t);
     }
@@ -278,7 +285,7 @@ impl<'a> Printer<'a, '_> {
             parts.push(self.cat(&[tag, h]));
         }
         let root = self.merged_root();
-        let markup = self.fragment(root)?;
+        let markup = self.fragment(&root)?;
         if let Some(markup) = markup {
             parts.push(markup);
         }
@@ -391,7 +398,7 @@ impl<'a> Printer<'a, '_> {
     /// `[indent([hardline, body]), hardline]` after trimming the body's trailing lines.
     fn indented_body(&mut self, body: DocId) -> DocId {
         let mut v = vec![body];
-        self.d().trim_right(&mut v, |d, x| d.is_line(x));
+        self.d().trim_right(&mut v, Docs::is_line);
         let h = self.d().hardline();
         let mut inner = vec![h];
         inner.extend(v);
@@ -439,12 +446,12 @@ impl<'a> Printer<'a, '_> {
     }
 
     /// `print` for the root `Fragment`; `None` for the plugin's empty result.
-    fn fragment(&mut self, children: Vec<TId>) -> R<Option<DocId>> {
+    fn fragment(&mut self, children: &[TId]) -> R<Option<DocId>> {
         if children.is_empty() || children.iter().all(|&c| self.is_empty_text(c)) {
             return Ok(None);
         }
-        self.trim_children(&children);
-        let printed = self.print_children(&children)?;
+        self.trim_children(children);
+        let printed = self.print_children(children)?;
         let inner = self.cat(&printed);
         let mut output = vec![inner];
         self.d().trim(&mut output, |d, x| {
@@ -606,7 +613,7 @@ impl<'a> Printer<'a, '_> {
     }
 
     fn text_node(&mut self, id: TId) -> DocId {
-        let raw = self.raw(id).to_string();
+        let raw = self.raw(id).to_owned();
         if self.in_pre {
             return self.d().text(&raw);
         }
@@ -674,6 +681,10 @@ impl<'a> Printer<'a, '_> {
         docs
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "ports the plugin's element branch of `print` in one piece"
+    )]
     fn element(&mut self, id: TId) -> R<DocId> {
         let TNode::Element {
             name,
@@ -733,7 +744,7 @@ impl<'a> Printer<'a, '_> {
         let hug_end = self.should_hug(id, &children, false);
 
         let mut open_inner = attr_docs;
-        if !(hug_start && !is_empty) && !in_pre {
+        if (is_empty || !hug_start) && !in_pre {
             let soft = self.d().softline();
             open_inner.push(self.d().dedent(soft));
         }
@@ -765,12 +776,11 @@ impl<'a> Printer<'a, '_> {
             return Ok(self.group(&parts));
         }
 
-        let mut sep_start = self.d().softline();
-        let mut sep_end = self.d().softline();
-        if in_pre {
-            sep_start = self.d().nil();
-            sep_end = self.d().nil();
+        let (sep_start, sep_end) = if in_pre {
+            (self.d().nil(), self.d().nil())
         } else {
+            let mut sep_start = self.d().softline();
+            let mut sep_end = self.d().softline();
             let mut did_set_end = false;
             if !hug_start && let Some(f) = first.filter(|&f| self.is_text(f)) {
                 let l = last.expect("non-empty");
@@ -789,7 +799,8 @@ impl<'a> Printer<'a, '_> {
                 }
                 self.trim_right(l);
             }
-        }
+            (sep_start, sep_end)
+        };
 
         if hug_start {
             let body = self.element_body(&children, is_empty, is_inline, in_pre)?;
@@ -923,7 +934,7 @@ impl<'a> Printer<'a, '_> {
         for (i, p) in parts.iter().enumerate() {
             match *p {
                 Part::Text(span) => {
-                    let mut raw = span.text(self.src).to_string();
+                    let mut raw = span.text(self.src).to_owned();
                     if name == "class" && element == ElementKind::Regular {
                         raw = normalize_class(&raw, i + 1 == count);
                     }
@@ -962,7 +973,7 @@ impl<'a> Printer<'a, '_> {
         let t = self.expression(test, true, false)?;
         let close = self.lit("}");
         let c = self.c;
-        let body = self.block_children(c.children(cons).to_vec())?;
+        let body = self.block_children(c.children(cons))?;
         let mut def = vec![open, t, close, body];
         def.push(self.if_alternate(id)?);
         def.push(self.lit("{/if}"));
@@ -992,22 +1003,26 @@ impl<'a> Printer<'a, '_> {
             let t = self.expression(test, true, false)?;
             let close = self.lit("}");
             let c = self.c;
-            let body = self.block_children(c.children(cons).to_vec())?;
+            let body = self.block_children(c.children(cons))?;
             let rest = self.if_alternate(*only)?;
             return Ok(self.cat(&[open, t, close, body, rest]));
         }
+        #[expect(
+            clippy::literal_string_with_formatting_args,
+            reason = "Svelte's `{:else}` tag"
+        )]
         let open = self.lit("{:else}");
-        let body = self.block_children(kids)?;
+        let body = self.block_children(&kids)?;
         Ok(self.cat(&[open, body]))
     }
 
     /// `printSvelteBlockChildren`.
-    fn block_children(&mut self, children: Vec<TId>) -> R<DocId> {
+    fn block_children(&mut self, children: &[TId]) -> R<DocId> {
         if children.is_empty() {
             return Ok(self.d().nil());
         }
-        let start = self.block_ws(&children, true);
-        let end = self.block_ws(&children, false);
+        let start = self.block_ws(children, true);
+        let end = self.block_ws(children, false);
         let any_line = start == BlockWs::Line || end == BlockWs::Line;
         let startline = match start {
             BlockWs::None => self.d().nil(),
@@ -1027,7 +1042,7 @@ impl<'a> Printer<'a, '_> {
         if self.text_ends_ws(last) {
             self.trim_right(last);
         }
-        let docs = self.print_children(&children)?;
+        let docs = self.print_children(children)?;
         let g = self.group(&docs);
         let inner = self.cat(&[startline, g]);
         let inner = self.d().indent(inner);
@@ -1129,7 +1144,7 @@ fn normalize_class(raw: &str, is_last_part: bool) -> String {
     // `([^ \t\n])[ \t]+$` → `$1` at the end of the value, `$1 ` before an expression.
     let trimmed = out.trim_end_matches([' ', '\t']);
     if trimmed.len() < out.len() && !trimmed.is_empty() && !trimmed.ends_with('\n') {
-        let mut s = trimmed.to_string();
+        let mut s = trimmed.to_owned();
         if !is_last_part {
             s.push(' ');
         }

@@ -2,28 +2,30 @@
 //!
 //! An [`Artifact`] is a pure function of the document (and of other artifacts). A [`Ctx`] holds one
 //! lazily-filled slot per registered artifact; `ctx.get::<A>()` computes `A` on first use and
-//! returns the cached value afterwards. Tasks never call parsers directly — they ask for artifacts —
-//! so running compile, format and lint together parses the document once.
+//! returns the cached value afterwards. Tasks never call parsers directly — they ask for artifacts
+//! — so running compile, format and lint together parses the document once.
 //!
 //! A `Ctx` belongs to one worker thread for the lifetime of one document (it is deliberately
 //! `!Sync`); parallelism is across documents. Asking for an artifact while it is being computed
 //! (a dependency cycle) panics.
 
+use std::any::{Any, TypeId};
+use std::cell::{OnceCell, RefCell};
+
+use rustc_hash::FxHashMap;
+
 use crate::metrics;
 use crate::pipeline::Document;
 use crate::source::LineIndex;
-use rustc_hash::FxHashMap;
-use std::any::{Any, TypeId};
-use std::cell::{OnceCell, RefCell};
 
 pub trait Artifact: 'static {
     type Output: 'static;
     /// Also the metrics phase name.
     const NAME: &'static str;
-    fn compute(ctx: &Ctx) -> Self::Output;
+    fn compute(ctx: &Ctx<'_>) -> Self::Output;
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ArtifactRegistry {
     index: FxHashMap<TypeId, usize>,
     names: Vec<&'static str>,
@@ -38,6 +40,7 @@ impl ArtifactRegistry {
         }
     }
 
+    #[must_use]
     pub fn names(&self) -> &[&'static str] {
         &self.names
     }
@@ -50,6 +53,7 @@ impl ArtifactRegistry {
     }
 }
 
+#[derive(Debug)]
 pub struct Ctx<'a> {
     pub doc: &'a Document,
     registry: &'a ArtifactRegistry,
@@ -59,7 +63,8 @@ pub struct Ctx<'a> {
 }
 
 impl<'a> Ctx<'a> {
-    pub fn new(doc: &'a Document, registry: &'a ArtifactRegistry) -> Ctx<'a> {
+    #[must_use]
+    pub fn new(doc: &'a Document, registry: &'a ArtifactRegistry) -> Self {
         let slots = (0..registry.names.len()).map(|_| OnceCell::new()).collect();
         Ctx {
             doc,
@@ -75,6 +80,9 @@ impl<'a> Ctx<'a> {
         &self.doc.text
     }
 
+    /// # Panics
+    ///
+    /// If `A` was not registered in this context's registry.
     pub fn get<A: Artifact>(&self) -> &A::Output {
         let slot = &self.slots[self.registry.slot::<A>()];
         slot.get_or_init(|| {

@@ -9,8 +9,9 @@ pub mod names;
 pub mod script;
 pub mod server;
 
-use crate::ast::{Component, TId, TNode, decode_text};
 use std::borrow::Cow;
+
+use crate::ast::{Component, TId, TNode, decode_text};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Target {
@@ -32,20 +33,21 @@ pub enum Item<'a> {
 }
 
 /// Which node holds the fragment; decides the special cases of [`clean_nodes`].
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Parent<'a> {
     Root,
     Element(&'a str),
     Block,
 }
 
+#[derive(Debug)]
 pub struct Cleaned<'a> {
     pub items: Vec<Item<'a>>,
     /// Upstream `is_text_first`: the fragment starts with text and needs an anchor comment.
     pub text_first: bool,
 }
 
-fn is_ws(c: char) -> bool {
+const fn is_ws(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\r' | '\n')
 }
 
@@ -54,7 +56,7 @@ fn is_ws(c: char) -> bool {
 pub fn clean_nodes<'a>(
     c: &Component,
     src: &'a str,
-    parent: Parent,
+    parent: Parent<'_>,
     list: &[TId],
     preserve_ws: bool,
 ) -> Cleaned<'a> {
@@ -73,12 +75,12 @@ pub fn clean_nodes<'a>(
             _ => regular.push(Item::Node(id)),
         }
     }
-    let is_expr = |i: Option<&Item>| matches!(i, Some(Item::Expr(_)));
+    let is_expr = |i: Option<&Item<'_>>| matches!(i, Some(Item::Expr(_)));
 
     let mut trimmed: Vec<Item<'a>> = if preserve_ws {
         regular
     } else {
-        let all_ws = |i: &Item| matches!(i, Item::Text { data, .. } if data.chars().all(is_ws));
+        let all_ws = |i: &Item<'_>| matches!(i, Item::Text { data, .. } if data.chars().all(is_ws));
         while regular.first().is_some_and(all_ws) {
             regular.remove(0);
         }
@@ -126,7 +128,7 @@ pub fn clean_nodes<'a>(
         out
     };
 
-    if let Parent::Element("pre") = parent
+    if matches!(parent, Parent::Element("pre"))
         && let Some(Item::Text { data, .. }) = trimmed.first()
         && (data == "\n" || data == "\r\n")
     {
@@ -178,6 +180,7 @@ fn replace_trailing_ws<'a>(s: &Cow<'a, str>, with: &str) -> Cow<'a, str> {
 }
 
 /// Upstream `escape_html`.
+#[must_use]
 pub fn escape_html(s: &str, is_attr: bool) -> Cow<'_, str> {
     let needs = |c: char| c == '&' || c == '<' || (is_attr && c == '"');
     if !s.contains(needs) {
@@ -196,21 +199,18 @@ pub fn escape_html(s: &str, is_attr: bool) -> Cow<'_, str> {
 }
 
 /// Upstream `sanitize_template_string`: cooked text → raw template literal text.
+#[must_use]
 pub fn sanitize_template_string(s: &str) -> Cow<'_, str> {
     if !s.contains(['`', '\\']) && !s.contains("${") {
         return Cow::Borrowed(s);
     }
     let mut out = String::with_capacity(s.len() + 4);
     let b = s.as_bytes();
-    let mut i = 0;
-    while i < s.len() {
-        let c = b[i];
-        if c == b'`' || c == b'\\' || (c == b'$' && b.get(i + 1) == Some(&b'{')) {
+    for (i, ch) in s.char_indices() {
+        if ch == '`' || ch == '\\' || (ch == '$' && b.get(i + 1) == Some(&b'{')) {
             out.push('\\');
         }
-        let ch = s[i..].chars().next().expect("in bounds");
         out.push(ch);
-        i += ch.len_utf8();
     }
     Cow::Owned(out)
 }
@@ -246,11 +246,13 @@ const DOM_BOOLEAN_ATTRIBUTES: &[&str] = &[
     "disableremoteplayback",
 ];
 
+#[must_use]
 pub fn is_boolean_attribute(name: &str) -> bool {
     DOM_BOOLEAN_ATTRIBUTES.contains(&name)
 }
 
 /// Upstream `is_dom_property`: the boolean attributes plus the aliased property names.
+#[must_use]
 pub fn is_dom_property(name: &str) -> bool {
     is_boolean_attribute(name)
         || matches!(
@@ -273,6 +275,7 @@ pub fn is_dom_property(name: &str) -> bool {
 }
 
 /// Upstream `cannot_be_set_statically`.
+#[must_use]
 pub fn cannot_be_set_statically(name: &str) -> bool {
     matches!(
         name,
@@ -281,6 +284,7 @@ pub fn cannot_be_set_statically(name: &str) -> bool {
 }
 
 /// Upstream `is_event_attribute` for this port's attribute shapes.
+#[must_use]
 pub fn event_attribute(c: &Component, src: &str, a: &crate::ast::Attr) -> Option<rsv_js::NodeId> {
     let crate::ast::AttrValue::Parts(r) = a.value else {
         return None;

@@ -1,6 +1,8 @@
-//! Producing text: an output buffer that records where each piece came from, source map v3
-//! encoding, reverse lookup (generated → original, for mapping diagnostics of a generated file back),
-//! and a minimal edit list for tasks that patch the original text instead of reprinting it.
+//! Producing text.
+//!
+//! An output buffer that records where each piece came from, source map v3
+//! encoding, reverse lookup (generated → original, for mapping diagnostics of a generated file
+//! back), and a minimal edit list for tasks that patch the original text instead of reprinting it.
 
 use crate::source::{LineIndex, Loc, Span};
 
@@ -13,15 +15,16 @@ pub struct Mapping {
     pub len: u32,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Emitter {
     pub out: String,
     pub mappings: Vec<Mapping>,
 }
 
 impl Emitter {
-    pub fn new() -> Emitter {
-        Emitter::default()
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
     }
 
     #[inline]
@@ -66,6 +69,7 @@ impl Emitter {
     /// answers it (greatest lower bound on the same generated line): inside a verbatim copy 1:1,
     /// in inserted text the last mapped character before it, and `None` when no mapping precedes
     /// it on its line. [`Emitter::source_map`] writes exactly these answers.
+    #[must_use]
     pub fn lookup(&self, pos: u32) -> Option<u32> {
         let i = self.mappings.partition_point(|m| m.generated <= pos);
         let m = self.mappings.get(i.checked_sub(1)?)?;
@@ -91,6 +95,7 @@ impl Emitter {
     /// through a source map. An end that falls in inserted text therefore lands on the start of the
     /// last mapped character, so a producer that wants exact ends marks the character after a copy.
     /// `None` when either end has no mapping before it on its line.
+    #[must_use]
     pub fn lookup_span(&self, span: Span) -> Option<Span> {
         let lo = self.lookup(span.lo)?;
         let hi = self.lookup(span.hi)?;
@@ -121,6 +126,7 @@ impl Emitter {
     }
 
     /// Encodes the mappings as a source map v3 JSON document, one segment per mapped character.
+    #[must_use]
     pub fn source_map(&self, source: &str, source_name: &str) -> String {
         let src_index = LineIndex::new(source);
         let gen_index = LineIndex::new(&self.out);
@@ -141,13 +147,13 @@ impl Emitter {
                 mappings.push(',');
             }
             first_in_line = false;
-            vlq(&mut mappings, g.column as i64 - prev_gen_col);
+            vlq(&mut mappings, i64::from(g.column) - prev_gen_col);
             vlq(&mut mappings, 0);
-            vlq(&mut mappings, (s.line as i64 - 1) - prev_src_line);
-            vlq(&mut mappings, s.column as i64 - prev_src_col);
-            prev_gen_col = g.column as i64;
-            prev_src_line = s.line as i64 - 1;
-            prev_src_col = s.column as i64;
+            vlq(&mut mappings, (i64::from(s.line) - 1) - prev_src_line);
+            vlq(&mut mappings, i64::from(s.column) - prev_src_col);
+            prev_gen_col = i64::from(g.column);
+            prev_src_line = i64::from(s.line) - 1;
+            prev_src_col = i64::from(s.column);
         }
         let mut json = String::from("{\"version\":3,\"sources\":[");
         crate::json::write_str(&mut json, source_name);
@@ -160,11 +166,7 @@ impl Emitter {
 
 fn vlq(out: &mut String, value: i64) {
     const B64: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut v = if value < 0 {
-        ((-value) << 1) | 1
-    } else {
-        value << 1
-    } as u64;
+    let mut v = (value.unsigned_abs() << 1) | u64::from(value < 0);
     loop {
         let mut digit = (v & 31) as u8;
         v >>= 5;
@@ -179,7 +181,7 @@ fn vlq(out: &mut String, value: i64) {
 }
 
 /// Insertions and deletions against an original text, applied in one pass.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Edits {
     items: Vec<(u32, u32, String)>,
 }
@@ -193,12 +195,18 @@ impl Edits {
         self.items.push((span.lo, span.hi, text.into()));
     }
 
+    #[must_use]
     pub fn apply(self, src: &str) -> String {
         self.apply_in(src, Span::new(0, src.len() as u32))
     }
 
     /// Applies the edits and returns only `range` of the result. Inserts at the same offset keep
     /// the order they were added in.
+    ///
+    /// # Panics
+    ///
+    /// If two edits overlap or an edit lies outside `range`.
+    #[must_use]
     pub fn apply_in(mut self, src: &str, range: Span) -> String {
         self.items.sort_by_key(|&(lo, hi, _)| (lo, hi));
         let extra: usize = self.items.iter().map(|i| i.2.len()).sum();
@@ -264,14 +272,15 @@ mod tests {
         assert_eq!(marked.lookup_span(Span::new(0, 1)), Some(Span::new(15, 16)));
     }
 
-    /// A source map consumer's answer (greatest lower bound on the generated line), as a byte offset.
+    /// A source map consumer's answer (greatest lower bound on the generated line), as a byte
+    /// offset.
     fn consume(map: &str, source: &str, out: &str, pos: u32) -> Option<u32> {
-        fn unvlq(s: &mut std::str::Bytes) -> Option<i64> {
+        fn unvlq(s: &mut std::str::Bytes<'_>) -> Option<i64> {
             const B64: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
             let (mut v, mut shift) = (0i64, 0);
             loop {
                 let byte = s.next()?;
-                let d = B64.iter().position(|&c| c == byte)? as i64;
+                let d = i64::try_from(B64.iter().position(|&c| c == byte)?).ok()?;
                 v |= (d & 31) << shift;
                 shift += 5;
                 if d & 32 == 0 {
@@ -290,13 +299,13 @@ mod tests {
                 unvlq(&mut b)?;
                 src_line += unvlq(&mut b)?;
                 src_col += unvlq(&mut b)?;
-                if line as u32 + 1 == target.line && col <= target.column as i64 {
+                if line as u32 + 1 == target.line && col <= i64::from(target.column) {
                     best = Some((src_line, src_col));
                 }
             }
         }
         let (l, c) = best?;
-        LineIndex::new(source).offset(source, l as u32 + 1, c as u32)
+        LineIndex::new(source).offset(source, u32::try_from(l).ok()? + 1, u32::try_from(c).ok()?)
     }
 
     #[test]

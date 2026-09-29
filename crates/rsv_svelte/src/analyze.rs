@@ -1,16 +1,23 @@
-//! What the compiler derives on top of name resolution ([`crate::resolve`]): what each template
+//! What the compiler derives on top of name resolution ([`crate::resolve`]).
+//!
+//! That is what each template
 //! expression depends on, which fragments are dynamic, the component name, the CSS hash and which
 //! elements the style sheet selects. All of it lives in side tables keyed by ids, so the trees stay
 //! immutable.
 
-use crate::ast::{AttrValue, Component, Part, TId, TNode, decode_text};
-use crate::resolve::{BindKind, Resolution, rune_call};
 use rsv_css::matcher::{self, Element, Match};
 use rsv_js::scope::DeclKind;
 use rsv_js::{Ast, Kind, NodeId};
 use rustc_hash::FxHashMap;
 
+use crate::ast::{AttrValue, Component, Part, TId, TNode, decode_text};
+use crate::resolve::{BindKind, Resolution, rune_call};
+
 #[derive(Clone, Copy, Debug, Default)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent facts upstream tracks as separate flags"
+)]
 pub struct ExprMeta {
     /// Any identifier used as a reference (upstream marks the enclosing fragments dynamic).
     pub has_reference: bool,
@@ -19,6 +26,7 @@ pub struct ExprMeta {
     pub has_member: bool,
 }
 
+#[derive(Debug)]
 pub struct Analysis {
     /// Keyed by the expression root of every template expression.
     pub exprs: FxHashMap<NodeId, ExprMeta>,
@@ -35,6 +43,10 @@ pub struct Analysis {
 }
 
 impl Analysis {
+    /// # Panics
+    ///
+    /// If `expr` is not the root of a template expression.
+    #[must_use]
     pub fn meta(&self, expr: NodeId) -> ExprMeta {
         *self
             .exprs
@@ -44,6 +56,7 @@ impl Analysis {
 }
 
 /// Upstream `get_component_name` followed by `scope.generate`'s sanitising.
+#[must_use]
 pub fn component_name(filename: &str) -> String {
     let mut parts: Vec<&str> = filename.split(['/', '\\']).collect();
     let basename = parts.pop().unwrap_or("");
@@ -54,17 +67,17 @@ pub fn component_name(filename: &str) -> String {
         && !dir.is_empty()
         && dir != "src"
     {
-        name = dir.to_owned();
+        dir.clone_into(&mut name);
     }
     let mut chars = name.chars();
-    let upper: String = match chars.next() {
-        Some(c) => c.to_uppercase().chain(chars).collect(),
-        None => String::new(),
-    };
+    let upper: String = chars
+        .next()
+        .map_or_else(String::new, |c| c.to_uppercase().chain(chars).collect());
     sanitize_identifier(&upper)
 }
 
 /// `[^a-zA-Z0-9_$]` → `_`, and a leading digit → `_` (upstream `scope.generate`).
+#[must_use]
 pub fn sanitize_identifier(name: &str) -> String {
     let mut out: String = name
         .chars()
@@ -83,6 +96,7 @@ pub fn sanitize_identifier(name: &str) -> String {
 }
 
 /// Upstream `hash` (utils.js): djb2 over UTF-16 code units, right to left, base 36.
+#[must_use]
 pub fn hash(s: &str) -> String {
     let units: Vec<u16> = s
         .encode_utf16()
@@ -92,7 +106,7 @@ pub fn hash(s: &str) -> String {
     for &u in units.iter().rev() {
         h = (h.wrapping_shl(5).wrapping_sub(h)) ^ i32::from(u);
     }
-    to_base36(h as u32)
+    to_base36(h.cast_unsigned())
 }
 
 fn to_base36(mut v: u32) -> String {
@@ -109,6 +123,7 @@ fn to_base36(mut v: u32) -> String {
     String::from_utf8(buf).expect("ASCII digits")
 }
 
+#[must_use]
 pub fn analyze(c: &Component, src: &str, res: &Resolution, filename: &str) -> Analysis {
     let program = c.program;
     let mut an = Analysis {
@@ -289,10 +304,9 @@ impl MetaWalker<'_> {
             Kind::Call { callee, args, .. } => {
                 self.is_pure(callee) && args.iter().all(|&a| self.is_pure(a))
             }
-            Kind::Ident(_) | Kind::Member { .. } => match self.root_ident(e) {
-                Some(root) => self.res.binding(root).is_none(),
-                None => false,
-            },
+            Kind::Ident(_) | Kind::Member { .. } => self
+                .root_ident(e)
+                .is_some_and(|root| self.res.binding(root).is_none()),
             _ => false,
         }
     }
@@ -379,7 +393,6 @@ fn mark_dynamic(c: &Component, src: &str, an: &Analysis, list: &[TId], out: &mut
 }
 
 fn parents(c: &Component) -> Vec<Option<TId>> {
-    let mut out = vec![None; c.nodes.len()];
     fn walk(c: &Component, list: &[TId], parent: Option<TId>, out: &mut [Option<TId>]) {
         for &id in list {
             out[id as usize] = parent;
@@ -396,6 +409,7 @@ fn parents(c: &Component) -> Vec<Option<TId>> {
             }
         }
     }
+    let mut out = vec![None; c.nodes.len()];
     walk(c, c.children(c.root), None, &mut out);
     out
 }
@@ -445,8 +459,8 @@ trait FromBool {
 }
 
 impl FromBool for Match {
-    fn from_bool(b: bool) -> Match {
-        if b { Match::Yes } else { Match::No }
+    fn from_bool(b: bool) -> Self {
+        if b { Self::Yes } else { Self::No }
     }
 }
 

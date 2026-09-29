@@ -7,14 +7,16 @@
 //! without extra bookkeeping. Both trees must describe the same source text (in-source string
 //! slices stay valid).
 
-use crate::ast::{Ast, Kind, NodeId, flag};
 use rsv_kernel::source::Span;
+
+use crate::ast::{Ast, Kind, NodeId, flag};
 
 pub trait Rewrite {
     fn rewrite(&mut self, from: &Ast, to: &mut Ast, id: NodeId) -> Option<NodeId>;
 }
 
 /// Copies without rewriting.
+#[derive(Debug)]
 pub struct Verbatim;
 
 impl Rewrite for Verbatim {
@@ -24,10 +26,8 @@ impl Rewrite for Verbatim {
 }
 
 pub fn copy<R: Rewrite + ?Sized>(from: &Ast, to: &mut Ast, r: &mut R, id: NodeId) -> NodeId {
-    match r.rewrite(from, to, id) {
-        Some(x) => x,
-        None => copy_node(from, to, r, id),
-    }
+    r.rewrite(from, to, id)
+        .unwrap_or_else(|| copy_node(from, to, r, id))
 }
 
 pub fn copy_opt<R: Rewrite + ?Sized>(
@@ -49,6 +49,7 @@ pub fn copy_all<R: Rewrite + ?Sized>(
 }
 
 /// Rebuilds `id` itself; its children still go through `r`.
+#[expect(clippy::too_many_lines, reason = "one arm per node kind")]
 pub fn copy_node<R: Rewrite + ?Sized>(f: &Ast, to: &mut Ast, rw: &mut R, id: NodeId) -> NodeId {
     let span = f.loc(id);
     let fl = f.flags(id);

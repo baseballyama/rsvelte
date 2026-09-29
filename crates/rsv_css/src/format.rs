@@ -1,10 +1,15 @@
 //! Prints a style sheet the way prettier's postcss printer does, for the subset the parser reads.
 
-use crate::ast::{Rule, RuleKind, StyleSheet};
 use rsv_kernel::diag::Unsupported;
 use rsv_kernel::source::Span;
 
+use crate::ast::{Rule, RuleKind, StyleSheet};
+
 /// Each line starts with `indent`; one nesting level adds `unit`.
+///
+/// # Errors
+///
+/// [`Unsupported`] if the style sheet contains a comment, which this printer does not place.
 pub fn format(
     src: &str,
     sheet: &StyleSheet,
@@ -82,7 +87,7 @@ fn block(src: &str, rule: &Rule, indent: &str, unit: &str, out: &mut String) {
 }
 
 fn selector(src: &str, sel: &crate::ast::ComplexSelector, out: &mut String) {
-    use crate::ast::Combinator::*;
+    use crate::ast::Combinator::{Child, Descendant, NextSibling, SubsequentSibling};
     for rel in &sel.parts {
         match rel.combinator {
             None => {}

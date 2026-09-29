@@ -1,5 +1,7 @@
-//! Name resolution, the first layer above the surface tree: every identifier of the script and the
-//! template resolved to a binding, and every binding classified by the rune that declares it.
+//! Name resolution, the first layer above the surface tree.
+//!
+//! Every identifier of the script and the
+//! template is resolved to a binding, and every binding classified by the rune that declares it.
 //! Everything here is a side table over [`BindingId`]s and the tree's own [`NodeId`]s; the tree is
 //! not touched. Compilation, lint rules and the HIR all read this one resolution.
 
@@ -30,6 +32,7 @@ pub struct BindInfo {
     pub prop_key: Option<NodeId>,
 }
 
+#[derive(Debug)]
 pub struct Resolution {
     pub sem: Semantic,
     pub bindings: IndexVec<BindingId, BindInfo>,
@@ -37,6 +40,7 @@ pub struct Resolution {
     pub uses_props: bool,
 }
 
+#[must_use]
 pub fn resolve(ast: &Ast, program: NodeId, template_exprs: &[NodeId]) -> Resolution {
     let sem = scope::analyze(ast, program, template_exprs);
     let bindings = classify(ast, &sem, program);
@@ -48,18 +52,22 @@ pub fn resolve(ast: &Ast, program: NodeId, template_exprs: &[NodeId]) -> Resolut
 }
 
 impl Resolution {
+    #[must_use]
     pub fn binding(&self, ident: NodeId) -> Option<(BindingId, &BindInfo)> {
         let b = self.sem.binding_of(ident)?;
         Some((b, &self.bindings[b]))
     }
 
-    /// Upstream `is_state_source`: in runes mode a `$state` needs a signal only if it is reassigned.
+    /// Upstream `is_state_source`: in runes mode a `$state` needs a signal only if it is
+    /// reassigned.
+    #[must_use]
     pub fn is_state_source(&self, b: BindingId) -> bool {
         let info = &self.bindings[b];
         matches!(info.kind, BindKind::State | BindKind::RawState) && self.sem.bindings[b].writes > 0
     }
 
     /// Upstream `is_prop_source`, runes mode.
+    #[must_use]
     pub fn is_prop_source(&self, b: BindingId) -> bool {
         let info = &self.bindings[b];
         let s = &self.sem.bindings[b];
@@ -68,11 +76,13 @@ impl Resolution {
     }
 
     /// Evaluates `e` of the component's own tree.
+    #[must_use]
     pub fn evaluate(&self, ast: &Ast, src: &str, e: NodeId) -> crate::evaluate::Evaluation {
         crate::evaluate::Evaluator::new(ast, src, self).evaluate(crate::evaluate::Tree::Source, e)
     }
 
     /// Evaluates `e` of a lowered tree, resolving names in the component scope.
+    #[must_use]
     pub fn evaluate_output(
         &self,
         source: &Ast,
@@ -91,7 +101,10 @@ fn has_props_rune(ast: &Ast, program: NodeId) -> bool {
     };
     body.iter().any(|&stmt| match ast.kind(stmt) {
         Kind::VarDecl { decls, .. } => decls.iter().any(|&d| {
-            matches!(ast.kind(d), Kind::Declarator { init: Some(i), .. } if rune_call(ast, i).is_some_and(|(r, _)| r == "$props"))
+            let Kind::Declarator { init: Some(i), .. } = ast.kind(d) else {
+                return false;
+            };
+            rune_call(ast, i).is_some_and(|(r, _)| r == "$props")
         }),
         _ => false,
     })
@@ -207,7 +220,18 @@ fn classify_props(
 }
 
 /// `$name(arg)` or `$name.member(arg)` → (`"$name.member"`, first argument).
+#[must_use]
 pub fn rune_call(ast: &Ast, e: NodeId) -> Option<(&'static str, Option<NodeId>)> {
+    const RUNES: &[&str] = &[
+        "$state",
+        "$state.raw",
+        "$derived",
+        "$derived.by",
+        "$props",
+        "$bindable",
+        "$effect",
+        "$effect.pre",
+    ];
     let Kind::Call { callee, args, .. } = ast.kind(e) else {
         return None;
     };
@@ -223,16 +247,6 @@ pub fn rune_call(ast: &Ast, e: NodeId) -> Option<(&'static str, Option<NodeId>)>
         }
         _ => return None,
     };
-    const RUNES: &[&str] = &[
-        "$state",
-        "$state.raw",
-        "$derived",
-        "$derived.by",
-        "$props",
-        "$bindable",
-        "$effect",
-        "$effect.pre",
-    ];
     let rune = RUNES.iter().find(|r| **r == name)?;
     Some((rune, args.first().copied()))
 }

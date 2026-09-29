@@ -54,6 +54,7 @@ const RESERVED: &[&str] = &[
     "yield",
 ];
 
+#[derive(Debug)]
 pub struct Names {
     counters: FxHashMap<String, u32>,
     /// Upstream `root.conflicts`: every declared name, plus every generated one.
@@ -66,11 +67,11 @@ impl Names {
     pub fn new<'a>(
         declared: impl Iterator<Item = &'a str>,
         referenced: impl Iterator<Item = &'a str>,
-    ) -> Names {
+    ) -> Self {
         let conflicts: FxHashSet<String> = declared.map(str::to_owned).collect();
         let mut scope: FxHashSet<String> = referenced.map(str::to_owned).collect();
         scope.extend(conflicts.iter().cloned());
-        Names {
+        Self {
             counters: FxHashMap::default(),
             conflicts,
             scope,
@@ -100,7 +101,7 @@ impl Names {
         self.allocate(preferred, |n, name| n.conflicts.contains(name))
     }
 
-    fn allocate(&mut self, preferred: String, taken: fn(&Names, &str) -> bool) -> String {
+    fn allocate(&mut self, preferred: String, taken: fn(&Self, &str) -> bool) -> String {
         let mut n = self.counters.get(&preferred).copied().unwrap_or(0);
         let mut name = if n == 0 {
             n = 1;

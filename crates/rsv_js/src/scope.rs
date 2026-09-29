@@ -6,12 +6,13 @@
 //! in the program's top-level scope, which is what makes script-and-template facts ("is this
 //! variable used anywhere?") one query instead of two analyses.
 
-use crate::ast::{Ast, Kind, NodeId, flag};
-use crate::ops::AssignOp;
 use rsv_kernel::idx::{Idx, IndexVec};
 use rsv_kernel::intern::Atom;
 use rsv_kernel::newtype_index;
 use rustc_hash::FxHashMap;
+
+use crate::ast::{Ast, Kind, NodeId, flag};
+use crate::ops::AssignOp;
 
 newtype_index!(
     pub struct BindingId;
@@ -22,7 +23,7 @@ newtype_index!(
 
 impl ScopeId {
     /// The program's scope; also where imports and a component's template names live.
-    pub const ROOT: ScopeId = ScopeId(0);
+    pub const ROOT: Self = Self(0);
 }
 
 const NO_BINDING: u32 = u32::MAX;
@@ -55,6 +56,7 @@ pub struct Binding {
 
 impl Binding {
     /// The initialiser of the declarator the binding came from (`init` in `let x = init`).
+    #[must_use]
     pub fn init(&self, ast: &Ast) -> Option<NodeId> {
         match ast.kind(self.decl?) {
             Kind::Declarator { init, .. } => init,
@@ -79,13 +81,14 @@ pub struct Reference {
     pub binding: Option<BindingId>,
     pub read: bool,
     pub write: bool,
-    /// The write a declarator's initialiser or a default value makes (`let x = 1`, `(x = 1) => …`).
-    /// Not counted in [`Binding::writes`], which are the writes after declaration.
+    /// The write a declarator's initialiser or a default value makes (`let x = 1`, `(x = 1) =>
+    /// …`). Not counted in [`Binding::writes`], which are the writes after declaration.
     pub init: bool,
     /// The scope the reference occurs in.
     pub scope: ScopeId,
 }
 
+#[derive(Debug)]
 pub struct Semantic {
     pub scopes: IndexVec<ScopeId, Scope>,
     pub bindings: IndexVec<BindingId, Binding>,
@@ -102,6 +105,7 @@ pub struct Semantic {
 }
 
 impl Semantic {
+    #[must_use]
     pub fn binding_of(&self, ident: NodeId) -> Option<BindingId> {
         self.node_binding
             .get(ident.idx())
@@ -111,6 +115,7 @@ impl Semantic {
     }
 
     /// The top-level binding named `name`, if any.
+    #[must_use]
     pub fn root_binding(&self, name: Atom) -> Option<BindingId> {
         self.names.get(&(ScopeId::ROOT, name)).copied()
     }
@@ -125,7 +130,13 @@ impl Semantic {
             .map(|&i| &self.references[i as usize])
     }
 
-    /// The nearest enclosing function scope (ESLint's `variableScope`); the program counts as one.
+    /// The nearest enclosing function scope (`ESLint`'s `variableScope`); the program counts as
+    /// one.
+    ///
+    /// # Panics
+    ///
+    /// Never: the root scope is a function scope, so the walk stops there.
+    #[must_use]
     pub fn variable_scope(&self, mut s: ScopeId) -> ScopeId {
         while !self.scopes[s].function {
             s = self.scopes[s]
@@ -180,6 +191,7 @@ struct Analyzer<'a> {
     current_decl: Option<NodeId>,
 }
 
+#[must_use]
 pub fn analyze(ast: &Ast, program: NodeId, extra_roots: &[NodeId]) -> Semantic {
     let mut a = Analyzer {
         ast,
@@ -215,7 +227,10 @@ pub fn analyze(ast: &Ast, program: NodeId, extra_roots: &[NodeId]) -> Semantic {
 
 impl Analyzer<'_> {
     fn cur(&self) -> ScopeId {
-        *self.stack.last().unwrap()
+        *self
+            .stack
+            .last()
+            .expect("the scope stack always holds the root")
     }
 
     fn function_scope(&self) -> ScopeId {
@@ -314,9 +329,9 @@ impl Analyzer<'_> {
                     self.declare_pattern(p, DeclKind::Param);
                 }
                 if expr_body {
-                    self.declare(body)
+                    self.declare(body);
                 } else {
-                    self.declare_body(body)
+                    self.declare_body(body);
                 }
                 self.stack.pop();
             }
@@ -411,8 +426,8 @@ impl Analyzer<'_> {
         if let Some(b) = b {
             self.s.node_binding[ident.idx()] = b.index() as u32;
             let binding = &mut self.s.bindings[b];
-            binding.reads += read as u32;
-            binding.writes += write as u32;
+            binding.reads += u32::from(read);
+            binding.writes += u32::from(write);
         }
         let scope = self.cur();
         self.s.references.push(Reference {
@@ -456,11 +471,12 @@ impl Analyzer<'_> {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "one arm per node kind and context")]
     fn resolve(&mut self, id: NodeId, ctx: Ctx) {
         match (self.ast.kind(id), ctx) {
             (Kind::Ident(_), Ctx::Pattern { init }) => {
                 if init {
-                    self.init_reference(id)
+                    self.init_reference(id);
                 }
             }
             (Kind::Ident(_), Ctx::Target { read }) => self.reference(id, read, true),
@@ -533,9 +549,9 @@ impl Analyzer<'_> {
                     self.resolve(p, Ctx::Pattern { init: false });
                 }
                 if expr_body {
-                    self.resolve(body, Ctx::Expr)
+                    self.resolve(body, Ctx::Expr);
                 } else {
-                    self.resolve_children(body)
+                    self.resolve_children(body);
                 }
                 if entered {
                     self.stack.pop();

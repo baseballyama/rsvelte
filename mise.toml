@@ -1,2 +1,22 @@
 [tools]
 node = "26.7.0"
+
+# The Rust toolchain itself is pinned by rust-toolchain.toml; rustfmt runs on a pinned nightly
+# because the strict options in rustfmt.toml are unstable (stable rustfmt ignores them silently).
+[tasks.fmt]
+description = "Format the Rust workspace"
+run = "cargo +nightly-2026-07-11 fmt --all"
+
+[tasks."fmt:check"]
+description = "Fail when the Rust workspace is not formatted"
+run = "cargo +nightly-2026-07-11 fmt --all --check"
+
+[tasks.lint]
+description = "The lint gate: every lint in [workspace.lints] denies"
+# Both feature sets: `metrics` swaps whole module bodies, so one set never checks the other's.
+run = [
+  "cargo clippy --offline --workspace --all-targets",
+  "cargo clippy --offline --workspace --all-targets --all-features",
+  # The rustdoc lints only run under `cargo doc`.
+  "cargo doc --offline --workspace --no-deps --all-features",
+]

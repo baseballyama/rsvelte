@@ -1,12 +1,15 @@
-//! Upstream `scope.evaluate` (phases/scope.js `Evaluation`): the set of values an expression can
+//! Upstream `scope.evaluate` (phases/scope.js `Evaluation`).
+//!
+//! The set of values an expression can
 //! have at runtime, as far as the compiler can tell. It decides whether output inlines a value,
 //! adds `?? ''`, or wraps in `$.stringify`, so it is ported case by case.
 
-use crate::resolve::{BindKind, Resolution, rune_call};
 use rsv_js::codegen::number;
 use rsv_js::ops::{BinOp, LogicalOp, UnaryOp};
 use rsv_js::scope::DeclKind;
 use rsv_js::{Ast, Kind, NodeId};
+
+use crate::resolve::{BindKind, Resolution, rune_call};
 
 #[derive(Clone, Debug)]
 pub enum Val {
@@ -24,9 +27,9 @@ pub enum Val {
 }
 
 impl PartialEq for Val {
-    /// `Set` membership in JS: SameValueZero.
-    fn eq(&self, other: &Val) -> bool {
-        use Val::*;
+    /// `Set` membership in JS: `SameValueZero`.
+    fn eq(&self, other: &Self) -> bool {
+        use Val::{AnyFunction, AnyNumber, AnyString, Bool, Null, Num, Str, Undefined, Unknown};
         match (self, other) {
             (Str(a), Str(b)) => a == b,
             (Num(a), Num(b)) => a == b || (a.is_nan() && b.is_nan()),
@@ -34,65 +37,67 @@ impl PartialEq for Val {
             (Null, Null)
             | (Undefined, Undefined)
             | (AnyString, AnyString)
-            | (AnyNumber, AnyNumber) => true,
-            (AnyFunction, AnyFunction) | (Unknown, Unknown) => true,
+            | (AnyNumber, AnyNumber)
+            | (AnyFunction, AnyFunction)
+            | (Unknown, Unknown) => true,
             _ => false,
         }
     }
 }
 
 impl Val {
-    fn is_symbol(&self) -> bool {
+    const fn is_symbol(&self) -> bool {
         matches!(
             self,
-            Val::AnyString | Val::AnyNumber | Val::AnyFunction | Val::Unknown
+            Self::AnyString | Self::AnyNumber | Self::AnyFunction | Self::Unknown
         )
     }
 
     /// `String(value)` for a known value.
+    #[must_use]
     pub fn to_js_string(&self) -> String {
         match self {
-            Val::Str(s) => s.clone(),
-            Val::Num(n) => number(*n),
-            Val::Bool(b) => b.to_string(),
-            Val::Null => "null".into(),
-            Val::Undefined => "undefined".into(),
+            Self::Str(s) => s.clone(),
+            Self::Num(n) => number(*n),
+            Self::Bool(b) => b.to_string(),
+            Self::Null => "null".into(),
+            Self::Undefined => "undefined".into(),
             _ => unreachable!("only known values are rendered"),
         }
     }
 
     fn to_number(&self) -> f64 {
         match self {
-            Val::Num(n) => *n,
-            Val::Bool(b) => f64::from(u8::from(*b)),
-            Val::Null => 0.0,
-            Val::Undefined => f64::NAN,
-            Val::Str(s) => string_to_number(s),
+            Self::Num(n) => *n,
+            Self::Bool(b) => f64::from(u8::from(*b)),
+            Self::Null => 0.0,
+            Self::Undefined => f64::NAN,
+            Self::Str(s) => string_to_number(s),
             _ => unreachable!("only known values are converted"),
         }
     }
 
     fn truthy(&self) -> bool {
         match self {
-            Val::Str(s) => !s.is_empty(),
-            Val::Num(n) => *n != 0.0 && !n.is_nan(),
-            Val::Bool(b) => *b,
-            Val::Null | Val::Undefined => false,
+            Self::Str(s) => !s.is_empty(),
+            Self::Num(n) => *n != 0.0 && !n.is_nan(),
+            Self::Bool(b) => *b,
+            Self::Null | Self::Undefined => false,
             _ => unreachable!("only known values are tested"),
         }
     }
 }
 
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "a JavaScript number is an f64 and rounds the same way"
+)]
 fn string_to_number(s: &str) -> f64 {
     let t = s.trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}');
     if t.is_empty() {
         return 0.0;
     }
-    let radix = |p: &str, r| {
-        u64::from_str_radix(p, r)
-            .map(|v| v as f64)
-            .unwrap_or(f64::NAN)
-    };
+    let radix = |p: &str, r| u64::from_str_radix(p, r).map_or(f64::NAN, |v| v as f64);
     match t.get(..2) {
         Some("0x" | "0X") => radix(&t[2..], 16),
         Some("0o" | "0O") => radix(&t[2..], 8),
@@ -106,13 +111,21 @@ fn string_to_number(s: &str) -> f64 {
     }
 }
 
-fn to_int32(n: f64) -> i32 {
+/// `Number.MAX_SAFE_INTEGER`.
+const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
+
+const fn to_int32(n: f64) -> i32 {
     if !n.is_finite() {
         return 0;
     }
-    (n.trunc() as i64 as u64 & 0xffff_ffff) as u32 as i32
+    (((n.trunc() as i64).cast_unsigned() & 0xFFFF_FFFF) as u32).cast_signed()
 }
 
+#[derive(Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "mirrors the flags of upstream's `Evaluation`"
+)]
 pub struct Evaluation {
     pub values: Vec<Val>,
     pub is_known: bool,
@@ -125,8 +138,8 @@ pub struct Evaluation {
 }
 
 impl Evaluation {
-    fn from_values(values: Vec<Val>) -> Evaluation {
-        let mut e = Evaluation {
+    fn from_values(values: Vec<Val>) -> Self {
+        let mut e = Self {
             is_known: true,
             has_unknown: false,
             is_defined: true,
@@ -168,15 +181,18 @@ fn add(values: &mut Vec<Val>, v: Val) {
     }
 }
 
-/// Which tree an expression lives in. Output trees carry no scope analysis, so their identifiers
+/// Which tree an expression lives in.
+///
+/// Output trees carry no scope analysis, so their identifiers
 /// resolve by name against the component scope, as upstream's `state.scope.evaluate(value)` does on
 /// the transformed expression.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Tree<'a> {
     Source,
     Output(&'a Ast),
 }
 
+#[derive(Debug)]
 pub struct Evaluator<'a> {
     source: &'a Ast,
     src: &'a str,
@@ -185,7 +201,8 @@ pub struct Evaluator<'a> {
 }
 
 impl<'a> Evaluator<'a> {
-    pub fn new(source: &'a Ast, src: &'a str, res: &'a Resolution) -> Self {
+    #[must_use]
+    pub const fn new(source: &'a Ast, src: &'a str, res: &'a Resolution) -> Self {
         Evaluator {
             source,
             src,
@@ -200,7 +217,7 @@ impl<'a> Evaluator<'a> {
         Evaluation::from_values(values)
     }
 
-    fn ast(&self, tree: Tree<'a>) -> &'a Ast {
+    const fn ast(&self, tree: Tree<'a>) -> &'a Ast {
         match tree {
             Tree::Source => self.source,
             Tree::Output(a) => a,
@@ -220,6 +237,10 @@ impl<'a> Evaluator<'a> {
         self.in_progress.pop();
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one arm per expression kind, as upstream's `evaluate` switch"
+    )]
     fn eval_node(&mut self, tree: Tree<'a>, e: NodeId, values: &mut Vec<Val>) {
         let ast = self.ast(tree);
         match ast.kind(e) {
@@ -229,16 +250,19 @@ impl<'a> Evaluator<'a> {
             Kind::Null => add(values, Val::Null),
             Kind::Ident(_) => self.identifier(tree, e, values),
             Kind::Binary(op, l, r) => {
-                let a = self.evaluate(tree, l);
-                let b = self.evaluate(tree, r);
-                if a.is_known && b.is_known {
-                    match binary(op, &a.value, &b.value) {
+                use BinOp::{
+                    Add, BitAnd, BitOr, BitXor, Div, Eq, Exp, Gt, GtEq, In, InstanceOf, Lt, LtEq,
+                    Mul, NotEq, Rem, Shl, Shr, StrictEq, StrictNotEq, Sub, UShr,
+                };
+                let left = self.evaluate(tree, l);
+                let right = self.evaluate(tree, r);
+                if left.is_known && right.is_known {
+                    match binary(op, &left.value, &right.value) {
                         Some(v) => add(values, v),
                         None => add(values, Val::Unknown),
                     }
                     return;
                 }
-                use BinOp::*;
                 match op {
                     NotEq | StrictNotEq | Lt | LtEq | Gt | GtEq | Eq | StrictEq | In
                     | InstanceOf => {
@@ -246,12 +270,12 @@ impl<'a> Evaluator<'a> {
                         add(values, Val::Bool(false));
                     }
                     Rem | BitAnd | Mul | Exp | Sub | Div | Shl | Shr | UShr | BitXor | BitOr => {
-                        add(values, Val::AnyNumber)
+                        add(values, Val::AnyNumber);
                     }
                     Add => {
-                        if a.is_string || b.is_string {
+                        if left.is_string || right.is_string {
                             add(values, Val::AnyString);
-                        } else if a.is_number && b.is_number {
+                        } else if left.is_number && right.is_number {
                             add(values, Val::AnyNumber);
                         } else {
                             add(values, Val::AnyString);
@@ -261,42 +285,46 @@ impl<'a> Evaluator<'a> {
                 }
             }
             Kind::Cond { test, cons, alt } => {
-                let t = self.evaluate(tree, test);
-                let c = self.evaluate(tree, cons);
-                let a = self.evaluate(tree, alt);
-                if t.is_known {
-                    for v in if t.value.truthy() { c.values } else { a.values } {
+                let test_v = self.evaluate(tree, test);
+                let cons_v = self.evaluate(tree, cons);
+                let alt_v = self.evaluate(tree, alt);
+                if test_v.is_known {
+                    for v in if test_v.value.truthy() {
+                        cons_v.values
+                    } else {
+                        alt_v.values
+                    } {
                         add(values, v);
                     }
                 } else {
-                    for v in c.values.into_iter().chain(a.values) {
+                    for v in cons_v.values.into_iter().chain(alt_v.values) {
                         add(values, v);
                     }
                 }
             }
             Kind::Logical(op, l, r) => {
-                let a = self.evaluate(tree, l);
-                let b = self.evaluate(tree, r);
-                if a.is_known {
-                    if b.is_known {
-                        add(values, logical(op, &a.value, &b.value));
+                let left = self.evaluate(tree, l);
+                let right = self.evaluate(tree, r);
+                if left.is_known {
+                    if right.is_known {
+                        add(values, logical(op, &left.value, &right.value));
                         return;
                     }
                     let short = match op {
-                        LogicalOp::And => !a.value.truthy(),
-                        LogicalOp::Or => a.value.truthy(),
-                        LogicalOp::Nullish => !matches!(a.value, Val::Null | Val::Undefined),
+                        LogicalOp::And => !left.value.truthy(),
+                        LogicalOp::Or => left.value.truthy(),
+                        LogicalOp::Nullish => !matches!(left.value, Val::Null | Val::Undefined),
                     };
                     if short {
-                        add(values, a.value);
+                        add(values, left.value);
                     } else {
-                        for v in b.values {
+                        for v in right.values {
                             add(values, v);
                         }
                     }
                     return;
                 }
-                for v in a.values.into_iter().chain(b.values) {
+                for v in left.values.into_iter().chain(right.values) {
                     add(values, v);
                 }
             }
@@ -483,6 +511,7 @@ fn math1(a: &[Val], f: fn(f64) -> f64) -> Val {
 
 /// Upstream `globals` (phases/scope.js): the result kind, and a fold when every argument is known.
 /// `Math.f16round` is listed without a fold: Rust has no stable half-precision rounding.
+#[expect(clippy::too_many_lines, reason = "one arm per global upstream folds")]
 fn global_function(path: &str) -> Option<(Val, Option<Fold>)> {
     let fold: Fold = match path {
         "BigInt" | "Math.random" | "Math.f16round" => return Some((Val::AnyNumber, None)),
@@ -523,7 +552,11 @@ fn global_function(path: &str) -> Option<(Val, Option<Fold>)> {
         "Math.log" => |a| math1(a, f64::ln),
         "Math.pow" => |a| Val::Num(num_arg(a, 0).powf(num_arg(a, 1))),
         "Math.sqrt" => |a| math1(a, f64::sqrt),
-        "Math.clz32" => |a| Val::Num(f64::from((to_int32(num_arg(a, 0)) as u32).leading_zeros())),
+        "Math.clz32" => |a| {
+            Val::Num(f64::from(
+                to_int32(num_arg(a, 0)).cast_unsigned().leading_zeros(),
+            ))
+        },
         "Math.imul" => |a| {
             Val::Num(f64::from(
                 to_int32(num_arg(a, 0)).wrapping_mul(to_int32(num_arg(a, 1))),
@@ -559,14 +592,15 @@ fn global_function(path: &str) -> Option<(Val, Option<Fold>)> {
         "Number.isNaN" => |a| Val::Bool(matches!(a.first(), Some(Val::Num(n)) if n.is_nan())),
         "Number.isSafeInteger" => |a| {
             Val::Bool(
-                matches!(a.first(), Some(Val::Num(n)) if n.fract() == 0.0 && n.abs() <= 9007199254740991.0),
+                matches!(a.first(), Some(Val::Num(n)) if n.fract() == 0.0 && n.abs() <= MAX_SAFE_INTEGER),
             )
         },
         "Number.parseFloat"
         | "Number.parseInt"
         | "String.fromCharCode"
         | "String.fromCodePoint" => {
-            // Folding these needs JS parsing/encoding rules that are not ported; report the type only.
+            // Folding these needs JS parsing/encoding rules that are not ported; report the type
+            // only.
             let kind = if path.starts_with("String") {
                 Val::AnyString
             } else {
@@ -586,7 +620,7 @@ fn global_function(path: &str) -> Option<(Val, Option<Fold>)> {
 }
 
 fn global_constant(path: &str) -> Option<f64> {
-    use std::f64::consts::*;
+    use std::f64::consts::{E, FRAC_1_SQRT_2, LN_2, LN_10, LOG2_E, LOG10_E, PI, SQRT_2};
     Some(match path {
         "Math.PI" => PI,
         "Math.E" => E,
@@ -601,7 +635,10 @@ fn global_constant(path: &str) -> Option<f64> {
 }
 
 fn binary(op: BinOp, a: &Val, b: &Val) -> Option<Val> {
-    use BinOp::*;
+    use BinOp::{
+        Add, BitAnd, BitOr, BitXor, Div, Eq, Exp, Gt, GtEq, In, InstanceOf, Lt, LtEq, Mul, NotEq,
+        Rem, Shl, Shr, StrictEq, StrictNotEq, Sub, UShr,
+    };
     let num = |f: fn(f64, f64) -> f64| Some(Val::Num(f(a.to_number(), b.to_number())));
     let int = |f: fn(i32, i32) -> i32| {
         Some(Val::Num(f64::from(f(
@@ -629,10 +666,12 @@ fn binary(op: BinOp, a: &Val, b: &Val) -> Option<Val> {
         BitAnd => int(|x, y| x & y),
         BitOr => int(|x, y| x | y),
         BitXor => int(|x, y| x ^ y),
-        Shl => int(|x, y| x.wrapping_shl(y as u32 & 31)),
-        Shr => int(|x, y| x.wrapping_shr(y as u32 & 31)),
+        Shl => int(|x, y| x.wrapping_shl(y.cast_unsigned() & 31)),
+        Shr => int(|x, y| x.wrapping_shr(y.cast_unsigned() & 31)),
         UShr => Some(Val::Num(f64::from(
-            (to_int32(a.to_number()) as u32).wrapping_shr(to_int32(b.to_number()) as u32 & 31),
+            to_int32(a.to_number())
+                .cast_unsigned()
+                .wrapping_shr(to_int32(b.to_number()).cast_unsigned() & 31),
         ))),
         StrictEq => Some(Val::Bool(strict_eq(a, b))),
         StrictNotEq => Some(Val::Bool(!strict_eq(a, b))),

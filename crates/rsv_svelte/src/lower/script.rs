@@ -1,13 +1,15 @@
 //! Rune lowering for both targets: one [`Rewrite`] whose only parameter is the [`Target`].
 
-use super::Target;
-use crate::resolve::{BindKind, Resolution, rune_call};
 use rsv_js::ast::flag;
 use rsv_js::copy::{Rewrite, copy, copy_node};
 use rsv_js::ops::{AssignOp, BinOp, LogicalOp, UpdateOp};
 use rsv_js::{Ast, Kind, NodeId};
 use rsv_kernel::diag::Diagnostic;
 
+use super::Target;
+use crate::resolve::{BindKind, Resolution, rune_call};
+
+#[derive(Debug)]
 pub struct ScriptRewrite<'a> {
     pub target: Target,
     pub res: &'a Resolution,
@@ -38,7 +40,7 @@ impl ScriptRewrite<'_> {
                 if self.res.is_prop_source(b) {
                     return Some(to.call0(x, &[]));
                 }
-                let key = info.prop_key.expect("props record their key");
+                let key = info.prop_key?;
                 let props = to.id("$$props");
                 let computed = !matches!(from.kind(key), Kind::Ident(_));
                 let k = if computed {
@@ -83,16 +85,13 @@ impl ScriptRewrite<'_> {
         }
         // Upstream `build_assignment_value`: `a += b` assigns `a + b`, read through the transform.
         let rhs = copy(from, to, self, value);
-        let new_value = match op {
-            AssignOp::Assign => rhs,
-            _ => {
-                let current = self
-                    .read(from, to, target)
-                    .expect("a transformed binding has a read transform");
-                match logical_of(op) {
-                    Some(l) => to.logical(l, current, rhs, from.loc(id)),
-                    None => to.binary(binary_of(op), current, rhs, from.loc(id)),
-                }
+        let new_value = if op == AssignOp::Assign {
+            rhs
+        } else {
+            let current = self.read(from, to, target)?;
+            match logical_of(op) {
+                Some(l) => to.logical(l, current, rhs, from.loc(id)),
+                None => to.binary(binary_of(op), current, rhs, from.loc(id)),
             }
         };
         let x = to.ident(from.name(target), from.loc(target));
@@ -113,7 +112,7 @@ impl ScriptRewrite<'_> {
     }
 
     fn update(
-        &mut self,
+        &self,
         from: &Ast,
         to: &mut Ast,
         op: UpdateOp,
@@ -163,7 +162,7 @@ impl Rewrite for ScriptRewrite<'_> {
     }
 }
 
-fn logical_of(op: AssignOp) -> Option<LogicalOp> {
+const fn logical_of(op: AssignOp) -> Option<LogicalOp> {
     match op {
         AssignOp::Or => Some(LogicalOp::Or),
         AssignOp::And => Some(LogicalOp::And),
@@ -178,11 +177,18 @@ fn binary_of(op: AssignOp) -> BinOp {
 }
 
 /// Upstream `should_proxy`.
+#[must_use]
 pub fn should_proxy(ast: &Ast, res: &Resolution, e: NodeId) -> bool {
     match ast.kind(e) {
-        Kind::Str | Kind::Num(_) | Kind::Bool(_) | Kind::Null => false,
-        Kind::Template { .. } | Kind::Arrow { .. } | Kind::Unary(..) | Kind::Binary(..) => false,
-        Kind::Function { decl: false, .. } => false,
+        Kind::Str
+        | Kind::Num(_)
+        | Kind::Bool(_)
+        | Kind::Null
+        | Kind::Template { .. }
+        | Kind::Arrow { .. }
+        | Kind::Unary(..)
+        | Kind::Binary(..)
+        | Kind::Function { decl: false, .. } => false,
         Kind::Ident(_) if ast.name(e) == "undefined" => false,
         Kind::Ident(_) => {
             let Some((b, _)) = res.binding(e) else {
@@ -192,20 +198,25 @@ pub fn should_proxy(ast: &Ast, res: &Resolution, e: NodeId) -> bool {
             if s.writes > 0 {
                 return true;
             }
-            match s.init(ast) {
-                Some(init) => should_proxy(ast, res, init),
-                None => true,
-            }
+            s.init(ast).is_none_or(|init| should_proxy(ast, res, init))
         }
         _ => true,
     }
 }
 
 /// The instance script's statements, lowered; imports go to `hoisted`.
+///
+/// # Errors
+///
+/// An `unsupported` [`Diagnostic`] if the script exports anything.
+///
+/// # Panics
+///
+/// If a top-level statement of the parsed script has no source range.
 pub fn lower_instance(
     from: &Ast,
     to: &mut Ast,
-    rw: &mut ScriptRewrite,
+    rw: &mut ScriptRewrite<'_>,
     program: NodeId,
     hoisted: &mut Vec<NodeId>,
 ) -> Result<Vec<NodeId>, Diagnostic> {
@@ -246,7 +257,7 @@ pub fn lower_instance(
 fn lower_declarator(
     from: &Ast,
     to: &mut Ast,
-    rw: &mut ScriptRewrite,
+    rw: &mut ScriptRewrite<'_>,
     d: NodeId,
     out: &mut Vec<NodeId>,
 ) {
@@ -263,9 +274,10 @@ fn lower_declarator(
         return;
     };
     let loc = from.loc(d);
-    let value = |to: &mut Ast, rw: &mut ScriptRewrite| match arg {
-        Some(a) => copy(from, to, rw, a),
-        None => {
+    let value = |to: &mut Ast, rw: &mut ScriptRewrite<'_>| {
+        if let Some(a) = arg {
+            copy(from, to, rw, a)
+        } else {
             let zero = to.num(0.0, rsv_kernel::source::Loc::SYNTHETIC);
             to.unary(
                 rsv_js::ops::UnaryOp::Void,
@@ -315,7 +327,7 @@ fn lower_declarator(
 fn lower_client_props(
     from: &Ast,
     to: &mut Ast,
-    rw: &mut ScriptRewrite,
+    rw: &mut ScriptRewrite<'_>,
     pattern: NodeId,
     out: &mut Vec<NodeId>,
 ) {
@@ -385,8 +397,8 @@ fn is_simple_expression(ast: &Ast, e: NodeId) -> bool {
         | Kind::Bool(_)
         | Kind::Null
         | Kind::Ident(_)
-        | Kind::Arrow { .. } => true,
-        Kind::Function { decl: false, .. } => true,
+        | Kind::Arrow { .. }
+        | Kind::Function { decl: false, .. } => true,
         Kind::Cond { test, cons, alt } => {
             is_simple_expression(ast, test)
                 && is_simple_expression(ast, cons)

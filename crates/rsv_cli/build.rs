@@ -7,7 +7,7 @@ fn git(args: &[&str]) -> Option<String> {
     let out = Command::new("git").args(args).output().ok()?;
     out.status
         .success()
-        .then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
+        .then(|| String::from_utf8_lossy(&out.stdout).trim().to_owned())
 }
 
 fn main() {
@@ -17,7 +17,7 @@ fn main() {
     ) {
         (Some(rev), Some(status)) if status.is_empty() => rev,
         (Some(rev), Some(_)) => format!("{rev}-dirty"),
-        _ => "UNMEASURED".to_string(),
+        _ => "UNMEASURED".to_owned(),
     };
     println!("cargo:rustc-env=RSV_BUILD_REV={rev}");
     println!("cargo:rerun-if-changed=../../crates");

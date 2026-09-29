@@ -1,5 +1,10 @@
 //! Server lowering: the component becomes string pushes onto `$$renderer`. Mirrors upstream
-//! `3-transform/server` (Fragment, RegularElement, IfBlock, shared/utils, shared/element).
+//! `3-transform/server` (Fragment, `RegularElement`, `IfBlock`, shared/utils, shared/element).
+
+use rsv_js::copy::copy;
+use rsv_js::{Ast, Kind, NodeId};
+use rsv_kernel::diag::Diagnostic;
+use rsv_kernel::source::Loc;
 
 use super::script::{ScriptRewrite, lower_instance};
 use super::{
@@ -10,10 +15,6 @@ use crate::analyze::Analysis;
 use crate::ast::{AttrValue, Component, Part, TId, TNode, decode_text};
 use crate::parse::is_void;
 use crate::resolve::Resolution;
-use rsv_js::copy::copy;
-use rsv_js::{Ast, Kind, NodeId};
-use rsv_kernel::diag::Diagnostic;
-use rsv_kernel::source::Loc;
 
 type R<T> = Result<T, Diagnostic>;
 
@@ -38,6 +39,10 @@ struct Sx<'a> {
     out: Ast,
 }
 
+/// # Errors
+///
+/// An `unsupported` [`Diagnostic`] if the component uses an element or attribute the server
+/// lowering does not handle yet.
 pub fn lower(c: &Component, src: &str, res: &Resolution, an: &Analysis) -> R<(Ast, NodeId)> {
     let mut sx = Sx {
         c,
@@ -84,7 +89,7 @@ pub fn lower(c: &Component, src: &str, res: &Resolution, an: &Analysis) -> R<(As
     Ok((sx.out, root))
 }
 
-impl<'a> Sx<'a> {
+impl Sx<'_> {
     fn expr(&mut self, e: NodeId) -> NodeId {
         let mut rw = ScriptRewrite {
             target: Target::Server,
@@ -93,7 +98,7 @@ impl<'a> Sx<'a> {
         copy(&self.c.js, &mut self.out, &mut rw, e)
     }
 
-    fn fragment(&mut self, parent: Parent, list: &[TId]) -> R<Vec<NodeId>> {
+    fn fragment(&mut self, parent: Parent<'_>, list: &[TId]) -> R<Vec<NodeId>> {
         let cleaned = clean_nodes(self.c, self.src, parent, list, false);
         let mut template = Vec::new();
         if cleaned.text_first {
@@ -104,8 +109,8 @@ impl<'a> Sx<'a> {
     }
 
     /// Upstream `process_children` (server).
-    fn process_children(&mut self, items: &[Item], template: &mut Vec<Piece>) -> R<()> {
-        let mut sequence: Vec<&Item> = Vec::new();
+    fn process_children(&mut self, items: &[Item<'_>], template: &mut Vec<Piece>) -> R<()> {
+        let mut sequence: Vec<&Item<'_>> = Vec::new();
         for item in items {
             match item {
                 Item::Text { .. } | Item::Expr(_) => sequence.push(item),
@@ -123,7 +128,7 @@ impl<'a> Sx<'a> {
         Ok(())
     }
 
-    fn flush(&mut self, sequence: &mut Vec<&Item>, template: &mut Vec<Piece>) {
+    fn flush(&mut self, sequence: &mut Vec<&Item<'_>>, template: &mut Vec<Piece>) {
         if sequence.is_empty() {
             return;
         }
@@ -164,7 +169,7 @@ impl<'a> Sx<'a> {
             if let Piece::Stmt(s) = piece {
                 if !strings.is_empty() {
                     statements.push(
-                        self.push_call(std::mem::take(&mut strings), std::mem::take(&mut exprs)),
+                        self.push_call(&std::mem::take(&mut strings), &std::mem::take(&mut exprs)),
                     );
                 }
                 statements.push(s);
@@ -192,12 +197,12 @@ impl<'a> Sx<'a> {
             }
         }
         if !strings.is_empty() {
-            statements.push(self.push_call(strings, exprs));
+            statements.push(self.push_call(&strings, &exprs));
         }
         statements
     }
 
-    fn push_call(&mut self, strings: Vec<String>, exprs: Vec<NodeId>) -> NodeId {
+    fn push_call(&mut self, strings: &[String], exprs: &[NodeId]) -> NodeId {
         let n = strings.len();
         let quasis: Vec<NodeId> = strings
             .iter()
@@ -207,7 +212,7 @@ impl<'a> Sx<'a> {
                     .template_elem(&sanitize_template_string(s), i + 1 == n)
             })
             .collect();
-        let t = self.out.template(&quasis, &exprs, Loc::SYNTHETIC);
+        let t = self.out.template(&quasis, exprs, Loc::SYNTHETIC);
         let r = self.out.id("$$renderer");
         let callee = self.out.dot(r, "push");
         let call = self.out.call(callee, &[t], false, Loc::SYNTHETIC);
@@ -261,7 +266,7 @@ impl<'a> Sx<'a> {
                 },
             };
             if let Some(v) = literal {
-                self.literal_attribute(template, &attr_name, v, hash.as_deref());
+                Self::literal_attribute(template, &attr_name, v, hash.as_deref());
                 continue;
             }
             if attr_name == "class" || attr_name == "style" {
@@ -283,7 +288,7 @@ impl<'a> Sx<'a> {
             .iter()
             .any(|a| a.name.text(self.src).eq_ignore_ascii_case("class"));
         if !has_class && self.an.scoped[id as usize] {
-            self.literal_attribute(template, "class", Some(String::new()), hash.as_deref());
+            Self::literal_attribute(template, "class", Some(String::new()), hash.as_deref());
         }
         let void = is_void(&tag);
         template.push(Piece::Text(if void { "/>".into() } else { ">".into() }));
@@ -303,7 +308,6 @@ impl<'a> Sx<'a> {
     }
 
     fn literal_attribute(
-        &mut self,
         template: &mut Vec<Piece>,
         name: &str,
         value: Option<String>,
@@ -313,7 +317,9 @@ impl<'a> Sx<'a> {
         if name == "class"
             && let Some(h) = hash
         {
-            let base = value.as_deref().map_or("true".to_owned(), str::to_owned);
+            let base = value
+                .as_deref()
+                .map_or_else(|| "true".to_owned(), str::to_owned);
             value = Some(format!("{base} {h}").trim().to_owned());
         }
         if name != "class" || value.as_deref() != Some("") {
@@ -453,15 +459,14 @@ impl<'a> Sx<'a> {
             let call = self.out.call(callee, &[t], false, Loc::SYNTHETIC);
             Some(self.out.expr_stmt(call))
         });
-        match folded {
-            Some(s) => body[0] = s,
-            None => {
-                let r = self.out.id("$$renderer");
-                let callee = self.out.dot(r, "push");
-                let m = self.out.str(marker);
-                let call = self.out.call(callee, &[m], false, Loc::SYNTHETIC);
-                body.insert(0, self.out.expr_stmt(call));
-            }
+        if let Some(s) = folded {
+            body[0] = s;
+        } else {
+            let r = self.out.id("$$renderer");
+            let callee = self.out.dot(r, "push");
+            let m = self.out.str(marker);
+            let call = self.out.call(callee, &[m], false, Loc::SYNTHETIC);
+            body.insert(0, self.out.expr_stmt(call));
         }
         self.out.block(&body, Loc::SYNTHETIC)
     }

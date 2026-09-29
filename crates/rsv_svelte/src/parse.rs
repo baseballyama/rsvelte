@@ -1,13 +1,16 @@
 //! The template parser: markup, `{expression}` tags, `{#if}` blocks, one instance `<script>` and
-//! one `<style>`. Expressions are parsed by rsv_js in place, and the parser, not a brace scan,
+//! one `<style>`.
+//!
+//! Expressions are parsed by `rsv_js` in place, and the parser, not a brace scan,
 //! decides where each one ends.
 
-use crate::ast::*;
 use rsv_js::parser::{parse_expression_prefix, parse_program};
 use rsv_js::{Ast, NodeId};
 use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::source::Span;
 use rsv_kernel::token::Tokens;
+
+use crate::ast::{Attr, AttrValue, Component, Part, Range, Script, Style, TId, TNode, Tk};
 
 type R<T> = Result<T, Diagnostic>;
 
@@ -16,10 +19,15 @@ const VOID_ELEMENTS: &[&str] = &[
     "meta", "param", "source", "track", "wbr",
 ];
 
+#[must_use]
 pub fn is_void(name: &str) -> bool {
     VOID_ELEMENTS.iter().any(|v| v.eq_ignore_ascii_case(name))
 }
 
+/// # Errors
+///
+/// A `parse_error` [`Diagnostic`] at the first syntax error in the markup, the script or the
+/// style sheet, or at syntax this parser does not support.
 pub fn parse(src: &str) -> R<Component> {
     let mut p = P {
         src,
@@ -108,10 +116,10 @@ fn script_is_ts(src: &str) -> bool {
 
 impl<'a> P<'a> {
     fn err<X>(&self, message: impl Into<String>) -> R<X> {
-        self.err_at(Span::new(self.pos as u32, self.pos as u32), message)
+        Self::err_at(Span::new(self.pos as u32, self.pos as u32), message)
     }
 
-    fn err_at<X>(&self, span: Span, message: impl Into<String>) -> R<X> {
+    fn err_at<X>(span: Span, message: impl Into<String>) -> R<X> {
         Err(Diagnostic::error("parse_error", message.into(), span))
     }
 
@@ -185,7 +193,7 @@ impl<'a> P<'a> {
         Range { start, len }
     }
 
-    fn fragment(&mut self, end: End) -> R<Range> {
+    fn fragment(&mut self, end: End<'_>) -> R<Range> {
         let mut items: Vec<TId> = Vec::new();
         loop {
             let rest = self.rest();
@@ -363,8 +371,10 @@ impl<'a> P<'a> {
                             self.c.js.loc(expr).span().expect("parsed from source")
                         }
                         _ => {
-                            return self
-                                .err_at(span, "expected an identifier in a shorthand attribute");
+                            return Self::err_at(
+                                span,
+                                "expected an identifier in a shorthand attribute",
+                            );
                         }
                     };
                     let parts = self.part_range(vec![Part::Expr { expr, span }]);
@@ -409,7 +419,7 @@ impl<'a> P<'a> {
         }
         self.tok(Tk::AttrName, lo);
         if name.text(self.src).contains(':') {
-            return self.err_at(name, "directives are not supported yet");
+            return Self::err_at(name, "directives are not supported yet");
         }
         self.skip_ws();
         if self.peek() != Some(b'=') {
@@ -455,7 +465,8 @@ impl<'a> P<'a> {
         })
     }
 
-    /// Text and `{…}` chunks up to the closing quote (left unconsumed) or, unquoted, to whitespace/`>`.
+    /// Text and `{…}` chunks up to the closing quote (left unconsumed) or, unquoted, to
+    /// whitespace/`>`.
     fn attribute_chunks(&mut self, quote: Option<u8>) -> R<Vec<Part>> {
         let mut parts = Vec::new();
         let mut text_lo = self.pos;
@@ -510,7 +521,7 @@ impl<'a> P<'a> {
                 && !self
                     .b
                     .get(self.pos + 2)
-                    .is_some_and(|c| c.is_ascii_alphanumeric())
+                    .is_some_and(u8::is_ascii_alphanumeric)
             {
                 let inner_lo = self.pos;
                 self.eat_tok(Tk::BlockKeyword, 2);
@@ -620,13 +631,13 @@ impl<'a> P<'a> {
             if name.text(self.src) == "module"
                 || value.is_some_and(|v| v.text(self.src) == "module")
             {
-                return self.err_at(*name, "module scripts are not supported yet");
+                return Self::err_at(*name, "module scripts are not supported yet");
             }
         }
         let ts = self.ts;
         let content = self.raw_text("script")?;
         if self.c.instance.is_some() {
-            return self.err_at(content, "a component can have only one instance script");
+            return Self::err_at(content, "a component can have only one instance script");
         }
         let (tokens, comments) = (self.c.js.tokens.len(), self.c.js.comments.len());
         let program = parse_program(&mut self.c.js, self.src, content, ts)
@@ -649,7 +660,7 @@ impl<'a> P<'a> {
         let attrs = self.open_tag_attrs()?;
         let content = self.raw_text("style")?;
         if self.c.style.is_some() {
-            return self.err_at(content, "a component can have only one style");
+            return Self::err_at(content, "a component can have only one style");
         }
         self.c.tokens.push(Tk::Css, content);
         self.close_raw("style");

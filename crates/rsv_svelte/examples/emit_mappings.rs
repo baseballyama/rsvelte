@@ -1,12 +1,19 @@
-//! Compiles one component and prints the generated JavaScript with the emitter's raw mappings, which
-//! the compile task does not write out. The site's source-map figures are generated from this, so
-//! they show what the pipeline produced rather than a hand-made example.
+//! Compiles one component and prints the generated JavaScript with the emitter's raw mappings,
+//! which the compile task does not write out. The site's source-map figures are generated from
+//! this, so they show what the pipeline produced rather than a hand-made example.
 //!
 //! `cargo run -p rsv_svelte --example emit_mappings -- <file.svelte> <client|server>`
 
+#![expect(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "an example that prints its output"
+)]
+
+use std::process::ExitCode;
+
 use rsv_kernel::json::JsonWriter;
 use rsv_svelte::{analyze, lower, parse, resolve};
-use std::process::ExitCode;
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();

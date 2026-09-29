@@ -1,18 +1,26 @@
 //! `rsv fixtures <source-dir> [--task <id>]...` runs tasks over every fixture unit below a source
 //! directory (`fixtures/<family>/<source>`) and writes `actual/<task>.<ext>` next to `expected/`.
 //! `rsv run <file> --task <id>` prints one task's outputs for one file.
-//! `rsv bench <dir> [--task <id>]... [rounds=N] [json=<file>]` measures the pipeline (see `bench.rs`).
+//! `rsv bench <dir> [--task <id>]... [rounds=N] [json=<file>]` measures the pipeline (see
+//! `bench.rs`).
 //!
 //! `svelte.check` also needs `--tsc <native tsc>` and `--svelte <svelte package dir>`; its project
 //! configuration is `--tsconfig <file>`, by default the source directory's `tsconfig.json`.
 
+#![expect(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a command-line tool reports on stdout and stderr"
+)]
+
 mod bench;
+
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 
 use rsv_kernel::json::JsonWriter;
 use rsv_kernel::pipeline::{DocResult, Document, Registry, RunOptions, Sharing, TaskOutput};
 use rsv_kernel::source::LineIndex;
-use std::path::{Path, PathBuf};
-use std::process::ExitCode;
 
 #[cfg(feature = "metrics")]
 #[global_allocator]
@@ -145,7 +153,7 @@ fn units(root: &Path) -> Vec<(PathBuf, String)> {
                     .iter()
                     .map(|s| {
                         let s = s.to_string_lossy();
-                        s.strip_prefix('~').unwrap_or(&s).to_string()
+                        s.strip_prefix('~').unwrap_or(&s).to_owned()
                     })
                     .collect::<Vec<_>>()
                     .join("/");
@@ -159,6 +167,11 @@ fn units(root: &Path) -> Vec<(PathBuf, String)> {
 
 /// Every unit below `root` a registered language claims, with its unit directory, and the number
 /// of units that were unreadable or unclaimed.
+///
+/// # Panics
+///
+/// Never: every unit's input file sits inside its unit directory.
+#[must_use]
 pub fn load(reg: &Registry, root: &Path) -> (Vec<Document>, Vec<PathBuf>, usize) {
     let mut docs = Vec::new();
     let mut dirs = Vec::new();
@@ -185,23 +198,26 @@ pub fn load(reg: &Registry, root: &Path) -> (Vec<Document>, Vec<PathBuf>, usize)
 }
 
 fn fixtures(reg: &Registry, root: &Path, tasks: &[&str]) -> ExitCode {
+    use std::sync::atomic::AtomicUsize;
+    use std::sync::atomic::Ordering::Relaxed;
     let (docs, dirs, skipped) = load(reg, root);
     let opts = RunOptions {
         tasks,
         sharing: Sharing::Shared,
         threads: None,
     };
-    use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
     let (panics, files, failed) = (
         AtomicUsize::new(0),
         AtomicUsize::new(0),
         AtomicUsize::new(0),
     );
     let started = std::time::Instant::now();
-    // Each unit's outputs are written as soon as they are final, so memory stays at the working set.
+    // Each unit's outputs are written as soon as they are final, so memory stays at the working
+    // set.
     let ran = rsv_kernel::pipeline::run_each(reg, &docs, &opts, &|i, result| {
         let actual = dirs[i].join("actual");
-        let _ = std::fs::remove_dir_all(&actual);
+        // Absent on a unit's first run.
+        drop(std::fs::remove_dir_all(&actual));
         if let Some(p) = &result.panic {
             panics.fetch_add(1, Relaxed);
             eprintln!("panic: {}: {p}", docs[i].path);
@@ -294,4 +310,4 @@ fn report_metrics() {
 }
 
 #[cfg(not(feature = "metrics"))]
-fn report_metrics() {}
+const fn report_metrics() {}

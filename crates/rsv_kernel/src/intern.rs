@@ -1,13 +1,14 @@
 //! Per-document string interning. All atom text lives in one buffer, so interning a new name costs
 //! amortized growth of two vectors and a table slot — no allocation per atom.
 
-use rustc_hash::FxHasher;
 use std::hash::Hasher;
+
+use rustc_hash::FxHasher;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 pub struct Atom(pub u32);
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Interner {
     buf: String,
     ends: Vec<u32>,
@@ -22,8 +23,9 @@ fn hash(s: &str) -> u64 {
 }
 
 impl Interner {
-    pub fn new() -> Interner {
-        Interner::default()
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn clear(&mut self) {
@@ -32,14 +34,17 @@ impl Interner {
         self.table.iter_mut().for_each(|s| *s = 0);
     }
 
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.ends.len()
     }
 
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.ends.is_empty()
     }
 
+    #[must_use]
     pub fn get(&self, atom: Atom) -> &str {
         let end = self.ends[atom.0 as usize] as usize;
         let start = if atom.0 == 0 {
@@ -50,6 +55,7 @@ impl Interner {
         &self.buf[start..end]
     }
 
+    #[must_use]
     pub fn lookup(&self, s: &str) -> Option<Atom> {
         if self.table.is_empty() {
             return None;
@@ -75,15 +81,17 @@ impl Interner {
             self.grow();
         }
         let h = hash(s);
-        let mut i = match self.probe(h, s) {
+        let empty = match self.probe(h, s) {
             Ok(atom) => return atom,
             Err(empty) => empty,
         };
         // Only a new atom raises the load factor, so a hit never grows the table.
-        if (self.ends.len() + 1) * 2 > self.table.len() {
+        let i = if (self.ends.len() + 1) * 2 > self.table.len() {
             self.grow();
-            i = self.probe(h, s).expect_err("absent before growing");
-        }
+            self.probe(h, s).expect_err("absent before growing")
+        } else {
+            empty
+        };
         self.buf.push_str(s);
         self.ends.push(self.buf.len() as u32);
         let atom = Atom(self.ends.len() as u32 - 1);

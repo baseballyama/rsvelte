@@ -2,8 +2,8 @@
 //!
 //! A node is a row across five columns — `tags` (u8), `flags` (u8: operator or variant bits),
 //! `data` (two u32), `locs` (two u32) — 18 bytes with no padding, plus variable-length child lists
-//! in `extra`. Children are [`NodeId`]s (u32), never pointers, so the tree is `Send + Sync`, trivially
-//! relocatable, and can be handed across an ABI as plain buffers.
+//! in `extra`. Children are [`NodeId`]s (u32), never pointers, so the tree is `Send + Sync`,
+//! trivially relocatable, and can be handed across an ABI as plain buffers.
 //!
 //! Text is not copied: identifier names are interned per document, and string/template literals
 //! point into the source unless decoding changed their bytes (then they live in `strs`).
@@ -14,32 +14,36 @@
 //! Columns are taken from and returned to the per-thread [`rsv_kernel::pool`] so that, in steady
 //! state, building a tree for the next document reuses the previous document's capacity.
 
-use crate::lexer::T;
-use crate::ops::{AssignOp, BinOp, LogicalOp, UnaryOp, UpdateOp};
 use rsv_kernel::intern::{Atom, Interner};
 use rsv_kernel::pool;
 use rsv_kernel::source::{Loc, Span};
 use rsv_kernel::token::Tokens;
+
+use crate::lexer::T;
+use crate::ops::{AssignOp, BinOp, LogicalOp, UnaryOp, UpdateOp};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct NodeId(pub u32);
 
 impl NodeId {
-    pub const NONE: NodeId = NodeId(u32::MAX);
+    pub const NONE: Self = Self(u32::MAX);
 
     #[inline]
+    #[must_use]
     pub fn is_none(self) -> bool {
-        self == NodeId::NONE
+        self == Self::NONE
     }
 
     #[inline]
-    pub fn opt(self) -> Option<NodeId> {
+    #[must_use]
+    pub fn opt(self) -> Option<Self> {
         if self.is_none() { None } else { Some(self) }
     }
 
     #[inline]
-    pub fn idx(self) -> usize {
+    #[must_use]
+    pub const fn idx(self) -> usize {
         self.0 as usize
     }
 }
@@ -65,7 +69,8 @@ pub enum Tag {
     /// A TypeScript-only statement (`type`, `interface`, `declare …`): erased by compilation, kept
     /// verbatim by source-preserving consumers.
     TsDecl,
-    /// `interface Name { key?: T; … }` with property members only; any other interface is a `TsDecl`.
+    /// `interface Name { key?: T; … }` with property members only; any other interface is a
+    /// `TsDecl`.
     TsInterface,
     /// A property member of a [`Tag::TsInterface`]; its type is a [`TsKind::Annotation`].
     TsPropSig,
@@ -239,12 +244,14 @@ pub enum Kind<'a> {
     Hole,
 }
 
+#[derive(Debug)]
 pub struct Ast {
     tags: Vec<Tag>,
     flags: Vec<u8>,
     data: Vec<[u32; 2]>,
     locs: Vec<Loc>,
-    /// Child lists, each stored as `[len, ids…]`; also fixed-size records for nodes with >2 fields.
+    /// Child lists, each stored as `[len, ids…]`; also fixed-size records for nodes with >2
+    /// fields.
     extra: Vec<NodeId>,
     /// Decoded string values and synthesized text.
     strs: String,
@@ -255,8 +262,9 @@ pub struct Ast {
     /// the gaps, they are the parsed regions of the source (typescript-eslint's `tokens` and
     /// `comments`).
     pub tokens: Tokens<T>,
-    /// TypeScript syntax the tree erases, in source order. Compilation ignores it; source-preserving
-    /// consumers (the formatter, the type-check projection) read it back by node.
+    /// TypeScript syntax the tree erases, in source order. Compilation ignores it;
+    /// source-preserving consumers (the formatter, the type-check projection) read it back by
+    /// node.
     pub ts: Vec<TsSyntax>,
 }
 
@@ -289,7 +297,7 @@ pub enum TsKind {
 
 impl Default for Ast {
     fn default() -> Self {
-        Ast::new()
+        Self::new()
     }
 }
 
@@ -305,8 +313,9 @@ impl Drop for Ast {
 }
 
 impl Ast {
-    pub fn new() -> Ast {
-        Ast {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
             tags: pool::take(),
             flags: pool::take(),
             data: pool::take(),
@@ -320,16 +329,19 @@ impl Ast {
         }
     }
 
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.tags.len()
     }
 
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.tags.is_empty()
     }
 
     /// Bytes held by the columns (capacity, not length), for memory reports.
-    pub fn heap_bytes(&self) -> usize {
+    #[must_use]
+    pub const fn heap_bytes(&self) -> usize {
         self.tags.capacity()
             + self.flags.capacity()
             + self.data.capacity() * 8
@@ -340,16 +352,19 @@ impl Ast {
     }
 
     #[inline]
+    #[must_use]
     pub fn tag(&self, id: NodeId) -> Tag {
         self.tags[id.idx()]
     }
 
     #[inline]
+    #[must_use]
     pub fn flags(&self, id: NodeId) -> u8 {
         self.flags[id.idx()]
     }
 
     #[inline]
+    #[must_use]
     pub fn loc(&self, id: NodeId) -> Loc {
         self.locs[id.idx()]
     }
@@ -361,12 +376,13 @@ impl Ast {
 
     /// The raw `data` pair; for in-source strings and template elements, the value's byte range.
     #[inline]
+    #[must_use]
     pub fn raw_data(&self, id: NodeId) -> [u32; 2] {
         self.data[id.idx()]
     }
 
     #[inline]
-    fn nid(v: u32) -> NodeId {
+    const fn nid(v: u32) -> NodeId {
         NodeId(v)
     }
 
@@ -379,6 +395,8 @@ impl Ast {
         self.extra[at as usize + i]
     }
 
+    #[must_use]
+    #[expect(clippy::too_many_lines, reason = "one arm per node tag")]
     pub fn kind(&self, id: NodeId) -> Kind<'_> {
         let [a, b] = self.d(id);
         let f = self.flags(id);
@@ -432,7 +450,7 @@ impl Ast {
                 optional: f & flag::OPTIONAL != 0,
             },
             Tag::Ident => Kind::Ident(Atom(a)),
-            Tag::Num => Kind::Num(f64::from_bits((a as u64) | ((b as u64) << 32))),
+            Tag::Num => Kind::Num(f64::from_bits(u64::from(a) | (u64::from(b) << 32))),
             Tag::Str => Kind::Str,
             Tag::Bool => Kind::Bool(a != 0),
             Tag::Null => Kind::Null,
@@ -506,7 +524,7 @@ impl Ast {
             ids.iter()
                 .copied()
                 .filter(|c| !c.is_none())
-                .for_each(&mut f)
+                .for_each(&mut f);
         };
         match self.kind(id) {
             Kind::Program(l)
@@ -523,10 +541,11 @@ impl Ast {
             | Kind::Await(e)
             | Kind::Rest(e)
             | Kind::ExportNamed(e)
-            | Kind::ExportDefault(e) => each(&[e]),
-            Kind::ImportDefault(e) | Kind::ImportNamespace(e) => each(&[e]),
-            Kind::Unary(_, e) => each(&[e]),
-            Kind::Update { arg, .. } => each(&[arg]),
+            | Kind::ExportDefault(e)
+            | Kind::ImportDefault(e)
+            | Kind::ImportNamespace(e)
+            | Kind::Unary(_, e)
+            | Kind::Update { arg: e, .. } => each(&[e]),
             Kind::Function {
                 name, params, body, ..
             } => {
@@ -558,9 +577,9 @@ impl Ast {
                 ..
             } => {
                 if shorthand {
-                    each(&[value])
+                    each(&[value]);
                 } else {
-                    each(&[key, value])
+                    each(&[key, value]);
                 }
             }
             Kind::Member {
@@ -597,6 +616,7 @@ impl Ast {
 
     /// Per node, its parent (`NodeId::NONE` for roots). A side table built on demand: the tree
     /// itself stores no back edges, so it stays immutable and compact for the tasks that never ask.
+    #[must_use]
     pub fn parents(&self) -> Vec<NodeId> {
         let mut parents = vec![NodeId::NONE; self.len()];
         for i in 0..self.len() as u32 {
@@ -606,6 +626,11 @@ impl Ast {
     }
 
     /// The name of an identifier node.
+    ///
+    /// # Panics
+    ///
+    /// If `id` is not an identifier.
+    #[must_use]
     pub fn name(&self, id: NodeId) -> &str {
         match self.kind(id) {
             Kind::Ident(a) => self.atoms.get(a),
@@ -613,6 +638,7 @@ impl Ast {
         }
     }
 
+    #[must_use]
     pub fn atom(&self, id: NodeId) -> Option<Atom> {
         match self.kind(id) {
             Kind::Ident(a) => Some(a),
@@ -621,6 +647,7 @@ impl Ast {
     }
 
     /// The decoded value of a string literal, or the raw text of a template element.
+    #[must_use]
     pub fn str_value<'s>(&'s self, id: NodeId, src: &'s str) -> &'s str {
         let [a, b] = self.d(id);
         if self.flags(id) & flag::OWNED != 0 {
@@ -838,7 +865,7 @@ impl Ast {
     }
 
     pub fn bool(&mut self, v: bool, loc: impl Into<Loc>) -> NodeId {
-        self.push(Tag::Bool, 0, [v as u32, 0], loc)
+        self.push(Tag::Bool, 0, [u32::from(v), 0], loc)
     }
 
     pub fn null(&mut self, loc: impl Into<Loc>) -> NodeId {
@@ -850,7 +877,11 @@ impl Ast {
     }
 
     pub fn template(&mut self, quasis: &[NodeId], exprs: &[NodeId], loc: impl Into<Loc>) -> NodeId {
-        debug_assert_eq!(quasis.len(), exprs.len() + 1);
+        debug_assert_eq!(
+            quasis.len(),
+            exprs.len() + 1,
+            "a template has one more quasi than expressions"
+        );
         let q = self.list(quasis);
         let e = self.list(exprs);
         self.push(Tag::Template, 0, [q, e], loc)
@@ -1051,6 +1082,8 @@ impl Ast {
 }
 
 // Layout guard: a node row stays 18 bytes across the five columns.
-const _: () =
-    assert!(size_of::<Tag>() + size_of::<u8>() + size_of::<[u32; 2]>() + size_of::<Span>() == 18);
-const _: () = assert!(size_of::<NodeId>() == 4);
+const _: () = assert!(
+    size_of::<Tag>() + size_of::<u8>() + size_of::<[u32; 2]>() + size_of::<Span>() == 18,
+    "a node row grew past 18 bytes"
+);
+const _: () = assert!(size_of::<NodeId>() == 4, "NodeId is a u32");

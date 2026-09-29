@@ -1,15 +1,18 @@
 //! eslint-plugin-svelte's rules and the JavaScript rules that see a component's template reads.
+//!
 //! Early rules read the surface tree, late rules the HIR; both read the one parse and the one name
 //! resolution the compiler uses.
 
-use crate::ast::Component;
-use crate::hir::{AttrValue, Hir};
-use crate::resolve::Resolution;
 use rsv_js::lint::JsFacts;
 use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::lint::{Findings, Rule};
 
+use crate::ast::Component;
+use crate::hir::{AttrValue, Hir};
+use crate::resolve::Resolution;
+
 /// What early rules read: the surface tree as written, and the JavaScript facts over it.
+#[derive(Debug)]
 pub struct AstCx<'a> {
     pub c: &'a Component,
     pub src: &'a str,
@@ -17,6 +20,7 @@ pub struct AstCx<'a> {
 }
 
 /// What late rules read: the HIR and name resolution.
+#[derive(Debug)]
 pub struct HirCx<'a> {
     pub hir: &'a Hir,
     pub res: &'a Resolution,
@@ -25,13 +29,15 @@ pub struct HirCx<'a> {
 
 /// The enabled rules, in the order the oracle configuration lists them: every early rule comes
 /// before every late one, so running the layers in that order keeps ties in configuration order.
-pub fn lint(early: &AstCx, late: &HirCx) -> Vec<Diagnostic> {
+#[must_use]
+pub fn lint(early: &AstCx<'_>, late: &HirCx<'_>) -> Vec<Diagnostic> {
     let mut f = Findings::new();
-    f.run::<AstCx>(&[&NoUnusedVars], early)
-        .run::<HirCx>(&[&ButtonHasType], late);
+    f.run::<AstCx<'_>>(&[&NoUnusedVars], early)
+        .run::<HirCx<'_>>(&[&ButtonHasType], late);
     f.finish()
 }
 
+#[derive(Debug)]
 pub struct NoUnusedVars;
 
 impl<'a> Rule<AstCx<'a>> for NoUnusedVars {
@@ -44,9 +50,11 @@ impl<'a> Rule<AstCx<'a>> for NoUnusedVars {
     }
 }
 
-/// With the default options (`button`, `submit` and `reset` all allowed), so the
-/// `forbiddenTypeAttribute` message cannot fire. The parser rejects directives and spreads, so
-/// upstream's `bind:type` and spread branches have no input to decide yet.
+/// With the default options (`button`, `submit` and `reset` all allowed).
+///
+/// So the `forbiddenTypeAttribute` message cannot fire. The parser rejects directives and spreads,
+/// so upstream's `bind:type` and spread branches have no input to decide yet.
+#[derive(Debug)]
 pub struct ButtonHasType;
 
 impl<'a> Rule<HirCx<'a>> for ButtonHasType {
@@ -137,7 +145,14 @@ mod tests {
         let got = lint(
             "<script>\n\texport const e = 1;\n\texport function k() {}\n\tlet u = 1;\n</script>",
         );
-        let want = "[\n\t{\n\t\t\"rule\": \"no-unused-vars\",\n\t\t\"message\": \"'u' is assigned a value but never used.\",\n\t\t\"start\": {\n\t\t\t\"line\": 4,\n\t\t\t\"column\": 6\n\t\t},\n\t\t\"end\": {\n\t\t\t\"line\": 4,\n\t\t\t\"column\": 7\n\t\t}\n\t}\n]\n";
+        let want = "[\
+                    \n\t{\
+                    \n\t\t\"rule\": \"no-unused-vars\",\
+                    \n\t\t\"message\": \"'u' is assigned a value but never used.\",\
+                    \n\t\t\"start\": {\n\t\t\t\"line\": 4,\n\t\t\t\"column\": 6\n\t\t},\
+                    \n\t\t\"end\": {\n\t\t\t\"line\": 4,\n\t\t\t\"column\": 7\n\t\t}\
+                    \n\t}\
+                    \n]\n";
         assert_eq!(got, want);
     }
 }

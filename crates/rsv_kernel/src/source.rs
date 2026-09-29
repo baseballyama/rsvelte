@@ -10,29 +10,37 @@ pub struct Span {
 
 impl Span {
     #[inline]
-    pub const fn new(lo: u32, hi: u32) -> Span {
-        debug_assert!(lo <= hi && hi < MAX_SOURCE_LEN);
-        Span { lo, hi }
+    #[must_use]
+    pub const fn new(lo: u32, hi: u32) -> Self {
+        debug_assert!(
+            lo <= hi && hi < MAX_SOURCE_LEN,
+            "span out of order or past MAX_SOURCE_LEN"
+        );
+        Self { lo, hi }
     }
 
     #[inline]
+    #[must_use]
     pub fn text(self, src: &str) -> &str {
         &src[self.lo as usize..self.hi as usize]
     }
 
     #[inline]
-    pub fn len(self) -> u32 {
+    #[must_use]
+    pub const fn len(self) -> u32 {
         self.hi - self.lo
     }
 
     #[inline]
-    pub fn is_empty(self) -> bool {
+    #[must_use]
+    pub const fn is_empty(self) -> bool {
         self.hi == self.lo
     }
 
     #[inline]
-    pub fn to(self, other: Span) -> Span {
-        Span {
+    #[must_use]
+    pub const fn to(self, other: Self) -> Self {
+        Self {
             lo: self.lo,
             hi: other.hi,
         }
@@ -40,13 +48,17 @@ impl Span {
 }
 
 /// Line starts plus a UTF-16 view, built once per document when something needs line/column or
-/// JavaScript string offsets (diagnostics, source maps). Pure-ASCII documents skip the UTF-16 table.
+/// JavaScript string offsets (diagnostics, source maps). Pure-ASCII documents skip the UTF-16
+/// table.
+#[derive(Debug)]
 pub struct LineIndex {
     line_starts: Vec<u32>,
-    /// Byte offsets of every non-ASCII char and the UTF-16 length of the text before it; empty for ASCII.
+    /// Byte offsets of every non-ASCII char and the UTF-16 length of the text before it; empty for
+    /// ASCII.
     wide: Vec<(u32, u32)>,
 }
 
+#[derive(Debug)]
 pub struct LineCol {
     /// 1-based.
     pub line: u32,
@@ -57,7 +69,8 @@ pub struct LineCol {
 }
 
 impl LineIndex {
-    pub fn new(src: &str) -> LineIndex {
+    #[must_use]
+    pub fn new(src: &str) -> Self {
         let mut line_starts = vec![0];
         for (i, b) in src.bytes().enumerate() {
             if b == b'\n' {
@@ -74,10 +87,11 @@ impl LineIndex {
                 utf16 += ch.len_utf16() as u32;
             }
         }
-        LineIndex { line_starts, wide }
+        Self { line_starts, wide }
     }
 
     /// UTF-16 offset of a byte offset.
+    #[must_use]
     pub fn utf16(&self, src: &str, byte: u32) -> u32 {
         if self.wide.is_empty() {
             return byte;
@@ -98,6 +112,7 @@ impl LineIndex {
         u + ch_u16 + (byte - b - ch_len)
     }
 
+    #[must_use]
     pub fn line_col(&self, src: &str, byte: u32) -> LineCol {
         let line = self.line_starts.partition_point(|&s| s <= byte) - 1;
         let start = self.line_starts[line];
@@ -112,6 +127,7 @@ impl LineIndex {
     /// Byte offset of a 1-based line and 0-based UTF-16 column. The column may be the line's end;
     /// `None` past it or inside a surrogate pair, so a position that does not exist is never
     /// replaced by a nearby one that does.
+    #[must_use]
     pub fn offset(&self, src: &str, line: u32, column: u32) -> Option<u32> {
         let start = *self.line_starts.get(line.checked_sub(1)? as usize)?;
         let mut units = 0;
@@ -127,7 +143,8 @@ impl LineIndex {
         (units == column).then_some(src.len() as u32)
     }
 
-    pub fn line_count(&self) -> usize {
+    #[must_use]
+    pub const fn line_count(&self) -> usize {
         self.line_starts.len()
     }
 }
@@ -175,21 +192,22 @@ pub const MAX_SOURCE_LEN: u32 = u32::MAX;
 pub struct Loc(Span);
 
 impl Loc {
-    pub const SYNTHETIC: Loc = Loc(Span {
+    pub const SYNTHETIC: Self = Self(Span {
         lo: MAX_SOURCE_LEN,
         hi: MAX_SOURCE_LEN,
     });
 
     #[inline]
+    #[must_use]
     pub fn span(self) -> Option<Span> {
-        (self != Loc::SYNTHETIC).then_some(self.0)
+        (self != Self::SYNTHETIC).then_some(self.0)
     }
 }
 
 impl From<Span> for Loc {
     #[inline]
-    fn from(s: Span) -> Loc {
-        Loc(s)
+    fn from(s: Span) -> Self {
+        Self(s)
     }
 }
 

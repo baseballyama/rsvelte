@@ -4,18 +4,22 @@
 //! [`Registry`]. [`run`] then processes documents in parallel: each document gets one [`Ctx`] on
 //! one worker, and the selected tasks run on it back to back while its data is hot in cache.
 //!
-//! A [`ProjectTask`] is for results that depend on other documents (type checking): its per-document
-//! half runs in the same parallel pass, on the same `Ctx`, and its project half runs once after.
+//! A [`ProjectTask`] is for results that depend on other documents (type checking): its
+//! per-document half runs in the same parallel pass, on the same `Ctx`, and its project half runs
+//! once after.
+
+use std::any::Any;
+
+use rayon::prelude::*;
 
 use crate::db::{Artifact, ArtifactRegistry, Ctx};
 use crate::diag::Diagnostic;
 use crate::metrics;
 use crate::source::MAX_SOURCE_LEN;
-use rayon::prelude::*;
-use std::any::Any;
 
 /// Built only by [`Document::new`], which checks the size limit.
 #[non_exhaustive]
+#[derive(Debug)]
 pub struct Document {
     /// Path as the user knows it; also the `filename` that output may depend on.
     pub path: String,
@@ -32,11 +36,14 @@ pub enum DocumentError {
 }
 
 impl Document {
-    pub fn new(path: String, text: String, lang: &'static str) -> Result<Document, DocumentError> {
+    /// # Errors
+    ///
+    /// [`DocumentError::TooLarge`] if `text` is [`MAX_SOURCE_LEN`] bytes or longer.
+    pub fn new(path: String, text: String, lang: &'static str) -> Result<Self, DocumentError> {
         if text.len() >= MAX_SOURCE_LEN as usize {
             return Err(DocumentError::TooLarge(text.len()));
         }
-        Ok(Document { path, text, lang })
+        Ok(Self { path, text, lang })
     }
 }
 
@@ -50,7 +57,7 @@ pub trait Task: Send + Sync {
     /// (`svelte.compile/client`, `svelte.lint/default`).
     fn id(&self) -> &'static str;
     fn applies(&self, doc: &Document) -> bool;
-    fn run(&self, ctx: &Ctx, out: &mut TaskOutput);
+    fn run(&self, ctx: &Ctx<'_>, out: &mut TaskOutput);
 }
 
 /// What a [`ProjectTask`] carries from a document's pass to the project pass. Owned: the
@@ -62,7 +69,7 @@ pub trait ProjectTask: Send + Sync {
     fn applies(&self, doc: &Document) -> bool;
     /// On the document's worker. Returns `None` when the document is finished here (its output
     /// is already in `out`).
-    fn prepare(&self, ctx: &Ctx, out: &mut TaskOutput) -> Option<Part>;
+    fn prepare(&self, ctx: &Ctx<'_>, out: &mut TaskOutput) -> Option<Part>;
     /// Once, over every document `prepare` returned a part for; `parts[i]` belongs to `outs[i]`.
     fn finish(&self, parts: Vec<Part>, outs: Vec<&mut TaskOutput>);
 }
@@ -97,9 +104,18 @@ pub struct Registry {
     artifacts: ArtifactRegistry,
 }
 
+impl std::fmt::Debug for Registry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Registry")
+            .field("artifacts", &self.artifacts)
+            .finish_non_exhaustive()
+    }
+}
+
 impl Registry {
-    pub fn new() -> Registry {
-        Registry::default()
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn language(&mut self, l: impl Language + 'static) -> &mut Self {
@@ -122,15 +138,18 @@ impl Registry {
         self
     }
 
-    pub fn artifacts(&self) -> &ArtifactRegistry {
+    #[must_use]
+    pub const fn artifacts(&self) -> &ArtifactRegistry {
         &self.artifacts
     }
 
     /// Tasks that run per document only (no project pass).
+    #[must_use]
     pub fn document_task_ids(&self) -> Vec<&'static str> {
         self.tasks.iter().map(|t| t.id()).collect()
     }
 
+    #[must_use]
     pub fn task_ids(&self) -> Vec<&'static str> {
         self.tasks
             .iter()
@@ -139,6 +158,7 @@ impl Registry {
             .collect()
     }
 
+    #[must_use]
     pub fn language_of(&self, path: &str) -> Option<&'static str> {
         self.languages
             .iter()
@@ -146,6 +166,10 @@ impl Registry {
             .map(|l| l.id())
     }
 
+    /// # Errors
+    ///
+    /// [`DocumentError::NoLanguage`] if no registered language claims `path`;
+    /// [`DocumentError::TooLarge`] if `text` exceeds the size limit.
     pub fn document(
         &self,
         path: impl Into<String>,
@@ -156,16 +180,19 @@ impl Registry {
         Document::new(path, text.into(), lang)
     }
 
-    /// `Err` names the first id no registered task has.
+    /// # Errors
+    ///
+    /// [`UnknownTask`] naming the first id no registered task has.
     pub fn check_task_ids(&self, ids: &[&str]) -> Result<(), UnknownTask> {
         let known = self.task_ids();
-        match ids.iter().find(|id| !known.contains(id)) {
-            Some(id) => Err(UnknownTask {
-                id: id.to_string(),
-                known,
-            }),
-            None => Ok(()),
-        }
+        ids.iter()
+            .find(|id| !known.contains(id))
+            .map_or(Ok(()), |id| {
+                Err(UnknownTask {
+                    id: id.to_string(),
+                    known,
+                })
+            })
     }
 
     fn selected(&self, ids: &[&str]) -> (Vec<&dyn Task>, Vec<&dyn ProjectTask>) {
@@ -174,12 +201,12 @@ impl Registry {
             self.tasks
                 .iter()
                 .filter(|t| wanted(t.id()))
-                .map(|t| t.as_ref())
+                .map(AsRef::as_ref)
                 .collect(),
             self.project_tasks
                 .iter()
                 .filter(|t| wanted(t.id()))
-                .map(|t| t.as_ref())
+                .map(AsRef::as_ref)
                 .collect(),
         )
     }
@@ -202,13 +229,15 @@ impl std::fmt::Display for UnknownTask {
     }
 }
 
-/// How tasks of one document share derived artifacts. `Isolated` exists to measure what sharing buys.
+/// How tasks of one document share derived artifacts. `Isolated` exists to measure what sharing
+/// buys.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Sharing {
     Shared,
     Isolated,
 }
 
+#[derive(Debug)]
 pub struct RunOptions<'a> {
     /// Empty = every registered task.
     pub tasks: &'a [&'a str],
@@ -217,6 +246,7 @@ pub struct RunOptions<'a> {
     pub threads: Option<usize>,
 }
 
+#[derive(Debug)]
 pub struct DocResult {
     pub outputs: Vec<(&'static str, TaskOutput)>,
     /// Set when a task panicked; the document's other outputs are dropped.
@@ -228,10 +258,10 @@ pub struct DocResult {
 fn panic_message(e: Box<dyn Any + Send>) -> String {
     match e.downcast::<String>() {
         Ok(s) => *s,
-        Err(e) => match e.downcast_ref::<&str>() {
-            Some(s) => s.to_string(),
-            None => "panicked with a payload that is not a string".to_string(),
-        },
+        Err(e) => e.downcast_ref::<&str>().map_or_else(
+            || "panicked with a payload that is not a string".to_owned(),
+            ToString::to_string,
+        ),
     }
 }
 
@@ -342,14 +372,23 @@ fn finish_projects(project_tasks: &[&dyn ProjectTask], results: &mut [DocResult]
     }
 }
 
-/// Runs the pipeline and hands each document's result to `sink` as soon as it is final, on
-/// whichever worker finished it: a document is dropped from memory when its sink call returns,
-/// so peak memory follows the working set, not the corpus. Documents waiting for a project pass
-/// are held until it finishes.
+/// Runs the pipeline and hands each document's result to `sink` as soon as it is final.
+///
+/// The sink runs on whichever worker finished the document: a document is dropped from memory
+/// when its sink call returns, so peak memory follows the working set, not the corpus. Documents
+/// waiting for a project pass are held until it finishes.
+///
+/// # Errors
+///
+/// [`UnknownTask`] if `opts.tasks` names a task that is not registered; nothing runs then.
+///
+/// # Panics
+///
+/// If a worker thread pool of `opts.threads` threads cannot be built.
 pub fn run_each(
     reg: &Registry,
     docs: &[Document],
-    opts: &RunOptions,
+    opts: &RunOptions<'_>,
     sink: &(dyn Fn(usize, DocResult) + Sync),
 ) -> Result<(), UnknownTask> {
     reg.check_task_ids(opts.tasks)?;
@@ -380,10 +419,18 @@ pub fn run_each(
 }
 
 /// [`run_each`], collected in document order.
+///
+/// # Errors
+///
+/// [`UnknownTask`] if `opts.tasks` names a task that is not registered; nothing runs then.
+///
+/// # Panics
+///
+/// If a worker thread pool of `opts.threads` threads cannot be built.
 pub fn run(
     reg: &Registry,
     docs: &[Document],
-    opts: &RunOptions,
+    opts: &RunOptions<'_>,
 ) -> Result<Vec<DocResult>, UnknownTask> {
     let slots: Vec<std::sync::Mutex<Option<DocResult>>> =
         docs.iter().map(|_| std::sync::Mutex::new(None)).collect();
@@ -410,21 +457,20 @@ fn in_pool(threads: Option<usize>, work: impl FnOnce() + Send) {
     };
     let pool = {
         let mut pools = POOLS.lock().expect("no panics under the lock");
-        match pools.iter().find(|(m, _)| *m == n) {
-            Some(&(_, p)) => p,
-            None => {
-                let p: &'static rayon::ThreadPool = Box::leak(Box::new(
-                    rayon::ThreadPoolBuilder::new()
-                        .num_threads(n)
-                        .build()
-                        .expect("thread pool"),
-                ));
-                pools.push((n, p));
-                p
-            }
+        if let Some(&(_, p)) = pools.iter().find(|(m, _)| *m == n) {
+            p
+        } else {
+            let p: &'static rayon::ThreadPool = Box::leak(Box::new(
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(n)
+                    .build()
+                    .expect("thread pool"),
+            ));
+            pools.push((n, p));
+            p
         }
     };
-    pool.install(work)
+    pool.install(work);
 }
 
 #[cfg(test)]
@@ -436,16 +482,21 @@ mod tests {
         fn id(&self) -> &'static str {
             "t"
         }
+
         fn matches(&self, path: &str) -> bool {
-            path.ends_with(".t")
+            std::path::Path::new(path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("t"))
         }
     }
 
     struct Len;
     impl Artifact for Len {
         type Output = usize;
+
         const NAME: &'static str = "len";
-        fn compute(ctx: &Ctx) -> usize {
+
+        fn compute(ctx: &Ctx<'_>) -> usize {
             ctx.src().len()
         }
     }
@@ -456,16 +507,19 @@ mod tests {
         fn id(&self) -> &'static str {
             "total"
         }
+
         fn applies(&self, _: &Document) -> bool {
             true
         }
-        fn prepare(&self, ctx: &Ctx, out: &mut TaskOutput) -> Option<Part> {
+
+        fn prepare(&self, ctx: &Ctx<'_>, out: &mut TaskOutput) -> Option<Part> {
             if ctx.src().is_empty() {
                 out.file("txt", "empty".into());
                 return None;
             }
             Some(Box::new(*ctx.get::<Len>()))
         }
+
         fn finish(&self, parts: Vec<Part>, outs: Vec<&mut TaskOutput>) {
             let lens: Vec<usize> = parts.into_iter().map(|p| *p.downcast().unwrap()).collect();
             let total: usize = lens.iter().sum();
@@ -502,12 +556,15 @@ mod tests {
         fn id(&self) -> &'static str {
             "count"
         }
+
         fn applies(&self, doc: &Document) -> bool {
             doc.path != "b.t"
         }
-        fn prepare(&self, _: &Ctx, _: &mut TaskOutput) -> Option<Part> {
+
+        fn prepare(&self, _: &Ctx<'_>, _: &mut TaskOutput) -> Option<Part> {
             Some(Box::new(()))
         }
+
         fn finish(&self, parts: Vec<Part>, outs: Vec<&mut TaskOutput>) {
             let n = parts.len();
             for out in outs {
@@ -521,10 +578,12 @@ mod tests {
         fn id(&self) -> &'static str {
             "panics"
         }
+
         fn applies(&self, _: &Document) -> bool {
             true
         }
-        fn run(&self, _: &Ctx, _: &mut TaskOutput) {
+
+        fn run(&self, _: &Ctx<'_>, _: &mut TaskOutput) {
             std::panic::panic_any(42u8);
         }
     }

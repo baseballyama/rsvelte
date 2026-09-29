@@ -6,11 +6,12 @@
 //!
 //! The printer is a port of Prettier's `printDocToString` (prettier 3.x): the same modes, the same
 //! `fits` with its rest commands and `mustBeFlat`, the same `fill`, group ids for `ifBreak` and
-//! `indentIfBreak`, re-measuring after a hard line in flat mode, and trailing-whitespace trimming at
-//! hard lines only. A formatter that builds the same document as Prettier gets the same text.
+//! `indentIfBreak`, re-measuring after a hard line in flat mode, and trailing-whitespace trimming
+//! at hard lines only. A formatter that builds the same document as Prettier gets the same text.
 //!
 //! One addition: [`Docs::flat_only`] marks a layout whose broken form a formatter has not ported.
-//! If it does not fit flat, [`Docs::print`] refuses instead of printing a layout Prettier would not.
+//! If it does not fit flat, [`Docs::print`] refuses instead of printing a layout Prettier would
+//! not.
 
 use std::num::NonZeroU32;
 
@@ -71,7 +72,7 @@ enum Node {
     FlatOnly(DocId),
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Docs {
     nodes: Vec<Node>,
     kids: Vec<DocId>,
@@ -79,6 +80,7 @@ pub struct Docs {
     groups: u32,
 }
 
+#[derive(Debug)]
 pub struct PrintOptions {
     pub width: usize,
     /// `None` for tabs.
@@ -89,7 +91,7 @@ pub struct PrintOptions {
 
 impl Default for PrintOptions {
     fn default() -> Self {
-        PrintOptions {
+        Self {
             width: 80,
             indent_spaces: Some(2),
             tab_width: 2,
@@ -102,8 +104,9 @@ impl Default for PrintOptions {
 pub struct Refused;
 
 impl Docs {
-    pub fn new() -> Docs {
-        Docs::default()
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
     }
 
     fn push(&mut self, n: Node) -> DocId {
@@ -168,7 +171,10 @@ impl Docs {
         self.group_node(items, true, None)
     }
 
-    pub fn new_group_id(&mut self) -> GroupId {
+    /// # Panics
+    ///
+    /// If more than `u32::MAX` group ids are created.
+    pub const fn new_group_id(&mut self) -> GroupId {
         self.groups += 1;
         GroupId(NonZeroU32::new(self.groups).expect("counter starts at 1"))
     }
@@ -230,6 +236,7 @@ impl Docs {
     }
 
     /// Prettier's `join(sep, docs)`.
+    #[must_use]
     pub fn join(&self, sep: DocId, items: &[DocId]) -> Vec<DocId> {
         let mut out = Vec::with_capacity(items.len() * 2);
         for (i, &d) in items.iter().enumerate() {
@@ -293,6 +300,7 @@ impl Docs {
     }
 
     /// prettier-plugin-svelte's `isEmptyDoc`.
+    #[must_use]
     pub fn is_empty(&self, d: DocId) -> bool {
         match self.nodes[d.0 as usize] {
             n @ (Node::Static(_) | Node::Text { .. }) => self.str_of(n).is_empty(),
@@ -306,6 +314,7 @@ impl Docs {
     }
 
     /// prettier-plugin-svelte's `isLine`.
+    #[must_use]
     pub fn is_line(&self, d: DocId) -> bool {
         match self.nodes[d.0 as usize] {
             Node::Line(_) => true,
@@ -315,10 +324,12 @@ impl Docs {
     }
 
     /// Prettier's `willBreak`: the document holds a hard line, a break-parent or a broken group.
+    #[must_use]
     pub fn will_break(&self, d: DocId) -> bool {
         match self.nodes[d.0 as usize] {
-            Node::Line(LineKind::Hard | LineKind::Literal) | Node::BreakParent => true,
-            Node::Group { brk: true, .. } => true,
+            Node::Line(LineKind::Hard | LineKind::Literal)
+            | Node::BreakParent
+            | Node::Group { brk: true, .. } => true,
             Node::Static(_) | Node::Text { .. } | Node::Line(_) => false,
             Node::Concat { start, len }
             | Node::Fill { start, len }
@@ -331,11 +342,13 @@ impl Docs {
         }
     }
 
+    #[must_use]
     pub fn is_break_parent(&self, d: DocId) -> bool {
         matches!(self.nodes[d.0 as usize], Node::BreakParent)
     }
 
     /// The literal text of a text node, if `d` is one.
+    #[must_use]
     pub fn as_str(&self, d: DocId) -> Option<&str> {
         match self.nodes[d.0 as usize] {
             n @ (Node::Static(_) | Node::Text { .. }) => Some(self.str_of(n)),
@@ -368,12 +381,12 @@ impl Docs {
 
     /// prettier-plugin-svelte's `trim`: removes leading and trailing docs matching `ws`, descending
     /// into the first/last part when nothing at the current level matches.
-    pub fn trim(&mut self, docs: &mut Vec<DocId>, ws: fn(&Docs, DocId) -> bool) {
+    pub fn trim(&mut self, docs: &mut Vec<DocId>, ws: fn(&Self, DocId) -> bool) {
         self.trim_left(docs, ws);
         self.trim_right(docs, ws);
     }
 
-    pub fn trim_left(&mut self, docs: &mut Vec<DocId>, ws: fn(&Docs, DocId) -> bool) {
+    pub fn trim_left(&mut self, docs: &mut Vec<DocId>, ws: fn(&Self, DocId) -> bool) {
         let first = docs
             .iter()
             .position(|&d| !self.is_empty(d) && !ws(self, d))
@@ -392,7 +405,7 @@ impl Docs {
         }
     }
 
-    pub fn trim_right(&mut self, docs: &mut Vec<DocId>, ws: fn(&Docs, DocId) -> bool) {
+    pub fn trim_right(&mut self, docs: &mut Vec<DocId>, ws: fn(&Self, DocId) -> bool) {
         let keep = docs
             .iter()
             .rposition(|&d| !self.is_empty(d) && !ws(self, d))
@@ -463,6 +476,9 @@ impl Docs {
         }
     }
 
+    /// # Errors
+    ///
+    /// [`Refused`] when a [`Docs::flat_only`] document does not fit in the remaining width.
     pub fn print(&mut self, root: DocId, opts: &PrintOptions) -> Result<String, Refused> {
         self.propagate_breaks(root);
         let mut p = Printer {
@@ -512,6 +528,7 @@ struct Printer<'a> {
 
 /// Prettier's `getStringWidth`: East Asian wide and fullwidth characters count two columns,
 /// combining marks and zero-width characters none.
+#[must_use]
 pub fn string_width(s: &str) -> usize {
     if s.is_ascii() {
         return s.len();
@@ -525,7 +542,7 @@ pub fn string_width(s: &str) -> usize {
         .sum()
 }
 
-fn is_wide(u: u32) -> bool {
+const fn is_wide(u: u32) -> bool {
     matches!(u,
         0x1100..=0x115F | 0x2E80..=0x303E | 0x3041..=0x33FF | 0x3400..=0x4DBF | 0x4E00..=0x9FFF
         | 0xA000..=0xA4CF | 0xAC00..=0xD7A3 | 0xF900..=0xFAFF | 0xFE30..=0xFE4F | 0xFF00..=0xFF60
@@ -550,14 +567,15 @@ impl Printer<'_> {
     }
 
     fn if_break_branch(&self, mode: Mode, broken: DocId, flat: DocId, g: Option<GroupId>) -> DocId {
-        let m = match g {
-            Some(g) => self.group_mode(g).unwrap_or(Mode::Flat),
-            None => mode,
-        };
+        let m = g.map_or(mode, |g| self.group_mode(g).unwrap_or(Mode::Flat));
         if m == Mode::Break { broken } else { flat }
     }
 
-    fn rem(&self) -> isize {
+    #[expect(
+        clippy::cast_possible_wrap,
+        reason = "widths and columns are far below `isize::MAX`"
+    )]
+    const fn rem(&self) -> isize {
         self.opts.width as isize - self.pos as isize
     }
 
@@ -660,7 +678,7 @@ impl Printer<'_> {
         }
     }
 
-    fn fill(&mut self, ind: u32, mode: Mode, start: u32, len: u32, stack: &mut Vec<Cmd>) {
+    fn fill(&self, ind: u32, mode: Mode, start: u32, len: u32, stack: &mut Vec<Cmd>) {
         if len == 0 {
             return;
         }
@@ -704,6 +722,10 @@ impl Printer<'_> {
 
     /// Prettier's `fits`: whether `next` fits in `rem` columns, continuing into `rest` (in its own
     /// modes) until the first line break.
+    #[expect(
+        clippy::cast_possible_wrap,
+        reason = "a string's width is far below `isize::MAX`"
+    )]
     fn fits(&self, next: &[Cmd], rest: &[Cmd], mut rem: isize, must_be_flat: bool) -> bool {
         let mut work: Vec<Cmd> = next.iter().rev().copied().collect();
         let mut rest_i = rest.len();
@@ -730,7 +752,7 @@ impl Printer<'_> {
             };
             match self.docs.nodes[id.0 as usize] {
                 n @ (Node::Static(_) | Node::Text { .. }) => {
-                    rem -= string_width(self.docs.str_of(n)) as isize
+                    rem -= string_width(self.docs.str_of(n)) as isize;
                 }
                 Node::Line(kind) => {
                     if mode == Mode::Break || matches!(kind, LineKind::Hard | LineKind::Literal) {
@@ -756,7 +778,7 @@ impl Printer<'_> {
                     work.extend(kids.iter().rev().map(|&k| (ind, m, Item::Doc(k))));
                 }
                 Node::Indent(d) | Node::Dedent(d) | Node::IndentIfBreak { doc: d, .. } => {
-                    work.push((ind, mode, Item::Doc(d)))
+                    work.push((ind, mode, Item::Doc(d)));
                 }
                 Node::FlatOnly(d) => work.push((ind, Mode::Flat, Item::Doc(d))),
                 Node::IfBreak {
@@ -818,17 +840,17 @@ mod tests {
     fn hardline_breaks_enclosing_groups_and_trims_trailing_space() {
         let mut d = Docs::new();
         let a = d.lit("a ");
-        let h = d.hardline();
+        let hard = d.hardline();
         let b = d.lit("b");
-        let inner = d.concat(&[a, h, b]);
+        let inner = d.concat(&[a, hard, b]);
         let ind = d.indent(inner);
-        let l = d.line();
-        let g = d.group(&[ind, l]);
+        let line = d.line();
+        let group = d.group(&[ind, line]);
         let opts = PrintOptions {
             indent_spaces: None,
             ..Default::default()
         };
-        assert_eq!(print(&mut d, g, &opts), "a\n\tb\n");
+        assert_eq!(print(&mut d, group, &opts), "a\n\tb\n");
     }
 
     #[test]
@@ -866,13 +888,13 @@ mod tests {
     fn fill_breaks_the_separator_after_content_holding_a_broken_group() {
         let mut d = Docs::new();
         let a = d.lit("a");
-        let l = d.line();
+        let line = d.line();
         let b = d.lit("b");
-        let content = d.group_broken(&[a, l, b]);
+        let content = d.group_broken(&[a, line, b]);
         let sep = d.line();
         let c = d.lit("c");
-        let f = d.fill(&[content, sep, c]);
-        assert_eq!(print(&mut d, f, &PrintOptions::default()), "a\nb\nc");
+        let filled = d.fill(&[content, sep, c]);
+        assert_eq!(print(&mut d, filled, &PrintOptions::default()), "a\nb\nc");
     }
 
     #[test]
@@ -908,7 +930,7 @@ mod tests {
         let h = d.hardline();
         let inner = d.concat(&[a, h]);
         let mut docs = vec![inner];
-        d.trim_right(&mut docs, |d, x| d.is_line(x));
+        d.trim_right(&mut docs, Docs::is_line);
         let root = d.concat(&docs);
         assert_eq!(print(&mut d, root, &PrintOptions::default()), "a");
     }

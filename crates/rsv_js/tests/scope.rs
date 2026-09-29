@@ -55,7 +55,7 @@ fn shadowing_and_destructuring() {
     let names: Vec<_> = sem
         .bindings
         .iter()
-        .map(|b| ast.atoms.get(b.name).to_string())
+        .map(|b| ast.atoms.get(b.name).to_owned())
         .collect();
     assert_eq!(names, ["a", "c", "f", "a"]);
     let outer_a = &sem.bindings.raw()[0];

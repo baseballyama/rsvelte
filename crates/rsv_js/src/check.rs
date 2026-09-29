@@ -1,4 +1,6 @@
-//! Type checking with TypeScript's own checker: the native `tsc` (TypeScript 7) runs once over a
+//! Type checking with TypeScript's own checker.
+//!
+//! The native `tsc` (TypeScript 7) runs once over a
 //! whole set of generated files, and its diagnostics come back in generated coordinates for the
 //! host language to map to its documents.
 //!
@@ -6,13 +8,15 @@
 //! start, its underline gives the end. The parser accepts only the shapes it knows and checks the
 //! count against tsc's own summary, so an unrecognised report is an error, never a dropped finding.
 
-use rsv_kernel::json::JsonWriter;
-use rsv_kernel::metrics;
-use rsv_kernel::source::{LineIndex, Span};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use rsv_kernel::json::JsonWriter;
+use rsv_kernel::metrics;
+use rsv_kernel::source::{LineIndex, Span};
+
+#[derive(Debug)]
 pub struct Tsc {
     /// The native `tsc` executable.
     pub binary: PathBuf,
@@ -20,7 +24,7 @@ pub struct Tsc {
     pub tsconfig: Option<PathBuf>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct CheckRequest {
     /// Generated TypeScript, one per document.
     pub files: Vec<String>,
@@ -32,7 +36,7 @@ pub struct CheckRequest {
     pub paths: Vec<(&'static str, PathBuf)>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct TsDiagnostic {
     /// Index into [`CheckRequest::files`].
     pub file: usize,
@@ -47,6 +51,10 @@ pub struct TsDiagnostic {
 static RUN: AtomicU32 = AtomicU32::new(0);
 
 impl Tsc {
+    /// # Errors
+    ///
+    /// A message if the temporary project cannot be written, `tsc` cannot be run, or its report
+    /// cannot be parsed.
     pub fn check(&self, req: &CheckRequest) -> Result<Vec<TsDiagnostic>, String> {
         let dir = std::env::temp_dir().join(format!(
             "rsv-tsc-{}-{}",
@@ -55,7 +63,8 @@ impl Tsc {
         ));
         std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
         let result = self.check_in(&dir, req);
-        let _ = std::fs::remove_dir_all(&dir);
+        // Best effort: a leftover temporary directory does not affect the result.
+        drop(std::fs::remove_dir_all(&dir));
         result
     }
 
@@ -106,12 +115,10 @@ impl Tsc {
             .key("noEmit")
             .bool(true)
             .key("skipLibCheck")
-            .bool(true)
-            // Every generated file is a module, whatever its imports, so documents never share globals.
-            .key("moduleDetection")
-            .str("force")
-            .key("paths")
-            .begin_object();
+            .bool(true);
+        // Every generated file is a module, whatever its imports: documents share no globals.
+        w.key("moduleDetection").str("force");
+        w.key("paths").begin_object();
         for (spec, file) in &req.paths {
             w.key(spec)
                 .begin_array()
@@ -222,7 +229,7 @@ fn parse_report(
             return bad(line, "expected a diagnostic header");
         };
         i += 1;
-        let mut message = first.to_string();
+        let mut message = first.to_owned();
         while i < lines.len() && lines[i].starts_with("  ") {
             message.push('\n');
             message.push_str(lines[i]);
@@ -288,7 +295,8 @@ mod tests {
     use super::*;
 
     // Captured from tsc 7.0.2 `--pretty true`, colours stripped.
-    const REPORT: &str = "f0.ts:1:5 - error TS2322: Type '(x: string) => number' is not assignable to type '(x: number) => string'.
+    const REPORT: &str = "f0.ts:1:5 - error TS2322: Type '(x: string) => number' is not \
+                          assignable to type '(x: number) => string'.
   Types of parameters 'x' and 'x' are incompatible.
     Type 'number' is not assignable to type 'string'.
 
@@ -315,8 +323,8 @@ Errors  Files
     #[test]
     fn parses_chains_underlines_and_skips_related_information() {
         let files = [
-            "let f: (x: number) => string = (x: string) => 1;\n".to_string(),
-            "const big = {\n\n  a: 1,\n  ...{ a: \"x\" },\n};\n".to_string(),
+            "let f: (x: number) => string = (x: string) => 1;\n".to_owned(),
+            "const big = {\n\n  a: 1,\n  ...{ a: \"x\" },\n};\n".to_owned(),
         ];
         let index: Vec<LineIndex> = files.iter().map(|f| LineIndex::new(f)).collect();
         let got = parse_report(REPORT, |f, l, c| index[f].offset(&files[f], l, c)).unwrap();
@@ -324,7 +332,9 @@ Errors  Files
         assert_eq!(got[0].code, 2322);
         assert_eq!(
             got[0].message,
-            "Type '(x: string) => number' is not assignable to type '(x: number) => string'.\n  Types of parameters 'x' and 'x' are incompatible.\n    Type 'number' is not assignable to type 'string'."
+            "Type '(x: string) => number' is not assignable to type '(x: number) => string'.\
+             \n  Types of parameters 'x' and 'x' are incompatible.\
+             \n    Type 'number' is not assignable to type 'string'."
         );
         assert_eq!(got[0].span.text(&files[0]), "f");
         assert_eq!((got[1].file, got[1].span.text(&files[1])), (1, "a: 1"));
@@ -332,10 +342,12 @@ Errors  Files
 
     #[test]
     fn a_count_that_disagrees_with_the_summary_is_an_error() {
-        let files = ["let f: (x: number) => string = (x: string) => 1;\n".to_string()];
+        let files = ["let f: (x: number) => string = (x: string) => 1;\n".to_owned()];
         let index = LineIndex::new(&files[0]);
-        let truncated =
-            REPORT.split("f1.ts:3:3").next().unwrap().to_string() + "Found 2 errors in 2 files.\n";
+        let truncated = format!(
+            "{}Found 2 errors in 2 files.\n",
+            REPORT.split("f1.ts:3:3").next().unwrap()
+        );
         let got = parse_report(&truncated, |f, l, c| index.offset(&files[f], l, c));
         assert!(got.unwrap_err().contains("reported 2 error(s), parsed 1"));
     }
@@ -343,8 +355,9 @@ Errors  Files
     #[test]
     fn an_empty_span_at_a_line_end_is_empty() {
         // tsc 7.0.2 `--pretty true`, colours stripped: the underline sits one column past the line.
-        let report = "f0.ts:2:12 - error TS1109: Expression expected.\n\n2 let t = s +\n             ~\n\n\nFound 1 error in f0.ts:2\n\n";
-        let files = ["let s = 1;\nlet t = s +\n".to_string()];
+        let report = "f0.ts:2:12 - error TS1109: Expression expected.\n\n2 let t = s +\
+                      \n             ~\n\n\nFound 1 error in f0.ts:2\n\n";
+        let files = ["let s = 1;\nlet t = s +\n".to_owned()];
         let index = LineIndex::new(&files[0]);
         let got = parse_report(report, |f, l, c| index.offset(&files[f], l, c)).unwrap();
         let end = files[0].find(" +").unwrap() as u32 + 2;
@@ -354,6 +367,6 @@ Errors  Files
     #[test]
     fn an_unknown_line_is_an_error() {
         let got = parse_report("error TS5083: Cannot read file 'x'.\n", |_, _, _| Some(0));
-        assert!(got.is_err());
+        got.unwrap_err();
     }
 }

@@ -1,8 +1,11 @@
 //! A tolerant subset parser: style rules with selector lists, declarations and at-rules with
 //! either a block of rules or a block of declarations. Anything else is a [`ParseError`].
 
-use crate::ast::*;
 use rsv_kernel::source::Span;
+
+use crate::ast::{
+    Combinator, ComplexSelector, Decl, RelativeSelector, Rule, RuleKind, Simple, StyleSheet,
+};
 
 #[derive(Debug, Clone)]
 pub struct ParseError {
@@ -13,6 +16,11 @@ pub struct ParseError {
 type R<T> = Result<T, ParseError>;
 
 /// Parses `content` (a range of `src`) as a style sheet.
+///
+/// # Errors
+///
+/// [`ParseError`] at the first syntax error: an unterminated comment, a missing brace, or a
+/// malformed selector or declaration.
 pub fn parse(src: &str, content: Span) -> R<StyleSheet> {
     let mut p = P {
         b: src.as_bytes(),
@@ -31,7 +39,7 @@ struct P<'a> {
     end: usize,
 }
 
-fn is_ident_byte(c: u8) -> bool {
+const fn is_ident_byte(c: u8) -> bool {
     c.is_ascii_alphanumeric() || c == b'-' || c == b'_' || c >= 0x80
 }
 
@@ -47,7 +55,7 @@ impl P<'_> {
         (self.pos < self.end).then(|| self.b[self.pos])
     }
 
-    fn span(&self, lo: usize) -> Span {
+    const fn span(&self, lo: usize) -> Span {
         Span::new(lo as u32, self.pos as u32)
     }
 
@@ -76,7 +84,7 @@ impl P<'_> {
     }
 
     /// Skips to the byte that closes the current nesting level, honouring strings and brackets.
-    fn skip_balanced_until(&mut self, stops: &[u8]) -> R<()> {
+    fn skip_balanced_until(&mut self, stops: &[u8]) {
         let mut depth = 0usize;
         while let Some(c) = self.peek() {
             match c {
@@ -94,12 +102,11 @@ impl P<'_> {
                 }
                 b'(' | b'[' => depth += 1,
                 b')' | b']' => depth = depth.saturating_sub(1),
-                _ if depth == 0 && stops.contains(&c) => return Ok(()),
+                _ if depth == 0 && stops.contains(&c) => return,
                 _ => {}
             }
             self.pos += 1;
         }
-        Ok(())
     }
 
     fn rules(&mut self, nested: bool) -> R<Vec<Rule>> {
@@ -121,7 +128,7 @@ impl P<'_> {
         self.pos += 1;
         let name = self.ident();
         let prelude_lo = self.pos;
-        self.skip_balanced_until(b"{;")?;
+        self.skip_balanced_until(b"{;");
         let prelude = trim(self.src, self.span(prelude_lo));
         match self.peek() {
             Some(b';') => {
@@ -264,7 +271,7 @@ impl P<'_> {
                     self.pos += 1;
                     self.skip_trivia()?;
                     let name = self.ident();
-                    self.skip_balanced_until(b"]")?;
+                    self.skip_balanced_until(b"]");
                     self.expect(b']')?;
                     simple.push(Simple::Attribute {
                         span: self.span(s),
@@ -281,7 +288,7 @@ impl P<'_> {
                     let args = if !element && self.peek() == Some(b'(') {
                         self.pos += 1;
                         let a = self.pos;
-                        self.skip_balanced_until(b")")?;
+                        self.skip_balanced_until(b")");
                         let args = self.span(a);
                         self.expect(b')')?;
                         Some(args)
@@ -335,7 +342,7 @@ impl P<'_> {
                     self.expect(b':')?;
                     self.skip_trivia()?;
                     let v = self.pos;
-                    self.skip_balanced_until(b";}")?;
+                    self.skip_balanced_until(b";}");
                     let value = trim(self.src, self.span(v));
                     decls.push(Decl {
                         span: Span::new(lo as u32, value.hi),
@@ -366,7 +373,7 @@ mod tests {
         let sheet = parse(css, Span::new(0, css.len() as u32)).expect("parses");
         match sheet.rules[0].kind {
             RuleKind::At { prelude, .. } => prelude.text(css),
-            _ => panic!("not an at-rule"),
+            RuleKind::Style { .. } => panic!("not an at-rule"),
         }
     }
 

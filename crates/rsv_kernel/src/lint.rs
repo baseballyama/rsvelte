@@ -1,4 +1,6 @@
-//! Lint rules as a plugin contract. A language supplies a context type (its trees and analyses,
+//! Lint rules as a plugin contract.
+//!
+//! A language supplies a context type (its trees and analyses,
 //! computed once per document) and rules over it; the kernel runs them, times each one, orders the
 //! findings and renders them. A finding is a [`Diagnostic`] whose code is the rule id.
 //!
@@ -20,18 +22,23 @@ pub trait Rule<C: ?Sized>: Send + Sync {
 }
 
 /// Findings of one document, collected from rules over any number of layers.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Findings {
     out: Vec<Diagnostic>,
 }
 
 impl Findings {
-    pub fn new() -> Findings {
-        Findings::default()
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Runs `rules` over one layer's context, in order.
-    pub fn run<C: ?Sized>(&mut self, rules: &[&dyn Rule<C>], cx: &C) -> &mut Findings {
+    ///
+    /// # Panics
+    ///
+    /// If a rule reports a diagnostic under a code other than its own id.
+    pub fn run<C: ?Sized>(&mut self, rules: &[&dyn Rule<C>], cx: &C) -> &mut Self {
         for rule in rules {
             let _p = metrics::phase(rule.id());
             let before = self.out.len();
@@ -46,7 +53,8 @@ impl Findings {
     }
 
     /// Sorted by start offset; ties keep report order (layers in the order they ran, then rules
-    /// in order), which is how ESLint sorts (by line, then column, stable).
+    /// in order), which is how `ESLint` sorts (by line, then column, stable).
+    #[must_use]
     pub fn finish(self) -> Vec<Diagnostic> {
         let mut out = self.out;
         out.sort_by_key(|d| d.span.lo);
@@ -61,8 +69,9 @@ pub fn run<C: ?Sized>(rules: &[&dyn Rule<C>], cx: &C) -> Vec<Diagnostic> {
     f.finish()
 }
 
-/// `[{rule, message, start: {line, column}, end: {line, column}}]` with ESLint's positions:
+/// `[{rule, message, start: {line, column}, end: {line, column}}]` with `ESLint`'s positions:
 /// 1-based lines and 1-based UTF-16 columns.
+#[must_use]
 pub fn render_json(src: &str, lines: &LineIndex, findings: &[Diagnostic]) -> String {
     let mut w = JsonWriter::new(true);
     w.begin_array();
@@ -99,6 +108,7 @@ mod tests {
         fn id(&self) -> &'static str {
             self.0
         }
+
         fn check(&self, cx: &str, out: &mut Vec<Diagnostic>) {
             for (i, _) in cx.match_indices('x') {
                 let at = i as u32 + self.1;
@@ -121,6 +131,7 @@ mod tests {
         fn id(&self) -> &'static str {
             "len"
         }
+
         fn check(&self, cx: &[u8], out: &mut Vec<Diagnostic>) {
             out.push(Diagnostic::error("len", "n", Span::new(0, cx.len() as u32)));
         }

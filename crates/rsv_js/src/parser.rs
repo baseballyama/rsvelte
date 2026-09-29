@@ -9,10 +9,11 @@
 //!
 //! Anything outside the subset is a [`ParseError`], never a panic.
 
+use rsv_kernel::source::Span;
+
 use crate::ast::{Ast, Kind, NodeId, TsKind, TsSyntax, flag};
 use crate::lexer::{LexError, Lexer, T, Tok, decode_string};
 use crate::ops::{AssignOp, BinOp, LogicalOp, UnaryOp, UpdateOp};
-use rsv_kernel::source::Span;
 
 #[derive(Debug, Clone)]
 pub struct ParseError {
@@ -22,7 +23,7 @@ pub struct ParseError {
 
 impl From<LexError> for ParseError {
     fn from(e: LexError) -> Self {
-        ParseError {
+        Self {
             message: e.message,
             span: e.span,
         }
@@ -31,6 +32,7 @@ impl From<LexError> for ParseError {
 
 type R<T> = Result<T, ParseError>;
 
+#[derive(Debug)]
 pub struct Parser<'a, 'b> {
     src: &'a str,
     lex: Lexer<'a>,
@@ -42,6 +44,10 @@ pub struct Parser<'a, 'b> {
 }
 
 /// Parses `range` of `src` as a module body.
+///
+/// # Errors
+///
+/// [`ParseError`] at the first lexical or syntax error, or at syntax this parser does not support.
 pub fn parse_program(ast: &mut Ast, src: &str, range: Span, ts: bool) -> R<NodeId> {
     // Svelte components average a token per 4.8 bytes (the lossless corpus test prints both).
     ast.tokens.reserve(range.len() as usize / 4);
@@ -54,6 +60,10 @@ pub fn parse_program(ast: &mut Ast, src: &str, range: Span, ts: bool) -> R<NodeI
 }
 
 /// Parses `range` of `src` as exactly one expression.
+///
+/// # Errors
+///
+/// [`ParseError`] at the first lexical or syntax error, or if a token follows the expression.
 pub fn parse_expression(ast: &mut Ast, src: &str, range: Span, ts: bool) -> R<NodeId> {
     let mut p = Parser::new(ast, src, range, ts)?;
     let e = p.expression()?;
@@ -63,9 +73,15 @@ pub fn parse_expression(ast: &mut Ast, src: &str, range: Span, ts: bool) -> R<No
     Ok(e)
 }
 
-/// Parses the longest expression starting at `start` (reading no further than `limit`) and
-/// returns it with the start of the next token. Embedding languages use this to find where an
+/// Parses the longest expression starting at `start` and returns it with the start of the next
+/// token.
+///
+/// Reads no further than `limit`. Embedding languages use this to find where an
 /// expression ends: `{count}` ends where the parser stops, not at a brace found by scanning.
+///
+/// # Errors
+///
+/// [`ParseError`] at the first lexical or syntax error before the expression ends.
 pub fn parse_expression_prefix(
     ast: &mut Ast,
     src: &str,
@@ -157,7 +173,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.bump()
     }
 
-    fn span_from(&self, lo: u32) -> Span {
+    const fn span_from(&self, lo: u32) -> Span {
         Span::new(lo, self.prev_end)
     }
 
@@ -165,7 +181,7 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn peek(&self) -> Tok {
         let mut l = self.lex;
         let mut scratch = Vec::new();
-        l.next(&mut scratch).unwrap_or(Tok {
+        l.next(&mut scratch).unwrap_or_else(|_| Tok {
             t: T::Eof,
             span: Span::new(self.end, self.end),
             nl_before: false,
@@ -183,7 +199,8 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.fail("expected `;`")
     }
 
-    // ---- statements ------------------------------------------------------------------------------
+    // ---- statements
+    // ------------------------------------------------------------------------------
 
     fn statement(&mut self) -> R<NodeId> {
         let lo = self.tok.span.lo;
@@ -356,15 +373,16 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn import(&mut self) -> R<NodeId> {
         let lo = self.tok.span.lo;
         self.bump()?;
-        let mut type_only = false;
-        if self.ts
+        let type_only = if self.ts
             && self.is_kw("type")
             && !matches!(self.peek().t, T::Comma)
             && !(self.peek().t == T::Ident && self.text(self.peek()) == "from")
         {
             self.bump()?;
-            type_only = true;
-        }
+            true
+        } else {
+            false
+        };
         let mut specs = Vec::new();
         if self.tok.t != T::Str {
             if self.tok.t == T::Ident {
@@ -387,15 +405,16 @@ impl<'a, 'b> Parser<'a, 'b> {
                 self.bump()?;
                 while self.tok.t != T::RBrace {
                     let slo = self.tok.span.lo;
-                    let mut spec_type = false;
-                    if self.ts
+                    let spec_type = if self.ts
                         && self.is_kw("type")
                         && self.peek().t == T::Ident
                         && self.text(self.peek()) != "as"
                     {
                         self.bump()?;
-                        spec_type = true;
-                    }
+                        true
+                    } else {
+                        false
+                    };
                     let t = self.bump()?;
                     let imported = match t.t {
                         T::Ident => self.ast.ident(self.text(t), t.span),
@@ -667,8 +686,8 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
-    /// Skips a type. Stops (without consuming) at a depth-0 `,` `)` `]` `}` `;` `=` `?` or EOF, at a
-    /// depth-0 `=>` when `stop_at_arrow`, and at a line break that cannot continue the type.
+    /// Skips a type. Stops (without consuming) at a depth-0 `,` `)` `]` `}` `;` `=` `?` or EOF, at
+    /// a depth-0 `=>` when `stop_at_arrow`, and at a line break that cannot continue the type.
     fn skip_type(&mut self, stop_at_arrow: bool) -> R<()> {
         let mut depth = 0i32;
         let start = self.tok.span.lo;
@@ -708,14 +727,19 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
-    /// Whether the previous token makes a following `{` part of the type (`: {`, `| {`, `& {`, `<{`, `,{`).
+    /// Whether the previous token makes a following `{` part of the type (`: {`, `| {`, `& {`,
+    /// `<{`, `,{`).
     fn after_type_operator(&self) -> bool {
         let prev = self.src[..self.prev_end as usize].trim_end();
         prev.ends_with(['|', '&', '<', ',', ':', '(', '[', '='])
     }
 
-    // ---- expressions -----------------------------------------------------------------------------
+    // ---- expressions
+    // -----------------------------------------------------------------------------
 
+    /// # Errors
+    ///
+    /// [`ParseError`] at the first lexical or syntax error.
     pub fn expression(&mut self) -> R<NodeId> {
         let lo = self.tok.span.lo;
         let first = self.assignment()?;
@@ -746,7 +770,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         Ok(left)
     }
 
-    fn check_assign_target(&mut self, e: NodeId, op: AssignOp) -> R<NodeId> {
+    fn check_assign_target(&self, e: NodeId, op: AssignOp) -> R<NodeId> {
         match self.ast.kind(e) {
             Kind::Ident(_) | Kind::Member { .. } => Ok(e),
             Kind::Object(_) | Kind::Array(_) if op == AssignOp::Assign => {
@@ -759,8 +783,7 @@ impl<'a, 'b> Parser<'a, 'b> {
     /// Parses an arrow function if one starts here.
     fn try_arrow(&mut self) -> R<Option<NodeId>> {
         let lo = self.tok.span.lo;
-        let mut is_async = false;
-        if self.is_kw("async")
+        let is_async = if self.is_kw("async")
             && !self.peek().nl_before
             && matches!(self.peek().t, T::LParen | T::Ident)
         {
@@ -776,8 +799,10 @@ impl<'a, 'b> Parser<'a, 'b> {
                 return Ok(None);
             }
             self.bump()?;
-            is_async = true;
-        }
+            true
+        } else {
+            false
+        };
         let mut ret = None;
         let params =
             if self.tok.t == T::Ident && self.peek().t == T::Arrow && !self.peek().nl_before {
@@ -809,7 +834,7 @@ impl<'a, 'b> Parser<'a, 'b> {
 
     /// With the lexer positioned just after a `(`, whether the matching `)` is followed by `=>`
     /// (or, in TypeScript, by a return type and then `=>`).
-    fn paren_arrow_ahead(mut l: Lexer, scratch: &mut Vec<Span>) -> R<bool> {
+    fn paren_arrow_ahead(mut l: Lexer<'_>, scratch: &mut Vec<Span>) -> R<bool> {
         let mut depth = 1i32;
         loop {
             let t = l.next(scratch)?;
@@ -1067,18 +1092,19 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "a JavaScript number is an f64 and rounds the same way"
+    )]
     fn number_value(text: &str) -> Option<f64> {
         let clean: String = text.chars().filter(|&c| c != '_').collect();
         let lower = clean.to_ascii_lowercase();
-        let radix = |s: &str, r| u64::from_str_radix(s, r).ok().map(|v| v as f64);
-        if let Some(h) = lower.strip_prefix("0x") {
-            radix(h, 16)
-        } else if let Some(o) = lower.strip_prefix("0o") {
-            radix(o, 8)
-        } else if let Some(b) = lower.strip_prefix("0b") {
-            radix(b, 2)
-        } else {
-            lower.parse().ok()
+        let radix = |r| u64::from_str_radix(&lower[2..], r).ok().map(|v| v as f64);
+        match lower.get(..2) {
+            Some("0x") => radix(16),
+            Some("0o") => radix(8),
+            Some("0b") => radix(2),
+            _ => lower.parse().ok(),
         }
     }
 
@@ -1291,7 +1317,8 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
-    // ---- binding patterns ------------------------------------------------------------------------
+    // ---- binding patterns
+    // ------------------------------------------------------------------------
 
     fn binding_target(&mut self) -> R<NodeId> {
         let lo = self.tok.span.lo;

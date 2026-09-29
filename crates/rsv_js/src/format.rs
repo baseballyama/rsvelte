@@ -6,24 +6,24 @@
 //! same way. Two escape hatches keep the output honest where the port is partial:
 //!
 //! - a layout whose broken form is not ported (member chains, argument hugging, binary operators,
-//!   assignment layouts that depend on them) is wrapped in [`Docs::flat_only`]: it prints only
-//!   when it fits on its line, and printing refuses otherwise;
+//!   assignment layouts that depend on them) is wrapped in [`Docs::flat_only`]: it prints only when
+//!   it fits on its line, and printing refuses otherwise;
 //! - a node kind, comment or TypeScript form the port does not handle is an [`Unsupported`] error
 //!   before anything is printed.
 //!
 //! TypeScript types are not parsed into nodes (see [`crate::ast::TsSyntax`]); a type prints as its
 //! source text only when that text is a plain type reference (`Props`, `string`, `a.B[]`).
 
-use crate::ast::{Ast, Kind, NodeId, TsKind, TsSyntax, flag};
-use crate::ops::{BinOp, LogicalOp, UnaryOp};
+pub use rsv_kernel::diag::Unsupported;
 use rsv_kernel::doc::{DocId, Docs};
 use rsv_kernel::source::{LineIndex, Span};
 
-pub use rsv_kernel::diag::Unsupported;
+use crate::ast::{Ast, Kind, NodeId, TsKind, TsSyntax, flag};
+use crate::ops::{BinOp, LogicalOp, UnaryOp};
 
 type R<T> = Result<T, Unsupported>;
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct Options {
     pub single_quote: bool,
 }
@@ -60,6 +60,7 @@ enum PatCtx {
     Nested,
 }
 
+#[derive(Debug)]
 pub struct Formatter<'a> {
     ast: &'a Ast,
     src: &'a str,
@@ -82,7 +83,7 @@ impl<'a> Formatter<'a> {
         lines: &'a LineIndex,
         docs: &'a mut Docs,
         opts: Options,
-    ) -> Formatter<'a> {
+    ) -> Self {
         let mut ts = ast.ts.clone();
         ts.sort_by_key(|t| (t.node, t.span.lo));
         Formatter {
@@ -98,11 +99,15 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    pub fn set_options(&mut self, opts: Options) {
+    pub const fn set_options(&mut self, opts: Options) {
         self.opts = opts;
     }
 
     /// A whole program: statements, ending with a hard line (Prettier's `Program`).
+    ///
+    /// # Errors
+    ///
+    /// [`Unsupported`] if the program holds a comment or a construct this printer does not handle.
     pub fn program(&mut self, id: NodeId) -> R<DocId> {
         let Kind::Program(body) = self.ast.kind(id) else {
             unreachable!("a program node")
@@ -121,6 +126,11 @@ impl<'a> Formatter<'a> {
     }
 
     /// A root expression, as embedded in a template (`{expr}`).
+    ///
+    /// # Errors
+    ///
+    /// [`Unsupported`] if the expression holds a comment or a construct this printer does not
+    /// handle.
     pub fn expression(&mut self, id: NodeId) -> R<DocId> {
         let range = self.span(id);
         self.check_comments(range)?;
@@ -265,7 +275,7 @@ impl<'a> Formatter<'a> {
                 specifiers,
                 source,
                 type_only,
-            } => self.import(specifiers, source, type_only),
+            } => Ok(self.import(specifiers, source, type_only)),
             Kind::TsInterface { name, members } => self.interface(name, members),
             Kind::ExportNamed(d) => {
                 let d = self.statement(d)?;
@@ -630,7 +640,7 @@ impl<'a> Formatter<'a> {
     }
 
     /// Prettier's `printImportDeclaration`, without import attributes.
-    fn import(&mut self, specifiers: &[NodeId], source: NodeId, type_only: bool) -> R<DocId> {
+    fn import(&mut self, specifiers: &[NodeId], source: NodeId, type_only: bool) -> DocId {
         let mut parts = vec![self.lit(if type_only { "import type" } else { "import" })];
         if !specifiers.is_empty() {
             parts.push(self.lit(" "));
@@ -688,7 +698,7 @@ impl<'a> Formatter<'a> {
         parts.push(self.lit(" "));
         parts.push(self.string(source));
         parts.push(self.lit(";"));
-        Ok(self.cat(&parts))
+        self.cat(&parts)
     }
 
     /// `interface Name { key?: T; }` as Prettier prints a `TSInterfaceDeclaration` whose body has
@@ -923,9 +933,10 @@ impl<'a> Formatter<'a> {
         };
         let soft = self.docs.softline();
         let soft2 = self.docs.softline();
-        let [o, inner, t, s, c] = self.bracketed("[", soft, parts, trailing, soft2, "]");
-        let g = self.docs.group(&[o, inner, t, s, c]);
-        Ok(self.cat(&[g, suffix]))
+        let [open, inner, trail, end_soft, close] =
+            self.bracketed("[", soft, parts, trailing, soft2, "]");
+        let group = self.docs.group(&[open, inner, trail, end_soft, close]);
+        Ok(self.cat(&[group, suffix]))
     }
 
     fn expr(&mut self, id: NodeId, parent: Option<NodeId>, slot: Slot) -> R<DocId> {
@@ -996,6 +1007,7 @@ impl<'a> Formatter<'a> {
         Ok(self.cat(&parts))
     }
 
+    #[expect(clippy::too_many_lines, reason = "one arm per expression kind")]
     fn expr_inner(&mut self, id: NodeId) -> R<DocId> {
         match self.ast.kind(id) {
             Kind::Ident(_) => Ok(self.docs.text(self.ast.name(id))),
@@ -1275,7 +1287,10 @@ impl<'a> Formatter<'a> {
         let parts = self.bracketed("(", soft, items, trailing, soft2, ")");
         let curried_callee = self.at.is_some_and(|(p, slot)| {
             slot == Slot::Callee
-                && matches!(self.ast.kind(p), Kind::Call { args: pa, .. } if !pa.is_empty() && args.len() > pa.len())
+                && matches!(
+                    self.ast.kind(p),
+                    Kind::Call { args: pa, .. } if !pa.is_empty() && args.len() > pa.len()
+                )
         });
         Ok(if curried_callee {
             self.cat(&parts)
@@ -1469,9 +1484,13 @@ impl<'a> Formatter<'a> {
         match self.ast.kind(id) {
             Kind::Seq(_) => !matches!(pk, Kind::ExprStmt(_) | Kind::Seq(_)),
             Kind::Assign(..) => match pk {
-                Kind::ExprStmt(_) | Kind::Assign(..) | Kind::Seq(_) => false,
+                Kind::ExprStmt(_)
+                | Kind::Assign(..)
+                | Kind::Seq(_)
+                | Kind::Declarator { .. }
+                | Kind::Property { .. }
+                | Kind::Array(_) => false,
                 Kind::Arrow { .. } => slot == Slot::ArrowBody,
-                Kind::Declarator { .. } | Kind::Property { .. } | Kind::Array(_) => false,
                 Kind::Call { .. } | Kind::New { .. } => is_callee,
                 _ => true,
             },
@@ -1556,16 +1575,16 @@ enum Op {
 
 impl Op {
     /// Prettier's precedence table (`??` < `||` < `&&` < `|` < … < `**`).
-    fn precedence(self) -> u8 {
+    const fn precedence(self) -> u8 {
         match self {
-            Op::Bin(b) => b.precedence(),
-            Op::Log(l) => l.precedence(),
+            Self::Bin(b) => b.precedence(),
+            Self::Log(l) => l.precedence(),
         }
     }
 
-    fn is_bitwise(self) -> bool {
-        use BinOp::*;
-        matches!(self, Op::Bin(BitOr | BitXor | BitAnd | Shl | Shr | UShr))
+    const fn is_bitwise(self) -> bool {
+        use BinOp::{BitAnd, BitOr, BitXor, Shl, Shr, UShr};
+        matches!(self, Self::Bin(BitOr | BitXor | BitAnd | Shl | Shr | UShr))
     }
 }
 
@@ -1585,7 +1604,7 @@ fn mixes_nullish(a: Op, b: Op) -> bool {
 
 /// Prettier's `shouldFlatten`.
 fn should_flatten(parent: Op, child: Op) -> bool {
-    use BinOp::*;
+    use BinOp::{Div, Eq, Exp, Mul, NotEq, Rem, Shl, Shr, StrictEq, StrictNotEq, UShr};
     if parent.precedence() != child.precedence() {
         return false;
     }
@@ -1623,6 +1642,7 @@ fn is_plain_type(text: &str) -> bool {
 }
 
 /// Prettier's `printNumber`.
+#[must_use]
 pub fn print_number(raw: &str) -> String {
     let s = raw.to_ascii_lowercase();
     if s.starts_with("0x") || s.starts_with("0o") || s.starts_with("0b") || s.ends_with('n') {
@@ -1635,7 +1655,7 @@ pub fn print_number(raw: &str) -> String {
     let mut m = if mantissa.starts_with('.') {
         format!("0{mantissa}")
     } else {
-        mantissa.to_string()
+        mantissa.to_owned()
     };
     if let Some(dot) = m.find('.') {
         let frac = &m[dot + 1..];

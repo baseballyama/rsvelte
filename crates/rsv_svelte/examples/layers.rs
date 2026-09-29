@@ -5,14 +5,25 @@
 //!
 //! `cargo run -p rsv_svelte --example layers -- <file.svelte>`
 
+#![expect(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "an example that prints its output"
+)]
+
+use std::process::ExitCode;
+
 use rsv_kernel::idx::Idx;
 use rsv_kernel::json::JsonWriter;
 use rsv_kernel::source::Span;
 use rsv_svelte::ast::{Component, TId, TNode};
 use rsv_svelte::hir::{AttrValue, Children, ElementKind, Hir, NodeKind};
 use rsv_svelte::{hir, parse, resolve};
-use std::process::ExitCode;
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "prints each layer in turn; splitting it only adds plumbing"
+)]
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let [path] = args.as_slice() else {
@@ -146,15 +157,15 @@ fn surface(w: &mut JsonWriter, c: &Component, src: &str, list: &[TId], depth: u3
         match *n {
             TNode::Text { span } if blank(src, span) => continue,
             TNode::Text { span } => {
-                row(w, depth, &format!("Text {:?}", span.text(src).trim()), span)
+                row(w, depth, &format!("Text {:?}", span.text(src).trim()), span);
             }
             TNode::Comment { span, .. } => row(w, depth, "Comment", span),
             TNode::Expr { span, .. } => row(w, depth, &format!("Expr {}", span.text(src)), span),
             TNode::Element { name, span, .. } => {
-                row(w, depth, &format!("Element <{}>", name.text(src)), span)
+                row(w, depth, &format!("Element <{}>", name.text(src)), span);
             }
             TNode::If { elseif, span, .. } => {
-                row(w, depth, if elseif { "If (elseif)" } else { "If" }, span)
+                row(w, depth, if elseif { "If (elseif)" } else { "If" }, span);
             }
         }
         w.key("id").num(t);
@@ -176,29 +187,32 @@ fn surface(w: &mut JsonWriter, c: &Component, src: &str, list: &[TId], depth: u3
 
 fn lowered(w: &mut JsonWriter, c: &Component, h: &Hir, src: &str, list: Children, depth: u32) {
     for &id in h.children(list) {
-        let n = h.node(id);
-        let label = match &n.kind {
+        let node = h.node(id);
+        let label = match &node.kind {
             NodeKind::Text { raw, .. } if blank(src, *raw) => continue,
             NodeKind::Text { .. } => {
-                format!("Text {:?}", n.kind.text(src).expect("a text node").trim())
+                format!(
+                    "Text {:?}",
+                    node.kind.text(src).expect("a text node").trim()
+                )
             }
             NodeKind::Comment { .. } => "Comment".to_owned(),
-            NodeKind::Expr { .. } => format!("Expr {}", n.span.text(src)),
+            NodeKind::Expr { .. } => format!("Expr {}", node.span.text(src)),
             NodeKind::Element(el) => format!("{} <{}>", kind_name(el.kind), el.name.text(src)),
             NodeKind::If { branches, .. } => {
                 format!("If, {} branches", h.branches(*branches).len())
             }
         };
-        row(w, depth, &label, n.span);
+        row(w, depth, &label, node.span);
         w.key("id").num(id.index()).key("origin").num(h.origin[id]);
-        if let NodeKind::Element(el) = &n.kind {
+        if let NodeKind::Element(el) = &node.kind {
             w.key("attrs").begin_array();
-            for a in h.attrs(el.attrs) {
+            for attr in h.attrs(el.attrs) {
                 w.begin_object()
                     .key("name")
-                    .str(a.name.text(src))
+                    .str(attr.name.text(src))
                     .key("value");
-                match &a.value {
+                match &attr.value {
                     AttrValue::Boolean => w.str("Boolean"),
                     AttrValue::Static(v) => w.str(&format!("Static {v:?}")),
                     AttrValue::Expression { .. } => w.str("Expression"),
@@ -212,23 +226,27 @@ fn lowered(w: &mut JsonWriter, c: &Component, h: &Hir, src: &str, list: Children
             w.end_array();
         }
         w.end_object();
-        match &n.kind {
+        match &node.kind {
             NodeKind::Element(el) => lowered(w, c, h, src, el.children, depth + 1),
             NodeKind::If {
                 branches,
                 otherwise,
             } => {
-                for b in h.branches(*branches) {
-                    let test = c.js.loc(b.test).span().expect("parsed from source");
-                    let at = c.node(b.origin).span();
+                for branch in h.branches(*branches) {
+                    let test = c.js.loc(branch.test).span().expect("parsed from source");
+                    let at = c.node(branch.origin).span();
                     row(w, depth + 1, &format!("branch {}", test.text(src)), at);
-                    w.key("id").null().key("origin").num(b.origin).end_object();
-                    lowered(w, c, h, src, b.body, depth + 2);
+                    w.key("id")
+                        .null()
+                        .key("origin")
+                        .num(branch.origin)
+                        .end_object();
+                    lowered(w, c, h, src, branch.body, depth + 2);
                 }
-                if let Some(o) = otherwise {
-                    row(w, depth + 1, "else", n.span);
+                if let Some(alt) = otherwise {
+                    row(w, depth + 1, "else", node.span);
                     w.key("id").null().key("origin").null().end_object();
-                    lowered(w, c, h, src, *o, depth + 2);
+                    lowered(w, c, h, src, *alt, depth + 2);
                 }
             }
             _ => {}

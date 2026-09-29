@@ -20,6 +20,7 @@ pub trait Element: Copy {
 }
 
 /// `:global(...)` or `:global` as the whole compound.
+#[must_use]
 pub fn is_global(src: &str, rel: &RelativeSelector) -> bool {
     matches!(rel.simple.first(), Some(Simple::PseudoClass { name, .. }) if name.text(src) == "global")
 }

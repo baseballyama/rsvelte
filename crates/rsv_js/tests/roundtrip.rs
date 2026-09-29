@@ -40,7 +40,9 @@ fn precedence_and_parentheses() {
 #[test]
 fn declarations_patterns_and_asi() {
     let out = stable(
-        "let { a, b: [c, , d = 1], ...rest } = obj\nconst f = async (x, { y } = {}) => { return x + y }\nfunction g(a, ...b) { if (a) return; else { b } }",
+        "let { a, b: [c, , d = 1], ...rest } = obj\
+         \nconst f = async (x, { y } = {}) => { return x + y }\
+         \nfunction g(a, ...b) { if (a) return; else { b } }",
         false,
     );
     assert!(
@@ -56,12 +58,23 @@ fn declarations_patterns_and_asi() {
 #[test]
 fn typescript_is_erased() {
     let out = stable(
-        "import type { A } from './a';\nimport { type B, c } from './b';\ntype P = { a: string };\ninterface Q { b: number }\nlet { name }: P = $props();\nconst n = (x as number)!;\nfunction h(a: string, b?: number): void {}\nconst k = (v: string): string => v;",
+        "import type { A } from './a';\
+         \nimport { type B, c } from './b';\
+         \ntype P = { a: string };\
+         \ninterface Q { b: number }\
+         \nlet { name }: P = $props();\
+         \nconst n = (x as number)!;\
+         \nfunction h(a: string, b?: number): void {}\
+         \nconst k = (v: string): string => v;",
         true,
     );
     assert_eq!(
         out,
-        "import { c } from './b';\n\nlet { name } = $props();\n\nconst n = x;\n\nfunction h(a, b) {}\n\nconst k = (v) => v;\n"
+        "import { c } from './b';\n\
+         \nlet { name } = $props();\n\
+         \nconst n = x;\n\
+         \nfunction h(a, b) {}\n\
+         \nconst k = (v) => v;\n"
     );
 }
 

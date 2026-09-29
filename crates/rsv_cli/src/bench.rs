@@ -11,28 +11,30 @@
 //! | `serial` | shared | on | 1 |
 //! | `streaming` | shared, each result dropped as soon as it is final | on | all |
 //!
-//! Every arm but `streaming` keeps all results until the run ends, as a caller collecting them does.
+//! Every arm but `streaming` keeps all results until the run ends, as a caller collecting them
+//! does.
 //!
 //! Timed rounds interleave the arms in ABBA order and report every round plus the median.
 //! Allocation totals and peak live-heap growth come from a separate round per arm with process-wide
 //! tracking on (its atomics would distort the timings); phases come from one more `shared` round.
 //! Without the `metrics` feature those fields are `UNMEASURED`, never zero.
 
-use rsv_kernel::json::JsonWriter;
-use rsv_kernel::metrics;
-use rsv_kernel::pipeline::{self, DocResult, Document, Registry, RunOptions, Sharing};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::Instant;
 
-pub struct Options {
+use rsv_kernel::json::JsonWriter;
+use rsv_kernel::metrics;
+use rsv_kernel::pipeline::{self, DocResult, Document, Registry, RunOptions, Sharing};
+
+pub(crate) struct Options {
     rounds: usize,
     json: Option<PathBuf>,
 }
 
 impl Options {
-    pub fn parse(args: &[&str]) -> Result<Options, String> {
-        let mut o = Options {
+    pub(crate) fn parse(args: &[&str]) -> Result<Self, String> {
+        let mut o = Self {
             rounds: 5,
             json: None,
         };
@@ -43,7 +45,7 @@ impl Options {
                         .parse()
                         .ok()
                         .filter(|&n| n > 0)
-                        .ok_or(format!("rounds={n}: expected a positive integer"))?
+                        .ok_or_else(|| format!("rounds={n}: expected a positive integer"))?;
                 }
                 Some(("json", f)) => o.json = Some(PathBuf::from(f)),
                 _ => return Err(format!("unknown bench option {a}")),
@@ -140,7 +142,15 @@ fn median(v: &[u64]) -> u64 {
     s[s.len() / 2]
 }
 
-pub fn bench(reg: &Registry, root: &Path, tasks: &[&str], opts: &Options) -> ExitCode {
+#[expect(
+    clippy::too_many_lines,
+    reason = "runs the arms, then writes the report in its schema's field order"
+)]
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "nanosecond and byte counts become f64 only for display"
+)]
+pub(crate) fn bench(reg: &Registry, root: &Path, tasks: &[&str], opts: &Options) -> ExitCode {
     let (docs, _, unclaimed) = crate::load(reg, root);
     if docs.is_empty() {
         eprintln!("rsv bench: no units below {}", root.display());
@@ -336,7 +346,8 @@ pub fn bench(reg: &Registry, root: &Path, tasks: &[&str], opts: &Options) -> Exi
     let report = w.finish();
 
     eprintln!(
-        "{} documents ({} bytes in, {output_bytes} bytes out, {unclaimed} unclaimed, {} panicked), {} round(s), build {}",
+        "{} documents ({} bytes in, {output_bytes} bytes out, {unclaimed} unclaimed, \
+         {} panicked), {} round(s), build {}",
         docs.len(),
         bytes,
         panicked.len(),
@@ -353,14 +364,17 @@ pub fn bench(reg: &Registry, root: &Path, tasks: &[&str], opts: &Options) -> Exi
         );
     }
     for (arm, r) in ARMS.iter().zip(&results) {
-        let alloc = r.alloc.map_or("allocs UNMEASURED".to_string(), |a| {
-            format!(
-                "{} allocs ({:.2}/byte), peak live +{:.1} MB",
-                a.allocs,
-                a.allocs as f64 / bytes as f64,
-                a.peak_live_growth as f64 / 1e6
-            )
-        });
+        let alloc = r.alloc.map_or_else(
+            || "allocs UNMEASURED".to_owned(),
+            |a| {
+                format!(
+                    "{} allocs ({:.2}/byte), peak live +{:.1} MB",
+                    a.allocs,
+                    a.allocs as f64 / bytes as f64,
+                    a.peak_live_growth as f64 / 1e6
+                )
+            },
+        );
         eprintln!(
             "  {:<9} median {:>9.2} ms  {alloc}",
             arm.name,
@@ -380,14 +394,18 @@ pub fn bench(reg: &Registry, root: &Path, tasks: &[&str], opts: &Options) -> Exi
 }
 
 /// The process high-water mark, which includes every arm run so far (it cannot be reset).
+#[expect(
+    unsafe_code,
+    reason = "getrusage is the only source of the peak resident set size"
+)]
 fn max_rss_bytes() -> Option<u64> {
     // SAFETY: an all-zero rusage is valid, and getrusage only writes into it.
     let mut u: libc::rusage = unsafe { std::mem::zeroed() };
     // SAFETY: `u` is a valid, writable rusage.
-    if unsafe { libc::getrusage(libc::RUSAGE_SELF, &mut u) } != 0 {
+    if unsafe { libc::getrusage(libc::RUSAGE_SELF, &raw mut u) } != 0 {
         return None;
     }
-    let v = u.ru_maxrss as u64;
+    let v = u64::try_from(u.ru_maxrss).ok()?;
     Some(if cfg!(target_os = "macos") {
         v
     } else {

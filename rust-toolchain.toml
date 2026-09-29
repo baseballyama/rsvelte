@@ -1,0 +1,6 @@
+# Pinned so lint verdicts and compile-time measurements (tools/buildtime) are reproducible.
+# Formatting uses a pinned nightly instead: see rustfmt.toml.
+[toolchain]
+channel = "1.98.1"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

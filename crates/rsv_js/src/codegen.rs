@@ -1,12 +1,15 @@
-//! Code generation: prints an [`Ast`] as JavaScript into an [`Emitter`], recording a source
-//! mapping at every node that carries a real span. Layout is fixed and simple (tabs, one statement
-//! per line): generated code is compared as an AST, and the formatter ([`crate::format`]) owns
-//! canonical layout. TypeScript-only nodes are dropped.
+//! Code generation: prints an [`Ast`] as JavaScript into an [`Emitter`].
+//!
+//! A source mapping is recorded at every node that carries a real span. Layout is fixed and simple
+//! (tabs, one statement per line): generated code is compared as an AST, and the formatter
+//! ([`crate::format`]) owns canonical layout. TypeScript-only nodes are dropped.
+
+use rsv_kernel::emit::Emitter;
 
 use crate::ast::{Ast, Kind, NodeId, Tag, flag};
 use crate::ops::{BinOp, LogicalOp, UnaryOp};
-use rsv_kernel::emit::Emitter;
 
+#[must_use]
 pub fn print_program(ast: &Ast, src: &str, program: NodeId) -> Emitter {
     let mut g = Gen {
         ast,
@@ -32,6 +35,7 @@ pub fn print_program(ast: &Ast, src: &str, program: NodeId) -> Emitter {
 }
 
 /// Prints one expression (for embedding in other output, e.g. tests).
+#[must_use]
 pub fn print_expr(ast: &Ast, src: &str, e: NodeId) -> String {
     let mut g = Gen {
         ast,
@@ -51,15 +55,15 @@ struct Gen<'a> {
 }
 
 mod prec {
-    pub const SEQ: u8 = 1;
-    pub const ASSIGN: u8 = 2;
-    pub const COND: u8 = 3;
+    pub(super) const SEQ: u8 = 1;
+    pub(super) const ASSIGN: u8 = 2;
+    pub(super) const COND: u8 = 3;
     /// Binary/logical operators occupy BIN + op precedence (1..=12).
-    pub const BIN: u8 = 3;
-    pub const UNARY: u8 = 17;
-    pub const POSTFIX: u8 = 18;
-    pub const CALL: u8 = 19;
-    pub const PRIMARY: u8 = 20;
+    pub(super) const BIN: u8 = 3;
+    pub(super) const UNARY: u8 = 17;
+    pub(super) const POSTFIX: u8 = 18;
+    pub(super) const CALL: u8 = 19;
+    pub(super) const PRIMARY: u8 = 20;
 }
 
 impl Gen<'_> {
@@ -119,6 +123,7 @@ impl Gen<'_> {
         self.e.push("}");
     }
 
+    #[expect(clippy::too_many_lines, reason = "one arm per statement kind")]
     fn stmt(&mut self, id: NodeId) {
         self.mark(id);
         match self.ast.kind(id) {
@@ -154,9 +159,9 @@ impl Gen<'_> {
                 if let Some(a) = alt {
                     self.e.push(" else ");
                     if self.ast.tag(a) == Tag::If {
-                        self.stmt(a)
+                        self.stmt(a);
                     } else {
-                        self.block(a)
+                        self.block(a);
                     }
                 }
             }
@@ -327,8 +332,7 @@ impl Gen<'_> {
             Kind::Cond { .. } => prec::COND,
             Kind::Logical(op, ..) => prec::BIN + op.precedence(),
             Kind::Binary(op, ..) => prec::BIN + op.precedence(),
-            Kind::Unary(..) | Kind::Await(_) => prec::UNARY,
-            Kind::Update { prefix: true, .. } => prec::UNARY,
+            Kind::Unary(..) | Kind::Await(_) | Kind::Update { prefix: true, .. } => prec::UNARY,
             Kind::Update { prefix: false, .. } => prec::POSTFIX,
             Kind::Call { .. } | Kind::Member { .. } | Kind::New { .. } => prec::CALL,
             _ => prec::PRIMARY,
@@ -348,7 +352,11 @@ impl Gen<'_> {
 
     fn logical_operand(&mut self, parent: LogicalOp, child: NodeId, min: u8) {
         // `??` cannot be mixed with `||` / `&&` without parentheses.
-        let mixes = matches!(self.ast.kind(child), Kind::Logical(op, ..) if (op == LogicalOp::Nullish) != (parent == LogicalOp::Nullish));
+        let nullish = parent == LogicalOp::Nullish;
+        let mixes = matches!(
+            self.ast.kind(child),
+            Kind::Logical(op, ..) if (op == LogicalOp::Nullish) != nullish
+        );
         if mixes {
             self.e.push("(");
             self.expr_inner(child);
@@ -358,6 +366,7 @@ impl Gen<'_> {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "one arm per expression kind")]
     fn expr_inner(&mut self, id: NodeId) {
         self.mark(id);
         match self.ast.kind(id) {
@@ -612,7 +621,16 @@ impl Gen<'_> {
     }
 }
 
-/// JavaScript's `Number.prototype.toString()` (ECMA-262 Number::toString, radix 10).
+/// JavaScript's `Number.prototype.toString()` (ECMA-262 `Number::toString`, radix 10).
+///
+/// # Panics
+///
+/// Never: Rust's exponential formatting of a finite `f64` always has an integer exponent.
+#[must_use]
+#[expect(
+    clippy::cast_possible_wrap,
+    reason = "an f64 has at most 17 significant digits"
+)]
 pub fn number(v: f64) -> String {
     if v.is_nan() {
         return "NaN".into();
@@ -628,16 +646,19 @@ pub fn number(v: f64) -> String {
     }
     // Rust's `{:e}` prints the shortest digits that round-trip, which is what the spec asks for.
     let e = format!("{v:e}");
-    let (mantissa, exp) = e.split_once('e').expect("`{:e}` always has an exponent");
+    let (mantissa, exp) = e
+        .split_once('e')
+        .expect("exponential notation always has an exponent");
     let digits: String = mantissa.chars().filter(|c| *c != '.').collect();
     let k = digits.len() as i32;
     let n = exp.parse::<i32>().expect("integer exponent") + 1;
     if k <= n && n <= 21 {
-        format!("{digits}{}", "0".repeat((n - k) as usize))
+        format!("{digits}{}", "0".repeat((n - k).unsigned_abs() as usize))
     } else if 0 < n && n <= 21 {
-        format!("{}.{}", &digits[..n as usize], &digits[n as usize..])
+        let n = n.unsigned_abs() as usize;
+        format!("{}.{}", &digits[..n], &digits[n..])
     } else if -6 < n && n <= 0 {
-        format!("0.{}{digits}", "0".repeat((-n) as usize))
+        format!("0.{}{digits}", "0".repeat(n.unsigned_abs() as usize))
     } else {
         let sign = if n > 0 { '+' } else { '-' };
         let rest = if k > 1 {
@@ -679,9 +700,9 @@ mod tests {
             (-42.5, "-42.5"),
             (0.1 + 0.2, "0.30000000000000004"),
             (1e21, "1e+21"),
-            (123456789012345680000.0, "123456789012345680000"),
+            (123_456_789_012_345_680_000.0, "123456789012345680000"),
             (1e-7, "1e-7"),
-            (0.000001, "0.000001"),
+            (0.000_001, "0.000001"),
             (1.5e-10, "1.5e-10"),
             (f64::INFINITY, "Infinity"),
             (f64::NAN, "NaN"),

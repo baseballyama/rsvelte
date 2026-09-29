@@ -1,5 +1,5 @@
 //! CSS as a language library: a tree for style sheets, selector matching against any element
-//! model ([`Element`]), scoping (`.svelte-xyz` insertion) and a formatter.
+//! model ([`matcher::Element`]), scoping (`.svelte-xyz` insertion) and a formatter.
 //!
 //! Positions are absolute offsets into the document that embeds the style sheet, so an embedding
 //! language never translates coordinates.

@@ -15,11 +15,12 @@
 //! to is on [`crate::resolve::Resolution`], keyed by the same [`NodeId`]s. Facts later layers add
 //! about HIR nodes (types, control flow) are side tables over [`HirId`].
 
-use crate::ast::{self, Component, TId, TNode, decode_text};
 use rsv_js::NodeId;
 use rsv_kernel::idx::{IdxRange, IndexVec};
 use rsv_kernel::newtype_index;
 use rsv_kernel::source::Span;
+
+use crate::ast::{self, Component, TId, TNode, decode_text};
 
 newtype_index!(
     pub struct HirId;
@@ -28,6 +29,7 @@ newtype_index!(
     pub struct AttrId;
 );
 
+#[derive(Debug)]
 pub struct Hir {
     pub nodes: IndexVec<HirId, Node>,
     pub attrs: IndexVec<AttrId, Attribute>,
@@ -46,6 +48,7 @@ pub struct Children {
     len: u32,
 }
 
+#[derive(Debug)]
 pub struct Node {
     pub kind: NodeKind,
     pub span: Span,
@@ -53,6 +56,7 @@ pub struct Node {
     pub parent: Option<HirId>,
 }
 
+#[derive(Debug)]
 pub enum NodeKind {
     Text {
         raw: Span,
@@ -73,6 +77,7 @@ pub enum NodeKind {
     },
 }
 
+#[derive(Debug)]
 pub struct Element {
     pub name: Span,
     pub kind: ElementKind,
@@ -116,12 +121,14 @@ pub struct Branches {
     len: u32,
 }
 
+#[derive(Debug)]
 pub struct Branch {
     pub test: NodeId,
     pub body: Children,
     pub origin: TId,
 }
 
+#[derive(Debug)]
 pub struct Attribute {
     pub name: Span,
     pub value: AttrValue,
@@ -131,6 +138,7 @@ pub struct Attribute {
     pub origin: u32,
 }
 
+#[derive(Debug)]
 pub enum AttrValue {
     /// `<input disabled>`
     Boolean,
@@ -145,18 +153,22 @@ pub enum AttrValue {
 }
 
 impl Hir {
+    #[must_use]
     pub fn node(&self, id: HirId) -> &Node {
         &self.nodes[id]
     }
 
+    #[must_use]
     pub fn children(&self, c: Children) -> &[HirId] {
         &self.kids[c.start as usize..(c.start + c.len) as usize]
     }
 
+    #[must_use]
     pub fn branches(&self, b: Branches) -> &[Branch] {
         &self.branches[b.start as usize..(b.start + b.len) as usize]
     }
 
+    #[must_use]
     pub fn attrs(&self, r: IdxRange<AttrId>) -> &[Attribute] {
         self.attrs.slice(r)
     }
@@ -170,7 +182,8 @@ impl Hir {
             })
     }
 
-    pub fn heap_bytes(&self) -> usize {
+    #[must_use]
+    pub const fn heap_bytes(&self) -> usize {
         self.nodes.capacity() * size_of::<Node>()
             + self.attrs.capacity() * size_of::<Attribute>()
             + self.origin.capacity() * size_of::<TId>()
@@ -181,14 +194,18 @@ impl Hir {
 
 impl NodeKind {
     /// The text of a `Text` node, decoded.
+    #[must_use]
     pub fn text<'a>(&'a self, src: &'a str) -> Option<&'a str> {
         match self {
-            NodeKind::Text { raw, decoded } => Some(decoded.as_deref().unwrap_or(raw.text(src))),
+            Self::Text { raw, decoded } => {
+                Some(decoded.as_deref().unwrap_or_else(|| raw.text(src)))
+            }
             _ => None,
         }
     }
 }
 
+#[must_use]
 pub fn lower(c: &Component, src: &str) -> Hir {
     let mut b = Builder {
         c,
@@ -407,8 +424,13 @@ fn attr_value(c: &Component, src: &str, a: &ast::Attr) -> AttrValue {
     }
 }
 
-/// Upstream `regex_valid_component_name`:
-/// `^(?:\p{Lu}[$‌‍\p{ID_Continue}.]*|\p{ID_Start}[$‌‍\p{ID_Continue}]*(?:\.[$‌‍\p{ID_Continue}]+)+)$`
+/// Upstream `regex_valid_component_name`, split at its alternation (ZWNJ and ZWJ escaped):
+///
+/// ```text
+/// ^(?:\p{Lu}[$\u{200C}\u{200D}\p{ID_Continue}.]*
+///   |\p{ID_Start}[$\u{200C}\u{200D}\p{ID_Continue}]*(?:\.[$\u{200C}\u{200D}\p{ID_Continue}]+)+)$
+/// ```
+#[must_use]
 pub fn is_component_name(name: &str) -> bool {
     let continues = |c: char| {
         c == '$' || c == '\u{200c}' || c == '\u{200d}' || unicode_id_start::is_id_continue(c)
@@ -425,7 +447,9 @@ pub fn is_component_name(name: &str) -> bool {
         return false;
     }
     let mut segments = rest.split('.');
-    let head = segments.next().expect("split yields at least one piece");
+    let Some(head) = segments.next() else {
+        return false;
+    };
     let mut members = 0;
     for seg in segments {
         if seg.is_empty() || !seg.chars().all(continues) {
@@ -436,7 +460,7 @@ pub fn is_component_name(name: &str) -> bool {
     members > 0 && head.chars().all(continues)
 }
 
-/// `\p{Lu}`: Rust's `is_uppercase` is the Uppercase property, which adds Other_Uppercase.
+/// `\p{Lu}`: Rust's `is_uppercase` is the Uppercase property, which adds `Other_Uppercase`.
 fn is_uppercase_letter(c: char) -> bool {
     const OTHER_UPPERCASE: &[(char, char)] = &[
         ('\u{2160}', '\u{216f}'),
@@ -523,14 +547,15 @@ mod tests {
 
     #[test]
     fn element_kinds_follow_the_svelte_parser() {
+        use ElementKind::*;
         let src = "<svelte:head><title>t</title></svelte:head><div><title>u</title></div>\
-                   <Foo/><a.b/><slot/><template shadowrootmode=\"open\"><slot/></template><svelte:nope/>";
+                   <Foo/><a.b/><slot/>\
+                   <template shadowrootmode=\"open\"><slot/></template><svelte:nope/>";
         let (_, h) = hir(src);
         let got: Vec<(String, ElementKind)> = h
             .elements()
             .map(|(_, el)| (el.name.text(src).to_owned(), el.kind))
             .collect();
-        use ElementKind::*;
         let want = [
             ("svelte:head", Meta(Some(MetaTag::Head))),
             ("title", Title),

@@ -1,4 +1,6 @@
-//! A byte-oriented, pull-based lexer. It is `Copy`, so speculative lookahead (arrow-function
+//! A byte-oriented, pull-based lexer.
+//!
+//! It is `Copy`, so speculative lookahead (arrow-function
 //! detection) is a struct copy, not a token buffer. Regex literals and template continuations are
 //! context-dependent and are lexed on the parser's request.
 
@@ -51,13 +53,14 @@ pub struct Tok {
     pub nl_before: bool,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Lexer<'a> {
     src: &'a [u8],
     pub pos: usize,
     end: usize,
 }
 
+#[derive(Debug)]
 pub struct LexError {
     pub message: String,
     pub span: Span,
@@ -65,11 +68,11 @@ pub struct LexError {
 
 type R<T> = Result<T, LexError>;
 
-fn is_id_start(b: u8) -> bool {
+const fn is_id_start(b: u8) -> bool {
     b.is_ascii_alphabetic() || b == b'_' || b == b'$' || b >= 0x80
 }
 
-fn is_id_continue(b: u8) -> bool {
+const fn is_id_continue(b: u8) -> bool {
     is_id_start(b) || b.is_ascii_digit()
 }
 
@@ -81,7 +84,8 @@ const OPS: &[&str] = &[
 ];
 
 impl<'a> Lexer<'a> {
-    pub fn new(src: &'a str, start: usize, end: usize) -> Lexer<'a> {
+    #[must_use]
+    pub const fn new(src: &'a str, start: usize, end: usize) -> Self {
         Lexer {
             src: src.as_bytes(),
             pos: start,
@@ -97,7 +101,7 @@ impl<'a> Lexer<'a> {
     }
 
     #[inline]
-    fn peek(&self, off: usize) -> u8 {
+    const fn peek(&self, off: usize) -> u8 {
         let i = self.pos + off;
         if i < self.end { self.src[i] } else { 0 }
     }
@@ -111,7 +115,7 @@ impl<'a> Lexer<'a> {
                     nl = true;
                     self.pos += 1;
                 }
-                b' ' | b'\t' | b'\r' | 0x0b | 0x0c => self.pos += 1,
+                b' ' | b'\t' | b'\r' | 0x0B | 0x0C => self.pos += 1,
                 b'/' if self.peek(1) == b'/' => {
                     let lo = self.pos;
                     while self.pos < self.end && self.src[self.pos] != b'\n' {
@@ -137,18 +141,22 @@ impl<'a> Lexer<'a> {
                     }
                     comments.push(Span::new(lo as u32, self.pos as u32));
                 }
-                0xe2 if self.peek(1) == 0x80 && matches!(self.peek(2), 0xa8 | 0xa9) => {
+                0xE2 if self.peek(1) == 0x80 && matches!(self.peek(2), 0xA8 | 0xA9) => {
                     nl = true;
                     self.pos += 3;
                 }
-                0xc2 if self.peek(1) == 0xa0 => self.pos += 2,
-                0xef if self.peek(1) == 0xbb && self.peek(2) == 0xbf => self.pos += 3,
+                0xC2 if self.peek(1) == 0xA0 => self.pos += 2,
+                0xEF if self.peek(1) == 0xBB && self.peek(2) == 0xBF => self.pos += 3,
                 _ => break,
             }
         }
         Ok(nl)
     }
 
+    /// # Errors
+    ///
+    /// [`LexError`] on an unexpected character, an unterminated comment, string or template, or an
+    /// unsupported literal.
     pub fn next(&mut self, comments: &mut Vec<Span>) -> R<Tok> {
         let nl_before = self.skip_trivia(comments)?;
         let lo = self.pos;
@@ -221,14 +229,14 @@ impl<'a> Lexer<'a> {
             if b >= 0x80 {
                 // Non-ASCII identifier chars are accepted as-is; separators are handled in trivia.
                 let ch_len = match b {
-                    0xc0..=0xdf => 2,
-                    0xe0..=0xef => 3,
+                    0xC0..=0xDF => 2,
+                    0xE0..=0xEF => 3,
                     _ => 4,
                 };
-                if b == 0xe2 && self.peek(1) == 0x80 && matches!(self.peek(2), 0xa8 | 0xa9) {
+                if b == 0xE2 && self.peek(1) == 0x80 && matches!(self.peek(2), 0xA8 | 0xA9) {
                     break;
                 }
-                if b == 0xc2 && self.peek(1) == 0xa0 {
+                if b == 0xC2 && self.peek(1) == 0xA0 {
                     break;
                 }
                 self.pos += ch_len;
@@ -303,7 +311,8 @@ impl<'a> Lexer<'a> {
         self.err("unterminated string", lo)
     }
 
-    /// Reads template characters up to and including '`' (returns true) or '${' (returns false).
+    /// Reads template characters up to and including a backtick (returns true) or `${` (returns
+    /// false).
     fn template_chars(&mut self) -> R<bool> {
         let lo = self.pos;
         while self.pos < self.end {
@@ -324,6 +333,10 @@ impl<'a> Lexer<'a> {
     }
 
     /// Continues a template after the `}` closing a substitution; `pos` must be just past the `}`.
+    ///
+    /// # Errors
+    ///
+    /// [`LexError`] if the template is not terminated.
     pub fn template_continue(&mut self, rbrace: Span) -> R<Tok> {
         self.pos = rbrace.hi as usize;
         let tail = self.template_chars()?;
@@ -335,6 +348,10 @@ impl<'a> Lexer<'a> {
     }
 
     /// Re-lexes a `/` or `/=` token at `slash` as a regular expression literal.
+    ///
+    /// # Errors
+    ///
+    /// [`LexError`] if the literal is not terminated before the end of its line.
     pub fn regex(&mut self, slash: Span) -> R<Tok> {
         let lo = slash.lo as usize;
         self.pos = lo + 1;
@@ -417,9 +434,8 @@ pub fn decode_string(raw_body: &str) -> Option<String> {
                     chars.next();
                 }
             }
-            Some('\n') | Some('\u{2028}') | Some('\u{2029}') => {}
+            Some('\n' | '\u{2028}' | '\u{2029}') | None => {}
             Some(other) => out.push(other),
-            None => {}
         }
     }
     Some(out)

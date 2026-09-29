@@ -1,14 +1,18 @@
-//! Lint rules over JavaScript facts alone, for every language that embeds JavaScript. A host
+//! Lint rules over JavaScript facts alone, for every language that embeds JavaScript.
+//!
+//! A host
 //! language wraps them in its own [`rsv_kernel::lint::Rule`] so they see its extra references
 //! (a component's template expressions are scope-analysis roots, so their reads are already here).
 
-use crate::ast::{Ast, Kind, NodeId, TsKind};
-use crate::ops::AssignOp;
-use crate::scope::{BindingId, DeclKind, Reference, Semantic};
 use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::idx::Idx;
 use rsv_kernel::source::Span;
 
+use crate::ast::{Ast, Kind, NodeId, TsKind};
+use crate::ops::AssignOp;
+use crate::scope::{BindingId, DeclKind, Reference, Semantic};
+
+#[derive(Debug)]
 pub struct JsFacts<'a> {
     pub ast: &'a Ast,
     pub sem: &'a Semantic,
@@ -21,7 +25,7 @@ impl JsFacts<'_> {
         self.parents[n.idx()].opt()
     }
 
-    /// ESLint's `isInside` compares ranges; on one tree that is ancestry.
+    /// `ESLint`'s `isInside` compares ranges; on one tree that is ancestry.
     fn inside(&self, inner: NodeId, outer: NodeId) -> bool {
         let mut n = Some(inner);
         while let Some(x) = n {
@@ -41,12 +45,12 @@ impl JsFacts<'_> {
     }
 }
 
-/// ESLint's `no-unused-vars` with its default options (`vars: all`, `args: after-used`,
+/// `ESLint`'s `no-unused-vars` with its default options (`vars: all`, `args: after-used`,
 /// `caughtErrors: all`, no ignore patterns, `ignoreRestSiblings: false`).
 ///
 /// The parser has no loop, class or catch syntax yet, so `isInLoop`, `isForInOfRef` and the
 /// class/catch skips have nothing to decide and are absent; they arrive with that syntax.
-pub fn no_unused_vars(f: &JsFacts, rule: &'static str, out: &mut Vec<Diagnostic>) {
+pub fn no_unused_vars(f: &JsFacts<'_>, rule: &'static str, out: &mut Vec<Diagnostic>) {
     for (b, binding) in f.sem.bindings.iter_enumerated() {
         if binding.kind == DeclKind::Function
             && matches!(
@@ -89,7 +93,7 @@ pub fn no_unused_vars(f: &JsFacts, rule: &'static str, out: &mut Vec<Diagnostic>
 }
 
 /// typescript-eslint's identifier range covers its `?` and type annotation.
-fn identifier_range(f: &JsFacts, ident: NodeId) -> Span {
+fn identifier_range(f: &JsFacts<'_>, ident: NodeId) -> Span {
     let mut span = f.span(ident);
     for t in &f.ast.ts {
         if t.node == ident && matches!(t.kind, TsKind::Annotation | TsKind::Optional) {
@@ -99,7 +103,7 @@ fn identifier_range(f: &JsFacts, ident: NodeId) -> Span {
     span
 }
 
-fn is_exported(f: &JsFacts, b: BindingId) -> bool {
+fn is_exported(f: &JsFacts<'_>, b: BindingId) -> bool {
     let binding = &f.sem.bindings[b];
     let owner = match binding.kind {
         DeclKind::Param => return false,
@@ -115,7 +119,7 @@ fn is_exported(f: &JsFacts, b: BindingId) -> bool {
     )
 }
 
-fn is_after_last_used_arg(f: &JsFacts, b: BindingId) -> bool {
+fn is_after_last_used_arg(f: &JsFacts<'_>, b: BindingId) -> bool {
     let scope = f.sem.bindings[b].scope;
     !f.sem
         .bindings
@@ -125,7 +129,7 @@ fn is_after_last_used_arg(f: &JsFacts, b: BindingId) -> bool {
         .any(|(later, _)| f.sem.references_to(later).next().is_some())
 }
 
-fn function_definitions(f: &JsFacts, b: BindingId) -> Option<NodeId> {
+fn function_definitions(f: &JsFacts<'_>, b: BindingId) -> Option<NodeId> {
     let binding = &f.sem.bindings[b];
     match binding.kind {
         DeclKind::Function => f.parent(binding.node),
@@ -135,7 +139,7 @@ fn function_definitions(f: &JsFacts, b: BindingId) -> Option<NodeId> {
     }
 }
 
-fn is_used(f: &JsFacts, b: BindingId) -> bool {
+fn is_used(f: &JsFacts<'_>, b: BindingId) -> bool {
     let binding = &f.sem.bindings[b];
     let function = function_definitions(f, b);
     let mut rhs = None;
@@ -146,7 +150,7 @@ fn is_used(f: &JsFacts, b: BindingId) -> bool {
     })
 }
 
-fn is_self_reference(f: &JsFacts, r: &Reference, func: NodeId) -> bool {
+fn is_self_reference(f: &JsFacts<'_>, r: &Reference, func: NodeId) -> bool {
     let mut s = Some(r.scope);
     while let Some(scope) = s {
         if f.sem.scopes[scope].node == func {
@@ -157,7 +161,7 @@ fn is_self_reference(f: &JsFacts, r: &Reference, func: NodeId) -> bool {
     false
 }
 
-fn is_unused_expression(f: &JsFacts, node: NodeId) -> bool {
+fn is_unused_expression(f: &JsFacts<'_>, node: NodeId) -> bool {
     let Some(parent) = f.parent(node) else {
         return false;
     };
@@ -169,7 +173,7 @@ fn is_unused_expression(f: &JsFacts, node: NodeId) -> bool {
 }
 
 fn rhs_node(
-    f: &JsFacts,
+    f: &JsFacts<'_>,
     r: &Reference,
     prev: Option<NodeId>,
     decl_scope: crate::scope::ScopeId,
@@ -191,7 +195,7 @@ fn rhs_node(
     }
 }
 
-fn is_read_for_itself(f: &JsFacts, r: &Reference, rhs: Option<NodeId>) -> bool {
+fn is_read_for_itself(f: &JsFacts<'_>, r: &Reference, rhs: Option<NodeId>) -> bool {
     if !r.read {
         return false;
     }
@@ -212,7 +216,7 @@ fn is_read_for_itself(f: &JsFacts, r: &Reference, rhs: Option<NodeId>) -> bool {
         })
 }
 
-fn is_inside_of_storable_function(f: &JsFacts, id: NodeId, rhs: NodeId) -> bool {
+fn is_inside_of_storable_function(f: &JsFacts<'_>, id: NodeId, rhs: NodeId) -> bool {
     let mut n = Some(id);
     while let Some(x) = n {
         if matches!(f.ast.kind(x), Kind::Function { .. } | Kind::Arrow { .. }) {
@@ -223,7 +227,7 @@ fn is_inside_of_storable_function(f: &JsFacts, id: NodeId, rhs: NodeId) -> bool 
     false
 }
 
-fn is_storable_function(f: &JsFacts, func: NodeId, rhs: NodeId) -> bool {
+fn is_storable_function(f: &JsFacts<'_>, func: NodeId, rhs: NodeId) -> bool {
     let mut node = func;
     let mut parent = f.parent(func);
     while let Some(p) = parent.filter(|&p| f.inside(p, rhs)) {
@@ -244,8 +248,8 @@ fn is_storable_function(f: &JsFacts, func: NodeId, rhs: NodeId) -> bool {
     false
 }
 
-/// ESTree types matching `/(?:Statement|Declaration)$/`.
-fn is_statement(k: Kind) -> bool {
+/// `ESTree` types matching `/(?:Statement|Declaration)$/`.
+const fn is_statement(k: Kind<'_>) -> bool {
     matches!(
         k,
         Kind::ExprStmt(_)

@@ -1,3 +1,26 @@
+# Unstable options: run with the nightly pinned in mise.toml (`mise run fmt`). Stable rustfmt ignores
+# them with only a warning and would produce different output.
+unstable_features = true
 edition = "2024"
 style_edition = "2024"
 max_width = 100
+newline_style = "Unix"
+blank_lines_upper_bound = 1
+use_field_init_shorthand = true
+use_try_shorthand = true
+imports_granularity = "Module"
+group_imports = "StdExternalCrate"
+reorder_impl_items = true
+format_code_in_doc_comments = true
+format_macro_matchers = true
+format_macro_bodies = true
+hex_literal_case = "Upper"
+normalize_comments = true
+normalize_doc_attributes = true
+wrap_comments = true
+comment_width = 100
+condense_wildcard_suffixes = true
+# A line rustfmt cannot bring under max_width (a long literal, a macro it does not format) is an
+# error rather than left as written.
+error_on_line_overflow = true
+error_on_unformatted = true

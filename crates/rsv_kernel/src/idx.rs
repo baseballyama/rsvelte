@@ -1,4 +1,6 @@
-//! Typed ids and the vectors they index. Every layer of a document (the surface tree, the HIR,
+//! Typed ids and the vectors they index.
+//!
+//! Every layer of a document (the surface tree, the HIR,
 //! name resolution, a control-flow graph) numbers its own things densely from zero, and every fact
 //! a later layer adds about them lives in a side table indexed by those numbers instead of in the
 //! tree. A side table is an [`IndexVec`]: indexing it with another layer's id does not compile, so
@@ -7,9 +9,8 @@
 //! A layer built from another keeps the correspondence the same way: an `IndexVec<HirId, TId>` is
 //! "which surface node each HIR node came from".
 
-use std::fmt;
 use std::marker::PhantomData;
-use std::ops;
+use std::{fmt, ops};
 
 pub trait Idx: Copy + Eq + Ord + std::hash::Hash + fmt::Debug + 'static {
     fn new(i: usize) -> Self;
@@ -49,13 +50,15 @@ pub struct IndexVec<I: Idx, T> {
 }
 
 impl<I: Idx, T> IndexVec<I, T> {
+    #[must_use]
     pub const fn new() -> Self {
-        IndexVec {
+        Self {
             raw: Vec::new(),
             _i: PhantomData,
         }
     }
 
+    #[must_use]
     pub fn with_capacity(n: usize) -> Self {
         Vec::with_capacity(n).into()
     }
@@ -77,17 +80,20 @@ impl<I: Idx, T> IndexVec<I, T> {
 
     /// The id the next [`push`](Self::push) returns.
     #[inline]
+    #[must_use]
     pub fn next_id(&self) -> I {
         I::new(self.raw.len())
     }
 
     #[inline]
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.raw.len()
     }
 
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.raw.is_empty()
     }
 
@@ -100,6 +106,7 @@ impl<I: Idx, T> IndexVec<I, T> {
         self.raw.iter()
     }
 
+    #[must_use]
     pub fn iter_enumerated(&self) -> impl DoubleEndedIterator<Item = (I, &T)> + ExactSizeIterator {
         self.raw.iter().enumerate().map(|(i, t)| (I::new(i), t))
     }
@@ -113,11 +120,13 @@ impl<I: Idx, T> IndexVec<I, T> {
         &self.raw[range.start.index()..range.end.index()]
     }
 
+    #[must_use]
     pub fn raw(&self) -> &[T] {
         &self.raw
     }
 
-    pub fn capacity(&self) -> usize {
+    #[must_use]
+    pub const fn capacity(&self) -> usize {
         self.raw.capacity()
     }
 
@@ -128,7 +137,7 @@ impl<I: Idx, T> IndexVec<I, T> {
 
 impl<I: Idx, T> Default for IndexVec<I, T> {
     fn default() -> Self {
-        IndexVec::new()
+        Self::new()
     }
 }
 
@@ -150,7 +159,7 @@ impl<I: Idx, T> From<Vec<T>> for IndexVec<I, T> {
         if let Some(last) = raw.len().checked_sub(1) {
             I::new(last);
         }
-        IndexVec {
+        Self {
             raw,
             _i: PhantomData,
         }
@@ -165,22 +174,24 @@ impl<I: Idx, T> FromIterator<T> for IndexVec<I, T> {
 
 impl<I: Idx, T> ops::Index<I> for IndexVec<I, T> {
     type Output = T;
+
     #[inline]
-    fn index(&self, id: I) -> &T {
-        &self.raw[id.index()]
+    fn index(&self, index: I) -> &T {
+        &self.raw[index.index()]
     }
 }
 
 impl<I: Idx, T> ops::IndexMut<I> for IndexVec<I, T> {
     #[inline]
-    fn index_mut(&mut self, id: I) -> &mut T {
-        &mut self.raw[id.index()]
+    fn index_mut(&mut self, index: I) -> &mut T {
+        &mut self.raw[index.index()]
     }
 }
 
 impl<'a, I: Idx, T> IntoIterator for &'a IndexVec<I, T> {
-    type Item = &'a T;
     type IntoIter = std::slice::Iter<'a, T>;
+    type Item = &'a T;
+
     fn into_iter(self) -> Self::IntoIter {
         self.raw.iter()
     }
@@ -194,13 +205,16 @@ pub struct IdxRange<I: Idx> {
 }
 
 impl<I: Idx> IdxRange<I> {
+    /// # Panics
+    ///
+    /// If `start` is after `end`.
     pub fn new(start: I, end: I) -> Self {
         assert!(start <= end, "{start:?}..{end:?} is backwards");
-        IdxRange { start, end }
+        Self { start, end }
     }
 
-    pub fn empty(at: I) -> Self {
-        IdxRange { start: at, end: at }
+    pub const fn empty(at: I) -> Self {
+        Self { start: at, end: at }
     }
 
     pub fn len(self) -> usize {

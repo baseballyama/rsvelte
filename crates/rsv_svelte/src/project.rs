@@ -1,15 +1,21 @@
-//! The TypeScript view of a component, for type checking (upstream: svelte2tsx). The instance
+//! The TypeScript view of a component, for type checking (upstream: svelte2tsx).
+//!
+//! The instance
 //! script comes first, verbatim; the template follows as statements TypeScript can check: an
 //! element is a `svelteHTML.createElement` call (declared by the vendored svelte-check shim) with
 //! its attributes as an object literal, an `{#if}` is an `if`, a `{expression}` is a statement.
-//! Everything copied from the component is mapped, so a diagnostic maps back to where it was written.
+//! Everything copied from the component is mapped, so a diagnostic maps back to where it was
+//! written.
 
-use crate::ast::{Attr, AttrValue, Component, Part, TId, TNode};
-use rsv_js::{Ast, NodeId, ast::TsKind};
+use rsv_js::ast::TsKind;
+use rsv_js::{Ast, NodeId};
 use rsv_kernel::diag::Unsupported;
 use rsv_kernel::emit::Emitter;
 use rsv_kernel::source::Span;
 
+use crate::ast::{Attr, AttrValue, Component, Part, TId, TNode};
+
+#[derive(Debug)]
 pub enum Projection {
     /// Not type-checked: without `lang="ts"` svelte-check reports no semantic diagnostics
     /// (`checkJs` is off).
@@ -19,6 +25,9 @@ pub enum Projection {
 
 type R<T> = Result<T, Unsupported>;
 
+/// # Errors
+///
+/// [`Unsupported`] if the component holds a construct the projection does not handle yet.
 pub fn project(c: &Component, src: &str) -> R<Projection> {
     let Some(script) = c.instance.as_ref().filter(|s| s.ts) else {
         return Ok(Projection::Js);
@@ -192,7 +201,7 @@ impl Projector<'_> {
 }
 
 /// The expression inside `{…}`.
-fn inner(braces: Span) -> Span {
+const fn inner(braces: Span) -> Span {
     Span::new(braces.lo + 1, braces.hi - 1)
 }
 

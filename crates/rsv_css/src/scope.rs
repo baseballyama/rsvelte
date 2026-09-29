@@ -1,11 +1,13 @@
 //! Rewrites a style sheet so that it only applies to its component: `.x` becomes `.x.svelte-h`,
 //! and rules nothing uses are commented out.
 
-use crate::ast::{Rule, RuleKind, Simple, StyleSheet};
-use crate::matcher::is_global;
 use rsv_kernel::emit::Edits;
 
+use crate::ast::{Rule, RuleKind, Simple, StyleSheet};
+use crate::matcher::is_global;
+
 /// `used[i]` answers for the i-th complex selector in document order (see [`selectors`]).
+#[must_use]
 pub fn render(src: &str, sheet: &StyleSheet, used: &[bool], hash: &str) -> String {
     let mut edits = Edits::default();
     let modifier = format!(".{hash}");
@@ -18,6 +20,7 @@ pub fn render(src: &str, sheet: &StyleSheet, used: &[bool], hash: &str) -> Strin
 }
 
 /// Every complex selector in document order, the order [`render`] reads its flags in.
+#[must_use]
 pub fn selectors(sheet: &StyleSheet) -> Vec<&crate::ast::ComplexSelector> {
     fn walk<'a>(rules: &'a [Rule], out: &mut Vec<&'a crate::ast::ComplexSelector>) {
         for r in rules {
@@ -96,8 +99,8 @@ fn render_rule(
                                 edits.replace(span, m.clone());
                                 break;
                             }
-                            ref s => {
-                                edits.insert(s.span().hi, m.clone());
+                            _ => {
+                                edits.insert(rel.simple[i].span().hi, m.clone());
                                 break;
                             }
                         }

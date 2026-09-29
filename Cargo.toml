@@ -18,11 +18,125 @@ rustc-hash = "2.1"
 libc = "0.2"
 unicode-id-start = "1.4"
 
+# Everything below is `deny`: a lint that only warns is one nobody reads. A lint is left out only
+# with a reason written here; a local exception is `#[expect(lint, reason = "...")]`, never `allow`.
 [workspace.lints.rust]
+unsafe_code = "deny"
 unsafe_op_in_unsafe_fn = "deny"
+rust_2018_idioms = { level = "deny", priority = -1 }
+explicit_outlives_requirements = "deny"
+let_underscore_drop = "deny"
+meta_variable_misuse = "deny"
+missing_debug_implementations = "deny"
+missing_unsafe_on_extern = "deny"
+redundant_lifetimes = "deny"
+single_use_lifetimes = "deny"
+trivial_casts = "deny"
+trivial_numeric_casts = "deny"
+unit_bindings = "deny"
+unnameable_types = "deny"
+unreachable_pub = "deny"
+unused_lifetimes = "deny"
+unused_qualifications = "deny"
+# Not enabled:
+# - missing_docs: 773 public items; documenting them wholesale would write the docs the lint
+#   wants rather than the ones a reader needs. Revisit when the public surface settles.
+# - unused_results: 224 sites, nearly all builder calls (`JsonWriter`) and `insert`s whose
+#   result is deliberately dropped.
+# - unused_crate_dependencies: fires in every test and example target for the crate's own deps.
 
 [workspace.lints.clippy]
-all = { level = "warn", priority = -1 }
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+cargo = { level = "deny", priority = -1 }
+# Positions are u32 by design (P4); a source over `MAX_SOURCE_LEN` is refused before it is lexed,
+# so every usize -> u32 offset cast is in range. The other `cast_*` lints stay on.
+cast_possible_truncation = "allow"
+# Contradicts rustc's `unreachable_pub` above, which asks for exactly the `pub(crate)` this rejects.
+redundant_pub_crate = "allow"
+# The restriction group is not meant to be enabled whole; these are the ones that catch defects
+# or hidden state rather than enforce a style.
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+assertions_on_result_states = "deny"
+cfg_not_test = "deny"
+clone_on_ref_ptr = "deny"
+create_dir = "deny"
+dbg_macro = "deny"
+deref_by_slicing = "deny"
+empty_drop = "deny"
+empty_enum_variants_with_brackets = "deny"
+empty_structs_with_brackets = "deny"
+error_impl_error = "deny"
+exit = "deny"
+filetype_is_file = "deny"
+fn_to_numeric_cast_any = "deny"
+format_push_string = "deny"
+get_unwrap = "deny"
+if_then_some_else_none = "deny"
+infinite_loop = "deny"
+iter_over_hash_type = "deny"
+large_include_file = "deny"
+let_underscore_must_use = "deny"
+let_underscore_untyped = "deny"
+lossy_float_literal = "deny"
+map_err_ignore = "deny"
+mem_forget = "deny"
+missing_assert_message = "deny"
+mixed_read_write_in_expression = "deny"
+mod_module_files = "deny"
+multiple_unsafe_ops_per_block = "deny"
+needless_raw_strings = "deny"
+non_zero_suggestions = "deny"
+panic_in_result_fn = "deny"
+precedence_bits = "deny"
+print_stderr = "deny"
+print_stdout = "deny"
+pub_without_shorthand = "deny"
+rc_buffer = "deny"
+redundant_test_prefix = "deny"
+redundant_type_annotations = "deny"
+ref_patterns = "deny"
+renamed_function_params = "deny"
+rest_pat_in_fully_bound_structs = "deny"
+same_name_method = "deny"
+str_to_string = "deny"
+string_add = "deny"
+string_lit_chars_any = "deny"
+suspicious_xor_used_as_pow = "deny"
+todo = "deny"
+try_err = "deny"
+undocumented_unsafe_blocks = "deny"
+unimplemented = "deny"
+unnecessary_safety_comment = "deny"
+unnecessary_safety_doc = "deny"
+unnecessary_self_imports = "deny"
+unneeded_field_pattern = "deny"
+unused_result_ok = "deny"
+unwrap_in_result = "deny"
+unwrap_used = "deny"
+verbose_file_reads = "deny"
+# Restriction lints considered and left out (counts over the tree at the time):
+# - expect_used (87), panic (10), unreachable (47): an `expect` or `unreachable!` names the
+#   invariant it relies on; `unwrap_used` is on so that every such site says which.
+# - indexing_slicing (249), string_slice (56), arithmetic_side_effects (342), as_conversions
+#   (324): the lexers and parsers index by offsets they have just bounds-checked; checked forms
+#   there cost measured time and say nothing new.
+# - wildcard_enum_match_arm (128): nearly all over the ~150-variant token enum.
+# - shadow_* , min_ident_chars, implicit_return, question_mark_used, absolute_paths,
+#   std_instead_of_core, missing_inline_in_public_items, missing_docs_in_private_items: style
+#   choices, several of which contradict default-on lints.
+
+[workspace.lints.rustdoc]
+bare_urls = "deny"
+broken_intra_doc_links = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_html_tags = "deny"
+invalid_rust_codeblocks = "deny"
+private_intra_doc_links = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
 
 [profile.release]
 debug = "line-tables-only"

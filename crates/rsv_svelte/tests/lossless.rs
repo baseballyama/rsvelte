@@ -1,8 +1,9 @@
 //! The surface layer loses nothing: over every component of the fixture corpus that parses, the
 //! token table is the source byte for byte, and each trivia token holds only what its kind says.
 
-use rsv_svelte::ast::Tk;
 use std::path::{Path, PathBuf};
+
+use rsv_svelte::ast::Tk;
 
 fn inputs(dir: &Path, out: &mut Vec<PathBuf>) {
     let Ok(entries) = std::fs::read_dir(dir) else {

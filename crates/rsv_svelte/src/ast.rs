@@ -1,12 +1,15 @@
-//! The Svelte surface tree. Template nodes live in flat vectors and refer to each other by index;
+//! The Svelte surface tree.
+//!
+//! Template nodes live in flat vectors and refer to each other by index;
 //! every JavaScript expression (script and template) lives in the one [`Ast`] of the component, so
 //! a single scope analysis sees both.
+
+use std::borrow::Cow;
 
 use rsv_css::StyleSheet;
 use rsv_js::{Ast, NodeId};
 use rsv_kernel::source::Span;
 use rsv_kernel::token::{TokenKind, Tokens};
-use std::borrow::Cow;
 
 pub type TId = u32;
 
@@ -57,13 +60,14 @@ pub enum TNode {
 }
 
 impl TNode {
-    pub fn span(&self) -> Span {
+    #[must_use]
+    pub const fn span(&self) -> Span {
         match *self {
-            TNode::Text { span }
-            | TNode::Comment { span, .. }
-            | TNode::Expr { span, .. }
-            | TNode::Element { span, .. }
-            | TNode::If { span, .. } => span,
+            Self::Text { span }
+            | Self::Comment { span, .. }
+            | Self::Expr { span, .. }
+            | Self::Element { span, .. }
+            | Self::If { span, .. } => span,
         }
     }
 }
@@ -116,6 +120,7 @@ pub struct Style {
     pub sheet: StyleSheet,
 }
 
+#[derive(Debug)]
 pub struct Component {
     pub js: Ast,
     pub nodes: Vec<TNode>,
@@ -171,27 +176,32 @@ pub enum Tk {
 
 impl TokenKind for Tk {
     fn is_trivia(self) -> bool {
-        matches!(self, Tk::Whitespace | Tk::JsComment)
+        matches!(self, Self::Whitespace | Self::JsComment)
     }
 }
 
 impl Component {
+    #[must_use]
     pub fn node(&self, id: TId) -> &TNode {
         &self.nodes[id as usize]
     }
 
+    #[must_use]
     pub fn children(&self, r: Range) -> &[TId] {
         r.get(&self.kids)
     }
 
     /// `{#if a}…{:else if b}…{:else}…{/if}` as the `If` nodes `[a, b]`: an `{:else if}` is an `If`
     /// that is the only child of the previous one's `alt`.
+    #[must_use]
     pub fn if_branches(&self, id: TId) -> Vec<TId> {
         let mut branches = vec![id];
-        while let TNode::If { alt: Some(a), .. } = self.node(*branches.last().expect("non-empty")) {
+        let mut last = id;
+        while let TNode::If { alt: Some(a), .. } = self.node(last) {
             match self.children(*a) {
                 [only] if matches!(self.node(*only), TNode::If { elseif: true, .. }) => {
-                    branches.push(*only)
+                    branches.push(*only);
+                    last = *only;
                 }
                 _ => break,
             }
@@ -199,15 +209,18 @@ impl Component {
         branches
     }
 
+    #[must_use]
     pub fn attrs(&self, r: Range) -> &[Attr] {
         r.get(&self.attrs)
     }
 
+    #[must_use]
     pub fn parts(&self, r: Range) -> &[Part] {
         r.get(&self.parts)
     }
 
-    pub fn heap_bytes(&self) -> usize {
+    #[must_use]
+    pub const fn heap_bytes(&self) -> usize {
         self.js.heap_bytes()
             + self.nodes.capacity() * size_of::<TNode>()
             + self.kids.capacity() * 4
@@ -218,6 +231,7 @@ impl Component {
 }
 
 /// The value of a text node or attribute chunk: character references decoded.
+#[must_use]
 pub fn decode_text(raw: &str) -> Cow<'_, str> {
     if !raw.contains('&') {
         return Cow::Borrowed(raw);
@@ -227,15 +241,12 @@ pub fn decode_text(raw: &str) -> Cow<'_, str> {
     while let Some(i) = rest.find('&') {
         out.push_str(&rest[..i]);
         rest = &rest[i..];
-        match decode_reference(rest) {
-            Some((c, len)) => {
-                out.push(c);
-                rest = &rest[len..];
-            }
-            None => {
-                out.push('&');
-                rest = &rest[1..];
-            }
+        if let Some((c, len)) = decode_reference(rest) {
+            out.push(c);
+            rest = &rest[len..];
+        } else {
+            out.push('&');
+            rest = &rest[1..];
         }
     }
     out.push_str(rest);

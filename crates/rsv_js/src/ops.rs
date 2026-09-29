@@ -9,7 +9,7 @@ macro_rules! op_enum {
 		impl $name {
 			pub const ALL: &'static [$name] = &[$($name::$variant),*];
 
-			pub fn as_str(self) -> &'static str {
+			pub const fn as_str(self) -> &'static str {
 				match self { $($name::$variant => $text),* }
 			}
 
@@ -18,7 +18,7 @@ macro_rules! op_enum {
 			}
 
 			#[inline]
-			pub fn from_u8(v: u8) -> $name {
+			pub const fn from_u8(v: u8) -> $name {
 				Self::ALL[v as usize]
 			}
 		}
@@ -48,8 +48,12 @@ op_enum!(AssignOp {
 
 impl BinOp {
     /// Binding power; higher binds tighter.
-    pub fn precedence(self) -> u8 {
-        use BinOp::*;
+    #[must_use]
+    pub const fn precedence(self) -> u8 {
+        use BinOp::{
+            Add, BitAnd, BitOr, BitXor, Div, Eq, Exp, Gt, GtEq, In, InstanceOf, Lt, LtEq, Mul,
+            NotEq, Rem, Shl, Shr, StrictEq, StrictNotEq, Sub, UShr,
+        };
         match self {
             BitOr => 4,
             BitXor => 5,
@@ -65,11 +69,12 @@ impl BinOp {
 }
 
 impl LogicalOp {
-    pub fn precedence(self) -> u8 {
+    #[must_use]
+    pub const fn precedence(self) -> u8 {
         match self {
-            LogicalOp::Nullish => 1,
-            LogicalOp::Or => 2,
-            LogicalOp::And => 3,
+            Self::Nullish => 1,
+            Self::Or => 2,
+            Self::And => 3,
         }
     }
 }

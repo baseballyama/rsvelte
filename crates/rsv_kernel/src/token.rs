@@ -7,10 +7,11 @@
 //! meaning — is this expression parenthesized, which quote does this attribute use, what comment
 //! sits before this statement — are answered here instead of by scanning source bytes.
 
+use std::fmt::Debug;
+
 use crate::idx::{Idx, IndexVec};
 use crate::newtype_index;
 use crate::source::Span;
-use std::fmt::Debug;
 
 pub trait TokenKind: Copy + Eq + Debug + 'static {
     /// Whitespace and comments: skipped by [`Tokens::before`] and [`Tokens::after`].
@@ -29,25 +30,28 @@ newtype_index!(
 
 /// Tokens in source order; they never overlap. A table may cover a whole document or only some
 /// regions of it (the expressions of an embedding language).
+#[derive(Debug)]
 pub struct Tokens<K> {
     toks: IndexVec<TokenId, Token<K>>,
 }
 
 impl<K: TokenKind> Default for Tokens<K> {
     fn default() -> Self {
-        Tokens {
+        Self {
             toks: IndexVec::new(),
         }
     }
 }
 
 impl<K: TokenKind> Tokens<K> {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[must_use]
     pub fn with_capacity(n: usize) -> Self {
-        Tokens {
+        Self {
             toks: IndexVec::with_capacity(n),
         }
     }
@@ -58,6 +62,10 @@ impl<K: TokenKind> Tokens<K> {
     }
 
     /// Empty spans are not tokens and are dropped.
+    ///
+    /// # Panics
+    ///
+    /// If `span` starts before the previous token ends.
     #[inline]
     pub fn push(&mut self, kind: K, span: Span) {
         if span.is_empty() {
@@ -72,28 +80,34 @@ impl<K: TokenKind> Tokens<K> {
         self.toks.push(Token { kind, span });
     }
 
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.toks.len()
     }
 
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.toks.is_empty()
     }
 
+    #[must_use]
     pub fn get(&self, id: TokenId) -> &Token<K> {
         &self.toks[id]
     }
 
+    #[must_use]
     pub fn iter(&self) -> impl DoubleEndedIterator<Item = &Token<K>> + ExactSizeIterator {
         self.toks.iter()
     }
 
     /// The tokens after the first `n`: what a nested parser appended since the table had `n`.
+    #[must_use]
     pub fn since(&self, n: usize) -> &[Token<K>] {
         &self.toks.raw()[n..]
     }
 
     /// The token containing `offset`.
+    #[must_use]
     pub fn at(&self, offset: u32) -> Option<TokenId> {
         let raw = self.toks.raw();
         let i = raw.partition_point(|t| t.span.hi <= offset);
@@ -112,6 +126,7 @@ impl<K: TokenKind> Tokens<K> {
     }
 
     /// The first non-trivia token that starts at or after `offset`.
+    #[must_use]
     pub fn after(&self, offset: u32) -> Option<TokenId> {
         let raw = self.toks.raw();
         let start = raw.partition_point(|t| t.span.lo < offset);
@@ -122,9 +137,14 @@ impl<K: TokenKind> Tokens<K> {
     }
 
     /// The tokens are the source: contiguous from 0 to `src.len()`.
+    ///
+    /// # Errors
+    ///
+    /// The first gap (or overlap) between consecutive tokens, or between the last token and the
+    /// end.
     pub fn check_lossless(&self, src: &str) -> Result<(), Span> {
         let mut at = 0u32;
-        for t in self.toks.iter() {
+        for t in &self.toks {
             if t.span.lo != at {
                 return Err(Span::new(at, t.span.lo));
             }
@@ -137,7 +157,8 @@ impl<K: TokenKind> Tokens<K> {
         Ok(())
     }
 
-    pub fn heap_bytes(&self) -> usize {
+    #[must_use]
+    pub const fn heap_bytes(&self) -> usize {
         self.toks.capacity() * size_of::<Token<K>>()
     }
 }
@@ -154,7 +175,7 @@ mod tests {
 
     impl TokenKind for K {
         fn is_trivia(self) -> bool {
-            self == K::Space
+            self == Self::Space
         }
     }
 

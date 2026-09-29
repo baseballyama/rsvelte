@@ -1,9 +1,6 @@
 //! The tasks this plugin offers. A task id is also the fixture path of its expected output
 //! (`svelte.compile/client` → `expected/svelte.compile/client.*`).
 
-use crate::lower::{self, Target};
-use crate::project::Projection;
-use crate::{Analyzed, CheckConfig, Config, Normalized, Parsed, Resolved, ScopedCss, TsProjection};
 use rsv_js::check::{CheckRequest, Tsc};
 use rsv_kernel::db::Ctx;
 use rsv_kernel::diag::Diagnostic;
@@ -12,6 +9,10 @@ use rsv_kernel::json::JsonWriter;
 use rsv_kernel::metrics;
 use rsv_kernel::pipeline::{Document, Part, ProjectTask, Registry, Task, TaskOutput};
 use rsv_kernel::source::{LineIndex, Span};
+
+use crate::lower::{self, Target};
+use crate::project::Projection;
+use crate::{Analyzed, CheckConfig, Config, Normalized, Parsed, Resolved, ScopedCss, TsProjection};
 
 pub fn register(reg: &mut Registry, config: &Config) {
     reg.task(Compile {
@@ -27,7 +28,9 @@ pub fn register(reg: &mut Registry, config: &Config) {
     });
 }
 
-/// One task per target, both from the same artifacts: parsing and analysis happen once when both run.
+/// One task per target, both from the same artifacts: parsing and analysis happen once when both
+/// run.
+#[derive(Debug)]
 pub struct Compile {
     pub target: Target,
 }
@@ -44,7 +47,7 @@ impl Task for Compile {
         doc.lang == "svelte"
     }
 
-    fn run(&self, ctx: &Ctx, out: &mut TaskOutput) {
+    fn run(&self, ctx: &Ctx<'_>, out: &mut TaskOutput) {
         let c = match ctx.get::<Parsed>() {
             Ok(c) => c,
             Err(e) => {
@@ -91,6 +94,7 @@ impl Task for Compile {
 
 /// prettier + prettier-plugin-svelte. A construct the port does not cover is reported, not
 /// approximated: the task then writes no file.
+#[derive(Debug)]
 pub struct Format;
 
 impl Task for Format {
@@ -102,7 +106,7 @@ impl Task for Format {
         doc.lang == "svelte"
     }
 
-    fn run(&self, ctx: &Ctx, out: &mut TaskOutput) {
+    fn run(&self, ctx: &Ctx<'_>, out: &mut TaskOutput) {
         let c = match ctx.get::<Parsed>() {
             Ok(c) => c,
             Err(e) => {
@@ -121,8 +125,9 @@ impl Task for Format {
     }
 }
 
-/// ESLint with eslint-plugin-svelte, the rules of [`crate::lint::lint`]. Writes the findings as
-/// ESLint reports them (`json`); a document that does not parse gets the parse error instead.
+/// `ESLint` with eslint-plugin-svelte, the rules of [`crate::lint::lint`]. Writes the findings as
+/// `ESLint` reports them (`json`); a document that does not parse gets the parse error instead.
+#[derive(Debug)]
 pub struct Lint;
 
 impl Task for Lint {
@@ -134,7 +139,7 @@ impl Task for Lint {
         doc.lang == "svelte"
     }
 
-    fn run(&self, ctx: &Ctx, out: &mut TaskOutput) {
+    fn run(&self, ctx: &Ctx<'_>, out: &mut TaskOutput) {
         let c = match ctx.get::<Parsed>() {
             Ok(c) => c,
             Err(e) => {
@@ -176,9 +181,12 @@ impl Task for Lint {
     }
 }
 
-/// svelte-check's TypeScript diagnostics (`--diagnostic-sources js`): every TypeScript component
+/// svelte-check's TypeScript diagnostics (`--diagnostic-sources js`).
+///
+/// Every TypeScript component
 /// of the run is projected on its worker, then one `tsc` checks them all. Writes the findings as
 /// svelte-check reports them (`json`, 0-based lines, UTF-16 characters).
+#[derive(Debug)]
 pub struct Check {
     pub config: Option<CheckConfig>,
 }
@@ -202,7 +210,7 @@ impl ProjectTask for Check {
         doc.lang == "svelte"
     }
 
-    fn prepare(&self, ctx: &Ctx, out: &mut TaskOutput) -> Option<Part> {
+    fn prepare(&self, ctx: &Ctx<'_>, out: &mut TaskOutput) -> Option<Part> {
         if let Err(e) = ctx.get::<Parsed>() {
             out.diagnostics.push(e.clone());
             return None;
@@ -215,11 +223,7 @@ impl ProjectTask for Check {
             ));
             return None;
         }
-        match ctx
-            .get::<TsProjection>()
-            .as_ref()
-            .expect("a parsed component is projected")
-        {
+        match ctx.get::<TsProjection>().as_ref()? {
             Err(u) => {
                 out.diagnostics.push(Diagnostic::error(
                     "check_unsupported",
@@ -302,7 +306,7 @@ impl ProjectTask for Check {
 }
 
 fn render_check(src: &str, lines: &LineIndex, found: &mut [(Span, u32, String)]) -> String {
-    found.sort_by_key(|(span, _, _)| span.lo);
+    found.sort_by_key(|(span, ..)| span.lo);
     let mut w = JsonWriter::new(true);
     w.begin_array();
     for (span, code, message) in found.iter() {

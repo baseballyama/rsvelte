@@ -14,7 +14,7 @@ pub struct Rule {
     pub kind: RuleKind,
     pub decls: Vec<Decl>,
     /// Rules nested in an at-rule block (e.g. `@media`).
-    pub children: Vec<Rule>,
+    pub children: Vec<Self>,
 }
 
 #[derive(Debug)]
@@ -88,14 +88,15 @@ pub enum Simple {
 }
 
 impl Simple {
-    pub fn span(&self) -> Span {
+    #[must_use]
+    pub const fn span(&self) -> Span {
         match *self {
-            Simple::Type(s) | Simple::Universal(s) => s,
-            Simple::Class { span, .. }
-            | Simple::Id { span, .. }
-            | Simple::Attribute { span, .. }
-            | Simple::PseudoClass { span, .. }
-            | Simple::PseudoElement { span, .. } => span,
+            Self::Type(s) | Self::Universal(s) => s,
+            Self::Class { span, .. }
+            | Self::Id { span, .. }
+            | Self::Attribute { span, .. }
+            | Self::PseudoClass { span, .. }
+            | Self::PseudoElement { span, .. } => span,
         }
     }
 }

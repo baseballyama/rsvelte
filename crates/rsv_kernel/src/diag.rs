@@ -1,8 +1,9 @@
 //! Diagnostics shared by every task. A diagnostic is positioned by a [`Span`] in its document;
 //! conversion to line/column happens once, when a task renders its output.
 
-use crate::source::{Loc, Span};
 use std::borrow::Cow;
+
+use crate::source::{Loc, Span};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Severity {
@@ -24,8 +25,8 @@ impl Diagnostic {
         code: impl Into<Cow<'static, str>>,
         message: impl Into<String>,
         span: Span,
-    ) -> Diagnostic {
-        Diagnostic {
+    ) -> Self {
+        Self {
             severity: Severity::Error,
             code: code.into(),
             message: message.into(),
@@ -37,8 +38,8 @@ impl Diagnostic {
         code: impl Into<Cow<'static, str>>,
         message: impl Into<String>,
         span: Span,
-    ) -> Diagnostic {
-        Diagnostic {
+    ) -> Self {
+        Self {
             severity: Severity::Warning,
             code: code.into(),
             message: message.into(),
@@ -56,22 +57,24 @@ pub struct Unsupported {
 }
 
 impl Unsupported {
-    pub fn at(what: &'static str, loc: impl Into<Loc>) -> Unsupported {
-        Unsupported {
+    pub fn at(what: &'static str, loc: impl Into<Loc>) -> Self {
+        Self {
             what,
             loc: loc.into(),
         }
     }
 
     /// A refusal no single construct explains (a layout decision over the whole document).
-    pub fn nowhere(what: &'static str) -> Unsupported {
-        Unsupported {
+    #[must_use]
+    pub const fn nowhere(what: &'static str) -> Self {
+        Self {
             what,
             loc: Loc::SYNTHETIC,
         }
     }
 
     /// Where a diagnostic for it points: the construct, or the document's start.
+    #[must_use]
     pub fn span(&self) -> Span {
         self.loc.span().unwrap_or_default()
     }

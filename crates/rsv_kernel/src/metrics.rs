@@ -12,7 +12,8 @@
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering::Relaxed};
+use std::sync::atomic::Ordering::Relaxed;
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64};
 
 thread_local! {
     static ALLOCS: Cell<u64> = const { Cell::new(0) };
@@ -26,12 +27,18 @@ static LIVE: AtomicI64 = AtomicI64::new(0);
 static PEAK: AtomicI64 = AtomicI64::new(0);
 
 /// `#[global_allocator] static A: CountingAlloc = CountingAlloc;` in a binary enables counting.
+#[derive(Debug)]
 pub struct CountingAlloc;
 
 #[inline]
+#[expect(
+    clippy::cast_possible_wrap,
+    reason = "a `Layout` size never exceeds `isize::MAX`"
+)]
 fn counted(size: usize, freed: usize) {
-    let _ = ALLOCS.try_with(|c| c.set(c.get() + 1));
-    let _ = BYTES.try_with(|c| c.set(c.get() + size as u64));
+    // During thread teardown the counters are gone; that allocation goes uncounted.
+    _ = ALLOCS.try_with(|c| c.set(c.get() + 1));
+    _ = BYTES.try_with(|c| c.set(c.get() + size as u64));
     if TRACK.load(Relaxed) {
         G_ALLOCS.fetch_add(1, Relaxed);
         G_BYTES.fetch_add(size as u64, Relaxed);
@@ -41,6 +48,8 @@ fn counted(size: usize, freed: usize) {
     }
 }
 
+// SAFETY: every method forwards to `System` with its arguments unchanged.
+#[expect(unsafe_code, reason = "a `GlobalAlloc` impl is unsafe by definition")]
 unsafe impl GlobalAlloc for CountingAlloc {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         counted(layout.size(), 0);
@@ -48,6 +57,10 @@ unsafe impl GlobalAlloc for CountingAlloc {
         unsafe { System.alloc(layout) }
     }
 
+    #[expect(
+        clippy::cast_possible_wrap,
+        reason = "a `Layout` size never exceeds `isize::MAX`"
+    )]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         if TRACK.load(Relaxed) {
             LIVE.fetch_sub(layout.size() as i64, Relaxed);
@@ -67,7 +80,7 @@ unsafe impl GlobalAlloc for CountingAlloc {
 pub struct GlobalStats {
     pub allocs: u64,
     pub bytes: u64,
-    /// The highest live heap reached above the level at [`track_global`]`(true)`. Growth, not
+    /// The highest live heap reached above the level at [`track_global`] with `true`. Growth, not
     /// usage: memory held before tracking starts is not in it, and freeing some of it drives the
     /// live count below zero, which reads as no growth.
     pub peak_live_growth: u64,
@@ -88,18 +101,21 @@ pub fn global() -> GlobalStats {
     GlobalStats {
         allocs: G_ALLOCS.load(Relaxed),
         bytes: G_BYTES.load(Relaxed),
-        peak_live_growth: PEAK.load(Relaxed).max(0) as u64,
+        peak_live_growth: u64::try_from(PEAK.load(Relaxed)).unwrap_or(0),
     }
 }
 
-/// Allocations and bytes requested so far on this thread (zero unless [`CountingAlloc`] is installed).
+/// Allocations and bytes requested so far on this thread (zero unless [`CountingAlloc`] is
+/// installed).
 pub fn thread_allocs() -> (u64, u64) {
     (ALLOCS.with(Cell::get), BYTES.with(Cell::get))
 }
 
-/// Times are wall-clock time on the thread that ran the phase, summed over threads: not CPU time
-/// (a thread waiting inside a phase is charged), and not elapsed time (ten threads count ten times).
-/// Read them as shares of the whole.
+/// Per-phase totals; times are wall-clock time on the thread that ran the phase, summed over
+/// threads.
+///
+/// Not CPU time (a thread waiting inside a phase is charged), and not elapsed time (ten threads
+/// count ten times). Read them as shares of the whole.
 #[derive(Clone, Debug, Default)]
 pub struct PhaseStats {
     pub name: &'static str,
@@ -112,10 +128,11 @@ pub struct PhaseStats {
 
 #[cfg(feature = "metrics")]
 mod imp {
-    use super::{PhaseStats, thread_allocs};
     use std::cell::RefCell;
     use std::sync::{Arc, Mutex};
     use std::time::Instant;
+
+    use super::{PhaseStats, thread_allocs};
 
     struct Frame {
         name: &'static str,
@@ -135,13 +152,15 @@ mod imp {
         static STACK: RefCell<Vec<Frame>> = const { RefCell::new(Vec::new()) };
         static TABLE: Table = {
             let t: Table = Arc::default();
-            ALL.lock().unwrap().push(t.clone());
+            ALL.lock().expect("phase table registry poisoned").push(Arc::clone(&t));
             t
         };
     }
 
+    #[derive(Debug)]
     pub struct PhaseGuard(());
 
+    #[must_use]
     pub fn phase(name: &'static str) -> PhaseGuard {
         let (allocs0, bytes0) = thread_allocs();
         STACK.with(|s| {
@@ -153,7 +172,7 @@ mod imp {
                 child_ns: 0,
                 child_allocs: 0,
                 child_bytes: 0,
-            })
+            });
         });
         PhaseGuard(())
     }
@@ -173,19 +192,18 @@ mod imp {
                     parent.child_bytes += tb;
                 }
                 TABLE.with(|t| {
-                    let mut t = t.lock().unwrap();
-                    let row = match t
+                    let mut t = t.lock().expect("phase table poisoned");
+                    let row = if let Some(i) = t
                         .iter_mut()
                         .position(|r| std::ptr::eq(r.name, f.name) || r.name == f.name)
                     {
-                        Some(i) => &mut t[i],
-                        None => {
-                            t.push(PhaseStats {
-                                name: f.name,
-                                ..Default::default()
-                            });
-                            t.last_mut().unwrap()
-                        }
+                        &mut t[i]
+                    } else {
+                        t.push(PhaseStats {
+                            name: f.name,
+                            ..Default::default()
+                        });
+                        t.last_mut().expect("a row was just pushed")
                     };
                     row.calls += 1;
                     row.total_ns += total_ns;
@@ -197,10 +215,14 @@ mod imp {
         }
     }
 
+    /// # Panics
+    ///
+    /// If a thread panicked while holding a phase table.
     pub fn snapshot() -> Vec<PhaseStats> {
-        let mut by_name: rustc_hash::FxHashMap<&'static str, PhaseStats> = Default::default();
-        for t in ALL.lock().unwrap().iter() {
-            for r in t.lock().unwrap().iter() {
+        let mut by_name: rustc_hash::FxHashMap<&'static str, PhaseStats> =
+            rustc_hash::FxHashMap::default();
+        for t in ALL.lock().expect("phase table registry poisoned").iter() {
+            for r in t.lock().expect("phase table poisoned").iter() {
                 let m = by_name.entry(r.name).or_insert_with(|| PhaseStats {
                     name: r.name,
                     ..Default::default()
@@ -217,9 +239,12 @@ mod imp {
         merged
     }
 
+    /// # Panics
+    ///
+    /// If a thread panicked while holding a phase table.
     pub fn reset() {
-        for t in ALL.lock().unwrap().iter() {
-            t.lock().unwrap().clear();
+        for t in ALL.lock().expect("phase table registry poisoned").iter() {
+            t.lock().expect("phase table poisoned").clear();
         }
     }
 
@@ -230,18 +255,25 @@ mod imp {
 mod imp {
     use super::PhaseStats;
 
+    #[derive(Debug)]
     pub struct PhaseGuard(());
 
+    #[expect(
+        clippy::inline_always,
+        reason = "with metrics off a probe must compile to nothing"
+    )]
     #[inline(always)]
-    pub fn phase(_: &'static str) -> PhaseGuard {
+    #[must_use]
+    pub const fn phase(_: &'static str) -> PhaseGuard {
         PhaseGuard(())
     }
 
-    pub fn snapshot() -> Vec<PhaseStats> {
+    #[must_use]
+    pub const fn snapshot() -> Vec<PhaseStats> {
         Vec::new()
     }
 
-    pub fn reset() {}
+    pub const fn reset() {}
 
     pub const ENABLED: bool = false;
 }
