@@ -24,3 +24,11 @@ run = [
 [tasks.buildtime]
 description = "Measure how long the workspace takes to compile (tools/buildtime)"
 run = "node tools/buildtime/bin/buildtime.ts"
+
+[tasks.perf]
+description = "The performance ratchet: allocation (and on Linux, instruction) counts against tools/perf/baseline.json"
+run = "node tools/perf/bin/perf.ts"
+
+[tasks."perf:update"]
+description = "Record the measured performance counters in tools/perf/baseline.json"
+run = "node tools/perf/bin/perf.ts --update"

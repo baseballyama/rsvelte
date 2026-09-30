@@ -1,0 +1,173 @@
+{
+	"population": {
+		"documents": 17512,
+		"source_bytes": 32265202,
+		"tasks": [
+			"svelte.compile/client",
+			"svelte.compile/server",
+			"svelte.format/default",
+			"svelte.lint/default",
+			"vue.compile/default",
+			"vue.format/default",
+			"vue.lint/default",
+			"svue.compile/client",
+			"svue.compile/server"
+		]
+	},
+	"allocs": 3425954,
+	"alloc_bytes": 533981847,
+	"peak_live_growth_bytes": 37066858,
+	"phases": {
+		"js.parents": {
+			"calls": 5451,
+			"allocs": 5451,
+			"alloc_bytes": 616136
+		},
+		"js.print": {
+			"calls": 2845,
+			"allocs": 47468,
+			"alloc_bytes": 6182826
+		},
+		"no-unused-vars": {
+			"calls": 5451,
+			"allocs": 13566,
+			"alloc_bytes": 1675884
+		},
+		"svelte.analyze": {
+			"calls": 5432,
+			"allocs": 159486,
+			"alloc_bytes": 6298607
+		},
+		"svelte.compile/client": {
+			"calls": 17488,
+			"allocs": 31300,
+			"alloc_bytes": 4818529
+		},
+		"svelte.compile/server": {
+			"calls": 17488,
+			"allocs": 31303,
+			"alloc_bytes": 4818343
+		},
+		"svelte.css": {
+			"calls": 1419,
+			"allocs": 4647,
+			"alloc_bytes": 317816
+		},
+		"svelte.format/default": {
+			"calls": 17488,
+			"allocs": 1069821,
+			"alloc_bytes": 174039752
+		},
+		"svelte.hir": {
+			"calls": 5432,
+			"allocs": 95267,
+			"alloc_bytes": 12097285
+		},
+		"svelte.lint/default": {
+			"calls": 17488,
+			"allocs": 106139,
+			"alloc_bytes": 13009128
+		},
+		"svelte.lower.client": {
+			"calls": 5437,
+			"allocs": 415242,
+			"alloc_bytes": 20854756
+		},
+		"svelte.lower.server": {
+			"calls": 5437,
+			"allocs": 262204,
+			"alloc_bytes": 14387776
+		},
+		"svelte.parse": {
+			"calls": 17488,
+			"allocs": 970212,
+			"alloc_bytes": 253281414
+		},
+		"svelte.resolve": {
+			"calls": 5432,
+			"allocs": 150418,
+			"alloc_bytes": 8468094
+		},
+		"svelte/button-has-type": {
+			"calls": 5432,
+			"allocs": 973,
+			"alloc_bytes": 106560
+		},
+		"svue.analyze": {
+			"calls": 5,
+			"allocs": 189,
+			"alloc_bytes": 6942
+		},
+		"svue.compile/client": {
+			"calls": 5,
+			"allocs": 19,
+			"alloc_bytes": 1255
+		},
+		"svue.compile/server": {
+			"calls": 5,
+			"allocs": 19,
+			"alloc_bytes": 1255
+		},
+		"svue.frontend": {
+			"calls": 5,
+			"allocs": 106,
+			"alloc_bytes": 12039
+		},
+		"svue.resolve": {
+			"calls": 5,
+			"allocs": 183,
+			"alloc_bytes": 9468
+		},
+		"vue.compile": {
+			"calls": 19,
+			"allocs": 2994,
+			"alloc_bytes": 237460
+		},
+		"vue.compile/default": {
+			"calls": 19,
+			"allocs": 42,
+			"alloc_bytes": 4044
+		},
+		"vue.format": {
+			"calls": 19,
+			"allocs": 4255,
+			"alloc_bytes": 680395
+		},
+		"vue.format/default": {
+			"calls": 19,
+			"allocs": 38,
+			"alloc_bytes": 3705
+		},
+		"vue.lint/default": {
+			"calls": 19,
+			"allocs": 280,
+			"alloc_bytes": 27783
+		},
+		"vue.parse": {
+			"calls": 24,
+			"allocs": 1086,
+			"alloc_bytes": 204530
+		},
+		"vue.resolve": {
+			"calls": 19,
+			"allocs": 614,
+			"alloc_bytes": 45118
+		},
+		"vue/html-button-has-type": {
+			"calls": 19,
+			"allocs": 13,
+			"alloc_bytes": 1803
+		},
+		"vue/multi-word-component-names": {
+			"calls": 19,
+			"allocs": 37,
+			"alloc_bytes": 3374
+		},
+		"vue/no-unused-vars": {
+			"calls": 19,
+			"allocs": 40,
+			"alloc_bytes": 1106
+		}
+	},
+	"instructions": {}
+}

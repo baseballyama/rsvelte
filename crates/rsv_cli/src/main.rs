@@ -3,6 +3,8 @@
 //! `rsv run <file> --task <id>` prints one task's outputs for one file.
 //! `rsv bench <dir> [--task <id>]... [rounds=N] [json=<file>]` measures the pipeline (see
 //! `bench.rs`).
+//! `rsv perf <dir>... [--task <id>]... [rounds=N] [json=<file>]` prints the deterministic counters
+//! CI ratchets (see `perf.rs`).
 //!
 //! `svelte.check` also needs `--tsc <native tsc>` and `--svelte <svelte package dir>`, `vue.check`
 //! `--tsc` and `--vue <vue package dir>`; `ts.check` checks both languages' documents with one
@@ -16,6 +18,7 @@
 )]
 
 mod bench;
+mod perf;
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -114,7 +117,11 @@ fn main() -> ExitCode {
             Ok(opts) => bench::bench(&reg, Path::new(dir), &tasks, &opts),
             Err(e) => usage(&e),
         },
-        _ => usage("expected `fixtures <dir>...`, `run <file>` or `bench <dir>`"),
+        ["perf", rest @ ..] => match perf::Options::parse(rest) {
+            Ok((roots, opts)) => perf::perf(&reg, &roots, &tasks, &opts),
+            Err(e) => usage(&e),
+        },
+        _ => usage("expected `fixtures <dir>...`, `run <file>`, `bench <dir>` or `perf <dir>...`"),
     }
 }
 
