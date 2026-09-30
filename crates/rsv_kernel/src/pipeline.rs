@@ -442,19 +442,20 @@ pub fn run(
     docs: &[Document],
     opts: &RunOptions<'_>,
 ) -> Result<Vec<DocResult>, UnknownTask> {
-    let slots: Vec<std::sync::Mutex<Option<DocResult>>> =
-        docs.iter().map(|_| std::sync::Mutex::new(None)).collect();
-    run_each(reg, docs, opts, &|i, r| {
-        *slots[i].lock().expect("each slot is written once") = Some(r);
-    })?;
-    Ok(slots
-        .into_iter()
-        .map(|s| {
-            s.into_inner()
-                .expect("each slot is written once")
-                .expect("every document reaches the sink")
-        })
-        .collect())
+    reg.check_task_ids(opts.tasks)?;
+    let (tasks, project_tasks) = reg.selected(opts.tasks);
+    // Collected in order by rayon rather than through `run_each`'s sink: a slot per document
+    // would need a lock, and macOS's mutex allocates on first use where Linux's does not, which
+    // would make the allocation counters depend on the platform.
+    let mut results = Vec::new();
+    in_pool(opts.threads, || {
+        results = docs
+            .par_iter()
+            .map(|d| run_document(reg, d, &tasks, &project_tasks, opts.sharing))
+            .collect();
+        finish_projects(&project_tasks, &mut results);
+    });
+    Ok(results)
 }
 
 /// Pools are kept for the process, so repeated runs reuse their threads and those threads'

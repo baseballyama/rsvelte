@@ -14,9 +14,9 @@
 			"svue.compile/server"
 		]
 	},
-	"allocs": 3425954,
-	"alloc_bytes": 533981847,
-	"peak_live_growth_bytes": 37066858,
+	"allocs": 3408441,
+	"alloc_bytes": 531039871,
+	"peak_live_growth_bytes": 35666026,
 	"phases": {
 		"js.parents": {
 			"calls": 5451,
@@ -169,5 +169,7 @@
 			"alloc_bytes": 1106
 		}
 	},
-	"instructions": {}
+	"instructions": {
+		"arm64-linux": 4591269850
+	}
 }
