@@ -660,27 +660,25 @@ impl Ast {
     /// What the parser recorded since `tokens_from` tokens and `comments_from` comments, merged in
     /// source order: `Some(kind)` for a token, `None` for a comment. An embedding language copies
     /// this into its own token table, with whitespace in the gaps.
-    #[must_use]
     pub fn recorded_since(
         &self,
         tokens_from: usize,
         comments_from: usize,
-    ) -> Vec<(Option<T>, Span)> {
+    ) -> impl Iterator<Item = (Option<T>, Span)> + '_ {
         let mut toks = self.tokens.since(tokens_from).iter().peekable();
         let mut comments = self.comments[comments_from..].iter().peekable();
-        let mut out = Vec::new();
-        loop {
+        std::iter::from_fn(move || {
             let token_first = match (toks.peek(), comments.peek()) {
-                (None, None) => return out,
+                (None, None) => return None,
                 (Some(t), Some(c)) => t.span.lo < c.lo,
                 (t, _) => t.is_some(),
             };
             if token_first {
-                out.extend(toks.next().map(|t| (Some(t.kind), t.span)));
+                toks.next().map(|t| (Some(t.kind), t.span))
             } else {
-                out.extend(comments.next().map(|&c| (None, c)));
+                comments.next().map(|&c| (None, c))
             }
-        }
+        })
     }
 
     /// Per node, its parent (`NodeId::NONE` for roots). A side table built on demand: the tree
