@@ -168,67 +168,123 @@ fn run_file(reg: &Registry, file: &Path, tasks: &[&str]) -> ExitCode {
 /// original file had. The source directory is found from the unit, not from `root`, so the path
 /// (and every output derived from it: component names, CSS hashes) does not depend on which
 /// directory the run was started from.
-fn units(root: &Path) -> Vec<(PathBuf, String)> {
+///
+/// The walk visits each directory's entries in name order, depth first, so the units come out in
+/// `Path::cmp` order of their inputs with no sort, and the same on every file system.
+fn units(root: &Path) -> Vec<Unit> {
+    enum Item {
+        Dir(PathBuf, Option<usize>, Option<String>),
+        Unit(Unit),
+    }
     let mut out = Vec::new();
-    let mut stack = vec![root.to_path_buf()];
-    while let Some(dir) = stack.pop() {
-        let Ok(entries) = std::fs::read_dir(&dir) else {
+    let depth = depth_in_fixtures(root);
+    let rel = source_of(root, depth).map(|source| unescaped(root.strip_prefix(source)));
+    let mut stack = vec![Item::Dir(root.to_path_buf(), depth, rel)];
+    let mut entries = Vec::new();
+    while let Some(item) = stack.pop() {
+        let (dir, depth, rel) = match item {
+            Item::Unit(u) => {
+                out.push(u);
+                continue;
+            }
+            Item::Dir(dir, depth, rel) => (dir, depth, rel),
+        };
+        let Ok(read) = std::fs::read_dir(&dir) else {
             continue;
         };
-        for e in entries.flatten() {
+        entries.extend(read.flatten().map(|e| (e.file_name(), e)));
+        entries.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        // Pushed last to first, so the first name is popped first.
+        while let Some((name, e)) = entries.pop() {
             let p = e.path();
-            let name = e.file_name();
             let name = name.to_string_lossy();
-            if p.is_dir() {
-                if !matches!(name.as_ref(), "expected" | "actual" | "cache") {
-                    stack.push(p);
+            // The entry's own type, without a `stat`, unless it is a link to follow.
+            let is_dir = match e.file_type() {
+                Ok(t) if !t.is_symlink() => t.is_dir(),
+                _ => p.is_dir(),
+            };
+            if is_dir {
+                if matches!(name.as_ref(), "expected" | "actual" | "cache") {
+                    continue;
                 }
+                let depth = if p.join("_registry").is_dir() {
+                    Some(0)
+                } else {
+                    depth.map(|d| d + 1)
+                };
+                let rel = match depth {
+                    Some(2) => Some(String::new()),
+                    Some(3..) => rel.as_deref().map(|r| {
+                        let name = name.strip_prefix('~').unwrap_or(&name);
+                        if r.is_empty() {
+                            name.to_owned()
+                        } else {
+                            format!("{r}/{name}")
+                        }
+                    }),
+                    _ => None,
+                };
+                stack.push(Item::Dir(p, depth, rel));
             } else if name.starts_with("input.") {
-                let unit = dir
-                    .strip_prefix(source_dir(&dir).unwrap_or(root))
-                    .expect("a unit is inside its source directory");
-                let path = unit
-                    .iter()
-                    .map(|s| {
-                        let s = s.to_string_lossy();
-                        s.strip_prefix('~').unwrap_or(&s).to_owned()
-                    })
-                    .collect::<Vec<_>>()
-                    .join("/");
-                out.push((p, path));
+                // Outside a source directory, the unit's path is relative to `root`.
+                let path = rel
+                    .clone()
+                    .unwrap_or_else(|| unescaped(dir.strip_prefix(root)));
+                stack.push(Item::Unit(Unit {
+                    input: p,
+                    dir: dir.clone(),
+                    path,
+                }));
             }
         }
     }
-    out.sort();
     out
 }
 
-/// `fixtures/<family>/<source>` above `unit`: the fixture root is the ancestor holding
-/// `_registry/`. `None` outside a fixture tree.
-fn source_dir(unit: &Path) -> Option<&Path> {
-    let mut below = Vec::new();
-    for dir in unit.ancestors() {
-        if dir.join("_registry").is_dir() {
-            let n = below.len();
-            return (n >= 2).then(|| below[n - 2]);
+struct Unit {
+    input: PathBuf,
+    dir: PathBuf,
+    /// The original file's path, relative to its source directory.
+    path: String,
+}
+
+/// A relative path's components with the reserved-name `~` escape undone, joined by `/`.
+fn unescaped(rel: Result<&Path, std::path::StripPrefixError>) -> String {
+    let rel = rel.expect("a unit is inside its source directory");
+    let mut path = String::new();
+    for s in rel {
+        if !path.is_empty() {
+            path.push('/');
         }
-        below.push(dir);
+        let s = s.to_string_lossy();
+        path.push_str(s.strip_prefix('~').unwrap_or(&s));
     }
-    None
+    path
+}
+
+/// `fixtures/<family>/<source>` at or above `dir`, which is `depth` below its fixture root.
+fn source_of(dir: &Path, depth: Option<usize>) -> Option<&Path> {
+    depth
+        .filter(|&d| d >= 2)
+        .and_then(|d| dir.ancestors().nth(d - 2))
+}
+
+/// How far `dir` is below the nearest directory holding `_registry/` (the fixture root, `dir`
+/// itself included); its source directory, `fixtures/<family>/<source>`, is the ancestor two
+/// levels below that. `None` outside a fixture tree. The walk in [`units`] carries this down
+/// rather than asking again for every unit.
+fn depth_in_fixtures(dir: &Path) -> Option<usize> {
+    dir.ancestors().position(|a| a.join("_registry").is_dir())
 }
 
 /// Every unit below `roots` a registered language claims, with its unit directory, and the number
 /// of units that were unreadable or unclaimed.
-///
-/// # Panics
-///
-/// Never: every unit's input file sits inside its unit directory.
 #[must_use]
 pub fn load(reg: &Registry, roots: &[&Path]) -> (Vec<Document>, Vec<PathBuf>, usize) {
     let mut docs = Vec::new();
     let mut dirs = Vec::new();
     let mut skipped = 0usize;
-    for (input, path) in roots.iter().flat_map(|r| units(r)) {
+    for Unit { input, dir, path } in roots.iter().flat_map(|r| units(r)) {
         let Ok(text) = std::fs::read_to_string(&input) else {
             skipped += 1;
             continue;
@@ -236,12 +292,7 @@ pub fn load(reg: &Registry, roots: &[&Path]) -> (Vec<Document>, Vec<PathBuf>, us
         match reg.document(path, text) {
             Ok(d) => {
                 docs.push(d);
-                dirs.push(
-                    input
-                        .parent()
-                        .expect("input is in a unit dir")
-                        .to_path_buf(),
-                );
+                dirs.push(dir);
             }
             Err(_) => skipped += 1,
         }
@@ -363,3 +414,42 @@ fn report_metrics() {
 
 #[cfg(not(feature = "metrics"))]
 const fn report_metrics() {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Names that sort around the separator (`-` and `.` below `/`, a letter and a non-ASCII byte
+    /// above), nested three deep under a source directory, one unit in each: the walk yields them
+    /// in `Path::cmp` order, with paths relative to the source and the `~` escape undone.
+    #[test]
+    fn units_come_in_path_order_relative_to_their_source() {
+        let root = std::env::temp_dir().join(format!("rsv-units-{}", std::process::id()));
+        let source = root.join("family").join("source");
+        let names = ["a", "a-b", "a.b", "ab", "é", "~x"];
+        let mut dirs = vec![source.clone()];
+        for _ in 0..3 {
+            let last = std::mem::take(&mut dirs);
+            dirs = last
+                .iter()
+                .flat_map(|d| names.iter().map(|n| d.join(n)))
+                .collect();
+            for d in &dirs {
+                std::fs::create_dir_all(d.join("actual")).unwrap();
+                std::fs::write(d.join("input.svelte"), "").unwrap();
+                std::fs::write(d.join("actual").join("input.svelte"), "").unwrap();
+            }
+        }
+        std::fs::create_dir_all(root.join("_registry")).unwrap();
+        let got = units(&root.join("family"));
+        std::fs::remove_dir_all(&root).unwrap();
+        assert_eq!(got.len(), 6 + 36 + 216);
+        assert!(got.is_sorted_by(|a, b| a.input < b.input));
+        for u in &got {
+            let rel = u.dir.strip_prefix(&source).unwrap();
+            let want = rel.to_str().unwrap().replace('~', "");
+            assert_eq!(u.path, want, "{}", u.input.display());
+            assert_eq!(u.input.parent(), Some(u.dir.as_path()));
+        }
+    }
+}

@@ -3,7 +3,8 @@
 # - fixtures: every task over every fixture unit, against the oracle snapshots (the parity ratchet,
 #   fixtures/_registry/parity.json) and the adjustments' validity;
 # - perf: the deterministic performance ratchet (tools/perf/baseline.json): allocations exactly,
-#   and cachegrind's instruction count on the platform the baseline records (arm64 Linux).
+#   and cachegrind's instruction counts (a warm round, and loading) on the platform the baseline
+#   records (arm64 Linux).
 # The two ratchets are two-sided: an improvement that is not recorded fails as a regression does.
 name: CI
 

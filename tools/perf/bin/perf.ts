@@ -7,9 +7,12 @@
 //   corpus serially and counts the last, warm round's allocations and bytes, in total and per
 //   phase (every artifact and task), plus the peak live-heap growth. On one thread these are a
 //   function of the input and the binary, so they are compared exactly.
-// - instructions (`--instructions`, Linux with valgrind): cachegrind's instruction count of the
-//   shipped build (no `metrics`) for one warm round, taken as the difference between `rounds=2`
-//   and `rounds=1`. Recorded per `<arch>-<os>`, compared within INSTRUCTION_TOLERANCE.
+// - instructions (`--instructions`, Linux with valgrind): cachegrind's instruction counts of the
+//   shipped build (no `metrics`), recorded per `<arch>-<os>` and compared within
+//   INSTRUCTION_TOLERANCE: one warm round, taken as the difference between `rounds=2` and
+//   `rounds=1`, and loading (`rounds=0`: start-up, the walk, reading the files and constructing
+//   the documents), which every invocation pays. The walk visits directories in name order, so
+//   neither depends on the order the file system lists them in.
 //
 // The ratchet is two-sided: a counter that rose fails, and so does one that fell without the
 // baseline recording it, so an improvement is locked in by the change that made it. `--update`
@@ -52,6 +55,8 @@ interface Baseline {
 	phases: Record<string, Phase>;
 	/** One warm round's instructions, per `<arch>-<os>`. */
 	instructions: Record<string, number>;
+	/** Loading's instructions (`rounds=0`), per `<arch>-<os>`. */
+	load_instructions: Record<string, number>;
 }
 
 const { values } = parseArgs({
@@ -92,11 +97,12 @@ function irefs(rsv: string, rounds: number): number {
 	return Number(m[1]!.replaceAll(',', ''));
 }
 
-function instructions(): number {
+function instructions(): { warm: number; load: number } {
 	const rsv = build('plain');
-	const n = irefs(rsv, 2) - irefs(rsv, 1);
-	if (!(n > 0)) throw new Error(`a warm round measured ${n} instructions`);
-	return n;
+	const [load, one, two] = [irefs(rsv, 0), irefs(rsv, 1), irefs(rsv, 2)];
+	const warm = two - one;
+	if (!(load > 0 && one > load && two > one)) throw new Error(`counts that do not grow with the rounds: rounds=0 ${load}, rounds=1 ${one}, rounds=2 ${two}`);
+	return { warm, load };
 }
 
 const platform = `${process.arch}-${process.platform}`;
@@ -109,7 +115,8 @@ const measured: Baseline = {
 	alloc_bytes: report.alloc_bytes,
 	peak_live_growth_bytes: report.peak_live_growth_bytes,
 	phases: report.phases,
-	instructions: instr === undefined ? {} : { [platform]: instr }
+	instructions: instr === undefined ? {} : { [platform]: instr.warm },
+	load_instructions: instr === undefined ? {} : { [platform]: instr.load }
 };
 if (values.json) fs.writeFileSync(values.json, JSON.stringify({ platform, rev: report.rev, ...measured }, null, '\t') + '\n');
 
@@ -142,9 +149,13 @@ function compare(a: Baseline, b: Baseline): { rows: Row[]; population: string[] 
 	for (const name of [...new Set([...Object.keys(a.phases), ...Object.keys(b.phases)])].sort()) {
 		for (const k of ['calls', 'allocs', 'alloc_bytes'] as const) exact(`phase ${name} ${k}`, a.phases[name]?.[k], b.phases[name]?.[k]);
 	}
-	const now = b.instructions[platform];
-	if (now !== undefined) {
-		const was = a.instructions[platform];
+	for (const [key, label] of [
+		['instructions', 'instructions'],
+		['load_instructions', 'load instructions']
+	] as const) {
+		const now = b[key][platform];
+		if (now === undefined) continue;
+		const was = a[key]?.[platform];
 		const verdict: Row['verdict'] =
 			was === undefined
 				? 'NEW'
@@ -153,17 +164,24 @@ function compare(a: Baseline, b: Baseline): { rows: Row[]; population: string[] 
 					: now < was * (1 - INSTRUCTION_TOLERANCE)
 						? 'IMPROVED (baseline not updated)'
 						: 'ok';
-		rows.push({ metric: `instructions ${platform}`, was, now, verdict });
+		rows.push({ metric: `${label} ${platform}`, was, now, verdict });
 	}
 	return { rows, population };
 }
 
 console.log(`rsv perf at ${report.rev}: ${fmt(report.documents)} documents, ${fmt(report.source_bytes)} bytes, ${report.tasks.length} tasks`);
 console.log(`  allocs ${fmt(report.allocs)} (${((report.allocs / report.source_bytes) * 1000).toFixed(2)} per KB), bytes ${fmt(report.alloc_bytes)}, peak live +${fmt(report.peak_live_growth_bytes)}`);
-if (instr !== undefined) console.log(`  instructions (${platform}, one warm round) ${fmt(instr)} (${(instr / report.source_bytes).toFixed(1)} per source byte)`);
+if (instr !== undefined) {
+	console.log(`  instructions (${platform}, one warm round) ${fmt(instr.warm)} (${(instr.warm / report.source_bytes).toFixed(1)} per source byte)`);
+	console.log(`  instructions (${platform}, loading) ${fmt(instr.load)} (${(instr.load / report.source_bytes).toFixed(1)} per source byte)`);
+}
 
 if (values.update) {
-	const next: Baseline = { ...measured, instructions: { ...(old?.instructions ?? {}), ...measured.instructions } };
+	const next: Baseline = {
+		...measured,
+		instructions: { ...(old?.instructions ?? {}), ...measured.instructions },
+		load_instructions: { ...(old?.load_instructions ?? {}), ...measured.load_instructions }
+	};
 	fs.writeFileSync(BASELINE, JSON.stringify(next, null, '\t') + '\n');
 	if (old) {
 		for (const r of compare(old, next).rows.filter((r) => r.verdict !== 'ok')) {
@@ -178,7 +196,7 @@ if (!old) {
 	console.error(`no baseline at ${path.relative(ROOT, BASELINE)}; run with --update`);
 	process.exit(1);
 }
-if (instr === undefined && old.instructions[platform] !== undefined) {
+if (instr === undefined && (old.instructions[platform] !== undefined || old.load_instructions?.[platform] !== undefined)) {
 	console.log(`  instructions ${platform}: UNMEASURED (pass --instructions)`);
 }
 const { rows, population } = compare(old, measured);
