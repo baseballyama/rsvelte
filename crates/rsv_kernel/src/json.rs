@@ -142,29 +142,81 @@ impl JsonWriter {
     }
 }
 
+/// `s` as a JSON string. The text between escapes is copied a run at a time; every byte that needs
+/// an escape is ASCII, so a run always ends on a character boundary.
 pub fn write_str(out: &mut String, s: &str) {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    out.reserve(s.len() + 2);
     out.push('"');
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => {
-                use std::fmt::Write;
-                // Writing to a `String` cannot fail.
-                _ = write!(out, "\\u{:04x}", c as u32);
-            }
-            c => out.push(c),
+    let mut run = 0;
+    for (i, &b) in s.as_bytes().iter().enumerate() {
+        let esc = match b {
+            b'"' => "\\\"",
+            b'\\' => "\\\\",
+            b'\n' => "\\n",
+            b'\r' => "\\r",
+            b'\t' => "\\t",
+            0..0x20 => "",
+            _ => continue,
+        };
+        out.push_str(&s[run..i]);
+        if esc.is_empty() {
+            out.push_str("\\u00");
+            out.push(char::from(HEX[usize::from(b >> 4)]));
+            out.push(char::from(HEX[usize::from(b & 0xF)]));
+        } else {
+            out.push_str(esc);
         }
+        run = i + 1;
     }
+    out.push_str(&s[run..]);
     out.push('"');
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The definition the run-copying [`write_str`] replaced.
+    fn by_char(s: &str) -> String {
+        use std::fmt::Write;
+        let mut out = String::from('"');
+        for c in s.chars() {
+            match c {
+                '"' => out.push_str("\\\""),
+                '\\' => out.push_str("\\\\"),
+                '\n' => out.push_str("\\n"),
+                '\r' => out.push_str("\\r"),
+                '\t' => out.push_str("\\t"),
+                c if (c as u32) < 0x20 => _ = write!(out, "\\u{:04x}", c as u32),
+                c => out.push(c),
+            }
+        }
+        out.push('"');
+        out
+    }
+
+    #[test]
+    fn strings_are_escaped_as_one_character_at_a_time() {
+        let mut cases: Vec<String> = (0u8..0x80).map(|b| char::from(b).to_string()).collect();
+        cases.extend(
+            [
+                "",
+                "plain",
+                "a\"b\\c\nd",
+                "é\u{1}日本\u{1F600}\t",
+                "\u{7f}\u{80}\u{1f}x",
+            ]
+            .map(String::from),
+        );
+        let all: String = cases.concat();
+        cases.push(all);
+        for s in &cases {
+            let mut out = String::new();
+            write_str(&mut out, s);
+            assert_eq!(out, by_char(s), "{s:?}");
+        }
+    }
 
     #[test]
     fn a_fraction_json_cannot_hold_is_null() {
