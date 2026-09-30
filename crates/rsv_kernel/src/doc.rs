@@ -787,6 +787,15 @@ impl Printer<'_> {
     }
 }
 
+// Literals stay pointers rather than being copied into the text: removing `Static` makes a node
+// 16 bytes but costs more instructions and bytes than it saves (measured by `tools/perf`).
+const _: () = assert!(size_of::<Node>() == 24, "`Node` is 24 bytes");
+const _: () = assert!(size_of::<Cmd>() == 24, "`Cmd` is 24 bytes");
+const _: () = assert!(
+    size_of::<Option<GroupId>>() == 4,
+    "`Option<GroupId>` is 4 bytes"
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;

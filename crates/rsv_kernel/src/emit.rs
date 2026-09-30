@@ -253,6 +253,9 @@ impl Edits {
     }
 }
 
+// One per copied source range of every generated file.
+const _: () = assert!(size_of::<Mapping>() == 12, "`Mapping` is 12 bytes");
+
 #[cfg(test)]
 mod tests {
     use super::*;

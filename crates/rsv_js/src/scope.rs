@@ -21,12 +21,9 @@ newtype_index!(
 );
 newtype_index!(
     pub struct ScopeId;
-);
-
-impl ScopeId {
     /// The program's scope; also where imports and a component's template names live.
-    pub const ROOT: Self = Self(0);
-}
+    const ROOT = 0;
+);
 
 const NO_BINDING: u32 = u32::MAX;
 

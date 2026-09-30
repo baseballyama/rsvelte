@@ -15,8 +15,8 @@
 		]
 	},
 	"allocs": 3029229,
-	"alloc_bytes": 385587107,
-	"peak_live_growth_bytes": 35891340,
+	"alloc_bytes": 385305807,
+	"peak_live_growth_bytes": 35891272,
 	"phases": {
 		"js.parents": {
 			"calls": 5452,
@@ -86,7 +86,7 @@
 		"svelte.resolve": {
 			"calls": 5433,
 			"allocs": 150426,
-			"alloc_bytes": 8468482
+			"alloc_bytes": 8189054
 		},
 		"svelte/button-has-type": {
 			"calls": 5433,
@@ -116,7 +116,7 @@
 		"svue.resolve": {
 			"calls": 5,
 			"allocs": 183,
-			"alloc_bytes": 9468
+			"alloc_bytes": 8936
 		},
 		"vue.compile": {
 			"calls": 19,
@@ -151,7 +151,7 @@
 		"vue.resolve": {
 			"calls": 19,
 			"allocs": 614,
-			"alloc_bytes": 45118
+			"alloc_bytes": 43778
 		},
 		"vue/html-button-has-type": {
 			"calls": 19,
@@ -170,6 +170,6 @@
 		}
 	},
 	"instructions": {
-		"arm64-linux": 4414186180
+		"arm64-linux": 4417740418
 	}
 }

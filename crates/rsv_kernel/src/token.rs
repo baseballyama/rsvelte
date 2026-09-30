@@ -163,6 +163,13 @@ impl<K: TokenKind> Tokens<K> {
     }
 }
 
+// One per token of every document; `Option` of any `newtype_index!` id uses its niche.
+const _: () = assert!(size_of::<Token<u8>>() == 12, "`Token<u8>` is 12 bytes");
+const _: () = assert!(
+    size_of::<Option<TokenId>>() == 4,
+    "`Option<TokenId>` is 4 bytes"
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -591,6 +591,15 @@ fn is_uppercase_letter(c: char) -> bool {
             .any(|&(lo, hi)| (lo..=hi).contains(&c))
 }
 
+// Pinned so a change to a node's layout is a decision: one `Node` per HIR node, one `Attribute`
+// per attribute of every component.
+const _: () = assert!(size_of::<Node>() == 56, "`Node` is 56 bytes");
+const _: () = assert!(size_of::<Attribute>() == 64, "`Attribute` is 64 bytes");
+const _: () = assert!(
+    size_of::<Option<HirId>>() == 4,
+    "`Option<HirId>` is 4 bytes"
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;

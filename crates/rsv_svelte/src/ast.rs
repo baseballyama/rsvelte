@@ -221,3 +221,7 @@ impl Component {
 }
 
 pub use rsv_html::decode_text;
+
+// Pinned so a change to the surface tree's layout is a decision.
+const _: () = assert!(size_of::<TNode>() == 44, "`TNode` is 44 bytes");
+const _: () = assert!(size_of::<Attr>() == 32, "`Attr` is 32 bytes");

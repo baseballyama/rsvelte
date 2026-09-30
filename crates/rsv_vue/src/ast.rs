@@ -256,3 +256,7 @@ pub fn tag_attr<'s>(attrs: &[TagAttr], src: &'s str, name: &str) -> Option<Optio
         .find(|(n, _)| n.text(src) == name)
         .map(|(_, v)| v.map(|v| v.text(src)))
 }
+
+// Pinned so a change to the surface tree's layout is a decision.
+const _: () = assert!(size_of::<TNode>() == 44, "`TNode` is 44 bytes");
+const _: () = assert!(size_of::<Attr>() == 80, "`Attr` is 80 bytes");

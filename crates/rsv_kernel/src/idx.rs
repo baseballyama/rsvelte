@@ -17,28 +17,50 @@ pub trait Idx: Copy + Eq + Ord + std::hash::Hash + fmt::Debug + 'static {
     fn index(self) -> usize;
 }
 
-/// `newtype_index!(pub struct HirId);` — a `u32` id with [`Idx`], `Debug` as `HirId(3)`.
+/// `newtype_index!(pub struct HirId;)` — a `u32` id with [`Idx`], `Debug` as `HirId(3)`; named
+/// ids follow as `const ROOT = 0;`.
+///
+/// Stored as the index plus one in a `NonZeroU32`, as rustc's and oxc's ids are, so `Option<Id>`
+/// is four bytes rather than eight: an optional parent or target costs nothing over a plain one.
 #[macro_export]
 macro_rules! newtype_index {
-    ($(#[$attr:meta])* $vis:vis struct $name:ident;) => {
+    (
+        $(#[$attr:meta])* $vis:vis struct $name:ident;
+        $($(#[$cattr:meta])* const $c:ident = $v:literal;)*
+    ) => {
         $(#[$attr])*
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        $vis struct $name(u32);
+        $vis struct $name(::std::num::NonZeroU32);
+
+        impl $name {
+            $(
+                $(#[$cattr])*
+                pub const $c: Self = match ::std::num::NonZeroU32::new($v + 1) {
+                    Some(n) => Self(n),
+                    None => panic!("an index constant overflows u32"),
+                };
+            )*
+        }
 
         impl $crate::idx::Idx for $name {
             #[inline]
             fn new(i: usize) -> Self {
-                $name(u32::try_from(i).expect(concat!(stringify!($name), " overflows u32")))
+                // `i + 1` wraps to zero exactly when `i` is `u32::MAX`, so one test covers both.
+                u32::try_from(i)
+                    .ok()
+                    .and_then(|i| ::std::num::NonZeroU32::new(i.wrapping_add(1)))
+                    .map($name)
+                    .expect(concat!(stringify!($name), " overflows u32"))
             }
             #[inline]
             fn index(self) -> usize {
-                self.0 as usize
+                (self.0.get() - 1) as usize
             }
         }
 
         impl ::std::fmt::Debug for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-                write!(f, concat!(stringify!($name), "({})"), self.0)
+                write!(f, concat!(stringify!($name), "({})"), self.0.get() - 1)
             }
         }
     };

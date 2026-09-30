@@ -174,6 +174,13 @@ impl LineIndex {
     }
 }
 
+// Positions are in every node of every tree; the sizes are part of the layout, not incidental.
+const _: () = assert!(size_of::<Span>() == 8, "`Span` is 8 bytes");
+const _: () = assert!(
+    size_of::<Loc>() == 8,
+    "`Loc` keeps \"synthesized\" inside a span's 8 bytes"
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;
