@@ -4,6 +4,8 @@
 
 use std::borrow::Cow;
 
+pub mod button_type;
+
 /// The value of a text node or attribute chunk: character references decoded.
 #[must_use]
 pub fn decode_text(raw: &str) -> Cow<'_, str> {

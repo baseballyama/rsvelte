@@ -5,13 +5,14 @@
 //! the template is used (vue-eslint-parser marks such a variable used). It judges only the
 //! script's bindings; the `v-for` aliases are `vue/no-unused-vars`' to report.
 
+use rsv_html::button_type::{Allowed, Problem, check_static};
 use rsv_js::lint::JsFacts;
 use rsv_js::scope::{DeclKind, HostRoot};
 use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::lint::{Findings, Rule};
 use rsv_kernel::source::Span;
 
-use crate::ast::Sfc;
+use crate::ast::{AttrKind, DirName, Sfc, TNode};
 use crate::resolve::Resolution;
 
 #[derive(Debug)]
@@ -27,7 +28,12 @@ pub struct Cx<'a> {
 type VueRule = dyn for<'a> Rule<Cx<'a>>;
 
 /// In the oracle configuration's order: core rules, then the plugin's.
-static RULES: &[&VueRule] = &[&NoUnusedVars, &MultiWordComponentNames, &VueNoUnusedVars];
+static RULES: &[&VueRule] = &[
+    &NoUnusedVars,
+    &HtmlButtonHasType,
+    &MultiWordComponentNames,
+    &VueNoUnusedVars,
+];
 
 #[must_use]
 pub fn lint(cx: &Cx<'_>) -> Vec<Diagnostic> {
@@ -127,6 +133,72 @@ fn pattern_bindings(cx: &Cx<'_>, p: rsv_js::NodeId) -> Vec<(rsv_js::scope::Bindi
         stack.extend(kids.into_iter().rev().map(|k| (k, inner)));
     }
     out
+}
+
+/// With the default options, so the `forbiddenTypeAttribute` message cannot fire.
+///
+/// The judgement is [`rsv_html::button_type`]'s, shared with `svelte/button-has-type`; what is
+/// Vue's is that a static `type` is looked for before a `:type`, and that a finding sits on the
+/// value when there is one. Attribute names compare without case, as vue-eslint-parser lowercases
+/// them in HTML. The parser refuses a directive without an expression, so upstream's empty `:type`
+/// branch has no input yet.
+#[derive(Debug)]
+pub struct HtmlButtonHasType;
+
+impl<'a> Rule<Cx<'a>> for HtmlButtonHasType {
+    fn id(&self) -> &'static str {
+        "vue/html-button-has-type"
+    }
+
+    fn check(&self, cx: &Cx<'a>, out: &mut Vec<Diagnostic>) {
+        let (sfc, src) = (cx.c, cx.src);
+        for n in &sfc.nodes {
+            let TNode::Element {
+                name,
+                attrs,
+                start_tag,
+                ..
+            } = *n
+            else {
+                continue;
+            };
+            if name.text(src) != "button" {
+                continue;
+            }
+            let attrs = sfc.attrs(attrs);
+            let is_type = |s: Span| s.text(src).eq_ignore_ascii_case("type");
+            let stat = attrs
+                .iter()
+                .find(|a| matches!(a.kind, AttrKind::Static) && is_type(a.name));
+            let mut report = |p: Problem<'_>, span| {
+                out.push(Diagnostic::error(self.id(), p.message(), span));
+            };
+            if let Some(a) = stat {
+                let Some(v) = a.value else {
+                    report(Problem::Empty, a.span);
+                    continue;
+                };
+                let text = rsv_html::decode_text(v.text(src));
+                if let Some(p) = check_static(&text, Allowed::default()) {
+                    report(p, value_node(v, a.quoted));
+                }
+            } else if !attrs.iter().any(|a| match &a.kind {
+                AttrKind::Directive(d) => d.name == DirName::Bind && d.arg.is_some_and(is_type),
+                AttrKind::Static => false,
+            }) {
+                report(Problem::Missing, start_tag);
+            }
+        }
+    }
+}
+
+/// The value node's range, which vue-eslint-parser starts and ends on the quotes.
+const fn value_node(v: Span, quoted: bool) -> Span {
+    if quoted {
+        Span::new(v.lo - 1, v.hi + 1)
+    } else {
+        v
+    }
 }
 
 /// With the default options. A `<script setup>` component has no `name` option to read (the

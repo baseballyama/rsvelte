@@ -3,6 +3,7 @@
 //! Early rules read the surface tree, late rules the HIR; both read the one parse and the one name
 //! resolution the compiler uses.
 
+use rsv_html::button_type::{Allowed, Problem, check_static};
 use rsv_js::lint::JsFacts;
 use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::lint::{Findings, Rule};
@@ -64,10 +65,12 @@ impl<'a> Rule<AstCx<'a>> for NoUnusedVars {
     }
 }
 
-/// With the default options (`button`, `submit` and `reset` all allowed).
+/// With the default options, so the `forbiddenTypeAttribute` message cannot fire.
 ///
-/// So the `forbiddenTypeAttribute` message cannot fire. The parser rejects directives and spreads,
-/// so upstream's `bind:type` and spread branches have no input to decide yet.
+/// The judgement is [`rsv_html::button_type`]'s, shared with `vue/html-button-has-type`; what is
+/// Svelte's is which attribute is the `type` and that findings sit on the whole attribute. The
+/// parser rejects directives and spreads, so upstream's `bind:type` and spread branches have no
+/// input to decide.
 #[derive(Debug)]
 pub struct ButtonHasType;
 
@@ -82,52 +85,35 @@ impl<'a> Rule<HirCx<'a>> for ButtonHasType {
             if el.name.text(src) != "button" {
                 continue;
             }
-            let attrs = hir.attrs(el.attrs);
-            let named_type = |a: &&crate::hir::Attribute| a.name.text(src) == "type";
-            // A shorthand `{type}` is its own node kind upstream; `findAttribute` skips it.
-            if let Some(a) = attrs
+            let types: Vec<_> = hir
+                .attrs(el.attrs)
                 .iter()
-                .filter(named_type)
+                .filter(|a| a.name.text(src) == "type")
+                .collect();
+            // A shorthand `{type}` is its own node kind upstream: `findAttribute` skips it, and
+            // finding one afterwards satisfies the rule.
+            let (problem, span) = match types
+                .iter()
                 .find(|a| !matches!(a.value, AttrValue::Shorthand(_)))
             {
-                match &a.value {
-                    AttrValue::Boolean => {
-                        out.push(Diagnostic::error(self.id(), EMPTY, a.span));
-                    }
-                    AttrValue::Static(v) if v.is_empty() => {
-                        out.push(Diagnostic::error(self.id(), EMPTY, a.span));
-                    }
-                    AttrValue::Interpolated(p) if p.is_empty() => {
-                        out.push(Diagnostic::error(self.id(), EMPTY, a.span));
-                    }
-                    AttrValue::Static(v) if !matches!(&**v, "button" | "submit" | "reset") => {
-                        out.push(Diagnostic::error(
-                            self.id(),
-                            format!("{v} is an invalid value for button type attribute."),
-                            a.span,
-                        ));
-                    }
-                    _ => {}
+                Some(a) => {
+                    let problem = match &a.value {
+                        AttrValue::Boolean => Some(Problem::Empty),
+                        AttrValue::Interpolated(p) if p.is_empty() => Some(Problem::Empty),
+                        AttrValue::Static(v) => check_static(v, Allowed::default()),
+                        _ => None,
+                    };
+                    (problem, a.span)
                 }
-                continue;
+                None if types.is_empty() => (Some(Problem::Missing), el.start_tag),
+                None => continue,
+            };
+            if let Some(p) = problem {
+                out.push(Diagnostic::error(self.id(), p.message(), span));
             }
-            if attrs
-                .iter()
-                .filter(named_type)
-                .any(|a| matches!(a.value, AttrValue::Shorthand(_)))
-            {
-                continue;
-            }
-            out.push(Diagnostic::error(
-                self.id(),
-                "Missing an explicit type attribute for button.",
-                el.start_tag,
-            ));
         }
     }
 }
-
-const EMPTY: &str = "A value must be set for button type attribute.";
 
 #[cfg(test)]
 mod tests {
