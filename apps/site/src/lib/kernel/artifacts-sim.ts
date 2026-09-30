@@ -1,6 +1,7 @@
-// A model of `Ctx::get` with the Svelte plugin's artifacts. The call order inside each task and each
-// artifact's `compute` is transcribed from rsv_svelte (tasks.rs, lib.rs); the kernel rule it models
-// is db.rs: the first `get` computes, later ones return the cached value.
+// A model of `Ctx::get` with the Svelte plugin's artifacts and the `ts.view` facet. The call order
+// inside each task and each artifact's `compute` is transcribed from rsv_svelte (tasks.rs, lib.rs:
+// `compile_input` asks for the parse and the HIR) and rsv_js/check.rs; the kernel rule it models is
+// db.rs: the first `get` (or `facet`) computes, later ones return the cached value.
 
 export type ArtifactName =
 	| 'svelte.parse'
@@ -8,9 +9,9 @@ export type ArtifactName =
 	| 'svelte.hir'
 	| 'svelte.analyze'
 	| 'svelte.css'
-	| 'svelte.project.ts';
+	| 'ts.view';
 
-export const ARTIFACTS: ArtifactName[] = ['svelte.parse', 'svelte.resolve', 'svelte.hir', 'svelte.analyze', 'svelte.css', 'svelte.project.ts'];
+export const ARTIFACTS: ArtifactName[] = ['svelte.parse', 'svelte.resolve', 'svelte.hir', 'svelte.analyze', 'svelte.css', 'ts.view'];
 export type TaskId = 'svelte.compile/client' | 'svelte.compile/server' | 'svelte.format/default' | 'svelte.lint/default' | 'svelte.check/default';
 
 export const TASKS: TaskId[] = [
@@ -23,7 +24,6 @@ export const TASKS: TaskId[] = [
 
 export interface Doc {
 	parses: boolean;
-	checkConfigured: boolean;
 }
 
 export interface GetEvent {
@@ -60,17 +60,22 @@ class SimCtx {
 		this.log.push({ artifact: a, computed: true, depth });
 		this.computed.push(a);
 		// `compute` bodies, in the order they call `get` (lib.rs).
-		if (a === 'svelte.resolve' || a === 'svelte.hir') this.get('svelte.parse', depth + 1);
+		if (a === 'svelte.resolve' || a === 'svelte.hir' || a === 'ts.view') this.get('svelte.parse', depth + 1);
 		if (a === 'svelte.analyze') {
-			this.get('svelte.parse', depth + 1);
+			this.compileInput(depth + 1);
 			if (this.doc.parses) this.get('svelte.resolve', depth + 1);
 		}
 		if (a === 'svelte.css') {
-			this.get('svelte.parse', depth + 1);
-			if (this.doc.parses) this.get('svelte.analyze', depth + 1);
+			this.get('svelte.analyze', depth + 1);
+			if (this.doc.parses) this.compileInput(depth + 1);
 		}
-		if (a === 'svelte.project.ts') this.get('svelte.parse', depth + 1);
 		this.cache.add(a);
+	}
+
+	/** `rsv_svelte::compile_input`: the parse, then the HIR when it parsed. */
+	compileInput(depth = 0): void {
+		this.get('svelte.parse', depth);
+		if (this.doc.parses) this.get('svelte.hir', depth);
 	}
 }
 
@@ -80,6 +85,7 @@ function runTask(task: TaskId, ctx: SimCtx, doc: Doc) {
 		case 'svelte.compile/server':
 			ctx.get('svelte.parse');
 			if (!doc.parses) return;
+			ctx.compileInput();
 			ctx.get('svelte.resolve');
 			ctx.get('svelte.analyze');
 			ctx.get('svelte.css');
@@ -94,9 +100,7 @@ function runTask(task: TaskId, ctx: SimCtx, doc: Doc) {
 			ctx.get('svelte.hir');
 			return;
 		case 'svelte.check/default':
-			ctx.get('svelte.parse');
-			if (!doc.parses || !doc.checkConfigured) return;
-			ctx.get('svelte.project.ts');
+			ctx.get('ts.view');
 	}
 }
 

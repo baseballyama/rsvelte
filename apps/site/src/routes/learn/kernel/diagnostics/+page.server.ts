@@ -4,6 +4,7 @@ import { excerpts } from '$lib/server/source';
 export const load = () => ({
 	format: reports().plainA.population.tasks['svelte.format/default'],
 	documents: reports().plainA.population.documents,
+	benchRev: reports().plainA.build.rev,
 	code: excerpts({
 		severity: 'kernel/diag/Severity',
 		diagnostic: 'kernel/diag/Diagnostic',

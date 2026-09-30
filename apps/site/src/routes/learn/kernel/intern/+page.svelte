@@ -80,12 +80,28 @@
 	</p>
 </div>
 
-<Code item={data.code.grow} />
+<Code item={data.code.grow} mark={['self.table.clear();', 'self.table.resize(cap, 0);']} />
 
 <div class="prose-learn">
 	<p>
 		入れ直すときに文字列は動きません。<code>buf</code> と <code>ends</code> はそのままで、変わるのは <code>table</code>
-		だけです。Atom の番号も変わらないので、すでに配られた Atom はそのまま使えます。
+		だけです。Atom の番号も変わらないので、すでに配られた Atom はそのまま使えます。表は新しいベクタを作らず、同じベクタを空にしてから必要な長さまで
+		0 で埋めます。容量が足りていれば、ここで割り当ては起きません。
+	</p>
+	<p>
+		三つのベクタは、文書をまたいでも使い回します。Interner は作るときにスレッドのバッファプールから <code>Interner</code>
+		という鍵でバッファを借り、捨てるときに返します（<a href="/learn/kernel/pool#keyed">12</a>）。返す順は借りた順の逆です。<code>ends</code> と
+		<code>table</code> はどちらも <code>Vec&lt;u32&gt;</code> なので、逆の順で返さないと、次の文書で互いのバッファを受け取ってしまいます。
+	</p>
+</div>
+
+<Code item={data.code.pooled} />
+<Code item={data.code.drop} />
+
+<div class="prose-learn">
+	<p>
+		以前のプールはバッファを要素の型だけで分けていたので、Interner の <code>buf</code>（<code>u8</code> のバッファ）と整形器の出力バッファが同じ棚に並び、互いの大きさまで伸ばし合っていました。どちらかをプールに入れると、もう一方の退行として現れていたのはこのためです。持ち主ごとに鍵を分け、Interner
+		のバッファも使い回すようにした変更で、1 ラウンドの割り当ては 2,667,581 回から 2,488,731 回（−6.7%）、命令数は 3,012,227,617 から 2,960,233,041（−1.7%）になりました（20f5846343）。
 	</p>
 </div>
 

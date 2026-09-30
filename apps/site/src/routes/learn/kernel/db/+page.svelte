@@ -43,12 +43,24 @@
 
 <div class="prose-learn">
 	<p>
-		アーティファクトは別のアーティファクトを求めてかまいません。<code>ScopedCss</code> は <code>Parsed</code> と
-		<code>Analyzed</code> を求め、<code>style</code> がなければ <code>None</code> を返します。
+		アーティファクトは別のアーティファクトを求めてかまいません。<code>ScopedCss</code> は <code>Analyzed</code>
+		を求め、続けて <code>compile_input</code> でコンパイラの入力を組み立てます。コンポーネントに <code>style</code>
+		がなければ <code>None</code> を返します。
 	</p>
 </div>
 
-<Code item={data.code.scoped} mark={['ctx.get::<Parsed>()', 'ctx.get::<Analyzed>()']} />
+<Code item={data.code.scoped} mark={['ctx.get::<Analyzed>()', 'compile_input(ctx)?']} />
+
+<div class="prose-learn">
+	<p>
+		<code>compile_input</code> 自体はアーティファクトではなく、二つのアーティファクト（スクリプトを持つ <code>Parsed</code> とテンプレートを持つ
+		<code>Normalized</code>）から借用を集めて束ねる関数です。コンパイラの解析と出力は、表層の構文木ではなくこの入力だけを読みます。そのため、同じ形の入力を別の構文から組み立てられれば、同じコンパイラが使えます（<a
+			href="/learn/kernel/layers#svue">05 svue</a
+		>）。
+	</p>
+</div>
+
+<Code item={data.code.compileInput} mark={['ctx.get::<Normalized>()']} />
 
 <div class="prose-learn">
 	<H2 id="registry" />
@@ -154,7 +166,86 @@
 <div class="prose-learn">
 	<p>
 		最後の <code>ctx.line_index()</code> はアーティファクトではなく、<code>Ctx</code> が別に持つ
-		<code>OnceCell&lt;LineIndex&gt;</code> です。行と列への変換はどの言語でも同じなので、カーネルが直接持っています。
+		<code>OnceCell&lt;LineIndex&gt;</code> です。行と列への変換はどの言語でも同じなので、カーネルが直接持っています。lint
+		だけでなく、Svelte と Vue の整形器も同じ索引を受け取ります。以前は二つの整形器が自分で索引を作り直していて、共有に変えたときの 1
+		ラウンドの命令数は 2,853,755,764 から 2,810,876,017（−1.5%）でした（42b6e550e1）。
+	</p>
+
+	<H2 id="facet" />
+	<p>
+		アーティファクトは、それを定義した言語のものです。Svelte の型検査は Svelte の <code>Parsed</code> を求めればよいのですが、Vue
+		を足すと、型検査のタスクがどの言語のアーティファクトを求めればよいかが決まらなくなります。タスクを言語の数だけ書くと、tsc
+		の呼び出し、診断の写し戻し、JSON の書き出しという、言語に関係のない部分まで複製することになります。
+	</p>
+	<p>
+		<dfn>ファセット</dfn>（facet）は、この問題のための仕組みです。ファセットは「文書についての問い」で、答え方は言語ごとに違います。トレイトは出力の型と名前だけを決め、<code
+			>compute</code
+		>
+		を持ちません。
+	</p>
+</div>
+
+<Code item={data.code.facet} />
+
+<div class="prose-learn">
+	<p>
+		答え方は、言語がレジストリに登録します。<code>provide</code> は言語の ID と、<code>Ctx</code>
+		から答えを作る関数を受け取ります。ファセットは、アーティファクトと同じ slot の番号の列に一つ場所を取ります。
+	</p>
+</div>
+
+<Code item={data.code.provide} />
+
+<div class="prose-learn">
+	<p>
+		<code>ctx.facet::&lt;F&gt;()</code> は、文書の言語が登録した関数を探し、<code>get</code> と同じ <code>OnceCell</code>
+		で一度だけ計算します。その言語がファセットを提供していなければ <code>None</code> です。計測のフェーズもファセットの名前で開くので、答えのコストは求めたタスクではなくファセットに付きます。
+	</p>
+</div>
+
+<Code item={data.code.ctxFacet} />
+
+<div class="prose-learn">
+	<p>
+		最初のファセットは <code>rsv_js::check::TsView</code> です。答えは、文書を TypeScript として見たもの、つまり生成した TypeScript（<code
+			>Emitter</code
+		>）、そこから元の文書へ位置を戻す関数、プロジェクトに足す宣言ファイルです。
+	</p>
+</div>
+
+<Code item={data.code.tsView} />
+<Code item={data.code.tsDoc} />
+
+<div class="prose-learn">
+	<p>
+		Svelte プラグインは svelte2tsx と同じ形の射影を、Vue プラグインは <code>@vue/language-core</code>
+		の仮想コードと同じ形の射影を、このファセットの答えとして登録します。
+	</p>
+</div>
+
+<Code item={data.code.svelteView} />
+<Code item={data.code.svelteRegister} mark={['reg.provide::<TsView>("svelte"']} />
+<Code item={data.code.vueRegister} mark={['reg.provide::<TsView>("vue"']} />
+
+<div class="prose-learn">
+	<p>
+		型検査のタスク <code>rsv_js::check::Check</code> は、ファセットだけを見て書かれています。言語の名前もアーティファクトの名前も出てきません。
+	</p>
+</div>
+
+<Code item={data.code.prepare} mark={['ctx.facet::<TsView>()?']} />
+
+<div class="prose-learn">
+	<p>
+		そのため、同じ <code>Check</code> が三つのタスクになります。<code>svelte.check/default</code>（Svelte の文書だけ）、<code
+			>vue.check/default</code
+		>（Vue の文書だけ）、そして CLI が登録する <code>ts.check/default</code>（両方）です。三つ目は Svelte と Vue
+		が混ざったプロジェクトを一回の tsc で検査します。導入したコミットの計測では、30 ユニットで tsc の呼び出しが 2 回から 1 回に、壁時計時間はおよそ 100
+		ms から 67 ms になりました（a15cdcda04）。
+	</p>
+	<p>
+		言語ごとの <code>TsProjection</code> というアーティファクトは、このとき廃止されました。ファセットはアーティファクトの代わりではなく、アーティファクトの上に言語ごとの窓口を足すものです。Svelte
+		の答えを作る <code>ts_view</code> の中身は、Svelte の <code>Parsed</code> を求める普通のコードです。
 	</p>
 </div>
 

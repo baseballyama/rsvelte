@@ -1,7 +1,7 @@
 import counter from '$lib/data/emit/counter-client.json';
 import plainA from '$lib/data/bench/plain-a.json';
 import metricsA from '$lib/data/bench/metrics-a.json';
-import { corpus, units } from '$lib/data/status';
+import { parity } from 'virtual:rsvelte-source';
 import { crateSizes } from '$lib/server/source';
 
 export const prerender = true;
@@ -17,8 +17,7 @@ export const load = () => {
 	return {
 		counter,
 		crates: crateSizes(),
-		units,
-		corpus,
+		parity,
 		bench: {
 			rev: plainA.build.rev,
 			threads: plainA.threads,

@@ -14,6 +14,16 @@ export const load = () => ({
 		ctx: 'kernel/db/Ctx',
 		ctxNew: 'kernel/db/Ctx::new',
 		get: 'kernel/db/Ctx::get',
-		lint: 'svelte/tasks/Lint::run'
+		lint: 'svelte/tasks/Lint::run',
+		compileInput: 'svelte/lib/compile_input',
+		facet: 'kernel/db/Facet',
+		provide: 'kernel/db/ArtifactRegistry::provide',
+		ctxFacet: 'kernel/db/Ctx::facet',
+		tsView: 'js/check/TsView',
+		tsDoc: 'js/check/TsDoc',
+		svelteRegister: 'svelte/tasks/register',
+		vueRegister: 'vue/tasks/register',
+		svelteView: 'svelte/tasks/ts_view',
+		prepare: 'js/check/Check::prepare'
 	})
 });

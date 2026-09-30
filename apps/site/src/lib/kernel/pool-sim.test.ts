@@ -20,6 +20,14 @@ describe('pool model', () => {
 		expect(firstTakeOfDoc1.event.kind === 'take' && firstTakeOfDoc1.event.got).toBe(16);
 	});
 
+	it('frees a buffer that would take the pool past its budget, as MAX_BYTES does', () => {
+		const steps = simulate([100, 100], true, 200);
+		const gives = steps.filter((s) => s.event.kind === 'give').map((s) => s.event.kind === 'give' && s.event.why);
+		expect(gives).toContain('budget');
+		const unbounded = simulate([100, 100], true).at(-1)!.allocs;
+		expect(steps.at(-1)!.allocs).toBeGreaterThan(unbounded);
+	});
+
 	it('without the pool every tree grows from empty', () => {
 		const on = simulate([100, 100], true).at(-1)!.allocs;
 		const off = simulate([100, 100], false).at(-1)!.allocs;

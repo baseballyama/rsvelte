@@ -7,6 +7,8 @@ export const load = () => ({
 		intern: 'kernel/intern/Interner::intern',
 		probe: 'kernel/intern/Interner::probe',
 		grow: 'kernel/intern/Interner::grow',
-		lookup: 'kernel/intern/Interner::lookup'
+		lookup: 'kernel/intern/Interner::lookup',
+		pooled: 'kernel/intern/impl Default for Interner',
+		drop: 'kernel/intern/Interner::drop'
 	})
 });

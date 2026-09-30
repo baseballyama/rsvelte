@@ -14,6 +14,13 @@ function call(d: Docs, args: string[]): DocId {
 }
 
 describe('doc printer (ported from doc.rs)', () => {
+	it('a group built broken breaks its parent', () => {
+		const d = new Docs();
+		const outer = d.group([d.text('x'), d.line(), d.groupBroken([d.text('y')])]);
+		expect(d.willBreak(outer)).toBe(true);
+		expect(d.print(outer)).toBe('x\ny');
+	});
+
 	it('group prints flat when it fits and breaks otherwise', () => {
 		let d = new Docs();
 		expect(d.print(call(d, ['a', 'b']))).toBe('f(a, b)');

@@ -14,6 +14,8 @@ export const load = () => ({
 		indexNew: 'kernel/source/LineIndex::new',
 		utf16: 'kernel/source/LineIndex::utf16',
 		offset: 'kernel/source/LineIndex::offset',
+		wide: 'kernel/source/Wide',
+		roundTest: 'kernel/source/tests::an_offset_inside_a_character_rounds_down_to_its_start',
 		reportEnd: 'js/check/parse_report'
 	})
 });

@@ -24,7 +24,8 @@ export const load = () => ({
 		finishProjects: 'kernel/pipeline/finish_projects',
 		run: 'kernel/pipeline/run',
 		inPool: 'kernel/pipeline/in_pool',
-		checkPrepare: 'svelte/tasks/Check::prepare',
+		checkPrepare: 'js/check/Check::prepare',
+		check: 'js/check/Check',
 		test: 'kernel/pipeline/tests::a_project_task_sees_every_prepared_document_once',
 		testTwo: 'kernel/pipeline/tests::each_project_task_gets_only_its_own_parts'
 	})

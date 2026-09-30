@@ -62,11 +62,14 @@ export class LineIndex {
 		return lo;
 	}
 
+	/** An offset inside a character counts as its start, and one past the end as the end, as in Rust. */
 	utf16(byte: number): number {
+		byte = Math.min(byte, this.bytes.length);
 		if (this.wide.length === 0) return byte;
 		const i = this.widePoint(byte);
 		if (i === 0) return byte;
 		const w = this.wide[i - 1];
+		if (byte < w.byte + w.utf8Len) return w.utf16;
 		return w.utf16 + w.utf16Len + (byte - w.byte - w.utf8Len);
 	}
 
@@ -83,7 +86,10 @@ export class LineIndex {
 		return { line: line + 1, column: character - this.utf16(this.lineStarts[line]), character };
 	}
 
-	/** Byte offset of a 1-based line and 0-based UTF-16 column; clamps like the Rust version. */
+	/**
+	 * Byte offset of a 1-based line and 0-based UTF-16 column, `null` past the line's end or inside a
+	 * surrogate pair. The Rust version answers the same by binary search over its tables; this one walks the line.
+	 */
 	offset(line: number, column: number): number | null {
 		if (line < 1 || line > this.lineStarts.length) return null;
 		const start = this.lineStarts[line - 1];

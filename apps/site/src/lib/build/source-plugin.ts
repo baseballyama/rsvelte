@@ -2,47 +2,17 @@
 // build time. Pages quote code by item key; a key that no longer exists fails the build instead of
 // showing stale code. Highlighting here keeps the Worker's per-request CPU at rendering only.
 
+import { perfHistory } from './perf-history';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { createCssVariablesTheme, createHighlighter, type Highlighter } from 'shiki';
 import type { Plugin } from 'vite';
 import { parseRustModule, type RustModule } from './rust-items.ts';
+import { sources } from './sources.ts';
 
 const VIRTUAL = 'virtual:rsvelte-source';
 const RESOLVED = '\0' + VIRTUAL;
-
-/** Short crate names used in item keys. */
-const CRATES: Record<string, string> = {
-	rsv_kernel: 'kernel',
-	rsv_svelte: 'svelte',
-	rsv_js: 'js',
-	rsv_cli: 'cli'
-};
-
-/** Every kernel module, plus the plugin code the guide uses as worked examples. */
-function sources(cratesDir: string): { key: string; file: string }[] {
-	const kernel = readdirSync(path.join(cratesDir, 'rsv_kernel/src'))
-		.filter((f) => f.endsWith('.rs'))
-		.sort()
-		.map((f) => ({ key: `kernel/${f.slice(0, -3)}`, file: `rsv_kernel/src/${f}` }));
-	const examples = [
-		'rsv_svelte/src/lib.rs',
-		'rsv_svelte/src/ast.rs',
-		'rsv_svelte/src/tasks.rs',
-		'rsv_svelte/src/lint.rs',
-		'rsv_svelte/src/resolve.rs',
-		'rsv_svelte/src/hir.rs',
-		'rsv_svelte/src/project.rs',
-		'rsv_js/src/lint.rs',
-		'rsv_js/src/check.rs',
-		'rsv_cli/src/bench.rs'
-	].map((file) => {
-		const [crate, , name] = file.split('/');
-		return { key: `${CRATES[crate]}/${name.slice(0, -3)}`, file };
-	});
-	return [...kernel, ...examples];
-}
 
 export interface HighlightedItem {
 	key: string;
@@ -93,6 +63,24 @@ function crateSizes(cratesDir: string): CrateSize[] {
 		.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export interface ParityRow {
+	task: string;
+	verdicts: Record<string, number>;
+}
+
+/** fixtures/_registry/parity.json (`"<task>/<variant> <unit>": verdict`), counted per task and verdict. */
+function paritySummary(entries: Record<string, string>): { units: number; rows: ParityRow[] } {
+	const byTask = new Map<string, Record<string, number>>();
+	for (const [key, verdict] of Object.entries(entries)) {
+		const task = key.slice(0, key.indexOf(' '));
+		const row = byTask.get(task) ?? {};
+		row[verdict] = (row[verdict] ?? 0) + 1;
+		byTask.set(task, row);
+	}
+	const rows = [...byTask].sort(([a], [b]) => a.localeCompare(b)).map(([task, verdicts]) => ({ task, verdicts }));
+	return { units: Object.keys(entries).length, rows };
+}
+
 /** The commit the quoted code comes from, or `null` when crates/ differs from it. */
 function revision(root: string): { rev: string; clean: boolean } {
 	const rev = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
@@ -124,12 +112,20 @@ export function rsvelteSource(): Plugin {
 					items: m.items.map((it) => ({ ...it, html: highlight(h, it.code, 'rust') }))
 				};
 			});
-			const { rev, clean } = revision(path.dirname(cratesDir));
+			const root = path.dirname(cratesDir);
+			const { rev, clean } = revision(root);
+			const baselineFile = path.join(root, 'tools/perf/baseline.json');
+			const parityFile = path.join(root, 'fixtures/_registry/parity.json');
+			this.addWatchFile(baselineFile);
+			this.addWatchFile(parityFile);
 			return [
 				`export const modules = ${JSON.stringify(modules)};`,
 				`export const rev = ${JSON.stringify(rev)};`,
 				`export const clean = ${clean};`,
-				`export const crates = ${JSON.stringify(crateSizes(cratesDir))};`
+				`export const crates = ${JSON.stringify(crateSizes(cratesDir))};`,
+				`export const perfBaseline = ${readFileSync(baselineFile, 'utf8').trim()};`,
+				`export const perfHistory = ${JSON.stringify(perfHistory(root))};`,
+				`export const parity = ${JSON.stringify(paritySummary(JSON.parse(readFileSync(parityFile, 'utf8'))))};`
 			].join('\n');
 		}
 	};

@@ -1,4 +1,4 @@
-import { allModules, excerpts, sourceModule } from '$lib/server/source';
+import { allModules, crateSizes, excerpts, sourceModule } from '$lib/server/source';
 import { chapters } from '$lib/site';
 
 export const load = () => {
@@ -15,8 +15,12 @@ export const load = () => {
 	return {
 		modules,
 		libDocs: sourceModule('kernel/lib').docs,
+		vueDocs: sourceModule('vue/lib').docs,
+		crates: crateSizes(),
 		code: excerpts({
 			register: 'svelte/lib/register',
+			vueRegister: 'vue/lib/register',
+			vueParsed: 'vue/lib/impl Artifact for Parsed',
 			registry: 'kernel/pipeline/Registry',
 			runDocument: 'kernel/pipeline/run_document'
 		})

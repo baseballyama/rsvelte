@@ -18,13 +18,20 @@
 		open: '未着手'
 	};
 	const ms = (v: number) => v.toFixed(1);
+	const fmt = (n: number) => n.toLocaleString('en-US');
+	const delta = (now: number | null, was: number | null | undefined) =>
+		now === null || was === null || was === undefined || now === was ? '' : `${now > was ? '+' : '−'}${(Math.abs(now / was - 1) * 100).toFixed(1)}%`;
+	const firstInstr = $derived(data.history.find((r) => r.instructions !== null)!);
+	const lastRec = $derived(data.history.at(-1)!);
+	const firstLoad = $derived(data.history.find((r) => r.load_instructions !== null)!);
+	const maxInstr = $derived(Math.max(...data.history.map((r) => r.instructions ?? 0)));
 </script>
 
 <svelte:head><title>{c.title} — rsvelte Learn</title></svelte:head>
 
 <ChapterHeader
 	chapter={c}
-	lead="カーネルを読んで見つけた、直す価値のある箇所と、それぞれをどうしたかの一覧です。直したものは各章の説明もその実装に合わせてあります。直さなかったものには、直さなかった理由を書いています。"
+	lead="性能のラチェットが記録してきた最適化の推移と、カーネルを読んで見つけた直す価値のある箇所の一覧です。直したものは各章の説明もその実装に合わせてあります。直さなかったものには、直さなかった理由を書いています。"
 />
 
 {#snippet item(n: string, title: string, status: Status, where: string)}
@@ -41,6 +48,143 @@
 {/snippet}
 
 <div class="prose-learn">
+	<H2 id="history" />
+	<p>
+		<code>tools/perf/baseline.json</code> を書き換えたコミットを古い順に並べ、それぞれが記録した値を示します（<a href="/learn/measure#ratchet">13</a
+		>）。値はビルドのたびに git の履歴から読み出します（<code>src/lib/build/perf-history.ts</code>）。基準値を書き換えてまだコミットしていなければ、その値が「作業ツリー」の行として最後に付きます。命令数は
+		arm64 Linux の cachegrind で数えた 1 ラウンドの分です。
+	</p>
+	<p>
+		命令数を初めて記録した <code>{firstInstr.sha ?? "作業ツリー"}</code> の {fmt(firstInstr.instructions!)} から、今の {fmt(lastRec.instructions!)} へ（{delta(
+			lastRec.instructions,
+			firstInstr.instructions
+		)}）。割り当ては最初の {fmt(data.history[0].allocs)} 回から {fmt(lastRec.allocs)} 回へ（{delta(lastRec.allocs, data.history[0].allocs)}）、割り当てバイトは
+		{fmt(data.history[0].alloc_bytes)} から {fmt(lastRec.alloc_bytes)} へ（{delta(lastRec.alloc_bytes, data.history[0].alloc_bytes)}）。読み込みの命令数は、記録を始めた
+		<code>{firstLoad.sha ?? "作業ツリー"}</code> の {fmt(firstLoad.load_instructions!)} から {fmt(lastRec.load_instructions!)} です。ただし読み込みを記録し始めたのは、読み込みを
+		878,552,187 命令から減らした変更そのもので（コミットのメッセージによる）、最後の行の減少は最適化ではなく測り方の訂正です（<a
+			href="/learn/measure#ci">13</a
+		>）。
+	</p>
+</div>
+
+<figure class="my-8 overflow-x-auto xl:mr-[calc(-232px-48px)]">
+	<table class="table min-w-[760px]">
+		<thead>
+			<tr>
+				<th>コミット</th>
+				<th class="w-[18%]">命令数</th>
+				<th class="num"></th>
+				<th class="num">割り当て</th>
+				<th class="num">バイト</th>
+				<th class="num">読み込み</th>
+			</tr>
+		</thead>
+		<tbody>
+			{#each data.history as r, i (r.sha ?? "working-tree")}
+				{@const prev = data.history[i - 1]}
+				<tr>
+					<td><code>{r.sha ?? "作業ツリー"}</code><div class="text-[13px] text-muted" lang="en">{r.subject}</div></td>
+					<td class="align-middle">
+						{#if r.instructions !== null}
+							<div class="h-2 bg-surface"><div class="h-2 bg-fg" style:width="{(r.instructions / maxInstr) * 100}%"></div></div>
+						{/if}
+					</td>
+					<td class="num">
+						{r.instructions === null ? '—' : fmt(r.instructions)}
+						<div class="text-[12px] text-muted">{delta(r.instructions, prev?.instructions)}</div>
+					</td>
+					<td class="num">{fmt(r.allocs)}<div class="text-[12px] text-muted">{delta(r.allocs, prev?.allocs)}</div></td>
+					<td class="num">{fmt(r.alloc_bytes)}<div class="text-[12px] text-muted">{delta(r.alloc_bytes, prev?.alloc_bytes)}</div></td>
+					<td class="num">
+						{r.load_instructions === null ? '—' : fmt(r.load_instructions)}
+						<div class="text-[12px] text-muted">{delta(r.load_instructions, prev?.load_instructions)}</div>
+					</td>
+				</tr>
+			{/each}
+		</tbody>
+	</table>
+	<figcaption class="mt-2 text-[13px] leading-[1.7] text-muted">
+		各行はそのコミットの <code>baseline.json</code>。差は直前の行との比。— はまだ数えていなかった量です（命令数を基準値に記録したのは 2 行目から、読み込みは a5822ee26f から）。母集団は
+		<code>b58a0a72be</code> で 1 文書増えています（<code>minimal/emoji-width.svelte</code>）。
+	</figcaption>
+</figure>
+
+<div class="prose-learn">
+	<p>表の中で大きく動いた変更と、その仕組みです。数はそれぞれのコミットのメッセージからの引用です。</p>
+	<ul>
+		<li>
+			<strong>句読点の字句解析</strong>（49aeb2de94、命令数 −29.4%）: 字句解析器は 58 個の演算子を順に <code>starts_with</code>
+			で試し、勝ったもののテキストを種類に照合していました。1 ラウンドで 4,000 万回の <code>memcmp</code>、全命令の 13% です。今は最初のバイトで分岐し、続くバイトを見て最長の句読点を決めます。
+		</li>
+	</ul>
+</div>
+
+<Code item={data.code.punct} />
+
+<div class="prose-learn">
+	<p>
+		テストは古い演算子の表を定義として残し、演算子に使われる文字からなる 4 バイトまでのすべての文字列で、分岐の答えが表と一致することを確かめます。
+	</p>
+</div>
+
+<Code item={data.code.punctTest} />
+
+<div class="prose-learn">
+	<ul>
+		<li>
+			<strong>文書 IR の破断を作る時点で計算</strong>（708a4403d5、命令数 −4.07%）: 印字の前の <code>propagate_breaks</code>
+			とそのメモを消し、<code>will_break</code> を表引きにしました。アリーナのバッファもプールに入れ、<code>svelte.format</code>
+			の割り当ては 1,070,011 回から 691,547 回になりました（<a href="/learn/kernel/doc#printer">08</a>）。
+		</li>
+		<li>
+			<strong>読み込み</strong>（a5822ee26f、読み込みの命令数 −60.7%）: 読み込みの大半は <code>Path</code> の解析でした。ユニットの並べ替えがパスの部品を比べ、各ユニットが
+			<code>_registry/</code> を探して祖先をたどり（そのたびに <code>stat</code>）、接頭辞を剥がしていました。今は各ディレクトリの項目を名前の順に深さ優先でたどるので、並べ替えなしで
+			<code>Path::cmp</code> の順に出てきます。深さとソースからの相対パスは走査の途中で運び、項目の種類は <code>stat</code> ではなくディレクトリから読みます。
+		</li>
+		<li>
+			<strong>トークン表とテンプレートの列をプールに</strong>（92571ee562、バイト −45%）: <a href="/learn/kernel/pool#users">12</a> を参照。
+		</li>
+		<li>
+			<strong>パーサのリストを一本のスタックに</strong>（d5060ddc01、割り当て −8.1%）: パーサが読むリスト（ブロックの文、引数、引数宣言、プロパティ、配列の要素、宣言子、import
+			の指定子）は、それぞれ自分の <code>Vec</code> に集めてから木にコピーしていて、1 ラウンドで 23.5 万回の割り当てになっていました。今は <code>Ast</code>
+			が持つ一本のスタックに積みます。リストは入れ子になるので、最後に開いたものが常に一番上にあり、閉じるときにスタックの上から節点を作って取り除きます。成功したパースが開いたリストをすべて閉じたかは、debug
+			ビルドで確かめます。
+		</li>
+	</ul>
+</div>
+
+<Code item={data.code.parserClose} />
+
+<div class="prose-learn">
+	<ul>
+		<li><strong>プールの鍵を持ち主ごとに</strong>（20f5846343、割り当て −6.7%）: <a href="/learn/kernel/pool#keyed">12</a> を参照。</li>
+		<li>
+			<strong>埋め込み言語へのトークンの受け渡し</strong>（ff65a1e66b、バイト −19%）: テンプレートの式ごとに、JavaScript
+			のパーサが記録したトークンとコメントをベクタに集めて渡していました。1 ラウンドで 36 MB、全確保バイトの 5 分の 1 です。今はイテレータで順に合流させながら渡します。
+		</li>
+	</ul>
+</div>
+
+<Code item={data.code.recorded} />
+
+<div class="prose-learn">
+	<ul>
+		<li>
+			<strong>テンプレートのリストを集めずに読む</strong>（7908907666、割り当て −7.6%）: 要素の属性と属性の断片は入れ子にならないので、コンポーネントの列に直接積み、前後の長さで範囲を取ります。子は入れ子になるので、一本のスタックに集めて、断片が閉じたときに
+			<code>kids</code> へ移します。
+		</li>
+		<li><strong>整形器に行の索引を渡す</strong>（42b6e550e1、命令数 −1.5%）: 文書ごとに一つ作る行の索引を、lint だけでなく Svelte と Vue の整形器も受け取るようにしました（<a href="/learn/kernel/db#attribution">04</a>）。</li>
+		<li>
+			<strong>整形器がコンポーネントの中身を複製しない</strong>（e0ef873545、割り当て −7.8%）: 借用の都合で節点の子、属性の断片、テキストを複製していたのをやめ、コンポーネントの寿命で借用します（<a
+				href="/learn/kernel/doc#ir">08</a
+			>）。
+		</li>
+		<li><strong>JSON の文字列を連続部分ごとにコピー</strong>（a6eed170c4、命令数 −0.6%）: <a href="/learn/kernel/json#escape">10</a> を参照。</li>
+	</ul>
+	<p>
+		増えた行もあります。幅の計算を Prettier から生成した表にした変更（b58a0a72be、+0.22%）、番号の型をニッチ付きにした変更（36c3539efb、+0.08%）、プールの予算（e8eef831d3、+0.22%）です。どれも正しさや長く動くプロセスのために払った費用で、それぞれの章に理由を書いています。
+	</p>
+
 	<H2 id="correctness" />
 
 	{@render item('P1', '書き出す source map と lookup の答えが違った', 'fixed', 'emit.rs · Emitter::source_map、Emitter::lookup')}
@@ -101,6 +245,28 @@
 	<p>
 		ペイロードが文字列でないときも、空文字列ではなく決まった文を入れます（<a href="/learn/kernel/pipeline#run-document">06</a>）。
 	</p>
+
+	{@render item('P6', 'LineIndex::utf16 が多バイト文字の途中で桁あふれした', 'fixed', 'source.rs · LineIndex')}
+	<p>
+		<code>utf16</code> は位置の直前の文字をデコードして長さを引いていたので、多バイト文字の途中の位置を渡すと引き算があふれ、debug
+		ビルドでは panic、release では巨大な列を返していました（<code>utf16("é", 1)</code>）。<code>Emitter::lookup</code> の計算から到達できる道です。今は索引が非
+		ASCII 文字ごとにバイト範囲と UTF-16 の開始位置を記録し、どの問い合わせもテキストを受け取らずに表の二分探索で答えます（91fec70a6d、<a
+			href="/learn/kernel/source#utf16">02</a
+		>）。
+	</p>
+
+	{@render item('P7', 'shouldBreak の group が親の group を壊さなかった', 'fixed', 'doc.rs · Docs::push')}
+	<p>
+		<code>group_broken</code> で作った group が親の group を壊さず、Prettier と違う出力になっていました（708a4403d5、<a href="/learn/kernel/doc#printer"
+			>08</a
+		>）。
+	</p>
+
+	{@render item('P8', '文字列の幅が Prettier と違った', 'fixed', 'doc/width.rs · string_width')}
+	<p>絵文字、異体字セレクタ、ゼロ幅の文字の数え方が違っていました。今は Prettier から生成した表です（b58a0a72be、<a href="/learn/kernel/doc#flat-only">08</a>）。</p>
+
+	{@render item('P9', 'JSON の数値の位置に何でも書けた', 'fixed', 'json.rs · JsonWriter::num、fixed')}
+	<p>整数と小数を別の関数に分け、有限でない小数は <code>null</code> にしました（37a595c11e、<a href="/learn/kernel/json#state">10</a>）。</p>
 
 	<H2 id="contracts" />
 
@@ -166,6 +332,9 @@
 	{@render item('F5', 'Interner がヒットでもテーブルを拡張した', 'fixed', 'intern.rs · Interner::intern')}
 	<p>拡張の判定は、名前が見つからなかったときだけ行います（<a href="/learn/kernel/intern#growth">03</a>）。</p>
 
+	{@render item('F6', 'run が文書ごとにロックを取っていた', 'fixed', 'pipeline.rs · run')}
+	<p>結果は rayon の <code>collect</code> で順に集めます。割り当て回数がプラットフォームに依存しなくなりました（a5f67528cd、<a href="/learn/kernel/pipeline#run">06</a>）。</p>
+
 	<h3 class="mt-12 text-[19px] leading-[1.55] font-semibold">性能への影響</h3>
 	<p>
 		F2、F4、F5 は性能の修正ですが、コーパス全体の時間は動きませんでした。変更前 → 変更後 → 変更後 → 変更前の順に同じコーパスを走らせた中央値（ms、plain
@@ -205,6 +374,15 @@
 		<code>PhaseStats</code> の時間は、フェーズを走らせたスレッドの壁時計の時間をスレッドについて足したものです。CPU
 		時間でも経過時間でもないので、割合で読むことをドキュメントに書き、設計文書の表の見出しを「self CPU ms」から「self ms（スレッド時間の合計）」に直しました。
 	</p>
+
+	{@render item('M3', 'フェーズのガードを別のスレッドで落とせた', 'fixed', 'metrics.rs · PhaseGuard')}
+	<p>
+		ガードは <code>Send</code> でない型になり、順番を違えて落とすと debug ビルドで止まります。<code>CountingAlloc</code> は <code>alloc_zeroed</code>
+		を転送するようになりました（2f8bef970a、<a href="/learn/kernel/metrics#phases">11</a>）。
+	</p>
+
+	{@render item('M4', '命令数の基準値を作業ツリーのフィクスチャで測っていた', 'fixed', 'tools/perf/linux.sh')}
+	<p>ステージしたフィクスチャのスナップショットを測るようにしました（201b86fd6b、<a href="/learn/measure#ci">13</a>）。</p>
 </div>
 
 <ChapterFooter chapter={c} />

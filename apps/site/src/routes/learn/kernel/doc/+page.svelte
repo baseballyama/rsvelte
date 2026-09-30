@@ -45,12 +45,37 @@
 
 <div class="prose-learn">
 	<p>
-		ノードごとに <code>Box</code> を作らないので、文書を組み立てるときの割り当ては、四本のベクタが伸びる分だけです。テキストも、実行時に作った文字列は
-		<code>buf</code> に追記し、ノードはその範囲だけを持ちます。
+		ノードごとに <code>Box</code> を作らないので、文書を組み立てるときの割り当ては、四本のベクタ（<code>nodes</code>、<code
+			>breaks</code
+		>、<code>kids</code>、<code>buf</code>）が伸びる分だけです。テキストも、実行時に作った文字列は <code>buf</code> に追記し、ノードはその範囲だけを持ちます。
 	</p>
 </div>
 
 <Code item={data.code.text} />
+
+<div class="prose-learn">
+	<p>
+		閉じタグ <code>&lt;/div&gt;</code> のように、いくつかの断片をつないだテキストは <code>text_parts</code> で作ります。<code
+			>format!</code
+		>
+		で一度 <code>String</code> を作ってから <code>text</code> に渡すと、その <code>String</code> の分だけ割り当てが増えます。<code
+			>text_parts</code
+		>
+		は断片を <code>buf</code> に直接書きます。Svelte の整形器がこれを使うようにした変更で、1 ラウンドの割り当ては 2,192,937 回から 2,021,660
+		回に減りました（<code>svelte.format</code> 単独では 691,547 回から 520,270 回。e0ef873545）。
+	</p>
+</div>
+
+<Code item={data.code.textParts} />
+
+<div class="prose-learn">
+	<p>
+		四本のベクタそのものも、文書ごとに作り直しません。<code>Docs</code> はスレッドのプールから <code>Docs</code>
+		という鍵でバッファを借り、<code>Drop</code> で逆の順に返します（<a href="/learn/kernel/pool#keyed">12</a>）。
+	</p>
+</div>
+
+<Code item={data.code.pooled} />
 
 <div class="prose-learn">
 	<H2 id="printer" />
@@ -66,7 +91,7 @@
 
 <DocPrinter label="図 8.1 · 文書プリンタ" presets={[call, fill, groupIds, flatOnly, remeasure]} />
 
-<Code item={data.code.run} mark={['Node::Group {', 'if !brk && self.fits(&flat, &stack, self.rem(), false)', 'self.remeasure = true']} />
+<Code item={data.code.run} mark={['let brk = self.docs.will_break(id);', 'if !brk && self.fits(&flat, stack, self.rem(), false)', 'self.remeasure = true']} />
 
 <div class="prose-learn">
 	<p>
@@ -74,12 +99,33 @@
 		は平らな group の中でも必ず改行します。そのとき <code>remeasure</code> を立て、次の group では親のモードに関係なく測り直します。改行したあとは、行の残りの幅が変わっているからです。
 	</p>
 	<p>
-		実はプリンタは、印字を始める前に <code>propagate_breaks</code> で木を一度なめ、hardline や breakParent を含む group
-		をすべて「最初から break」にしておきます。図の「hardline」を選ぶと、外側の group が <code>broken</code> と判断されるのが分かります。
+		group を判断するとき、プリンタはまず <code>will_break</code> を見ます。hardline や breakParent、あるいは最初から break
+		と指定された group（<code>group_broken</code>）を中に含む group は、幅に関係なく break です。図の「hardline」を選ぶと、外側の group が
+		<code>broken</code> と判断されるのが分かります。
+	</p>
+	<p>
+		Prettier はこの判断のために、印字の前に <code>propagateBreaks</code> で木を一度なめ、group の <code>break</code>
+		を書き換えます。カーネルでは、これをノードを作る時点で済ませます。ノードは自分より前に作られたノードしか参照できないので、子の答えは親を作るときにはすでに出ています。<code
+			>push</code
+		>
+		はノードと一緒に、<code>breaks_of</code> の答えを <code>breaks</code> に一つ積みます。
 	</p>
 </div>
 
-<Code item={data.code.breaks} />
+<Code item={data.code.push} mark={['self.breaks.push(breaks);']} />
+
+<Code item={data.code.breaksOf} mark={['} => brk || any(self.kids(start, len)),']} />
+
+<div class="prose-learn">
+	<p>
+		以前は印字の前に木をなめる <code>propagate_breaks</code> があり、hardline と breakParent だけを数えていました。そのため
+		<code>group(["x", line, group(["y"], {'{'} shouldBreak: true {'}'})])</code> を、Prettier 3.9.9 は <code>x\ny</code> と印字するのに、カーネルは
+		<code>x y</code> と印字していました。作る時点で数える形に変えたときに、<code>brk</code> の立った group も数えるようにしました。Svelte
+		のコーパスでは整形の出力が 37 ファイルで変わり、そのうち 35 ファイルがオラクルと一致するようになりました。一致していたファイルが外れた例はありません（708a4403d5）。
+	</p>
+</div>
+
+<Code item={data.code.builtBrokenTest} />
 
 <div class="prose-learn">
 	<H2 id="fits" />
@@ -89,9 +135,14 @@
 	</p>
 </div>
 
-<Code item={data.code.fits} mark={['rest_i -= 1;', 'if must_be_flat && brk {', 'if mode == Mode::Break || matches!(kind, LineKind::Hard | LineKind::Literal)']} />
+<Code item={data.code.fits} />
+<Code item={data.code.fitsIn} mark={['rest_i -= 1;', 'if must_be_flat && brk {', 'if mode == Mode::Break || matches!(kind, LineKind::Hard | LineKind::Literal)']} />
 
 <div class="prose-learn">
+	<p>
+		<code>fits</code> は group を判断するたびに呼ばれるので、作業リストのベクタは <code>Printer</code> が持つ <code>scratch</code>
+		を使い回し、呼び出しごとに確保しません。数える本体は <code>fits_in</code> です。
+	</p>
 	<p>
 		たとえば <code>f(a, b);</code> の group が収まるかは、閉じ括弧のあとの <code>;</code> まで含めて決まります。group
 		だけ見て「収まる」と判断すると、<code>;</code> がはみ出します。rest commands は自分のモードで数えるので、break
@@ -169,21 +220,45 @@
 
 <div class="prose-learn">
 	<p>
-		改行のたびに、行末の空白とタブを取り除きます（literalline では取り除きません）。幅は Prettier の
-		<code>getStringWidth</code> と同じく、全角の文字を 2 列、結合文字を 0 列として数えます。
+		<code>print</code> は、<code>flat_only</code> が収まらないと分かった時点で印字をやめます。どうせ呼び出し側には
+		<code>Refused</code> しか返らないので、残りを印字しても無駄になるからです。
+	</p>
+	<p>
+		改行のたびに、行末の空白とタブを取り除きます（literalline では取り除きません）。
 	</p>
 </div>
 
 <Code item={data.code.newline} />
+
+<div class="prose-learn">
+	<p>
+		幅は Prettier の <code>getStringWidth</code> と同じ数え方をします。ここは手で書いた近似ではなく、Prettier
+		自身から生成した表です。<code>tools/fixtures/bin/string-width.ts</code> が、すべてのコードポイントについて
+		<code>getStringWidth</code> を呼んだ結果と、Prettier の絵文字の正規表現が受け付ける文字列の全体（有限で 5,256 個）を
+		<code>doc/width_tables.rs</code> に書き出します。テストはオラクルから生成した 184,174 件のベクタと突き合わせます（b58a0a72be）<Note
+			>この教材のブラウザ上のプリンタ（図 8.1）は、幅の表までは移植していません。東アジアの全角を 2 列、結合文字を 0 列と数える近似で、絵文字の並びや異体字セレクタでは
+			Rust と答えが違います。</Note
+		>。
+	</p>
+	<p>
+		以前の手書きの表は、非 ASCII のテキスト中のタブや制御文字を 1 列（Prettier は 0 列）、ほとんどの絵文字を 1 列（Prettier は 2
+		列）、ZWJ や国旗の絵文字の並びを部品の和として数えていました。生成した表に置き換えたとき、コーパスの整形出力が変わったファイルは 17,507 ファイル中 0
+		でした。行末の近くに絵文字がないためで、差が出る入力は <code>minimal/emoji-width.svelte</code> として足しています。
+	</p>
+	<p>
+		ほとんどの呼び出しは短い ASCII のテキストなので、0x20..=0x7F だけかどうかを確かめる速い道だけをインライン化し、残りは別の関数にしています。最初の版は 1
+		ラウンドあたり命令数が +1.7% 増え、行ごとの注釈で見ると関数の前置きと後置きに払っていました。分けたあとの増分は +0.22% です（同じコミット）。
+	</p>
+</div>
+
 <Code item={data.code.stringWidth} />
 
 <div class="prose-learn">
 	<H2 id="mutation" />
 	<p>
-		アリーナのノードは、作ったあと変わらないように見えます。しかし、そうではない箇所が三つあります。
+		アリーナのノードは、作ったあと変わらないように見えます。しかし、そうではない箇所があります。
 	</p>
 	<ul>
-		<li><code>propagate_breaks</code> は、印字の前に group の <code>brk</code> を書き換えます。</li>
 		<li>
 			<code>trim_left</code> と <code>trim_right</code> は、prettier-plugin-svelte の <code>trim</code> を移植したもので、<code
 				>replace_parts</code
@@ -195,6 +270,17 @@
 </div>
 
 <Code item={data.code.replaceParts} />
+
+<div class="prose-learn">
+	<p>
+		Prettier は <code>propagateBreaks</code> を印字の直前に走らせるので、trim のあとの木で数え直します。一方
+		<code>Docs</code> は <code>will_break</code> をノードを作るときに決めてしまいます。そこで <code>replace_parts</code>
+		は、子リストを差し替えたあと持ち主の答えを数え直します。子を取り除いても break が増えることはないので、数え直すのは元の答えが
+		true のときだけです。trim は内側から順に差し替えるので、子の答えはその時点で最新です。以前はこの数え直しがなく、hardline
+		を取り除かれた group が壊れたまま印字されていました（e8196d855b）。fixtures の出力でこの形を踏むものは一つもありません（105,387
+		件中 0 件が変化）。修正前に落ちる単体テスト <code>a_trimmed_hard_line_no_longer_breaks</code> で固定しています。
+	</p>
+</div>
 
 <Caution>
 	同じノードを木の二か所で共有していると、<code>trim</code> で片方を整えたつもりが、もう片方も変わります。ノードは

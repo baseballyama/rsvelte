@@ -13,9 +13,11 @@
 </script>
 
 <h2 {id} class="group relative">
-	<a
+	<span class="mb-1 block font-mono text-[12px] font-normal tracking-normal text-muted tnum" aria-hidden="true"
+		>§{Number(chapter?.number ?? 0)}.{index}</span
+	>{title}<a
 		href="#{id}"
-		class="absolute top-[0.35em] right-full mr-4 hidden font-mono text-[12px] font-normal tracking-normal whitespace-nowrap text-muted hover:text-accent xl:block"
-		aria-label="この節へのリンク">§{Number(chapter?.number ?? 0)}.{index}</a
-	>{title}
+		class="ml-2 inline-block align-baseline font-mono text-[0.75em] font-normal text-muted opacity-0 group-hover:opacity-100 hover:text-accent focus-visible:opacity-100 max-md:opacity-40"
+		aria-label="「{title}」へのリンク">#</a
+	>
 </h2>

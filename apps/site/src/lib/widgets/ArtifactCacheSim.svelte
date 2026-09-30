@@ -5,9 +5,8 @@
 	let selected: TaskId[] = $state([...TASKS]);
 	let sharing: 'shared' | 'isolated' = $state('shared');
 	let parses = $state(true);
-	let checkConfigured = $state(true);
 
-	const traces = $derived(simulate(selected, { parses, checkConfigured }, sharing));
+	const traces = $derived(simulate(selected, { parses }, sharing));
 	const counts = $derived(computeCounts(traces));
 	const artifacts = ARTIFACTS;
 	// The layer hues of figure 5.1: surface, resolution, HIR; the rest are neutral.
@@ -17,7 +16,7 @@
 		'svelte.hir': 'var(--c-gen)',
 		'svelte.analyze': 'var(--c-idle)',
 		'svelte.css': 'var(--fg-2)',
-		'svelte.project.ts': 'var(--fg-2)'
+		'ts.view': 'var(--fg-2)'
 	};
 
 	function toggle(t: TaskId) {
@@ -30,9 +29,6 @@
 		<button type="button" class="btn-ghost" aria-pressed={sharing === 'shared'} onclick={() => (sharing = 'shared')}>Shared</button>
 		<button type="button" class="btn-ghost" aria-pressed={sharing === 'isolated'} onclick={() => (sharing = 'isolated')}>Isolated</button>
 		<button type="button" class="btn-ghost" aria-pressed={!parses} onclick={() => (parses = !parses)}>パース失敗</button>
-		<button type="button" class="btn-ghost" aria-pressed={!checkConfigured} onclick={() => (checkConfigured = !checkConfigured)}
-			>check 未設定</button
-		>
 	{/snippet}
 	<div class="grid lg:grid-cols-[minmax(0,1fr)_220px]">
 		<ol class="min-w-0 divide-y divide-line border-b border-line lg:border-r lg:border-b-0">
@@ -84,8 +80,9 @@
 		</div>
 	</div>
 	{#snippet caption()}
-		各行は、そのタスクが <code>ctx.get</code> を呼んだ順です。字下げした札は、別のアーティファクトの <code>compute</code>
-		の中から呼ばれた <code>get</code> です。呼び出しの順は <code>rsv_svelte</code> の <code>tasks.rs</code> と
-		<code>lib.rs</code> から書き写したモデルで、実際の Rust を動かしているわけではありません。
+		各行は、そのタスクが <code>ctx.get</code>（check は <code>ctx.facet</code>）を呼んだ順です。字下げした札は、別のアーティファクトの
+		<code>compute</code> の中から呼ばれた <code>get</code> です。<code>ts.view</code> はアーティファクトではなくファセットですが、同じ
+		slot の表にキャッシュされます。呼び出しの順は <code>rsv_svelte</code> の <code>tasks.rs</code>・<code>lib.rs</code> と
+		<code>rsv_js</code> の <code>check.rs</code> から書き写したモデルで、実際の Rust を動かしているわけではありません。
 	{/snippet}
 </Figure>

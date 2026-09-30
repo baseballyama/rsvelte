@@ -109,23 +109,42 @@
 		<code>line_starts</code> には各行の先頭のバイト位置が入ります。バイト位置から行を求めるには、この配列を二分探索するだけです。
 	</p>
 	<p>
-		列の計算にはもう一つ表が要ります。<code>wide</code> には、ASCII でない文字のバイト位置と、その文字より前のテキストの
-		UTF-16 での長さを並べます。ASCII だけの文書では、この表は空のままです。ASCII では 1 バイトが UTF-16 の 1
+		列の計算にはもう一つ表が要ります。<code>wide</code> には、ASCII でない文字ごとに、そのバイト範囲（始まりと終わり）と、始まりの
+		UTF-16 での位置を並べます。ASCII だけの文書では、この表は空のままです。ASCII では 1 バイトが UTF-16 の 1
 		単位なので、バイト位置をそのまま返せばよいからです。<code>fixtures/svelte</code> の 17,488 文書では、16,437 文書（94%）が ASCII だけでできていて、この近道を通ります<Note>各ユニットの <code>input.svelte</code> を読み、全バイトが 0x80 未満かを数えました（2026-09-29）。</Note>。
 	</p>
 </div>
 
+<Code item={data.code.wide} />
 <Code item={data.code.indexNew} mark={['is_ascii']} />
+
+<div class="prose-learn">
+	<p>
+		索引はテキストを持ちません。どの問い合わせも、この二つの表と文書の長さだけで答えます。以前は <code>utf16</code>
+		がテキストを受け取って位置の直前の文字をデコードしていたので、呼び出し側が別のテキストを渡す間違いが起こりえました。今はそもそも渡せません（91fec70a6d）。
+	</p>
+</div>
 
 <div class="prose-learn">
 	<H2 id="utf16" />
 	<p>
-		<code>utf16(byte)</code> は、<code>byte</code> より前にある最後の非 ASCII 文字を <code>wide</code>
-		から二分探索で見つけ、そこからは ASCII だけが続くことを利用して差を足します。
+		<code>utf16(byte)</code> は、<code>byte</code> より前で終わる最後の非 ASCII 文字を <code>wide</code>
+		から二分探索で見つけ、そこからは ASCII だけが続くことを利用して差を足します。<code>byte</code> が多バイト文字の途中を指していれば、その文字の始まりの位置を返し、文書の終わりを越えていれば終わりの位置を返します。
 	</p>
 </div>
 
 <Code item={data.code.utf16} />
+
+<div class="prose-learn">
+	<p>
+		以前の <code>utf16</code> は、直前の文字をデコードしてその長さを引いていました。多バイト文字の途中の位置を渡すと引き算があふれ、debug
+		ビルドでは panic、release ビルドでは巨大な列になっていました（<code>utf16("é", 1)</code>）。<code>Emitter::lookup</code>
+		の計算から到達できる道だったので、表だけで答える形に書き直しました。テストは混ざったテキストを先頭から歩き、すべての境目が歩いた結果と一致すること、逆向きにも戻ることを確かめます。書き直しの費用は、非
+		ASCII 文字 1 つあたり 8 バイトから 12 バイトになった表の分で、1 ラウンドの確保バイト数が 11,808 増えました。割り当て回数と命令数は変わっていません（91fec70a6d）。
+	</p>
+</div>
+
+<Code item={data.code.roundTest} />
 
 <div class="prose-learn">
 	<p>
@@ -147,7 +166,8 @@
 
 	<H2 id="offset" />
 	<p>
-		逆向きの <code>offset(line, column)</code> は、行の先頭から UTF-16 の単位を数えながら進みます。
+		逆向きの <code>offset(line, column)</code> も表の二分探索です。行の先頭の UTF-16 位置に列を足して目標の位置を作り、その位置より前で終わる最後の非
+		ASCII 文字から、ASCII の分だけバイトを進めます。
 	</p>
 </div>
 

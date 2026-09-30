@@ -38,13 +38,14 @@ export const chapters: Chapter[] = [
 		href: '/learn/kernel',
 		number: '01',
 		title: 'カーネルの全体像',
-		abstract: 'カーネルとプラグインの境界、モジュールの地図、1 文書が通る道。',
-		minutes: 12,
+		abstract: 'カーネルとプラグインの境界、モジュールの地図、1 文書が通る道、二つ目の言語 Vue と svue。',
+		minutes: 15,
 		sections: [
 			s('why', 'なぜカーネルなのか'),
 			s('layers', '層と境界'),
 			s('modules', 'モジュール地図'),
 			s('life', '1 文書の一生'),
+			s('languages', '二つ目の言語 — Vue と svue'),
 			s('promises', '設計上の約束')
 		]
 	},
@@ -84,16 +85,17 @@ export const chapters: Chapter[] = [
 		href: '/learn/kernel/db',
 		number: '04',
 		title: '一度だけ計算する — Artifact と Ctx',
-		abstract: '文書ごとの遅延キャッシュ。compile と format と lint が同じパースを共有する仕組み。',
+		abstract: '文書ごとの遅延キャッシュと、言語ごとに答えるファセット。compile と format と lint が同じパースを共有し、一つの型検査が全言語に効く仕組み。',
 		module: 'kernel/db',
-		minutes: 14,
+		minutes: 18,
 		sections: [
 			s('artifact', 'Artifact トレイト'),
 			s('registry', 'TypeId から slot へ'),
 			s('get', 'Ctx::get'),
 			s('sharing', '共有と孤立'),
 			s('cycles', '循環と !Sync'),
-			s('attribution', '誰の時間として数えるか')
+			s('attribution', '誰の時間として数えるか'),
+			s('facet', 'ファセット — 言語ごとの答え')
 		]
 	},
 	{
@@ -101,17 +103,20 @@ export const chapters: Chapter[] = [
 		href: '/learn/kernel/layers',
 		number: '05',
 		title: '層 — AST から HIR へ',
-		abstract: '型付き ID と side table。構文木の上に名前解決と HIR を重ね、lint のルールを層ごとに書く。',
+		abstract: '型付き ID と side table。構文木の上に名前解決と HIR を重ね、コンパイラと lint が層を読む。HIR を作れば別の構文もコンパイルできる。',
 		module: 'kernel/idx',
-		minutes: 14,
+		minutes: 20,
 		sections: [
 			s('why', 'なぜ層を重ねるのか'),
 			s('ids', '型付き ID と side table'),
+			s('niche', 'ニッチ ID と大きさの固定'),
 			s('tokens', '欠損ゼロ — トークン表'),
 			s('stack', 'Svelte の層'),
 			s('resolve', '名前解決'),
 			s('hir', 'HIR'),
+			s('svue', 'フロントエンドの差し替え — svue'),
 			s('lint', 'early と late のルール'),
+			s('shared-lint', '言語をまたぐ判断'),
 			s('next', 'この先の層')
 		]
 	},
@@ -130,7 +135,7 @@ export const chapters: Chapter[] = [
 			s('run-document', 'run_document と panic の隔離'),
 			s('run-each', 'run_each とストリーミング'),
 			s('project', 'プロジェクトパス'),
-			s('run', 'run は run_each の上にある')
+			s('run', 'run はロックなしで集める')
 		]
 	},
 	{
@@ -215,24 +220,35 @@ export const chapters: Chapter[] = [
 		href: '/learn/kernel/pool',
 		number: '12',
 		title: 'バッファの再利用 — pool',
-		abstract: '文書をまたいで Vec の容量を使い回す、スレッドローカルのプール。',
+		abstract: '文書をまたいで Vec の容量を使い回す、スレッドローカルのプール。持ち主ごとの鍵と、スレッドあたりの予算。',
 		module: 'kernel/pool',
-		minutes: 6,
-		sections: [s('idea', '考え方'), s('take-give', 'take と give'), s('limits', '上限と順序'), s('measure', '効果を測る')]
+		minutes: 10,
+		sections: [
+			s('idea', '考え方'),
+			s('take-give', 'take と give'),
+			s('keyed', '持ち主ごとの鍵'),
+			s('limits', '上限と予算'),
+			s('users', 'プールを使う構造'),
+			s('measure', '効果を測る')
+		]
 	},
 	{
 		slug: 'measure',
 		href: '/learn/measure',
 		number: '13',
-		title: '実測',
-		abstract: 'コーパス全体でアームを比べる。何が効いて、何が効いていないか。',
-		minutes: 10,
+		title: '実測 — 性能のラチェット',
+		abstract: '割り当てと命令数を決定的に数え、すべての push で基準値と比べる。正しさのラチェットと、壁時計のベンチマーク。',
+		minutes: 14,
 		sections: [
-			s('arms', 'アーム'),
+			s('ratchet', '性能のラチェット'),
+			s('counters', '数えるもの'),
+			s('determinism', 'なぜ決定的なのか'),
+			s('ci', 'CI と基準値の更新'),
+			s('parity', '正しさのラチェット'),
+			s('arms', '壁時計のアーム'),
 			s('time', '時間'),
 			s('memory', 'メモリと割り当て'),
 			s('phases', 'フェーズ'),
-			s('correctness', '速さは正しさではない'),
 			s('reproduce', '再現する')
 		]
 	},
@@ -241,9 +257,10 @@ export const chapters: Chapter[] = [
 		href: '/learn/polish',
 		number: '14',
 		title: '磨きどころ',
-		abstract: 'コードを読んで見つけた、直す価値のある箇所と、それぞれをどうしたか。',
-		minutes: 12,
+		abstract: '最適化の記録と計測した差分。コードを読んで見つけた、直す価値のある箇所と、それぞれをどうしたか。',
+		minutes: 16,
 		sections: [
+			s('history', '最適化の記録'),
 			s('correctness', '正しさ'),
 			s('contracts', '契約と文書'),
 			s('performance', '性能'),

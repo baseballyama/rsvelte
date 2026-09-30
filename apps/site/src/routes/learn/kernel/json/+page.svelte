@@ -57,12 +57,20 @@
 
 <div class="prose-learn">
 	<p>
-		数値は <code>Display</code> を実装した値なら何でも受け取ります。ベンチマークでは <code>format!("{'{:.3}'}", ms)</code>
-		で丸めた文字列を渡しています。ただし、渡した文字列が JSON の数値として正しいかは確かめません。
+		数値は二つの関数に分かれています。<code>num</code> が受け取るのは整数だけです（<code>Integer</code> トレイトを実装した型）。小数は
+		<code>fixed</code> で、小数点以下の桁数を指定して書きます。JSON には <code>NaN</code> も無限大もないので、有限でない値は
+		<code>null</code> になります。
+	</p>
+	<p>
+		以前の <code>num</code> は <code>Display</code> を実装した値なら何でも受け取っていました。そのため文字列も <code>NaN</code>
+		も数値の位置に書けてしまい、実際にベンチマークは <code>format!("{'{:.3}'}", …)</code> で丸めた文字列を渡し、母集団が空のときは
+		<code>NaN</code> を書いていました。型で分けたことで、どちらも書けなくなりました（37a595c11e）。
 	</p>
 </div>
 
+<Code item={data.code.integer} />
 <Code item={data.code.num} />
+<Code item={data.code.fixed} />
 
 <div class="prose-learn">
 	<H2 id="escape" />
@@ -71,9 +79,21 @@
 		<code>\u00XX</code> にします。U+2028 と U+2029 はそのまま書きます。JSON としては正しいのですが、古い JavaScript
 		の文字列リテラルに埋め込むと構文エラーになる文字です。
 	</p>
+	<p>
+		エスケープの要らない文字は、一文字ずつではなく、次にエスケープする位置までをまとめて一度にコピーします。エスケープが要るバイトはすべて
+		ASCII なので、区切りは必ず文字の境目に来ます。一文字ずつ書いていたころと比べて、1 ラウンドの命令数は 2,767,320,163 から 2,749,769,496（−0.6%）になり、フィクスチャの出力は何も変わりませんでした（a6eed170c4）。
+	</p>
 </div>
 
 <Code item={data.code.writeStr} />
+
+<div class="prose-learn">
+	<p>
+		テストは一文字ずつ書く元の定義（<code>by_char</code>）を残しておき、ASCII のすべての文字と、エスケープと多バイト文字が混ざったテキストで、二つの出力が一致することを確かめます。
+	</p>
+</div>
+
+<Code item={data.code.escapeTest} />
 <Code item={data.code.test} />
 
 <ChapterFooter chapter={c} />

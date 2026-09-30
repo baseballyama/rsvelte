@@ -15,10 +15,10 @@
 	const stack = [
 		{ name: 'svelte.parse', layer: '表層', what: '書かれたとおりの木。整形はこれだけを読む。', readers: 'すべて' },
 		{ name: 'svelte.resolve', layer: '名前解決', what: 'スコープ、名前から束縛への対応、rune の種類。', readers: 'compile, lint' },
-		{ name: 'svelte.hir', layer: 'HIR', what: 'コンパイラが理解する形のテンプレート。', readers: 'lint' },
-		{ name: 'svelte.analyze', layer: 'コンパイラの派生', what: '式の依存、動的な断片、CSS が選ぶ要素。', readers: 'compile' },
+		{ name: 'svelte.hir', layer: 'HIR', what: 'コンパイラが理解する形のテンプレート。', readers: 'compile, lint' },
+		{ name: 'svelte.analyze', layer: 'コンパイラの派生', what: '式の依存、動的な断片、CSS が選ぶ要素。HIR と名前解決を読む。', readers: 'compile' },
 		{ name: 'svelte.css', layer: '出力', what: 'スコープを付けた CSS。', readers: 'compile' },
-		{ name: 'svelte.project.ts', layer: '出力', what: '型検査が読む TypeScript。', readers: 'check' }
+		{ name: 'ts.view', layer: '出力（ファセット）', what: '型検査が読む TypeScript。Svelte の答えは表層の木から作る。', readers: 'check' }
 	];
 </script>
 
@@ -47,7 +47,10 @@
 	<p>
 		層は、自分の扱うものに 0 から番号を振ります。その番号についてあとの層が知った事実は、木に書き込まず、番号で引く表（side table）に置きます。木は一度作ったら変わりません。
 	</p>
-	<p>番号には型を付けます。<code>Idx</code> は番号の型が満たすトレイトで、<code>newtype_index!</code> が <code>u32</code> を包んだ型を作ります。</p>
+	<p>
+		番号には型を付けます。<code>Idx</code> は番号の型が満たすトレイトで、<code>newtype_index!</code> が番号の型を作ります。中身は
+		<code>u32</code> ではなく、番号に 1 を足した <code>NonZeroU32</code> です（理由は次の節）。
+	</p>
 </div>
 
 <Code item={data.code.idx} />
@@ -65,9 +68,9 @@
 <div class="prose-learn">
 	<p>
 		<code>rsv_js</code> のスコープ解析は、この型を最初に使った場所です。<code>BindingId</code> と <code>ScopeId</code>
-		は型付きの番号になり、ルートのスコープの親は番兵の <code>u32::MAX</code> ではなく <code>None</code> になりました。例外は、節点ごとの束縛を引く表です。文書のすべての節点に一つずつ要素があるので、<code
-			>Option&lt;BindingId&gt;</code
-		>（8 バイト）ではなく生の <code>u32</code> で持ち、外には <code>binding_of</code> だけを見せています。
+		は型付きの番号になり、ルートのスコープの親は番兵の <code>u32::MAX</code> ではなく <code>None</code> になりました。例外は、節点ごとの束縛を引く表です。これは今も生の
+		<code>u32</code> に番兵 <code>u32::MAX</code> を入れる形で持ち、外には <code>binding_of</code> だけを見せています。この形を選んだ当時は
+		<code>Option&lt;BindingId&gt;</code> が 8 バイトだったためで、次の節の変更のあとは <code>Option&lt;BindingId&gt;</code> も 4 バイトです。
 	</p>
 
 	<DeepDive title="層どうしの対応も表で持つ">
@@ -79,6 +82,48 @@
 		</p>
 	</DeepDive>
 
+	<H2 id="niche" />
+	<p>
+		番号の型の中身を <code>NonZeroU32</code> にすると、Rust は 0 という値が使われないことを知っているので、<code>Option&lt;Id&gt;</code>
+		の <code>None</code> を 0 で表せます（ニッチ最適化）。<code>Option&lt;Id&gt;</code> は <code>Id</code> と同じ 4 バイトになり、「親があるかもしれない」「参照先があるかもしれない」という欄が、ない場合の番兵なしで書けます。rustc
+		と oxc の番号の型も同じ形です。
+	</p>
+	<p>
+		代わりに、番号を作るたびに 1 を足し、表を引くたびに 1 を引きます。導入したコミットは、その費用を 1 ラウンドの命令数で +0.08% と測っています。得たものは、<code
+			>svelte.resolve</code
+		>
+		の確保バイト数の 3.3% 減です（36c3539efb）。<code>newtype_index!</code> は、<code>const ROOT = 0;</code>
+		のように名前の付いた番号も受け取ります。
+	</p>
+	<p>
+		同じコミットで、よく使う記録の大きさをコンパイル時に固定しました。<code>const _: () = assert!(size_of::&lt;T&gt;() == N)</code>
+		をそれぞれの型の隣に置き、欄を一つ足して型が広がると、性能のラチェットで気づく前にビルドが止まります。大きさを変えることは、偶然ではなく判断になります。
+	</p>
+</div>
+
+<figure class="my-8 overflow-x-auto">
+	<table class="table">
+		<thead><tr><th>型</th><th class="num">バイト</th><th>ファイル</th></tr></thead>
+		<tbody>
+			{#each data.layouts as l (l.file + l.type)}
+				<tr>
+					<td><code>{l.type}</code></td>
+					<td class="num">{l.bytes}</td>
+					<td class="font-mono text-[13px] text-fg-2">{l.file}</td>
+				</tr>
+			{/each}
+		</tbody>
+	</table>
+	<figcaption class="mt-2 text-[13px] leading-[1.7] text-muted">
+		この教材が引用する crate の中の <code>assert!(size_of::&lt;T&gt;() == N)</code> を、ビルドのたびにソースから読んで並べた表です。
+	</figcaption>
+</figure>
+
+<div class="prose-learn">
+	<p>
+		文書 IR の <code>Node</code> を 16 バイトにする案（<code>&amp;'static str</code> の <code>Static</code> をやめ、リテラルもテキストのバッファに写す）も測られています。命令数もバイト数も増えたので、採用していません（36c3539efb）。
+	</p>
+
 	<H2 id="tokens" />
 	<p>
 		いちばん下の層は、書かれたものを何も落としてはいけません。構文木を AST にするか CST にするかは言語ごとに決めてよく、カーネルはそこに口を出しません。カーネルが求めるのは一つだけで、表層の層が持つトークンを、空白とコメントも含めて順に並べると、ソースとバイト単位で一致することです。この性質は言語を知らなくても確かめられます。
@@ -86,6 +131,14 @@
 </div>
 
 <Code item={data.code.lossless} />
+
+<div class="prose-learn">
+	<p>
+		トークン表は文書ごとに作っては捨てるので、そのバッファもスレッドのプールから借りて返します（<a href="/learn/kernel/pool#users">12</a>）。
+	</p>
+</div>
+
+<Code item={data.code.tokensDefault} />
 
 <div class="prose-learn">
 	<p>
@@ -163,8 +216,9 @@
 <div class="prose-learn">
 	<H2 id="hir" />
 	<p>
-		HIR は、テンプレートをコンパイラが理解する形に直したものです。作るときに読むのは表層の木だけで、ソースを読むのは名前と、表層の木が記録していない「省略形
-		<code>{'{a}'}</code> で書いたか」だけです。
+		HIR は、テンプレートをコンパイラが理解する形に直したものです。作るときに読むのは表層の木で、ソースのテキストを読むのは名前と、文字参照を展開するテキストだけです。コンパイラの解析（<code
+			>svelte.analyze</code
+		>）とクライアント・サーバーの出力は、表層の木ではなく HIR を読みます。
 	</p>
 	<ul>
 		<li><code>{'{#if}…{:else if}…{:else}'}</code> は、入れ子の <code>If</code> ではなく、枝を並べた一つの節点になります。</li>
@@ -193,6 +247,16 @@
 
 <div class="prose-learn">
 	<p>
+		<code>element_kind</code> は <code>HirBuilder</code> のメソッドです。<code>HirBuilder</code> は公開された型で、Svelte
+		の表層の木を知りません。節点を足し、子の並びを記録し、祖先をたどって要素の種類を決めるだけです。Svelte の表層の木から HIR を作るのは、その上に書かれた
+		<code>SurfaceBuilder</code> です。
+	</p>
+</div>
+
+<Code item={data.code.hirBuilder} />
+
+<div class="prose-learn">
+	<p>
 		コンポーネント名の正規表現は <code>\p{'{'}Lu}</code>、<code>\p{'{'}ID_Start}</code>、<code>\p{'{'}ID_Continue}</code>
 		を使います。ID_Start と ID_Continue は <code>unicode-id-start</code> の表で判定します。<code>\p{'{'}Lu}</code> は
 		Rust の <code>char::is_uppercase</code> から Other_Uppercase（<code>Ⅰ</code> や <code>Ⓐ</code>）を除いたものです。<code
@@ -210,6 +274,49 @@
 <Code item={data.code.list} />
 
 <div class="prose-learn">
+	<H2 id="svue" />
+	<p>
+		コンパイラが HIR だけを読むので、HIR を作れる別の構文があれば、そのまま Svelte としてコンパイルできます。<code>rsv_svue</code>
+		はその実験です。<code>.svue</code> は Vue のテンプレート構文で書き、Svelte の意味でコンパイルします。<code>{'{{ e }}'}</code> は <code
+			>{'{e}'}</code
+		>、<code>:x="e"</code> は <code>x={'{e}'}</code>、<code>@x="e"</code> は <code>onx={'{e}'}</code>、<code>v-if</code> /
+		<code>v-else-if</code> / <code>v-else</code> の並びは一つの <code>{'{#if}'}</code> です。
+	</p>
+	<p>
+		新しいコンパイラは書いていません。パースは Vue プラグインのパーサ（アーティファクトも Vue プラグインの <code>rsv_vue::Parsed</code>
+		そのもの）、名前解決と解析と出力は Svelte プラグインのものです。<code>rsv_svue</code> が持っているのは、Vue の木から Svelte の HIR
+		を作る変換だけです。
+	</p>
+</div>
+
+<Code item={data.code.svueRegister} mark={['.artifact::<rsv_vue::Parsed>()']} />
+<Code item={data.code.svueFrontend} />
+<Code item={data.code.svueBuild} mark={['HirBuilder::new(src, sfc.nodes.len(), sfc.attrs.len())']} />
+
+<div class="prose-learn">
+	<p>
+		名前解決も Svelte の関数を、Vue のパーサが作った JavaScript の木と、変換が集めたテンプレートの式に対して呼ぶだけです。コンパイラが受け取るのは、どちらのフロントエンドでも同じ形の入力です。
+	</p>
+</div>
+
+<Code item={data.code.svueResolved} />
+<Code item={data.code.compileInputType} />
+
+<div class="prose-learn">
+	<p>
+		変換は Svelte の意味を持たない構文（<code>v-for</code>、引数と値を持つ <code>:x</code> と <code>@x</code> 以外の指令、2 つ目の
+		<code>&lt;style&gt;</code>）を、それらしく変換せずに <code>compile_unsupported</code> で拒否します。オラクルは Rust 側と独立に書いた
+		<code>tools/fixtures/src/svue.ts</code> で、<code>.svue</code> のテキストを Svelte の構文に書き直し、公式の Svelte
+		コンパイラに通します。導入したコミットでは、5 ユニットの client と server で、すべての成果物が一致しました（96b8f37ac8）。
+	</p>
+	<p>
+		この実験のために Svelte プラグインの側で必要だった変更は二つです。HIR に公開の builder を足したことと、属性名をソースの範囲ではなく名前として持てるようにしたことです（<code
+			>@click</code
+		>
+		は <code>onclick</code> という名前で、ソースのどこにも <code>onclick</code> とは書かれていません）。その前段として、解析と出力が表層の木ではなく
+		HIR を読むように移しています。移したときは、Svelte のコーパスで compile・format・lint の出力 70,608 ファイルのハッシュが前後で一致しました（db94f0bd13）。
+	</p>
+
 	<H2 id="lint" />
 	<p>
 		ルールは、自分の問いに答える層の上で書きます。rustc と同じく、構文木を読むルールを <dfn>early</dfn>、下げた層を読むルールを
@@ -230,7 +337,7 @@
 
 <Code item={data.code.findings} />
 <Code item={data.code.lint} />
-<Code item={data.code.button} mark={['AttrValue::Boolean', 'AttrValue::Static(v) if v.is_empty()', 'AttrValue::Shorthand(_)']} />
+<Code item={data.code.button} mark={['AttrValue::Boolean', 'AttrValue::Static(v) => check_static(v, Allowed::default())', 'AttrValue::Shorthand(_)']} />
 
 <div class="prose-learn">
 	<p>
@@ -241,6 +348,40 @@
 	<p>
 		0 という結果は、変化を見分けられる測り方でなければ意味を持ちません。そこで「値が不正」の分岐だけを潰したバイナリを作って同じ比較をすると、変わったのは
 		1 ファイルで、その指摘を持つ唯一のファイルと一致しました。
+	</p>
+
+	<H2 id="shared-lint" />
+	<p>
+		上流では、<code>svelte/button-has-type</code>（eslint-plugin-svelte）と <code>vue/html-button-has-type</code>（eslint-plugin-vue）は、一つのルールを写した二つの実装です。rsvelte
+		では判断の部分、つまり <code>type</code> が取れる値、四つのメッセージ、オプションを <code>rsv_html::button_type</code> の一つの関数にしています。
+	</p>
+</div>
+
+<Code item={data.code.buttonType} />
+
+<div class="prose-learn">
+	<p>
+		各プラグインに残るのは、二つの木の違いから来る部分だけです。
+	</p>
+	<ul>
+		<li>
+			Svelte は値の種類を問わず最初の <code>type</code> を取り、省略形 <code>{'{type}'}</code> でも満たされ、指摘は属性全体に付きます。
+		</li>
+		<li>
+			Vue は静的な <code>type</code> を先に探してから <code>:type</code> を見て、属性名を大文字小文字の区別なく比べ、指摘は値の節点（引用符を含む）に付きます。
+		</li>
+	</ul>
+</div>
+
+<Code item={data.code.vueButton} mark={['check_static(&text, Allowed::default())', 'value_node(v, a.quoted)']} />
+
+<div class="prose-learn">
+	<p>
+		Vue のルールは late の層を持たないので、表層の木の上で書かれています。Svelte のルールは HIR の上です。層が違っても、判断を共有するのに困ることはありません。共有しているのは層ではなく、値についての判断だからです。
+	</p>
+	<p>
+		<code>vue/html-button-has-type</code> はこのとき新しく足したルールで、<code>vue.lint</code> は 19 ユニット中 19 でオラクルと一致しました。報告の範囲を引用符の分だけずらすと
+		18/19 に落ちることを対照として確かめています。<code>svelte.lint</code> は 12/12 のままでした（5c933023a7）。
 	</p>
 
 	<H2 id="next" />
@@ -255,8 +396,8 @@
 			<code>$derived</code> の依存のグラフです。節点は HIR の番号を指します。
 		</li>
 		<li>
-			<strong>出力</strong>: クライアントとサーバーの JavaScript、TypeScript の射影は、今は表層の木から作っています。HIR
-			とデータフローの層から作るように移すと、コンパイラと lint が同じ判断を共有します。
+			<strong>出力</strong>: クライアントとサーバーの JavaScript は、すでに HIR から作っています。TypeScript の射影（<code>ts.view</code>
+			の Svelte の答え）は、まだ表層の木から作っています。これを HIR とデータフローの層から作るように移すと、コンパイラ、lint、型検査が同じ判断を共有します。
 		</li>
 		<li>
 			<strong>独自のツール</strong>: 新しいツールはタスクを一つ書き、必要な層を <code>ctx.get</code> で求めるだけです。既存のタスクと同じ層を読むなら、その層は計算し直されません。

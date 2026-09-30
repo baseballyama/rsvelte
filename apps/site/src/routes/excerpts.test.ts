@@ -4,19 +4,23 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseRustModule, type RustItem } from '$lib/build/rust-items.ts';
+import { CRATES, sources } from '$lib/build/sources.ts';
 
 const crates = path.resolve(import.meta.dirname, '../../../../crates');
-const CRATE: Record<string, string> = { kernel: 'rsv_kernel', svelte: 'rsv_svelte', js: 'rsv_js', cli: 'rsv_cli' };
+const files = new Map(sources(crates).map((s) => [s.key, s.file]));
 
 const items = new Map<string, RustItem>();
 function item(key: string): RustItem | undefined {
 	if (!items.has(key)) {
-		const [crate, mod] = key.split('/');
-		const file = path.join(crates, CRATE[crate], 'src', `${mod}.rs`);
-		for (const it of parseRustModule(`${crate}/${mod}`, file, readFileSync(file, 'utf8')).items) items.set(it.key, it);
+		const mod = key.split('/').slice(0, 2).join('/');
+		const file = files.get(mod);
+		if (!file) return undefined;
+		for (const it of parseRustModule(mod, file, readFileSync(path.join(crates, file), 'utf8')).items) items.set(it.key, it);
 	}
 	return items.get(key);
 }
+
+const crateKeys = Object.values(CRATES).join('|');
 
 const routes = path.resolve(import.meta.dirname);
 const pages = readdirSync(routes, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('+page.svelte'));
@@ -30,10 +34,13 @@ describe('excerpts', () => {
 		} catch {
 			continue;
 		}
-		const keys = new Map([...server.matchAll(/(\w+): '((?:kernel|svelte|js|cli)\/[^']+)'/g)].map((m) => [m[1], m[2]]));
+		const keys = new Map(
+			[...server.matchAll(new RegExp(`(\\w+): '((?:${crateKeys})\\/[^']+)'`, 'g'))].map((m) => [m[1], m[2]])
+		);
 		if (keys.size === 0) continue;
 		it(page, () => {
-			for (const [name, key] of keys) expect(item(key), `${name}: ${key}`).toBeDefined();
+			const missing = [...keys].filter(([, key]) => item(key) === undefined).map(([name, key]) => `${name}: ${key}`);
+			expect(missing.join(", ")).toBe("");
 			const svelte = readFileSync(path.join(routes, page), 'utf8');
 			for (const m of svelte.matchAll(/data\.code\.(\w+)\}\s*mark=\{\[([^\]]*)\]\}/g)) {
 				const key = keys.get(m[1]);

@@ -34,13 +34,20 @@
 
 <div class="prose-learn">
 	<p>
-		確保の回数とバイト数を、スレッドローカルのカウンタに足します。スレッドローカルなので、並列に走っていても競合しません。<code>try_with</code>
-		を使うのは、スレッドの終了処理中（スレッドローカルがもう破棄されたあと）にも確保が起きうるからです。
+		確保の回数とバイト数を、スレッドローカルのカウンタに足します。スレッドローカルなので、並列に走っていても競合しません。二つの数は一つの
+		<code>Cell</code> に組で入れてあり、確保一回につきスレッドローカルへのアクセスは一回です。<code>try_with</code>
+		を使うのは、スレッドの終了処理中（スレッドローカルがもう破棄されたあと）にも確保が起きうるからです。システムのアロケータが失敗したとき（null
+		が返ったとき）は何も数えません。
 	</p>
 	<p>
-		時間と違って、確保の回数は決定的です。同じ入力なら毎回同じ数になるので、CI で「割り当てが増えていないか」を門番にできます<Note
-			>時間はマシンの混み具合で揺れるので、CI の門番には向きません。</Note
-		>。
+		<code>alloc_zeroed</code> も転送しています。<code>GlobalAlloc</code> の既定の <code>alloc_zeroed</code> は <code>alloc</code>
+		を呼んでから全バイトに 0 を書くので、転送しないと <code>vec![0; n]</code> が <code>calloc</code> の「最初から 0 のページ」を使えなくなり、metrics
+		ありのビルドだけが遅くなります（2f8bef970a）。
+	</p>
+	<p>
+		時間と違って、確保の回数は決定的です。1 スレッドで同じ入力を処理すれば、毎回同じ数になります。そのため CI は、割り当ての回数とバイト数を記録した値と<strong>完全に一致</strong>するかで比べています（<a
+			href="/learn/measure#ratchet">13 性能のラチェット</a
+		>）<Note>時間はマシンの混み具合で揺れるので、CI の門番には向きません。</Note>。
 	</p>
 
 	<H2 id="phases" />
@@ -50,13 +57,24 @@
 	</p>
 </div>
 
+<Code item={data.code.guard} />
+<Code item={data.code.notSend} />
 <Code item={data.code.phase} />
-<Code item={data.code.drop} mark={['parent.child_ns += total_ns;', 'row.self_ns += total_ns.saturating_sub(f.child_ns);', '.position(|r| std::ptr::eq(r.name, f.name) || r.name == f.name)']} />
+<Code item={data.code.drop} mark={['debug_assert_eq!(s.len(), self.depth', 'parent.child_ns += total_ns;', 'row.self_ns += total_ns.saturating_sub(f.child_ns);', '.position(|r| r.name == f.name)']} />
 
 <div class="prose-learn">
 	<p>
 		ガードが落ちるとき、自分の合計を親フレームの「子の合計」に足し、自分の行には合計から子の合計を引いた <dfn>self</dfn>
 		を足します。つまりフェーズは<strong>排他的</strong>です。すべてのフェーズの self を足すと、一番外側のフェーズの合計になります。
+	</p>
+	<p>
+		ガードはスレッドのスタックからフレームを取り出すので、作ったスレッドで、作った逆の順に落とさなければなりません。そこで <code>PhaseGuard</code>
+		は <code>Send</code> でない型（<code>PhantomData&lt;*const ()&gt;</code> を持つ）にしてあり、別のスレッドへ渡すコードはコンパイルが通りません。<code
+			>Send</code
+		>
+		でないことはコンパイル時の検査でも固定しています（下の <code>const _</code>。<code>Send</code> なら二つの impl が両方当てはまり、呼び出しが曖昧になってコンパイルが止まります）。ガードは作ったときのスタックの深さを覚えていて、順番を違えて落とすと debug
+		ビルドの <code>debug_assert</code> が落ちます。metrics feature を外したときのガードも <code>Send</code> でない型にしてあり、feature
+		なしでコンパイルが通るコードは feature ありでも通ります。
 	</p>
 	<p>
 		アーティファクトもタスクもルールもフェーズなので、パースは、それを最初に頼んだタスクではなく <code>svelte.parse</code>
@@ -132,9 +150,10 @@
 
 <div class="prose-learn">
 	<p>
-		feature を入れたときのコストは測ってあります。<code>shared</code> アームの中央値は、metrics なしのビルドで
-		{mean(shared.plain).toFixed(1)} ms、ありのビルドで {mean(shared.metrics).toFixed(1)} ms（それぞれ 2 回の平均）でした。約
-		{((mean(shared.metrics) / mean(shared.plain) - 1) * 100).toFixed(0)}% です。そのため、時間の結論は metrics なしのビルドで出します。
+		feature を入れたときのコストは測ってあります。ビルド <code>{data.benchRev.slice(0, 10)}</code> の <code>shared</code> アームの中央値は、metrics
+		なしのビルドで {mean(shared.plain).toFixed(1)} ms、ありのビルドで {mean(shared.metrics).toFixed(1)} ms（それぞれ 2 回の平均）でした。約
+		{((mean(shared.metrics) / mean(shared.plain) - 1) * 100).toFixed(0)}% です。そのため、時間の結論は metrics なしのビルドで出します。性能のラチェットも同じ分け方をしていて、割り当ては
+		metrics ありのビルドで、命令数は metrics なしの出荷用ビルドで数えます。
 	</p>
 </div>
 

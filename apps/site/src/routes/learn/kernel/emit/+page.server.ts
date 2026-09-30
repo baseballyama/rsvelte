@@ -17,6 +17,8 @@ export const load = () => ({
 		vlq: 'kernel/emit/vlq',
 		edits: 'kernel/emit/Edits',
 		applyIn: 'kernel/emit/Edits::apply_in',
-		checkFinish: 'svelte/tasks/Check::finish'
+		lookupOverlap: 'kernel/emit/Emitter::lookup_overlap',
+		mapBack: 'js/check/MapBack',
+		checkProjected: 'js/check/check_projected'
 	})
 });

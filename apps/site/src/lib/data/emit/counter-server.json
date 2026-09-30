@@ -27,5 +27,5 @@
 	"fixture": "fixtures/svelte/rsvelte/minimal/counter.svelte/input.svelte",
 	"file": "Counter.svelte",
 	"target": "server",
-	"rev": "c87ac6b6c377874eec39490bf28c1ab19537b058"
+	"rev": "201b86fd6b2350391f7bd4a750bb4867c6f19d98"
 }

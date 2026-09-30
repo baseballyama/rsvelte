@@ -4,18 +4,23 @@
 
 	const sizes = [120, 80, 300, 90, 110, 95];
 	let enabled = $state(true);
+	let tight = $state(false);
 	let step = $state(0);
+	// The control of e8eef831d3 shrank the budget until it bound; here, below one lowered tree.
+	const TIGHT = 400;
 
-	const steps = $derived(simulate(sizes, enabled));
-	const other = $derived(simulate(sizes, !enabled));
+	const budget = $derived(tight ? TIGHT : Infinity);
+	const steps = $derived(simulate(sizes, enabled, budget));
+	const other = $derived(simulate(sizes, !enabled, budget));
 	const cur = $derived(steps[Math.min(step, steps.length - 1)]);
 	const maxCap = $derived(Math.max(...steps.flatMap((s) => [...s.pool, s.event.kind === 'take' ? s.event.cap : s.event.cap])));
 </script>
 
-<Figure label="図 12.1 · 1 ワーカー、1 種類のベクタ" wide>
+<Figure label="図 12.1 · 1 ワーカー、1 つの鍵" wide>
 	{#snippet controls()}
 		<button type="button" class="btn-ghost" aria-pressed={enabled} onclick={() => (enabled = true)}>pool あり</button>
 		<button type="button" class="btn-ghost" aria-pressed={!enabled} onclick={() => (enabled = false)}>pool なし</button>
+		<button type="button" class="btn-ghost" aria-pressed={tight} onclick={() => (tight = !tight)}>予算 {TIGHT}</button>
 		<button type="button" class="btn-ghost" onclick={() => (step = Math.max(0, step - 1))} disabled={step === 0} aria-label="前へ">◀</button>
 		<span class="font-mono text-[12px] tracking-normal text-muted tnum">{step + 1}/{steps.length}</span>
 		<button type="button" class="btn-ghost" onclick={() => (step = Math.min(steps.length - 1, step + 1))} disabled={step >= steps.length - 1} aria-label="次へ">▶</button>
@@ -30,7 +35,7 @@
 					<span class={cur.event.allocs ? 'text-accent' : ''}>確保 {cur.event.allocs} 回</span>
 				{:else}
 					give() from <span class="text-c-src">{cur.event.ast}</span> 容量 {cur.event.cap} →
-					{cur.event.kept ? 'プールへ' : '解放'}
+					{cur.event.kept ? 'プールへ' : cur.event.why === 'budget' ? '予算を超えるので解放' : cur.event.why === 'full' ? '棚が満杯なので解放' : '解放'}
 				{/if}
 			</div>
 			<ol class="mt-4 space-y-0.5 font-mono text-[11.5px] tracking-normal">
@@ -68,7 +73,8 @@
 		</div>
 	</div>
 	{#snippet caption()}
-		模型です。順序は実際の Svelte プラグインと同じで、パースした木は文書の終わりまで生き、compile の各ターゲットが作る木は印字のあとに落ちます。ノード数と、lower
-		した木がパースの 1.6 倍・1.3 倍になるという比は例示です。
+		模型です。<code>rsv_js::Ast</code> の列の一つ（一つの鍵）だけを追います。順序は実際の Svelte プラグインと同じで、パースした木は文書の終わりまで生き、compile
+		の各ターゲットが作る木は印字のあとに落ちます。ノード数と、lower した木がパースの 1.6 倍・1.3 倍になるという比は例示です。「予算」は要素の数で数えていますが、本物の
+		<code>MAX_BYTES</code> はスレッドのすべての鍵を合わせたバイト数（64 MiB）です。
 	{/snippet}
 </Figure>

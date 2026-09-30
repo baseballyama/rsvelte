@@ -15,7 +15,7 @@
 		{ fn: 'Registry::document', what: 'パスから言語を決め、文書を作る。サイズの上限をここで一度だけ確かめる。', href: '/learn/kernel/pipeline#document' },
 		{ fn: 'run_each', what: '選ばれたタスクを決め、文書を rayon で並列に配る。', href: '/learn/kernel/pipeline#run-each' },
 		{ fn: 'run_document', what: '文書ごとに Ctx を一つ作り、タスクを続けて走らせる。panic はここで止める。', href: '/learn/kernel/pipeline#run-document' },
-		{ fn: 'Task::run', what: 'タスクはパーサを呼ばない。ctx.get::<Parsed>() のようにアーティファクトを求める。', href: '/learn/kernel/db#get' },
+		{ fn: 'Task::run', what: 'タスクはパーサを呼ばない。ctx.get::<Parsed>() のようにアーティファクトを、言語をまたぐタスクは ctx.facet::<F>() でファセットを求める。', href: '/learn/kernel/db#get' },
 		{ fn: 'Ctx::get', what: '最初の要求で計算し、以後は同じ値を返す。計算は自分の名前のフェーズで数える。', href: '/learn/kernel/db#attribution' },
 		{ fn: 'TaskOutput', what: 'タスクはファイルと診断を書く。文字列の生成は Emitter、Docs、JsonWriter が担う。', href: '/learn/kernel/emit' },
 		{ fn: 'ProjectTask::prepare', what: '他の文書を必要とするタスクは、ここで持ち越す部品（Part）を返す。', href: '/learn/kernel/pipeline#project' },
@@ -27,7 +27,7 @@
 
 <ChapterHeader
 	chapter={c}
-	lead="rsv_kernel は言語を知らない核です。Svelte は言語プラグインとして自分の言語・アーティファクト・タスクを登録し、カーネルはそれを文書ごとに一度だけ計算して並列に走らせます。この章では、細部に入る前に全体の形をつかみます。"
+	lead="rsv_kernel は言語を知らない核です。Svelte と Vue は言語プラグインとして自分の言語・アーティファクト・タスクを登録し、カーネルはそれを文書ごとに一度だけ計算して並列に走らせます。この章では、細部に入る前に全体の形をつかみます。"
 />
 
 <div class="prose-learn">
@@ -43,6 +43,9 @@
 	<p>
 		分け方の基準は一つだけです。<strong>別の言語（たとえば Vue）を足すときに書き直すものか。</strong>書き直さないもの、つまりスケジューラ、アーティファクトのキャッシュ、ルールの走らせ方、写像の逆引き、文書プリンタはカーネルに置きます。
 	</p>
+	<p>
+		この基準は、実際に二つ目の言語を足して試されています（<a href="#languages">二つ目の言語</a>）。
+	</p>
 
 	<H2 id="layers" />
 	<p>依存は一方向で、下に行くほど言語から遠くなります。</p>
@@ -51,7 +54,7 @@
 <Figure label="図 1.1 · 層">
 	<div class="overflow-x-auto px-4 py-5">
 		<ol class="flex min-w-[640px] items-stretch gap-2 font-mono text-[12.5px] tracking-normal">
-			{#each [['rsv_cli', 'ホスト: 引数、読み込み、書き出し'], ['rsv_svelte', '言語プラグイン'], ['rsv_js · rsv_css', '埋め込み言語'], ['rsv_kernel', '言語を知らない']] as [name, role], i (name)}
+			{#each [['rsv_cli', 'ホスト: 引数、読み込み、書き出し'], ['rsv_svelte · rsv_vue · rsv_svue', '言語プラグイン'], ['rsv_js · rsv_css · rsv_html', '埋め込み言語と共有の判断'], ['rsv_kernel', '言語を知らない']] as [name, role], i (name)}
 				<li class="flex flex-1 items-center gap-2">
 					<div class={['flex-1 rounded-sm border px-3 py-2', i === 3 ? 'border-fg bg-surface' : 'border-line-strong']}>
 						<div class="font-medium text-fg">{name}</div>
@@ -62,7 +65,7 @@
 			{/each}
 		</ol>
 	</div>
-	{#snippet caption()}矢印は依存の向き。カーネルは rayon と rustc-hash 以外に依存しない。{/snippet}
+	{#snippet caption()}矢印は依存の向き。rsv_svue は rsv_svelte と rsv_vue の両方に依存する。カーネルは rayon と rustc-hash 以外に依存しない。{/snippet}
 </Figure>
 
 <div class="prose-learn">
@@ -72,7 +75,7 @@
 	<blockquote class="border-l-0 font-mono text-[14px] leading-[1.7] text-fg-2">{data.libDocs}</blockquote>
 	<p>
 		プラグインの側から見ると、カーネルとの接点は登録だけです。Svelte プラグインの <code>register</code>
-		は、言語を一つ、アーティファクトを六つ、タスクを登録します（タスクは <code>tasks::register</code> の中で五つ）。アーティファクトのうち三つは、構文木の上に意味を重ねていく層です（<a
+		は、言語を一つ、アーティファクトを五つ登録し、<code>tasks::register</code> の中でタスクを四つ、プロジェクトタスクを一つ、ファセットの答えを一つ登録します。アーティファクトのうち三つは、構文木の上に意味を重ねていく層です（<a
 			href="/learn/kernel/layers">05</a
 		>）。
 	</p>
@@ -128,6 +131,10 @@
 			<strong>出力の部品</strong>: <code>diag</code>、<code>lint</code>、<code>doc</code>、<code>emit</code>、<code>json</code>。タスクが結果を書くための道具。
 		</li>
 		<li><strong>計測と資源</strong>: <code>metrics</code>、<code>pool</code>。どこで時間とメモリを使ったかを数え、減らす。</li>
+		<li>
+			<strong>道具</strong>: <code>hash</code>。移植した道具が出力をダイジェストから作るための SHA-256 です（<code>@vitejs/plugin-vue</code>
+			のスコープ ID はコンポーネントのパスの SHA-256 の先頭 8 桁）。
+		</li>
 	</ul>
 
 	<H2 id="life" />
@@ -175,6 +182,60 @@
 		</p>
 	</DeepDive>
 
+	<H2 id="languages" />
+	<p>
+		カーネルが本当に言語を知らないかは、二つ目の言語を足してみるまで分かりません。<code>rsv_vue</code> は、それを試すために足した Vue
+		の単一ファイルコンポーネントのプラグインです。crate の冒頭のコメントがその目的を書いています。
+	</p>
+	<blockquote class="border-l-0 font-mono text-[14px] leading-[1.7] whitespace-pre-line text-fg-2" lang="en">{data.vueDocs}</blockquote>
+	<p>Vue プラグインの登録は、Svelte と同じ形をしています。</p>
+</div>
+
+<Code item={data.code.vueRegister} />
+<Code item={data.code.vueParsed} />
+
+<div class="prose-learn">
+	<p>
+		Vue プラグインは、compile（<code>@vitejs/plugin-vue</code> の本番出力）、format（Prettier の HTML プリンタの移植）、lint（ESLint と
+		eslint-plugin-vue）、check（vue-tsc と同じ形の射影）の四つのタスクを持ちます。JavaScript のパース、スコープ解析、中核の lint
+		ルール、印字、整形、CSS は、Svelte と同じ <code>rsv_js</code> と <code>rsv_css</code> を使います。
+	</p>
+	<p>
+		二つ目の言語のためにカーネルに足したものは、次のとおりです（573ac584b6、a15cdcda04）。どれも Vue に固有のものではなく、Svelte も使います。
+	</p>
+	<ul>
+		<li>
+			<strong>ホストが開くスコープ</strong>: スコープ解析（<code>rsv_js</code>）は、ホストの言語が渡す根を木として受け取ります。Vue の
+			<code>v-for</code> は、テンプレートが開くスコープです。
+		</li>
+		<li><strong>終端のない診断</strong>: ESLint の報告には位置が一つしかないものがあり、lint の書き出しはその終端を <code>null</code> と書きます。</li>
+		<li><strong>SHA-256</strong>: 上の <code>hash</code> です。</li>
+		<li>
+			<strong>ファセット</strong>: 型検査のように、言語ごとに答え方が違う問いを、一つのタスクから尋ねる仕組みです（<a href="/learn/kernel/db#facet">04</a
+			>）。
+		</li>
+	</ul>
+	<p>
+		さらに、二つのプラグインを組み合わせた三つ目の言語もあります。<code>rsv_svue</code> は、Vue のテンプレート構文で書いたコンポーネントを Svelte
+		の意味でコンパイルします。Vue のパーサと Svelte のコンパイラをそのまま使い、自分で持つのは Vue の木を Svelte の HIR に変換する部分だけです（<a
+			href="/learn/kernel/layers#svue">05</a
+		>）。
+	</p>
+	<p>crate の大きさ（<code>src/</code> の Rust の行数、テストを含む。ビルドのたびに数え直しています）:</p>
+</div>
+
+<figure class="my-8 overflow-x-auto">
+	<table class="table">
+		<thead><tr><th>crate</th><th class="num">ファイル</th><th class="num">行</th></tr></thead>
+		<tbody>
+			{#each data.crates as cr (cr.name)}
+				<tr><td><code>{cr.name}</code></td><td class="num">{cr.files}</td><td class="num">{cr.lines.toLocaleString('en-US')}</td></tr>
+			{/each}
+		</tbody>
+	</table>
+</figure>
+
+<div class="prose-learn">
 	<H2 id="promises" />
 	<p>カーネルのコードは、次の四つの約束に沿って書かれています。各章で、それぞれがどこに現れるかを見ていきます。</p>
 	<ol>

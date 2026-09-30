@@ -20,6 +20,12 @@ function ariaExample() {
 }
 
 describe('source', () => {
+	it('an offset inside a character rounds down to its start (source.rs test)', () => {
+		const idx = new LineIndex('é😀x');
+		expect([1, 2, 4, 6, 7, 99].map((b) => idx.utf16(b))).toEqual([0, 1, 1, 3, 4, 4]);
+		expect(idx.lineCol(99).line).toBe(1);
+	});
+
 	it('utf16 columns count surrogate pairs', () => {
 		const src = 'a😀b\nc';
 		const idx = new LineIndex(src);

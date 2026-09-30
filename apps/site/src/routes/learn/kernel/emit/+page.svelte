@@ -102,12 +102,32 @@
 
 <div class="prose-learn">
 	<p>
-		型検査は、tsc が報告した位置をこの関数で元のコンポーネントに戻しています。両端のどちらかが写らない診断（生成したコードの中で起きたもの）は捨てます。svelte-check
+		写し方は一つではありません。Vue の型検査の上流（vue-tsc が使う Volar）は、範囲の両端を別々に写すのではなく、範囲の内側にある<strong>コピーされた文字</strong>だけを集めて、その元の範囲を答えます。挿入したテキストは何にも写りません。生成側で
+		<code>__VLS_ctx.x</code> と書かれた範囲の診断は、元の <code>x</code> だけに写ります。カーネルはこの規則も <code>lookup_overlap</code>
+		として持っています。
+	</p>
+</div>
+
+<Code item={data.code.lookupOverlap} />
+
+<div class="prose-learn">
+	<p>
+		型検査のタスクは、どちらの規則を使うかを知りません。言語が TypeScript の射影を渡すときに、写し方の関数も一緒に渡します（<a
+			href="/learn/kernel/db#facet">04 ファセット</a
+		>）。Svelte は <code>lookup_span</code>、Vue は <code>lookup_overlap</code> です。
+	</p>
+</div>
+
+<Code item={data.code.mapBack} />
+
+<div class="prose-learn">
+	<p>
+		tsc が報告した位置は、この関数で元のコンポーネントに戻します。写らない診断（生成したコードの中で起きたもの）は捨てます。svelte-check
 		も、写した範囲の行が負になった診断を捨てています（<code>hasNoNegativeLines</code>）。
 	</p>
 </div>
 
-<Code item={data.code.checkFinish} mark={['lookup_span(d.span)']} />
+<Code item={data.code.checkProjected} mark={['(d.map_back)(&d.projection, f.span)']} />
 
 <div class="prose-learn">
 	<H2 id="source-map" />
@@ -158,12 +178,15 @@
 </div>
 
 <Code item={data.code.edits} />
-<Code item={data.code.applyIn} mark={['assert!(lo as usize >= pos', 'assert!(range.lo <= lo']} />
+<Code item={data.code.applyIn} mark={['assert!(range.lo <= lo', 'assert!(lo as usize >= pos']} />
 
 <div class="prose-learn">
 	<p>
 		編集が重なっていないことと範囲の外にないことは、release ビルドでも確かめます。確かめなければ、重なった編集はずっと先のスライス（<code>&amp;src[pos..lo]</code>）で、原因と離れた場所の
 		panic として表に出ます。コストは編集一つにつき比較二回です。
+	</p>
+	<p>
+		二つの確認の順序にも意味があります。以前は重なりを先に確かめていたので、範囲より前にある編集が「重なっている」と報告されていました。今は範囲を先に確かめ、「範囲の外」と正しく報告します（37a595c11e）。
 	</p>
 </div>
 

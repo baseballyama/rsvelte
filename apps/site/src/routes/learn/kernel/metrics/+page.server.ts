@@ -11,6 +11,8 @@ export const load = () => ({
 		stats: 'kernel/metrics/PhaseStats',
 		frame: 'kernel/metrics/imp::Frame',
 		phase: 'kernel/metrics/imp::phase',
+		guard: 'kernel/metrics/imp::PhaseGuard',
+		notSend: 'kernel/metrics/_',
 		drop: 'kernel/metrics/imp::PhaseGuard::drop',
 		snapshot: 'kernel/metrics/imp::snapshot',
 		trackGlobal: 'kernel/metrics/track_global',

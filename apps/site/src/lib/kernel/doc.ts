@@ -46,11 +46,50 @@ export class Refused extends Error {
 
 export class Docs {
 	nodes: Node[] = [];
+	/** Per node, Prettier's `willBreak`, known when the node is made (it only refers to earlier nodes). */
+	private breaks: boolean[] = [];
 	private groups = 0;
 
 	private push(n: Node): DocId {
+		const any = (kids: DocId[]) => kids.some((k) => this.breaks[k]);
+		let b: boolean;
+		switch (n.t) {
+			case 'line':
+				b = n.kind === 'hard' || n.kind === 'literal';
+				break;
+			case 'breakParent':
+				b = true;
+				break;
+			case 'text':
+				b = false;
+				break;
+			case 'indent':
+			case 'dedent':
+			case 'flatOnly':
+				b = this.breaks[n.d];
+				break;
+			case 'indentIfBreak':
+				b = this.breaks[n.doc];
+				break;
+			case 'ifBreak':
+				b = this.breaks[n.broken] || this.breaks[n.flat];
+				break;
+			case 'concat':
+			case 'fill':
+				b = any(n.kids);
+				break;
+			case 'group':
+				b = n.brk || any(n.kids);
+				break;
+		}
+		this.breaks.push(b);
 		this.nodes.push(n);
 		return (this.nodes.length - 1) as DocId;
+	}
+
+	/** Prettier's `willBreak`: the document holds a hard line, a break-parent or a broken group. */
+	willBreak(d: DocId): boolean {
+		return this.breaks[d];
 	}
 
 	nil(): DocId {
@@ -172,54 +211,7 @@ export class Docs {
 		}
 	}
 
-	private propagateBreaks(root: DocId): void {
-		const memo = new Map<DocId, boolean>();
-		const breaks = (id: DocId): boolean => {
-			const known = memo.get(id);
-			if (known !== undefined) return known;
-			const n = this.nodes[id];
-			let b: boolean;
-			switch (n.t) {
-				case 'line':
-					b = n.kind === 'hard' || n.kind === 'literal';
-					break;
-				case 'breakParent':
-					b = true;
-					break;
-				case 'text':
-					b = false;
-					break;
-				case 'indent':
-				case 'dedent':
-				case 'flatOnly':
-					b = breaks(n.d);
-					break;
-				case 'indentIfBreak':
-					b = breaks(n.doc);
-					break;
-				case 'ifBreak': {
-					const a = breaks(n.broken);
-					b = breaks(n.flat) || a;
-					break;
-				}
-				case 'concat':
-				case 'fill':
-				case 'group': {
-					let any = false;
-					for (const k of n.kids) any = breaks(k) || any;
-					if (n.t === 'group') n.brk ||= any;
-					b = any;
-					break;
-				}
-			}
-			memo.set(id, b);
-			return b;
-		};
-		breaks(root);
-	}
-
 	print(root: DocId, opts: PrintOptions = defaultOptions, trace?: TraceEvent[]): string {
-		this.propagateBreaks(root);
 		const p = new Printer(this, opts, this.groups, trace);
 		p.run(root);
 		if (p.refused) throw new Refused();
@@ -236,7 +228,12 @@ type Cmd = [ind: number, mode: Mode, item: Item];
 
 const doc = (id: DocId): Item => ({ k: 'doc', id });
 
-/** Prettier's `getStringWidth`, with the same wide ranges as the Rust port. */
+/**
+ * An approximation of Prettier's `getStringWidth` for the browser: wide East Asian ranges count 2,
+ * combining marks and U+200B..U+200F count 0. The Rust port's widths are tables generated from
+ * Prettier itself (`doc/width_tables.rs`); they differ from this one on emoji sequences, variation
+ * selectors and control characters.
+ */
 export function stringWidth(s: string): number {
 	let w = 0;
 	for (const ch of s) {
@@ -351,14 +348,15 @@ class Printer {
 					stack.push([ind, 'flat', doc(n.d)]);
 					break;
 				case 'group': {
+					const brk = this.docs.willBreak(id);
 					let next: Mode;
 					let why: 'fits' | 'does-not-fit' | 'broken' | 'parent-flat';
 					if (mode === 'flat' && !this.remeasure) {
-						next = n.brk ? 'break' : 'flat';
-						why = n.brk ? 'broken' : 'parent-flat';
+						next = brk ? 'break' : 'flat';
+						why = brk ? 'broken' : 'parent-flat';
 					} else {
 						this.remeasure = false;
-						if (n.brk) {
+						if (brk) {
 							next = 'break';
 							why = 'broken';
 						} else if (this.fits([[ind, 'flat', doc(id)]], stack, this.rem(), false)) {
@@ -442,8 +440,9 @@ class Printer {
 					for (let i = n.kids.length - 1; i >= 0; i--) work.push([ind, mode, doc(n.kids[i])]);
 					break;
 				case 'group': {
-					if (mustBeFlat && n.brk) return false;
-					const m: Mode = n.brk ? 'break' : mode;
+					const brk = this.docs.willBreak(item.id);
+					if (mustBeFlat && brk) return false;
+					const m: Mode = brk ? 'break' : mode;
 					for (let i = n.kids.length - 1; i >= 0; i--) work.push([ind, m, doc(n.kids[i])]);
 					break;
 				}

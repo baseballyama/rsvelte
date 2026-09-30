@@ -68,14 +68,24 @@
 		が走るころには、文書の <code>Ctx</code> はもうないからです。
 	</p>
 	<p>
-		Svelte の型検査では、<code>prepare</code> が TypeScript への射影を作り、生成したテキストと写像を
-		<code>Part</code> に入れます。<code>&lt;script lang="ts"&gt;</code> を持たない文書は、svelte-check
-		も意味の診断を出さない（<code>checkJs</code> が無効）ので、ここで空の結果を書いて <code>None</code>
-		を返し、プロジェクトパスを待ちません。
+		型検査のプロジェクトタスクは、言語プラグインの中ではなく <code>rsv_js::check</code> に一つだけあります。どの言語の文書を扱うかは
+		<code>langs</code> で決め、Svelte の <code>svelte.check</code>、Vue の <code>vue.check</code>、両方をまとめる
+		<code>ts.check</code> は、この構造体の三つの値です。
 	</p>
 </div>
 
-<Code item={data.code.checkPrepare} mark={['Ok(Projection::Js) =>', 'Some(Box::new(Prepared {']} />
+<Code item={data.code.check} />
+
+<div class="prose-learn">
+	<p>
+		<code>prepare</code> は、文書の言語が答える TypeScript の射影（ファセット <code>TsView</code>、<a href="/learn/kernel/db#facet">04</a
+		>）を求め、生成したテキストと写像と元のテキストを <code>Part</code> に入れます。<code>&lt;script lang="ts"&gt;</code>
+		を持たない Svelte の文書は、svelte-check も意味の診断を出さない（<code>checkJs</code> が無効）ので、言語は
+		<code>TsDoc::Unchecked</code> と答えます。そのときは空の結果を書いて <code>None</code> を返し、プロジェクトパスを待ちません。
+	</p>
+</div>
+
+<Code item={data.code.checkPrepare} mark={['Ok(TsDoc::Unchecked) =>', 'Some(Box::new(Prepared {']} />
 
 <div class="prose-learn">
 	<H2 id="registry" />
@@ -184,12 +194,22 @@
 <div class="prose-learn">
 	<H2 id="run" />
 	<p>
-		結果をまとめて受け取りたい呼び出し側のために、<code>run</code> があります。中身は <code>run_each</code>
-		で、<code>sink</code> が文書の番号の slot に結果を置くだけです。つまり、ストリーミングが基本で、収集はその上の便利関数です。
+		結果をまとめて受け取りたい呼び出し側のために、<code>run</code> があります。以前の <code>run</code> は <code>run_each</code>
+		の上に書かれていて、<code>sink</code> が文書ごとの <code>Mutex</code> の slot に結果を置いていました。今は rayon の
+		<code>collect</code> で、文書の順に集めます。
 	</p>
 </div>
 
-<Code item={data.code.run} />
+<Code item={data.code.run} mark={['.map(|d| run_document(reg, d, &tasks, &project_tasks, opts.sharing))']} />
+
+<div class="prose-learn">
+	<p>
+		変えた理由は速さではなく、計測の再現性です。macOS の mutex は最初にロックしたときに割り当てを行い、Linux の mutex は行いません。そのため割り当ての回数が、プラットフォームの間でちょうど文書の数（17,512）だけ違っていました。ロックをなくしてからは、macOS
+		と Linux が同じ三つの数（割り当て回数、バイト数、生存ヒープのピーク）を報告します（a5f67528cd）。この一致が、割り当ての回数を性能のラチェットで厳密に比べられる前提になっています（<a
+			href="/learn/measure#ratchet">13</a
+		>）。
+	</p>
+</div>
 
 <div class="prose-learn">
 	<p>

@@ -22,7 +22,7 @@
 <div class="prose-learn">
 	<H2 id="diagnostic" />
 	<p>
-		<dfn>Diagnostic</dfn> は、重大度、機械が読むためのコード、人が読むためのメッセージ、位置の四つだけを持ちます。位置は
+		<dfn>Diagnostic</dfn> は、重大度、機械が読むためのコード、人が読むためのメッセージ、位置、そして終端を持つかどうかの印だけを持ちます。位置は
 		<code>Span</code>（バイト）で、行と列に直すのは、タスクが出力を書くときの一回だけです。
 	</p>
 </div>
@@ -34,6 +34,13 @@
 	<p>
 		<code>code</code> は <code>Cow&lt;'static, str&gt;</code> です。ほとんどのコードは <code>"no-unused-vars"</code>
 		のような静的な文字列なので、診断を作るたびに文字列を確保せずに済みます。
+	</p>
+	<p>
+		<code>has_end</code> は、Vue を足したときに加わりました。ESLint のルールには、位置を一つだけ報告するものがあります（<code
+			>vue/multi-word-component-names</code
+		>
+		の <code>loc</code> は始まりの一点です）。そうした指摘は <code>without_end</code> で作り、書き出すときに終端を <code>null</code>
+		と書きます。範囲の長さが 0 の指摘と、終端を持たない指摘は、上流の出力では別のものだからです（573ac584b6）。
 	</p>
 
 	<H2 id="unsupported" />
@@ -60,7 +67,9 @@
 <div class="prose-learn">
 	<p>
 		ベンチマークの「診断あり」の件数が多いのは、ほとんどがこの拒否です。{data.documents.toLocaleString('en-US')} 文書のうち、整形は {data.format.diagnostics.toLocaleString('en-US')} 文書で「未対応」などの診断を出しました<Note
-			>数字は 13 実測の章のタスク表から。「診断なし」は正しさを意味しません。正しさは上流の出力と比べて別に測っています。</Note
+			>数字は 13 実測の章の壁時計のベンチマーク（ビルド {data.benchRev.slice(0, 10)}）の値です。「診断なし」は正しさを意味しません。正しさは上流の出力と比べて別に測っています（<a
+				href="/learn/measure#parity">13 正しさのラチェット</a
+			>）。</Note
 		>。
 	</p>
 
@@ -92,8 +101,10 @@
 
 <div class="prose-learn">
 	<p>
-		<code>no-unused-vars</code> の本体は <code>rsv_js</code> にあります。JavaScript の意味に属するルールなので、別の言語（Vue
-		など）からもそのまま使えます。
+		<code>no-unused-vars</code> の本体は <code>rsv_js</code> にあります。JavaScript の意味に属するルールなので、Vue
+		プラグインもそのまま使っています。違うのは、どの束縛を判定するかをホストが渡すことだけです。Vue では <code>v-for</code>
+		の変数を中核のルールには判定させず、<code>vue/no-unused-vars</code> が判定します。逆にすると、オラクルとの比較で <code>lint-cases</code> が赤になります（73e09d6167）。二つのプラグインで同じ判断を共有する別の例は
+		<a href="/learn/kernel/layers#shared-lint">05</a> にあります。
 	</p>
 
 	<H2 id="order" />
@@ -127,11 +138,11 @@
 		<code>render_json</code> は指摘を ESLint と同じ形の JSON にします。行は 1 から、列も 1 から、単位は UTF-16 です。<code
 			>LineCol::column</code
 		>
-		は 0 から数えるので、ここで 1 を足します。
+		は 0 から数えるので、ここで 1 を足します。終端を持たない指摘では、<code>end</code> を <code>null</code> と書きます。
 	</p>
 </div>
 
-<Code item={data.code.render} mark={['lc.column + 1']} />
+<Code item={data.code.render} mark={['lc.column + 1', 'if key == "end" && !d.has_end {']} />
 <Code item={data.code.columnsTest} />
 
 <ChapterFooter chapter={c} />
