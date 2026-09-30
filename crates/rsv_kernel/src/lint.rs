@@ -72,6 +72,8 @@ pub fn run<C: ?Sized>(rules: &[&dyn Rule<C>], cx: &C) -> Vec<Diagnostic> {
 /// `{rules, findings: [{rule, message, start: {line, column}, end: {line, column}}]}` with
 /// `ESLint`'s positions: 1-based lines and 1-based UTF-16 columns.
 ///
+/// `end` is `null` for a finding without one ([`Diagnostic::has_end`]).
+///
 /// `rules` are the rules that ran, so a comparison can tell a rule that found nothing from one
 /// that was never run.
 #[must_use]
@@ -94,9 +96,13 @@ pub fn render_json(
             .key("message")
             .str(&d.message);
         for (key, at) in [("start", d.span.lo), ("end", d.span.hi)] {
+            w.key(key);
+            if key == "end" && !d.has_end {
+                w.null();
+                continue;
+            }
             let lc = lines.line_col(src, at);
-            w.key(key)
-                .begin_object()
+            w.begin_object()
                 .key("line")
                 .num(lc.line)
                 .key("column")

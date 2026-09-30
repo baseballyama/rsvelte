@@ -424,7 +424,7 @@ impl<'a> Evaluator<'a> {
                         return;
                     }
                 }
-                DeclKind::Param | DeclKind::Import => {}
+                DeclKind::Param | DeclKind::Import | DeclKind::Host => {}
             }
         }
         add(values, Val::Unknown);

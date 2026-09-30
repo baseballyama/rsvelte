@@ -1,8 +1,10 @@
 //! Lint rules over JavaScript facts alone, for every language that embeds JavaScript.
 //!
-//! A host
-//! language wraps them in its own [`rsv_kernel::lint::Rule`] so they see its extra references
-//! (a component's template expressions are scope-analysis roots, so their reads are already here).
+//! A host language wraps them in its own [`rsv_kernel::lint::Rule`]. Its template expressions are
+//! scope-analysis roots ([`crate::scope::HostRoot`]), so their reads are already here; which
+//! bindings a rule reports on is the host's decision (`considered`), because the upstream plugins
+//! differ: svelte-eslint-parser puts `{#each}` names in the scope core rules read, while Vue's
+//! `v-for` names are reported by `vue/no-unused-vars` instead.
 
 use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::idx::Idx;
@@ -50,8 +52,17 @@ impl JsFacts<'_> {
 ///
 /// The parser has no loop, class or catch syntax yet, so `isInLoop`, `isForInOfRef` and the
 /// class/catch skips have nothing to decide and are absent; they arrive with that syntax.
-pub fn no_unused_vars(f: &JsFacts<'_>, rule: &'static str, out: &mut Vec<Diagnostic>) {
+/// A [`DeclKind::Host`] binding is judged as a variable (not a parameter).
+pub fn no_unused_vars(
+    f: &JsFacts<'_>,
+    rule: &'static str,
+    considered: impl Fn(BindingId) -> bool,
+    out: &mut Vec<Diagnostic>,
+) {
     for (b, binding) in f.sem.bindings.iter_enumerated() {
+        if !considered(b) {
+            continue;
+        }
         if binding.kind == DeclKind::Function
             && matches!(
                 f.parent(binding.node).map(|p| f.ast.kind(p)),

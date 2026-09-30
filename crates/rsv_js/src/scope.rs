@@ -2,9 +2,10 @@
 //!
 //! Two passes over the tree: the first creates scopes and declares bindings (so hoisting and
 //! use-before-declaration resolve correctly), the second resolves every identifier in a reference
-//! position. Extra roots (a component's template expressions) are analyzed as if they were nested
-//! in the program's top-level scope, which is what makes script-and-template facts ("is this
-//! variable used anywhere?") one query instead of two analyses.
+//! position. What a host language adds ([`HostRoot`]: a component's template expressions, and the
+//! scopes its own syntax opens, like Vue's `v-for`) is analyzed as if it were nested in the
+//! program's top-level scope, which is what makes script-and-template facts ("is this variable used
+//! anywhere?") one query instead of two analyses.
 
 use rsv_kernel::idx::{Idx, IndexVec};
 use rsv_kernel::intern::Atom;
@@ -37,6 +38,8 @@ pub enum DeclKind {
     Function,
     Param,
     Import,
+    /// Declared by the host language's syntax (`v-for="(item, i) in list"`), in a [`HostScope`].
+    Host,
 }
 
 #[derive(Clone, Debug)]
@@ -87,6 +90,24 @@ pub struct Reference {
     pub init: bool,
     /// The scope the reference occurs in.
     pub scope: ScopeId,
+}
+
+/// What a host language evaluates in the program's scope, in document order.
+#[derive(Clone, Debug)]
+pub enum HostRoot {
+    /// An expression evaluated in the enclosing scope.
+    Expr(NodeId),
+    Scope(HostScope),
+}
+
+/// A scope the host's syntax opens: `params` are declared in it ([`DeclKind::Host`]) and `body` is
+/// evaluated inside it.
+#[derive(Clone, Debug)]
+pub struct HostScope {
+    /// The node that stands for the scope in [`Scope::node`]; must not open a JavaScript scope.
+    pub node: NodeId,
+    pub params: Vec<NodeId>,
+    pub body: Vec<HostRoot>,
 }
 
 #[derive(Debug)]
@@ -199,10 +220,13 @@ struct Analyzer<'a> {
     stack: Vec<ScopeId>,
     /// The declarator/specifier being declared in pass 1.
     current_decl: Option<NodeId>,
+    /// Host scopes in the order pass 1 created them; pass 2 walks the roots in the same order.
+    host_scopes: Vec<ScopeId>,
+    next_host_scope: usize,
 }
 
 #[must_use]
-pub fn analyze(ast: &Ast, program: NodeId, extra_roots: &[NodeId]) -> Semantic {
+pub fn analyze(ast: &Ast, program: NodeId, host: &[HostRoot]) -> Semantic {
     let mut a = Analyzer {
         ast,
         s: Semantic {
@@ -222,16 +246,14 @@ pub fn analyze(ast: &Ast, program: NodeId, extra_roots: &[NodeId]) -> Semantic {
         },
         stack: vec![ScopeId::ROOT],
         current_decl: None,
+        host_scopes: Vec::new(),
+        next_host_scope: 0,
     };
     a.s.node_scope.insert(program, ScopeId::ROOT);
     a.declare_children(program);
-    for &r in extra_roots {
-        a.declare(r);
-    }
+    a.declare_host(host);
     a.resolve_children(program);
-    for &r in extra_roots {
-        a.resolve(r, Ctx::Expr);
-    }
+    a.resolve_host(host);
     a.resolve_type_refs();
     a.s.index_references();
     a.s
@@ -280,6 +302,23 @@ impl Analyzer<'_> {
     }
 
     // ---- pass 1 --------------------------------------------------------------------------------
+
+    fn declare_host(&mut self, roots: &[HostRoot]) {
+        for r in roots {
+            match r {
+                HostRoot::Expr(e) => self.declare(*e),
+                HostRoot::Scope(h) => {
+                    let id = self.push_scope(h.node, false);
+                    self.host_scopes.push(id);
+                    for &p in &h.params {
+                        self.declare_pattern(p, DeclKind::Host);
+                    }
+                    self.declare_host(&h.body);
+                    self.stack.pop();
+                }
+            }
+        }
+    }
 
     fn declare_children(&mut self, id: NodeId) {
         let mut kids = Vec::new();
@@ -490,6 +529,24 @@ impl Analyzer<'_> {
             init: true,
             scope,
         });
+    }
+
+    fn resolve_host(&mut self, roots: &[HostRoot]) {
+        for r in roots {
+            match r {
+                HostRoot::Expr(e) => self.resolve(*e, Ctx::Expr),
+                HostRoot::Scope(h) => {
+                    let id = self.host_scopes[self.next_host_scope];
+                    self.next_host_scope += 1;
+                    self.stack.push(id);
+                    for &p in &h.params {
+                        self.resolve(p, Ctx::Pattern { init: false });
+                    }
+                    self.resolve_host(&h.body);
+                    self.stack.pop();
+                }
+            }
+        }
     }
 
     fn resolve_children(&mut self, id: NodeId) {

@@ -60,7 +60,7 @@ impl<'a> Rule<AstCx<'a>> for NoUnusedVars {
     }
 
     fn check(&self, cx: &AstCx<'a>, out: &mut Vec<Diagnostic>) {
-        rsv_js::lint::no_unused_vars(&cx.js, self.id(), out);
+        rsv_js::lint::no_unused_vars(&cx.js, self.id(), |_| true, out);
     }
 }
 

@@ -77,6 +77,27 @@ pub fn parse_expression(ast: &mut Ast, src: &str, range: Span, ts: bool) -> R<No
     Ok(e)
 }
 
+/// Parses `range` of `src` as a comma-separated list of parameters without the parentheses (`a,
+/// { b }, c = 1`): the names an embedding language's syntax declares, like Vue's `v-for` alias.
+///
+/// # Errors
+///
+/// [`ParseError`] at the first lexical or syntax error, or if a token follows the list.
+pub fn parse_params(ast: &mut Ast, src: &str, range: Span, ts: bool) -> R<Vec<NodeId>> {
+    let mut p = Parser::new(ast, src, range, ts)?;
+    let mut params = Vec::new();
+    while p.tok.t != T::Eof {
+        params.push(p.param()?);
+        if !p.eat(T::Comma)? {
+            break;
+        }
+    }
+    if p.tok.t != T::Eof {
+        return p.fail("unexpected token after parameters");
+    }
+    Ok(params)
+}
+
 /// Parses the longest expression starting at `start` and returns it with the start of the next
 /// token.
 ///

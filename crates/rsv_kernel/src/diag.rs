@@ -18,6 +18,9 @@ pub struct Diagnostic {
     pub code: Cow<'static, str>,
     pub message: String,
     pub span: Span,
+    /// `false` when the tool being ported reports only a start (an `ESLint` report with a `loc` of
+    /// one position): `span` is then empty and renderers print no end.
+    pub has_end: bool,
 }
 
 impl Diagnostic {
@@ -31,6 +34,7 @@ impl Diagnostic {
             code: code.into(),
             message: message.into(),
             span,
+            has_end: true,
         }
     }
 
@@ -44,7 +48,16 @@ impl Diagnostic {
             code: code.into(),
             message: message.into(),
             span,
+            has_end: true,
         }
+    }
+
+    /// The same diagnostic at `span.lo` alone, with no end.
+    #[must_use]
+    pub const fn without_end(mut self) -> Self {
+        self.span = Span::new(self.span.lo, self.span.lo);
+        self.has_end = false;
+        self
     }
 }
 

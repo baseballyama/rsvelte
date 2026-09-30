@@ -5,6 +5,7 @@ pub mod db;
 pub mod diag;
 pub mod doc;
 pub mod emit;
+pub mod hash;
 pub mod idx;
 pub mod intern;
 pub mod json;

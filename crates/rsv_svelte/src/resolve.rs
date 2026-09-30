@@ -42,7 +42,11 @@ pub struct Resolution {
 
 #[must_use]
 pub fn resolve(ast: &Ast, program: NodeId, template_exprs: &[NodeId]) -> Resolution {
-    let sem = scope::analyze(ast, program, template_exprs);
+    let host: Vec<scope::HostRoot> = template_exprs
+        .iter()
+        .map(|&e| scope::HostRoot::Expr(e))
+        .collect();
+    let sem = scope::analyze(ast, program, &host);
     let bindings = classify(ast, &sem, program);
     Resolution {
         uses_props: has_props_rune(ast, program),

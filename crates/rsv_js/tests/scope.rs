@@ -1,6 +1,6 @@
 use rsv_js::ast::Ast;
-use rsv_js::parser::{parse_expression, parse_program};
-use rsv_js::scope::{DeclKind, analyze};
+use rsv_js::parser::{parse_expression, parse_params, parse_program};
+use rsv_js::scope::{DeclKind, HostRoot, HostScope, analyze};
 use rsv_kernel::source::Span;
 
 #[test]
@@ -21,7 +21,8 @@ fn template_expressions_resolve_against_the_instance_scope() {
             parse_expression(&mut ast, src, Span::new(lo, lo + name.len() as u32), false).unwrap(),
         );
     }
-    let sem = analyze(&ast, program, &roots);
+    let host: Vec<HostRoot> = roots.iter().map(|&e| HostRoot::Expr(e)).collect();
+    let sem = analyze(&ast, program, &host);
 
     let count = sem
         .root_binding(ast.atoms.lookup("count").unwrap())
@@ -67,4 +68,54 @@ fn shadowing_and_destructuring() {
     );
     assert_eq!(sem.bindings.raw()[3].reads, 1);
     assert_eq!(sem.bindings.raw()[1].reads, 1);
+}
+
+/// `<li v-for="(item, i) in list" :key="i">{{ item }}</li>` over a script that also declares
+/// `item`: the list is read in the program scope, the alias shadows the script's `item` inside the
+/// scope.
+#[test]
+fn a_host_scope_declares_names_its_body_sees() {
+    let src = "let item = 1; let list = [];\nitem, i|list|i|item";
+    let script_end = src.find('\n').unwrap() as u32;
+    let mut ast = Ast::new();
+    let program = parse_program(&mut ast, src, Span::new(0, script_end), false).unwrap();
+    let fields: Vec<Span> = {
+        let mut at = script_end + 1;
+        src[at as usize..]
+            .split('|')
+            .map(|f| {
+                let s = Span::new(at, at + f.len() as u32);
+                at += f.len() as u32 + 1;
+                s
+            })
+            .collect()
+    };
+    let params = parse_params(&mut ast, src, fields[0], false).unwrap();
+    let list = parse_expression(&mut ast, src, fields[1], false).unwrap();
+    let key = parse_expression(&mut ast, src, fields[2], false).unwrap();
+    let body = parse_expression(&mut ast, src, fields[3], false).unwrap();
+    let host = [
+        HostRoot::Expr(list),
+        HostRoot::Scope(HostScope {
+            node: params[0],
+            params: params.clone(),
+            body: vec![HostRoot::Expr(key), HostRoot::Expr(body)],
+        }),
+    ];
+    let sem = analyze(&ast, program, &host);
+    let name = |b: rsv_js::scope::BindingId| ast.atoms.get(sem.bindings[b].name).to_owned();
+    let outer = sem.root_binding(ast.atoms.lookup("item").unwrap()).unwrap();
+    assert_eq!(
+        sem.bindings[outer].reads, 0,
+        "the alias shadows the script's `item`"
+    );
+    let inner = sem.binding_of(body).expect("the body's `item` resolves");
+    assert_ne!(inner, outer);
+    assert_eq!(sem.bindings[inner].kind, DeclKind::Host);
+    assert_eq!(name(sem.binding_of(key).unwrap()), "i");
+    assert_eq!(
+        sem.binding_of(list),
+        sem.root_binding(ast.atoms.lookup("list").unwrap()),
+        "the list is outside the scope"
+    );
 }
