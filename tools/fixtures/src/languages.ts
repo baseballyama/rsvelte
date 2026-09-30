@@ -2,6 +2,7 @@
 // a claimed file is admitted; tasks (./tasks) decide what is measured on an admitted unit.
 // Adding Vue, HTML, CSS, … means adding an entry here (and tasks that apply to it), nothing else.
 import { compile, compileModule } from 'svelte/compiler';
+import { parse as parseSfc } from '@vue/compiler-sfc';
 import type { Language } from './types.ts';
 
 const code = (e: unknown): string => (e as { code?: string }).code ?? 'throw';
@@ -49,6 +50,19 @@ export const LANGUAGES: Language[] = [
 		ext: '.svelte.ts',
 		matches: (p) => /\.svelte\.ts$/.test(p),
 		admit: () => ({ include: true, fields: { mode: 'runes' } })
+	},
+	{
+		id: 'vue',
+		family: 'vue',
+		ext: '.vue',
+		matches: (p) => p.endsWith('.vue'),
+		admit(src, filename) {
+			const { descriptor, errors } = parseSfc(src, { filename });
+			if (errors.length) return { include: false, reason: `sfc-parse-error` };
+			// `setup`: `<script setup>`; `options`: a plain `<script>` only; `template`: no script.
+			const mode = descriptor.scriptSetup ? 'setup' : descriptor.script ? 'options' : 'template';
+			return { include: true, fields: { mode } };
+		}
 	}
 ];
 

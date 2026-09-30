@@ -49,5 +49,28 @@
 			"svelte-eslint-parser": "1.8.1"
 		},
 		"storage": "committed"
+	},
+	"vue.check": {
+		"canonicalizer": {
+			"acorn": "8.18.0"
+		},
+		"oracles": {
+			"@volar/typescript": "2.4.28",
+			"@vue/language-core": "3.3.11",
+			"typescript": "6.0.3",
+			"vue": "3.5.43",
+			"vue-tsc": "3.3.11"
+		},
+		"storage": "committed"
+	},
+	"vue.compile": {
+		"canonicalizer": {
+			"acorn": "8.18.0"
+		},
+		"oracles": {
+			"@vue/compiler-sfc": "3.5.43",
+			"typescript": "6.0.3"
+		},
+		"storage": "committed"
 	}
 }
