@@ -15,7 +15,7 @@
 		]
 	},
 	"allocs": 3029229,
-	"alloc_bytes": 385575299,
+	"alloc_bytes": 385587107,
 	"peak_live_growth_bytes": 35891340,
 	"phases": {
 		"js.parents": {
@@ -56,7 +56,7 @@
 		"svelte.format/default": {
 			"calls": 17489,
 			"allocs": 691547,
-			"alloc_bytes": 29053620
+			"alloc_bytes": 29059508
 		},
 		"svelte.hir": {
 			"calls": 5433,
@@ -66,7 +66,7 @@
 		"svelte.lint/default": {
 			"calls": 17489,
 			"allocs": 106153,
-			"alloc_bytes": 13009861
+			"alloc_bytes": 13015749
 		},
 		"svelte.lower.client": {
 			"calls": 5438,
@@ -131,7 +131,7 @@
 		"vue.format": {
 			"calls": 19,
 			"allocs": 3063,
-			"alloc_bytes": 180962
+			"alloc_bytes": 180978
 		},
 		"vue.format/default": {
 			"calls": 19,
@@ -141,7 +141,7 @@
 		"vue.lint/default": {
 			"calls": 19,
 			"allocs": 280,
-			"alloc_bytes": 27783
+			"alloc_bytes": 27799
 		},
 		"vue.parse": {
 			"calls": 24,
@@ -170,6 +170,6 @@
 		}
 	},
 	"instructions": {
-		"arm64-linux": 4414202679
+		"arm64-linux": 4414186180
 	}
 }

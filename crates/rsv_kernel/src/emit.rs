@@ -164,8 +164,8 @@ impl Emitter {
             (1u32, 0i64, 0i64, 0i64);
         let mut first_in_line = true;
         for (generated, src) in self.points() {
-            let g = gen_index.line_col(&self.out, generated);
-            let s = src_index.line_col(source, src);
+            let g = gen_index.line_col(generated);
+            let s = src_index.line_col(src);
             while prev_gen_line < g.line {
                 mappings.push(';');
                 prev_gen_line += 1;
@@ -343,7 +343,7 @@ mod tests {
             }
         }
         let mappings = map.split("\"mappings\":\"").nth(1)?.trim_end_matches("\"}");
-        let target = LineIndex::new(out).line_col(out, pos);
+        let target = LineIndex::new(out).line_col(pos);
         let (mut src_line, mut src_col, mut best) = (0i64, 0i64, None);
         for (line, segs) in mappings.split(';').enumerate() {
             let mut col = 0i64;
@@ -359,7 +359,7 @@ mod tests {
             }
         }
         let (l, c) = best?;
-        LineIndex::new(source).offset(source, u32::try_from(l).ok()? + 1, u32::try_from(c).ok()?)
+        LineIndex::new(source).offset(u32::try_from(l).ok()? + 1, u32::try_from(c).ok()?)
     }
 
     #[test]

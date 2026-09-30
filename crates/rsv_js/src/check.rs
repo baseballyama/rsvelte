@@ -162,10 +162,7 @@ impl ProjectTask for Check {
                 None
             }
             Ok(TsDoc::Unchecked) => {
-                out.file(
-                    "json",
-                    render_findings(ctx.src(), ctx.line_index(), &mut []),
-                );
+                out.file("json", render_findings(ctx.line_index(), &mut []));
                 None
             }
             Ok(TsDoc::Checked { .. }) if self.tsc.is_none() => {
@@ -256,16 +253,13 @@ fn check_projected(tsc: &Tsc, env: &TsEnv, mut docs: Vec<Prepared>, outs: Vec<&m
         }
     }
     for ((d, out), mut found) in docs.iter().zip(outs).zip(per_doc) {
-        out.file(
-            "json",
-            render_findings(&d.src, &LineIndex::new(&d.src), &mut found),
-        );
+        out.file("json", render_findings(&LineIndex::new(&d.src), &mut found));
     }
 }
 
 /// Findings as svelte-check and vue-tsc report them: `code`, the flattened `message`, and 0-based
 /// lines with UTF-16 characters, in document order.
-pub fn render_findings(src: &str, lines: &LineIndex, found: &mut [(Span, u32, String)]) -> String {
+pub fn render_findings(lines: &LineIndex, found: &mut [(Span, u32, String)]) -> String {
     found.sort_by_key(|(span, ..)| span.lo);
     let mut w = JsonWriter::new(true);
     w.begin_array();
@@ -276,7 +270,7 @@ pub fn render_findings(src: &str, lines: &LineIndex, found: &mut [(Span, u32, St
             .key("message")
             .str(message);
         for (key, at) in [("start", span.lo), ("end", span.hi)] {
-            let lc = lines.line_col(src, at);
+            let lc = lines.line_col(at);
             w.key(key)
                 .begin_object()
                 .key("line")
@@ -341,9 +335,7 @@ impl Tsc {
         let _p = metrics::phase("ts.report");
         let lines: Vec<LineIndex> = req.files.iter().map(|f| LineIndex::new(f)).collect();
         parse_report(&strip_ansi(&stdout), |file, line, col| {
-            lines
-                .get(file)
-                .and_then(|l| l.offset(&req.files[file], line, col))
+            lines.get(file).and_then(|l| l.offset(line, col))
         })
     }
 
@@ -570,7 +562,7 @@ Errors  Files
             "const big = {\n\n  a: 1,\n  ...{ a: \"x\" },\n};\n".to_owned(),
         ];
         let index: Vec<LineIndex> = files.iter().map(|f| LineIndex::new(f)).collect();
-        let got = parse_report(REPORT, |f, l, c| index[f].offset(&files[f], l, c)).unwrap();
+        let got = parse_report(REPORT, |f, l, c| index[f].offset(l, c)).unwrap();
         assert_eq!(got.len(), 2);
         assert_eq!(got[0].code, 2322);
         assert_eq!(
@@ -591,7 +583,7 @@ Errors  Files
             "{}Found 2 errors in 2 files.\n",
             REPORT.split("f1.ts:3:3").next().unwrap()
         );
-        let got = parse_report(&truncated, |f, l, c| index.offset(&files[f], l, c));
+        let got = parse_report(&truncated, |_, l, c| index.offset(l, c));
         assert!(got.unwrap_err().contains("reported 2 error(s), parsed 1"));
     }
 
@@ -602,7 +594,7 @@ Errors  Files
                       \n             ~\n\n\nFound 1 error in f0.ts:2\n\n";
         let files = ["let s = 1;\nlet t = s +\n".to_owned()];
         let index = LineIndex::new(&files[0]);
-        let got = parse_report(report, |f, l, c| index.offset(&files[f], l, c)).unwrap();
+        let got = parse_report(report, |_, l, c| index.offset(l, c)).unwrap();
         let end = files[0].find(" +").unwrap() as u32 + 2;
         assert_eq!(got[0].span, Span::new(end, end));
     }

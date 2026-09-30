@@ -327,8 +327,8 @@ fn diagnostics_json(doc: &Document, out: &TaskOutput) -> String {
     let mut w = JsonWriter::new(true);
     w.begin_array();
     for d in &out.diagnostics {
-        let start = index.line_col(&doc.text, d.span.lo);
-        let end = index.line_col(&doc.text, d.span.hi);
+        let start = index.line_col(d.span.lo);
+        let end = index.line_col(d.span.hi);
         w.begin_object()
             .key("code")
             .str(&d.code)

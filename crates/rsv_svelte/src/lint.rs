@@ -140,7 +140,7 @@ mod tests {
         };
         let findings = super::lint(&early, &late);
         let rules: Vec<&str> = super::rule_ids().collect();
-        rsv_kernel::lint::render_json(src, &LineIndex::new(src), &rules, &findings)
+        rsv_kernel::lint::render_json(&LineIndex::new(src), &rules, &findings)
     }
 
     fn unused(src: &str) -> Vec<String> {

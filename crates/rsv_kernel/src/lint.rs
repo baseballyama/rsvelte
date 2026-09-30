@@ -77,12 +77,7 @@ pub fn run<C: ?Sized>(rules: &[&dyn Rule<C>], cx: &C) -> Vec<Diagnostic> {
 /// `rules` are the rules that ran, so a comparison can tell a rule that found nothing from one
 /// that was never run.
 #[must_use]
-pub fn render_json(
-    src: &str,
-    lines: &LineIndex,
-    rules: &[&str],
-    findings: &[Diagnostic],
-) -> String {
+pub fn render_json(lines: &LineIndex, rules: &[&str], findings: &[Diagnostic]) -> String {
     let mut w = JsonWriter::new(true);
     w.begin_object().key("rules").begin_array();
     for r in rules {
@@ -101,7 +96,7 @@ pub fn render_json(
                 w.null();
                 continue;
             }
-            let lc = lines.line_col(src, at);
+            let lc = lines.line_col(at);
             w.begin_object()
                 .key("line")
                 .num(lc.line)
@@ -170,7 +165,7 @@ mod tests {
         let src = "é\n😀x";
         let at = src.find('x').unwrap() as u32;
         let d = Diagnostic::error("r", "m", Span::new(at, at + 1));
-        let json = render_json(src, &LineIndex::new(src), &["r"], &[d]);
+        let json = render_json(&LineIndex::new(src), &["r"], &[d]);
         assert!(
             json.contains("\"line\": 2,\n\t\t\t\t\"column\": 3"),
             "{json}"

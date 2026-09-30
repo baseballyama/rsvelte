@@ -699,7 +699,7 @@ impl<'a> Tree<'a> {
     }
 
     fn line(&self, at: u32) -> u32 {
-        self.lines.line_col(self.src, at).line
+        self.lines.line_col(at).line
     }
 }
 

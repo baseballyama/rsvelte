@@ -309,8 +309,8 @@ impl<'a> Formatter<'a> {
     /// Prettier's `isNextLineEmpty` between two siblings, from their lines (comments are refused
     /// before printing, so only whitespace can separate them).
     fn blank_line_between(&self, a: NodeId, b: NodeId) -> bool {
-        let end = self.lines.line_col(self.src, self.span(a).hi).line;
-        let start = self.lines.line_col(self.src, self.span(b).lo).line;
+        let end = self.lines.line_col(self.span(a).hi).line;
+        let start = self.lines.line_col(self.span(b).lo).line;
         start > end + 1
     }
 

@@ -233,7 +233,7 @@ impl Task for Lint {
         let rules: Vec<&str> = crate::lint::rule_ids().collect();
         out.file(
             "lint.json",
-            rsv_kernel::lint::render_json(ctx.src(), ctx.line_index(), &rules, &findings),
+            rsv_kernel::lint::render_json(ctx.line_index(), &rules, &findings),
         );
     }
 }
