@@ -1,18 +1,20 @@
 //! The tasks this plugin offers. A task id is also the fixture path of its expected output
 //! (`svelte.compile/client` → `expected/svelte.compile/client.*`).
 
+use std::sync::Arc;
+
 use rsv_js::ast::{TsFeature, TsRuntime};
-use rsv_js::check::{CheckRequest, Projected, Tsc, render_findings};
+use rsv_js::check::{Check, TsDoc, TsEnv, TsView, Tsc};
 use rsv_kernel::db::Ctx;
 use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::emit::Emitter;
 use rsv_kernel::metrics;
-use rsv_kernel::pipeline::{Document, Part, ProjectTask, Registry, Task, TaskOutput};
+use rsv_kernel::pipeline::{Document, Registry, Task, TaskOutput};
 use rsv_kernel::source::Span;
 
 use crate::lower::{self, Target};
 use crate::project::Projection;
-use crate::{Analyzed, CheckConfig, Config, Normalized, Parsed, Resolved, ScopedCss, TsProjection};
+use crate::{Analyzed, Config, Normalized, Parsed, Resolved, ScopedCss};
 
 pub fn register(reg: &mut Registry, config: &Config) {
     reg.task(Compile {
@@ -24,8 +26,15 @@ pub fn register(reg: &mut Registry, config: &Config) {
     .task(Format)
     .task(Lint)
     .project_task(Check {
-        config: config.check.clone(),
+        id: "svelte.check/default",
+        langs: &["svelte"],
+        tsc: config.check.as_ref().map(|c| Tsc {
+            binary: c.tsc.clone(),
+            tsconfig: c.tsconfig.clone(),
+        }),
     });
+    let env = config.check.as_ref().map(|c| Arc::new(ts_env(&c.svelte)));
+    reg.provide::<TsView>("svelte", move |ctx| ts_view(ctx, env.as_ref()));
 }
 
 /// One task per target, both from the same artifacts: parsing and analysis happen once when both
@@ -229,91 +238,47 @@ impl Task for Lint {
     }
 }
 
-/// svelte-check's TypeScript diagnostics (`--diagnostic-sources js`).
-///
-/// Every TypeScript component
-/// of the run is projected on its worker, then one `tsc` checks them all. Writes the findings as
-/// svelte-check reports them (`json`, 0-based lines, UTF-16 characters).
-#[derive(Debug)]
-pub struct Check {
-    pub config: Option<CheckConfig>,
-}
-
 const SHIM: (&str, &str) = (
     "svelte-jsx-v4.d.ts",
     include_str!("../vendor/svelte-jsx-v4.d.ts"),
 );
 
-impl ProjectTask for Check {
-    fn id(&self) -> &'static str {
-        "svelte.check/default"
+/// What svelte-check adds to the project: its JSX shim and the svelte package's types.
+fn ts_env(svelte: &std::path::Path) -> TsEnv {
+    TsEnv {
+        declarations: vec![SHIM],
+        include: vec![svelte.join("types/index.d.ts")],
+        paths: vec![
+            ("svelte", svelte.join("types/index.d.ts")),
+            ("svelte/elements", svelte.join("elements.d.ts")),
+        ],
     }
+}
 
-    fn applies(&self, doc: &Document) -> bool {
-        doc.lang == "svelte"
-    }
-
-    fn prepare(&self, ctx: &Ctx<'_>, out: &mut TaskOutput) -> Option<Part> {
-        if let Err(e) = ctx.get::<Parsed>() {
-            out.diagnostics.push(e.clone());
-            return None;
+/// The component as svelte-check's type checker sees it ([`TsView`]): svelte2tsx's projection,
+/// mapped back through its source map.
+fn ts_view(ctx: &Ctx<'_>, env: Option<&Arc<TsEnv>>) -> Result<TsDoc, Diagnostic> {
+    let c = ctx.get::<Parsed>().as_ref().map_err(Clone::clone)?;
+    match crate::project::project(c, ctx.src()) {
+        Err(u) => Err(Diagnostic::error(
+            "check_unsupported",
+            format!("not supported by the type-check projection yet: {}", u.what),
+            u.span(),
+        )),
+        Ok(Projection::Js) => Ok(TsDoc::Unchecked),
+        Ok(Projection::Ts(projection)) => {
+            let env = env.ok_or_else(|| {
+                Diagnostic::error(
+                    "check_unconfigured",
+                    "svelte.check needs the svelte package",
+                    Span::new(0, 0),
+                )
+            })?;
+            Ok(TsDoc::Checked {
+                projection,
+                map_back: Emitter::lookup_span,
+                env: Arc::clone(env),
+            })
         }
-        if self.config.is_none() {
-            out.diagnostics.push(Diagnostic::error(
-                "check_unconfigured",
-                "svelte.check needs a tsc executable and the svelte package",
-                Span::new(0, 0),
-            ));
-            return None;
-        }
-        match ctx.get::<TsProjection>().as_ref()? {
-            Err(u) => {
-                out.diagnostics.push(Diagnostic::error(
-                    "check_unsupported",
-                    format!("not supported by the type-check projection yet: {}", u.what),
-                    u.span(),
-                ));
-                None
-            }
-            Ok(Projection::Js) => {
-                out.file(
-                    "json",
-                    render_findings(ctx.src(), ctx.line_index(), &mut []),
-                );
-                None
-            }
-            Ok(Projection::Ts(e)) => Some(Box::new(Projected {
-                emitter: Emitter {
-                    out: e.out.clone(),
-                    mappings: e.mappings.clone(),
-                },
-                src: ctx.src().to_owned(),
-            })),
-        }
-    }
-
-    fn finish(&self, parts: Vec<Part>, outs: Vec<&mut TaskOutput>) {
-        let config = self
-            .config
-            .as_ref()
-            .expect("prepare returns parts only when configured");
-        let docs = parts
-            .into_iter()
-            .map(|p| *p.downcast::<Projected>().expect("parts are this task's"))
-            .collect();
-        let req = CheckRequest {
-            declarations: vec![SHIM],
-            include: vec![config.svelte.join("types/index.d.ts")],
-            paths: vec![
-                ("svelte", config.svelte.join("types/index.d.ts")),
-                ("svelte/elements", config.svelte.join("elements.d.ts")),
-            ],
-            ..CheckRequest::default()
-        };
-        let tsc = Tsc {
-            binary: config.tsc.clone(),
-            tsconfig: config.tsconfig.clone(),
-        };
-        rsv_js::check::check_projected(&tsc, req, docs, Emitter::lookup_span, outs);
     }
 }

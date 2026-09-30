@@ -10,13 +10,15 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use rsv_kernel::db::{Ctx, Facet};
 use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::emit::Emitter;
 use rsv_kernel::json::JsonWriter;
 use rsv_kernel::metrics;
-use rsv_kernel::pipeline::TaskOutput;
+use rsv_kernel::pipeline::{Document, Part, ProjectTask, TaskOutput};
 use rsv_kernel::source::{LineIndex, Span};
 
 #[derive(Debug)]
@@ -51,11 +53,72 @@ pub struct TsDiagnostic {
     pub span: Span,
 }
 
-/// One document's generated TypeScript and its mappings, with the document's text.
+/// A document as the type checker sees it: the [`Facet`] each language provides, so one [`Check`]
+/// serves every language, and documents of several languages share one `tsc`.
 #[derive(Debug)]
-pub struct Projected {
-    pub emitter: Emitter,
-    pub src: String,
+pub struct TsView;
+
+impl Facet for TsView {
+    /// `Err`: the document cannot be checked (it did not parse, or the projection does not handle
+    /// one of its constructs yet), reported as is.
+    type Output = Result<TsDoc, Diagnostic>;
+
+    const NAME: &'static str = "ts.view";
+}
+
+#[derive(Debug)]
+pub enum TsDoc {
+    /// Not type-checked: a JavaScript component, for which upstream reports no semantic
+    /// diagnostics (`checkJs` is off). Its findings are empty.
+    Unchecked,
+    Checked {
+        /// The generated TypeScript and its mappings.
+        projection: Emitter,
+        map_back: MapBack,
+        env: Arc<TsEnv>,
+    },
+}
+
+/// What a language adds to the checked project besides its documents.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct TsEnv {
+    /// Declaration files written beside the generated ones, by name.
+    pub declarations: Vec<(&'static str, &'static str)>,
+    /// Existing declaration files to include.
+    pub include: Vec<PathBuf>,
+    /// `compilerOptions.paths` entries: module specifier → file.
+    pub paths: Vec<(&'static str, PathBuf)>,
+}
+
+impl TsEnv {
+    /// Adds `other`'s entries.
+    ///
+    /// # Errors
+    ///
+    /// A message naming a declaration file or module specifier the two environments define
+    /// differently.
+    pub fn merge(&mut self, other: &Self) -> Result<(), String> {
+        for d in &other.declarations {
+            match self.declarations.iter().find(|x| x.0 == d.0) {
+                None => self.declarations.push(*d),
+                Some(x) if x.1 == d.1 => {}
+                Some(_) => return Err(format!("two languages declare `{}` differently", d.0)),
+            }
+        }
+        for p in &other.paths {
+            match self.paths.iter().find(|x| x.0 == p.0) {
+                None => self.paths.push(p.clone()),
+                Some(x) if x.1 == p.1 => {}
+                Some(_) => return Err(format!("two languages map `{}` differently", p.0)),
+            }
+        }
+        for i in &other.include {
+            if !self.include.contains(i) {
+                self.include.push(i.clone());
+            }
+        }
+        Ok(())
+    }
 }
 
 /// How a host maps a generated range back to its document.
@@ -64,41 +127,132 @@ pub struct Projected {
 /// `None` drops the finding, as both upstreams drop what lands in generated code.
 pub type MapBack = fn(&Emitter, Span) -> Option<Span>;
 
-/// Runs one `tsc` over every document's projection and writes each document's findings (`json`,
-/// see [`render_findings`]); a run that fails is reported on every document.
-pub fn check_projected(
-    tsc: &Tsc,
-    mut req: CheckRequest,
-    mut docs: Vec<Projected>,
+/// Type checking over every document of `langs` whose language provides [`TsView`].
+///
+/// Each document is projected on its worker, then one `tsc` checks them all. Writes each document's
+/// findings as svelte-check and vue-tsc report them (`json`, see [`render_findings`]).
+#[derive(Debug)]
+pub struct Check {
+    pub id: &'static str,
+    pub langs: &'static [&'static str],
+    /// `None`: a document that needs checking reports that the task is not configured.
+    pub tsc: Option<Tsc>,
+}
+
+struct Prepared {
+    projection: Emitter,
     map_back: MapBack,
-    outs: Vec<&mut TaskOutput>,
-) {
-    req.files = docs
-        .iter_mut()
-        .map(|d| std::mem::take(&mut d.emitter.out))
-        .collect();
+    env: Arc<TsEnv>,
+    src: String,
+}
+
+impl ProjectTask for Check {
+    fn id(&self) -> &'static str {
+        self.id
+    }
+
+    fn applies(&self, doc: &Document) -> bool {
+        self.langs.contains(&doc.lang)
+    }
+
+    fn prepare(&self, ctx: &Ctx<'_>, out: &mut TaskOutput) -> Option<Part> {
+        match ctx.facet::<TsView>()? {
+            Err(d) => {
+                out.diagnostics.push(d.clone());
+                None
+            }
+            Ok(TsDoc::Unchecked) => {
+                out.file(
+                    "json",
+                    render_findings(ctx.src(), ctx.line_index(), &mut []),
+                );
+                None
+            }
+            Ok(TsDoc::Checked { .. }) if self.tsc.is_none() => {
+                out.diagnostics.push(Diagnostic::error(
+                    "check_unconfigured",
+                    format!("{} needs a tsc executable", self.id),
+                    Span::new(0, 0),
+                ));
+                None
+            }
+            Ok(TsDoc::Checked {
+                projection,
+                map_back,
+                env,
+            }) => Some(Box::new(Prepared {
+                projection: Emitter {
+                    out: projection.out.clone(),
+                    mappings: projection.mappings.clone(),
+                },
+                map_back: *map_back,
+                env: Arc::clone(env),
+                src: ctx.src().to_owned(),
+            })),
+        }
+    }
+
+    fn finish(&self, parts: Vec<Part>, outs: Vec<&mut TaskOutput>) {
+        let tsc = self
+            .tsc
+            .as_ref()
+            .expect("prepare returns parts only when configured");
+        let docs: Vec<Prepared> = parts
+            .into_iter()
+            .map(|p| *p.downcast::<Prepared>().expect("parts are this task's"))
+            .collect();
+        let mut env = TsEnv::default();
+        let mut merged: Vec<&Arc<TsEnv>> = Vec::new();
+        for d in &docs {
+            if merged.iter().any(|e| Arc::ptr_eq(e, &d.env)) {
+                continue;
+            }
+            merged.push(&d.env);
+            if let Err(msg) = env.merge(&d.env) {
+                fail(outs, &msg);
+                return;
+            }
+        }
+        check_projected(tsc, &env, docs, outs);
+    }
+}
+
+fn fail(outs: Vec<&mut TaskOutput>, msg: &str) {
+    for out in outs {
+        out.diagnostics
+            .push(Diagnostic::error("check_failed", msg, Span::new(0, 0)));
+    }
+}
+
+/// Runs one `tsc` over every document's projection and writes each document's findings; a run
+/// that fails is reported on every document.
+fn check_projected(tsc: &Tsc, env: &TsEnv, mut docs: Vec<Prepared>, outs: Vec<&mut TaskOutput>) {
+    let req = CheckRequest {
+        files: docs
+            .iter_mut()
+            .map(|d| std::mem::take(&mut d.projection.out))
+            .collect(),
+        declarations: env.declarations.clone(),
+        include: env.include.clone(),
+        paths: env.paths.clone(),
+    };
     let checked = tsc.check(&req);
     // Mapping back reads the generated text around a position.
     for (d, file) in docs.iter_mut().zip(req.files) {
-        d.emitter.out = file;
+        d.projection.out = file;
     }
     let found = match checked {
         Ok(found) => found,
         Err(msg) => {
-            for out in outs {
-                out.diagnostics.push(Diagnostic::error(
-                    "check_failed",
-                    msg.clone(),
-                    Span::new(0, 0),
-                ));
-            }
+            fail(outs, &msg);
             return;
         }
     };
     let mut per_doc: Vec<Vec<(Span, u32, String)>> = vec![Vec::new(); docs.len()];
-    for d in found {
-        if let Some(span) = map_back(&docs[d.file].emitter, d.span) {
-            per_doc[d.file].push((span, d.code, d.message));
+    for f in found {
+        let d = &docs[f.file];
+        if let Some(span) = (d.map_back)(&d.projection, f.span) {
+            per_doc[f.file].push((span, f.code, f.message));
         }
     }
     for ((d, out), mut found) in docs.iter().zip(outs).zip(per_doc) {

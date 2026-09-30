@@ -16,3 +16,19 @@ at = "9"
 expect = '''{"code": 2339, "message": "Property 'undefinedName' does not exist on type '{ count: number; label: \"x\"; inc: (e: MouseEvent) => number; items: { id: number; name: string; }[]; $: ComponentInternalInstance; $data: {}; $props: {}; $attrs: Attrs; ... 10 more ...; $watch<T extends string | ((...args: any) => any)>(source: T, cb: T extends (...args: any) => infer R ? (args_0: R, args_1: R, args...'.", "start": {"line": 19, "character": 28}, "end": {"line": 19, "character": 41}}'''
 replace = '''{"code": 2339, "message": "Property 'undefinedName' does not exist on type '{ $: ComponentInternalInstance; $data: {}; $props: {}; $attrs: Attrs; $refs: Data; $slots: Readonly<InternalSlots>; ... 12 more ...; items: { ...; }[]; }'.", "start": {"line": 19, "character": 28}, "end": {"line": 19, "character": 41}}'''
 reason = "TypeScript 7 prints the spread type of __VLS_ctx starting with ComponentPublicInstance's members, TypeScript 6 with the setup bindings; the oracle's own virtual code gives rsv's finding under tsc 7.0.2"
+
+[[adjust]]
+task = "ts.check"
+artifact = "json"
+at = "2"
+expect = '''{"code": 2345, "message": "Argument of type 'KeyboardEvent' is not assignable to parameter of type 'MouseEvent'.\n  Type 'KeyboardEvent' is missing the following properties from type 'MouseEvent': button, buttons, clientX, clientY, and 14 more.", "start": {"line": 13, "character": 39}, "end": {"line": 13, "character": 45}}'''
+replace = '''{"code": 2740, "message": "Type 'KeyboardEvent' is missing the following properties from type 'MouseEvent': button, buttons, clientX, clientY, and 14 more.", "start": {"line": 13, "character": 39}, "end": {"line": 13, "character": 45}}'''
+reason = "TypeScript 7 reports the argument's missing properties (TS2740) where TypeScript 6 wraps them in TS2345; the oracle's own virtual code gives rsv's finding under tsc 7.0.2"
+
+[[adjust]]
+task = "ts.check"
+artifact = "json"
+at = "9"
+expect = '''{"code": 2339, "message": "Property 'undefinedName' does not exist on type '{ count: number; label: \"x\"; inc: (e: MouseEvent) => number; items: { id: number; name: string; }[]; $: ComponentInternalInstance; $data: {}; $props: {}; $attrs: Attrs; ... 10 more ...; $watch<T extends string | ((...args: any) => any)>(source: T, cb: T extends (...args: any) => infer R ? (args_0: R, args_1: R, args...'.", "start": {"line": 19, "character": 28}, "end": {"line": 19, "character": 41}}'''
+replace = '''{"code": 2339, "message": "Property 'undefinedName' does not exist on type '{ $: ComponentInternalInstance; $data: {}; $props: {}; $attrs: Attrs; $refs: Data; $slots: Readonly<InternalSlots>; ... 12 more ...; items: { ...; }[]; }'.", "start": {"line": 19, "character": 28}, "end": {"line": 19, "character": 41}}'''
+reason = "TypeScript 7 prints the spread type of __VLS_ctx starting with ComponentPublicInstance's members, TypeScript 6 with the setup bindings; the oracle's own virtual code gives rsv's finding under tsc 7.0.2"

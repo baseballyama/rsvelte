@@ -6,13 +6,14 @@ import svelteCompileModule from './svelte-compile-module.ts';
 import svelteFormat from './svelte-format.ts';
 import svelteLint from './svelte-lint.ts';
 import svueCompile from './svue-compile.ts';
+import tsCheck from './ts-check.ts';
 import vueCheck from './vue-check.ts';
 import vueCompile from './vue-compile.ts';
 import vueFormat from './vue-format.ts';
 import vueLint from './vue-lint.ts';
 import type { Task } from '../types.ts';
 
-export const TASKS: Task[] = [svelteCheck, svelteCompile, svelteCompileModule, svelteFormat, svelteLint, svueCompile, vueCheck, vueCompile, vueFormat, vueLint];
+export const TASKS: Task[] = [svelteCheck, svelteCompile, svelteCompileModule, svelteFormat, svelteLint, svueCompile, tsCheck, vueCheck, vueCompile, vueFormat, vueLint];
 
 export function taskById(id: string): Task {
 	const t = TASKS.find((t) => t.id === id);

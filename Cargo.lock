@@ -65,6 +65,7 @@ version = "0.0.0"
 dependencies = [
  "libc",
  "rayon",
+ "rsv_js",
  "rsv_kernel",
  "rsv_svelte",
  "rsv_svue",

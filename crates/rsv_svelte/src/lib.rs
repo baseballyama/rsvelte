@@ -10,7 +10,6 @@
 //! | [`Normalized`] | the template as the compiler understands it ([`hir::Hir`]) |
 //! | [`Analyzed`] | expression facts, dynamic fragments, CSS usage ([`analyze::Analysis`]) |
 //! | [`ScopedCss`] | the component's CSS with scoping applied |
-//! | [`TsProjection`] | the TypeScript view type checking reads ([`project::Projection`]) |
 
 pub mod analyze;
 pub mod ast;
@@ -114,21 +113,6 @@ impl Artifact for ScopedCss {
     }
 }
 
-#[derive(Debug)]
-pub struct TsProjection;
-
-impl Artifact for TsProjection {
-    /// `None` when the document did not parse.
-    type Output = Option<Result<project::Projection, rsv_kernel::diag::Unsupported>>;
-
-    const NAME: &'static str = "svelte.project.ts";
-
-    fn compute(ctx: &Ctx<'_>) -> Self::Output {
-        let c = ctx.get::<Parsed>().as_ref().ok()?;
-        Some(project::project(c, ctx.src()))
-    }
-}
-
 /// What the compiler reads of a Svelte component: its script from [`Parsed`], its template from
 /// [`Normalized`]. `None` when the document did not parse.
 #[must_use]
@@ -178,7 +162,6 @@ pub fn register(reg: &mut Registry, config: &Config) {
         .artifact::<Resolved>()
         .artifact::<Normalized>()
         .artifact::<Analyzed>()
-        .artifact::<ScopedCss>()
-        .artifact::<TsProjection>();
+        .artifact::<ScopedCss>();
     tasks::register(reg, config);
 }

@@ -12,7 +12,7 @@ use std::any::Any;
 
 use rayon::prelude::*;
 
-use crate::db::{Artifact, ArtifactRegistry, Ctx};
+use crate::db::{Artifact, ArtifactRegistry, Ctx, Facet};
 use crate::diag::Diagnostic;
 use crate::metrics;
 use crate::source::MAX_SOURCE_LEN;
@@ -135,6 +135,16 @@ impl Registry {
 
     pub fn artifact<A: Artifact>(&mut self) -> &mut Self {
         self.artifacts.register::<A>();
+        self
+    }
+
+    /// See [`ArtifactRegistry::provide`].
+    pub fn provide<F: Facet>(
+        &mut self,
+        lang: &'static str,
+        provider: impl Fn(&Ctx<'_>) -> F::Output + Send + Sync + 'static,
+    ) -> &mut Self {
+        self.artifacts.provide::<F>(lang, provider);
         self
     }
 
@@ -648,5 +658,85 @@ mod tests {
             r[0].panic.as_deref(),
             Some("panicked with a payload that is not a string")
         );
+    }
+
+    struct Other;
+    impl Language for Other {
+        fn id(&self) -> &'static str {
+            "o"
+        }
+
+        fn matches(&self, path: &str) -> bool {
+            std::path::Path::new(path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("o"))
+        }
+    }
+
+    /// Each language answers with its own spelling of the length.
+    struct Describe;
+    impl Facet for Describe {
+        type Output = String;
+
+        const NAME: &'static str = "describe";
+    }
+
+    /// Written against the facet only: it names no language and no artifact.
+    struct Report;
+    impl Task for Report {
+        fn id(&self) -> &'static str {
+            "report"
+        }
+
+        fn applies(&self, _: &Document) -> bool {
+            true
+        }
+
+        fn run(&self, ctx: &Ctx<'_>, out: &mut TaskOutput) {
+            let first = ctx.facet::<Describe>().cloned();
+            let again = ctx.facet::<Describe>().cloned();
+            assert_eq!(first, again);
+            out.file("txt", first.unwrap_or_else(|| "unanswered".into()));
+        }
+    }
+
+    #[test]
+    fn a_facet_is_answered_by_the_documents_language_once() {
+        static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let mut reg = Registry::new();
+        reg.language(Lang)
+            .language(Other)
+            .artifact::<Len>()
+            .task(Report)
+            .provide::<Describe>("t", |ctx| {
+                CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                format!("{} bytes", ctx.get::<Len>())
+            });
+        assert!(reg.artifacts().provides::<Describe>("t"));
+        assert!(!reg.artifacts().provides::<Describe>("o"));
+        let docs = [
+            reg.document("a.t", "abc").unwrap(),
+            reg.document("b.o", "abcd").unwrap(),
+        ];
+        let opts = RunOptions {
+            tasks: &[],
+            sharing: Sharing::Shared,
+            threads: Some(1),
+        };
+        let got: Vec<String> = run(&reg, &docs, &opts)
+            .unwrap()
+            .into_iter()
+            .map(|r| r.outputs[0].1.files[0].text.clone())
+            .collect();
+        assert_eq!(got, ["3 bytes", "unanswered"]);
+        assert_eq!(CALLS.load(std::sync::atomic::Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "provides facet `describe` twice")]
+    fn a_language_provides_a_facet_once() {
+        let mut reg = Registry::new();
+        reg.provide::<Describe>("t", |_| String::new())
+            .provide::<Describe>("t", |_| String::new());
     }
 }
