@@ -20,6 +20,9 @@ use rustc_hash::FxHashMap;
 
 static ENABLED: AtomicBool = AtomicBool::new(true);
 const MAX_PER_KEY: usize = 16;
+/// What one thread's pool may hold, in bytes: a buffer that would take it past this is freed, so
+/// one unusually large document does not keep its buffers for the rest of the run.
+const MAX_BYTES: usize = 64 << 20;
 
 pub fn set_enabled(on: bool) {
     ENABLED.store(on, Ordering::Relaxed);
@@ -36,12 +39,16 @@ struct Raw {
 }
 
 #[derive(Default)]
-struct Pool(FxHashMap<TypeId, Vec<Raw>>);
+struct Pool {
+    buffers: FxHashMap<TypeId, Vec<Raw>>,
+    /// The bytes `buffers` hold.
+    bytes: usize,
+}
 
 #[expect(unsafe_code, reason = "frees the buffers the pool took ownership of")]
 impl Drop for Pool {
     fn drop(&mut self) {
-        for raw in self.0.drain().flat_map(|(_, v)| v) {
+        for raw in self.buffers.drain().flat_map(|(_, v)| v) {
             if raw.layout.size() != 0 {
                 // SAFETY: `raw` came from a Vec with this exact layout and was never handed out
                 // again.
@@ -96,7 +103,9 @@ fn take_at<T: 'static>(key: TypeId) -> Vec<T> {
         return Vec::new();
     }
     POOL.try_with(|p| {
-        let raw = p.borrow_mut().0.get_mut(&key).and_then(Vec::pop)?;
+        let mut p = p.borrow_mut();
+        let raw = p.buffers.get_mut(&key).and_then(Vec::pop)?;
+        p.bytes -= raw.layout.size();
         // SAFETY: stored by `give_at::<T>` under a key only `Vec<T>`s use, with this capacity;
         // length 0 is always valid.
         Some(unsafe { Vec::from_raw_parts(raw.ptr.cast::<T>(), 0, raw.cap) })
@@ -123,7 +132,10 @@ fn give_at<T: 'static>(key: TypeId, mut v: Vec<T>) {
     };
     let kept = POOL.try_with(|p| {
         let mut p = p.borrow_mut();
-        let slot = p.0.entry(key).or_default();
+        if p.bytes + layout.size() > MAX_BYTES {
+            return false;
+        }
+        let slot = p.buffers.entry(key).or_default();
         let room = slot.len() < MAX_PER_KEY;
         if room {
             slot.push(Raw {
@@ -131,6 +143,7 @@ fn give_at<T: 'static>(key: TypeId, mut v: Vec<T>) {
                 cap,
                 layout,
             });
+            p.bytes += layout.size();
         }
         room
     });
@@ -166,5 +179,14 @@ mod tests {
         assert_ne!(plain.capacity(), cap);
         let keyed: Vec<u16> = super::take_keyed::<Owner, u16>();
         assert_eq!(keyed.capacity(), cap);
+    }
+
+    #[test]
+    fn a_buffer_past_the_budget_is_freed() {
+        struct Big;
+        super::set_enabled(true);
+        let v: Vec<u8> = Vec::with_capacity(super::MAX_BYTES + 1);
+        super::give_keyed::<Big, u8>(v);
+        assert_eq!(super::take_keyed::<Big, u8>().capacity(), 0);
     }
 }
