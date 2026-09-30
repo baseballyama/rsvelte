@@ -148,6 +148,11 @@ impl<I: Idx, T> IndexVec<I, T> {
     }
 
     #[must_use]
+    pub fn into_raw(self) -> Vec<T> {
+        self.raw
+    }
+
+    #[must_use]
     pub const fn capacity(&self) -> usize {
         self.raw.capacity()
     }

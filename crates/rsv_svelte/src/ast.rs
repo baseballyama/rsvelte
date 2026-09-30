@@ -6,6 +6,7 @@
 
 use rsv_css::StyleSheet;
 use rsv_js::{Ast, NodeId};
+use rsv_kernel::pool;
 use rsv_kernel::source::Span;
 use rsv_kernel::token::{TokenKind, Tokens};
 
@@ -167,6 +168,18 @@ pub enum Tk {
 impl TokenKind for Tk {
     fn is_trivia(self) -> bool {
         matches!(self, Self::Whitespace | Self::JsComment)
+    }
+}
+
+/// The template's columns go back to the thread's [`pool`] for the next document, as the script's
+/// do.
+impl Drop for Component {
+    fn drop(&mut self) {
+        pool::give(std::mem::take(&mut self.nodes));
+        pool::give(std::mem::take(&mut self.kids));
+        pool::give(std::mem::take(&mut self.attrs));
+        pool::give(std::mem::take(&mut self.parts));
+        pool::give(std::mem::take(&mut self.template_exprs));
     }
 }
 

@@ -14,9 +14,9 @@
 			"svue.compile/server"
 		]
 	},
-	"allocs": 3029229,
-	"alloc_bytes": 385305807,
-	"peak_live_growth_bytes": 35891272,
+	"allocs": 2902403,
+	"alloc_bytes": 210562915,
+	"peak_live_growth_bytes": 35888824,
 	"phases": {
 		"js.parents": {
 			"calls": 5452,
@@ -80,8 +80,8 @@
 		},
 		"svelte.parse": {
 			"calls": 17489,
-			"allocs": 970228,
-			"alloc_bytes": 253284318
+			"allocs": 843501,
+			"alloc_bytes": 78622630
 		},
 		"svelte.resolve": {
 			"calls": 5433,
@@ -145,8 +145,8 @@
 		},
 		"vue.parse": {
 			"calls": 24,
-			"allocs": 1086,
-			"alloc_bytes": 204530
+			"allocs": 987,
+			"alloc_bytes": 123326
 		},
 		"vue.resolve": {
 			"calls": 19,
@@ -170,9 +170,9 @@
 		}
 	},
 	"instructions": {
-		"arm64-linux": 3120392604
+		"arm64-linux": 3062524226
 	},
 	"load_instructions": {
-		"arm64-linux": 345682955
+		"arm64-linux": 345687629
 	}
 }

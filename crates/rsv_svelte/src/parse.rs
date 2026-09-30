@@ -7,6 +7,7 @@
 use rsv_js::parser::{parse_expression_prefix, parse_program};
 use rsv_js::{Ast, NodeId};
 use rsv_kernel::diag::Diagnostic;
+use rsv_kernel::pool;
 use rsv_kernel::source::Span;
 use rsv_kernel::token::Tokens;
 
@@ -35,15 +36,15 @@ pub fn parse(src: &str) -> R<Component> {
         pos: 0,
         c: Component {
             js: Ast::new(),
-            nodes: Vec::new(),
-            kids: Vec::new(),
-            attrs: Vec::new(),
-            parts: Vec::new(),
+            nodes: pool::take(),
+            kids: pool::take(),
+            attrs: pool::take(),
+            parts: pool::take(),
             root: Range::default(),
             instance: None,
             program: NodeId::NONE,
             style: None,
-            template_exprs: Vec::new(),
+            template_exprs: pool::take(),
             // The corpus averages a token per 4.8 bytes; a quarter leaves most tables unresized.
             tokens: Tokens::with_capacity(src.len() / 4),
         },

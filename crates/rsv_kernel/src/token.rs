@@ -10,8 +10,8 @@
 use std::fmt::Debug;
 
 use crate::idx::{Idx, IndexVec};
-use crate::newtype_index;
 use crate::source::Span;
+use crate::{newtype_index, pool};
 
 pub trait TokenKind: Copy + Eq + Debug + 'static {
     /// Whitespace and comments: skipped by [`Tokens::before`] and [`Tokens::after`].
@@ -31,15 +31,22 @@ newtype_index!(
 /// Tokens in source order; they never overlap. A table may cover a whole document or only some
 /// regions of it (the expressions of an embedding language).
 #[derive(Debug)]
-pub struct Tokens<K> {
+pub struct Tokens<K: TokenKind> {
     toks: IndexVec<TokenId, Token<K>>,
 }
 
+/// The table's buffer is recycled through [`pool`], like a tree's columns.
 impl<K: TokenKind> Default for Tokens<K> {
     fn default() -> Self {
         Self {
-            toks: IndexVec::new(),
+            toks: pool::take().into(),
         }
+    }
+}
+
+impl<K: TokenKind> Drop for Tokens<K> {
+    fn drop(&mut self) {
+        pool::give(std::mem::take(&mut self.toks).into_raw());
     }
 }
 
@@ -51,9 +58,9 @@ impl<K: TokenKind> Tokens<K> {
 
     #[must_use]
     pub fn with_capacity(n: usize) -> Self {
-        Self {
-            toks: IndexVec::with_capacity(n),
-        }
+        let mut t = Self::default();
+        t.reserve(n);
+        t
     }
 
     /// Room for `n` more tokens.
