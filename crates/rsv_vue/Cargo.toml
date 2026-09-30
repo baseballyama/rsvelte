@@ -1,5 +1,6 @@
 [package]
-name = "rsv_svelte"
+name = "rsv_vue"
+description = "Vue single-file components as a language plugin"
 version = "0.0.0"
 edition.workspace = true
 publish = false
@@ -10,7 +11,6 @@ rsv_js.workspace = true
 rsv_css.workspace = true
 rsv_html.workspace = true
 rustc-hash.workspace = true
-unicode-id-start.workspace = true
 
 [lints]
 workspace = true

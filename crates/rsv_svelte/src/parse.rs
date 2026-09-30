@@ -156,26 +156,10 @@ impl<'a> P<'a> {
     /// Copies what the JavaScript parser consumed in `lo..hi` (its tokens and comments since the
     /// counts given) into the component's tokens, with the whitespace between them.
     fn js_region(&mut self, lo: u32, hi: u32, tokens_from: usize, comments_from: usize) {
-        let js = &self.c.js;
-        let mut toks = js.tokens.since(tokens_from).iter().peekable();
-        let mut comments = js.comments[comments_from..].iter().peekable();
         let mut at = lo;
-        loop {
-            let next_tok = toks.peek().map(|t| t.span.lo);
-            let next_comment = comments.peek().map(|c| c.lo);
-            let token_first = match (next_tok, next_comment) {
-                (None, None) => break,
-                (Some(t), Some(c)) => t < c,
-                (t, _) => t.is_some(),
-            };
-            let (kind, span) = if token_first {
-                let t = toks.next().expect("peeked");
-                (Tk::Js(t.kind), t.span)
-            } else {
-                (Tk::JsComment, *comments.next().expect("peeked"))
-            };
+        for (kind, span) in self.c.js.recorded_since(tokens_from, comments_from) {
             self.c.tokens.push(Tk::Whitespace, Span::new(at, span.lo));
-            self.c.tokens.push(kind, span);
+            self.c.tokens.push(kind.map_or(Tk::JsComment, Tk::Js), span);
             at = span.hi;
         }
         self.c.tokens.push(Tk::Whitespace, Span::new(at, hi));

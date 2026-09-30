@@ -26,9 +26,11 @@ use rsv_kernel::source::LineIndex;
 #[global_allocator]
 static ALLOC: rsv_kernel::metrics::CountingAlloc = rsv_kernel::metrics::CountingAlloc;
 
-fn registry(config: &rsv_svelte::Config) -> Registry {
+/// Every language plugin, each with its own configuration.
+fn registry(svelte: &rsv_svelte::Config, vue: &rsv_vue::Config) -> Registry {
     let mut reg = Registry::new();
-    rsv_svelte::register(&mut reg, config);
+    rsv_svelte::register(&mut reg, svelte);
+    rsv_vue::register(&mut reg, vue);
     reg
 }
 
@@ -77,7 +79,7 @@ fn main() -> ExitCode {
             _ => return usage("--tsc and --svelte go together"),
         },
     };
-    let reg = registry(&config);
+    let reg = registry(&config, &rsv_vue::Config::default());
     if let Err(e) = reg.check_task_ids(&tasks) {
         return usage(&e.to_string());
     }
