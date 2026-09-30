@@ -1,0 +1,15 @@
+[package]
+name = "rsv_svue"
+description = "Vue's template syntax with Svelte's semantics: a frontend swap over two plugins"
+version = "0.0.0"
+edition.workspace = true
+publish = false
+
+[dependencies]
+rsv_kernel.workspace = true
+rsv_js.workspace = true
+rsv_svelte.workspace = true
+rsv_vue.workspace = true
+
+[lints]
+workspace = true

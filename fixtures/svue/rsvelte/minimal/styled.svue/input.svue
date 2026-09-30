@@ -1,0 +1,13 @@
+<script setup>
+let size = $state('big')
+</script>
+
+<template>
+  <p class="big" :data-size="size">text</p>
+  <span>plain</span>
+</template>
+
+<style scoped>
+  .big { color: red; }
+  span { font-weight: bold; }
+</style>

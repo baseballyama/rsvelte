@@ -1,0 +1,13 @@
+<script setup>
+let value = $state('')
+let active = $state(false)
+function onInput(event) {
+  value = event.target.value
+}
+</script>
+
+<template>
+  <label for="name" :data-state="active ? 'on' : 'off'">Name &lt;required&gt;</label>
+  <input id="name" required :value="value" @input="onInput" @focus="() => (active = true)">
+  <p :data-length="value.length" hidden>{{ value }}</p>
+</template>

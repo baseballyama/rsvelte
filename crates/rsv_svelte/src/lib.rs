@@ -109,13 +109,8 @@ impl Artifact for ScopedCss {
     const NAME: &'static str = "svelte.css";
 
     fn compute(ctx: &Ctx<'_>) -> Self::Output {
-        let sheet = compile_input(ctx)?.style?;
         let an = ctx.get::<Analyzed>().as_ref()?;
-        let hash = an
-            .css_hash
-            .as_deref()
-            .expect("a component with a style has a hash");
-        Some(rsv_css::scope::render(ctx.src(), sheet, &an.css_used, hash))
+        tasks::scoped_css(&compile_input(ctx)?, an)
     }
 }
 

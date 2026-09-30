@@ -67,6 +67,7 @@ dependencies = [
  "rayon",
  "rsv_kernel",
  "rsv_svelte",
+ "rsv_svue",
  "rsv_vue",
 ]
 
@@ -107,6 +108,16 @@ dependencies = [
  "rsv_kernel",
  "rustc-hash",
  "unicode-id-start",
+]
+
+[[package]]
+name = "rsv_svue"
+version = "0.0.0"
+dependencies = [
+ "rsv_js",
+ "rsv_kernel",
+ "rsv_svelte",
+ "rsv_vue",
 ]
 
 [[package]]

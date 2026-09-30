@@ -1,0 +1,14 @@
+<script setup lang="ts">
+let { user, items = [] }: { user?: { name: string }; items?: string[] } = $props()
+let open = $state(false)
+</script>
+
+<template>
+  <section class="card" :title="user?.name">
+    <h2 v-if="user">Hello {{ user.name }}</h2>
+    <h2 v-else-if="items.length > 0">{{ items.length }} items &amp; more</h2>
+    <h2 v-else>Nobody</h2>
+    <button @click="() => (open = !open)">toggle</button>
+    <p v-if="open">open</p>
+  </section>
+</template>

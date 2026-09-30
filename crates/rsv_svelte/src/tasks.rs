@@ -53,10 +53,6 @@ impl Task for Compile {
             return;
         }
         let input = crate::compile_input(ctx).expect("a parsed component is lowered to HIR");
-        if let Some(t) = input.js.ts_runtime.first() {
-            out.diagnostics.push(typescript_invalid_feature(t));
-            return;
-        }
         let res = ctx
             .get::<Resolved>()
             .as_ref()
@@ -65,24 +61,8 @@ impl Task for Compile {
             .get::<Analyzed>()
             .as_ref()
             .expect("a parsed component is analysed");
-        let lowered = {
-            let _p = metrics::phase(match self.target {
-                Target::Client => "svelte.lower.client",
-                Target::Server => "svelte.lower.server",
-            });
-            match self.target {
-                Target::Client => lower::client::lower(&input, res, an),
-                Target::Server => lower::server::lower(&input, res, an),
-            }
-        };
-        match lowered {
-            Ok((ast, root)) => {
-                let _p = metrics::phase("js.print");
-                out.file(
-                    "js",
-                    rsv_js::codegen::print_program(&ast, ctx.src(), root).out,
-                );
-            }
+        match compile(&input, res, an, self.target) {
+            Ok(js) => out.file("js", js),
             Err(d) => {
                 out.diagnostics.push(d);
                 return;
@@ -92,6 +72,48 @@ impl Task for Compile {
             out.file("css", css.clone());
         }
     }
+}
+
+/// The JavaScript module of one target, from any frontend's [`lower::CompileInput`].
+///
+/// # Errors
+///
+/// A [`Diagnostic`] for what the compiler rejects or the port does not handle yet.
+pub fn compile(
+    input: &lower::CompileInput<'_>,
+    res: &crate::resolve::Resolution,
+    an: &crate::analyze::Analysis,
+    target: Target,
+) -> Result<String, Diagnostic> {
+    if let Some(t) = input.js.ts_runtime.first() {
+        return Err(typescript_invalid_feature(t));
+    }
+    let (ast, root) = {
+        let _p = metrics::phase(match target {
+            Target::Client => "svelte.lower.client",
+            Target::Server => "svelte.lower.server",
+        });
+        match target {
+            Target::Client => lower::client::lower(input, res, an)?,
+            Target::Server => lower::server::lower(input, res, an)?,
+        }
+    };
+    let _p = metrics::phase("js.print");
+    Ok(rsv_js::codegen::print_program(&ast, input.src, root).out)
+}
+
+/// The style sheet scoped and pruned, from any frontend's [`lower::CompileInput`].
+#[must_use]
+pub fn scoped_css(
+    input: &lower::CompileInput<'_>,
+    an: &crate::analyze::Analysis,
+) -> Option<String> {
+    let (sheet, hash) = match (input.style, an.css_hash.as_deref()) {
+        (None, _) => return None,
+        (Some(sheet), Some(hash)) => (sheet, hash),
+        (Some(_), None) => unreachable!("a component with a style has a hash"),
+    };
+    Some(rsv_css::scope::render(input.src, sheet, &an.css_used, hash))
 }
 
 /// Upstream `remove_typescript_nodes` erases types and refuses what has a runtime value.

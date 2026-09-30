@@ -141,9 +141,35 @@ pub struct Branch {
     pub origin: TId,
 }
 
+/// An attribute name as the compiler reads it: as written, or as a frontend spells it in Svelte
+/// (Vue's `@click` is Svelte's `onclick`).
+#[derive(Debug, Clone)]
+pub enum Name {
+    Source(Span),
+    Spelled { text: Box<str>, span: Span },
+}
+
+impl Name {
+    #[must_use]
+    pub fn text<'a>(&'a self, src: &'a str) -> &'a str {
+        match self {
+            Self::Source(span) => span.text(src),
+            Self::Spelled { text, .. } => text,
+        }
+    }
+
+    /// Where it was written.
+    #[must_use]
+    pub const fn span(&self) -> Span {
+        match *self {
+            Self::Source(span) | Self::Spelled { span, .. } => span,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Attribute {
-    pub name: Span,
+    pub name: Name,
     pub value: AttrValue,
     pub span: Span,
     pub owner: HirId,
@@ -221,134 +247,113 @@ impl NodeKind {
 
 #[must_use]
 pub fn lower(c: &Component, src: &str) -> Hir {
-    let mut b = Builder {
+    let mut b = SurfaceBuilder {
         c,
         src,
-        hir: Hir {
-            nodes: IndexVec::with_capacity(c.nodes.len()),
-            attrs: IndexVec::with_capacity(c.attrs.len()),
-            origin: IndexVec::with_capacity(c.nodes.len()),
-            kids: Vec::with_capacity(c.kids.len()),
-            branches: Vec::new(),
-            root: Children::default(),
-        },
+        b: HirBuilder::new(src, c.nodes.len(), c.attrs.len()),
     };
-    b.hir.root = b.list(c.children(c.root), None);
-    b.hir
+    let root = b.list(c.children(c.root), None);
+    b.b.finish(root)
 }
 
-struct Builder<'a> {
-    c: &'a Component,
-    src: &'a str,
+/// Builds a [`Hir`] for a frontend.
+///
+/// A node is added before its children, so building a child can ask about its ancestors
+/// ([`HirBuilder::element_kind`]); each child list is recorded once its nodes exist
+/// ([`HirBuilder::children`]), which keeps every list contiguous.
+#[derive(Debug)]
+pub struct HirBuilder<'s> {
+    src: &'s str,
     hir: Hir,
 }
 
-impl Builder<'_> {
-    /// Children are built first and their ids appended afterwards, so a list is contiguous even
-    /// though building each child appends its own children.
-    fn list(&mut self, list: &[TId], parent: Option<HirId>) -> Children {
-        let ids: Vec<HirId> = list.iter().map(|&t| self.node(t, parent)).collect();
+impl<'s> HirBuilder<'s> {
+    #[must_use]
+    pub fn new(src: &'s str, nodes: usize, attrs: usize) -> Self {
+        HirBuilder {
+            src,
+            hir: Hir {
+                nodes: IndexVec::with_capacity(nodes),
+                attrs: IndexVec::with_capacity(attrs),
+                origin: IndexVec::with_capacity(nodes),
+                kids: Vec::with_capacity(nodes),
+                branches: Vec::new(),
+                root: Children::default(),
+            },
+        }
+    }
+
+    /// Adds a node; an element or an `if` gets its kind from [`HirBuilder::set_kind`] once its
+    /// children are built.
+    pub fn node(
+        &mut self,
+        kind: NodeKind,
+        span: Span,
+        parent: Option<HirId>,
+        origin: TId,
+    ) -> HirId {
+        self.hir.origin.push(origin);
+        self.hir.nodes.push(Node { kind, span, parent })
+    }
+
+    pub fn set_kind(&mut self, id: HirId, kind: NodeKind) {
+        self.hir.nodes[id].kind = kind;
+    }
+
+    /// For a node whose extent is known only after its children (a chain of branches).
+    pub fn set_span(&mut self, id: HirId, span: Span) {
+        self.hir.nodes[id].span = span;
+    }
+
+    /// Records the attributes of the element `owner` will be; returns their range.
+    pub fn attributes(&mut self, attrs: impl IntoIterator<Item = Attribute>) -> IdxRange<AttrId> {
+        let first = self.hir.attrs.next_id();
+        for a in attrs {
+            self.hir.attrs.push(a);
+        }
+        IdxRange::new(first, self.hir.attrs.next_id())
+    }
+
+    pub fn children(&mut self, ids: &[HirId]) -> Children {
         let start = self.hir.kids.len() as u32;
-        self.hir.kids.extend(&ids);
+        self.hir.kids.extend(ids);
         Children {
             start,
             len: ids.len() as u32,
         }
     }
 
-    fn node(&mut self, t: TId, parent: Option<HirId>) -> HirId {
-        let (c, src) = (self.c, self.src);
-        let surface = c.node(t);
-        let id = self.hir.nodes.push(Node {
-            kind: NodeKind::Comment {
-                data: Span::default(),
-            },
-            span: surface.span(),
-            parent,
-        });
-        self.hir.origin.push(t);
-        let kind = match *surface {
-            TNode::Text { span } => {
-                let text = decode_text(span.text(src));
-                NodeKind::Text {
-                    raw: span,
-                    decoded: match text {
-                        std::borrow::Cow::Borrowed(_) => None,
-                        std::borrow::Cow::Owned(s) => Some(s.into_boxed_str()),
-                    },
-                }
-            }
-            TNode::Comment { data, .. } => NodeKind::Comment { data },
-            TNode::Expr { expr, .. } => NodeKind::Expr { expr },
-            TNode::Element {
-                name,
-                attrs,
-                children,
-                start_tag,
-                ..
-            } => {
-                let kind = self.element_kind(name, parent);
-                let first = self.hir.attrs.next_id();
-                for (i, a) in c.attrs(attrs).iter().enumerate() {
-                    self.hir.attrs.push(Attribute {
-                        name: a.name,
-                        value: attr_value(c, src, a),
-                        span: a.span,
-                        owner: id,
-                        origin: attrs.start + i as u32,
-                    });
-                }
-                let attrs = IdxRange::new(first, self.hir.attrs.next_id());
-                // `element_kind` of a descendant reads this node's kind and attributes.
-                self.hir.nodes[id].kind = NodeKind::Element(Element {
-                    name,
-                    kind,
-                    attrs,
-                    children: Children::default(),
-                    start_tag,
-                });
-                let children = self.list(c.children(children), Some(id));
-                let NodeKind::Element(el) = &mut self.hir.nodes[id].kind else {
-                    unreachable!("set above")
-                };
-                el.children = children;
-                return id;
-            }
-            TNode::If { .. } => {
-                let chain = c.if_branches(t);
-                let mut branches = Vec::with_capacity(chain.len());
-                for &b in &chain {
-                    let TNode::If { test, cons, .. } = *c.node(b) else {
-                        unreachable!("if_branches returns If nodes")
-                    };
-                    branches.push(Branch {
-                        test,
-                        body: self.list(c.children(cons), Some(id)),
-                        origin: b,
-                    });
-                }
-                let last = *chain.last().expect("a chain has its own node");
-                let TNode::If { alt, .. } = *c.node(last) else {
-                    unreachable!("if_branches returns If nodes")
-                };
-                let otherwise = alt.map(|a| self.list(c.children(a), Some(id)));
-                let start = self.hir.branches.len() as u32;
-                let len = branches.len() as u32;
-                self.hir.branches.extend(branches);
-                NodeKind::If {
-                    branches: Branches { start, len },
-                    otherwise,
-                }
-            }
+    pub fn branches(&mut self, branches: impl IntoIterator<Item = Branch>) -> Branches {
+        let start = self.hir.branches.len() as u32;
+        self.hir.branches.extend(branches);
+        Branches {
+            start,
+            len: self.hir.branches.len() as u32 - start,
+        }
+    }
+
+    /// Sets the children of an element added with no children yet.
+    ///
+    /// # Panics
+    ///
+    /// If `id` is not an element.
+    pub fn set_element_children(&mut self, id: HirId, children: Children) {
+        let NodeKind::Element(el) = &mut self.hir.nodes[id].kind else {
+            panic!("{id:?} is not an element")
         };
-        self.hir.nodes[id].kind = kind;
-        id
+        el.children = children;
+    }
+
+    #[must_use]
+    pub fn finish(mut self, root: Children) -> Hir {
+        self.hir.root = root;
+        self.hir
     }
 
     /// Upstream `element` (phases/1-parse/state/element.js): `meta_tags`, then
     /// `regex_valid_component_name`, then `<title>` under `<svelte:head>`, then `<slot>`.
-    fn element_kind(&self, name: Span, parent: Option<HirId>) -> ElementKind {
-        let name = name.text(self.src);
+    #[must_use]
+    pub fn element_kind(&self, name: &str, parent: Option<HirId>) -> ElementKind {
         if let Some(meta) = name.strip_prefix("svelte:") {
             return ElementKind::Meta(meta_tag(meta));
         }
@@ -394,6 +399,103 @@ impl Builder<'_> {
             at = self.hir.nodes[id].parent;
         }
         false
+    }
+}
+
+/// The Svelte frontend: the surface tree as written, to the HIR.
+struct SurfaceBuilder<'a> {
+    c: &'a Component,
+    src: &'a str,
+    b: HirBuilder<'a>,
+}
+
+impl SurfaceBuilder<'_> {
+    fn list(&mut self, list: &[TId], parent: Option<HirId>) -> Children {
+        let ids: Vec<HirId> = list.iter().map(|&t| self.node(t, parent)).collect();
+        self.b.children(&ids)
+    }
+
+    fn node(&mut self, t: TId, parent: Option<HirId>) -> HirId {
+        let (c, src) = (self.c, self.src);
+        let surface = c.node(t);
+        let placeholder = NodeKind::Comment {
+            data: Span::default(),
+        };
+        let id = self.b.node(placeholder, surface.span(), parent, t);
+        let kind = match *surface {
+            TNode::Text { span } => text(span, src),
+            TNode::Comment { data, .. } => NodeKind::Comment { data },
+            TNode::Expr { expr, .. } => NodeKind::Expr { expr },
+            TNode::Element {
+                name,
+                attrs,
+                children,
+                start_tag,
+                ..
+            } => {
+                let kind = self.b.element_kind(name.text(src), parent);
+                let attributes =
+                    self.b
+                        .attributes(c.attrs(attrs).iter().enumerate().map(|(i, a)| Attribute {
+                            name: Name::Source(a.name),
+                            value: attr_value(c, src, a),
+                            span: a.span,
+                            owner: id,
+                            origin: attrs.start + i as u32,
+                        }));
+                // `element_kind` of a descendant reads this node's kind and attributes.
+                self.b.set_kind(
+                    id,
+                    NodeKind::Element(Element {
+                        name,
+                        kind,
+                        attrs: attributes,
+                        children: Children::default(),
+                        start_tag,
+                    }),
+                );
+                let children = self.list(c.children(children), Some(id));
+                self.b.set_element_children(id, children);
+                return id;
+            }
+            TNode::If { .. } => {
+                let chain = c.if_branches(t);
+                let mut branches = Vec::with_capacity(chain.len());
+                for &b in &chain {
+                    let TNode::If { test, cons, .. } = *c.node(b) else {
+                        unreachable!("if_branches returns If nodes")
+                    };
+                    branches.push(Branch {
+                        test,
+                        body: self.list(c.children(cons), Some(id)),
+                        origin: b,
+                    });
+                }
+                let last = *chain.last().expect("a chain has its own node");
+                let TNode::If { alt, .. } = *c.node(last) else {
+                    unreachable!("if_branches returns If nodes")
+                };
+                let otherwise = alt.map(|a| self.list(c.children(a), Some(id)));
+                NodeKind::If {
+                    branches: self.b.branches(branches),
+                    otherwise,
+                }
+            }
+        };
+        self.b.set_kind(id, kind);
+        id
+    }
+}
+
+/// A text node of `raw`, with its decoded text when decoding changes it.
+#[must_use]
+pub fn text(raw: Span, src: &str) -> NodeKind {
+    NodeKind::Text {
+        raw,
+        decoded: match decode_text(raw.text(src)) {
+            std::borrow::Cow::Borrowed(_) => None,
+            std::borrow::Cow::Owned(s) => Some(s.into_boxed_str()),
+        },
     }
 }
 

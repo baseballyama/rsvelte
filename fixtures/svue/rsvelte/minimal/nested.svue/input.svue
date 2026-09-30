@@ -1,0 +1,14 @@
+<script setup>
+let a = $state(true)
+let b = $state(false)
+let n = $state(0)
+</script>
+
+<template>
+  <p v-if="a">A</p>
+  <div v-else>
+    <span v-if="b">B {{ n }}</span>
+    <span v-else-if="n > 1">many</span>
+  </div>{{ n }}<em v-if="n === 0">zero</em>
+  <strong>tail</strong>
+</template>

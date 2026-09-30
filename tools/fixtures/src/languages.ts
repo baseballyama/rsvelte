@@ -3,6 +3,7 @@
 // Adding Vue, HTML, CSS, … means adding an entry here (and tasks that apply to it), nothing else.
 import { compile, compileModule } from 'svelte/compiler';
 import { parse as parseSfc } from '@vue/compiler-sfc';
+import { toSvelte } from './svue.ts';
 import type { Language } from './types.ts';
 
 const code = (e: unknown): string => (e as { code?: string }).code ?? 'throw';
@@ -62,6 +63,28 @@ export const LANGUAGES: Language[] = [
 			// `setup`: `<script setup>`; `options`: a plain `<script>` only; `template`: no script.
 			const mode = descriptor.scriptSetup ? 'setup' : descriptor.script ? 'options' : 'template';
 			return { include: true, fields: { mode } };
+		}
+	},
+	{
+		// Vue's template syntax with Svelte's semantics (./svue.ts): admitted when the rewrite to
+		// Svelte syntax exists and the Svelte compiler accepts it.
+		id: 'svue',
+		family: 'svue',
+		ext: '.svue',
+		matches: (p) => p.endsWith('.svue'),
+		admit(src, filename) {
+			let svelte: string;
+			try {
+				svelte = toSvelte(src, filename);
+			} catch {
+				return { include: false, reason: 'no-svelte-rewrite' };
+			}
+			try {
+				compile(svelte, { filename, generate: false, runes: true });
+			} catch (e) {
+				return { include: false, reason: `svelte-rejected:${code(e)}` };
+			}
+			return { include: true, fields: { mode: 'runes' } };
 		}
 	}
 ];
