@@ -15,6 +15,11 @@
 
 use std::num::NonZeroU32;
 
+mod width;
+mod width_tables;
+
+pub use width::string_width;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct DocId(u32);
 
@@ -524,29 +529,6 @@ struct Printer<'a> {
     /// Prettier's `shouldRemeasure`: a hard line was printed in flat mode.
     remeasure: bool,
     refused: bool,
-}
-
-/// Prettier's `getStringWidth`: East Asian wide and fullwidth characters count two columns,
-/// combining marks and zero-width characters none.
-#[must_use]
-pub fn string_width(s: &str) -> usize {
-    if s.is_ascii() {
-        return s.len();
-    }
-    s.chars()
-        .map(|c| match c as u32 {
-            0x300..=0x36F | 0x200B..=0x200F => 0,
-            u if is_wide(u) => 2,
-            _ => 1,
-        })
-        .sum()
-}
-
-const fn is_wide(u: u32) -> bool {
-    matches!(u,
-        0x1100..=0x115F | 0x2E80..=0x303E | 0x3041..=0x33FF | 0x3400..=0x4DBF | 0x4E00..=0x9FFF
-        | 0xA000..=0xA4CF | 0xAC00..=0xD7A3 | 0xF900..=0xFAFF | 0xFE30..=0xFE4F | 0xFF00..=0xFF60
-        | 0xFFE0..=0xFFE6 | 0x1F300..=0x1F64F | 0x1F900..=0x1F9FF | 0x20000..=0x3FFFD)
 }
 
 impl Printer<'_> {
