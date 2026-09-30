@@ -302,7 +302,7 @@ fn first_arg(ast: &Ast, call: NodeId) -> Option<NodeId> {
 }
 
 /// compiler-sfc `isCallOf`: a call whose callee is a plain identifier.
-fn call_name(ast: &Ast, e: NodeId) -> Option<&str> {
+pub(crate) fn call_name(ast: &Ast, e: NodeId) -> Option<&str> {
     match ast.kind(e) {
         Kind::Call { callee, .. } if matches!(ast.kind(callee), Kind::Ident(_)) => {
             Some(ast.name(callee))
@@ -340,7 +340,7 @@ fn object_keys(ast: &Ast, src: &str, e: NodeId) -> Vec<Atom> {
 }
 
 /// compiler-sfc `isStaticNode`.
-fn is_static(ast: &Ast, e: NodeId) -> bool {
+pub(crate) fn is_static(ast: &Ast, e: NodeId) -> bool {
     match ast.kind(e) {
         Kind::Unary(_, a) => is_static(ast, a),
         Kind::Binary(_, l, r) | Kind::Logical(_, l, r) => is_static(ast, l) && is_static(ast, r),

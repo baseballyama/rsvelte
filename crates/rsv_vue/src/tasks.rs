@@ -2,13 +2,59 @@
 //! (`vue.lint/default` → `expected/vue.lint/default.*`).
 
 use rsv_kernel::db::Ctx;
+use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::metrics;
 use rsv_kernel::pipeline::{Document, Registry, Task, TaskOutput};
 
 use crate::{Config, Parsed, Resolved};
 
 pub fn register(reg: &mut Registry, _config: &Config) {
-    reg.task(Lint);
+    reg.task(Compile).task(Lint);
+}
+
+/// `@vitejs/plugin-vue`'s production output ([`crate::compile`]).
+#[derive(Debug)]
+pub struct Compile;
+
+impl Task for Compile {
+    fn id(&self) -> &'static str {
+        "vue.compile/default"
+    }
+
+    fn applies(&self, doc: &Document) -> bool {
+        doc.lang == "vue"
+    }
+
+    fn run(&self, ctx: &Ctx<'_>, out: &mut TaskOutput) {
+        let c = match ctx.get::<Parsed>() {
+            Ok(c) => c,
+            Err(e) => {
+                out.diagnostics.push(e.clone());
+                return;
+            }
+        };
+        let res = ctx
+            .get::<Resolved>()
+            .as_ref()
+            .expect("a parsed component is resolved");
+        let compiled = {
+            let _p = metrics::phase("vue.compile");
+            crate::compile::compile(c, ctx.src(), res, &ctx.doc.path)
+        };
+        match compiled {
+            Ok(o) => {
+                out.file("js", o.js);
+                if let Some(css) = o.css {
+                    out.file("css", css);
+                }
+            }
+            Err(u) => out.diagnostics.push(Diagnostic::error(
+                "compile_unsupported",
+                format!("not supported yet: {}", u.what),
+                u.span(),
+            )),
+        }
+    }
 }
 
 /// `ESLint` with eslint-plugin-vue, the rules of [`crate::lint::lint`].

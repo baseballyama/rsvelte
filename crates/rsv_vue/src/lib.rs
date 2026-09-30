@@ -5,9 +5,10 @@
 //! | artifact | output |
 //! |---|---|
 //! | [`Parsed`] | the surface tree ([`ast::Sfc`]) or the parse error |
-//! | [`Resolved`] | one scope analysis over script and template, compileScript's binding types ([`resolve::Resolution`]) |
+//! | [`Resolved`] | one scope analysis, compileScript's binding types ([`resolve::Resolution`]) |
 
 pub mod ast;
+pub mod compile;
 pub mod lint;
 pub mod parse;
 pub mod resolve;

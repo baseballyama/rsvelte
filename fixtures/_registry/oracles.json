@@ -72,5 +72,26 @@
 			"typescript": "6.0.3"
 		},
 		"storage": "committed"
+	},
+	"vue.format": {
+		"canonicalizer": {
+			"acorn": "8.18.0"
+		},
+		"oracles": {
+			"prettier": "3.9.9"
+		},
+		"storage": "committed"
+	},
+	"vue.lint": {
+		"canonicalizer": {
+			"acorn": "8.18.0"
+		},
+		"oracles": {
+			"@typescript-eslint/parser": "8.71.0",
+			"eslint": "10.11.0",
+			"eslint-plugin-vue": "10.11.1",
+			"vue-eslint-parser": "10.4.1"
+		},
+		"storage": "committed"
 	}
 }
