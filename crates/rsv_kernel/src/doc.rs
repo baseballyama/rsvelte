@@ -177,6 +177,18 @@ impl Docs {
         self.push(Node::Static(s))
     }
 
+    /// [`Docs::text`] of `parts` written one after another, without building the string first.
+    pub fn text_parts(&mut self, parts: &[&str]) -> DocId {
+        let start = self.buf.len();
+        for p in parts {
+            self.buf.push_str(p);
+        }
+        self.push(Node::Text {
+            start: start as u32,
+            len: (self.buf.len() - start) as u32,
+        })
+    }
+
     pub fn text(&mut self, s: &str) -> DocId {
         let start = self.buf.len() as u32;
         self.buf.push_str(s);
@@ -867,6 +879,16 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(print(&mut d, group, &opts), "a\n\tb\n");
+    }
+
+    #[test]
+    fn text_parts_is_the_text_of_its_parts_joined() {
+        let mut d = Docs::new();
+        let a = d.text_parts(&["</", "div", ">"]);
+        let b = d.text_parts(&[]);
+        assert_eq!((d.as_str(a), d.as_str(b)), (Some("</div>"), Some("")));
+        let root = d.concat(&[a, b]);
+        assert_eq!(print(&mut d, root, &PrintOptions::default()), "</div>");
     }
 
     #[test]

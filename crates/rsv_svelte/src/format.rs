@@ -266,10 +266,11 @@ impl<'a> Printer<'a, '_> {
         self.is_regular(id) && !self.is_block(id) && !in_pre
     }
 
-    fn children(&self, id: TId) -> Vec<TId> {
-        match self.c.node(id) {
-            TNode::Element { children, .. } => self.c.children(*children).to_vec(),
-            _ => Vec::new(),
+    fn children(&self, id: TId) -> &'a [TId] {
+        let c = self.c;
+        match c.node(id) {
+            TNode::Element { children, .. } => c.children(*children),
+            _ => &[],
         }
     }
 
@@ -616,7 +617,13 @@ impl<'a> Printer<'a, '_> {
     }
 
     fn text_node(&mut self, id: TId) -> DocId {
-        let raw = self.raw(id).to_owned();
+        // The source's text, borrowed; a copy only of text the printer has rewritten.
+        let (c, src) = (self.c, self.src);
+        let raw = match (&self.text[id as usize], c.node(id)) {
+            (Some(t), _) => t.clone(),
+            (None, TNode::Text { span }) => Cow::Borrowed(span.text(src)),
+            (None, _) => unreachable!("only text nodes have text"),
+        };
         if self.in_pre {
             return self.d().text(&raw);
         }
@@ -743,8 +750,8 @@ impl<'a> Printer<'a, '_> {
         let first = children.first().copied();
         let last = children.last().copied();
         let is_inline = kind == ElementKind::Regular && !self.is_block(id) && !in_pre;
-        let hug_start = self.should_hug(id, &children, true);
-        let hug_end = self.should_hug(id, &children, false);
+        let hug_start = self.should_hug(id, children, true);
+        let hug_end = self.should_hug(id, children, false);
 
         let mut open_inner = attr_docs;
         if (is_empty || !hug_start) && !in_pre {
@@ -754,13 +761,13 @@ impl<'a> Printer<'a, '_> {
         let g = self.group(&open_inner);
         let attrs_doc = self.d().indent(g);
         let opening = [lt, name_doc, attrs_doc];
-        let close_full = self.d().text(&format!("</{name}>"));
+        let close_full = self.d().text_parts(&["</", name, ">"]);
 
         if hug_start && hug_end {
-            let body = self.element_body(&children, is_empty, is_inline, in_pre)?;
+            let body = self.element_body(children, is_empty, is_inline, in_pre)?;
             let soft = self.d().softline();
             let gt = self.lit(">");
-            let close_open = self.d().text(&format!("</{name}"));
+            let close_open = self.d().text_parts(&["</", name]);
             let inner = self.group(&[gt, body, close_open]);
             let hugged = self.cat(&[soft, inner]);
             let hugged = if is_empty {
@@ -806,7 +813,7 @@ impl<'a> Printer<'a, '_> {
         };
 
         if hug_start {
-            let body = self.element_body(&children, is_empty, is_inline, in_pre)?;
+            let body = self.element_body(children, is_empty, is_inline, in_pre)?;
             let gt = self.lit(">");
             let inner = self.group(&[gt, body]);
             let soft = self.d().softline();
@@ -817,8 +824,8 @@ impl<'a> Printer<'a, '_> {
             return Ok(self.group(&parts));
         }
         if hug_end {
-            let body = self.element_body(&children, is_empty, is_inline, in_pre)?;
-            let close_open = self.d().text(&format!("</{name}"));
+            let body = self.element_body(children, is_empty, is_inline, in_pre)?;
+            let close_open = self.d().text_parts(&["</", name]);
             let inner = self.group(&[body, close_open]);
             let ind = self.cat(&[sep_start, inner]);
             let ind = self.d().indent(ind);
@@ -829,7 +836,7 @@ impl<'a> Printer<'a, '_> {
             parts.extend([gt, ind, soft, gt2]);
             return Ok(self.group(&parts));
         }
-        let body = self.element_body(&children, is_empty, is_inline, in_pre)?;
+        let body = self.element_body(children, is_empty, is_inline, in_pre)?;
         let gt = self.lit(">");
         let mut parts = opening.to_vec();
         if is_empty {
@@ -919,28 +926,30 @@ impl<'a> Printer<'a, '_> {
     }
 
     fn attribute(&mut self, a: &Attr, element: ElementKind) -> R<DocId> {
-        let name = a.name.text(self.src);
+        let (comp, src) = (self.c, self.src);
+        let name = a.name.text(src);
         let parts = match a.value {
             AttrValue::True => return Ok(self.d().text(name)),
-            AttrValue::Parts(r) => r.get(&self.c.parts).to_vec(),
+            AttrValue::Parts(r) => r.get(&comp.parts),
         };
-        let lone = matches!(parts.as_slice(), [Part::Expr { .. }]);
-        if let [Part::Expr { expr, .. }] = parts.as_slice()
-            && matches!(self.c.js.kind(*expr), rsv_js::Kind::Ident(_))
-            && self.c.js.name(*expr) == name
+        let lone = matches!(parts, [Part::Expr { .. }]);
+        if let [Part::Expr { expr, .. }] = parts
+            && matches!(comp.js.kind(*expr), rsv_js::Kind::Ident(_))
+            && comp.js.name(*expr) == name
         {
-            let text = format!("{{{name}}}");
-            return Ok(self.d().text(&text));
+            return Ok(self.d().text_parts(&["{", name, "}"]));
         }
         let mut value = Vec::new();
         let count = parts.len();
         for (i, p) in parts.iter().enumerate() {
             match *p {
                 Part::Text(span) => {
-                    let mut raw = span.text(self.src).to_owned();
-                    if name == "class" && element == ElementKind::Regular {
-                        raw = normalize_class(&raw, i + 1 == count);
-                    }
+                    let raw = span.text(src);
+                    let raw = if name == "class" && element == ElementKind::Regular {
+                        Cow::Owned(normalize_class(raw, i + 1 == count))
+                    } else {
+                        Cow::Borrowed(raw)
+                    };
                     for (j, line) in raw.split('\n').enumerate() {
                         if j > 0 {
                             value.push(self.d().literalline());
@@ -993,8 +1002,9 @@ impl<'a> Printer<'a, '_> {
         let Some(alt) = alt else {
             return Ok(self.d().nil());
         };
-        let kids = self.c.children(alt).to_vec();
-        if let [only] = kids.as_slice()
+        let c = self.c;
+        let kids = c.children(alt);
+        if let [only] = kids
             && let TNode::If {
                 test,
                 cons,
@@ -1015,7 +1025,7 @@ impl<'a> Printer<'a, '_> {
             reason = "Svelte's `{:else}` tag"
         )]
         let open = self.lit("{:else}");
-        let body = self.block_children(&kids)?;
+        let body = self.block_children(kids)?;
         Ok(self.cat(&[open, body]))
     }
 
