@@ -15,6 +15,8 @@
 
 use std::num::NonZeroU32;
 
+use crate::pool;
+
 mod width;
 mod width_tables;
 
@@ -77,9 +79,15 @@ enum Node {
     FlatOnly(DocId),
 }
 
-#[derive(Default, Debug)]
+/// The document arena. Its buffers come from and go back to [`crate::pool`], so a worker
+/// formatting one file after another reuses their capacity.
+#[derive(Debug)]
 pub struct Docs {
     nodes: Vec<Node>,
+    /// Per node, Prettier's `willBreak`: it holds a hard line, a break-parent or a group built
+    /// broken. A node only refers to nodes made before it, so this is known when it is made, and
+    /// it is also what Prettier's `propagateBreaks` leaves in a group's `break`.
+    breaks: Vec<bool>,
     kids: Vec<DocId>,
     buf: String,
     groups: u32,
@@ -108,6 +116,27 @@ impl Default for PrintOptions {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Refused;
 
+impl Default for Docs {
+    fn default() -> Self {
+        Self {
+            nodes: pool::take(),
+            breaks: pool::take(),
+            kids: pool::take(),
+            buf: String::from_utf8(pool::take()).expect("an empty buffer is UTF-8"),
+            groups: 0,
+        }
+    }
+}
+
+impl Drop for Docs {
+    fn drop(&mut self) {
+        pool::give(std::mem::take(&mut self.nodes));
+        pool::give(std::mem::take(&mut self.breaks));
+        pool::give(std::mem::take(&mut self.kids));
+        pool::give(std::mem::take(&mut self.buf).into_bytes());
+    }
+}
+
 impl Docs {
     #[must_use]
     pub fn new() -> Self {
@@ -115,6 +144,19 @@ impl Docs {
     }
 
     fn push(&mut self, n: Node) -> DocId {
+        let any = |kids: &[DocId]| kids.iter().any(|&k| self.will_break(k));
+        let breaks = match n {
+            Node::Line(LineKind::Hard | LineKind::Literal) | Node::BreakParent => true,
+            Node::Static(_) | Node::Text { .. } | Node::Line(_) => false,
+            Node::Indent(d) | Node::Dedent(d) | Node::FlatOnly(d) => self.will_break(d),
+            Node::IndentIfBreak { doc, .. } => self.will_break(doc),
+            Node::IfBreak { broken, flat, .. } => self.will_break(broken) || self.will_break(flat),
+            Node::Concat { start, len } | Node::Fill { start, len } => any(self.kids(start, len)),
+            Node::Group {
+                start, len, brk, ..
+            } => brk || any(self.kids(start, len)),
+        };
+        self.breaks.push(breaks);
         self.nodes.push(n);
         DocId(self.nodes.len() as u32 - 1)
     }
@@ -329,22 +371,13 @@ impl Docs {
     }
 
     /// Prettier's `willBreak`: the document holds a hard line, a break-parent or a broken group.
+    ///
+    /// # Panics
+    ///
+    /// If `d` was made by another [`Docs`].
     #[must_use]
     pub fn will_break(&self, d: DocId) -> bool {
-        match self.nodes[d.0 as usize] {
-            Node::Line(LineKind::Hard | LineKind::Literal)
-            | Node::BreakParent
-            | Node::Group { brk: true, .. } => true,
-            Node::Static(_) | Node::Text { .. } | Node::Line(_) => false,
-            Node::Concat { start, len }
-            | Node::Fill { start, len }
-            | Node::Group { start, len, .. } => {
-                self.kids(start, len).iter().any(|&k| self.will_break(k))
-            }
-            Node::Indent(x) | Node::Dedent(x) | Node::FlatOnly(x) => self.will_break(x),
-            Node::IndentIfBreak { doc, .. } => self.will_break(doc),
-            Node::IfBreak { broken, flat, .. } => self.will_break(broken) || self.will_break(flat),
-        }
+        self.breaks[d.0 as usize]
     }
 
     #[must_use]
@@ -429,50 +462,6 @@ impl Docs {
         }
     }
 
-    /// Prettier's `propagateBreaks`: a group holding a hard line or break-parent is broken.
-    fn propagate_breaks(&mut self, root: DocId) {
-        let mut memo = vec![None::<bool>; self.nodes.len()];
-        self.breaks(root, &mut memo);
-    }
-
-    fn breaks(&mut self, id: DocId, memo: &mut Vec<Option<bool>>) -> bool {
-        if let Some(b) = memo[id.0 as usize] {
-            return b;
-        }
-        let b = match self.nodes[id.0 as usize] {
-            Node::Line(LineKind::Hard | LineKind::Literal) | Node::BreakParent => true,
-            Node::Static(_) | Node::Text { .. } | Node::Line(_) => false,
-            Node::Indent(d) | Node::Dedent(d) | Node::FlatOnly(d) => self.breaks(d, memo),
-            Node::IndentIfBreak { doc, .. } => self.breaks(doc, memo),
-            Node::IfBreak { broken, flat, .. } => {
-                let a = self.breaks(broken, memo);
-                let b = self.breaks(flat, memo);
-                a || b
-            }
-            Node::Concat { start, len } | Node::Fill { start, len } => {
-                let mut any = false;
-                for i in start..start + len {
-                    let k = self.kids[i as usize];
-                    any |= self.breaks(k, memo);
-                }
-                any
-            }
-            Node::Group { start, len, .. } => {
-                let mut any = false;
-                for i in start..start + len {
-                    let k = self.kids[i as usize];
-                    any |= self.breaks(k, memo);
-                }
-                if let Node::Group { brk, .. } = &mut self.nodes[id.0 as usize] {
-                    *brk |= any;
-                }
-                any
-            }
-        };
-        memo[id.0 as usize] = Some(b);
-        b
-    }
-
     fn str_of(&self, n: Node) -> &str {
         match n {
             Node::Static(s) => s,
@@ -485,17 +474,24 @@ impl Docs {
     ///
     /// [`Refused`] when a [`Docs::flat_only`] document does not fit in the remaining width.
     pub fn print(&mut self, root: DocId, opts: &PrintOptions) -> Result<String, Refused> {
-        self.propagate_breaks(root);
+        let mut group_modes = pool::take();
+        group_modes.resize(self.groups as usize + 1, None);
         let mut p = Printer {
             docs: self,
             opts,
-            out: String::new(),
+            // The text is a lower bound of the output.
+            out: String::with_capacity(self.buf.len()),
             pos: 0,
-            group_modes: vec![None; self.groups as usize + 1],
+            group_modes,
+            scratch: pool::take(),
             remeasure: false,
             refused: false,
         };
-        p.run(root);
+        let mut stack = pool::take();
+        p.run(root, &mut stack);
+        pool::give(stack);
+        pool::give(p.scratch);
+        pool::give(p.group_modes);
         if p.refused { Err(Refused) } else { Ok(p.out) }
     }
 }
@@ -526,6 +522,8 @@ struct Printer<'a> {
     out: String,
     pos: usize,
     group_modes: Vec<Option<Mode>>,
+    /// [`Printer::fits`]'s work list, kept between calls.
+    scratch: Vec<Cmd>,
     /// Prettier's `shouldRemeasure`: a hard line was printed in flat mode.
     remeasure: bool,
     refused: bool,
@@ -561,13 +559,13 @@ impl Printer<'_> {
         self.opts.width as isize - self.pos as isize
     }
 
-    fn run(&mut self, root: DocId) {
-        let mut stack: Vec<Cmd> = vec![(0, Mode::Break, Item::Doc(root))];
+    fn run(&mut self, root: DocId, stack: &mut Vec<Cmd>) {
+        stack.push((0, Mode::Break, Item::Doc(root)));
         while let Some((ind, mode, item)) = stack.pop() {
             let id = match item {
                 Item::Doc(id) => id,
                 Item::Fill { start, len } => {
-                    self.fill(ind, mode, start, len, &mut stack);
+                    self.fill(ind, mode, start, len, stack);
                     continue;
                 }
                 Item::Triple(ds) => {
@@ -621,29 +619,28 @@ impl Printer<'_> {
                 }
                 Node::FlatOnly(d) => {
                     if mode == Mode::Break
-                        && !self.fits(
-                            &[(ind, Mode::Flat, Item::Doc(d))],
-                            &stack,
-                            self.rem(),
-                            false,
-                        )
+                        && !self.fits(&[(ind, Mode::Flat, Item::Doc(d))], stack, self.rem(), false)
                     {
+                        // The caller gets `Refused`, not the text: stop here.
                         self.refused = true;
+                        return;
                     }
                     stack.push((ind, Mode::Flat, Item::Doc(d)));
                 }
                 Node::Group {
                     start,
                     len,
-                    brk,
                     id: gid,
+                    ..
                 } => {
+                    // Prettier's `propagateBreaks`, done as the document was built.
+                    let brk = self.docs.will_break(id);
                     let next = if mode == Mode::Flat && !self.remeasure {
                         if brk { Mode::Break } else { Mode::Flat }
                     } else {
                         self.remeasure = false;
                         let flat = [(ind, Mode::Flat, Item::Doc(id))];
-                        if !brk && self.fits(&flat, &stack, self.rem(), false) {
+                        if !brk && self.fits(&flat, stack, self.rem(), false) {
                             Mode::Flat
                         } else {
                             Mode::Break
@@ -660,7 +657,7 @@ impl Printer<'_> {
         }
     }
 
-    fn fill(&self, ind: u32, mode: Mode, start: u32, len: u32, stack: &mut Vec<Cmd>) {
+    fn fill(&mut self, ind: u32, mode: Mode, start: u32, len: u32, stack: &mut Vec<Cmd>) {
         if len == 0 {
             return;
         }
@@ -703,13 +700,27 @@ impl Printer<'_> {
     }
 
     /// Prettier's `fits`: whether `next` fits in `rem` columns, continuing into `rest` (in its own
-    /// modes) until the first line break.
+    /// modes) until the first line break. The work list is kept between calls.
+    fn fits(&mut self, next: &[Cmd], rest: &[Cmd], rem: isize, must_be_flat: bool) -> bool {
+        let mut work = std::mem::take(&mut self.scratch);
+        work.clear();
+        work.extend(next.iter().rev().copied());
+        let fits = self.fits_in(&mut work, rest, rem, must_be_flat);
+        self.scratch = work;
+        fits
+    }
+
     #[expect(
         clippy::cast_possible_wrap,
         reason = "a string's width is far below `isize::MAX`"
     )]
-    fn fits(&self, next: &[Cmd], rest: &[Cmd], mut rem: isize, must_be_flat: bool) -> bool {
-        let mut work: Vec<Cmd> = next.iter().rev().copied().collect();
+    fn fits_in(
+        &self,
+        work: &mut Vec<Cmd>,
+        rest: &[Cmd],
+        mut rem: isize,
+        must_be_flat: bool,
+    ) -> bool {
         let mut rest_i = rest.len();
         while rem >= 0 {
             let Some((ind, mode, item)) = work.pop() else {
@@ -749,9 +760,8 @@ impl Printer<'_> {
                     let kids = self.docs.kids(start, len);
                     work.extend(kids.iter().rev().map(|&k| (ind, mode, Item::Doc(k))));
                 }
-                Node::Group {
-                    start, len, brk, ..
-                } => {
+                Node::Group { start, len, .. } => {
+                    let brk = self.docs.will_break(id);
                     if must_be_flat && brk {
                         return false;
                     }
@@ -802,6 +812,19 @@ mod tests {
 
     fn print(d: &mut Docs, root: DocId, opts: &PrintOptions) -> String {
         d.print(root, opts).expect("no flat-only layouts")
+    }
+
+    /// Prettier's `propagateBreaks` breaks a group around a group built broken, not only around
+    /// hard lines: Prettier prints this `x\ny`.
+    #[test]
+    fn a_group_built_broken_breaks_its_parent() {
+        let mut d = Docs::new();
+        let (x, y) = (d.lit("x"), d.lit("y"));
+        let inner = d.group_broken(&[y]);
+        let line = d.line();
+        let outer = d.group(&[x, line, inner]);
+        assert!(d.will_break(outer));
+        assert_eq!(print(&mut d, outer, &PrintOptions::default()), "x\ny");
     }
 
     #[test]
