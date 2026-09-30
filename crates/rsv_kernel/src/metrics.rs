@@ -16,8 +16,8 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64};
 
 thread_local! {
-    static ALLOCS: Cell<u64> = const { Cell::new(0) };
-    static BYTES: Cell<u64> = const { Cell::new(0) };
+    /// Allocations and bytes requested on this thread; one cell, so counting is one TLS access.
+    static COUNTS: Cell<(u64, u64)> = const { Cell::new((0, 0)) };
 }
 
 static TRACK: AtomicBool = AtomicBool::new(false);
@@ -36,9 +36,12 @@ pub struct CountingAlloc;
     reason = "a `Layout` size never exceeds `isize::MAX`"
 )]
 fn counted(size: usize, freed: usize) {
-    // During thread teardown the counters are gone; that allocation goes uncounted.
-    _ = ALLOCS.try_with(|c| c.set(c.get() + 1));
-    _ = BYTES.try_with(|c| c.set(c.get() + size as u64));
+    // A const-initialised `Cell` has no destructor, so `try_with` fails only if the platform has
+    // already torn the thread's storage down; that allocation goes uncounted.
+    _ = COUNTS.try_with(|c| {
+        let (n, b) = c.get();
+        c.set((n + 1, b + size as u64));
+    });
     if TRACK.load(Relaxed) {
         G_ALLOCS.fetch_add(1, Relaxed);
         G_BYTES.fetch_add(size as u64, Relaxed);
@@ -52,9 +55,23 @@ fn counted(size: usize, freed: usize) {
 #[expect(unsafe_code, reason = "a `GlobalAlloc` impl is unsafe by definition")]
 unsafe impl GlobalAlloc for CountingAlloc {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        counted(layout.size(), 0);
         // SAFETY: forwarded unchanged.
-        unsafe { System.alloc(layout) }
+        let p = unsafe { System.alloc(layout) };
+        if !p.is_null() {
+            counted(layout.size(), 0);
+        }
+        p
+    }
+
+    /// Forwarded, so a zeroed request keeps the system's `calloc` (and its fresh zero pages)
+    /// instead of the default `alloc` followed by a write of every byte.
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        // SAFETY: forwarded unchanged.
+        let p = unsafe { System.alloc_zeroed(layout) };
+        if !p.is_null() {
+            counted(layout.size(), 0);
+        }
+        p
     }
 
     #[expect(
@@ -70,9 +87,13 @@ unsafe impl GlobalAlloc for CountingAlloc {
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        counted(new_size, layout.size());
         // SAFETY: forwarded unchanged.
-        unsafe { System.realloc(ptr, layout, new_size) }
+        let p = unsafe { System.realloc(ptr, layout, new_size) };
+        // On failure the old block is untouched, and so are the counts.
+        if !p.is_null() {
+            counted(new_size, layout.size());
+        }
+        p
     }
 }
 
@@ -108,7 +129,7 @@ pub fn global() -> GlobalStats {
 /// Allocations and bytes requested so far on this thread (zero unless [`CountingAlloc`] is
 /// installed).
 pub fn thread_allocs() -> (u64, u64) {
-    (ALLOCS.with(Cell::get), BYTES.with(Cell::get))
+    COUNTS.with(Cell::get)
 }
 
 /// Per-phase totals; times are wall-clock time on the thread that ran the phase, summed over
@@ -129,6 +150,7 @@ pub struct PhaseStats {
 #[cfg(feature = "metrics")]
 mod imp {
     use std::cell::RefCell;
+    use std::marker::PhantomData;
     use std::sync::{Arc, Mutex};
     use std::time::Instant;
 
@@ -157,14 +179,20 @@ mod imp {
         };
     }
 
+    /// Pops its phase from this thread's stack when dropped, so it must be dropped on the thread
+    /// that made it (it is not `Send`) and in reverse order of creation (checked in debug builds).
     #[derive(Debug)]
-    pub struct PhaseGuard(());
+    pub struct PhaseGuard {
+        depth: usize,
+        _thread_bound: PhantomData<*const ()>,
+    }
 
     #[must_use]
     pub fn phase(name: &'static str) -> PhaseGuard {
         let (allocs0, bytes0) = thread_allocs();
-        STACK.with(|s| {
-            s.borrow_mut().push(Frame {
+        let depth = STACK.with(|s| {
+            let mut s = s.borrow_mut();
+            s.push(Frame {
                 name,
                 start: Instant::now(),
                 allocs0,
@@ -173,8 +201,12 @@ mod imp {
                 child_allocs: 0,
                 child_bytes: 0,
             });
+            s.len()
         });
-        PhaseGuard(())
+        PhaseGuard {
+            depth,
+            _thread_bound: PhantomData,
+        }
     }
 
     impl Drop for PhaseGuard {
@@ -183,6 +215,7 @@ mod imp {
             let (allocs, bytes) = thread_allocs();
             STACK.with(|s| {
                 let mut s = s.borrow_mut();
+                debug_assert_eq!(s.len(), self.depth, "phase guards dropped out of order");
                 let f = s.pop().expect("phase stack underflow");
                 let total_ns = now.duration_since(f.start).as_nanos() as u64;
                 let (ta, tb) = (allocs - f.allocs0, bytes - f.bytes0);
@@ -193,10 +226,7 @@ mod imp {
                 }
                 TABLE.with(|t| {
                     let mut t = t.lock().expect("phase table poisoned");
-                    let row = if let Some(i) = t
-                        .iter_mut()
-                        .position(|r| std::ptr::eq(r.name, f.name) || r.name == f.name)
-                    {
+                    let row = if let Some(i) = t.iter_mut().position(|r| r.name == f.name) {
                         &mut t[i]
                     } else {
                         t.push(PhaseStats {
@@ -253,10 +283,14 @@ mod imp {
 
 #[cfg(not(feature = "metrics"))]
 mod imp {
+    use std::marker::PhantomData;
+
     use super::PhaseStats;
 
+    /// Not `Send`, as with the `metrics` feature, so code that compiles without it compiles with
+    /// it.
     #[derive(Debug)]
-    pub struct PhaseGuard(());
+    pub struct PhaseGuard(PhantomData<*const ()>);
 
     #[expect(
         clippy::inline_always,
@@ -265,7 +299,7 @@ mod imp {
     #[inline(always)]
     #[must_use]
     pub const fn phase(_: &'static str) -> PhaseGuard {
-        PhaseGuard(())
+        PhaseGuard(PhantomData)
     }
 
     #[must_use]
@@ -279,3 +313,15 @@ mod imp {
 }
 
 pub use imp::{ENABLED, PhaseGuard, phase, reset, snapshot};
+
+// `PhaseGuard: !Send`, checked at compile time: were it `Send`, both impls below would apply and
+// the call would be ambiguous.
+const _: fn() = || {
+    trait AmbiguousIfSend<A> {
+        fn some_item() {}
+    }
+    impl<T: ?Sized> AmbiguousIfSend<()> for T {}
+    struct Invalid;
+    impl<T: ?Sized + Send> AmbiguousIfSend<Invalid> for T {}
+    <PhaseGuard as AmbiguousIfSend<_>>::some_item();
+};
