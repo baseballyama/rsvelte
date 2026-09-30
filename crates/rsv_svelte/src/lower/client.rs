@@ -18,7 +18,7 @@ use super::{
     sanitize_template_string,
 };
 use crate::analyze::{Analysis, ExprMeta};
-use crate::hir::{AttrValue, Attribute, Hir, HirId, NodeKind, Part};
+use crate::hir::{AttrValue, Attribute, ElementKind, Hir, HirId, NodeKind, Part};
 use crate::parse::is_void;
 use crate::resolve::Resolution;
 
@@ -760,6 +760,9 @@ impl<'a> Cx<'a> {
         let NodeKind::Element(el) = &hir.node(id).kind else {
             unreachable!()
         };
+        if el.kind != ElementKind::Regular {
+            return unsupported("components, `<slot>` and `svelte:` elements", el.name);
+        }
         let tag = el.name.text(self.src).to_ascii_lowercase();
         if matches!(
             tag.as_str(),
@@ -780,6 +783,25 @@ impl<'a> Cx<'a> {
             .iter()
             .any(|a| a.name.text(self.src).eq_ignore_ascii_case("class"));
         let synthetic_class = !has_class && self.an.scoped[id];
+
+        // Upstream's `has_spread` and `bindings` terms have no input here: the parser rejects both.
+        // Upstream compares the name as written.
+        if el.name.text(self.src) == "input" {
+            let src = self.src;
+            let has_value = attr_list.iter().any(|a| {
+                matches!(a.name.text(src), "value" | "checked")
+                    && !matches!(a.value, AttrValue::Static(_))
+            });
+            let has_default_value = attr_list
+                .iter()
+                .any(|a| matches!(a.name.text(src), "defaultValue" | "defaultChecked"));
+            if has_value && !has_default_value {
+                let x = self.out.id(node);
+                let call = self.call("remove_input_defaults", vec![Some(x)]);
+                let s = self.stmt(call);
+                l.init.push(s);
+            }
+        }
 
         for a in attr_list {
             let raw_name = a.name.text(self.src);

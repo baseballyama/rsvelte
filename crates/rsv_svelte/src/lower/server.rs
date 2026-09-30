@@ -13,7 +13,7 @@ use super::{
     is_boolean_attribute, sanitize_template_string,
 };
 use crate::analyze::Analysis;
-use crate::hir::{AttrValue, Attribute, Hir, HirId, NodeKind, Part};
+use crate::hir::{AttrValue, Attribute, ElementKind, Hir, HirId, NodeKind, Part};
 use crate::parse::is_void;
 use crate::resolve::Resolution;
 
@@ -228,6 +228,13 @@ impl Sx<'_> {
         let NodeKind::Element(el) = &hir.node(id).kind else {
             unreachable!()
         };
+        if el.kind != ElementKind::Regular {
+            return Err(Diagnostic::error(
+                "unsupported",
+                "components, `<slot>` and `svelte:` elements are not supported yet",
+                el.name,
+            ));
+        }
         let tag = el.name.text(self.src).to_ascii_lowercase();
         if matches!(
             tag.as_str(),
