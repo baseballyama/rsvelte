@@ -146,8 +146,20 @@ impl Docs {
     }
 
     fn push(&mut self, n: Node) -> DocId {
+        let breaks = self.breaks_of(n);
+        self.breaks.push(breaks);
+        self.nodes.push(n);
+        DocId(self.nodes.len() as u32 - 1)
+    }
+
+    #[expect(
+        clippy::inline_always,
+        reason = "out of line from `push`, which every constructor runs, it cost 0.37%"
+    )]
+    #[inline(always)]
+    fn breaks_of(&self, n: Node) -> bool {
         let any = |kids: &[DocId]| kids.iter().any(|&k| self.will_break(k));
-        let breaks = match n {
+        match n {
             Node::Line(LineKind::Hard | LineKind::Literal) | Node::BreakParent => true,
             Node::Static(_) | Node::Text { .. } | Node::Line(_) => false,
             Node::Indent(d) | Node::Dedent(d) | Node::FlatOnly(d) => self.will_break(d),
@@ -157,10 +169,7 @@ impl Docs {
             Node::Group {
                 start, len, brk, ..
             } => brk || any(self.kids(start, len)),
-        };
-        self.breaks.push(breaks);
-        self.nodes.push(n);
-        DocId(self.nodes.len() as u32 - 1)
+        }
     }
 
     fn list(&mut self, items: &[DocId]) -> (u32, u32) {
@@ -428,6 +437,12 @@ impl Docs {
                 *len = l;
             }
             _ => unreachable!("only lists have parts"),
+        }
+        // Removing parts can only clear a break, and trims run innermost first, so the parts'
+        // answers are already current.
+        let i = owner.0 as usize;
+        if self.breaks[i] {
+            self.breaks[i] = self.breaks_of(self.nodes[i]);
         }
     }
 
@@ -848,6 +863,22 @@ mod tests {
         let outer = d.group(&[x, line, inner]);
         assert!(d.will_break(outer));
         assert_eq!(print(&mut d, outer, &PrintOptions::default()), "x\ny");
+    }
+
+    /// Prettier propagates breaks at print time, after a trim: a hard line trimmed away breaks
+    /// nothing, here or in the groups around it.
+    #[test]
+    fn a_trimmed_hard_line_no_longer_breaks() {
+        let mut d = Docs::new();
+        let (a, x) = (d.lit("a"), d.lit("x"));
+        let hard = d.hardline();
+        let inner = d.concat(&[x, hard]);
+        let line = d.line();
+        let outer = d.group(&[a, line, inner]);
+        let mut docs = vec![outer];
+        d.trim_right(&mut docs, Docs::is_line);
+        assert!(!d.will_break(inner) && !d.will_break(outer));
+        assert_eq!(print(&mut d, outer, &PrintOptions::default()), "a x");
     }
 
     #[test]
