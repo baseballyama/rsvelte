@@ -272,6 +272,8 @@ pub struct Ast {
     /// Identifiers in type syntax that may name a binding (`A` in `x: A`, `Map<K, A>`, `typeof
     /// a`), in source order. The tree has no nodes for types, so scope analysis reads them here.
     pub type_refs: Vec<TypeRef>,
+    /// The parser's stack of lists being gathered; empty between parses.
+    pub(crate) scratch: Vec<NodeId>,
 }
 
 /// One piece of erased TypeScript syntax, attached to the node it belongs to.
@@ -331,14 +333,21 @@ impl Default for Ast {
     }
 }
 
+/// Buffers go back in the reverse of the order [`Ast::new`] takes them: the pool hands out the
+/// last one given first, so each column gets back a buffer of its own size (`extra` and `scratch`
+/// share a type).
 impl Drop for Ast {
     fn drop(&mut self) {
-        pool::give(std::mem::take(&mut self.tags));
-        pool::give(std::mem::take(&mut self.flags));
-        pool::give(std::mem::take(&mut self.data));
-        pool::give(std::mem::take(&mut self.locs));
-        pool::give(std::mem::take(&mut self.extra));
+        pool::give(std::mem::take(&mut self.scratch));
+        pool::give(std::mem::take(&mut self.type_refs));
+        pool::give(std::mem::take(&mut self.ts_runtime));
+        pool::give(std::mem::take(&mut self.ts));
         pool::give(std::mem::take(&mut self.comments));
+        pool::give(std::mem::take(&mut self.extra));
+        pool::give(std::mem::take(&mut self.locs));
+        pool::give(std::mem::take(&mut self.data));
+        pool::give(std::mem::take(&mut self.flags));
+        pool::give(std::mem::take(&mut self.tags));
     }
 }
 
@@ -355,9 +364,10 @@ impl Ast {
             atoms: Interner::new(),
             comments: pool::take(),
             tokens: Tokens::new(),
-            ts: Vec::new(),
-            ts_runtime: Vec::new(),
-            type_refs: Vec::new(),
+            ts: pool::take(),
+            ts_runtime: pool::take(),
+            type_refs: pool::take(),
+            scratch: pool::take(),
         }
     }
 

@@ -3,6 +3,10 @@
 //! A tree built for one document hands its column vectors
 //! back when dropped, and the next document on the same worker reuses the capacity, so steady-state
 //! parsing allocates almost nothing. [`set_enabled`] exists so the saving can be measured.
+//!
+//! Buffers are pooled by element type and handed out last-given first, so a structure with two
+//! columns of one type gives them back in the reverse of the order it takes them; otherwise the
+//! columns trade buffers on every document and each grows the other's.
 
 use std::alloc::Layout;
 use std::any::TypeId;

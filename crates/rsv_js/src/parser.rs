@@ -45,7 +45,21 @@ pub struct Parser<'a, 'b> {
     ast: &'b mut Ast,
     ts: bool,
     end: u32,
+    /// [`Ast::scratch`]'s length when this parse began.
+    base: usize,
 }
+
+/// A failed parse leaves its open lists on the scratch stack; they go with it.
+impl Drop for Parser<'_, '_> {
+    fn drop(&mut self) {
+        self.ast.scratch.truncate(self.base);
+    }
+}
+
+/// A list being gathered on [`Ast::scratch`]. Lists nest, so the one opened last is on top, and
+/// gathering one allocates nothing: the items are copied into the tree when the node is built.
+#[derive(Clone, Copy)]
+struct List(usize);
 
 /// Parses `range` of `src` as a module body.
 ///
@@ -56,11 +70,14 @@ pub fn parse_program(ast: &mut Ast, src: &str, range: Span, ts: bool) -> R<NodeI
     // Svelte components average a token per 4.8 bytes (the lossless corpus test prints both).
     ast.tokens.reserve(range.len() as usize / 4);
     let mut p = Parser::new(ast, src, range, ts)?;
-    let mut body = Vec::new();
+    let body = p.open();
     while p.tok.t != T::Eof {
-        body.push(p.statement()?);
+        let s = p.statement()?;
+        p.item(s);
     }
-    Ok(p.ast.program(&body, range))
+    let program = p.close(body, |ast, body| ast.program(body, range));
+    p.done();
+    Ok(program)
 }
 
 /// Parses `range` of `src` as exactly one expression.
@@ -74,6 +91,7 @@ pub fn parse_expression(ast: &mut Ast, src: &str, range: Span, ts: bool) -> R<No
     if p.tok.t != T::Eof {
         return p.fail("unexpected token after expression");
     }
+    p.done();
     Ok(e)
 }
 
@@ -95,6 +113,7 @@ pub fn parse_params(ast: &mut Ast, src: &str, range: Span, ts: bool) -> R<Vec<No
     if p.tok.t != T::Eof {
         return p.fail("unexpected token after parameters");
     }
+    p.done();
     Ok(params)
 }
 
@@ -121,6 +140,7 @@ pub fn parse_expression_prefix(
     } else {
         p.tok.span.lo
     };
+    p.done();
     Ok((e, next))
 }
 
@@ -171,6 +191,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                 nl_before: false,
             },
             in_type: 0,
+            base: ast.scratch.len(),
             ast,
             ts,
             end: range.hi,
@@ -187,6 +208,47 @@ impl<'a, 'b> Parser<'a, 'b> {
     #[inline]
     fn text(&self, t: Tok) -> &'a str {
         t.span.text(self.src)
+    }
+
+    /// Checks, where a parse succeeds, that it closed every list it opened.
+    fn done(&self) {
+        debug_assert_eq!(self.ast.scratch.len(), self.base, "a list was left open");
+    }
+
+    const fn open(&self) -> List {
+        List(self.ast.scratch.len())
+    }
+
+    fn item(&mut self, id: NodeId) {
+        self.ast.scratch.push(id);
+    }
+
+    /// `build` makes the node that holds `list`'s items, which are then popped.
+    fn close<N>(&mut self, list: List, build: impl FnOnce(&mut Ast, &[NodeId]) -> N) -> N {
+        let scratch = std::mem::take(&mut self.ast.scratch);
+        let node = build(self.ast, &scratch[list.0..]);
+        self.ast.scratch = scratch;
+        self.drop_list(list);
+        node
+    }
+
+    /// Abandons `list` without building anything from it.
+    fn drop_list(&mut self, list: List) {
+        debug_assert!(
+            list.0 <= self.ast.scratch.len(),
+            "lists close innermost first"
+        );
+        self.ast.scratch.truncate(list.0);
+    }
+
+    /// `...a` or `a`, in an argument list or an array.
+    fn assignment_or_spread(&mut self, lo: u32) -> R<NodeId> {
+        if self.eat(T::Ellipsis)? {
+            let a = self.assignment()?;
+            Ok(self.ast.spread(a, self.span_from(lo)))
+        } else {
+            self.assignment()
+        }
     }
 
     fn bump(&mut self) -> R<Tok> {
@@ -370,15 +432,17 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn block(&mut self) -> R<NodeId> {
         let lo = self.tok.span.lo;
         self.expect(T::LBrace, "{")?;
-        let mut body = Vec::new();
+        let body = self.open();
         while self.tok.t != T::RBrace {
             if self.tok.t == T::Eof {
                 return self.fail("unterminated block");
             }
-            body.push(self.statement()?);
+            let s = self.statement()?;
+            self.item(s);
         }
         self.bump()?;
-        Ok(self.ast.block(&body, self.span_from(lo)))
+        let span = self.span_from(lo);
+        Ok(self.close(body, |ast, body| ast.block(body, span)))
     }
 
     fn var_decl(&mut self) -> R<NodeId> {
@@ -389,7 +453,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             "const" => flag::CONST,
             _ => flag::VAR,
         };
-        let mut decls = Vec::new();
+        let decls = self.open();
         loop {
             let dlo = self.tok.span.lo;
             let id = self.binding_target()?;
@@ -399,12 +463,14 @@ impl<'a, 'b> Parser<'a, 'b> {
             } else {
                 None
             };
-            decls.push(self.ast.declarator(id, init, self.span_from(dlo)));
+            let d = self.ast.declarator(id, init, self.span_from(dlo));
+            self.item(d);
             if !self.eat(T::Comma)? {
                 break;
             }
         }
-        Ok(self.ast.var_decl(kind, &decls, self.span_from(lo)))
+        let span = self.span_from(lo);
+        Ok(self.close(decls, |ast, decls| ast.var_decl(kind, decls, span)))
     }
 
     fn function(&mut self, decl: bool, lo: u32, is_async: bool) -> R<NodeId> {
@@ -424,18 +490,20 @@ impl<'a, 'b> Parser<'a, 'b> {
         let params = self.params()?;
         let ret = self.maybe_return_type(false)?;
         let body = self.block()?;
-        let f = self
-            .ast
-            .function(decl, name, &params, body, is_async, self.span_from(lo));
+        let span = self.span_from(lo);
+        let f = self.close(params, |ast, params| {
+            ast.function(decl, name, params, body, is_async, span)
+        });
         self.signature_ts(f, type_params, ret);
         Ok(f)
     }
 
-    fn params(&mut self) -> R<Vec<NodeId>> {
+    fn params(&mut self) -> R<List> {
         self.expect(T::LParen, "(")?;
-        let mut params = Vec::new();
+        let params = self.open();
         while self.tok.t != T::RParen {
-            params.push(self.param()?);
+            let p = self.param()?;
+            self.item(p);
             if !self.eat(T::Comma)? {
                 break;
             }
@@ -477,12 +545,13 @@ impl<'a, 'b> Parser<'a, 'b> {
         } else {
             false
         };
-        let mut specs = Vec::new();
+        let specs = self.open();
         if self.tok.t != T::Str {
             if self.tok.t == T::Ident {
                 let t = self.bump()?;
                 let local = self.ast.ident(self.text(t), t.span);
-                specs.push(self.ast.import_default(local, t.span));
+                let spec = self.ast.import_default(local, t.span);
+                self.item(spec);
                 self.eat(T::Comma)?;
             }
             if self.is_op("*") {
@@ -494,7 +563,8 @@ impl<'a, 'b> Parser<'a, 'b> {
                 self.bump()?;
                 let t = self.expect(T::Ident, "identifier")?;
                 let local = self.ast.ident(self.text(t), t.span);
-                specs.push(self.ast.import_namespace(local, self.span_from(slo)));
+                let spec = self.ast.import_namespace(local, self.span_from(slo));
+                self.item(spec);
             } else if self.tok.t == T::LBrace {
                 self.bump()?;
                 while self.tok.t != T::RBrace {
@@ -524,12 +594,10 @@ impl<'a, 'b> Parser<'a, 'b> {
                     } else {
                         return self.fail("string import names need `as`");
                     };
-                    specs.push(self.ast.import_named(
-                        imported,
-                        local,
-                        spec_type,
-                        self.span_from(slo),
-                    ));
+                    let spec =
+                        self.ast
+                            .import_named(imported, local, spec_type, self.span_from(slo));
+                    self.item(spec);
                     if !self.eat(T::Comma)? {
                         break;
                     }
@@ -544,9 +612,10 @@ impl<'a, 'b> Parser<'a, 'b> {
         let s = self.expect(T::Str, "module specifier")?;
         let source = self.string_node(s);
         self.semicolon()?;
-        Ok(self
-            .ast
-            .import(&specs, source, type_only, self.span_from(lo)))
+        let span = self.span_from(lo);
+        Ok(self.close(specs, |ast, specs| {
+            ast.import(specs, source, type_only, span)
+        }))
     }
 
     fn export(&mut self) -> R<NodeId> {
@@ -700,19 +769,19 @@ impl<'a, 'b> Parser<'a, 'b> {
         let t = self.bump()?;
         let name = self.ast.ident(self.text(t), t.span);
         self.bump()?; // `{`
-        let mut members = Vec::new();
+        let members = self.open();
         while self.tok.t != T::RBrace {
-            match self.ts_prop_sig()? {
-                Some(m) => members.push(m),
-                None => return self.opaque_body_rest(lo).map(Some),
-            }
+            let Some(m) = self.ts_prop_sig()? else {
+                self.drop_list(members);
+                return self.opaque_body_rest(lo).map(Some);
+            };
+            self.item(m);
         }
         self.bump()?; // `}`
-        Ok(Some(self.ast.ts_interface(
-            name,
-            &members,
-            self.span_from(lo),
-        )))
+        let span = self.span_from(lo);
+        Ok(Some(self.close(members, |ast, members| {
+            ast.ts_interface(name, members, span)
+        })))
     }
 
     /// `key?: T;` inside an interface body; `None` at the first token of any other member shape.
@@ -1034,7 +1103,10 @@ impl<'a, 'b> Parser<'a, 'b> {
         let params =
             if self.tok.t == T::Ident && self.peek().t == T::Arrow && !self.peek().nl_before {
                 let t = self.bump()?;
-                vec![self.ast.ident(self.text(t), t.span)]
+                let params = self.open();
+                let p = self.ast.ident(self.text(t), t.span);
+                self.item(p);
+                params
             } else if self.tok.t == T::LParen && Self::paren_arrow_ahead(self.lex, &mut Vec::new())?
             {
                 let p = self.params()?;
@@ -1052,9 +1124,10 @@ impl<'a, 'b> Parser<'a, 'b> {
         } else {
             (self.assignment()?, true)
         };
-        let f = self
-            .ast
-            .arrow(&params, body, expr_body, is_async, self.span_from(lo));
+        let span = self.span_from(lo);
+        let f = self.close(params, |ast, params| {
+            ast.arrow(params, body, expr_body, is_async, span)
+        });
         self.signature_ts(f, None, ret);
         Ok(Some(f))
     }
@@ -1225,9 +1298,10 @@ impl<'a, 'b> Parser<'a, 'b> {
             let args = if self.tok.t == T::LParen {
                 self.arguments()?
             } else {
-                Vec::new()
+                self.open()
             };
-            self.ast.new_(callee, &args, self.span_from(lo))
+            let span = self.span_from(lo);
+            self.close(args, |ast, args| ast.new_(callee, args, span))
         } else {
             self.primary()?
         };
@@ -1248,7 +1322,8 @@ impl<'a, 'b> Parser<'a, 'b> {
                     match self.tok.t {
                         T::LParen if calls => {
                             let args = self.arguments()?;
-                            e = self.ast.call(e, &args, true, self.span_from(lo));
+                            let span = self.span_from(lo);
+                            e = self.close(args, |ast, args| ast.call(e, args, true, span));
                         }
                         T::LBracket => {
                             self.bump()?;
@@ -1270,7 +1345,8 @@ impl<'a, 'b> Parser<'a, 'b> {
                 }
                 T::LParen if calls => {
                     let args = self.arguments()?;
-                    e = self.ast.call(e, &args, false, self.span_from(lo));
+                    let span = self.span_from(lo);
+                    e = self.close(args, |ast, args| ast.call(e, args, false, span));
                 }
                 T::Template { .. } => return self.fail("tagged templates are not supported"),
                 T::Op if self.ts && self.text(self.tok) == "!" && !self.tok.nl_before => {
@@ -1296,17 +1372,13 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
-    fn arguments(&mut self) -> R<Vec<NodeId>> {
+    fn arguments(&mut self) -> R<List> {
         self.expect(T::LParen, "(")?;
-        let mut args = Vec::new();
+        let args = self.open();
         while self.tok.t != T::RParen {
             let lo = self.tok.span.lo;
-            if self.eat(T::Ellipsis)? {
-                let a = self.assignment()?;
-                args.push(self.ast.spread(a, self.span_from(lo)));
-            } else {
-                args.push(self.assignment()?);
-            }
+            let a = self.assignment_or_spread(lo)?;
+            self.item(a);
             if !self.eat(T::Comma)? {
                 break;
             }
@@ -1397,26 +1469,24 @@ impl<'a, 'b> Parser<'a, 'b> {
             }
             T::LBracket => {
                 self.bump()?;
-                let mut items = Vec::new();
+                let items = self.open();
                 while self.tok.t != T::RBracket {
                     let ilo = self.tok.span.lo;
                     if self.tok.t == T::Comma {
                         self.bump()?;
-                        items.push(self.ast.hole(Span::new(ilo, ilo)));
+                        let hole = self.ast.hole(Span::new(ilo, ilo));
+                        self.item(hole);
                         continue;
                     }
-                    if self.eat(T::Ellipsis)? {
-                        let a = self.assignment()?;
-                        items.push(self.ast.spread(a, self.span_from(ilo)));
-                    } else {
-                        items.push(self.assignment()?);
-                    }
+                    let a = self.assignment_or_spread(ilo)?;
+                    self.item(a);
                     if !self.eat(T::Comma)? {
                         break;
                     }
                 }
                 self.expect(T::RBracket, "]")?;
-                Ok(self.ast.array(&items, self.span_from(lo)))
+                let span = self.span_from(lo);
+                Ok(self.close(items, |ast, items| ast.array(items, span)))
             }
             T::LBrace => self.object(),
             T::Op if matches!(self.text(t), "/" | "/=") => {
@@ -1458,12 +1528,13 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn object(&mut self) -> R<NodeId> {
         let lo = self.tok.span.lo;
         self.bump()?;
-        let mut props = Vec::new();
+        let props = self.open();
         while self.tok.t != T::RBrace {
             let plo = self.tok.span.lo;
             if self.eat(T::Ellipsis)? {
                 let a = self.assignment()?;
-                props.push(self.ast.spread(a, self.span_from(plo)));
+                let spread = self.ast.spread(a, self.span_from(plo));
+                self.item(spread);
             } else {
                 let is_async = self.is_kw("async")
                     && !matches!(self.peek().t, T::Colon | T::Comma | T::RBrace | T::LParen);
@@ -1480,36 +1551,25 @@ impl<'a, 'b> Parser<'a, 'b> {
                     let params = self.params()?;
                     let ret = self.maybe_return_type(false)?;
                     let body = self.block()?;
-                    let f = self.ast.function(
-                        false,
-                        None,
-                        &params,
-                        body,
-                        is_async,
-                        Span::new(key_tok.lo, self.prev_end),
-                    );
+                    let span = Span::new(key_tok.lo, self.prev_end);
+                    let f = self.close(params, |ast, params| {
+                        ast.function(false, None, params, body, is_async, span)
+                    });
                     self.signature_ts(f, None, ret);
-                    props.push(self.ast.property(
-                        key,
-                        f,
-                        flag::METHOD | if computed { flag::COMPUTED } else { 0 },
-                        self.span_from(plo),
-                    ));
+                    let flags = flag::METHOD | if computed { flag::COMPUTED } else { 0 };
+                    let prop = self.ast.property(key, f, flags, self.span_from(plo));
+                    self.item(prop);
                 } else if self.eat(T::Colon)? {
                     let v = self.assignment()?;
-                    props.push(self.ast.property(
-                        key,
-                        v,
-                        if computed { flag::COMPUTED } else { 0 },
-                        self.span_from(plo),
-                    ));
-                } else if !computed && self.ast.atom(key).is_some() {
-                    let name = self.ast.name(key).to_owned();
-                    let value = self.ast.ident(&name, key_tok);
-                    props.push(
-                        self.ast
-                            .property(key, value, flag::SHORTHAND, self.span_from(plo)),
-                    );
+                    let flags = if computed { flag::COMPUTED } else { 0 };
+                    let prop = self.ast.property(key, v, flags, self.span_from(plo));
+                    self.item(prop);
+                } else if let Some(name) = self.ast.atom(key).filter(|_| !computed) {
+                    let value = self.ast.ident_atom(name, key_tok);
+                    let prop = self
+                        .ast
+                        .property(key, value, flag::SHORTHAND, self.span_from(plo));
+                    self.item(prop);
                 } else {
                     return self.fail("expected `:`");
                 }
@@ -1519,7 +1579,8 @@ impl<'a, 'b> Parser<'a, 'b> {
             }
         }
         self.expect(T::RBrace, "}")?;
-        Ok(self.ast.object(&props, self.span_from(lo)))
+        let span = self.span_from(lo);
+        Ok(self.close(props, |ast, props| ast.object(props, span)))
     }
 
     fn property_key(&mut self) -> R<(NodeId, bool, Span)> {
@@ -1566,69 +1627,65 @@ impl<'a, 'b> Parser<'a, 'b> {
             }
             T::LBrace => {
                 self.bump()?;
-                let mut props = Vec::new();
+                let props = self.open();
                 while self.tok.t != T::RBrace {
                     let plo = self.tok.span.lo;
-                    if self.eat(T::Ellipsis)? {
+                    let prop = if self.eat(T::Ellipsis)? {
                         let arg = self.binding_target()?;
-                        props.push(self.ast.rest(arg, self.span_from(plo)));
+                        self.ast.rest(arg, self.span_from(plo))
                     } else {
                         let (key, computed, key_span) = self.property_key()?;
                         if self.eat(T::Colon)? {
                             let value = self.binding_element()?;
-                            props.push(self.ast.property(
-                                key,
-                                value,
-                                if computed { flag::COMPUTED } else { 0 },
-                                self.span_from(plo),
-                            ));
+                            let flags = if computed { flag::COMPUTED } else { 0 };
+                            self.ast.property(key, value, flags, self.span_from(plo))
                         } else {
-                            if computed || self.ast.atom(key).is_none() {
+                            let Some(name) = self.ast.atom(key).filter(|_| !computed) else {
                                 return self.fail("expected `:`");
-                            }
-                            let name = self.ast.name(key).to_owned();
-                            let mut value = self.ast.ident(&name, key_span);
+                            };
+                            let mut value = self.ast.ident_atom(name, key_span);
                             if self.eat_op("=")? {
                                 let d = self.assignment()?;
                                 value = self.ast.assign_pat(value, d, self.span_from(plo));
                             }
-                            props.push(self.ast.property(
-                                key,
-                                value,
-                                flag::SHORTHAND,
-                                self.span_from(plo),
-                            ));
+                            self.ast
+                                .property(key, value, flag::SHORTHAND, self.span_from(plo))
                         }
-                    }
+                    };
+                    self.item(prop);
                     if !self.eat(T::Comma)? {
                         break;
                     }
                 }
                 self.expect(T::RBrace, "}")?;
-                Ok(self.ast.object_pat(&props, self.span_from(lo)))
+                let span = self.span_from(lo);
+                Ok(self.close(props, |ast, props| ast.object_pat(props, span)))
             }
             T::LBracket => {
                 self.bump()?;
-                let mut items = Vec::new();
+                let items = self.open();
                 while self.tok.t != T::RBracket {
                     let ilo = self.tok.span.lo;
                     if self.tok.t == T::Comma {
                         self.bump()?;
-                        items.push(self.ast.hole(Span::new(ilo, ilo)));
+                        let hole = self.ast.hole(Span::new(ilo, ilo));
+                        self.item(hole);
                         continue;
                     }
-                    if self.eat(T::Ellipsis)? {
+                    let item = if self.eat(T::Ellipsis)? {
                         let arg = self.binding_target()?;
-                        items.push(self.ast.rest(arg, self.span_from(ilo)));
+                        self.ast.rest(arg, self.span_from(ilo))
                     } else {
-                        items.push(self.binding_element()?);
-                    }
+                        self.binding_element()?
+                    };
+                    self.item(item);
                     if !self.eat(T::Comma)? {
                         break;
                     }
                 }
                 self.expect(T::RBracket, "]")?;
-                Ok(self.ast.array_pat(&items, self.span_from(lo)))
+                let span = self.span_from(lo);
+                Ok(self.close(items, |ast, items| ast.array_pat(items, span)))
             }
             _ => self.fail("expected a binding name or pattern"),
         }

@@ -86,3 +86,15 @@ fn type_names_are_noted_but_keys_and_members_are_not() {
     let names: Vec<&str> = ast.type_refs.iter().map(|r| r.span.text(src)).collect();
     assert_eq!(names, ["A", "C", "D", "E", "G", "H"]);
 }
+
+#[test]
+fn an_interface_read_as_text_leaves_no_members_behind() {
+    // `m(): void` is not a property signature, so the body is kept as text after `x` was read.
+    let src = "interface A { x: number; m(): void }\nlet y = 1;";
+    let (ast, p) = parse(src);
+    let rsv_js::ast::Kind::Program(body) = ast.kind(p) else {
+        panic!("not a program")
+    };
+    assert_eq!(body.len(), 2);
+    assert_eq!(print(src), "let y = 1;\n");
+}
