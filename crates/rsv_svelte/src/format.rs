@@ -73,10 +73,10 @@ const BLOCK_ELEMENTS: &[&str] = &[
 ///
 /// [`Unsupported`] if the component holds a construct this formatter does not print, or a
 /// flat-only layout that does not fit.
-pub fn format(c: &Component, src: &str) -> R<String> {
-    let lines = LineIndex::new(src);
+/// `lines` is `src`'s, which the pipeline builds once per document.
+pub fn format(c: &Component, src: &str, lines: &LineIndex) -> R<String> {
     let mut docs = Docs::new();
-    let js = Formatter::new(&c.js, src, &lines, &mut docs, JsOptions::default());
+    let js = Formatter::new(&c.js, src, lines, &mut docs, JsOptions::default());
     let mut f = Printer {
         c,
         src,
@@ -1162,7 +1162,7 @@ mod tests {
 
     fn refusal(src: &str) -> (&'static str, Option<&str>) {
         let c = crate::parse::parse(src).expect("parses");
-        let u = format(&c, src).expect_err("refused");
+        let u = format(&c, src, &LineIndex::new(src)).expect_err("refused");
         (u.what, u.loc.span().map(|s| s.text(src)))
     }
 

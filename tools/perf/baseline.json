@@ -14,8 +14,8 @@
 			"svue.compile/server"
 		]
 	},
-	"allocs": 2217059,
-	"alloc_bytes": 141440842,
+	"allocs": 2192937,
+	"alloc_bytes": 139929914,
 	"peak_live_growth_bytes": 35887845,
 	"phases": {
 		"js.parents": {
@@ -65,8 +65,8 @@
 		},
 		"svelte.lint/default": {
 			"calls": 17489,
-			"allocs": 106153,
-			"alloc_bytes": 13015749
+			"allocs": 82105,
+			"alloc_bytes": 11507105
 		},
 		"svelte.lower.client": {
 			"calls": 5438,
@@ -140,8 +140,8 @@
 		},
 		"vue.lint/default": {
 			"calls": 19,
-			"allocs": 280,
-			"alloc_bytes": 27799
+			"allocs": 206,
+			"alloc_bytes": 25515
 		},
 		"vue.parse": {
 			"calls": 24,
@@ -170,9 +170,9 @@
 		}
 	},
 	"instructions": {
-		"arm64-linux": 2853755764
+		"arm64-linux": 2810876017
 	},
 	"load_instructions": {
-		"arm64-linux": 345683029
+		"arm64-linux": 345685335
 	}
 }

@@ -136,11 +136,11 @@ const VOID_TAGS: &[&str] = &[
 /// # Errors
 ///
 /// [`Unsupported`] if the component holds a construct this formatter does not print.
-pub fn format(c: &Sfc, src: &str) -> R<String> {
-    let lines = LineIndex::new(src);
-    let tree = Tree::build(c, src, &lines)?;
+/// `lines` is `src`'s, which the pipeline builds once per document.
+pub fn format(c: &Sfc, src: &str, lines: &LineIndex) -> R<String> {
+    let tree = Tree::build(c, src, lines)?;
     let mut docs = Docs::new();
-    let js = Formatter::new(&c.js, src, &lines, &mut docs, JsOptions::default());
+    let js = Formatter::new(&c.js, src, lines, &mut docs, JsOptions::default());
     let mut p = Printer {
         c,
         src,

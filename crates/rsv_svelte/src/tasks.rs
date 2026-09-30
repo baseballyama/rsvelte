@@ -168,7 +168,7 @@ impl Task for Format {
                 return;
             }
         };
-        match crate::format::format(c, ctx.src()) {
+        match crate::format::format(c, ctx.src(), ctx.line_index()) {
             Ok(text) => out.file("svelte", text),
             Err(u) => out.diagnostics.push(Diagnostic::error(
                 "format_unsupported",

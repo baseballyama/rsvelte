@@ -99,7 +99,7 @@ impl Task for Format {
         };
         let formatted = {
             let _p = metrics::phase("vue.format");
-            crate::format::format(c, ctx.src())
+            crate::format::format(c, ctx.src(), ctx.line_index())
         };
         match formatted {
             Ok(text) => out.file("vue", text),
