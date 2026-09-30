@@ -102,6 +102,35 @@ impl Emitter {
         Some(Span::new(lo, hi.max(lo)))
     }
 
+    /// The original range of the copied characters inside `span`, as Volar maps a diagnostic back:
+    /// inserted text maps to nothing, so `__VLS_ctx.x` maps to `x`. An empty `span` maps where a
+    /// copy contains it (its end included). `None` when no copied character is inside.
+    #[must_use]
+    pub fn lookup_overlap(&self, span: Span) -> Option<Span> {
+        // Copies are recorded in output order, so both ends of the mappings are sorted.
+        let first = self
+            .mappings
+            .partition_point(|m| m.generated + m.len < span.lo);
+        let mut found: Option<Span> = None;
+        for m in &self.mappings[first..] {
+            if m.generated > span.hi {
+                break;
+            }
+            let (lo, hi) = (span.lo.max(m.generated), span.hi.min(m.generated + m.len));
+            if m.len == 0 || lo > hi || (lo == hi && !span.is_empty()) {
+                continue;
+            }
+            let mapped = Span::new(m.src + (lo - m.generated), m.src + (hi - m.generated));
+            if span.is_empty() {
+                return Some(mapped);
+            }
+            found = Some(found.map_or(mapped, |f| {
+                Span::new(f.lo.min(mapped.lo), f.hi.max(mapped.hi))
+            }));
+        }
+        found
+    }
+
     /// Every mapped character as (generated, original): one point per character of a copy, one per
     /// point mapping; a later mapping at the same generated offset replaces an earlier one.
     fn points(&self) -> Vec<(u32, u32)> {
@@ -246,6 +275,31 @@ mod tests {
         e.copy(src, Span::new(4, 10));
         assert_eq!(e.lookup(10), Some(4));
         assert_eq!(e.lookup(13), Some(7));
+    }
+
+    #[test]
+    fn overlap_lookup_maps_only_the_copied_characters() {
+        let src = "{{ maybe.length }}";
+        let mut e = Emitter::new();
+        e.push("(");
+        e.copy(src, Span::new(2, 3));
+        e.push("__VLS_ctx.");
+        e.copy(src, Span::new(3, 16));
+        e.push(");");
+        let generated = |s: &str| {
+            let lo = e.out.find(s).unwrap() as u32;
+            Span::new(lo, lo + s.len() as u32)
+        };
+        let back = |s: &str| e.lookup_overlap(generated(s)).map(|m| m.text(src));
+        assert_eq!(back("__VLS_ctx.maybe"), Some("maybe"));
+        assert_eq!(back("length"), Some("length"));
+        assert_eq!(back("__VLS_ctx"), None);
+        assert_eq!(back("( __VLS_ctx.maybe.length );"), Some(" maybe.length "));
+        let end = generated("length").hi;
+        assert_eq!(
+            e.lookup_overlap(Span::new(end, end)),
+            Some(Span::new(15, 15))
+        );
     }
 
     #[test]

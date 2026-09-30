@@ -4,8 +4,9 @@
 //! `rsv bench <dir> [--task <id>]... [rounds=N] [json=<file>]` measures the pipeline (see
 //! `bench.rs`).
 //!
-//! `svelte.check` also needs `--tsc <native tsc>` and `--svelte <svelte package dir>`; its project
-//! configuration is `--tsconfig <file>`, by default the source directory's `tsconfig.json`.
+//! `svelte.check` also needs `--tsc <native tsc>` and `--svelte <svelte package dir>`, `vue.check`
+//! `--tsc` and `--vue <vue package dir>`; their project configuration is `--tsconfig <file>`, by
+//! default the source directory's `tsconfig.json`.
 
 #![expect(
     clippy::print_stdout,
@@ -38,13 +39,14 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut tasks = Vec::new();
     let mut positional = Vec::new();
-    let (mut tsc, mut svelte, mut tsconfig) = (None, None, None);
+    let (mut tsc, mut svelte, mut vue, mut tsconfig) = (None, None, None, None);
     let mut it = args.iter();
     while let Some(a) = it.next() {
         let slot = match a.as_str() {
             "--task" => None,
             "--tsc" => Some(&mut tsc),
             "--svelte" => Some(&mut svelte),
+            "--vue" => Some(&mut vue),
             "--tsconfig" => Some(&mut tsconfig),
             _ => {
                 positional.push(a.as_str());
@@ -68,18 +70,25 @@ fn main() -> ExitCode {
             .is_file()
             .then(|| std::path::absolute(&default).expect("a non-empty path"));
     }
-    let config = rsv_svelte::Config {
-        check: match (tsc, svelte) {
-            (Some(tsc), Some(svelte)) => Some(rsv_svelte::CheckConfig {
+    if tsc.is_some() != (svelte.is_some() || vue.is_some()) {
+        return usage("--tsc goes with --svelte, --vue or both");
+    }
+    let svelte = rsv_svelte::Config {
+        check: tsc
+            .clone()
+            .zip(svelte)
+            .map(|(tsc, svelte)| rsv_svelte::CheckConfig {
                 tsc,
-                tsconfig,
+                tsconfig: tsconfig.clone(),
                 svelte,
             }),
-            (None, None) => None,
-            _ => return usage("--tsc and --svelte go together"),
-        },
     };
-    let reg = registry(&config, &rsv_vue::Config::default());
+    let vue = rsv_vue::Config {
+        check: tsc
+            .zip(vue)
+            .map(|(tsc, vue)| rsv_vue::CheckConfig { tsc, tsconfig, vue }),
+    };
+    let reg = registry(&svelte, &vue);
     if let Err(e) = reg.check_task_ids(&tasks) {
         return usage(&e.to_string());
     }

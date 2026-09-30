@@ -1544,7 +1544,7 @@ fn condense(s: &str) -> String {
     out
 }
 
-fn can_prefix(name: &str) -> bool {
+pub(crate) fn can_prefix(name: &str) -> bool {
     !GLOBALS_ALLOWED.contains(&name) && name != "require"
 }
 
@@ -1572,7 +1572,7 @@ fn is_reserved(key: &str) -> bool {
 }
 
 /// `@vue/shared` `camelize`: `-x` becomes `X` for a word character `x`.
-fn camelize(s: &str) -> String {
+pub(crate) fn camelize(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut chars = s.chars().peekable();
     while let Some(c) = chars.next() {
@@ -1590,7 +1590,7 @@ fn camelize(s: &str) -> String {
 }
 
 /// `toHandlerKey`: `on` and the name with its first character upper-cased.
-fn to_handler_key(s: &str) -> String {
+pub(crate) fn to_handler_key(s: &str) -> String {
     let mut chars = s.chars();
     chars.next().map_or_else(String::new, |f| {
         format!("on{}{}", f.to_uppercase(), chars.as_str())
@@ -1598,7 +1598,7 @@ fn to_handler_key(s: &str) -> String {
 }
 
 /// compiler-core `isSimpleIdentifier`.
-fn is_simple_identifier(s: &str) -> bool {
+pub(crate) fn is_simple_identifier(s: &str) -> bool {
     let mut b = s.bytes();
     b.next()
         .is_some_and(|c| c.is_ascii_alphabetic() || c == b'_' || c == b'$')
@@ -1607,7 +1607,7 @@ fn is_simple_identifier(s: &str) -> bool {
 
 /// Every identifier `walkIdentifiers` visits with `includeAll`, with its parent, but static object
 /// keys (`isStaticPropertyKey`).
-fn identifiers(
+pub(crate) fn identifiers(
     ast: &Ast,
     n: NodeId,
     parent: Option<NodeId>,

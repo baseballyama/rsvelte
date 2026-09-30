@@ -43,6 +43,14 @@ Svelte に固有な部分だけ。
 - テンプレートとスクリプトを合わせたスコープ解析: テンプレート式はスコープ解析の追加の根なので、「この変数はどこかで使われるか」は 1 回の問いになる
 - タスク: `svelte.compile/{client,server}`、`svelte.format/default`、`svelte.lint/default`、`svelte.check/default`
 
+### Vue プラグインが持つもの
+
+カーネルの柔軟性を試すための 2 つ目の言語。最小限の構文だけを持つ。
+
+- 成果物: `Parsed`、`Resolved`（スクリプトとテンプレートを合わせた 1 回のスコープ解析と、compileScript の binding type）、`TsProjection`
+- タスク: `vue.compile/default`、`vue.format/default`、`vue.lint/default`、`vue.check/default`
+- JS の解析・整形・`no-unused-vars`・`tsc` バックエンドと CSS は Svelte と同じ `rsv_js` / `rsv_css` を使う。型検査は `rsv_js::check::check_projected` を共有し、違うのは射影と逆引きの規則（Svelte は source map の最大下界、Vue は Volar の「写ったコピー部分だけを写す」`Emitter::lookup_overlap`）だけ
+
 ### 分離の判断基準
 
 **「別の言語を追加するとき、それを書き直すか」**で置き場所を決めた。
@@ -89,6 +97,17 @@ Parsed ─► TsProjection（Svelte、文書パス）
 | `svelte.format/default` | prettier 3.9.9 + prettier-plugin-svelte 4.1.1 | 12/12 |
 | `svelte.lint/default` | eslint 10.11.0 + eslint-plugin-svelte 3.23.0（全ルール: 中核の非推奨でない全ルール + `configs.all`、282 ルール） | 12/12（rsvelte が実装した 2 ルールの指摘を比較） |
 | `svelte.check/default` | svelte-check 4.7.6 + typescript 6.0.3（rsvelte 側は tsc 7.0.2） | 12/12。属性の型エラー 6 件と、`{#if}` による絞り込みを含む |
+
+### 手書きユニット `fixtures/vue/rsvelte`（18 件）
+
+| タスク | オラクル | 結果 |
+|---|---|---|
+| `vue.compile/default` | @vue/compiler-sfc（@vitejs/plugin-vue の本番出力） | 19/19 成果物（JS と CSS）。`check/template-shapes` は束縛した `class` を拒否するので skip（理由は `fixture.toml`） |
+| `vue.format/default` | prettier 3.9.9 | 18/18 |
+| `vue.lint/default` | eslint + eslint-plugin-vue | 18/18 |
+| `vue.check/default` | vue-tsc 3.3.11 + typescript 6.0.3（rsvelte 側は tsc 7.0.2） | 18/18。うち 2 件の指摘は TS 6 と 7 の版差なので、ガード付きの調整で記録した（下の 6. の 4） |
+
+Vue の射影は @vue/language-core の仮想コードと同じ形にしてある（`__VLS_ctx`、`__VLS_SetupExposed`、`__VLS_asFunctionalElement1`、`__VLS_vFor`）。型検査のメッセージには `'__VLS_ctx.maybe' is possibly 'undefined'` のように射影の名前と型がそのまま出るので、射影の形が違えば文字列は一致しない。
 
 ### 型検査の位置の一致
 
@@ -177,7 +196,10 @@ bench の「診断なし」（4,643）は正しさではない。一致は 22% �
 1. **パースが CPU の 43%**。失敗する文書もパースの途中までは払う。入力 32 MB を 291 ms（スレッド合計）で処理しており、パーサ単体の最適化が最も効く。
 2. **整形の割り当てバイトが最大（164 MB）**。doc 木のノードとテキストの確保が候補。フェーズ表で `svelte.format` を doc 構築と印字に分けてから手を付ける。
 3. **パースできない JS 92 件**。出力の事後条件として「自前のパーサで読み直せること」を置けば拒否に変わる。コストと、正しい出力を誤って拒否する件数は、コーパスで両方測ってから決める。
-4. **型検査のオラクルと実装の TypeScript の版が違う**（6.0.3 と 7.0.2）。svelte-check は TS 6 の JS API を要求する。手書きユニットでは差が出ていないが、メッセージの差は将来この版差から来うる。
+4. **型検査のオラクルと実装の TypeScript の版が違う**（6.0.3 と 7.0.2）。svelte-check も vue-tsc も TS 6 の JS API を要求する。`vue/rsvelte/check/template-shapes` で 2 件の差が実際に出た。
+   - 引数の型の不一致: TS 6 は TS2345 の下に理由を入れ子にし、TS 7 は理由の TS2740 を直接出す。
+   - スプレッド型の表示順: TS 6 は setup の束縛から、TS 7 は `ComponentPublicInstance` のメンバーから印字する。
+   - どちらも、オラクル自身の仮想コードを tsc 7.0.2 に通すと rsvelte と同じ出力になる。したがって射影ではなく版の差である。`fixture.toml` の JSON 調整（`artifact = "json"`）で、期待値の該当要素をガード付きで置き換えている。
 
 ## 7. 再現
 
@@ -188,4 +210,6 @@ cargo build --release -p rsv_cli --features metrics
 TSC=tools/fixtures/node_modules/.pnpm/@typescript+typescript-darwin-arm64@7.0.2/node_modules/@typescript/typescript-darwin-arm64/lib/tsc
 ./target/release/rsv fixtures fixtures/svelte/rsvelte --tsc $TSC --svelte tools/fixtures/node_modules/svelte
 (cd tools/fixtures && node bin/fixtures.ts compare --task svelte.check --variant default --source rsvelte)
+./target/release/rsv fixtures fixtures/vue/rsvelte --tsc $TSC --vue "$(realpath tools/fixtures/node_modules/vue)"
+(cd tools/fixtures && node bin/fixtures.ts compare --task vue.check --variant default --source rsvelte)
 ```

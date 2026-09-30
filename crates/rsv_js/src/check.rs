@@ -12,8 +12,11 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use rsv_kernel::diag::Diagnostic;
+use rsv_kernel::emit::Emitter;
 use rsv_kernel::json::JsonWriter;
 use rsv_kernel::metrics;
+use rsv_kernel::pipeline::TaskOutput;
 use rsv_kernel::source::{LineIndex, Span};
 
 #[derive(Debug)]
@@ -46,6 +49,92 @@ pub struct TsDiagnostic {
     pub message: String,
     /// Byte range in the generated file.
     pub span: Span,
+}
+
+/// One document's generated TypeScript and its mappings, with the document's text.
+#[derive(Debug)]
+pub struct Projected {
+    pub emitter: Emitter,
+    pub src: String,
+}
+
+/// How a host maps a generated range back to its document.
+///
+/// [`Emitter::lookup_span`] for svelte2tsx's source map, [`Emitter::lookup_overlap`] for Volar.
+/// `None` drops the finding, as both upstreams drop what lands in generated code.
+pub type MapBack = fn(&Emitter, Span) -> Option<Span>;
+
+/// Runs one `tsc` over every document's projection and writes each document's findings (`json`,
+/// see [`render_findings`]); a run that fails is reported on every document.
+pub fn check_projected(
+    tsc: &Tsc,
+    mut req: CheckRequest,
+    mut docs: Vec<Projected>,
+    map_back: MapBack,
+    outs: Vec<&mut TaskOutput>,
+) {
+    req.files = docs
+        .iter_mut()
+        .map(|d| std::mem::take(&mut d.emitter.out))
+        .collect();
+    let checked = tsc.check(&req);
+    // Mapping back reads the generated text around a position.
+    for (d, file) in docs.iter_mut().zip(req.files) {
+        d.emitter.out = file;
+    }
+    let found = match checked {
+        Ok(found) => found,
+        Err(msg) => {
+            for out in outs {
+                out.diagnostics.push(Diagnostic::error(
+                    "check_failed",
+                    msg.clone(),
+                    Span::new(0, 0),
+                ));
+            }
+            return;
+        }
+    };
+    let mut per_doc: Vec<Vec<(Span, u32, String)>> = vec![Vec::new(); docs.len()];
+    for d in found {
+        if let Some(span) = map_back(&docs[d.file].emitter, d.span) {
+            per_doc[d.file].push((span, d.code, d.message));
+        }
+    }
+    for ((d, out), mut found) in docs.iter().zip(outs).zip(per_doc) {
+        out.file(
+            "json",
+            render_findings(&d.src, &LineIndex::new(&d.src), &mut found),
+        );
+    }
+}
+
+/// Findings as svelte-check and vue-tsc report them: `code`, the flattened `message`, and 0-based
+/// lines with UTF-16 characters, in document order.
+pub fn render_findings(src: &str, lines: &LineIndex, found: &mut [(Span, u32, String)]) -> String {
+    found.sort_by_key(|(span, ..)| span.lo);
+    let mut w = JsonWriter::new(true);
+    w.begin_array();
+    for (span, code, message) in found.iter() {
+        w.begin_object()
+            .key("code")
+            .num(code)
+            .key("message")
+            .str(message);
+        for (key, at) in [("start", span.lo), ("end", span.hi)] {
+            let lc = lines.line_col(src, at);
+            w.key(key)
+                .begin_object()
+                .key("line")
+                .num(lc.line - 1)
+                .key("character")
+                .num(lc.column)
+                .end_object();
+        }
+        w.end_object();
+    }
+    w.end_array();
+    w.finish()
 }
 
 static RUN: AtomicU32 = AtomicU32::new(0);

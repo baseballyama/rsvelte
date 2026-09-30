@@ -6,12 +6,14 @@
 //! |---|---|
 //! | [`Parsed`] | the surface tree ([`ast::Sfc`]) or the parse error |
 //! | [`Resolved`] | one scope analysis, compileScript's binding types ([`resolve::Resolution`]) |
+//! | [`TsProjection`] | the TypeScript view type checking reads ([`project::Projection`]) |
 
 pub mod ast;
 pub mod compile;
 pub mod format;
 pub mod lint;
 pub mod parse;
+pub mod project;
 pub mod resolve;
 pub mod tasks;
 
@@ -62,6 +64,22 @@ impl Artifact for Resolved {
     }
 }
 
+#[derive(Debug)]
+pub struct TsProjection;
+
+impl Artifact for TsProjection {
+    /// `None` when the document did not parse.
+    type Output = Option<Result<project::Projection, rsv_kernel::diag::Unsupported>>;
+
+    const NAME: &'static str = "vue.project.ts";
+
+    fn compute(ctx: &Ctx<'_>) -> Self::Output {
+        let c = ctx.get::<Parsed>().as_ref().ok()?;
+        let res = ctx.get::<Resolved>().as_ref()?;
+        Some(project::project(c, ctx.src(), res))
+    }
+}
+
 /// What the plugin needs from its host beyond the documents.
 #[derive(Default, Clone, Debug)]
 pub struct Config {
@@ -82,6 +100,7 @@ pub struct CheckConfig {
 pub fn register(reg: &mut Registry, config: &Config) {
     reg.language(Vue)
         .artifact::<Parsed>()
-        .artifact::<Resolved>();
+        .artifact::<Resolved>()
+        .artifact::<TsProjection>();
     tasks::register(reg, config);
 }

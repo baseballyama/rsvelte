@@ -1,8 +1,8 @@
 // Expected = oracle snapshot + per-unit adjustments.
 //
-// Adjustments live in the unit's fixture.toml. Each rewrites one node of the canonical AST of one
-// artifact, pinned by a path and guarded by the node the oracle had there, so it can be
-// re-validated when the oracle changes:
+// Adjustments live in the unit's fixture.toml. Each rewrites one node of one artifact (the canonical
+// AST of a `js` artifact, the parsed value of a `.json` one), pinned by a path and guarded by the
+// node the oracle had there, so it can be re-validated when the oracle changes:
 //
 //   [[adjust]]
 //   task = "svelte.compile"
@@ -12,6 +12,8 @@
 //   expect = "void 0"           # what the oracle has at `at`
 //   replace = "undefined"       # what we accept instead
 //   reason = "…"
+//
+// For a JSON artifact, `expect` and `replace` are JSON values (`artifact = "json"`, `at = "3"`).
 //
 // Status after applying to the current snapshot:
 //   ok         `expect` found at `at`, replaced
@@ -41,13 +43,21 @@ export function loadAdjustments(unit: Unit): Loaded[] {
 const appliesTo = (adj: Loaded, taskId: string, variantId: string, artifact: string): boolean =>
 	adj.task === taskId && (adj.variant === undefined || adj.variant === variantId) && adj.artifact === artifact;
 
+const isJson = (artifact: string): boolean => artifact.endsWith('json');
+
+/** An artifact's text as the tree adjustments apply to. */
+function parseArtifact(text: string, artifact: string): Node {
+	return isJson(artifact) ? (JSON.parse(text) as Node) : parseJs(text);
+}
+
 /** Applies adjustments to a canonical tree in place and returns one status per adjustment. */
 export function applyAdjustments(tree: Node, adjustments: Loaded[]): Applied[] {
 	return adjustments.map((adj): Applied => {
 		if (!adj.at) return { adj, status: 'stale', detail: 'empty `at`' };
 		const target = getAt(tree, adj.at) as Node | undefined;
-		const expect = parseSnippet(adj.expect, target?.type);
-		const replace = parseSnippet(adj.replace, target?.type);
+		const value = (snippet: string) => (isJson(adj.artifact) ? (JSON.parse(snippet) as Node) : parseSnippet(snippet, target?.type));
+		const expect = value(adj.expect);
+		const replace = value(adj.replace);
 		if (target !== undefined && same(target, expect)) {
 			setAt(tree, adj.at, structuredClone(replace));
 			return { adj, status: 'ok' };
@@ -64,7 +74,7 @@ export function applyAdjustments(tree: Node, adjustments: Loaded[]): Applied[] {
 
 /** The tree an implementation's output must equal, plus how each adjustment applied. */
 export function expectedTree(unit: Unit, task: Task, variantId: string, artifact = 'js'): { tree: Node; statuses: Applied[] } {
-	const tree = parseJs(fs.readFileSync(expectedFile(task, variantId, unit, artifact), 'utf8'));
+	const tree = parseArtifact(fs.readFileSync(expectedFile(task, variantId, unit, artifact), 'utf8'), artifact);
 	const statuses = applyAdjustments(tree, loadAdjustments(unit).filter((a) => appliesTo(a, task.id, variantId, artifact)));
 	return { tree, statuses };
 }
@@ -83,7 +93,7 @@ export function verifyAdjustments({ write }: { write: boolean }) {
 				let st: Applied;
 				try {
 					const text = fs.readFileSync(expectedFile(task, variantId, unit, adj.artifact), 'utf8');
-					st = applyAdjustments(parseJs(text), [adj])[0]!;
+					st = applyAdjustments(parseArtifact(text, adj.artifact), [adj])[0]!;
 				} catch (e) {
 					st = { adj, status: 'stale', detail: (e as Error).message };
 				}

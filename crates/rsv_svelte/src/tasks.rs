@@ -2,14 +2,13 @@
 //! (`svelte.compile/client` → `expected/svelte.compile/client.*`).
 
 use rsv_js::ast::{TsFeature, TsRuntime};
-use rsv_js::check::{CheckRequest, Tsc};
+use rsv_js::check::{CheckRequest, Projected, Tsc, render_findings};
 use rsv_kernel::db::Ctx;
 use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::emit::Emitter;
-use rsv_kernel::json::JsonWriter;
 use rsv_kernel::metrics;
 use rsv_kernel::pipeline::{Document, Part, ProjectTask, Registry, Task, TaskOutput};
-use rsv_kernel::source::{LineIndex, Span};
+use rsv_kernel::source::Span;
 
 use crate::lower::{self, Target};
 use crate::project::Projection;
@@ -220,11 +219,6 @@ pub struct Check {
     pub config: Option<CheckConfig>,
 }
 
-struct Prepared {
-    mappings: Emitter,
-    src: String,
-}
-
 const SHIM: (&str, &str) = (
     "svelte-jsx-v4.d.ts",
     include_str!("../vendor/svelte-jsx-v4.d.ts"),
@@ -262,11 +256,14 @@ impl ProjectTask for Check {
                 None
             }
             Ok(Projection::Js) => {
-                out.file("json", render_check(ctx.src(), ctx.line_index(), &mut []));
+                out.file(
+                    "json",
+                    render_findings(ctx.src(), ctx.line_index(), &mut []),
+                );
                 None
             }
-            Ok(Projection::Ts(e)) => Some(Box::new(Prepared {
-                mappings: Emitter {
+            Ok(Projection::Ts(e)) => Some(Box::new(Projected {
+                emitter: Emitter {
                     out: e.out.clone(),
                     mappings: e.mappings.clone(),
                 },
@@ -275,87 +272,28 @@ impl ProjectTask for Check {
         }
     }
 
-    fn finish(&self, parts: Vec<Part>, mut outs: Vec<&mut TaskOutput>) {
+    fn finish(&self, parts: Vec<Part>, outs: Vec<&mut TaskOutput>) {
         let config = self
             .config
             .as_ref()
             .expect("prepare returns parts only when configured");
-        let mut prepared: Vec<Prepared> = parts
+        let docs = parts
             .into_iter()
-            .map(|p| *p.downcast::<Prepared>().expect("parts are this task's"))
+            .map(|p| *p.downcast::<Projected>().expect("parts are this task's"))
             .collect();
         let req = CheckRequest {
-            files: prepared
-                .iter_mut()
-                .map(|p| std::mem::take(&mut p.mappings.out))
-                .collect(),
             declarations: vec![SHIM],
             include: vec![config.svelte.join("types/index.d.ts")],
             paths: vec![
                 ("svelte", config.svelte.join("types/index.d.ts")),
                 ("svelte/elements", config.svelte.join("elements.d.ts")),
             ],
+            ..CheckRequest::default()
         };
         let tsc = Tsc {
             binary: config.tsc.clone(),
             tsconfig: config.tsconfig.clone(),
         };
-        let checked = tsc.check(&req);
-        // Mapping a position back reads the generated text around it.
-        for (p, file) in prepared.iter_mut().zip(req.files) {
-            p.mappings.out = file;
-        }
-        let found = match checked {
-            Ok(found) => found,
-            Err(msg) => {
-                for out in outs {
-                    out.diagnostics.push(Diagnostic::error(
-                        "check_failed",
-                        msg.clone(),
-                        Span::new(0, 0),
-                    ));
-                }
-                return;
-            }
-        };
-        let mut per_doc: Vec<Vec<(Span, u32, String)>> = vec![Vec::new(); prepared.len()];
-        for d in found {
-            // Upstream drops what lands in generated code; so does this.
-            if let Some(span) = prepared[d.file].mappings.lookup_span(d.span) {
-                per_doc[d.file].push((span, d.code, d.message));
-            }
-        }
-        for ((p, out), mut found) in prepared.iter().zip(outs.iter_mut()).zip(per_doc) {
-            out.file(
-                "json",
-                render_check(&p.src, &LineIndex::new(&p.src), &mut found),
-            );
-        }
+        rsv_js::check::check_projected(&tsc, req, docs, Emitter::lookup_span, outs);
     }
-}
-
-fn render_check(src: &str, lines: &LineIndex, found: &mut [(Span, u32, String)]) -> String {
-    found.sort_by_key(|(span, ..)| span.lo);
-    let mut w = JsonWriter::new(true);
-    w.begin_array();
-    for (span, code, message) in found.iter() {
-        w.begin_object()
-            .key("code")
-            .num(code)
-            .key("message")
-            .str(message);
-        for (key, at) in [("start", span.lo), ("end", span.hi)] {
-            let lc = lines.line_col(src, at);
-            w.key(key)
-                .begin_object()
-                .key("line")
-                .num(lc.line - 1)
-                .key("character")
-                .num(lc.column)
-                .end_object();
-        }
-        w.end_object();
-    }
-    w.end_array();
-    w.finish()
 }

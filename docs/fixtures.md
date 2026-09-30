@@ -148,6 +148,7 @@ reason = "an absent initial value is undefined either way"
 ```
 
 - `at` には、`compare` が報告した「最初に異なるパス」をそのまま書ける。
+- JSON の成果物（`artifact = "json"` など、`json` で終わるもの）では、`expect` / `replace` は JSON の値で、`at` は配列の添字やキーの並びである（例: `at = "2"` で 3 件目の指摘）。
 - `expect` / `replace` は JS の断片で書く。1 文の式文は、対象が文でない限り式として解釈する。
 - **ガード付き**である。`at` のノードが `expect` と一致したときにだけ置き換える。
 

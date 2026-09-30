@@ -92,8 +92,11 @@ export function compare({ taskId, variantId, sourceIds, families }: CompareOptio
 				rows.push({ key, ext, verdict: d === null ? 'match' : 'mismatch', ...(detail && { detail }) });
 			} else if (ext === 'lint.json') {
 				rows.push({ key, ext, ...compareLint(JSON.parse(fs.readFileSync(expFile, 'utf8')), JSON.parse(act)) });
-			} else if (ext.endsWith('.json')) {
-				rows.push({ key, ext, verdict: same(JSON.parse(fs.readFileSync(expFile, 'utf8')), JSON.parse(act)) ? 'match' : 'mismatch' });
+			} else if (ext.endsWith('json')) {
+				const { tree, statuses } = expectedTree(unit, task, variantId, ext);
+				const stale = statuses.filter((s) => s.status === 'stale').length;
+				const detail = stale ? `${stale} stale adjustment(s)` : undefined;
+				rows.push({ key, ext, verdict: same(tree, JSON.parse(act)) ? 'match' : 'mismatch', ...(detail && { detail }) });
 			} else {
 				rows.push({ key, ext, verdict: fs.readFileSync(expFile, 'utf8') === act ? 'match' : 'mismatch' });
 			}
