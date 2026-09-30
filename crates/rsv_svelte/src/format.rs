@@ -601,7 +601,10 @@ impl<'a> Printer<'a, '_> {
 
     /// An embedded expression (`printJS`), optionally forced onto one line or into single quotes.
     fn expression(&mut self, e: rsv_js::NodeId, single_line: bool, single_quote: bool) -> R<DocId> {
-        self.js.set_options(JsOptions { single_quote });
+        self.js.set_options(JsOptions {
+            single_quote,
+            ..JsOptions::default()
+        });
         let d = self.js.expression(e);
         self.js.set_options(JsOptions::default());
         let d = d?;

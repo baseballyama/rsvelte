@@ -9,7 +9,7 @@ use rsv_kernel::pipeline::{Document, Registry, Task, TaskOutput};
 use crate::{Config, Parsed, Resolved};
 
 pub fn register(reg: &mut Registry, _config: &Config) {
-    reg.task(Compile).task(Lint);
+    reg.task(Compile).task(Format).task(Lint);
 }
 
 /// `@vitejs/plugin-vue`'s production output ([`crate::compile`]).
@@ -51,6 +51,43 @@ impl Task for Compile {
             Err(u) => out.diagnostics.push(Diagnostic::error(
                 "compile_unsupported",
                 format!("not supported yet: {}", u.what),
+                u.span(),
+            )),
+        }
+    }
+}
+
+/// prettier with its HTML printer ([`crate::format`]). A construct the port does not cover is
+/// reported, not approximated: the task then writes no file.
+#[derive(Debug)]
+pub struct Format;
+
+impl Task for Format {
+    fn id(&self) -> &'static str {
+        "vue.format/default"
+    }
+
+    fn applies(&self, doc: &Document) -> bool {
+        doc.lang == "vue"
+    }
+
+    fn run(&self, ctx: &Ctx<'_>, out: &mut TaskOutput) {
+        let c = match ctx.get::<Parsed>() {
+            Ok(c) => c,
+            Err(e) => {
+                out.diagnostics.push(e.clone());
+                return;
+            }
+        };
+        let formatted = {
+            let _p = metrics::phase("vue.format");
+            crate::format::format(c, ctx.src())
+        };
+        match formatted {
+            Ok(text) => out.file("vue", text),
+            Err(u) => out.diagnostics.push(Diagnostic::error(
+                "format_unsupported",
+                format!("not supported by the formatter yet: {}", u.what),
                 u.span(),
             )),
         }

@@ -26,6 +26,9 @@ type R<T> = Result<T, Unsupported>;
 #[derive(Clone, Copy, Default, Debug)]
 pub struct Options {
     pub single_quote: bool,
+    /// Inside an HTML attribute value (Prettier's `__isInHtmlAttribute`): strings always take
+    /// single quotes, whatever they contain, so the attribute's double quotes never need escaping.
+    pub html_attribute: bool,
 }
 
 /// Where an expression sits in its parent; decides parentheses (Prettier's `needsParens`).
@@ -140,6 +143,21 @@ impl<'a> Formatter<'a> {
         Ok(d)
     }
 
+    /// One binding pattern on its own, as Prettier prints a parameter of an embedded binding
+    /// list (a `v-for` alias).
+    ///
+    /// # Errors
+    ///
+    /// [`Unsupported`] if the pattern holds a comment or a construct this printer does not handle.
+    pub fn parameter(&mut self, id: NodeId) -> R<DocId> {
+        let range = self.span(id);
+        self.check_comments(range)?;
+        let before = self.ts_printed;
+        let d = self.pattern(id, PatCtx::Param { hug: false })?;
+        self.check_ts(range, before)?;
+        Ok(d)
+    }
+
     fn span(&self, id: NodeId) -> Span {
         self.ast
             .loc(id)
@@ -184,16 +202,74 @@ impl<'a> Formatter<'a> {
             return Ok(self.docs.nil());
         };
         let text = span.text(self.src);
-        if !is_plain_type(text) {
+        let Some(t) = self.type_doc(text) else {
             return Err(Unsupported::at(
-                "TypeScript type other than a plain reference",
+                "TypeScript type other than a plain reference, a union of them or a type literal",
                 span,
             ));
-        }
+        };
         self.ts_printed += 1;
         let s = self.docs.lit(sep);
-        let t = self.docs.text(text);
         Ok(self.docs.concat(&[s, t]))
+    }
+
+    /// A plain reference, a union of them, or a type literal whose members have such types
+    /// (Prettier's object printing: broken when the source breaks after `{`).
+    fn type_doc(&mut self, text: &str) -> Option<DocId> {
+        let text = text.trim();
+        if let Some(u) = union_of_plain_types(text) {
+            return Some(self.docs.text(&u));
+        }
+        let body = text.strip_prefix('{')?.strip_suffix('}')?;
+        if body.contains(['{', '}', '(', '<', '[', '\'', '"']) {
+            return None;
+        }
+        let mut members = Vec::new();
+        for m in body
+            .split([';', ',', '\n'])
+            .map(str::trim)
+            .filter(|m| !m.is_empty())
+        {
+            let (key, ty) = m.split_once(':')?;
+            let key = key.trim();
+            let (name, optional) = key
+                .strip_suffix('?')
+                .map_or((key, false), |k| (k.trim_end(), true));
+            if !is_plain_type(name) || name.contains('.') {
+                return None;
+            }
+            let ty = union_of_plain_types(ty.trim())?;
+            let q = if optional { "?" } else { "" };
+            members.push(self.docs.text(&format!("{name}{q}: {ty}")));
+        }
+        if members.is_empty() {
+            return Some(self.docs.lit("{}"));
+        }
+        let broken = body
+            .split_once(|c: char| !c.is_whitespace())
+            .is_some_and(|(lead, _)| lead.contains('\n'))
+            || body.trim_start().is_empty();
+        let semi = self.docs.lit(";");
+        let l = self.docs.line();
+        let sep = self.docs.concat(&[semi, l]);
+        let joined = self.docs.join(sep, &members);
+        let l = self.docs.line();
+        let mut inner = vec![l];
+        inner.extend(joined);
+        let inner = self.docs.concat(&inner);
+        let inner = self.docs.indent(inner);
+        let semi = self.docs.lit(";");
+        let nil = self.docs.nil();
+        let trailing = self.docs.if_break(semi, nil);
+        let open = self.docs.lit("{");
+        let l = self.docs.line();
+        let close = self.docs.lit("}");
+        let parts = [open, inner, trailing, l, close];
+        Some(if broken {
+            self.docs.group_broken(&parts)
+        } else {
+            self.docs.group(&parts)
+        })
     }
 
     fn lit(&mut self, s: &'static str) -> DocId {
@@ -896,17 +972,15 @@ impl<'a> Formatter<'a> {
             return Ok(self.docs.group(&[o, c, suffix]));
         }
         if items.len() > 1
-            && items.iter().all(|&i| {
-                matches!(
-                    self.ast.kind(i),
-                    Kind::Num(_) | Kind::Unary(UnaryOp::Neg | UnaryOp::Plus, _)
-                )
+            && items.iter().all(|&i| match self.ast.kind(i) {
+                Kind::Num(_) => true,
+                Kind::Unary(UnaryOp::Neg | UnaryOp::Plus, a) => {
+                    matches!(self.ast.kind(a), Kind::Num(_))
+                }
+                _ => false,
             })
         {
-            return Err(Unsupported::at(
-                "concisely printed number array",
-                self.ast.loc(items[0]),
-            ));
+            return self.concise_array(items, suffix);
         }
         let mut parts = Vec::new();
         for (i, &it) in items.iter().enumerate() {
@@ -936,6 +1010,41 @@ impl<'a> Formatter<'a> {
         let [open, inner, trail, end_soft, close] =
             self.bracketed("[", soft, parts, trailing, soft2, "]");
         let group = self.docs.group(&[open, inner, trail, end_soft, close]);
+        Ok(self.cat(&[group, suffix]))
+    }
+
+    /// Prettier's `printArrayItemsConcisely`: numbers fill the line, and the trailing comma
+    /// follows the array's own group.
+    fn concise_array(&mut self, items: &[NodeId], suffix: DocId) -> R<DocId> {
+        let id = self.docs.new_group_id();
+        let mut parts = Vec::with_capacity(items.len() * 2);
+        for (i, &it) in items.iter().enumerate() {
+            let e = self.expr(it, None, Slot::Element)?;
+            let c = self.lit(",");
+            let Some(&next) = items.get(i + 1) else {
+                let nil = self.docs.nil();
+                let t = self.docs.if_break_of(c, nil, id);
+                parts.push(self.cat(&[e, t]));
+                break;
+            };
+            parts.push(self.cat(&[e, c]));
+            let sep = if self.blank_line_between(it, next) {
+                let h1 = self.docs.hardline();
+                let h2 = self.docs.hardline();
+                self.cat(&[h1, h2])
+            } else {
+                self.docs.line()
+            };
+            parts.push(sep);
+        }
+        let fill = self.docs.fill(&parts);
+        let soft = self.docs.softline();
+        let inner = self.cat(&[soft, fill]);
+        let inner = self.docs.indent(inner);
+        let open = self.lit("[");
+        let soft = self.docs.softline();
+        let close = self.lit("]");
+        let group = self.docs.group_with_id(&[open, inner, soft, close], id);
         Ok(self.cat(&[group, suffix]))
     }
 
@@ -1206,9 +1315,17 @@ impl<'a> Formatter<'a> {
         optional: bool,
         is_new: bool,
     ) -> R<DocId> {
-        if self.ts_of(callee, TsKind::TypeArgs).is_some() {
-            return Err(Unsupported::at("type arguments", self.ast.loc(id)));
-        }
+        let type_args = match self.ts_of(callee, TsKind::TypeArgs) {
+            Some(span) => {
+                let inner = &span.text(self.src)[1..span.len() as usize - 1];
+                let Some(text) = union_of_plain_types(inner) else {
+                    return Err(Unsupported::at("type arguments", self.ast.loc(id)));
+                };
+                self.ts_printed += 1;
+                self.docs.text(&format!("<{text}>"))
+            }
+            None => self.docs.nil(),
+        };
         let new = if is_new {
             self.lit("new ")
         } else {
@@ -1221,6 +1338,7 @@ impl<'a> Formatter<'a> {
             self.docs.nil()
         };
         let a = self.arguments(id, args)?;
+        let a = self.cat(&[type_args, a]);
         let parts = [new, c, q, a];
         if !is_new && matches!(self.ast.kind(callee), Kind::Member { .. }) {
             let flat = self.cat(&parts);
@@ -1446,7 +1564,12 @@ impl<'a> Formatter<'a> {
     fn string(&mut self, id: NodeId) -> DocId {
         let raw = self.span(id).text(self.src);
         let content = &raw[1..raw.len() - 1];
-        let s = make_string(content, preferred_quote(content, self.opts.single_quote));
+        let quote = if self.opts.html_attribute {
+            '\''
+        } else {
+            preferred_quote(content, self.opts.single_quote)
+        };
+        let s = make_string(content, quote);
         self.docs.text(&s)
     }
 
@@ -1633,6 +1756,15 @@ fn should_flatten(parent: Op, child: Op) -> bool {
 }
 
 /// A type span the printer may copy verbatim: a (qualified) type reference, optionally an array.
+/// `A | B.C | D[]` with each member a plain reference, printed with Prettier's spacing.
+fn union_of_plain_types(text: &str) -> Option<String> {
+    let members: Vec<&str> = text.split('|').map(str::trim).collect();
+    members
+        .iter()
+        .all(|m| is_plain_type(m))
+        .then(|| members.join(" | "))
+}
+
 fn is_plain_type(text: &str) -> bool {
     let base = text.trim_end_matches("[]");
     !base.is_empty()

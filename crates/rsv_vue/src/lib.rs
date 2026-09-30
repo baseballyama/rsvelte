@@ -9,6 +9,7 @@
 
 pub mod ast;
 pub mod compile;
+pub mod format;
 pub mod lint;
 pub mod parse;
 pub mod resolve;
