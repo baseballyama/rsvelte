@@ -242,8 +242,9 @@ impl Edits {
         let mut out = String::with_capacity(range.len() as usize + extra);
         let mut pos = range.lo as usize;
         for (lo, hi, text) in self.items {
-            assert!(lo as usize >= pos, "overlapping edits at {lo}");
+            // The range first: an edit before it would otherwise read as an overlap.
             assert!(range.lo <= lo && hi <= range.hi, "edit outside the range");
+            assert!(lo as usize >= pos, "overlapping edits at {lo}");
             out.push_str(&src[pos..lo as usize]);
             out.push_str(&text);
             pos = hi as usize;
@@ -259,6 +260,14 @@ const _: () = assert!(size_of::<Mapping>() == 12, "`Mapping` is 12 bytes");
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[should_panic(expected = "edit outside the range")]
+    fn an_edit_before_the_range_is_reported_as_outside_it() {
+        let mut e = Edits::default();
+        e.insert(1, "x");
+        drop(e.apply_in("abcdef", Span::new(2, 4)));
+    }
 
     #[test]
     fn vlq_matches_the_spec_examples() {

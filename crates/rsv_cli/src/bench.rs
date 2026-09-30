@@ -287,11 +287,11 @@ pub(crate) fn bench(reg: &Registry, root: &Path, tasks: &[&str], opts: &Options)
             .key("wall_ms")
             .begin_array();
         for ns in &r.wall_ns {
-            w.num(format!("{:.3}", *ns as f64 / 1e6));
+            w.fixed(*ns as f64 / 1e6, 3);
         }
         w.end_array()
             .key("median_ms")
-            .num(format!("{:.3}", median(&r.wall_ns) as f64 / 1e6));
+            .fixed(median(&r.wall_ns) as f64 / 1e6, 3);
         match r.alloc {
             Some(a) => {
                 w.key("allocs")
@@ -299,7 +299,7 @@ pub(crate) fn bench(reg: &Registry, root: &Path, tasks: &[&str], opts: &Options)
                     .key("alloc_bytes")
                     .num(a.bytes)
                     .key("allocs_per_source_byte")
-                    .num(format!("{:.3}", a.allocs as f64 / bytes as f64))
+                    .fixed(a.allocs as f64 / bytes as f64, 3)
                     .key("peak_live_growth_bytes")
                     .num(a.peak_live_growth);
             }
@@ -326,7 +326,7 @@ pub(crate) fn bench(reg: &Registry, root: &Path, tasks: &[&str], opts: &Options)
                 .key("calls")
                 .num(p.calls)
                 .key("self_ms")
-                .num(format!("{:.3}", p.self_ns as f64 / 1e6))
+                .fixed(p.self_ns as f64 / 1e6, 3)
                 .key("self_allocs")
                 .num(p.self_allocs)
                 .key("self_bytes")

@@ -266,7 +266,7 @@ pub fn render_findings(lines: &LineIndex, found: &mut [(Span, u32, String)]) -> 
     for (span, code, message) in found.iter() {
         w.begin_object()
             .key("code")
-            .num(code)
+            .num(*code)
             .key("message")
             .str(message);
         for (key, at) in [("start", span.lo), ("end", span.hi)] {

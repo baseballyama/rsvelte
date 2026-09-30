@@ -10,6 +10,15 @@ pub struct JsonWriter {
     pretty: bool,
 }
 
+/// A number [`JsonWriter::num`] writes exactly: an integer. A fraction goes through
+/// [`JsonWriter::fixed`], which can say what it does with a value JSON cannot hold.
+pub trait Integer: Copy + std::fmt::Display {}
+
+macro_rules! integers {
+    ($($t:ty),*) => { $(impl Integer for $t {})* };
+}
+integers!(u8, u16, u32, u64, usize, i8, i16, i32, i64, isize);
+
 impl JsonWriter {
     #[must_use]
     pub const fn new(pretty: bool) -> Self {
@@ -100,11 +109,23 @@ impl JsonWriter {
         self
     }
 
-    pub fn num(&mut self, n: impl std::fmt::Display) -> &mut Self {
+    pub fn num(&mut self, n: impl Integer) -> &mut Self {
         use std::fmt::Write;
         self.before_value();
         // Writing to a `String` cannot fail.
         _ = write!(self.out, "{n}");
+        self
+    }
+
+    /// `n` with `decimals` digits after the point, or `null` when it is not finite: JSON has no
+    /// `NaN` or infinity.
+    pub fn fixed(&mut self, n: f64, decimals: usize) -> &mut Self {
+        use std::fmt::Write;
+        if !n.is_finite() {
+            return self.null();
+        }
+        self.before_value();
+        _ = write!(self.out, "{n:.decimals$}");
         self
     }
 
@@ -144,6 +165,18 @@ pub fn write_str(out: &mut String, s: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_fraction_json_cannot_hold_is_null() {
+        let mut w = JsonWriter::new(false);
+        w.begin_array()
+            .fixed(1.0 / 3.0, 3)
+            .fixed(f64::NAN, 3)
+            .fixed(f64::INFINITY, 1)
+            .num(7u32)
+            .end_array();
+        assert_eq!(w.finish(), "[0.333,null,null,7]");
+    }
 
     #[test]
     fn nested_values_and_keys() {
