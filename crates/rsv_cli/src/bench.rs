@@ -151,7 +151,7 @@ fn median(v: &[u64]) -> u64 {
     reason = "nanosecond and byte counts become f64 only for display"
 )]
 pub(crate) fn bench(reg: &Registry, root: &Path, tasks: &[&str], opts: &Options) -> ExitCode {
-    let (docs, _, unclaimed) = crate::load(reg, root);
+    let (docs, _, unclaimed) = crate::load(reg, &[root]);
     if docs.is_empty() {
         eprintln!("rsv bench: no units below {}", root.display());
         return ExitCode::FAILURE;

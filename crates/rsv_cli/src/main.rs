@@ -1,12 +1,13 @@
-//! `rsv fixtures <source-dir> [--task <id>]...` runs tasks over every fixture unit below a source
-//! directory (`fixtures/<family>/<source>`) and writes `actual/<task>.<ext>` next to `expected/`.
+//! `rsv fixtures <dir>... [--task <id>]...` runs tasks over every fixture unit below the given
+//! directories, in one run, and writes `actual/<task>.<ext>` next to `expected/`.
 //! `rsv run <file> --task <id>` prints one task's outputs for one file.
 //! `rsv bench <dir> [--task <id>]... [rounds=N] [json=<file>]` measures the pipeline (see
 //! `bench.rs`).
 //!
 //! `svelte.check` also needs `--tsc <native tsc>` and `--svelte <svelte package dir>`, `vue.check`
-//! `--tsc` and `--vue <vue package dir>`; their project configuration is `--tsconfig <file>`, by
-//! default the source directory's `tsconfig.json`.
+//! `--tsc` and `--vue <vue package dir>`; `ts.check` checks both languages' documents with one
+//! `tsc`. The project configuration is `--tsconfig <file>`, by default the first directory's
+//! `tsconfig.json`.
 
 #![expect(
     clippy::print_stdout,
@@ -65,7 +66,7 @@ fn main() -> ExitCode {
             None => tasks.push(value.as_str()),
         }
     }
-    if let (None, ["fixtures", dir]) = (&tsconfig, positional.as_slice()) {
+    if let (None, ["fixtures", dir, ..]) = (&tsconfig, positional.as_slice()) {
         let default = Path::new(dir).join("tsconfig.json");
         tsconfig = default
             .is_file()
@@ -84,23 +85,36 @@ fn main() -> ExitCode {
                 svelte,
             }),
     };
+    let polyglot = tsc.clone().map(|binary| rsv_js::check::Tsc {
+        binary,
+        tsconfig: tsconfig.clone(),
+    });
     let vue = rsv_vue::Config {
         check: tsc
             .zip(vue)
             .map(|(tsc, vue)| rsv_vue::CheckConfig { tsc, tsconfig, vue }),
     };
-    let reg = registry(&svelte, &vue);
+    let mut reg = registry(&svelte, &vue);
+    // Owned by no plugin: one tsc over every language that provides a TypeScript view.
+    reg.project_task(rsv_js::check::Check {
+        id: "ts.check/default",
+        langs: &["svelte", "vue"],
+        tsc: polyglot,
+    });
     if let Err(e) = reg.check_task_ids(&tasks) {
         return usage(&e.to_string());
     }
     match positional.as_slice() {
-        ["fixtures", dir] => fixtures(&reg, Path::new(dir), &tasks),
+        ["fixtures", dirs @ ..] if !dirs.is_empty() => {
+            let roots: Vec<&Path> = dirs.iter().map(Path::new).collect();
+            fixtures(&reg, &roots, &tasks)
+        }
         ["run", file] => run_file(&reg, Path::new(file), &tasks),
         ["bench", dir, rest @ ..] => match bench::Options::parse(rest) {
             Ok(opts) => bench::bench(&reg, Path::new(dir), &tasks, &opts),
             Err(e) => usage(&e),
         },
-        _ => usage("expected `fixtures <source-dir>`, `run <file>` or `bench <dir>`"),
+        _ => usage("expected `fixtures <dir>...`, `run <file>` or `bench <dir>`"),
     }
 }
 
@@ -142,8 +156,11 @@ fn run_file(reg: &Registry, file: &Path, tasks: &[&str]) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-/// A unit is a directory holding `input.<ext>`; its path relative to the source directory, with
-/// the reserved-name `~` escape undone, is the filename the original file had.
+/// A unit is a directory holding `input.<ext>`; its path relative to its source directory
+/// (`fixtures/<family>/<source>`), with the reserved-name `~` escape undone, is the filename the
+/// original file had. The source directory is found from the unit, not from `root`, so the path
+/// (and every output derived from it: component names, CSS hashes) does not depend on which
+/// directory the run was started from.
 fn units(root: &Path) -> Vec<(PathBuf, String)> {
     let mut out = Vec::new();
     let mut stack = vec![root.to_path_buf()];
@@ -160,7 +177,9 @@ fn units(root: &Path) -> Vec<(PathBuf, String)> {
                     stack.push(p);
                 }
             } else if name.starts_with("input.") {
-                let unit = dir.strip_prefix(root).expect("walked from root");
+                let unit = dir
+                    .strip_prefix(source_dir(&dir).unwrap_or(root))
+                    .expect("a unit is inside its source directory");
                 let path = unit
                     .iter()
                     .map(|s| {
@@ -177,18 +196,32 @@ fn units(root: &Path) -> Vec<(PathBuf, String)> {
     out
 }
 
-/// Every unit below `root` a registered language claims, with its unit directory, and the number
+/// `fixtures/<family>/<source>` above `unit`: the fixture root is the ancestor holding
+/// `_registry/`. `None` outside a fixture tree.
+fn source_dir(unit: &Path) -> Option<&Path> {
+    let mut below = Vec::new();
+    for dir in unit.ancestors() {
+        if dir.join("_registry").is_dir() {
+            let n = below.len();
+            return (n >= 2).then(|| below[n - 2]);
+        }
+        below.push(dir);
+    }
+    None
+}
+
+/// Every unit below `roots` a registered language claims, with its unit directory, and the number
 /// of units that were unreadable or unclaimed.
 ///
 /// # Panics
 ///
 /// Never: every unit's input file sits inside its unit directory.
 #[must_use]
-pub fn load(reg: &Registry, root: &Path) -> (Vec<Document>, Vec<PathBuf>, usize) {
+pub fn load(reg: &Registry, roots: &[&Path]) -> (Vec<Document>, Vec<PathBuf>, usize) {
     let mut docs = Vec::new();
     let mut dirs = Vec::new();
     let mut skipped = 0usize;
-    for (input, path) in units(root) {
+    for (input, path) in roots.iter().flat_map(|r| units(r)) {
         let Ok(text) = std::fs::read_to_string(&input) else {
             skipped += 1;
             continue;
@@ -209,10 +242,10 @@ pub fn load(reg: &Registry, root: &Path) -> (Vec<Document>, Vec<PathBuf>, usize)
     (docs, dirs, skipped)
 }
 
-fn fixtures(reg: &Registry, root: &Path, tasks: &[&str]) -> ExitCode {
+fn fixtures(reg: &Registry, roots: &[&Path], tasks: &[&str]) -> ExitCode {
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering::Relaxed;
-    let (docs, dirs, skipped) = load(reg, root);
+    let (docs, dirs, skipped) = load(reg, roots);
     let opts = RunOptions {
         tasks,
         sharing: Sharing::Shared,
