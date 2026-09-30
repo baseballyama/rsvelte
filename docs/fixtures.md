@@ -1,6 +1,6 @@
 # Fixtures — 設計と運用
 
-- 日付: 2026-09-29
+- 日付: 2026-10-01（§4 の取り込み結果は 2026-09-29 の測定）
 - 実装: `tools/fixtures/`（TypeScript。Node 26 の型除去でそのまま実行する。`mise.toml` で Node 26.7.0 を固定。オラクルが JS のパッケージなので、ツールも JS 側で書く）
 - ファイルごとの役割: [fixtures/README.md](../fixtures/README.md)
 - データ: `fixtures/`
@@ -57,7 +57,7 @@ tools/fixtures/
 
 設計上の判断:
 - **unit 単位で同じ場所に置く。** 1 つの fixture を開けば、入力・期待値・実装の出力・調整がすべて並ぶ。
-- **最上位を言語ファミリーで分ける。** Svelte と Vue が混ざらない。Tailwind 付き Svelte は言語ではなく文脈なので、`svelte/` の下に置く（§9）。
+- **最上位を言語ファミリーで分ける。** いまのファミリーは `svelte`、`vue`、`svue` の 3 つ。Svelte と Vue が混ざらない。Tailwind 付き Svelte は言語ではなく文脈なので、`svelte/` の下に置く（§9）。
 - **タスク単位のビューは git の glob で取る。** 例: `git diff --stat -- ':(glob)fixtures/**/expected/svelte.compile/**'`。
 - **予約名の退避。** 元のパスの要素が予約名（`expected` `actual` `cache` `meta.json` `fixture.toml` `input.*`）なら `~` を前置する。`~` で始まる要素にも前置するので、変換は可逆になる。これで `.gitignore` の `/fixtures/**/actual/` は unit の子にしか当たらない。実コーパスでは 543 要素が退避された（svelte 本体のテストが `input.svelte` という名前を多用しているため）。
 - **`.gitignore` の規則は必ずアンカーする。** 当初の `target/` は、元のパスに `target` を含む sveltekit のテストアプリの入力 9 件と snapshot 20 件を黙って無視していた。配置を移行したときの照合で、件数が合わないことから見つかった。
@@ -78,10 +78,14 @@ mise exec -- node tools/fixtures/bin/fixtures.ts import --from <submodule を持
 6. language の admission を通す。
    - `svelte`: `compile(src, { runes: true, generate: false })` が通ること。通らないもの（legacy 構文など）は、理由のコード付きで除外する。
    - `svelte-module-js`: `compileModule` が通ること。
-   - `svelte-module-ts`: 無条件で受け入れる（§9 の未決事項を参照）。
+   - `svelte-module-ts`: 無条件で受け入れる（§11 の未決事項を参照）。
+   - `vue`: `@vue/compiler-sfc` の `parse` がエラーなしで通ること。`meta.json` の `mode` に `setup`（`<script setup>`）、`options`（素の `<script>` だけ）、`template`（スクリプトなし）を記録する。
+   - `svue`: `tools/fixtures/src/svue.ts` が Svelte の構文に書き直せて、Svelte コンパイラ（`runes: true`）がそれを受け入れること。
 7. unit ディレクトリに `input<ext>` と `meta.json` を書き、LICENSE の写しを置く。上流で消えた unit はディレクトリごと消す。ただし `fixture.toml`（手書き）を持つ unit は消さずに残して列挙し、終了コードを 1 にする。
 
 ### 2026-09-29 時点の取り込み結果
+
+対象は `svelte` ファミリー。`vue` と `svue` のユニットは、いまは手書きの `rsvelte` source（`fixtures/vue/rsvelte` 19 件、`fixtures/svue/rsvelte` 5 件）だけで、取り込み元のリポジトリはまだ無い。
 
 測った対象は、主チェックアウト（`/Users/baseballyama/git/rsvelte`、`main` `5ed8ea3a3`）の submodule。admission のオラクルは svelte 5.57.1。
 
@@ -114,10 +118,21 @@ mise exec -- node tools/fixtures/bin/fixtures.ts regen [--task id,...] [--source
 
 ### 現在のタスク
 
-| task | 対象の language | variant | 成果物 | storage |
+| task | 対象の unit | variant | オラクル | 成果物（比較方法） |
 |---|---|---|---|---|
-| `svelte.compile` | `svelte` | `client`、`server`（`runes: true`、`filename` = unit の path） | `js`（AST 比較）、`css`（テキスト）、`warnings.json`（JSON）、または `error.json` | committed |
-| `svelte.compileModule` | `svelte-module-js` | `client`、`server` | 同上 | committed |
+| `svelte.compile` | `svelte` の全 unit | `client`、`server`（`runes: true`、`filename` = unit の path） | svelte | `js`（js-ast）、`css`（text）、`warnings.json`（json）、または `error.json`（json） |
+| `svelte.compileModule` | `svelte-module-js` | `client`、`server` | svelte | 同上 |
+| `svelte.format` | `svelte` の `rsvelte` source | `default` | prettier + prettier-plugin-svelte | `svelte`（text、バイト一致） |
+| `svelte.lint` | 同上 | `default`（全ルール） | eslint + eslint-plugin-svelte + svelte-eslint-parser + @typescript-eslint/parser | `lint.json`（lint: 実装側が走らせたルールの指摘に絞って比較） |
+| `svelte.check` | 同上 | `default` | svelte-check + typescript + svelte | `json`（json） |
+| `vue.compile` | `vue` の全 unit | `default` | @vue/compiler-sfc（+ typescript） | `js`（js-ast）、`css`（text） |
+| `vue.format` | `vue` の `rsvelte` source | `default` | prettier | `vue`（text） |
+| `vue.lint` | 同上 | `default`（全ルール） | eslint + eslint-plugin-vue + vue-eslint-parser + @typescript-eslint/parser | `lint.json`（lint） |
+| `vue.check` | 同上 | `default` | vue-tsc + @vue/language-core + @volar/typescript + typescript + vue | `json`（json） |
+| `ts.check` | `svelte.check` と `vue.check` の unit の和 | `default` | unit ごとに svelte-check か vue-tsc | `json`（json） |
+| `svue.compile` | `svue` の全 unit | `client`、`server` | `.svue` を Svelte の構文に書き直して svelte | `svelte.compile` と同じ |
+
+storage はすべて `committed`。`ts.check` は rsvelte の言語に依存しない型検査（1 回の tsc で両方の言語）を測るためのタスクで、期待値は unit の言語のオラクルがそのまま出す。
 
 `filename` はコンポーネント名と CSS のスコープハッシュに入る。比較する実装も、unit の path を `filename` に渡すこと。
 
@@ -149,6 +164,7 @@ reason = "an absent initial value is undefined either way"
 
 - `at` には、`compare` が報告した「最初に異なるパス」をそのまま書ける。
 - JSON の成果物（`artifact = "json"` など、`json` で終わるもの）では、`expect` / `replace` は JSON の値で、`at` は配列の添字やキーの並びである（例: `at = "2"` で 3 件目の指摘）。
+  - いま JSON の調整を持つのは `fixtures/vue/rsvelte/check/template-shapes.vue` だけで、`vue.check` と `ts.check` に 2 件ずつ。オラクルの TypeScript 6.0.3 と rsvelte の tsc 7.0.2 の版差（TS2345 と TS2740、スプレッド型の印字順）で、`reason` にオラクル自身の仮想コードを tsc 7.0.2 に通すと rsvelte の指摘になることを書いてある。
 - `expect` / `replace` は JS の断片で書く。1 文の式文は、対象が文でない限り式として解釈する。
 - **ガード付き**である。`at` のノードが `expect` と一致したときにだけ置き換える。
 
@@ -199,34 +215,59 @@ Tailwind のクラス並べ替えや lint、型検査、preprocess は、ファ�
 - unit の `meta.json` に `context: "<name>"` を持たせる。文脈を要するタスクは、`appliesTo` で文脈の有無を見る。
 - 例: タスク `tailwind.sort`（オラクルは prettier-plugin-tailwindcss）、`svelte.check`（オラクルは svelte-check、成果物は diagnostics の JSON）。
 
-### lint・fmt などのタスク
+### まだ無いタスク
+
+lint・format・型検査はタスクになった（§5）。残りは次のとおり。
 
 | task（予定） | オラクル | 成果物と比較方法 | storage |
 |---|---|---|---|
 | `svelte.parse` | `svelte/compiler` の `parse(modern)` | AST の JSON。入力の約 16 倍になるので cached | cached |
 | `js.parse` | acorn / typescript-estree | canonical AST（パーサ適合性、concept C10） | cached |
-| `svelte.lint` | eslint + eslint-plugin-svelte（variant = 設定の組。default は全ルール） | `lint.json`: 走らせたルールの一覧（`rules`）と指摘（`findings`: rule、message、範囲）。比較は実装側が走らせたルールの指摘に絞る | committed |
-| `svelte.fmt` | prettier + prettier-plugin-svelte | テキスト（**バイト一致**。fmt は書式そのものが仕様）＋冪等性 | committed |
-| `svelte.check` | svelte-check | diagnostics の JSON（位置と種類。メッセージ文字列は比較しない。concept C9） | committed |
 
-タスクごとに比較方法を選べる（`js-ast` / `text` / `json`）。したがって「AST 比較」は compile の JS に限った選択であって、仕組み全体の制約ではない。
+タスクごとに比較方法を選べる（`js-ast` / `text` / `json` / `lint`）。したがって「AST 比較」は compile の JS に限った選択であって、仕組み全体の制約ではない。format は書式そのものが仕様なので `text`（バイト一致）、型検査の JSON は位置とメッセージまで比べる。
 
 ### ユニット単位の例外
 
-unit の `fixture.toml` に書く。いまは `[skip]`（task id または `task/variant` → 理由）と `[[adjust]]` を持つ。今後、lint 設定の差し替えやコンパイルオプション（`experimental.async` など）といった、タスク固有の per-unit オプションもここに置く。
+unit の `fixture.toml` に書く。いまは `[skip]`（task id または `task/variant` → 理由）と `[[adjust]]` を持つ。skip の例: `vue/rsvelte/check/template-shapes.vue` と `vue/rsvelte/lint/button-types.vue` は、rsvelte の compile の移植が拒否する構文（束縛した `class`、`type` と `:type` の重複）を含むので `vue.compile/default` を外している。どちらも別のタスクを測るための unit である。今後、lint 設定の差し替えやコンパイルオプション（`experimental.async` など）といった、タスク固有の per-unit オプションもここに置く。
 
 ## 10. 実装との接続
 
-- 実装は、各 unit の `actual/<task>/<variant>.<ext>` に出力を書く（`expected/` と同じ名前）。
-- `mise exec -- node tools/fixtures/bin/fixtures.ts compare --task svelte.compile --variant client [--family svelte] [--source id,...] [--report <file>]` で比較する。
-  - verdict は `match` / `mismatch` / `missing` / `unexpected` / `unparseable` の 5 種類。
-  - 画面に出すのは先頭 20 件だけで、`… and N more` を必ず添える。全件は `--report` のファイルに書く。
-- Rust のテストハーネスは M0 で作る。§6 の canonical AST を Rust でも実装し、Node 側と同じ JSON を出すことを、それ自体をテストにして保証する。
+### 出力を書く（`rsv fixtures`）
+
+```
+./target/release/rsv fixtures <dir>... [--task <id>]... [--tsc <tsc>] [--svelte <pkg>] [--vue <pkg>] [--tsconfig <file>]
+```
+
+- 与えたディレクトリ（複数可）の下の全 unit に、登録された全タスクを走らせ、`actual/<task>/<variant>.<ext>` に書く（`expected/` と同じ名前）。
+- 診断を出したタスクは `<variant>.diagnostics.json` も書く。拒否したタスク（`Unsupported`）は成果物を書かず、これだけを残す。
+- `filename`（コンポーネント名と CSS のスコープハッシュに入る）は、どのディレクトリを与えても unit の source ディレクトリ（`fixtures/<family>/<source>`）からの相対パスになる。以前は与えたディレクトリからの相対で、コーパスの unit が `<source>/<path>` という名前でコンパイルされ、ハーネスのせいで不一致に数えられていた。直した結果、js の match が client 1026 → 1140、server 1022 → 1136、css の match が 27 → 154 に増えた（`c4078b13b3`）。
+- `tools/fixtures/bin/run-all.ts` は、全ファミリーのディレクトリに対して 1 回の `rsv fixtures` を走らせる。型検査にはオラクル自身の TypeScript 7 と、オラクルの `svelte` / `vue` パッケージを渡す。
+
+### 比べる（`fixtures compare`）
+
+- `mise exec -- node tools/fixtures/bin/fixtures.ts compare --task svelte.compile --variant client [--family svelte] [--source id,...] [--report <file>]`
+- verdict は `match` / `mismatch` / `missing` / `unexpected` / `unparseable` の 5 種類。
+- 画面に出すのは先頭 20 件だけで、`… and N more` を必ず添える。全件は `--report` のファイルに書く。
+- canonical AST（§6）の実装は Node 側の 1 つだけで、Rust 側は出力を書くだけ。
+
+### 正しさのラチェット（`fixtures check`）
+
+- 全タスク × 全 variant × 全 unit の判定を `fixtures/_registry/parity.json` と比べる。判定は unit ごとに 1 つで、`match` か、成果物の中で最も悪い verdict（`unexpected` < `missing` < `mismatch` < `unparseable`）。
+- rsvelte が拒否した unit（オラクルが出力を持つのに `diagnostics.json` しか書かなかったもの）は載せない。unit が拒否されるようになるとエントリが消え、新たに対応するとエントリが増える。
+- 二方向: `parity.json` との違いは、改善も含めてすべて `MOVED <前> -> <後> <task>/<variant> <unit>` と印字されて失敗する。意図した変化は、その変更の中で `fixtures check --update` で記録する。
+- 一覧に件数の上限はない。CI のログが、そのまま re-baseline の根拠になる。
+- `201b86fd6b` 時点で 3,068 エントリ。拒否されて載っていない unit は `893f2cf1c7` の時点で 16,071 件。
+- 対照: ある unit の整形出力の末尾に 1 文字足すと、`MOVED match -> mismatch svelte.format/default …` で失敗する（`893f2cf1c7`）。
+
+### CI
+
+`.github/workflows/ci.yml` の `fixtures` ジョブが、release ビルドの `rsv` で `run-all.ts`、`fixtures check`、`fixtures adjust`、ツール群の型検査を順に走らせる。push（`main`、`experimental`）とすべての pull request が対象。
 
 ## 11. 未決事項
 
 | 項目 | 状態 |
 |---|---|
+| `svelte.compileModule` の実装側 | rsvelte にモジュール（`.svelte.js`）の言語が未登録なので、38 unit すべてが両ターゲットで `missing` |
 | `.svelte.ts` の compile のオラクル | 上流では、Vite が型を剥がしてから `compileModule` に渡す。どのストリッパ（Vite が使う oxc transform か、typescript か）をオラクルにするかが未決。決まるまで compile タスクは当てない |
 | CSS の比較 | 現在はテキストの完全一致。CSS の AST 比較は、CSS パーサを実装するときに決める |
 | 生成コーパス（matrix / mutation） | 実コーパスだけでは相互作用のバグが出ない。旧 `pattern-corpus` はライセンス上の理由で除外したので、生成器を作り直して `fixtures/` に別の source として置く |
