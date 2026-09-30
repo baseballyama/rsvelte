@@ -48,14 +48,12 @@ impl Task for Compile {
     }
 
     fn run(&self, ctx: &Ctx<'_>, out: &mut TaskOutput) {
-        let c = match ctx.get::<Parsed>() {
-            Ok(c) => c,
-            Err(e) => {
-                out.diagnostics.push(e.clone());
-                return;
-            }
-        };
-        if let Some(t) = c.js.ts_runtime.first() {
+        if let Err(e) = ctx.get::<Parsed>() {
+            out.diagnostics.push(e.clone());
+            return;
+        }
+        let input = crate::compile_input(ctx).expect("a parsed component is lowered to HIR");
+        if let Some(t) = input.js.ts_runtime.first() {
             out.diagnostics.push(typescript_invalid_feature(t));
             return;
         }
@@ -73,8 +71,8 @@ impl Task for Compile {
                 Target::Server => "svelte.lower.server",
             });
             match self.target {
-                Target::Client => lower::client::lower(c, ctx.src(), res, an),
-                Target::Server => lower::server::lower(c, ctx.src(), res, an),
+                Target::Client => lower::client::lower(&input, res, an),
+                Target::Server => lower::server::lower(&input, res, an),
             }
         };
         match lowered {

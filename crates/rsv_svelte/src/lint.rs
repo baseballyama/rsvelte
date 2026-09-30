@@ -97,6 +97,9 @@ impl<'a> Rule<HirCx<'a>> for ButtonHasType {
                     AttrValue::Static(v) if v.is_empty() => {
                         out.push(Diagnostic::error(self.id(), EMPTY, a.span));
                     }
+                    AttrValue::Interpolated(p) if p.is_empty() => {
+                        out.push(Diagnostic::error(self.id(), EMPTY, a.span));
+                    }
                     AttrValue::Static(v) if !matches!(&**v, "button" | "submit" | "reset") => {
                         out.push(Diagnostic::error(
                             self.id(),

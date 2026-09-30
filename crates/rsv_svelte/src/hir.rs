@@ -1,7 +1,8 @@
 //! The component's HIR: the template as the compiler understands it rather than as it was written.
 //!
-//! Built from the surface tree ([`crate::ast`]); source text is read only for names. What changes
-//! on the way:
+//! Analysis and lowering read only this, so any frontend that builds it can be compiled. The
+//! Svelte frontend builds it from the surface tree ([`crate::ast`]) in [`lower`]; source text is
+//! read only for names. What changes on the way:
 //!
 //! - an `{#if}…{:else if}…{:else}` chain is one node with its branches, not nested `If`s;
 //! - every element knows its kind (regular, component, `<title>` in `<svelte:head>`, `<slot>`,
@@ -9,7 +10,8 @@
 //! - an attribute value is classified (boolean, static text with character references decoded, one
 //!   expression, shorthand, interpolated) instead of being a list of chunks;
 //! - text is decoded;
-//! - every node has a [`HirId`], a parent, and its origin in the surface tree.
+//! - every node has a [`HirId`], a parent, and its origin: the frontend's id of the node it was
+//!   built from.
 //!
 //! JavaScript expressions stay in the component's one [`rsv_js::Ast`]; what a name in them refers
 //! to is on [`crate::resolve::Resolution`], keyed by the same [`NodeId`]s. Facts later layers add
@@ -22,6 +24,17 @@ use rsv_kernel::source::Span;
 
 use crate::ast::{self, Component, TId, TNode, decode_text};
 
+/// A chunk of an attribute value as written.
+#[derive(Debug, Clone, Copy)]
+pub enum Part {
+    Text(Span),
+    Expr {
+        expr: NodeId,
+        /// Braces included.
+        span: Span,
+    },
+}
+
 newtype_index!(
     pub struct HirId;
 );
@@ -33,8 +46,8 @@ newtype_index!(
 pub struct Hir {
     pub nodes: IndexVec<HirId, Node>,
     pub attrs: IndexVec<AttrId, Attribute>,
-    /// The surface node each HIR node was built from. An `{#if}` chain's node points at its
-    /// first `If`; each [`Branch`] carries its own.
+    /// The frontend's node each HIR node was built from. For Svelte, an `{#if}` chain's node
+    /// points at its first `If`; each [`Branch`] carries its own.
     pub origin: IndexVec<HirId, TId>,
     kids: Vec<HirId>,
     branches: Vec<Branch>,
@@ -134,7 +147,7 @@ pub struct Attribute {
     pub value: AttrValue,
     pub span: Span,
     pub owner: HirId,
-    /// Index into the surface tree's attribute list.
+    /// The frontend's id of the attribute; for Svelte, an index into the surface attribute list.
     pub origin: u32,
 }
 
@@ -148,8 +161,9 @@ pub enum AttrValue {
     Expression { expr: NodeId, quoted: bool },
     /// `{a}`
     Shorthand(NodeId),
-    /// Text and expressions, or several expressions: `class="a {b}"`.
-    Interpolated(Box<[ast::Part]>),
+    /// Text and expressions, or several expressions: `class="a {b}"`. Empty for `a=` followed by
+    /// nothing, which is not the empty text `a=""`: the compiler sets it at runtime.
+    Interpolated(Box<[Part]>),
 }
 
 impl Hir {
@@ -405,17 +419,17 @@ fn attr_value(c: &Component, src: &str, a: &ast::Attr) -> AttrValue {
         ast::AttrValue::Parts(r) => c.parts(r),
     };
     match parts {
-        [ast::Part::Expr { expr, .. }] if a.shorthand => AttrValue::Shorthand(*expr),
-        [ast::Part::Expr { expr, .. }] => AttrValue::Expression {
+        [Part::Expr { expr, .. }] if a.shorthand => AttrValue::Shorthand(*expr),
+        [Part::Expr { expr, .. }] => AttrValue::Expression {
             expr: *expr,
             quoted: a.quoted,
         },
-        _ if parts.iter().all(|p| matches!(p, ast::Part::Text(_))) => AttrValue::Static(
+        [_, ..] if parts.iter().all(|p| matches!(p, Part::Text(_))) => AttrValue::Static(
             parts
                 .iter()
                 .map(|p| match p {
-                    ast::Part::Text(s) => decode_text(s.text(src)),
-                    ast::Part::Expr { .. } => unreachable!("all text"),
+                    Part::Text(s) => decode_text(s.text(src)),
+                    Part::Expr { .. } => unreachable!("all text"),
                 })
                 .collect::<String>()
                 .into_boxed_str(),
@@ -517,7 +531,7 @@ mod tests {
 
     #[test]
     fn attribute_values_are_classified() {
-        let src = "<p a b=\"x&amp;y\" c={e} d=\"{e}\" {e} f=\"x{e}\" g=\"\"></p>";
+        let src = "<p a b=\"x&amp;y\" c={e} d=\"{e}\" {e} f=\"x{e}\" g=\"\" h=></p>";
         let (_, h) = hir(src);
         let (_, el) = h.elements().next().expect("an element");
         let got: Vec<String> = h
@@ -540,7 +554,8 @@ mod tests {
                 "expression quoted=true",
                 "shorthand",
                 "interpolated 2",
-                "static \"\""
+                "static \"\"",
+                "interpolated 0"
             ]
         );
     }

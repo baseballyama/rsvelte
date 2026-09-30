@@ -1,6 +1,7 @@
 //! Server lowering: the component becomes string pushes onto `$$renderer`. Mirrors upstream
 //! `3-transform/server` (Fragment, `RegularElement`, `IfBlock`, shared/utils, shared/element).
 
+use rsv_html::decode_text;
 use rsv_js::copy::copy;
 use rsv_js::{Ast, Kind, NodeId};
 use rsv_kernel::diag::Diagnostic;
@@ -8,11 +9,11 @@ use rsv_kernel::source::Loc;
 
 use super::script::{ScriptRewrite, lower_instance};
 use super::{
-    Item, Parent, Target, clean_nodes, escape_html, event_attribute, is_boolean_attribute,
-    sanitize_template_string,
+    CompileInput, Item, Parent, Target, clean_nodes, escape_html, event_attribute,
+    is_boolean_attribute, sanitize_template_string,
 };
 use crate::analyze::Analysis;
-use crate::ast::{AttrValue, Component, Part, TId, TNode, decode_text};
+use crate::hir::{AttrValue, Attribute, Hir, HirId, NodeKind, Part};
 use crate::parse::is_void;
 use crate::resolve::Resolution;
 
@@ -32,7 +33,8 @@ enum Piece {
 }
 
 struct Sx<'a> {
-    c: &'a Component,
+    js: &'a Ast,
+    hir: &'a Hir,
     src: &'a str,
     res: &'a Resolution,
     an: &'a Analysis,
@@ -43,10 +45,11 @@ struct Sx<'a> {
 ///
 /// An `unsupported` [`Diagnostic`] if the component uses an element or attribute the server
 /// lowering does not handle yet.
-pub fn lower(c: &Component, src: &str, res: &Resolution, an: &Analysis) -> R<(Ast, NodeId)> {
+pub fn lower(input: &CompileInput<'_>, res: &Resolution, an: &Analysis) -> R<(Ast, NodeId)> {
     let mut sx = Sx {
-        c,
-        src,
+        js: input.js,
+        hir: input.hir,
+        src: input.src,
         res,
         an,
         out: Ast::new(),
@@ -56,8 +59,8 @@ pub fn lower(c: &Component, src: &str, res: &Resolution, an: &Analysis) -> R<(As
         target: Target::Server,
         res,
     };
-    let instance = lower_instance(&c.js, &mut sx.out, &mut rw, c.program, &mut hoisted)?;
-    let template = sx.fragment(Parent::Root, c.children(c.root))?;
+    let instance = lower_instance(input.js, &mut sx.out, &mut rw, input.program, &mut hoisted)?;
+    let template = sx.fragment(Parent::Root, input.hir.children(input.hir.root))?;
 
     let o = &mut sx.out;
     let mut body: Vec<NodeId> = instance;
@@ -95,11 +98,11 @@ impl Sx<'_> {
             target: Target::Server,
             res: self.res,
         };
-        copy(&self.c.js, &mut self.out, &mut rw, e)
+        copy(self.js, &mut self.out, &mut rw, e)
     }
 
-    fn fragment(&mut self, parent: Parent<'_>, list: &[TId]) -> R<Vec<NodeId>> {
-        let cleaned = clean_nodes(self.c, self.src, parent, list, false);
+    fn fragment(&mut self, parent: Parent<'_>, list: &[HirId]) -> R<Vec<NodeId>> {
+        let cleaned = clean_nodes(self.hir, self.src, parent, list, false);
         let mut template = Vec::new();
         if cleaned.text_first {
             template.push(Piece::Text(EMPTY_COMMENT.into()));
@@ -116,9 +119,9 @@ impl Sx<'_> {
                 Item::Text { .. } | Item::Expr(_) => sequence.push(item),
                 Item::Node(id) => {
                     self.flush(&mut sequence, template);
-                    match self.c.node(*id) {
-                        TNode::Element { .. } => self.element(*id, template)?,
-                        TNode::If { .. } => self.if_block(*id, template)?,
+                    match self.hir.node(*id).kind {
+                        NodeKind::Element(_) => self.element(*id, template)?,
+                        NodeKind::If { .. } => self.if_block(*id, template)?,
                         _ => unreachable!("clean_nodes keeps only elements and blocks as nodes"),
                     }
                 }
@@ -141,7 +144,7 @@ impl Sx<'_> {
                     .expect("never empty")
                     .push_str(&escape_html(data, false)),
                 Item::Expr(e) => {
-                    let evaluated = self.res.evaluate(&self.c.js, self.src, *e);
+                    let evaluated = self.res.evaluate(self.js, self.src, *e);
                     if evaluated.is_known {
                         let s = known_string(&evaluated.value);
                         quasis
@@ -220,17 +223,12 @@ impl Sx<'_> {
     }
 
     /// Upstream `RegularElement` + `build_element_attributes` (server, no spread).
-    fn element(&mut self, id: TId, template: &mut Vec<Piece>) -> R<()> {
-        let TNode::Element {
-            name,
-            attrs,
-            children,
-            ..
-        } = self.c.node(id)
-        else {
+    fn element(&mut self, id: HirId, template: &mut Vec<Piece>) -> R<()> {
+        let hir = self.hir;
+        let NodeKind::Element(el) = &hir.node(id).kind else {
             unreachable!()
         };
-        let tag = name.text(self.src).to_ascii_lowercase();
+        let tag = el.name.text(self.src).to_ascii_lowercase();
         if matches!(
             tag.as_str(),
             "svg" | "math" | "script" | "style" | "select" | "option" | "textarea" | "template"
@@ -239,31 +237,29 @@ impl Sx<'_> {
             return Err(Diagnostic::error(
                 "unsupported",
                 format!("`<{tag}>` is not supported yet"),
-                *name,
+                el.name,
             ));
         }
         template.push(Piece::Text(format!("<{tag}")));
-        let hash = if self.an.scoped[id as usize] {
+        let hash = if self.an.scoped[id] {
             self.an.css_hash.clone()
         } else {
             None
         };
-        let list = self.c.attrs(*attrs);
+        let list = hir.attrs(el.attrs);
         for a in list {
             let raw_name = a.name.text(self.src);
-            if event_attribute(self.c, self.src, a).is_some() {
+            if event_attribute(self.src, a).is_some() {
                 continue;
             }
             let attr_name = super::client::normalize_attribute(raw_name);
             let trim = matches!(attr_name.as_str(), "class" | "style");
-            let literal = match a.value {
-                AttrValue::True => Some(None),
-                AttrValue::Parts(r) => match self.c.parts(r) {
-                    [Part::Text(s)] => Some(Some(
-                        escape_html(&attr_text(s.text(self.src), trim), true).into_owned(),
-                    )),
-                    _ => None,
-                },
+            let literal = match &a.value {
+                AttrValue::Boolean => Some(None),
+                AttrValue::Static(v) => {
+                    Some(Some(escape_html(&attr_text(v, trim), true).into_owned()))
+                }
+                _ => None,
             };
             if let Some(v) = literal {
                 Self::literal_attribute(template, &attr_name, v, hash.as_deref());
@@ -287,17 +283,17 @@ impl Sx<'_> {
         let has_class = list
             .iter()
             .any(|a| a.name.text(self.src).eq_ignore_ascii_case("class"));
-        if !has_class && self.an.scoped[id as usize] {
+        if !has_class && self.an.scoped[id] {
             Self::literal_attribute(template, "class", Some(String::new()), hash.as_deref());
         }
         let void = is_void(&tag);
         template.push(Piece::Text(if void { "/>".into() } else { ">".into() }));
         let preserve = tag == "pre" || tag == "textarea";
         let cleaned = clean_nodes(
-            self.c,
+            hir,
             self.src,
             Parent::Element(&tag),
-            self.c.children(*children),
+            hir.children(el.children),
             preserve,
         );
         self.process_children(&cleaned.items, template)?;
@@ -331,14 +327,16 @@ impl Sx<'_> {
     }
 
     /// Upstream `build_attribute_value` (server) for a value with at least one expression.
-    fn attribute_value(&mut self, a: &crate::ast::Attr, trim: bool) -> NodeId {
-        let AttrValue::Parts(r) = a.value else {
-            unreachable!("literal values are handled by the caller")
+    fn attribute_value(&mut self, a: &Attribute, trim: bool) -> NodeId {
+        let parts = match &a.value {
+            &(AttrValue::Expression { expr, .. } | AttrValue::Shorthand(expr)) => {
+                return self.expr(expr);
+            }
+            AttrValue::Interpolated(parts) => parts,
+            AttrValue::Boolean | AttrValue::Static(_) => {
+                unreachable!("literal values are handled by the caller")
+            }
         };
-        let parts = self.c.parts(r);
-        if let [Part::Expr { expr, .. }] = parts {
-            return self.expr(*expr);
-        }
         let mut quasis = vec![String::new()];
         let mut exprs = Vec::new();
         for p in parts {
@@ -353,7 +351,7 @@ impl Sx<'_> {
                     quasis.last_mut().expect("never empty").push_str(&data);
                 }
                 Part::Expr { expr, .. } => {
-                    let evaluated = self.res.evaluate(&self.c.js, self.src, *expr);
+                    let evaluated = self.res.evaluate(self.js, self.src, *expr);
                     if evaluated.is_known {
                         quasis
                             .last_mut()
@@ -388,26 +386,25 @@ impl Sx<'_> {
     }
 
     /// Upstream `IfBlock` (server).
-    fn if_block(&mut self, id: TId, template: &mut Vec<Piece>) -> R<()> {
-        let branches = self.c.if_branches(id);
-        let mut arms = Vec::new();
-        for (index, &b) in branches.iter().enumerate() {
-            let TNode::If { test, cons, .. } = self.c.node(b) else {
-                unreachable!()
-            };
-            let (test, cons) = (*test, *cons);
-            let body = self.fragment(Parent::Block, self.c.children(cons))?;
-            let marker = format!("<!--[{index}-->");
-            let block = self.prepend_block_marker(body, &marker);
-            let t = self.expr(test);
-            arms.push((t, block));
-        }
-        let last = *branches.last().expect("non-empty");
-        let TNode::If { alt, .. } = self.c.node(last) else {
+    fn if_block(&mut self, id: HirId, template: &mut Vec<Piece>) -> R<()> {
+        let hir = self.hir;
+        let NodeKind::If {
+            branches,
+            otherwise,
+        } = hir.node(id).kind
+        else {
             unreachable!()
         };
-        let final_body = match alt {
-            Some(a) => self.fragment(Parent::Block, self.c.children(*a))?,
+        let mut arms = Vec::new();
+        for (index, b) in hir.branches(branches).iter().enumerate() {
+            let body = self.fragment(Parent::Block, hir.children(b.body))?;
+            let marker = format!("<!--[{index}-->");
+            let block = self.prepend_block_marker(body, &marker);
+            let t = self.expr(b.test);
+            arms.push((t, block));
+        }
+        let final_body = match otherwise {
+            Some(o) => self.fragment(Parent::Block, hir.children(o))?,
             None => Vec::new(),
         };
         let mut chain = self.prepend_block_marker(final_body, "<!--[-1-->");
@@ -480,12 +477,11 @@ fn known_string(v: &crate::evaluate::Val) -> String {
     }
 }
 
-fn attr_text(raw: &str, trim: bool) -> String {
-    let data = decode_text(raw);
+fn attr_text(data: &str, trim: bool) -> String {
     if trim {
-        collapse_ws(&data).trim().to_owned()
+        collapse_ws(data).trim().to_owned()
     } else {
-        data.into_owned()
+        data.to_owned()
     }
 }
 

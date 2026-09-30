@@ -13,7 +13,7 @@
 use std::process::ExitCode;
 
 use rsv_kernel::json::JsonWriter;
-use rsv_svelte::{analyze, lower, parse, resolve};
+use rsv_svelte::{analyze, hir, lower, parse, resolve, svelte_input};
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -36,10 +36,12 @@ fn main() -> ExitCode {
         }
     };
     let res = resolve::resolve(&c.js, c.program, &c.template_exprs);
-    let an = analyze::analyze(&c, &src, &res, path);
+    let hir = hir::lower(&c, &src);
+    let input = svelte_input(&c, &hir, &src);
+    let an = analyze::analyze(&input, &res, path);
     let lowered = match target.as_str() {
-        "client" => lower::client::lower(&c, &src, &res, &an),
-        "server" => lower::server::lower(&c, &src, &res, &an),
+        "client" => lower::client::lower(&input, &res, &an),
+        "server" => lower::server::lower(&input, &res, &an),
         t => {
             eprintln!("unknown target {t}");
             return ExitCode::FAILURE;

@@ -8,9 +8,11 @@
 use rsv_css::matcher::{self, Element, Match};
 use rsv_js::scope::DeclKind;
 use rsv_js::{Ast, Kind, NodeId};
+use rsv_kernel::idx::IndexVec;
 use rustc_hash::FxHashMap;
 
-use crate::ast::{AttrValue, Component, Part, TId, TNode, decode_text};
+use crate::hir::{self, AttrValue, Hir, HirId, NodeKind, Part};
+use crate::lower::CompileInput;
 use crate::resolve::{BindKind, Resolution, rune_call};
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -33,10 +35,10 @@ pub struct Analysis {
     pub name: String,
     pub css_hash: Option<String>,
     pub needs_context: bool,
-    /// Per template node: whether the style sheet selects it (elements only).
-    pub scoped: Vec<bool>,
+    /// Per HIR node: whether the style sheet selects it (elements only).
+    pub scoped: IndexVec<HirId, bool>,
     /// Per element: whether its children are dynamic (upstream `fragment.metadata.dynamic`).
-    pub dynamic: Vec<bool>,
+    pub dynamic: IndexVec<HirId, bool>,
     pub root_dynamic: bool,
     /// Per complex selector, in [`rsv_css::scope::selectors`] order.
     pub css_used: Vec<bool>,
@@ -124,36 +126,33 @@ fn to_base36(mut v: u32) -> String {
 }
 
 #[must_use]
-pub fn analyze(c: &Component, src: &str, res: &Resolution, filename: &str) -> Analysis {
-    let program = c.program;
+pub fn analyze(input: &CompileInput<'_>, res: &Resolution, filename: &str) -> Analysis {
+    let (hir, src, js) = (input.hir, input.src, input.js);
     let mut an = Analysis {
         exprs: FxHashMap::default(),
         name: component_name(filename),
-        css_hash: c
-            .style
-            .as_ref()
-            .map(|_| format!("svelte-{}", hash(filename))),
+        css_hash: input.style.map(|_| format!("svelte-{}", hash(filename))),
         needs_context: false,
-        scoped: vec![false; c.nodes.len()],
-        dynamic: vec![false; c.nodes.len()],
+        scoped: IndexVec::from_elem_n(false, hir.nodes.len()),
+        dynamic: IndexVec::from_elem_n(false, hir.nodes.len()),
         root_dynamic: false,
         css_used: Vec::new(),
     };
     let mut walker = MetaWalker {
-        ast: &c.js,
+        ast: js,
         src,
         res,
         meta: ExprMeta::default(),
         deps: 0,
         needs_context: false,
     };
-    walker.visit(program);
+    walker.visit(input.program);
     let script_needs_context = walker.needs_context;
     let mut exprs = FxHashMap::default();
     let mut needs_context = script_needs_context;
-    for &e in &c.template_exprs {
+    for &e in input.template_exprs {
         let mut w = MetaWalker {
-            ast: &c.js,
+            ast: js,
             src,
             res,
             meta: ExprMeta::default(),
@@ -166,24 +165,15 @@ pub fn analyze(c: &Component, src: &str, res: &Resolution, filename: &str) -> An
     }
     an.exprs = exprs;
     an.needs_context = needs_context;
-    let mut dynamic = vec![false; c.nodes.len()];
-    an.root_dynamic = mark_dynamic(c, src, &an, c.children(c.root), &mut dynamic);
+    let mut dynamic = IndexVec::from_elem_n(false, hir.nodes.len());
+    an.root_dynamic = mark_dynamic(input, &an, hir.children(hir.root), &mut dynamic);
     an.dynamic = dynamic;
 
-    if let Some(style) = &c.style {
-        let selectors = rsv_css::scope::selectors(&style.sheet);
+    if let Some(sheet) = input.style {
+        let selectors = rsv_css::scope::selectors(sheet);
         an.css_used = vec![false; selectors.len()];
-        let parents = parents(c);
-        for (id, n) in c.nodes.iter().enumerate() {
-            if !matches!(n, TNode::Element { .. }) {
-                continue;
-            }
-            let el = El {
-                c,
-                src,
-                id: id as TId,
-                parents: &parents,
-            };
+        for (id, _) in hir.elements() {
+            let el = El { hir, src, id };
             for (i, sel) in selectors.iter().enumerate() {
                 if matcher::matches(src, sel, el) {
                     an.css_used[i] = true;
@@ -329,47 +319,61 @@ impl MetaWalker<'_> {
 
 /// Upstream `mark_subtree_dynamic` callers, for the node types this port has: returns whether
 /// `list` makes its fragment dynamic, and records the answer for each element's own children.
-fn mark_dynamic(c: &Component, src: &str, an: &Analysis, list: &[TId], out: &mut [bool]) -> bool {
+fn mark_dynamic(
+    input: &CompileInput<'_>,
+    an: &Analysis,
+    list: &[HirId],
+    out: &mut IndexVec<HirId, bool>,
+) -> bool {
+    let (hir, src) = (input.hir, input.src);
     let mut any = false;
     for &id in list {
-        match c.node(id) {
-            TNode::Expr { .. } => any = true,
-            TNode::If { cons, alt, .. } => {
+        match &hir.node(id).kind {
+            NodeKind::Expr { .. } => any = true,
+            NodeKind::If {
+                branches,
+                otherwise,
+            } => {
                 any = true;
-                mark_dynamic(c, src, an, c.children(*cons), out);
-                if let Some(a) = alt {
-                    mark_dynamic(c, src, an, c.children(*a), out);
+                for b in hir.branches(*branches) {
+                    mark_dynamic(input, an, hir.children(b.body), out);
+                }
+                if let Some(o) = otherwise {
+                    mark_dynamic(input, an, hir.children(*o), out);
                 }
             }
-            TNode::Element {
-                name,
-                attrs,
-                children,
-                ..
-            } => {
-                let own = mark_dynamic(c, src, an, c.children(*children), out);
-                out[id as usize] = own;
+            NodeKind::Element(el) => {
+                let own = mark_dynamic(input, an, hir.children(el.children), out);
+                out[id] = own;
                 any |= own;
-                for a in c.attrs(*attrs) {
+                for a in hir.attrs(el.attrs) {
                     let attr = a.name.text(src);
-                    let AttrValue::Parts(r) = a.value else {
-                        any |= crate::lower::cannot_be_set_statically(attr);
-                        continue;
-                    };
-                    let parts = c.parts(r);
-                    let references = parts.iter().any(
-                        |p| matches!(p, Part::Expr { expr, .. } if an.meta(*expr).has_reference),
-                    );
-                    let single_expr = match parts {
-                        [Part::Expr { expr, .. }] => Some(*expr),
-                        _ => None,
+                    let (references, single_expr, quoted) = match &a.value {
+                        AttrValue::Boolean => {
+                            any |= crate::lower::cannot_be_set_statically(attr);
+                            continue;
+                        }
+                        AttrValue::Static(_) => (false, None, true),
+                        &AttrValue::Expression { expr, quoted } => {
+                            (an.meta(expr).has_reference, Some(expr), quoted)
+                        }
+                        &AttrValue::Shorthand(expr) => {
+                            (an.meta(expr).has_reference, Some(expr), false)
+                        }
+                        AttrValue::Interpolated(parts) => {
+                            let references = parts.iter().any(|p| match *p {
+                                Part::Expr { expr, .. } => an.meta(expr).has_reference,
+                                Part::Text(_) => false,
+                            });
+                            (references, None, true)
+                        }
                     };
                     let is_event = attr.starts_with("on") && single_expr.is_some();
                     let class_expr = attr == "class"
-                        && !a.quoted
+                        && !quoted
                         && single_expr.is_some_and(|e| {
                             !matches!(
-                                c.js.kind(e),
+                                input.js.kind(e),
                                 Kind::Str
                                     | Kind::Num(_)
                                     | Kind::Bool(_)
@@ -378,7 +382,7 @@ fn mark_dynamic(c: &Component, src: &str, an: &Analysis, list: &[TId], out: &mut
                                     | Kind::Binary(..)
                             )
                         });
-                    let option_value = attr == "value" && name.text(src) == "option";
+                    let option_value = attr == "value" && el.name.text(src) == "option";
                     any |= references
                         || is_event
                         || class_expr
@@ -386,68 +390,39 @@ fn mark_dynamic(c: &Component, src: &str, an: &Analysis, list: &[TId], out: &mut
                         || crate::lower::cannot_be_set_statically(attr);
                 }
             }
-            TNode::Text { .. } | TNode::Comment { .. } => {}
+            NodeKind::Text { .. } | NodeKind::Comment { .. } => {}
         }
     }
     any
 }
 
-fn parents(c: &Component) -> Vec<Option<TId>> {
-    fn walk(c: &Component, list: &[TId], parent: Option<TId>, out: &mut [Option<TId>]) {
-        for &id in list {
-            out[id as usize] = parent;
-            match c.node(id) {
-                TNode::Element { children, .. } => walk(c, c.children(*children), Some(id), out),
-                // Blocks are transparent for CSS: their children's parent is the enclosing element.
-                TNode::If { cons, alt, .. } => {
-                    walk(c, c.children(*cons), parent, out);
-                    if let Some(a) = alt {
-                        walk(c, c.children(*a), parent, out);
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-    let mut out = vec![None; c.nodes.len()];
-    walk(c, c.children(c.root), None, &mut out);
-    out
-}
-
 #[derive(Clone, Copy)]
 struct El<'a> {
-    c: &'a Component,
+    hir: &'a Hir,
     src: &'a str,
-    id: TId,
-    parents: &'a [Option<TId>],
+    id: HirId,
 }
 
 impl El<'_> {
-    fn attr_state(&self, name: &str, check: impl Fn(&str) -> bool) -> Match {
-        let TNode::Element { attrs, .. } = self.c.node(self.id) else {
+    fn element(&self) -> &hir::Element {
+        let NodeKind::Element(el) = &self.hir.node(self.id).kind else {
             unreachable!("El wraps elements")
         };
-        for a in self.c.attrs(*attrs) {
+        el
+    }
+
+    fn attr_state(&self, name: &str, check: impl Fn(&str) -> bool) -> Match {
+        for a in self.hir.attrs(self.element().attrs) {
             if !a.name.text(self.src).eq_ignore_ascii_case(name) {
                 continue;
             }
-            return match a.value {
-                AttrValue::True => Match::from_bool(check("")),
-                AttrValue::Parts(r) => {
-                    let parts = self.c.parts(r);
-                    if parts.iter().all(|p| matches!(p, Part::Text(_))) {
-                        let text: String = parts
-                            .iter()
-                            .map(|p| match p {
-                                Part::Text(s) => decode_text(s.text(self.src)).into_owned(),
-                                Part::Expr { .. } => unreachable!(),
-                            })
-                            .collect();
-                        Match::from_bool(check(&text))
-                    } else {
-                        Match::Maybe
-                    }
-                }
+            return match &a.value {
+                AttrValue::Boolean => Match::from_bool(check("")),
+                AttrValue::Static(text) => Match::from_bool(check(text)),
+                AttrValue::Interpolated(parts) if parts.is_empty() => Match::from_bool(check("")),
+                AttrValue::Expression { .. }
+                | AttrValue::Shorthand(_)
+                | AttrValue::Interpolated(_) => Match::Maybe,
             };
         }
         Match::No
@@ -466,10 +441,7 @@ impl FromBool for Match {
 
 impl Element for El<'_> {
     fn tag_name(&self) -> Option<&str> {
-        let TNode::Element { name, .. } = self.c.node(self.id) else {
-            unreachable!("El wraps elements")
-        };
-        Some(name.text(self.src))
+        Some(self.element().name.text(self.src))
     }
 
     fn class(&self, name: &str) -> Match {
@@ -487,7 +459,15 @@ impl Element for El<'_> {
         }
     }
 
+    /// Blocks are transparent for CSS: the parent is the enclosing element.
     fn parent(&self) -> Option<Self> {
-        self.parents[self.id as usize].map(|p| El { id: p, ..*self })
+        let mut at = self.hir.node(self.id).parent;
+        while let Some(p) = at {
+            if matches!(self.hir.node(p).kind, NodeKind::Element(_)) {
+                return Some(El { id: p, ..*self });
+            }
+            at = self.hir.node(p).parent;
+        }
+        None
     }
 }

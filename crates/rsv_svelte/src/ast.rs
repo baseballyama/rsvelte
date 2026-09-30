@@ -89,15 +89,7 @@ pub enum AttrValue {
     Parts(Range),
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum Part {
-    Text(Span),
-    Expr {
-        expr: NodeId,
-        /// Braces included.
-        span: Span,
-    },
-}
+pub use crate::hir::Part;
 
 /// An attribute of a `<script>` or `<style>` start tag: name and quoted value.
 pub type TagAttr = (Span, Option<Span>);

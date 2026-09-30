@@ -94,9 +94,9 @@ impl Artifact for Analyzed {
     const NAME: &'static str = "svelte.analyze";
 
     fn compute(ctx: &Ctx<'_>) -> Self::Output {
-        let c = ctx.get::<Parsed>().as_ref().ok()?;
+        let input = compile_input(ctx)?;
         let res = ctx.get::<Resolved>().as_ref()?;
-        Some(analyze::analyze(c, ctx.src(), res, &ctx.doc.path))
+        Some(analyze::analyze(&input, res, &ctx.doc.path))
     }
 }
 
@@ -109,19 +109,13 @@ impl Artifact for ScopedCss {
     const NAME: &'static str = "svelte.css";
 
     fn compute(ctx: &Ctx<'_>) -> Self::Output {
-        let c = ctx.get::<Parsed>().as_ref().ok()?;
+        let sheet = compile_input(ctx)?.style?;
         let an = ctx.get::<Analyzed>().as_ref()?;
-        let style = c.style.as_ref()?;
         let hash = an
             .css_hash
             .as_deref()
             .expect("a component with a style has a hash");
-        Some(rsv_css::scope::render(
-            ctx.src(),
-            &style.sheet,
-            &an.css_used,
-            hash,
-        ))
+        Some(rsv_css::scope::render(ctx.src(), sheet, &an.css_used, hash))
     }
 }
 
@@ -137,6 +131,32 @@ impl Artifact for TsProjection {
     fn compute(ctx: &Ctx<'_>) -> Self::Output {
         let c = ctx.get::<Parsed>().as_ref().ok()?;
         Some(project::project(c, ctx.src()))
+    }
+}
+
+/// What the compiler reads of a Svelte component: its script from [`Parsed`], its template from
+/// [`Normalized`]. `None` when the document did not parse.
+#[must_use]
+pub fn compile_input<'a>(ctx: &'a Ctx<'_>) -> Option<lower::CompileInput<'a>> {
+    let c = ctx.get::<Parsed>().as_ref().ok()?;
+    let hir = ctx.get::<Normalized>().as_ref()?;
+    Some(svelte_input(c, hir, ctx.src()))
+}
+
+/// [`compile_input`] outside the artifact database.
+#[must_use]
+pub fn svelte_input<'a>(
+    c: &'a ast::Component,
+    hir: &'a hir::Hir,
+    src: &'a str,
+) -> lower::CompileInput<'a> {
+    lower::CompileInput {
+        js: &c.js,
+        program: c.program,
+        hir,
+        style: c.style.as_ref().map(|s| &s.sheet),
+        template_exprs: &c.template_exprs,
+        src,
     }
 }
 

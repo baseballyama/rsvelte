@@ -2,6 +2,7 @@
 //! date. Mirrors upstream `3-transform/client` (Fragment, `RegularElement`, `IfBlock`,
 //! shared/fragment).
 
+use rsv_html::decode_text;
 use rsv_js::ast::flag;
 use rsv_js::copy::copy;
 use rsv_js::ops::{AssignOp, LogicalOp};
@@ -13,10 +14,11 @@ use rustc_hash::FxHashMap;
 use super::names::Names;
 use super::script::{ScriptRewrite, lower_instance};
 use super::{
-    Item, Parent, Target, clean_nodes, escape_html, event_attribute, sanitize_template_string,
+    CompileInput, Item, Parent, Target, clean_nodes, escape_html, event_attribute,
+    sanitize_template_string,
 };
 use crate::analyze::{Analysis, ExprMeta};
-use crate::ast::{AttrValue, Component, Part, TId, TNode, decode_text};
+use crate::hir::{AttrValue, Attribute, Hir, HirId, NodeKind, Part};
 use crate::parse::is_void;
 use crate::resolve::Resolution;
 
@@ -225,7 +227,8 @@ enum Prev {
 }
 
 struct Cx<'a> {
-    c: &'a Component,
+    js: &'a Ast,
+    hir: &'a Hir,
     src: &'a str,
     res: &'a Resolution,
     an: &'a Analysis,
@@ -240,12 +243,14 @@ struct Cx<'a> {
 ///
 /// An `unsupported` [`Diagnostic`] if the component uses a construct the client lowering does not
 /// handle yet.
-pub fn lower(c: &Component, src: &str, res: &Resolution, an: &Analysis) -> R<(Ast, NodeId)> {
-    let declared = res.sem.bindings.iter().map(|b| c.js.atoms.get(b.name));
-    let referenced = res.sem.references.iter().map(|r| c.js.name(r.node));
+pub fn lower(input: &CompileInput<'_>, res: &Resolution, an: &Analysis) -> R<(Ast, NodeId)> {
+    let js = input.js;
+    let declared = res.sem.bindings.iter().map(|b| js.atoms.get(b.name));
+    let referenced = res.sem.references.iter().map(|r| js.name(r.node));
     let mut cx = Cx {
-        c,
-        src,
+        js,
+        hir: input.hir,
+        src: input.src,
         res,
         an,
         out: Ast::new(),
@@ -258,8 +263,8 @@ pub fn lower(c: &Component, src: &str, res: &Resolution, an: &Analysis) -> R<(As
         target: Target::Client,
         res,
     };
-    let instance = lower_instance(&c.js, &mut cx.out, &mut rw, c.program, &mut cx.hoisted)?;
-    let template = cx.fragment(Parent::Root, c.children(c.root))?;
+    let instance = lower_instance(js, &mut cx.out, &mut rw, input.program, &mut cx.hoisted)?;
+    let template = cx.fragment(Parent::Root, input.hir.children(input.hir.root))?;
 
     let o = &mut cx.out;
     let mut body = Vec::new();
@@ -309,7 +314,7 @@ impl<'a> Cx<'a> {
             target: Target::Client,
             res: self.res,
         };
-        copy(&self.c.js, &mut self.out, &mut rw, e)
+        copy(self.js, &mut self.out, &mut rw, e)
     }
 
     /// `b.call` drops trailing missing arguments and turns inner ones into `undefined`.
@@ -342,20 +347,20 @@ impl<'a> Cx<'a> {
         self.out.bool(true, Loc::SYNTHETIC)
     }
 
-    fn is_static_element(&self, id: TId) -> bool {
-        let TNode::Element { name, attrs, .. } = self.c.node(id) else {
+    fn is_static_element(&self, id: HirId) -> bool {
+        let NodeKind::Element(el) = &self.hir.node(id).kind else {
             return false;
         };
-        if self.an.dynamic[id as usize] {
+        if self.an.dynamic[id] {
             return false;
         }
-        let tag = name.text(self.src);
+        let tag = el.name.text(self.src);
         if tag.contains('-') {
             return false;
         }
-        for a in self.c.attrs(*attrs) {
+        for a in self.hir.attrs(el.attrs) {
             let n = a.name.text(self.src);
-            if event_attribute(self.c, self.src, a).is_some()
+            if event_attribute(self.src, a).is_some()
                 || super::cannot_be_set_statically(n)
                 || n == "dir"
             {
@@ -367,22 +372,11 @@ impl<'a> Cx<'a> {
             if tag == "option" && n == "value" {
                 return false;
             }
-            if !matches!(a.value, AttrValue::True) && self.text_attribute(a).is_none() {
+            if !matches!(a.value, AttrValue::Boolean | AttrValue::Static(_)) {
                 return false;
             }
         }
         true
-    }
-
-    /// Upstream `is_text_attribute`: exactly one text chunk.
-    fn text_attribute(&self, a: &crate::ast::Attr) -> Option<Span> {
-        match a.value {
-            AttrValue::Parts(r) => match self.c.parts(r) {
-                [Part::Text(s)] => Some(*s),
-                _ => None,
-            },
-            AttrValue::True => None,
-        }
     }
 
     fn memoize(&mut self, frag: &mut Frag, value: NodeId, meta: ExprMeta) -> NodeId {
@@ -395,8 +389,8 @@ impl<'a> Cx<'a> {
     }
 
     /// Upstream `Fragment` visitor: the statements of one block.
-    fn fragment(&mut self, parent: Parent<'_>, list: &[TId]) -> R<Vec<NodeId>> {
-        let cleaned = clean_nodes(self.c, self.src, parent, list, false);
+    fn fragment(&mut self, parent: Parent<'_>, list: &[HirId]) -> R<Vec<NodeId>> {
+        let cleaned = clean_nodes(self.hir, self.src, parent, list, false);
         let items = cleaned.items;
         if items.is_empty() {
             return Ok(Vec::new());
@@ -406,13 +400,13 @@ impl<'a> Cx<'a> {
         let close;
 
         let single_element = match items.as_slice() {
-            [Item::Node(id)] if matches!(self.c.node(*id), TNode::Element { .. }) => Some(*id),
+            [Item::Node(id)] => match &self.hir.node(*id).kind {
+                NodeKind::Element(e) => Some((*id, e.name)),
+                _ => None,
+            },
             _ => None,
         };
-        if let Some(el) = single_element {
-            let TNode::Element { name, .. } = self.c.node(el) else {
-                unreachable!()
-            };
+        if let Some((el, name)) = single_element {
             let id = self.names.generate(name.text(self.src));
             self.element(el, &id, &mut frag, &mut l)?;
             let flags = if frag.tpl.needs_import_node {
@@ -575,8 +569,8 @@ impl<'a> Cx<'a> {
                 st.skipped += 1;
                 self.visit(id, &st.prev_name(), frag, l)?;
             } else {
-                let name = match self.c.node(id) {
-                    TNode::Element { name, .. } => name.text(self.src).to_owned(),
+                let name = match &self.hir.node(id).kind {
+                    NodeKind::Element(el) => el.name.text(self.src).to_owned(),
                     _ => "node".to_owned(),
                 };
                 let node = self.flush_node(&mut st, false, &name, l);
@@ -674,7 +668,7 @@ impl<'a> Cx<'a> {
                 Item::Expr(e) => *e,
                 Item::Node(_) => unreachable!("sequences hold text and expression tags"),
             };
-            let js = &self.c.js;
+            let js = self.js;
             match js.kind(expr) {
                 Kind::Str | Kind::Num(_) | Kind::Bool(_) | Kind::Null => {
                     if !matches!(js.kind(expr), Kind::Null) {
@@ -748,10 +742,10 @@ impl<'a> Cx<'a> {
         (self.out.template(&elems, &exprs, Loc::SYNTHETIC), has_state)
     }
 
-    fn visit(&mut self, id: TId, node: &str, frag: &mut Frag, l: &mut Lists) -> R<()> {
-        match self.c.node(id) {
-            TNode::Element { .. } => self.element(id, node, frag, l),
-            TNode::If { .. } => self.if_block(id, node, frag, l),
+    fn visit(&mut self, id: HirId, node: &str, frag: &mut Frag, l: &mut Lists) -> R<()> {
+        match self.hir.node(id).kind {
+            NodeKind::Element(_) => self.element(id, node, frag, l),
+            NodeKind::If { .. } => self.if_block(id, node, frag, l),
             _ => unreachable!("clean_nodes keeps only elements and blocks as nodes"),
         }
     }
@@ -761,23 +755,18 @@ impl<'a> Cx<'a> {
         clippy::too_many_lines,
         reason = "ports upstream's `RegularElement` visitor in one piece"
     )]
-    fn element(&mut self, id: TId, node: &str, frag: &mut Frag, l: &mut Lists) -> R<()> {
-        let TNode::Element {
-            name,
-            attrs,
-            children,
-            ..
-        } = self.c.node(id)
-        else {
+    fn element(&mut self, id: HirId, node: &str, frag: &mut Frag, l: &mut Lists) -> R<()> {
+        let hir = self.hir;
+        let NodeKind::Element(el) = &hir.node(id).kind else {
             unreachable!()
         };
-        let tag = name.text(self.src).to_ascii_lowercase();
+        let tag = el.name.text(self.src).to_ascii_lowercase();
         if matches!(
             tag.as_str(),
             "svg" | "math" | "script" | "select" | "option" | "textarea" | "template"
         ) || tag.contains('-')
         {
-            return unsupported(&format!("`<{tag}>`"), *name);
+            return unsupported(&format!("`<{tag}>`"), el.name);
         }
         frag.tpl.push_element(&tag);
         if tag == "noscript" {
@@ -786,24 +775,27 @@ impl<'a> Cx<'a> {
         }
         frag.tpl.needs_import_node |= tag == "video";
 
-        let attr_list = self.c.attrs(*attrs);
+        let attr_list = hir.attrs(el.attrs);
         let has_class = attr_list
             .iter()
             .any(|a| a.name.text(self.src).eq_ignore_ascii_case("class"));
-        let synthetic_class = !has_class && self.an.scoped[id as usize];
+        let synthetic_class = !has_class && self.an.scoped[id];
 
         for a in attr_list {
             let raw_name = a.name.text(self.src);
-            if let Some(handler) = event_attribute(self.c, self.src, a) {
+            if let Some(handler) = event_attribute(self.src, a) {
                 self.event(raw_name, handler, node, l);
                 continue;
             }
             let attr_name = normalize_attribute(raw_name);
-            let text = self.text_attribute(a);
+            let literal = match &a.value {
+                AttrValue::Boolean => Some(None),
+                AttrValue::Static(v) => Some(Some(v.to_string())),
+                _ => None,
+            };
             if !super::cannot_be_set_statically(raw_name)
-                && (matches!(a.value, AttrValue::True) || text.is_some())
+                && let Some(value) = literal
             {
-                let value = text.map(|s| decode_text(s.text(self.src)).into_owned());
                 self.static_attribute(frag, id, raw_name, &attr_name, value);
             } else if attr_name == "autofocus" || attr_name == "class" || attr_name == "style" {
                 return unsupported(&format!("a dynamic `{attr_name}` attribute"), a.span);
@@ -824,10 +816,10 @@ impl<'a> Cx<'a> {
 
         let preserve = tag == "pre" || tag == "textarea";
         let cleaned = clean_nodes(
-            self.c,
+            hir,
             self.src,
             Parent::Element(&tag),
-            self.c.children(*children),
+            hir.children(el.children),
             preserve,
         );
         let items = cleaned.items;
@@ -870,7 +862,7 @@ impl<'a> Cx<'a> {
                 child.init.push(self.stmt(call));
             }
         }
-        if self.an.dynamic[id as usize] {
+        if self.an.dynamic[id] {
             l.init.append(&mut child.init);
             l.update.append(&mut child.update);
             l.after.append(&mut child.after);
@@ -882,14 +874,14 @@ impl<'a> Cx<'a> {
     fn static_attribute(
         &self,
         frag: &mut Frag,
-        id: TId,
+        id: HirId,
         raw_name: &str,
         attr_name: &str,
         value: Option<String>,
     ) {
         let mut value = value;
         if attr_name == "class"
-            && self.an.scoped[id as usize]
+            && self.an.scoped[id]
             && let Some(hash) = &self.an.css_hash
         {
             value = Some(match value.as_deref() {
@@ -906,22 +898,16 @@ impl<'a> Cx<'a> {
     }
 
     /// Upstream `build_attribute_value` (client).
-    fn attribute_value(&mut self, a: &crate::ast::Attr, frag: &mut Frag) -> (NodeId, bool) {
-        let AttrValue::Parts(r) = a.value else {
-            return (self.tru(), false);
-        };
-        let parts = self.c.parts(r);
-        match parts {
-            [Part::Text(s)] => {
-                let v = decode_text(s.text(self.src)).into_owned();
-                (self.out.str(&v), false)
-            }
-            [Part::Expr { expr, .. }] => {
-                let meta = self.an.meta(*expr);
-                let built = self.expr(*expr);
+    fn attribute_value(&mut self, a: &Attribute, frag: &mut Frag) -> (NodeId, bool) {
+        match &a.value {
+            AttrValue::Boolean => (self.tru(), false),
+            AttrValue::Static(v) => (self.out.str(v), false),
+            &(AttrValue::Expression { expr, .. } | AttrValue::Shorthand(expr)) => {
+                let meta = self.an.meta(expr);
+                let built = self.expr(expr);
                 (self.memoize(frag, built, meta), meta.has_state)
             }
-            _ => {
+            AttrValue::Interpolated(parts) => {
                 let items = self.chunk_items(parts);
                 self.template_chunk(&items, frag)
             }
@@ -1026,7 +1012,7 @@ impl<'a> Cx<'a> {
         };
         let meta = self.an.meta(handler);
         let built = self.expr(handler);
-        let handler_expr = match self.c.js.kind(handler) {
+        let handler_expr = match self.js.kind(handler) {
             Kind::Arrow { .. } | Kind::Function { decl: false, .. } => built,
             Kind::Ident(_)
                 if self.res.binding(handler).is_none_or(|(b, _)| {
@@ -1074,21 +1060,21 @@ impl<'a> Cx<'a> {
     }
 
     /// Upstream `IfBlock` (client), with `{:else if}` chains flattened.
-    fn if_block(&mut self, id: TId, node: &str, frag: &mut Frag, l: &mut Lists) -> R<()> {
+    fn if_block(&mut self, id: HirId, node: &str, frag: &mut Frag, l: &mut Lists) -> R<()> {
         frag.tpl.push_comment();
-        let TNode::If { elseif, .. } = self.c.node(id) else {
+        let hir = self.hir;
+        let NodeKind::If {
+            branches,
+            otherwise,
+        } = hir.node(id).kind
+        else {
             unreachable!()
         };
-        let elseif = *elseif;
-        let branches = self.c.if_branches(id);
         let mut statements = Vec::new();
         let mut tests_and_renders: Vec<(NodeId, NodeId)> = Vec::new();
-        for (index, &b) in branches.iter().enumerate() {
-            let TNode::If { test, cons, .. } = self.c.node(b) else {
-                unreachable!()
-            };
-            let (test, cons) = (*test, *cons);
-            let body = self.fragment(Parent::Block, self.c.children(cons))?;
+        for (index, b) in hir.branches(branches).iter().enumerate() {
+            let test = b.test;
+            let body = self.fragment(Parent::Block, hir.children(b.body))?;
             let cid = self.names.generate("consequent");
             let arrow = self.anchor_arrow(&body);
             statements.push(self.var(&cid, arrow));
@@ -1110,12 +1096,8 @@ impl<'a> Cx<'a> {
             let call = self.out.call(render, &args, false, Loc::SYNTHETIC);
             tests_and_renders.push((t, self.out.expr_stmt(call)));
         }
-        let last = *branches.last().expect("non-empty");
-        let TNode::If { alt, .. } = self.c.node(last) else {
-            unreachable!()
-        };
-        let else_stmt = if let Some(a) = alt {
-            let body = self.fragment(Parent::Block, self.c.children(*a))?;
+        let else_stmt = if let Some(o) = otherwise {
+            let body = self.fragment(Parent::Block, hir.children(o))?;
             let aid = self.names.generate("alternate");
             let arrow = self.anchor_arrow(&body);
             statements.push(self.var(&aid, arrow));
@@ -1139,8 +1121,8 @@ impl<'a> Cx<'a> {
             .out
             .arrow(&[render_param], inner, false, false, Loc::SYNTHETIC);
         let x = self.out.id(node);
-        let flag_arg = elseif.then(|| self.tru());
-        let call = self.call("if", vec![Some(x), Some(f), flag_arg]);
+        // Upstream's third argument marks a nested `{:else if}` block; a chain is one node here.
+        let call = self.call("if", vec![Some(x), Some(f)]);
         statements.push(self.stmt(call));
         l.init.push(self.out.block(&statements, Loc::SYNTHETIC));
         Ok(())

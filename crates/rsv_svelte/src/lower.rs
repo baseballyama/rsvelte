@@ -1,4 +1,4 @@
-//! Lowering: from the Svelte tree and its analysis to an output JS tree.
+//! Lowering: from a component's HIR and its analysis to an output JS tree.
 //!
 //! One meaning, one implementation (P2): whitespace cleaning, rune rewriting, text escaping and
 //! name generation are shared; only the parts where the targets really differ (DOM building on
@@ -11,7 +11,24 @@ pub mod server;
 
 use std::borrow::Cow;
 
-use crate::ast::{Component, TId, TNode, decode_text};
+use rsv_js::{Ast, NodeId};
+
+use crate::hir::{AttrValue, Attribute, Hir, HirId, NodeKind};
+
+/// A component as the compiler reads it, whatever syntax it was written in.
+#[derive(Clone, Copy, Debug)]
+pub struct CompileInput<'a> {
+    /// Every JavaScript expression of the component, script and template.
+    pub js: &'a Ast,
+    /// The instance script's program, or an empty one.
+    pub program: NodeId,
+    pub hir: &'a Hir,
+    pub style: Option<&'a rsv_css::StyleSheet>,
+    /// Every template expression, in document order.
+    pub template_exprs: &'a [NodeId],
+    /// The document: HIR spans index into it.
+    pub src: &'a str,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Target {
@@ -23,9 +40,9 @@ pub enum Target {
 #[derive(Debug, Clone)]
 pub enum Item<'a> {
     /// An element or block.
-    Node(TId),
+    Node(HirId),
     /// An `{expression}` tag, or an expression chunk of an attribute value.
-    Expr(rsv_js::NodeId),
+    Expr(NodeId),
     Text {
         data: Cow<'a, str>,
         raw: Cow<'a, str>,
@@ -54,25 +71,25 @@ const fn is_ws(c: char) -> bool {
 /// Upstream `clean_nodes` (3-transform/utils.js) for the node types this port has, with
 /// `preserveComments: false`.
 pub fn clean_nodes<'a>(
-    c: &Component,
+    hir: &'a Hir,
     src: &'a str,
     parent: Parent<'_>,
-    list: &[TId],
+    list: &[HirId],
     preserve_ws: bool,
 ) -> Cleaned<'a> {
     let mut regular: Vec<Item<'a>> = Vec::with_capacity(list.len());
     for &id in list {
-        match c.node(id) {
-            TNode::Comment { .. } => {}
-            TNode::Text { span } => {
-                let raw = span.text(src);
+        match &hir.node(id).kind {
+            NodeKind::Comment { .. } => {}
+            NodeKind::Text { raw, decoded } => {
+                let raw = raw.text(src);
                 regular.push(Item::Text {
-                    data: decode_text(raw),
+                    data: Cow::Borrowed(decoded.as_deref().unwrap_or(raw)),
                     raw: Cow::Borrowed(raw),
                 });
             }
-            TNode::Expr { expr, .. } => regular.push(Item::Expr(*expr)),
-            _ => regular.push(Item::Node(id)),
+            NodeKind::Expr { expr } => regular.push(Item::Expr(*expr)),
+            NodeKind::Element(_) | NodeKind::If { .. } => regular.push(Item::Node(id)),
         }
     }
     let is_expr = |i: Option<&Item<'_>>| matches!(i, Some(Item::Expr(_)));
@@ -285,12 +302,16 @@ pub fn cannot_be_set_statically(name: &str) -> bool {
 
 /// Upstream `is_event_attribute` for this port's attribute shapes.
 #[must_use]
-pub fn event_attribute(c: &Component, src: &str, a: &crate::ast::Attr) -> Option<rsv_js::NodeId> {
-    let crate::ast::AttrValue::Parts(r) = a.value else {
-        return None;
-    };
-    match c.parts(r) {
-        [crate::ast::Part::Expr { expr, .. }] if a.name.text(src).starts_with("on") => Some(*expr),
+pub fn event_attribute(src: &str, a: &Attribute) -> Option<NodeId> {
+    let expr = single_expression(&a.value)?;
+    a.name.text(src).starts_with("on").then_some(expr)
+}
+
+/// The expression of a value written as exactly one `{expression}`.
+#[must_use]
+pub const fn single_expression(v: &AttrValue) -> Option<NodeId> {
+    match *v {
+        AttrValue::Expression { expr, .. } | AttrValue::Shorthand(expr) => Some(expr),
         _ => None,
     }
 }
