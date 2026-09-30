@@ -116,13 +116,15 @@ impl Default for PrintOptions {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Refused;
 
+/// The arena's columns come from the thread's [`pool`], under this type's key, and go back to it in
+/// the reverse order.
 impl Default for Docs {
     fn default() -> Self {
         Self {
-            nodes: pool::take(),
-            breaks: pool::take(),
-            kids: pool::take(),
-            buf: String::from_utf8(pool::take()).expect("an empty buffer is UTF-8"),
+            nodes: pool::take_keyed::<Self, _>(),
+            breaks: pool::take_keyed::<Self, _>(),
+            kids: pool::take_keyed::<Self, _>(),
+            buf: pool::take_string::<Self>(),
             groups: 0,
         }
     }
@@ -130,10 +132,10 @@ impl Default for Docs {
 
 impl Drop for Docs {
     fn drop(&mut self) {
-        pool::give(std::mem::take(&mut self.nodes));
-        pool::give(std::mem::take(&mut self.breaks));
-        pool::give(std::mem::take(&mut self.kids));
-        pool::give(std::mem::take(&mut self.buf).into_bytes());
+        pool::give_string::<Self>(std::mem::take(&mut self.buf));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.kids));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.breaks));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.nodes));
     }
 }
 

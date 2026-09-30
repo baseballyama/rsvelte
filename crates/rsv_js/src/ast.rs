@@ -333,21 +333,22 @@ impl Default for Ast {
     }
 }
 
-/// Buffers go back in the reverse of the order [`Ast::new`] takes them: the pool hands out the
-/// last one given first, so each column gets back a buffer of its own size (`extra` and `scratch`
-/// share a type).
+/// Buffers go back to the pool, under this type's key, in the reverse of the order [`Ast::new`]
+/// takes them: the pool hands out the last one given first, so each column gets back a buffer of
+/// its own size (`extra` and `scratch` share a type).
 impl Drop for Ast {
     fn drop(&mut self) {
-        pool::give(std::mem::take(&mut self.scratch));
-        pool::give(std::mem::take(&mut self.type_refs));
-        pool::give(std::mem::take(&mut self.ts_runtime));
-        pool::give(std::mem::take(&mut self.ts));
-        pool::give(std::mem::take(&mut self.comments));
-        pool::give(std::mem::take(&mut self.extra));
-        pool::give(std::mem::take(&mut self.locs));
-        pool::give(std::mem::take(&mut self.data));
-        pool::give(std::mem::take(&mut self.flags));
-        pool::give(std::mem::take(&mut self.tags));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.scratch));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.type_refs));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.ts_runtime));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.ts));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.comments));
+        pool::give_string::<Self>(std::mem::take(&mut self.strs));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.extra));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.locs));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.data));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.flags));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.tags));
     }
 }
 
@@ -355,19 +356,19 @@ impl Ast {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            tags: pool::take(),
-            flags: pool::take(),
-            data: pool::take(),
-            locs: pool::take(),
-            extra: pool::take(),
-            strs: String::new(),
+            tags: pool::take_keyed::<Self, _>(),
+            flags: pool::take_keyed::<Self, _>(),
+            data: pool::take_keyed::<Self, _>(),
+            locs: pool::take_keyed::<Self, _>(),
+            extra: pool::take_keyed::<Self, _>(),
+            strs: pool::take_string::<Self>(),
             atoms: Interner::new(),
-            comments: pool::take(),
+            comments: pool::take_keyed::<Self, _>(),
             tokens: Tokens::new(),
-            ts: pool::take(),
-            ts_runtime: pool::take(),
-            type_refs: pool::take(),
-            scratch: pool::take(),
+            ts: pool::take_keyed::<Self, _>(),
+            ts_runtime: pool::take_keyed::<Self, _>(),
+            type_refs: pool::take_keyed::<Self, _>(),
+            scratch: pool::take_keyed::<Self, _>(),
         }
     }
 

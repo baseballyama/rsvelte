@@ -175,11 +175,11 @@ impl TokenKind for Tk {
 /// do.
 impl Drop for Component {
     fn drop(&mut self) {
-        pool::give(std::mem::take(&mut self.nodes));
-        pool::give(std::mem::take(&mut self.kids));
-        pool::give(std::mem::take(&mut self.attrs));
-        pool::give(std::mem::take(&mut self.parts));
-        pool::give(std::mem::take(&mut self.template_exprs));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.nodes));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.kids));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.attrs));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.parts));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.template_exprs));
     }
 }
 

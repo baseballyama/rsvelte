@@ -5,10 +5,12 @@ use std::hash::Hasher;
 
 use rustc_hash::FxHasher;
 
+use crate::pool;
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 pub struct Atom(pub u32);
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct Interner {
     buf: String,
     ends: Vec<u32>,
@@ -20,6 +22,26 @@ fn hash(s: &str) -> u64 {
     let mut h = FxHasher::default();
     h.write(s.as_bytes());
     h.finish()
+}
+
+/// The buffers come from the thread's [`pool`], under this type's key, and go back to it in the
+/// reverse order (`ends` and `table` share a type).
+impl Default for Interner {
+    fn default() -> Self {
+        Self {
+            buf: pool::take_string::<Self>(),
+            ends: pool::take_keyed::<Self, u32>(),
+            table: pool::take_keyed::<Self, u32>(),
+        }
+    }
+}
+
+impl Drop for Interner {
+    fn drop(&mut self) {
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.table));
+        pool::give_keyed::<Self, _>(std::mem::take(&mut self.ends));
+        pool::give_string::<Self>(std::mem::take(&mut self.buf));
+    }
 }
 
 impl Interner {
@@ -101,7 +123,8 @@ impl Interner {
 
     fn grow(&mut self) {
         let cap = (self.table.len() * 2).max(64);
-        self.table = vec![0; cap];
+        self.table.clear();
+        self.table.resize(cap, 0);
         let mask = cap - 1;
         for id in 0..self.ends.len() as u32 {
             let mut i = hash(self.get(Atom(id))) as usize & mask;

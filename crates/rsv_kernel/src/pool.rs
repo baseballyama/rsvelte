@@ -4,9 +4,12 @@
 //! back when dropped, and the next document on the same worker reuses the capacity, so steady-state
 //! parsing allocates almost nothing. [`set_enabled`] exists so the saving can be measured.
 //!
-//! Buffers are pooled by element type and handed out last-given first, so a structure with two
-//! columns of one type gives them back in the reverse of the order it takes them; otherwise the
-//! columns trade buffers on every document and each grows the other's.
+//! Buffers are pooled per key and handed out last-given first. The key is the element type
+//! ([`take`], [`give`]), or the element type and an owner's own type ([`take_keyed`],
+//! [`give_keyed`]) where structures of different sizes would otherwise trade buffers of one type
+//! (a document's interned text against its formatter's output): each would keep growing the
+//! other's. Within one owner, columns of one type are given back in the reverse of the order they
+//! are taken, for the same reason.
 
 use std::alloc::Layout;
 use std::any::TypeId;
@@ -16,7 +19,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use rustc_hash::FxHashMap;
 
 static ENABLED: AtomicBool = AtomicBool::new(true);
-const MAX_PER_TYPE: usize = 16;
+const MAX_PER_KEY: usize = 16;
 
 pub fn set_enabled(on: bool) {
     ENABLED.store(on, Ordering::Relaxed);
@@ -54,19 +57,48 @@ thread_local! {
 
 /// An empty vector, with recycled capacity when one is available.
 #[must_use]
-#[expect(unsafe_code, reason = "reassembles a buffer stored by `give`")]
 pub fn take<T: 'static>() -> Vec<T> {
+    take_at::<T>(TypeId::of::<T>())
+}
+
+/// Returns a vector's buffer to this thread's pool (its elements are dropped first).
+pub fn give<T: 'static>(v: Vec<T>) {
+    give_at(TypeId::of::<T>(), v);
+}
+
+/// [`take`] from the buffers `K` gave back.
+#[must_use]
+pub fn take_keyed<K: 'static, T: 'static>() -> Vec<T> {
+    take_at::<T>(TypeId::of::<(K, T)>())
+}
+
+/// [`give`] to the buffers only `K` takes.
+pub fn give_keyed<K: 'static, T: 'static>(v: Vec<T>) {
+    give_at(TypeId::of::<(K, T)>(), v);
+}
+
+/// [`take_keyed`] as a `String`.
+#[must_use]
+pub fn take_string<K: 'static>() -> String {
+    // An empty buffer is always UTF-8.
+    String::from_utf8(take_keyed::<K, u8>()).unwrap_or_default()
+}
+
+/// [`give_keyed`] for a `String`.
+pub fn give_string<K: 'static>(s: String) {
+    give_keyed::<K, u8>(s.into_bytes());
+}
+
+/// `key` is `T`'s own or `(K, T)`'s: every buffer under it came from a `Vec<T>`.
+#[expect(unsafe_code, reason = "reassembles a buffer stored by `give_at`")]
+fn take_at<T: 'static>(key: TypeId) -> Vec<T> {
     if !enabled() || size_of::<T>() == 0 {
         return Vec::new();
     }
     POOL.try_with(|p| {
-        let raw = p
-            .borrow_mut()
-            .0
-            .get_mut(&TypeId::of::<T>())
-            .and_then(Vec::pop)?;
-        // SAFETY: stored by `give::<T>` from a `Vec<T>` with this capacity; length 0 is always
-        // valid.
+        let raw = p.borrow_mut().0.get_mut(&key).and_then(Vec::pop)?;
+        // SAFETY: stored by `give_at::<T>` under a key only `Vec<T>`s use, with this capacity;
+        // length 0 is always valid.
         Some(unsafe { Vec::from_raw_parts(raw.ptr.cast::<T>(), 0, raw.cap) })
     })
     .ok()
@@ -74,47 +106,37 @@ pub fn take<T: 'static>() -> Vec<T> {
     .unwrap_or_default()
 }
 
-/// Returns a vector's buffer to this thread's pool (its elements are dropped first).
-///
-/// # Panics
-///
-/// Never: `Layout::array` cannot fail for a capacity a live `Vec<T>` already holds.
 #[expect(
     unsafe_code,
     reason = "disassembles the vector so its buffer outlives it"
 )]
-pub fn give<T: 'static>(mut v: Vec<T>) {
+fn give_at<T: 'static>(key: TypeId, mut v: Vec<T>) {
     if !enabled() || v.capacity() == 0 || size_of::<T>() == 0 {
         return;
     }
     v.clear();
     let mut v = std::mem::ManuallyDrop::new(v);
-    let raw = Raw {
-        ptr: v.as_mut_ptr().cast(),
-        cap: v.capacity(),
-        layout: Layout::array::<T>(v.capacity()).expect("a live Vec's buffer has a valid layout"),
+    let (ptr, cap) = (v.as_mut_ptr(), v.capacity());
+    // A live `Vec<T>`'s buffer always has a valid array layout.
+    let Ok(layout) = Layout::array::<T>(cap) else {
+        unreachable!("a live Vec's buffer has a valid layout")
     };
     let kept = POOL.try_with(|p| {
         let mut p = p.borrow_mut();
-        let slot = p.0.entry(TypeId::of::<T>()).or_default();
-        if slot.len() < MAX_PER_TYPE {
-            #[expect(
-                clippy::unnecessary_struct_initialization,
-                reason = "`raw` is used after the closure, so it cannot be moved in"
-            )]
+        let slot = p.0.entry(key).or_default();
+        let room = slot.len() < MAX_PER_KEY;
+        if room {
             slot.push(Raw {
-                ptr: raw.ptr,
-                cap: raw.cap,
-                layout: raw.layout,
+                ptr: ptr.cast(),
+                cap,
+                layout,
             });
-            true
-        } else {
-            false
         }
+        room
     });
     if kept != Ok(true) {
         // SAFETY: reconstructs the vector we just disassembled, so it frees normally.
-        drop(unsafe { Vec::from_raw_parts(raw.ptr.cast::<T>(), 0, raw.cap) });
+        drop(unsafe { Vec::from_raw_parts(ptr, 0, cap) });
     }
 }
 
@@ -130,5 +152,19 @@ mod tests {
         let w: Vec<u64> = super::take();
         assert!(w.is_empty());
         assert_eq!(w.capacity(), cap);
+    }
+
+    #[test]
+    fn keyed_buffers_are_not_handed_to_other_owners() {
+        struct Owner;
+        super::set_enabled(true);
+        let mut v: Vec<u16> = super::take_keyed::<Owner, u16>();
+        v.extend(0..1000);
+        let cap = v.capacity();
+        super::give_keyed::<Owner, u16>(v);
+        let plain: Vec<u16> = super::take();
+        assert_ne!(plain.capacity(), cap);
+        let keyed: Vec<u16> = super::take_keyed::<Owner, u16>();
+        assert_eq!(keyed.capacity(), cap);
     }
 }
