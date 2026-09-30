@@ -14,8 +14,8 @@
 			"svue.compile/server"
 		]
 	},
-	"allocs": 2400356,
-	"alloc_bytes": 152519210,
+	"allocs": 2217059,
+	"alloc_bytes": 141440842,
 	"peak_live_growth_bytes": 35887845,
 	"phases": {
 		"js.parents": {
@@ -80,8 +80,8 @@
 		},
 		"svelte.parse": {
 			"calls": 17489,
-			"allocs": 411615,
-			"alloc_bytes": 26833777
+			"allocs": 228318,
+			"alloc_bytes": 15755409
 		},
 		"svelte.resolve": {
 			"calls": 5433,
@@ -170,9 +170,9 @@
 		}
 	},
 	"instructions": {
-		"arm64-linux": 2897739631
+		"arm64-linux": 2853755764
 	},
 	"load_instructions": {
-		"arm64-linux": 345683012
+		"arm64-linux": 345683029
 	}
 }

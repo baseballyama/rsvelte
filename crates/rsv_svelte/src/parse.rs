@@ -49,11 +49,13 @@ pub fn parse(src: &str) -> R<Component> {
             tokens: Tokens::with_capacity(src.len() / 4),
         },
         ts: false,
+        open: pool::take_keyed::<P<'static>, _>(),
     };
     // The script's language decides how template expressions parse, so read it first.
     p.ts = script_is_ts(src);
-    let root = p.fragment(End::Eof)?;
-    p.c.root = root;
+    let root = p.fragment(End::Eof);
+    pool::give_keyed::<P<'static>, _>(std::mem::take(&mut p.open));
+    p.c.root = root?;
     p.c.program = match &p.c.instance {
         Some(s) => s.program,
         None => p.c.js.program(&[], Span::new(0, 0)),
@@ -75,6 +77,9 @@ struct P<'a> {
     pos: usize,
     c: Component,
     ts: bool,
+    /// The children of the fragments being read, innermost last: a fragment's go to
+    /// [`Component::kids`] in one run when it closes.
+    open: Vec<TId>,
 }
 
 /// Ports upstream's `regex_lang_attribute` (1-parse/index.js): the first `<script …lang=…>` outside
@@ -171,20 +176,24 @@ impl<'a> P<'a> {
         (self.c.nodes.len() - 1) as TId
     }
 
-    fn range_of(v: &mut Vec<TId>, items: Vec<TId>) -> Range {
-        let start = v.len() as u32;
-        let len = items.len() as u32;
-        v.extend(items);
-        Range { start, len }
+    /// Moves the children gathered since `open` to [`Component::kids`].
+    fn close(&mut self, open: usize) -> Range {
+        let start = self.c.kids.len() as u32;
+        self.c.kids.extend_from_slice(&self.open[open..]);
+        self.open.truncate(open);
+        Range {
+            start,
+            len: self.c.kids.len() as u32 - start,
+        }
     }
 
     fn fragment(&mut self, end: End<'_>) -> R<Range> {
-        let mut items: Vec<TId> = Vec::new();
+        let open = self.open.len();
         loop {
             let rest = self.rest();
             if rest.is_empty() {
                 return match end {
-                    End::Eof => Ok(Self::range_of(&mut self.c.kids, items)),
+                    End::Eof => Ok(self.close(open)),
                     End::Tag(name) => self.err(format!("`<{name}>` was left open")),
                     End::Block => self.err("block was left open"),
                 };
@@ -193,38 +202,41 @@ impl<'a> P<'a> {
                 let End::Tag(_) = end else {
                     return self.err("unexpected closing tag");
                 };
-                return Ok(Self::range_of(&mut self.c.kids, items));
+                return Ok(self.close(open));
             }
             if rest.starts_with("{:") || rest.starts_with("{/") {
                 let End::Block = end else {
                     return self.err("unexpected block continuation");
                 };
-                return Ok(Self::range_of(&mut self.c.kids, items));
+                return Ok(self.close(open));
             }
-            if rest.starts_with("<!--") {
-                items.push(self.comment()?);
+            let child = if rest.starts_with("<!--") {
+                self.comment()?
             } else if rest.starts_with("<script") && matches!(end, End::Eof) {
                 self.script()?;
+                continue;
             } else if rest.starts_with("<style") && matches!(end, End::Eof) {
                 self.style()?;
+                continue;
             } else if rest.starts_with('<') {
-                items.push(self.element()?);
+                self.element()?
             } else if rest.starts_with("{#") {
-                items.push(self.block()?);
+                self.block()?
             } else if rest.starts_with('{') {
                 let lo = self.pos;
                 let expr = self.expression_tag()?;
                 let span = Span::new(lo as u32, self.pos as u32);
-                items.push(self.push(TNode::Expr { expr, span }));
+                self.push(TNode::Expr { expr, span })
             } else {
                 let lo = self.pos;
                 let len = rest.find(['<', '{']).unwrap_or(rest.len());
                 self.pos += len;
                 self.tok(Tk::Text, lo);
-                items.push(self.push(TNode::Text {
+                self.push(TNode::Text {
                     span: Span::new(lo as u32, self.pos as u32),
-                }));
-            }
+                })
+            };
+            self.open.push(child);
         }
     }
 
@@ -331,7 +343,7 @@ impl<'a> P<'a> {
 
     /// Reads attributes up to and including `>` or `/>`.
     fn attributes(&mut self) -> R<(Range, bool)> {
-        let mut list = Vec::new();
+        let start = self.c.attrs.len();
         loop {
             self.skip_ws();
             match self.peek() {
@@ -342,7 +354,7 @@ impl<'a> P<'a> {
                 }
                 Some(b'/') if self.rest().starts_with("/>") => {
                     self.eat_tok(Tk::SelfClose, 2);
-                    return Ok((self.attr_range(list), true));
+                    return Ok((self.attrs_since(start), true));
                 }
                 Some(b'{') => {
                     let lo = self.pos;
@@ -362,8 +374,10 @@ impl<'a> P<'a> {
                             );
                         }
                     };
-                    let parts = self.part_range(vec![Part::Expr { expr, span }]);
-                    list.push(Attr {
+                    let parts = self.c.parts.len();
+                    self.c.parts.push(Part::Expr { expr, span });
+                    let parts = self.parts_since(parts);
+                    self.c.attrs.push(Attr {
                         name,
                         value: AttrValue::Parts(parts),
                         span,
@@ -371,24 +385,30 @@ impl<'a> P<'a> {
                         shorthand: true,
                     });
                 }
-                Some(_) => list.push(self.attribute()?),
+                Some(_) => {
+                    let a = self.attribute()?;
+                    self.c.attrs.push(a);
+                }
             }
         }
-        Ok((self.attr_range(list), false))
+        Ok((self.attrs_since(start), false))
     }
 
-    fn attr_range(&mut self, list: Vec<Attr>) -> Range {
-        let start = self.c.attrs.len() as u32;
-        let len = list.len() as u32;
-        self.c.attrs.extend(list);
-        Range { start, len }
+    /// The attributes pushed since there were `start`: an element's are read in one run, since
+    /// nothing inside an attribute is an attribute.
+    const fn attrs_since(&self, start: usize) -> Range {
+        Range {
+            start: start as u32,
+            len: (self.c.attrs.len() - start) as u32,
+        }
     }
 
-    fn part_range(&mut self, list: Vec<Part>) -> Range {
-        let start = self.c.parts.len() as u32;
-        let len = list.len() as u32;
-        self.c.parts.extend(list);
-        Range { start, len }
+    /// The parts pushed since there were `start`: an attribute's are read in one run.
+    const fn parts_since(&self, start: usize) -> Range {
+        Range {
+            start: start as u32,
+            len: (self.c.parts.len() - start) as u32,
+        }
     }
 
     fn attribute(&mut self) -> R<Attr> {
@@ -419,28 +439,29 @@ impl<'a> P<'a> {
         self.eat_tok(Tk::Eq, 1);
         self.skip_ws();
         let quoted = matches!(self.peek(), Some(b'"' | b'\''));
-        let parts = match self.peek() {
+        let start = self.c.parts.len();
+        match self.peek() {
             Some(q @ (b'"' | b'\'')) => {
                 self.eat_tok(Tk::Quote, 1);
-                let mut parts = self.attribute_chunks(Some(q))?;
-                if parts.is_empty() {
-                    parts.push(Part::Text(Span::new(self.pos as u32, self.pos as u32)));
+                self.attribute_chunks(Some(q))?;
+                if self.c.parts.len() == start {
+                    let at = self.pos as u32;
+                    self.c.parts.push(Part::Text(Span::new(at, at)));
                 }
                 self.eat_tok(Tk::Quote, 1);
-                parts
             }
             Some(b'{') => {
                 let s = self.pos;
                 let expr = self.expression_tag()?;
-                vec![Part::Expr {
+                self.c.parts.push(Part::Expr {
                     expr,
                     span: Span::new(s as u32, self.pos as u32),
-                }]
+                });
             }
             Some(_) => self.attribute_chunks(None)?,
             None => return self.err("expected an attribute value"),
-        };
-        let parts = self.part_range(parts);
+        }
+        let parts = self.parts_since(start);
         Ok(Attr {
             name,
             value: AttrValue::Parts(parts),
@@ -452,8 +473,7 @@ impl<'a> P<'a> {
 
     /// Text and `{…}` chunks up to the closing quote (left unconsumed) or, unquoted, to
     /// whitespace/`>`.
-    fn attribute_chunks(&mut self, quote: Option<u8>) -> R<Vec<Part>> {
-        let mut parts = Vec::new();
+    fn attribute_chunks(&mut self, quote: Option<u8>) -> R<()> {
         let mut text_lo = self.pos;
         loop {
             let c = self.peek();
@@ -466,15 +486,16 @@ impl<'a> P<'a> {
             };
             if at_end || c == Some(b'{') {
                 if self.pos > text_lo {
-                    parts.push(Part::Text(Span::new(text_lo as u32, self.pos as u32)));
+                    let text = Part::Text(Span::new(text_lo as u32, self.pos as u32));
+                    self.c.parts.push(text);
                     self.tok(Tk::AttrText, text_lo);
                 }
                 if at_end {
-                    return Ok(parts);
+                    return Ok(());
                 }
                 let s = self.pos;
                 let expr = self.expression_tag()?;
-                parts.push(Part::Expr {
+                self.c.parts.push(Part::Expr {
                     expr,
                     span: Span::new(s as u32, self.pos as u32),
                 });
