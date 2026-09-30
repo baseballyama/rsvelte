@@ -76,13 +76,6 @@ const fn is_id_continue(b: u8) -> bool {
     is_id_start(b) || b.is_ascii_digit()
 }
 
-const OPS: &[&str] = &[
-    ">>>=", "...", "===", "!==", "**=", "<<=", ">>=", ">>>", "&&=", "||=", "??=", "=>", "==", "!=",
-    "<=", ">=", "&&", "||", "??", "?.", "++", "--", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=",
-    "<<", ">>", "**", "{", "}", "(", ")", "[", "]", ";", ",", "<", ">", "+", "-", "*", "/", "%",
-    "&", "|", "^", "!", "~", "?", ":", "=", ".", "@",
-];
-
 impl<'a> Lexer<'a> {
     #[must_use]
     pub const fn new(src: &'a str, start: usize, end: usize) -> Self {
@@ -191,36 +184,56 @@ impl<'a> Lexer<'a> {
             let tail = self.template_chars()?;
             return Ok(mk(T::Template { tail }, self.pos));
         }
-        for op in OPS {
-            if self.src[self.pos..self.end].starts_with(op.as_bytes()) {
-                // `?.` followed by a digit is a conditional with a decimal, not optional chaining.
-                if *op == "?." && self.peek(2).is_ascii_digit() {
-                    continue;
-                }
-                self.pos += op.len();
-                let t = match *op {
-                    "(" => T::LParen,
-                    ")" => T::RParen,
-                    "{" => T::LBrace,
-                    "}" => T::RBrace,
-                    "[" => T::LBracket,
-                    "]" => T::RBracket,
-                    ";" => T::Semi,
-                    "," => T::Comma,
-                    "." => T::Dot,
-                    "..." => T::Ellipsis,
-                    "?" => T::Question,
-                    "?." => T::QuestionDot,
-                    ":" => T::Colon,
-                    "=>" => T::Arrow,
-                    "@" => T::At,
-                    _ => T::Op,
-                };
-                return Ok(mk(t, self.pos));
-            }
+        if let Some((len, t)) = self.punct(b) {
+            self.pos += len;
+            return Ok(mk(t, self.pos));
         }
         self.pos += 1;
         self.err(format!("unexpected character `{}`", b as char), lo)
+    }
+
+    /// The longest punctuator at `pos`, whose first byte is `b`, and its kind; decided on the
+    /// bytes themselves, since a lexer that tries each operator in turn spends its time comparing.
+    fn punct(&self, b: u8) -> Option<(usize, T)> {
+        let (b1, b2, b3) = (self.peek(1), self.peek(2), self.peek(3));
+        // `x`, `x=`, and, for a doubling operator, `xx` and `xx=`.
+        let op = |doubles: bool| {
+            let len = if doubles && b1 == b {
+                if b2 == b'=' { 3 } else { 2 }
+            } else if b1 == b'=' {
+                2
+            } else {
+                1
+            };
+            (len, T::Op)
+        };
+        Some(match b {
+            b'(' => (1, T::LParen),
+            b')' => (1, T::RParen),
+            b'{' => (1, T::LBrace),
+            b'}' => (1, T::RBrace),
+            b'[' => (1, T::LBracket),
+            b']' => (1, T::RBracket),
+            b';' => (1, T::Semi),
+            b',' => (1, T::Comma),
+            b':' => (1, T::Colon),
+            b'@' => (1, T::At),
+            b'.' if b1 == b'.' && b2 == b'.' => (3, T::Ellipsis),
+            b'.' => (1, T::Dot),
+            b'?' if b1 == b'?' => (if b2 == b'=' { 3 } else { 2 }, T::Op),
+            // `?.` followed by a digit is a conditional with a decimal, not optional chaining.
+            b'?' if b1 == b'.' && !b2.is_ascii_digit() => (2, T::QuestionDot),
+            b'?' => (1, T::Question),
+            b'=' if b1 == b'>' => (2, T::Arrow),
+            b'=' | b'!' if b1 == b'=' => (if b2 == b'=' { 3 } else { 2 }, T::Op),
+            b'=' | b'!' | b'~' => (1, T::Op),
+            b'>' if b1 == b'>' && b2 == b'>' => (if b3 == b'=' { 4 } else { 3 }, T::Op),
+            b'&' | b'|' | b'*' | b'<' | b'>' => op(true),
+            // `++` and `--` take no `=`.
+            b'+' | b'-' if b1 == b => (2, T::Op),
+            b'+' | b'-' | b'/' | b'%' | b'^' => op(false),
+            _ => return None,
+        })
     }
 
     fn ident_tail(&mut self) -> R<()> {
@@ -439,4 +452,81 @@ pub fn decode_string(raw_body: &str) -> Option<String> {
         }
     }
     Some(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The operators, longest first: the table the dispatch in [`Lexer::punct`] replaces.
+    const OPS: &[&str] = &[
+        ">>>=", "...", "===", "!==", "**=", "<<=", ">>=", ">>>", "&&=", "||=", "??=", "=>", "==",
+        "!=", "<=", ">=", "&&", "||", "??", "?.", "++", "--", "+=", "-=", "*=", "/=", "%=", "&=",
+        "|=", "^=", "<<", ">>", "**", "{", "}", "(", ")", "[", "]", ";", ",", "<", ">", "+", "-",
+        "*", "/", "%", "&", "|", "^", "!", "~", "?", ":", "=", ".", "@",
+    ];
+
+    fn by_table(s: &[u8]) -> Option<(usize, T)> {
+        for op in OPS {
+            if s.starts_with(op.as_bytes()) {
+                if *op == "?." && s.get(2).is_some_and(u8::is_ascii_digit) {
+                    continue;
+                }
+                let t = match *op {
+                    "(" => T::LParen,
+                    ")" => T::RParen,
+                    "{" => T::LBrace,
+                    "}" => T::RBrace,
+                    "[" => T::LBracket,
+                    "]" => T::RBracket,
+                    ";" => T::Semi,
+                    "," => T::Comma,
+                    "." => T::Dot,
+                    "..." => T::Ellipsis,
+                    "?" => T::Question,
+                    "?." => T::QuestionDot,
+                    ":" => T::Colon,
+                    "=>" => T::Arrow,
+                    "@" => T::At,
+                    _ => T::Op,
+                };
+                return Some((op.len(), t));
+            }
+        }
+        None
+    }
+
+    /// Every string of up to four bytes over the operators' bytes, a digit, a letter and
+    /// whitespace: the dispatch agrees with the table on each.
+    #[test]
+    fn punctuators_are_the_longest_match_of_the_operator_table() {
+        fn all(s: &mut Vec<u8>, alphabet: &[u8], checked: &mut usize) {
+            if let Some(&b) = s.first() {
+                let src = std::str::from_utf8(s).expect("ASCII");
+                let got = Lexer::new(src, 0, src.len()).punct(b);
+                assert_eq!(got, by_table(s), "{src:?}");
+                *checked += 1;
+            }
+            if s.len() < 4 {
+                for &c in alphabet {
+                    s.push(c);
+                    all(s, alphabet, checked);
+                    s.pop();
+                }
+            }
+        }
+        let mut alphabet: Vec<u8> = OPS
+            .iter()
+            .flat_map(|o| o.bytes())
+            .chain(*b"0a \n")
+            .collect();
+        alphabet.sort_unstable();
+        alphabet.dedup();
+        let mut checked = 0;
+        all(&mut Vec::new(), &alphabet, &mut checked);
+        assert_eq!(
+            checked,
+            (1..=4).map(|n| alphabet.len().pow(n)).sum::<usize>()
+        );
+    }
 }
