@@ -58,6 +58,8 @@ pub enum Tag {
     FnDecl,
     Return,
     If,
+    /// `for (init; test; update) body`. Built by compilers; the parser does not read it yet.
+    For,
     Block,
     Empty,
     Import,
@@ -151,6 +153,13 @@ pub enum Kind<'a> {
         test: NodeId,
         cons: NodeId,
         alt: Option<NodeId>,
+    },
+    For {
+        /// A variable declaration or an expression.
+        init: Option<NodeId>,
+        test: Option<NodeId>,
+        update: Option<NodeId>,
+        body: NodeId,
     },
     Block(&'a [NodeId]),
     Empty,
@@ -274,6 +283,16 @@ pub struct Ast {
     pub type_refs: Vec<TypeRef>,
     /// The parser's stack of lists being gathered; empty between parses.
     pub(crate) scratch: Vec<NodeId>,
+}
+
+/// A position in an [`Ast`]'s side tables ([`Ast::mark`], [`Ast::rewind`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Mark {
+    tokens: usize,
+    comments: usize,
+    ts: usize,
+    ts_runtime: usize,
+    type_refs: usize,
 }
 
 /// One piece of erased TypeScript syntax, attached to the node it belongs to.
@@ -468,6 +487,12 @@ impl Ast {
                 cons: self.rec(a, 1),
                 alt: self.rec(a, 2).opt(),
             },
+            Tag::For => Kind::For {
+                init: self.rec(a, 0).opt(),
+                test: self.rec(a, 1).opt(),
+                update: self.rec(a, 2).opt(),
+                body: self.rec(a, 3),
+            },
             Tag::Block => Kind::Block(self.list_at(a)),
             Tag::Empty => Kind::Empty,
             Tag::Import => Kind::Import {
@@ -562,6 +587,7 @@ impl Ast {
     }
 
     /// Calls `f` on each direct child, in source order.
+    #[expect(clippy::too_many_lines, reason = "one arm per node kind")]
     pub fn for_each_child(&self, id: NodeId, mut f: impl FnMut(NodeId)) {
         let mut each = |ids: &[NodeId]| {
             ids.iter()
@@ -598,6 +624,17 @@ impl Ast {
             }
             Kind::Return(e) => each(&[e.unwrap_or(NodeId::NONE)]),
             Kind::If { test, cons, alt } => each(&[test, cons, alt.unwrap_or(NodeId::NONE)]),
+            Kind::For {
+                init,
+                test,
+                update,
+                body,
+            } => each(&[
+                init.unwrap_or(NodeId::NONE),
+                test.unwrap_or(NodeId::NONE),
+                update.unwrap_or(NodeId::NONE),
+                body,
+            ]),
             Kind::Import {
                 specifiers, source, ..
             } => {
@@ -655,6 +692,28 @@ impl Ast {
             | Kind::Empty
             | Kind::Hole => {}
         }
+    }
+
+    /// How far the side tables a parse appends to (tokens, comments, TypeScript syntax) reach now.
+    #[must_use]
+    pub const fn mark(&self) -> Mark {
+        Mark {
+            tokens: self.tokens.len(),
+            comments: self.comments.len(),
+            ts: self.ts.len(),
+            ts_runtime: self.ts_runtime.len(),
+            type_refs: self.type_refs.len(),
+        }
+    }
+
+    /// Drops what parses after `mark` recorded in the side tables, for an embedding language that
+    /// discards a parse and reads the region again. The nodes stay, unreachable from any root.
+    pub fn rewind(&mut self, mark: Mark) {
+        self.tokens.truncate(mark.tokens);
+        self.comments.truncate(mark.comments);
+        self.ts.truncate(mark.ts);
+        self.ts_runtime.truncate(mark.ts_runtime);
+        self.type_refs.truncate(mark.type_refs);
     }
 
     /// What the parser recorded since `tokens_from` tokens and `comments_from` comments, merged in
@@ -821,6 +880,24 @@ impl Ast {
     ) -> NodeId {
         let r = self.record(&[test, cons, alt.unwrap_or(NodeId::NONE)]);
         self.push(Tag::If, 0, [r, 0], loc)
+    }
+
+    pub fn for_(
+        &mut self,
+        init: Option<NodeId>,
+        test: Option<NodeId>,
+        update: Option<NodeId>,
+        body: NodeId,
+        loc: impl Into<Loc>,
+    ) -> NodeId {
+        let none = NodeId::NONE;
+        let r = self.record(&[
+            init.unwrap_or(none),
+            test.unwrap_or(none),
+            update.unwrap_or(none),
+            body,
+        ]);
+        self.push(Tag::For, 0, [r, 0], loc)
     }
 
     pub fn block(&mut self, body: &[NodeId], loc: impl Into<Loc>) -> NodeId {
