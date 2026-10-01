@@ -16,6 +16,7 @@ rsv_svelte = { path = "crates/rsv_svelte" }
 rsv_html = { path = "crates/rsv_html" }
 rsv_vue = { path = "crates/rsv_vue" }
 rsv_svue = { path = "crates/rsv_svue" }
+rsv_vuelte = { path = "crates/rsv_vuelte" }
 rayon = "1.12"
 rustc-hash = "2.1"
 libc = "0.2"

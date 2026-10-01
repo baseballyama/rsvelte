@@ -37,6 +37,7 @@ fn registry(svelte: &rsv_svelte::Config, vue: &rsv_vue::Config) -> Registry {
     rsv_svelte::register(&mut reg, svelte);
     rsv_vue::register(&mut reg, vue);
     rsv_svue::register(&mut reg);
+    rsv_vuelte::register(&mut reg);
     reg
 }
 

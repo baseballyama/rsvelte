@@ -19,6 +19,7 @@ rsv_js.workspace = true
 rsv_svelte.workspace = true
 rsv_vue.workspace = true
 rsv_svue.workspace = true
+rsv_vuelte.workspace = true
 rayon.workspace = true
 libc.workspace = true
 
