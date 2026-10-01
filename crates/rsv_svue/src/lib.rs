@@ -94,6 +94,7 @@ fn compile_input<'a>(ctx: &'a Ctx<'_>) -> Option<CompileInput<'a>> {
         style: sfc.styles.first().map(|s| &s.sheet),
         template_exprs: &view.template_exprs,
         src: ctx.src(),
+        preserve_whitespace: false,
     })
 }
 
