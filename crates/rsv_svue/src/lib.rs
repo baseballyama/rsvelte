@@ -88,20 +88,14 @@
 //!   `true-value` or `false-value`; two on one element; on anything but a ref or a variable, or on
 //!   a prop or a computed; a composition listener beside it.
 //!
-//! Waiting for the Svelte port (the translation is written, the construct it emits is not
-//! lowered yet):
-//! - `v-model` on the client, which runs as `{@attach}`.
-//! - Attributes falling through to a single-element root, which spread as `{...attrs}`.
-//! - Whitespace Svelte's `clean_nodes` would clean differently from Vue: text that opens or closes
-//!   a fragment with a space, a lone space in an element whose whitespace Svelte drops, two texts a
-//!   comment separates. These wait for `preserveWhitespace`.
+//! Waiting for the Svelte port's `preserveWhitespace` (Svelte's `clean_nodes` cleans Vue's
+//! condensed text again): text that opens or closes a fragment with a space, a lone space in an
+//! element whose whitespace Svelte drops, two texts a comment separates.
 //!
-//! The Svelte compiler then refuses what its own port does not lower (a dynamic `class`,
-//! `<select>`); the module is never written with an approximation.
+//! The Svelte compiler then refuses what its own port does not lower; the module is never written
+//! with an approximation.
 //!
 //! # Known differences the oracle cannot see
-//!
-//! They apply once the Svelte port lowers `{@attach}`, spreads and a dynamic `class`.
 //!
 //! - `v-model`'s `beforeUpdate`/`updated` hooks run when the bound value changes, not on every
 //!   render of the component.

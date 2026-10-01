@@ -310,10 +310,11 @@
 
 <div class="prose-learn">
 	<p>
-		導入したコミットでは、手書きの 12 ユニットのうち client で 4、server で 7 が一致し、残りは拒否で、不一致は 0 でした（73c8eea9c1）。client の
-		<code>v-model</code>（<code>{'{@attach}'}</code> で Vue の <code>vModelText</code> などを走らせる）とルートへの属性の引き継ぎ（<code
+		導入したコミットでは、手書きの 12 ユニットのうち client で 4、server で 7 が一致し、残りは拒否で、不一致は 0 でした（73c8eea9c1）。拒否はすべて、client の
+		<code>v-model</code>（<code>{'{@attach}'}</code> で Vue の <code>vModelText</code> などを走らせる）、ルートへの属性の引き継ぎ（<code
 			>{'{...attrs}'}</code
-		>）は翻訳を書いてあり、Svelte の移植がその構文を lower するまで拒否します。Vue の移植の側に足したのは <code>v-on</code>
+		>）、<code>&lt;select&gt;</code> のように、翻訳は書いてあって Svelte の移植がその構文を lower していないものでした。Svelte
+		の移植がそれらを lower するようになってからは、両ターゲットで 12 ユニットすべてが一致します。Vue の移植の側に足したのは <code>v-on</code>
 		の修飾子で、<code>vue.compile</code> も compiler-dom と同じく <code>withModifiers</code> と <code>withKeys</code>
 		で出力します。
 	</p>

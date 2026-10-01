@@ -83,7 +83,8 @@ svue のために移植に足したもの: `v-on` の修飾子。パースし、
 - 成果物: `Translated`、`Resolved`、`Analyzed`（ターゲットごと）。Vue プラグインの `Parsed`・`Lowered`・`Resolved` を読み、Svelte のコンパイラが読む `CompileInput`（runes のインスタンススクリプトと Svelte の HIR）を作る。lower は Svelte プラグインのもの（`rsv_svelte::tasks::compile`）なので、モジュールは `svelte/compiler` の出力の形になり、import は `svelte`、`svelte/*`、`vue`、`@vue/*` だけ。Svelte の lower を svue のために変えることはしない（どの lower も上流と突き合わせる、という規則のため）。Svelte プラグインに足したのは、フロントエンドが綴ったテキストを HIR に置く `hir::spelled_text` だけで、`svelte.compile` の出力はバイト一致のまま
 - タスク: `svue.behaviour/{client,server}`（言語 `vue` の文書）
 - Vue の意味を Svelte が持たないところは、Vue 自身の実装を呼ぶ形に翻訳する: 補間は `toDisplayString`、`v-for` は `renderList`、`Boolean` の prop は runtime-core の `resolvePropValue`、server の `v-model` は compiler-ssr の `ssrTransformModel` が出す属性。対応表と拒否の一覧はクレートの doc
-- 正確に再現できないものは `compile_unsupported` で拒否し、近似しない。client の `v-model`（`{@attach}` で Vue の `vModel*` を走らせる）、ルートへの属性の引き継ぎ（`{...attrs}`）、Svelte の空白の掃除が Vue と食い違うテキスト（`preserveWhitespace` 待ち）は、翻訳は書いてあり、Svelte の移植がその構文を lower するまで拒否する
+- client の `v-model` は `{@attach}` で Vue 自身の `vModelText` / `vModelCheckbox` / `vModelRadio` / `vModelSelect` を走らせ、単一要素のルートへの属性の引き継ぎは `{...attrs}` と `mergeProps` と同じ `class` の合成にする。どちらも Svelte プラグインが lower する構文（`exp/svelte-ext` の `{@attach}`・スプレッド・`<select>`）を出すだけで、Svelte の lower は変えていない
+- 正確に再現できないものは `compile_unsupported` で拒否し、近似しない。Svelte の空白の掃除（`clean_nodes`）が Vue の圧縮済みテキストと食い違う場合（断片の端の空白、空白を捨てる要素の中の空白だけのテキスト、コメントを挟んだ 2 つのテキスト）は、Svelte の移植に `preserveWhitespace` が入るまで拒否する
 
 ### vuelte
 
@@ -142,8 +143,8 @@ ctx.facet::<TsView>()（文書の言語の答え、文書パス）
 | `vue.lint/default` | eslint + eslint-plugin-vue（全ルール） | 同上 | 28/28 |
 | `vue.check/default` | vue-tsc 3.3.11 + typescript 6.0.3（rsvelte 側は tsc 7.0.2） | 同上 | 28/28。うち 2 件の指摘は TS 6 と 7 の版差なので、ガード付きの調整で記録した（§7 の 4） |
 | `ts.check/default` | ユニットごとに svelte-check か vue-tsc | 両方（40） | 40/40（同じ 2 件の調整） |
-| `svue.behaviour/client` / `server` | @vue/compiler-sfc + vue の DOM の trace（振る舞いのオラクル） | `fixtures/cross/rsvelte` の `.vue`（12） | client 4 一致・8 拒否、server 7 一致・5 拒否、不一致 0。拒否は Svelte の移植が `{@attach}`・スプレッド・動的な `class`・`<select>` を lower するのを待つもの |
-| `vuelte.behaviour/client` / `server` | svelte 5.57.1 の DOM の trace と SSR の HTML（fixtures.md §12） | `fixtures/cross/rsvelte` の `.svelte`（12） | 11/11（両ターゲット）。`semantics/fallthrough` は Svelte プラグインのパーサが spread 属性を拒否するので拒否（この行だけ vuelte を足したコミットの `parity.json` から数えた） |
+| `svue.behaviour/client` / `server` | @vue/compiler-sfc + vue の DOM の trace（振る舞いのオラクル） | `fixtures/cross/rsvelte` の `.vue`（12） | 12/12（両ターゲット）、拒否 0、不一致 0。`exp/svelte-ext` を取り込む前は client 4 一致・8 拒否、server 7 一致・5 拒否で、拒否はすべて Svelte の移植が `{@attach}`・スプレッド・`<select>` を lower するのを待つものだった |
+| `vuelte.behaviour/client` / `server` | svelte 5.57.1 の DOM の trace と SSR の HTML（fixtures.md §12） | `fixtures/cross/rsvelte` の `.svelte`（12） | 11/11（両ターゲット）。`semantics/fallthrough` は spread 属性を vuelte が拒否するので拒否（Svelte プラグインのパーサが spread を読むようになってからは、`rsv_vuelte` の `check_attribute` が `{@attach}`・`class:`・spread を拒否する）（この行だけ vuelte を足したコミットの `parity.json` から数えた） |
 
 Vue の射影は @vue/language-core の仮想コードと同じ形にしてある（`__VLS_ctx`、`__VLS_SetupExposed`、`__VLS_asFunctionalElement1`、`__VLS_vFor`）。型検査のメッセージには `'__VLS_ctx.maybe' is possibly 'undefined'` のように射影の名前と型がそのまま出るので、射影の形が違えば文字列は一致しない。
 

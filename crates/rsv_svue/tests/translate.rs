@@ -115,7 +115,7 @@ fn interpolation_goes_through_vue_display_rules() {
 
 #[test]
 fn a_boolean_prop_is_cast_as_runtime_core_does() {
-    // Two roots: nothing falls through, so no spread is needed.
+    // Two roots: nothing falls through.
     let src = "<script setup>\nconst props = defineProps({ flag: Boolean })\n</script>\n\
                <template><p>{{ String(props.flag) }}</p><p></p></template>\n";
     let [client, server] = both(src);
@@ -124,28 +124,31 @@ fn a_boolean_prop_is_cast_as_runtime_core_does() {
     }
 }
 
-/// What waits for the Svelte port to lower `{...attrs}` and `{@attach}`.
 #[test]
-fn spread_and_attach_are_refused_until_the_svelte_port_lowers_them() {
+fn fallthrough_spreads_and_client_v_model_attaches() {
     let fallthrough = "<script setup>\ndefineProps(['label'])\n</script>\n\
                        <template><span class=\"own\">{{ label }}</span></template>\n";
+    let [client, server] = both(fallthrough);
     assert!(
-        refusal(fallthrough).contains("attributes falling through to the root"),
-        "{fallthrough}"
+        client.contains("$.attribute_effect(span, ($0) => ({ ...$.get(attrs), class: $0 })"),
+        "{client}"
+    );
+    assert!(
+        client.contains("normalizeClass(['own', $.get(attrs).class])"),
+        "{client}"
+    );
+    assert!(
+        server.contains("$.attributes({ ...attrs(), class:"),
+        "{server}"
     );
     let model = "<script setup>\nimport { ref } from 'vue'\nconst t = ref('a')\n</script>\n\
                  <template><input v-model.trim=\"t\"><p></p></template>\n";
-    let (client, diagnostics) = compile(model, CLIENT);
-    assert_eq!(client, None);
+    let [client, server] = both(model);
     assert!(
-        diagnostics
-            .iter()
-            .any(|d| d.contains("`v-model` on the client")),
-        "{diagnostics:?}"
+        client.contains("$.attach(input, () => vmodel(vModelText,"),
+        "{client}"
     );
-    let server = compile(model, SERVER)
-        .0
-        .expect("the server renders the attribute");
+    assert!(client.contains("{ trim: true }"), "{client}");
     assert!(!server.contains("vModelText"), "{server}");
     assert!(server.contains("value"), "{server}");
 }
@@ -223,7 +226,7 @@ fn every_refusal_names_what_is_not_supported() {
             "the prop name `onClick`",
         ),
     ];
-    // Every case has two roots, so that nothing falls through and needs a spread.
+    // Every case has two roots, so that the fallthrough spread does not show in the output.
     for (src, want) in cases {
         let got = refusal(src);
         assert!(

@@ -749,7 +749,7 @@ impl T<'_, '_> {
             || class.len() > 1
             || class.iter().any(|&c| !matches!(self.to.kind(c), Kind::Str))
         {
-            self.dynamic_class(&mut attrs, &class, class_at, fallthrough, id)?;
+            self.dynamic_class(&mut attrs, &class, class_at, fallthrough, id);
         } else if let (Some(&c), Some((at, span, origin))) = (class.first(), class_at) {
             let v = self.to.str_value(c, src).into();
             attrs.insert(
@@ -803,7 +803,7 @@ impl T<'_, '_> {
         at: Option<(usize, Span, u32)>,
         fallthrough: Option<&str>,
         owner: SId,
-    ) -> R<()> {
+    ) {
         let normalize = |t: &mut Self, items: &[NodeId]| {
             let list = t.to.array(items, Loc::SYNTHETIC);
             let callee = t.helper(Helper::NormalizeClass);
@@ -817,6 +817,18 @@ impl T<'_, '_> {
         let value = match fallthrough {
             None => own,
             Some(a) => {
+                let spread = self.to.id(a);
+                let spread = self.root_expr(spread);
+                attrs.push(Attribute {
+                    name: svelte::Name::Spelled {
+                        text: "".into(),
+                        span: Span::default(),
+                    },
+                    value: AttrValue::Spread(spread),
+                    span: Span::default(),
+                    owner,
+                    origin: u32::MAX,
+                });
                 // runtime-core `mergeProps` merges the class only when the attributes carry one.
                 let key = self.to.str("class");
                 let o = self.to.id(a);
@@ -826,17 +838,11 @@ impl T<'_, '_> {
                 items.push(self.to.dot(o, "class"));
                 let merged = normalize(self, &items);
                 let otherwise = own.unwrap_or_else(|| self.to.id("undefined"));
-                let _merged_class = self.to.cond(has, merged, otherwise, Loc::SYNTHETIC);
-                // `{...attrs}` before that class waits for the Svelte port to lower spreads.
-                return Err(unsupported(
-                    "attributes falling through to the root (they spread as `{...attrs}`, which \
-                     the Svelte port does not lower yet)",
-                    at.map_or_else(Span::default, |(_, span, _)| span),
-                ));
+                Some(self.to.cond(has, merged, otherwise, Loc::SYNTHETIC))
             }
         };
         let Some(value) = value else {
-            return Ok(());
+            return;
         };
         let value = self.root_expr(value);
         let (index, span, origin) = match at {
@@ -860,7 +866,6 @@ impl T<'_, '_> {
                 origin,
             },
         );
-        Ok(())
     }
 
     /// runtime-dom `patchDOMProp` for a boolean property, and server-renderer's
@@ -1087,13 +1092,17 @@ impl T<'_, '_> {
             false,
             Loc::from(p.span),
         );
-        // The attachment `{@attach call}` waits for the Svelte port to lower `{@attach}`.
-        let _attachment = self.root_expr(call);
-        Err(unsupported(
-            "`v-model` on the client (it runs as `{@attach}`, which the Svelte port does not lower \
-             yet)",
-            p.span,
-        ))
+        let call = self.root_expr(call);
+        Ok(Some(Box::new(move |owner, p| Attribute {
+            name: svelte::Name::Spelled {
+                text: "".into(),
+                span: p.span,
+            },
+            value: AttrValue::Attach(call),
+            span: p.span,
+            owner,
+            origin: p.origin,
+        })))
     }
 
     #[expect(clippy::type_complexity, reason = "an attribute waiting for its owner")]
