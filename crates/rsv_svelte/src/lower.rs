@@ -17,7 +17,7 @@ use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::source::Span;
 use rustc_hash::FxHashMap;
 
-use crate::hir::{AttrValue, Attribute, Children, Hir, HirId, NodeKind};
+use crate::hir::{AttrValue, Attribute, Children, Element, Hir, HirId, NodeKind};
 use crate::resolve::{BindKind, Resolution};
 
 /// A component as the compiler reads it, whatever syntax it was written in.
@@ -595,6 +595,8 @@ const RUNES: &[&str] = &[
 /// Refuses a `$name` reference that upstream's analysis turns into a store subscription (its
 /// synthetic `store_sub` bindings); this port has no store support.
 ///
+/// Also refuses `$$slots`, which upstream declares from `$.sanitize_slots`.
+///
 /// # Errors
 ///
 /// An `unsupported` [`Diagnostic`] at the first such reference.
@@ -609,6 +611,16 @@ pub fn check_stores(
             continue;
         }
         let name = js.name(r.node);
+        if name == "$$slots" {
+            let Some(span) = js.loc(r.node).span() else {
+                unreachable!("a reference is parsed from source")
+            };
+            return Err(Diagnostic::error(
+                "unsupported",
+                "`$$slots` is not supported yet",
+                span,
+            ));
+        }
         let Some(store) = name.strip_prefix('$') else {
             continue;
         };
@@ -638,6 +650,58 @@ pub fn check_stores(
                 span,
             ));
         }
+    }
+    Ok(())
+}
+
+/// Refuses a rune call this port does not lower, and on the server an `$effect` that is not a
+/// statement of its own (upstream only drops it as an `ExpressionStatement`).
+///
+/// # Errors
+///
+/// An `unsupported` [`Diagnostic`] at the first such call.
+pub fn check_runes(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    target: Target,
+) -> Result<(), Diagnostic> {
+    fn walk(
+        js: &Ast,
+        res: &Resolution,
+        target: Target,
+        e: NodeId,
+        statement: bool,
+    ) -> Result<(), Diagnostic> {
+        if let Some(rune) = get_rune(js, res, e) {
+            let supported = match rune.as_str() {
+                "$state" | "$state.raw" | "$derived" | "$derived.by" | "$props" | "$bindable" => {
+                    true
+                }
+                "$effect" | "$effect.pre" => statement || target == Target::Client,
+                _ => false,
+            };
+            if !supported {
+                let Some(span) = js.loc(e).span() else {
+                    unreachable!("a rune call is parsed from source")
+                };
+                return Err(Diagnostic::error(
+                    "unsupported",
+                    format!("`{rune}` is not supported yet"),
+                    span,
+                ));
+            }
+        }
+        let mut kids = Vec::new();
+        js.for_each_child(e, |c| kids.push(c));
+        let stmt = matches!(js.kind(e), Kind::ExprStmt(_));
+        for c in kids {
+            walk(js, res, target, c, stmt)?;
+        }
+        Ok(())
+    }
+    walk(input.js, res, target, input.program, false)?;
+    for &e in input.template_exprs {
+        walk(input.js, res, target, e, false)?;
     }
     Ok(())
 }
@@ -696,12 +760,18 @@ fn import_source<'a>(
 /// Upstream `binding_properties` that this port lowers, by element.
 ///
 /// `bind:value` on `<input>` (not a checkbox, radio or file input) and `bind:checked` on a
-/// checkbox, with the `type` written as static text.
+/// checkbox, with the `type` written as static text; `bind:value` on a `<select>` whose
+/// `multiple` is static.
 #[must_use]
 pub fn supported_binding(src: &str, tag: &str, attrs: &[Attribute], property: &str) -> bool {
-    if tag != "input" {
+    if tag != "input" && tag != "select" {
         return false;
     }
+    // Upstream rejects a `multiple` that is not static on a bound `<select>`.
+    let static_multiple = attrs.iter().all(|a| {
+        a.name.text(src) != "multiple"
+            || matches!(a.value, AttrValue::Boolean | AttrValue::Static(_))
+    });
     let mut ty = Some("text");
     for a in attrs {
         if a.name.text(src) == "type" && !matches!(a.value, AttrValue::Bind(_)) {
@@ -712,8 +782,9 @@ pub fn supported_binding(src: &str, tag: &str, attrs: &[Attribute], property: &s
         }
     }
     match (property, ty) {
-        ("value", Some(t)) => !matches!(t, "checkbox" | "radio" | "file"),
-        ("checked", Some(t)) => t == "checkbox",
+        ("value", Some(t)) if tag == "input" => !matches!(t, "checkbox" | "radio" | "file"),
+        ("value", _) => tag == "select" && static_multiple,
+        ("checked", Some(t)) => tag == "input" && t == "checkbox",
         _ => false,
     }
 }
@@ -723,6 +794,113 @@ pub fn supported_binding(src: &str, tag: &str, attrs: &[Attribute], property: &s
 pub fn event_attribute(src: &str, a: &Attribute) -> Option<NodeId> {
     let expr = single_expression(&a.value)?;
     a.name.text(src).starts_with("on").then_some(expr)
+}
+
+/// Upstream's `needs_clsx` for a `class={expression}` written unquoted: anything but a literal, a
+/// template literal or a binary expression may be an object or an array.
+#[must_use]
+pub fn needs_clsx(js: &Ast, e: NodeId) -> bool {
+    !matches!(
+        js.kind(e),
+        Kind::Str
+            | Kind::Num(_)
+            | Kind::Bool(_)
+            | Kind::Null
+            | Kind::Template { .. }
+            | Kind::Binary(..)
+    )
+}
+
+/// A directive, a spread or an `{@attach}`: not an attribute with a name of its own.
+#[must_use]
+pub const fn is_directive(v: &AttrValue) -> bool {
+    matches!(
+        v,
+        AttrValue::Bind(_) | AttrValue::Attach(_) | AttrValue::Class(_) | AttrValue::Spread(_)
+    )
+}
+
+/// Upstream analysis' `synthetic_value_node`: an `<option>` without a `value` attribute whose
+/// only child is an expression tag takes that expression as its value.
+#[must_use]
+pub fn synthetic_value(hir: &Hir, src: &str, tag: &str, el: &Element) -> Option<NodeId> {
+    if tag != "option"
+        || hir
+            .attrs(el.attrs)
+            .iter()
+            .any(|a| !is_directive(&a.value) && a.name.text(src) == "value")
+    {
+        return None;
+    }
+    match hir.children(el.children) {
+        &[only] => match hir.node(only).kind {
+            NodeKind::Expr { expr } => Some(expr),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Upstream `is_customizable_select_element`: a `<select>`, `<optgroup>` or `<option>` holding
+/// more than plain options and text.
+#[must_use]
+pub fn is_customizable_select(hir: &Hir, src: &str, tag: &str, el: &Element) -> bool {
+    fn descendants(hir: &Hir, src: &str, list: Children, out: &mut Vec<HirId>) {
+        for &id in hir.children(list) {
+            match &hir.node(id).kind {
+                NodeKind::Comment { .. } | NodeKind::Expr { .. } => {}
+                NodeKind::Text { raw, decoded } => {
+                    let data = decoded.as_deref().unwrap_or_else(|| raw.text(src));
+                    if !data.trim().is_empty() {
+                        out.push(id);
+                    }
+                }
+                NodeKind::If {
+                    branches,
+                    otherwise,
+                } => {
+                    for b in hir.branches(*branches) {
+                        descendants(hir, src, b.body, out);
+                    }
+                    if let Some(o) = otherwise {
+                        descendants(hir, src, *o, out);
+                    }
+                }
+                NodeKind::Each(each) => {
+                    descendants(hir, src, each.body, out);
+                    if let Some(f) = each.fallback {
+                        descendants(hir, src, f, out);
+                    }
+                }
+                NodeKind::Element(_) => out.push(id),
+            }
+        }
+    }
+    if !matches!(tag, "select" | "optgroup" | "option") {
+        return false;
+    }
+    let mut found = Vec::new();
+    descendants(hir, src, el.children, &mut found);
+    found.iter().any(|&id| match &hir.node(id).kind {
+        NodeKind::Element(child) => {
+            let name = child.name.text(src);
+            match tag {
+                "select" => name != "option" && name != "optgroup",
+                "optgroup" => name != "option",
+                _ => true,
+            }
+        }
+        _ => tag != "option",
+    })
+}
+
+/// Upstream `is_load_error_element`.
+#[must_use]
+pub fn is_load_error_element(name: &str) -> bool {
+    matches!(
+        name,
+        "body" | "embed" | "iframe" | "img" | "link" | "object" | "script" | "style" | "track"
+    )
 }
 
 /// The expression of a value written as exactly one `{expression}`.
