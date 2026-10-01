@@ -62,7 +62,7 @@ Svelte と Vue の両方が使う。
 - タスク: `vue.compile/default`（compiler-core と compileScript の移植）、`vue.format/default`（prettier の HTML プリンタの移植）、`vue.lint/default`（`no-unused-vars`、`vue/no-unused-vars`、`vue/multi-word-component-names`、`vue/html-button-has-type`）、プロジェクトタスク `vue.check/default`
 - JS の解析・整形・`no-unused-vars`・`tsc` バックエンドと CSS は、Svelte と同じ `rsv_js` / `rsv_css` を使う
 
-vuelte のために移植に足したもの（どれも compiler-sfc 3.5.43 の出力を期待値にした単体テストつき。足す前後で `fixtures/vue` の `vue.compile` の出力はバイト一致した）: `defineOptions`（`processDefineOptions` と `checkInvalidScopeReference` の拒否、TS なしは `Object.assign(options, {…})`、TS ありは `defineComponent({ ...options, … })`）、`<pre>`（HIR が持つテキストをそのまま使う）、関数の `:ref`（`v-for` の中では `ref_for: true`、`NEED_PATCH`）。静的な `ref` と `:class` / `:style` は引き続き拒否する。
+vuelte のために移植に足したもの（どれも compiler-sfc 3.5.43 の出力を期待値にした単体テストつき。足す前後で `fixtures/vue` の `vue.compile` の出力はバイト一致した）: `defineOptions`（`processDefineOptions` と `checkInvalidScopeReference` の拒否、TS なしは `Object.assign(options, {…})`、TS ありは `defineComponent({ ...options, … })`）、`<pre>`（HIR が持つテキストをそのまま使う）、関数の `:ref`（`v-for` の中では `ref_for: true`、`NEED_PATCH`）、オブジェクトの `v-bind`（compiler-core と同じく、単独なら `normalizeProps(guardReactiveProps(obj))`、`v-for` の中では `mergeProps({ key }, { ref_for: true }, obj)`、`v-if` の枝で key を足すときは `normalizeProps(mergeProps({ key }, obj))`、`FULL_PROPS`。`.vue` のパーサは引数の無い `v-bind` をまだ拒否するので、到達するのは vuelte が組む HIR からだけ）。静的な `ref` と `:class` / `:style` は引き続き拒否する。
 
 2 つ目の言語のためにカーネルと `rsv_js` に足したもの（`573ac584b6`、`a15cdcda04`）: ホストが開くスコープ（Vue の `v-for`）、ホストが渡す `no-unused-vars` の判定対象、終端を持たない診断、SHA-256、ファセット。どれも Vue に固有ではない。
 
@@ -84,7 +84,7 @@ vuelte のために移植に足したもの（どれも compiler-sfc 3.5.43 の�
 
 - スクリプトは `rsv_js::copy` の `Rewrite` で Vue の `<script setup>` に写す（`$state` → `ref`、`$derived` → `computed`、`$props()` → `defineProps` と `$$props.<key>`、`onMount` → `onMounted`、全コンポーネントに `defineOptions({ inheritAttrs: false })`）。テンプレートは Svelte の HIR を `clean_nodes` の後で読み、Vue の `HirBuilder` で Vue の HIR を組む。
 - client と server で翻訳を分ける。Svelte の 2 つのランタイムは、Vue のランタイムが同じに扱うところで違うため（client の束縛は要素への effect、server の束縛はマークアップ）。client の effect は要素の関数 ref に置く。Vue は要素の patch のたびに要素を、アンマウントで `null` を渡して呼ぶので、Svelte の render effect と `bind:this` が走る時点と同じになる。Vue が `value` / `checked` を属性としても書く（3.4 以降）ので、client はそれらを props に置かない。
-- Svelte のランタイムの判断のうち Vue と違うもの（`set_text` の `?? ''`、`set_attribute` / `attr`、`clsx` と `to_class`、`set_value`、`select_option`、`each` / `ensure_array_like`）は、Svelte 5.57 のランタイム関数を到達する場合に絞った JS のヘルパー（`helpers.rs`）として出力に入れる。`class` は大文字のキー `:CLASS` で束縛する。Vue の client と SSR の両方がキーを小文字にして属性に書き、`null` で属性を外すので、Vue の `class` の正規化を通らずに Svelte と同じ DOM になる。
+- Svelte のランタイムの判断のうち Vue と違うもの（`set_text` の `?? ''`、`set_attribute` / `attr`、`clsx` と `to_class`、`set_value`、`select_option`、`each` / `ensure_array_like`）は、Svelte 5.57 のランタイム関数を到達する場合に絞った JS のヘルパー（`helpers.rs`）として出力に入れる。`class` は大文字のキー `:CLASS` で束縛する。Vue の client と SSR の両方がキーを小文字にして属性に書き、`null` で属性を外すので、Vue の `class` の正規化を通らずに Svelte と同じ DOM になる。`class:` 指令は client が `set_class`、server が `to_class` の移植。spread を持つ要素は全属性を 1 つのオブジェクトにして、client は `set_attributes`、server は `attributes` の移植に渡す（server は Vue のオブジェクトの `v-bind` で出し、キーの `^` 接頭辞で Vue の SSR の属性フィルタを外す）。`let { ...rest } = $props()` は `useAttrs()`。`{@attach}` は拒否する（Svelte は読んだものを追跡する effect として走らせ、変われば片付けて走らせ直すが、Vue の関数 ref は patch のたびに呼ばれ、自分では何も追跡しない）。
 - 写せない構文は、出力を作る前に `vuelte_unsupported` で拒否する。拒否の一覧と対応表は `crates/rsv_vuelte/src/lib.rs` の冒頭にある。近似は書かない。
 - オラクルは振る舞い（[fixtures.md](fixtures.md) §12）。結果は §4。
 
@@ -136,7 +136,7 @@ ctx.facet::<TsView>()（文書の言語の答え、文書パス）
 | `vue.check/default` | vue-tsc 3.3.11 + typescript 6.0.3（rsvelte 側は tsc 7.0.2） | 同上 | 27/27。うち 2 件の指摘は TS 6 と 7 の版差なので、ガード付きの調整で記録した（§7 の 4） |
 | `ts.check/default` | ユニットごとに svelte-check か vue-tsc | 両方（40） | 40/40（同じ 2 件の調整） |
 | `svue.compile/client` / `server` | `.svue` を Svelte の構文に書き直して svelte 5.57.1 | `fixtures/svue/rsvelte`（5） | 5/5 |
-| `vuelte.behaviour/client` / `server` | svelte 5.57.1 の DOM の trace と SSR の HTML（fixtures.md §12） | `fixtures/cross/rsvelte` の `.svelte`（12） | 11/11（両ターゲット）。`semantics/fallthrough` は Svelte プラグインのパーサが spread 属性を拒否するので拒否（この行だけ vuelte を足したコミットの `parity.json` から数えた） |
+| `vuelte.behaviour/client` / `server` | svelte 5.57.1 の DOM の trace と SSR の HTML（fixtures.md §12） | `fixtures/cross/rsvelte` の `.svelte`（12） | 12/12（両ターゲット。`semantics/fallthrough` は spread を写して match。この行は spread に対応したコミット `6b5621c994` の `parity.json` から数えた） |
 
 Vue の射影は @vue/language-core の仮想コードと同じ形にしてある（`__VLS_ctx`、`__VLS_SetupExposed`、`__VLS_asFunctionalElement1`、`__VLS_vFor`）。型検査のメッセージには `'__VLS_ctx.maybe' is possibly 'undefined'` のように射影の名前と型がそのまま出るので、射影の形が違えば文字列は一致しない。
 

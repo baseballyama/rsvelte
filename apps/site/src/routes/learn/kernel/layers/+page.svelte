@@ -353,17 +353,26 @@
 		</li>
 		<li>要素の間の空白: Svelte の <code>clean_nodes</code> が残したテキストを Vue の HIR に入れます。Vue の空白の畳み込みは HIR を作った後には走りません。</li>
 		<li>渡されなかった prop: <code>defineProps</code> に <code>type</code> を書かないので、Vue の Boolean への変換が起きません。</li>
-		<li>宣言していない属性: すべてのコンポーネントに <code>defineOptions({'{ inheritAttrs: false }'})</code> を付けます。</li>
+		<li>
+			宣言していない属性: すべてのコンポーネントに <code>defineOptions({'{ inheritAttrs: false }'})</code> を付けます。<code
+				>{'let { ...rest } = $props()'}</code
+			> は <code>useAttrs()</code> に写し、spread を持つ要素は全属性を 1 つのオブジェクトにして、Svelte の
+			<code>set_attributes</code>（client）と <code>attributes</code>（server）を移植したヘルパーに渡します。
+		</li>
 		<li>数値の入力欄の <code>bind:value</code>: 意味を写せないので拒否します。</li>
 	</ul>
 </div>
 
 <div class="prose-learn">
 	<p>
-		写せない構文は、それらしく変換せずに出力の前に拒否します。導入したコミットでは、手書きの 12 ユニットのうち 11 で client と server
-		の両方が一致し、残る 1 つ（spread 属性）は拒否しました。Svelte のコーパスでは client 673 件・server 674 件を出力し、panic は 0
-		件でした（24c6e6a123）。Vue の移植の側に足したのは、<code>defineOptions</code>、<code>&lt;pre&gt;</code>、関数の
-		<code>:ref</code> の三つで、足す前後で Vue のフィクスチャのコンパイル出力はバイト一致しています。
+		写せない構文は、それらしく変換せずに出力の前に拒否します。導入したコミット（24c6e6a123）では手書きの 12 ユニットのうち 11 で
+		client と server の両方が一致し、spread 属性の 1 つは拒否していました。spread に対応した後（6b5621c994）は 12 すべてが一致し、Svelte
+		のコーパスでは client 685 件・server 686 件を出力して panic は 0 件です。出力はどれも、公式の Svelte と並べてマウント時点の
+		trace が一致しました（両方が同じ例外を投げるものを含む）。<code>{'{@attach}'}</code> は拒否します。Svelte
+		は読んだものを追跡する effect として走らせますが、Vue の関数 ref は自分では何も追跡しないからです。Vue の移植の側に足したのは、<code
+			>defineOptions</code
+		>、<code>&lt;pre&gt;</code>、関数の <code>:ref</code>、オブジェクトの <code>v-bind</code> の四つで、足す前後で Vue
+		のフィクスチャのコンパイル出力は変わっていません。
 	</p>
 
 	<H2 id="lint" />
