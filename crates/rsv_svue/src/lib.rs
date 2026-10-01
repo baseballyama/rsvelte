@@ -136,6 +136,7 @@ impl Translation {
             style: None,
             template_exprs: &self.template_exprs,
             src,
+            preserve_whitespace: false,
         }
     }
 }

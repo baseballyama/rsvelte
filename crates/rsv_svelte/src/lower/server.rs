@@ -53,7 +53,7 @@ struct Sx<'a> {
     out: Ast,
     names: Names,
     each_index: FxHashMap<HirId, String>,
-    /// Upstream `state.preserve_whitespace`: inside `<pre>` or `<textarea>`.
+    /// Upstream `state.preserve_whitespace`: the option, or inside `<pre>` or `<textarea>`.
     preserve_ws: bool,
 }
 
@@ -78,7 +78,7 @@ pub fn lower(input: &CompileInput<'_>, res: &Resolution, an: &Analysis) -> R<(As
         out: Ast::new(),
         names,
         each_index,
-        preserve_ws: false,
+        preserve_ws: input.preserve_whitespace,
     };
     let mut hoisted = Vec::new();
     let mut rw = ScriptRewrite {

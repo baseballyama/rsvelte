@@ -251,7 +251,7 @@ struct Cx<'a> {
     each_index: FxHashMap<HirId, String>,
     /// Where names in lowered expressions resolve: the innermost `{#each}` scope.
     scope: ScopeId,
-    /// Upstream `state.preserve_whitespace`: inside `<pre>` or `<textarea>`.
+    /// Upstream `state.preserve_whitespace`: the option, or inside `<pre>` or `<textarea>`.
     preserve_ws: bool,
 }
 
@@ -279,7 +279,7 @@ pub fn lower(input: &CompileInput<'_>, res: &Resolution, an: &Analysis) -> R<(As
         each: FxHashMap::default(),
         each_index: FxHashMap::default(),
         scope: ScopeId::ROOT,
-        preserve_ws: false,
+        preserve_ws: input.preserve_whitespace,
     };
     cx.each_index = each_index_names(input.hir, &mut cx.names);
     let mut rw = ScriptRewrite {
