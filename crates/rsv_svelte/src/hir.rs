@@ -76,6 +76,9 @@ pub enum NodeKind {
         raw: Span,
         /// Present only when decoding changed the text.
         decoded: Option<Box<str>>,
+        /// The frontend spelled `decoded` itself (Vue's condensed text): `raw` is only where it
+        /// came from, and the markup is `decoded` escaped.
+        spelled: bool,
     },
     Comment {
         data: Span,
@@ -294,7 +297,7 @@ impl NodeKind {
     #[must_use]
     pub fn text<'a>(&'a self, src: &'a str) -> Option<&'a str> {
         match self {
-            Self::Text { raw, decoded } => {
+            Self::Text { raw, decoded, .. } => {
                 Some(decoded.as_deref().unwrap_or_else(|| raw.text(src)))
             }
             _ => None,
@@ -574,6 +577,17 @@ pub fn text(raw: Span, src: &str) -> NodeKind {
             std::borrow::Cow::Borrowed(_) => None,
             std::borrow::Cow::Owned(s) => Some(s.into_boxed_str()),
         },
+        spelled: false,
+    }
+}
+
+/// A text node whose text a frontend spelled; `from` is where it was written.
+#[must_use]
+pub const fn spelled_text(from: Span, text: Box<str>) -> NodeKind {
+    NodeKind::Text {
+        raw: from,
+        decoded: Some(text),
+        spelled: true,
     }
 }
 

@@ -89,11 +89,20 @@ pub fn clean_nodes<'a>(
     for &id in list {
         match &hir.node(id).kind {
             NodeKind::Comment { .. } => {}
-            NodeKind::Text { raw, decoded } => {
+            NodeKind::Text {
+                raw,
+                decoded,
+                spelled,
+            } => {
                 let raw = raw.text(src);
+                let data = decoded.as_deref().unwrap_or(raw);
                 regular.push(Item::Text {
-                    data: Cow::Borrowed(decoded.as_deref().unwrap_or(raw)),
-                    raw: Cow::Borrowed(raw),
+                    data: Cow::Borrowed(data),
+                    raw: if *spelled {
+                        escape_html(data, false)
+                    } else {
+                        Cow::Borrowed(raw)
+                    },
                 });
             }
             NodeKind::Expr { expr } => regular.push(Item::Expr(*expr)),
