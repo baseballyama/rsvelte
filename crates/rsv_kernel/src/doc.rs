@@ -24,6 +24,13 @@ pub use width::string_width;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct DocId(u32);
 
+impl DocId {
+    #[must_use]
+    pub const fn index(self) -> u32 {
+        self.0
+    }
+}
+
 /// Names a group so that [`Docs::if_break_of`] and [`Docs::indent_if_break`] can follow its mode.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct GroupId(NonZeroU32);
@@ -114,6 +121,44 @@ impl Default for PrintOptions {
 /// A [`Docs::flat_only`] layout did not fit on its line.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Refused;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum TraceMode {
+    Flat,
+    Break,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum GroupDecision {
+    Fits,
+    DoesNotFit,
+    Broken,
+    ParentFlat,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum TraceEvent {
+    Group {
+        doc: DocId,
+        pos: usize,
+        remaining: isize,
+        mode: TraceMode,
+        decision: GroupDecision,
+    },
+    Fill {
+        doc: DocId,
+        pos: usize,
+        content_fits: bool,
+        separator_fits: Option<bool>,
+    },
+    Refused {
+        doc: DocId,
+        pos: usize,
+    },
+    Remeasure {
+        pos: usize,
+    },
+}
 
 /// The arena's columns come from the thread's [`pool`], under this type's key, and go back to it in
 /// the reverse order.
@@ -501,10 +546,34 @@ impl Docs {
     /// # Errors
     ///
     /// [`Refused`] when a [`Docs::flat_only`] document does not fit in the remaining width.
-    pub fn print(&mut self, root: DocId, opts: &PrintOptions) -> Result<String, Refused> {
+    pub fn print(&self, root: DocId, opts: &PrintOptions) -> Result<String, Refused> {
+        let mut trace = Vec::new();
+        self.print_inner::<false>(root, opts, &mut trace)
+    }
+
+    /// Prints through the same implementation as [`Docs::print`] and records each layout choice.
+    ///
+    /// # Errors
+    ///
+    /// [`Refused`] when a [`Docs::flat_only`] document does not fit in the remaining width.
+    pub fn print_with_trace(
+        &self,
+        root: DocId,
+        opts: &PrintOptions,
+        trace: &mut Vec<TraceEvent>,
+    ) -> Result<String, Refused> {
+        self.print_inner::<true>(root, opts, trace)
+    }
+
+    fn print_inner<const TRACE: bool>(
+        &self,
+        root: DocId,
+        opts: &PrintOptions,
+        trace: &mut Vec<TraceEvent>,
+    ) -> Result<String, Refused> {
         let mut group_modes = pool::take();
         group_modes.resize(self.groups as usize + 1, None);
-        let mut p = Printer {
+        let mut p = Printer::<TRACE> {
             docs: self,
             opts,
             // The text is a lower bound of the output.
@@ -514,6 +583,7 @@ impl Docs {
             scratch: pool::take(),
             remeasure: false,
             refused: false,
+            trace,
         };
         let mut stack = pool::take();
         p.run(root, &mut stack);
@@ -544,7 +614,7 @@ enum Item {
 
 type Cmd = (u32, Mode, Item);
 
-struct Printer<'a> {
+struct Printer<'a, const TRACE: bool> {
     docs: &'a Docs,
     opts: &'a PrintOptions,
     out: String,
@@ -555,9 +625,16 @@ struct Printer<'a> {
     /// Prettier's `shouldRemeasure`: a hard line was printed in flat mode.
     remeasure: bool,
     refused: bool,
+    trace: &'a mut Vec<TraceEvent>,
 }
 
-impl Printer<'_> {
+impl<const TRACE: bool> Printer<'_, TRACE> {
+    fn trace(&mut self, event: TraceEvent) {
+        if TRACE {
+            self.trace.push(event);
+        }
+    }
+
     fn newline(&mut self, ind: u32) {
         while self.out.ends_with([' ', '\t']) {
             self.out.pop();
@@ -616,7 +693,10 @@ impl Printer<'_> {
                                 continue;
                             }
                             LineKind::Soft => continue,
-                            LineKind::Hard | LineKind::Literal => self.remeasure = true,
+                            LineKind::Hard | LineKind::Literal => {
+                                self.remeasure = true;
+                                self.trace(TraceEvent::Remeasure { pos: self.pos });
+                            }
                         }
                     }
                     if kind == LineKind::Literal {
@@ -651,6 +731,10 @@ impl Printer<'_> {
                     {
                         // The caller gets `Refused`, not the text: stop here.
                         self.refused = true;
+                        self.trace(TraceEvent::Refused {
+                            doc: id,
+                            pos: self.pos,
+                        });
                         return;
                     }
                     stack.push((ind, Mode::Flat, Item::Doc(d)));
@@ -661,19 +745,17 @@ impl Printer<'_> {
                     id: gid,
                     ..
                 } => {
-                    // Prettier's `propagateBreaks`, done as the document was built.
-                    let brk = self.docs.will_break(id);
-                    let next = if mode == Mode::Flat && !self.remeasure {
-                        if brk { Mode::Break } else { Mode::Flat }
-                    } else {
-                        self.remeasure = false;
-                        let flat = [(ind, Mode::Flat, Item::Doc(id))];
-                        if !brk && self.fits(&flat, stack, self.rem(), false) {
-                            Mode::Flat
-                        } else {
-                            Mode::Break
-                        }
-                    };
+                    let (next, decision) = self.choose_group(id, ind, mode, stack);
+                    self.trace(TraceEvent::Group {
+                        doc: id,
+                        pos: self.pos,
+                        remaining: self.rem(),
+                        mode: match next {
+                            Mode::Flat => TraceMode::Flat,
+                            Mode::Break => TraceMode::Break,
+                        },
+                        decision,
+                    });
                     if let Some(g) = gid {
                         self.group_modes[g.0.get() as usize] = Some(next);
                     }
@@ -681,6 +763,33 @@ impl Printer<'_> {
                     stack.extend(kids.iter().rev().map(|&k| (ind, next, Item::Doc(k))));
                 }
                 Node::Fill { start, len } => stack.push((ind, mode, Item::Fill { start, len })),
+            }
+        }
+    }
+
+    fn choose_group(
+        &mut self,
+        id: DocId,
+        ind: u32,
+        mode: Mode,
+        stack: &[Cmd],
+    ) -> (Mode, GroupDecision) {
+        let brk = self.docs.will_break(id);
+        if mode == Mode::Flat && !self.remeasure {
+            if brk {
+                (Mode::Break, GroupDecision::Broken)
+            } else {
+                (Mode::Flat, GroupDecision::ParentFlat)
+            }
+        } else {
+            self.remeasure = false;
+            let flat = [(ind, Mode::Flat, Item::Doc(id))];
+            if brk {
+                (Mode::Break, GroupDecision::Broken)
+            } else if self.fits(&flat, stack, self.rem(), false) {
+                (Mode::Flat, GroupDecision::Fits)
+            } else {
+                (Mode::Break, GroupDecision::DoesNotFit)
             }
         }
     }
@@ -703,21 +812,40 @@ impl Printer<'_> {
             Mode::Break
         };
         if len == 1 {
+            self.trace(TraceEvent::Fill {
+                doc: content,
+                pos: self.pos,
+                content_fits,
+                separator_fits: None,
+            });
             stack.push((ind, content_mode, Item::Doc(content)));
             return;
         }
         let ws = kids[1];
         if len == 2 {
+            self.trace(TraceEvent::Fill {
+                doc: content,
+                pos: self.pos,
+                content_fits,
+                separator_fits: None,
+            });
             stack.push((ind, content_mode, Item::Doc(ws)));
             stack.push((ind, content_mode, Item::Doc(content)));
             return;
         }
         let pair = [(ind, Mode::Flat, Item::Triple([content, ws, kids[2]]))];
-        let ws_mode = if self.fits(&pair, &[], self.rem(), true) {
+        let separator_fits = self.fits(&pair, &[], self.rem(), true);
+        let ws_mode = if separator_fits {
             Mode::Flat
         } else {
             Mode::Break
         };
+        self.trace(TraceEvent::Fill {
+            doc: content,
+            pos: self.pos,
+            content_fits,
+            separator_fits: Some(separator_fits),
+        });
         let rest = Item::Fill {
             start: start + 2,
             len: len - 2,
@@ -817,7 +945,9 @@ impl Printer<'_> {
 
 // Literals stay pointers rather than being copied into the text: removing `Static` makes a node
 // 16 bytes but costs more instructions and bytes than it saves (measured by `tools/perf`).
+#[cfg(target_pointer_width = "64")]
 const _: () = assert!(size_of::<Node>() == 24, "`Node` is 24 bytes");
+#[cfg(target_pointer_width = "64")]
 const _: () = assert!(size_of::<Cmd>() == 24, "`Cmd` is 24 bytes");
 const _: () = assert!(
     size_of::<Option<GroupId>>() == 4,
@@ -847,7 +977,7 @@ mod tests {
         d.group(&[open, body, soft2, close])
     }
 
-    fn print(d: &mut Docs, root: DocId, opts: &PrintOptions) -> String {
+    fn print(d: &Docs, root: DocId, opts: &PrintOptions) -> String {
         d.print(root, opts).expect("no flat-only layouts")
     }
 
@@ -861,7 +991,7 @@ mod tests {
         let line = d.line();
         let outer = d.group(&[x, line, inner]);
         assert!(d.will_break(outer));
-        assert_eq!(print(&mut d, outer, &PrintOptions::default()), "x\ny");
+        assert_eq!(print(&d, outer, &PrintOptions::default()), "x\ny");
     }
 
     /// Prettier propagates breaks at print time, after a trim: a hard line trimmed away breaks
@@ -877,20 +1007,42 @@ mod tests {
         let mut docs = vec![outer];
         d.trim_right(&mut docs, Docs::is_line);
         assert!(!d.will_break(inner) && !d.will_break(outer));
-        assert_eq!(print(&mut d, outer, &PrintOptions::default()), "a x");
+        assert_eq!(print(&d, outer, &PrintOptions::default()), "a x");
     }
 
     #[test]
     fn group_prints_flat_when_it_fits_and_breaks_otherwise() {
         let mut d = Docs::new();
         let g = call(&mut d, &["a", "b"]);
-        assert_eq!(print(&mut d, g, &PrintOptions::default()), "f(a, b)");
+        assert_eq!(print(&d, g, &PrintOptions::default()), "f(a, b)");
         let mut d = Docs::new();
         let long = "x".repeat(50);
         let g = call(&mut d, &[&long, &long]);
         assert_eq!(
-            print(&mut d, g, &PrintOptions::default()),
+            print(&d, g, &PrintOptions::default()),
             format!("f(\n  {long},\n  {long}\n)")
+        );
+    }
+
+    #[test]
+    fn traced_print_uses_the_production_printer() {
+        let mut d = Docs::new();
+        let long = "x".repeat(50);
+        let g = call(&mut d, &[&long, &long]);
+        let mut trace = Vec::new();
+        let out = d
+            .print_with_trace(g, &PrintOptions::default(), &mut trace)
+            .expect("no flat-only layouts");
+        assert_eq!(out, format!("f(\n  {long},\n  {long}\n)"));
+        assert_eq!(
+            trace,
+            vec![TraceEvent::Group {
+                doc: g,
+                pos: 0,
+                remaining: 80,
+                mode: TraceMode::Break,
+                decision: GroupDecision::DoesNotFit,
+            }]
         );
     }
 
@@ -908,7 +1060,7 @@ mod tests {
             indent_spaces: None,
             ..Default::default()
         };
-        assert_eq!(print(&mut d, group, &opts), "a\n\tb\n");
+        assert_eq!(print(&d, group, &opts), "a\n\tb\n");
     }
 
     #[test]
@@ -918,7 +1070,7 @@ mod tests {
         let b = d.text_parts(&[]);
         assert_eq!((d.as_str(a), d.as_str(b)), (Some("</div>"), Some("")));
         let root = d.concat(&[a, b]);
-        assert_eq!(print(&mut d, root, &PrintOptions::default()), "</div>");
+        assert_eq!(print(&d, root, &PrintOptions::default()), "</div>");
     }
 
     #[test]
@@ -929,7 +1081,7 @@ mod tests {
         let b = d.lit("b");
         let inner = d.concat(&[a, l, b]);
         let ind = d.indent(inner);
-        assert_eq!(print(&mut d, ind, &PrintOptions::default()), "a \nb");
+        assert_eq!(print(&d, ind, &PrintOptions::default()), "a \nb");
     }
 
     #[test]
@@ -947,7 +1099,7 @@ mod tests {
             width: 20,
             ..Default::default()
         };
-        let out = print(&mut d, f, &opts);
+        let out = print(&d, f, &opts);
         assert!(out.lines().all(|l| l.len() <= 20), "{out}");
         assert_eq!(out.lines().next().unwrap(), "word word word word");
     }
@@ -962,7 +1114,7 @@ mod tests {
         let sep = d.line();
         let c = d.lit("c");
         let filled = d.fill(&[content, sep, c]);
-        assert_eq!(print(&mut d, filled, &PrintOptions::default()), "a\nb\nc");
+        assert_eq!(print(&d, filled, &PrintOptions::default()), "a\nb\nc");
     }
 
     #[test]
@@ -976,7 +1128,7 @@ mod tests {
         let no = d.lit("flat");
         let ib = d.if_break_of(yes, no, id);
         let root = d.concat(&[g, ib]);
-        assert!(print(&mut d, root, &PrintOptions::default()).ends_with("\nbroken"));
+        assert!(print(&d, root, &PrintOptions::default()).ends_with("\nbroken"));
     }
 
     #[test]
@@ -1000,6 +1152,6 @@ mod tests {
         let mut docs = vec![inner];
         d.trim_right(&mut docs, Docs::is_line);
         let root = d.concat(&docs);
-        assert_eq!(print(&mut d, root, &PrintOptions::default()), "a");
+        assert_eq!(print(&d, root, &PrintOptions::default()), "a");
     }
 }

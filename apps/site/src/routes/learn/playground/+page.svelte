@@ -36,7 +36,7 @@
 	<span class="font-mono text-[13px] tracking-normal text-muted">付録</span>
 	<h1 class="mt-1 text-[30px] leading-[1.3] font-semibold sm:text-[36px]" style="font-stretch: 92%">Doc プレイグラウンド</h1>
 	<p class="mt-4 max-w-[44em] text-[17px] leading-[1.8] text-fg-2">
-		文書 IR を小さな式で書き、カーネルのプリンタ（TypeScript への移植）で印字します。仕組みは <a class="link" href="/learn/kernel/doc">08 レイアウト</a>で説明しています。このページはブラウザだけで動き、サーバーでは描画しません。
+		文書 IR を小さな式で書き、Rust のカーネルを WebAssembly としてブラウザで実行して印字します。仕組みは <a class="link" href="/learn/kernel/doc">08 レイアウト</a>で説明しています。このページはブラウザだけで動き、サーバーでは描画しません。
 	</p>
 </header>
 

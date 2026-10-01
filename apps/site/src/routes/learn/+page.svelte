@@ -38,10 +38,9 @@
 			<code>crates/</code> から項目名で切り出しています。行番号はファイルのもので、右上のリンクはそのコミットの該当行を指します。項目の名前が変わるとビルドが失敗するので、古い抜粋が残ることはありません。
 		</li>
 		<li>
-			<strong>移植したアルゴリズム。</strong>文書プリンタ、LineIndex、Emitter、JsonWriter、Interner は TypeScript
-			に一行ずつ移植してあり、図はその移植を実際に動かしています。移植には Rust のテストを同じ入力・同じ期待値で移したテストがあり、Rust
-			のテストにない分岐は Rust 側にもテストを足してから期待値を取りました。違いは二つです。Interner はハッシュ関数が違います（FxHash ではなく
-			FNV-1a）。文書プリンタの文字幅は、Rust が Prettier から生成した表を使うのに対し、移植は東アジアの全角だけを数える近似です。
+			<strong>ブラウザで動くアルゴリズム。</strong>文書プリンタは Rust の <code>rsv_kernel</code> を WebAssembly
+			にしてそのまま実行します。そのため、プリンタ本体と文字幅の計算は、ネイティブ版とブラウザ版で同一です。LineIndex、Emitter、JsonWriter、Interner
+			は TypeScript に一行ずつ移植してあり、Rust のテストと同じ入力・期待値で検査しています。Interner のみハッシュ関数が異なります（FxHash ではなく FNV-1a）。
 		</li>
 		<li>
 			<strong>モデル。</strong>スケジューラの時間軸、キャッシュ、バッファプールの様子を示す図は、カーネルの規則を真似た模型です。時間やメモリの数字は例示で、実測ではありません。実測は

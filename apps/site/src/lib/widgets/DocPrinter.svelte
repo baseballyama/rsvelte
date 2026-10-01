@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import Figure from '$lib/components/Figure.svelte';
 	import SpanRuler from '$lib/components/SpanRuler.svelte';
-	import { defaultOptions, Refused, stringWidth, type TraceEvent } from '$lib/kernel/doc';
-	import { DslError, parseDoc } from '$lib/kernel/doc-dsl';
+	import { initializeDocWasm, renderDoc, stringWidth, type TraceEvent } from '$lib/kernel/doc-wasm';
 
 	interface Preset {
 		name: string;
@@ -17,26 +16,21 @@
 	let src = $state(untrack(() => presets[0].src));
 	let width = $state(untrack(() => presets[0].width ?? 40));
 	let tabs = $state(false);
+	let wasmReady = $state(false);
+	let wasmError = $state<string | null>(null);
 
-	const result = $derived.by(() => {
-		try {
-			const parsed = parseDoc(src);
-			const trace: TraceEvent[] = [];
-			try {
-				const out = parsed.docs.print(parsed.root, { ...defaultOptions, width, indentSpaces: tabs ? null : 2 }, trace);
-				return { ok: true as const, out, trace, parsed };
-			} catch (e) {
-				if (e instanceof Refused) return { ok: false as const, refused: true, trace, parsed, message: e.message };
-				throw e;
-			}
-		} catch (e) {
-			if (e instanceof DslError) return { ok: false as const, refused: false, message: e.message, at: e.at };
-			throw e;
-		}
+	onMount(() => {
+		initializeDocWasm()
+			.then(() => (wasmReady = true))
+			.catch((error: unknown) => {
+				wasmError = error instanceof Error ? error.message : String(error);
+			});
 	});
-	const lines = $derived(result.ok ? result.out.split('\n') : []);
-	const trace: TraceEvent[] = $derived(('trace' in result && result.trace) || []);
-	const origin = $derived('parsed' in result && result.parsed ? result.parsed.origin : new Map<number, number>());
+
+	const result = $derived(wasmReady ? renderDoc(src, width, tabs) : null);
+	const lines = $derived(result?.ok ? result.out.split('\n') : []);
+	const trace: TraceEvent[] = $derived(result?.trace ?? []);
+	const origin = $derived(new Map(result?.origins ?? []));
 	const snippet = (doc: number) => {
 		const at = origin.get(doc);
 		return at === undefined ? `#${doc}` : src.slice(at, at + 22).replace(/\s+/g, ' ') + (src.length > at + 22 ? '…' : '');
@@ -74,7 +68,7 @@
 				bind:value={src}
 				spellcheck="false"
 			></textarea>
-			{#if !result.ok && !result.refused}
+			{#if result && !result.ok && !result.refused}
 				<p class="mt-2 font-mono text-[12px] tracking-normal text-warn">
 					{result.message}{'at' in result ? `（${result.at} 文字目）` : ''}
 				</p>
@@ -90,7 +84,9 @@
 					<pre
 						class="relative mt-1 overflow-visible border-r border-dashed border-line-strong text-[13px] leading-[1.65]"
 						style:width="{width}ch"
-						style:tab-size={2}>{#if result.ok}{#each lines as l, i (i)}<span
+						style:tab-size={2}>{#if wasmError}<span class="text-warn">WebAssembly の初期化に失敗しました: {wasmError}</span
+						>{:else if !result}<span class="text-muted">WebAssembly を読み込んでいます…</span
+						>{:else if result.ok}{#each lines as l, i (i)}<span
 									class={['block', stringWidth(l.replace(/\t/g, '  ')) > width && 'text-warn']}>{l || ' '}</span
 								>{/each}{:else if result.refused}<span class="text-warn">Refused: flat_only のレイアウトが幅に収まりません</span
 							>{/if}</pre>
@@ -143,7 +139,7 @@
 		</div>
 	{/if}
 	{#snippet caption()}
-		カーネルのプリンタを TypeScript に移植したものが動いています。下の表は、プリンタが group と fill でした判断を順に並べたものです。幅を動かすと、どこで
+		Rust の <code>rsv_kernel::doc</code> を WebAssembly としてそのまま動かしています。下の表は、プリンタが group と fill でした判断を順に並べたものです。幅を動かすと、どこで
 		<code>fits</code> の答えが変わるかが分かります。
 	{/snippet}
 </Figure>

@@ -2,3 +2,4 @@
 /.svelte-kit/
 /.wrangler/
 /build/
+/src/lib/wasm/

@@ -7,11 +7,17 @@
 		"node": ">=26"
 	},
 	"scripts": {
+		"build:wasm": "wasm-pack build ../../crates/rsv_kernel_wasm --out-dir ../../apps/site/src/lib/wasm/kernel --out-name rsv_kernel_wasm --target web --release",
+		"predev": "pnpm run build:wasm",
 		"dev": "vite dev",
+		"prebuild": "pnpm run build:wasm",
 		"build": "vite build",
 		"preview": "wrangler dev",
+		"predeploy": "pnpm run build:wasm",
 		"deploy": "vite build && wrangler deploy",
+		"precheck": "pnpm run build:wasm",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"pretest": "pnpm run build:wasm",
 		"test": "vitest run"
 	},
 	"devDependencies": {

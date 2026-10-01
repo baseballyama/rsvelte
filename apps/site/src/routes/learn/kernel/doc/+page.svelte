@@ -91,7 +91,8 @@
 
 <DocPrinter label="図 8.1 · 文書プリンタ" presets={[call, fill, groupIds, flatOnly, remeasure]} />
 
-<Code item={data.code.run} mark={['let brk = self.docs.will_break(id);', 'if !brk && self.fits(&flat, stack, self.rem(), false)', 'self.remeasure = true']} />
+<Code item={data.code.run} mark={['self.choose_group(id, ind, mode, stack)', 'self.remeasure = true']} />
+<Code item={data.code.chooseGroup} mark={['let brk = self.docs.will_break(id);', 'else if self.fits(&flat, stack, self.rem(), false)']} />
 
 <div class="prose-learn">
 	<p>
@@ -165,9 +166,8 @@
 
 	<DeepDive title="mustBeFlat にはテストがなかった">
 		<p>
-			この教材を作る途中で、TypeScript の移植から <code>must_be_flat</code> の分岐を消しても、Rust から移したテストがすべて通ることに気づきました。Rust
-			側でも同じで、この分岐を判別するテストがありませんでした。そこで、強制改行の group を内容に持つ fill のテストを Rust
-			に足し、期待値を Rust の出力から取ってから、移植にも同じテストを入れました。
+			この教材を作る途中で <code>must_be_flat</code> の分岐を消しても Rust のテストがすべて通ることに気づきました。この分岐を判別するテストがなかったため、強制改行の
+			group を内容に持つ fill のテストを Rust に足しました。ブラウザの図も同じ Rust プリンタを WebAssembly で実行するため、このテストが守る実装をそのまま通ります。
 		</p>
 		<p>
 			分岐を消すと、区切りの判断で中の group の line を「break モードの line に着いた」と数えて true を返し、区切りが平らになってしまいます（<code
@@ -235,8 +235,7 @@
 		幅は Rust の <code>unicode-width</code> に任せています。東アジア幅に加えて、結合文字や ZWJ
 		絵文字などの文字列内の並びも扱うため、このプロジェクトで Unicode の表を生成して持つ必要はありません。これは端末風の表示列数を安定して見積もるための規則であり、フォントによる実際の描画幅や
 		Prettier の歴史的な規則との完全一致を目的にはしていません。<Note
-			>この教材のブラウザ上のプリンタ（図 8.1）は依存を増やさないため、東アジアの全角を 2 列、結合文字を 0 列と数える小さな近似を使います。複雑な絵文字列では
-			Rust と答えが違うことがあります。</Note
+			>この教材のブラウザ上のプリンタ（図 8.1）も、WebAssembly を通して同じ Rust の <code>string_width</code> を使います。</Note
 		>
 	</p>
 	<p>
