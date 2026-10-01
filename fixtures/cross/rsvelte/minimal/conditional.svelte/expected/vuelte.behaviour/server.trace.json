@@ -1,0 +1,10 @@
+{
+	"html": [
+		"<button class=\"toggle\">",
+		"  \"Show\"",
+		"</button>",
+		"<p class=\"hint\">",
+		"  \"Nothing to see.\"",
+		"</p>"
+	]
+}

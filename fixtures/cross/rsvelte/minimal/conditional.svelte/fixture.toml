@@ -1,0 +1,2 @@
+[behaviour]
+steps = [{ click = "button.toggle" }, { click = "button.toggle" }, { click = "button.toggle" }]

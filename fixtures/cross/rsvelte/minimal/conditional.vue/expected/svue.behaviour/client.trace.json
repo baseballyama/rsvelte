@@ -1,0 +1,54 @@
+{
+	"steps": [
+		{
+			"do": "mount",
+			"dom": [
+				"<button class=\"toggle\">",
+				"  \"Show\"",
+				"</button>",
+				"<p class=\"hint\">",
+				"  \"Nothing to see.\"",
+				"</p>"
+			]
+		},
+		{
+			"do": {
+				"click": "button.toggle"
+			},
+			"dom": [
+				"<button class=\"toggle\">",
+				"  \"Hide\"",
+				"</button>",
+				"<p class=\"details\">",
+				"  \"Details are visible.\"",
+				"</p>"
+			]
+		},
+		{
+			"do": {
+				"click": "button.toggle"
+			},
+			"dom": [
+				"<button class=\"toggle\">",
+				"  \"Show\"",
+				"</button>",
+				"<p class=\"hint\">",
+				"  \"Nothing to see.\"",
+				"</p>"
+			]
+		},
+		{
+			"do": {
+				"click": "button.toggle"
+			},
+			"dom": [
+				"<button class=\"toggle\">",
+				"  \"Hide\"",
+				"</button>",
+				"<p class=\"details\">",
+				"  \"Details are visible.\"",
+				"</p>"
+			]
+		}
+	]
+}

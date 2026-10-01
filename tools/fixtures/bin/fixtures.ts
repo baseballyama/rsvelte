@@ -60,7 +60,7 @@ switch (positionals[0]) {
 		break;
 	case 'compare': {
 		if (!values.task || !values.variant) throw new Error('--task and --variant are required');
-		const r = compare({ taskId: values.task, variantId: values.variant, sourceIds: list(values.source), families: list(values.family) });
+		const r = await compare({ taskId: values.task, variantId: values.variant, sourceIds: list(values.source), families: list(values.family) });
 		console.log(`units: ${r.units}  ${JSON.stringify(r.counts)}`);
 		const lines = r.rows
 			.filter((x) => x.verdict !== 'match')
@@ -84,7 +84,7 @@ switch (positionals[0]) {
 		const now: Record<string, string> = {};
 		for (const t of TASKS) {
 			for (const v of t.variants) {
-				const r = compare({ taskId: t.id, variantId: v.id });
+				const r = await compare({ taskId: t.id, variantId: v.id });
 				const units = new Map<string, typeof r.rows>();
 				for (const x of r.rows) units.set(x.key, [...(units.get(x.key) ?? []), x]);
 				let refused = 0;

@@ -1,0 +1,9 @@
+[behaviour]
+steps = [
+  { click = "button.add" },
+  { click = "button.add" },
+  { click = "button.remove" },
+  { click = "button.remove" },
+  { click = "button.remove" },
+  { click = "button.remove" },
+]

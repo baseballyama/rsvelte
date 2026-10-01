@@ -1,0 +1,12 @@
+{
+	"steps": [
+		{
+			"do": "mount",
+			"dom": [
+				"<p class=\"inner outer\" title=\"tip\">",
+				"  \"root\"",
+				"</p>"
+			]
+		}
+	]
+}

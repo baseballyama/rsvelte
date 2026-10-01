@@ -1,0 +1,12 @@
+{
+	"steps": [
+		{
+			"do": "mount",
+			"dom": [
+				"<p>",
+				"  \"flag false, shown true\"",
+				"</p>"
+			]
+		}
+	]
+}

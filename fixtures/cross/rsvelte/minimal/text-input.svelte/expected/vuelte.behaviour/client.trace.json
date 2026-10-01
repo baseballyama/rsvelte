@@ -1,0 +1,79 @@
+{
+	"steps": [
+		{
+			"do": "mount",
+			"dom": [
+				"<label>",
+				"  \"Name \"",
+				"  <input class=\"name\" .value=\"world\">",
+				"</label>",
+				"<p class=\"greeting\">",
+				"  \"Hello, world!\"",
+				"</p>",
+				"<p class=\"shout\">",
+				"  \"WORLD (5)\"",
+				"</p>"
+			]
+		},
+		{
+			"do": {
+				"input": [
+					"input.name",
+					"Ada"
+				]
+			},
+			"dom": [
+				"<label>",
+				"  \"Name \"",
+				"  <input class=\"name\" .value=\"Ada\">",
+				"</label>",
+				"<p class=\"greeting\">",
+				"  \"Hello, Ada!\"",
+				"</p>",
+				"<p class=\"shout\">",
+				"  \"ADA (3)\"",
+				"</p>"
+			]
+		},
+		{
+			"do": {
+				"input": [
+					"input.name",
+					""
+				]
+			},
+			"dom": [
+				"<label>",
+				"  \"Name \"",
+				"  <input class=\"name\" .value=\"\">",
+				"</label>",
+				"<p class=\"greeting\">",
+				"  \"Hello, !\"",
+				"</p>",
+				"<p class=\"shout\">",
+				"  \"(0)\"",
+				"</p>"
+			]
+		},
+		{
+			"do": {
+				"input": [
+					"input.name",
+					"  two  words "
+				]
+			},
+			"dom": [
+				"<label>",
+				"  \"Name \"",
+				"  <input class=\"name\" .value=\"  two  words \">",
+				"</label>",
+				"<p class=\"greeting\">",
+				"  \"Hello, two words !\"",
+				"</p>",
+				"<p class=\"shout\">",
+				"  \"TWO WORDS (13)\"",
+				"</p>"
+			]
+		}
+	]
+}

@@ -1,3 +1,5 @@
+import type { Behaviour } from './behaviour/runtime.ts';
+
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
 export interface Source {
@@ -40,6 +42,8 @@ export interface Adjustment {
 export interface FixtureToml {
 	skip?: Record<string, string>;
 	adjust?: Adjustment[];
+	/** Root props and user steps for the behaviour tasks (behaviour/runtime.ts). */
+	behaviour?: Behaviour;
 }
 
 export interface Unit extends UnitKey, UnitMeta {
@@ -81,4 +85,12 @@ export interface Task {
 	variants: Variant[];
 	appliesTo(unit: Unit): boolean;
 	run(unit: Unit, src: string, variant: Variant): Record<string, Artifact> | Promise<Record<string, Artifact>>;
+	/**
+	 * For a task whose actual output is not the artifact itself: derives the artifact `ext` from the
+	 * implementation's `actual/<task>/<variant>.js`, given as a path (a behaviour trace of emitted code).
+	 */
+	observe?: { ext: string; derive(unit: Unit, variant: Variant, file: string): Promise<Observed> };
 }
+
+/** An observed artifact, or why the emitted code could not be observed. */
+export type Observed = { text: string; diff(expected: string): string | null };

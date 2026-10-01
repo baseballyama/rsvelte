@@ -1,0 +1,6 @@
+[behaviour]
+steps = [
+  { select = ["select.size", "l"] },
+  { input = ["input.note", "typed"] },
+  { change = "input.note" },
+]

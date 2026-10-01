@@ -1,0 +1,18 @@
+{
+	"html": [
+		"<div class=\"counter\">",
+		"  <button class=\"dec\">",
+		"    \"-\"",
+		"  </button>",
+		"  <span class=\"count\">",
+		"    \"0\"",
+		"  </span>",
+		"  <button class=\"inc\">",
+		"    \"+\"",
+		"  </button>",
+		"</div>",
+		"<p>",
+		"  \"doubled: 0\"",
+		"</p>"
+	]
+}

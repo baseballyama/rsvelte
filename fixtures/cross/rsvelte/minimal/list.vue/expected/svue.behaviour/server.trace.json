@@ -1,0 +1,18 @@
+{
+	"html": [
+		"<ul>",
+		"  <li>",
+		"    \"1. apple\"",
+		"  </li>",
+		"  <li>",
+		"    \"2. banana\"",
+		"  </li>",
+		"</ul>",
+		"<button class=\"add\">",
+		"  \"add\"",
+		"</button>",
+		"<button class=\"remove\">",
+		"  \"remove first\"",
+		"</button>"
+	]
+}
