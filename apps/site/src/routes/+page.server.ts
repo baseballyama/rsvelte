@@ -1,6 +1,6 @@
 import counter from '$lib/data/emit/counter-client.json';
-import plainA from '$lib/data/bench/plain-a.json';
-import metricsA from '$lib/data/bench/metrics-a.json';
+import plainA from '$lib/data/benchmark/plain-a.json';
+import metricsA from '$lib/data/benchmark/metrics-a.json';
 import { parity } from 'virtual:rsvelte-source';
 import { crateSizes } from '$lib/server/source';
 
@@ -9,7 +9,7 @@ export const prerender = true;
 export const load = () => {
 	const alloc = (name: string) => {
 		const a = metricsA.arms.find((x) => x.name === name);
-		if (!a || typeof a.allocs !== 'number' || typeof a.peak_live_growth_bytes !== 'number') {
+		if (!a || typeof a.allocations !== 'number' || typeof a.peak_live_growth_bytes !== 'number') {
 			throw new Error(`metrics-a.json has no allocation figures for arm ${name}`);
 		}
 		return a;
@@ -18,7 +18,7 @@ export const load = () => {
 		counter,
 		crates: crateSizes(),
 		parity,
-		bench: {
+		benchmark: {
 			rev: plainA.build.rev,
 			threads: plainA.threads,
 			documents: plainA.population.documents,
@@ -29,7 +29,7 @@ export const load = () => {
 				name: a.name,
 				median: a.median_ms,
 				peak: alloc(a.name).peak_live_growth_bytes,
-				allocs: alloc(a.name).allocs
+				allocations: alloc(a.name).allocations
 			}))
 		}
 	};

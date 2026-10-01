@@ -1,20 +1,20 @@
-import { polishArms } from '$lib/server/bench';
-import { perfHistory } from '$lib/server/perf';
+import { polishArms } from '$lib/server/benchmark';
+import { performanceHistory } from '$lib/server/performance';
 import { excerpts } from '$lib/server/source';
 
 export const load = () => ({
 	arms: polishArms(),
-	history: perfHistory(),
+	history: performanceHistory(),
 	code: excerpts({
-		replaceParts: 'kernel/doc/Docs::replace_parts',
-		trimLeft: 'kernel/doc/Docs::trim_left',
-		take: 'kernel/pool/take',
-		runEach: 'kernel/pipeline/run_each',
-		punct: 'js/lexer/Lexer::punct',
-		punctTest: 'js/lexer/tests::punctuators_are_the_longest_match_of_the_operator_table',
-		parserClose: 'js/parser/Parser::close',
-		recorded: 'js/ast/Ast::recorded_since',
-		num: 'kernel/json/JsonWriter::num',
-		fixed: 'kernel/json/JsonWriter::fixed'
+		replaceParts: 'kernel/output/document/LayoutInstructions::replace_parts',
+		trimLeft: 'kernel/output/document/LayoutInstructions::trim_left',
+		take: 'kernel/performance/buffer_pool/take',
+		runEach: 'kernel/computation/pipeline/run_each',
+		punct: 'javascript/lexer/Lexer::punct',
+		punctTest: 'javascript/lexer/tests::punctuators_are_the_longest_match_of_the_operator_table',
+		parserClose: 'javascript/parser/Parser::close',
+		recorded: 'javascript/syntax_tree/SyntaxTree::recorded_since',
+		num: 'kernel/output/structured_data/StructuredDataWriter::write_number',
+		fixed: 'kernel/output/structured_data/StructuredDataWriter::fixed'
 	})
 });

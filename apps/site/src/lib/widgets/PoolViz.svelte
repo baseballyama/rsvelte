@@ -30,12 +30,12 @@
 			<div class="font-mono text-[12.5px] tracking-normal">
 				<span class="text-muted">文書 {cur.doc + 1}（ノード {sizes[cur.doc]}）·</span>
 				{#if cur.event.kind === 'take'}
-					take() for <span class="text-c-src">{cur.event.ast}</span> →
+					take() for <span class="text-c-src">{cur.event.syntax_tree}</span> →
 					{cur.event.got === null ? '空の Vec' : `容量 ${cur.event.got} を再利用`}、{cur.event.need} 要素まで伸ばす:
-					<span class={cur.event.allocs ? 'text-accent' : ''}>確保 {cur.event.allocs} 回</span>
+					<span class={cur.event.allocations ? 'text-accent' : ''}>確保 {cur.event.allocations} 回</span>
 				{:else}
-					give() from <span class="text-c-src">{cur.event.ast}</span> 容量 {cur.event.cap} →
-					{cur.event.kept ? 'プールへ' : cur.event.why === 'budget' ? '予算を超えるので解放' : cur.event.why === 'full' ? '棚が満杯なので解放' : '解放'}
+					give() from <span class="text-c-src">{cur.event.syntax_tree}</span> 容量 {cur.event.cap} →
+					{cur.event.kept ? 'プールへ' : cur.event.why === 'budget' ? '予算を超えるので解放' : cur.event.why === 'full' ? '保存先が満杯なので解放' : '解放'}
 				{/if}
 			</div>
 			<ol class="mt-4 space-y-0.5 font-mono text-[11.5px] tracking-normal">
@@ -48,8 +48,8 @@
 						>
 							<span class="w-10 tnum">doc {s.doc + 1}</span>
 							<span class="w-10">{s.event.kind}</span>
-							<span class="w-24">{s.event.ast}</span>
-							<span class="tnum">{s.event.kind === 'take' ? `+${s.event.allocs}` : ''}</span>
+							<span class="w-24">{s.event.syntax_tree}</span>
+							<span class="tnum">{s.event.kind === 'take' ? `+${s.event.allocations}` : ''}</span>
 						</button>
 					</li>
 				{/each}
@@ -68,13 +68,13 @@
 				{/each}
 			</div>
 			<div class="mt-4 text-muted">ここまでの確保</div>
-			<div class="text-[18px] tnum">{cur.allocs}</div>
-			<div class="mt-2 text-muted">最後まで: {steps.at(-1)!.allocs}（{enabled ? 'pool なし' : 'pool あり'}なら {other.at(-1)!.allocs}）</div>
+			<div class="text-[18px] tnum">{cur.allocations}</div>
+			<div class="mt-2 text-muted">最後まで: {steps.at(-1)!.allocations}（{enabled ? 'pool なし' : 'pool あり'}なら {other.at(-1)!.allocations}）</div>
 		</div>
 	</div>
 	{#snippet caption()}
-		模型です。<code>rsv_js::Ast</code> の列の一つ（一つの鍵）だけを追います。順序は実際の Svelte プラグインと同じで、パースした木は文書の終わりまで生き、compile
-		の各ターゲットが作る木は印字のあとに落ちます。ノード数と、lower した木がパースの 1.6 倍・1.3 倍になるという比は例示です。「予算」は要素の数で数えていますが、本物の
-		<code>MAX_BYTES</code> はスレッドのすべての鍵を合わせたバイト数（64 MiB）です。
+		模型です。<code>rsvelte_javascript::SyntaxTree</code> の列の一つ（一つの鍵）だけを追います。順序は実際の Svelte プラグインと同じで、パースした木は文書の終わりまで生き、compile
+		の各ターゲットが作る木は出力のあとに落ちます。ノード数と、lower した木がパースの 1.6 倍・1.3 倍になるという比は例示です。「予算」は要素の数で数えていますが、本物の
+		<code>MAXIMUM_BYTES</code> はスレッドのすべての鍵を合わせたバイト数（64 MiB）です。
 	{/snippet}
 </Figure>

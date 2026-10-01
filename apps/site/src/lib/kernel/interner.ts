@@ -1,4 +1,4 @@
-// Port of `rsv_kernel::intern` for the visualisation. The table layout, load factor, growth and probe
+// Port of `rsvelte_kernel::intern` for the visualisation. The table layout, load factor, growth and probe
 // sequence are the Rust ones; the hash is FNV-1a rather than rustc-hash's FxHasher, so slot numbers
 // shown on the site differ from what the Rust interner would pick for the same names.
 
@@ -25,7 +25,7 @@ export function fnv1a(s: string): number {
 }
 
 export class Interner {
-	buf = '';
+	buffer = '';
 	ends: number[] = [];
 	table: number[] = [];
 
@@ -33,7 +33,7 @@ export class Interner {
 
 	get(atom: number): string {
 		const start = atom === 0 ? 0 : this.ends[atom - 1];
-		return this.buf.slice(start, this.ends[atom]);
+		return this.buffer.slice(start, this.ends[atom]);
 	}
 
 	lookup(s: string): number | null {
@@ -62,8 +62,8 @@ export class Interner {
 			({ slot, probes } = this.probe(s));
 		}
 		const i = slot;
-		this.buf += s;
-		this.ends.push(this.buf.length);
+		this.buffer += s;
+		this.ends.push(this.buffer.length);
 		const atom = this.ends.length - 1;
 		this.table[i] = atom + 1;
 		return { atom, fresh: true, grew, probes };

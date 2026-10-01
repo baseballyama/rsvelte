@@ -12,7 +12,7 @@ for (const m of modules) {
 export function excerpt(key: string): HighlightedItem & { path: string } {
 	const it = byKey.get(key);
 	if (!it) throw new Error(`no Rust item ${key}; the page quotes code that no longer exists`);
-	const mod = key.slice(0, key.indexOf('/', key.indexOf('/') + 1));
+	const mod = key.slice(0, key.lastIndexOf('/'));
 	return { ...it, path: moduleByKey.get(mod)!.path };
 }
 

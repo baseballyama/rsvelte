@@ -127,7 +127,7 @@
 				bind:value={q}
 				{onkeydown}
 				class="h-14 min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted"
-				placeholder="章や節を探す（例: fits, UTF-16, 並列）"
+				placeholder="章や節を探す（例: fits, ユニコードの16ビット符号化方式, 並列）"
 				role="combobox"
 				aria-expanded="true"
 				aria-controls="palette-results"

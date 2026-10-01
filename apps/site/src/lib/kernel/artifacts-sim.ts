@@ -1,17 +1,17 @@
-// A model of `Ctx::get` with the Svelte plugin's artifacts and the `ts.view` facet. The call order
-// inside each task and each artifact's `compute` is transcribed from rsv_svelte (tasks.rs, lib.rs:
-// `compile_input` asks for the parse and the HIR) and rsv_js/check.rs; the kernel rule it models is
-// db.rs: the first `get` (or `facet`) computes, later ones return the cached value.
+// A model of `DocumentContext::get` with the Svelte plugin's artifacts and the `ts.view` facet. The call order
+// inside each task and each artifact's `compute` is transcribed from rsvelte_svelte (tasks.rs, lib.rs:
+// `compile_input` asks for the parse and the HIR) and rsvelte_javascript/check.rs; the kernel rule it models is
+// computation/database.rs: the first request computes; later requests reuse the cached value.
 
 export type ArtifactName =
 	| 'svelte.parse'
 	| 'svelte.resolve'
-	| 'svelte.hir'
+	| 'svelte.compiler_syntax_tree'
 	| 'svelte.analyze'
 	| 'svelte.css'
 	| 'ts.view';
 
-export const ARTIFACTS: ArtifactName[] = ['svelte.parse', 'svelte.resolve', 'svelte.hir', 'svelte.analyze', 'svelte.css', 'ts.view'];
+export const ARTIFACTS: ArtifactName[] = ['svelte.parse', 'svelte.resolve', 'svelte.compiler_syntax_tree', 'svelte.analyze', 'svelte.css', 'ts.view'];
 export type TaskId = 'svelte.compile/client' | 'svelte.compile/server' | 'svelte.format/default' | 'svelte.lint/default' | 'svelte.check/default';
 
 export const TASKS: TaskId[] = [
@@ -22,7 +22,7 @@ export const TASKS: TaskId[] = [
 	'svelte.check/default'
 ];
 
-export interface Doc {
+export interface LayoutInstruction {
 	parses: boolean;
 }
 
@@ -36,15 +36,15 @@ export interface GetEvent {
 export interface TaskTrace {
 	task: TaskId;
 	gets: GetEvent[];
-	/** Ctx::computed() after the task, for the Ctx the task used. */
+	/** DocumentContext::computed() after the task, for the DocumentContext the task used. */
 	computed: ArtifactName[];
 }
 
-class SimCtx {
+class SimulationContext {
 	cache = new Set<ArtifactName>();
 	computed: ArtifactName[] = [];
 	constructor(
-		private doc: Doc,
+		private doc: LayoutInstruction,
 		private log: GetEvent[]
 	) {}
 
@@ -60,7 +60,7 @@ class SimCtx {
 		this.log.push({ artifact: a, computed: true, depth });
 		this.computed.push(a);
 		// `compute` bodies, in the order they call `get` (lib.rs).
-		if (a === 'svelte.resolve' || a === 'svelte.hir' || a === 'ts.view') this.get('svelte.parse', depth + 1);
+		if (a === 'svelte.resolve' || a === 'svelte.compiler_syntax_tree' || a === 'ts.view') this.get('svelte.parse', depth + 1);
 		if (a === 'svelte.analyze') {
 			this.compileInput(depth + 1);
 			if (this.doc.parses) this.get('svelte.resolve', depth + 1);
@@ -72,46 +72,46 @@ class SimCtx {
 		this.cache.add(a);
 	}
 
-	/** `rsv_svelte::compile_input`: the parse, then the HIR when it parsed. */
+	/** `rsvelte_svelte::compile_input`: the parse, then the HIR when it parsed. */
 	compileInput(depth = 0): void {
 		this.get('svelte.parse', depth);
-		if (this.doc.parses) this.get('svelte.hir', depth);
+		if (this.doc.parses) this.get('svelte.compiler_syntax_tree', depth);
 	}
 }
 
-function runTask(task: TaskId, ctx: SimCtx, doc: Doc) {
+function runTask(task: TaskId, context: SimulationContext, doc: LayoutInstruction) {
 	switch (task) {
 		case 'svelte.compile/client':
 		case 'svelte.compile/server':
-			ctx.get('svelte.parse');
+			context.get('svelte.parse');
 			if (!doc.parses) return;
-			ctx.compileInput();
-			ctx.get('svelte.resolve');
-			ctx.get('svelte.analyze');
-			ctx.get('svelte.css');
+			context.compileInput();
+			context.get('svelte.resolve');
+			context.get('svelte.analyze');
+			context.get('svelte.css');
 			return;
 		case 'svelte.format/default':
-			ctx.get('svelte.parse');
+			context.get('svelte.parse');
 			return;
 		case 'svelte.lint/default':
-			ctx.get('svelte.parse');
+			context.get('svelte.parse');
 			if (!doc.parses) return;
-			ctx.get('svelte.resolve');
-			ctx.get('svelte.hir');
+			context.get('svelte.resolve');
+			context.get('svelte.compiler_syntax_tree');
 			return;
 		case 'svelte.check/default':
-			ctx.get('ts.view');
+			context.get('ts.view');
 	}
 }
 
-export function simulate(tasks: TaskId[], doc: Doc, sharing: 'shared' | 'isolated'): TaskTrace[] {
-	const shared = new SimCtx(doc, []);
+export function simulate(tasks: TaskId[], doc: LayoutInstruction, sharing: 'shared' | 'isolated'): TaskTrace[] {
+	const shared = new SimulationContext(doc, []);
 	return TASKS.filter((t) => tasks.includes(t)).map((task) => {
 		const gets: GetEvent[] = [];
-		const ctx = sharing === 'shared' ? shared : new SimCtx(doc, gets);
-		ctx.setLog(gets);
-		runTask(task, ctx, doc);
-		return { task, gets, computed: [...ctx.computed] };
+		const context = sharing === 'shared' ? shared : new SimulationContext(doc, gets);
+		context.setLog(gets);
+		runTask(task, context, doc);
+		return { task, gets, computed: [...context.computed] };
 	});
 }
 

@@ -1,13 +1,13 @@
-// Port of `rsv_kernel::source`: byte spans, and the line index that turns a UTF-8 byte offset into
+// Port of `rsvelte_kernel::source`: byte spans, and the line index that turns a UTF-8 byte offset into
 // the 1-based line / UTF-16 column JavaScript tools report. JS strings are UTF-16, so this port keeps
 // the Rust bytes explicitly (TextEncoder) instead of indexing the string.
 
 export interface Span {
-	lo: number;
-	hi: number;
+	startOffset: number;
+	endOffset: number;
 }
 
-export interface LineCol {
+export interface LineColumn {
 	/** 1-based. */
 	line: number;
 	/** 0-based, in UTF-16 code units. */
@@ -34,14 +34,14 @@ export class LineIndex {
 	readonly wide: WideChar[] = [];
 	readonly bytes: Uint8Array;
 
-	constructor(readonly src: string) {
-		this.bytes = new TextEncoder().encode(src);
+	constructor(readonly source: string) {
+		this.bytes = new TextEncoder().encode(source);
 		this.bytes.forEach((b, i) => {
 			if (b === 0x0a) this.lineStarts.push(i + 1);
 		});
 		let byte = 0;
 		let utf16 = 0;
-		for (const ch of src) {
+		for (const ch of source) {
 			const cp = ch.codePointAt(0)!;
 			const n8 = utf8Len(cp);
 			if (cp >= 0x80) this.wide.push({ byte, utf16, ch, utf8Len: n8, utf16Len: ch.length });
@@ -52,14 +52,14 @@ export class LineIndex {
 
 	/** Index of the last wide char at or before `byte` plus one: Rust's `partition_point(b < byte)`. */
 	private widePoint(byte: number): number {
-		let lo = 0;
-		let hi = this.wide.length;
-		while (lo < hi) {
-			const mid = (lo + hi) >> 1;
-			if (this.wide[mid].byte < byte) lo = mid + 1;
-			else hi = mid;
+		let startOffset = 0;
+		let endOffset = this.wide.length;
+		while (startOffset < endOffset) {
+			const mid = (startOffset + endOffset) >> 1;
+			if (this.wide[mid].byte < byte) startOffset = mid + 1;
+			else endOffset = mid;
 		}
-		return lo;
+		return startOffset;
 	}
 
 	/** An offset inside a character counts as its start, and one past the end as the end, as in Rust. */
@@ -73,15 +73,15 @@ export class LineIndex {
 		return w.utf16 + w.utf16Len + (byte - w.byte - w.utf8Len);
 	}
 
-	lineCol(byte: number): LineCol {
-		let lo = 0;
-		let hi = this.lineStarts.length;
-		while (lo < hi) {
-			const mid = (lo + hi) >> 1;
-			if (this.lineStarts[mid] <= byte) lo = mid + 1;
-			else hi = mid;
+	lineCol(byte: number): LineColumn {
+		let startOffset = 0;
+		let endOffset = this.lineStarts.length;
+		while (startOffset < endOffset) {
+			const mid = (startOffset + endOffset) >> 1;
+			if (this.lineStarts[mid] <= byte) startOffset = mid + 1;
+			else endOffset = mid;
 		}
-		const line = lo - 1;
+		const line = startOffset - 1;
 		const character = this.utf16(byte);
 		return { line: line + 1, column: character - this.utf16(this.lineStarts[line]), character };
 	}
@@ -109,7 +109,7 @@ export class LineIndex {
 	chars(): { ch: string; byte: number; len: number }[] {
 		const out: { ch: string; byte: number; len: number }[] = [];
 		let byte = 0;
-		for (const ch of this.src) {
+		for (const ch of this.source) {
 			const len = utf8Len(ch.codePointAt(0)!);
 			out.push({ ch, byte, len });
 			byte += len;
@@ -122,7 +122,7 @@ export function byteLength(s: string): number {
 	return new TextEncoder().encode(s).length;
 }
 
-export function spanText(src: string, span: Span): string {
-	const b = new TextEncoder().encode(src);
-	return new TextDecoder().decode(b.subarray(span.lo, span.hi));
+export function spanText(source: string, span: Span): string {
+	const b = new TextEncoder().encode(source);
+	return new TextDecoder().decode(b.subarray(span.startOffset, span.endOffset));
 }

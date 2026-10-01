@@ -13,7 +13,7 @@
 
 <ChapterHeader
 	chapter={c}
-	lead="rsvelte のカーネル rsv_kernel を、大枠から一行ずつのところまで読むための教材です。コードを開く前に全体の形を頭に入れ、各章で一つのモジュールを掘り下げます。"
+	lead="rsvelte のカーネル rsvelte_kernel を、大枠から一行ずつのところまで読むための教材です。コードを開く前に全体の形を頭に入れ、各章で一つのモジュールを掘り下げます。"
 />
 
 <div class="prose-learn">
@@ -25,7 +25,7 @@
 		Prettier のアルゴリズムは知らなくても読めます。必要なところで説明します。
 	</p>
 	<p>
-		カーネルは {data.kernelFiles} ファイル、テストを含めて {data.kernelLines.toLocaleString('en-US')} 行と小さく<Note>この数字はビルドのたびに <code>crates/rsv_kernel/src</code> を数え直したものです。</Note>、どのファイルも一度に読み切れる長さです。それでも、コードだけでは<em
+		カーネルは {data.kernelFiles} ファイル、テストを含めて {data.kernelLines.toLocaleString('en-US')} 行と小さく<Note>この数字はビルドのたびに <code>crates/rsvelte_kernel/src</code> を数え直したものです。</Note>、どのファイルも一度に読み切れる長さです。それでも、コードだけでは<em
 			>なぜそう書いたか</em
 		>と<em>どこが弱いか</em>が見えません。この教材はその二つを補います。
 	</p>
@@ -38,23 +38,24 @@
 			<code>crates/</code> から項目名で切り出しています。行番号はファイルのもので、右上のリンクはそのコミットの該当行を指します。項目の名前が変わるとビルドが失敗するので、古い抜粋が残ることはありません。
 		</li>
 		<li>
-			<strong>ブラウザで動くアルゴリズム。</strong>文書プリンタは Rust の <code>rsv_kernel</code> を WebAssembly
-			にしてそのまま実行します。そのため、プリンタ本体と文字幅の計算は、ネイティブ版とブラウザ版で同一です。LineIndex、Emitter、JsonWriter、Interner
-			は TypeScript に一行ずつ移植してあり、Rust のテストと同じ入力・期待値で検査しています。Interner のみハッシュ関数が異なります（FxHash ではなく FNV-1a）。
+			<strong>ブラウザで動くアルゴリズム。</strong>文書プリンタは Rust の <code>rsvelte_kernel</code> を WebAssembly
+			にしてそのまま実行します。そのため、プリンタ本体と文字幅の計算は、ネイティブ版とブラウザ版で同一です。LineIndex、Emitter、StructuredDataWriter、Interner
+			は TypeScript に一行ずつ移植してあり、Rust のテストと同じ入力・期待値で検査しています。Interner のみハッシュ関数が異なります（FxHash ではなく 別のハッシュ関数）。
 		</li>
 		<li>
 			<strong>モデル。</strong>スケジューラの時間軸、キャッシュ、バッファプールの様子を示す図は、カーネルの規則を真似た模型です。時間やメモリの数字は例示で、実測ではありません。実測は
-			<a href="/learn/measure">13 実測</a>の章にまとめています。性能のラチェットの数はビルド時に <code>tools/perf/baseline.json</code>
-			から読み、壁時計のベンチマークには測ったビルドを添えています。本文中の変更前後の数は、その変更のコミット（<code>a5822ee26f</code>
-			のような短い SHA）のメッセージからの引用です。
+			<a href="/learn/measure">13 実測</a>の章にまとめています。性能の基準値との比較検査の数はビルド時に <code>tools/performance/baseline.json</code>
+			から読み、実行時間のベンチマークには測ったビルドを添えています。本文中の変更前後の数は、その変更のコミット（<code>a5822ee26f</code>
+			のような短い コミット識別子）のメッセージからの引用です。
 		</li>
 	</ul>
 
 	<H2 id="path" />
 	<p>
-		最初に <a href="/learn/kernel">01 全体像</a>を読んでください。そのあとは順番どおりでなくてもかまいません。位置（02）と一度だけ計算する仕組み（04）とスケジューラ（06）が骨格で、残りはその上に載る部品です。最後の
+		最初に <a href="/learn/kernel">01 全体像</a>を読んでください。そのあとは順番どおりでなくてもかまいません。位置（02）と一度だけ計算する仕組み（04）とスケジューラ（06）が中心となる仕組みで、残りはその上に載る部品です。最後の
 		<a href="/learn/polish">14 磨きどころ</a>は、各章で触れた弱点を一か所に集めたものです。
 	</p>
+	<p>独自の処理を追加する手順は、<a href="/learn/plugins">15 プラグインを実装する</a>で説明しています。Svelte の構文解析結果を使う例を、そのまま実行できます。</p>
 </div>
 
 <ol class="mt-10 border-t border-line">

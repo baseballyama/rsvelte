@@ -1,14 +1,14 @@
-// Port of `rsv_kernel::emit`: an output buffer that records where each piece came from, the
+// Port of `rsvelte_kernel::emit`: an output buffer that records where each piece came from, the
 // greatest-lower-bound reverse lookup, and source map v3 encoding. Offsets are UTF-8 bytes as in
 // Rust; `out` is kept as a string, so every piece pushed must be ASCII (checked), which makes a
 // string index a byte offset and every character one byte.
 
 import { LineIndex, byteLength, spanText, type Span } from './source.ts';
-import { writeStr } from './json.ts';
+import { writeString } from './structured-data.ts';
 
 export interface Mapping {
 	generated: number;
-	src: number;
+	source: number;
 	/** `> 0`: bytes copied verbatim, mapping 1:1. `0`: a point mapping. */
 	len: number;
 }
@@ -17,7 +17,7 @@ export class Emitter {
 	out = '';
 	mappings: Mapping[] = [];
 
-	private get pos(): number {
+	private get position(): number {
 		return byteLength(this.out);
 	}
 
@@ -25,40 +25,40 @@ export class Emitter {
 		this.out += ascii(s);
 	}
 
-	mark(src: number) {
-		this.mappings.push({ generated: this.pos, src, len: 0 });
+	mark(source: number) {
+		this.mappings.push({ generated: this.position, source, len: 0 });
 	}
 
 	copy(source: string, span: Span) {
-		this.mappings.push({ generated: this.pos, src: span.lo, len: span.hi - span.lo });
+		this.mappings.push({ generated: this.position, source: span.startOffset, len: span.endOffset - span.startOffset });
 		this.out += ascii(spanText(source, span));
 	}
 
 	pushFor(s: string, span: Span | null) {
-		if (span) this.mark(span.lo);
+		if (span) this.mark(span.startOffset);
 		this.out += ascii(s);
 	}
 
 	/** Index of the mapping that answers `pos`, or -1: Rust's `partition_point(generated <= pos) - 1`. */
-	mappingAt(pos: number): number {
-		let lo = 0;
-		let hi = this.mappings.length;
-		while (lo < hi) {
-			const mid = (lo + hi) >> 1;
-			if (this.mappings[mid].generated <= pos) lo = mid + 1;
-			else hi = mid;
+	mappingAt(position: number): number {
+		let startOffset = 0;
+		let endOffset = this.mappings.length;
+		while (startOffset < endOffset) {
+			const mid = (startOffset + endOffset) >> 1;
+			if (this.mappings[mid].generated <= position) startOffset = mid + 1;
+			else endOffset = mid;
 		}
-		return lo - 1;
+		return startOffset - 1;
 	}
 
-	lookup(pos: number): number | null {
-		const i = this.mappingAt(pos);
+	lookup(position: number): number | null {
+		const i = this.mappingAt(position);
 		if (i < 0) return null;
 		const m = this.mappings[i];
-		if (pos < m.generated + m.len) return m.src + (pos - m.generated);
+		if (position < m.generated + m.len) return m.source + (position - m.generated);
 		const back = Math.min(1, m.len);
 		const at = m.generated + m.len - back;
-		return this.out.slice(at, pos).includes('\n') ? null : m.src + m.len - back;
+		return this.out.slice(at, position).includes('\n') ? null : m.source + m.len - back;
 	}
 
 	/** Every mapped character as [generated, original]; a later mapping at the same offset replaces one. */
@@ -70,28 +70,28 @@ export class Emitter {
 			else points.push([g, s]);
 		};
 		for (const m of [...this.mappings].sort((a, b) => a.generated - b.generated)) {
-			if (m.len === 0) put(m.generated, m.src);
-			for (let k = 0; k < m.len; k++) put(m.generated + k, m.src + k);
+			if (m.len === 0) put(m.generated, m.source);
+			for (let k = 0; k < m.len; k++) put(m.generated + k, m.source + k);
 		}
 		return points;
 	}
 
 	lookupSpan(span: Span): Span | null {
-		const lo = this.lookup(span.lo);
-		if (lo === null) return null;
-		const hi = this.lookup(span.hi);
-		if (hi === null) return null;
-		return { lo, hi: Math.max(hi, lo) };
+		const startOffset = this.lookup(span.startOffset);
+		if (startOffset === null) return null;
+		const endOffset = this.lookup(span.endOffset);
+		if (endOffset === null) return null;
+		return { startOffset, endOffset: Math.max(endOffset, startOffset) };
 	}
 
 	/** Every segment `source_map` writes, before VLQ encoding. */
-	segments(source: string): { genLine: number; genCol: number; srcLine: number; srcCol: number }[] {
-		const src = new LineIndex(source);
+	segments(source: string): { genLine: number; genCol: number; sourceLine: number; sourceCol: number }[] {
+		const sourceIndex = new LineIndex(source);
 		const gen = new LineIndex(this.out);
 		return this.points().map(([generated, original]) => {
 			const g = gen.lineCol(generated);
-			const s = src.lineCol(original);
-			return { genLine: g.line, genCol: g.column, srcLine: s.line, srcCol: s.column };
+			const s = sourceIndex.lineCol(original);
+			return { genLine: g.line, genCol: g.column, sourceLine: s.line, sourceCol: s.column };
 		});
 	}
 
@@ -99,8 +99,8 @@ export class Emitter {
 		let mappings = '';
 		let prevGenLine = 1;
 		let prevGenCol = 0;
-		let prevSrcLine = 0;
-		let prevSrcCol = 0;
+		let prevSourceLine = 0;
+		let prevSourceCol = 0;
 		let firstInLine = true;
 		for (const s of this.segments(source)) {
 			while (prevGenLine < s.genLine) {
@@ -111,12 +111,12 @@ export class Emitter {
 			}
 			if (!firstInLine) mappings += ',';
 			firstInLine = false;
-			mappings += vlq(s.genCol - prevGenCol) + vlq(0) + vlq(s.srcLine - 1 - prevSrcLine) + vlq(s.srcCol - prevSrcCol);
+			mappings += vlq(s.genCol - prevGenCol) + vlq(0) + vlq(s.sourceLine - 1 - prevSourceLine) + vlq(s.sourceCol - prevSourceCol);
 			prevGenCol = s.genCol;
-			prevSrcLine = s.srcLine - 1;
-			prevSrcCol = s.srcCol;
+			prevSourceLine = s.sourceLine - 1;
+			prevSourceCol = s.sourceCol;
 		}
-		return `{"version":3,"sources":[${writeStr(sourceName)}],"names":[],"mappings":${writeStr(mappings)}}`;
+		return `{"version":3,"sources":[${writeString(sourceName)}],"names":[],"mappings":${writeString(mappings)}}`;
 	}
 }
 
@@ -154,10 +154,10 @@ export function vlq(value: number): string {
 }
 
 /** Decodes a `mappings` string into absolute segments, as a standard source map consumer does. */
-export function decodeMappings(mappings: string): { genLine: number; genCol: number; srcLine: number; srcCol: number }[] {
-	const out: { genLine: number; genCol: number; srcLine: number; srcCol: number }[] = [];
-	let srcLine = 0;
-	let srcCol = 0;
+export function decodeMappings(mappings: string): { genLine: number; genCol: number; sourceLine: number; sourceCol: number }[] {
+	const out: { genLine: number; genCol: number; sourceLine: number; sourceCol: number }[] = [];
+	let sourceLine = 0;
+	let sourceCol = 0;
 	mappings.split(';').forEach((line, li) => {
 		let genCol = 0;
 		for (const seg of line.split(',').filter(Boolean)) {
@@ -176,9 +176,9 @@ export function decodeMappings(mappings: string): { genLine: number; genCol: num
 				}
 			}
 			genCol += fields[0];
-			srcLine += fields[2];
-			srcCol += fields[3];
-			out.push({ genLine: li + 1, genCol, srcLine: srcLine + 1, srcCol });
+			sourceLine += fields[2];
+			sourceCol += fields[3];
+			out.push({ genLine: li + 1, genCol, sourceLine: sourceLine + 1, sourceCol });
 		}
 	});
 	return out;
@@ -186,11 +186,11 @@ export function decodeMappings(mappings: string): { genLine: number; genCol: num
 
 /** What a standard consumer answers for a generated column: the source position of the segment at or before it. */
 export function consumerLookup(
-	segments: { genLine: number; genCol: number; srcLine: number; srcCol: number }[],
+	segments: { genLine: number; genCol: number; sourceLine: number; sourceCol: number }[],
 	genLine: number,
 	genCol: number
-): { srcLine: number; srcCol: number } | null {
-	let best: { srcLine: number; srcCol: number } | null = null;
+): { sourceLine: number; sourceCol: number } | null {
+	let best: { sourceLine: number; sourceCol: number } | null = null;
 	for (const s of segments) if (s.genLine === genLine && s.genCol <= genCol) best = s;
-	return best && { srcLine: best.srcLine, srcCol: best.srcCol };
+	return best && { sourceLine: best.sourceLine, sourceCol: best.sourceCol };
 }

@@ -1,8 +1,8 @@
 <script module lang="ts">
 	export interface RulerMark {
-		lo: number;
-		hi: number;
-		tone: 'accent' | 'src' | 'gen' | 'muted';
+		startOffset: number;
+		endOffset: number;
+		tone: 'accent' | 'source' | 'gen' | 'muted';
 	}
 </script>
 
@@ -27,7 +27,7 @@
 	const W = 1000;
 	const x = (v: number) => (v / Math.max(length, 1)) * W;
 	const ticks = $derived(Array.from({ length: Math.floor(length / tick) + 1 }, (_, i) => i * tick));
-	const color = { accent: 'var(--accent)', src: 'var(--c-src)', gen: 'var(--c-gen)', muted: 'var(--muted)' };
+	const color = { accent: 'var(--accent)', source: 'var(--c-src)', gen: 'var(--c-gen)', muted: 'var(--muted)' };
 </script>
 
 <svg viewBox="0 0 {W} 30" preserveAspectRatio="none" class="block h-[30px] w-full overflow-visible" role="img">
@@ -45,9 +45,9 @@
 	{/each}
 	{#each marks as m, i (i)}
 		<rect
-			x={x(m.lo)}
+			x={x(m.startOffset)}
 			y="3"
-			width={Math.max(x(m.hi) - x(m.lo), 2)}
+			width={Math.max(x(m.endOffset) - x(m.startOffset), 2)}
 			height="8"
 			fill={color[m.tone]}
 			opacity={m.tone === 'muted' ? 0.35 : 0.9}

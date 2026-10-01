@@ -66,7 +66,7 @@
 				{#each replay.i.ends as end, id (id)}
 					{@const start = id === 0 ? 0 : replay.i.ends[id - 1]}
 					<span class={['border-r border-line-strong px-1', last?.atom === id && 'bg-accent-wash']}>
-						<span class="mr-1 text-[10px] text-muted">{id}</span>{replay.i.buf.slice(start, end)}
+						<span class="mr-1 text-[10px] text-muted">{id}</span>{replay.i.buffer.slice(start, end)}
 					</span>
 				{/each}
 			</div>
@@ -100,8 +100,8 @@
 		</div>
 	</div>
 	{#snippet caption()}
-		表のマスには、その slot が指す Atom の番号が入っています（Rust は「番号 + 1」を格納し、0 を空として使います）。橙色は直前の
-		intern が調べた slot です。ハッシュ関数は FxHash ではなく FNV-1a なので、どの slot に入るかは Rust と違いますが、表の形、負荷率
+		表のマスには、その 配列の位置が指す Atom の番号が入っています（Rust は「番号 + 1」を格納し、0 を空として使います）。橙色は直前の
+		intern が調べた 配列の位置です。ハッシュ関数は FxHash ではなく 別のハッシュ関数 なので、どの 配列の位置に入るかは Rust と違いますが、表の形、負荷率
 		0.5 での拡張、線形プローブの順序は同じです。
 	{/snippet}
 </Figure>

@@ -1,5 +1,5 @@
 {
-	"src": "<script>\n\tlet count = $state(0);\n</script>\n\n<button onclick={() => count++}>clicks: {count}</button>\n",
+	"source": "<script>\n\tlet count = $state(0);\n</script>\n\n<button onclick={() => count++}>clicks: {count}</button>\n",
 	"out": "import * as $ from 'svelte/internal/server';\n\nexport default function Counter($$renderer) {\n\tlet count = 0;\n\t$$renderer.push(`<button>clicks: ${$.escape(count)}</button>`);\n}\n",
 	"mappings": [
 		[

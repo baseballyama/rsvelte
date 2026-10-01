@@ -4,37 +4,37 @@
 
 	type Focus =
 		| { kind: 'surface'; id: number }
-		| { kind: 'hir'; row: number }
+		| { kind: 'compiler_syntax_tree'; row: number }
 		| { kind: 'binding'; id: number }
 		| { kind: 'lint'; index: number }
 		| null;
 
-	let focus: Focus = $state({ kind: 'hir', row: d.hir.findIndex((r) => r.label.startsWith('If')) });
+	let focus: Focus = $state({ kind: 'compiler_syntax_tree', row: d.compiler_syntax_tree.findIndex((r) => r.label.startsWith('If')) });
 
 	// A focused HIR row lights its origin; a focused surface row lights every HIR row built from it.
 	const surfaceLit = $derived.by(() => {
 		if (focus?.kind === 'surface') return new Set([focus.id]);
-		if (focus?.kind === 'hir') {
-			const o = d.hir[focus.row].origin;
+		if (focus?.kind === 'compiler_syntax_tree') {
+			const o = d.compiler_syntax_tree[focus.row].origin;
 			return new Set(o === null ? [] : [o]);
 		}
 		return new Set<number>();
 	});
-	const hirLit = $derived.by(() => {
-		if (focus?.kind === 'hir') return new Set([focus.row]);
+	const compilerSyntaxTreeLit = $derived.by(() => {
+		if (focus?.kind === 'compiler_syntax_tree') return new Set([focus.row]);
 		if (focus?.kind === 'surface') {
 			const id = focus.id;
-			return new Set(d.hir.flatMap((r, i) => (r.origin === id ? [i] : [])));
+			return new Set(d.compiler_syntax_tree.flatMap((r, i) => (r.origin === id ? [i] : [])));
 		}
 		return new Set<number>();
 	});
 	const spans = $derived.by((): { span: Range; tone: 'node' | 'decl' | 'ref' }[] => {
 		if (!focus) return [];
 		if (focus.kind === 'surface') {
-			const r = d.ast.find((x) => x.id === (focus as { id: number }).id);
+			const r = d.syntax_tree.find((x) => x.id === (focus as { id: number }).id);
 			return r ? [{ span: r.span, tone: 'node' }] : [];
 		}
-		if (focus.kind === 'hir') return [{ span: d.hir[focus.row].span, tone: 'node' }];
+		if (focus.kind === 'compiler_syntax_tree') return [{ span: d.compiler_syntax_tree[focus.row].span, tone: 'node' }];
 		if (focus.kind === 'lint') return [{ span: d.lint[focus.index].span, tone: 'node' }];
 		const b = d.bindings.find((x) => x.id === (focus as { id: number }).id)!;
 		return [
@@ -45,15 +45,15 @@
 
 	// The source as runs of characters that share a highlight, so each run is one element.
 	const runs = $derived.by(() => {
-		const tone = new Array<string>(d.src.length).fill('');
+		const tone = new Array<string>(d.source.length).fill('');
 		// Wider spans first, so a nested span (a reference inside a node) wins where they overlap.
 		for (const s of [...spans].sort((a, b) => b.span[1] - b.span[0] - (a.span[1] - a.span[0])))
 			for (let i = s.span[0]; i < s.span[1]; i++) tone[i] = s.tone;
 		const out: { text: string; tone: string }[] = [];
-		for (let i = 0; i < d.src.length; i++) {
+		for (let i = 0; i < d.source.length; i++) {
 			const last = out.at(-1);
-			if (last && last.tone === tone[i]) last.text += d.src[i];
-			else out.push({ text: d.src[i], tone: tone[i] });
+			if (last && last.tone === tone[i]) last.text += d.source[i];
+			else out.push({ text: d.source[i], tone: tone[i] });
 		}
 		return out;
 	});
@@ -61,7 +61,7 @@
 	const refCount = (id: number) => d.refs.filter((r) => r.binding === id).length;
 	const toneClass: Record<string, string> = {
 		node: 'bg-accent-wash text-fg',
-		decl: 'bg-c-map text-bg',
+		declaration: 'bg-c-map text-bg',
 		ref: 'outline outline-1 outline-c-map'
 	};
 </script>
@@ -75,9 +75,9 @@
 	</div>
 	<div class="grid border-b border-line md:grid-cols-2">
 		<div class="min-w-0 border-b border-line p-4 md:border-r md:border-b-0">
-			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-c-src">表層の木（ast）</div>
+			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-c-src">元の構文木（syntax_tree）</div>
 			<ul class="font-mono text-[12px] leading-[1.9] tracking-normal">
-				{#each d.ast as r, i (i)}
+				{#each d.syntax_tree as r, i (i)}
 					<li style:padding-left="{r.depth * 12}px">
 						{#if r.id === null}
 							<span class="text-muted">{r.label}</span>
@@ -98,21 +98,21 @@
 			</ul>
 		</div>
 		<div class="min-w-0 p-4">
-			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-c-gen">HIR</div>
+			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-c-gen">コンパイル用に整理した構文木</div>
 			<ul class="font-mono text-[12px] leading-[1.9] tracking-normal">
-				{#each d.hir as r, i (i)}
+				{#each d.compiler_syntax_tree as r, i (i)}
 					<li style:padding-left="{r.depth * 12}px">
 						<button
 							type="button"
-							class={['rounded-xs px-1 text-left', hirLit.has(i) ? 'bg-c-gen text-bg' : 'hover:bg-surface']}
-							onmouseenter={() => (focus = { kind: 'hir', row: i })}
-							onfocus={() => (focus = { kind: 'hir', row: i })}
+							class={['rounded-xs px-1 text-left', compilerSyntaxTreeLit.has(i) ? 'bg-c-gen text-bg' : 'hover:bg-surface']}
+							onmouseenter={() => (focus = { kind: 'compiler_syntax_tree', row: i })}
+							onfocus={() => (focus = { kind: 'compiler_syntax_tree', row: i })}
 						>
-							{#if r.id !== null}<span class={hirLit.has(i) ? '' : 'text-muted'}>{r.id}</span>{/if}
+							{#if r.id !== null}<span class={compilerSyntaxTreeLit.has(i) ? '' : 'text-muted'}>{r.id}</span>{/if}
 							{r.label}
-							{#if r.origin !== null}<span class={hirLit.has(i) ? '' : 'text-muted'}>← {r.origin}</span>{/if}
+							{#if r.origin !== null}<span class={compilerSyntaxTreeLit.has(i) ? '' : 'text-muted'}>← {r.origin}</span>{/if}
 						</button>
-						{#each r.attrs ?? [] as a (a.name)}
+						{#each r.attributes ?? [] as a (a.name)}
 							<div class="pl-5 text-[11.5px] leading-[1.6] text-muted">{a.name}: {a.value}</div>
 						{/each}
 					</li>
@@ -136,7 +136,7 @@
 							<td class="py-0.5">
 								<button type="button" class="hover:text-accent" onfocus={() => (focus = { kind: 'binding', id: b.id })}>{b.name}</button>
 							</td>
-							<td>{b.decl}</td>
+							<td>{b.declaration}</td>
 							<td>{b.rune}</td>
 							<td class="text-right tnum" title="テンプレートからの参照 / 読み取りの合計">{refCount(b.id)} / {b.reads}</td>
 						</tr>
@@ -164,10 +164,10 @@
 		</div>
 	</div>
 	{#snippet caption()}
-		行にポインタを重ねると、対応する位置がつながります。<span class="c-gen">HIR</span> の <code>← n</code> は、その節点を作った<span
-			class="c-src">表層の節点</span
-		>の番号です。<code>{'{:else if}'}</code> は表層では <code>alt</code> の中の <code>If</code> ですが、HIR では一つの
-		<code>If</code> の枝になります。束縛にポインタを重ねると、宣言（塗り）とテンプレートからの参照（枠）が光ります。空白だけのテキスト節点は省いています。値はすべて
+		行にポインタを重ねると、対応する位置がつながります。<span class="c-gen">コンパイル用に整理した構文木</span> の <code>← n</code> は、その要素を作った<span
+			class="c-src">元の構文木の要素</span
+		>の番号です。<code>{'{:else if}'}</code> は表層では <code>alternate</code> の中の <code>If</code> ですが、コンパイル用に整理した構文木では一つの
+		<code>If</code> の枝になります。束縛にポインタを重ねると、宣言（塗り）とテンプレートからの参照（枠）が光ります。空白だけのテキスト要素は省いています。値はすべて
 		Rust のパイプラインが出したもので、lint の二件は ESLint の出力と位置まで一致します。
 	{/snippet}
 </Figure>

@@ -1,5 +1,5 @@
 // One component's layers as the Rust pipeline built them, printed by
-// `cargo run -p rsv_svelte --example layers -- src/lib/data/layers/Toolbar.svelte.txt` (a `.txt` so
+// `cargo run -p rsvelte_svelte --example export_site_layers -- src/lib/data/layers/Toolbar.svelte.txt` (a `.txt` so
 // the site's own svelte-check does not type-check the sample).
 import toolbar from './Toolbar.json';
 
@@ -13,7 +13,7 @@ export interface SurfaceRow {
 	id: number | null;
 }
 
-export interface HirRow {
+export interface CompilerSyntaxTreeRow {
 	depth: number;
 	label: string;
 	span: Range;
@@ -21,13 +21,13 @@ export interface HirRow {
 	id: number | null;
 	/** The surface node this row was built from. */
 	origin: number | null;
-	attrs?: { name: string; value: string }[];
+	attributes?: { name: string; value: string }[];
 }
 
 export interface Binding {
 	id: number;
 	name: string;
-	decl: string;
+	declaration: string;
 	rune: string;
 	reads: number;
 	writes: number;
@@ -35,9 +35,9 @@ export interface Binding {
 }
 
 export interface Layers {
-	src: string;
-	ast: SurfaceRow[];
-	hir: HirRow[];
+	source: string;
+	syntax_tree: SurfaceRow[];
+	compiler_syntax_tree: CompilerSyntaxTreeRow[];
 	bindings: Binding[];
 	refs: { span: Range; binding: number | null }[];
 	lint: { rule: string; layer: 'early' | 'late'; message: string; span: Range }[];

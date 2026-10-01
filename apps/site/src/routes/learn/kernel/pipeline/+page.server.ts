@@ -1,4 +1,4 @@
-import { arm, documents } from '$lib/server/bench';
+import { arm, documents } from '$lib/server/benchmark';
 import { excerpts } from '$lib/server/source';
 
 export const load = () => ({
@@ -7,26 +7,25 @@ export const load = () => ({
 	streaming: arm('streaming'),
 	serial: arm('serial'),
 	code: excerpts({
-		document: 'kernel/pipeline/Document',
-		language: 'kernel/pipeline/Language',
-		task: 'kernel/pipeline/Task',
-		part: 'kernel/pipeline/Part',
-		projectTask: 'kernel/pipeline/ProjectTask',
-		taskOutput: 'kernel/pipeline/TaskOutput',
-		regDocument: 'kernel/pipeline/Registry::document',
-		selected: 'kernel/pipeline/Registry::selected',
-		checkTaskIds: 'kernel/pipeline/Registry::check_task_ids',
-		runOptions: 'kernel/pipeline/RunOptions',
-		docResult: 'kernel/pipeline/DocResult',
-		runDocument: 'kernel/pipeline/run_document',
-		panicMessage: 'kernel/pipeline/panic_message',
-		runEach: 'kernel/pipeline/run_each',
-		finishProjects: 'kernel/pipeline/finish_projects',
-		run: 'kernel/pipeline/run',
-		inPool: 'kernel/pipeline/in_pool',
-		checkPrepare: 'js/check/Check::prepare',
-		check: 'js/check/Check',
-		test: 'kernel/pipeline/tests::a_project_task_sees_every_prepared_document_once',
-		testTwo: 'kernel/pipeline/tests::each_project_task_gets_only_its_own_parts'
+		document: 'kernel/computation/pipeline/Document',
+		task: 'kernel/computation/pipeline/Task',
+		part: 'kernel/computation/pipeline/Part',
+		projectTask: 'kernel/computation/pipeline/ProjectTask',
+		taskOutput: 'kernel/computation/pipeline/TaskOutput',
+		regDocument: 'kernel/computation/pipeline/Registry::document',
+		selected: 'kernel/computation/pipeline/Registry::selected',
+		checkTaskIds: 'kernel/computation/pipeline/Registry::check_task_identifiers',
+		runOptions: 'kernel/computation/pipeline/RunOptions',
+		docResult: 'kernel/computation/pipeline/DocumentResult',
+		runDocument: 'kernel/computation/pipeline/run_document',
+		panicMessage: 'kernel/computation/pipeline/panic_message',
+		runEach: 'kernel/computation/pipeline/run_each',
+		finishProjects: 'kernel/computation/pipeline/finish_projects',
+		run: 'kernel/computation/pipeline/run',
+		inPool: 'kernel/computation/pipeline/in_pool',
+		checkPrepare: 'javascript/check/Check::prepare',
+		check: 'javascript/check/Check',
+		test: 'kernel/computation/pipeline/tests::a_project_task_sees_every_prepared_document_once',
+		testTwo: 'kernel/computation/pipeline/tests::each_project_task_gets_only_its_own_parts'
 	})
 });

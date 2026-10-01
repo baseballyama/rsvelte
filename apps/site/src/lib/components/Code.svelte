@@ -10,7 +10,7 @@
 		startLine: number;
 		endLine: number;
 		code: string;
-		html: string;
+		markup: string;
 	}
 
 	let {
@@ -26,14 +26,14 @@
 
 	const rev = $derived(page.data.rev as string);
 	const clean = $derived(page.data.clean as boolean);
-	const html = $derived.by(() => {
-		if (mark.length === 0) return item.html;
+	const markup = $derived.by(() => {
+		if (mark.length === 0) return item.markup;
 		const lines = item.code.split('\n');
 		for (const m of mark) {
 			if (!lines.some((l) => l.includes(m))) throw new Error(`${item.key}: no line contains ${JSON.stringify(m)}`);
 		}
 		let n = -1;
-		return item.html.replace(/<span class="line">/g, () => {
+		return item.markup.replace(/<span class="line">/g, () => {
 			n++;
 			return mark.some((m) => lines[n]?.includes(m)) ? '<span class="line hl">' : '<span class="line">';
 		});
@@ -94,7 +94,7 @@
 		style:--start={item.startLine - 1}
 		style:--gutter={gutter}
 	>
-		{@html html}
+		{@html markup}
 	</div>
 	{#if caption}
 		<p class="border-t border-line px-4 py-2.5 text-[14px] leading-[1.75] text-fg-2">{caption}</p>

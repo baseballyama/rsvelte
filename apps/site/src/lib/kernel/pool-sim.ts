@@ -1,5 +1,5 @@
-// A model of `pool::take_keyed` / `pool::give_keyed` for one key (one column type of `rsv_js::Ast`)
-// on one worker, driven by the order in which rsv_svelte creates and drops `Ast`s for a document:
+// A model of `pool::take_keyed` / `pool::give_keyed` for one key (one column type of `rsvelte_javascript::SyntaxTree`)
+// on one worker, driven by the order in which rsvelte_svelte creates and drops `SyntaxTree`s for a document:
 // the parsed tree lives until the document ends; each compile target lowers into a fresh tree that
 // is dropped after printing. Growth follows Rust's `Vec` (amortised doubling, first allocation of 4
 // for small elements). The byte budget is counted in elements here; the real one is `MAX_BYTES`,
@@ -8,24 +8,24 @@
 export const MAX_PER_KEY = 16;
 
 export type Event =
-	| { kind: 'take'; ast: string; got: number | null; need: number; allocs: number; cap: number }
-	| { kind: 'give'; ast: string; cap: number; kept: boolean; why: 'kept' | 'disabled' | 'full' | 'budget' };
+	| { kind: 'take'; syntax_tree: string; got: number | null; need: number; allocations: number; cap: number }
+	| { kind: 'give'; syntax_tree: string; cap: number; kept: boolean; why: 'kept' | 'disabled' | 'full' | 'budget' };
 
 export interface Step {
 	doc: number;
 	event: Event;
 	pool: number[];
-	allocs: number;
+	allocations: number;
 }
 
-function growths(from: number, need: number): { allocs: number; cap: number } {
+function growths(from: number, need: number): { allocations: number; cap: number } {
 	let cap = from;
-	let allocs = 0;
+	let allocations = 0;
 	while (cap < need) {
 		cap = cap === 0 ? 4 : cap * 2;
-		allocs++;
+		allocations++;
 	}
-	return { allocs, cap };
+	return { allocations, cap };
 }
 
 /**
@@ -38,21 +38,21 @@ export function simulate(sizes: number[], enabled: boolean, budget = Infinity): 
 	let total = 0;
 	sizes.forEach((n, doc) => {
 		const live = new Map<string, number>();
-		const take = (ast: string, need: number) => {
+		const take = (syntax_tree: string, need: number) => {
 			const got = enabled ? (pool.pop() ?? null) : null;
 			const g = growths(got ?? 0, need);
-			total += g.allocs;
-			live.set(ast, g.cap);
-			steps.push({ doc, event: { kind: 'take', ast, got, need, ...g }, pool: [...pool], allocs: total });
+			total += g.allocations;
+			live.set(syntax_tree, g.cap);
+			steps.push({ doc, event: { kind: 'take', syntax_tree, got, need, ...g }, pool: [...pool], allocations: total });
 		};
-		const give = (ast: string) => {
-			const cap = live.get(ast)!;
-			live.delete(ast);
+		const give = (syntax_tree: string) => {
+			const cap = live.get(syntax_tree)!;
+			live.delete(syntax_tree);
 			const held = pool.reduce((a, b) => a + b, 0);
 			const why = !enabled ? 'disabled' : held + cap > budget ? 'budget' : pool.length >= MAX_PER_KEY ? 'full' : 'kept';
 			const kept = why === 'kept';
 			if (kept) pool.push(cap);
-			steps.push({ doc, event: { kind: 'give', ast, cap, kept, why }, pool: [...pool], allocs: total });
+			steps.push({ doc, event: { kind: 'give', syntax_tree, cap, kept, why }, pool: [...pool], allocations: total });
 		};
 		take('parse', n);
 		take('lower.client', Math.round(n * 1.6));

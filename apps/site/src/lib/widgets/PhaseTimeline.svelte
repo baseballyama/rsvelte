@@ -2,7 +2,7 @@
 	import Figure from '$lib/components/Figure.svelte';
 	import { account, type Span } from '$lib/kernel/metrics-sim';
 
-	/** Average self microseconds per call of each phase, from a metrics bench report. */
+	/** Average self microseconds per call of each phase, from a metrics benchmark report. */
 	let { avg, rev }: { avg: Record<string, number>; rev: string } = $props();
 
 	let formatFirst = $state(false);
@@ -14,7 +14,7 @@
 		return v;
 	};
 
-	// One parsed document, the four bench tasks, in registration order (or format first).
+	// One parsed document, the four benchmark tasks, in registration order (or format first).
 	const roots = $derived.by(() => {
 		let t = 0;
 		const span = (name: string, children: () => Span[]): Span => {
@@ -22,7 +22,7 @@
 			t += need(name) / 2;
 			const kids = children();
 			t += need(name) / 2;
-			return { name, start, end: t, allocs: 0, children: kids };
+			return { name, start, end: t, allocations: 0, children: kids };
 		};
 		let parsed = false;
 		const parse = () => {
@@ -36,10 +36,10 @@
 			analyzed = true;
 			return [span('svelte.analyze', () => [])];
 		};
-		let css = false;
+		let stylesheet = false;
 		const scoped = () => {
-			if (css) return [];
-			css = true;
+			if (stylesheet) return [];
+			stylesheet = true;
 			return [span('svelte.css', () => [])];
 		};
 		const compile = (target: 'client' | 'server') =>

@@ -18,14 +18,14 @@ if (dirty) throw new Error(`crates/ has uncommitted changes; the data would name
 const samples = [
 	{ name: 'counter', fixture: 'fixtures/svelte/rsvelte/minimal/counter.svelte/input.svelte', file: 'Counter.svelte' }
 ];
-const tmp = mkdtempSync(path.join(tmpdir(), 'rsv-site-'));
+const tmp = mkdtempSync(path.join(tmpdir(), 'rsvelte-site-'));
 for (const s of samples) {
 	const input = path.join(tmp, s.file);
 	copyFileSync(path.join(root, s.fixture), input);
 	for (const target of ['client', 'server']) {
 		const json = execFileSync(
 			'cargo',
-			['run', '-q', '--release', '-p', 'rsv_svelte', '--example', 'emit_mappings', '--', input, target],
+			['run', '-q', '--release', '-p', 'rsvelte_svelte', '--example', 'export_site_source_maps', '--', input, target],
 			{ cwd: root, encoding: 'utf8' }
 		);
 		const data = { ...JSON.parse(json), fixture: s.fixture, file: s.file, target, rev };

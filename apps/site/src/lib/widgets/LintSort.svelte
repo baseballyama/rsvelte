@@ -5,27 +5,27 @@
 	// The kernel test's rule: report every 'x' (optionally shifted), under the rule's own id.
 	interface Finding {
 		code: string;
-		lo: number;
+		startOffset: number;
 		seq: number;
 	}
 
 	let text = $state('x.x\n😀x');
 	let order = $state(['b', 'a']);
 
-	const idx = $derived(new LineIndex(text));
+	const index = $derived(new LineIndex(text));
 	const reported = $derived.by(() => {
 		const out: Finding[] = [];
 		for (const code of order) {
-			idx.chars().forEach((c) => {
-				if (c.ch === 'x') out.push({ code, lo: c.byte, seq: out.length });
+			index.chars().forEach((c) => {
+				if (c.ch === 'x') out.push({ code, startOffset: c.byte, seq: out.length });
 			});
 		}
 		return out;
 	});
 	// Array.prototype.sort is stable, like Rust's sort_by_key.
-	const sorted = $derived([...reported].sort((p, q) => p.lo - q.lo));
-	const pos = (b: number) => {
-		const lc = idx.lineCol(b);
+	const sorted = $derived([...reported].sort((p, q) => p.startOffset - q.startOffset));
+	const position = (b: number) => {
+		const lc = index.lineCol(b);
 		return `${lc.line}:${lc.column + 1}`;
 	};
 </script>
@@ -42,7 +42,7 @@
 				<div class="text-muted">ルールが報告した順（{order.join(' → ')}）</div>
 				<ol class="mt-1.5 space-y-0.5">
 					{#each reported as f (f.seq)}
-						<li><span class={f.code === 'a' ? 'text-c-src' : 'text-c-gen'}>{f.code}</span> @ {f.lo}</li>
+						<li><span class={f.code === 'a' ? 'text-c-src' : 'text-c-gen'}>{f.code}</span> @ {f.startOffset}</li>
 					{/each}
 				</ol>
 			</div>
@@ -51,8 +51,8 @@
 				<ol class="mt-1.5 space-y-0.5">
 					{#each sorted as f (f.seq)}
 						<li>
-							<span class={f.code === 'a' ? 'text-c-src' : 'text-c-gen'}>{f.code}</span> @ {f.lo}
-							<span class="text-muted">→ {pos(f.lo)}</span>
+							<span class={f.code === 'a' ? 'text-c-src' : 'text-c-gen'}>{f.code}</span> @ {f.startOffset}
+							<span class="text-muted">→ {position(f.startOffset)}</span>
 						</li>
 					{/each}
 				</ol>
@@ -60,6 +60,6 @@
 		</div>
 	</div>
 	{#snippet caption()}
-		同じ位置の指摘は、先に走ったルールのものが先に来ます。列は ESLint と同じく 1 から数えた UTF-16 の単位で、😀 のあとの x は 3 列目です。
+		同じ位置の指摘は、先に走ったルールのものが先に来ます。列は ESLint と同じく 1 から数えた ユニコードの16ビット符号化方式 の単位で、😀 のあとの x は 3 列目です。
 	{/snippet}
 </Figure>

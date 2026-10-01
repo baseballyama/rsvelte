@@ -18,26 +18,26 @@
 		{ key: 'missing', label: '未対応として拒否', dot: 'bg-fg-2/25' }
 	];
 	const arm = (name: string) => {
-		const a = data.bench.arms.find((x) => x.name === name);
+		const a = data.benchmark.arms.find((x) => x.name === name);
 		if (!a) throw new Error(`no arm ${name}`);
 		return a;
 	};
-	const maxMs = $derived(Math.max(...data.bench.arms.map((a) => a.median)));
+	const maxMs = $derived(Math.max(...data.benchmark.arms.map((a) => a.median)));
 	const armNote: Record<string, string> = {
-		shared: '文書のタスクがアーティファクトを共有',
+		shared: '文書のタスクが計算結果を共有',
 		isolated: 'タスクごとに計算し直す',
 		nopool: 'バッファプールなし',
 		serial: '1 スレッド',
 		streaming: '結果を確定した順に捨てる'
 	};
 
-	// Every figure in the hero is a ratio of two arms from the same bench run; nothing here is typed in.
+	// Every figure in the hero is a ratio of two arms from the same benchmark run; nothing here is typed in.
 	const stats = $derived([
 		{
 			value: `${arm('shared').median.toFixed(1)}`,
 			unit: 'ms',
-			label: `${fmt(data.bench.documents)} 文書・${mb(data.bench.bytes)} MB に ${data.bench.tasks} タスク`,
-			detail: `${data.bench.threads} スレッド、${data.bench.rounds} ラウンドの中央値`
+			label: `${fmt(data.benchmark.documents)} 文書・${mb(data.benchmark.bytes)} メガバイトに ${data.benchmark.tasks} タスク`,
+			detail: `${data.benchmark.threads} スレッド、${data.benchmark.rounds} ラウンドの中央値`
 		},
 		{
 			value: `${(arm('isolated').median / arm('shared').median).toFixed(1)}`,
@@ -53,9 +53,9 @@
 		},
 		{
 			value: `${mb(arm('streaming').peak)}`,
-			unit: 'MB',
+			unit: 'メガバイト',
 			label: 'ストリーミング時のピーク増分',
-			detail: `溜め込むと ${mb(arm('shared').peak)} MB`
+			detail: `溜め込むと ${mb(arm('shared').peak)} メガバイト`
 		}
 	]);
 
@@ -71,10 +71,10 @@
 	});
 	const totalMinutes = chapters.reduce((n, c) => n + c.minutes, 0);
 
-	const cmd = 'cargo run --release -p rsv_cli -- run Counter.svelte --task svelte.compile/client';
+	const command = 'cargo run --release -p rsvelte_command_line -- run Counter.svelte --task svelte.compile/client';
 	let copied = $state(false);
 	async function copy() {
-		await navigator.clipboard.writeText(cmd);
+		await navigator.clipboard.writeText(command);
 		copied = true;
 		setTimeout(() => (copied = false), 1200);
 	}
@@ -120,7 +120,7 @@
 						<a
 							href="/learn/playground"
 							class="inline-flex h-11 items-center rounded-md border border-line bg-raised px-5 text-fg hover:border-line-strong"
-							>Doc プレイグラウンド</a
+							>プラグインを試す</a
 						>
 						<a
 							href={REPO_URL}
@@ -133,7 +133,7 @@
 						class="mt-8 flex max-w-[640px] items-center gap-2 rounded-md border border-line bg-sunken py-1.5 pr-1.5 pl-3 font-mono text-[13px]"
 					>
 						<span class="text-muted select-none" aria-hidden="true">$</span>
-						<code class="no-scrollbar min-w-0 flex-1 overflow-x-auto whitespace-nowrap text-fg-2" title={cmd}>{cmd}</code>
+						<code class="no-scrollbar min-w-0 flex-1 overflow-x-auto whitespace-nowrap text-fg-2" title={command}>{command}</code>
 						<button
 							type="button"
 							class="flex size-8 shrink-0 items-center justify-center rounded-sm text-muted hover:bg-surface hover:text-fg"
@@ -158,7 +158,7 @@
 						{/each}
 					</dl>
 					<p class="mt-3 font-mono text-[11.5px] tracking-normal text-muted">
-						release ビルド {data.bench.rev.slice(0, 10)} の実測。アームの定義と再現手順は <a class="link" href="/learn/measure"
+						release ビルド {data.benchmark.rev.slice(0, 10)} の実測。比較対象の定義と再現手順は <a class="link" href="/learn/measure"
 							>13 実測</a
 						>に。
 					</p>
@@ -176,15 +176,15 @@
 				</div>
 				<p class="text-[16px] leading-[1.9] text-fg-2 lg:col-span-7">
 					<span class="c-gen">出力</span>の上でカーソルを動かすと、その文字がどの<span class="c-src">入力</span
-					>の位置から来たかを、カーネルの <code class="text-[14px]">Emitter::lookup</code> と同じ規則（最大下界）で引きます。
+					>の位置から来たかを、カーネルの <code class="text-[14px]">Emitter::lookup</code> と同じ規則（指定位置以前で最も近い対応点）で引きます。
 				</p>
 			</div>
 			<div class="mt-8">
 				<SpanFigure data={data.counter} label="図 0 · 出力の位置から入力の位置へ" />
 			</div>
 			<p class="mt-3 max-w-[52em] text-[13.5px] leading-[1.8] text-muted">
-				出力と写像点は <code class="text-[12.5px]">{data.counter.fixture}</code> を rsvelte で実際にコンパイルしたもので、写像点はまだ
-				{data.counter.mappings.length} 個しかありません。写像点のない文字は、直前の写像点に吸い寄せられます。
+				出力と位置の対応点は <code class="text-[12.5px]">{data.counter.fixture}</code> を rsvelte で実際にコンパイルしたもので、位置の対応点はまだ
+				{data.counter.mappings.length} 個しかありません。位置の対応点のない文字は、直前の位置の対応点に吸い寄せられます。
 			</p>
 		</section>
 
@@ -193,8 +193,8 @@
 				<p class="eyebrow">設計</p>
 				<h2 id="one-kernel" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">カーネルは言語を知らない</h2>
 				<p class="mt-4 text-[16px] leading-[1.9] text-fg-2">
-					<code class="text-[14px]">rsv_kernel</code> が持つのは、位置、名前、一度だけ計算するキャッシュ、スケジューラ、診断、レイアウト、出力と写像、計測です。Svelte について知っていることはひとつもありません。Svelte
-					は言語プラグインとして、自分の言語・アーティファクト・タスクを登録します。
+					<code class="text-[14px]">rsvelte_kernel</code> が持つのは、位置、名前、一度だけ計算するキャッシュ、スケジューラ、診断、レイアウト、出力と位置の対応、計測です。Svelte について知っていることはひとつもありません。Svelte
+					は言語プラグインとして、計算結果・タスク・共通の呼び出し窓口の提供元を登録します。
 				</p>
 				<p class="mt-4 text-[14px] leading-[1.8] text-muted">
 					行数はビルド時に数えています。この図を描き直さなくても、コードが変われば数字も変わります。
@@ -214,7 +214,7 @@
 					<p class="eyebrow">正しさ</p>
 					<h2 id="ledger" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">上流との一致</h2>
 					<p class="mt-4 text-[16px] leading-[1.9] text-fg-2">
-						正しさは上流のツールの出力と比べて測ります。手書きのユニットはほぼ揃っていますが、実際のコンポーネントを集めたコーパスでは、コンパイル結果が上流と一致するのは出力できたうちの一部です。
+						正しさは上流のツールの出力と比べて測ります。手書きの検証例はほぼ揃っていますが、実際のコンポーネントを集めた検証用のソースファイル集では、コンパイル結果が上流と一致するのは出力できたうちの一部です。
 					</p>
 				</div>
 				<div class="mt-8 min-w-0 lg:col-span-8 lg:mt-0">
@@ -226,7 +226,7 @@
 					<div class="mt-4 overflow-x-auto">
 						<table class="table">
 							<caption class="mb-2 text-left font-mono text-[12px] tracking-normal text-muted">
-								fixtures/_registry/parity.json · {fmt(data.parity.units)} ユニット · ビルド時に集計
+								fixtures/_registry/parity.json · {fmt(data.parity.units)} 検証例 · ビルド時に集計
 							</caption>
 							<thead><tr><th>タスク</th><th class="w-[40%]">判定の内訳</th><th class="num">一致</th></tr></thead>
 							<tbody>
@@ -256,7 +256,7 @@
 						</table>
 					</div>
 					<p class="mt-3 text-[13px] leading-[1.8] text-muted">
-						手書きのユニットと、コーパスから取り込んだユニットを、上流のツールの出力と比べた判定です。CI はこのファイルをラチェットとして扱い、判定が一つでも動けば落ちます（<a
+						手書きの検証例と、検証用のソースファイル集から取り込んだ検証例を、上流のツールの出力と比べた判定です。変更時の自動検査 はこのファイルを基準値との比較検査として扱い、判定が一つでも動けば落ちます（<a
 							class="link"
 							href="/learn/measure">13 実測</a
 						>）。「未対応」はまだ移植していない構文を正直に拒否したもの、「パースできない」は拒否すべきところで出力してしまった欠陥です。
@@ -265,12 +265,12 @@
 			</div>
 		</section>
 
-		<section class="mt-28 grid grid-cols-[minmax(0,1fr)] gap-x-12 lg:grid-cols-12" aria-labelledby="perf">
+		<section class="mt-28 grid grid-cols-[minmax(0,1fr)] gap-x-12 lg:grid-cols-12" aria-labelledby="performance">
 			<div class="lg:col-span-4">
 				<p class="eyebrow">性能</p>
-				<h2 id="perf" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">仕組みごとに測る</h2>
+				<h2 id="performance" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">仕組みごとに測る</h2>
 				<p class="mt-4 text-[16px] leading-[1.9] text-fg-2">
-					ベンチマークの各アームは、同じ文書・同じタスクを、仕組みをひとつだけ変えて走らせます。アームの差が、その仕組みの効果です。ストリーミングは時間をほとんど変えずに、生存ヒープのピーク増分を {mb(arm('shared').peak)} MB から {mb(arm('streaming').peak)} MB にします。
+					ベンチマークの各比較対象は、同じ文書・同じタスクを、仕組みをひとつだけ変えて走らせます。比較対象の差が、その仕組みの効果です。ストリーミングは時間をほとんど変えずに、使用中のメモリのピーク増分を {mb(arm('shared').peak)} メガバイト から {mb(arm('streaming').peak)} メガバイト にします。
 				</p>
 				<a href="/learn/measure" class="mt-5 inline-flex items-center gap-1.5 text-[15px] font-medium text-accent hover:underline"
 					>13 実測<Icon name="arrow-right" size={14} /></a
@@ -280,10 +280,10 @@
 				<div class="overflow-x-auto">
 					<table class="table min-w-[560px]">
 						<thead>
-							<tr><th>アーム</th><th class="w-[42%]">中央値</th><th class="num">ms</th><th class="num">ピーク増分</th></tr>
+							<tr><th>比較対象</th><th class="w-[42%]">中央値</th><th class="num">ms</th><th class="num">ピーク増分</th></tr>
 						</thead>
 						<tbody>
-							{#each data.bench.arms as a (a.name)}
+							{#each data.benchmark.arms as a (a.name)}
 								<tr>
 									<td><code>{a.name}</code><div class="text-[13px] text-muted">{armNote[a.name]}</div></td>
 									<td class="align-middle">
@@ -295,16 +295,17 @@
 										</div>
 									</td>
 									<td class="num">{a.median.toFixed(1)}</td>
-									<td class="num">{mb(a.peak)} MB</td>
+									<td class="num">{mb(a.peak)} メガバイト</td>
 								</tr>
 							{/each}
 						</tbody>
 					</table>
 				</div>
 				<p class="mt-3 text-[13px] leading-[1.7] text-muted">
-					{fmt(data.bench.documents)} 文書（{mb(data.bench.bytes)} MB）、{data.bench.tasks} タスク、{data.bench.threads} スレッド、release、{data.bench.rounds}
-					ラウンドの中央値（ABBA 順）。時間は metrics なしのビルド、ピーク増分は metrics ありのビルドの別ラウンド。build
-					{data.bench.rev.slice(0, 10)}。
+					{fmt(data.benchmark.documents)} 文書（{mb(data.benchmark.bytes)} メガバイト）を、{data.benchmark.tasks} タスク・{data.benchmark.threads} スレッドで処理しました。
+					最適化したビルドで {data.benchmark.rounds} 回計測した中央値です。比較対象の実行順は交互に入れ替えています。
+					時間は計測機能なし、メモリのピークは計測機能ありの別の実行で測りました。ビルド
+					{data.benchmark.rev.slice(0, 10)}。
 				</p>
 			</div>
 		</section>

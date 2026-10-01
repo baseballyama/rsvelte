@@ -7,7 +7,7 @@
 	const shifted = $derived(value < 0 ? -Math.trunc(value) * 2 + 1 : Math.trunc(value) * 2);
 </script>
 
-<Figure label="図 9.2 · VLQ">
+<Figure label="図 9.2 · 可変長の整数表現">
 	{#snippet controls()}
 		{#each [0, 1, -1, 16, 1000] as v (v)}
 			<button type="button" class="btn-ghost" aria-pressed={value === v} onclick={() => (value = v)}>{v}</button>
@@ -35,7 +35,7 @@
 		</div>
 	</div>
 	{#snippet caption()}
-		5 ビットずつ下の桁から取り、続きがあれば 6 ビット目（橙）を立てて base64 の 1 文字にします。ボタンの値は、カーネルの VLQ テストと同じ入力です（<code
+		5 ビットずつ下の桁から取り、続きがあれば 6 ビット目（橙）を立てて base64 の 1 文字にします。ボタンの値は、カーネルの 可変長の整数表現 テストと同じ入力です（<code
 			>"A C D gB w+B"</code
 		>）。
 	{/snippet}

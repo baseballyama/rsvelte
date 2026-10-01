@@ -1,4 +1,4 @@
-import { reports } from '$lib/server/bench';
+import { reports } from '$lib/server/benchmark';
 import { excerpts } from '$lib/server/source';
 
 export const load = () => ({
@@ -6,17 +6,17 @@ export const load = () => ({
 	documents: reports().plainA.population.documents,
 	benchRev: reports().plainA.build.rev,
 	code: excerpts({
-		severity: 'kernel/diag/Severity',
-		diagnostic: 'kernel/diag/Diagnostic',
-		unsupported: 'kernel/diag/Unsupported',
-		unsupportedImpl: 'kernel/diag/impl Unsupported',
-		format: 'svelte/tasks/Format::run',
-		rule: 'kernel/lint/Rule',
-		run: 'kernel/lint/impl Findings',
-		rules: 'svelte/lint/lint',
-		noUnused: 'svelte/lint/impl Rule for NoUnusedVars',
-		orderTest: 'kernel/lint/tests::findings_are_ordered_by_offset_and_ties_keep_rule_order',
-		render: 'kernel/lint/render_json',
-		columnsTest: 'kernel/lint/tests::columns_are_one_based_utf16'
+		severity: 'kernel/diagnostics/diagnostic/Severity',
+		diagnostic: 'kernel/diagnostics/diagnostic/Diagnostic',
+		unsupported: 'kernel/diagnostics/diagnostic/Unsupported',
+		unsupportedImpl: 'kernel/diagnostics/diagnostic/impl Unsupported',
+		format: 'svelte/computation/tasks/Format::run',
+		rule: 'kernel/diagnostics/rules/Rule',
+		run: 'kernel/diagnostics/rules/impl Findings',
+		rules: 'svelte/tooling/lint/lint',
+		noUnused: 'svelte/tooling/lint/impl Rule for NoUnusedVariables',
+		orderTest: 'kernel/diagnostics/rules/tests::findings_are_ordered_by_offset_and_ties_keep_rule_order',
+		render: 'kernel/diagnostics/rules/render_json',
+		columnsTest: 'kernel/diagnostics/rules/tests::columns_are_one_based_utf16'
 	})
 });

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Term from '$lib/components/Term.svelte';
 	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
 	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
 	import Code from '$lib/components/Code.svelte';
@@ -16,7 +17,7 @@
 
 <ChapterHeader
 	chapter={c}
-	lead="コンパイルエラーも、lint の指摘も、型エラーも、同じ Diagnostic で表します。この章では診断の形と、「移植していないものは出力しない」という規約、そして lint ルールの契約を見ます。"
+	lead="コンパイルエラーも、lint の指摘も、型エラーも、同じ Diagnostic で表します。この章では診断の形と、「移植していないものは出力しない」という規約、そして lint ルールの守るべき条件を見ます。"
 />
 
 <div class="prose-learn">
@@ -39,7 +40,7 @@
 		<code>has_end</code> は、Vue を足したときに加わりました。ESLint のルールには、位置を一つだけ報告するものがあります（<code
 			>vue/multi-word-component-names</code
 		>
-		の <code>loc</code> は始まりの一点です）。そうした指摘は <code>without_end</code> で作り、書き出すときに終端を <code>null</code>
+		の <code>source_location</code> は始まりの一点です）。そうした指摘は <code>without_end</code> で作り、書き出すときに終端を <code>null</code>
 		と書きます。範囲の長さが 0 の指摘と、終端を持たない指摘は、上流の出力では別のものだからです（573ac584b6）。
 	</p>
 
@@ -55,8 +56,8 @@
 
 <div class="prose-learn">
 	<p>
-		<code>Unsupported</code> は、何に対応していないか（<code>what</code>）と、それがどこにあるか（<code>loc</code>）を持ちます。位置は
-		<code>Loc</code> なので、特定の構文のせいではない拒否（文書全体のレイアウトが一行に収まらない、など）は
+		<code>Unsupported</code> は、何に対応していないか（<code>what</code>）と、それがどこにあるか（<code>source_location</code>）を持ちます。位置は
+		<Term name="SourceLocation" /> なので、特定の構文のせいではない拒否（文書全体のレイアウトが一行に収まらない、など）は
 		<code>nowhere</code> で「位置なし」と明示します（<a href="/learn/kernel/source#loc">02</a>）。整形タスクは、<code>Unsupported</code>
 		を受け取るとファイルを書かずに、その構文を指す診断だけを残します。
 	</p>
@@ -67,21 +68,21 @@
 <div class="prose-learn">
 	<p>
 		ベンチマークの「診断あり」の件数が多いのは、ほとんどがこの拒否です。{data.documents.toLocaleString('en-US')} 文書のうち、整形は {data.format.diagnostics.toLocaleString('en-US')} 文書で「未対応」などの診断を出しました<Note
-			>数字は 13 実測の章の壁時計のベンチマーク（ビルド {data.benchRev.slice(0, 10)}）の値です。「診断なし」は正しさを意味しません。正しさは上流の出力と比べて別に測っています（<a
-				href="/learn/measure#parity">13 正しさのラチェット</a
+			>数字は 13 実測の章の実行時間のベンチマーク（ビルド {data.benchRev.slice(0, 10)}）の値です。「診断なし」は正しさを意味しません。正しさは上流の出力と比べて別に測っています（<a
+				href="/learn/measure#parity">13 正しさの基準値との比較検査</a
 			>）。</Note
 		>。
 	</p>
 
 	<DeepDive title="位置を持たせる理由">
 		<p>
-			位置がなければ、どの構文が原因かはメッセージの文字列でしか分からず、エディタでその場所を示すこともできません。位置があれば、コーパスで「どの構文が、どこで、何件拒否されたか」を集計できます。どちらも、次に何を移植するかを決める材料です。
+			位置がなければ、どの構文が原因かはメッセージの文字列でしか分からず、エディタでその場所を示すこともできません。位置があれば、検証用のソースファイル集で「どの構文が、どこで、何件拒否されたか」を集計できます。どちらも、次に何を移植するかを決める材料です。
 		</p>
 	</DeepDive>
 
 	<H2 id="rule" />
 	<p>
-		lint ルールの契約は、カーネルの <code>lint</code> モジュールにあります。ルールはコンテキストの型 <code>C</code>
+		lint ルールの守るべき条件は、カーネルの <code>lint</code> モジュールにあります。ルールはコンテキストの型 <code>C</code>
 		について総称的で、<code>C</code> を決めるのは言語の側です。
 	</p>
 </div>
@@ -90,8 +91,8 @@
 
 <div class="prose-learn">
 	<p>
-		Svelte プラグインはコンテキストを二つ持ちます。<code>AstCx</code> は書かれたとおりの構文木と JavaScript
-		のスコープ解析を、<code>HirCx</code> は HIR と名前解決を持ちます。ルールは自分の問いに答える層を選び、上流の設定と同じ順に並べます（層については
+		Svelte プラグインはコンテキストを二つ持ちます。<code>SyntaxTreeContext</code> は元の構文木と JavaScript のスコープ解析を持ちます。
+		<code>CompilerSyntaxTreeContext</code> はコンパイル用に整理した構文木と名前解決を持ちます。ルールは自分の問いに答える層を選び、上流の設定と同じ順に並べます（層については
 		<a href="/learn/kernel/layers#lint">05</a>）。
 	</p>
 </div>
@@ -101,9 +102,9 @@
 
 <div class="prose-learn">
 	<p>
-		<code>no-unused-vars</code> の本体は <code>rsv_js</code> にあります。JavaScript の意味に属するルールなので、Vue
+		<code>no-unused-variables</code> の本体は <code>rsvelte_javascript</code> にあります。JavaScript の意味に属するルールなので、Vue
 		プラグインもそのまま使っています。違うのは、どの束縛を判定するかをホストが渡すことだけです。Vue では <code>v-for</code>
-		の変数を中核のルールには判定させず、<code>vue/no-unused-vars</code> が判定します。逆にすると、オラクルとの比較で <code>lint-cases</code> が赤になります（73e09d6167）。二つのプラグインで同じ判断を共有する別の例は
+		の変数を中核のルールには判定させず、<code>vue/no-unused-variables</code> が判定します。逆にすると、比較元の公式ツールとの比較で <code>lint-cases</code> が赤になります（73e09d6167）。二つのプラグインで同じ判断を共有する別の例は
 		<a href="/learn/kernel/layers#shared-lint">05</a> にあります。
 	</p>
 
@@ -114,7 +115,7 @@
 	</p>
 </div>
 
-<Code item={data.code.run} mark={['metrics::phase(rule.id())', 'assert!(', 'sort_by_key']} />
+<Code item={data.code.run} mark={['measurement::phase(rule.identifier())', 'assert!(', 'sort_by_key']} />
 
 <div class="prose-learn">
 	<p>
@@ -127,16 +128,16 @@
 
 <div class="prose-learn">
 	<p>
-		<code>assert!</code> は、ルールが自分の ID 以外のコードで報告していないかを確かめます。release
-		ビルドでも確かめるので、契約を破ったルールはその場で panic し、<code>run_document</code> がその文書の panic として報告します（<a
+		<code>assert!</code> は、ルールが自分の識別番号以外のコードで報告していないかを確かめます。release
+		ビルドでも確かめるので、守るべき条件を破ったルールはその場で panic し、<code>run_document</code> がその文書の panic として報告します（<a
 			href="/learn/kernel/pipeline#run-document">06</a
 		>）。コストはルールが出した指摘の数だけの比較です。
 	</p>
 
 	<H2 id="render" />
 	<p>
-		<code>render_json</code> は指摘を ESLint と同じ形の JSON にします。行は 1 から、列も 1 から、単位は UTF-16 です。<code
-			>LineCol::column</code
+		<code>render_json</code> は指摘を ESLint と同じ形の 構造化データ形式にします。行は 1 から、列も 1 から、単位は ユニコードの16ビット符号化方式 です。<code
+			>LineColumn::column</code
 		>
 		は 0 から数えるので、ここで 1 を足します。終端を持たない指摘では、<code>end</code> を <code>null</code> と書きます。
 	</p>

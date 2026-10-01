@@ -8,9 +8,9 @@ describe('artifact model', () => {
 		expect(computeCounts(simulate(TASKS, doc, 'isolated'))['svelte.parse']).toBe(5);
 	});
 
-	it('records Ctx::computed in the order the kernel pushes (before compute runs)', () => {
+	it('records DocumentContext::computed in the order the kernel pushes (before compute runs)', () => {
 		const [client] = simulate(['svelte.compile/client'], { parses: true }, 'shared');
-		expect(client.computed).toEqual(['svelte.parse', 'svelte.hir', 'svelte.resolve', 'svelte.analyze', 'svelte.css']);
+		expect(client.computed).toEqual(['svelte.parse', 'svelte.compiler_syntax_tree', 'svelte.resolve', 'svelte.analyze', 'svelte.css']);
 		expect(client.gets.filter((g) => g.depth > 0).every((g) => !g.computed)).toBe(true);
 	});
 
@@ -19,7 +19,7 @@ describe('artifact model', () => {
 		expect(computeCounts(traces)).toEqual({
 			'svelte.parse': 1,
 			'svelte.resolve': 0,
-			'svelte.hir': 0,
+			'svelte.compiler_syntax_tree': 0,
 			'svelte.analyze': 0,
 			'svelte.css': 0,
 			'ts.view': 1
@@ -29,11 +29,11 @@ describe('artifact model', () => {
 	it('computes name resolution and the HIR once for compile and lint together', () => {
 		const traces = simulate(['svelte.compile/client', 'svelte.lint/default'], { parses: true }, 'shared');
 		expect(computeCounts(traces)['svelte.resolve']).toBe(1);
-		expect(computeCounts(traces)['svelte.hir']).toBe(1);
+		expect(computeCounts(traces)['svelte.compiler_syntax_tree']).toBe(1);
 		expect(traces[1].gets.map((g) => [g.artifact, g.computed])).toEqual([
 			['svelte.parse', false],
 			['svelte.resolve', false],
-			['svelte.hir', false]
+			['svelte.compiler_syntax_tree', false]
 		]);
 	});
 });

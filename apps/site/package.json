@@ -7,7 +7,7 @@
 		"node": ">=26"
 	},
 	"scripts": {
-		"build:wasm": "wasm-pack build ../../crates/rsv_kernel_wasm --out-dir ../../apps/site/src/lib/wasm/kernel --out-name rsv_kernel_wasm --target web --release",
+		"build:wasm": "wasm-pack build ../../crates/rsvelte_kernel_browser --out-dir ../../apps/site/src/lib/wasm/kernel --out-name rsvelte_kernel_browser --target web --release",
 		"predev": "pnpm run build:wasm",
 		"dev": "vite dev",
 		"prebuild": "pnpm run build:wasm",

@@ -7,22 +7,22 @@
 	let qLine = $state(1);
 	let qCol = $state(12);
 
-	const idx = $derived(new LineIndex(text));
-	const chars = $derived(idx.chars());
-	const lc = $derived(idx.lineCol(Math.min(at, idx.bytes.length)));
+	const index = $derived(new LineIndex(text));
+	const chars = $derived(index.chars());
+	const lc = $derived(index.lineCol(Math.min(at, index.bytes.length)));
 	const cur = $derived(chars.find((c) => c.byte === at));
-	const off = $derived(idx.offset(qLine, qCol));
+	const off = $derived(index.offset(qLine, qCol));
 	const lineEnd = $derived.by(() => {
-		const start = idx.lineStarts[qLine - 1];
+		const start = index.lineStarts[qLine - 1];
 		if (start === undefined) return null;
-		const nl = idx.bytes.indexOf(0x0a, start);
-		return nl === -1 ? idx.bytes.length : nl;
+		const nl = index.bytes.indexOf(0x0a, start);
+		return nl === -1 ? index.bytes.length : nl;
 	});
 
 	const hex = (b: number) => b.toString(16).toUpperCase().padStart(2, '0');
 </script>
 
-<Figure label="図 2.1 · UTF-8 バイト、行、UTF-16 列" wide>
+<Figure label="図 2.1 · ユニコードの8ビット符号化方式 バイト、行、ユニコードの16ビット符号化方式 列" wide>
 	{#snippet controls()}
 		{#each [["let 名前 = '😀';\nx", '日本語と絵文字'], ['a😀b\nc', 'Rust のテスト'], ['abc\ndef', 'ASCII']] as [t, name] (name)}
 			<button type="button" class="btn-ghost" aria-pressed={text === t} onclick={() => ((text = t), (at = 0))}>{name}</button>
@@ -49,7 +49,7 @@
 							>{c.ch === '\n' ? '↵' : c.ch}</span
 						>
 						<span class="flex border-t border-line">
-							{#each Array.from(idx.bytes.subarray(c.byte, c.byte + c.len)) as b, k (k)}
+							{#each Array.from(index.bytes.subarray(c.byte, c.byte + c.len)) as b, k (k)}
 								<span
 									class={['px-1 font-mono text-[10px] tracking-normal', c.len > 1 ? 'text-c-src' : 'text-muted']}
 									>{hex(b)}</span
@@ -67,33 +67,32 @@
 				<dt class="text-muted">line</dt>
 				<dd class="tnum">{lc.line}</dd>
 				<dt class="text-muted">column</dt>
-				<dd class="tnum">{lc.column} <span class="text-muted">(UTF-16)</span></dd>
+				<dd class="tnum">{lc.column} <span class="text-muted">(ユニコードの16ビット符号化方式)</span></dd>
 				<dt class="text-muted">character</dt>
 				<dd class="tnum">{lc.character}</dd>
 			</dl>
 			<div class="mt-4 text-muted">line_starts</div>
-			<div class="tnum">[{idx.lineStarts.join(', ')}]</div>
+			<div class="tnum">[{index.lineStarts.join(', ')}]</div>
 			<div class="mt-3 text-muted">wide <span class="text-[11px]">(byte, utf16 before)</span></div>
 			<div class="tnum">
-				{#if idx.wide.length === 0}[] <span class="text-muted">— ASCII なので作らない</span>{:else}[{idx.wide
+				{#if index.wide.length === 0}[] <span class="text-muted">— 英数字などの基本文字 なので作らない</span>{:else}[{index.wide
 						.map((w) => `(${w.byte}, ${w.utf16})`)
 						.join(', ')}]{/if}
 			</div>
 		</div>
 	</div>
 	<div class="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line bg-surface px-4 py-2.5 font-mono text-[12.5px] tracking-normal">
-		<span class="text-muted">offset(</span>
+		<span class="text-muted">バイト位置の検索</span>
 		<label class="flex items-center gap-1">line <input class="field w-16 py-0.5" type="number" min="0" bind:value={qLine} /></label>
 		<label class="flex items-center gap-1">column <input class="field w-16 py-0.5" type="number" min="0" bind:value={qCol} /></label>
-		<span class="text-muted">)</span>
 		<span>= {off === null ? 'None' : `Some(${off})`}</span>
 		{#if off === null && lineEnd !== null}
-			{@const endCol = idx.lineCol(lineEnd).column}
+			{@const endCol = index.lineCol(lineEnd).column}
 			<span class="text-muted">{qCol > endCol ? `この行の列は ${endCol} まで` : '列がサロゲートペアの内側'}</span>
 		{/if}
 	</div>
 	{#snippet caption()}
-		文字にカーソルを当てると、そのバイト位置を <code>line_col</code> に通した結果が右に出ます。下の段は逆向きの
+		文字にカーソルを当てると、そのバイト位置を <code>line_column</code> に通した結果が右に出ます。下の段は逆向きの
 		<code>offset</code> です。数値は Rust の <code>LineIndex</code> を移植したコードで計算しています。
 	{/snippet}
 </Figure>

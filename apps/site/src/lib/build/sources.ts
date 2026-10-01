@@ -4,50 +4,51 @@
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
-/** Short crate names used in item keys. */
+/** Role names used in item keys. */
 export const CRATES: Record<string, string> = {
-	rsv_kernel: 'kernel',
-	rsv_svelte: 'svelte',
-	rsv_js: 'js',
-	rsv_cli: 'cli',
-	rsv_vue: 'vue',
-	rsv_svue: 'svue',
-	rsv_html: 'html'
+	rsvelte_kernel: 'kernel',
+	rsvelte_svelte: 'svelte',
+	rsvelte_javascript: 'javascript',
+	rsvelte_command_line: 'command_line',
+	rsvelte_vue: 'vue',
+	rsvelte_svue: 'svue',
+	rsvelte_markup: 'markup'
 };
 
 /** Every kernel module, plus the plugin code the guide uses as worked examples. */
 export function sources(cratesDir: string): { key: string; file: string }[] {
-	const kernel = readdirSync(path.join(cratesDir, 'rsv_kernel/src'))
+	const kernel = readdirSync(path.join(cratesDir, 'rsvelte_kernel/src'), { recursive: true, encoding: 'utf8' })
 		.filter((f) => f.endsWith('.rs'))
 		.sort()
-		.map((f) => ({ key: `kernel/${f.slice(0, -3)}`, file: `rsv_kernel/src/${f}` }));
+		.map((f) => ({ key: `kernel/${f.replaceAll(path.sep, '/').replace(/(?:\/mod)?\.rs$/, '')}`, file: `rsvelte_kernel/src/${f}` }));
 	const examples = [
-		'rsv_kernel/src/doc/width.rs',
-		'rsv_svelte/src/lib.rs',
-		'rsv_svelte/src/ast.rs',
-		'rsv_svelte/src/parse.rs',
-		'rsv_svelte/src/tasks.rs',
-		'rsv_svelte/src/lint.rs',
-		'rsv_svelte/src/resolve.rs',
-		'rsv_svelte/src/hir.rs',
-		'rsv_svelte/src/project.rs',
-		'rsv_js/src/ast.rs',
-		'rsv_js/src/lexer.rs',
-		'rsv_js/src/parser.rs',
-		'rsv_js/src/lint.rs',
-		'rsv_js/src/check.rs',
-		'rsv_vue/src/lib.rs',
-		'rsv_vue/src/ast.rs',
-		'rsv_vue/src/tasks.rs',
-		'rsv_vue/src/lint.rs',
-		'rsv_svue/src/lib.rs',
-		'rsv_svue/src/frontend.rs',
-		'rsv_html/src/button_type.rs',
-		'rsv_cli/src/bench.rs',
-		'rsv_cli/src/perf.rs'
+		'rsvelte_svelte/src/lib.rs',
+		'rsvelte_svelte/examples/plugin.rs',
+		'rsvelte_svelte/src/computation.rs',
+		'rsvelte_svelte/src/syntax/syntax_tree.rs',
+		'rsvelte_svelte/src/syntax/parse.rs',
+		'rsvelte_svelte/src/computation/tasks.rs',
+		'rsvelte_svelte/src/tooling/lint.rs',
+		'rsvelte_svelte/src/semantic/resolve.rs',
+		'rsvelte_svelte/src/compilation/compiler_syntax_tree.rs',
+		'rsvelte_svelte/src/tooling/project.rs',
+		'rsvelte_javascript/src/syntax_tree.rs',
+		'rsvelte_javascript/src/lexer.rs',
+		'rsvelte_javascript/src/parser.rs',
+		'rsvelte_javascript/src/lint.rs',
+		'rsvelte_javascript/src/check.rs',
+		'rsvelte_vue/src/lib.rs',
+		'rsvelte_vue/src/syntax_tree.rs',
+		'rsvelte_vue/src/tasks.rs',
+		'rsvelte_vue/src/lint.rs',
+		'rsvelte_svue/src/lib.rs',
+		'rsvelte_svue/src/frontend.rs',
+		'rsvelte_markup/src/button_type.rs',
+		'rsvelte_command_line/src/benchmark.rs',
+		'rsvelte_command_line/src/performance.rs'
 	].map((file) => {
 		const parts = file.split('/');
-		return { key: `${CRATES[parts[0]]}/${parts.at(-1)!.slice(0, -3)}`, file };
+		return { key: `${CRATES[parts[0]]}/${parts.slice(parts[1] === 'src' ? 2 : 1).join('/').slice(0, -3)}`, file };
 	});
 	return [...kernel, ...examples];
 }

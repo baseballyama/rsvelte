@@ -12,7 +12,7 @@ const files = new Map(sources(crates).map((s) => [s.key, s.file]));
 const items = new Map<string, RustItem>();
 function item(key: string): RustItem | undefined {
 	if (!items.has(key)) {
-		const mod = key.split('/').slice(0, 2).join('/');
+		const mod = key.slice(0, key.lastIndexOf('/'));
 		const file = files.get(mod);
 		if (!file) return undefined;
 		for (const it of parseRustModule(mod, file, readFileSync(path.join(crates, file), 'utf8')).items) items.set(it.key, it);

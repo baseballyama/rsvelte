@@ -1,5 +1,5 @@
 {
-	"src": "<script>\n\tlet count = $state(0);\n</script>\n\n<button onclick={() => count++}>clicks: {count}</button>\n",
+	"source": "<script>\n\tlet count = $state(0);\n</script>\n\n<button onclick={() => count++}>clicks: {count}</button>\n",
 	"out": "import 'svelte/internal/disclose-version';\n\nimport * as $ from 'svelte/internal/client';\n\nvar root = $.from_html(`<button> </button>`);\n\nexport default function Counter($$anchor) {\n\tlet count = $.state(0);\n\tvar button = root();\n\tvar text = $.only_child(button);\n\t$.template_effect(() => $.set_text(text, `clicks: ${$.get(count) ?? ''}`));\n\t$.delegated('click', button, () => $.update(count));\n\t$.append($$anchor, button);\n}\n\n$.delegate(['click']);\n",
 	"mappings": [
 		[

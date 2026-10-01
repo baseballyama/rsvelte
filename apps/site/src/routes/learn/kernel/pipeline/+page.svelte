@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Term from '$lib/components/Term.svelte';
 	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
 	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
 	import Code from '$lib/components/Code.svelte';
@@ -23,7 +24,7 @@
 <div class="prose-learn">
 	<H2 id="document" />
 	<p>
-		<dfn>Document</dfn> はパスとテキストと言語の ID だけを持ちます。<code>#[non_exhaustive]</code> なので、外からは
+		<dfn>Document</dfn> はパスとテキストだけを持ちます。<code>#[non_exhaustive]</code> なので、外からは
 		<code>Document::new</code> か <code>Registry::document</code> でしか作れず、長さの上限は必ず確かめられます（<a
 			href="/learn/kernel/source#loc">02</a
 		>）。
@@ -33,10 +34,9 @@
 <Code item={data.code.document} />
 
 <div class="prose-learn">
-	<p><dfn>Language</dfn> は「このパスは自分が扱う」と答えるだけのトレイトです。最初に名乗り出た言語が文書を受け持ちます。</p>
+	<p>カーネルは文書の言語を決めません。未知の拡張子や拡張子のないパスも受け入れます。各プラグインがパスや内容から処理対象かを判断し、一つの文書を複数のタスクが処理できます。対象のタスクがなければ、結果は空です。</p>
 </div>
 
-<Code item={data.code.language} />
 <Code item={data.code.regDocument} />
 
 <div class="prose-learn">
@@ -45,6 +45,7 @@
 		<dfn>Task</dfn> は文書一つで完結する処理です。compile、format、lint がそうです。<code>applies</code>
 		で自分の文書かを判断し、<code>run</code> で結果を <code>TaskOutput</code> に書きます。
 	</p>
+	<p>独自の処理を追加する手順は、<a href="/learn/plugins">15 プラグインを実装する</a>で説明しています。Svelte の構文解析結果を使う例を、そのまま実行できます。</p>
 </div>
 
 <Code item={data.code.task} />
@@ -63,14 +64,20 @@
 
 <div class="prose-learn">
 	<p>
-		<code>prepare</code> は文書のワーカーの上で、その文書の <code>Ctx</code> を使って走ります。ここで必要なものを
+		<code>prepare</code> は文書のワーカーの上で、その文書の <Term name="DocumentContext" /> を使って走ります。ここで必要なものを
 		<code>Part</code> として取り出します。<code>Part</code> は所有権を持つ値でなければなりません。<code>finish</code>
-		が走るころには、文書の <code>Ctx</code> はもうないからです。
+		が走るころには、文書の <Term name="DocumentContext" /> はもうないからです。
 	</p>
 	<p>
-		型検査のプロジェクトタスクは、言語プラグインの中ではなく <code>rsv_js::check</code> に一つだけあります。どの言語の文書を扱うかは
-		<code>langs</code> で決め、Svelte の <code>svelte.check</code>、Vue の <code>vue.check</code>、両方をまとめる
-		<code>ts.check</code> は、この構造体の三つの値です。
+		現在は文書内の compile・format・lint の後に <code>prepare</code> が走ります。
+		compile も選んでいれば、その文書の JavaScript/スタイルシートはすでに生成済みです。
+		型検査はその JavaScript を入力にせず、元の構文木から型検査用の TypeScript を別に作ります。
+		<code>prepare</code> はコンパイルの準備ではなく、型検査に渡す文書ごとのデータを用意する処理です。
+		型検査だけを選んだ場合は、compile を実行せずにこの処理へ進みます。
+	</p>
+	<p>
+		型検査のプロジェクトタスクは、言語プラグインの中ではなく <code>rsvelte_javascript::check</code> に一つだけあります。どの文書を扱うかは
+		<code>matches</code> に渡す判定関数で決めます。Svelte 用、Vue 用、両方をまとめて扱うものを登録します。
 	</p>
 </div>
 
@@ -78,14 +85,14 @@
 
 <div class="prose-learn">
 	<p>
-		<code>prepare</code> は、文書の言語が答える TypeScript の射影（ファセット <code>TsView</code>、<a href="/learn/kernel/db#facet">04</a
-		>）を求め、生成したテキストと写像と元のテキストを <code>Part</code> に入れます。<code>&lt;script lang="ts"&gt;</code>
-		を持たない Svelte の文書は、svelte-check も意味の診断を出さない（<code>checkJs</code> が無効）ので、言語は
-		<code>TsDoc::Unchecked</code> と答えます。そのときは空の結果を書いて <code>None</code> を返し、プロジェクトパスを待ちません。
+		<code>prepare</code> は、共通の呼び出し窓口から型検査用のコードを取得します（<a href="/learn/kernel/database#facet">04</a>）。
+		生成したテキスト、元のテキスト、両者の位置の対応を <code>Part</code> に保存します。<code>&lt;script lang="ts"&gt;</code>
+		を持たない Svelte の文書は、svelte-check も意味の診断を出しません。標準の設定では JavaScript の型検査が無効だからです。
+		言語側は <Term name="TypeScriptDocument::Unchecked" /> と答えます。そのときは空の結果を書いて <code>None</code> を返し、プロジェクト全体の処理を待ちません。
 	</p>
 </div>
 
-<Code item={data.code.checkPrepare} mark={['Ok(TsDoc::Unchecked) =>', 'Some(Box::new(Prepared {']} />
+<Code item={data.code.checkPrepare} mark={['Ok(TypeScriptDocument::Unchecked) =>', 'Some(Box::new(Prepared {']} />
 
 <div class="prose-learn">
 	<H2 id="registry" />
@@ -99,9 +106,9 @@
 
 <div class="prose-learn">
 	<p>
-		<code>selected</code> は ID で絞るだけなので、登録されていない ID はどのタスクにも一致しません。放っておくと、ID
-		を打ち間違えた実行が何も走らずに成功してしまいます。そこで <code>run_each</code> は、入口で <code>check_task_ids</code>
-		を呼び、知らない ID があれば何も走らせずに <code>Err(UnknownTask)</code> を返します。CLI も同じ関数で引数を確かめています。
+		<code>selected</code> は識別番号で絞るだけなので、登録されていない識別番号はどのタスクにも一致しません。放っておくと、識別番号
+		を打ち間違えた実行が何も走らずに成功してしまいます。そこで <code>run_each</code> は、入口で <code>check_task_identifiers</code>
+		を呼び、知らない識別番号があれば何も走らせずに <code>Err(UnknownTask)</code> を返します。コマンドラインの実行プログラム も同じ関数で引数を確かめています。
 	</p>
 </div>
 
@@ -110,7 +117,7 @@
 <div class="prose-learn">
 	<H2 id="run-document" />
 	<p>
-		文書一つの処理は <code>run_document</code> です。<a href="/learn/kernel#life">01 全体像</a>で見たとおり、<code>Ctx</code>
+		文書一つの処理は <code>run_document</code> です。<a href="/learn/kernel#life">01 全体像</a>で見たとおり、<Term name="DocumentContext" />
 		を作り、タスクを登録順に走らせ、続けてプロジェクトタスクの <code>prepare</code> を走らせます。
 	</p>
 </div>
@@ -121,7 +128,7 @@
 	<p>
 		全体は <code>catch_unwind</code> で包まれています。どこかのタスクが panic しても、止まるのはその文書だけで、他の文書の処理は続きます。panic
 		した文書は、他のタスクの出力も含めてすべて捨て、メッセージだけを残します<Note
-			>一部のタスクの出力だけを返すと、呼び出し側は「panic したタスク以外は正しい」と読むかもしれません。全部捨てるほうが誤解がありません。</Note
+			>異常終了した文書の出力は、一部の処理が終わっていても正しいとは限りません。文書全体の出力を捨てることで、不完全な結果を返さずに済みます。</Note
 		>。
 	</p>
 </div>
@@ -130,8 +137,8 @@
 
 <div class="prose-learn">
 	<p>
-		panic のペイロードは <code>String</code> か <code>&amp;str</code> であることがほとんどですが、<code>std::panic::panic_any</code>
-		を使えば任意の値を投げられます。その場合も空文字列にはせず、「文字列でないペイロードで panic した」という決まった文を入れます。空のメッセージは、値がないことと空の値を区別できないからです。
+		panic の渡された値は <code>String</code> か <code>&str</code> であることがほとんどですが、<code>std::panic::panic_any</code>
+		を使えば任意の値を投げられます。その場合も空文字列にはせず、「文字列でない渡された値で panic した」という決まった文を入れます。空のメッセージは、値がないことと空の値を区別できないからです。
 	</p>
 
 	<H2 id="run-each" />
@@ -147,20 +154,20 @@
 
 <div class="prose-learn">
 	<p>
-		ポイントは、メモリのピークが<strong>コーパスの大きさ</strong>ではなく<strong>同時に処理中の文書</strong>で決まることです。ただし、部品を持つ文書だけはプロジェクトパスまで待たされ、そのあいだ結果を持ち続けます。
+		ポイントは、メモリのピークが<strong>検証用のソースファイル集の大きさ</strong>ではなく<strong>同時に処理中の文書</strong>で決まることです。ただし、部品を持つ文書だけはプロジェクト全体の処理まで待たされ、そのあいだ結果を持ち続けます。
 	</p>
 	<p>
-		実測でも効果ははっきり出ています。{data.docs.toLocaleString('en-US')} 文書で、全結果を集めたときの生存ヒープのピーク増分は {mb(data.shared.peak)}
-		MB、<code>run_each</code> で結果をすぐ捨てたときは {mb(data.streaming.peak)} MB でした。時間の中央値は {data.shared.plain[0].toFixed(
+		実測でも効果ははっきり出ています。{data.docs.toLocaleString('en-US')} 文書で、全結果を集めたときの使用中のメモリのピーク増分は {mb(data.shared.peak)}
+		メガバイト、<code>run_each</code> で結果をすぐ捨てたときは {mb(data.streaming.peak)} メガバイト でした。時間の中央値は {data.shared.plain[0].toFixed(
 			1
 		)} ms と {data.streaming.plain[0].toFixed(1)} ms で、ほとんど変わりません。
 	</p>
 
 	<DeepDive title="待たされる文書が持っているもの">
 		<p>
-			待機リストに入るのは <code>DocResult</code> の全体です。<code>parts</code> だけでなく、同じ文書の compile や format の出力（<code
+			待機リストに入るのは <code>DocumentResult</code> の全体です。<code>parts</code> だけでなく、同じ文書の compile や format の出力（<code
 				>outputs</code
-			>）も一緒に保持されます。プロジェクトパスが要るのは部品と、その文書の型検査の出力の置き場所だけなので、他のタスクの出力は先に
+			>）も一緒に保持されます。プロジェクト全体の処理が要るのは部品と、その文書の型検査の出力の置き場所だけなので、他のタスクの出力は先に
 			sink に渡せるはずです。今は、型検査を選んだときに TypeScript の文書が多いほど、ストリーミングの効果が薄れます。
 		</p>
 	</DeepDive>
@@ -195,17 +202,18 @@
 	<H2 id="run" />
 	<p>
 		結果をまとめて受け取りたい呼び出し側のために、<code>run</code> があります。以前の <code>run</code> は <code>run_each</code>
-		の上に書かれていて、<code>sink</code> が文書ごとの <code>Mutex</code> の slot に結果を置いていました。今は rayon の
+		の上に書かれていて、<code>sink</code> が文書ごとの <code>Mutex</code> の 配列の位置に結果を置いていました。今は rayon の
 		<code>collect</code> で、文書の順に集めます。
 	</p>
 </div>
 
-<Code item={data.code.run} mark={['.map(|d| run_document(reg, d, &tasks, &project_tasks, opts.sharing))']} />
+<Code item={data.code.run} mark={['.map(|d| run_document(reg, d, &tasks, &project_tasks, options.sharing))']} />
 
 <div class="prose-learn">
 	<p>
-		変えた理由は速さではなく、計測の再現性です。macOS の mutex は最初にロックしたときに割り当てを行い、Linux の mutex は行いません。そのため割り当ての回数が、プラットフォームの間でちょうど文書の数（17,512）だけ違っていました。ロックをなくしてからは、macOS
-		と Linux が同じ三つの数（割り当て回数、バイト数、生存ヒープのピーク）を報告します（a5f67528cd）。この一致が、割り当ての回数を性能のラチェットで厳密に比べられる前提になっています（<a
+		変更の理由は計測の再現性です。macOS のロック処理は初回にメモリを確保しますが、Linux では確保しません。
+		そのため、割り当て回数が文書数（17,512）だけ違っていました。ロックをなくしてからは、macOS
+		と Linux が同じ三つの数（割り当て回数、バイト数、使用中のメモリのピーク）を報告します（a5f67528cd）。この一致が、割り当ての回数を性能の基準値との比較検査で厳密に比べられる前提になっています（<a
 			href="/learn/measure#ratchet">13</a
 		>）。
 	</p>
@@ -214,7 +222,7 @@
 <div class="prose-learn">
 	<p>
 		スレッド数を指定すると、<code>in_pool</code> がその数のスレッドプールで走らせます。プールはプロセスのあいだ残すので、同じスレッド数の実行を繰り返しても、スレッドとそのスレッドのバッファプール（<a
-			href="/learn/kernel/pool">12</a
+			href="/learn/kernel/buffer-pool">12</a
 		>）を使い回せます。指定しなければ rayon の既定（コア数）です。1 スレッドのときの中央値は {data.serial.plain[0].toFixed(1)} ms で、既定の
 		{data.shared.plain[0].toFixed(1)} ms の約 {(data.serial.plain[0] / data.shared.plain[0]).toFixed(1)} 倍でした。
 	</p>

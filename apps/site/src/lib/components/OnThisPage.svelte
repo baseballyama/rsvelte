@@ -6,7 +6,7 @@
 
 	const index = $derived(chapter.sections.findIndex((s) => s.id === active));
 	const sourceHref = $derived(
-		chapter.module ? `${REPO_URL}/blob/main/crates/rsv_kernel/src/${chapter.module.split('/')[1]}.rs` : undefined
+		chapter.module ? `${REPO_URL}/blob/main/crates/rsvelte_kernel/src/${chapter.module.split('/')[1]}.rs` : undefined
 	);
 </script>
 

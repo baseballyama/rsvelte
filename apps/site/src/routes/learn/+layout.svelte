@@ -8,6 +8,7 @@
 	let { children } = $props();
 
 	const chapter = $derived(chapterByHref(page.url.pathname));
+	const playground = $derived(page.url.pathname === '/learn/playground');
 	const wide = $derived(appendix.some((a) => page.url.pathname.startsWith(a.href)));
 	const outline = $derived(!wide && !!chapter && chapter.sections.length > 0);
 	let active: string | null = $state(null);
@@ -63,11 +64,11 @@
 
 <div
 	class={[
-		'mx-auto max-w-[1440px] px-4 md:px-8 lg:grid lg:grid-cols-[232px_minmax(0,1fr)] lg:gap-12',
+		playground ? 'mx-auto max-w-[1600px] px-4 md:px-8' : 'mx-auto max-w-[1440px] px-4 md:px-8 lg:grid lg:grid-cols-[232px_minmax(0,1fr)] lg:gap-12',
 		outline && 'xl:grid-cols-[232px_minmax(0,820px)_200px] xl:justify-between'
 	]}
 >
-	<aside class="hidden lg:block">
+	<aside class={playground ? 'hidden' : 'hidden lg:block'}>
 		<div class="thin-scrollbar sticky top-14 -ml-2 max-h-[calc(100dvh-56px)] overflow-y-auto py-10 pr-2 pl-0">
 			{#if ordinal >= 0}
 				<div class="mb-6 px-2">
@@ -88,7 +89,7 @@
 
 	<details
 		bind:this={drawer}
-		class="group/drawer sticky top-14 z-30 -mx-4 border-b border-line bg-[var(--header-bg)] px-4 backdrop-blur-md md:-mx-8 md:px-8 lg:hidden"
+		class={['group/drawer sticky top-14 z-30 -mx-4 border-b border-line bg-[var(--header-bg)] px-4 backdrop-blur-md md:-mx-8 md:px-8 lg:hidden', playground && 'hidden']}
 	>
 		<summary class="flex cursor-pointer list-none items-center gap-3 py-2.5 text-[14px] [&::-webkit-details-marker]:hidden">
 			<span class="rounded-sm border border-line px-1.5 font-mono text-[11.5px] tracking-normal text-muted tnum"
@@ -109,7 +110,7 @@
 
 	<article
 		bind:this={article}
-		class={['learn-article min-w-0 py-10 lg:py-14', wide && 'learn-wide']}
+		class={['learn-article min-w-0', playground ? 'py-6 lg:py-7' : 'py-10 lg:py-14', wide && 'learn-wide']}
 		data-outline={outline || undefined}
 	>
 		{@render children()}

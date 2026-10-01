@@ -1,20 +1,20 @@
 <script lang="ts">
 	import Figure from '$lib/components/Figure.svelte';
-	import { JsonWriter } from '$lib/kernel/json';
+	import { StructuredDataWriter } from '$lib/kernel/structured-data';
 
 	let pretty = $state(true);
 	let step = $state(0);
 
 	// The calls of the kernel test `nested_values_and_keys` (compact half).
 	const steps = $derived.by(() => {
-		const w = new JsonWriter(pretty);
+		const w = new StructuredDataWriter(pretty);
 		w.beginObject().key('a').num(1).key('b').beginArray().str('x\n').null().endArray().key('c').beginObject().endObject().endObject();
 		return w.steps;
 	});
 	const cur = $derived(steps[Math.min(step, steps.length - 1)]);
 </script>
 
-<Figure label="図 10.1 · JsonWriter の状態">
+<Figure label="図 10.1 · StructuredDataWriter の状態">
 	{#snippet controls()}
 		<button type="button" class="btn-ghost" aria-pressed={!pretty} onclick={() => (pretty = false)}>compact</button>
 		<button type="button" class="btn-ghost" aria-pressed={pretty} onclick={() => (pretty = true)}>pretty</button>

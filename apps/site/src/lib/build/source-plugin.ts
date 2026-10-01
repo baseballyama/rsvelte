@@ -2,17 +2,30 @@
 // build time. Pages quote code by item key; a key that no longer exists fails the build instead of
 // showing stale code. Highlighting here keeps the Worker's per-request CPU at rendering only.
 
-import { perfHistory } from './perf-history';
+import { performanceHistory } from './performance-history.ts';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { createCssVariablesTheme, createHighlighter, type Highlighter } from 'shiki';
+import { createCssVariablesTheme as createStylesheetVariablesTheme, createHighlighter, type Highlighter } from 'shiki';
 import type { Plugin } from 'vite';
 import { parseRustModule, type RustModule } from './rust-items.ts';
 import { sources } from './sources.ts';
 
 const VIRTUAL = 'virtual:rsvelte-source';
 const RESOLVED = '\0' + VIRTUAL;
+
+function readBaseline(file: string) {
+	const record = JSON.parse(readFileSync(file, 'utf8')) as {
+		'allocs': number;
+		phases: Record<string, { 'allocs': number }>;
+	};
+	const { allocs: allocations, ...fields } = record;
+	const phases = Object.fromEntries(Object.entries(record.phases).map(([name, phase]) => {
+		const { allocs: allocations, ...fields } = phase;
+		return [name, { ...fields, allocations }];
+	}));
+	return { ...fields, allocations, phases };
+}
 
 export interface HighlightedItem {
 	key: string;
@@ -22,7 +35,7 @@ export interface HighlightedItem {
 	endLine: number;
 	docs: string;
 	code: string;
-	html: string;
+	markup: string;
 }
 
 export interface HighlightedModule {
@@ -34,7 +47,7 @@ export interface HighlightedModule {
 }
 
 /** Token colours are CSS variables (`--shiki-token-*` in app.css), so one pass serves both themes. */
-const theme = createCssVariablesTheme({ name: 'rsvelte', variablePrefix: '--shiki-', fontStyle: true });
+const theme = createStylesheetVariablesTheme({ name: 'rsvelte', variablePrefix: '--shiki-', fontStyle: true });
 
 export function highlight(h: Highlighter, code: string, lang: string): string {
 	return h.codeToHtml(code, { lang, theme: 'rsvelte' });
@@ -109,12 +122,12 @@ export function rsvelteSource(): Plugin {
 				const m: RustModule = parseRustModule(key, `crates/${file}`, readFileSync(full, 'utf8'));
 				return {
 					...m,
-					items: m.items.map((it) => ({ ...it, html: highlight(h, it.code, 'rust') }))
+					items: m.items.map((it) => ({ ...it, markup: highlight(h, it.code, 'rust') }))
 				};
 			});
 			const root = path.dirname(cratesDir);
 			const { rev, clean } = revision(root);
-			const baselineFile = path.join(root, 'tools/perf/baseline.json');
+			const baselineFile = path.join(root, 'tools/performance/baseline.json');
 			const parityFile = path.join(root, 'fixtures/_registry/parity.json');
 			this.addWatchFile(baselineFile);
 			this.addWatchFile(parityFile);
@@ -123,8 +136,8 @@ export function rsvelteSource(): Plugin {
 				`export const rev = ${JSON.stringify(rev)};`,
 				`export const clean = ${clean};`,
 				`export const crates = ${JSON.stringify(crateSizes(cratesDir))};`,
-				`export const perfBaseline = ${readFileSync(baselineFile, 'utf8').trim()};`,
-				`export const perfHistory = ${JSON.stringify(perfHistory(root))};`,
+				`export const performanceBaseline = ${JSON.stringify(readBaseline(baselineFile))};`,
+				`export const performanceHistory = ${JSON.stringify(performanceHistory(root))};`,
 				`export const parity = ${JSON.stringify(paritySummary(JSON.parse(readFileSync(parityFile, 'utf8'))))};`
 			].join('\n');
 		}

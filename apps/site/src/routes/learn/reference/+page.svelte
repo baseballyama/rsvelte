@@ -10,7 +10,7 @@
 		path: string;
 		startLine: number;
 		endLine: number;
-		html: string;
+		markup: string;
 	}
 
 	let q = $state('');
@@ -119,7 +119,7 @@
 						style:--start={viewed.startLine - 1}
 						style:--gutter="{String(viewed.endLine).length + 1}ch"
 					>
-						{@html viewed.html}
+						{@html viewed.markup}
 					</div>
 				</figure>
 			{:else}

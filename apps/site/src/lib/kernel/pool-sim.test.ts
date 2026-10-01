@@ -6,8 +6,8 @@ describe('pool model', () => {
 		const steps = simulate([100, 100, 100], true);
 		const perDoc = [0, 1, 2].map((d) => {
 			const last = steps.filter((s) => s.doc === d).at(-1)!;
-			const prev = d === 0 ? 0 : steps.filter((s) => s.doc === d - 1).at(-1)!.allocs;
-			return last.allocs - prev;
+			const prev = d === 0 ? 0 : steps.filter((s) => s.doc === d - 1).at(-1)!.allocations;
+			return last.allocations - prev;
 		});
 		expect(perDoc[0]).toBeGreaterThan(0);
 		expect(perDoc[2]).toBe(0);
@@ -24,13 +24,13 @@ describe('pool model', () => {
 		const steps = simulate([100, 100], true, 200);
 		const gives = steps.filter((s) => s.event.kind === 'give').map((s) => s.event.kind === 'give' && s.event.why);
 		expect(gives).toContain('budget');
-		const unbounded = simulate([100, 100], true).at(-1)!.allocs;
-		expect(steps.at(-1)!.allocs).toBeGreaterThan(unbounded);
+		const unbounded = simulate([100, 100], true).at(-1)!.allocations;
+		expect(steps.at(-1)!.allocations).toBeGreaterThan(unbounded);
 	});
 
 	it('without the pool every tree grows from empty', () => {
-		const on = simulate([100, 100], true).at(-1)!.allocs;
-		const off = simulate([100, 100], false).at(-1)!.allocs;
+		const on = simulate([100, 100], true).at(-1)!.allocations;
+		const off = simulate([100, 100], false).at(-1)!.allocations;
 		expect(off).toBeGreaterThan(on);
 	});
 });
