@@ -12,17 +12,17 @@ use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::source::Loc;
 use rustc_hash::FxHashMap;
 
-use super::client::{init_property, runtime_call};
+use super::client::{call_arguments, init_property, runtime_call};
 use super::names::Names;
 use super::script::{ScriptRewrite, lower_instance};
 use super::{
     CompileInput, Item, Parent, Target, check_binding, check_foreign_element, check_runes,
     check_stores, clean_nodes, each_index_names, escape_html, event_attribute,
-    is_boolean_attribute, is_directive, is_load_error_element, needs_clsx,
-    sanitize_template_string,
+    is_boolean_attribute, is_customizable_select, is_directive, is_load_error_element, needs_clsx,
+    sanitize_template_string, synthetic_value,
 };
 use crate::analyze::Analysis;
-use crate::hir::{AttrValue, Attribute, ElementKind, Hir, HirId, NodeKind, Part};
+use crate::hir::{AttrValue, Attribute, Element, ElementKind, Hir, HirId, NodeKind, Part};
 use crate::parse::is_void;
 use crate::resolve::{BindKind, Resolution};
 
@@ -155,7 +155,7 @@ pub fn lower(input: &CompileInput<'_>, res: &Resolution, an: &Analysis) -> R<(As
     Ok((sx.out, root))
 }
 
-impl Sx<'_> {
+impl<'a> Sx<'a> {
     fn expr(&mut self, e: NodeId) -> NodeId {
         let mut rw = ScriptRewrite {
             target: Target::Server,
@@ -304,7 +304,7 @@ impl Sx<'_> {
         let tag = el.name.text(self.src).to_ascii_lowercase();
         if matches!(
             tag.as_str(),
-            "svg" | "math" | "script" | "style" | "select" | "option" | "textarea" | "template"
+            "svg" | "math" | "script" | "style" | "textarea" | "template"
         ) || tag.contains('-')
         {
             return Err(Diagnostic::error(
@@ -313,7 +313,26 @@ impl Sx<'_> {
                 el.name,
             ));
         }
+        if is_customizable_select(hir, self.src, &tag, el) {
+            return Err(Diagnostic::error(
+                "unsupported",
+                format!("rich content in `<{tag}>` is not supported yet"),
+                el.name,
+            ));
+        }
         check_foreign_element(self.src, el.name)?;
+        let select_special = tag == "select"
+            && hir.attrs(el.attrs).iter().any(|a| match a.value {
+                AttrValue::Spread(_) => true,
+                AttrValue::Attach(_) | AttrValue::Class(_) => false,
+                _ => {
+                    let name = a.name.text(self.src);
+                    name == "value" || name.eq_ignore_ascii_case("defaultvalue")
+                }
+            });
+        if select_special || tag == "option" {
+            return self.select_element(id, el, &tag, template);
+        }
         template.push(Piece::Text(format!("<{tag}")));
         self.element_attributes(id, &tag, hir.attrs(el.attrs), template)?;
         let void = is_void(&tag);
@@ -336,12 +355,50 @@ impl Sx<'_> {
         Ok(())
     }
 
+    /// Upstream `RegularElement`'s `is_select_special` / `is_option_special` branches: the
+    /// renderer writes the element, so it can mark the selected option.
+    fn select_element(
+        &mut self,
+        id: HirId,
+        el: &Element,
+        tag: &str,
+        template: &mut Vec<Piece>,
+    ) -> R<()> {
+        let hir = self.hir;
+        let body = if let Some(e) = synthetic_value(hir, self.src, tag, el) {
+            self.expr(e)
+        } else {
+            let cleaned = clean_nodes(
+                hir,
+                self.src,
+                Parent::Element(tag),
+                hir.children(el.children),
+                self.preserve_ws,
+            );
+            let mut inner = Vec::new();
+            self.process_children(&cleaned.items, &mut inner)?;
+            let statements = self.build_template(inner);
+            let block = self.out.block(&statements, Loc::SYNTHETIC);
+            let param = self.out.id("$$renderer");
+            self.out
+                .arrow(&[param], block, false, false, Loc::SYNTHETIC)
+        };
+        let (mut args, _) = self.spread_args(id, tag, hir.attrs(el.attrs), true)?;
+        args.insert(1, Some(body));
+        let args = call_arguments(&mut self.out, args);
+        let r = self.out.id("$$renderer");
+        let callee = self.out.dot(r, tag);
+        let call = self.out.call(callee, &args, false, Loc::SYNTHETIC);
+        template.push(Piece::Stmt(self.out.expr_stmt(call)));
+        Ok(())
+    }
+
     /// Upstream `build_element_attributes` (no spread).
     fn element_attributes(
         &mut self,
         id: HirId,
         tag: &str,
-        list: &[Attribute],
+        list: &'a [Attribute],
         template: &mut Vec<Piece>,
     ) -> R<()> {
         let src = self.src;
@@ -454,9 +511,26 @@ impl Sx<'_> {
         &mut self,
         id: HirId,
         tag: &str,
-        list: &[Attribute],
+        list: &'a [Attribute],
         template: &mut Vec<Piece>,
     ) -> R<()> {
+        let (args, events) = self.spread_args(id, tag, list, false)?;
+        let call = runtime_call(&mut self.out, "attributes", args);
+        template.push(Piece::Expr(call));
+        push_captured_events(template, &events);
+        Ok(())
+    }
+
+    /// Upstream `prepare_element_spread`'s arguments. `all` is `prepare_element_spread_object`,
+    /// which keeps every attribute; otherwise the spread path of `build_element_attributes`
+    /// filters events (returned for capture) and the values the runtime sets elsewhere.
+    fn spread_args(
+        &mut self,
+        id: HirId,
+        tag: &str,
+        list: &'a [Attribute],
+        all: bool,
+    ) -> R<(Vec<Option<NodeId>>, Vec<&'a str>)> {
         let mut events = Vec::new();
         let mut props = Vec::with_capacity(list.len());
         let mut class_directives = Vec::new();
@@ -484,6 +558,7 @@ impl Sx<'_> {
                     }
                     continue;
                 }
+                _ if all => {}
                 _ if raw_name == "value" && tag == "select" => continue,
                 _ if event_attribute(self.src, a).is_some() => {
                     capture_event(&mut events, tag, raw_name);
@@ -501,6 +576,15 @@ impl Sx<'_> {
             let trim = matches!(name.as_str(), "class" | "style");
             let value = self.attribute_value(a, trim, raw_name == "class");
             props.push(init_property(&mut self.out, &name, value));
+        }
+        // Upstream's analysis appends `class=""` to such an element.
+        let has_class = list.iter().any(|a| {
+            !is_directive(&a.value) && a.name.text(self.src).eq_ignore_ascii_case("class")
+        });
+        let has_spread = list.iter().any(|a| matches!(a.value, AttrValue::Spread(_)));
+        if !has_spread && !has_class && (self.an.scoped[id] || !class_directives.is_empty()) {
+            let empty = self.out.str("");
+            props.push(init_property(&mut self.out, "class", empty));
         }
         let object = self.out.object(&props, Loc::SYNTHETIC);
         let classes = (!class_directives.is_empty()).then(|| {
@@ -521,14 +605,7 @@ impl Sx<'_> {
         let hash = hash.map(|h| self.out.str(&h));
         let flags =
             (tag == "input").then(|| self.out.num(f64::from(ELEMENT_IS_INPUT), Loc::SYNTHETIC));
-        let call = runtime_call(
-            &mut self.out,
-            "attributes",
-            vec![Some(object), hash, classes, None, flags],
-        );
-        template.push(Piece::Expr(call));
-        push_captured_events(template, &events);
-        Ok(())
+        Ok((vec![Some(object), hash, classes, None, flags], events))
     }
 
     /// Upstream `build_attr_class`.

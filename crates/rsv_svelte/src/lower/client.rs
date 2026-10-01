@@ -7,7 +7,7 @@
 use rsv_html::decode_text;
 use rsv_js::ast::flag;
 use rsv_js::copy::copy;
-use rsv_js::ops::{AssignOp, LogicalOp, UnaryOp};
+use rsv_js::ops::{AssignOp, BinOp, LogicalOp, UnaryOp};
 use rsv_js::scope::{BindingId, ScopeId};
 use rsv_js::{Ast, Kind, NodeId};
 use rsv_kernel::diag::Diagnostic;
@@ -19,10 +19,11 @@ use super::script::{ScriptRewrite, lower_instance};
 use super::{
     CompileInput, Item, Parent, Target, check_binding, check_foreign_element, check_runes,
     check_stores, clean_nodes, each_index_names, escape_html, event_attribute, has_dependency,
-    is_directive, is_load_error_element, needs_clsx, sanitize_template_string,
+    is_customizable_select, is_directive, is_load_error_element, needs_clsx,
+    sanitize_template_string, synthetic_value,
 };
 use crate::analyze::{Analysis, ExprMeta};
-use crate::hir::{AttrValue, Attribute, ElementKind, Hir, HirId, NodeKind, Part};
+use crate::hir::{AttrValue, Attribute, Element, ElementKind, Hir, HirId, NodeKind, Part};
 use crate::parse::is_void;
 use crate::resolve::Resolution;
 
@@ -836,10 +837,13 @@ impl<'a> Cx<'a> {
         let tag = el.name.text(self.src).to_ascii_lowercase();
         if matches!(
             tag.as_str(),
-            "svg" | "math" | "script" | "select" | "option" | "textarea" | "template"
+            "svg" | "math" | "script" | "textarea" | "template"
         ) || tag.contains('-')
         {
             return unsupported(&format!("`<{tag}>`"), el.name);
+        }
+        if is_customizable_select(hir, self.src, &tag, el) {
+            return unsupported(&format!("rich content in `<{tag}>`"), el.name);
         }
         check_foreign_element(self.src, el.name)?;
         frag.tpl.push_element(&tag);
@@ -861,7 +865,7 @@ impl<'a> Cx<'a> {
         if has_spread {
             self.attribute_effect(id, &tag, attr_list, node, remove_defaults, l);
         } else {
-            self.element_attributes(id, attr_list, node, frag, l)?;
+            self.element_attributes(id, &tag, attr_list, node, frag, l)?;
         }
         let load_error_events = attr_list.iter().any(|a| {
             !is_directive(&a.value) && matches!(a.name.text(self.src), "onload" | "onerror")
@@ -884,8 +888,134 @@ impl<'a> Cx<'a> {
         }
         l.init.append(&mut directives.init);
         l.after.append(&mut directives.after);
+        if !has_spread {
+            self.select_value(el, &tag, attr_list, node, frag, l);
+        }
         frag.tpl.pop_element();
         Ok(())
+    }
+
+    /// The tail of upstream `RegularElement` for `<option>` and `<select>`: the value goes to the
+    /// hidden `__value` once the children exist, then a `<select>` picks its option.
+    fn select_value(
+        &mut self,
+        el: &Element,
+        tag: &str,
+        attrs: &[Attribute],
+        node: &str,
+        frag: &mut Frag,
+        l: &mut Lists,
+    ) {
+        if !matches!(tag, "option" | "select") {
+            return;
+        }
+        let src = self.src;
+        let value_attr = attrs
+            .iter()
+            .find(|a| !is_directive(&a.value) && a.name.text(src) == "value");
+        if let Some(e) = synthetic_value(self.hir, src, tag, el) {
+            let meta = self.an.meta(e);
+            let built = self.expr(e);
+            let value = self.memoize(frag, built, meta);
+            self.special_value(tag, node, (value, meta.has_state), false, true, l);
+        } else if let Some(a) = value_attr {
+            let built = self.attribute_value(a, frag);
+            let dynamic = !matches!(a.value, AttrValue::Boolean | AttrValue::Static(_));
+            self.special_value(tag, node, built, tag == "select" && dynamic, false, l);
+        }
+        if tag != "select" {
+            return;
+        }
+        let default_value = attrs.iter().find(|a| {
+            !is_directive(&a.value) && normalize_attribute(a.name.text(src)) == "defaultValue"
+        });
+        if let Some(a) = default_value {
+            let (value, has_state) = self.attribute_value(a, frag);
+            let x = self.out.id(node);
+            let call = self.call("set_default_select_value", vec![Some(x), Some(value)]);
+            let s = self.stmt(call);
+            if has_state {
+                l.update.push(s);
+            } else {
+                l.init.push(s);
+            }
+        }
+        let dynamic_value = value_attr
+            .is_some_and(|a| !matches!(a.value, AttrValue::Boolean | AttrValue::Static(_)));
+        let bound = attrs
+            .iter()
+            .any(|a| matches!(a.value, AttrValue::Bind(_)) && a.name.text(src) == "value");
+        if default_value.is_some() || dynamic_value || bound {
+            let x = self.out.id(node);
+            let call = self.call("init_select", vec![Some(x)]);
+            l.init.push(self.stmt(call));
+        }
+    }
+
+    /// Upstream `build_element_special_value_attribute`.
+    fn special_value(
+        &mut self,
+        tag: &str,
+        node: &str,
+        (value, has_state): (NodeId, bool),
+        select_with_value: bool,
+        synthetic: bool,
+        l: &mut Lists,
+    ) {
+        let defined = self
+            .res
+            .evaluate_output(self.js, self.src, &self.out, value, self.scope)
+            .is_defined;
+        let build_update = |cx: &mut Self, v: NodeId| {
+            let x = cx.out.id(node);
+            let hidden = cx.out.dot(x, "__value");
+            let assignment = cx.out.assign(AssignOp::Assign, hidden, v, Loc::SYNTHETIC);
+            let set_value = |cx: &mut Self| {
+                let rhs = if defined {
+                    assignment
+                } else {
+                    let empty = cx.out.str("");
+                    cx.out
+                        .logical(LogicalOp::Nullish, assignment, empty, Loc::SYNTHETIC)
+                };
+                let x = cx.out.id(node);
+                let target = cx.out.dot(x, "value");
+                cx.out.assign(AssignOp::Assign, target, rhs, Loc::SYNTHETIC)
+            };
+            let e = if select_with_value {
+                let set = set_value(cx);
+                let x = cx.out.id(node);
+                let select = cx.call("select_option", vec![Some(x), Some(v)]);
+                cx.out.seq(&[set, select], Loc::SYNTHETIC)
+            } else if synthetic {
+                assignment
+            } else {
+                set_value(cx)
+            };
+            cx.stmt(e)
+        };
+        if has_state {
+            let id = self.names.generate(&format!("{node}_value"));
+            let init = (tag == "option").then(|| self.out.object(&[], Loc::SYNTHETIC));
+            let target = self.out.id(&id);
+            l.init.push(self.out.let_(flag::VAR, target, init));
+            let read = self.out.id(&id);
+            let target = self.out.id(&id);
+            let assign = self
+                .out
+                .assign(AssignOp::Assign, target, value, Loc::SYNTHETIC);
+            let test = self
+                .out
+                .binary(BinOp::StrictNotEq, read, assign, Loc::SYNTHETIC);
+            let v = self.out.id(&id);
+            let update = build_update(self, v);
+            let block = self.out.block(&[update], Loc::SYNTHETIC);
+            l.update
+                .push(self.out.if_(test, block, None, Loc::SYNTHETIC));
+        } else {
+            let s = build_update(self, value);
+            l.init.push(s);
+        }
     }
 
     /// The directives of upstream `RegularElement`'s `other_directives`, in attribute order.
@@ -1041,6 +1171,7 @@ impl<'a> Cx<'a> {
     fn element_attributes(
         &mut self,
         id: HirId,
+        tag: &str,
         attrs: &[Attribute],
         node: &str,
         frag: &mut Frag,
@@ -1060,6 +1191,12 @@ impl<'a> Cx<'a> {
                 continue;
             }
             let attr_name = normalize_attribute(raw_name);
+            // `select_value` sets these once the options exist.
+            if (matches!(tag, "option" | "select") && raw_name == "value")
+                || (tag == "select" && attr_name == "defaultValue")
+            {
+                continue;
+            }
             let literal = match &a.value {
                 AttrValue::Boolean => Some(None),
                 AttrValue::Static(v) => Some(Some(v.to_string())),
@@ -1274,6 +1411,7 @@ impl<'a> Cx<'a> {
         let set = self.unthunk(set);
         let x = self.out.id(node);
         let method = match a.name.text(self.src) {
+            "value" if tag == "select" => "bind_select_value",
             "value" => "bind_value",
             "checked" => "bind_checked",
             p => unreachable!("`check_binding` admits no `bind:{p}`"),
@@ -1703,22 +1841,26 @@ impl<'a> Cx<'a> {
     }
 }
 
-/// `b.call` for `$.method(…)`: trailing missing arguments are dropped, inner ones are `void 0`.
+/// `b.call` for `$.method(…)`.
 pub(super) fn runtime_call(out: &mut Ast, method: &str, args: Vec<Option<NodeId>>) -> NodeId {
+    let args = call_arguments(out, args);
+    out.runtime("$", method, &args)
+}
+
+/// `b.call`'s arguments: trailing missing ones are dropped, inner ones are `void 0`.
+pub(super) fn call_arguments(out: &mut Ast, args: Vec<Option<NodeId>>) -> Vec<NodeId> {
     let mut args = args;
     while matches!(args.last(), Some(None)) {
         args.pop();
     }
-    let args: Vec<NodeId> = args
-        .into_iter()
+    args.into_iter()
         .map(|a| {
             a.unwrap_or_else(|| {
                 let zero = out.num(0.0, Loc::SYNTHETIC);
                 out.unary(UnaryOp::Void, zero, Loc::SYNTHETIC)
             })
         })
-        .collect();
-    out.runtime("$", method, &args)
+        .collect()
 }
 
 /// `b.init(name, value)` as esrap prints it: an identifier key when `name` is one, a string key

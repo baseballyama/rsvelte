@@ -17,7 +17,7 @@ use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::source::Span;
 use rustc_hash::FxHashMap;
 
-use crate::hir::{AttrValue, Attribute, Children, Hir, HirId, NodeKind};
+use crate::hir::{AttrValue, Attribute, Children, Element, Hir, HirId, NodeKind};
 use crate::resolve::{BindKind, Resolution};
 
 /// A component as the compiler reads it, whatever syntax it was written in.
@@ -760,12 +760,18 @@ fn import_source<'a>(
 /// Upstream `binding_properties` that this port lowers, by element.
 ///
 /// `bind:value` on `<input>` (not a checkbox, radio or file input) and `bind:checked` on a
-/// checkbox, with the `type` written as static text.
+/// checkbox, with the `type` written as static text; `bind:value` on a `<select>` whose
+/// `multiple` is static.
 #[must_use]
 pub fn supported_binding(src: &str, tag: &str, attrs: &[Attribute], property: &str) -> bool {
-    if tag != "input" {
+    if tag != "input" && tag != "select" {
         return false;
     }
+    // Upstream rejects a `multiple` that is not static on a bound `<select>`.
+    let static_multiple = attrs.iter().all(|a| {
+        a.name.text(src) != "multiple"
+            || matches!(a.value, AttrValue::Boolean | AttrValue::Static(_))
+    });
     let mut ty = Some("text");
     for a in attrs {
         if a.name.text(src) == "type" && !matches!(a.value, AttrValue::Bind(_)) {
@@ -776,8 +782,9 @@ pub fn supported_binding(src: &str, tag: &str, attrs: &[Attribute], property: &s
         }
     }
     match (property, ty) {
-        ("value", Some(t)) => !matches!(t, "checkbox" | "radio" | "file"),
-        ("checked", Some(t)) => t == "checkbox",
+        ("value", Some(t)) if tag == "input" => !matches!(t, "checkbox" | "radio" | "file"),
+        ("value", _) => tag == "select" && static_multiple,
+        ("checked", Some(t)) => tag == "input" && t == "checkbox",
         _ => false,
     }
 }
@@ -811,6 +818,80 @@ pub const fn is_directive(v: &AttrValue) -> bool {
         v,
         AttrValue::Bind(_) | AttrValue::Attach(_) | AttrValue::Class(_) | AttrValue::Spread(_)
     )
+}
+
+/// Upstream analysis' `synthetic_value_node`: an `<option>` without a `value` attribute whose
+/// only child is an expression tag takes that expression as its value.
+#[must_use]
+pub fn synthetic_value(hir: &Hir, src: &str, tag: &str, el: &Element) -> Option<NodeId> {
+    if tag != "option"
+        || hir
+            .attrs(el.attrs)
+            .iter()
+            .any(|a| !is_directive(&a.value) && a.name.text(src) == "value")
+    {
+        return None;
+    }
+    match hir.children(el.children) {
+        &[only] => match hir.node(only).kind {
+            NodeKind::Expr { expr } => Some(expr),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Upstream `is_customizable_select_element`: a `<select>`, `<optgroup>` or `<option>` holding
+/// more than plain options and text.
+#[must_use]
+pub fn is_customizable_select(hir: &Hir, src: &str, tag: &str, el: &Element) -> bool {
+    fn descendants(hir: &Hir, src: &str, list: Children, out: &mut Vec<HirId>) {
+        for &id in hir.children(list) {
+            match &hir.node(id).kind {
+                NodeKind::Comment { .. } | NodeKind::Expr { .. } => {}
+                NodeKind::Text { raw, decoded } => {
+                    let data = decoded.as_deref().unwrap_or_else(|| raw.text(src));
+                    if !data.trim().is_empty() {
+                        out.push(id);
+                    }
+                }
+                NodeKind::If {
+                    branches,
+                    otherwise,
+                } => {
+                    for b in hir.branches(*branches) {
+                        descendants(hir, src, b.body, out);
+                    }
+                    if let Some(o) = otherwise {
+                        descendants(hir, src, *o, out);
+                    }
+                }
+                NodeKind::Each(each) => {
+                    descendants(hir, src, each.body, out);
+                    if let Some(f) = each.fallback {
+                        descendants(hir, src, f, out);
+                    }
+                }
+                NodeKind::Element(_) => out.push(id),
+            }
+        }
+    }
+    if !matches!(tag, "select" | "optgroup" | "option") {
+        return false;
+    }
+    let mut found = Vec::new();
+    descendants(hir, src, el.children, &mut found);
+    found.iter().any(|&id| match &hir.node(id).kind {
+        NodeKind::Element(child) => {
+            let name = child.name.text(src);
+            match tag {
+                "select" => name != "option" && name != "optgroup",
+                "optgroup" => name != "option",
+                _ => true,
+            }
+        }
+        _ => tag != "option",
+    })
 }
 
 /// Upstream `is_load_error_element`.
