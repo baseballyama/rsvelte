@@ -121,8 +121,8 @@ mod tests {
 
     fn lint(src: &str) -> String {
         let c = crate::parse::parse(src).expect("parses");
-        let res = crate::resolve::resolve(&c.js, c.program, &c.template_exprs);
         let hir = crate::hir::lower(&c, src);
+        let res = crate::resolve::resolve(&c.js, c.program, &hir);
         let parents = c.js.parents();
         let early = super::AstCx {
             c: &c,

@@ -5,6 +5,7 @@
 //! read only for names. What changes on the way:
 //!
 //! - an `{#if}…{:else if}…{:else}` chain is one node with its branches, not nested `If`s;
+//! - a `bind:` directive is an attribute named by its property, with an [`AttrValue::Bind`];
 //! - every element knows its kind (regular, component, `<title>` in `<svelte:head>`, `<slot>`,
 //!   `svelte:` meta tag), decided the way the Svelte parser decides it;
 //! - an attribute value is classified (boolean, static text with character references decoded, one
@@ -88,6 +89,60 @@ pub enum NodeKind {
         /// The final `{:else}`.
         otherwise: Option<Children>,
     },
+    Each(Each),
+}
+
+/// `{#each collection as context, index (key)}…{:else}…{/each}`. The context and the index are
+/// declared in a scope of their own, which the key and the body see and the collection and the
+/// fallback do not.
+#[derive(Debug)]
+pub struct Each {
+    pub collection: NodeId,
+    /// A pattern node; `NodeId::NONE` when absent, as are `index` and `key`.
+    pub context: NodeId,
+    /// An identifier node.
+    pub index: NodeId,
+    pub key: NodeId,
+    pub body: Children,
+    pub fallback: Option<Children>,
+}
+
+impl Each {
+    #[must_use]
+    pub const fn context(&self) -> Option<NodeId> {
+        some(self.context)
+    }
+
+    #[must_use]
+    pub const fn index(&self) -> Option<NodeId> {
+        some(self.index)
+    }
+
+    #[must_use]
+    pub const fn key(&self) -> Option<NodeId> {
+        some(self.key)
+    }
+
+    /// Upstream's `metadata.keyed`: a key other than the index itself.
+    #[must_use]
+    pub fn keyed(&self, js: &rsv_js::Ast) -> bool {
+        let Some(key) = self.key() else {
+            return false;
+        };
+        let is_index = matches!(js.kind(key), rsv_js::Kind::Ident(_))
+            && self
+                .index()
+                .is_some_and(|i| js.atom(i).is_some() && js.atom(i) == js.atom(key));
+        !is_index
+    }
+}
+
+const fn some(id: NodeId) -> Option<NodeId> {
+    if id.0 == NodeId::NONE.0 {
+        None
+    } else {
+        Some(id)
+    }
 }
 
 #[derive(Debug)]
@@ -190,6 +245,8 @@ pub enum AttrValue {
     /// Text and expressions, or several expressions: `class="a {b}"`. Empty for `a=` followed by
     /// nothing, which is not the empty text `a=""`: the compiler sets it at runtime.
     Interpolated(Box<[Part]>),
+    /// `bind:name={e}`: the attribute's name is the bound property.
+    Bind(NodeId),
 }
 
 impl Hir {
@@ -437,7 +494,7 @@ impl SurfaceBuilder<'_> {
                 let attributes =
                     self.b
                         .attributes(c.attrs(attrs).iter().enumerate().map(|(i, a)| Attribute {
-                            name: Name::Source(a.name),
+                            name: Name::Source(a.bind_property().unwrap_or(a.name)),
                             value: attr_value(c, src, a),
                             span: a.span,
                             owner: id,
@@ -457,6 +514,27 @@ impl SurfaceBuilder<'_> {
                 let children = self.list(c.children(children), Some(id));
                 self.b.set_element_children(id, children);
                 return id;
+            }
+            TNode::Each {
+                expr,
+                context,
+                index,
+                key,
+                body,
+                fallback,
+                has_fallback,
+                ..
+            } => {
+                let body = self.list(c.children(body), Some(id));
+                let fallback = has_fallback.then(|| self.list(c.children(fallback), Some(id)));
+                NodeKind::Each(Each {
+                    collection: expr,
+                    context,
+                    index,
+                    key,
+                    body,
+                    fallback,
+                })
             }
             TNode::If { .. } => {
                 let chain = c.if_branches(t);
@@ -521,6 +599,7 @@ fn attr_value(c: &Component, src: &str, a: &ast::Attr) -> AttrValue {
         ast::AttrValue::Parts(r) => c.parts(r),
     };
     match parts {
+        [Part::Expr { expr, .. }] if a.kind == ast::AttrKind::Bind => AttrValue::Bind(*expr),
         [Part::Expr { expr, .. }] if a.shorthand => AttrValue::Shorthand(*expr),
         [Part::Expr { expr, .. }] => AttrValue::Expression {
             expr: *expr,
@@ -654,6 +733,7 @@ mod tests {
                 AttrValue::Expression { quoted, .. } => format!("expression quoted={quoted}"),
                 AttrValue::Shorthand(_) => "shorthand".into(),
                 AttrValue::Interpolated(p) => format!("interpolated {}", p.len()),
+                AttrValue::Bind(_) => "bind".into(),
             })
             .collect();
         assert_eq!(

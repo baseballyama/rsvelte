@@ -64,7 +64,7 @@ impl Artifact for Resolved {
         Some(rsv_svelte::resolve::resolve(
             &sfc.js,
             sfc.program,
-            &view.template_exprs,
+            &view.hir,
         ))
     }
 }

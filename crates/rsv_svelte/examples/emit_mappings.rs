@@ -35,8 +35,8 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let res = resolve::resolve(&c.js, c.program, &c.template_exprs);
     let hir = hir::lower(&c, &src);
+    let res = resolve::resolve(&c.js, c.program, &hir);
     let input = svelte_input(&c, &hir, &src);
     let an = analyze::analyze(&input, &res, path);
     let lowered = match target.as_str() {

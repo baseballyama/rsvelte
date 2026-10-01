@@ -56,6 +56,21 @@ pub enum TNode {
         elseif: bool,
         span: Span,
     },
+    /// `{#each expr as context, index (key)}…{:else}…{/each}`; an absent part is `NodeId::NONE`.
+    Each {
+        expr: NodeId,
+        /// The pattern after `as`.
+        context: NodeId,
+        /// An identifier node in the component's [`Ast`], so scope analysis can declare it.
+        index: NodeId,
+        key: NodeId,
+        body: Range,
+        /// Meaningful only with `has_fallback`: `{:else}` with nothing after it is an empty
+        /// fallback, not an absent one.
+        fallback: Range,
+        has_fallback: bool,
+        span: Span,
+    },
 }
 
 impl TNode {
@@ -66,20 +81,38 @@ impl TNode {
             | Self::Comment { span, .. }
             | Self::Expr { span, .. }
             | Self::Element { span, .. }
-            | Self::If { span, .. } => span,
+            | Self::If { span, .. }
+            | Self::Each { span, .. } => span,
         }
     }
 }
 
 #[derive(Debug)]
 pub struct Attr {
+    pub kind: AttrKind,
+    /// As written: `bind:value` for a binding.
     pub name: Span,
     pub value: AttrValue,
     pub span: Span,
     /// `a="…"` rather than `a={…}`; upstream keeps the two apart and a few rules differ.
     pub quoted: bool,
-    /// Written `{a}` rather than `a={a}`.
+    /// Written `{a}` rather than `a={a}`, or `bind:a` rather than `bind:a={a}`.
     pub shorthand: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AttrKind {
+    Attribute,
+    /// `bind:name={expression}`; the value is the one expression.
+    Bind,
+}
+
+impl Attr {
+    /// The bound property of a `bind:` directive (`value` in `bind:value`).
+    #[must_use]
+    pub fn bind_property(&self) -> Option<Span> {
+        (self.kind == AttrKind::Bind).then(|| Span::new(self.name.lo + 5, self.name.hi))
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -156,7 +189,7 @@ pub enum Tk {
     /// `}`
     MustacheClose,
     BlockOpen,
-    /// `if` in `{:else if`.
+    /// `if` in `{:else if`, `as` in `{#each … as …}`.
     BlockKeyword,
     Js(rsv_js::lexer::T),
     JsComment,

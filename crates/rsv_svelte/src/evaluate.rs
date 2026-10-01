@@ -6,7 +6,7 @@
 
 use rsv_js::codegen::number;
 use rsv_js::ops::{BinOp, LogicalOp, UnaryOp};
-use rsv_js::scope::DeclKind;
+use rsv_js::scope::{DeclKind, ScopeId};
 use rsv_js::{Ast, Kind, NodeId};
 
 use crate::resolve::{BindKind, Resolution, rune_call};
@@ -184,12 +184,12 @@ fn add(values: &mut Vec<Val>, v: Val) {
 /// Which tree an expression lives in.
 ///
 /// Output trees carry no scope analysis, so their identifiers
-/// resolve by name against the component scope, as upstream's `state.scope.evaluate(value)` does on
-/// the transformed expression.
+/// resolve by name against the scope the expression was lowered in, as upstream's
+/// `state.scope.evaluate(value)` does on the transformed expression.
 #[derive(Clone, Copy, Debug)]
 pub enum Tree<'a> {
     Source,
-    Output(&'a Ast),
+    Output(&'a Ast, ScopeId),
 }
 
 #[derive(Debug)]
@@ -220,14 +220,14 @@ impl<'a> Evaluator<'a> {
     const fn ast(&self, tree: Tree<'a>) -> &'a Ast {
         match tree {
             Tree::Source => self.source,
-            Tree::Output(a) => a,
+            Tree::Output(a, _) => a,
         }
     }
 
     fn eval_into(&mut self, tree: Tree<'a>, e: NodeId, values: &mut Vec<Val>) {
         // Upstream returns the evaluation already in progress for a cycle; it has no values yet at
         // that point, which only a self-referencing initialiser can reach.
-        let key = (matches!(tree, Tree::Output(_)), e);
+        let key = (matches!(tree, Tree::Output(..)), e);
         if self.in_progress.contains(&key) {
             add(values, Val::Unknown);
             return;
@@ -389,11 +389,11 @@ impl<'a> Evaluator<'a> {
     fn resolve(&self, tree: Tree<'a>, e: NodeId) -> Option<rsv_js::scope::BindingId> {
         match tree {
             Tree::Source => self.res.sem.binding_of(e),
-            Tree::Output(ast) => self
+            Tree::Output(ast, scope) => self
                 .source
                 .atoms
                 .lookup(ast.name(e))
-                .and_then(|a| self.res.sem.root_binding(a)),
+                .and_then(|a| self.res.sem.lookup(scope, a)),
         }
     }
 
@@ -407,6 +407,11 @@ impl<'a> Evaluator<'a> {
             return;
         };
         let s = &self.res.sem.bindings[b];
+        // Upstream: an `{#each}` index's initial value is the block, which evaluates to a number.
+        if matches!(info.kind, BindKind::StaticIndex | BindKind::KeyedIndex) {
+            add(values, Val::AnyNumber);
+            return;
+        }
         let is_prop = matches!(
             info.kind,
             BindKind::Prop | BindKind::BindableProp | BindKind::RestProp

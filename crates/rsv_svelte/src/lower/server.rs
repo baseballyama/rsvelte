@@ -1,16 +1,21 @@
 //! Server lowering: the component becomes string pushes onto `$$renderer`. Mirrors upstream
-//! `3-transform/server` (Fragment, `RegularElement`, `IfBlock`, shared/utils, shared/element).
+//! `3-transform/server` (Fragment, `RegularElement`, `IfBlock`, `EachBlock`, shared/utils,
+//! shared/element).
 
 use rsv_html::decode_text;
+use rsv_js::ast::flag;
 use rsv_js::copy::copy;
+use rsv_js::ops::{BinOp, UpdateOp};
 use rsv_js::{Ast, Kind, NodeId};
 use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::source::Loc;
+use rustc_hash::FxHashMap;
 
+use super::names::Names;
 use super::script::{ScriptRewrite, lower_instance};
 use super::{
-    CompileInput, Item, Parent, Target, clean_nodes, escape_html, event_attribute,
-    is_boolean_attribute, sanitize_template_string,
+    CompileInput, Item, Parent, Target, check_binding, clean_nodes, each_index_names, escape_html,
+    event_attribute, is_boolean_attribute, sanitize_template_string,
 };
 use crate::analyze::Analysis;
 use crate::hir::{AttrValue, Attribute, ElementKind, Hir, HirId, NodeKind, Part};
@@ -19,6 +24,8 @@ use crate::resolve::Resolution;
 
 type R<T> = Result<T, Diagnostic>;
 
+const BLOCK_OPEN: &str = "<!--[-->";
+const BLOCK_OPEN_ELSE: &str = "<!--[!-->";
 const BLOCK_CLOSE: &str = "<!--]-->";
 const EMPTY_COMMENT: &str = "<!---->";
 
@@ -39,6 +46,10 @@ struct Sx<'a> {
     res: &'a Resolution,
     an: &'a Analysis,
     out: Ast,
+    names: Names,
+    each_index: FxHashMap<HirId, String>,
+    /// Upstream `state.preserve_whitespace`: inside `<pre>` or `<textarea>`.
+    preserve_ws: bool,
 }
 
 /// # Errors
@@ -46,20 +57,37 @@ struct Sx<'a> {
 /// An `unsupported` [`Diagnostic`] if the component uses an element or attribute the server
 /// lowering does not handle yet.
 pub fn lower(input: &CompileInput<'_>, res: &Resolution, an: &Analysis) -> R<(Ast, NodeId)> {
+    let js = input.js;
+    let declared = res.sem.bindings.iter().map(|b| js.atoms.get(b.name));
+    let referenced = res.sem.references.iter().map(|r| js.name(r.node));
+    let mut names = Names::new(declared, referenced);
+    let each_index = each_index_names(input.hir, &mut names);
     let mut sx = Sx {
-        js: input.js,
+        js,
         hir: input.hir,
         src: input.src,
         res,
         an,
         out: Ast::new(),
+        names,
+        each_index,
+        preserve_ws: false,
     };
     let mut hoisted = Vec::new();
     let mut rw = ScriptRewrite {
         target: Target::Server,
         res,
+        src: input.src,
+        each: None,
     };
-    let instance = lower_instance(input.js, &mut sx.out, &mut rw, input.program, &mut hoisted)?;
+    let instance = lower_instance(
+        input.js,
+        &mut sx.out,
+        &mut rw,
+        input.program,
+        &mut hoisted,
+        &mut sx.names,
+    )?;
     let template = sx.fragment(Parent::Root, input.hir.children(input.hir.root))?;
 
     let o = &mut sx.out;
@@ -97,12 +125,14 @@ impl Sx<'_> {
         let mut rw = ScriptRewrite {
             target: Target::Server,
             res: self.res,
+            src: self.src,
+            each: None,
         };
         copy(self.js, &mut self.out, &mut rw, e)
     }
 
     fn fragment(&mut self, parent: Parent<'_>, list: &[HirId]) -> R<Vec<NodeId>> {
-        let cleaned = clean_nodes(self.hir, self.src, parent, list, false);
+        let cleaned = clean_nodes(self.hir, self.src, parent, list, self.preserve_ws);
         let mut template = Vec::new();
         if cleaned.text_first {
             template.push(Piece::Text(EMPTY_COMMENT.into()));
@@ -122,6 +152,7 @@ impl Sx<'_> {
                     match self.hir.node(*id).kind {
                         NodeKind::Element(_) => self.element(*id, template)?,
                         NodeKind::If { .. } => self.if_block(*id, template)?,
+                        NodeKind::Each(_) => self.each_block(*id, template)?,
                         _ => unreachable!("clean_nodes keeps only elements and blocks as nodes"),
                     }
                 }
@@ -256,6 +287,18 @@ impl Sx<'_> {
         let list = hir.attrs(el.attrs);
         for a in list {
             let raw_name = a.name.text(self.src);
+            if let AttrValue::Bind(_) = a.value {
+                let e = check_binding(self.js, self.res, self.src, &tag, list, a)?;
+                let name = raw_name.to_ascii_lowercase();
+                let value = self.expr(e);
+                let n = self.out.str(&name);
+                let mut args = vec![n, value];
+                if is_boolean_attribute(&name) {
+                    args.push(self.out.bool(true, Loc::SYNTHETIC));
+                }
+                template.push(Piece::Expr(self.out.runtime("$", "attr", &args)));
+                continue;
+            }
             if event_attribute(self.src, a).is_some() {
                 continue;
             }
@@ -295,15 +338,18 @@ impl Sx<'_> {
         }
         let void = is_void(&tag);
         template.push(Piece::Text(if void { "/>".into() } else { ">".into() }));
-        let preserve = tag == "pre" || tag == "textarea";
+        let outer_preserve = self.preserve_ws;
+        self.preserve_ws |= tag == "pre" || tag == "textarea";
         let cleaned = clean_nodes(
             hir,
             self.src,
             Parent::Element(&tag),
             hir.children(el.children),
-            preserve,
+            self.preserve_ws,
         );
-        self.process_children(&cleaned.items, template)?;
+        let children = self.process_children(&cleaned.items, template);
+        self.preserve_ws = outer_preserve;
+        children?;
         if !void {
             template.push(Piece::Text(format!("</{tag}>")));
         }
@@ -340,8 +386,8 @@ impl Sx<'_> {
                 return self.expr(expr);
             }
             AttrValue::Interpolated(parts) => parts,
-            AttrValue::Boolean | AttrValue::Static(_) => {
-                unreachable!("literal values are handled by the caller")
+            AttrValue::Boolean | AttrValue::Static(_) | AttrValue::Bind(_) => {
+                unreachable!("literal values and bindings are handled by the caller")
             }
         };
         let mut quasis = vec![String::new()];
@@ -421,6 +467,91 @@ impl Sx<'_> {
         template.push(Piece::Stmt(chain));
         template.push(Piece::Text(BLOCK_CLOSE.into()));
         Ok(())
+    }
+
+    /// Upstream `EachBlock` (server) for a block whose context is an identifier.
+    fn each_block(&mut self, id: HirId, template: &mut Vec<Piece>) -> R<()> {
+        let (hir, js) = (self.hir, self.js);
+        let NodeKind::Each(each) = &hir.node(id).kind else {
+            unreachable!()
+        };
+        let context = each.context().expect("the parser requires `as`");
+        if !matches!(js.kind(context), Kind::Ident(_)) {
+            return Err(Diagnostic::error(
+                "unsupported",
+                "a destructuring `{#each}` context is not supported yet",
+                js.loc(context).span().expect("parsed from source"),
+            ));
+        }
+        let collection = self.expr(each.collection);
+        let index = each
+            .index()
+            .map_or_else(|| self.each_index[&id].clone(), |i| js.name(i).to_owned());
+        let array_id = self.names.unique("each_array");
+        let ensure = self.out.runtime("$", "ensure_array_like", &[collection]);
+        let array = self.out.id(&array_id);
+        let array_decl = self.out.let_(flag::CONST, array, Some(ensure));
+
+        let mut body = Vec::new();
+        let item = self.out.ident(js.name(context), js.loc(context));
+        let array = self.out.id(&array_id);
+        let at = self.out.id(&index);
+        let element = self.out.member(array, at, true, false, Loc::SYNTHETIC);
+        body.push(self.out.let_(flag::LET, item, Some(element)));
+        body.extend(self.fragment(Parent::Each, hir.children(each.body))?);
+
+        let i = self.out.id(&index);
+        let zero = self.out.num(0.0, Loc::SYNTHETIC);
+        let first = self.out.declarator(i, Some(zero), Loc::SYNTHETIC);
+        let length = self.out.id("$$length");
+        let array = self.out.id(&array_id);
+        let array_length = self.out.dot(array, "length");
+        let second = self
+            .out
+            .declarator(length, Some(array_length), Loc::SYNTHETIC);
+        let init = self
+            .out
+            .var_decl(flag::LET, &[first, second], Loc::SYNTHETIC);
+        let i = self.out.id(&index);
+        let length = self.out.id("$$length");
+        let test = self.out.binary(BinOp::Lt, i, length, Loc::SYNTHETIC);
+        let i = self.out.id(&index);
+        let update = self.out.update(UpdateOp::Inc, false, i, Loc::SYNTHETIC);
+        let block = self.out.block(&body, Loc::SYNTHETIC);
+        let for_loop = self
+            .out
+            .for_(Some(init), Some(test), Some(update), block, Loc::SYNTHETIC);
+
+        if let Some(f) = each.fallback {
+            let open = self.push_literal(BLOCK_OPEN);
+            let fallback = self.fragment(Parent::Each, hir.children(f))?;
+            let fallback = self.prepend_block_marker(fallback, BLOCK_OPEN_ELSE);
+            let array = self.out.id(&array_id);
+            let array_length = self.out.dot(array, "length");
+            let zero = self.out.num(0.0, Loc::SYNTHETIC);
+            let test = self
+                .out
+                .binary(BinOp::StrictNotEq, array_length, zero, Loc::SYNTHETIC);
+            let cons = self.out.block(&[open, for_loop], Loc::SYNTHETIC);
+            let stmt = self.out.if_(test, cons, Some(fallback), Loc::SYNTHETIC);
+            template.push(Piece::Stmt(array_decl));
+            template.push(Piece::Stmt(stmt));
+        } else {
+            template.push(Piece::Text(BLOCK_OPEN.into()));
+            template.push(Piece::Stmt(array_decl));
+            template.push(Piece::Stmt(for_loop));
+        }
+        template.push(Piece::Text(BLOCK_CLOSE.into()));
+        Ok(())
+    }
+
+    /// `$$renderer.push('…')`.
+    fn push_literal(&mut self, text: &str) -> NodeId {
+        let r = self.out.id("$$renderer");
+        let callee = self.out.dot(r, "push");
+        let m = self.out.str(text);
+        let call = self.out.call(callee, &[m], false, Loc::SYNTHETIC);
+        self.out.expr_stmt(call)
     }
 
     /// Upstream `prepend_block_marker`: folds the marker into a leading static push.

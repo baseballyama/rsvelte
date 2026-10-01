@@ -11,9 +11,13 @@ pub mod server;
 
 use std::borrow::Cow;
 
-use rsv_js::{Ast, NodeId};
+use rsv_js::{Ast, Kind, NodeId};
+use rsv_kernel::diag::Diagnostic;
+use rsv_kernel::source::Span;
+use rustc_hash::FxHashMap;
 
-use crate::hir::{AttrValue, Attribute, Hir, HirId, NodeKind};
+use crate::hir::{AttrValue, Attribute, Children, Hir, HirId, NodeKind};
+use crate::resolve::{BindKind, Resolution};
 
 /// A component as the compiler reads it, whatever syntax it was written in.
 #[derive(Clone, Copy, Debug)]
@@ -54,7 +58,10 @@ pub enum Item<'a> {
 pub enum Parent<'a> {
     Root,
     Element(&'a str),
+    /// An `{#if}` branch.
     Block,
+    /// The body or the fallback of an `{#each}`.
+    Each,
 }
 
 #[derive(Debug)]
@@ -89,7 +96,9 @@ pub fn clean_nodes<'a>(
                 });
             }
             NodeKind::Expr { expr } => regular.push(Item::Expr(*expr)),
-            NodeKind::Element(_) | NodeKind::If { .. } => regular.push(Item::Node(id)),
+            NodeKind::Element(_) | NodeKind::If { .. } | NodeKind::Each(_) => {
+                regular.push(Item::Node(id));
+            }
         }
     }
     let is_expr = |i: Option<&Item<'_>>| matches!(i, Some(Item::Expr(_)));
@@ -152,7 +161,7 @@ pub fn clean_nodes<'a>(
         trimmed.remove(0);
     }
 
-    let text_first = matches!(parent, Parent::Root)
+    let text_first = matches!(parent, Parent::Root | Parent::Each)
         && matches!(trimmed.first(), Some(Item::Text { .. } | Item::Expr(_)));
     Cleaned {
         items: trimmed,
@@ -298,6 +307,150 @@ pub fn cannot_be_set_statically(name: &str) -> bool {
         name,
         "autofocus" | "muted" | "defaultValue" | "defaultChecked"
     )
+}
+
+/// Each `{#each}`'s `$$index` name. Upstream takes them from `scope.root.unique` while it builds
+/// the scopes, before any transform: the collection, then the fallback, then the body, then the
+/// block itself.
+pub fn each_index_names(hir: &Hir, names: &mut names::Names) -> FxHashMap<HirId, String> {
+    fn walk(
+        hir: &Hir,
+        list: Children,
+        names: &mut names::Names,
+        out: &mut FxHashMap<HirId, String>,
+    ) {
+        for &id in hir.children(list) {
+            match &hir.node(id).kind {
+                NodeKind::Element(el) => walk(hir, el.children, names, out),
+                NodeKind::If {
+                    branches,
+                    otherwise,
+                } => {
+                    for b in hir.branches(*branches) {
+                        walk(hir, b.body, names, out);
+                    }
+                    if let Some(o) = otherwise {
+                        walk(hir, *o, names, out);
+                    }
+                }
+                NodeKind::Each(each) => {
+                    if let Some(f) = each.fallback {
+                        walk(hir, f, names, out);
+                    }
+                    walk(hir, each.body, names, out);
+                    out.insert(id, names.unique("$$index"));
+                }
+                NodeKind::Text { .. } | NodeKind::Comment { .. } | NodeKind::Expr { .. } => {}
+            }
+        }
+    }
+    let mut out = FxHashMap::default();
+    walk(hir, hir.root, names, &mut out);
+    out
+}
+
+/// Upstream's `EACH_ITEM_REACTIVE` test: the collection reads a binding (references inside a
+/// function of the expression are not its dependencies).
+#[must_use]
+pub fn has_dependency(js: &Ast, res: &Resolution, e: NodeId) -> bool {
+    match js.kind(e) {
+        Kind::Ident(_) => res
+            .binding(e)
+            .is_some_and(|(b, _)| res.sem.bindings[b].node != e),
+        Kind::Function { .. } | Kind::Arrow { .. } => false,
+        _ => {
+            let mut any = false;
+            js.for_each_child(e, |c| any = any || has_dependency(js, res, c));
+            any
+        }
+    }
+}
+
+/// The checks this port makes before lowering a `bind:` directive.
+///
+/// A supported property on a supported element, and a target that is `$state` or a member of
+/// `$state` or of an `{#each}` item. Upstream validates more and accepts more.
+///
+/// # Errors
+///
+/// An `unsupported` [`Diagnostic`] for anything else.
+pub fn check_binding(
+    js: &Ast,
+    res: &Resolution,
+    src: &str,
+    tag: &str,
+    attrs: &[Attribute],
+    a: &Attribute,
+) -> Result<NodeId, Diagnostic> {
+    let AttrValue::Bind(e) = a.value else {
+        unreachable!("called on bindings")
+    };
+    let unsupported = |what: String, span: Span| {
+        Err(Diagnostic::error(
+            "unsupported",
+            format!("{what} is not supported yet"),
+            span,
+        ))
+    };
+    let property = a.name.text(src);
+    if !supported_binding(src, tag, attrs, property) {
+        return unsupported(format!("`bind:{property}` on this `<{tag}>`"), a.span);
+    }
+    let beside = attrs
+        .iter()
+        .any(|o| !std::ptr::eq(o, a) && matches!(o.name.text(src), "value" | "checked" | "group"));
+    if beside {
+        return unsupported(
+            "a binding beside a `value`, `checked` or `group` attribute".into(),
+            a.span,
+        );
+    }
+    let mut root = e;
+    while let Kind::Member { object, .. } = js.kind(root) {
+        root = object;
+    }
+    let kind = matches!(js.kind(root), Kind::Ident(_))
+        .then(|| res.binding(root).map(|(_, info)| info.kind))
+        .flatten();
+    let member = root != e;
+    let ok = match kind {
+        Some(BindKind::State | BindKind::RawState) => true,
+        Some(BindKind::Each) => member,
+        _ => false,
+    };
+    if !ok {
+        return unsupported(
+            "a binding to anything but `$state` or a member of `$state` or of an `{#each}` item"
+                .into(),
+            a.span,
+        );
+    }
+    Ok(e)
+}
+
+/// Upstream `binding_properties` that this port lowers, by element.
+///
+/// `bind:value` on `<input>` (not a checkbox, radio or file input) and `bind:checked` on a
+/// checkbox, with the `type` written as static text.
+#[must_use]
+pub fn supported_binding(src: &str, tag: &str, attrs: &[Attribute], property: &str) -> bool {
+    if tag != "input" {
+        return false;
+    }
+    let mut ty = Some("text");
+    for a in attrs {
+        if a.name.text(src) == "type" && !matches!(a.value, AttrValue::Bind(_)) {
+            ty = match &a.value {
+                AttrValue::Static(v) => Some(&**v),
+                _ => None,
+            };
+        }
+    }
+    match (property, ty) {
+        ("value", Some(t)) => !matches!(t, "checkbox" | "radio" | "file"),
+        ("checked", Some(t)) => t == "checkbox",
+        _ => false,
+    }
 }
 
 /// Upstream `is_event_attribute` for this port's attribute shapes.

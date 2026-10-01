@@ -5,9 +5,11 @@
 //! Everything here is a side table over [`BindingId`]s and the tree's own [`NodeId`]s; the tree is
 //! not touched. Compilation, lint rules and the HIR all read this one resolution.
 
-use rsv_js::scope::{self, BindingId, DeclKind, Semantic};
+use rsv_js::scope::{self, BindingId, DeclKind, HostRoot, HostScope, Semantic};
 use rsv_js::{Ast, Kind, NodeId};
 use rsv_kernel::idx::IndexVec;
+
+use crate::hir::{AttrValue, Children, Hir, NodeKind, Part};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BindKind {
@@ -19,6 +21,12 @@ pub enum BindKind {
     Prop,
     BindableProp,
     RestProp,
+    /// Declared by an `{#each}` context.
+    Each,
+    /// The index of an unkeyed `{#each}` (upstream `static`): it never changes for an item.
+    StaticIndex,
+    /// The index of a keyed `{#each}` (upstream `template`).
+    KeyedIndex,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -40,18 +48,121 @@ pub struct Resolution {
     pub uses_props: bool,
 }
 
+/// Resolves the script and the template of `hir`, which any frontend may have built over `ast`.
 #[must_use]
-pub fn resolve(ast: &Ast, program: NodeId, template_exprs: &[NodeId]) -> Resolution {
-    let host: Vec<scope::HostRoot> = template_exprs
-        .iter()
-        .map(|&e| scope::HostRoot::Expr(e))
-        .collect();
+pub fn resolve(ast: &Ast, program: NodeId, hir: &Hir) -> Resolution {
+    let mut host = Vec::new();
+    template_roots(hir, hir.root, &mut host);
     let sem = scope::analyze(ast, program, &host);
-    let bindings = classify(ast, &sem, program);
+    let mut bindings = classify(ast, &sem, program);
+    classify_each(ast, &sem, hir, &mut bindings);
     Resolution {
         uses_props: has_props_rune(ast, program),
         sem,
         bindings,
+    }
+}
+
+/// The template's expressions in document order, with the scope each `{#each}` opens (upstream
+/// `create_scopes`' `EachBlock`: the collection outside it, the key and the body inside it).
+fn template_roots(hir: &Hir, list: Children, out: &mut Vec<HostRoot>) {
+    for &id in hir.children(list) {
+        match &hir.node(id).kind {
+            NodeKind::Text { .. } | NodeKind::Comment { .. } => {}
+            NodeKind::Expr { expr } => out.push(HostRoot::Expr(*expr)),
+            NodeKind::Element(el) => {
+                for a in hir.attrs(el.attrs) {
+                    match &a.value {
+                        AttrValue::Boolean | AttrValue::Static(_) => {}
+                        &(AttrValue::Expression { expr, .. } | AttrValue::Shorthand(expr)) => {
+                            out.push(HostRoot::Expr(expr));
+                        }
+                        AttrValue::Interpolated(parts) => {
+                            out.extend(parts.iter().filter_map(|p| match *p {
+                                Part::Expr { expr, .. } => Some(HostRoot::Expr(expr)),
+                                Part::Text(_) => None,
+                            }));
+                        }
+                        &AttrValue::Bind(expr) => out.push(HostRoot::Bound(expr)),
+                    }
+                }
+                template_roots(hir, el.children, out);
+            }
+            NodeKind::If {
+                branches,
+                otherwise,
+            } => {
+                for b in hir.branches(*branches) {
+                    out.push(HostRoot::Expr(b.test));
+                    template_roots(hir, b.body, out);
+                }
+                if let Some(o) = otherwise {
+                    template_roots(hir, *o, out);
+                }
+            }
+            NodeKind::Each(each) => {
+                out.push(HostRoot::Expr(each.collection));
+                let params: Vec<NodeId> = each.context().into_iter().chain(each.index()).collect();
+                let mut body = Vec::new();
+                body.extend(each.key().map(HostRoot::Expr));
+                template_roots(hir, each.body, &mut body);
+                match params.first() {
+                    Some(&node) => out.push(HostRoot::Scope(HostScope { node, params, body })),
+                    None => out.extend(body),
+                }
+                if let Some(f) = each.fallback {
+                    template_roots(hir, f, out);
+                }
+            }
+        }
+    }
+}
+
+/// Upstream declares an each block's names `each`, and its index `static` or `template`.
+fn classify_each(ast: &Ast, sem: &Semantic, hir: &Hir, out: &mut IndexVec<BindingId, BindInfo>) {
+    for n in &hir.nodes {
+        let NodeKind::Each(each) = &n.kind else {
+            continue;
+        };
+        if let Some(context) = each.context() {
+            for_each_pattern_ident(ast, context, &mut |id| {
+                if let Some(b) = sem.binding_of(id) {
+                    out[b].kind = BindKind::Each;
+                    out[b].is_function = false;
+                }
+            });
+        }
+        if let Some(b) = each.index().and_then(|i| sem.binding_of(i)) {
+            out[b].kind = if each.keyed(ast) {
+                BindKind::KeyedIndex
+            } else {
+                BindKind::StaticIndex
+            };
+            out[b].is_function = false;
+        }
+    }
+}
+
+/// The identifiers a binding pattern declares.
+pub fn for_each_pattern_ident(ast: &Ast, p: NodeId, f: &mut impl FnMut(NodeId)) {
+    match ast.kind(p) {
+        Kind::Ident(_) => f(p),
+        Kind::ObjectPat(props) => {
+            for &pr in props {
+                match ast.kind(pr) {
+                    Kind::Property { value, .. } => for_each_pattern_ident(ast, value, f),
+                    Kind::Rest(a) => for_each_pattern_ident(ast, a, f),
+                    _ => {}
+                }
+            }
+        }
+        Kind::ArrayPat(items) => {
+            for &it in items {
+                for_each_pattern_ident(ast, it, f);
+            }
+        }
+        Kind::AssignPat(l, _) | Kind::Rest(l) => for_each_pattern_ident(ast, l, f),
+        _ => {}
     }
 }
 
@@ -85,7 +196,7 @@ impl Resolution {
         crate::evaluate::Evaluator::new(ast, src, self).evaluate(crate::evaluate::Tree::Source, e)
     }
 
-    /// Evaluates `e` of a lowered tree, resolving names in the component scope.
+    /// Evaluates `e` of a lowered tree, resolving names in `scope`.
     #[must_use]
     pub fn evaluate_output(
         &self,
@@ -93,9 +204,10 @@ impl Resolution {
         src: &str,
         out: &Ast,
         e: NodeId,
+        scope: scope::ScopeId,
     ) -> crate::evaluate::Evaluation {
         crate::evaluate::Evaluator::new(source, src, self)
-            .evaluate(crate::evaluate::Tree::Output(out), e)
+            .evaluate(crate::evaluate::Tree::Output(out, scope), e)
     }
 }
 
