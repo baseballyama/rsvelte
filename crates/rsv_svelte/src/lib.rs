@@ -137,6 +137,7 @@ pub fn svelte_input<'a>(
         style: c.style.as_ref().map(|s| &s.sheet),
         template_exprs: &c.template_exprs,
         src,
+        preserve_whitespace: false,
     }
 }
 

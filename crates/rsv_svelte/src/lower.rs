@@ -11,6 +11,7 @@ pub mod server;
 
 use std::borrow::Cow;
 
+use rsv_html::decode_text;
 use rsv_js::scope::{DeclKind, ScopeId};
 use rsv_js::{Ast, Kind, NodeId};
 use rsv_kernel::diag::Diagnostic;
@@ -33,6 +34,8 @@ pub struct CompileInput<'a> {
     pub template_exprs: &'a [NodeId],
     /// The document: HIR spans index into it.
     pub src: &'a str,
+    /// Upstream's `preserveWhitespace` option: no trimming or collapsing of template text.
+    pub preserve_whitespace: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -85,15 +88,37 @@ pub fn clean_nodes<'a>(
     list: &[HirId],
     preserve_ws: bool,
 ) -> Cleaned<'a> {
+    // Upstream's parser reads `template.trimEnd()`; only `preserveWhitespace` can observe it.
+    let end = src
+        .trim_end_matches(|c: char| c.is_whitespace() || c == '\u{feff}')
+        .len();
     let mut regular: Vec<Item<'a>> = Vec::with_capacity(list.len());
     for &id in list {
         match &hir.node(id).kind {
             NodeKind::Comment { .. } => {}
-            NodeKind::Text { raw, decoded } => {
-                let raw = raw.text(src);
+            // A frontend's spelled text is not in a Svelte source the parser trimmed.
+            NodeKind::Text { raw, spelled, .. } if !spelled && raw.lo as usize >= end => {}
+            NodeKind::Text { raw, spelled, .. } if !spelled && raw.hi as usize > end => {
+                let raw = &src[raw.lo as usize..end];
                 regular.push(Item::Text {
-                    data: Cow::Borrowed(decoded.as_deref().unwrap_or(raw)),
+                    data: decode_text(raw),
                     raw: Cow::Borrowed(raw),
+                });
+            }
+            NodeKind::Text {
+                raw,
+                decoded,
+                spelled,
+            } => {
+                let raw = raw.text(src);
+                let data = decoded.as_deref().unwrap_or(raw);
+                regular.push(Item::Text {
+                    data: Cow::Borrowed(data),
+                    raw: if *spelled {
+                        escape_html(data, false)
+                    } else {
+                        Cow::Borrowed(raw)
+                    },
                 });
             }
             NodeKind::Expr { expr } => regular.push(Item::Expr(*expr)),
@@ -849,7 +874,7 @@ pub fn is_customizable_select(hir: &Hir, src: &str, tag: &str, el: &Element) -> 
         for &id in hir.children(list) {
             match &hir.node(id).kind {
                 NodeKind::Comment { .. } | NodeKind::Expr { .. } => {}
-                NodeKind::Text { raw, decoded } => {
+                NodeKind::Text { raw, decoded, .. } => {
                     let data = decoded.as_deref().unwrap_or_else(|| raw.text(src));
                     if !data.trim().is_empty() {
                         out.push(id);

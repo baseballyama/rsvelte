@@ -84,7 +84,7 @@ pub struct Directive {
     pub name: DirName,
     /// `href` in `:href`, `click` in `@click`.
     pub arg: Option<Span>,
-    /// `trim` in `v-model.trim`, in order; only `v-model` takes modifiers yet.
+    /// `trim` in `v-model.trim`, in order; only `v-model` and `v-on` take modifiers yet.
     pub modifiers: Box<[Span]>,
     pub exp: DirExp,
 }

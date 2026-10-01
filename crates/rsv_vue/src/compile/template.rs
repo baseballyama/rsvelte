@@ -44,6 +44,8 @@ pub enum Helper {
     NormalizeProps,
     GuardReactiveProps,
     MergeProps,
+    WithModifiers,
+    WithKeys,
 }
 
 impl Helper {
@@ -68,6 +70,8 @@ impl Helper {
             Self::NormalizeProps => "normalizeProps",
             Self::GuardReactiveProps => "guardReactiveProps",
             Self::MergeProps => "mergeProps",
+            Self::WithModifiers => "withModifiers",
+            Self::WithKeys => "withKeys",
         }
     }
 }
@@ -520,9 +524,22 @@ impl Transform<'_> {
     /// `transformIf`, `transformFor`, `transformExpression`, `transformElement`, `transformText`.
     fn traverse(&mut self, mut n: Nid, parent: Option<Nid>) -> R<()> {
         let mut exits: Vec<Exit> = Vec::new();
-        if let Some((name, raw, _)) = self.take_directive(n, |d| {
-            matches!(d, DirName::If | DirName::ElseIf | DirName::Else)
-        }) {
+        let is_if = |d| matches!(d, DirName::If | DirName::ElseIf | DirName::Else);
+        if let Node::Element { props, .. } = &self.tree[n] {
+            let count = |m: &dyn Fn(DirName) -> bool| {
+                props
+                    .iter()
+                    .filter(|p| matches!(p, Prop::Dir { name, .. } if m(*name)))
+                    .count()
+            };
+            // `createStructuralDirectiveTransform` runs each one in turn.
+            if count(&is_if) > 1 || count(&|d| d == DirName::For) > 1 {
+                return Err(Unsupported::nowhere(
+                    "two structural directives of one kind",
+                ));
+            }
+        }
+        if let Some((name, raw, _)) = self.take_directive(n, is_if) {
             match self.process_if(n, parent, name, raw)? {
                 Some((if_node, exit)) => {
                     n = if_node;
@@ -1222,13 +1239,7 @@ impl Transform<'_> {
                     {
                         has_hydration_event = true;
                     }
-                    let constant = match &self.cg[value] {
-                        Cg::Cache { .. } => true,
-                        Cg::Exp(e) | Cg::Handler { exp: e, .. } => e.const_type > 0,
-                        Cg::ModelUpdate { target, is_ref } => !is_ref && target.const_type > 0,
-                        _ => false,
-                    };
-                    if !constant
+                    if !self.skips_patch_flag(&key, value)
                         && key != "key"
                         && key != "ref"
                         && !dynamic_prop_names.contains(&key)
@@ -1303,6 +1314,21 @@ impl Transform<'_> {
         }
     }
 
+    /// `analyzePatchFlag`'s early return: a cached handler or a constant value; an event
+    /// modifier's wrapper is looked through once, as upstream does.
+    fn skips_patch_flag(&self, key: &str, value: Cid) -> bool {
+        let value = match &self.cg[value] {
+            Cg::Call { args, .. } if is_on(key) => args[0],
+            _ => value,
+        };
+        match &self.cg[value] {
+            Cg::Cache { .. } => true,
+            Cg::Exp(e) | Cg::Handler { exp: e, .. } => e.const_type > 0,
+            Cg::ModelUpdate { target, is_ref } => !is_ref && target.const_type > 0,
+            _ => false,
+        }
+    }
+
     /// The directive transforms `buildProps` runs: the property, and the runtime directive.
     fn directive_transform(
         &mut self,
@@ -1319,7 +1345,11 @@ impl Transform<'_> {
                 (arg, self.cgn(Cg::Exp(exp)), None)
             }
             DirName::On => {
-                let (key, value) = self.transform_on(&arg, raw)?;
+                let PropKind::Directive(d) = &self.hir.props[id].kind else {
+                    unreachable!("v-on is a directive")
+                };
+                let modifiers: Vec<&str> = d.modifiers.iter().map(|m| m.text(self.src)).collect();
+                let (key, value) = self.transform_on(&arg, raw, &modifiers)?;
                 (key, value, None)
             }
             DirName::Model => {
@@ -1469,9 +1499,10 @@ impl Transform<'_> {
         Ok((update, self.cgn(Cg::Array(args))))
     }
 
-    /// `transformOn`, with `cacheHandlers`.
-    fn transform_on(&mut self, arg: &str, raw: NodeId) -> R<(String, Cid)> {
-        let key = to_handler_key(&camelize(arg));
+    /// `transformOn`, with `cacheHandlers`, and compiler-dom's augmentor for the modifiers, which
+    /// runs before the handler is cached.
+    fn transform_on(&mut self, arg: &str, raw: NodeId, modifiers: &[&str]) -> R<(String, Cid)> {
+        let mut key = to_handler_key(&camelize(arg));
         let is_member = match self.js.kind(raw) {
             Kind::Member { .. } => true,
             Kind::Ident(_) => self.js.name(raw) != "undefined",
@@ -1485,11 +1516,47 @@ impl Transform<'_> {
         let exp = self.process_expression(raw, inline)?;
         let runtime_constant = !exp.compound && exp.const_type > 0;
         let should_cache = !runtime_constant && !self.has_scope_ref(raw);
-        let value = if inline || (should_cache && is_member) {
+        let mut value = if inline || (should_cache && is_member) {
             self.cgn(Cg::Handler { exp, inline })
         } else {
             self.cgn(Cg::Exp(exp))
         };
+        if !modifiers.is_empty() {
+            let (keys, non_keys, options) = resolve_modifiers(&key, modifiers);
+            if non_keys.contains(&"right") && key.eq_ignore_ascii_case("onclick") {
+                "onContextmenu".clone_into(&mut key);
+            }
+            if non_keys.contains(&"middle") && key.eq_ignore_ascii_case("onclick") {
+                "onMouseup".clone_into(&mut key);
+            }
+            let list = |t: &mut Self, mods: &[&str]| {
+                let items = mods
+                    .iter()
+                    .map(|m| t.lit(Lit::Str((*m).to_owned()), NOT_CONSTANT))
+                    .collect();
+                t.cgn(Cg::Array(items))
+            };
+            if !non_keys.is_empty() {
+                self.helper(Helper::WithModifiers);
+                let mods = list(self, &non_keys);
+                value = self.cgn(Cg::Call {
+                    callee: Helper::WithModifiers,
+                    args: vec![value, mods],
+                });
+            }
+            if !keys.is_empty() && is_keyboard_event(&key.to_ascii_lowercase()) {
+                self.helper(Helper::WithKeys);
+                let mods = list(self, &keys);
+                value = self.cgn(Cg::Call {
+                    callee: Helper::WithKeys,
+                    args: vec![value, mods],
+                });
+            }
+            for m in options {
+                key.push_str(&m[..1].to_ascii_uppercase());
+                key.push_str(&m[1..]);
+            }
+        }
         let value = if should_cache {
             self.cache(value)
         } else {
@@ -1887,6 +1954,30 @@ fn is_reserved(key: &str) -> bool {
             | "onVnodeBeforeUnmount"
             | "onVnodeUnmounted"
     )
+}
+
+/// compiler-dom `isKeyboardEvent`.
+fn is_keyboard_event(key: &str) -> bool {
+    matches!(key, "onkeyup" | "onkeydown" | "onkeypress")
+}
+
+/// compiler-dom `resolveModifiers` for a static event name: the key modifiers, the others, and
+/// the event options.
+fn resolve_modifiers<'m>(
+    key: &str,
+    modifiers: &[&'m str],
+) -> (Vec<&'m str>, Vec<&'m str>, Vec<&'m str>) {
+    let (mut keys, mut non_keys, mut options) = (Vec::new(), Vec::new(), Vec::new());
+    for &m in modifiers {
+        match m {
+            "passive" | "once" | "capture" => options.push(m),
+            "left" | "right" if is_keyboard_event(&key.to_ascii_lowercase()) => keys.push(m),
+            "left" | "right" | "stop" | "prevent" | "self" | "ctrl" | "shift" | "alt" | "meta"
+            | "exact" | "middle" => non_keys.push(m),
+            _ => keys.push(m),
+        }
+    }
+    (keys, non_keys, options)
 }
 
 /// `@vue/shared` `camelize`: `-x` becomes `X` for a word character `x`.

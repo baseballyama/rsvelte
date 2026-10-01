@@ -62,16 +62,6 @@
 		},
 		"storage": "committed"
 	},
-	"svue.compile": {
-		"canonicalizer": {
-			"acorn": "8.18.0"
-		},
-		"oracles": {
-			"@vue/compiler-sfc": "3.5.43",
-			"svelte": "5.57.1"
-		},
-		"storage": "committed"
-	},
 	"ts.check": {
 		"canonicalizer": {
 			"acorn": "8.18.0"

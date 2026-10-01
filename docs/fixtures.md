@@ -57,7 +57,7 @@ tools/fixtures/
 
 設計上の判断:
 - **unit 単位で同じ場所に置く。** 1 つの fixture を開けば、入力・期待値・実装の出力・調整がすべて並ぶ。
-- **最上位を言語ファミリーで分ける。** いまのファミリーは `svelte`、`vue`、`svue`、`cross` の 4 つ。Svelte と Vue が混ざらない。`cross` は、別のランタイム向けにコンパイルする（`.vue` → Svelte ランタイム、`.svelte` → Vue ランタイム）unit で、振る舞いのオラクル（§12）だけを当てる。Tailwind 付き Svelte は言語ではなく文脈なので、`svelte/` の下に置く（§9）。
+- **最上位を言語ファミリーで分ける。** いまのファミリーは `svelte`、`vue`、`cross` の 3 つ。Svelte と Vue が混ざらない。`cross` は、別のランタイム向けにコンパイルする（`.vue` → Svelte ランタイム、`.svelte` → Vue ランタイム）unit で、振る舞いのオラクル（§12）だけを当てる。Tailwind 付き Svelte は言語ではなく文脈なので、`svelte/` の下に置く（§9）。
 - **タスク単位のビューは git の glob で取る。** 例: `git diff --stat -- ':(glob)fixtures/**/expected/svelte.compile/**'`。
 - **予約名の退避。** 元のパスの要素が予約名（`expected` `actual` `cache` `meta.json` `fixture.toml` `input.*`）なら `~` を前置する。`~` で始まる要素にも前置するので、変換は可逆になる。これで `.gitignore` の `/fixtures/**/actual/` は unit の子にしか当たらない。実コーパスでは 543 要素が退避された（svelte 本体のテストが `input.svelte` という名前を多用しているため）。
 - **`.gitignore` の規則は必ずアンカーする。** 当初の `target/` は、元のパスに `target` を含む sveltekit のテストアプリの入力 9 件と snapshot 20 件を黙って無視していた。配置を移行したときの照合で、件数が合わないことから見つかった。
@@ -80,13 +80,12 @@ mise exec -- node tools/fixtures/bin/fixtures.ts import --from <submodule を持
    - `svelte-module-js`: `compileModule` が通ること。
    - `svelte-module-ts`: 無条件で受け入れる（§11 の未決事項を参照）。
    - `vue`: `@vue/compiler-sfc` の `parse` がエラーなしで通ること。`meta.json` の `mode` に `setup`（`<script setup>`）、`options`（素の `<script>` だけ）、`template`（スクリプトなし）を記録する。
-   - `svue`: `tools/fixtures/src/svue.ts` が Svelte の構文に書き直せて、Svelte コンパイラ（`runes: true`）がそれを受け入れること。
    - `cross-vue` / `cross-svelte`（ファミリー `cross`、手書きのみ）: 公式ツールチェーンでビルドできること（§12.2）。
 7. unit ディレクトリに `input<ext>` と `meta.json` を書き、LICENSE の写しを置く。上流で消えた unit はディレクトリごと消す。ただし `fixture.toml`（手書き）を持つ unit は消さずに残して列挙し、終了コードを 1 にする。
 
 ### 2026-09-29 時点の取り込み結果
 
-対象は `svelte` ファミリー。`vue` と `svue` のユニットは、いまは手書きの `rsvelte` source（`fixtures/vue/rsvelte` 27 件、`fixtures/svue/rsvelte` 5 件）だけで、取り込み元のリポジトリはまだ無い。
+対象は `svelte` ファミリー。`vue` のユニットは、いまは手書きの `rsvelte` source（`fixtures/vue/rsvelte` 28 件）だけで、取り込み元のリポジトリはまだ無い。
 
 測った対象は、主チェックアウト（`/Users/baseballyama/git/rsvelte`、`main` `5ed8ea3a3`）の submodule。admission のオラクルは svelte 5.57.1。
 
@@ -131,7 +130,6 @@ mise exec -- node tools/fixtures/bin/fixtures.ts regen [--task id,...] [--source
 | `vue.lint` | 同上 | `default`（全ルール） | eslint + eslint-plugin-vue + vue-eslint-parser + @typescript-eslint/parser | `lint.json`（lint） |
 | `vue.check` | 同上 | `default` | vue-tsc + @vue/language-core + @volar/typescript + typescript + vue | `json`（json） |
 | `ts.check` | `svelte.check` と `vue.check` の unit の和 | `default` | unit ごとに svelte-check か vue-tsc | `json`（json） |
-| `svue.compile` | `svue` の全 unit | `client`、`server` | `.svue` を Svelte の構文に書き直して svelte | `svelte.compile` と同じ |
 | `svue.behaviour` | `cross` の `.vue`（言語 `cross-vue`） | `client`、`server` | @vue/compiler-sfc + vue（+ jsdom） | `trace.json`（実装の `js` を Svelte ランタイムで動かした trace と比較、§12） |
 | `vuelte.behaviour` | `cross` の `.svelte`（言語 `cross-svelte`） | `client`、`server` | svelte（+ jsdom） | `trace.json`（実装の `js` を Vue ランタイムで動かした trace と比較、§12） |
 
@@ -325,6 +323,7 @@ fixtures/cross/rsvelte/<グループ>/<名前>.svelte/   言語 cross-svelte →
 - モジュールが import してよいのは、ランタイムのパッケージ（`svelte`、`svelte/*`、`vue`、`@vue/*`）だけ。これらは `tools/fixtures` に pin した版に解決される（期待値側と同じ 1 つのコピー）。`svelte` は、client では `browser` 条件付き（バンドラのクライアントビルドと同じ）で解決し、server では付けない。相対 import や他のパッケージは解決できず、`load:` のエラーになる。
 - 比較の前に、`client.js` / `server.js` を acorn でパースする。パースできなければ `unparseable`。読み込みやマウントで例外が出たら、それが trace に入って `mismatch` になる。
 - `fixtures compare` は、実装側の trace を `actual/<task>/<variant>.trace.json` に書く（調べるため。比較には使わない）。
+- `svue.behaviour` の実装は `crates/rsv_svue`。翻訳の対応表、拒否の一覧、trace に映らない差はクレートの doc に書いてある。
 
 ### 12.4 操作手順（`fixture.toml` の `[behaviour]`）
 

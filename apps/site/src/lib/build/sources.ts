@@ -42,7 +42,7 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 		'rsv_vue/src/tasks.rs',
 		'rsv_vue/src/lint.rs',
 		'rsv_svue/src/lib.rs',
-		'rsv_svue/src/frontend.rs',
+		'rsv_svue/src/template.rs',
 		'rsv_vuelte/src/lib.rs',
 		'rsv_vuelte/src/template.rs',
 		'rsv_html/src/button_type.rs',

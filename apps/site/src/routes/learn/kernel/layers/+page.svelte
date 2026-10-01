@@ -276,45 +276,57 @@
 <div class="prose-learn">
 	<H2 id="svue" />
 	<p>
-		コンパイラが HIR だけを読むので、HIR を作れる別の構文があれば、そのまま Svelte としてコンパイルできます。<code>rsv_svue</code>
-		はその実験です。<code>.svue</code> は Vue のテンプレート構文で書き、Svelte の意味でコンパイルします。<code>{'{{ e }}'}</code> は <code
-			>{'{e}'}</code
-		>、<code>:x="e"</code> は <code>x={'{e}'}</code>、<code>@x="e"</code> は <code>onx={'{e}'}</code>、<code>v-if</code> /
-		<code>v-else-if</code> / <code>v-else</code> の並びは一つの <code>{'{#if}'}</code> です。
-	</p>
-	<p>
-		新しいコンパイラは書いていません。パースは Vue プラグインのパーサ（アーティファクトも Vue プラグインの <code>rsv_vue::Parsed</code>
-		そのもの）、名前解決と解析と出力は Svelte プラグインのものです。<code>rsv_svue</code> が持っているのは、Vue の木から Svelte の HIR
-		を作る変換だけです。
+		コンパイラが HIR だけを読むので、HIR を作れるフロントエンドがあれば、同じコンパイラで Svelte のランタイム向けの JavaScript
+		を出せます。<code>rsv_svue</code> はそれを使って、<code>.vue</code> のコンポーネントを <strong>Vue の意味のまま</strong> Svelte
+		のランタイム向けにコンパイルします。自分の言語は持たず、Vue の言語にタスク <code>svue.behaviour/client</code> と
+		<code>/server</code> を足すだけです。パースと名前解決は Vue プラグインのアーティファクト、解析と出力は Svelte
+		プラグインのコンパイラで、<code>rsv_svue</code> が持っているのは、Vue の木から runes のスクリプトと Svelte の HIR を作る翻訳だけです。
 	</p>
 </div>
 
-<Code item={data.code.svueRegister} mark={['.artifact::<rsv_vue::Parsed>()']} />
-<Code item={data.code.svueFrontend} />
-<Code item={data.code.svueBuild} mark={['HirBuilder::new(src, sfc.nodes.len(), sfc.attrs.len())']} />
+<Code item={data.code.svueRegister} />
+<Code item={data.code.svueTranslated} />
+<Code item={data.code.svueInput} />
 
 <div class="prose-learn">
 	<p>
-		名前解決も Svelte の関数を、Vue のパーサが作った JavaScript の木と、変換が集めたテンプレートの式に対して呼ぶだけです。コンパイラが受け取るのは、どちらのフロントエンドでも同じ形の入力です。
+		同じ見た目の書き方でも、二つのランタイムの意味は違います。<code>{'{{ e }}'}</code> は Vue では <code>toDisplayString</code>
+		（オブジェクトは JSON）で、Svelte の <code>{'{e}'}</code> は <code>String(e)</code> です。渡されなかった <code>Boolean</code>
+		の prop は Vue では <code>false</code> で、宣言していない属性はルート要素に引き継がれます。翻訳はそれを近似せず、Vue
+		自身の実装を呼ぶ形で再現します: 補間は <code>vue</code> の <code>toDisplayString</code>、<code>v-for</code> は
+		<code>renderList</code>、<code>Boolean</code> の prop は runtime-core の <code>resolvePropValue</code> を写した
+		<code>$derived.by</code>、server の <code>v-model</code> は compiler-ssr が出す属性です。上流のコンパイラが無いので、オラクルは振る舞いです。公式の
+		Vue でビルドしたコンポーネントの、操作手順ごとの DOM と SSR の HTML を、rsvelte の出力を Svelte のランタイムで動かした記録と比べます。
+	</p>
+	<p>
+		Svelte の移植は svue のために変えません。どの lower も上流の <code>svelte/compiler</code>
+		と突き合わせる、という規則を守るためです。Svelte プラグインに足したのは、フロントエンドが綴ったテキストを HIR に置く
+		<code>hir::spelled_text</code> だけで、足す前後で <code>svelte.compile</code> の出力はバイト一致しました（ed7af962b2）。翻訳が出すのは、Svelte
+		の移植が上流と同じに lower する構文だけです。Vue のテキストは空白を畳み済みなので、Svelte のコンパイラは上流の <code>preserveWhitespace</code>
+		オプションで走らせ、二度目の掃除をさせません。ルートに引き継ぐ属性は <code>{'{...attrs}'}</code> にし、<code>class</code>
+		は runtime-core の <code>mergeProps</code> と同じに合成します。Vue は props に <code>class</code> のキーがあるときだけ属性を書くので、自分の
+		<code>class</code> が無い要素では、スプレッドの中で合成します。振る舞いのオラクルは見えない空白と空の <code>class</code>
+		属性を区別しないので、この二つは crate のテストで固定しています。
 	</p>
 </div>
 
-<Code item={data.code.svueResolved} />
-<Code item={data.code.compileInputType} />
+<Code item={data.code.svueClass} />
 
 <div class="prose-learn">
 	<p>
-		変換は Svelte の意味を持たない構文（<code>v-for</code>、引数と値を持つ <code>:x</code> と <code>@x</code> 以外の指令、2 つ目の
-		<code>&lt;style&gt;</code>）を、それらしく変換せずに <code>compile_unsupported</code> で拒否します。オラクルは Rust 側と独立に書いた
-		<code>tools/fixtures/src/svue.ts</code> で、<code>.svue</code> のテキストを Svelte の構文に書き直し、公式の Svelte
-		コンパイラに通します。導入したコミットでは、5 ユニットの client と server で、すべての成果物が一致しました（96b8f37ac8）。
+		導入したコミットでは、手書きの 12 ユニットのうち client で 4、server で 7 が一致し、残りは拒否で、不一致は 0 でした（73c8eea9c1）。拒否はすべて、client の
+		<code>v-model</code>（<code>{'{@attach}'}</code> で Vue の <code>vModelText</code> などを走らせる）、ルートへの属性の引き継ぎ（<code
+			>{'{...attrs}'}</code
+		>）、<code>&lt;select&gt;</code> のように、翻訳は書いてあって Svelte の移植がその構文を lower していないものでした。Svelte
+		の移植がそれらを lower するようになってからは、両ターゲットで 12 ユニットすべてが一致します。Vue の移植の側に足したのは <code>v-on</code>
+		の修飾子で、<code>vue.compile</code> も compiler-dom と同じく <code>withModifiers</code> と <code>withKeys</code>
+		で出力します。
 	</p>
 	<p>
-		この実験のために Svelte プラグインの側で必要だった変更は二つです。HIR に公開の builder を足したことと、属性名をソースの範囲ではなく名前として持てるようにしたことです（<code
-			>@click</code
-		>
-		は <code>onclick</code> という名前で、ソースのどこにも <code>onclick</code> とは書かれていません）。その前段として、解析と出力が表層の木ではなく
-		HIR を読むように移しています。移したときは、Svelte のコーパスで compile・format・lint の出力 70,608 ファイルのハッシュが前後で一致しました（db94f0bd13）。
+		この仕組みの前段として、Svelte プラグインの解析と出力は表層の木ではなく HIR を読むように移してあり、HIR には公開の builder
+		と、ソースの範囲ではなく名前として持つ属性名があります（Vue の <code>@click</code> は <code>onclick</code>
+		という名前で、ソースのどこにも <code>onclick</code> とは書かれていません）。移したときは、Svelte のコーパスで compile・format・lint の出力
+		70,608 ファイルのハッシュが前後で一致しました（db94f0bd13）。
 	</p>
 
 	<H2 id="vuelte" />

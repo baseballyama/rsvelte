@@ -548,7 +548,14 @@ fn lower_client_props(
             flags |= 4; // PROPS_IS_UPDATED
         }
         let mut args = vec![to.id("$$props"), to.str(&key_name)];
-        let initial = info.initial.map(|i| copy(from, to, rw, i));
+        let initial = info.initial.map(|i| {
+            let init = copy(from, to, rw, i);
+            if info.kind == BindKind::BindableProp && should_proxy(from, rw.res, i) {
+                to.runtime("$", "proxy", &[init])
+            } else {
+                init
+            }
+        });
         let arg = initial.map(|init| {
             if is_simple_expression(to, init) {
                 init

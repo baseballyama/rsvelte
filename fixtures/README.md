@@ -10,7 +10,7 @@ fixtures/
 └── <family>/<source>/<path>/   one unit, e.g. svelte/bits-ui/src/lib/button.svelte/
 ```
 
-`<family>` is a language family (`svelte`, `vue`, `svue`, and `cross` for components compiled for
+`<family>` is a language family (`svelte`, `vue`, and `cross` for components compiled for
 the other runtime), `<source>` is the repository the file came from, and `<path>` is the file's
 path in that repository.
 

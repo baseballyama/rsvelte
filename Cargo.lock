@@ -165,6 +165,7 @@ dependencies = [
  "rsv_kernel",
  "rsv_svelte",
  "rsv_vue",
+ "rustc-hash",
 ]
 
 [[package]]
