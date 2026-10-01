@@ -1,16 +1,15 @@
 # アーキテクチャ — カーネル、言語プラグイン、計測
 
 - 日付: 2026-10-01（`201b86fd6b` 時点）
-- 対象: Svelte と Vue のコンポーネントに対する compile / format / lint / type check の一式と、Vue の構文を Svelte の意味でコンパイルする svue。
+- 対象: Svelte と Vue のコンポーネントに対する compile / format / lint / type check の一式。
 - 数値の出どころは節ごとに書く。性能の現在値は `tools/perf/baseline.json`、正しさの現在値は `fixtures/_registry/parity.json` が正本で、この文書の数はその写しである。変更前後の数は、その変更のコミットのメッセージから引用し、短い SHA を添える。
 
 ## 1. 層
 
 ```
-rsv_cli ──► rsv_svue ──► rsv_svelte ─┐
-   │            └──────► rsv_vue ────┼──► rsv_js, rsv_css, rsv_html ──► rsv_kernel
-   └──────────────────────────────────┘
-(ホスト)    (言語プラグイン)              (埋め込み言語と共有の判断)        (言語を知らない)
+rsv_cli ──► rsv_svelte ─┐
+   └──────► rsv_vue ────┼──► rsv_js, rsv_css, rsv_html ──► rsv_kernel
+(ホスト)   (言語プラグイン)  (埋め込み言語と共有の判断)        (言語を知らない)
 ```
 
 依存は右向きだけ。カーネルには Svelte も Vue も JavaScript も CSS も出てこない（`crates/rsv_kernel/src/lib.rs` の冒頭がその約束）。
@@ -64,10 +63,6 @@ Svelte と Vue の両方が使う。
 
 2 つ目の言語のためにカーネルと `rsv_js` に足したもの（`573ac584b6`、`a15cdcda04`）: ホストが開くスコープ（Vue の `v-for`）、ホストが渡す `no-unused-vars` の判定対象、終端を持たない診断、SHA-256、ファセット。どれも Vue に固有ではない。
 
-### svue
-
-`.svue` は Vue のテンプレート構文で書き、Svelte の意味でコンパイルする。`rsv_svue` が持つのは Vue の木から Svelte の HIR を作る変換（`frontend.rs`）だけで、パースは Vue プラグインの `rsv_vue::Parsed`、名前解決・解析・出力は Svelte プラグインの関数を使う。Svelte の意味を持たない構文（`v-for`、`:x` / `@x` 以外の指令など）は `compile_unsupported` で拒否する。オラクルは Rust と独立に書いた `tools/fixtures/src/svue.ts` で、`.svue` を Svelte の構文に書き直して公式の Svelte コンパイラに通す。
-
 ### 分離の判断基準
 
 **「別の言語を追加するとき、それを書き直すか」**で置き場所を決めた。
@@ -100,7 +95,7 @@ ctx.facet::<TsView>()（文書の言語の答え、文書パス）
 
 | 規約 | 具体例 |
 |---|---|
-| 移植していない構文は `Unsupported` を返す。そのタスクはファイルを書かず、診断を残す | 整形は、移植していないレイアウトを `flat_only` で包み、1 行に収まらなければ拒否する。コンパイラはコンポーネント、`<slot>`、`svelte:` 要素を拒否する。以前は DOM 要素としてコンパイルしており、拒否に変えたことでパースできない JS が client で 92 → 5 件になった（`c7737d004a`）。TypeScript の `enum` と値を持つ `namespace` は、捨てずに上流の `typescript_invalid_feature` で拒否する（`ca6b265616`）。svue は Svelte の意味を持たない構文を拒否する |
+| 移植していない構文は `Unsupported` を返す。そのタスクはファイルを書かず、診断を残す | 整形は、移植していないレイアウトを `flat_only` で包み、1 行に収まらなければ拒否する。コンパイラはコンポーネント、`<slot>`、`svelte:` 要素を拒否する。以前は DOM 要素としてコンパイルしており、拒否に変えたことでパースできない JS が client で 92 → 5 件になった（`c7737d004a`）。TypeScript の `enum` と値を持つ `namespace` は、捨てずに上流の `typescript_invalid_feature` で拒否する（`ca6b265616`） |
 | 外部ツールの出力は境界で厳密に読む | `tsc` の pretty 出力は、知っている形だけを受理する。件数を `tsc` 自身の `Found N errors` と突き合わせ、知らない行は黙って捨てずにエラーにする |
 | 値を運ぶものがない欄は `UNMEASURED` と書き、0 と書かない | `metrics` 機能なしのビルドでは、割り当て欄が `UNMEASURED` になる |
 | 計測は自分がどのアームかを名乗る | `rsv` は、ビルド元の `git rev-parse HEAD`（差分があれば `-dirty`）を埋め込み、レポートに書く |
@@ -123,7 +118,6 @@ ctx.facet::<TsView>()（文書の言語の答え、文書パス）
 | `vue.lint/default` | eslint + eslint-plugin-vue（全ルール） | 同上 | 27/27 |
 | `vue.check/default` | vue-tsc 3.3.11 + typescript 6.0.3（rsvelte 側は tsc 7.0.2） | 同上 | 27/27。うち 2 件の指摘は TS 6 と 7 の版差なので、ガード付きの調整で記録した（§7 の 4） |
 | `ts.check/default` | ユニットごとに svelte-check か vue-tsc | 両方（40） | 40/40（同じ 2 件の調整） |
-| `svue.compile/client` / `server` | `.svue` を Svelte の構文に書き直して svelte 5.57.1 | `fixtures/svue/rsvelte`（5） | 5/5 |
 
 Vue の射影は @vue/language-core の仮想コードと同じ形にしてある（`__VLS_ctx`、`__VLS_SetupExposed`、`__VLS_asFunctionalElement1`、`__VLS_vFor`）。型検査のメッセージには `'__VLS_ctx.maybe' is possibly 'undefined'` のように射影の名前と型がそのまま出るので、射影の形が違えば文字列は一致しない。
 

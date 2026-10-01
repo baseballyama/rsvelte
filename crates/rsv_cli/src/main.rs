@@ -36,7 +36,6 @@ fn registry(svelte: &rsv_svelte::Config, vue: &rsv_vue::Config) -> Registry {
     let mut reg = Registry::new();
     rsv_svelte::register(&mut reg, svelte);
     rsv_vue::register(&mut reg, vue);
-    rsv_svue::register(&mut reg);
     reg
 }
 
