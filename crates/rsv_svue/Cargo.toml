@@ -1,0 +1,16 @@
+[package]
+name = "rsv_svue"
+description = "A .vue component, with Vue's meaning, compiled for the Svelte runtime"
+version = "0.0.0"
+edition.workspace = true
+publish = false
+
+[dependencies]
+rsv_kernel.workspace = true
+rsv_js.workspace = true
+rsv_svelte.workspace = true
+rsv_vue.workspace = true
+rustc-hash.workspace = true
+
+[lints]
+workspace = true

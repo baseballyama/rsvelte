@@ -323,6 +323,7 @@ fixtures/cross/rsvelte/<グループ>/<名前>.svelte/   言語 cross-svelte →
 - モジュールが import してよいのは、ランタイムのパッケージ（`svelte`、`svelte/*`、`vue`、`@vue/*`）だけ。これらは `tools/fixtures` に pin した版に解決される（期待値側と同じ 1 つのコピー）。`svelte` は、client では `browser` 条件付き（バンドラのクライアントビルドと同じ）で解決し、server では付けない。相対 import や他のパッケージは解決できず、`load:` のエラーになる。
 - 比較の前に、`client.js` / `server.js` を acorn でパースする。パースできなければ `unparseable`。読み込みやマウントで例外が出たら、それが trace に入って `mismatch` になる。
 - `fixtures compare` は、実装側の trace を `actual/<task>/<variant>.trace.json` に書く（調べるため。比較には使わない）。
+- `svue.behaviour` の実装は `crates/rsv_svue`。翻訳の対応表、拒否の一覧、trace に映らない差はクレートの doc に書いてある。
 
 ### 12.4 操作手順（`fixture.toml` の `[behaviour]`）
 
@@ -405,7 +406,7 @@ steps = [
 
 ### 12.9 オラクル自身の検証
 
-rsvelte の実装はまだ無いので、`behaviour.test.ts` は「正しい翻訳」と「誤った翻訳」を、もう一方の公式コンパイラで作って確かめる。`fixtures/` に、rsvelte の出力を装ったファイルは置かない。
+オラクルは実装より先に作ったので、`behaviour.test.ts` は rsvelte の出力を使わず、「正しい翻訳」と「誤った翻訳」を、もう一方の公式コンパイラで作って確かめる。`fixtures/` に、rsvelte の出力を装ったファイルは置かない。
 
 1. **双子は一致する**: `cross` の各 unit について、双子（他方の言語で手書きした同じ振る舞いのコンポーネント）を公式コンパイラでビルドし、`compare` と同じ関数（`Task.observe`）で trace を取って、committed の期待値と比べる。24 unit × 2 ターゲットのすべてが一致する。
 2. **誤った翻訳は、手順と差分を名指しして `mismatch` になる**: `test/behaviour/wrong/` の 20 ファイル（オフバイワン、手順の後に 1 件足りないリスト、入力欄の `.value` だけが違うもの、空白の扱い、`.lazy` の取り違え、リスナーの例外、server だけが違うもの、など）について、ターゲットごとの報告文を `test/behaviour/controls.json` に完全一致で固定してある。`null` は「そのターゲットは一致したままでなければならない」で、一方の誤りが他方を動かさないことの陰性側の確認になる。

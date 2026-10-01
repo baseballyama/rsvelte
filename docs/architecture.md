@@ -12,6 +12,8 @@ rsv_cli ──► rsv_svelte ─┐
 (ホスト)   (言語プラグイン)  (埋め込み言語と共有の判断)        (言語を知らない)
 ```
 
+`rsv_svue`（`.vue` を Svelte ランタイム向けに翻訳する）は二つの言語プラグインの両方に依存し、`rsv_cli` が登録する。
+
 依存は右向きだけ。カーネルには Svelte も Vue も JavaScript も CSS も出てこない（`crates/rsv_kernel/src/lib.rs` の冒頭がその約束）。
 
 ### カーネルが持つもの（言語に依存しない契約）
@@ -60,6 +62,15 @@ Svelte と Vue の両方が使う。
 - ファセット `TsView` の答え: @vue/language-core の仮想コードと同じ形の射影と、`Emitter::lookup_overlap` による逆引き
 - タスク: `vue.compile/default`（compiler-core と compileScript の移植）、`vue.format/default`（prettier の HTML プリンタの移植）、`vue.lint/default`（`no-unused-vars`、`vue/no-unused-vars`、`vue/multi-word-component-names`、`vue/html-button-has-type`）、プロジェクトタスク `vue.check/default`
 - JS の解析・整形・`no-unused-vars`・`tsc` バックエンドと CSS は、Svelte と同じ `rsv_js` / `rsv_css` を使う
+
+### svue が持つもの
+
+`.vue` のコンポーネントを、Vue の意味のまま Svelte ランタイム向けの JS にする（`crates/rsv_svue`）。上流のコンパイラが無いので、正しさは振る舞いのオラクル（[fixtures.md](fixtures.md) §12）で測る。
+
+- 成果物: `Translated`、`Resolved`、`Analyzed`（ターゲットごと）。Vue プラグインの `Parsed`・`Lowered`・`Resolved` を読み、Svelte のコンパイラが読む `CompileInput`（runes のインスタンススクリプトと Svelte の HIR）を作る。lower は Svelte プラグインのもの（`rsv_svelte::tasks::compile`）なので、モジュールは `svelte/compiler` の出力の形になり、import は `svelte`、`svelte/*`、`vue`、`@vue/*` だけ。Svelte の lower を svue のために変えることはしない（どの lower も上流と突き合わせる、という規則のため）。Svelte プラグインに足したのは、フロントエンドが綴ったテキストを HIR に置く `hir::spelled_text` だけで、`svelte.compile` の出力はバイト一致のまま
+- タスク: `svue.behaviour/{client,server}`（言語 `vue` の文書）
+- Vue の意味を Svelte が持たないところは、Vue 自身の実装を呼ぶ形に翻訳する: 補間は `toDisplayString`、`v-for` は `renderList`、`Boolean` の prop は runtime-core の `resolvePropValue`、server の `v-model` は compiler-ssr の `ssrTransformModel` が出す属性。対応表と拒否の一覧はクレートの doc
+- 正確に再現できないものは `compile_unsupported` で拒否し、近似しない。client の `v-model`（`{@attach}` で Vue の `vModel*` を走らせる）、ルートへの属性の引き継ぎ（`{...attrs}`）、Svelte の空白の掃除が Vue と食い違うテキスト（`preserveWhitespace` 待ち）は、翻訳は書いてあり、Svelte の移植がその構文を lower するまで拒否する
 
 2 つ目の言語のためにカーネルと `rsv_js` に足したもの（`573ac584b6`、`a15cdcda04`）: ホストが開くスコープ（Vue の `v-for`）、ホストが渡す `no-unused-vars` の判定対象、終端を持たない診断、SHA-256、ファセット。どれも Vue に固有ではない。
 
@@ -118,6 +129,7 @@ ctx.facet::<TsView>()（文書の言語の答え、文書パス）
 | `vue.lint/default` | eslint + eslint-plugin-vue（全ルール） | 同上 | 27/27 |
 | `vue.check/default` | vue-tsc 3.3.11 + typescript 6.0.3（rsvelte 側は tsc 7.0.2） | 同上 | 27/27。うち 2 件の指摘は TS 6 と 7 の版差なので、ガード付きの調整で記録した（§7 の 4） |
 | `ts.check/default` | ユニットごとに svelte-check か vue-tsc | 両方（40） | 40/40（同じ 2 件の調整） |
+| `svue.behaviour/client` / `server` | @vue/compiler-sfc + vue の DOM の trace（振る舞いのオラクル） | `fixtures/cross/rsvelte` の `.vue`（12） | client 4 一致・8 拒否、server 7 一致・5 拒否、不一致 0。拒否は Svelte の移植が `{@attach}`・スプレッド・動的な `class`・`<select>` を lower するのを待つもの |
 
 Vue の射影は @vue/language-core の仮想コードと同じ形にしてある（`__VLS_ctx`、`__VLS_SetupExposed`、`__VLS_asFunctionalElement1`、`__VLS_vFor`）。型検査のメッセージには `'__VLS_ctx.maybe' is possibly 'undefined'` のように射影の名前と型がそのまま出るので、射影の形が違えば文字列は一致しない。
 
