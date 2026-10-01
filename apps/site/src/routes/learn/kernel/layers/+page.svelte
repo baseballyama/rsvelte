@@ -344,6 +344,21 @@
 <Code item={data.code.vuelteBindText} />
 
 <div class="prose-learn">
+	<p>オラクルが表に出した違い（<code>docs/fixtures.md</code> §12.8）は、それぞれ次のように写しています。</p>
+	<ul>
+		<li>
+			補間: Vue の <code>toDisplayString</code> はオブジェクトを JSON にします。翻訳は先に Svelte の強制（client は <code
+				>{'`${e ?? \'\'}`'}</code
+			>、server は <code>{"String(e ?? '')"}</code>）をかけてから渡します。
+		</li>
+		<li>要素の間の空白: Svelte の <code>clean_nodes</code> が残したテキストを Vue の HIR に入れます。Vue の空白の畳み込みは HIR を作った後には走りません。</li>
+		<li>渡されなかった prop: <code>defineProps</code> に <code>type</code> を書かないので、Vue の Boolean への変換が起きません。</li>
+		<li>宣言していない属性: すべてのコンポーネントに <code>defineOptions({'{ inheritAttrs: false }'})</code> を付けます。</li>
+		<li>数値の入力欄の <code>bind:value</code>: 意味を写せないので拒否します。</li>
+	</ul>
+</div>
+
+<div class="prose-learn">
 	<p>
 		写せない構文は、それらしく変換せずに出力の前に拒否します。導入したコミットでは、手書きの 12 ユニットのうち 11 で client と server
 		の両方が一致し、残る 1 つ（spread 属性）は拒否しました。Svelte のコーパスでは client 673 件・server 674 件を出力し、panic は 0
