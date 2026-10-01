@@ -12,7 +12,7 @@ use rsv_kernel::pipeline::{Document, Registry, Task, TaskOutput};
 use rsv_kernel::source::Span;
 
 use crate::project::Projection;
-use crate::{Config, Parsed, Resolved};
+use crate::{Config, Lowered, Parsed, Resolved};
 
 pub fn register(reg: &mut Registry, config: &Config) {
     reg.task(Compile)
@@ -57,7 +57,9 @@ impl Task for Compile {
             .expect("a parsed component is resolved");
         let compiled = {
             let _p = metrics::phase("vue.compile");
-            crate::compile::compile(c, ctx.src(), res, &ctx.doc.path)
+            let hir = ctx.get::<Lowered>().as_ref();
+            let input = crate::compile::CompileInput::from_sfc(c, hir, ctx.src());
+            crate::compile::compile(&input, res, &ctx.doc.path)
         };
         match compiled {
             Ok(o) => {

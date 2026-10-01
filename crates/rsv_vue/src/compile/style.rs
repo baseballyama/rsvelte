@@ -5,12 +5,12 @@ use rsv_kernel::diag::Unsupported;
 use rsv_kernel::emit::Edits;
 use rsv_kernel::source::Span;
 
-use crate::ast::Style;
+use super::StyleInput;
 
 /// # Errors
 ///
 /// [`Unsupported`] for a scoped selector the port does not rewrite yet.
-pub(super) fn compile(src: &str, style: &Style, id: &str) -> Result<String, Unsupported> {
+pub(super) fn compile(src: &str, style: &StyleInput<'_>, id: &str) -> Result<String, Unsupported> {
     let mut edits = Edits::default();
     let attr = format!("[data-v-{id}]");
     let lo = style.sheet.content.lo;

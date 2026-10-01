@@ -1,7 +1,8 @@
 //! compiler-core for the templates the parser reads, building an [`Ast`] instead of text.
 //!
-//! What is ported: `baseParse`'s whitespace condensing, the node transforms of
-//! `getBaseTransformPreset` in upstream order, `cacheStatic`, `createRootCodegen` and `generate`.
+//! It reads the template's HIR ([`crate::hir`]), which is `baseParse`'s tree. What is ported: the
+//! node transforms of `getBaseTransformPreset` in upstream order, `cacheStatic`,
+//! `createRootCodegen` and `generate`.
 //!
 //! The port keeps upstream's two mutable trees, the template nodes and their codegen nodes, as two
 //! arenas, because the algorithm rewrites both in place (`replaceNode`, `convertToBlock`,
@@ -18,7 +19,8 @@ use rsv_kernel::diag::Unsupported;
 use rsv_kernel::source::Loc;
 use rustc_hash::FxHashMap;
 
-use crate::ast::{AttrKind, DirExp, DirName, Sfc, TId, TNode};
+use crate::ast::{DirExp, DirName};
+use crate::hir::{Hir, HirId, NodeKind, PropId, PropKind, TagType};
 use crate::resolve::{BindingType, Resolution};
 
 type R<T> = Result<T, Unsupported>;
@@ -130,6 +132,7 @@ enum Prop {
         arg: String,
         raw: NodeId,
         exp: Option<Exp>,
+        id: PropId,
     },
 }
 
@@ -137,7 +140,6 @@ enum Prop {
 enum Node {
     Root(Vec<Nid>),
     Element {
-        surface: TId,
         tag: String,
         props: Vec<Prop>,
         children: Vec<Nid>,
@@ -273,7 +275,8 @@ pub struct Compiled {
 }
 
 struct Transform<'a> {
-    c: &'a Sfc,
+    js: &'a Ast,
+    hir: &'a Hir,
     src: &'a str,
     res: &'a Resolution,
     /// The render function is `setup`'s closure and reads bindings directly.
@@ -289,9 +292,10 @@ struct Transform<'a> {
 /// # Errors
 ///
 /// [`Unsupported`] for a template construct the port does not cover.
-pub fn transform(c: &Sfc, src: &str, res: &Resolution, inline: bool) -> R<Compiled> {
+pub fn transform(js: &Ast, hir: &Hir, src: &str, res: &Resolution, inline: bool) -> R<Compiled> {
     let mut t = Transform {
-        c,
+        js,
+        hir,
         src,
         res,
         inline,
@@ -302,7 +306,7 @@ pub fn transform(c: &Sfc, src: &str, res: &Resolution, inline: bool) -> R<Compil
         cached: 0,
         refs: reference_table(res),
     };
-    let children = t.parse_children(c.root())?;
+    let children = t.parse_children(hir.root())?;
     let root = t.push(Node::Root(children));
     t.traverse(root, None)?;
     let single = t.single_element_root(root);
@@ -380,102 +384,80 @@ impl Transform<'_> {
         self.cgn(Cg::Lit { lit, const_type })
     }
 
-    // ---- baseParse -----------------------------------------------------------------------
+    // ---- the HIR ------------------------------------------------------------------------
 
-    /// The nodes as compiler-core's parser leaves them: text decoded and condensed
-    /// (`condenseWhitespace`).
-    fn parse_children(&mut self, kids: &[TId]) -> R<Vec<Nid>> {
-        let mut out: Vec<Option<Nid>> = Vec::with_capacity(kids.len());
+    /// The nodes as the transforms hold them, refusing what the port does not compile.
+    fn parse_children(&mut self, kids: &[HirId]) -> R<Vec<Nid>> {
+        let mut out = Vec::with_capacity(kids.len());
         for &k in kids {
-            let n = match self.c.node(k) {
-                TNode::Text { span } => {
-                    let text = rsv_html::decode_text(span.text(self.src)).into_owned();
+            let node = self.hir.node(k);
+            let n = match &node.kind {
+                NodeKind::Text(t) => {
+                    let text = t.text(self.src).to_owned();
                     self.push(Node::Text(text))
                 }
-                TNode::Comment { span, .. } => {
-                    return Err(Unsupported::at("a comment in a compiled template", *span));
+                NodeKind::Comment { .. } => {
+                    return Err(Unsupported::at(
+                        "a comment in a compiled template",
+                        node.span,
+                    ));
                 }
-                TNode::Interpolation { expr, .. } => self.push(Node::Interpolation(Exp {
+                NodeKind::Interpolation { expr } => self.push(Node::Interpolation(Exp {
                     node: *expr,
                     const_type: NOT_CONSTANT,
                     compound: false,
                     event_local: false,
                 })),
-                TNode::Element {
-                    name,
-                    attrs,
-                    children,
-                    ..
-                } => {
-                    let tag = name.text(self.src);
+                NodeKind::Element(el) => {
+                    let tag = el.tag.text(self.src);
                     if matches!(tag, "pre" | "textarea" | "svg" | "math" | "foreignObject") {
                         return Err(Unsupported::at(
                             "this element in a compiled template",
-                            *name,
+                            el.tag.span(),
                         ));
                     }
-                    let props = self.parse_props(self.c.attrs(*attrs))?;
-                    let kids = self.parse_children(self.c.children(*children))?;
+                    if el.tag_type != TagType::Element {
+                        return Err(Unsupported::at(
+                            "a component, slot or template in a compiled template",
+                            el.tag.span(),
+                        ));
+                    }
+                    let tag = tag.to_owned();
+                    let props = self.parse_props(el.props)?;
+                    let kids = self.parse_children(self.hir.children(el.children))?;
                     self.push(Node::Element {
-                        surface: k,
-                        tag: tag.to_owned(),
+                        tag,
                         props,
                         children: kids,
                         codegen: None,
                     })
                 }
             };
-            out.push(Some(n));
+            out.push(n);
         }
-        for i in 0..out.len() {
-            let Some(n) = out[i] else { continue };
-            let Node::Text(text) = &self.tree[n] else {
-                continue;
-            };
-            if text.bytes().all(is_whitespace) {
-                let is_element = |j: usize| {
-                    out.get(j)
-                        .copied()
-                        .flatten()
-                        .is_some_and(|m| matches!(self.tree[m], Node::Element { .. }))
-                };
-                // Comments are refused, so only the element-to-element rule remains.
-                let remove = i == 0
-                    || i + 1 == out.len()
-                    || (is_element(i - 1) && is_element(i + 1) && text.contains(['\n', '\r']));
-                if remove {
-                    out[i] = None;
-                } else {
-                    self.tree[n] = Node::Text(" ".to_owned());
-                }
-            } else {
-                let condensed = condense(text);
-                self.tree[n] = Node::Text(condensed);
-            }
-        }
-        Ok(out.into_iter().flatten().collect())
+        Ok(out)
     }
 
-    fn parse_props(&self, attrs: &[crate::ast::Attr]) -> R<Vec<Prop>> {
-        let mut props = Vec::with_capacity(attrs.len());
-        for a in attrs {
-            let name = a.name.text(self.src);
-            props.push(match &a.kind {
-                AttrKind::Static => {
+    fn parse_props(&self, range: rsv_kernel::idx::IdxRange<PropId>) -> R<Vec<Prop>> {
+        let mut props = Vec::with_capacity(range.len());
+        for (id, p) in range.iter().zip(self.hir.props(range)) {
+            props.push(match &p.kind {
+                PropKind::Attribute { name, value } => {
+                    let name = name.text(self.src);
                     if matches!(name, "ref" | "is" | "key") {
-                        return Err(Unsupported::at("this attribute", a.span));
+                        return Err(Unsupported::at("this attribute", p.span));
                     }
                     Prop::Static {
                         name: name.to_owned(),
-                        value: a.value.map_or_else(String::new, |v| {
-                            rsv_html::decode_text(v.text(self.src)).into_owned()
-                        }),
+                        value: value
+                            .as_ref()
+                            .map_or_else(String::new, |v| v.text(self.src).to_owned()),
                     }
                 }
-                AttrKind::Directive(d) => {
-                    let arg = d.arg.map_or("", |s| s.text(self.src));
+                PropKind::Directive(d) => {
+                    let arg = d.arg.as_ref().map_or("", |a| a.text(self.src));
                     if d.name == DirName::Bind && matches!(arg, "class" | "style" | "ref" | "is") {
-                        return Err(Unsupported::at("this bound attribute", a.span));
+                        return Err(Unsupported::at("this bound attribute", p.span));
                     }
                     let raw = match &d.exp {
                         DirExp::None => NodeId::NONE,
@@ -487,6 +469,7 @@ impl Transform<'_> {
                         arg: arg.to_owned(),
                         raw,
                         exp: None,
+                        id,
                     }
                 }
             });
@@ -500,7 +483,7 @@ impl Transform<'_> {
     /// `transformIf`, `transformFor`, `transformExpression`, `transformElement`, `transformText`.
     fn traverse(&mut self, mut n: Nid, parent: Option<Nid>) -> R<()> {
         let mut exits: Vec<Exit> = Vec::new();
-        if let Some((name, raw)) = self.take_directive(n, |d| {
+        if let Some((name, raw, _)) = self.take_directive(n, |d| {
             matches!(d, DirName::If | DirName::ElseIf | DirName::Else)
         }) {
             match self.process_if(n, parent, name, raw)? {
@@ -511,8 +494,8 @@ impl Transform<'_> {
                 None => return Ok(()),
             }
         }
-        if let Some((_, raw)) = self.take_directive(n, |d| d == DirName::For) {
-            let (for_node, exit) = self.process_for(n, parent, raw)?;
+        if let Some((_, raw, id)) = self.take_directive(n, |d| d == DirName::For) {
+            let (for_node, exit) = self.process_for(n, parent, raw, id)?;
             n = for_node;
             exits.push(exit);
         }
@@ -582,17 +565,17 @@ impl Transform<'_> {
         &mut self,
         n: Nid,
         matches: impl Fn(DirName) -> bool,
-    ) -> Option<(DirName, NodeId)> {
+    ) -> Option<(DirName, NodeId, PropId)> {
         let Node::Element { props, .. } = &mut self.tree[n] else {
             return None;
         };
         let i = props
             .iter()
             .position(|p| matches!(p, Prop::Dir { name, .. } if matches(*name)))?;
-        let Prop::Dir { name, raw, .. } = props.remove(i) else {
+        let Prop::Dir { name, raw, id, .. } = props.remove(i) else {
             unreachable!("matched a directive")
         };
-        Some((name, raw))
+        Some((name, raw, id))
     }
 
     fn replace_child(&mut self, parent: Nid, old: Nid, new: Nid) {
@@ -767,25 +750,20 @@ impl Transform<'_> {
     // ---- v-for ---------------------------------------------------------------------------
 
     /// `processFor`, and the codegen `transformFor` creates before the children are traversed.
-    fn process_for(&mut self, el: Nid, parent: Option<Nid>, raw: NodeId) -> R<(Nid, Exit)> {
-        let Node::Element { surface, .. } = self.tree[el] else {
-            unreachable!("v-for is on an element")
+    fn process_for(
+        &mut self,
+        el: Nid,
+        parent: Option<Nid>,
+        raw: NodeId,
+        id: PropId,
+    ) -> R<(Nid, Exit)> {
+        let PropKind::Directive(d) = &self.hir.props[id].kind else {
+            unreachable!("v-for is a directive")
         };
-        let TNode::Element { attrs, .. } = self.c.node(surface) else {
-            unreachable!("an element's surface node")
+        let DirExp::For(f) = &d.exp else {
+            unreachable!("a v-for has its parse result")
         };
-        let params = self
-            .c
-            .attrs(*attrs)
-            .iter()
-            .find_map(|a| match &a.kind {
-                AttrKind::Directive(d) => match &d.exp {
-                    DirExp::For(f) if f.source == raw => Some(f.params.clone()),
-                    _ => None,
-                },
-                AttrKind::Static => None,
-            })
-            .expect("the parser read the v-for");
+        let params = f.params.clone();
         let source = self.process_expression(raw, false)?;
         let for_node = self.push(Node::For {
             source,
@@ -925,7 +903,7 @@ impl Transform<'_> {
 
     fn reference(&self, id: NodeId, event_local: bool) -> Option<RefInfo> {
         let mut r = *self.refs.get(&id)?;
-        if event_local && self.c.js.name(id) == "$event" {
+        if event_local && self.js.name(id) == "$event" {
             r.local = true;
         }
         Some(r)
@@ -940,8 +918,8 @@ impl Transform<'_> {
             compound: false,
             event_local,
         };
-        if let Kind::Ident(_) = self.c.js.kind(e) {
-            let name = self.c.js.name(e);
+        if let Kind::Ident(_) = self.js.kind(e) {
+            let name = self.js.name(e);
             let local = self.reference(e, event_local).is_some_and(|r| r.local);
             let binding = self.binding_type(e);
             if !local && (!GLOBALS_ALLOWED.contains(&name) || binding.is_some()) {
@@ -958,7 +936,7 @@ impl Transform<'_> {
             return Ok(out);
         }
         let mut ids = Vec::new();
-        identifiers(&self.c.js, e, None, &mut ids);
+        identifiers(self.js, e, None, &mut ids);
         if ids.is_empty() {
             out.const_type = CAN_STRINGIFY;
             return Ok(out);
@@ -967,7 +945,7 @@ impl Transform<'_> {
         out.const_type = CAN_STRINGIFY;
         for (id, parent) in ids {
             let r = self.reference(id, event_local);
-            let need_prefix = r.is_some() && can_prefix(self.c.js.name(id));
+            let need_prefix = r.is_some() && can_prefix(self.js.name(id));
             let local = r.is_some_and(|r| r.local);
             if need_prefix && !local {
                 self.check_rewrite(id, r.is_some_and(|r| r.write))?;
@@ -976,7 +954,7 @@ impl Transform<'_> {
                 // Reaching here, a name that needs a prefix is local: a scope variable.
                 let accessed = parent.is_some_and(|p| {
                     matches!(
-                        self.c.js.kind(p),
+                        self.js.kind(p),
                         Kind::Call { .. } | Kind::New { .. } | Kind::Member { .. }
                     )
                 });
@@ -992,12 +970,12 @@ impl Transform<'_> {
         if !self.inline {
             return None;
         }
-        self.c.js.atom(id).and_then(|a| self.res.binding_type(a))
+        self.js.atom(id).and_then(|a| self.res.binding_type(a))
     }
 
     /// Refuses what `rewriteIdentifier` would do that the port does not, and adds its helper.
     fn check_rewrite(&mut self, id: NodeId, write: bool) -> R<()> {
-        let loc = self.c.js.loc(id);
+        let loc = self.js.loc(id);
         let root_binding = self
             .res
             .sem
@@ -1141,13 +1119,13 @@ impl Transform<'_> {
     /// `transformOn`, with `cacheHandlers`.
     fn transform_on(&mut self, arg: &str, raw: NodeId) -> R<(String, Cid)> {
         let key = to_handler_key(&camelize(arg));
-        let is_member = match self.c.js.kind(raw) {
+        let is_member = match self.js.kind(raw) {
             Kind::Member { .. } => true,
-            Kind::Ident(_) => self.c.js.name(raw) != "undefined",
+            Kind::Ident(_) => self.js.name(raw) != "undefined",
             _ => false,
         };
         let is_fn = matches!(
-            self.c.js.kind(raw),
+            self.js.kind(raw),
             Kind::Arrow { .. } | Kind::Function { .. }
         );
         let inline = !(is_member || is_fn);
@@ -1170,7 +1148,7 @@ impl Transform<'_> {
     /// `hasScopeRef`: the expression reads a `v-for` alias.
     fn has_scope_ref(&self, e: NodeId) -> bool {
         let mut ids = Vec::new();
-        identifiers(&self.c.js, e, None, &mut ids);
+        identifiers(self.js, e, None, &mut ids);
         ids.iter()
             .any(|&(id, _)| self.refs.get(&id).is_some_and(|r| r.host))
     }
@@ -1522,28 +1500,6 @@ enum Exit {
     For(Nid),
 }
 
-const fn is_whitespace(b: u8) -> bool {
-    matches!(b, b' ' | b'\n' | b'\t' | b'\x0c' | b'\r')
-}
-
-/// compiler-core `condense`: each whitespace run becomes one space.
-fn condense(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut prev_ws = false;
-    for c in s.chars() {
-        if u8::try_from(c).is_ok_and(is_whitespace) {
-            if !prev_ws {
-                out.push(' ');
-            }
-            prev_ws = true;
-        } else {
-            out.push(c);
-            prev_ws = false;
-        }
-    }
-    out
-}
-
 pub(crate) fn can_prefix(name: &str) -> bool {
     !GLOBALS_ALLOWED.contains(&name) && name != "require"
 }
@@ -1717,7 +1673,7 @@ impl Rewrite for ExpRewrite<'_> {
 
 struct Gen<'a> {
     t: &'a Compiled,
-    c: &'a Sfc,
+    js: &'a Ast,
     res: &'a Resolution,
     refs: FxHashMap<NodeId, RefInfo>,
     inline: bool,
@@ -1729,14 +1685,14 @@ impl Compiled {
     /// hoists) and the expression the render function returns.
     pub fn generate(
         &self,
-        c: &Sfc,
+        js: &Ast,
         res: &Resolution,
         inline: bool,
         to: &mut Ast,
     ) -> (Vec<NodeId>, NodeId) {
         let mut g = Gen {
             t: self,
-            c,
+            js,
             res,
             refs: reference_table(res),
             inline,
@@ -1781,7 +1737,7 @@ impl Gen<'_> {
             inline: self.inline,
             event_local: e.event_local,
         };
-        copy(&self.c.js, self.to, &mut rw, e.node)
+        copy(self.js, self.to, &mut rw, e.node)
     }
 
     /// `genNode` for a template node.
@@ -1914,7 +1870,7 @@ impl Gen<'_> {
             Cg::Function { params, returns } => {
                 let ps: Vec<NodeId> = params
                     .iter()
-                    .map(|&p| copy(&self.c.js, self.to, &mut Verbatim, p))
+                    .map(|&p| copy(self.js, self.to, &mut Verbatim, p))
                     .collect();
                 let r = self.cg(*returns);
                 let ret = self.to.return_(Some(r), Loc::SYNTHETIC);
