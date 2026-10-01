@@ -314,7 +314,8 @@
 		<code>v-model</code>（<code>{'{@attach}'}</code> で Vue の <code>vModelText</code> などを走らせる）とルートへの属性の引き継ぎ（<code
 			>{'{...attrs}'}</code
 		>）は翻訳を書いてあり、Svelte の移植がその構文を lower するまで拒否します。Vue の移植の側に足したのは <code>v-on</code>
-		の修飾子のパースで、Vue のコンパイラ自身はそれを拒否します（6b4da2b473）。
+		の修飾子で、<code>vue.compile</code> も compiler-dom と同じく <code>withModifiers</code> と <code>withKeys</code>
+		で出力します。
 	</p>
 	<p>
 		この仕組みの前段として、Svelte プラグインの解析と出力は表層の木ではなく HIR を読むように移してあり、HIR には公開の builder

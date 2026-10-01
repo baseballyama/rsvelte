@@ -124,10 +124,10 @@ ctx.facet::<TsView>()（文書の言語の答え、文書パス）
 | `svelte.format/default` | prettier 3.9.9 + prettier-plugin-svelte 4.1.1 | 同上 | 13/13 |
 | `svelte.lint/default` | eslint 10.11.0 + eslint-plugin-svelte 3.23.0（中核の非推奨でない全ルール + `configs.all`） | 同上 | 13/13（rsvelte が実装したルールの指摘を比較） |
 | `svelte.check/default` | svelte-check 4.7.6 + typescript 6.0.3（rsvelte 側は tsc 7.0.2） | 同上 | 13/13 |
-| `vue.compile/default` | @vue/compiler-sfc（@vitejs/plugin-vue の本番出力） | `fixtures/vue/rsvelte`（27） | 25/25。2 件は移植が拒否するので `fixture.toml` で skip（`check/template-shapes`: 束縛した `class`、`lint/button-types`: `type` と `:type` の重複） |
-| `vue.format/default` | prettier 3.9.9 | 同上 | 27/27 |
-| `vue.lint/default` | eslint + eslint-plugin-vue（全ルール） | 同上 | 27/27 |
-| `vue.check/default` | vue-tsc 3.3.11 + typescript 6.0.3（rsvelte 側は tsc 7.0.2） | 同上 | 27/27。うち 2 件の指摘は TS 6 と 7 の版差なので、ガード付きの調整で記録した（§7 の 4） |
+| `vue.compile/default` | @vue/compiler-sfc（@vitejs/plugin-vue の本番出力） | `fixtures/vue/rsvelte`（28） | 26/26。2 件は移植が拒否するので `fixture.toml` で skip（`check/template-shapes`: 束縛した `class`、`lint/button-types`: `type` と `:type` の重複） |
+| `vue.format/default` | prettier 3.9.9 | 同上 | 28/28 |
+| `vue.lint/default` | eslint + eslint-plugin-vue（全ルール） | 同上 | 28/28 |
+| `vue.check/default` | vue-tsc 3.3.11 + typescript 6.0.3（rsvelte 側は tsc 7.0.2） | 同上 | 28/28。うち 2 件の指摘は TS 6 と 7 の版差なので、ガード付きの調整で記録した（§7 の 4） |
 | `ts.check/default` | ユニットごとに svelte-check か vue-tsc | 両方（40） | 40/40（同じ 2 件の調整） |
 | `svue.behaviour/client` / `server` | @vue/compiler-sfc + vue の DOM の trace（振る舞いのオラクル） | `fixtures/cross/rsvelte` の `.vue`（12） | client 4 一致・8 拒否、server 7 一致・5 拒否、不一致 0。拒否は Svelte の移植が `{@attach}`・スプレッド・動的な `class`・`<select>` を lower するのを待つもの |
 

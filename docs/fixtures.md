@@ -85,7 +85,7 @@ mise exec -- node tools/fixtures/bin/fixtures.ts import --from <submodule を持
 
 ### 2026-09-29 時点の取り込み結果
 
-対象は `svelte` ファミリー。`vue` のユニットは、いまは手書きの `rsvelte` source（`fixtures/vue/rsvelte` 27 件）だけで、取り込み元のリポジトリはまだ無い。
+対象は `svelte` ファミリー。`vue` のユニットは、いまは手書きの `rsvelte` source（`fixtures/vue/rsvelte` 28 件）だけで、取り込み元のリポジトリはまだ無い。
 
 測った対象は、主チェックアウト（`/Users/baseballyama/git/rsvelte`、`main` `5ed8ea3a3`）の submodule。admission のオラクルは svelte 5.57.1。
 
