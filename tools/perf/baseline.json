@@ -11,12 +11,14 @@
 			"vue.format/default",
 			"vue.lint/default",
 			"svue.compile/client",
-			"svue.compile/server"
+			"svue.compile/server",
+			"vuelte.behaviour/client",
+			"vuelte.behaviour/server"
 		]
 	},
-	"allocs": 2871464,
-	"alloc_bytes": 182517108,
-	"peak_live_growth_bytes": 39058043,
+	"allocs": 3268508,
+	"alloc_bytes": 223392944,
+	"peak_live_growth_bytes": 55102389,
 	"phases": {
 		"js.parents": {
 			"calls": 6980,
@@ -172,12 +174,37 @@
 			"calls": 27,
 			"allocs": 51,
 			"alloc_bytes": 1362
+		},
+		"vuelte.behaviour/client": {
+			"calls": 17504,
+			"allocs": 34905,
+			"alloc_bytes": 5136481
+		},
+		"vuelte.behaviour/server": {
+			"calls": 17504,
+			"allocs": 34906,
+			"alloc_bytes": 5136419
+		},
+		"vuelte.check": {
+			"calls": 24457,
+			"allocs": 45963,
+			"alloc_bytes": 2896097
+		},
+		"vuelte.translate": {
+			"calls": 1530,
+			"allocs": 59218,
+			"alloc_bytes": 4511696
+		},
+		"vuelte.vue": {
+			"calls": 1354,
+			"allocs": 204548,
+			"alloc_bytes": 13952487
 		}
 	},
 	"instructions": {
-		"arm64-linux": 3787855731
+		"arm64-linux": 4073801116
 	},
 	"load_instructions": {
-		"arm64-linux": 292676740
+		"arm64-linux": 293354968
 	}
 }
