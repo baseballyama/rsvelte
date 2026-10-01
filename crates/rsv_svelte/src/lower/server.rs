@@ -11,11 +11,12 @@ use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::source::Loc;
 use rustc_hash::FxHashMap;
 
+use super::client::runtime_call;
 use super::names::Names;
 use super::script::{ScriptRewrite, lower_instance};
 use super::{
     CompileInput, Item, Parent, Target, check_binding, check_foreign_element, check_stores,
-    clean_nodes, each_index_names, escape_html, event_attribute, is_boolean_attribute,
+    clean_nodes, each_index_names, escape_html, event_attribute, is_boolean_attribute, needs_clsx,
     sanitize_template_string,
 };
 use crate::analyze::Analysis;
@@ -282,63 +283,7 @@ impl Sx<'_> {
         }
         check_foreign_element(self.src, el.name)?;
         template.push(Piece::Text(format!("<{tag}")));
-        let hash = if self.an.scoped[id] {
-            self.an.css_hash.clone()
-        } else {
-            None
-        };
-        let list = hir.attrs(el.attrs);
-        for a in list {
-            let raw_name = a.name.text(self.src);
-            if let AttrValue::Bind(_) = a.value {
-                let e = check_binding(self.js, self.res, self.src, &tag, list, a)?;
-                let name = raw_name.to_ascii_lowercase();
-                let value = self.expr(e);
-                let n = self.out.str(&name);
-                let mut args = vec![n, value];
-                if is_boolean_attribute(&name) {
-                    args.push(self.out.bool(true, Loc::SYNTHETIC));
-                }
-                template.push(Piece::Expr(self.out.runtime("$", "attr", &args)));
-                continue;
-            }
-            if event_attribute(self.src, a).is_some() || matches!(a.value, AttrValue::Attach(_)) {
-                continue;
-            }
-            let attr_name = super::client::normalize_attribute(raw_name);
-            let trim = matches!(attr_name.as_str(), "class" | "style");
-            let literal = match &a.value {
-                AttrValue::Boolean => Some(None),
-                AttrValue::Static(v) => {
-                    Some(Some(escape_html(&attr_text(v, trim), true).into_owned()))
-                }
-                _ => None,
-            };
-            if let Some(v) = literal {
-                Self::literal_attribute(template, &attr_name, v, hash.as_deref());
-                continue;
-            }
-            if attr_name == "class" || attr_name == "style" {
-                return Err(Diagnostic::error(
-                    "unsupported",
-                    format!("a dynamic `{attr_name}` attribute is not supported yet"),
-                    a.span,
-                ));
-            }
-            let value = self.attribute_value(a, trim);
-            let n = self.out.str(&attr_name);
-            let mut args = vec![n, value];
-            if is_boolean_attribute(&attr_name) {
-                args.push(self.out.bool(true, Loc::SYNTHETIC));
-            }
-            template.push(Piece::Expr(self.out.runtime("$", "attr", &args)));
-        }
-        let has_class = list
-            .iter()
-            .any(|a| a.name.text(self.src).eq_ignore_ascii_case("class"));
-        if !has_class && self.an.scoped[id] {
-            Self::literal_attribute(template, "class", Some(String::new()), hash.as_deref());
-        }
+        self.element_attributes(id, &tag, hir.attrs(el.attrs), template)?;
         let void = is_void(&tag);
         template.push(Piece::Text(if void { "/>".into() } else { ">".into() }));
         let outer_preserve = self.preserve_ws;
@@ -357,6 +302,138 @@ impl Sx<'_> {
             template.push(Piece::Text(format!("</{tag}>")));
         }
         Ok(())
+    }
+
+    /// Upstream `build_element_attributes` (no spread).
+    fn element_attributes(
+        &mut self,
+        id: HirId,
+        tag: &str,
+        list: &[Attribute],
+        template: &mut Vec<Piece>,
+    ) -> R<()> {
+        let hash = if self.an.scoped[id] {
+            self.an.css_hash.clone()
+        } else {
+            None
+        };
+        let class_directives: Vec<&Attribute> = list
+            .iter()
+            .filter(|a| matches!(a.value, AttrValue::Class(_)))
+            .collect();
+        for a in list {
+            let raw_name = a.name.text(self.src);
+            match a.value {
+                AttrValue::Bind(_) => {
+                    let e = check_binding(self.js, self.res, self.src, tag, list, a)?;
+                    let name = raw_name.to_ascii_lowercase();
+                    let value = self.expr(e);
+                    let n = self.out.str(&name);
+                    let mut args = vec![n, value];
+                    if is_boolean_attribute(&name) {
+                        args.push(self.out.bool(true, Loc::SYNTHETIC));
+                    }
+                    template.push(Piece::Expr(self.out.runtime("$", "attr", &args)));
+                    continue;
+                }
+                AttrValue::Attach(_) | AttrValue::Class(_) => continue,
+                _ if event_attribute(self.src, a).is_some() => continue,
+                _ => {}
+            }
+            let name = raw_name.to_ascii_lowercase();
+            let trim = matches!(name.as_str(), "class" | "style");
+            let can_use_literal = name != "class" || class_directives.is_empty();
+            let literal = match &a.value {
+                AttrValue::Boolean => Some(None),
+                AttrValue::Static(v) => {
+                    Some(Some(escape_html(&attr_text(v, trim), true).into_owned()))
+                }
+                _ => None,
+            };
+            if can_use_literal && let Some(v) = literal {
+                Self::literal_attribute(template, &name, v, hash.as_deref());
+                continue;
+            }
+            if name == "style" {
+                return Err(Diagnostic::error(
+                    "unsupported",
+                    "a dynamic `style` attribute is not supported yet",
+                    a.span,
+                ));
+            }
+            let value = self.attribute_value(a, trim, name == "class");
+            if can_use_literal && matches!(self.out.kind(value), Kind::Str) {
+                let mut v = self.out.str_value(value, self.src).to_owned();
+                if name == "class"
+                    && let Some(h) = &hash
+                {
+                    format!("{v} {h}").trim().clone_into(&mut v);
+                }
+                let v = escape_html(&v, true);
+                template.push(Piece::Text(format!(" {name}=\"{v}\"")));
+            } else if name == "class" {
+                let call = self.attr_class(&class_directives, value, hash.as_deref());
+                template.push(Piece::Expr(call));
+            } else {
+                let n = self.out.str(&name);
+                let mut args = vec![n, value];
+                if is_boolean_attribute(&name) {
+                    args.push(self.out.bool(true, Loc::SYNTHETIC));
+                }
+                template.push(Piece::Expr(self.out.runtime("$", "attr", &args)));
+            }
+        }
+        // Upstream's analysis appends `class=""` to such an element.
+        let has_class = list.iter().any(|a| {
+            !matches!(a.value, AttrValue::Class(_))
+                && a.name.text(self.src).eq_ignore_ascii_case("class")
+        });
+        if !has_class && !class_directives.is_empty() {
+            let value = self.out.str("");
+            let call = self.attr_class(&class_directives, value, hash.as_deref());
+            template.push(Piece::Expr(call));
+        } else if !has_class && self.an.scoped[id] {
+            Self::literal_attribute(template, "class", Some(String::new()), hash.as_deref());
+        }
+        Ok(())
+    }
+
+    /// Upstream `build_attr_class`.
+    fn attr_class(
+        &mut self,
+        directives: &[&Attribute],
+        value: NodeId,
+        hash: Option<&str>,
+    ) -> NodeId {
+        let directives = (!directives.is_empty()).then(|| {
+            let props: Vec<NodeId> = directives
+                .iter()
+                .map(|d| {
+                    let AttrValue::Class(e) = d.value else {
+                        unreachable!("class directives")
+                    };
+                    let key = self.out.str(d.name.text(self.src));
+                    let v = self.expr(e);
+                    self.out.property(key, v, 0, Loc::SYNTHETIC)
+                })
+                .collect();
+            self.out.object(&props, Loc::SYNTHETIC)
+        });
+        let mut value = value;
+        let mut css_hash = None;
+        if let Some(h) = hash {
+            if matches!(self.out.kind(value), Kind::Str) {
+                let v = self.out.str_value(value, self.src);
+                value = self.out.str(format!("{v} {h}").trim());
+            } else {
+                css_hash = Some(self.out.str(h));
+            }
+        }
+        runtime_call(
+            &mut self.out,
+            "attr_class",
+            vec![Some(value), css_hash, directives],
+        )
     }
 
     fn literal_attribute(
@@ -382,18 +459,33 @@ impl Sx<'_> {
         }
     }
 
-    /// Upstream `build_attribute_value` (server) for a value with at least one expression.
-    fn attribute_value(&mut self, a: &Attribute, trim: bool) -> NodeId {
+    /// Upstream `build_attribute_value` (server); a `class`
+    /// written as one unquoted expression goes through `$.clsx` when upstream's `needs_clsx`.
+    fn attribute_value(&mut self, a: &Attribute, trim: bool, class: bool) -> NodeId {
         let parts = match &a.value {
-            &(AttrValue::Expression { expr, .. } | AttrValue::Shorthand(expr)) => {
-                return self.expr(expr);
+            &AttrValue::Expression { expr, quoted } => {
+                let v = self.expr(expr);
+                return if class && !quoted && needs_clsx(self.js, expr) {
+                    self.out.runtime("$", "clsx", &[v])
+                } else {
+                    v
+                };
+            }
+            &AttrValue::Shorthand(expr) => {
+                let v = self.expr(expr);
+                return if class && needs_clsx(self.js, expr) {
+                    self.out.runtime("$", "clsx", &[v])
+                } else {
+                    v
+                };
             }
             AttrValue::Interpolated(parts) => parts,
-            AttrValue::Boolean
-            | AttrValue::Static(_)
-            | AttrValue::Bind(_)
-            | AttrValue::Attach(_) => {
-                unreachable!("literal values and directives are handled by the caller")
+            AttrValue::Boolean => return self.out.bool(true, Loc::SYNTHETIC),
+            AttrValue::Static(v) => {
+                return self.out.str(&escape_html(&attr_text(v, trim), true));
+            }
+            AttrValue::Bind(_) | AttrValue::Attach(_) | AttrValue::Class(_) => {
+                unreachable!("directives are handled by the caller")
             }
         };
         let mut quasis = vec![String::new()];

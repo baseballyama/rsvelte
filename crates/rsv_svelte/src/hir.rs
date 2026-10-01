@@ -5,8 +5,9 @@
 //! read only for names. What changes on the way:
 //!
 //! - an `{#if}…{:else if}…{:else}` chain is one node with its branches, not nested `If`s;
-//! - a `bind:` directive is an attribute named by its property, with an [`AttrValue::Bind`]; an
-//!   `{@attach}` tag is an attribute with an empty name and an [`AttrValue::Attach`];
+//! - a `bind:` directive is an attribute named by its property, with an [`AttrValue::Bind`], and a
+//!   `class:` directive one named by its class, with an [`AttrValue::Class`]; an `{@attach}` tag is
+//!   an attribute with an empty name and an [`AttrValue::Attach`];
 //! - every element knows its kind (regular, component, `<title>` in `<svelte:head>`, `<slot>`,
 //!   `svelte:` meta tag), decided the way the Svelte parser decides it;
 //! - an attribute value is classified (boolean, static text with character references decoded, one
@@ -250,6 +251,8 @@ pub enum AttrValue {
     Bind(NodeId),
     /// `{@attach e}`: the attribute's name is empty.
     Attach(NodeId),
+    /// `class:name={e}`: the attribute's name is the class.
+    Class(NodeId),
 }
 
 impl Hir {
@@ -497,7 +500,7 @@ impl SurfaceBuilder<'_> {
                 let attributes =
                     self.b
                         .attributes(c.attrs(attrs).iter().enumerate().map(|(i, a)| Attribute {
-                            name: Name::Source(a.bind_property().unwrap_or(a.name)),
+                            name: Name::Source(a.directive_name().unwrap_or(a.name)),
                             value: attr_value(c, src, a),
                             span: a.span,
                             owner: id,
@@ -604,6 +607,7 @@ fn attr_value(c: &Component, src: &str, a: &ast::Attr) -> AttrValue {
     match parts {
         [Part::Expr { expr, .. }] if a.kind == ast::AttrKind::Bind => AttrValue::Bind(*expr),
         [Part::Expr { expr, .. }] if a.kind == ast::AttrKind::Attach => AttrValue::Attach(*expr),
+        [Part::Expr { expr, .. }] if a.kind == ast::AttrKind::Class => AttrValue::Class(*expr),
         [Part::Expr { expr, .. }] if a.shorthand => AttrValue::Shorthand(*expr),
         [Part::Expr { expr, .. }] => AttrValue::Expression {
             expr: *expr,
@@ -739,6 +743,7 @@ mod tests {
                 AttrValue::Interpolated(p) => format!("interpolated {}", p.len()),
                 AttrValue::Bind(_) => "bind".into(),
                 AttrValue::Attach(_) => "attach".into(),
+                AttrValue::Class(_) => "class".into(),
             })
             .collect();
         assert_eq!(

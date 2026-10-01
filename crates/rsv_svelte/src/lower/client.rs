@@ -7,7 +7,7 @@
 use rsv_html::decode_text;
 use rsv_js::ast::flag;
 use rsv_js::copy::copy;
-use rsv_js::ops::{AssignOp, LogicalOp};
+use rsv_js::ops::{AssignOp, LogicalOp, UnaryOp};
 use rsv_js::scope::{BindingId, ScopeId};
 use rsv_js::{Ast, Kind, NodeId};
 use rsv_kernel::diag::Diagnostic;
@@ -18,7 +18,7 @@ use super::names::Names;
 use super::script::{ScriptRewrite, lower_instance};
 use super::{
     CompileInput, Item, Parent, Target, check_binding, check_foreign_element, check_stores,
-    clean_nodes, each_index_names, escape_html, event_attribute, has_dependency,
+    clean_nodes, each_index_names, escape_html, event_attribute, has_dependency, needs_clsx,
     sanitize_template_string,
 };
 use crate::analyze::{Analysis, ExprMeta};
@@ -387,17 +387,9 @@ impl<'a> Cx<'a> {
         if same { callee } else { arrow }
     }
 
-    /// `b.call` drops trailing missing arguments and turns inner ones into `undefined`.
+    /// `b.call` drops trailing missing arguments and turns inner ones into `void 0`.
     fn call(&mut self, method: &str, args: Vec<Option<NodeId>>) -> NodeId {
-        let mut args = args;
-        while matches!(args.last(), Some(None)) {
-            args.pop();
-        }
-        let args: Vec<NodeId> = args
-            .into_iter()
-            .map(|a| a.unwrap_or_else(|| self.out.id("undefined")))
-            .collect();
-        self.out.runtime("$", method, &args)
+        runtime_call(&mut self.out, method, args)
     }
 
     fn stmt(&mut self, e: NodeId) -> NodeId {
@@ -927,8 +919,12 @@ impl<'a> Cx<'a> {
         frag: &mut Frag,
         l: &mut Lists,
     ) -> R<()> {
+        let class_directives: Vec<&Attribute> = attrs
+            .iter()
+            .filter(|a| matches!(a.value, AttrValue::Class(_)))
+            .collect();
         for a in attrs {
-            if let AttrValue::Bind(_) | AttrValue::Attach(_) = a.value {
+            if let AttrValue::Bind(_) | AttrValue::Attach(_) | AttrValue::Class(_) = a.value {
                 continue;
             }
             let raw_name = a.name.text(self.src);
@@ -943,10 +939,13 @@ impl<'a> Cx<'a> {
                 _ => None,
             };
             if !super::cannot_be_set_statically(raw_name)
+                && (attr_name != "class" || class_directives.is_empty())
                 && let Some(value) = literal
             {
                 self.static_attribute(frag, id, raw_name, &attr_name, value);
-            } else if attr_name == "autofocus" || attr_name == "class" || attr_name == "style" {
+            } else if attr_name == "class" {
+                self.set_class(id, node, Some(a), &class_directives, frag, l);
+            } else if attr_name == "autofocus" || attr_name == "style" {
                 return unsupported(&format!("a dynamic `{attr_name}` attribute"), a.span);
             } else {
                 let (value, has_state) = self.attribute_value(a, frag);
@@ -959,13 +958,114 @@ impl<'a> Cx<'a> {
                 }
             }
         }
-        let has_class = attrs
-            .iter()
-            .any(|a| a.name.text(self.src).eq_ignore_ascii_case("class"));
-        if !has_class && self.an.scoped[id] {
+        // Upstream's analysis appends `class=""` to such an element.
+        let has_class = attrs.iter().any(|a| {
+            !matches!(a.value, AttrValue::Class(_))
+                && a.name.text(self.src).eq_ignore_ascii_case("class")
+        });
+        if !has_class && !class_directives.is_empty() {
+            self.set_class(id, node, None, &class_directives, frag, l);
+        } else if !has_class && self.an.scoped[id] {
             self.static_attribute(frag, id, "class", "class", Some(String::new()));
         }
         Ok(())
+    }
+
+    /// A `class` value written as one expression, through `$.clsx` when upstream's `needs_clsx`.
+    fn class_expression(
+        &mut self,
+        expr: NodeId,
+        unquoted: bool,
+        frag: &mut Frag,
+    ) -> (NodeId, bool) {
+        let meta = self.an.meta(expr);
+        let mut built = self.expr(expr);
+        if unquoted && needs_clsx(self.js, expr) {
+            built = self.call("clsx", vec![Some(built)]);
+        }
+        (self.memoize(frag, built, meta), meta.has_state)
+    }
+
+    /// Upstream `build_set_class`; `attr` is `None` for the empty `class` upstream's analysis adds.
+    fn set_class(
+        &mut self,
+        id: HirId,
+        node: &str,
+        attr: Option<&Attribute>,
+        directives: &[&Attribute],
+        frag: &mut Frag,
+        l: &mut Lists,
+    ) {
+        let (mut value, mut has_state) = match attr.map(|a| &a.value) {
+            None => (self.out.str(""), false),
+            Some(&AttrValue::Expression { expr, quoted }) => {
+                self.class_expression(expr, !quoted, frag)
+            }
+            Some(&AttrValue::Shorthand(expr)) => self.class_expression(expr, true, frag),
+            Some(_) => self.attribute_value(attr.expect("matched above"), frag),
+        };
+        let mut prev = None;
+        let mut next = None;
+        let mut previous_id = None;
+        if !directives.is_empty() {
+            let mut props = Vec::with_capacity(directives.len());
+            for d in directives {
+                let AttrValue::Class(e) = d.value else {
+                    unreachable!("class directives")
+                };
+                let meta = self.an.meta(e);
+                let built = self.expr(e);
+                let v = self.memoize(frag, built, meta);
+                has_state |= meta.has_state;
+                props.push(init_property(&mut self.out, d.name.text(self.src), v));
+            }
+            next = Some(self.out.object(&props, Loc::SYNTHETIC));
+            if has_state {
+                let name = self.names.generate("classes");
+                let x = self.out.id(&name);
+                l.init.push(self.out.let_(flag::LET, x, None));
+                prev = Some(self.out.id(&name));
+                previous_id = Some(name);
+            } else {
+                prev = Some(self.out.object(&[], Loc::SYNTHETIC));
+            }
+        }
+        let mut css_hash = None;
+        if self.an.scoped[id]
+            && let Some(hash) = self.an.css_hash.clone()
+        {
+            let literal = match self.out.kind(value) {
+                Kind::Str => Some(self.out.str_value(value, self.src).to_owned()),
+                Kind::Null => Some(String::new()),
+                _ => None,
+            };
+            match literal {
+                Some(v) if v.is_empty() => value = self.out.str(&hash),
+                Some(v) => value = self.out.str(&format!("{} {hash}", escape_html(&v, true))),
+                None => css_hash = Some(self.out.str(&hash)),
+            }
+        }
+        if css_hash.is_none() && next.is_some() {
+            css_hash = Some(self.out.null(Loc::SYNTHETIC));
+        }
+        let x = self.out.id(node);
+        let is_html = self.num(1);
+        let mut set_class = self.call(
+            "set_class",
+            vec![Some(x), Some(is_html), Some(value), css_hash, prev, next],
+        );
+        if let Some(name) = previous_id {
+            let target = self.out.id(&name);
+            set_class = self
+                .out
+                .assign(AssignOp::Assign, target, set_class, Loc::SYNTHETIC);
+        }
+        let s = self.stmt(set_class);
+        if has_state {
+            l.update.push(s);
+        } else {
+            l.init.push(s);
+        }
     }
 
     /// The children half of upstream `RegularElement`, under the element's whitespace rule.
@@ -1102,7 +1202,7 @@ impl<'a> Cx<'a> {
                 let items = self.chunk_items(parts);
                 self.template_chunk(&items, frag)
             }
-            AttrValue::Bind(_) | AttrValue::Attach(_) => {
+            AttrValue::Bind(_) | AttrValue::Attach(_) | AttrValue::Class(_) => {
                 unreachable!("directives are lowered by `element`")
             }
         }
@@ -1471,6 +1571,50 @@ impl<'a> Cx<'a> {
         self.out
             .arrow(&[anchor], block, false, false, Loc::SYNTHETIC)
     }
+}
+
+/// `b.call` for `$.method(…)`: trailing missing arguments are dropped, inner ones are `void 0`.
+pub(super) fn runtime_call(out: &mut Ast, method: &str, args: Vec<Option<NodeId>>) -> NodeId {
+    let mut args = args;
+    while matches!(args.last(), Some(None)) {
+        args.pop();
+    }
+    let args: Vec<NodeId> = args
+        .into_iter()
+        .map(|a| {
+            a.unwrap_or_else(|| {
+                let zero = out.num(0.0, Loc::SYNTHETIC);
+                out.unary(UnaryOp::Void, zero, Loc::SYNTHETIC)
+            })
+        })
+        .collect();
+    out.runtime("$", method, &args)
+}
+
+/// `b.init(name, value)` as esrap prints it: an identifier key when `name` is one, a string key
+/// otherwise, and the shorthand `{ name }` when the value is that identifier.
+pub(super) fn init_property(out: &mut Ast, name: &str, value: NodeId) -> NodeId {
+    if !is_valid_identifier(name) {
+        let key = out.str(name);
+        return out.property(key, value, 0, Loc::SYNTHETIC);
+    }
+    let key = out.id(name);
+    let shorthand = matches!(out.kind(value), Kind::Ident(_)) && out.name(value) == name;
+    out.property(
+        key,
+        value,
+        if shorthand { flag::SHORTHAND } else { 0 },
+        Loc::SYNTHETIC,
+    )
+}
+
+/// Upstream `regex_is_valid_identifier`: `/^[a-zA-Z_$][a-zA-Z_$0-9]*$/`.
+fn is_valid_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    chars
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
 }
 
 struct Walk {

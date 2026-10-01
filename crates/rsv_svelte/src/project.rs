@@ -84,12 +84,26 @@ impl Projector<'_> {
                 self.e.copy(self.src, name);
                 self.e.push("\", {");
                 for a in self.c.attrs(attrs) {
-                    if a.kind == AttrKind::Bind {
-                        return Err(Unsupported::at("bind: directives", a.span));
+                    match a.kind {
+                        AttrKind::Bind => return Err(Unsupported::at("bind: directives", a.span)),
+                        AttrKind::Class => {}
+                        AttrKind::Attribute | AttrKind::Attach => self.attribute(a),
                     }
-                    self.attribute(a);
                 }
                 self.e.push("});\n");
+                // svelte2tsx checks a class directive's expression as a statement after the
+                // element.
+                for a in self.c.attrs(attrs) {
+                    if a.kind == AttrKind::Class
+                        && let AttrValue::Parts(r) = a.value
+                        && let [Part::Expr { expr, .. }] = self.c.parts(r)
+                    {
+                        let range = expression_range(&self.c.js, *expr);
+                        self.e.copy(self.src, range);
+                        self.e.mark(range.hi);
+                        self.e.push(";\n");
+                    }
+                }
                 self.children(self.c.children(children))?;
                 self.e.push("}\n");
             }

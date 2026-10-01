@@ -942,7 +942,7 @@ impl<'a> Printer<'a, '_> {
             let close = self.lit("}");
             return Ok(self.cat(&[open, e, close]));
         }
-        if let (Some(property), [Part::Expr { expr, .. }]) = (a.bind_property(), parts)
+        if let (Some(property), [Part::Expr { expr, .. }]) = (a.directive_name(), parts)
             && matches!(comp.js.kind(*expr), rsv_js::Kind::Ident(_))
             && comp.js.name(*expr) == property.text(src)
         {

@@ -725,6 +725,21 @@ pub fn event_attribute(src: &str, a: &Attribute) -> Option<NodeId> {
     a.name.text(src).starts_with("on").then_some(expr)
 }
 
+/// Upstream's `needs_clsx` for a `class={expression}` written unquoted: anything but a literal, a
+/// template literal or a binary expression may be an object or an array.
+#[must_use]
+pub fn needs_clsx(js: &Ast, e: NodeId) -> bool {
+    !matches!(
+        js.kind(e),
+        Kind::Str
+            | Kind::Num(_)
+            | Kind::Bool(_)
+            | Kind::Null
+            | Kind::Template { .. }
+            | Kind::Binary(..)
+    )
+}
+
 /// The expression of a value written as exactly one `{expression}`.
 #[must_use]
 pub const fn single_expression(v: &AttrValue) -> Option<NodeId> {
