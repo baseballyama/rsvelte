@@ -558,6 +558,22 @@ mod tests {
         );
     }
 
+    #[test]
+    fn two_structural_directives_of_one_kind_are_refused() {
+        let want = Some("two structural directives of one kind");
+        for t in [
+            "<p v-if=\"a\" v-if=\"b\">x</p>",
+            "<p v-if=\"a\">x</p><p v-else-if=\"a\" v-else>y</p>",
+            "<p v-for=\"i in 2\" v-for=\"j in 2\">x</p>",
+        ] {
+            assert_eq!(refusal("const a = 1, b = 2", t), want, "{t}");
+        }
+        assert_eq!(
+            refusal("const a = 1", "<p v-if=\"a\" v-for=\"i in 2\">x</p>"),
+            None
+        );
+    }
+
     const REFS: &str = "import { ref, reactive } from 'vue'\nconst r = ref('')\n\
                         const s = reactive({ a: '' })\nlet l = ''\nconst k = 'x'";
 

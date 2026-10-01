@@ -517,9 +517,22 @@ impl Transform<'_> {
     /// `transformIf`, `transformFor`, `transformExpression`, `transformElement`, `transformText`.
     fn traverse(&mut self, mut n: Nid, parent: Option<Nid>) -> R<()> {
         let mut exits: Vec<Exit> = Vec::new();
-        if let Some((name, raw, _)) = self.take_directive(n, |d| {
-            matches!(d, DirName::If | DirName::ElseIf | DirName::Else)
-        }) {
+        let is_if = |d| matches!(d, DirName::If | DirName::ElseIf | DirName::Else);
+        if let Node::Element { props, .. } = &self.tree[n] {
+            let count = |m: &dyn Fn(DirName) -> bool| {
+                props
+                    .iter()
+                    .filter(|p| matches!(p, Prop::Dir { name, .. } if m(*name)))
+                    .count()
+            };
+            // `createStructuralDirectiveTransform` runs each one in turn.
+            if count(&is_if) > 1 || count(&|d| d == DirName::For) > 1 {
+                return Err(Unsupported::nowhere(
+                    "two structural directives of one kind",
+                ));
+            }
+        }
+        if let Some((name, raw, _)) = self.take_directive(n, is_if) {
             match self.process_if(n, parent, name, raw)? {
                 Some((if_node, exit)) => {
                     n = if_node;
