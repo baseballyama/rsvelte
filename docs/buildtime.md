@@ -15,10 +15,10 @@ Rust ワークスペース自体のコンパイル時間を、実行時の性能
 | `check.clean` | `cargo check --workspace --all-targets --all-features` を空の target から |
 | `clippy.clean` | lint ゲート（clippy）を空の target から |
 | `debug.clean` | 全ターゲット（テスト込み）の debug ビルドを空の target から |
-| `release.clean` | 出荷する `rsv` バイナリ（release: thin LTO、codegen-units 1）を空の target から |
+| `release.clean` | 出荷する `rsvelte` バイナリ（release: thin LTO、codegen-units 1）を空の target から |
 | `debug.incr.<crate>.<kind>` | 温まった target で 1 ファイルを編集した後の、全ターゲットの debug ビルド |
 
-`<crate>` は依存グラフの根 `kernel`（`crates/rsv_kernel/src/lib.rs`）と葉 `svelte`（`crates/rsv_svelte/src/lib.rs`）。
+`<crate>` は依存グラフの根 `kernel`（`crates/rsvelte_kernel/src/lib.rs`）と葉 `svelte`（`crates/rsvelte_svelte/src/lib.rs`）。
 `<kind>` は編集の種類:
 
 - `touch`: バイトは変えず mtime だけ動かす（編集・コンパイルの一巡の下限）
@@ -59,15 +59,15 @@ Rust ワークスペース自体のコンパイル時間を、実行時の性能
 
 | ビルド | 単位 | 秒 |
 |---|---|---:|
-| release | `rsv`（bin。thin LTO で全体をここでコード生成する） | 3.53 |
-| release | `rsv_svelte` | 3.39 |
-| release | `rsv_js` | 2.52 |
-| release | `rsv_kernel` | 1.61 |
+| release | `rsvelte`（bin。thin LTO で全体をここでコード生成する） | 3.53 |
+| release | `rsvelte_svelte` | 3.39 |
+| release | `rsvelte_javascript` | 2.52 |
+| release | `rsvelte_kernel` | 1.61 |
 | release | `rayon` | 1.22 |
-| debug | `rsv_kernel` のテスト | 1.22 |
-| debug | `rsv_cli` の build script の実行（git の sha を埋め込む） | 0.99 |
+| debug | `rsvelte_kernel` のテスト | 1.22 |
+| debug | `rsvelte_command_line` の build script の実行（git の sha を埋め込む） | 0.99 |
 
 ## 4. 未解明のこと
 
 - 増分の 3 種類の編集で時間がほとんど変わらない。編集が rustc に届いていることは確かめた（`api` の編集で rustc が 7 回走る。壊れた編集ではビルドが失敗する）。ただし、`api` で依存クレートの作業が増えない理由はまだ測っていない。
-- `rsv_cli` の build script が毎回約 1 s かかっている。増分のたびに走っているかどうかは未確認。
+- `rsvelte_command_line` の build script が毎回約 1 s かかっている。増分のたびに走っているかどうかは未確認。

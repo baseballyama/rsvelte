@@ -120,12 +120,12 @@ mise exec -- node tools/fixtures/bin/fixtures.ts regen [--task id,...] [--source
 
 | task | 対象の unit | variant | オラクル | 成果物（比較方法） |
 |---|---|---|---|---|
-| `svelte.compile` | `svelte` の全 unit | `client`、`server`（`runes: true`、`filename` = unit の path） | svelte | `js`（js-ast）、`css`（text）、`warnings.json`（json）、または `error.json`（json） |
+| `svelte.compile` | `svelte` の全 unit | `client`、`server`（`runes: true`、`filename` = unit の path） | svelte | `js`（js-syntax_tree）、`css`（text）、`warnings.json`（json）、または `error.json`（json） |
 | `svelte.compileModule` | `svelte-module-js` | `client`、`server` | svelte | 同上 |
 | `svelte.format` | `svelte` の `rsvelte` source | `default` | prettier + prettier-plugin-svelte | `svelte`（text、バイト一致） |
 | `svelte.lint` | 同上 | `default`（全ルール） | eslint + eslint-plugin-svelte + svelte-eslint-parser + @typescript-eslint/parser | `lint.json`（lint: 実装側が走らせたルールの指摘に絞って比較） |
 | `svelte.check` | 同上 | `default` | svelte-check + typescript + svelte | `json`（json） |
-| `vue.compile` | `vue` の全 unit | `default` | @vue/compiler-sfc（+ typescript） | `js`（js-ast）、`css`（text） |
+| `vue.compile` | `vue` の全 unit | `default` | @vue/compiler-sfc（+ typescript） | `js`（js-syntax_tree）、`css`（text） |
 | `vue.format` | `vue` の `rsvelte` source | `default` | prettier | `vue`（text） |
 | `vue.lint` | 同上 | `default`（全ルール） | eslint + eslint-plugin-vue + vue-eslint-parser + @typescript-eslint/parser | `lint.json`（lint） |
 | `vue.check` | 同上 | `default` | vue-tsc + @vue/language-core + @volar/typescript + typescript + vue | `json`（json） |
@@ -224,7 +224,7 @@ lint・format・型検査はタスクになった（§5）。残りは次のと�
 | `svelte.parse` | `svelte/compiler` の `parse(modern)` | AST の JSON。入力の約 16 倍になるので cached | cached |
 | `js.parse` | acorn / typescript-estree | canonical AST（パーサ適合性、concept C10） | cached |
 
-タスクごとに比較方法を選べる（`js-ast` / `text` / `json` / `lint`）。したがって「AST 比較」は compile の JS に限った選択であって、仕組み全体の制約ではない。format は書式そのものが仕様なので `text`（バイト一致）、型検査の JSON は位置とメッセージまで比べる。
+タスクごとに比較方法を選べる（`js-syntax_tree` / `text` / `json` / `lint`）。したがって「AST 比較」は compile の JS に限った選択であって、仕組み全体の制約ではない。format は書式そのものが仕様なので `text`（バイト一致）、型検査の JSON は位置とメッセージまで比べる。
 
 ### ユニット単位の例外
 
@@ -232,16 +232,16 @@ unit の `fixture.toml` に書く。いまは `[skip]`（task id または `task
 
 ## 10. 実装との接続
 
-### 出力を書く（`rsv fixtures`）
+### 出力を書く（`rsvelte fixtures`）
 
 ```
-./target/release/rsv fixtures <dir>... [--task <id>]... [--tsc <tsc>] [--svelte <pkg>] [--vue <pkg>] [--tsconfig <file>]
+./target/release/rsvelte fixtures <dir>... [--task <id>]... [--tsc <tsc>] [--svelte <pkg>] [--vue <pkg>] [--tsconfig <file>]
 ```
 
 - 与えたディレクトリ（複数可）の下の全 unit に、登録された全タスクを走らせ、`actual/<task>/<variant>.<ext>` に書く（`expected/` と同じ名前）。
 - 診断を出したタスクは `<variant>.diagnostics.json` も書く。拒否したタスク（`Unsupported`）は成果物を書かず、これだけを残す。
 - `filename`（コンポーネント名と CSS のスコープハッシュに入る）は、どのディレクトリを与えても unit の source ディレクトリ（`fixtures/<family>/<source>`）からの相対パスになる。以前は与えたディレクトリからの相対で、コーパスの unit が `<source>/<path>` という名前でコンパイルされ、ハーネスのせいで不一致に数えられていた。直した結果、js の match が client 1026 → 1140、server 1022 → 1136、css の match が 27 → 154 に増えた（`c4078b13b3`）。
-- `tools/fixtures/bin/run-all.ts` は、全ファミリーのディレクトリに対して 1 回の `rsv fixtures` を走らせる。型検査にはオラクル自身の TypeScript 7 と、オラクルの `svelte` / `vue` パッケージを渡す。
+- `tools/fixtures/bin/run-all.ts` は、全ファミリーのディレクトリに対して 1 回の `rsvelte fixtures` を走らせる。型検査にはオラクル自身の TypeScript 7 と、オラクルの `svelte` / `vue` パッケージを渡す。
 
 ### 比べる（`fixtures compare`）
 
@@ -261,13 +261,13 @@ unit の `fixture.toml` に書く。いまは `[skip]`（task id または `task
 
 ### CI
 
-`.github/workflows/ci.yml` の `fixtures` ジョブが、release ビルドの `rsv` で `run-all.ts`、`fixtures check`、`fixtures adjust`、ツール群の型検査を順に走らせる。push（`main`、`experimental`）とすべての pull request が対象。
+`.github/workflows/ci.yml` の `fixtures` ジョブが、release ビルドの `rsvelte` で `run-all.ts`、`fixtures check`、`fixtures adjust`、ツール群の型検査を順に走らせる。push（`main`、`experimental`）とすべての pull request が対象。
 
 ## 11. 未決事項
 
 | 項目 | 状態 |
 |---|---|
-| `svelte.compileModule` の実装側 | rsvelte にモジュール（`.svelte.js`）の言語が未登録なので、38 unit すべてが両ターゲットで `missing` |
+| `svelte.compileModule` の実装側 | rsvelte のモジュール（`.svelte.js`）用タスクが未実装なので、38 unit すべてが両ターゲットで `missing` |
 | `.svelte.ts` の compile のオラクル | 上流では、Vite が型を剥がしてから `compileModule` に渡す。どのストリッパ（Vite が使う oxc transform か、typescript か）をオラクルにするかが未決。決まるまで compile タスクは当てない |
 | CSS の比較 | 現在はテキストの完全一致。CSS の AST 比較は、CSS パーサを実装するときに決める |
 | 生成コーパス（matrix / mutation） | 実コーパスだけでは相互作用のバグが出ない。旧 `pattern-corpus` はライセンス上の理由で除外したので、生成器を作り直して `fixtures/` に別の source として置く |
