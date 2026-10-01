@@ -1,0 +1,2 @@
+[behaviour]
+props = { title = "tip", class = "outer" }

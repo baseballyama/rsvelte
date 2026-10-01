@@ -11,7 +11,8 @@
 	},
 	"scripts": {
 		"fixtures": "node bin/fixtures.ts",
-		"typecheck": "node node_modules/typescript-7/bin/tsc -p ."
+		"typecheck": "node node_modules/typescript-7/bin/tsc -p .",
+		"test": "node --test test/*.test.ts"
 	},
 	"dependencies": {
 		"@typescript-eslint/parser": "8.71.0",
@@ -22,6 +23,7 @@
 		"eslint": "10.11.0",
 		"eslint-plugin-svelte": "3.23.0",
 		"eslint-plugin-vue": "10.11.1",
+		"jsdom": "30.1.1",
 		"prettier": "3.9.9",
 		"prettier-plugin-svelte": "4.1.1",
 		"smol-toml": "1.9.0",
@@ -34,6 +36,7 @@
 		"vue-tsc": "3.3.11"
 	},
 	"devDependencies": {
+		"@types/jsdom": "30.0.0",
 		"@types/node": "26.6.3",
 		"typescript-7": "npm:typescript@7.0.2"
 	}

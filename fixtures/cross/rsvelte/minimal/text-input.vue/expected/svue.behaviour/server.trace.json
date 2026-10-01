@@ -1,0 +1,14 @@
+{
+	"html": [
+		"<label>",
+		"  \"Name \"",
+		"  <input class=\"name\" value=\"world\" .value=\"world\">",
+		"</label>",
+		"<p class=\"greeting\">",
+		"  \"Hello, world!\"",
+		"</p>",
+		"<p class=\"shout\">",
+		"  \"WORLD (5)\"",
+		"</p>"
+	]
+}

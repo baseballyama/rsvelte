@@ -7,6 +7,7 @@ import { allUnits, applies } from './manifest.ts';
 import { expectedFile, actualFile } from './paths.ts';
 import { parseJs, firstDiff, same } from './canonical.ts';
 import { expectedTree } from './adjust.ts';
+import type { Task, Unit } from './types.ts';
 
 export type Verdict = 'match' | 'mismatch' | 'missing' | 'unexpected' | 'unparseable';
 export interface Row {
@@ -54,12 +55,45 @@ export interface CompareOptions {
 	families?: string[];
 }
 
-export function compare({ taskId, variantId, sourceIds, families }: CompareOptions) {
+/**
+ * A task that observes the implementation's `<variant>.js` (Task.observe): the observation is
+ * written to actual/ beside it for inspection and compared with the expected artifact. A unit
+ * with diagnostics and no `.js` is a refusal, reported as the generic comparison reports one.
+ */
+async function observeRows(task: Task, variantId: string, unit: Unit, key: string): Promise<Row[]> {
+	const observe = task.observe!;
+	const variant = task.variants.find((v) => v.id === variantId)!;
+	const expFile = expectedFile(task, variantId, unit, observe.ext);
+	const jsFile = actualFile(task, variantId, unit, 'js');
+	const diagnostics = fs.existsSync(actualFile(task, variantId, unit, 'diagnostics.json'));
+	const rows: Row[] = diagnostics ? [{ key, ext: 'diagnostics.json', verdict: 'unexpected' }] : [];
+	const hasExp = fs.existsSync(expFile);
+	if (!fs.existsSync(jsFile)) {
+		if (hasExp) rows.push({ key, ext: observe.ext, verdict: 'missing' });
+		return rows;
+	}
+	if (!hasExp) return [...rows, { key, ext: 'js', verdict: 'unexpected' }];
+	try {
+		parseJs(fs.readFileSync(jsFile, 'utf8'));
+	} catch (e) {
+		return [...rows, { key, ext: 'js', verdict: 'unparseable', detail: (e as Error).message }];
+	}
+	const observed = await observe.derive(unit, variant, jsFile);
+	fs.writeFileSync(actualFile(task, variantId, unit, observe.ext), observed.text);
+	const d = observed.diff(fs.readFileSync(expFile, 'utf8'));
+	return [...rows, { key, ext: observe.ext, verdict: d === null ? 'match' : 'mismatch', ...(d !== null && { detail: d }) }];
+}
+
+export async function compare({ taskId, variantId, sourceIds, families }: CompareOptions) {
 	const task = taskById(taskId);
 	const units = allUnits(sourceIds, families).filter((u) => applies(task, variantId, u));
 	const rows: Row[] = [];
 	for (const unit of units) {
 		const key = `${unit.family}/${unit.source}/${unit.path}`;
+		if (task.observe) {
+			rows.push(...(await observeRows(task, variantId, unit, key)));
+			continue;
+		}
 		const expectsError = fs.existsSync(expectedFile(task, variantId, unit, 'error.json'));
 		const exts = expectsError ? ['error.json'] : artifactExts(task, variantId, unit);
 		for (const ext of exts) {
