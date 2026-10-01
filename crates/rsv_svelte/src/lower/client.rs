@@ -17,9 +17,9 @@ use rustc_hash::FxHashMap;
 use super::names::Names;
 use super::script::{ScriptRewrite, lower_instance};
 use super::{
-    CompileInput, Item, Parent, Target, check_binding, check_foreign_element, check_stores,
-    clean_nodes, each_index_names, escape_html, event_attribute, has_dependency, needs_clsx,
-    sanitize_template_string,
+    CompileInput, Item, Parent, Target, check_binding, check_foreign_element, check_runes,
+    check_stores, clean_nodes, each_index_names, escape_html, event_attribute, has_dependency,
+    is_directive, is_load_error_element, needs_clsx, sanitize_template_string,
 };
 use crate::analyze::{Analysis, ExprMeta};
 use crate::hir::{AttrValue, Attribute, ElementKind, Hir, HirId, NodeKind, Part};
@@ -261,6 +261,7 @@ struct Cx<'a> {
 pub fn lower(input: &CompileInput<'_>, res: &Resolution, an: &Analysis) -> R<(Ast, NodeId)> {
     let js = input.js;
     check_stores(js, res, input.src, input.program)?;
+    check_runes(input, res, Target::Client)?;
     let declared = res.sem.bindings.iter().map(|b| js.atoms.get(b.name));
     let referenced = res.sem.references.iter().map(|r| js.name(r.node));
     let mut cx = Cx {
@@ -851,11 +852,25 @@ impl<'a> Cx<'a> {
         let attr_list = hir.attrs(el.attrs);
         // Upstream visits directives into their own lists, which follow the children's.
         let mut directives = self.element_directives(attr_list, &tag, node)?;
+        let has_spread = attr_list
+            .iter()
+            .any(|a| matches!(a.value, AttrValue::Spread(_)));
         // Upstream compares the name as written.
-        if el.name.text(self.src) == "input" {
-            self.remove_input_defaults(attr_list, node, l);
+        let remove_defaults = el.name.text(self.src) == "input"
+            && self.remove_input_defaults(attr_list, has_spread, node, l);
+        if has_spread {
+            self.attribute_effect(id, &tag, attr_list, node, remove_defaults, l);
+        } else {
+            self.element_attributes(id, attr_list, node, frag, l)?;
         }
-        self.element_attributes(id, attr_list, node, frag, l)?;
+        let load_error_events = attr_list.iter().any(|a| {
+            !is_directive(&a.value) && matches!(a.name.text(self.src), "onload" | "onerror")
+        });
+        if is_load_error_element(&tag) && (has_spread || load_error_events) {
+            let x = self.out.id(node);
+            let call = self.call("replay_events", vec![Some(x)]);
+            l.after.push(self.stmt(call));
+        }
 
         let outer_preserve = self.preserve_ws;
         self.preserve_ws |= tag == "pre" || tag == "textarea";
@@ -893,21 +908,133 @@ impl<'a> Cx<'a> {
     }
 
     /// Upstream's `$.remove_input_defaults` condition for an `<input>`; a binding is named by its
-    /// property, so `bind:value` counts as a dynamic `value`.
-    fn remove_input_defaults(&mut self, attrs: &[Attribute], node: &str, l: &mut Lists) {
+    /// property, so `bind:value` counts as a dynamic `value`. With a spread the runtime's
+    /// `attribute_effect` removes them: returns whether it must.
+    fn remove_input_defaults(
+        &mut self,
+        attrs: &[Attribute],
+        has_spread: bool,
+        node: &str,
+        l: &mut Lists,
+    ) -> bool {
         let src = self.src;
         let has_value = attrs.iter().any(|a| {
             matches!(a.name.text(src), "value" | "checked")
-                && !matches!(a.value, AttrValue::Static(_))
+                && !matches!(a.value, AttrValue::Static(_) | AttrValue::Class(_))
         });
-        let has_default_value = attrs
-            .iter()
-            .any(|a| matches!(a.name.text(src), "defaultValue" | "defaultChecked"));
-        if has_value && !has_default_value {
-            let x = self.out.id(node);
-            let call = self.call("remove_input_defaults", vec![Some(x)]);
-            l.init.push(self.stmt(call));
+        let has_default_value = attrs.iter().any(|a| {
+            !is_directive(&a.value) && matches!(a.name.text(src), "defaultValue" | "defaultChecked")
+        });
+        if has_default_value || !(has_spread || has_value) {
+            return false;
         }
+        if has_spread {
+            return true;
+        }
+        let x = self.out.id(node);
+        let call = self.call("remove_input_defaults", vec![Some(x)]);
+        l.init.push(self.stmt(call));
+        false
+    }
+
+    /// Upstream `build_attribute_effect`: every attribute and spread, in order, as one object the
+    /// runtime diffs, with its own memoized values.
+    fn attribute_effect(
+        &mut self,
+        id: HirId,
+        tag: &str,
+        attrs: &[Attribute],
+        node: &str,
+        remove_defaults: bool,
+        l: &mut Lists,
+    ) {
+        let mut memo = Frag::default();
+        let mut values = Vec::with_capacity(attrs.len());
+        let mut class_directives = Vec::new();
+        for a in attrs {
+            match a.value {
+                AttrValue::Bind(_) | AttrValue::Attach(_) => continue,
+                AttrValue::Class(_) => {
+                    class_directives.push(a);
+                    continue;
+                }
+                AttrValue::Spread(e) => {
+                    let meta = self.an.meta(e);
+                    let built = self.expr(e);
+                    let v = self.memoize(&mut memo, built, meta);
+                    values.push(self.out.spread(v, Loc::SYNTHETIC));
+                    continue;
+                }
+                _ => {}
+            }
+            let (value, _) = self.attribute_value(a, &mut memo);
+            let raw_name = a.name.text(self.src);
+            if event_attribute(self.src, a).is_some()
+                && matches!(
+                    self.out.kind(value),
+                    Kind::Arrow { .. } | Kind::Function { .. }
+                )
+            {
+                // A stable handler, so the runtime does not remove and re-add it on every update.
+                let handler = self.names.generate("event_handler");
+                l.init.push(self.var(&handler, value));
+                let x = self.out.id(&handler);
+                values.push(init_property(&mut self.out, raw_name, x));
+            } else {
+                let name = if tag == "select" && normalize_attribute(raw_name) == "defaultValue" {
+                    "defaultValue"
+                } else {
+                    raw_name
+                };
+                values.push(init_property(&mut self.out, name, value));
+            }
+        }
+        if !class_directives.is_empty() {
+            let props: Vec<NodeId> = class_directives
+                .iter()
+                .map(|d| {
+                    let AttrValue::Class(e) = d.value else {
+                        unreachable!("class directives")
+                    };
+                    let meta = self.an.meta(e);
+                    let built = self.expr(e);
+                    let v = self.memoize(&mut memo, built, meta);
+                    init_property(&mut self.out, d.name.text(self.src), v)
+                })
+                .collect();
+            let object = self.out.object(&props, Loc::SYNTHETIC);
+            let ns = self.out.id("$");
+            let key = self.out.dot(ns, "CLASS");
+            values.push(
+                self.out
+                    .property(key, object, flag::COMPUTED, Loc::SYNTHETIC),
+            );
+        }
+        let ids: Vec<NodeId> = (0..memo.memo.len())
+            .map(|i| self.out.id(&format!("${i}")))
+            .collect();
+        let object = self.out.object(&values, Loc::SYNTHETIC);
+        let arrow = self.out.arrow(&ids, object, true, false, Loc::SYNTHETIC);
+        let sync = (!memo.memo.is_empty()).then(|| {
+            let thunks: Vec<NodeId> = std::mem::take(&mut memo.memo)
+                .into_iter()
+                .map(|m| self.out.arrow(&[], m, true, false, Loc::SYNTHETIC))
+                .collect();
+            self.out.array(&thunks, Loc::SYNTHETIC)
+        });
+        let hash = if self.an.scoped[id] {
+            self.an.css_hash.clone()
+        } else {
+            None
+        };
+        let hash = hash.map(|h| self.out.str(&h));
+        let remove = remove_defaults.then(|| self.tru());
+        let x = self.out.id(node);
+        let call = self.call(
+            "attribute_effect",
+            vec![Some(x), Some(arrow), sync, None, None, hash, remove],
+        );
+        l.init.push(self.stmt(call));
     }
 
     /// The attribute loop of upstream `RegularElement` (no spread).
@@ -1202,7 +1329,10 @@ impl<'a> Cx<'a> {
                 let items = self.chunk_items(parts);
                 self.template_chunk(&items, frag)
             }
-            AttrValue::Bind(_) | AttrValue::Attach(_) | AttrValue::Class(_) => {
+            AttrValue::Bind(_)
+            | AttrValue::Attach(_)
+            | AttrValue::Class(_)
+            | AttrValue::Spread(_) => {
                 unreachable!("directives are lowered by `element`")
             }
         }

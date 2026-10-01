@@ -595,6 +595,8 @@ const RUNES: &[&str] = &[
 /// Refuses a `$name` reference that upstream's analysis turns into a store subscription (its
 /// synthetic `store_sub` bindings); this port has no store support.
 ///
+/// Also refuses `$$slots`, which upstream declares from `$.sanitize_slots`.
+///
 /// # Errors
 ///
 /// An `unsupported` [`Diagnostic`] at the first such reference.
@@ -609,6 +611,16 @@ pub fn check_stores(
             continue;
         }
         let name = js.name(r.node);
+        if name == "$$slots" {
+            let Some(span) = js.loc(r.node).span() else {
+                unreachable!("a reference is parsed from source")
+            };
+            return Err(Diagnostic::error(
+                "unsupported",
+                "`$$slots` is not supported yet",
+                span,
+            ));
+        }
         let Some(store) = name.strip_prefix('$') else {
             continue;
         };
@@ -638,6 +650,58 @@ pub fn check_stores(
                 span,
             ));
         }
+    }
+    Ok(())
+}
+
+/// Refuses a rune call this port does not lower, and on the server an `$effect` that is not a
+/// statement of its own (upstream only drops it as an `ExpressionStatement`).
+///
+/// # Errors
+///
+/// An `unsupported` [`Diagnostic`] at the first such call.
+pub fn check_runes(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    target: Target,
+) -> Result<(), Diagnostic> {
+    fn walk(
+        js: &Ast,
+        res: &Resolution,
+        target: Target,
+        e: NodeId,
+        statement: bool,
+    ) -> Result<(), Diagnostic> {
+        if let Some(rune) = get_rune(js, res, e) {
+            let supported = match rune.as_str() {
+                "$state" | "$state.raw" | "$derived" | "$derived.by" | "$props" | "$bindable" => {
+                    true
+                }
+                "$effect" | "$effect.pre" => statement || target == Target::Client,
+                _ => false,
+            };
+            if !supported {
+                let Some(span) = js.loc(e).span() else {
+                    unreachable!("a rune call is parsed from source")
+                };
+                return Err(Diagnostic::error(
+                    "unsupported",
+                    format!("`{rune}` is not supported yet"),
+                    span,
+                ));
+            }
+        }
+        let mut kids = Vec::new();
+        js.for_each_child(e, |c| kids.push(c));
+        let stmt = matches!(js.kind(e), Kind::ExprStmt(_));
+        for c in kids {
+            walk(js, res, target, c, stmt)?;
+        }
+        Ok(())
+    }
+    walk(input.js, res, target, input.program, false)?;
+    for &e in input.template_exprs {
+        walk(input.js, res, target, e, false)?;
     }
     Ok(())
 }
@@ -737,6 +801,24 @@ pub fn needs_clsx(js: &Ast, e: NodeId) -> bool {
             | Kind::Null
             | Kind::Template { .. }
             | Kind::Binary(..)
+    )
+}
+
+/// A directive, a spread or an `{@attach}`: not an attribute with a name of its own.
+#[must_use]
+pub const fn is_directive(v: &AttrValue) -> bool {
+    matches!(
+        v,
+        AttrValue::Bind(_) | AttrValue::Attach(_) | AttrValue::Class(_) | AttrValue::Spread(_)
+    )
+}
+
+/// Upstream `is_load_error_element`.
+#[must_use]
+pub fn is_load_error_element(name: &str) -> bool {
+    matches!(
+        name,
+        "body" | "embed" | "iframe" | "img" | "link" | "object" | "script" | "style" | "track"
     )
 }
 

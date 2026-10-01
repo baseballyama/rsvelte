@@ -87,7 +87,9 @@ impl Projector<'_> {
                     match a.kind {
                         AttrKind::Bind => return Err(Unsupported::at("bind: directives", a.span)),
                         AttrKind::Class => {}
-                        AttrKind::Attribute | AttrKind::Attach => self.attribute(a),
+                        AttrKind::Attribute | AttrKind::Attach | AttrKind::Spread => {
+                            self.attribute(a);
+                        }
                     }
                 }
                 self.e.push("});\n");
@@ -136,6 +138,13 @@ impl Projector<'_> {
             AttrValue::Parts(r) => self.c.parts(r),
         };
         self.e.push(" ");
+        if a.kind == AttrKind::Spread {
+            // svelte2tsx copies what the braces hold: `...expression`.
+            self.e.copy(src, inner(a.span));
+            self.e.mark(a.span.hi - 1);
+            self.e.push(",");
+            return;
+        }
         if a.kind == AttrKind::Attach {
             let [Part::Expr { expr, .. }] = parts else {
                 unreachable!("an attachment is one expression")

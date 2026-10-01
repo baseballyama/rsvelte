@@ -91,7 +91,7 @@ impl TNode {
 pub struct Attr {
     pub kind: AttrKind,
     /// As written: `bind:value` for a binding, `class:active` for a class directive, empty for an
-    /// `{@attach}`.
+    /// `{@attach}` or a spread.
     pub name: Span,
     pub value: AttrValue,
     pub span: Span,
@@ -110,6 +110,8 @@ pub enum AttrKind {
     Attach,
     /// `class:name={expression}`; the value is the one expression.
     Class,
+    /// `{...expression}`; the name is empty and the value is the one expression.
+    Spread,
 }
 
 impl Attr {
@@ -119,7 +121,7 @@ impl Attr {
         let prefix = match self.kind {
             AttrKind::Bind => "bind:".len(),
             AttrKind::Class => "class:".len(),
-            AttrKind::Attribute | AttrKind::Attach => return None,
+            AttrKind::Attribute | AttrKind::Attach | AttrKind::Spread => return None,
         };
         Some(Span::new(self.name.lo + prefix as u32, self.name.hi))
     }

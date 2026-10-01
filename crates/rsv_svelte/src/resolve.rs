@@ -77,7 +77,8 @@ fn template_roots(hir: &Hir, list: Children, out: &mut Vec<HostRoot>) {
                         &(AttrValue::Expression { expr, .. }
                         | AttrValue::Shorthand(expr)
                         | AttrValue::Attach(expr)
-                        | AttrValue::Class(expr)) => {
+                        | AttrValue::Class(expr)
+                        | AttrValue::Spread(expr)) => {
                             out.push(HostRoot::Expr(expr));
                         }
                         AttrValue::Interpolated(parts) => {

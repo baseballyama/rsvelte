@@ -933,11 +933,15 @@ impl<'a> Printer<'a, '_> {
             AttrValue::True => return Ok(self.d().text(name)),
             AttrValue::Parts(r) => r.get(&comp.parts),
         };
-        if a.kind == AttrKind::Attach {
+        if matches!(a.kind, AttrKind::Attach | AttrKind::Spread) {
             let [Part::Expr { expr, .. }] = parts else {
-                unreachable!("an attachment is one expression")
+                unreachable!("an attachment or a spread is one expression")
             };
-            let open = self.lit("{@attach ");
+            let open = self.lit(if a.kind == AttrKind::Attach {
+                "{@attach "
+            } else {
+                "{..."
+            });
             let e = self.expression(*expr, false, false)?;
             let close = self.lit("}");
             return Ok(self.cat(&[open, e, close]));

@@ -204,6 +204,8 @@ struct MetaWalker<'a> {
 
 impl MetaWalker<'_> {
     fn visit(&mut self, id: NodeId) {
+        // Upstream `NewExpression`.
+        self.needs_context |= matches!(self.ast.kind(id), Kind::New { .. });
         match self.ast.kind(id) {
             Kind::Ident(_) => {
                 let declares = self
@@ -387,9 +389,13 @@ fn mark_dynamic(input: &CompileInput<'_>, list: &[HirId], out: &mut IndexVec<Hir
                             None,
                             true,
                         ),
-                        // A binding's expression is a reference by construction; an attachment
-                        // and a class directive mark the subtree dynamic whatever they read.
-                        AttrValue::Bind(_) | AttrValue::Attach(_) | AttrValue::Class(_) => {
+                        // A binding's expression is a reference by construction; an attachment,
+                        // a class directive and a spread mark the subtree dynamic whatever they
+                        // read.
+                        AttrValue::Bind(_)
+                        | AttrValue::Attach(_)
+                        | AttrValue::Class(_)
+                        | AttrValue::Spread(_) => {
                             any = true;
                             continue;
                         }
@@ -436,8 +442,11 @@ impl El<'_> {
 
     fn attr_state(&self, name: &str, check: impl Fn(&str) -> bool) -> Match {
         for a in self.hir.attrs(self.element().attrs) {
-            if let AttrValue::Attach(_) | AttrValue::Class(_) = a.value {
-                continue;
+            match a.value {
+                AttrValue::Attach(_) | AttrValue::Class(_) => continue,
+                // Upstream `attribute_matches`: a spread may set any attribute.
+                AttrValue::Spread(_) => return Match::Maybe,
+                _ => {}
             }
             // Upstream compares a binding's name case-sensitively and stops at it.
             if let AttrValue::Bind(_) = a.value {
@@ -456,9 +465,10 @@ impl El<'_> {
                 AttrValue::Expression { .. }
                 | AttrValue::Shorthand(_)
                 | AttrValue::Interpolated(_) => Match::Maybe,
-                AttrValue::Bind(_) | AttrValue::Attach(_) | AttrValue::Class(_) => {
-                    unreachable!("directives are matched above")
-                }
+                AttrValue::Bind(_)
+                | AttrValue::Attach(_)
+                | AttrValue::Class(_)
+                | AttrValue::Spread(_) => unreachable!("directives are matched above"),
             };
         }
         Match::No

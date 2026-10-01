@@ -238,6 +238,7 @@ fn lowered(w: &mut JsonWriter, c: &Component, h: &Hir, src: &str, list: Children
                     AttrValue::Bind(_) => w.str("Bind"),
                     AttrValue::Attach(_) => w.str("Attach"),
                     AttrValue::Class(_) => w.str("Class"),
+                    AttrValue::Spread(_) => w.str("Spread"),
                 };
                 w.end_object();
             }

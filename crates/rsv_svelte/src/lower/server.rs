@@ -6,23 +6,25 @@ use rsv_html::decode_text;
 use rsv_js::ast::flag;
 use rsv_js::copy::copy;
 use rsv_js::ops::{BinOp, UpdateOp};
+use rsv_js::scope::ScopeId;
 use rsv_js::{Ast, Kind, NodeId};
 use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::source::Loc;
 use rustc_hash::FxHashMap;
 
-use super::client::runtime_call;
+use super::client::{init_property, runtime_call};
 use super::names::Names;
 use super::script::{ScriptRewrite, lower_instance};
 use super::{
-    CompileInput, Item, Parent, Target, check_binding, check_foreign_element, check_stores,
-    clean_nodes, each_index_names, escape_html, event_attribute, is_boolean_attribute, needs_clsx,
+    CompileInput, Item, Parent, Target, check_binding, check_foreign_element, check_runes,
+    check_stores, clean_nodes, each_index_names, escape_html, event_attribute,
+    is_boolean_attribute, is_directive, is_load_error_element, needs_clsx,
     sanitize_template_string,
 };
 use crate::analyze::Analysis;
 use crate::hir::{AttrValue, Attribute, ElementKind, Hir, HirId, NodeKind, Part};
 use crate::parse::is_void;
-use crate::resolve::Resolution;
+use crate::resolve::{BindKind, Resolution};
 
 type R<T> = Result<T, Diagnostic>;
 
@@ -30,6 +32,7 @@ const BLOCK_OPEN: &str = "<!--[-->";
 const BLOCK_OPEN_ELSE: &str = "<!--[!-->";
 const BLOCK_CLOSE: &str = "<!--]-->";
 const EMPTY_COMMENT: &str = "<!---->";
+const ELEMENT_IS_INPUT: u32 = 1 << 2;
 
 /// One piece of a server template before it is folded into `$$renderer.push(…)` calls.
 enum Piece {
@@ -61,6 +64,7 @@ struct Sx<'a> {
 pub fn lower(input: &CompileInput<'_>, res: &Resolution, an: &Analysis) -> R<(Ast, NodeId)> {
     let js = input.js;
     check_stores(js, res, input.src, input.program)?;
+    check_runes(input, res, Target::Server)?;
     let declared = res.sem.bindings.iter().map(|b| js.atoms.get(b.name));
     let referenced = res.sem.references.iter().map(|r| js.name(r.node));
     let mut names = Names::new(declared, referenced);
@@ -96,6 +100,34 @@ pub fn lower(input: &CompileInput<'_>, res: &Resolution, an: &Analysis) -> R<(As
     let o = &mut sx.out;
     let mut body: Vec<NodeId> = instance;
     body.extend(template);
+    // Upstream: in runes mode this only throws when `undefined` is passed to a bound prop that
+    // has a default.
+    let mut bound = Vec::new();
+    for (b, binding) in res.sem.bindings.iter_enumerated() {
+        let info = &res.bindings[b];
+        let name = js.atoms.get(binding.name);
+        if binding.scope != ScopeId::ROOT
+            || info.kind != BindKind::BindableProp
+            || name.starts_with("$$")
+        {
+            continue;
+        }
+        let key = info.prop_key.map_or_else(
+            || name.to_owned(),
+            |k| match js.kind(k) {
+                Kind::Ident(_) => js.name(k).to_owned(),
+                _ => js.str_value(k, input.src).to_owned(),
+            },
+        );
+        let value = o.id(name);
+        bound.push(init_property(o, &key, value));
+    }
+    if !bound.is_empty() {
+        let props = o.id("$$props");
+        let object = o.object(&bound, Loc::SYNTHETIC);
+        let call = o.runtime("$", "bind_props", &[props, object]);
+        body.push(o.expr_stmt(call));
+    }
     if an.needs_context {
         let block = o.block(&body, Loc::SYNTHETIC);
         let param = o.id("$$renderer");
@@ -312,11 +344,23 @@ impl Sx<'_> {
         list: &[Attribute],
         template: &mut Vec<Piece>,
     ) -> R<()> {
+        let src = self.src;
+        // A `defaultValue` on an `<input>` deopts to the spread path, which orders it at runtime.
+        let has_spread = list.iter().any(|a| {
+            matches!(a.value, AttrValue::Spread(_))
+                || (tag == "input"
+                    && !is_directive(&a.value)
+                    && matches!(a.name.text(src), "defaultValue" | "defaultChecked"))
+        });
+        if has_spread {
+            return self.spread_attributes(id, tag, list, template);
+        }
         let hash = if self.an.scoped[id] {
             self.an.css_hash.clone()
         } else {
             None
         };
+        let mut events = Vec::new();
         let class_directives: Vec<&Attribute> = list
             .iter()
             .filter(|a| matches!(a.value, AttrValue::Class(_)))
@@ -337,7 +381,12 @@ impl Sx<'_> {
                     continue;
                 }
                 AttrValue::Attach(_) | AttrValue::Class(_) => continue,
-                _ if event_attribute(self.src, a).is_some() => continue,
+                AttrValue::Spread(_) => unreachable!("spreads take the spread path"),
+                _ if event_attribute(self.src, a).is_some() => {
+                    capture_event(&mut events, tag, raw_name);
+                    continue;
+                }
+                _ if matches!(raw_name, "defaultValue" | "defaultChecked") => continue,
                 _ => {}
             }
             let name = raw_name.to_ascii_lowercase();
@@ -361,7 +410,7 @@ impl Sx<'_> {
                     a.span,
                 ));
             }
-            let value = self.attribute_value(a, trim, name == "class");
+            let value = self.attribute_value(a, trim, raw_name == "class");
             if can_use_literal && matches!(self.out.kind(value), Kind::Str) {
                 let mut v = self.out.str_value(value, self.src).to_owned();
                 if name == "class"
@@ -395,6 +444,90 @@ impl Sx<'_> {
         } else if !has_class && self.an.scoped[id] {
             Self::literal_attribute(template, "class", Some(String::new()), hash.as_deref());
         }
+        push_captured_events(template, &events);
+        Ok(())
+    }
+
+    /// Upstream `build_element_attributes`' spread path: `build_element_spread_attributes` and
+    /// `prepare_element_spread`.
+    fn spread_attributes(
+        &mut self,
+        id: HirId,
+        tag: &str,
+        list: &[Attribute],
+        template: &mut Vec<Piece>,
+    ) -> R<()> {
+        let mut events = Vec::new();
+        let mut props = Vec::with_capacity(list.len());
+        let mut class_directives = Vec::new();
+        for a in list {
+            let raw_name = a.name.text(self.src);
+            match a.value {
+                AttrValue::Bind(_) => {
+                    let e = check_binding(self.js, self.res, self.src, tag, list, a)?;
+                    let value = self.expr(e);
+                    let name = raw_name.to_ascii_lowercase();
+                    props.push(init_property(&mut self.out, &name, value));
+                    continue;
+                }
+                AttrValue::Attach(_) => continue,
+                AttrValue::Class(e) => {
+                    class_directives.push((raw_name, e));
+                    continue;
+                }
+                AttrValue::Spread(e) => {
+                    let v = self.expr(e);
+                    props.push(self.out.spread(v, Loc::SYNTHETIC));
+                    if is_load_error_element(tag) {
+                        capture_event(&mut events, tag, "onload");
+                        capture_event(&mut events, tag, "onerror");
+                    }
+                    continue;
+                }
+                _ if raw_name == "value" && tag == "select" => continue,
+                _ if event_attribute(self.src, a).is_some() => {
+                    capture_event(&mut events, tag, raw_name);
+                    continue;
+                }
+                _ if tag != "input" && matches!(raw_name, "defaultValue" | "defaultChecked") => {
+                    continue;
+                }
+                _ => {}
+            }
+            let mut name = raw_name.to_ascii_lowercase();
+            if tag == "select" && name == "defaultvalue" {
+                "defaultValue".clone_into(&mut name);
+            }
+            let trim = matches!(name.as_str(), "class" | "style");
+            let value = self.attribute_value(a, trim, raw_name == "class");
+            props.push(init_property(&mut self.out, &name, value));
+        }
+        let object = self.out.object(&props, Loc::SYNTHETIC);
+        let classes = (!class_directives.is_empty()).then(|| {
+            let props: Vec<NodeId> = class_directives
+                .iter()
+                .map(|&(name, e)| {
+                    let v = self.expr(e);
+                    init_property(&mut self.out, name, v)
+                })
+                .collect();
+            self.out.object(&props, Loc::SYNTHETIC)
+        });
+        let hash = if self.an.scoped[id] {
+            self.an.css_hash.clone()
+        } else {
+            None
+        };
+        let hash = hash.map(|h| self.out.str(&h));
+        let flags =
+            (tag == "input").then(|| self.out.num(f64::from(ELEMENT_IS_INPUT), Loc::SYNTHETIC));
+        let call = runtime_call(
+            &mut self.out,
+            "attributes",
+            vec![Some(object), hash, classes, None, flags],
+        );
+        template.push(Piece::Expr(call));
+        push_captured_events(template, &events);
         Ok(())
     }
 
@@ -484,7 +617,10 @@ impl Sx<'_> {
             AttrValue::Static(v) => {
                 return self.out.str(&escape_html(&attr_text(v, trim), true));
             }
-            AttrValue::Bind(_) | AttrValue::Attach(_) | AttrValue::Class(_) => {
+            AttrValue::Bind(_)
+            | AttrValue::Attach(_)
+            | AttrValue::Class(_)
+            | AttrValue::Spread(_) => {
                 unreachable!("directives are handled by the caller")
             }
         };
@@ -702,6 +838,21 @@ impl Sx<'_> {
             body.insert(0, self.out.expr_stmt(call));
         }
         self.out.block(&body, Loc::SYNTHETIC)
+    }
+}
+
+/// Upstream's `events_to_capture`: a load or error event on an element that emits them is
+/// replayed after hydration, so the server marks it.
+fn capture_event<'a>(events: &mut Vec<&'a str>, tag: &str, name: &'a str) {
+    if matches!(name, "onload" | "onerror") && is_load_error_element(tag) && !events.contains(&name)
+    {
+        events.push(name);
+    }
+}
+
+fn push_captured_events(template: &mut Vec<Piece>, events: &[&str]) {
+    for e in events {
+        template.push(Piece::Text(format!(" {e}=\"this.__e=event\"")));
     }
 }
 

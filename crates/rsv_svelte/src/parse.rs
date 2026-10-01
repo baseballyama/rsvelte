@@ -1,5 +1,6 @@
 //! The template parser: markup, `{expression}` tags, `{#if}` and `{#each}` blocks, `bind:` and
-//! `class:` directives, `{@attach}` tags, one instance `<script>` and one `<style>`.
+//! `class:` directives, spread attributes, `{@attach}` tags, one instance `<script>` and one
+//! `<style>`.
 //!
 //! Expressions are parsed by `rsv_js` in place, and the parser, not a brace scan,
 //! decides where each one ends.
@@ -467,7 +468,9 @@ impl<'a> P<'a> {
                         continue;
                     }
                     if self.rest()[1..].trim_start().starts_with("...") {
-                        return self.err("spread attributes are not supported yet");
+                        let a = self.spread_attribute(lo)?;
+                        self.c.attrs.push(a);
+                        continue;
                     }
                     let expr = self.expression_tag()?;
                     let span = Span::new(lo as u32, self.pos as u32);
@@ -587,6 +590,27 @@ impl<'a> P<'a> {
             value: AttrValue::Parts(parts),
             span: Span::new(lo as u32, self.pos as u32),
             quoted,
+            shorthand: false,
+        })
+    }
+
+    /// `{...expression}` from its `{`: upstream `read_attribute`.
+    fn spread_attribute(&mut self, lo: usize) -> R<Attr> {
+        self.eat_tok(Tk::MustacheOpen, 1);
+        self.skip_ws();
+        self.eat_tok(Tk::Js(T::Ellipsis), 3);
+        self.skip_ws();
+        let expr = self.expression()?;
+        self.close_mustache()?;
+        let span = Span::new(lo as u32, self.pos as u32);
+        let parts = self.c.parts.len();
+        self.c.parts.push(Part::Expr { expr, span });
+        Ok(Attr {
+            kind: AttrKind::Spread,
+            name: Span::new(lo as u32, lo as u32),
+            value: AttrValue::Parts(self.parts_since(parts)),
+            span,
+            quoted: false,
             shorthand: false,
         })
     }

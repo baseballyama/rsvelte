@@ -6,8 +6,9 @@
 //!
 //! - an `{#if}…{:else if}…{:else}` chain is one node with its branches, not nested `If`s;
 //! - a `bind:` directive is an attribute named by its property, with an [`AttrValue::Bind`], and a
-//!   `class:` directive one named by its class, with an [`AttrValue::Class`]; an `{@attach}` tag is
-//!   an attribute with an empty name and an [`AttrValue::Attach`];
+//!   `class:` directive one named by its class, with an [`AttrValue::Class`]; an `{@attach}` tag
+//!   and a spread are attributes with an empty name and an [`AttrValue::Attach`] or
+//!   [`AttrValue::Spread`];
 //! - every element knows its kind (regular, component, `<title>` in `<svelte:head>`, `<slot>`,
 //!   `svelte:` meta tag), decided the way the Svelte parser decides it;
 //! - an attribute value is classified (boolean, static text with character references decoded, one
@@ -253,6 +254,8 @@ pub enum AttrValue {
     Attach(NodeId),
     /// `class:name={e}`: the attribute's name is the class.
     Class(NodeId),
+    /// `{...e}`: the attribute's name is empty.
+    Spread(NodeId),
 }
 
 impl Hir {
@@ -608,6 +611,7 @@ fn attr_value(c: &Component, src: &str, a: &ast::Attr) -> AttrValue {
         [Part::Expr { expr, .. }] if a.kind == ast::AttrKind::Bind => AttrValue::Bind(*expr),
         [Part::Expr { expr, .. }] if a.kind == ast::AttrKind::Attach => AttrValue::Attach(*expr),
         [Part::Expr { expr, .. }] if a.kind == ast::AttrKind::Class => AttrValue::Class(*expr),
+        [Part::Expr { expr, .. }] if a.kind == ast::AttrKind::Spread => AttrValue::Spread(*expr),
         [Part::Expr { expr, .. }] if a.shorthand => AttrValue::Shorthand(*expr),
         [Part::Expr { expr, .. }] => AttrValue::Expression {
             expr: *expr,
@@ -744,6 +748,7 @@ mod tests {
                 AttrValue::Bind(_) => "bind".into(),
                 AttrValue::Attach(_) => "attach".into(),
                 AttrValue::Class(_) => "class".into(),
+                AttrValue::Spread(_) => "spread".into(),
             })
             .collect();
         assert_eq!(
