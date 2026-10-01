@@ -18,7 +18,6 @@ use std::num::NonZeroU32;
 use crate::pool;
 
 mod width;
-mod width_tables;
 
 pub use width::string_width;
 

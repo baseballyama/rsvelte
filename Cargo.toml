@@ -20,6 +20,7 @@ rayon = "1.12"
 rustc-hash = "2.1"
 libc = "0.2"
 unicode-id-start = "1.4"
+unicode-width = "0.2"
 
 # Everything below is `deny`: a lint that only warns is one nobody reads. A lint is left out only
 # with a reason written here; a local exception is `#[expect(lint, reason = "...")]`, never `allow`.

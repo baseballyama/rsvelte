@@ -229,10 +229,8 @@ type Cmd = [ind: number, mode: Mode, item: Item];
 const doc = (id: DocId): Item => ({ k: 'doc', id });
 
 /**
- * An approximation of Prettier's `getStringWidth` for the browser: wide East Asian ranges count 2,
- * combining marks and U+200B..U+200F count 0. The Rust port's widths are tables generated from
- * Prettier itself (`doc/width_tables.rs`); they differ from this one on emoji sequences, variation
- * selectors and control characters.
+ * A compact browser approximation of display columns. The Rust implementation uses
+ * `unicode-width`, so complex sequences can differ from this teaching implementation.
  */
 export function stringWidth(s: string): number {
 	let w = 0;

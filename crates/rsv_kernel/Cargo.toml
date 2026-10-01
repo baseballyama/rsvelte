@@ -13,6 +13,7 @@ metrics = []
 [dependencies]
 rayon.workspace = true
 rustc-hash.workspace = true
+unicode-width.workspace = true
 
 [lints]
 workspace = true
