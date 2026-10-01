@@ -527,6 +527,29 @@ mod tests {
     }
 
     #[test]
+    fn a_function_ref_patches_and_marks_v_for() {
+        let js = output(
+            "import { ref } from 'vue'\nconst n = ref(0)",
+            "<p :ref=\"(el) => (n = el)\">{{ n }}</p>\
+             <ul><li v-for=\"i in 3\" :key=\"i\" :ref=\"(el) => n = el\">{{ i }}</li></ul>",
+        );
+        assert!(
+            js.contains(
+                "_createElementVNode('p', { ref: (el) => n.value = el }, \
+                 _toDisplayString(n.value), 513)"
+            ),
+            "{js}"
+        );
+        assert!(
+            js.contains(
+                "_createElementVNode('li', { key: i, ref_for: true, ref: (el) => n.value = el }, \
+                 _toDisplayString(i), 1)"
+            ),
+            "{js}"
+        );
+    }
+
+    #[test]
     fn pre_compiles_with_its_text_as_the_hir_holds_it() {
         let js = output("const s = 'a'", "<pre>  {{ s }}\n x</pre>");
         assert!(
