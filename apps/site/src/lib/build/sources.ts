@@ -12,6 +12,7 @@ export const CRATES: Record<string, string> = {
 	rsv_cli: 'cli',
 	rsv_vue: 'vue',
 	rsv_svue: 'svue',
+	rsv_vuelte: 'vuelte',
 	rsv_html: 'html'
 };
 
@@ -42,6 +43,8 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 		'rsv_vue/src/lint.rs',
 		'rsv_svue/src/lib.rs',
 		'rsv_svue/src/template.rs',
+		'rsv_vuelte/src/lib.rs',
+		'rsv_vuelte/src/template.rs',
 		'rsv_html/src/button_type.rs',
 		'rsv_cli/src/bench.rs',
 		'rsv_cli/src/perf.rs'
