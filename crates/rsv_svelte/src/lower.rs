@@ -11,6 +11,7 @@ pub mod server;
 
 use std::borrow::Cow;
 
+use rsv_js::scope::{DeclKind, ScopeId};
 use rsv_js::{Ast, Kind, NodeId};
 use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::source::Span;
@@ -426,6 +427,270 @@ pub fn check_binding(
         );
     }
     Ok(e)
+}
+
+const SVG_ELEMENTS: &[&str] = &[
+    "altGlyph",
+    "altGlyphDef",
+    "altGlyphItem",
+    "animate",
+    "animateColor",
+    "animateMotion",
+    "animateTransform",
+    "circle",
+    "clipPath",
+    "color-profile",
+    "cursor",
+    "defs",
+    "desc",
+    "discard",
+    "ellipse",
+    "feBlend",
+    "feColorMatrix",
+    "feComponentTransfer",
+    "feComposite",
+    "feConvolveMatrix",
+    "feDiffuseLighting",
+    "feDisplacementMap",
+    "feDistantLight",
+    "feDropShadow",
+    "feFlood",
+    "feFuncA",
+    "feFuncB",
+    "feFuncG",
+    "feFuncR",
+    "feGaussianBlur",
+    "feImage",
+    "feMerge",
+    "feMergeNode",
+    "feMorphology",
+    "feOffset",
+    "fePointLight",
+    "feSpecularLighting",
+    "feSpotLight",
+    "feTile",
+    "feTurbulence",
+    "filter",
+    "font",
+    "font-face",
+    "font-face-format",
+    "font-face-name",
+    "font-face-src",
+    "font-face-uri",
+    "foreignObject",
+    "g",
+    "glyph",
+    "glyphRef",
+    "hatch",
+    "hatchpath",
+    "hkern",
+    "image",
+    "line",
+    "linearGradient",
+    "marker",
+    "mask",
+    "mesh",
+    "meshgradient",
+    "meshpatch",
+    "meshrow",
+    "metadata",
+    "missing-glyph",
+    "mpath",
+    "path",
+    "pattern",
+    "polygon",
+    "polyline",
+    "radialGradient",
+    "rect",
+    "set",
+    "solidcolor",
+    "stop",
+    "svg",
+    "switch",
+    "symbol",
+    "text",
+    "textPath",
+    "tref",
+    "tspan",
+    "unknown",
+    "use",
+    "view",
+    "vkern",
+];
+
+const MATHML_ELEMENTS: &[&str] = &[
+    "annotation",
+    "annotation-xml",
+    "maction",
+    "math",
+    "merror",
+    "mfrac",
+    "mi",
+    "mmultiscripts",
+    "mn",
+    "mo",
+    "mover",
+    "mpadded",
+    "mphantom",
+    "mprescripts",
+    "mroot",
+    "mrow",
+    "ms",
+    "mspace",
+    "msqrt",
+    "mstyle",
+    "msub",
+    "msubsup",
+    "msup",
+    "mtable",
+    "mtd",
+    "mtext",
+    "mtr",
+    "munder",
+    "munderover",
+    "semantics",
+];
+
+/// Refuses an element upstream's `is_svg` or `is_mathml` names (case-sensitively).
+///
+/// With `<svg>` and `<math>` refused, such an element would need upstream's namespace inference,
+/// which this port does not do.
+///
+/// # Errors
+///
+/// An `unsupported` [`Diagnostic`] at the element's name.
+pub fn check_foreign_element(src: &str, name: Span) -> Result<(), Diagnostic> {
+    let text = name.text(src);
+    if SVG_ELEMENTS.contains(&text) || MATHML_ELEMENTS.contains(&text) {
+        return Err(Diagnostic::error(
+            "unsupported",
+            format!("`<{text}>` outside `<svg>` or `<math>` is not supported yet"),
+            name,
+        ));
+    }
+    Ok(())
+}
+
+const RUNES: &[&str] = &[
+    "$state",
+    "$state.raw",
+    "$derived",
+    "$derived.by",
+    "$state.eager",
+    "$state.snapshot",
+    "$props",
+    "$props.id",
+    "$bindable",
+    "$effect",
+    "$effect.pre",
+    "$effect.tracking",
+    "$effect.root",
+    "$effect.pending",
+    "$inspect",
+    "$inspect().with",
+    "$inspect.trace",
+    "$host",
+];
+
+/// Refuses a `$name` reference that upstream's analysis turns into a store subscription (its
+/// synthetic `store_sub` bindings); this port has no store support.
+///
+/// # Errors
+///
+/// An `unsupported` [`Diagnostic`] at the first such reference.
+pub fn check_stores(
+    js: &Ast,
+    res: &Resolution,
+    src: &str,
+    program: NodeId,
+) -> Result<(), Diagnostic> {
+    for r in &res.sem.references {
+        if r.binding.is_some() {
+            continue;
+        }
+        let name = js.name(r.node);
+        let Some(store) = name.strip_prefix('$') else {
+            continue;
+        };
+        if store.is_empty() || store.starts_with('$') {
+            continue;
+        }
+        let declaration = res
+            .sem
+            .bindings
+            .iter()
+            .find(|b| b.scope == ScopeId::ROOT && js.atoms.get(b.name) == store);
+        let store_sub = !RUNES.contains(&name)
+            || declaration.is_some_and(|b| {
+                let rune = b.init(js).and_then(|init| get_rune(js, res, init));
+                (rune.is_none() || (store != "props" && rune.as_deref() == Some("$props")))
+                    && !(name == "$derived"
+                        && b.kind == DeclKind::Import
+                        && import_source(js, src, program, b.decl) == Some("svelte/store"))
+            });
+        if store_sub {
+            let Some(span) = js.loc(r.node).span() else {
+                unreachable!("a reference is parsed from source")
+            };
+            return Err(Diagnostic::error(
+                "unsupported",
+                format!("the store subscription `{name}` is not supported yet"),
+                span,
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Upstream `get_rune`: the rune a call's callee names through unbound globals.
+fn get_rune(js: &Ast, res: &Resolution, e: NodeId) -> Option<String> {
+    let Kind::Call { callee, .. } = js.kind(e) else {
+        return None;
+    };
+    let keypath = global_keypath(js, res, callee)?;
+    RUNES.contains(&keypath.as_str()).then_some(keypath)
+}
+
+/// Upstream `get_global_keypath`.
+fn global_keypath(js: &Ast, res: &Resolution, e: NodeId) -> Option<String> {
+    match js.kind(e) {
+        Kind::Ident(_) => res
+            .sem
+            .binding_of(e)
+            .is_none()
+            .then(|| js.name(e).to_owned()),
+        Kind::Member {
+            object,
+            property,
+            computed: false,
+            ..
+        } => Some(format!(
+            "{}.{}",
+            global_keypath(js, res, object)?,
+            js.name(property)
+        )),
+        Kind::Call { callee, .. } => Some(format!("{}()", global_keypath(js, res, callee)?)),
+        _ => None,
+    }
+}
+
+/// The module an import specifier of the instance script imports from.
+fn import_source<'a>(
+    js: &'a Ast,
+    src: &'a str,
+    program: NodeId,
+    spec: Option<NodeId>,
+) -> Option<&'a str> {
+    let spec = spec?;
+    let Kind::Program(body) = js.kind(program) else {
+        return None;
+    };
+    body.iter().find_map(|&stmt| match js.kind(stmt) {
+        Kind::Import {
+            specifiers, source, ..
+        } if specifiers.contains(&spec) => Some(js.str_value(source, src)),
+        _ => None,
+    })
 }
 
 /// Upstream `binding_properties` that this port lowers, by element.

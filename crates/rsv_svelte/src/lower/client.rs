@@ -17,8 +17,9 @@ use rustc_hash::FxHashMap;
 use super::names::Names;
 use super::script::{ScriptRewrite, lower_instance};
 use super::{
-    CompileInput, Item, Parent, Target, check_binding, clean_nodes, each_index_names, escape_html,
-    event_attribute, has_dependency, sanitize_template_string,
+    CompileInput, Item, Parent, Target, check_binding, check_foreign_element, check_stores,
+    clean_nodes, each_index_names, escape_html, event_attribute, has_dependency,
+    sanitize_template_string,
 };
 use crate::analyze::{Analysis, ExprMeta};
 use crate::hir::{AttrValue, Attribute, ElementKind, Hir, HirId, NodeKind, Part};
@@ -259,6 +260,7 @@ struct Cx<'a> {
 /// handle yet.
 pub fn lower(input: &CompileInput<'_>, res: &Resolution, an: &Analysis) -> R<(Ast, NodeId)> {
     let js = input.js;
+    check_stores(js, res, input.src, input.program)?;
     let declared = res.sem.bindings.iter().map(|b| js.atoms.get(b.name));
     let referenced = res.sem.references.iter().map(|r| js.name(r.node));
     let mut cx = Cx {
@@ -846,6 +848,7 @@ impl<'a> Cx<'a> {
         {
             return unsupported(&format!("`<{tag}>`"), el.name);
         }
+        check_foreign_element(self.src, el.name)?;
         frag.tpl.push_element(&tag);
         if tag == "noscript" {
             frag.tpl.pop_element();
