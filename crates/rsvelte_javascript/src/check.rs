@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use rsvelte_kernel::computation::database::{DocumentContext, Facet};
-use rsvelte_kernel::computation::pipeline::{Document, Part, ProjectTask, TaskOutput};
+use rsvelte_kernel::computation::pipeline::{Document, FinishTask, Part, TaskOutput};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
@@ -146,7 +146,7 @@ struct Prepared {
     source_text: String,
 }
 
-impl ProjectTask for Check {
+impl FinishTask for Check {
     fn identifier(&self) -> &'static str {
         self.identifier
     }

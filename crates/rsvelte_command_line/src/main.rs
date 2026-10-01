@@ -101,7 +101,7 @@ fn main() -> ExitCode {
     };
     let mut reg = registry(&svelte, &vue);
     // Owned by no plugin: one tsc over every language that provides a TypeScript view.
-    reg.project_task(rsvelte_javascript::check::Check {
+    reg.finish_task(rsvelte_javascript::check::Check {
         identifier: "ts.check/default",
         matches: |document| rsvelte_svelte::matches(document) || rsvelte_vue::matches(document),
         tsc: polyglot,

@@ -23,7 +23,7 @@ rsvelte_command_line ──► rsvelte_svue ──► rsvelte_svelte ─┐
 | `Artifact` / `DocumentContext` | 文書ごとに一度だけ計算される派生物（パース、名前解決、HIR、解析）。タスクはパーサを直接呼ばず成果物を要求する | `computation/database.rs` |
 | `Facet` | A question plugins can answer. Each provider registers an ID, a document predicate and a computation. `context.facet::<F>()` caches the matching provider's answer. No match returns `None`; overlapping providers for the same facet are a registration conflict and panic when queried | `computation/database.rs` |
 | `Task` | 文書 1 つで完結する処理（compile、format、lint） | `computation/pipeline.rs` |
-| `ProjectTask` | 他の文書に依存する処理（型検査）。文書ごとの `prepare` は並列パスで同じ `DocumentContext` を使って走り、`finish` は最後に一度 | `computation/pipeline.rs` |
+| `FinishTask` | 他の文書に依存する処理（型検査）。文書ごとの `prepare` は並列パスで同じ `DocumentContext` を使って走り、`finish` は最後に一度 | `computation/pipeline.rs` |
 | `run_each` / `run` | `run_each` は結果が確定した文書から順に sink に渡す。`run` は rayon の `collect` で文書の順に集める（ロックを使わない） | `computation/pipeline.rs` |
 | `idx` | 型付き ID（`newtype_index!`。中身は `NonZeroU32` なので `Option<Identifier>` も 4 バイト）と、ID で引く side table `IndexVector` | `source/index.rs` |
 | `token` | 表層のトークン表 `Tokens<K>`。空白とコメントを含めて並べるとソースに一致することを、言語を知らずに確かめる | `source/tokens.rs` |
@@ -78,13 +78,13 @@ Svelte と Vue の両方が使う。
 
 `Registry::document` creates a document from its path and text without consulting plugins.
 Unknown extensions and extensionless paths are valid. The kernel has no language registry or
-language ID on a document. Each `Task::applies`, `ProjectTask::applies` and facet provider decides
+language ID on a document. Each `Task::applies`, `FinishTask::applies` and facet provider decides
 which documents it handles, using the path or content. Several tasks can handle the same
 document. Task IDs are names only; the kernel does not interpret their prefixes. A document
 with no matching task has an empty result. The fixture loader keeps such documents too.
 
-1. **文書パス**（rayon、文書単位で並列）: 文書ごとに `DocumentContext` を 1 つ作り、選ばれたタスクを連続して走らせる。成果物とファセットは最初に要求したタスクが計算し、以降は使い回す。`ProjectTask` の `prepare` もここで走る。
-2. **プロジェクトパス**: `ProjectTask::finish` を全 part に対して一度。型検査はここで `tsc` を 1 プロセスだけ起動する。
+1. **文書パス**（rayon、文書単位で並列）: 文書ごとに `DocumentContext` を 1 つ作り、選ばれたタスクを連続して走らせる。成果物とファセットは最初に要求したタスクが計算し、以降は使い回す。`FinishTask` の `prepare` もここで走る。
+2. **プロジェクトパス**: `FinishTask::finish` を全 part に対して一度。型検査はここで `tsc` を 1 プロセスだけ起動する。
 3. **sink**: 文書の結果は確定した時点で sink に渡り、sink が戻ったら解放される。プロジェクトパスを待つ文書だけが保持される。
 
 In the current per-file pipeline, document tasks run before project tasks' `prepare`.
@@ -251,7 +251,7 @@ svelte2tsx は、値のある属性では `=` をその場で `:` に書き換�
 
 ### 5.4 型検査
 
-コストは `tsc` の起動と検査で決まる（`12c3db7a70` の手書き 12 ユニットで、全体 51.7 ms のうち `ts.tsc` が 42.7 ms、射影は 0.02 ms）。そのため文書ごとではなく、1 プロセスにまとめる `ProjectTask` の形になっている。`ts.check` は、Svelte と Vue が混ざったプロジェクトもこの 1 プロセスで検査する。
+コストは `tsc` の起動と検査で決まる（`12c3db7a70` の手書き 12 ユニットで、全体 51.7 ms のうち `ts.tsc` が 42.7 ms、射影は 0.02 ms）。そのため文書ごとではなく、1 プロセスにまとめる `FinishTask` の形になっている。`ts.check` は、Svelte と Vue が混ざったプロジェクトもこの 1 プロセスで検査する。
 
 ## 6. CI
 

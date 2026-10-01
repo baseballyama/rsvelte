@@ -18,8 +18,8 @@
 		{ functionName: 'run_document', label: '文書ごとの保存領域を用意する', what: '最初のタスクを実行するときに DocumentContext を作る。元の文書を参照し、計算結果を保存する場所を用意する。この時点では構文解析はしない。', href: '/learn/kernel/pipeline#run-document' },
 		{ functionName: 'Task::run / DocumentContext::get', label: '必要になった木と解析結果を作る', what: '各タスクは DocumentContext::get で必要な計算結果を求める。構文解析、名前解決、コンパイル用の木の作成、式や要素の解析を、必要になったときに行う。一度計算した結果は保存し、後のタスクでも再利用する。', href: '/learn/kernel/database#get' },
 		{ functionName: 'TaskOutput', label: 'compile・format・lint の結果を保存する', what: 'コンパイルは JavaScript とスタイルシートの文字列を作る。整形は書き直したソースを、コード検査はエラーや警告を返す。出力は TaskOutput に入れ、元の構文木や解析結果とは別に保持する。', href: '/learn/kernel/emitter' },
-		{ functionName: 'ProjectTask::prepare', label: '型検査に渡す文書ごとのデータを作る', what: '型検査も選ばれていれば、同じ文書ごとの保存領域から 型検査用のコードと位置情報 を求める。Svelte のプラグインは元の構文木から型検査用の TypeScript を作る。prepare はその文字列、元ソースへの位置対応表、型宣言の設定、元ソースのコピーを Part にまとめる。コンパイル済みの JavaScript は使わない。', href: '/learn/kernel/pipeline#tasks' },
-		{ functionName: 'ProjectTask::finish', label: '文書ごとのデータを集めて型検査する', what: '全文書の処理後に Part をタスクごとに集め、TypeScript のコンパイラで型を調べる。指摘の位置を元のソース上の位置に戻し、各文書の TaskOutput に加える。文書ごとの保存領域は、この時点で解放されている。', href: '/learn/kernel/pipeline#project' },
+		{ functionName: 'FinishTask::prepare', label: '型検査に渡す文書ごとのデータを作る', what: '型検査も選ばれていれば、同じ文書ごとの保存領域から 型検査用のコードと位置情報 を求める。Svelte のプラグインは元の構文木から型検査用の TypeScript を作る。prepare はその文字列、元ソースへの位置対応表、型宣言の設定、元ソースのコピーを Part にまとめる。コンパイル済みの JavaScript は使わない。', href: '/learn/kernel/pipeline#tasks' },
+		{ functionName: 'FinishTask::finish', label: '文書ごとのデータを集めて型検査する', what: '全文書の処理後に Part をタスクごとに集め、TypeScript のコンパイラで型を調べる。指摘の位置を元のソース上の位置に戻し、各文書の TaskOutput に加える。文書ごとの保存領域は、この時点で解放されている。', href: '/learn/kernel/pipeline#project' },
 		{ functionName: 'sink', label: '結果が揃った文書を呼び出し側に渡す', what: 'Part を返さなかった文書は文書処理の直後に、返した文書は finish の後に sink へ渡す。呼び出し側は TaskOutput のファイルや診断を受け取る。', href: '/learn/kernel/pipeline#run-each' }
 	];
 	const structures = [

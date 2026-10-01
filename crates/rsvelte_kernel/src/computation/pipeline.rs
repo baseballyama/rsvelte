@@ -4,7 +4,7 @@
 //! documents in parallel: each document gets one [`DocumentContext`] on
 //! one worker, and the selected tasks run on it back to back while its data is hot in cache.
 //!
-//! A [`ProjectTask`] is for results that depend on other documents (type checking): its
+//! A [`FinishTask`] is for results that depend on other documents (type checking): its
 //! per-document half runs in the same parallel pass, on the same `DocumentContext`, and its project
 //! half runs once after.
 
@@ -53,11 +53,11 @@ pub trait Task: Send + Sync {
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput);
 }
 
-/// What a [`ProjectTask`] carries from a document's pass to the project pass. Owned: the
+/// What a [`FinishTask`] carries from a document's pass to the project pass. Owned: the
 /// document's `DocumentContext` is gone by then.
 pub type Part = Box<dyn Any + Send>;
 
-pub trait ProjectTask: Send + Sync {
+pub trait FinishTask: Send + Sync {
     fn identifier(&self) -> &'static str;
     fn applies(&self, document: &Document) -> bool;
     /// On the document's worker. Returns `None` when the document is finished here (its output
@@ -92,7 +92,7 @@ impl TaskOutput {
 #[derive(Default)]
 pub struct Registry {
     tasks: Vec<Box<dyn Task>>,
-    project_tasks: Vec<Box<dyn ProjectTask>>,
+    finish_tasks: Vec<Box<dyn FinishTask>>,
     artifacts: ArtifactRegistry,
 }
 
@@ -112,7 +112,7 @@ impl Registry {
 
     /// # Panics
     ///
-    /// If another document or project task uses the same identifier.
+    /// If another document or finish task uses the same identifier.
     pub fn task(&mut self, t: impl Task + 'static) -> &mut Self {
         self.assert_new_task_identifier(t.identifier());
         self.tasks.push(Box::new(t));
@@ -121,10 +121,10 @@ impl Registry {
 
     /// # Panics
     ///
-    /// If another document or project task uses the same identifier.
-    pub fn project_task(&mut self, t: impl ProjectTask + 'static) -> &mut Self {
+    /// If another document or finish task uses the same identifier.
+    pub fn finish_task(&mut self, t: impl FinishTask + 'static) -> &mut Self {
         self.assert_new_task_identifier(t.identifier());
-        self.project_tasks.push(Box::new(t));
+        self.finish_tasks.push(Box::new(t));
         self
     }
 
@@ -132,7 +132,7 @@ impl Registry {
         assert!(
             self.tasks.iter().all(|t| t.identifier() != identifier)
                 && self
-                    .project_tasks
+                    .finish_tasks
                     .iter()
                     .all(|t| t.identifier() != identifier),
             "task `{identifier}` is registered twice"
@@ -178,7 +178,7 @@ impl Registry {
         self.tasks
             .iter()
             .map(|t| t.identifier())
-            .chain(self.project_tasks.iter().map(|t| t.identifier()))
+            .chain(self.finish_tasks.iter().map(|t| t.identifier()))
             .collect()
     }
 
@@ -209,7 +209,7 @@ impl Registry {
             })
     }
 
-    fn selected(&self, identifiers: &[&str]) -> (Vec<&dyn Task>, Vec<&dyn ProjectTask>) {
+    fn selected(&self, identifiers: &[&str]) -> (Vec<&dyn Task>, Vec<&dyn FinishTask>) {
         let wanted = |identifier: &str| identifiers.is_empty() || identifiers.contains(&identifier);
         (
             self.tasks
@@ -217,7 +217,7 @@ impl Registry {
                 .filter(|t| wanted(t.identifier()))
                 .map(AsRef::as_ref)
                 .collect(),
-            self.project_tasks
+            self.finish_tasks
                 .iter()
                 .filter(|t| wanted(t.identifier()))
                 .map(AsRef::as_ref)
@@ -265,7 +265,7 @@ pub struct DocumentResult {
     pub outputs: Vec<(&'static str, TaskOutput)>,
     /// Set when a task panicked; the document's other outputs are dropped.
     pub panic: Option<String>,
-    /// (project task, index into `outputs`, part) until the project pass takes them.
+    /// (finish task, index into `outputs`, part) until the project pass takes them.
     parts: Vec<(usize, usize, Part)>,
 }
 
@@ -283,7 +283,7 @@ fn run_document(
     reg: &Registry,
     document: &Document,
     tasks: &[&dyn Task],
-    project_tasks: &[&dyn ProjectTask],
+    finish_tasks: &[&dyn FinishTask],
     sharing: Sharing,
 ) -> DocumentResult {
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -308,7 +308,7 @@ fn run_document(
             }
             outputs.push((task.identifier(), out));
         }
-        for (k, task) in project_tasks.iter().enumerate() {
+        for (k, task) in finish_tasks.iter().enumerate() {
             if !task.applies(document) {
                 continue;
             }
@@ -346,17 +346,17 @@ fn run_document(
     }
 }
 
-/// Runs every project task over the documents that prepared a part for it. Parts are grouped by
+/// Runs every finish task over the documents that prepared a part for it. Parts are grouped by
 /// task in one pass, so the cost is the number of parts, not tasks × documents.
-fn finish_projects(project_tasks: &[&dyn ProjectTask], results: &mut [DocumentResult]) {
+fn run_finish_tasks(finish_tasks: &[&dyn FinishTask], results: &mut [DocumentResult]) {
     let mut by_task: Vec<Vec<(usize, usize, Part)>> =
-        project_tasks.iter().map(|_| Vec::new()).collect();
+        finish_tasks.iter().map(|_| Vec::new()).collect();
     for (d, r) in results.iter_mut().enumerate() {
         for (k, o, part) in std::mem::take(&mut r.parts) {
             by_task[k].push((d, o, part));
         }
     }
-    for (task, owned) in project_tasks.iter().zip(by_task) {
+    for (task, owned) in finish_tasks.iter().zip(by_task) {
         if owned.is_empty() {
             continue;
         }
@@ -408,7 +408,7 @@ pub fn run_each(
     sink: &(dyn Fn(usize, DocumentResult) + Sync),
 ) -> Result<(), UnknownTask> {
     reg.check_task_identifiers(options.tasks)?;
-    let (tasks, project_tasks) = reg.selected(options.tasks);
+    let (tasks, finish_tasks) = reg.selected(options.tasks);
     let work = || {
         let waiting = std::sync::Mutex::new(Vec::new());
         #[cfg(not(target_arch = "wasm32"))]
@@ -416,7 +416,7 @@ pub fn run_each(
         #[cfg(target_arch = "wasm32")]
         let documents = docs.iter();
         documents.enumerate().for_each(|(i, d)| {
-            let r = run_document(reg, d, &tasks, &project_tasks, options.sharing);
+            let r = run_document(reg, d, &tasks, &finish_tasks, options.sharing);
             if r.parts.is_empty() {
                 sink(i, r);
             } else {
@@ -429,7 +429,7 @@ pub fn run_each(
         let mut waiting = waiting.into_inner().expect("no panics under the lock");
         waiting.sort_unstable_by_key(|(i, _)| *i);
         let (index, mut results): (Vec<usize>, Vec<DocumentResult>) = waiting.into_iter().unzip();
-        finish_projects(&project_tasks, &mut results);
+        run_finish_tasks(&finish_tasks, &mut results);
         for (i, r) in index.into_iter().zip(results) {
             sink(i, r);
         }
@@ -453,7 +453,7 @@ pub fn run(
     options: &RunOptions<'_>,
 ) -> Result<Vec<DocumentResult>, UnknownTask> {
     reg.check_task_identifiers(options.tasks)?;
-    let (tasks, project_tasks) = reg.selected(options.tasks);
+    let (tasks, finish_tasks) = reg.selected(options.tasks);
     // Collected in order by rayon rather than through `run_each`'s sink: a slot per document
     // would need a lock, and macOS's mutex allocates on first use where Linux's does not, which
     // would make the allocation counters depend on the platform.
@@ -464,9 +464,9 @@ pub fn run(
         #[cfg(target_arch = "wasm32")]
         let documents = docs.iter();
         results = documents
-            .map(|d| run_document(reg, d, &tasks, &project_tasks, options.sharing))
+            .map(|d| run_document(reg, d, &tasks, &finish_tasks, options.sharing))
             .collect();
-        finish_projects(&project_tasks, &mut results);
+        run_finish_tasks(&finish_tasks, &mut results);
     });
     Ok(results)
 }
@@ -622,7 +622,7 @@ mod tests {
 
     /// Each document's part is its length; the project half writes the total into every output.
     struct Total;
-    impl ProjectTask for Total {
+    impl FinishTask for Total {
         fn identifier(&self) -> &'static str {
             "total"
         }
@@ -649,9 +649,9 @@ mod tests {
     }
 
     #[test]
-    fn a_project_task_sees_every_prepared_document_once() {
+    fn a_finish_task_sees_every_prepared_document_once() {
         let mut reg = Registry::new();
-        reg.artifact::<Len>().project_task(Total);
+        reg.artifact::<Len>().finish_task(Total);
         let docs: Vec<Document> = [("a.t", "ab"), ("b.t", ""), ("c.t", "cde")]
             .into_iter()
             .map(|(p, t)| reg.document(p, t).unwrap())
@@ -671,7 +671,7 @@ mod tests {
 
     /// Like [`Total`], under another identifier and counting documents instead of bytes.
     struct Count;
-    impl ProjectTask for Count {
+    impl FinishTask for Count {
         fn identifier(&self) -> &'static str {
             "count"
         }
@@ -707,8 +707,8 @@ mod tests {
         }
     }
 
-    struct ProjectPanics;
-    impl ProjectTask for ProjectPanics {
+    struct FinishPanics;
+    impl FinishTask for FinishPanics {
         fn identifier(&self) -> &'static str {
             "project-panics"
         }
@@ -729,8 +729,8 @@ mod tests {
     fn setup() -> (Registry, Vec<Document>) {
         let mut reg = Registry::new();
         reg.artifact::<Len>()
-            .project_task(Total)
-            .project_task(Count)
+            .finish_task(Total)
+            .finish_task(Count)
             .task(Panics);
         let docs = [("a.t", "ab"), ("b.t", "x"), ("c.t", "cde")]
             .into_iter()
@@ -748,7 +748,7 @@ mod tests {
     }
 
     #[test]
-    fn each_project_task_gets_only_its_own_parts() {
+    fn each_finish_task_gets_only_its_own_parts() {
         let (reg, docs) = setup();
         let got: Vec<Vec<String>> = run(&reg, &docs, &options(&["total", "count"]))
             .unwrap()
@@ -771,9 +771,9 @@ mod tests {
     }
 
     #[test]
-    fn a_panicking_project_task_does_not_break_the_next_project_task() {
+    fn a_panicking_finish_task_does_not_break_the_next_finish_task() {
         let mut reg = Registry::new();
-        reg.project_task(ProjectPanics).project_task(Count);
+        reg.finish_task(FinishPanics).finish_task(Count);
         let docs = ["a.t", "c.t"]
             .into_iter()
             .map(|p| reg.document(p, "x").unwrap())
@@ -904,9 +904,9 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "task `panics` is registered twice")]
-    fn task_identifiers_are_unique_across_document_and_project_tasks() {
+    fn task_identifiers_are_unique_across_document_and_finish_tasks() {
         struct SameIdentifier;
-        impl ProjectTask for SameIdentifier {
+        impl FinishTask for SameIdentifier {
             fn identifier(&self) -> &'static str {
                 "panics"
             }
@@ -923,6 +923,6 @@ mod tests {
         }
 
         let mut reg = Registry::new();
-        reg.task(Panics).project_task(SameIdentifier);
+        reg.task(Panics).finish_task(SameIdentifier);
     }
 }

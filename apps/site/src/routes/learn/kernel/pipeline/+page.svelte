@@ -54,12 +54,12 @@
 <div class="prose-learn">
 	<p>
 		型検査は事情が違います。一つのコンポーネントの型は、それが import する他のファイルに依存します。上流の svelte-check
-		も、全ファイルを一つの TypeScript プロジェクトとして検査します。そこで型検査は <dfn>ProjectTask</dfn>
+		も、全ファイルを一つの TypeScript プロジェクトとして検査します。そこで型検査は <dfn>FinishTask</dfn>
 		として二つに分けます。
 	</p>
 </div>
 
-<Code item={data.code.projectTask} />
+<Code item={data.code.finishTask} />
 <Code item={data.code.part} />
 
 <div class="prose-learn">
@@ -174,11 +174,11 @@
 
 	<H2 id="project" />
 	<p>
-		並列パスが終わると、待たせていた文書を元の順に並べ直し、<code>finish_projects</code> がプロジェクトタスクごとに <code>finish</code> を一回呼びます。
+		並列パスが終わると、待たせていた文書を元の順に並べ直し、<code>run_finish_tasks</code> がプロジェクトタスクごとに <code>finish</code> を一回呼びます。
 	</p>
 </div>
 
-<Code item={data.code.finishProjects} mark={['by_task[k].push((d, o, part));']} />
+<Code item={data.code.finishTasks} mark={['by_task[k].push((d, o, part));']} />
 
 <div class="prose-learn">
 	<p>
@@ -207,7 +207,7 @@
 	</p>
 </div>
 
-<Code item={data.code.run} mark={['.map(|d| run_document(reg, d, &tasks, &project_tasks, options.sharing))']} />
+<Code item={data.code.run} mark={['.map(|d| run_document(reg, d, &tasks, &finish_tasks, options.sharing))']} />
 
 <div class="prose-learn">
 	<p>

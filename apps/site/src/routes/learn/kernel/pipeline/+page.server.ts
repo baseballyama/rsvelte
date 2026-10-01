@@ -10,7 +10,7 @@ export const load = () => ({
 		document: 'kernel/computation/pipeline/Document',
 		task: 'kernel/computation/pipeline/Task',
 		part: 'kernel/computation/pipeline/Part',
-		projectTask: 'kernel/computation/pipeline/ProjectTask',
+		finishTask: 'kernel/computation/pipeline/FinishTask',
 		taskOutput: 'kernel/computation/pipeline/TaskOutput',
 		regDocument: 'kernel/computation/pipeline/Registry::document',
 		selected: 'kernel/computation/pipeline/Registry::selected',
@@ -20,12 +20,12 @@ export const load = () => ({
 		runDocument: 'kernel/computation/pipeline/run_document',
 		panicMessage: 'kernel/computation/pipeline/panic_message',
 		runEach: 'kernel/computation/pipeline/run_each',
-		finishProjects: 'kernel/computation/pipeline/finish_projects',
+		finishTasks: 'kernel/computation/pipeline/run_finish_tasks',
 		run: 'kernel/computation/pipeline/run',
 		inPool: 'kernel/computation/pipeline/in_pool',
 		checkPrepare: 'javascript/check/Check::prepare',
 		check: 'javascript/check/Check',
-		test: 'kernel/computation/pipeline/tests::a_project_task_sees_every_prepared_document_once',
-		testTwo: 'kernel/computation/pipeline/tests::each_project_task_gets_only_its_own_parts'
+		test: 'kernel/computation/pipeline/tests::a_finish_task_sees_every_prepared_document_once',
+		testTwo: 'kernel/computation/pipeline/tests::each_finish_task_gets_only_its_own_parts'
 	})
 });

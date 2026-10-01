@@ -115,7 +115,7 @@
 		<div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[11.5px] tracking-normal text-muted">
 			<span><span class="mr-1 inline-block h-2 w-3 bg-c-src align-middle"></span>すぐ sink に渡る文書</span>
 			<span><span class="mr-1 inline-block h-2 w-3 bg-c-map align-middle"></span>部品を持ち、プロジェクト全体の処理を待つ文書</span>
-			<span><span class="mr-1 inline-block h-2 w-3 bg-c-idle align-middle"></span>ProjectTask::finish</span>
+			<span><span class="mr-1 inline-block h-2 w-3 bg-c-idle align-middle"></span>FinishTask::finish</span>
 			<span>ピーク: run_each {sim.peakStreaming} · run {sim.peakCollected}</span>
 		</div>
 	</div>

@@ -303,7 +303,7 @@
 		metrics ビルドの時間の 1% に届きません。番号で引く形にすると構造が複雑になるので、今は見送りました。
 	</p>
 
-	{@render item('F2', 'プロジェクト全体の処理の前処理がタスク数 × 文書数だった', 'fixed', 'pipeline.rs · finish_projects')}
+	{@render item('F2', 'プロジェクト全体の処理の前処理がタスク数 × 文書数だった', 'fixed', 'pipeline.rs · run_finish_tasks')}
 	<p>部品は一度の走査でプロジェクトタスクごとに振り分けます（<a href="/learn/kernel/pipeline#project">06</a>）。</p>
 
 	{@render item('F3', 'プロジェクト全体の処理を待つ文書が、全タスクの出力を抱える', 'open', 'pipeline.rs · run_each')}

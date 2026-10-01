@@ -104,7 +104,7 @@
 <Code item={data.code.svelteTasks} />
 
 <div class="prose-learn">
-	<p>他の文書も必要な処理には <code>ProjectTask</code> を使います。文書ごとの <code>prepare</code> で所有権を持つデータを返し、全体の <code>finish</code> でまとめて処理します。文書の実行環境から借りた参照は、この段階まで持ち越せません。</p>
+	<p>他の文書も必要な処理には <code>FinishTask</code> を使います。文書ごとの <code>prepare</code> で所有権を持つデータを返し、全体の <code>finish</code> でまとめて処理します。文書の実行環境から借りた参照は、この段階まで持ち越せません。</p>
 	<p>保存の仕組みは <a href="/learn/kernel/database#facet">04 共通の呼び出し窓口</a>、複数文書の実行は <a href="/learn/kernel/pipeline#tasks">06 処理の登録と並列実行</a>で説明しています。実際の登録を試す場合は、<a href="/learn/playground">パイプラインのプレイグラウンド</a>も使えます。</p>
 </div>
 

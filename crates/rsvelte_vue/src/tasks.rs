@@ -18,7 +18,7 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
     reg.task(Compile)
         .task(Format)
         .task(Lint)
-        .project_task(Check {
+        .finish_task(Check {
             identifier: "vue.check/default",
             matches: crate::matches,
             tsc: config.check.as_ref().map(|c| Tsc {
