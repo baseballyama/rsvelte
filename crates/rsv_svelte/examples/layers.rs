@@ -236,6 +236,9 @@ fn lowered(w: &mut JsonWriter, c: &Component, h: &Hir, src: &str, list: Children
                         w.str(&format!("Interpolated, {} parts", p.len()))
                     }
                     AttrValue::Bind(_) => w.str("Bind"),
+                    AttrValue::Attach(_) => w.str("Attach"),
+                    AttrValue::Class(_) => w.str("Class"),
+                    AttrValue::Spread(_) => w.str("Spread"),
                 };
                 w.end_object();
             }

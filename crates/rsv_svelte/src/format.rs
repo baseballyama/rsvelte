@@ -19,7 +19,7 @@ use rsv_js::format::{Formatter, Options as JsOptions};
 use rsv_kernel::doc::{DocId, Docs, PrintOptions, Refused};
 use rsv_kernel::source::{LineIndex, Span};
 
-use crate::ast::{Attr, AttrValue, Component, Part, TId, TNode, TagAttr};
+use crate::ast::{Attr, AttrKind, AttrValue, Component, Part, TId, TNode, TagAttr};
 
 type R<T> = Result<T, Unsupported>;
 
@@ -933,7 +933,20 @@ impl<'a> Printer<'a, '_> {
             AttrValue::True => return Ok(self.d().text(name)),
             AttrValue::Parts(r) => r.get(&comp.parts),
         };
-        if let (Some(property), [Part::Expr { expr, .. }]) = (a.bind_property(), parts)
+        if matches!(a.kind, AttrKind::Attach | AttrKind::Spread) {
+            let [Part::Expr { expr, .. }] = parts else {
+                unreachable!("an attachment or a spread is one expression")
+            };
+            let open = self.lit(if a.kind == AttrKind::Attach {
+                "{@attach "
+            } else {
+                "{..."
+            });
+            let e = self.expression(*expr, false, false)?;
+            let close = self.lit("}");
+            return Ok(self.cat(&[open, e, close]));
+        }
+        if let (Some(property), [Part::Expr { expr, .. }]) = (a.directive_name(), parts)
             && matches!(comp.js.kind(*expr), rsv_js::Kind::Ident(_))
             && comp.js.name(*expr) == property.text(src)
         {

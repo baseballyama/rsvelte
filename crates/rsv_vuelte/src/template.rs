@@ -183,6 +183,12 @@ pub fn check(hir: &Hir, js: &Ast, res: &Resolution, exprs: &[NodeId], src: &str)
 }
 
 fn check_attribute(src: &str, tag: &str, a: &Attribute) -> R<()> {
+    match a.value {
+        AttrValue::Attach(_) => return Err(unsupported("an `{@attach}` tag", a.span)),
+        AttrValue::Class(_) => return Err(unsupported("a `class:` directive", a.span)),
+        AttrValue::Spread(_) => return Err(unsupported("a spread attribute", a.span)),
+        _ => {}
+    }
     let name = a.name.text(src);
     let plain = !name.is_empty()
         && name
@@ -220,7 +226,11 @@ fn check_attribute(src: &str, tag: &str, a: &Attribute) -> R<()> {
                 ));
             }
         }
-        AttrValue::Boolean | AttrValue::Static(_) => {}
+        AttrValue::Boolean
+        | AttrValue::Static(_)
+        | AttrValue::Attach(_)
+        | AttrValue::Class(_)
+        | AttrValue::Spread(_) => {}
         AttrValue::Expression { .. } | AttrValue::Shorthand(_) | AttrValue::Interpolated(_) => {
             let interpolated = matches!(a.value, AttrValue::Interpolated(_));
             let allowed = if name.starts_with("on") || name == "class" {
@@ -650,6 +660,9 @@ impl Builder<'_, '_> {
         let at = a.name.span();
         match &a.value {
             &AttrValue::Bind(e) => self.binding(tag, attrs, a, e, props, steps),
+            AttrValue::Attach(_) | AttrValue::Class(_) | AttrValue::Spread(_) => {
+                Err(unsupported("a directive `check_attribute` refuses", a.span))
+            }
             AttrValue::Boolean => {
                 props.push(attribute(a, None));
                 Ok(())

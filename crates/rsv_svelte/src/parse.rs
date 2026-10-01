@@ -1,5 +1,6 @@
-//! The template parser: markup, `{expression}` tags, `{#if}` and `{#each}` blocks, `bind:`
-//! directives, one instance `<script>` and one `<style>`.
+//! The template parser: markup, `{expression}` tags, `{#if}` and `{#each}` blocks, `bind:` and
+//! `class:` directives, spread attributes, `{@attach}` tags, one instance `<script>` and one
+//! `<style>`.
 //!
 //! Expressions are parsed by `rsv_js` in place, and the parser, not a brace scan,
 //! decides where each one ends.
@@ -461,8 +462,15 @@ impl<'a> P<'a> {
                 }
                 Some(b'{') => {
                     let lo = self.pos;
+                    if self.rest()[1..].trim_start().starts_with("@attach") {
+                        let a = self.attach_tag(lo)?;
+                        self.c.attrs.push(a);
+                        continue;
+                    }
                     if self.rest()[1..].trim_start().starts_with("...") {
-                        return self.err("spread attributes are not supported yet");
+                        let a = self.spread_attribute(lo)?;
+                        self.c.attrs.push(a);
+                        continue;
                     }
                     let expr = self.expression_tag()?;
                     let span = Span::new(lo as u32, self.pos as u32);
@@ -528,10 +536,16 @@ impl<'a> P<'a> {
         }
         self.tok(Tk::AttrName, lo);
         if name.text(self.src).starts_with("bind:") {
-            return self.bind_directive(lo, name);
+            return self.directive(lo, name, AttrKind::Bind);
+        }
+        if name.text(self.src).starts_with("class:") {
+            return self.directive(lo, name, AttrKind::Class);
         }
         if name.text(self.src).contains(':') {
-            return Self::err_at(name, "directives other than `bind:` are not supported yet");
+            return Self::err_at(
+                name,
+                "directives other than `bind:` and `class:` are not supported yet",
+            );
         }
         self.skip_ws();
         if self.peek() != Some(b'=') {
@@ -580,11 +594,72 @@ impl<'a> P<'a> {
         })
     }
 
-    /// `bind:name={expression}` or `bind:name`, after the name.
-    fn bind_directive(&mut self, lo: usize, name: Span) -> R<Attr> {
-        let property = Span::new(name.lo + 5, name.hi);
-        if identifier_len(property.text(self.src)) != property.len() as usize {
+    /// `{...expression}` from its `{`: upstream `read_attribute`.
+    fn spread_attribute(&mut self, lo: usize) -> R<Attr> {
+        self.eat_tok(Tk::MustacheOpen, 1);
+        self.skip_ws();
+        self.eat_tok(Tk::Js(T::Ellipsis), 3);
+        self.skip_ws();
+        let expr = self.expression()?;
+        self.close_mustache()?;
+        let span = Span::new(lo as u32, self.pos as u32);
+        let parts = self.c.parts.len();
+        self.c.parts.push(Part::Expr { expr, span });
+        Ok(Attr {
+            kind: AttrKind::Spread,
+            name: Span::new(lo as u32, lo as u32),
+            value: AttrValue::Parts(self.parts_since(parts)),
+            span,
+            quoted: false,
+            shorthand: false,
+        })
+    }
+
+    /// `{@attach expression}` from its `{`: upstream `read_attribute`.
+    fn attach_tag(&mut self, lo: usize) -> R<Attr> {
+        self.eat_tok(Tk::MustacheOpen, 1);
+        self.skip_ws();
+        self.eat_tok(Tk::BlockKeyword, "@attach".len());
+        if !self.peek().is_some_and(|c| c.is_ascii_whitespace()) {
+            return self.err("expected whitespace");
+        }
+        self.skip_ws();
+        let expr = self.expression()?;
+        self.close_mustache()?;
+        let span = Span::new(lo as u32, self.pos as u32);
+        let parts = self.c.parts.len();
+        self.c.parts.push(Part::Expr { expr, span });
+        Ok(Attr {
+            kind: AttrKind::Attach,
+            name: Span::new(lo as u32, lo as u32),
+            value: AttrValue::Parts(self.parts_since(parts)),
+            span,
+            quoted: false,
+            shorthand: false,
+        })
+    }
+
+    /// `bind:name={expression}`, `class:name={expression}`, or the shorthand without a value, after
+    /// the name.
+    fn directive(&mut self, lo: usize, name: Span, kind: AttrKind) -> R<Attr> {
+        let mut attr = Attr {
+            kind,
+            name,
+            value: AttrValue::True,
+            span: name,
+            quoted: false,
+            shorthand: false,
+        };
+        let property = attr.directive_name().expect("a directive");
+        let is_identifier = identifier_len(property.text(self.src)) == property.len() as usize;
+        if kind == AttrKind::Bind && !is_identifier {
             return Self::err_at(name, "expected a property name after `bind:`");
+        }
+        if property.is_empty() {
+            return Self::err_at(name, "expected a name after the directive's `:`");
+        }
+        if property.text(self.src).contains('|') {
+            return Self::err_at(name, "directive modifiers are not supported yet");
         }
         let (at, tokens_at) = (self.pos, self.c.tokens.len());
         self.skip_ws();
@@ -592,12 +667,18 @@ impl<'a> P<'a> {
             self.eat_tok(Tk::Eq, 1);
             self.skip_ws();
             if self.peek() != Some(b'{') {
-                return self.err("expected `{` after `bind:…=`");
+                return self.err("expected `{` after a directive's `=`");
             }
             let s = self.pos;
             let expr = self.expression_tag()?;
             (expr, Span::new(s as u32, self.pos as u32), false)
         } else {
+            if !is_identifier {
+                return Self::err_at(
+                    name,
+                    "a shorthand directive whose name is not an identifier is not supported yet",
+                );
+            }
             // The whitespace belongs to the start tag, not to the directive.
             self.pos = at;
             self.c.tokens.truncate(tokens_at);
@@ -612,14 +693,10 @@ impl<'a> P<'a> {
         };
         let parts = self.c.parts.len();
         self.c.parts.push(Part::Expr { expr, span });
-        Ok(Attr {
-            kind: AttrKind::Bind,
-            name,
-            value: AttrValue::Parts(self.parts_since(parts)),
-            span: Span::new(lo as u32, self.pos as u32),
-            quoted: false,
-            shorthand,
-        })
+        attr.value = AttrValue::Parts(self.parts_since(parts));
+        attr.span = Span::new(lo as u32, self.pos as u32);
+        attr.shorthand = shorthand;
+        Ok(attr)
     }
 
     /// Text and `{…}` chunks up to the closing quote (left unconsumed) or, unquoted, to
