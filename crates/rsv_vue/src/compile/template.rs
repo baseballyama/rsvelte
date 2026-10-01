@@ -439,7 +439,7 @@ impl Transform<'_> {
                     let tag = el.tag.text(self.src);
                     let filled_textarea =
                         tag == "textarea" && !self.hir.children(el.children).is_empty();
-                    if filled_textarea || matches!(tag, "pre" | "svg" | "math" | "foreignObject") {
+                    if filled_textarea || matches!(tag, "svg" | "math" | "foreignObject") {
                         return Err(Unsupported::at(
                             "this element in a compiled template",
                             el.tag.span(),

@@ -526,6 +526,15 @@ mod tests {
         }
     }
 
+    #[test]
+    fn pre_compiles_with_its_text_as_the_hir_holds_it() {
+        let js = output("const s = 'a'", "<pre>  {{ s }}\n x</pre>");
+        assert!(
+            js.contains("_createElementBlock('pre', null, '  ' + _toDisplayString(s) + '\\n x')"),
+            "{js}"
+        );
+    }
+
     const REFS: &str = "import { ref, reactive } from 'vue'\nconst r = ref('')\n\
                         const s = reactive({ a: '' })\nlet l = ''\nconst k = 'x'";
 
