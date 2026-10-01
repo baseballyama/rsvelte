@@ -84,6 +84,8 @@ pub struct Directive {
     pub name: DirName,
     /// `href` in `:href`, `click` in `@click`.
     pub arg: Option<Span>,
+    /// `trim` in `v-model.trim`, in order; only `v-model` takes modifiers yet.
+    pub modifiers: Box<[Span]>,
     pub exp: DirExp,
 }
 
@@ -98,6 +100,7 @@ pub enum DirName {
     ElseIf,
     Else,
     For,
+    Model,
 }
 
 #[derive(Debug)]
@@ -259,4 +262,4 @@ pub fn tag_attr<'s>(attrs: &[TagAttr], src: &'s str, name: &str) -> Option<Optio
 
 // Pinned so a change to the surface tree's layout is a decision.
 const _: () = assert!(size_of::<TNode>() == 44, "`TNode` is 44 bytes");
-const _: () = assert!(size_of::<Attr>() == 80, "`Attr` is 80 bytes");
+const _: () = assert!(size_of::<Attr>() == 96, "`Attr` is 96 bytes");

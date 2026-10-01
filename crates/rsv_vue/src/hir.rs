@@ -371,8 +371,9 @@ pub fn lower(c: &Sfc, src: &str) -> Option<Hir> {
         c,
         src,
         b: HirBuilder::new(c.nodes.len(), c.attrs.len()),
+        in_pre: 0,
     };
-    let root = b.list(c.children(t.root), None);
+    let root = b.list(c.children(t.root), None, Whitespace::Condense, false);
     Some(b.b.finish(root))
 }
 
@@ -380,11 +381,31 @@ struct SurfaceBuilder<'a> {
     c: &'a Sfc,
     src: &'a str,
     b: HirBuilder,
+    /// Open `<pre>` elements (`inPre`).
+    in_pre: u32,
+}
+
+/// How `baseParse` treats the text of a child list.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Whitespace {
+    /// `condenseWhitespace`.
+    Condense,
+    /// Inside a `<pre>`: line endings normalized, nothing removed.
+    Pre,
+    /// A `<textarea>` or `<title>`, whose content the tokenizer reads as RCDATA: as written.
+    Rcdata,
 }
 
 impl SurfaceBuilder<'_> {
-    /// A child list after `condenseWhitespace`.
-    fn list(&mut self, list: &[TId], parent: Option<HirId>) -> Children {
+    /// A child list as `onCloseTag` leaves it: whitespace treated per `ws`, then a leading newline
+    /// dropped when `ignore_newline` (`isIgnoreNewlineTag`).
+    fn list(
+        &mut self,
+        list: &[TId],
+        parent: Option<HirId>,
+        ws: Whitespace,
+        ignore_newline: bool,
+    ) -> Children {
         let (c, src) = (self.c, self.src);
         // `None` once condensing removes the text; upstream reads its neighbours in the list it
         // is filtering.
@@ -403,7 +424,11 @@ impl SurfaceBuilder<'_> {
                 continue;
             };
             let content = text.text(src);
-            let condensed = if content.bytes().all(is_whitespace) {
+            let condensed = if ws == Whitespace::Rcdata {
+                continue;
+            } else if ws == Whitespace::Pre {
+                content.replace("\r\n", "\n")
+            } else if content.bytes().all(is_whitespace) {
                 let neighbour = |j: Option<usize>| {
                     j.and_then(|j| kept.get(j))
                         .and_then(|k| k.as_ref())
@@ -434,6 +459,16 @@ impl SurfaceBuilder<'_> {
             let cooked = (condensed != raw.text(src)).then(|| condensed.into_boxed_str());
             if let Some((_, slot)) = &mut kept[i] {
                 *slot = Some(Text { raw, cooked });
+            }
+        }
+        if ignore_newline && let Some(Some((_, Some(text)))) = kept.first_mut() {
+            let content = text.text(src);
+            if let Some(rest) = content
+                .strip_prefix("\r\n")
+                .or_else(|| content.strip_prefix('\n'))
+            {
+                let rest = rest.to_owned().into_boxed_str();
+                text.cooked = Some(rest);
             }
         }
         let ids: Vec<HirId> = kept
@@ -480,7 +515,19 @@ impl SurfaceBuilder<'_> {
                     parent,
                     t,
                 );
-                let children = self.list(c.children(children), Some(id));
+                let tag = name.text(src);
+                let pre = tag == "pre";
+                self.in_pre += u32::from(pre);
+                let ws = if self.in_pre > 0 {
+                    Whitespace::Pre
+                } else if matches!(tag, "textarea" | "title") {
+                    Whitespace::Rcdata
+                } else {
+                    Whitespace::Condense
+                };
+                let ignore_newline = matches!(tag, "pre" | "textarea");
+                let children = self.list(c.children(children), Some(id), ws, ignore_newline);
+                self.in_pre -= u32::from(pre);
                 self.b.set_element_children(id, children);
                 return id;
             }
@@ -498,7 +545,7 @@ fn prop(src: &str, a: &ast::Attr, origin: u32) -> Prop {
         AttrKind::Directive(d) => PropKind::Directive(Directive {
             name: d.name,
             arg: d.arg.map(Name::Source),
-            modifiers: Box::default(),
+            modifiers: d.modifiers.iter().copied().map(Name::Source).collect(),
             exp: match &d.exp {
                 DirExp::None => DirExp::None,
                 DirExp::Expr(e) => DirExp::Expr(*e),

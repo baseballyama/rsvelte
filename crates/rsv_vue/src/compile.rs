@@ -344,3 +344,68 @@ impl Rewrite for SetupRewrite {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn refusal(script: &str, template: &str) -> Option<&'static str> {
+        let src = format!("<script setup>\n{script}\n</script>\n<template>{template}</template>\n");
+        let c = crate::parse::parse(&src).expect("parses");
+        let hir = crate::hir::lower(&c, &src);
+        let res = crate::resolve::resolve(&c.js, c.program, hir.as_ref(), &src);
+        let input = CompileInput::from_sfc(&c, hir.as_ref(), &src);
+        compile(&input, &res, "a.vue").err().map(|u| u.what)
+    }
+
+    const REFS: &str = "import { ref, reactive } from 'vue'\nconst r = ref('')\n\
+                        const s = reactive({ a: '' })\nlet l = ''\nconst k = 'x'";
+
+    #[test]
+    fn v_model_compiles_on_a_ref_or_a_member_of_a_form_element() {
+        for t in [
+            "<input v-model=\"r\">",
+            "<input v-model.trim.number=\"s.a\">",
+            "<input type=\"checkbox\" v-model=\"r\">",
+            "<input type=\"radio\" value=\"a\" v-model=\"r\">",
+            "<textarea v-model=\"r\"></textarea>",
+            "<select v-model=\"r\"></select>",
+        ] {
+            assert_eq!(refusal(REFS, t), None, "{t}");
+        }
+    }
+
+    #[test]
+    fn v_model_refuses_what_upstream_rejects_or_the_port_does_not_compile() {
+        let target = Some("a v-model target that is not a ref or a member expression");
+        for (t, want) in [
+            ("<input v-model=\"l\">", target),
+            ("<input v-model=\"k\">", target),
+            ("<input v-model=\"s\">", target),
+            ("<input v-model=\"r + 1\">", target),
+            ("<div v-model=\"r\"></div>", Some("v-model on this element")),
+            (
+                "<input v-model:x=\"r\">",
+                Some("a v-model argument on an element"),
+            ),
+            (
+                "<input :value=\"k\" v-model=\"r\">",
+                Some("v-model with a bound `value`"),
+            ),
+            (
+                "<input :type=\"k\" v-model=\"r\">",
+                Some("v-model with a bound `type`"),
+            ),
+            (
+                "<input type=\"file\" v-model=\"r\">",
+                Some("v-model on a file input"),
+            ),
+            (
+                "<textarea v-model=\"r\"> </textarea>",
+                Some("this element in a compiled template"),
+            ),
+        ] {
+            assert_eq!(refusal(REFS, t), want, "{t}");
+        }
+    }
+}

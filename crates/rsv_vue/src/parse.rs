@@ -3,8 +3,8 @@
 //!
 //! It reads one `<template>`, one `<script setup>` and any number of `<style>` blocks; the
 //! template holds elements, text, comments, `{{ }}` interpolations, static attributes and the
-//! `v-bind`/`:`, `v-on`/`@`, `v-if`/`v-else-if`/`v-else` and `v-for` directives. Anything else is
-//! refused.
+//! `v-bind`/`:`, `v-on`/`@`, `v-if`/`v-else-if`/`v-else`, `v-for` and `v-model` (with modifiers)
+//! directives. Anything else is refused.
 //!
 //! As upstream, an interpolation ends at the first `}}` and an attribute value at its closing
 //! quote; the text in between is then parsed as JavaScript (TypeScript under `lang="ts"`).
@@ -21,6 +21,9 @@ use crate::ast::{
 };
 
 type R<T> = Result<T, Diagnostic>;
+
+/// A directive's name, argument and modifiers.
+type DirectiveName = (DirName, Option<Span>, Box<[Span]>);
 
 /// `@vue/shared`'s `VOID_TAGS`.
 const VOID_TAGS: &[&str] = &[
@@ -549,7 +552,7 @@ impl<'a> P<'a> {
                 }
                 AttrKind::Static
             }
-            Some((dir, arg)) => {
+            Some((dir, arg, modifiers)) => {
                 let exp = match (dir, value) {
                     (DirName::Else, None) => DirExp::None,
                     (DirName::Else, Some(v)) => {
@@ -562,6 +565,7 @@ impl<'a> P<'a> {
                 AttrKind::Directive(Directive {
                     name: dir,
                     arg,
+                    modifiers,
                     exp,
                 })
             }
@@ -581,15 +585,16 @@ impl<'a> P<'a> {
         })
     }
 
-    /// `:arg`, `@arg` and `v-name:arg`; `None` for a static attribute.
-    fn directive_name(&self, name: Span) -> R<Option<(DirName, Option<Span>)>> {
+    /// `:arg`, `@arg` and `v-name:arg`, and `v-model`'s `.modifier`s; `None` for a static
+    /// attribute.
+    fn directive_name(&self, name: Span) -> R<Option<DirectiveName>> {
         let text = name.text(self.src);
         let (dir, arg_lo) = match text.as_bytes()[0] {
             b':' => (DirName::Bind, 1),
             b'@' => (DirName::On, 1),
             b'#' | b'.' => return Self::err_at(name, "this directive is not supported yet"),
             _ if text.starts_with("v-") => {
-                let end = text.find(':').unwrap_or(text.len());
+                let end = text.find([':', '.']).unwrap_or(text.len());
                 let dir = match &text[2..end] {
                     "bind" => DirName::Bind,
                     "on" => DirName::On,
@@ -597,23 +602,49 @@ impl<'a> P<'a> {
                     "else-if" => DirName::ElseIf,
                     "else" => DirName::Else,
                     "for" => DirName::For,
+                    "model" => DirName::Model,
                     _ => return Self::err_at(name, "this directive is not supported yet"),
                 };
-                (dir, (end + 1).min(text.len()))
+                let arg_lo = if text[end..].starts_with(':') {
+                    end + 1
+                } else {
+                    end
+                };
+                (dir, arg_lo)
             }
             _ => return Ok(None),
         };
-        if text[arg_lo..].contains(['.', '[']) {
+        // compiler-core: the argument runs to the first `.`, each `.` after it starts a modifier.
+        let arg_hi = text[arg_lo..].find('.').map_or(text.len(), |i| arg_lo + i);
+        let at = |lo: usize, hi: usize| Span::new(name.lo + lo as u32, name.lo + hi as u32);
+        let mut modifiers = Vec::new();
+        if arg_hi < text.len() {
+            if dir != DirName::Model {
+                return Self::err_at(
+                    name,
+                    "directive modifiers and dynamic arguments are not supported yet",
+                );
+            }
+            let mut lo = arg_hi + 1;
+            for m in text[lo..].split('.') {
+                if m.is_empty() {
+                    return Self::err_at(name, "an empty directive modifier");
+                }
+                modifiers.push(at(lo, lo + m.len()));
+                lo += m.len() + 1;
+            }
+        }
+        if text[arg_lo..arg_hi].contains('[') {
             return Self::err_at(
                 name,
                 "directive modifiers and dynamic arguments are not supported yet",
             );
         }
-        let arg = (arg_lo < text.len()).then(|| Span::new(name.lo + arg_lo as u32, name.hi));
+        let arg = (arg_lo < arg_hi).then(|| at(arg_lo, arg_hi));
         if matches!(dir, DirName::Bind | DirName::On) && arg.is_none() {
             return Self::err_at(name, "an object v-bind or v-on is not supported yet");
         }
-        Ok(Some((dir, arg)))
+        Ok(Some((dir, arg, modifiers.into_boxed_slice())))
     }
 
     /// compiler-core's `parseForExpression`: `forAliasRE` splits the value at ` in ` / ` of `, the

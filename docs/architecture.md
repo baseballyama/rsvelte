@@ -55,7 +55,9 @@ Svelte と Vue の両方が使う。
 
 カーネルの柔軟性を試すための 2 つ目の言語。
 
-- 成果物: `Parsed`、`Resolved`（スクリプトとテンプレートを合わせた 1 回のスコープ解析と、compileScript の binding type）
+- 成果物: `Parsed`、`Lowered`（HIR）、`Resolved`（スクリプトとテンプレートを合わせた 1 回のスコープ解析と、compileScript の binding type）
+- HIR（`hir.rs`）は compiler-core の `baseParse` が返す木: テキストは展開して空白を畳み（`<textarea>` と `<title>` は RCDATA なので畳まない）、要素は tag type を持ち、指令は名前・引数・修飾子・式に分かれる。`v-if` の連鎖は兄弟の要素のまま、`v-for` は指令のまま残す。上流の構造変換は走査しながらそれらのノードを作り、その時点がヘルパーの順とキャッシュの番号を決めるため。名前はソースの範囲か、フロントエンドが綴った名前（`Name::Spelled`。例: Svelte の `{#if}` を包む `<template v-if>` の `template`）で、公開の `HirBuilder` で組み立てる
+- コンパイラと名前解決は表層の木ではなく HIR を読み、コンパイラの入力は `CompileInput`（JS の木、スクリプト、HIR、スタイルシート）だけ。この移行の前後で、全 fixture の出力 105,387 ファイルがバイト一致した
 - ファセット `TsView` の答え: @vue/language-core の仮想コードと同じ形の射影と、`Emitter::lookup_overlap` による逆引き
 - タスク: `vue.compile/default`（compiler-core と compileScript の移植）、`vue.format/default`（prettier の HTML プリンタの移植）、`vue.lint/default`（`no-unused-vars`、`vue/no-unused-vars`、`vue/multi-word-component-names`、`vue/html-button-has-type`）、プロジェクトタスク `vue.check/default`
 - JS の解析・整形・`no-unused-vars`・`tsc` バックエンドと CSS は、Svelte と同じ `rsv_js` / `rsv_css` を使う
@@ -116,11 +118,11 @@ ctx.facet::<TsView>()（文書の言語の答え、文書パス）
 | `svelte.format/default` | prettier 3.9.9 + prettier-plugin-svelte 4.1.1 | 同上 | 13/13 |
 | `svelte.lint/default` | eslint 10.11.0 + eslint-plugin-svelte 3.23.0（中核の非推奨でない全ルール + `configs.all`） | 同上 | 13/13（rsvelte が実装したルールの指摘を比較） |
 | `svelte.check/default` | svelte-check 4.7.6 + typescript 6.0.3（rsvelte 側は tsc 7.0.2） | 同上 | 13/13 |
-| `vue.compile/default` | @vue/compiler-sfc（@vitejs/plugin-vue の本番出力） | `fixtures/vue/rsvelte`（19） | 17/17。2 件は移植が拒否するので `fixture.toml` で skip（`check/template-shapes`: 束縛した `class`、`lint/button-types`: `type` と `:type` の重複） |
-| `vue.format/default` | prettier 3.9.9 | 同上 | 19/19 |
-| `vue.lint/default` | eslint + eslint-plugin-vue（全ルール） | 同上 | 19/19 |
-| `vue.check/default` | vue-tsc 3.3.11 + typescript 6.0.3（rsvelte 側は tsc 7.0.2） | 同上 | 19/19。うち 2 件の指摘は TS 6 と 7 の版差なので、ガード付きの調整で記録した（§7 の 4） |
-| `ts.check/default` | ユニットごとに svelte-check か vue-tsc | 両方（32） | 32/32（同じ 2 件の調整） |
+| `vue.compile/default` | @vue/compiler-sfc（@vitejs/plugin-vue の本番出力） | `fixtures/vue/rsvelte`（27） | 25/25。2 件は移植が拒否するので `fixture.toml` で skip（`check/template-shapes`: 束縛した `class`、`lint/button-types`: `type` と `:type` の重複） |
+| `vue.format/default` | prettier 3.9.9 | 同上 | 27/27 |
+| `vue.lint/default` | eslint + eslint-plugin-vue（全ルール） | 同上 | 27/27 |
+| `vue.check/default` | vue-tsc 3.3.11 + typescript 6.0.3（rsvelte 側は tsc 7.0.2） | 同上 | 27/27。うち 2 件の指摘は TS 6 と 7 の版差なので、ガード付きの調整で記録した（§7 の 4） |
+| `ts.check/default` | ユニットごとに svelte-check か vue-tsc | 両方（40） | 40/40（同じ 2 件の調整） |
 | `svue.compile/client` / `server` | `.svue` を Svelte の構文に書き直して svelte 5.57.1 | `fixtures/svue/rsvelte`（5） | 5/5 |
 
 Vue の射影は @vue/language-core の仮想コードと同じ形にしてある（`__VLS_ctx`、`__VLS_SetupExposed`、`__VLS_asFunctionalElement1`、`__VLS_vFor`）。型検査のメッセージには `'__VLS_ctx.maybe' is possibly 'undefined'` のように射影の名前と型がそのまま出るので、射影の形が違えば文字列は一致しない。

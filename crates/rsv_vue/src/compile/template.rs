@@ -36,6 +36,11 @@ pub enum Helper {
     ToDisplayString,
     RenderList,
     Unref,
+    WithDirectives,
+    VModelText,
+    VModelCheckbox,
+    VModelRadio,
+    VModelSelect,
 }
 
 impl Helper {
@@ -52,6 +57,11 @@ impl Helper {
             Self::ToDisplayString => "toDisplayString",
             Self::RenderList => "renderList",
             Self::Unref => "unref",
+            Self::WithDirectives => "withDirectives",
+            Self::VModelText => "vModelText",
+            Self::VModelCheckbox => "vModelCheckbox",
+            Self::VModelRadio => "vModelRadio",
+            Self::VModelSelect => "vModelSelect",
         }
     }
 }
@@ -125,7 +135,8 @@ struct Exp {
 enum Prop {
     Static {
         name: String,
-        value: String,
+        /// `None` for a bare attribute.
+        value: Option<String>,
     },
     Dir {
         name: DirName,
@@ -182,6 +193,8 @@ enum Lit {
     Str(String),
     Num(f64),
     Bool(bool),
+    /// `void 0`.
+    Undefined,
 }
 
 #[derive(Debug, Clone)]
@@ -193,8 +206,13 @@ enum Cg {
         children: Option<VChildren>,
         patch_flag: Option<i32>,
         dynamic_props: Option<Cid>,
+        /// `withDirectives`' list: the element's runtime directives.
+        directives: Option<Cid>,
         is_block: bool,
         disable_tracking: bool,
+        /// `needsPatch`: a `v-for` that turns it from a block into a plain vnode adds
+        /// `NEED_PATCH`.
+        needs_patch: bool,
     },
     Call {
         callee: Helper,
@@ -202,6 +220,9 @@ enum Cg {
     },
     /// Keys are static.
     Object(Vec<(String, Cid)>),
+    Array(Vec<Cid>),
+    /// A helper's local name, as a value (a runtime directive).
+    Helper(Helper),
     NodeArray(Vec<Nid>),
     /// `stringifyDynamicPropNames`.
     PropNames(Vec<String>),
@@ -216,6 +237,12 @@ enum Cg {
     Handler {
         exp: Exp,
         inline: bool,
+    },
+    /// `v-model`'s `$event => ((x).value = $event)` for a ref `x` as written, or
+    /// `$event => ((exp) = $event)` for a member expression after `processExpression`.
+    ModelUpdate {
+        target: Exp,
+        is_ref: bool,
     },
     Function {
         params: Vec<NodeId>,
@@ -410,7 +437,9 @@ impl Transform<'_> {
                 })),
                 NodeKind::Element(el) => {
                     let tag = el.tag.text(self.src);
-                    if matches!(tag, "pre" | "textarea" | "svg" | "math" | "foreignObject") {
+                    let filled_textarea =
+                        tag == "textarea" && !self.hir.children(el.children).is_empty();
+                    if filled_textarea || matches!(tag, "pre" | "svg" | "math" | "foreignObject") {
                         return Err(Unsupported::at(
                             "this element in a compiled template",
                             el.tag.span(),
@@ -449,9 +478,7 @@ impl Transform<'_> {
                     }
                     Prop::Static {
                         name: name.to_owned(),
-                        value: value
-                            .as_ref()
-                            .map_or_else(String::new, |v| v.text(self.src).to_owned()),
+                        value: value.as_ref().map(|v| v.text(self.src).to_owned()),
                     }
                 }
                 PropKind::Directive(d) => {
@@ -795,8 +822,10 @@ impl Transform<'_> {
             children: Some(VChildren::Cg(render)),
             patch_flag: Some(flag),
             dynamic_props: None,
+            directives: None,
             is_block: true,
             disable_tracking: !stable,
+            needs_patch: false,
         });
         if let Node::For { codegen, .. } = &mut self.tree[for_node] {
             *codegen = Some(vnode);
@@ -857,6 +886,14 @@ impl Transform<'_> {
         }
         if stable {
             self.helper(Helper::CreateElementVNode);
+            if let Cg::VNode {
+                needs_patch: true,
+                patch_flag,
+                ..
+            } = &mut self.cg[block]
+            {
+                *patch_flag = Some(patch_flag.unwrap_or(0) | patch::NEED_PATCH);
+            }
         } else {
             self.helper(Helper::OpenBlock);
             self.helper(Helper::CreateElementBlock);
@@ -883,7 +920,7 @@ impl Transform<'_> {
             .enumerate()
             .filter_map(|(i, p)| match p {
                 Prop::Dir {
-                    name: DirName::Bind,
+                    name: DirName::Bind | DirName::Model,
                     raw,
                     ..
                 } => Some((i, *raw)),
@@ -1005,24 +1042,31 @@ impl Transform<'_> {
     /// `postTransformElement` for a plain element, with `buildProps`, `transformBind` and
     /// `transformOn`.
     fn post_transform_element(&mut self, n: Nid) -> R<()> {
-        let Node::Element { tag, props, .. } = &self.tree[n] else {
+        let Node::Element { tag, .. } = &self.tree[n] else {
             return Ok(());
         };
         let tag = tag.clone();
+        let model_runtime = self.model_runtime(n)?;
+        let Node::Element { props, .. } = &self.tree[n] else {
+            unreachable!("an element")
+        };
         let props: Vec<PropView> = props
             .iter()
             .map(|p| match p {
-                Prop::Static { name, value } => PropView::Static(name.clone(), value.clone()),
+                Prop::Static { name, value } => {
+                    PropView::Static(name.clone(), value.clone().unwrap_or_default())
+                }
                 Prop::Dir {
                     name,
                     arg,
                     raw,
                     exp,
-                    ..
-                } => PropView::Dir(*name, arg.clone(), *raw, *exp),
+                    id,
+                } => PropView::Dir(*name, arg.clone(), *raw, *exp, *id),
             })
             .collect();
         let mut properties: Vec<(String, Cid)> = Vec::new();
+        let mut runtime_directives: Vec<Cid> = Vec::new();
         let mut patch_flag = 0;
         let mut dynamic_prop_names: Vec<String> = Vec::new();
         let mut has_hydration_event = false;
@@ -1033,25 +1077,25 @@ impl Transform<'_> {
                     let v = self.lit(Lit::Str(value), CAN_STRINGIFY);
                     (name, v)
                 }
-                PropView::Dir(dir, arg, raw, exp) => {
-                    let (key, value) = match dir {
-                        DirName::Bind => {
-                            if arg == "key" {
-                                should_use_block = true;
-                            }
-                            let exp = exp.expect("transformExpression processed it");
-                            (arg, self.cgn(Cg::Exp(exp)))
-                        }
-                        DirName::On => self.transform_on(&arg, raw)?,
-                        _ => unreachable!("structural directives are removed"),
-                    };
+                PropView::Dir(dir, arg, raw, exp, id) => {
+                    if dir == DirName::Bind && arg == "key" {
+                        should_use_block = true;
+                    }
+                    let (key, value, runtime) =
+                        self.directive_transform(dir, arg, raw, exp, id, model_runtime)?;
+                    runtime_directives.extend(runtime);
                     // `analyzePatchFlag`.
-                    if is_on(&key) && !key.eq_ignore_ascii_case("onclick") && !is_reserved(&key) {
+                    if is_on(&key)
+                        && !key.eq_ignore_ascii_case("onclick")
+                        && key != "onUpdate:modelValue"
+                        && !is_reserved(&key)
+                    {
                         has_hydration_event = true;
                     }
                     let constant = match &self.cg[value] {
                         Cg::Cache { .. } => true,
                         Cg::Exp(e) | Cg::Handler { exp: e, .. } => e.const_type > 0,
+                        Cg::ModelUpdate { target, is_ref } => !is_ref && target.const_type > 0,
                         _ => false,
                     };
                     if !constant && key != "key" && !dynamic_prop_names.contains(&key) {
@@ -1072,18 +1116,27 @@ impl Transform<'_> {
         if has_hydration_event {
             patch_flag |= patch::NEED_HYDRATION;
         }
+        let needs_patch =
+            matches!(patch_flag, 0 | patch::NEED_HYDRATION) && !runtime_directives.is_empty();
+        if !should_use_block && needs_patch {
+            patch_flag |= patch::NEED_PATCH;
+        }
         let vnode_props = (!properties.is_empty()).then(|| self.cgn(Cg::Object(properties)));
         let vnode_children = self.vnode_children(n, &mut patch_flag);
         let dynamic_props =
             (!dynamic_prop_names.is_empty()).then(|| self.cgn(Cg::PropNames(dynamic_prop_names)));
+        let directives =
+            (!runtime_directives.is_empty()).then(|| self.cgn(Cg::Array(runtime_directives)));
         let vnode = self.vnode_call(VNodeArgs {
             tag: Some(tag),
             props: vnode_props,
             children: vnode_children,
             patch_flag: (patch_flag != 0).then_some(patch_flag),
             dynamic_props,
+            directives,
             is_block: should_use_block,
             disable_tracking: false,
+            needs_patch: needs_patch && matches!(patch_flag, 0 | patch::NEED_HYDRATION),
         });
         if let Node::Element { codegen, .. } = &mut self.tree[n] {
             *codegen = Some(vnode);
@@ -1114,6 +1167,172 @@ impl Transform<'_> {
             }
             _ => Some(VChildren::List(children)),
         }
+    }
+
+    /// The directive transforms `buildProps` runs: the property, and the runtime directive.
+    fn directive_transform(
+        &mut self,
+        dir: DirName,
+        arg: String,
+        raw: NodeId,
+        exp: Option<Exp>,
+        id: PropId,
+        model_runtime: Option<Helper>,
+    ) -> R<(String, Cid, Option<Cid>)> {
+        Ok(match dir {
+            DirName::Bind => {
+                let exp = exp.expect("transformExpression processed it");
+                (arg, self.cgn(Cg::Exp(exp)), None)
+            }
+            DirName::On => {
+                let (key, value) = self.transform_on(&arg, raw)?;
+                (key, value, None)
+            }
+            DirName::Model => {
+                let exp = exp.expect("transformExpression processed it");
+                let runtime = model_runtime.expect("an element v-model has a runtime");
+                let (update, args) = self.transform_model(raw, exp, id, runtime)?;
+                ("onUpdate:modelValue".to_owned(), update, Some(args))
+            }
+            _ => unreachable!("structural directives are removed"),
+        })
+    }
+
+    /// compiler-dom `transformModel`'s choice of runtime directive for an element's `v-model`,
+    /// refusing what upstream reports as an error or the port does not compile; `None` without a
+    /// `v-model`.
+    fn model_runtime(&self, n: Nid) -> R<Option<Helper>> {
+        let Node::Element { tag, props, .. } = &self.tree[n] else {
+            return Ok(None);
+        };
+        let Some(id) = props.iter().find_map(|p| match p {
+            Prop::Dir {
+                name: DirName::Model,
+                id,
+                ..
+            } => Some(*id),
+            _ => None,
+        }) else {
+            return Ok(None);
+        };
+        let span = self.hir.props[id].span;
+        let PropKind::Directive(d) = &self.hir.props[id].kind else {
+            unreachable!("v-model is a directive")
+        };
+        if d.arg.is_some() {
+            return Err(Unsupported::at("a v-model argument on an element", span));
+        }
+        // `checkDuplicatedValue`: only the first `v-bind` is looked at.
+        let duplicated_value = || {
+            props.iter().find_map(|p| match p {
+                Prop::Dir {
+                    name: DirName::Bind,
+                    arg,
+                    ..
+                } => Some(arg == "value"),
+                _ => None,
+            }) == Some(true)
+        };
+        let runtime = match tag.as_str() {
+            "input" => {
+                // `findProp(node, 'type')`: a static `type` with a value, or a bound one.
+                let ty = props.iter().find_map(|p| match p {
+                    Prop::Static {
+                        name,
+                        value: Some(v),
+                    } if name == "type" => Some(Some(v.as_str())),
+                    Prop::Dir {
+                        name: DirName::Bind,
+                        arg,
+                        ..
+                    } if arg == "type" => Some(None),
+                    _ => None,
+                });
+                match ty {
+                    Some(None) => {
+                        return Err(Unsupported::at("v-model with a bound `type`", span));
+                    }
+                    Some(Some("radio")) => Helper::VModelRadio,
+                    Some(Some("checkbox")) => Helper::VModelCheckbox,
+                    Some(Some("file")) => {
+                        return Err(Unsupported::at("v-model on a file input", span));
+                    }
+                    _ if duplicated_value() => {
+                        return Err(Unsupported::at("v-model with a bound `value`", span));
+                    }
+                    _ => Helper::VModelText,
+                }
+            }
+            "select" => Helper::VModelSelect,
+            "textarea" if duplicated_value() => {
+                return Err(Unsupported::at("v-model with a bound `value`", span));
+            }
+            "textarea" => Helper::VModelText,
+            _ => return Err(Unsupported::at("v-model on this element", span)),
+        };
+        Ok(Some(runtime))
+    }
+
+    /// compiler-core `transformModel` for an element, with compiler-dom's: the update handler
+    /// (cached unless it reads a `v-for` alias) and the directive's `withDirectives` entry
+    /// (`buildDirectiveArgs`). The target is a ref or a member expression.
+    fn transform_model(
+        &mut self,
+        raw: NodeId,
+        exp: Exp,
+        id: PropId,
+        runtime: Helper,
+    ) -> R<(Cid, Cid)> {
+        let loc = self.js.loc(raw);
+        let is_ref = match self.js.kind(raw) {
+            Kind::Ident(_) => {
+                let local = self.reference(raw, false).is_some_and(|r| r.local);
+                if local || self.binding_type(raw) != Some(BindingType::SetupRef) {
+                    return Err(Unsupported::at(
+                        "a v-model target that is not a ref or a member expression",
+                        loc,
+                    ));
+                }
+                true
+            }
+            Kind::Member {
+                optional: false, ..
+            } => false,
+            _ => {
+                return Err(Unsupported::at(
+                    "a v-model target that is not a ref or a member expression",
+                    loc,
+                ));
+            }
+        };
+        let update = self.cgn(Cg::ModelUpdate {
+            target: exp,
+            is_ref,
+        });
+        let update = if self.has_scope_ref(raw) {
+            update
+        } else {
+            self.cache(update)
+        };
+        self.helper(runtime);
+        let PropKind::Directive(d) = &self.hir.props[id].kind else {
+            unreachable!("v-model is a directive")
+        };
+        let modifiers: Vec<String> = d
+            .modifiers
+            .iter()
+            .map(|m| m.text(self.src).to_owned())
+            .collect();
+        let mut args = vec![self.cgn(Cg::Helper(runtime)), self.cgn(Cg::Exp(exp))];
+        if !modifiers.is_empty() {
+            args.push(self.lit(Lit::Undefined, NOT_CONSTANT));
+            let props = modifiers
+                .into_iter()
+                .map(|m| (m, self.lit(Lit::Bool(true), NOT_CONSTANT)))
+                .collect();
+            args.push(self.cgn(Cg::Object(props)));
+        }
+        Ok((update, self.cgn(Cg::Array(args))))
     }
 
     /// `transformOn`, with `cacheHandlers`.
@@ -1171,14 +1390,19 @@ impl Transform<'_> {
         } else {
             self.helper(Helper::CreateElementVNode);
         }
+        if a.directives.is_some() {
+            self.helper(Helper::WithDirectives);
+        }
         self.cgn(Cg::VNode {
             tag: a.tag,
             props: a.props,
             children: a.children,
             patch_flag: a.patch_flag,
             dynamic_props: a.dynamic_props,
+            directives: a.directives,
             is_block: a.is_block,
             disable_tracking: a.disable_tracking,
+            needs_patch: a.needs_patch,
         })
     }
 
@@ -1466,8 +1690,10 @@ impl Transform<'_> {
                     children: Some(VChildren::List(children)),
                     patch_flag: Some(patch::STABLE_FRAGMENT),
                     dynamic_props: None,
+                    directives: None,
                     is_block: true,
                     disable_tracking: false,
+                    needs_patch: false,
                 }))
             }
         }
@@ -1476,7 +1702,7 @@ impl Transform<'_> {
 
 enum PropView {
     Static(String, String),
-    Dir(DirName, String, NodeId, Option<Exp>),
+    Dir(DirName, String, NodeId, Option<Exp>, PropId),
 }
 
 struct VNodeArgs {
@@ -1485,8 +1711,10 @@ struct VNodeArgs {
     children: Option<VChildren>,
     patch_flag: Option<i32>,
     dynamic_props: Option<Cid>,
+    directives: Option<Cid>,
     is_block: bool,
     disable_tracking: bool,
+    needs_patch: bool,
 }
 
 enum Exit {
@@ -1777,10 +2005,13 @@ impl Gen<'_> {
                 children,
                 patch_flag,
                 dynamic_props,
+                directives,
                 is_block,
                 disable_tracking,
+                ..
             } => {
                 let (props, patch_flag, dynamic_props) = (*props, *patch_flag, *dynamic_props);
+                let directives = *directives;
                 let (is_block, disable_tracking) = (*is_block, *disable_tracking);
                 let tag = match tag {
                     Some(t) => self.to.str(t),
@@ -1807,18 +2038,23 @@ impl Gen<'_> {
                 } else {
                     Helper::CreateElementVNode
                 });
-                let call = self.to.call0(callee, &args);
-                if !is_block {
-                    return call;
+                let mut call = self.to.call0(callee, &args);
+                if is_block {
+                    let open = self.helper(Helper::OpenBlock);
+                    let open_args = if disable_tracking {
+                        vec![self.to.bool(true, Loc::SYNTHETIC)]
+                    } else {
+                        Vec::new()
+                    };
+                    let open = self.to.call0(open, &open_args);
+                    call = self.to.seq(&[open, call], Loc::SYNTHETIC);
                 }
-                let open = self.helper(Helper::OpenBlock);
-                let open_args = if disable_tracking {
-                    vec![self.to.bool(true, Loc::SYNTHETIC)]
-                } else {
-                    Vec::new()
+                let Some(d) = directives else {
+                    return call;
                 };
-                let open = self.to.call0(open, &open_args);
-                self.to.seq(&[open, call], Loc::SYNTHETIC)
+                let list = self.cg(d);
+                let callee = self.helper(Helper::WithDirectives);
+                self.to.call0(callee, &[call, list])
             }
             Cg::Call { callee, args } => {
                 let args: Vec<NodeId> = args.iter().map(|&a| self.cg(a)).collect();
@@ -1841,6 +2077,11 @@ impl Gen<'_> {
                 self.to.object(&props, Loc::SYNTHETIC)
             }
             Cg::NodeArray(list) => self.node_array(list),
+            Cg::Array(list) => {
+                let items: Vec<NodeId> = list.iter().map(|&c| self.cg(c)).collect();
+                self.to.array(&items, Loc::SYNTHETIC)
+            }
+            &Cg::Helper(h) => self.helper(h),
             Cg::PropNames(names) => {
                 let items: Vec<NodeId> = names.iter().map(|n| self.to.str(n)).collect();
                 self.to.array(&items, Loc::SYNTHETIC)
@@ -1849,6 +2090,10 @@ impl Gen<'_> {
                 Lit::Str(s) => self.to.str(s),
                 Lit::Num(v) => self.to.num(*v, Loc::SYNTHETIC),
                 Lit::Bool(b) => self.to.bool(*b, Loc::SYNTHETIC),
+                Lit::Undefined => {
+                    let zero = self.to.num(0.0, Loc::SYNTHETIC);
+                    self.to.unary(UnaryOp::Void, zero, Loc::SYNTHETIC)
+                }
             },
             Cg::Exp(e) => self.exp(*e),
             &Cg::Handler { exp, inline } => {
@@ -1866,6 +2111,18 @@ impl Gen<'_> {
                 let args = self.to.id("args");
                 let rest = self.to.rest(args, Loc::SYNTHETIC);
                 self.to.arrow(&[rest], body, true, false, Loc::SYNTHETIC)
+            }
+            &Cg::ModelUpdate { target, is_ref } => {
+                let lhs = if is_ref {
+                    let x = copy(self.js, self.to, &mut Verbatim, target.node);
+                    self.to.dot(x, "value")
+                } else {
+                    self.exp(target)
+                };
+                let event = self.to.id("$event");
+                let body = self.to.assign(AssignOp::Assign, lhs, event, Loc::SYNTHETIC);
+                let p = self.to.id("$event");
+                self.to.arrow(&[p], body, true, false, Loc::SYNTHETIC)
             }
             Cg::Function { params, returns } => {
                 let ps: Vec<NodeId> = params
