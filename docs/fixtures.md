@@ -407,7 +407,7 @@ steps = [
 
 ### 12.9 オラクル自身の検証
 
-rsvelte の実装はまだ無いので、`behaviour.test.ts` は「正しい翻訳」と「誤った翻訳」を、もう一方の公式コンパイラで作って確かめる。`fixtures/` に、rsvelte の出力を装ったファイルは置かない。
+オラクルを rsvelte の実装と独立に確かめるため、`behaviour.test.ts` は「正しい翻訳」と「誤った翻訳」を、もう一方の公式コンパイラで作って確かめる。`fixtures/` に、rsvelte の出力を装ったファイルは置かない。
 
 1. **双子は一致する**: `cross` の各 unit について、双子（他方の言語で手書きした同じ振る舞いのコンポーネント）を公式コンパイラでビルドし、`compare` と同じ関数（`Task.observe`）で trace を取って、committed の期待値と比べる。24 unit × 2 ターゲットのすべてが一致する。
 2. **誤った翻訳は、手順と差分を名指しして `mismatch` になる**: `test/behaviour/wrong/` の 20 ファイル（オフバイワン、手順の後に 1 件足りないリスト、入力欄の `.value` だけが違うもの、空白の扱い、`.lazy` の取り違え、リスナーの例外、server だけが違うもの、など）について、ターゲットごとの報告文を `test/behaviour/controls.json` に完全一致で固定してある。`null` は「そのターゲットは一致したままでなければならない」で、一方の誤りが他方を動かさないことの陰性側の確認になる。
@@ -417,3 +417,26 @@ rsvelte の実装はまだ無いので、`behaviour.test.ts` は「正しい翻�
 テスト自身の陽性対照として、オラクルに欠陥を入れて赤になることを確かめた（フォームのプロパティを記録しない → 1 と 2 が失敗、最初の手順を飛ばす → 1 と 2 が失敗。戻した後は全件成功）。
 
 `fixtures compare` の経路も、手で置いた `actual/` で一度だけ確かめた（その後は削除）。正しい翻訳 → `match`、誤った翻訳 → 手順を名指した `mismatch`、壊れた JS → `unparseable`、`diagnostics.json` だけ → 拒否（`missing` と `unexpected`）。
+
+### 12.10 vuelte の現状（`vuelte.behaviour`）
+
+実装は `crates/rsv_vuelte`（対応表と拒否の一覧はその `lib.rs` の冒頭、設計は [architecture.md](architecture.md) の「vuelte」）。数は vuelte を足したコミットの `run-all` と `fixtures check` のもの。
+
+| unit | client | server |
+|---|---|---|
+| `minimal/` の 8 件（counter、conditional、list、text-input、checkbox、props、form-controls、todo） | match | match |
+| `semantics/interpolation`、`number-input`、`boolean-prop` | match | match |
+| `semantics/fallthrough` | 拒否（Svelte プラグインのパーサ: `spread attributes are not supported yet`） | 同じ |
+
+§12.8 の違いの扱い:
+
+- 補間: Svelte の `set_text` / `escape` と同じ強制（`` `${e ?? ''}` `` / `String(e ?? '')`）にしてから `toDisplayString` に渡す。オブジェクトは JSON にならない。
+- 要素間の空白: Svelte の `clean_nodes` が残したテキストを Vue の HIR に入れる。Vue の `condense` は HIR を作った後には走らない。
+- 数値の入力欄の `bind:value`、form をリセットできるコンポーネントの束縛など、Svelte の束縛が Vue の状態と違う動きをするものは拒否する。テキスト・チェックボックス・静的な選択肢の `<select>` の束縛は、Svelte の client のランタイムの effect（`bind_value`、`bind_checked`、`bind_select_value`）を要素の関数 ref で再現する。
+- 渡されなかった prop: `defineProps` に `type` を書かないので、Vue の Boolean への変換が起きず `undefined` か既定値になる。
+- `$attrs`: 全コンポーネントに `inheritAttrs: false`。spread 属性は Svelte プラグインがまだ読まないので、`fallthrough` は拒否のまま。
+
+コーパス（`run-all` の 17,560 unit）では、client が 673 件、server が 674 件を出力し、残りは拒否する（`diagnostics.json` が client 16,843 件・server 16,842 件。うち `vuelte_unsupported` は 6,291 件・6,290 件で、残りは Svelte プラグインが読まない文書）。panic は 0。出力 1,347 件はすべて acorn でパースでき、Vue のランタイムでマウントと `renderToString` を試すと 1,305 件が例外なしで、42 件は入力自身の例外（必須の props を渡していない 36、`BigInt('invalid')` 2、渡していない関数の prop 2、ビルド時に置換される未定義のグローバル 2）。コーパスのユニットには期待値が無いので、この 2 つは振る舞いの一致ではなく「壊れた JS を出していない」ことの確認である。
+
+拒否の多い順（client、メッセージの中の名前を `X` にまとめたもの）: 要素 `<X>`（コンポーネントや `svelte:` 要素、4,771）、spread 属性（2,388）、モジュールスクリプト（1,581）、`{#if}` / `{#each}` 以外のブロック（1,568）、未対応の指令（1,396）。Vue の移植自身の拒否（`the Vue compiler: …`）は 15 件（Vue の HTML タグの表に無い要素名 `marquee`、`blink`、`keygen`、`menuitem` などをコンポーネントとして扱うもの 12、など）で、翻訳がそれを出力の前に拒否していないところである。
+

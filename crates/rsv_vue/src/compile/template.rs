@@ -314,6 +314,8 @@ struct Transform<'a> {
     hoists: Vec<Cid>,
     cached: usize,
     refs: FxHashMap<NodeId, RefInfo>,
+    /// `context.scopes.vFor`: the `v-for`s being traversed.
+    v_for: u32,
 }
 
 /// # Errors
@@ -332,6 +334,7 @@ pub fn transform(js: &Ast, hir: &Hir, src: &str, res: &Resolution, inline: bool)
         hoists: Vec::new(),
         cached: 0,
         refs: reference_table(res),
+        v_for: 0,
     };
     let children = t.parse_children(hir.root())?;
     let root = t.push(Node::Root(children));
@@ -439,7 +442,7 @@ impl Transform<'_> {
                     let tag = el.tag.text(self.src);
                     let filled_textarea =
                         tag == "textarea" && !self.hir.children(el.children).is_empty();
-                    if filled_textarea || matches!(tag, "pre" | "svg" | "math" | "foreignObject") {
+                    if filled_textarea || matches!(tag, "svg" | "math" | "foreignObject") {
                         return Err(Unsupported::at(
                             "this element in a compiled template",
                             el.tag.span(),
@@ -483,7 +486,7 @@ impl Transform<'_> {
                 }
                 PropKind::Directive(d) => {
                     let arg = d.arg.as_ref().map_or("", |a| a.text(self.src));
-                    if d.name == DirName::Bind && matches!(arg, "class" | "style" | "ref" | "is") {
+                    if d.name == DirName::Bind && matches!(arg, "class" | "style" | "is") {
                         return Err(Unsupported::at("this bound attribute", p.span));
                     }
                     let raw = match &d.exp {
@@ -569,7 +572,10 @@ impl Transform<'_> {
                         *codegen = Some(cg);
                     }
                 }
-                Exit::For(for_node) => self.finish_for(for_node),
+                Exit::For(for_node) => {
+                    self.v_for -= 1;
+                    self.finish_for(for_node);
+                }
             }
         }
         Ok(())
@@ -830,6 +836,7 @@ impl Transform<'_> {
         if let Node::For { codegen, .. } = &mut self.tree[for_node] {
             *codegen = Some(vnode);
         }
+        self.v_for += 1;
         Ok((for_node, Exit::For(for_node)))
     }
 
@@ -1039,18 +1046,11 @@ impl Transform<'_> {
 
     // ---- transformElement ----------------------------------------------------------------
 
-    /// `postTransformElement` for a plain element, with `buildProps`, `transformBind` and
-    /// `transformOn`.
-    fn post_transform_element(&mut self, n: Nid) -> R<()> {
-        let Node::Element { tag, .. } = &self.tree[n] else {
-            return Ok(());
-        };
-        let tag = tag.clone();
-        let model_runtime = self.model_runtime(n)?;
+    fn prop_views(&self, n: Nid) -> Vec<PropView> {
         let Node::Element { props, .. } = &self.tree[n] else {
             unreachable!("an element")
         };
-        let props: Vec<PropView> = props
+        props
             .iter()
             .map(|p| match p {
                 Prop::Static { name, value } => {
@@ -1064,12 +1064,24 @@ impl Transform<'_> {
                     id,
                 } => PropView::Dir(*name, arg.clone(), *raw, *exp, *id),
             })
-            .collect();
+            .collect()
+    }
+
+    /// `postTransformElement` for a plain element, with `buildProps`, `transformBind` and
+    /// `transformOn`.
+    fn post_transform_element(&mut self, n: Nid) -> R<()> {
+        let Node::Element { tag, .. } = &self.tree[n] else {
+            return Ok(());
+        };
+        let tag = tag.clone();
+        let model_runtime = self.model_runtime(n)?;
+        let props = self.prop_views(n);
         let mut properties: Vec<(String, Cid)> = Vec::new();
         let mut runtime_directives: Vec<Cid> = Vec::new();
         let mut patch_flag = 0;
         let mut dynamic_prop_names: Vec<String> = Vec::new();
         let mut has_hydration_event = false;
+        let mut has_ref = false;
         let mut should_use_block = false;
         for p in props {
             let (key, value) = match p {
@@ -1080,6 +1092,14 @@ impl Transform<'_> {
                 PropView::Dir(dir, arg, raw, exp, id) => {
                     if dir == DirName::Bind && arg == "key" {
                         should_use_block = true;
+                    }
+                    if dir == DirName::Bind && arg == "ref" {
+                        has_ref = true;
+                        // `pushRefVForMarker`.
+                        if self.v_for > 0 {
+                            let t = self.lit(Lit::Bool(true), NOT_CONSTANT);
+                            properties.push(("ref_for".to_owned(), t));
+                        }
                     }
                     let (key, value, runtime) =
                         self.directive_transform(dir, arg, raw, exp, id, model_runtime)?;
@@ -1098,7 +1118,11 @@ impl Transform<'_> {
                         Cg::ModelUpdate { target, is_ref } => !is_ref && target.const_type > 0,
                         _ => false,
                     };
-                    if !constant && key != "key" && !dynamic_prop_names.contains(&key) {
+                    if !constant
+                        && key != "key"
+                        && key != "ref"
+                        && !dynamic_prop_names.contains(&key)
+                    {
                         dynamic_prop_names.push(key.clone());
                     }
                     (key, value)
@@ -1116,8 +1140,8 @@ impl Transform<'_> {
         if has_hydration_event {
             patch_flag |= patch::NEED_HYDRATION;
         }
-        let needs_patch =
-            matches!(patch_flag, 0 | patch::NEED_HYDRATION) && !runtime_directives.is_empty();
+        let needs_patch = matches!(patch_flag, 0 | patch::NEED_HYDRATION)
+            && (has_ref || !runtime_directives.is_empty());
         if !should_use_block && needs_patch {
             patch_flag |= patch::NEED_PATCH;
         }
