@@ -1009,8 +1009,32 @@ impl<'a> Formatter<'a> {
         let soft2 = self.docs.softline();
         let [open, inner, trail, end_soft, close] =
             self.bracketed("[", soft, parts, trailing, soft2, "]");
-        let group = self.docs.group(&[open, inner, trail, end_soft, close]);
+        let docs = [open, inner, trail, end_soft, close];
+        let group = if self.breaks_array(items) {
+            self.docs.group_broken(&docs)
+        } else {
+            self.docs.group(&docs)
+        };
         Ok(self.cat(&[group, suffix]))
+    }
+
+    /// Prettier's `shouldBreak` for an array: two or more objects (or arrays), each with more
+    /// than one member, and no change of type between neighbours.
+    fn breaks_array(&self, items: &[NodeId]) -> bool {
+        items.len() > 1
+            && items.iter().enumerate().all(|(i, &it)| {
+                let (len, ty) = match self.ast.kind(it) {
+                    Kind::Object(p) => (p.len(), 0),
+                    Kind::Array(e) => (e.len(), 1),
+                    _ => return false,
+                };
+                let same_as_next = items.get(i + 1).is_none_or(|&n| match self.ast.kind(n) {
+                    Kind::Object(_) => ty == 0,
+                    Kind::Array(_) => ty == 1,
+                    _ => false,
+                });
+                same_as_next && len > 1
+            })
     }
 
     /// Prettier's `printArrayItemsConcisely`: numbers fill the line, and the trailing comma
