@@ -1,37 +1,62 @@
 {
 	"build": {
-		"rev": "12c3db7a70bb6fdb53222eebfa42357dc5e1568e",
+		"rev": "d6f426e250d0e5a14828e6daa12baca77a8e01b1",
 		"profile": "release",
 		"metrics": true
 	},
 	"threads": 10,
 	"population": {
 		"root": "fixtures/svelte",
-		"documents": 17488,
+		"documents": 17489,
 		"unclaimed": 580,
-		"bytes": 32258838,
-		"output_bytes": 12547497,
+		"bytes": 32259121,
+		"output_bytes": 7131622,
 		"panicked": [],
 		"tasks": {
 			"svelte.compile/client": {
-				"ran": 17488,
-				"clean": 4643,
-				"diagnostics": 12845
+				"ran": 17489,
+				"clean": 1417,
+				"diagnostics": 16072
 			},
 			"svelte.compile/server": {
-				"ran": 17488,
-				"clean": 4648,
-				"diagnostics": 12840
+				"ran": 17489,
+				"clean": 1420,
+				"diagnostics": 16069
 			},
 			"svelte.format/default": {
-				"ran": 17488,
-				"clean": 4199,
-				"diagnostics": 13289
+				"ran": 17489,
+				"clean": 4400,
+				"diagnostics": 13089
 			},
 			"svelte.lint/default": {
-				"ran": 17488,
-				"clean": 5410,
-				"diagnostics": 12078
+				"ran": 17489,
+				"clean": 5433,
+				"diagnostics": 12056
+			},
+			"vue.compile/default": {
+				"ran": 0,
+				"clean": 0,
+				"diagnostics": 0
+			},
+			"vue.format/default": {
+				"ran": 0,
+				"clean": 0,
+				"diagnostics": 0
+			},
+			"vue.lint/default": {
+				"ran": 0,
+				"clean": 0,
+				"diagnostics": 0
+			},
+			"svue.compile/client": {
+				"ran": 0,
+				"clean": 0,
+				"diagnostics": 0
+			},
+			"svue.compile/server": {
+				"ran": 0,
+				"clean": 0,
+				"diagnostics": 0
 			}
 		}
 	},
@@ -40,171 +65,185 @@
 		{
 			"name": "shared",
 			"wall_ms": [
-				63.672,
-				63.146,
-				63.488,
-				63.022,
-				62.665
+				47.901,
+				36.733,
+				36.581,
+				53.094,
+				117.468
 			],
-			"median_ms": 63.146,
-			"allocs": 4322759,
-			"alloc_bytes": 418903174,
-			"allocs_per_source_byte": 0.134,
-			"peak_live_growth_bytes": 44694895
+			"median_ms": 47.901,
+			"allocs": 2011708,
+			"alloc_bytes": 136374127,
+			"allocs_per_source_byte": 0.062,
+			"peak_live_growth_bytes": 35851608
 		},
 		{
 			"name": "isolated",
 			"wall_ms": [
-				142.125,
-				144.511,
-				149.930,
-				150.162,
-				141.225
+				72.747,
+				74.184,
+				74.823,
+				96.986,
+				110.446
 			],
-			"median_ms": 144.511,
-			"allocs": 7404138,
-			"alloc_bytes": 648882774,
-			"allocs_per_source_byte": 0.230,
-			"peak_live_growth_bytes": 44789881
+			"median_ms": 74.823,
+			"allocs": 3428713,
+			"alloc_bytes": 241534886,
+			"allocs_per_source_byte": 0.106,
+			"peak_live_growth_bytes": 35825291
 		},
 		{
 			"name": "nopool",
 			"wall_ms": [
-				69.789,
-				67.574,
-				68.658,
-				71.188,
-				72.947
+				46.568,
+				49.666,
+				54.052,
+				45.611,
+				62.002
 			],
-			"median_ms": 69.789,
-			"allocs": 4865012,
-			"alloc_bytes": 521695666,
-			"allocs_per_source_byte": 0.151,
-			"peak_live_growth_bytes": 44756269
+			"median_ms": 49.666,
+			"allocs": 3006827,
+			"alloc_bytes": 538653357,
+			"allocs_per_source_byte": 0.093,
+			"peak_live_growth_bytes": 36047658
 		},
 		{
 			"name": "serial",
 			"wall_ms": [
-				469.891,
-				471.851,
-				484.404,
-				507.487,
-				474.395
+				252.226,
+				253.826,
+				252.618,
+				381.853,
+				257.572
 			],
-			"median_ms": 474.395,
-			"allocs": 4322900,
-			"alloc_bytes": 419092642,
-			"allocs_per_source_byte": 0.134,
-			"peak_live_growth_bytes": 44733686
+			"median_ms": 253.826,
+			"allocs": 2011703,
+			"alloc_bytes": 136335215,
+			"allocs_per_source_byte": 0.062,
+			"peak_live_growth_bytes": 35815120
 		},
 		{
 			"name": "streaming",
 			"wall_ms": [
-				63.222,
-				64.307,
-				65.572,
-				67.777,
-				62.495
+				42.084,
+				37.870,
+				39.297,
+				40.934,
+				41.498
 			],
-			"median_ms": 64.307,
-			"allocs": 4305269,
-			"alloc_bytes": 414706070,
-			"allocs_per_source_byte": 0.133,
-			"peak_live_growth_bytes": 805780
+			"median_ms": 40.934,
+			"allocs": 2011702,
+			"alloc_bytes": 135076007,
+			"allocs_per_source_byte": 0.062,
+			"peak_live_growth_bytes": 439508
 		}
 	],
 	"phases": [
 		{
 			"name": "svelte.parse",
-			"calls": 17488,
-			"self_ms": 273.076,
-			"self_allocs": 806415,
-			"self_bytes": 66086246
+			"calls": 17489,
+			"self_ms": 112.297,
+			"self_allocs": 228318,
+			"self_bytes": 15755409
 		},
 		{
 			"name": "svelte.format/default",
-			"calls": 17488,
-			"self_ms": 117.923,
-			"self_allocs": 1024096,
-			"self_bytes": 164404407
+			"calls": 17489,
+			"self_ms": 77.348,
+			"self_allocs": 520270,
+			"self_bytes": 26180613
 		},
 		{
 			"name": "svelte.lower.client",
-			"calls": 5410,
-			"self_ms": 84.459,
-			"self_allocs": 974032,
-			"self_bytes": 59801431
+			"calls": 5433,
+			"self_ms": 31.313,
+			"self_allocs": 376270,
+			"self_bytes": 17393352
 		},
 		{
 			"name": "svelte.lower.server",
-			"calls": 5410,
-			"self_ms": 66.797,
-			"self_allocs": 783990,
-			"self_bytes": 49737986
-		},
-		{
-			"name": "js.print",
-			"calls": 9291,
-			"self_ms": 31.987,
-			"self_allocs": 218541,
-			"self_bytes": 34139688
-		},
-		{
-			"name": "svelte.analyze",
-			"calls": 5410,
-			"self_ms": 26.101,
-			"self_allocs": 292226,
-			"self_bytes": 13480418
+			"calls": 5433,
+			"self_ms": 18.020,
+			"self_allocs": 230105,
+			"self_bytes": 11587539
 		},
 		{
 			"name": "svelte.lint/default",
-			"calls": 17488,
-			"self_ms": 15.238,
-			"self_allocs": 91847,
-			"self_bytes": 11285630
+			"calls": 17489,
+			"self_ms": 12.997,
+			"self_allocs": 82105,
+			"self_bytes": 11507105
+		},
+		{
+			"name": "svelte.resolve",
+			"calls": 5433,
+			"self_ms": 12.331,
+			"self_allocs": 150426,
+			"self_bytes": 8189054
+		},
+		{
+			"name": "svelte.analyze",
+			"calls": 5433,
+			"self_ms": 12.025,
+			"self_allocs": 159496,
+			"self_bytes": 6298938
+		},
+		{
+			"name": "svelte.hir",
+			"calls": 5433,
+			"self_ms": 8.201,
+			"self_allocs": 95275,
+			"self_bytes": 12098025
+		},
+		{
+			"name": "js.print",
+			"calls": 2837,
+			"self_ms": 7.763,
+			"self_allocs": 47229,
+			"self_bytes": 6158428
 		},
 		{
 			"name": "svelte.compile/client",
-			"calls": 17488,
-			"self_ms": 4.648,
-			"self_allocs": 25573,
-			"self_bytes": 3742781
-		},
-		{
-			"name": "svelte.compile/server",
-			"calls": 17488,
-			"self_ms": 2.859,
-			"self_allocs": 25568,
-			"self_bytes": 3741501
-		},
-		{
-			"name": "js.parents",
-			"calls": 5410,
-			"self_ms": 2.317,
-			"self_allocs": 5410,
-			"self_bytes": 598860
+			"calls": 17489,
+			"self_ms": 4.700,
+			"self_allocs": 31302,
+			"self_bytes": 4818723
 		},
 		{
 			"name": "no-unused-vars",
-			"calls": 5410,
-			"self_ms": 2.100,
-			"self_allocs": 13888,
-			"self_bytes": 1709676
+			"calls": 5433,
+			"self_ms": 2.422,
+			"self_allocs": 13564,
+			"self_bytes": 1675584
 		},
 		{
-			"name": "svelte.css",
-			"calls": 4649,
-			"self_ms": 0.515,
-			"self_allocs": 7737,
-			"self_bytes": 283266
+			"name": "svelte.compile/server",
+			"calls": 17489,
+			"self_ms": 2.153,
+			"self_allocs": 31305,
+			"self_bytes": 4818537
+		},
+		{
+			"name": "js.parents",
+			"calls": 5433,
+			"self_ms": 1.907,
+			"self_allocs": 5433,
+			"self_bytes": 614284
 		},
 		{
 			"name": "svelte/button-has-type",
-			"calls": 5410,
-			"self_ms": 0.466,
-			"self_allocs": 970,
-			"self_bytes": 106148
+			"calls": 5433,
+			"self_ms": 0.479,
+			"self_allocs": 973,
+			"self_bytes": 106560
+		},
+		{
+			"name": "svelte.css",
+			"calls": 1420,
+			"self_ms": 0.296,
+			"self_allocs": 4649,
+			"self_bytes": 317968
 		}
 	],
-	"max_rss_bytes": 117440512
+	"max_rss_bytes": 124387328
 }

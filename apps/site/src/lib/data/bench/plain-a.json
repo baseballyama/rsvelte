@@ -1,37 +1,62 @@
 {
 	"build": {
-		"rev": "12c3db7a70bb6fdb53222eebfa42357dc5e1568e",
+		"rev": "d6f426e250d0e5a14828e6daa12baca77a8e01b1",
 		"profile": "release",
 		"metrics": false
 	},
 	"threads": 10,
 	"population": {
 		"root": "fixtures/svelte",
-		"documents": 17488,
+		"documents": 17489,
 		"unclaimed": 580,
-		"bytes": 32258838,
-		"output_bytes": 12547497,
+		"bytes": 32259121,
+		"output_bytes": 7131622,
 		"panicked": [],
 		"tasks": {
 			"svelte.compile/client": {
-				"ran": 17488,
-				"clean": 4643,
-				"diagnostics": 12845
+				"ran": 17489,
+				"clean": 1417,
+				"diagnostics": 16072
 			},
 			"svelte.compile/server": {
-				"ran": 17488,
-				"clean": 4648,
-				"diagnostics": 12840
+				"ran": 17489,
+				"clean": 1420,
+				"diagnostics": 16069
 			},
 			"svelte.format/default": {
-				"ran": 17488,
-				"clean": 4199,
-				"diagnostics": 13289
+				"ran": 17489,
+				"clean": 4400,
+				"diagnostics": 13089
 			},
 			"svelte.lint/default": {
-				"ran": 17488,
-				"clean": 5410,
-				"diagnostics": 12078
+				"ran": 17489,
+				"clean": 5433,
+				"diagnostics": 12056
+			},
+			"vue.compile/default": {
+				"ran": 0,
+				"clean": 0,
+				"diagnostics": 0
+			},
+			"vue.format/default": {
+				"ran": 0,
+				"clean": 0,
+				"diagnostics": 0
+			},
+			"vue.lint/default": {
+				"ran": 0,
+				"clean": 0,
+				"diagnostics": 0
+			},
+			"svue.compile/client": {
+				"ran": 0,
+				"clean": 0,
+				"diagnostics": 0
+			},
+			"svue.compile/server": {
+				"ran": 0,
+				"clean": 0,
+				"diagnostics": 0
 			}
 		}
 	},
@@ -40,13 +65,13 @@
 		{
 			"name": "shared",
 			"wall_ms": [
-				59.507,
-				58.543,
-				61.987,
-				57.879,
-				58.489
+				36.526,
+				37.913,
+				35.782,
+				32.169,
+				31.744
 			],
-			"median_ms": 58.543,
+			"median_ms": 35.782,
 			"allocs": "UNMEASURED",
 			"alloc_bytes": "UNMEASURED",
 			"allocs_per_source_byte": "UNMEASURED",
@@ -55,13 +80,13 @@
 		{
 			"name": "isolated",
 			"wall_ms": [
-				134.113,
-				135.268,
-				142.777,
-				131.947,
-				133.814
+				75.006,
+				69.983,
+				79.233,
+				65.349,
+				67.660
 			],
-			"median_ms": 134.113,
+			"median_ms": 69.983,
 			"allocs": "UNMEASURED",
 			"alloc_bytes": "UNMEASURED",
 			"allocs_per_source_byte": "UNMEASURED",
@@ -70,13 +95,13 @@
 		{
 			"name": "nopool",
 			"wall_ms": [
-				63.289,
-				62.120,
-				61.893,
-				69.633,
-				73.466
+				49.572,
+				50.340,
+				41.228,
+				46.384,
+				40.354
 			],
-			"median_ms": 63.289,
+			"median_ms": 46.384,
 			"allocs": "UNMEASURED",
 			"alloc_bytes": "UNMEASURED",
 			"allocs_per_source_byte": "UNMEASURED",
@@ -85,13 +110,13 @@
 		{
 			"name": "serial",
 			"wall_ms": [
-				444.443,
-				448.133,
-				449.801,
-				448.472,
-				455.595
+				238.352,
+				236.626,
+				231.052,
+				232.914,
+				230.018
 			],
-			"median_ms": 448.472,
+			"median_ms": 232.914,
 			"allocs": "UNMEASURED",
 			"alloc_bytes": "UNMEASURED",
 			"allocs_per_source_byte": "UNMEASURED",
@@ -100,13 +125,13 @@
 		{
 			"name": "streaming",
 			"wall_ms": [
-				57.853,
-				57.911,
-				56.688,
-				66.839,
-				60.553
+				36.991,
+				42.018,
+				34.988,
+				32.525,
+				30.278
 			],
-			"median_ms": 57.911,
+			"median_ms": 34.988,
 			"allocs": "UNMEASURED",
 			"alloc_bytes": "UNMEASURED",
 			"allocs_per_source_byte": "UNMEASURED",
@@ -114,5 +139,5 @@
 		}
 	],
 	"phases": "UNMEASURED",
-	"max_rss_bytes": 107560960
+	"max_rss_bytes": 112263168
 }

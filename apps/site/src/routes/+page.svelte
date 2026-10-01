@@ -36,7 +36,7 @@
 		{
 			value: `${arm('shared').median.toFixed(1)}`,
 			unit: 'ms',
-			label: `${fmt(data.bench.documents)} 文書・${mb(data.bench.bytes)} MB に 4 タスク`,
+			label: `${fmt(data.bench.documents)} 文書・${mb(data.bench.bytes)} MB に ${data.bench.tasks} タスク`,
 			detail: `${data.bench.threads} スレッド、${data.bench.rounds} ラウンドの中央値`
 		},
 		{
@@ -302,7 +302,7 @@
 					</table>
 				</div>
 				<p class="mt-3 text-[13px] leading-[1.7] text-muted">
-					{fmt(data.bench.documents)} 文書（{mb(data.bench.bytes)} MB）、4 タスク、{data.bench.threads} スレッド、release、{data.bench.rounds}
+					{fmt(data.bench.documents)} 文書（{mb(data.bench.bytes)} MB）、{data.bench.tasks} タスク、{data.bench.threads} スレッド、release、{data.bench.rounds}
 					ラウンドの中央値（ABBA 順）。時間は metrics なしのビルド、ピーク増分は metrics ありのビルドの別ラウンド。build
 					{data.bench.rev.slice(0, 10)}。
 				</p>

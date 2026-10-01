@@ -22,6 +22,7 @@ export const load = () => {
 			rev: plainA.build.rev,
 			threads: plainA.threads,
 			documents: plainA.population.documents,
+			tasks: Object.values(plainA.population.tasks).filter((t) => t.ran > 0).length,
 			bytes: plainA.population.bytes,
 			rounds: plainA.rounds,
 			arms: plainA.arms.map((a) => ({
