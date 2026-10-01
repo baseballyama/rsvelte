@@ -317,6 +317,40 @@
 		HIR を読むように移しています。移したときは、Svelte のコーパスで compile・format・lint の出力 70,608 ファイルのハッシュが前後で一致しました（db94f0bd13）。
 	</p>
 
+	<H2 id="vuelte" />
+	<p>
+		逆向きもあります。<code>rsv_vuelte</code> は <code>.svelte</code> を、Svelte の意味のまま Vue のランタイム向けの JavaScript
+		にコンパイルします。自分の言語は持たず、Svelte の言語にタスク <code>vuelte.behaviour/client</code> と <code>/server</code>
+		を足すだけです。パース・名前解決・HIR・解析は <code>svelte.compile</code> と同じアーティファクトを使い、出力は Vue
+		プラグインの名前解決とコンパイラです。<code>rsv_vuelte</code> が持っているのは、Svelte の HIR から Vue の HIR
+		とスクリプトを作る翻訳だけです。
+	</p>
+</div>
+
+<Code item={data.code.vuelteRegister} />
+<Code item={data.code.vuelteModule} />
+
+<div class="prose-learn">
+	<p>
+		上流のコンパイラが無いので、オラクルは振る舞いです。公式の Svelte でビルドしたコンポーネントを DOM にマウントし、操作手順ごとの DOM と SSR
+		の HTML を記録して、rsvelte の出力を Vue のランタイムで動かした記録と比べます。同じ見た目の書き方でも二つのランタイムの意味は違うので（補間の表示、要素の間の空白、<code
+			>value</code
+		> を属性にも書くかどうか）、翻訳は Svelte のランタイムの判断を Vue の上で再現します。たとえば Svelte の束縛は要素への effect
+		なので、Vue が要素の patch のたびとアンマウントのときに呼ぶ関数 ref の中で動かします。
+	</p>
+</div>
+
+<Code item={data.code.vuelteRef} />
+<Code item={data.code.vuelteBindText} />
+
+<div class="prose-learn">
+	<p>
+		写せない構文は、それらしく変換せずに出力の前に拒否します。導入したコミットでは、手書きの 12 ユニットのうち 11 で client と server
+		の両方が一致し、残る 1 つ（spread 属性）は拒否しました。Svelte のコーパスでは client 673 件・server 674 件を出力し、panic は 0
+		件でした（24c6e6a123）。Vue の移植の側に足したのは、<code>defineOptions</code>、<code>&lt;pre&gt;</code>、関数の
+		<code>:ref</code> の三つで、足す前後で Vue のフィクスチャのコンパイル出力はバイト一致しています。
+	</p>
+
 	<H2 id="lint" />
 	<p>
 		ルールは、自分の問いに答える層の上で書きます。rustc と同じく、構文木を読むルールを <dfn>early</dfn>、下げた層を読むルールを
