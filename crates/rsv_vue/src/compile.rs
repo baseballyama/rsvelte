@@ -8,13 +8,14 @@ pub mod template;
 
 use rsv_js::ast::flag;
 use rsv_js::copy::{Rewrite, Verbatim, copy};
+use rsv_js::scope::{DeclKind, ScopeId};
 use rsv_js::{Ast, Kind, NodeId};
 use rsv_kernel::diag::Unsupported;
 use rsv_kernel::source::Loc;
 
 use crate::ast::Sfc;
 use crate::hir::Hir;
-use crate::resolve::{Resolution, call_name, is_static};
+use crate::resolve::{BindingType, Resolution, call_name, is_static};
 
 type R<T> = Result<T, Unsupported>;
 
@@ -73,15 +74,20 @@ impl<'a> CompileInput<'a> {
     }
 }
 
-/// compiler-sfc's macros other than `defineProps`, none of which the port compiles yet.
+/// compiler-sfc's macros other than `defineProps` and `defineOptions`, none of which the port
+/// compiles yet.
 const OTHER_MACROS: &[&str] = &[
     "defineEmits",
     "defineExpose",
-    "defineOptions",
     "defineSlots",
     "defineModel",
     "withDefaults",
 ];
+
+const DEFINE_OPTIONS: &str = "defineOptions";
+
+/// The keys `processDefineOptions` rejects: each has a macro of its own.
+const OPTIONS_OWNED_BY_MACROS: &[&str] = &["props", "emits", "expose", "slots"];
 
 /// `@vitejs/plugin-vue`'s scope id: the first 8 hex digits of the SHA-256 of the path.
 #[must_use]
@@ -177,7 +183,21 @@ fn script_setup(
     let mut imports = Vec::new();
     let mut hoisted = Vec::new();
     let mut setup = Vec::new();
+    // `hasDefineOptionsCall`: set by a call with an argument only.
+    let mut options: Option<NodeId> = None;
     for &s in stmts {
+        if let Kind::ExprStmt(e) = ast.kind(s)
+            && call_name(ast, e) == Some(DEFINE_OPTIONS)
+        {
+            if options.is_some() {
+                return Err(Unsupported::at(
+                    "a duplicate defineOptions() call",
+                    ast.loc(e),
+                ));
+            }
+            options = define_options(ast, res, e)?;
+            continue;
+        }
         refuse_unsupported(ast, s)?;
         match ast.kind(s) {
             Kind::Import { .. } => imports.push(s),
@@ -212,11 +232,7 @@ fn script_setup(
         ));
     }
     if input.ts {
-        let imported = to.id("defineComponent");
-        let local = to.id("_defineComponent");
-        let spec = to.import_named(imported, local, false, Loc::SYNTHETIC);
-        let source = to.str("vue");
-        out.push(to.import(&[spec], source, false, Loc::SYNTHETIC));
+        out.push(define_component_import(to));
     }
     let tpl = template::transform(ast, hir, src, res, true)?;
     let (preamble, ret) = tpl.generate(ast, res, true, to);
@@ -238,41 +254,136 @@ fn script_setup(
     let render_body = to.block(&[ret_stmt], Loc::SYNTHETIC);
     let render = to.arrow(&render_params, render_body, false, false, Loc::SYNTHETIC);
     setup_body.push(to.return_(Some(render), Loc::SYNTHETIC));
-    let mut options = Vec::new();
+    let mut fields = Vec::new();
     if let Some(name) = component_name(path) {
         let key = to.id("__name");
         let value = to.str(name);
-        options.push(to.property(key, value, 0, Loc::SYNTHETIC));
+        fields.push(to.property(key, value, 0, Loc::SYNTHETIC));
     }
     if let Some(runtime) = res.define_props.and_then(|d| d.runtime) {
         let key = to.id("props");
         let value = copy(ast, to, &mut Verbatim, runtime);
-        options.push(to.property(key, value, 0, Loc::SYNTHETIC));
+        fields.push(to.property(key, value, 0, Loc::SYNTHETIC));
     }
     let block = to.block(&setup_body, Loc::SYNTHETIC);
     let props = to.id("__props");
     let setup_fn = to.function(false, None, &[props], block, false, Loc::SYNTHETIC);
     let key = to.id("setup");
-    options.push(to.property(key, setup_fn, flag::METHOD, Loc::SYNTHETIC));
-    let object = to.object(&options, Loc::SYNTHETIC);
-    let main = if input.ts {
-        let callee = to.id("_defineComponent");
-        let call = to.call0(callee, &[object]);
-        to.mark_pure(call);
-        call
-    } else {
-        object
-    };
+    fields.push(to.property(key, setup_fn, flag::METHOD, Loc::SYNTHETIC));
+    let defined = options.map(|o| copy(ast, to, &mut Verbatim, o));
+    let main = component_object(to, fields, defined, input.ts);
     let name = to.id("_sfc_main");
     out.push(to.let_(flag::CONST, name, Some(main)));
     Ok(())
+}
+
+/// `import { defineComponent as _defineComponent } from 'vue'`.
+fn define_component_import(to: &mut Ast) -> NodeId {
+    let imported = to.id("defineComponent");
+    let local = to.id("_defineComponent");
+    let spec = to.import_named(imported, local, false, Loc::SYNTHETIC);
+    let source = to.str("vue");
+    to.import(&[spec], source, false, Loc::SYNTHETIC)
+}
+
+/// The component object, merged with `defineOptions`' argument.
+fn component_object(
+    to: &mut Ast,
+    mut fields: Vec<NodeId>,
+    defined: Option<NodeId>,
+    ts: bool,
+) -> NodeId {
+    if ts {
+        // `defineComponent({ ...options, … })`: a spread keeps the type of the merged object.
+        if let Some(o) = defined {
+            fields.insert(0, to.spread(o, Loc::SYNTHETIC));
+        }
+        let object = to.object(&fields, Loc::SYNTHETIC);
+        let callee = to.id("_defineComponent");
+        let call = to.call0(callee, &[object]);
+        to.mark_pure(call);
+        return call;
+    }
+    let object = to.object(&fields, Loc::SYNTHETIC);
+    let Some(o) = defined else {
+        return object;
+    };
+    // Without TypeScript, compileScript cannot rely on spread: `Object.assign(options, …)`.
+    let target = to.id("Object");
+    let callee = to.dot(target, "assign");
+    let call = to.call0(callee, &[o, object]);
+    to.mark_pure(call);
+    call
+}
+
+/// compiler-sfc `processDefineOptions` and its `checkInvalidScopeReference`: the options object
+/// (`None` for a call without one), refusing what upstream reports as an error. An argument other
+/// than an object literal is not compiled yet.
+fn define_options(ast: &Ast, res: &Resolution, call: NodeId) -> R<Option<NodeId>> {
+    let Kind::Call { args, .. } = ast.kind(call) else {
+        unreachable!("a defineOptions() call")
+    };
+    let Some(&arg) = args.first() else {
+        return Ok(None);
+    };
+    let Kind::Object(props) = ast.kind(arg) else {
+        return Err(Unsupported::at(
+            "defineOptions() with an argument other than an object literal",
+            ast.loc(arg),
+        ));
+    };
+    for &p in props {
+        if let Kind::Property { key, .. } = ast.kind(p)
+            && matches!(ast.kind(key), Kind::Ident(_))
+            && OPTIONS_OWNED_BY_MACROS.contains(&ast.name(key))
+        {
+            return Err(Unsupported::at(
+                "a defineOptions() key that has a macro of its own",
+                ast.loc(p),
+            ));
+        }
+    }
+    let mut stack = vec![arg];
+    while let Some(n) = stack.pop() {
+        match ast.kind(n) {
+            Kind::Ident(_) => {
+                let local = res.sem.binding_of(n).is_some_and(|b| {
+                    let b = &res.sem.bindings[b];
+                    b.scope == ScopeId::ROOT && b.kind != DeclKind::Import && b.node != n
+                });
+                let literal = ast
+                    .atom(n)
+                    .and_then(|a| res.binding_type(a))
+                    .is_some_and(|t| t == BindingType::LiteralConst);
+                if local && !literal {
+                    return Err(Unsupported::at(
+                        "defineOptions() referencing a binding of <script setup>",
+                        ast.loc(n),
+                    ));
+                }
+            }
+            Kind::Call { .. } if call_name(ast, n).is_some_and(is_macro) => {
+                return Err(Unsupported::at("this compiler macro", ast.loc(n)));
+            }
+            _ => {}
+        }
+        ast.for_each_child(n, |k| stack.push(k));
+    }
+    Ok(Some(arg))
+}
+
+fn is_macro(name: &str) -> bool {
+    name == "defineProps" || name == DEFINE_OPTIONS || OTHER_MACROS.contains(&name)
 }
 
 fn refuse_unsupported(ast: &Ast, s: NodeId) -> R<()> {
     let mut stack = vec![s];
     while let Some(n) = stack.pop() {
         match ast.kind(n) {
-            Kind::Call { .. } if call_name(ast, n).is_some_and(|c| OTHER_MACROS.contains(&c)) => {
+            Kind::Call { .. }
+                if call_name(ast, n)
+                    .is_some_and(|c| c == DEFINE_OPTIONS || OTHER_MACROS.contains(&c)) =>
+            {
                 return Err(Unsupported::at("this compiler macro", ast.loc(n)));
             }
             Kind::Await(_) => return Err(Unsupported::at("top-level await", ast.loc(n))),
@@ -304,10 +415,7 @@ fn without_macros(ast: &Ast, src: &str, to: &mut Ast, s: NodeId) -> Option<NodeI
         .iter()
         .copied()
         .filter(|&sp| match ast.kind(sp) {
-            Kind::ImportNamed { imported, .. } => {
-                let n = ast.name(imported);
-                n != "defineProps" && !OTHER_MACROS.contains(&n)
-            }
+            Kind::ImportNamed { imported, .. } => !is_macro(ast.name(imported)),
             _ => true,
         })
         .collect();
@@ -356,6 +464,66 @@ mod tests {
         let res = crate::resolve::resolve(&c.js, c.program, hir.as_ref(), &src);
         let input = CompileInput::from_sfc(&c, hir.as_ref(), &src);
         compile(&input, &res, "a.vue").err().map(|u| u.what)
+    }
+
+    fn output(script: &str, template: &str) -> String {
+        let src = format!("<script setup>\n{script}\n</script>\n<template>{template}</template>\n");
+        let c = crate::parse::parse(&src).expect("parses");
+        let hir = crate::hir::lower(&c, &src);
+        let res = crate::resolve::resolve(&c.js, c.program, hir.as_ref(), &src);
+        let input = CompileInput::from_sfc(&c, hir.as_ref(), &src);
+        compile(&input, &res, "a.vue").expect("compiles").js
+    }
+
+    // Expected fragments from @vue/compiler-sfc 3.5.43's compileScript (inlineTemplate) on the
+    // same input, reprinted.
+    #[test]
+    fn define_options_merges_into_the_component_object() {
+        let js = output(
+            "defineOptions({ inheritAttrs: false, name: 'X' })\nconst k = 'a'\n\
+             defineProps({ a: {} })",
+            "<p>{{ a }}</p>",
+        );
+        assert!(
+            js.contains(
+                "const _sfc_main = /* @__PURE__ */ Object.assign({ inheritAttrs: false, name: \
+                 'X' }, { __name: 'a', props: { a: {} }, setup(__props) {"
+            ),
+            "{js}"
+        );
+        assert!(!js.contains("defineOptions"), "{js}");
+        let js = output("defineOptions()", "<p></p>");
+        assert!(
+            js.contains("const _sfc_main = { __name: 'a', setup(__props) {"),
+            "{js}"
+        );
+        let js = output("const k = 'a'\ndefineOptions({ name: k })", "<p></p>");
+        assert!(js.contains("Object.assign({ name: k }, {"), "{js}");
+    }
+
+    #[test]
+    fn define_options_refuses_what_upstream_rejects() {
+        for (script, want) in [
+            (
+                "defineOptions({ props: {} })",
+                "a defineOptions() key that has a macro of its own",
+            ),
+            (
+                "defineOptions({})\ndefineOptions({})",
+                "a duplicate defineOptions() call",
+            ),
+            (
+                "defineOptions({ a: 1 })\ndefineOptions()",
+                "a duplicate defineOptions() call",
+            ),
+            (
+                "import { ref } from 'vue'\nconst k = ref(1)\ndefineOptions({ name: k })",
+                "defineOptions() referencing a binding of <script setup>",
+            ),
+            ("const x = defineOptions({})", "this compiler macro"),
+        ] {
+            assert_eq!(refusal(script, "<p></p>"), Some(want), "{script}");
+        }
     }
 
     const REFS: &str = "import { ref, reactive } from 'vue'\nconst r = ref('')\n\
