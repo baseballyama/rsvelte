@@ -486,6 +486,9 @@ impl Transform<'_> {
                     if d.name == DirName::Bind && matches!(arg, "class" | "style" | "ref" | "is") {
                         return Err(Unsupported::at("this bound attribute", p.span));
                     }
+                    if d.name == DirName::On && !d.modifiers.is_empty() {
+                        return Err(Unsupported::at("an event modifier", p.span));
+                    }
                     let raw = match &d.exp {
                         DirExp::None => NodeId::NONE,
                         DirExp::Expr(e) => *e,

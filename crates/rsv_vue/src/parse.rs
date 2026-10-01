@@ -3,8 +3,8 @@
 //!
 //! It reads one `<template>`, one `<script setup>` and any number of `<style>` blocks; the
 //! template holds elements, text, comments, `{{ }}` interpolations, static attributes and the
-//! `v-bind`/`:`, `v-on`/`@`, `v-if`/`v-else-if`/`v-else`, `v-for` and `v-model` (with modifiers)
-//! directives. Anything else is refused.
+//! `v-bind`/`:`, `v-on`/`@` (with modifiers), `v-if`/`v-else-if`/`v-else`, `v-for` and `v-model`
+//! (with modifiers) directives. Anything else is refused.
 //!
 //! As upstream, an interpolation ends at the first `}}` and an attribute value at its closing
 //! quote; the text in between is then parsed as JavaScript (TypeScript under `lang="ts"`).
@@ -585,8 +585,8 @@ impl<'a> P<'a> {
         })
     }
 
-    /// `:arg`, `@arg` and `v-name:arg`, and `v-model`'s `.modifier`s; `None` for a static
-    /// attribute.
+    /// `:arg`, `@arg` and `v-name:arg`, and the `.modifier`s of `v-model` and `v-on`; `None` for a
+    /// static attribute.
     fn directive_name(&self, name: Span) -> R<Option<DirectiveName>> {
         let text = name.text(self.src);
         let (dir, arg_lo) = match text.as_bytes()[0] {
@@ -619,7 +619,7 @@ impl<'a> P<'a> {
         let at = |lo: usize, hi: usize| Span::new(name.lo + lo as u32, name.lo + hi as u32);
         let mut modifiers = Vec::new();
         if arg_hi < text.len() {
-            if dir != DirName::Model {
+            if !matches!(dir, DirName::Model | DirName::On) {
                 return Self::err_at(
                     name,
                     "directive modifiers and dynamic arguments are not supported yet",
