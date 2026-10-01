@@ -29,6 +29,8 @@
 //! - `let { a, b = 1, c: d } = $props()`: `const $$props = defineProps({ a: {}, b: { default: 1 },
 //!   c: {} })`, and every reference to `a`, `b` or `d` reads `$$props.a`, `$$props.b`, `$$props.c`.
 //!   No `type`, so no Boolean casting.
+//! - `let { …, ...rest } = $props()`: `const $$attrs = $$useAttrs()` (`useAttrs`), the undeclared
+//!   attributes, as `rest` holds the undeclared props; `rest` may only be spread in the template.
 //! - every component: `defineOptions({ inheritAttrs: false })`, as Svelte passes no undeclared
 //!   attribute through.
 //! - `import { onMount } from 'svelte'`: `import { onMounted as onMount } from 'vue'` (neither
@@ -51,6 +53,19 @@
 //! - `class={e}`: `:CLASS="$$class(e)"`, `clsx` then `to_class`, `null` removing the attribute. The
 //!   upper-case key keeps Vue's `class` normalisation out; its DOM and SSR paths lower-case the
 //!   name.
+//! - `class:name={e}` (with or without a `class` attribute): client a step `$$set_class($$el,
+//!   value, { name: e })` (`set_class`, which toggles the directives once the value is set); server
+//!   `:CLASS="$$to_class(value, { name: e })"`.
+//! - `{...e}` on an element: every attribute of the element becomes one object in attribute order,
+//!   `{ 'a': v, ...e }`; client a step `$$attributes($$el, obj)` (`set_attributes`: the previous
+//!   object, property or attribute per name, events, `class`, `style`), server
+//!   `v-bind="$$spread(obj)"` (`attributes`: first name wins, booleans, invalid names dropped),
+//!   which the Vue port compiles as compiler-core's object `v-bind`. The `^` key prefix keeps Vue's
+//!   SSR attribute filter out. A spread that carries an attachment, or `itemscope` / `scoped` with
+//!   a non-empty value on the server (Vue prints them as boolean attributes), throws at runtime
+//!   rather than render differently.
+//! - `onload` / `onerror` on a load/error element (`<img>`, `<link>`, `<iframe>`, …), or any spread
+//!   on one: server `onload="this.__e=event"` and `onerror=…`, Svelte's replay marks.
 //! - `value={e}` on `<input>`, `<textarea>`: client a step `$$value($$el, e)` (`set_value`; Vue
 //!   would also set the attribute); server `:value="$$attr(e)"`.
 //! - `onclick={f}`, for a handler that cannot read `this`: client `@click="f"`; server nothing.
@@ -77,17 +92,19 @@
 //! output is built, never with an approximation:
 //!
 //! - a document the Svelte plugin does not parse or resolve (its diagnostic is reported as is:
-//!   spread attributes, module scripts, other blocks and directives, …), a `<style>` (the styles
-//!   would be lost), a TypeScript instance script;
+//!   module scripts, other blocks and directives, …), a `<style>` (the styles would be lost), a
+//!   TypeScript instance script, a name declared twice (Svelte reads a redeclared `var` as
+//!   reassigned);
 //! - an import other than one `onMount` from `svelte`, an export, a `$`-prefixed declaration
 //!   (Svelte reserves them, and the translation's own names start with `$$`), a binding that
 //!   shadows a global the output calls (`Array`, `Object`, `String`, `Boolean`, `undefined`), a
 //!   name the Vue compiler declares (`_ctx`, `_hoisted_1`, `_toDisplayString`, …) or treats as a
 //!   macro (`defineProps`, `defineOptions`, …);
-//! - any other rune (`$effect`, `$inspect`, `$bindable`, `$props.id`, `$host`, …), a rest prop, and
-//!   store subscriptions; a `$props()` that is not one object pattern of plain keys with literal
-//!   defaults; a prop name Vue reserves (`key`, `ref`, `onVnode*`, …), reads as a template global,
-//!   or normalises (any upper-case letter);
+//! - any other rune (`$effect`, `$inspect`, `$bindable`, `$props.id`, `$host`, …), and store
+//!   subscriptions; the rest prop read, written or mutated other than as a spread attribute; a
+//!   `$props()` that is not one object pattern of plain keys with literal defaults; a prop name Vue
+//!   reserves (`key`, `ref`, `onVnode*`, …), reads as a template global, or normalises (any
+//!   upper-case letter);
 //! - writing or mutating a prop, writing a `$derived`;
 //! - an `onMount` callback that may return a value (Svelte calls a returned function on destroy,
 //!   Vue ignores it), or `onMount` used other than as a top-level call;
@@ -100,6 +117,17 @@
 //! - components, `svelte:` elements, custom elements, `<slot>`, `<template>`, `<script>`,
 //!   `<style>`, `<noscript>`, `<iframe>`, `<object>`, SVG and `MathML`, a `<textarea>` with
 //!   children, a `<pre>` whose text starts with a newline (the server's markup loses it);
+//! - where the browser's parse of Svelte's client template differs from the elements Vue creates:
+//!   `<html>`, `<head>`, `<body>`, a table part outside its parent beside other content, rich
+//!   content in `<select>`, `<optgroup>` or `<option>`;
+//! - a character reference the shared decoder does not read as Svelte does (named ones other than
+//!   `&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`, `&nbsp;`, any without `;`, numeric ones Svelte
+//!   remaps);
+//! - an `{@attach}` tag (Svelte runs it as an effect that tracks its reads and tears down on a
+//!   change; a function ref tracks nothing of its own), a duplicate attribute (Svelte's
+//!   `attribute_duplicate`), a spread on `<input>`, `<textarea>`, `<select>` or `<option>`, and
+//!   beside a spread: a binding other than `bind:this`, an event attribute, an interpolated value,
+//!   a `class:` directive;
 //! - an `{#if}` branch or an `{#each}` body that is not exactly one element (it would need a
 //!   `<template>` fragment), an `{#each}` without a plain item name, an `{#each}` fallback over a
 //!   collection that is not a name or a member chain;
@@ -340,10 +368,10 @@ mod tests {
         use helpers::Helper::*;
         let mut to = Ast::new();
         let all = [
-            Each, EachServer, Attr, AttrServer, BoolServer, Stringify, NodeValue, Class, Value,
-            Once, Select, Option,
+            Each, EachServer, Attr, AttrServer, BoolServer, Stringify, NodeValue, Clsx, Class,
+            ToClass, SetClass, Attributes, Spread, Fail, Value, Once, Select, Option,
         ];
-        assert_eq!(helpers::declarations(&all, &mut to).len(), 14);
+        assert_eq!(helpers::declarations(&all, &mut to).len(), 34);
     }
 
     #[test]
@@ -422,6 +450,80 @@ mod tests {
     }
 
     #[test]
+    fn a_spread_is_one_object_for_svelte_set_attributes_or_attributes() {
+        let src = "<script>\n\tlet { a, ...rest } = $props();\n</script>\n\
+                   <p class={['x', a]} {...rest} hidden>t</p>";
+        let (client, server) = both(src);
+        assert!(client.contains("const $$attrs = $$useAttrs();"), "{client}");
+        assert!(
+            client.contains(
+                "$$attributes($$el, { 'class': ['x', $$props.a], ..._unref($$attrs), \
+                 'hidden': true })"
+            ),
+            "{client}"
+        );
+        // compiler-core's single `v-bind="obj"`, as compiler-sfc 3.5.43 prints it.
+        assert!(
+            server.contains(
+                "_createElementBlock('p', _normalizeProps(_guardReactiveProps($$spread({ \
+                 'class': $$sclsx(['x', $$props.a]), ..._unref($$attrs), 'hidden': true }))), \
+                 't', 16)"
+            ),
+            "{server}"
+        );
+    }
+
+    #[test]
+    fn a_spread_in_a_branch_or_an_each_merges_the_key_as_compiler_core_does() {
+        let src = "<script>\n\tlet { ...rest } = $props();\n\tlet on = $state(true);\n\
+                   \tlet xs = $state([1]);\n</script>\n\
+                   <button onclick={() => (on = !on)}>b</button>\n\
+                   {#if on}<b {...rest}>on</b>{/if}\n\
+                   {#each xs as x (x)}<i {...rest}>{x}</i>{/each}";
+        let (_, server) = both(src);
+        for want in [
+            "_normalizeProps(_mergeProps({ key: 0 }, $$spread({ ..._unref($$attrs) })))",
+            "_mergeProps({ key: x }, { ref_for: true }, $$spread({ ..._unref($$attrs) }))",
+        ] {
+            assert!(server.contains(want), "{want}\n{server}");
+        }
+    }
+
+    #[test]
+    fn class_directives_are_to_class_of_the_value_and_the_directives() {
+        let src = "<script>\n\tlet on = $state(true);\n</script>\n\
+                   <p class=\"a b\" class:b={on} class:c-d={!on}>x</p>";
+        let (client, server) = both(src);
+        assert!(
+            client.contains("$$set_class($$el, 'a b', { 'b': on.value, 'c-d': !on.value })"),
+            "{client}"
+        );
+        assert!(
+            server.contains("CLASS: $$to_class('a b', { 'b': on.value, 'c-d': !on.value })"),
+            "{server}"
+        );
+    }
+
+    #[test]
+    fn load_and_error_elements_carry_the_server_event_marks() {
+        let (_, server) = both("<img src=\"a.png\" onload={() => {}} />");
+        assert!(server.contains("onload: 'this.__e=event'"), "{server}");
+        let (_, server) = both("<img {...{ src: 'a.png' }} />");
+        assert!(server.contains("['onload', 'onerror']"), "{server}");
+    }
+
+    #[test]
+    fn table_parts_alone_in_their_template_are_kept() {
+        for src in [
+            "<tr><td>x</td></tr>",
+            "{#if true}<tr><td>a</td></tr>{:else}<tr><td>b</td></tr>{/if}",
+            "<p>&amp;&lt;&#42;&#x2a; a & b &#;</p>",
+        ] {
+            run(src, false).expect(src);
+        }
+    }
+
+    #[test]
     fn refusals_name_their_reason() {
         let cases: &[(&str, &str)] = &[
             (
@@ -486,10 +588,53 @@ mod tests {
                 "reset a form",
             ),
             ("<style>p { color: red }</style><p>x</p>", "a <style>"),
+            ("<div {@attach (n) => {}}></div>", "an {@attach} tag"),
+            ("<input {...{}} />", "a spread attribute on <input>"),
+            (
+                "<p {...{}} onclick={() => {}}></p>",
+                "an event attribute beside a spread attribute",
+            ),
+            (
+                "<p {...{}} class:x={true}></p>",
+                "beside a spread attribute",
+            ),
+            ("<p a=\"1\" {...{}} a=\"2\"></p>", "attribute_duplicate"),
+            (
+                "<script>\n\tlet { ...rest } = $props();\n</script>\n<p title={rest.t}></p>",
+                "other than as a spread attribute",
+            ),
+            (
+                "<script>\n\tlet { ...rest } = $props();\n\tconsole.log(rest);\n</script>",
+                "other than spread in the template",
+            ),
             (
                 "<script>\n\timport { onMount } from 'svelte';\n\
                  \tonMount(() => () => {});\n</script>",
                 "may return a value",
+            ),
+        ];
+        for (src, want) in cases {
+            let got = run(src, false).expect_err(src);
+            assert!(got.contains(want), "{src}: {got}");
+        }
+    }
+
+    #[test]
+    fn refusals_where_svelte_reads_the_source_differently() {
+        let cases: &[(&str, &str)] = &[
+            ("<p>&copy;</p>", "a character reference"),
+            ("<p title=\"&quot x\">y</p>", "a character reference"),
+            ("<p>&#128;</p>", "a character reference"),
+            ("<p>&#10;</p>", "a character reference"),
+            ("<div>a</div><tr><td>x</td></tr>", "a <tr> outside"),
+            ("<p>a</p><body></body>", "the element <body>"),
+            (
+                "<select><option><b>a</b></option></select>",
+                "rich content in <option>",
+            ),
+            (
+                "<script>\n\tvar t = 1;\n\tvar t = 2;\n</script>\n{t}",
+                "a name declared twice",
             ),
         ];
         for (src, want) in cases {

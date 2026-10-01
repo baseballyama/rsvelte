@@ -3683,6 +3683,7 @@
 	"vuelte.behaviour/client cross/rsvelte/minimal/text-input.svelte": "match",
 	"vuelte.behaviour/client cross/rsvelte/minimal/todo.svelte": "match",
 	"vuelte.behaviour/client cross/rsvelte/semantics/boolean-prop.svelte": "match",
+	"vuelte.behaviour/client cross/rsvelte/semantics/fallthrough.svelte": "match",
 	"vuelte.behaviour/client cross/rsvelte/semantics/interpolation.svelte": "match",
 	"vuelte.behaviour/client cross/rsvelte/semantics/number-input.svelte": "match",
 	"vuelte.behaviour/server cross/rsvelte/minimal/checkbox.svelte": "match",
@@ -3694,6 +3695,7 @@
 	"vuelte.behaviour/server cross/rsvelte/minimal/text-input.svelte": "match",
 	"vuelte.behaviour/server cross/rsvelte/minimal/todo.svelte": "match",
 	"vuelte.behaviour/server cross/rsvelte/semantics/boolean-prop.svelte": "match",
+	"vuelte.behaviour/server cross/rsvelte/semantics/fallthrough.svelte": "match",
 	"vuelte.behaviour/server cross/rsvelte/semantics/interpolation.svelte": "match",
 	"vuelte.behaviour/server cross/rsvelte/semantics/number-input.svelte": "match"
 }
