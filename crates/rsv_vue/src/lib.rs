@@ -5,11 +5,13 @@
 //! | artifact | output |
 //! |---|---|
 //! | [`Parsed`] | the surface tree ([`ast::Sfc`]) or the parse error |
+//! | [`Lowered`] | the template as compiler-core reads it ([`hir::Hir`]) |
 //! | [`Resolved`] | one scope analysis, compileScript's binding types ([`resolve::Resolution`]) |
 
 pub mod ast;
 pub mod compile;
 pub mod format;
+pub mod hir;
 pub mod lint;
 pub mod parse;
 pub mod project;
@@ -49,6 +51,21 @@ impl Artifact for Parsed {
 }
 
 #[derive(Debug)]
+pub struct Lowered;
+
+impl Artifact for Lowered {
+    /// `None` when the document did not parse or has no `<template>`.
+    type Output = Option<hir::Hir>;
+
+    const NAME: &'static str = "vue.hir";
+
+    fn compute(ctx: &Ctx<'_>) -> Self::Output {
+        let c = ctx.get::<Parsed>().as_ref().ok()?;
+        hir::lower(c, ctx.src())
+    }
+}
+
+#[derive(Debug)]
 pub struct Resolved;
 
 impl Artifact for Resolved {
@@ -59,7 +76,8 @@ impl Artifact for Resolved {
 
     fn compute(ctx: &Ctx<'_>) -> Self::Output {
         let c = ctx.get::<Parsed>().as_ref().ok()?;
-        Some(resolve::resolve(c, ctx.src()))
+        let hir = ctx.get::<Lowered>().as_ref();
+        Some(resolve::resolve(&c.js, c.program, hir, ctx.src()))
     }
 }
 
@@ -83,6 +101,7 @@ pub struct CheckConfig {
 pub fn register(reg: &mut Registry, config: &Config) {
     reg.language(Vue)
         .artifact::<Parsed>()
+        .artifact::<Lowered>()
         .artifact::<Resolved>();
     tasks::register(reg, config);
 }

@@ -12,6 +12,7 @@ use rsv_kernel::intern::Atom;
 use rustc_hash::FxHashMap;
 
 use crate::ast::{AttrKind, DirExp, DirName, Sfc, TId, TNode};
+use crate::hir::{Hir, HirId, NodeKind, PropKind};
 
 /// compiler-core's `BindingTypes`, the ones `<script setup>` produces.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -55,11 +56,12 @@ impl Resolution {
     }
 }
 
+/// `program` is the script's program (or an empty one); `hir` is the template, `None` without one.
 #[must_use]
-pub fn resolve(c: &Sfc, src: &str) -> Resolution {
-    let host = template_roots(c);
-    let sem = scope::analyze(&c.js, c.program, &host);
-    let (bindings, define_props) = binding_metadata(&c.js, src, c.program);
+pub fn resolve(js: &Ast, program: NodeId, hir: Option<&Hir>, src: &str) -> Resolution {
+    let host = hir.map_or_else(Vec::new, template_roots);
+    let sem = scope::analyze(js, program, &host);
+    let (bindings, define_props) = binding_metadata(js, src, program);
     Resolution {
         sem,
         bindings,
@@ -68,25 +70,25 @@ pub fn resolve(c: &Sfc, src: &str) -> Resolution {
     }
 }
 
-fn template_roots(c: &Sfc) -> Vec<HostRoot> {
+/// The template's scope roots, in document order.
+#[must_use]
+pub fn template_roots(hir: &Hir) -> Vec<HostRoot> {
     let mut out = Vec::new();
-    for &n in c.root() {
-        node_roots(c, n, &mut out);
+    for &n in hir.root() {
+        node_roots(hir, n, &mut out);
     }
     out
 }
 
-fn node_roots(c: &Sfc, n: TId, out: &mut Vec<HostRoot>) {
-    match c.node(n) {
-        TNode::Text { .. } | TNode::Comment { .. } => {}
-        TNode::Interpolation { expr, .. } => out.push(HostRoot::Expr(*expr)),
-        TNode::Element {
-            attrs, children, ..
-        } => {
+fn node_roots(hir: &Hir, n: HirId, out: &mut Vec<HostRoot>) {
+    match &hir.node(n).kind {
+        NodeKind::Text(_) | NodeKind::Comment { .. } => {}
+        NodeKind::Interpolation { expr } => out.push(HostRoot::Expr(*expr)),
+        NodeKind::Element(el) => {
             let mut inner = Vec::new();
             let mut for_exp = None;
-            for a in c.attrs(*attrs) {
-                if let AttrKind::Directive(d) = &a.kind {
+            for p in hir.props(el.props) {
+                if let PropKind::Directive(d) = &p.kind {
                     match &d.exp {
                         DirExp::None => {}
                         DirExp::Expr(e) => inner.push(HostRoot::Expr(*e)),
@@ -94,8 +96,8 @@ fn node_roots(c: &Sfc, n: TId, out: &mut Vec<HostRoot>) {
                     }
                 }
             }
-            for &k in c.children(*children) {
-                node_roots(c, k, &mut inner);
+            for &k in hir.children(el.children) {
+                node_roots(hir, k, &mut inner);
             }
             match for_exp {
                 // vue-eslint-parser: the aliases are visible on the whole element.
