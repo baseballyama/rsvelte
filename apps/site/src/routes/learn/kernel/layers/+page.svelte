@@ -278,7 +278,7 @@
 	<p>
 		コンパイラが HIR だけを読むので、HIR を作れるフロントエンドがあれば、同じコンパイラで Svelte のランタイム向けの JavaScript
 		を出せます。<code>rsv_svue</code> はそれを使って、<code>.vue</code> のコンポーネントを <strong>Vue の意味のまま</strong> Svelte
-		のランタイム向けにコンパイルします。自分の言語は持たず、Vue の言語にタスク <code>svue.behaviour/client</code> と
+		のランタイム向けにコンパイルします。自分の言語は持たず、Vue の言語にタスク <code>svue.compile/client</code> と
 		<code>/server</code> を足すだけです。パースと名前解決は Vue プラグインのアーティファクト、解析と出力は Svelte
 		プラグインのコンパイラで、<code>rsv_svue</code> が持っているのは、Vue の木から runes のスクリプトと Svelte の HIR を作る翻訳だけです。
 	</p>
@@ -332,7 +332,7 @@
 	<H2 id="vuelte" />
 	<p>
 		逆向きもあります。<code>rsv_vuelte</code> は <code>.svelte</code> を、Svelte の意味のまま Vue のランタイム向けの JavaScript
-		にコンパイルします。自分の言語は持たず、Svelte の言語にタスク <code>vuelte.behaviour/client</code> と <code>/server</code>
+		にコンパイルします。自分の言語は持たず、Svelte の言語にタスク <code>vuelte.compile/client</code> と <code>/server</code>
 		を足すだけです。パース・名前解決・HIR・解析は <code>svelte.compile</code> と同じアーティファクトを使い、出力は Vue
 		プラグインの名前解決とコンパイラです。<code>rsv_vuelte</code> が持っているのは、Svelte の HIR から Vue の HIR
 		とスクリプトを作る翻訳だけです。

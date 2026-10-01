@@ -130,8 +130,8 @@ mise exec -- node tools/fixtures/bin/fixtures.ts regen [--task id,...] [--source
 | `vue.lint` | 同上 | `default`（全ルール） | eslint + eslint-plugin-vue + vue-eslint-parser + @typescript-eslint/parser | `lint.json`（lint） |
 | `vue.check` | 同上 | `default` | vue-tsc + @vue/language-core + @volar/typescript + typescript + vue | `json`（json） |
 | `ts.check` | `svelte.check` と `vue.check` の unit の和 | `default` | unit ごとに svelte-check か vue-tsc | `json`（json） |
-| `svue.behaviour` | `cross` の `.vue`（言語 `cross-vue`） | `client`、`server` | @vue/compiler-sfc + vue（+ jsdom） | `trace.json`（実装の `js` を Svelte ランタイムで動かした trace と比較、§12） |
-| `vuelte.behaviour` | `cross` の `.svelte`（言語 `cross-svelte`） | `client`、`server` | svelte（+ jsdom） | `trace.json`（実装の `js` を Vue ランタイムで動かした trace と比較、§12） |
+| `svue.compile` | `cross` の `.vue`（言語 `cross-vue`） | `client`、`server` | @vue/compiler-sfc + vue（+ jsdom） | `trace.json`（実装の `js` を Svelte ランタイムで動かした trace と比較、§12） |
+| `vuelte.compile` | `cross` の `.svelte`（言語 `cross-svelte`） | `client`、`server` | svelte（+ jsdom） | `trace.json`（実装の `js` を Vue ランタイムで動かした trace と比較、§12） |
 
 storage はすべて `committed`。`ts.check` は rsvelte の言語に依存しない型検査（1 回の tsc で両方の言語）を測るためのタスクで、期待値は unit の言語のオラクルがそのまま出す。
 
@@ -296,10 +296,10 @@ unit の `fixture.toml` に書く。いまは `[skip]`（task id または `task
 ### 12.2 unit の置き場所と言語
 
 ```
-fixtures/cross/rsvelte/<グループ>/<名前>.vue/      言語 cross-vue    → svue.behaviour
-  input.vue  meta.json  fixture.toml  expected/svue.behaviour/{client,server}.trace.json
-fixtures/cross/rsvelte/<グループ>/<名前>.svelte/   言語 cross-svelte → vuelte.behaviour
-  input.svelte  meta.json  fixture.toml  expected/vuelte.behaviour/{client,server}.trace.json
+fixtures/cross/rsvelte/<グループ>/<名前>.vue/      言語 cross-vue    → svue.compile
+  input.vue  meta.json  fixture.toml  expected/svue.compile/{client,server}.trace.json
+fixtures/cross/rsvelte/<グループ>/<名前>.svelte/   言語 cross-svelte → vuelte.compile
+  input.svelte  meta.json  fixture.toml  expected/vuelte.compile/{client,server}.trace.json
 ```
 
 - ファミリー `cross` には言語が 2 つある。`cross-vue`（`.vue`、admission は公式ビルドが client と server の両方で通ること）と `cross-svelte`（`.svelte`、admission は `runes: true` の compile が通ること）。`vue` / `svelte` ファミリーの unit には振る舞いタスクは当たらず、`cross` の unit には compile・lint などのタスクは当たらない。
@@ -313,17 +313,17 @@ fixtures/cross/rsvelte/<グループ>/<名前>.svelte/   言語 cross-svelte →
 
 | タスク | 書くファイル | モジュールの形 | マウントのしかた |
 |---|---|---|---|
-| `svue.behaviour/client` | `actual/svue.behaviour/client.js` | `svelte/compiler` が `generate: 'client'` で出す形。コンポーネントを `export default` する | `mount(C, { target, props })`（`svelte`）、各手順の後に `flushSync()` |
-| `svue.behaviour/server` | `actual/svue.behaviour/server.js` | `generate: 'server'` で出す形。`export default` | `render(C, { props }).body`（`svelte/server`） |
-| `vuelte.behaviour/client` | `actual/vuelte.behaviour/client.js` | `@vitejs/plugin-vue` のクライアントビルドが出すコンポーネント（`setup` が render 関数を返す、または `render` を持つオブジェクト）を `export default` する | `createApp(C, props).mount(el)`（`vue`）、各手順の後に `nextTick()` |
-| `vuelte.behaviour/server` | `actual/vuelte.behaviour/server.js` | SSR ビルドのコンポーネント（`ssrRender`、`__ssrInlineRender` 付きで `setup` が SSR render 関数を返すもの、または vnode の render 関数）を `export default` する | `renderToString(createSSRApp(C, props))`（`vue/server-renderer`） |
+| `svue.compile/client` | `actual/svue.compile/client.js` | `svelte/compiler` が `generate: 'client'` で出す形。コンポーネントを `export default` する | `mount(C, { target, props })`（`svelte`）、各手順の後に `flushSync()` |
+| `svue.compile/server` | `actual/svue.compile/server.js` | `generate: 'server'` で出す形。`export default` | `render(C, { props }).body`（`svelte/server`） |
+| `vuelte.compile/client` | `actual/vuelte.compile/client.js` | `@vitejs/plugin-vue` のクライアントビルドが出すコンポーネント（`setup` が render 関数を返す、または `render` を持つオブジェクト）を `export default` する | `createApp(C, props).mount(el)`（`vue`）、各手順の後に `nextTick()` |
+| `vuelte.compile/server` | `actual/vuelte.compile/server.js` | SSR ビルドのコンポーネント（`ssrRender`、`__ssrInlineRender` 付きで `setup` が SSR render 関数を返すもの、または vnode の render 関数）を `export default` する | `renderToString(createSSRApp(C, props))`（`vue/server-renderer`） |
 
-- Rust のタスク名は `svue.behaviour/client` のように `<task>/<variant>` にし、成果物の名前を `js` にする。`rsv fixtures` は `actual/<task>/<variant>.<name>` に書くので、上の表のパスになる。
+- Rust のタスク名は `svue.compile/client` のように `<task>/<variant>` にし、成果物の名前を `js` にする。`rsv fixtures` は `actual/<task>/<variant>.<name>` に書くので、上の表のパスになる。
 - 拒否する unit には、従来どおり `<variant>.diagnostics.json` だけを書く。`fixtures check` はそれを「拒否」として数え、`parity.json` に載せない。
 - モジュールが import してよいのは、ランタイムのパッケージ（`svelte`、`svelte/*`、`vue`、`@vue/*`）だけ。これらは `tools/fixtures` に pin した版に解決される（期待値側と同じ 1 つのコピー）。`svelte` は、client では `browser` 条件付き（バンドラのクライアントビルドと同じ）で解決し、server では付けない。相対 import や他のパッケージは解決できず、`load:` のエラーになる。
 - 比較の前に、`client.js` / `server.js` を acorn でパースする。パースできなければ `unparseable`。読み込みやマウントで例外が出たら、それが trace に入って `mismatch` になる。
 - `fixtures compare` は、実装側の trace を `actual/<task>/<variant>.trace.json` に書く（調べるため。比較には使わない）。
-- `svue.behaviour` の実装は `crates/rsv_svue`。翻訳の対応表、拒否の一覧、trace に映らない差はクレートの doc に書いてある。
+- `svue.compile` の実装は `crates/rsv_svue`。翻訳の対応表、拒否の一覧、trace に映らない差はクレートの doc に書いてある。
 
 ### 12.4 操作手順（`fixture.toml` の `[behaviour]`）
 
@@ -417,7 +417,7 @@ steps = [
 
 `fixtures compare` の経路も、手で置いた `actual/` で一度だけ確かめた（その後は削除）。正しい翻訳 → `match`、誤った翻訳 → 手順を名指した `mismatch`、壊れた JS → `unparseable`、`diagnostics.json` だけ → 拒否（`missing` と `unexpected`）。
 
-### 12.10 vuelte の現状（`vuelte.behaviour`）
+### 12.10 vuelte の現状（`vuelte.compile`）
 
 実装は `crates/rsv_vuelte`（対応表と拒否の一覧はその `lib.rs` の冒頭、設計は [architecture.md](architecture.md) の「vuelte」）。数は exp/cross と exp/svelte-ext をマージして spread などに対応したコミット（`6b5621c994`）の `run-all` と `fixtures check` のもの。
 

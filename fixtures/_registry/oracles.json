@@ -50,7 +50,7 @@
 		},
 		"storage": "committed"
 	},
-	"svue.behaviour": {
+	"svue.compile": {
 		"canonicalizer": {
 			"acorn": "8.18.0"
 		},
@@ -121,7 +121,7 @@
 		},
 		"storage": "committed"
 	},
-	"vuelte.behaviour": {
+	"vuelte.compile": {
 		"canonicalizer": {
 			"acorn": "8.18.0"
 		},

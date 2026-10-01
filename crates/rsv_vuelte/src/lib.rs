@@ -8,7 +8,7 @@
 //! `<script setup>` program ([`script`]) and a Vue template HIR ([`template`]), and the Vue
 //! plugin's [`rsv_vue::resolve::resolve`] and [`rsv_vue::compile::compile`] turn those into what
 //! `@vitejs/plugin-vue` emits for a production build. [`check`] runs once for both targets;
-//! [`translate`] builds one module per target (`vuelte.behaviour/client`, `/server`), because
+//! [`translate`] builds one module per target (`vuelte.compile/client`, `/server`), because
 //! Svelte's client and server runtimes differ where Vue's do not (a client binding is an effect on
 //! the element, a server one is markup).
 //!
@@ -278,18 +278,18 @@ impl Artifact for Checked {
 
 pub fn register(reg: &mut Registry) {
     reg.artifact::<Checked>()
-        .task(Behaviour { server: false })
-        .task(Behaviour { server: true });
+        .task(Compile { server: false })
+        .task(Compile { server: true });
 }
 
 /// The module the behavioural oracle mounts with `createApp` (client) or renders with
 /// `renderToString(createSSRApp(…))` (server).
 #[derive(Debug)]
-pub struct Behaviour {
+pub struct Compile {
     pub server: bool,
 }
 
-impl Behaviour {
+impl Compile {
     fn module(&self, ctx: &Ctx<'_>) -> R<String> {
         let plan = ctx.get::<Checked>().as_ref().map_err(Clone::clone)?;
         let c = ctx
@@ -317,12 +317,12 @@ impl Behaviour {
     }
 }
 
-impl Task for Behaviour {
+impl Task for Compile {
     fn id(&self) -> &'static str {
         if self.server {
-            "vuelte.behaviour/server"
+            "vuelte.compile/server"
         } else {
-            "vuelte.behaviour/client"
+            "vuelte.compile/client"
         }
     }
 

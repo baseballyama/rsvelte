@@ -66,7 +66,7 @@ export const LANGUAGES: Language[] = [
 		}
 	},
 	{
-		// A `.vue` component whose behaviour is the subject (svue.behaviour): it must build with the
+		// A `.vue` component whose behaviour is the subject (svue.compile): it must build with the
 		// official toolchain for both targets, since that build is the expected side.
 		id: 'cross-vue',
 		family: 'cross',
@@ -83,7 +83,7 @@ export const LANGUAGES: Language[] = [
 		}
 	},
 	{
-		// A `.svelte` component whose behaviour is the subject (vuelte.behaviour).
+		// A `.svelte` component whose behaviour is the subject (vuelte.compile).
 		id: 'cross-svelte',
 		family: 'cross',
 		ext: '.svelte',

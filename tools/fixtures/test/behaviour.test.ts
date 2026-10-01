@@ -14,7 +14,7 @@ import { svelteModule, vueModule } from '../src/behaviour/official.ts';
 import { moduleFile } from '../src/behaviour/runtime.ts';
 import { allUnits } from '../src/manifest.ts';
 import { expectedFile } from '../src/paths.ts';
-import { svueBehaviour, vuelteBehaviour } from '../src/tasks/behaviour.ts';
+import { svueCompile, vuelteCompile } from '../src/tasks/behaviour.ts';
 import type { Unit } from '../src/types.ts';
 
 const TARGETS: Target[] = ['client', 'server'];
@@ -23,7 +23,7 @@ const units = allUnits(['rsvelte'], ['cross']);
 /** What `fixtures compare` reports for `src` (a component in the target's language) translating `unit`: null on a match. */
 async function verdict(unit: Unit, src: string, srcPath: string, target: Target): Promise<string | null> {
 	const svue = unit.lang === 'cross-vue';
-	const task = svue ? svueBehaviour : vuelteBehaviour;
+	const task = svue ? svueCompile : vuelteCompile;
 	const code = svue ? svelteModule(src, srcPath, target) : vueModule(src, srcPath, target);
 	const observed = await task.observe!.derive(unit, { id: target, options: {} }, moduleFile(code, target));
 	return observed.diff(fs.readFileSync(expectedFile(task, target, unit, 'trace.json'), 'utf8'));
@@ -63,8 +63,8 @@ test('every wrong translation is a mismatch naming the step and the difference',
 test('emitted code that cannot be observed is reported, not skipped', async () => {
 	const unit = units.find((u) => u.path === 'minimal/counter.vue')!;
 	const observe = async (code: string, target: Target) =>
-		(await svueBehaviour.observe!.derive(unit, { id: target, options: {} }, moduleFile(code, target))).diff(
-			fs.readFileSync(expectedFile(svueBehaviour, target, unit, 'trace.json'), 'utf8')
+		(await svueCompile.observe!.derive(unit, { id: target, options: {} }, moduleFile(code, target))).diff(
+			fs.readFileSync(expectedFile(svueCompile, target, unit, 'trace.json'), 'utf8')
 		);
 	assert.equal(await observe('export const x = 1;\n', 'client'), 'load: the module has no default export');
 	assert.equal(await observe('export const x = 1;\n', 'server'), 'load: the module has no default export');

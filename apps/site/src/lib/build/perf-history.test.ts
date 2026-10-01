@@ -24,9 +24,13 @@ describe('perf history', () => {
 		]);
 	});
 
-	it('adds a working-tree record only for an uncommitted baseline', () => {
-		const committed = execFileSync('git', ['-C', root, 'show', 'HEAD:tools/perf/baseline.json'], { encoding: 'utf8' });
-		const edited = committed !== readFileSync(path.join(root, 'tools/perf/baseline.json'), 'utf8');
-		expect(records.at(-1)!.sha === null).toBe(edited);
+	it('adds a working-tree record only when the uncommitted baseline records other counters', () => {
+		const counters = (text: string) => {
+			const b = JSON.parse(text);
+			return [b.allocs, b.alloc_bytes, b.peak_live_growth_bytes, b.instructions?.[PLATFORM], b.load_instructions?.[PLATFORM]];
+		};
+		const committed = counters(execFileSync('git', ['-C', root, 'show', 'HEAD:tools/perf/baseline.json'], { encoding: 'utf8' }));
+		const now = counters(readFileSync(path.join(root, 'tools/perf/baseline.json'), 'utf8'));
+		expect(records.at(-1)!.sha === null).toBe(JSON.stringify(committed) !== JSON.stringify(now));
 	});
 });

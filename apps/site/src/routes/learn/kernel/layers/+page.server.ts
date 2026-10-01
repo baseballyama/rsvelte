@@ -39,7 +39,7 @@ export const load = () => ({
 		svueInput: 'svue/lib/Translation::compile_input',
 		svueClass: 'svue/template/T::dynamic_class',
 		vuelteRegister: 'vuelte/lib/register',
-		vuelteModule: 'vuelte/lib/Behaviour::module',
+		vuelteModule: 'vuelte/lib/Compile::module',
 		vuelteRef: 'vuelte/template/Builder::ref_function',
 		vuelteBindText: 'vuelte/template/Builder::bind_text',
 		buttonType: 'html/button_type/check_static',

@@ -4,7 +4,7 @@
 //! [`rsv_vue::Resolved`]) and writes what the Svelte compiler reads: a runes instance program and a
 //! Svelte HIR ([`Translation`]). [`rsv_svelte::tasks::compile`] then lowers it, so the module has
 //! the shape `svelte/compiler` emits and imports only `svelte`, `svelte/*`, `vue` and `@vue/*`.
-//! The tasks are `svue.behaviour/client` and `svue.behaviour/server`, on documents whose language
+//! The tasks are `svue.compile/client` and `svue.compile/server`, on documents whose language
 //! is `vue`; the oracle is the component's DOM under Vue itself (`tools/fixtures/src/behaviour`).
 //!
 //! What a translation cannot reproduce exactly it refuses with a `compile_unsupported`
@@ -171,7 +171,7 @@ impl Side for Client {
     const ANALYZED: &'static str = "svue.analyze.client";
     const RESOLVED: &'static str = "svue.resolve.client";
     const TARGET: Target = Target::Client;
-    const TASK: &'static str = "svue.behaviour/client";
+    const TASK: &'static str = "svue.compile/client";
     const TRANSLATED: &'static str = "svue.translate.client";
 }
 
@@ -182,7 +182,7 @@ impl Side for Server {
     const ANALYZED: &'static str = "svue.analyze.server";
     const RESOLVED: &'static str = "svue.resolve.server";
     const TARGET: Target = Target::Server;
-    const TASK: &'static str = "svue.behaviour/server";
+    const TASK: &'static str = "svue.compile/server";
     const TRANSLATED: &'static str = "svue.translate.server";
 }
 
@@ -248,15 +248,15 @@ pub fn register(reg: &mut Registry) {
         .artifact::<Translated<Server>>()
         .artifact::<Resolved<Server>>()
         .artifact::<Analyzed<Server>>()
-        .task(Behaviour::<Client>(PhantomData))
-        .task(Behaviour::<Server>(PhantomData));
+        .task(Compile::<Client>(PhantomData))
+        .task(Compile::<Server>(PhantomData));
 }
 
 /// The module `svelte/compiler` would emit for the translation, for one target.
 #[derive(Debug)]
-pub struct Behaviour<S>(PhantomData<S>);
+pub struct Compile<S>(PhantomData<S>);
 
-impl<S: Side> Task for Behaviour<S> {
+impl<S: Side> Task for Compile<S> {
     fn id(&self) -> &'static str {
         S::TASK
     }

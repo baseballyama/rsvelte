@@ -81,7 +81,7 @@ svue のために移植に足したもの: `v-on` の修飾子。パースし、
 `.vue` のコンポーネントを、Vue の意味のまま Svelte ランタイム向けの JS にする（`crates/rsv_svue`）。上流のコンパイラが無いので、正しさは振る舞いのオラクル（[fixtures.md](fixtures.md) §12）で測る。
 
 - 成果物: `Translated`、`Resolved`、`Analyzed`（ターゲットごと）。Vue プラグインの `Parsed`・`Lowered`・`Resolved` を読み、Svelte のコンパイラが読む `CompileInput`（runes のインスタンススクリプトと Svelte の HIR）を作る。lower は Svelte プラグインのもの（`rsv_svelte::tasks::compile`）なので、モジュールは `svelte/compiler` の出力の形になり、import は `svelte`、`svelte/*`、`vue`、`@vue/*` だけ。Svelte の lower を svue のために変えることはしない（どの lower も上流と突き合わせる、という規則のため）。Svelte プラグインに足したのは、フロントエンドが綴ったテキストを HIR に置く `hir::spelled_text` だけで、`svelte.compile` の出力はバイト一致のまま
-- タスク: `svue.behaviour/{client,server}`（言語 `vue` の文書）
+- タスク: `svue.compile/{client,server}`（言語 `vue` の文書）
 - Vue の意味を Svelte が持たないところは、Vue 自身の実装を呼ぶ形に翻訳する: 補間は `toDisplayString`、`v-for` は `renderList`、`Boolean` の prop は runtime-core の `resolvePropValue`、server の `v-model` は compiler-ssr の `ssrTransformModel` が出す属性。対応表と拒否の一覧はクレートの doc
 - client の `v-model` は `{@attach}` で Vue 自身の `vModelText` / `vModelCheckbox` / `vModelRadio` / `vModelSelect` を走らせ、単一要素のルートへの属性の引き継ぎは `{...attrs}` と `mergeProps` と同じ `class` の合成にする。どちらも Svelte プラグインが lower する構文（`exp/svelte-ext` の `{@attach}`・スプレッド・`<select>`）を出すだけで、Svelte の lower は変えていない
 - Vue のテキストは空白を畳み済みなので、Svelte のコンパイラは `preserveWhitespace`（`CompileInput::preserve_whitespace`）で走らせ、二度目の掃除をさせない。ルートの `class` は、自分の `class` が無ければスプレッドの中で合成する（Vue は props に `class` のキーがあるときだけ属性を書き、Svelte はスプレッドの後の `class` 属性を値が `undefined` でも書くため）。trace は見えない空白と空の `class` を区別しないので、この二つは `crates/rsv_svue/tests/translate.rs` で固定した
@@ -89,7 +89,7 @@ svue のために移植に足したもの: `v-on` の修飾子。パースし、
 
 ### vuelte
 
-`.svelte`（Svelte 5 の runes）を、Svelte の意味のまま Vue のランタイム向けの JS にコンパイルする。`rsv_vuelte` は言語を持たず、Svelte の言語にタスク `vuelte.behaviour/{client,server}`（成果物 `js`）を足すプラグインで、持つのは翻訳だけ。パース・名前解決・HIR・解析は Svelte プラグインの成果物（`svelte.compile` と共有）、出力は Vue プラグインの `resolve` と `compile` を使う。
+`.svelte`（Svelte 5 の runes）を、Svelte の意味のまま Vue のランタイム向けの JS にコンパイルする。`rsv_vuelte` は言語を持たず、Svelte の言語にタスク `vuelte.compile/{client,server}`（成果物 `js`）を足すプラグインで、持つのは翻訳だけ。パース・名前解決・HIR・解析は Svelte プラグインの成果物（`svelte.compile` と共有）、出力は Vue プラグインの `resolve` と `compile` を使う。
 
 - スクリプトは `rsv_js::copy` の `Rewrite` で Vue の `<script setup>` に写す（`$state` → `ref`、`$derived` → `computed`、`$props()` → `defineProps` と `$$props.<key>`、`onMount` → `onMounted`、全コンポーネントに `defineOptions({ inheritAttrs: false })`）。テンプレートは Svelte の HIR を `clean_nodes` の後で読み、Vue の `HirBuilder` で Vue の HIR を組む。
 - client と server で翻訳を分ける。Svelte の 2 つのランタイムは、Vue のランタイムが同じに扱うところで違うため（client の束縛は要素への effect、server の束縛はマークアップ）。client の effect は要素の関数 ref に置く。Vue は要素の patch のたびに要素を、アンマウントで `null` を渡して呼ぶので、Svelte の render effect と `bind:this` が走る時点と同じになる。Vue が `value` / `checked` を属性としても書く（3.4 以降）ので、client はそれらを props に置かない。
@@ -144,8 +144,8 @@ ctx.facet::<TsView>()（文書の言語の答え、文書パス）
 | `vue.lint/default` | eslint + eslint-plugin-vue（全ルール） | 同上 | 28/28 |
 | `vue.check/default` | vue-tsc 3.3.11 + typescript 6.0.3（rsvelte 側は tsc 7.0.2） | 同上 | 28/28。うち 2 件の指摘は TS 6 と 7 の版差なので、ガード付きの調整で記録した（§7 の 4） |
 | `ts.check/default` | ユニットごとに svelte-check か vue-tsc | 両方（40） | 40/40（同じ 2 件の調整） |
-| `svue.behaviour/client` / `server` | @vue/compiler-sfc + vue の DOM の trace（振る舞いのオラクル） | `fixtures/cross/rsvelte` の `.vue`（12） | 12/12（両ターゲット）、拒否 0、不一致 0。`exp/svelte-ext` を取り込む前は client 4 一致・8 拒否、server 7 一致・5 拒否で、拒否はすべて Svelte の移植が `{@attach}`・スプレッド・`<select>` を lower するのを待つものだった |
-| `vuelte.behaviour/client` / `server` | svelte 5.57.1 の DOM の trace と SSR の HTML（fixtures.md §12） | `fixtures/cross/rsvelte` の `.svelte`（12） | 12/12（両ターゲット。`semantics/fallthrough` は spread を写して match。この行は spread に対応したコミット `6b5621c994` の `parity.json` から数えた） |
+| `svue.compile/client` / `server` | @vue/compiler-sfc + vue の DOM の trace（振る舞いのオラクル） | `fixtures/cross/rsvelte` の `.vue`（12） | 12/12（両ターゲット）、拒否 0、不一致 0。`exp/svelte-ext` を取り込む前は client 4 一致・8 拒否、server 7 一致・5 拒否で、拒否はすべて Svelte の移植が `{@attach}`・スプレッド・`<select>` を lower するのを待つものだった |
+| `vuelte.compile/client` / `server` | svelte 5.57.1 の DOM の trace と SSR の HTML（fixtures.md §12） | `fixtures/cross/rsvelte` の `.svelte`（12） | 12/12（両ターゲット。`semantics/fallthrough` は spread を写して match。この行は spread に対応したコミット `6b5621c994` の `parity.json` から数えた） |
 
 Vue の射影は @vue/language-core の仮想コードと同じ形にしてある（`__VLS_ctx`、`__VLS_SetupExposed`、`__VLS_asFunctionalElement1`、`__VLS_vFor`）。型検査のメッセージには `'__VLS_ctx.maybe' is possibly 'undefined'` のように射影の名前と型がそのまま出るので、射影の形が違えば文字列は一致しない。
 

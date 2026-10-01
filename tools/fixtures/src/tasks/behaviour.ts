@@ -41,6 +41,6 @@ function behaviourTask(id: string, lang: string, source: Runtime, target: Runtim
 }
 
 /** A `.vue` component compiled for the Svelte runtime. */
-export const svueBehaviour = behaviourTask('svue.behaviour', 'cross-vue', 'vue', 'svelte');
+export const svueCompile = behaviourTask('svue.compile', 'cross-vue', 'vue', 'svelte');
 /** A `.svelte` component compiled for the Vue runtime. */
-export const vuelteBehaviour = behaviourTask('vuelte.behaviour', 'cross-svelte', 'svelte', 'vue');
+export const vuelteCompile = behaviourTask('vuelte.compile', 'cross-svelte', 'svelte', 'vue');

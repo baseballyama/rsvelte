@@ -1,7 +1,7 @@
 use rsv_kernel::pipeline::{Document, Registry, RunOptions, Sharing, run};
 
-const CLIENT: &str = "svue.behaviour/client";
-const SERVER: &str = "svue.behaviour/server";
+const CLIENT: &str = "svue.compile/client";
+const SERVER: &str = "svue.compile/server";
 
 /// The module, if any, and the diagnostics' `code: message`s, for one task.
 fn compile(src: &str, task: &str) -> (Option<String>, Vec<String>) {
