@@ -141,6 +141,17 @@ fn fallthrough_spreads_and_client_v_model_attaches() {
         server.contains("$.attributes({ ...attrs(), class:"),
         "{server}"
     );
+    // Without a class of its own the root has a class attribute only when the attributes do.
+    let plain = "<script setup>\ndefineProps(['label'])\n</script>\n\
+                 <template><span>{{ label }}</span></template>\n";
+    let [_, server] = both(plain);
+    assert!(
+        server.contains(
+            "$.attributes({ ...'class' in attrs() ? { ...attrs(), class: \
+                         normalizeClass([attrs().class]) } : attrs() })"
+        ),
+        "{server}"
+    );
     let model = "<script setup>\nimport { ref } from 'vue'\nconst t = ref('a')\n</script>\n\
                  <template><input v-model.trim=\"t\"><p></p></template>\n";
     let [client, server] = both(model);
@@ -151,6 +162,18 @@ fn fallthrough_spreads_and_client_v_model_attaches() {
     assert!(client.contains("{ trim: true }"), "{client}");
     assert!(!server.contains("vModelText"), "{server}");
     assert!(server.contains("value"), "{server}");
+}
+
+#[test]
+fn vue_condensed_text_is_kept_as_it_is() {
+    // Vue drops the blank last child; the leading space and both spaces around the comment stay.
+    let src = "<script setup>\nconst n = 1\n</script>\n\
+               <template><p> a {{ n }} </p><p>b <!-- c --> c</p></template>\n";
+    let [_, server] = both(src);
+    assert!(
+        server.contains("<p> a ${$.escape(toDisplayString(n))}</p><p>b  c</p>"),
+        "{server}"
+    );
 }
 
 #[test]
@@ -198,14 +221,6 @@ fn every_refusal_names_what_is_not_supported() {
             "<script setup>\nconst props = defineProps(['v'])\n</script>\n\
              <template><input v-model=\"props.v\"><p></p></template>\n",
             "`v-model` on a prop or a computed",
-        ),
-        (
-            "<template><p> a</p><p></p></template>\n",
-            "whitespace that Svelte cleans differently from Vue",
-        ),
-        (
-            "<template><p>a <!-- c --> b</p><p></p></template>\n",
-            "whitespace that Svelte cleans differently from Vue",
         ),
         (
             "<template><input TYPE=\"text\"><p></p></template>\n",

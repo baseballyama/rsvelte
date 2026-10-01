@@ -26,7 +26,8 @@
 //! - A `Boolean` prop: a `$derived.by` of runtime-core's `resolvePropValue` over the rest (absent
 //!   is `false`; `''` and the hyphenated name are `true`).
 //!
-//! The template (text nodes carry Vue's condensed text, as [`rsv_svelte::hir::spelled_text`]):
+//! The template (text nodes carry Vue's condensed text, as [`rsv_svelte::hir::spelled_text`], and
+//! the Svelte compiler runs with `preserveWhitespace` so that it does not condense it again):
 //! - `{{ e }}`: `{toDisplayString(e)}`, Vue's display rules, from `vue`.
 //! - `v-if` / `v-else-if` / `v-else`: `{#if}` / `{:else if}` / `{:else}`; a `<template>` carrying
 //!   one, or `v-for`, is the block without an element.
@@ -88,10 +89,6 @@
 //!   `true-value` or `false-value`; two on one element; on anything but a ref or a variable, or on
 //!   a prop or a computed; a composition listener beside it.
 //!
-//! Waiting for the Svelte port's `preserveWhitespace` (Svelte's `clean_nodes` cleans Vue's
-//! condensed text again): text that opens or closes a fragment with a space, a lone space in an
-//! element whose whitespace Svelte drops, two texts a comment separates.
-//!
 //! The Svelte compiler then refuses what its own port does not lower; the module is never written
 //! with an approximation.
 //!
@@ -136,7 +133,8 @@ impl Translation {
             style: None,
             template_exprs: &self.template_exprs,
             src,
-            preserve_whitespace: false,
+            // Vue's text is already condensed; Svelte's cleaning would condense it again.
+            preserve_whitespace: true,
         }
     }
 }

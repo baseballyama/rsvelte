@@ -131,9 +131,8 @@ pub(crate) fn translate(
         vmodel: None,
         boolean_attr: None,
         renderable: None,
-        in_pre: false,
     };
-    let root = t.list(vhir.root(), None, None)?;
+    let root = t.list(vhir.root(), None)?;
     let root = t.b.children(&root);
     let T {
         b, exprs, hoisted, ..
@@ -163,8 +162,6 @@ struct T<'a, 'i> {
     vmodel: Option<String>,
     boolean_attr: Option<String>,
     renderable: Option<String>,
-    /// Inside a `<pre>`, where neither compiler touches whitespace.
-    in_pre: bool,
 }
 
 impl T<'_, '_> {
@@ -186,13 +183,8 @@ impl T<'_, '_> {
         self.to.id(&name)
     }
 
-    /// One fragment's children; `tag` is the element they belong to, `None` for the root and the
-    /// blocks.
-    fn list(&mut self, kids: &[HirId], parent: Option<SId>, tag: Option<&str>) -> R<Vec<SId>> {
+    fn list(&mut self, kids: &[HirId], parent: Option<SId>) -> R<Vec<SId>> {
         let (vhir, src) = (self.vhir, self.src);
-        if !self.in_pre {
-            check_whitespace(vhir, src, kids, tag)?;
-        }
         let mut out = Vec::with_capacity(kids.len());
         let mut at = 0;
         while at < kids.len() {
@@ -352,7 +344,7 @@ impl T<'_, '_> {
                     p.span,
                 ));
             }
-            return self.list(vhir.children(el.children), parent, None);
+            return self.list(vhir.children(el.children), parent);
         }
         Ok(vec![self.element(k, parent)?])
     }
@@ -785,10 +777,7 @@ impl T<'_, '_> {
             }
             _ => None,
         };
-        let outer_pre = self.in_pre;
-        self.in_pre |= tag == "pre";
-        let children = self.list(kids, Some(id), Some(tag));
-        self.in_pre = outer_pre;
+        let children = self.list(kids, Some(id));
         self.select_model = outer;
         let children = self.b.children(&children?);
         self.b.set_element_children(id, children);
@@ -817,7 +806,29 @@ impl T<'_, '_> {
         let value = match fallthrough {
             None => own,
             Some(a) => {
-                let spread = self.to.id(a);
+                // runtime-core `mergeProps` merges the class only when the attributes carry one,
+                // and Vue renders a `class` attribute exactly when the props have the key.
+                let key = self.to.str("class");
+                let o = self.to.id(a);
+                let has = self.to.binary(BinOp::In, key, o, Loc::SYNTHETIC);
+                let mut items = class.to_vec();
+                let o = self.to.id(a);
+                items.push(self.to.dot(o, "class"));
+                let merged = normalize(self, &items);
+                let (spread, value) = if let Some(own) = own {
+                    let value = self.to.cond(has, merged, own, Loc::SYNTHETIC);
+                    (self.to.id(a), Some(value))
+                } else {
+                    // `{...attrs}` with its class normalized: a class attribute after a spread
+                    // always renders, even for `undefined`.
+                    let o = self.to.id(a);
+                    let rest = self.to.spread(o, Loc::SYNTHETIC);
+                    let key = self.to.id("class");
+                    let class = self.to.property(key, merged, 0, Loc::SYNTHETIC);
+                    let with_class = self.to.object(&[rest, class], Loc::SYNTHETIC);
+                    let plain = self.to.id(a);
+                    (self.to.cond(has, with_class, plain, Loc::SYNTHETIC), None)
+                };
                 let spread = self.root_expr(spread);
                 attrs.push(Attribute {
                     name: svelte::Name::Spelled {
@@ -829,16 +840,7 @@ impl T<'_, '_> {
                     owner,
                     origin: u32::MAX,
                 });
-                // runtime-core `mergeProps` merges the class only when the attributes carry one.
-                let key = self.to.str("class");
-                let o = self.to.id(a);
-                let has = self.to.binary(BinOp::In, key, o, Loc::SYNTHETIC);
-                let mut items = class.to_vec();
-                let o = self.to.id(a);
-                items.push(self.to.dot(o, "class"));
-                let merged = normalize(self, &items);
-                let otherwise = own.unwrap_or_else(|| self.to.id("undefined"));
-                Some(self.to.cond(has, merged, otherwise, Loc::SYNTHETIC))
+                value
             }
         };
         let Some(value) = value else {
@@ -1326,59 +1328,6 @@ fn reflects_as_written(name: &str, tag: &str) -> bool {
         "width" | "height" => matches!(tag, "img" | "video" | "canvas" | "source"),
         _ => true,
     }
-}
-
-/// Vue's text is already condensed, and Svelte's `clean_nodes` cleans it again (the Svelte port
-/// has no `preserveWhitespace` yet). Most of that is the identity on condensed text; refused are
-/// the cases where it is not: text that opens or closes a fragment with a space (Svelte trims it),
-/// a space alone in an element whose whitespace Svelte drops, and two texts a comment separates
-/// (Svelte drops the comment and merges their spaces).
-fn check_whitespace(vhir: &Hir, src: &str, kids: &[HirId], tag: Option<&str>) -> R<()> {
-    let refuse = |span: Span| {
-        Err(unsupported(
-            "whitespace that Svelte cleans differently from Vue (the Svelte port has no \
-             `preserveWhitespace` yet)",
-            span,
-        ))
-    };
-    let items: Vec<(Option<&str>, Span)> = kids
-        .iter()
-        .filter_map(|&k| {
-            let node = vhir.node(k);
-            match &node.kind {
-                NodeKind::Comment { .. } => None,
-                NodeKind::Text(t) => Some((Some(t.text(src)), node.span)),
-                _ => Some((None, node.span)),
-            }
-        })
-        .collect();
-    let is_ws = |c: char| matches!(c, ' ' | '\t' | '\r' | '\n' | '\u{c}');
-    let blank = |t: &str| t.chars().all(is_ws);
-    for pair in items.windows(2) {
-        if let [(Some(_), _), (Some(_), span)] = pair {
-            return refuse(*span);
-        }
-    }
-    if let Some(&(Some(t), span)) = items.first()
-        && !blank(t)
-        && t.starts_with(is_ws)
-    {
-        return refuse(span);
-    }
-    if let Some(&(Some(t), span)) = items.last()
-        && !blank(t)
-        && t.ends_with(is_ws)
-    {
-        return refuse(span);
-    }
-    let drops_spaces = matches!(
-        tag,
-        Some("select" | "tr" | "table" | "tbody" | "thead" | "tfoot" | "colgroup" | "datalist")
-    );
-    if drops_spaces && let Some(&(_, span)) = items.iter().find(|(t, _)| t.is_some_and(blank)) {
-        return refuse(span);
-    }
-    Ok(())
 }
 
 fn function_decl(to: &mut Ast, name: &str, params: &[&str], body: &[NodeId]) -> NodeId {

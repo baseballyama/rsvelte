@@ -301,12 +301,16 @@
 	<p>
 		Svelte の移植は svue のために変えません。どの lower も上流の <code>svelte/compiler</code>
 		と突き合わせる、という規則を守るためです。Svelte プラグインに足したのは、フロントエンドが綴ったテキストを HIR に置く
-		<code>hir::spelled_text</code> だけで、足す前後で <code>svelte.compile</code> の出力はバイト一致しました（ed7af962b2）。その代わり、Svelte
-		の移植がまだ lower しない構文を要る翻訳は拒否します。たとえば Vue のテキストは空白を畳み済みで、Svelte はそれをもう一度掃除します。たいていは恒等ですが、そうでない場合だけを拒否します。
+		<code>hir::spelled_text</code> だけで、足す前後で <code>svelte.compile</code> の出力はバイト一致しました（ed7af962b2）。翻訳が出すのは、Svelte
+		の移植が上流と同じに lower する構文だけです。Vue のテキストは空白を畳み済みなので、Svelte のコンパイラは上流の <code>preserveWhitespace</code>
+		オプションで走らせ、二度目の掃除をさせません。ルートに引き継ぐ属性は <code>{'{...attrs}'}</code> にし、<code>class</code>
+		は runtime-core の <code>mergeProps</code> と同じに合成します。Vue は props に <code>class</code> のキーがあるときだけ属性を書くので、自分の
+		<code>class</code> が無い要素では、スプレッドの中で合成します。振る舞いのオラクルは見えない空白と空の <code>class</code>
+		属性を区別しないので、この二つは crate のテストで固定しています。
 	</p>
 </div>
 
-<Code item={data.code.svueWhitespace} />
+<Code item={data.code.svueClass} />
 
 <div class="prose-learn">
 	<p>

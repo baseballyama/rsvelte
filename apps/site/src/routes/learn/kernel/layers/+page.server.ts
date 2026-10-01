@@ -37,7 +37,7 @@ export const load = () => ({
 		svueRegister: 'svue/lib/register',
 		svueTranslated: 'svue/lib/impl Artifact for Translated',
 		svueInput: 'svue/lib/Translation::compile_input',
-		svueWhitespace: 'svue/template/check_whitespace',
+		svueClass: 'svue/template/T::dynamic_class',
 		vuelteRegister: 'vuelte/lib/register',
 		vuelteModule: 'vuelte/lib/Behaviour::module',
 		vuelteRef: 'vuelte/template/Builder::ref_function',

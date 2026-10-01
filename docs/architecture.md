@@ -84,7 +84,8 @@ svue のために移植に足したもの: `v-on` の修飾子。パースし、
 - タスク: `svue.behaviour/{client,server}`（言語 `vue` の文書）
 - Vue の意味を Svelte が持たないところは、Vue 自身の実装を呼ぶ形に翻訳する: 補間は `toDisplayString`、`v-for` は `renderList`、`Boolean` の prop は runtime-core の `resolvePropValue`、server の `v-model` は compiler-ssr の `ssrTransformModel` が出す属性。対応表と拒否の一覧はクレートの doc
 - client の `v-model` は `{@attach}` で Vue 自身の `vModelText` / `vModelCheckbox` / `vModelRadio` / `vModelSelect` を走らせ、単一要素のルートへの属性の引き継ぎは `{...attrs}` と `mergeProps` と同じ `class` の合成にする。どちらも Svelte プラグインが lower する構文（`exp/svelte-ext` の `{@attach}`・スプレッド・`<select>`）を出すだけで、Svelte の lower は変えていない
-- 正確に再現できないものは `compile_unsupported` で拒否し、近似しない。Svelte の空白の掃除（`clean_nodes`）が Vue の圧縮済みテキストと食い違う場合（断片の端の空白、空白を捨てる要素の中の空白だけのテキスト、コメントを挟んだ 2 つのテキスト）は、Svelte の移植に `preserveWhitespace` が入るまで拒否する
+- Vue のテキストは空白を畳み済みなので、Svelte のコンパイラは `preserveWhitespace`（`CompileInput::preserve_whitespace`）で走らせ、二度目の掃除をさせない。ルートの `class` は、自分の `class` が無ければスプレッドの中で合成する（Vue は props に `class` のキーがあるときだけ属性を書き、Svelte はスプレッドの後の `class` 属性を値が `undefined` でも書くため）。trace は見えない空白と空の `class` を区別しないので、この二つは `crates/rsv_svue/tests/translate.rs` で固定した
+- 正確に再現できないものは `compile_unsupported` で拒否し、近似しない
 
 ### vuelte
 
