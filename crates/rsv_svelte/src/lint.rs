@@ -68,9 +68,7 @@ impl<'a> Rule<AstCx<'a>> for NoUnusedVars {
 /// With the default options, so the `forbiddenTypeAttribute` message cannot fire.
 ///
 /// The judgement is [`rsv_html::button_type`]'s, shared with `vue/html-button-has-type`; what is
-/// Svelte's is which attribute is the `type` and that findings sit on the whole attribute. The
-/// parser rejects directives and spreads, so upstream's `bind:type` and spread branches have no
-/// input to decide.
+/// Svelte's is which attribute is the `type` and that findings sit on the whole attribute.
 #[derive(Debug)]
 pub struct ButtonHasType;
 
@@ -88,7 +86,7 @@ impl<'a> Rule<HirCx<'a>> for ButtonHasType {
             let types: Vec<_> = hir
                 .attrs(el.attrs)
                 .iter()
-                .filter(|a| a.name.text(src) == "type")
+                .filter(|a| !matches!(a.value, AttrValue::Class(_)) && a.name.text(src) == "type")
                 .collect();
             // A shorthand `{type}` is its own node kind upstream: `findAttribute` skips it, and
             // finding one afterwards satisfies the rule.
@@ -105,7 +103,15 @@ impl<'a> Rule<HirCx<'a>> for ButtonHasType {
                     };
                     (problem, a.span)
                 }
-                None if types.is_empty() => (Some(Problem::Missing), el.start_tag),
+                // Upstream: a spread may set the type.
+                None if types.is_empty()
+                    && !hir
+                        .attrs(el.attrs)
+                        .iter()
+                        .any(|a| matches!(a.value, AttrValue::Spread(_))) =>
+                {
+                    (Some(Problem::Missing), el.start_tag)
+                }
                 None => continue,
             };
             if let Some(p) = problem {

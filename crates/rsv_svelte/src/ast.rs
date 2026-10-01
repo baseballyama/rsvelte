@@ -90,7 +90,8 @@ impl TNode {
 #[derive(Debug)]
 pub struct Attr {
     pub kind: AttrKind,
-    /// As written: `bind:value` for a binding.
+    /// As written: `bind:value` for a binding, `class:active` for a class directive, empty for an
+    /// `{@attach}` or a spread.
     pub name: Span,
     pub value: AttrValue,
     pub span: Span,
@@ -105,13 +106,24 @@ pub enum AttrKind {
     Attribute,
     /// `bind:name={expression}`; the value is the one expression.
     Bind,
+    /// `{@attach expression}`; the name is empty and the value is the one expression.
+    Attach,
+    /// `class:name={expression}`; the value is the one expression.
+    Class,
+    /// `{...expression}`; the name is empty and the value is the one expression.
+    Spread,
 }
 
 impl Attr {
-    /// The bound property of a `bind:` directive (`value` in `bind:value`).
+    /// The name after a directive's prefix: `value` in `bind:value`, `active` in `class:active`.
     #[must_use]
-    pub fn bind_property(&self) -> Option<Span> {
-        (self.kind == AttrKind::Bind).then(|| Span::new(self.name.lo + 5, self.name.hi))
+    pub const fn directive_name(&self) -> Option<Span> {
+        let prefix = match self.kind {
+            AttrKind::Bind => "bind:".len(),
+            AttrKind::Class => "class:".len(),
+            AttrKind::Attribute | AttrKind::Attach | AttrKind::Spread => return None,
+        };
+        Some(Span::new(self.name.lo + prefix as u32, self.name.hi))
     }
 }
 
@@ -189,7 +201,7 @@ pub enum Tk {
     /// `}`
     MustacheClose,
     BlockOpen,
-    /// `if` in `{:else if`, `as` in `{#each … as …}`.
+    /// `if` in `{:else if`, `as` in `{#each … as …}`, `@attach` in `{@attach …}`.
     BlockKeyword,
     Js(rsv_js::lexer::T),
     JsComment,

@@ -41,6 +41,9 @@ pub enum Helper {
     VModelCheckbox,
     VModelRadio,
     VModelSelect,
+    NormalizeProps,
+    GuardReactiveProps,
+    MergeProps,
 }
 
 impl Helper {
@@ -62,6 +65,9 @@ impl Helper {
             Self::VModelCheckbox => "vModelCheckbox",
             Self::VModelRadio => "vModelRadio",
             Self::VModelSelect => "vModelSelect",
+            Self::NormalizeProps => "normalizeProps",
+            Self::GuardReactiveProps => "guardReactiveProps",
+            Self::MergeProps => "mergeProps",
         }
     }
 }
@@ -70,6 +76,7 @@ impl Helper {
 mod patch {
     pub(super) const TEXT: i32 = 1;
     pub(super) const PROPS: i32 = 8;
+    pub(super) const FULL_PROPS: i32 = 16;
     pub(super) const NEED_HYDRATION: i32 = 32;
     pub(super) const STABLE_FRAGMENT: i32 = 64;
     pub(super) const KEYED_FRAGMENT: i32 = 128;
@@ -770,13 +777,39 @@ impl Transform<'_> {
                     *props = Some(obj);
                 }
             }
-            Some(p) => {
-                if let Cg::Object(list) = &mut self.cg[p]
-                    && !list.iter().any(|(k, _)| k == key)
-                {
-                    list.insert(0, (key.to_owned(), value));
+            Some(p) => match &mut self.cg[p] {
+                Cg::Object(list) => {
+                    if !list.iter().any(|(k, _)| k == key) {
+                        list.insert(0, (key.to_owned(), value));
+                    }
                 }
-            }
+                // `getUnnormalizedProps` unwraps `normalizeProps(guardReactiveProps(obj))`; the
+                // object, not a call, is merged after the key.
+                Cg::Call {
+                    callee: Helper::NormalizeProps,
+                    args,
+                } => {
+                    let guarded = args[0];
+                    let Cg::Call {
+                        callee: Helper::GuardReactiveProps,
+                        args: inner,
+                    } = &self.cg[guarded]
+                    else {
+                        unreachable!("object_bind builds both calls")
+                    };
+                    let obj = inner[0];
+                    let k = self.cgn(Cg::Object(vec![(key.to_owned(), value)]));
+                    self.helper(Helper::MergeProps);
+                    let merged = self.cgn(Cg::Call {
+                        callee: Helper::MergeProps,
+                        args: vec![k, obj],
+                    });
+                    if let Cg::Call { args, .. } = &mut self.cg[p] {
+                        args[0] = merged;
+                    }
+                }
+                _ => {}
+            },
         }
     }
 
@@ -1067,6 +1100,80 @@ impl Transform<'_> {
             .collect()
     }
 
+    /// `buildProps` for an element with `v-bind="obj"`: `normalizeProps(guardReactiveProps(obj))`,
+    /// or in a `v-for` `mergeProps({ key }, { ref_for: true }, obj)` (the key as `injectProp`
+    /// puts it first), and `FULL_PROPS`. An object beside other props is not compiled yet.
+    fn object_bind(&mut self, n: Nid, tag: &str, props: &[PropView]) -> R<bool> {
+        let is_object =
+            |p: &PropView| matches!(p, PropView::Dir(DirName::Bind, a, ..) if a.is_empty());
+        if !props.iter().any(is_object) {
+            return Ok(false);
+        }
+        let mut object = None;
+        let mut key = None;
+        for p in props {
+            match p {
+                PropView::Dir(DirName::Bind, a, _, Some(e), _)
+                    if a.is_empty() && object.is_none() =>
+                {
+                    object = Some(*e);
+                }
+                PropView::Dir(DirName::Bind, a, _, Some(e), _) if a == "key" && key.is_none() => {
+                    key = Some(*e);
+                }
+                _ => return Err(Unsupported::nowhere("a v-bind object beside other props")),
+            }
+        }
+        let object = object.expect("found above");
+        let obj = self.cgn(Cg::Exp(object));
+        let props = if self.v_for > 0 {
+            let mut args = Vec::new();
+            if let Some(k) = key {
+                let k = self.cgn(Cg::Exp(k));
+                args.push(self.cgn(Cg::Object(vec![("key".to_owned(), k)])));
+            }
+            let t = self.lit(Lit::Bool(true), NOT_CONSTANT);
+            args.push(self.cgn(Cg::Object(vec![("ref_for".to_owned(), t)])));
+            args.push(obj);
+            self.helper(Helper::MergeProps);
+            self.cgn(Cg::Call {
+                callee: Helper::MergeProps,
+                args,
+            })
+        } else {
+            if key.is_some() {
+                return Err(Unsupported::nowhere("a v-bind object beside a key"));
+            }
+            self.helper(Helper::NormalizeProps);
+            self.helper(Helper::GuardReactiveProps);
+            let guarded = self.cgn(Cg::Call {
+                callee: Helper::GuardReactiveProps,
+                args: vec![obj],
+            });
+            self.cgn(Cg::Call {
+                callee: Helper::NormalizeProps,
+                args: vec![guarded],
+            })
+        };
+        let mut patch_flag = patch::FULL_PROPS;
+        let children = self.vnode_children(n, &mut patch_flag);
+        let vnode = self.vnode_call(VNodeArgs {
+            tag: Some(tag.to_owned()),
+            props: Some(props),
+            children,
+            patch_flag: Some(patch_flag),
+            dynamic_props: None,
+            directives: None,
+            is_block: false,
+            disable_tracking: false,
+            needs_patch: false,
+        });
+        if let Node::Element { codegen, .. } = &mut self.tree[n] {
+            *codegen = Some(vnode);
+        }
+        Ok(true)
+    }
+
     /// `postTransformElement` for a plain element, with `buildProps`, `transformBind` and
     /// `transformOn`.
     fn post_transform_element(&mut self, n: Nid) -> R<()> {
@@ -1076,6 +1183,9 @@ impl Transform<'_> {
         let tag = tag.clone();
         let model_runtime = self.model_runtime(n)?;
         let props = self.prop_views(n);
+        if self.object_bind(n, &tag, &props)? {
+            return Ok(());
+        }
         let mut properties: Vec<(String, Cid)> = Vec::new();
         let mut runtime_directives: Vec<Cid> = Vec::new();
         let mut patch_flag = 0;

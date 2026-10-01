@@ -17,14 +17,16 @@ use rsv_kernel::idx::Idx;
 use rsv_kernel::source::{Loc, Span};
 use rsv_svelte::analyze::Analysis;
 use rsv_svelte::evaluate::Val;
-use rsv_svelte::hir::{AttrValue, Attribute, Children, ElementKind, Hir, HirId, NodeKind, Part};
+use rsv_svelte::hir::{
+    AttrValue, Attribute, Children, Element, ElementKind, Hir, HirId, NodeKind, Part,
+};
 use rsv_svelte::lower::{Item, Parent, clean_nodes, sanitize_template_string};
 use rsv_svelte::resolve::{BindKind, Resolution};
 use rsv_vue::ast::{DirExp, DirName, ForExp};
 use rsv_vue::hir::{self as vue, HirBuilder, Name, PropKind, Text};
 use rustc_hash::FxHashSet;
 
-use crate::helpers::Helper;
+use crate::helpers::{self, Helper};
 use crate::script::{Plan, VUE_GLOBALS, prop_member, walk};
 use crate::{R, unsupported};
 
@@ -84,10 +86,80 @@ fn is_text_attribute(name: &str) -> bool {
         || name.starts_with("data-")
 }
 
-/// Element names whose content or namespace the translation does not handle.
-const REFUSED_ELEMENTS: &[&str] = &[
-    "template", "script", "style", "svg", "math", "slot", "noscript", "iframe", "object",
+/// Svelte's `LOAD_ERROR_ELEMENTS`: its server marks `onload` / `onerror` on them so that the
+/// client can replay an event that fired before hydration.
+const LOAD_ERROR_ELEMENTS: &[&str] = &[
+    "body", "embed", "iframe", "img", "link", "object", "script", "style", "track",
 ];
+
+/// Element names whose content or namespace the translation does not handle. Svelte's client
+/// template drops `<html>`, `<head>` and `<body>` when the browser parses it.
+const REFUSED_ELEMENTS: &[&str] = &[
+    "template", "script", "style", "svg", "math", "slot", "noscript", "iframe", "object", "html",
+    "head", "body",
+];
+
+/// The parents a table part needs for the browser to parse it where it is written.
+fn table_parents(tag: &str) -> Option<&'static [&'static str]> {
+    Some(match tag {
+        "caption" | "colgroup" | "tbody" | "thead" | "tfoot" => &["table"],
+        "col" => &["colgroup"],
+        "tr" => &["tbody", "thead", "tfoot"],
+        "td" | "th" => &["tr"],
+        _ => return None,
+    })
+}
+
+/// A table part outside its parent, which the browser reparents or drops when it parses Svelte's
+/// client template, unless the part is alone in its template (the template element's own
+/// insertion mode then fits it).
+fn check_table_part(hir: &Hir, src: &str, id: HirId, tag: &str, at: Span) -> R<()> {
+    let Some(parents) = table_parents(tag) else {
+        return Ok(());
+    };
+    let parent = hir.node(id).parent;
+    let lists: Vec<Children> = match parent.map(|p| &hir.node(p).kind) {
+        None => vec![hir.root],
+        Some(NodeKind::Element(el)) => {
+            if parents.contains(&el.name.text(src)) {
+                return Ok(());
+            }
+            vec![el.children]
+        }
+        Some(NodeKind::If {
+            branches,
+            otherwise,
+        }) => hir
+            .branches(*branches)
+            .iter()
+            .map(|b| b.body)
+            .chain(*otherwise)
+            .collect(),
+        Some(NodeKind::Each(each)) => std::iter::once(each.body).chain(each.fallback).collect(),
+        Some(_) => Vec::new(),
+    };
+    let alone = lists
+        .iter()
+        .map(|&l| hir.children(l))
+        .find(|l| l.contains(&id))
+        .is_some_and(|l| {
+            l.iter().all(|&s| match &hir.node(s).kind {
+                NodeKind::Text { raw, .. } => s == id || raw.text(src).trim().is_empty(),
+                NodeKind::Comment { .. } => true,
+                _ => s == id,
+            })
+        });
+    if alone {
+        return Ok(());
+    }
+    Err(unsupported(
+        format_args!(
+            "a <{tag}> outside {} beside other content",
+            parents.join(" or ")
+        ),
+        at,
+    ))
+}
 
 /// The cheap checks, before anything is built: element kinds and names, attribute shapes, the
 /// names template expressions read.
@@ -98,25 +170,23 @@ const REFUSED_ELEMENTS: &[&str] = &[
 pub fn check(hir: &Hir, js: &Ast, res: &Resolution, exprs: &[NodeId], src: &str) -> R<()> {
     let mut has_binding = false;
     let mut can_reset = false;
-    for n in &hir.nodes {
+    let mut spread_args = FxHashSet::default();
+    for (id, n) in hir.nodes.iter_enumerated() {
         match &n.kind {
             NodeKind::Element(el) => {
                 let name = el.name.text(src);
-                let refused = el.kind != ElementKind::Regular
-                    || REFUSED_ELEMENTS.contains(&name)
-                    || name.contains([':', '-'])
-                    || name.bytes().any(|b| b.is_ascii_uppercase());
-                if refused {
-                    return Err(unsupported(format_args!("the element <{name}>"), el.name));
-                }
-                if let Err(d) = rsv_svelte::lower::check_foreign_element(src, el.name) {
-                    return Err(unsupported(&d.message, d.span));
-                }
-                if name == "textarea" && !hir.children(el.children).is_empty() {
-                    return Err(unsupported("a <textarea> with children", el.name));
-                }
-                for a in hir.attrs(el.attrs) {
-                    check_attribute(src, name, a)?;
+                check_element(hir, src, id, el)?;
+                let attrs = hir.attrs(el.attrs);
+                let spread = attrs
+                    .iter()
+                    .any(|a| matches!(a.value, AttrValue::Spread(_)));
+                check_unique(src, attrs)?;
+                for a in attrs {
+                    check_attribute(src, name, a, spread)?;
+                    check_attribute_references(src, a)?;
+                    if let AttrValue::Spread(e) = a.value {
+                        spread_args.insert(e);
+                    }
                     let attr = a.name.text(src);
                     has_binding |= matches!(a.value, AttrValue::Bind(_)) && attr != "this";
                     if attr == "type" && matches!(name, "button" | "input") {
@@ -124,6 +194,7 @@ pub fn check(hir: &Hir, js: &Ast, res: &Resolution, exprs: &[NodeId], src: &str)
                     }
                 }
             }
+            NodeKind::Text { raw, .. } => check_character_references(raw.text(src), false, *raw)?,
             NodeKind::Each(each) => {
                 let simple = each
                     .context()
@@ -135,8 +206,16 @@ pub fn check(hir: &Hir, js: &Ast, res: &Resolution, exprs: &[NodeId], src: &str)
             _ => {}
         }
     }
+    let is_rest = |n: NodeId| {
+        res.binding(n)
+            .is_some_and(|(_, info)| info.kind == BindKind::RestProp)
+    };
     for &e in exprs {
         walk(js, e, &mut |n| match js.kind(n) {
+            Kind::Ident(_) if is_rest(n) && !spread_args.contains(&n) => Err(unsupported(
+                "the rest of `$props()` other than as a spread attribute",
+                span_of(js, n),
+            )),
             Kind::Ident(_) if res.sem.binding_of(n).is_none() => {
                 let name = js.name(n);
                 if name.starts_with('$') {
@@ -182,8 +261,159 @@ pub fn check(hir: &Hir, js: &Ast, res: &Resolution, exprs: &[NodeId], src: &str)
     Ok(())
 }
 
-fn check_attribute(src: &str, tag: &str, a: &Attribute) -> R<()> {
+fn check_attribute_references(src: &str, a: &Attribute) -> R<()> {
+    match &a.value {
+        AttrValue::Static(_) => {
+            let value = Span::new(a.name.span().hi, a.span.hi);
+            check_character_references(value.text(src), true, value)
+        }
+        AttrValue::Interpolated(parts) => parts.iter().try_for_each(|p| match *p {
+            Part::Text(s) => check_character_references(s.text(src), true, s),
+            Part::Expr { .. } => Ok(()),
+        }),
+        _ => Ok(()),
+    }
+}
+
+/// Character references that the shared decoder reads as Svelte does. Svelte knows every HTML
+/// named reference, with and without `;`, and remaps numeric ones (`&#10;` in text, 0, 128-159,
+/// surrogates, the unassigned planes); the decoder knows six names and no remapping.
+fn check_character_references(raw: &str, attribute: bool, at: Span) -> R<()> {
+    let refused = || unsupported("a character reference Svelte decodes differently", at);
+    let mut rest = raw;
+    while let Some(i) = rest.find('&') {
+        rest = &rest[i + 1..];
+        let next = rest.bytes().next();
+        if next.is_some_and(|b| b.is_ascii_alphabetic()) {
+            let named = ["amp;", "lt;", "gt;", "quot;", "apos;", "nbsp;"]
+                .iter()
+                .any(|n| rest.starts_with(n));
+            if !named {
+                return Err(refused());
+            }
+        } else if next == Some(b'#') {
+            let num = &rest[1..];
+            let (digits, radix) = num
+                .strip_prefix(['x', 'X'])
+                .map_or((num, 10), |hex| (hex, 16));
+            let len = digits
+                .bytes()
+                .take_while(|b| {
+                    if radix == 16 {
+                        b.is_ascii_hexdigit()
+                    } else {
+                        b.is_ascii_digit()
+                    }
+                })
+                .count();
+            if len == 0 {
+                continue;
+            }
+            let exact = digits[len..].starts_with(';')
+                && u32::from_str_radix(&digits[..len], radix).is_ok_and(|c| {
+                    matches!(c, 1..=9 | 11..=127 | 160..=55_295 | 57_344..=196_607)
+                        || (c == 10 && attribute)
+                });
+            if !exact {
+                return Err(refused());
+            }
+        }
+    }
+    Ok(())
+}
+
+/// The element's name, its place in the browser's parse of Svelte's template, its children.
+fn check_element(hir: &Hir, src: &str, id: HirId, el: &Element) -> R<()> {
+    let name = el.name.text(src);
+    let refused = el.kind != ElementKind::Regular
+        || REFUSED_ELEMENTS.contains(&name)
+        || name.contains([':', '-'])
+        || name.bytes().any(|b| b.is_ascii_uppercase());
+    if refused {
+        return Err(unsupported(format_args!("the element <{name}>"), el.name));
+    }
+    if let Err(d) = rsv_svelte::lower::check_foreign_element(src, el.name) {
+        return Err(unsupported(&d.message, d.span));
+    }
+    check_table_part(hir, src, id, name, el.name)?;
+    if rsv_svelte::lower::is_customizable_select(hir, src, name, el) {
+        return Err(unsupported(
+            format_args!("rich content in <{name}>"),
+            el.name,
+        ));
+    }
+    if name == "textarea" && !hir.children(el.children).is_empty() {
+        return Err(unsupported("a <textarea> with children", el.name));
+    }
+    Ok(())
+}
+
+/// The parser's `attribute_duplicate`, which the Svelte plugin's parser does not report: an
+/// attribute or binding, or a `class:` directive, named twice (`bind:this` is not recorded).
+fn check_unique(src: &str, attrs: &[Attribute]) -> R<()> {
+    let mut seen: Vec<(bool, &str)> = Vec::new();
+    for a in attrs {
+        let key = match a.value {
+            AttrValue::Spread(_) | AttrValue::Attach(_) => continue,
+            AttrValue::Class(_) => (true, a.name.text(src)),
+            _ => (false, a.name.text(src)),
+        };
+        if seen.contains(&key) {
+            return Err(unsupported(
+                "a duplicate attribute (Svelte rejects it as `attribute_duplicate`)",
+                a.span,
+            ));
+        }
+        if key.1 != "this" {
+            seen.push(key);
+        }
+    }
+    Ok(())
+}
+
+/// `spread`: the element has a spread attribute, so all its attributes are one object that
+/// Svelte's `set_attributes` (client) and `attributes` (server) apply, which [`helpers`] port.
+///
+/// [`helpers`]: crate::helpers
+fn check_attribute(src: &str, tag: &str, a: &Attribute, spread: bool) -> R<()> {
     let name = a.name.text(src);
+    match a.value {
+        // Svelte runs an attachment as an effect that tracks what it reads and tears down on a
+        // change; a Vue function ref is called on every patch and tracks nothing of its own.
+        AttrValue::Attach(_) => return Err(unsupported("an {@attach} tag", a.span)),
+        AttrValue::Spread(_) if matches!(tag, "input" | "textarea" | "select" | "option") => {
+            return Err(unsupported(
+                format_args!("a spread attribute on <{tag}>"),
+                a.span,
+            ));
+        }
+        AttrValue::Spread(_) => return Ok(()),
+        AttrValue::Class(_) if spread => {
+            return Err(unsupported(
+                "a `class:` directive beside a spread attribute",
+                a.span,
+            ));
+        }
+        AttrValue::Class(_) if !name.is_empty() => return Ok(()),
+        AttrValue::Bind(_) if spread && name != "this" => {
+            return Err(unsupported("a binding beside a spread attribute", a.span));
+        }
+        AttrValue::Interpolated(_) if spread => {
+            return Err(unsupported(
+                "an attribute with text and expressions beside a spread attribute",
+                a.span,
+            ));
+        }
+        AttrValue::Expression { .. } | AttrValue::Shorthand(_)
+            if spread && name.starts_with("on") =>
+        {
+            return Err(unsupported(
+                "an event attribute beside a spread attribute",
+                a.span,
+            ));
+        }
+        _ => {}
+    }
     let plain = !name.is_empty()
         && name
             .bytes()
@@ -220,7 +450,12 @@ fn check_attribute(src: &str, tag: &str, a: &Attribute) -> R<()> {
                 ));
             }
         }
-        AttrValue::Boolean | AttrValue::Static(_) => {}
+        AttrValue::Boolean
+        | AttrValue::Static(_)
+        | AttrValue::Attach(_)
+        | AttrValue::Class(_)
+        | AttrValue::Spread(_) => {}
+        AttrValue::Expression { .. } | AttrValue::Shorthand(_) if spread => {}
         AttrValue::Expression { .. } | AttrValue::Shorthand(_) | AttrValue::Interpolated(_) => {
             let interpolated = matches!(a.value, AttrValue::Interpolated(_));
             let allowed = if name.starts_with("on") || name == "class" {
@@ -278,6 +513,12 @@ pub fn build(input: Input<'_>, to: &mut Ast) -> R<Built> {
         false,
         Span::default(),
     )?;
+    let required: Vec<Helper> = b
+        .helpers
+        .iter()
+        .flat_map(|&h| helpers::requires(h).iter().copied())
+        .collect();
+    b.helpers.extend(required);
     let mut helpers: Vec<Helper> = b.helpers.into_iter().collect();
     helpers.sort_unstable();
     Ok(Built {
@@ -552,15 +793,41 @@ impl Builder<'_, '_> {
         let mut props = lead;
         let mut steps = Steps::default();
         let mut select_target = None;
-        for a in attrs {
-            if let AttrValue::Bind(t) = a.value
-                && tag == "select"
-            {
-                select_target = Some(t);
+        let spread = attrs
+            .iter()
+            .any(|a| matches!(a.value, AttrValue::Spread(_)));
+        let directives = attrs.iter().any(|a| matches!(a.value, AttrValue::Class(_)));
+        if spread {
+            self.spread(tag, attrs, &mut props, &mut steps)?;
+        } else {
+            if directives {
+                self.class_directives(el.name, attrs, &mut props, &mut steps)?;
             }
-            self.attribute(tag, attrs, a, &mut props, &mut steps)?;
+            for a in attrs {
+                if let AttrValue::Bind(t) = a.value
+                    && tag == "select"
+                {
+                    select_target = Some(t);
+                }
+                let class = matches!(a.value, AttrValue::Class(_)) || a.name.text(src) == "class";
+                if !(directives && class) {
+                    self.attribute(tag, attrs, a, &mut props, &mut steps)?;
+                }
+            }
         }
         props.extend(extra);
+        if self.i.server && !spread && LOAD_ERROR_ELEMENTS.contains(&tag) {
+            for a in attrs {
+                let name = a.name.text(src);
+                let event = matches!(
+                    a.value,
+                    AttrValue::Expression { .. } | AttrValue::Shorthand(_)
+                ) && matches!(name, "onload" | "onerror");
+                if event {
+                    props.push(captured_event(name, a.span));
+                }
+            }
+        }
         if let Some(f) = self.ref_function(steps) {
             props.push(bound("ref", el.name, f, el.name));
         }
@@ -591,6 +858,127 @@ impl Builder<'_, '_> {
         };
         self.vb.set_element_children(v, children);
         Ok(v)
+    }
+
+    /// An element with a spread attribute: all its attributes as one object, in order, which
+    /// Svelte applies with `set_attributes` (client, after each patch) or prints with
+    /// `attributes` (server). Vue is given none of them.
+    fn spread(
+        &mut self,
+        tag: &str,
+        attrs: &[Attribute],
+        props: &mut Vec<vue::Prop>,
+        steps: &mut Steps,
+    ) -> R<()> {
+        let src = self.i.src;
+        let mut fields = Vec::with_capacity(attrs.len());
+        for a in attrs {
+            let name = a.name.text(src);
+            let value = match &a.value {
+                &AttrValue::Spread(e) => {
+                    self.render_read(e)?;
+                    let x = self.template_expr(e);
+                    fields.push(self.to.spread(x, Loc::SYNTHETIC));
+                    continue;
+                }
+                &AttrValue::Bind(t) => {
+                    self.bind_this(a, t, steps)?;
+                    continue;
+                }
+                AttrValue::Boolean => self.to.bool(true, Loc::SYNTHETIC),
+                AttrValue::Static(v) => self.to.str(v),
+                &(AttrValue::Expression { expr, .. } | AttrValue::Shorthand(expr)) => {
+                    self.render_read(expr)?;
+                    let x = self.template_expr(expr);
+                    if self.i.server && name == "class" {
+                        self.helpers.insert(Helper::Clsx);
+                        self.call("$$sclsx", &[x])
+                    } else {
+                        x
+                    }
+                }
+                _ => {
+                    return Err(unsupported(
+                        "this attribute beside a spread attribute",
+                        a.span,
+                    ));
+                }
+            };
+            let key = self.to.str(name);
+            fields.push(self.to.property(key, value, 0, Loc::SYNTHETIC));
+        }
+        let object = self.to.object(&fields, Loc::SYNTHETIC);
+        if self.i.server {
+            self.helpers.insert(Helper::Spread);
+            let mut args = vec![object];
+            if LOAD_ERROR_ELEMENTS.contains(&tag) {
+                let events = ["onload", "onerror"].map(|e| self.to.str(e));
+                args.push(self.to.array(&events, Loc::SYNTHETIC));
+            }
+            let v = self.call("$$spread", &args);
+            let span = attrs.first().map_or_else(Span::default, |a| a.span);
+            props.push(directive(DirName::Bind, None, DirExp::Expr(v), span));
+        } else {
+            self.helpers.insert(Helper::Attributes);
+            let el = self.to.id("$$el");
+            steps.mounted.push(self.call("$$attributes", &[el, object]));
+        }
+        Ok(())
+    }
+
+    /// `class:` directives with the `class` attribute: `set_class` (client, after each patch) or
+    /// `attr_class` (server), both `to_class` of the value and the directives.
+    fn class_directives(
+        &mut self,
+        at: Span,
+        attrs: &[Attribute],
+        props: &mut Vec<vue::Prop>,
+        steps: &mut Steps,
+    ) -> R<()> {
+        let src = self.i.src;
+        let mut value = None;
+        let mut fields = Vec::new();
+        for a in attrs {
+            let name = a.name.text(src);
+            match &a.value {
+                &AttrValue::Class(e) => {
+                    self.render_read(e)?;
+                    let x = self.template_expr(e);
+                    let key = self.to.str(name);
+                    fields.push(self.to.property(key, x, 0, Loc::SYNTHETIC));
+                }
+                AttrValue::Static(v) if name == "class" => value = Some(self.to.str(v)),
+                &(AttrValue::Expression { expr, .. } | AttrValue::Shorthand(expr))
+                    if name == "class" =>
+                {
+                    self.render_read(expr)?;
+                    let x = self.template_expr(expr);
+                    self.helpers.insert(Helper::Clsx);
+                    value = Some(self.call("$$sclsx", &[x]));
+                }
+                _ if name == "class" => {
+                    return Err(unsupported(
+                        "this `class` beside a `class:` directive",
+                        a.span,
+                    ));
+                }
+                _ => {}
+            }
+        }
+        let value = value.unwrap_or_else(|| self.to.str(""));
+        let object = self.to.object(&fields, Loc::SYNTHETIC);
+        if self.i.server {
+            self.helpers.insert(Helper::ToClass);
+            let v = self.call("$$to_class", &[value, object]);
+            props.push(bound("CLASS", at, v, at));
+        } else {
+            self.helpers.insert(Helper::SetClass);
+            let el = self.to.id("$$el");
+            steps
+                .mounted
+                .push(self.call("$$set_class", &[el, value, object]));
+        }
+        Ok(())
     }
 
     /// `($$el) => { if ($$el !== null) { …mounted } …this }`: Vue calls a function ref with the
@@ -650,6 +1038,9 @@ impl Builder<'_, '_> {
         let at = a.name.span();
         match &a.value {
             &AttrValue::Bind(e) => self.binding(tag, attrs, a, e, props, steps),
+            AttrValue::Attach(_) | AttrValue::Class(_) | AttrValue::Spread(_) => {
+                Err(unsupported("this attribute", a.span))
+            }
             AttrValue::Boolean => {
                 props.push(attribute(a, None));
                 Ok(())
@@ -1381,6 +1772,21 @@ fn is_primitive(js: &Ast, e: NodeId) -> bool {
         Kind::Logical(_, l, r) => is_primitive(js, l) && is_primitive(js, r),
         Kind::Cond { cons, alt, .. } => is_primitive(js, cons) && is_primitive(js, alt),
         _ => is_boolean(js, e),
+    }
+}
+
+/// `` ${event}="this.__e=event"``, which Svelte's server prints for a load or error event.
+fn captured_event(event: &str, span: Span) -> vue::Prop {
+    vue::Prop {
+        kind: PropKind::Attribute {
+            name: spelled(event, span),
+            value: Some(Text {
+                raw: span,
+                cooked: Some("this.__e=event".into()),
+            }),
+        },
+        span,
+        origin: 0,
     }
 }
 

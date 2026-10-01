@@ -23,6 +23,8 @@ pub struct Plan {
     on_mount: Option<NodeId>,
     /// `$props()`'s keys and literal defaults, in order; `None` without a `$props()`.
     props: Option<Vec<(String, Option<NodeId>)>>,
+    /// `...rest` in `$props()`: read through Vue's `useAttrs()`.
+    pub rest: Option<NodeId>,
     /// The top-level function declarations, by binding.
     pub functions: FxHashMap<BindingId, NodeId>,
 }
@@ -57,6 +59,8 @@ const VUE_HELPERS: &[&str] = &[
     "vModelCheckbox",
     "vModelRadio",
     "vModelSelect",
+    "normalizeProps",
+    "guardReactiveProps",
     "defineComponent",
 ];
 
@@ -120,6 +124,7 @@ pub fn plan(c: &Component, res: &Resolution, src: &str) -> R<Plan> {
     if script.ts {
         return Err(unsupported("a TypeScript instance script", script.span));
     }
+    check_redeclared(js, res, c.program)?;
     let Kind::Program(body) = js.kind(c.program) else {
         unreachable!("a script parses to a program")
     };
@@ -155,7 +160,9 @@ pub fn plan(c: &Component, res: &Resolution, src: &str) -> R<Plan> {
                         "$state" | "$state.raw" => ident && args.len() <= 1,
                         "$derived" | "$derived.by" => ident && args.len() == 1,
                         "$props" if args.is_empty() && plan.props.is_none() => {
-                            plan.props = Some(props(js, id)?);
+                            let (keys, rest) = props(js, id)?;
+                            plan.props = Some(keys);
+                            plan.rest = rest;
                             true
                         }
                         _ => false,
@@ -194,12 +201,37 @@ pub fn plan(c: &Component, res: &Resolution, src: &str) -> R<Plan> {
             _ => {}
         }
     }
-    check_references(js, res, c.program, plan.on_mount, &consumed, &mount_calls)?;
+    check_references(
+        js,
+        res,
+        c.program,
+        plan.on_mount,
+        plan.rest,
+        &consumed,
+        &mount_calls,
+    )?;
     check_writes(js, res)?;
     Ok(plan)
 }
 
 /// The local name of `import { onMount } from 'svelte'`.
+/// Svelte reads a redeclared `var` as reassigned; the shared scope sees one declaration and
+/// folds the first initializer.
+fn check_redeclared(js: &Ast, res: &Resolution, program: NodeId) -> R<()> {
+    walk(js, program, &mut |n| {
+        let (Kind::Declarator { id, .. } | Kind::Function { name: Some(id), .. }) = js.kind(n)
+        else {
+            return Ok(());
+        };
+        match res.sem.binding_of(id) {
+            Some(b) if matches!(js.kind(id), Kind::Ident(_)) && res.sem.bindings[b].node != id => {
+                Err(unsupported("a name declared twice", span(js, id)))
+            }
+            _ => Ok(()),
+        }
+    })
+}
+
 fn on_mount_import(js: &Ast, src: &str, import: NodeId) -> Option<NodeId> {
     let Kind::Import {
         specifiers: [sp],
@@ -245,10 +277,12 @@ fn check_references(
     res: &Resolution,
     program: NodeId,
     on_mount: Option<NodeId>,
+    rest: Option<NodeId>,
     consumed: &FxHashSet<NodeId>,
     mount_calls: &FxHashSet<NodeId>,
 ) -> R<()> {
     let on_mount_binding = on_mount.and_then(|l| res.sem.binding_of(l));
+    let rest_binding = rest.and_then(|r| res.sem.binding_of(r));
     walk(js, program, &mut |n| match js.kind(n) {
         Kind::Ident(_) => {
             let name = js.name(n);
@@ -259,6 +293,12 @@ fn check_references(
             if name.starts_with('$') && binding.is_none() && !consumed.contains(&n) {
                 return Err(unsupported(
                     format_args!("the rune or store subscription `{name}`"),
+                    span(js, n),
+                ));
+            }
+            if binding.is_some() && binding == rest_binding && Some(n) != rest {
+                return Err(unsupported(
+                    "the rest of `$props()` other than spread in the template",
                     span(js, n),
                 ));
             }
@@ -293,7 +333,10 @@ fn check_writes(js: &Ast, res: &Resolution) -> R<()> {
             BindKind::Derived | BindKind::DerivedBy => {
                 (s.writes > 0).then_some("assigning a `$derived`")
             }
-            BindKind::BindableProp | BindKind::RestProp => Some("this prop declaration"),
+            BindKind::RestProp => {
+                (s.writes > 0 || s.mutations > 0).then_some("writing the rest of `$props()`")
+            }
+            BindKind::BindableProp => Some("this prop declaration"),
             _ => None,
         };
         if let Some(what) = refused {
@@ -346,8 +389,11 @@ fn span(js: &Ast, n: NodeId) -> rsv_kernel::source::Span {
     js.loc(n).span().unwrap_or_default()
 }
 
-/// `let { a, b = 1, c: d } = $props()`: plain keys with literal defaults.
-fn props(js: &Ast, pattern: NodeId) -> R<Vec<(String, Option<NodeId>)>> {
+/// Each key with its default, and the rest.
+type Props = (Vec<(String, Option<NodeId>)>, Option<NodeId>);
+
+/// `let { a, b = 1, c: d, ...rest } = $props()`: plain keys with literal defaults, and the rest.
+fn props(js: &Ast, pattern: NodeId) -> R<Props> {
     let refuse = |n: NodeId| {
         Err(unsupported(
             "a `$props()` pattern other than plain keys with literal defaults",
@@ -358,7 +404,14 @@ fn props(js: &Ast, pattern: NodeId) -> R<Vec<(String, Option<NodeId>)>> {
         return refuse(pattern);
     };
     let mut out = Vec::with_capacity(list.len());
+    let mut rest = None;
     for &p in list {
+        if let Kind::Rest(arg) = js.kind(p)
+            && matches!(js.kind(arg), Kind::Ident(_))
+        {
+            rest = Some(arg);
+            continue;
+        }
         let Kind::Property {
             key,
             value,
@@ -397,7 +450,7 @@ fn props(js: &Ast, pattern: NodeId) -> R<Vec<(String, Option<NodeId>)>> {
         }
         out.push((name.to_owned(), default));
     }
-    Ok(out)
+    Ok((out, rest))
 }
 
 fn is_literal(js: &Ast, e: NodeId) -> bool {
@@ -483,6 +536,11 @@ pub fn emit(
             specs.push(to.import_named(i, l, false, Loc::SYNTHETIC));
         }
     }
+    if plan.rest.is_some() {
+        let i = to.id("useAttrs");
+        let l = to.id("$$useAttrs");
+        specs.push(to.import_named(i, l, false, Loc::SYNTHETIC));
+    }
     if let Some(local) = plan.on_mount {
         let i = to.id("onMounted");
         let l = to.ident(js.name(local), js.loc(local));
@@ -520,6 +578,12 @@ pub fn emit(
         let callee = to.id("defineProps");
         let call = to.call0(callee, &[decl]);
         let name = to.id("$$props");
+        body.push(to.let_(flag::CONST, name, Some(call)));
+    }
+    if plan.rest.is_some() {
+        let callee = to.id("$$useAttrs");
+        let call = to.call0(callee, &[]);
+        let name = to.id("$$attrs");
         body.push(to.let_(flag::CONST, name, Some(call)));
     }
     body.extend(helpers::declarations(helpers, to));
@@ -641,10 +705,16 @@ impl Rewrite for ScriptRewrite<'_> {
     }
 }
 
-/// `$$props.<key>` for a reference to a prop; `None` for anything else.
+/// `$$props.<key>` for a reference to a prop, `$$attrs` for the rest; `None` for anything else.
 pub fn prop_member(res: &Resolution, from: &Ast, to: &mut Ast, id: NodeId) -> Option<NodeId> {
     let (b, info) = res.binding(id)?;
-    if info.kind != BindKind::Prop || res.sem.bindings[b].node == id {
+    if res.sem.bindings[b].node == id {
+        return None;
+    }
+    if info.kind == BindKind::RestProp {
+        return Some(to.ident("$$attrs", from.loc(id)));
+    }
+    if info.kind != BindKind::Prop {
         return None;
     }
     let key = from.name(info.prop_key?);

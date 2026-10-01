@@ -169,6 +169,25 @@ impl Rewrite for ScriptRewrite<'_> {
             Kind::Ident(_) => self.read(from, to, id),
             Kind::Assign(op, target, value) => self.assign(from, to, id, op, target, value),
             Kind::Update { op, prefix, arg } => self.update(from, to, op, prefix, arg),
+            Kind::Block(body)
+                if self.target == Target::Server && body.iter().any(|&s| is_effect(from, s)) =>
+            {
+                let kept: Vec<NodeId> = body
+                    .iter()
+                    .filter(|&&s| !is_effect(from, s))
+                    .map(|&s| copy(from, to, self, s))
+                    .collect();
+                Some(to.block(&kept, from.loc(id)))
+            }
+            Kind::Call { args, .. } if self.target == Target::Client => {
+                let name = match rune_call(from, id)?.0 {
+                    "$effect" => "user_effect",
+                    "$effect.pre" => "user_pre_effect",
+                    _ => return None,
+                };
+                let args: Vec<NodeId> = args.iter().map(|&a| copy(from, to, self, a)).collect();
+                Some(to.runtime("$", name, &args))
+            }
             Kind::Property { key, value, .. } if from.flags(id) & flag::SHORTHAND != 0 => {
                 // `{ count }` stops being shorthand when `count` reads through a transform.
                 let v = self.read(from, to, value)?;
@@ -178,6 +197,12 @@ impl Rewrite for ScriptRewrite<'_> {
             _ => None,
         }
     }
+}
+
+/// Upstream server `ExpressionStatement`: an effect statement renders nothing.
+fn is_effect(from: &Ast, stmt: NodeId) -> bool {
+    matches!(from.kind(stmt), Kind::ExprStmt(e)
+        if rune_call(from, e).is_some_and(|(r, _)| matches!(r, "$effect" | "$effect.pre")))
 }
 
 const fn logical_of(op: AssignOp) -> Option<LogicalOp> {
@@ -239,7 +264,8 @@ fn proxyable(ast: &Ast, res: Option<&Resolution>, e: NodeId) -> bool {
 ///
 /// # Errors
 ///
-/// An `unsupported` [`Diagnostic`] if the script exports anything.
+/// An `unsupported` [`Diagnostic`] if the script exports anything or destructures a rune that
+/// upstream splits per path.
 ///
 /// # Panics
 ///
@@ -259,6 +285,7 @@ pub fn lower_instance(
     for &stmt in body {
         match from.kind(stmt) {
             Kind::TsDecl => {}
+            _ if rw.target == Target::Server && is_effect(from, stmt) => {}
             Kind::Import { .. } => hoisted.push(copy(from, to, rw, stmt)),
             // Upstream turns these into the component's exports; copying them would put an
             // `export` inside the component function.
@@ -272,6 +299,9 @@ pub fn lower_instance(
                 ));
             }
             Kind::VarDecl { kind, decls } => {
+                for &d in decls {
+                    check_destructured_rune(from, rw.target, d)?;
+                }
                 let mut lowered = Vec::with_capacity(decls.len());
                 for &d in decls {
                     lower_declarator(from, to, rw, d, &mut lowered, hoisted, names);
@@ -284,6 +314,39 @@ pub fn lower_instance(
         }
     }
     Ok(out)
+}
+
+/// Upstream splits a destructured `$derived` (both targets) and a destructured `$state` (client)
+/// into one declaration per path; this port has no `extract_paths` yet.
+fn check_destructured_rune(from: &Ast, target: Target, d: NodeId) -> Result<(), Diagnostic> {
+    let Kind::Declarator {
+        id,
+        init: Some(init),
+    } = from.kind(d)
+    else {
+        return Ok(());
+    };
+    if matches!(from.kind(id), Kind::Ident(_)) {
+        return Ok(());
+    }
+    let Some((rune, _)) = rune_call(from, init) else {
+        return Ok(());
+    };
+    let split = match rune {
+        "$derived" | "$derived.by" => true,
+        "$state" | "$state.raw" => target == Target::Client,
+        _ => false,
+    };
+    if split {
+        return Err(Diagnostic::error(
+            "unsupported",
+            format!("a destructured `{rune}` declaration is not supported yet"),
+            from.loc(d)
+                .span()
+                .expect("a parsed declarator has a source range"),
+        ));
+    }
+    Ok(())
 }
 
 fn lower_declarator(
@@ -347,12 +410,75 @@ fn lower_declarator(
             out.push(to.declarator(target, Some(call), loc));
         }
         (Target::Server, "$props") => {
-            let target = copy(from, to, rw, id);
+            let target = server_props_pattern(from, to, rw, id);
             let props = to.id("$$props");
             out.push(to.declarator(target, Some(props), loc));
         }
         (Target::Client, "$props") => lower_client_props(from, to, rw, id, out, hoisted, names),
         _ => out.push(copy(from, to, rw, d)),
+    }
+}
+
+/// Upstream server `VariableDeclaration`, `$props` branch: a rest pattern or a bare identifier
+/// must not collect `$$slots` and `$$events`. `$$slots` references are refused earlier, so
+/// the deconflicted `$$slots_` name never applies.
+fn server_props_pattern(
+    from: &Ast,
+    to: &mut Ast,
+    rw: &mut ScriptRewrite<'_>,
+    id: NodeId,
+) -> NodeId {
+    let rw = &mut UnwrapBindable(rw);
+    let hidden = |to: &mut Ast| {
+        ["$$slots", "$$events"].map(|name| {
+            let value = to.id(name);
+            super::client::init_property(to, name, value)
+        })
+    };
+    match from.kind(id) {
+        Kind::ObjectPat(props)
+            if props
+                .last()
+                .is_some_and(|&p| matches!(from.kind(p), Kind::Rest(_))) =>
+        {
+            let mut copied: Vec<NodeId> = props.iter().map(|&p| copy(from, to, rw, p)).collect();
+            let rest = copied.pop().expect("the pattern ends with a rest element");
+            copied.extend(hidden(to));
+            copied.push(rest);
+            to.object_pat(&copied, from.loc(id))
+        }
+        Kind::Ident(_) => {
+            let mut props = hidden(to).to_vec();
+            let name = copy(from, to, rw, id);
+            props.push(to.rest(name, rsv_kernel::source::Loc::SYNTHETIC));
+            to.object_pat(&props, rsv_kernel::source::Loc::SYNTHETIC)
+        }
+        _ => copy(from, to, rw, id),
+    }
+}
+
+/// Upstream server `$props` declaration: `x = $bindable(d)` becomes `x = d`.
+struct UnwrapBindable<'r, 'a>(&'r mut ScriptRewrite<'a>);
+
+impl Rewrite for UnwrapBindable<'_, '_> {
+    fn rewrite(&mut self, from: &Ast, to: &mut Ast, id: NodeId) -> Option<NodeId> {
+        if let Kind::AssignPat(left, right) = from.kind(id)
+            && let Some(("$bindable", arg)) = rune_call(from, right)
+        {
+            let left = copy(from, to, self, left);
+            let right = if let Some(a) = arg {
+                copy(from, to, self, a)
+            } else {
+                let zero = to.num(0.0, rsv_kernel::source::Loc::SYNTHETIC);
+                to.unary(
+                    rsv_js::ops::UnaryOp::Void,
+                    zero,
+                    rsv_kernel::source::Loc::SYNTHETIC,
+                )
+            };
+            return Some(to.assign_pat(left, right, from.loc(id)));
+        }
+        self.0.rewrite(from, to, id)
     }
 }
 

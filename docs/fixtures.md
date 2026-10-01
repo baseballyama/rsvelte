@@ -420,13 +420,13 @@ steps = [
 
 ### 12.10 vuelte の現状（`vuelte.behaviour`）
 
-実装は `crates/rsv_vuelte`（対応表と拒否の一覧はその `lib.rs` の冒頭、設計は [architecture.md](architecture.md) の「vuelte」）。数は vuelte を足したコミットの `run-all` と `fixtures check` のもの。
+実装は `crates/rsv_vuelte`（対応表と拒否の一覧はその `lib.rs` の冒頭、設計は [architecture.md](architecture.md) の「vuelte」）。数は exp/cross と exp/svelte-ext をマージして spread などに対応したコミット（`6b5621c994`）の `run-all` と `fixtures check` のもの。
 
 | unit | client | server |
 |---|---|---|
 | `minimal/` の 8 件（counter、conditional、list、text-input、checkbox、props、form-controls、todo） | match | match |
 | `semantics/interpolation`、`number-input`、`boolean-prop` | match | match |
-| `semantics/fallthrough` | 拒否（Svelte プラグインのパーサ: `spread attributes are not supported yet`） | 同じ |
+| `semantics/fallthrough` | match | match |
 
 §12.8 の違いの扱い:
 
@@ -434,9 +434,11 @@ steps = [
 - 要素間の空白: Svelte の `clean_nodes` が残したテキストを Vue の HIR に入れる。Vue の `condense` は HIR を作った後には走らない。
 - 数値の入力欄の `bind:value`、form をリセットできるコンポーネントの束縛など、Svelte の束縛が Vue の状態と違う動きをするものは拒否する。テキスト・チェックボックス・静的な選択肢の `<select>` の束縛は、Svelte の client のランタイムの effect（`bind_value`、`bind_checked`、`bind_select_value`）を要素の関数 ref で再現する。
 - 渡されなかった prop: `defineProps` に `type` を書かないので、Vue の Boolean への変換が起きず `undefined` か既定値になる。
-- `$attrs`: 全コンポーネントに `inheritAttrs: false`。spread 属性は Svelte プラグインがまだ読まないので、`fallthrough` は拒否のまま。
+- `$attrs`: 全コンポーネントに `inheritAttrs: false`。`let { ...rest } = $props()` は `useAttrs()` に写し（宣言していない属性で、Svelte の rest が宣言していない props を持つのと同じ）、テンプレートの spread でだけ読める。spread を持つ要素は全属性を属性順に 1 つのオブジェクトにまとめ、client は Svelte の `set_attributes`、server は `attributes` を移植したヘルパーに渡す（server は Vue の移植に足したオブジェクトの `v-bind` で出す）。これで `fallthrough` は両ターゲットで match になった。
 
-コーパス（`run-all` の 17,560 unit）では、client が 673 件、server が 674 件を出力し、残りは拒否する（`diagnostics.json` が client 16,843 件・server 16,842 件。うち `vuelte_unsupported` は 6,291 件・6,290 件で、残りは Svelte プラグインが読まない文書）。panic は 0。出力 1,347 件はすべて acorn でパースでき、Vue のランタイムでマウントと `renderToString` を試すと 1,305 件が例外なしで、42 件は入力自身の例外（必須の props を渡していない 36、`BigInt('invalid')` 2、渡していない関数の prop 2、ビルド時に置換される未定義のグローバル 2）。コーパスのユニットには期待値が無いので、この 2 つは振る舞いの一致ではなく「壊れた JS を出していない」ことの確認である。
+コーパス（`run-all` の 17,582 unit）では、client が 685 件、server が 686 件を出力し、残りは拒否する（`diagnostics.json` が client 16,853 件・server 16,852 件。うち `vuelte_unsupported` は 7,607 件・7,606 件で、残りは Svelte プラグインが読まない文書）。panic は 0。マージの前は 673 / 674 件、マージして新しい構文（spread、`class:`、`{@attach}`）をすべて拒否した段階で 673 / 674 件（`vuelte_unsupported` 7,619 / 7,618 件）、対応した後が 685 / 686 件。
 
-拒否の多い順（client、メッセージの中の名前を `X` にまとめたもの）: 要素 `<X>`（コンポーネントや `svelte:` 要素、4,771）、spread 属性（2,388）、モジュールスクリプト（1,581）、`{#if}` / `{#each}` 以外のブロック（1,568）、未対応の指令（1,396）。Vue の移植自身の拒否（`the Vue compiler: …`）は 15 件（Vue の HTML タグの表に無い要素名 `marquee`、`blink`、`keygen`、`menuitem` などをコンポーネントとして扱うもの 12、など）で、翻訳がそれを出力の前に拒否していないところである。
+出力したものは、公式の Svelte の build と並べて、props も手順も渡さずにマウント（client）と `renderToString`（server）の trace を比べた（期待値の無いコーパスなので、マウント時点の振る舞いだけの確認）。client は 685 件中 663 件が一致、22 件は両方が同じ例外で一致。server は 686 件中 665 件が一致、20 件は両方が同じ例外、1 件（`props-default-value-function/inner`）は両方が例外で、メッセージの変数名だけが違う（Svelte は `getter is not a function`、vuelte は `$$props.getter is not a function`）。この比較で見つかった不一致は、写さずに拒否へ変えた: 共有の文字参照のデコーダが Svelte と違う読み方をする参照（`&rsaquo;`、`;` の無い `&quot`、`&#128;` など）、ブラウザが Svelte の client のテンプレートをパースし直すと消える・付け替わる要素（`<body>`、親の外にある表の部品）、`<select>` の中の豊かな内容、二度宣言した名前（Svelte は再宣言した `var` を再代入として読み、共有のスコープは最初の初期化子で畳み込む）。
+
+拒否の多い順（client、メッセージの中の名前を `X` にまとめたもの）: 要素 `<X>`（コンポーネントや `svelte:` 要素、5,876）、パーサの `unexpected token`（1,868）、`{#if}` / `{#each}` 以外のブロック（1,734）、モジュールスクリプト（1,581）、未対応の指令（1,294）。新しい構文の拒否は、`<input>` などの上の spread 35、spread の横の束縛 19、spread の横のイベント属性 11、`{@attach}` 12、rest を spread 以外で読むもの 6。Vue の移植自身の拒否（`the Vue compiler: …`）は 11 件（Vue の HTML タグの表に無い要素名をコンポーネントとして扱うもの 8、など）で、翻訳がそれを出力の前に拒否していないところである。
 

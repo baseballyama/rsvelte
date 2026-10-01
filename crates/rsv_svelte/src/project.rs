@@ -79,15 +79,33 @@ impl Projector<'_> {
                     ));
                 }
                 self.e.push("{ svelteHTML.createElement(\"");
-                self.e.push(tag);
+                // Copied, as svelte2tsx does: an error on the attribute object maps to the name's
+                // end.
+                self.e.copy(self.src, name);
                 self.e.push("\", {");
                 for a in self.c.attrs(attrs) {
-                    if a.kind == AttrKind::Bind {
-                        return Err(Unsupported::at("bind: directives", a.span));
+                    match a.kind {
+                        AttrKind::Bind => return Err(Unsupported::at("bind: directives", a.span)),
+                        AttrKind::Class => {}
+                        AttrKind::Attribute | AttrKind::Attach | AttrKind::Spread => {
+                            self.attribute(a);
+                        }
                     }
-                    self.attribute(a);
                 }
                 self.e.push("});\n");
+                // svelte2tsx checks a class directive's expression as a statement after the
+                // element.
+                for a in self.c.attrs(attrs) {
+                    if a.kind == AttrKind::Class
+                        && let AttrValue::Parts(r) = a.value
+                        && let [Part::Expr { expr, .. }] = self.c.parts(r)
+                    {
+                        let range = expression_range(&self.c.js, *expr);
+                        self.e.copy(self.src, range);
+                        self.e.mark(range.hi);
+                        self.e.push(";\n");
+                    }
+                }
                 self.children(self.c.children(children))?;
                 self.e.push("}\n");
             }
@@ -120,6 +138,23 @@ impl Projector<'_> {
             AttrValue::Parts(r) => self.c.parts(r),
         };
         self.e.push(" ");
+        if a.kind == AttrKind::Spread {
+            // svelte2tsx copies what the braces hold: `...expression`.
+            self.e.copy(src, inner(a.span));
+            self.e.mark(a.span.hi - 1);
+            self.e.push(",");
+            return;
+        }
+        if a.kind == AttrKind::Attach {
+            let [Part::Expr { expr, .. }] = parts else {
+                unreachable!("an attachment is one expression")
+            };
+            self.e.push("[Symbol(\"@attach\")]: ");
+            self.e.copy(src, expression_range(&self.c.js, *expr));
+            self.e.mark(a.span.hi - 1);
+            self.e.push(",");
+            return;
+        }
         if a.shorthand {
             // `{name}` is a shorthand property: TypeScript reports an undeclared name on it.
             self.expression(a.span);
