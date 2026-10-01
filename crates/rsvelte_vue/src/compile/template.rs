@@ -1,0 +1,2035 @@
+//! compiler-core for the templates the parser reads, building an [`SyntaxTree`] instead of text.
+//!
+//! What is ported: `baseParse`'s whitespace condensing, the node transforms of
+//! `getBaseTransformPreset` in upstream order, `cacheStatic`, `createRootCodegen` and `generate`.
+//!
+//! The port keeps upstream's two mutable trees, the template nodes and their codegen nodes, as two
+//! arenas, because the algorithm rewrites both in place (`replaceNode`, `convertToBlock`,
+//! `injectProperty`, caching, hoisting). It also keeps the helper registry as upstream's counted,
+//! insertion-ordered map: which helpers the import names, and in which order, falls out of exactly
+//! when each transform adds and removes one.
+
+use rsvelte_javascript::copy::{Rewrite, Verbatim, copy};
+use rsvelte_javascript::operators::{
+    AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator,
+};
+use rsvelte_javascript::scope::{DeclarationKind, ScopeIdentifier};
+use rsvelte_javascript::syntax_tree::flag;
+use rsvelte_javascript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_kernel::diagnostics::diagnostic::Unsupported;
+use rsvelte_kernel::source::positions::SourceLocation;
+use rustc_hash::FxHashMap;
+
+use crate::resolve::{BindingType, Resolution};
+use crate::syntax_tree::{
+    AttributeKind, DirectiveExpression, DirectiveName, SingleFileComponent, TemplateNode,
+    TemplateNodeIdentifier,
+};
+
+type R<T> = Result<T, Unsupported>;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Helper {
+    Fragment,
+    OpenBlock,
+    CreateElementBlock,
+    CreateElementVNode,
+    CreateComment,
+    CreateText,
+    ToDisplayString,
+    RenderList,
+    Unref,
+}
+
+impl Helper {
+    /// The name `vue` exports it under (`helperNameMap`).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Fragment => "Fragment",
+            Self::OpenBlock => "openBlock",
+            Self::CreateElementBlock => "createElementBlock",
+            Self::CreateElementVNode => "createElementVNode",
+            Self::CreateComment => "createCommentVNode",
+            Self::CreateText => "createTextVNode",
+            Self::ToDisplayString => "toDisplayString",
+            Self::RenderList => "renderList",
+            Self::Unref => "unref",
+        }
+    }
+}
+
+/// `@vue/shared` `PatchFlags`.
+mod patch {
+    pub(super) const TEXT: i32 = 1;
+    pub(super) const PROPS: i32 = 8;
+    pub(super) const NEED_HYDRATION: i32 = 32;
+    pub(super) const STABLE_FRAGMENT: i32 = 64;
+    pub(super) const KEYED_FRAGMENT: i32 = 128;
+    pub(super) const UNKEYED_FRAGMENT: i32 = 256;
+    pub(super) const NEED_PATCH: i32 = 512;
+    pub(super) const CACHED: i32 = -1;
+}
+
+/// `ConstantTypes`.
+const NOT_CONSTANT: u8 = 0;
+const CAN_SKIP_PATCH: u8 = 1;
+const CAN_CACHE: u8 = 2;
+const CAN_STRINGIFY: u8 = 3;
+
+/// `@vue/shared` `GLOBALS_ALLOWED`.
+const GLOBALS_ALLOWED: &[&str] = &[
+    "Infinity",
+    "undefined",
+    "NaN",
+    "isFinite",
+    "isNaN",
+    "parseFloat",
+    "parseInt",
+    "decodeURI",
+    "decodeURIComponent",
+    "encodeURI",
+    "encodeURIComponent",
+    "Math",
+    "Number",
+    "Date",
+    "Array",
+    "Object",
+    "Boolean",
+    "String",
+    "RegExp",
+    "Map",
+    "Set",
+    "JSON",
+    "Intl",
+    "BigInt",
+    "console",
+    "Error",
+    "Symbol",
+];
+
+type Nid = usize;
+type Cid = usize;
+
+/// A template expression after `processExpression`.
+#[derive(Clone, Copy, Debug)]
+struct Exp {
+    node: NodeIdentifier,
+    /// For a compound expression, the lowest of its identifiers' (what `getConstantType` reads).
+    const_type: u8,
+    /// Upstream returns a `COMPOUND_EXPRESSION` (a non-trivial expression naming an identifier),
+    /// which `getGeneratedPropsConstantType` never treats as constant.
+    compound: bool,
+    /// An inline `v-on` statement: `$event` is a local name in it.
+    event_local: bool,
+}
+
+#[derive(Debug)]
+enum Property {
+    Static {
+        name: String,
+        value: String,
+    },
+    Dir {
+        name: DirectiveName,
+        arg: String,
+        raw: NodeIdentifier,
+        exp: Option<Exp>,
+    },
+}
+
+#[derive(Debug)]
+enum Node {
+    Root(Vec<Nid>),
+    Element {
+        surface: TemplateNodeIdentifier,
+        tag: String,
+        props: Vec<Property>,
+        children: Vec<Nid>,
+        codegen: Option<Cid>,
+    },
+    Text(String),
+    Interpolation(Exp),
+    /// Adjacent text and interpolations, merged by `transformText`.
+    Compound(Vec<Nid>),
+    If {
+        branches: Vec<Nid>,
+        codegen: Option<Cid>,
+    },
+    Branch {
+        condition: Option<Exp>,
+        children: Vec<Nid>,
+    },
+    For {
+        source: Exp,
+        parameters: Vec<NodeIdentifier>,
+        children: Vec<Nid>,
+        codegen: Option<Cid>,
+    },
+    TextCall {
+        content: Nid,
+        codegen: Cid,
+    },
+}
+
+#[derive(Debug, Clone)]
+enum VChildren {
+    /// The only child, a text, interpolation or compound, passed as is.
+    Node(Nid),
+    List(Vec<Nid>),
+    Cg(Cid),
+}
+
+#[derive(Debug, Clone)]
+enum Lit {
+    String(String),
+    Number(f64),
+    Boolean(bool),
+}
+
+#[derive(Debug, Clone)]
+enum Cg {
+    VNode {
+        /// `None`: `Fragment`.
+        tag: Option<String>,
+        props: Option<Cid>,
+        children: Option<VChildren>,
+        patch_flag: Option<i32>,
+        dynamic_props: Option<Cid>,
+        is_block: bool,
+        disable_tracking: bool,
+    },
+    Call {
+        callee: Helper,
+        arguments: Vec<Cid>,
+    },
+    /// Keys are static.
+    Object(Vec<(String, Cid)>),
+    NodeArray(Vec<Nid>),
+    /// `stringifyDynamicPropertyNames`.
+    PropertyNames(Vec<String>),
+    /// A simple expression the compiler wrote.
+    Lit {
+        lit: Lit,
+        const_type: u8,
+    },
+    Exp(Exp),
+    /// `$event => (exp)` for an inline statement; `(...arguments) => (exp && exp(...arguments))`
+    /// for a cached member expression.
+    Handler {
+        exp: Exp,
+        inline: bool,
+    },
+    Function {
+        parameters: Vec<NodeIdentifier>,
+        returns: Cid,
+    },
+    Conditional {
+        test: Exp,
+        consequent: Cid,
+        alternate: Cid,
+    },
+    Cache {
+        index: usize,
+        value: Cid,
+        /// `needArraySpread`: `[...(_cache[i] || …)]`.
+        spread: bool,
+    },
+    Hoisted(usize),
+    /// A template node, generated through `genNode`.
+    Node(Nid),
+}
+
+#[derive(Clone, Copy, Debug)]
+struct RefInfo {
+    /// Declared inside the template (a `v-for` alias, a nested function's parameter).
+    local: bool,
+    /// A `v-for` alias: what `hasScopeRef` looks for.
+    host: bool,
+    write: bool,
+}
+
+fn reference_table(res: &Resolution) -> FxHashMap<NodeIdentifier, RefInfo> {
+    res.sem
+        .references
+        .iter()
+        .map(|r| {
+            let b = r.binding.map(|b| &res.sem.bindings[b]);
+            (
+                r.node,
+                RefInfo {
+                    local: b.is_some_and(|b| b.scope != ScopeIdentifier::ROOT),
+                    host: b.is_some_and(|b| b.kind == DeclarationKind::Host),
+                    write: r.write,
+                },
+            )
+        })
+        .collect()
+}
+
+/// A compiled template, ready for [`Compiled::generate`].
+#[derive(Debug)]
+pub struct Compiled {
+    tree: Vec<Node>,
+    cg: Vec<Cg>,
+    root_codegen: Option<Cid>,
+    pub helpers: Vec<Helper>,
+    hoists: Vec<Cid>,
+}
+
+struct Transform<'a> {
+    c: &'a SingleFileComponent,
+    source_text: &'a str,
+    res: &'a Resolution,
+    /// The render function is `setup`'s closure and reads bindings directly.
+    inline: bool,
+    tree: Vec<Node>,
+    cg: Vec<Cg>,
+    helpers: Vec<(Helper, u32)>,
+    hoists: Vec<Cid>,
+    cached: usize,
+    references: FxHashMap<NodeIdentifier, RefInfo>,
+}
+
+/// # Errors
+///
+/// [`Unsupported`] for a template construct the port does not cover.
+pub fn transform(
+    c: &SingleFileComponent,
+    source_text: &str,
+    res: &Resolution,
+    inline: bool,
+) -> R<Compiled> {
+    let mut t = Transform {
+        c,
+        source_text,
+        res,
+        inline,
+        tree: Vec::new(),
+        cg: Vec::new(),
+        helpers: Vec::new(),
+        hoists: Vec::new(),
+        cached: 0,
+        references: reference_table(res),
+    };
+    let children = t.parse_children(c.root())?;
+    let root = t.push(Node::Root(children));
+    t.traverse(root, None)?;
+    let single = t.single_element_root(root);
+    t.walk_static(root, single);
+    let root_codegen = t.root_codegen(root);
+    Ok(Compiled {
+        root_codegen,
+        helpers: t.helpers.iter().map(|&(h, _)| h).collect(),
+        hoists: t.hoists,
+        tree: t.tree,
+        cg: t.cg,
+    })
+}
+
+impl Transform<'_> {
+    fn push(&mut self, n: Node) -> Nid {
+        self.tree.push(n);
+        self.tree.len() - 1
+    }
+
+    fn cgn(&mut self, c: Cg) -> Cid {
+        self.cg.push(c);
+        self.cg.len() - 1
+    }
+
+    fn helper(&mut self, h: Helper) {
+        if let Some(e) = self.helpers.iter_mut().find(|e| e.0 == h) {
+            e.1 += 1;
+        } else {
+            self.helpers.push((h, 1));
+        }
+    }
+
+    fn remove_helper(&mut self, h: Helper) {
+        if let Some(i) = self.helpers.iter().position(|e| e.0 == h) {
+            if self.helpers[i].1 <= 1 {
+                self.helpers.remove(i);
+            } else {
+                self.helpers[i].1 -= 1;
+            }
+        }
+    }
+
+    fn children_of(&self, n: Nid) -> &[Nid] {
+        match &self.tree[n] {
+            Node::Root(children)
+            | Node::Element { children, .. }
+            | Node::Branch { children, .. }
+            | Node::For { children, .. } => children,
+            _ => &[],
+        }
+    }
+
+    fn children_mut(&mut self, n: Nid) -> &mut Vec<Nid> {
+        match &mut self.tree[n] {
+            Node::Root(children)
+            | Node::Element { children, .. }
+            | Node::Branch { children, .. }
+            | Node::For { children, .. } => children,
+            _ => unreachable!("only a container has children"),
+        }
+    }
+
+    fn codegen_of(&self, n: Nid) -> Option<Cid> {
+        match &self.tree[n] {
+            Node::Element { codegen, .. }
+            | Node::If { codegen, .. }
+            | Node::For { codegen, .. } => *codegen,
+            Node::TextCall { codegen, .. } => Some(*codegen),
+            _ => None,
+        }
+    }
+
+    fn lit(&mut self, lit: Lit, const_type: u8) -> Cid {
+        self.cgn(Cg::Lit { lit, const_type })
+    }
+
+    // ---- baseParse -----------------------------------------------------------------------
+
+    /// The nodes as compiler-core's parser leaves them: text decoded and condensed
+    /// (`condenseWhitespace`).
+    fn parse_children(&mut self, children: &[TemplateNodeIdentifier]) -> R<Vec<Nid>> {
+        let mut out: Vec<Option<Nid>> = Vec::with_capacity(children.len());
+        for &k in children {
+            let n = match self.c.node(k) {
+                TemplateNode::Text { span } => {
+                    let text =
+                        rsvelte_markup::decode_text(span.text(self.source_text)).into_owned();
+                    self.push(Node::Text(text))
+                }
+                TemplateNode::Comment { span, .. } => {
+                    return Err(Unsupported::at("a comment in a compiled template", *span));
+                }
+                TemplateNode::Interpolation { expression, .. } => {
+                    self.push(Node::Interpolation(Exp {
+                        node: *expression,
+                        const_type: NOT_CONSTANT,
+                        compound: false,
+                        event_local: false,
+                    }))
+                }
+                TemplateNode::Element {
+                    name,
+                    attributes,
+                    children,
+                    ..
+                } => {
+                    let tag = name.text(self.source_text);
+                    if matches!(tag, "pre" | "textarea" | "svg" | "math" | "foreignObject") {
+                        return Err(Unsupported::at(
+                            "this element in a compiled template",
+                            *name,
+                        ));
+                    }
+                    let props = self.parse_props(self.c.attributes(*attributes))?;
+                    let children = self.parse_children(self.c.children(*children))?;
+                    self.push(Node::Element {
+                        surface: k,
+                        tag: tag.to_owned(),
+                        props,
+                        children,
+                        codegen: None,
+                    })
+                }
+            };
+            out.push(Some(n));
+        }
+        for i in 0..out.len() {
+            let Some(n) = out[i] else { continue };
+            let Node::Text(text) = &self.tree[n] else {
+                continue;
+            };
+            if text.bytes().all(is_whitespace) {
+                let is_element = |j: usize| {
+                    out.get(j)
+                        .copied()
+                        .flatten()
+                        .is_some_and(|m| matches!(self.tree[m], Node::Element { .. }))
+                };
+                // Comments are refused, so only the element-to-element rule remains.
+                let remove = i == 0
+                    || i + 1 == out.len()
+                    || (is_element(i - 1) && is_element(i + 1) && text.contains(['\n', '\r']));
+                if remove {
+                    out[i] = None;
+                } else {
+                    self.tree[n] = Node::Text(" ".to_owned());
+                }
+            } else {
+                let condensed = condense(text);
+                self.tree[n] = Node::Text(condensed);
+            }
+        }
+        Ok(out.into_iter().flatten().collect())
+    }
+
+    fn parse_props(&self, attributes: &[crate::syntax_tree::Attribute]) -> R<Vec<Property>> {
+        let mut props = Vec::with_capacity(attributes.len());
+        for a in attributes {
+            let name = a.name.text(self.source_text);
+            props.push(match &a.kind {
+                AttributeKind::Static => {
+                    if matches!(name, "ref" | "is" | "key") {
+                        return Err(Unsupported::at("this attribute", a.span));
+                    }
+                    Property::Static {
+                        name: name.to_owned(),
+                        value: a.value.map_or_else(String::new, |v| {
+                            rsvelte_markup::decode_text(v.text(self.source_text)).into_owned()
+                        }),
+                    }
+                }
+                AttributeKind::Directive(d) => {
+                    let arg = d.arg.map_or("", |s| s.text(self.source_text));
+                    if d.name == DirectiveName::Bind
+                        && matches!(arg, "class" | "style" | "ref" | "is")
+                    {
+                        return Err(Unsupported::at("this bound attribute", a.span));
+                    }
+                    let raw = match &d.exp {
+                        DirectiveExpression::None => NodeIdentifier::NONE,
+                        DirectiveExpression::Expression(e) => *e,
+                        DirectiveExpression::For(f) => f.source,
+                    };
+                    Property::Dir {
+                        name: d.name,
+                        arg: arg.to_owned(),
+                        raw,
+                        exp: None,
+                    }
+                }
+            });
+        }
+        Ok(props)
+    }
+
+    // ---- traverseNode --------------------------------------------------------------------
+
+    /// `traverseNode` with the transforms that act on this template, in preset order:
+    /// `transformIf`, `transformFor`, `transformExpression`, `transformElement`, `transformText`.
+    fn traverse(&mut self, mut n: Nid, parent: Option<Nid>) -> R<()> {
+        let mut exits: Vec<Exit> = Vec::new();
+        if let Some((name, raw)) = self.take_directive(n, |d| {
+            matches!(
+                d,
+                DirectiveName::If | DirectiveName::ElseIf | DirectiveName::Else
+            )
+        }) {
+            match self.process_if(n, parent, name, raw)? {
+                Some((if_node, exit)) => {
+                    n = if_node;
+                    exits.push(exit);
+                }
+                None => return Ok(()),
+            }
+        }
+        if let Some((_, raw)) = self.take_directive(n, |d| d == DirectiveName::For) {
+            let (for_node, exit) = self.process_for(n, parent, raw)?;
+            n = for_node;
+            exits.push(exit);
+        }
+        match self.tree[n] {
+            Node::Interpolation(e) => {
+                let e = self.process_expression(e.node, false)?;
+                self.tree[n] = Node::Interpolation(e);
+            }
+            Node::Element { .. } => self.expression_props(n)?,
+            _ => {}
+        }
+        if matches!(self.tree[n], Node::Element { .. }) {
+            exits.push(Exit::Element(n));
+        }
+        if matches!(
+            self.tree[n],
+            Node::Root(_) | Node::Element { .. } | Node::For { .. } | Node::Branch { .. }
+        ) {
+            exits.push(Exit::Text(n));
+        }
+        match &self.tree[n] {
+            Node::Interpolation(_) => self.helper(Helper::ToDisplayString),
+            Node::If { branches, .. } => {
+                for b in branches.clone() {
+                    self.traverse(b, Some(n))?;
+                }
+            }
+            Node::Root(_) | Node::Element { .. } | Node::Branch { .. } | Node::For { .. } => {
+                self.traverse_children(n)?;
+            }
+            _ => {}
+        }
+        while let Some(exit) = exits.pop() {
+            match exit {
+                Exit::Element(n) => self.post_transform_element(n)?,
+                Exit::Text(n) => self.transform_text(n),
+                Exit::If {
+                    if_node,
+                    branch,
+                    key,
+                } => {
+                    let cg = self.branch_codegen(branch, key);
+                    if let Node::If { codegen, .. } = &mut self.tree[if_node] {
+                        *codegen = Some(cg);
+                    }
+                }
+                Exit::For(for_node) => self.finish_for(for_node),
+            }
+        }
+        Ok(())
+    }
+
+    fn traverse_children(&mut self, n: Nid) -> R<()> {
+        let mut i = 0;
+        while i < self.children_of(n).len() {
+            let child = self.children_of(n)[i];
+            let before = self.children_of(n).len();
+            self.traverse(child, Some(n))?;
+            // Removals (a `v-else` and the whitespace before it) are at or before `i`.
+            i = i + 1 - (before - self.children_of(n).len());
+        }
+        Ok(())
+    }
+
+    /// `createStructuralDirectiveTransform`: removes the first matching directive.
+    fn take_directive(
+        &mut self,
+        n: Nid,
+        matches: impl Fn(DirectiveName) -> bool,
+    ) -> Option<(DirectiveName, NodeIdentifier)> {
+        let Node::Element { props, .. } = &mut self.tree[n] else {
+            return None;
+        };
+        let i = props
+            .iter()
+            .position(|p| matches!(p, Property::Dir { name, .. } if matches(*name)))?;
+        let Property::Dir { name, raw, .. } = props.remove(i) else {
+            unreachable!("matched a directive")
+        };
+        Some((name, raw))
+    }
+
+    fn replace_child(&mut self, parent: Nid, old: Nid, new: Nid) {
+        if let Some(slot) = self.children_mut(parent).iter_mut().find(|c| **c == old) {
+            *slot = new;
+        }
+    }
+
+    // ---- v-if ----------------------------------------------------------------------------
+
+    /// `processIf`. `None` when the element joined an earlier `v-if`: it is traversed here and
+    /// leaves its parent.
+    fn process_if(
+        &mut self,
+        el: Nid,
+        parent: Option<Nid>,
+        name: DirectiveName,
+        raw: NodeIdentifier,
+    ) -> R<Option<(Nid, Exit)>> {
+        let parent = parent.expect("an element has a parent");
+        let condition = match name {
+            DirectiveName::Else => None,
+            _ => Some(self.process_expression(raw, false)?),
+        };
+        let branch = self.push(Node::Branch {
+            condition,
+            children: vec![el],
+        });
+        if name == DirectiveName::If {
+            let if_node = self.push(Node::If {
+                branches: vec![branch],
+                codegen: None,
+            });
+            self.replace_child(parent, el, if_node);
+            let key = self.branches_before(parent, if_node);
+            return Ok(Some((
+                if_node,
+                Exit::If {
+                    if_node,
+                    branch,
+                    key,
+                },
+            )));
+        }
+        let siblings = self.children_of(parent).to_vec();
+        let mut j = siblings
+            .iter()
+            .position(|&s| s == el)
+            .expect("an element is its parent's child");
+        let mut remove = vec![el];
+        let if_node = loop {
+            let Some(prev) = j.checked_sub(1) else {
+                return Err(Unsupported::nowhere("v-else without an adjacent v-if"));
+            };
+            j = prev;
+            match &self.tree[siblings[j]] {
+                Node::Text(t) if t.trim_ascii().is_empty() => remove.push(siblings[j]),
+                Node::If { .. } => break siblings[j],
+                _ => return Err(Unsupported::nowhere("v-else without an adjacent v-if")),
+            }
+        };
+        self.children_mut(parent).retain(|c| !remove.contains(c));
+        let Node::If { branches, .. } = &mut self.tree[if_node] else {
+            unreachable!("found an if node")
+        };
+        branches.push(branch);
+        let count = branches.len();
+        let key = self.branches_before(parent, if_node) + count - 1;
+        self.traverse(branch, Some(if_node))?;
+        let alternate = self.branch_codegen(branch, key);
+        let Node::If {
+            codegen: Some(mut c),
+            ..
+        } = self.tree[if_node]
+        else {
+            unreachable!("the v-if branch has set the codegen")
+        };
+        // `getParentCondition`.
+        while let Cg::Conditional { alternate: a, .. } = self.cg[c]
+            && matches!(self.cg[a], Cg::Conditional { .. })
+        {
+            c = a;
+        }
+        if let Cg::Conditional { alternate: a, .. } = &mut self.cg[c] {
+            *a = alternate;
+        }
+        Ok(None)
+    }
+
+    /// The branches of the `v-if` nodes before `if_node`: its first key.
+    fn branches_before(&self, parent: Nid, if_node: Nid) -> usize {
+        let siblings = self.children_of(parent);
+        let at = siblings.iter().position(|&s| s == if_node).unwrap_or(0);
+        siblings[..at]
+            .iter()
+            .map(|&s| match &self.tree[s] {
+                Node::If { branches, .. } => branches.len(),
+                _ => 0,
+            })
+            .sum()
+    }
+
+    /// `createCodegenNodeForBranch`.
+    fn branch_codegen(&mut self, branch: Nid, key: usize) -> Cid {
+        let Node::Branch { condition, .. } = self.tree[branch] else {
+            unreachable!("a branch")
+        };
+        let children = self.children_codegen(branch, key);
+        let Some(test) = condition else {
+            return children;
+        };
+        self.helper(Helper::CreateComment);
+        let a = self.lit(Lit::String("v-if".to_owned()), NOT_CONSTANT);
+        let b = self.lit(Lit::Boolean(true), NOT_CONSTANT);
+        let alternate = self.cgn(Cg::Call {
+            callee: Helper::CreateComment,
+            arguments: vec![a, b],
+        });
+        self.cgn(Cg::Conditional {
+            test,
+            consequent: children,
+            alternate,
+        })
+    }
+
+    /// `createChildrenCodegenNode` for a branch holding one element, or the `v-for` it became.
+    fn children_codegen(&mut self, branch: Nid, key: usize) -> Cid {
+        let first = self.children_of(branch)[0];
+        let vnode = self.codegen_of(first).expect("a transformed element");
+        if matches!(self.tree[first], Node::Element { .. }) {
+            self.convert_to_block(vnode);
+        }
+        #[expect(clippy::cast_precision_loss, reason = "a branch count")]
+        let value = self.lit(Lit::Number(key as f64), CAN_CACHE);
+        self.inject_prop(vnode, "key", value);
+        vnode
+    }
+
+    fn convert_to_block(&mut self, vnode: Cid) {
+        if let Cg::VNode { is_block, .. } = &mut self.cg[vnode]
+            && !*is_block
+        {
+            *is_block = true;
+            self.remove_helper(Helper::CreateElementVNode);
+            self.helper(Helper::OpenBlock);
+            self.helper(Helper::CreateElementBlock);
+        }
+    }
+
+    /// `injectProperty`.
+    fn inject_prop(&mut self, vnode: Cid, key: &str, value: Cid) {
+        let Cg::VNode { props, .. } = self.cg[vnode] else {
+            unreachable!("a vnode call")
+        };
+        match props {
+            None => {
+                let obj = self.cgn(Cg::Object(vec![(key.to_owned(), value)]));
+                if let Cg::VNode { props, .. } = &mut self.cg[vnode] {
+                    *props = Some(obj);
+                }
+            }
+            Some(p) => {
+                if let Cg::Object(list) = &mut self.cg[p]
+                    && !list.iter().any(|(k, _)| k == key)
+                {
+                    list.insert(0, (key.to_owned(), value));
+                }
+            }
+        }
+    }
+
+    // ---- v-for ---------------------------------------------------------------------------
+
+    /// `processFor`, and the codegen `transformFor` creates before the children are traversed.
+    fn process_for(&mut self, el: Nid, parent: Option<Nid>, raw: NodeIdentifier) -> R<(Nid, Exit)> {
+        let Node::Element { surface, .. } = self.tree[el] else {
+            unreachable!("v-for is on an element")
+        };
+        let TemplateNode::Element { attributes, .. } = self.c.node(surface) else {
+            unreachable!("an element's surface node")
+        };
+        let parameters = self
+            .c
+            .attributes(*attributes)
+            .iter()
+            .find_map(|a| match &a.kind {
+                AttributeKind::Directive(d) => match &d.exp {
+                    DirectiveExpression::For(f) if f.source == raw => Some(f.parameters.clone()),
+                    _ => None,
+                },
+                AttributeKind::Static => None,
+            })
+            .expect("the parser read the v-for");
+        let source = self.process_expression(raw, false)?;
+        let for_node = self.push(Node::For {
+            source,
+            parameters,
+            children: vec![el],
+            codegen: None,
+        });
+        if let Some(p) = parent {
+            self.replace_child(p, el, for_node);
+        }
+        self.helper(Helper::RenderList);
+        let source_text_cg = self.cgn(Cg::Exp(source));
+        let render = self.cgn(Cg::Call {
+            callee: Helper::RenderList,
+            arguments: vec![source_text_cg],
+        });
+        let stable = source.const_type > NOT_CONSTANT;
+        let flag = if stable {
+            patch::STABLE_FRAGMENT
+        } else if self.has_key(el) {
+            patch::KEYED_FRAGMENT
+        } else {
+            patch::UNKEYED_FRAGMENT
+        };
+        self.helper(Helper::Fragment);
+        let vnode = self.vnode_call(VNodeArgs {
+            tag: None,
+            props: None,
+            children: Some(VChildren::Cg(render)),
+            patch_flag: Some(flag),
+            dynamic_props: None,
+            is_block: true,
+            disable_tracking: !stable,
+        });
+        if let Node::For { codegen, .. } = &mut self.tree[for_node] {
+            *codegen = Some(vnode);
+        }
+        Ok((for_node, Exit::For(for_node)))
+    }
+
+    fn has_key(&self, el: Nid) -> bool {
+        let Node::Element { props, .. } = &self.tree[el] else {
+            return false;
+        };
+        props.iter().any(|p| match p {
+            Property::Dir {
+                name: DirectiveName::Bind,
+                arg,
+                ..
+            } => arg == "key",
+            Property::Static { name, .. } => name == "key",
+            Property::Dir { .. } => false,
+        })
+    }
+
+    /// `transformFor`'s exit: the child's codegen becomes the render function's block.
+    fn finish_for(&mut self, for_node: Nid) {
+        let Node::For {
+            source,
+            parameters,
+            codegen: Some(vnode),
+            ..
+        } = &self.tree[for_node]
+        else {
+            unreachable!("a v-for with its codegen")
+        };
+        let (source, parameters, vnode) = (*source, parameters.clone(), *vnode);
+        let Cg::VNode {
+            children: Some(VChildren::Cg(render)),
+            ..
+        } = self.cg[vnode]
+        else {
+            unreachable!("a v-for fragment renders a list")
+        };
+        let stable = source.const_type > NOT_CONSTANT;
+        let child = self.children_of(for_node)[0];
+        let block = self.codegen_of(child).expect("a transformed element");
+        let Cg::VNode { is_block, .. } = self.cg[block] else {
+            unreachable!("an element's codegen is a vnode call")
+        };
+        if is_block == stable {
+            if is_block {
+                self.remove_helper(Helper::OpenBlock);
+                self.remove_helper(Helper::CreateElementBlock);
+            } else {
+                self.remove_helper(Helper::CreateElementVNode);
+            }
+        }
+        if let Cg::VNode { is_block, .. } = &mut self.cg[block] {
+            *is_block = !stable;
+        }
+        if stable {
+            self.helper(Helper::CreateElementVNode);
+        } else {
+            self.helper(Helper::OpenBlock);
+            self.helper(Helper::CreateElementBlock);
+        }
+        let f = self.cgn(Cg::Function {
+            parameters,
+            returns: block,
+        });
+        if let Cg::Call { arguments, .. } = &mut self.cg[render] {
+            arguments.push(f);
+        }
+    }
+
+    // ---- expressions ---------------------------------------------------------------------
+
+    /// `transformExpression` on an element: every directive's expression but `v-on`'s, which
+    /// `transformOn` processes with `$event` in scope.
+    fn expression_props(&mut self, n: Nid) -> R<()> {
+        let Node::Element { props, .. } = &self.tree[n] else {
+            return Ok(());
+        };
+        let todo: Vec<(usize, NodeIdentifier)> = props
+            .iter()
+            .enumerate()
+            .filter_map(|(i, p)| match p {
+                Property::Dir {
+                    name: DirectiveName::Bind,
+                    raw,
+                    ..
+                } => Some((i, *raw)),
+                _ => None,
+            })
+            .collect();
+        for (i, raw) in todo {
+            let e = self.process_expression(raw, false)?;
+            if let Node::Element { props, .. } = &mut self.tree[n]
+                && let Property::Dir { exp, .. } = &mut props[i]
+            {
+                *exp = Some(e);
+            }
+        }
+        Ok(())
+    }
+
+    fn reference(&self, identifier: NodeIdentifier, event_local: bool) -> Option<RefInfo> {
+        let mut r = *self.references.get(&identifier)?;
+        if event_local && self.c.javascript.name(identifier) == "$event" {
+            r.local = true;
+        }
+        Some(r)
+    }
+
+    /// `processExpression`: the constant type, and the checks and helpers of the identifier
+    /// rewrites (`rewriteIdentifier` adds `unref` while it rewrites).
+    fn process_expression(&mut self, e: NodeIdentifier, event_local: bool) -> R<Exp> {
+        let mut out = Exp {
+            node: e,
+            const_type: NOT_CONSTANT,
+            compound: false,
+            event_local,
+        };
+        if let Kind::Identifier(_) = self.c.javascript.kind(e) {
+            let name = self.c.javascript.name(e);
+            let local = self.reference(e, event_local).is_some_and(|r| r.local);
+            let binding = self.binding_type(e);
+            if !local && (!GLOBALS_ALLOWED.contains(&name) || binding.is_some()) {
+                if matches!(
+                    binding,
+                    Some(BindingType::SetupConst | BindingType::LiteralConst)
+                ) {
+                    out.const_type = CAN_SKIP_PATCH;
+                }
+                self.check_rewrite(e, false)?;
+            } else if !local {
+                out.const_type = CAN_CACHE;
+            }
+            return Ok(out);
+        }
+        let mut identifiers = Vec::new();
+        collect_identifiers(&self.c.javascript, e, None, &mut identifiers);
+        if identifiers.is_empty() {
+            out.const_type = CAN_STRINGIFY;
+            return Ok(out);
+        }
+        out.compound = true;
+        out.const_type = CAN_STRINGIFY;
+        for (identifier, parent) in identifiers {
+            let r = self.reference(identifier, event_local);
+            let need_prefix = r.is_some() && can_prefix(self.c.javascript.name(identifier));
+            let local = r.is_some_and(|r| r.local);
+            if need_prefix && !local {
+                self.check_rewrite(identifier, r.is_some_and(|r| r.write))?;
+                out.const_type = NOT_CONSTANT;
+            } else {
+                // Reaching here, a name that needs a prefix is local: a scope variable.
+                let accessed = parent.is_some_and(|p| {
+                    matches!(
+                        self.c.javascript.kind(p),
+                        Kind::Call { .. } | Kind::New { .. } | Kind::Member { .. }
+                    )
+                });
+                if need_prefix || accessed {
+                    out.const_type = NOT_CONSTANT;
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    fn binding_type(&self, identifier: NodeIdentifier) -> Option<BindingType> {
+        if !self.inline {
+            return None;
+        }
+        self.c
+            .javascript
+            .atom(identifier)
+            .and_then(|a| self.res.binding_type(a))
+    }
+
+    /// Refuses what `rewriteIdentifier` would do that the port does not, and adds its helper.
+    fn check_rewrite(&mut self, identifier: NodeIdentifier, write: bool) -> R<()> {
+        let source_location = self.c.javascript.source_location(identifier);
+        let root_binding = self
+            .res
+            .sem
+            .binding_of(identifier)
+            .is_some_and(|b| self.res.sem.bindings[b].scope == ScopeIdentifier::ROOT);
+        if self.inline && root_binding && self.binding_type(identifier).is_none() {
+            return Err(Unsupported::at(
+                "a template reference to a binding compileScript does not classify yet",
+                source_location,
+            ));
+        }
+        match self.binding_type(identifier) {
+            Some(BindingType::SetupLet) if write => Err(Unsupported::at(
+                "assigning a `let` binding in the template",
+                source_location,
+            )),
+            Some(BindingType::SetupLet | BindingType::SetupMaybeRef) if !write => {
+                self.helper(Helper::Unref);
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
+    // ---- transformElement ----------------------------------------------------------------
+
+    /// `postTransformElement` for a plain element, with `buildProps`, `transformBind` and
+    /// `transformOn`.
+    fn post_transform_element(&mut self, n: Nid) -> R<()> {
+        let Node::Element { tag, props, .. } = &self.tree[n] else {
+            return Ok(());
+        };
+        let tag = tag.clone();
+        let props: Vec<PropertyView> = props
+            .iter()
+            .map(|p| match p {
+                Property::Static { name, value } => {
+                    PropertyView::Static(name.clone(), value.clone())
+                }
+                Property::Dir {
+                    name,
+                    arg,
+                    raw,
+                    exp,
+                    ..
+                } => PropertyView::Dir(*name, arg.clone(), *raw, *exp),
+            })
+            .collect();
+        let mut properties: Vec<(String, Cid)> = Vec::new();
+        let mut patch_flag = 0;
+        let mut dynamic_prop_names: Vec<String> = Vec::new();
+        let mut has_hydration_event = false;
+        let mut should_use_block = false;
+        for p in props {
+            let (key, value) = match p {
+                PropertyView::Static(name, value) => {
+                    let v = self.lit(Lit::String(value), CAN_STRINGIFY);
+                    (name, v)
+                }
+                PropertyView::Dir(dir, arg, raw, exp) => {
+                    let (key, value) = match dir {
+                        DirectiveName::Bind => {
+                            if arg == "key" {
+                                should_use_block = true;
+                            }
+                            let exp = exp.expect("transformExpression processed it");
+                            (arg, self.cgn(Cg::Exp(exp)))
+                        }
+                        DirectiveName::On => self.transform_on(&arg, raw)?,
+                        _ => unreachable!("structural directives are removed"),
+                    };
+                    // `analyzePatchFlag`.
+                    if is_on(&key) && !key.eq_ignore_ascii_case("onclick") && !is_reserved(&key) {
+                        has_hydration_event = true;
+                    }
+                    let constant = match &self.cg[value] {
+                        Cg::Cache { .. } => true,
+                        Cg::Exp(e) | Cg::Handler { exp: e, .. } => e.const_type > 0,
+                        _ => false,
+                    };
+                    if !constant && key != "key" && !dynamic_prop_names.contains(&key) {
+                        dynamic_prop_names.push(key.clone());
+                    }
+                    (key, value)
+                }
+            };
+            // `dedupeProperties` merges repeated `on*`/`class`/`style`; nothing here repeats.
+            if properties.iter().any(|(k, _)| *k == key) {
+                return Err(Unsupported::nowhere("a repeated attribute"));
+            }
+            properties.push((key, value));
+        }
+        if !dynamic_prop_names.is_empty() {
+            patch_flag |= patch::PROPS;
+        }
+        if has_hydration_event {
+            patch_flag |= patch::NEED_HYDRATION;
+        }
+        let vnode_props = (!properties.is_empty()).then(|| self.cgn(Cg::Object(properties)));
+        let vnode_children = self.vnode_children(n, &mut patch_flag);
+        let dynamic_props = (!dynamic_prop_names.is_empty())
+            .then(|| self.cgn(Cg::PropertyNames(dynamic_prop_names)));
+        let vnode = self.vnode_call(VNodeArgs {
+            tag: Some(tag),
+            props: vnode_props,
+            children: vnode_children,
+            patch_flag: (patch_flag != 0).then_some(patch_flag),
+            dynamic_props,
+            is_block: should_use_block,
+            disable_tracking: false,
+        });
+        if let Node::Element { codegen, .. } = &mut self.tree[n] {
+            *codegen = Some(vnode);
+        }
+        Ok(())
+    }
+
+    /// `transformElement`'s children: a lone text-like child is passed as is, and marks the
+    /// element `TEXT` when it is dynamic.
+    fn vnode_children(&self, n: Nid, patch_flag: &mut i32) -> Option<VChildren> {
+        let children = self.children_of(n).to_vec();
+        match children.as_slice() {
+            [] => None,
+            [child] => {
+                let child = *child;
+                let dynamic_text =
+                    matches!(self.tree[child], Node::Interpolation(_) | Node::Compound(_));
+                if dynamic_text && self.constant_type(child) == NOT_CONSTANT {
+                    *patch_flag |= patch::TEXT;
+                }
+                Some(
+                    if dynamic_text || matches!(self.tree[child], Node::Text(_)) {
+                        VChildren::Node(child)
+                    } else {
+                        VChildren::List(children)
+                    },
+                )
+            }
+            _ => Some(VChildren::List(children)),
+        }
+    }
+
+    /// `transformOn`, with `cacheHandlers`.
+    fn transform_on(&mut self, arg: &str, raw: NodeIdentifier) -> R<(String, Cid)> {
+        let key = to_handler_key(&camelize(arg));
+        let is_member = match self.c.javascript.kind(raw) {
+            Kind::Member { .. } => true,
+            Kind::Identifier(_) => self.c.javascript.name(raw) != "undefined",
+            _ => false,
+        };
+        let is_fn = matches!(
+            self.c.javascript.kind(raw),
+            Kind::Arrow { .. } | Kind::Function { .. }
+        );
+        let inline = !(is_member || is_fn);
+        let exp = self.process_expression(raw, inline)?;
+        let runtime_constant = !exp.compound && exp.const_type > 0;
+        let should_cache = !runtime_constant && !self.has_scope_ref(raw);
+        let value = if inline || (should_cache && is_member) {
+            self.cgn(Cg::Handler { exp, inline })
+        } else {
+            self.cgn(Cg::Exp(exp))
+        };
+        let value = if should_cache {
+            self.cache(value)
+        } else {
+            value
+        };
+        Ok((key, value))
+    }
+
+    /// `hasScopeRef`: the expression reads a `v-for` alias.
+    fn has_scope_ref(&self, e: NodeIdentifier) -> bool {
+        let mut identifiers = Vec::new();
+        collect_identifiers(&self.c.javascript, e, None, &mut identifiers);
+        identifiers
+            .iter()
+            .any(|&(identifier, _)| self.references.get(&identifier).is_some_and(|r| r.host))
+    }
+
+    fn cache(&mut self, value: Cid) -> Cid {
+        let index = self.cached;
+        self.cached += 1;
+        self.cgn(Cg::Cache {
+            index,
+            value,
+            spread: false,
+        })
+    }
+
+    /// `createVNodeCall`.
+    fn vnode_call(&mut self, a: VNodeArgs) -> Cid {
+        if a.is_block {
+            self.helper(Helper::OpenBlock);
+            self.helper(Helper::CreateElementBlock);
+        } else {
+            self.helper(Helper::CreateElementVNode);
+        }
+        self.cgn(Cg::VNode {
+            tag: a.tag,
+            props: a.props,
+            children: a.children,
+            patch_flag: a.patch_flag,
+            dynamic_props: a.dynamic_props,
+            is_block: a.is_block,
+            disable_tracking: a.disable_tracking,
+        })
+    }
+
+    // ---- transformText -------------------------------------------------------------------
+
+    fn transform_text(&mut self, n: Nid) {
+        let is_text =
+            |t: &Self, c: Nid| matches!(t.tree[c], Node::Text(_) | Node::Interpolation(_));
+        let mut children = self.children_of(n).to_vec();
+        let mut has_text = false;
+        let mut i = 0;
+        while i < children.len() {
+            if is_text(self, children[i]) {
+                has_text = true;
+                let mut container: Option<Nid> = None;
+                while i + 1 < children.len() && is_text(self, children[i + 1]) {
+                    let next = children.remove(i + 1);
+                    if let Some(c) = container {
+                        if let Node::Compound(list) = &mut self.tree[c] {
+                            list.push(next);
+                        }
+                    } else {
+                        let c = self.push(Node::Compound(vec![children[i], next]));
+                        children[i] = c;
+                        container = Some(c);
+                    }
+                }
+            }
+            i += 1;
+        }
+        let single =
+            children.len() == 1 && matches!(self.tree[n], Node::Root(_) | Node::Element { .. });
+        if has_text && !single {
+            for child in &mut children {
+                if !matches!(
+                    self.tree[*child],
+                    Node::Text(_) | Node::Interpolation(_) | Node::Compound(_)
+                ) {
+                    continue;
+                }
+                let mut arguments = Vec::new();
+                if !matches!(&self.tree[*child], Node::Text(t) if t == " ") {
+                    arguments.push(self.cgn(Cg::Node(*child)));
+                }
+                if self.constant_type(*child) == NOT_CONSTANT {
+                    arguments.push(self.lit(Lit::Number(f64::from(patch::TEXT)), NOT_CONSTANT));
+                }
+                self.helper(Helper::CreateText);
+                let codegen = self.cgn(Cg::Call {
+                    callee: Helper::CreateText,
+                    arguments,
+                });
+                *child = self.push(Node::TextCall {
+                    content: *child,
+                    codegen,
+                });
+            }
+        }
+        *self.children_mut(n) = children;
+    }
+
+    // ---- constant types, cacheStatic, the root -------------------------------------------
+
+    /// `getConstantType` for a template node.
+    fn constant_type(&self, n: Nid) -> u8 {
+        match &self.tree[n] {
+            Node::Text(_) => CAN_STRINGIFY,
+            Node::Interpolation(e) => e.const_type,
+            Node::TextCall { content, .. } => self.constant_type(*content),
+            Node::Compound(list) => list
+                .iter()
+                .map(|&c| self.constant_type(c))
+                .min()
+                .unwrap_or(CAN_STRINGIFY),
+            Node::Element {
+                props,
+                children,
+                codegen: Some(cg),
+                ..
+            } => {
+                let Cg::VNode {
+                    is_block,
+                    patch_flag,
+                    props: vprops,
+                    ..
+                } = &self.cg[*cg]
+                else {
+                    return NOT_CONSTANT;
+                };
+                if *is_block || patch_flag.is_some() {
+                    return NOT_CONSTANT;
+                }
+                let mut ret = self.generated_props_type(*vprops);
+                for &c in children {
+                    if ret == NOT_CONSTANT {
+                        return NOT_CONSTANT;
+                    }
+                    ret = ret.min(self.constant_type(c));
+                }
+                if ret > CAN_SKIP_PATCH {
+                    for p in props {
+                        if let Property::Dir {
+                            name: DirectiveName::Bind,
+                            exp: Some(e),
+                            ..
+                        } = p
+                        {
+                            ret = ret.min(e.const_type);
+                        }
+                    }
+                }
+                ret
+            }
+            _ => NOT_CONSTANT,
+        }
+    }
+
+    /// `getGeneratedPropsConstantType`.
+    fn generated_props_type(&self, props: Option<Cid>) -> u8 {
+        let Some(Cg::Object(list)) = props.map(|p| &self.cg[p]) else {
+            return CAN_STRINGIFY;
+        };
+        let mut ret = CAN_STRINGIFY;
+        for &(_, v) in list {
+            let t = match &self.cg[v] {
+                Cg::Lit { const_type, .. } => *const_type,
+                Cg::Exp(e) if !e.compound => e.const_type,
+                Cg::Hoisted(_) => CAN_CACHE,
+                _ => NOT_CONSTANT,
+            };
+            if t == NOT_CONSTANT {
+                return NOT_CONSTANT;
+            }
+            ret = ret.min(t);
+        }
+        ret
+    }
+
+    fn single_element_root(&self, root: Nid) -> bool {
+        matches!(self.children_of(root), [only] if matches!(self.tree[*only], Node::Element { .. }))
+    }
+
+    fn hoist(&mut self, value: Cid) -> Cid {
+        self.hoists.push(value);
+        self.cgn(Cg::Hoisted(self.hoists.len()))
+    }
+
+    /// `walk` for an element that is not constant: its props may still be hoisted.
+    fn hoist_props(&mut self, vnode: Cid) {
+        let Cg::VNode {
+            patch_flag,
+            props,
+            dynamic_props,
+            ..
+        } = self.cg[vnode]
+        else {
+            return;
+        };
+        if matches!(patch_flag, None | Some(patch::NEED_PATCH | patch::TEXT))
+            && self.generated_props_type(props) >= CAN_CACHE
+            && let Some(p) = props
+        {
+            let h = self.hoist(p);
+            if let Cg::VNode { props, .. } = &mut self.cg[vnode] {
+                *props = Some(h);
+            }
+        }
+        if let Some(d) = dynamic_props {
+            let h = self.hoist(d);
+            if let Cg::VNode { dynamic_props, .. } = &mut self.cg[vnode] {
+                *dynamic_props = Some(h);
+            }
+        }
+    }
+
+    /// `cacheStatic`'s `walk`.
+    fn walk_static(&mut self, n: Nid, do_not_hoist: bool) {
+        let children = self.children_of(n).to_vec();
+        let mut to_cache = Vec::new();
+        for &child in &children {
+            match &self.tree[child] {
+                Node::Element { codegen, .. } => {
+                    let vnode = codegen.expect("a transformed element");
+                    let ct = if do_not_hoist {
+                        NOT_CONSTANT
+                    } else {
+                        self.constant_type(child)
+                    };
+                    if ct >= CAN_CACHE {
+                        if let Cg::VNode { patch_flag, .. } = &mut self.cg[vnode] {
+                            *patch_flag = Some(patch::CACHED);
+                        }
+                        to_cache.push(child);
+                        continue;
+                    }
+                    if ct == NOT_CONSTANT {
+                        self.hoist_props(vnode);
+                    }
+                    self.walk_static(child, false);
+                }
+                Node::TextCall { content, codegen } => {
+                    let codegen = *codegen;
+                    let ct = if do_not_hoist {
+                        NOT_CONSTANT
+                    } else {
+                        self.constant_type(*content)
+                    };
+                    if ct >= CAN_CACHE {
+                        if let Cg::Call { arguments, .. } = &self.cg[codegen]
+                            && !arguments.is_empty()
+                        {
+                            let flag =
+                                self.lit(Lit::Number(f64::from(patch::CACHED)), NOT_CONSTANT);
+                            if let Cg::Call { arguments, .. } = &mut self.cg[codegen] {
+                                arguments.push(flag);
+                            }
+                        }
+                        to_cache.push(child);
+                    }
+                }
+                Node::For { children, .. } => {
+                    let one = children.len() == 1;
+                    self.walk_static(child, one);
+                }
+                Node::If { branches, .. } => {
+                    for b in branches.clone() {
+                        let one = self.children_of(b).len() == 1;
+                        self.walk_static(b, one);
+                    }
+                }
+                _ => {}
+            }
+        }
+        if to_cache.len() == children.len()
+            && let Node::Element {
+                codegen: Some(vnode),
+                ..
+            } = self.tree[n]
+            && let Cg::VNode {
+                children: Some(VChildren::List(list)),
+                ..
+            } = &self.cg[vnode]
+        {
+            let arr = self.cgn(Cg::NodeArray(list.clone()));
+            let c = self.cache(arr);
+            // Always spread since #13221: mounting must not mutate the cached array.
+            if let Cg::Cache { spread, .. } = &mut self.cg[c] {
+                *spread = true;
+            }
+            if let Cg::VNode { children, .. } = &mut self.cg[vnode] {
+                *children = Some(VChildren::Cg(c));
+            }
+            return;
+        }
+        for child in to_cache {
+            let old = self.codegen_of(child).expect("a cached node has a codegen");
+            let c = self.cache(old);
+            match &mut self.tree[child] {
+                Node::Element { codegen, .. } => *codegen = Some(c),
+                Node::TextCall { codegen, .. } => *codegen = c,
+                _ => unreachable!("only elements and text calls are cached"),
+            }
+        }
+    }
+
+    /// `createRootCodegen`.
+    fn root_codegen(&mut self, root: Nid) -> Option<Cid> {
+        let children = self.children_of(root).to_vec();
+        match children.as_slice() {
+            [] => None,
+            [child] => {
+                let child = *child;
+                if matches!(self.tree[child], Node::Element { .. }) {
+                    let vnode = self.codegen_of(child)?;
+                    self.convert_to_block(vnode);
+                    Some(vnode)
+                } else {
+                    Some(self.cgn(Cg::Node(child)))
+                }
+            }
+            _ => {
+                self.helper(Helper::Fragment);
+                Some(self.vnode_call(VNodeArgs {
+                    tag: None,
+                    props: None,
+                    children: Some(VChildren::List(children)),
+                    patch_flag: Some(patch::STABLE_FRAGMENT),
+                    dynamic_props: None,
+                    is_block: true,
+                    disable_tracking: false,
+                }))
+            }
+        }
+    }
+}
+
+enum PropertyView {
+    Static(String, String),
+    Dir(DirectiveName, String, NodeIdentifier, Option<Exp>),
+}
+
+struct VNodeArgs {
+    tag: Option<String>,
+    props: Option<Cid>,
+    children: Option<VChildren>,
+    patch_flag: Option<i32>,
+    dynamic_props: Option<Cid>,
+    is_block: bool,
+    disable_tracking: bool,
+}
+
+enum Exit {
+    Element(Nid),
+    Text(Nid),
+    If {
+        if_node: Nid,
+        branch: Nid,
+        key: usize,
+    },
+    For(Nid),
+}
+
+const fn is_whitespace(b: u8) -> bool {
+    matches!(b, b' ' | b'\n' | b'\t' | b'\x0c' | b'\r')
+}
+
+/// compiler-core `condense`: each whitespace run becomes one space.
+fn condense(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut prev_ws = false;
+    for c in s.chars() {
+        if u8::try_from(c).is_ok_and(is_whitespace) {
+            if !prev_ws {
+                out.push(' ');
+            }
+            prev_ws = true;
+        } else {
+            out.push(c);
+            prev_ws = false;
+        }
+    }
+    out
+}
+
+pub(crate) fn can_prefix(name: &str) -> bool {
+    !GLOBALS_ALLOWED.contains(&name) && name != "require"
+}
+
+/// `isOn`: `on` followed by a character that is not a lower-case letter.
+fn is_on(key: &str) -> bool {
+    let b = key.as_bytes();
+    b.len() > 2 && b.starts_with(b"on") && !b[2].is_ascii_lowercase()
+}
+
+/// `isReservedProperty`.
+fn is_reserved(key: &str) -> bool {
+    matches!(
+        key,
+        "" | "key"
+            | "ref"
+            | "ref_for"
+            | "ref_key"
+            | "onVnodeBeforeMount"
+            | "onVnodeMounted"
+            | "onVnodeBeforeUpdate"
+            | "onVnodeUpdated"
+            | "onVnodeBeforeUnmount"
+            | "onVnodeUnmounted"
+    )
+}
+
+/// `@vue/shared` `camelize`: `-x` becomes `X` for a word character `x`.
+pub(crate) fn camelize(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '-'
+            && let Some(&n) = chars.peek()
+            && (n.is_ascii_alphanumeric() || n == '_')
+        {
+            out.push(n.to_ascii_uppercase());
+            chars.next();
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// `toHandlerKey`: `on` and the name with its first character upper-cased.
+pub(crate) fn to_handler_key(s: &str) -> String {
+    let mut chars = s.chars();
+    chars.next().map_or_else(String::new, |f| {
+        format!("on{}{}", f.to_uppercase(), chars.as_str())
+    })
+}
+
+/// compiler-core `isSimpleIdentifier`.
+pub(crate) fn is_simple_identifier(s: &str) -> bool {
+    let mut b = s.bytes();
+    b.next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == b'_' || c == b'$')
+        && b.all(|c| c.is_ascii_alphanumeric() || c == b'_' || c == b'$')
+}
+
+/// Every identifier `walkIdentifiers` visits with `includeAll`, with its parent, but static object
+/// keys (`isStaticPropertyKey`).
+pub(crate) fn collect_identifiers(
+    syntax_tree: &SyntaxTree,
+    n: NodeIdentifier,
+    parent: Option<NodeIdentifier>,
+    out: &mut Vec<(NodeIdentifier, Option<NodeIdentifier>)>,
+) {
+    match syntax_tree.kind(n) {
+        Kind::Identifier(_) => out.push((n, parent)),
+        Kind::Property {
+            key,
+            value,
+            computed,
+            shorthand,
+            ..
+        } => {
+            if computed {
+                collect_identifiers(syntax_tree, key, Some(n), out);
+            }
+            if shorthand && !computed {
+                out.push((value, Some(n)));
+            } else {
+                collect_identifiers(syntax_tree, value, Some(n), out);
+            }
+        }
+        _ => {
+            let mut children = Vec::new();
+            syntax_tree.for_each_child(n, |k| children.push(k));
+            for k in children {
+                collect_identifiers(syntax_tree, k, Some(n), out);
+            }
+        }
+    }
+}
+
+// ---- generate ----------------------------------------------------------------------------
+
+/// Copies a template expression into the output, rewriting names as inline-mode
+/// `rewriteIdentifier` does (or to `_context.x` without bindings).
+struct ExpRewrite<'a> {
+    res: &'a Resolution,
+    references: &'a FxHashMap<NodeIdentifier, RefInfo>,
+    inline: bool,
+    event_local: bool,
+}
+
+impl ExpRewrite<'_> {
+    fn binding(&self, from: &SyntaxTree, identifier: NodeIdentifier) -> Option<BindingType> {
+        if !self.inline {
+            return None;
+        }
+        from.atom(identifier).and_then(|a| self.res.binding_type(a))
+    }
+
+    fn prefixed(&self, from: &SyntaxTree, identifier: NodeIdentifier) -> bool {
+        let Some(r) = self.references.get(&identifier) else {
+            return false;
+        };
+        let name = from.name(identifier);
+        let local = r.local || (self.event_local && name == "$event");
+        !local && (can_prefix(name) || self.binding(from, identifier).is_some())
+    }
+
+    fn rewrite_ident(
+        &self,
+        from: &SyntaxTree,
+        to: &mut SyntaxTree,
+        identifier: NodeIdentifier,
+    ) -> NodeIdentifier {
+        let source_location = from.source_location(identifier);
+        let x = to.ident(from.name(identifier), source_location);
+        let write = self.references.get(&identifier).is_some_and(|r| r.write);
+        let member = |to: &mut SyntaxTree, object: &str, x: NodeIdentifier| {
+            let o = to.identifier(object);
+            to.member(o, x, false, false, source_location)
+        };
+        match self.binding(from, identifier) {
+            Some(
+                BindingType::SetupConst
+                | BindingType::LiteralConst
+                | BindingType::SetupReactiveConst,
+            ) => x,
+            Some(BindingType::SetupRef) => to.dot(x, "value"),
+            Some(BindingType::SetupMaybeRef) if write => to.dot(x, "value"),
+            Some(BindingType::SetupMaybeRef | BindingType::SetupLet) => {
+                let callee = to.identifier("_unref");
+                to.call(callee, &[x], false, source_location)
+            }
+            Some(BindingType::Props) => member(to, "__props", x),
+            None => member(to, "_ctx", x),
+        }
+    }
+}
+
+impl Rewrite for ExpRewrite<'_> {
+    fn rewrite(
+        &mut self,
+        from: &SyntaxTree,
+        to: &mut SyntaxTree,
+        identifier: NodeIdentifier,
+    ) -> Option<NodeIdentifier> {
+        match from.kind(identifier) {
+            Kind::Identifier(_) if self.prefixed(from, identifier) => {
+                Some(self.rewrite_ident(from, to, identifier))
+            }
+            Kind::Property {
+                key,
+                value,
+                shorthand: true,
+                computed: false,
+                ..
+            } if self.prefixed(from, value) => {
+                let k = to.ident(from.name(key), from.source_location(key));
+                let v = self.rewrite_ident(from, to, value);
+                Some(to.property(k, v, 0, from.source_location(identifier)))
+            }
+            _ => None,
+        }
+    }
+}
+
+struct Gen<'a> {
+    t: &'a Compiled,
+    c: &'a SingleFileComponent,
+    res: &'a Resolution,
+    references: FxHashMap<NodeIdentifier, RefInfo>,
+    inline: bool,
+    to: &'a mut SyntaxTree,
+}
+
+impl Compiled {
+    /// `generate` for a module: the preamble (`genModulePreamble`: the helper import and the
+    /// hoists) and the expression the render function returns.
+    pub fn generate(
+        &self,
+        c: &SingleFileComponent,
+        res: &Resolution,
+        inline: bool,
+        to: &mut SyntaxTree,
+    ) -> (Vec<NodeIdentifier>, NodeIdentifier) {
+        let mut g = Gen {
+            t: self,
+            c,
+            res,
+            references: reference_table(res),
+            inline,
+            to,
+        };
+        let mut preamble = Vec::new();
+        if !self.helpers.is_empty() {
+            let specs: Vec<NodeIdentifier> = self
+                .helpers
+                .iter()
+                .map(|h| {
+                    let imported = g.to.identifier(h.name());
+                    let local = g.to.identifier(&format!("_{}", h.name()));
+                    g.to.import_named(imported, local, false, SourceLocation::SYNTHETIC)
+                })
+                .collect();
+            let source = g.to.write_string("vue");
+            preamble.push(g.to.import(&specs, source, false, SourceLocation::SYNTHETIC));
+        }
+        for (i, &h) in self.hoists.iter().enumerate() {
+            let value = g.cg(h);
+            let name = g.to.identifier(&format!("_hoisted_{}", i + 1));
+            preamble.push(g.to.let_(flag::CONST, name, Some(value)));
+        }
+        let ret = match self.root_codegen {
+            Some(c) => g.cg(c),
+            None => g.to.null(SourceLocation::SYNTHETIC),
+        };
+        (preamble, ret)
+    }
+}
+
+impl Gen<'_> {
+    fn helper(&mut self, h: Helper) -> NodeIdentifier {
+        self.to.identifier(&format!("_{}", h.name()))
+    }
+
+    fn exp(&mut self, e: Exp) -> NodeIdentifier {
+        let mut rw = ExpRewrite {
+            res: self.res,
+            references: &self.references,
+            inline: self.inline,
+            event_local: e.event_local,
+        };
+        copy(&self.c.javascript, self.to, &mut rw, e.node)
+    }
+
+    /// `genNode` for a template node.
+    fn node(&mut self, n: Nid) -> NodeIdentifier {
+        match &self.t.tree[n] {
+            Node::Text(t) => self.to.write_string(t),
+            Node::Interpolation(e) => {
+                let x = self.exp(*e);
+                let callee = self.helper(Helper::ToDisplayString);
+                self.to.call0(callee, &[x])
+            }
+            Node::Compound(list) => {
+                let mut acc: Option<NodeIdentifier> = None;
+                for &c in list {
+                    let x = self.node(c);
+                    acc = Some(match acc {
+                        None => x,
+                        Some(l) => {
+                            self.to
+                                .binary(BinaryOperator::Add, l, x, SourceLocation::SYNTHETIC)
+                        }
+                    });
+                }
+                acc.expect("a compound has children")
+            }
+            Node::Element { codegen, .. }
+            | Node::If { codegen, .. }
+            | Node::For { codegen, .. } => self.cg(codegen.expect("a transformed node")),
+            Node::TextCall { codegen, .. } => self.cg(*codegen),
+            Node::Root(_) | Node::Branch { .. } => unreachable!("not generated on its own"),
+        }
+    }
+
+    #[expect(clippy::too_many_lines, reason = "one arm per codegen node")]
+    fn cg(&mut self, c: Cid) -> NodeIdentifier {
+        match &self.t.cg[c] {
+            Cg::VNode {
+                tag,
+                props,
+                children,
+                patch_flag,
+                dynamic_props,
+                is_block,
+                disable_tracking,
+            } => {
+                let (props, patch_flag, dynamic_props) = (*props, *patch_flag, *dynamic_props);
+                let (is_block, disable_tracking) = (*is_block, *disable_tracking);
+                let tag = match tag {
+                    Some(t) => self.to.write_string(t),
+                    None => self.helper(Helper::Fragment),
+                };
+                let mut arguments: Vec<Option<NodeIdentifier>> = vec![Some(tag)];
+                arguments.push(props.map(|p| self.cg(p)));
+                arguments.push(children.as_ref().map(|ch| match ch {
+                    VChildren::Node(n) => self.node(*n),
+                    VChildren::List(list) => self.node_array(list),
+                    VChildren::Cg(c) => self.cg(*c),
+                }));
+                arguments.push(patch_flag.map(|f| self.flag(f)));
+                arguments.push(dynamic_props.map(|d| self.cg(d)));
+                while arguments.last().is_some_and(Option::is_none) {
+                    arguments.pop();
+                }
+                let arguments: Vec<NodeIdentifier> = arguments
+                    .into_iter()
+                    .map(|a| a.unwrap_or_else(|| self.to.null(SourceLocation::SYNTHETIC)))
+                    .collect();
+                let callee = self.helper(if is_block {
+                    Helper::CreateElementBlock
+                } else {
+                    Helper::CreateElementVNode
+                });
+                let call = self.to.call0(callee, &arguments);
+                if !is_block {
+                    return call;
+                }
+                let open = self.helper(Helper::OpenBlock);
+                let open_arguments = if disable_tracking {
+                    vec![self.to.write_boolean(true, SourceLocation::SYNTHETIC)]
+                } else {
+                    Vec::new()
+                };
+                let open = self.to.call0(open, &open_arguments);
+                self.to.seq(&[open, call], SourceLocation::SYNTHETIC)
+            }
+            Cg::Call { callee, arguments } => {
+                let arguments: Vec<NodeIdentifier> =
+                    arguments.iter().map(|&a| self.cg(a)).collect();
+                let callee = self.helper(*callee);
+                self.to.call0(callee, &arguments)
+            }
+            Cg::Object(list) => {
+                let props: Vec<NodeIdentifier> = list
+                    .iter()
+                    .map(|(k, v)| {
+                        let key = if is_simple_identifier(k) {
+                            self.to.identifier(k)
+                        } else {
+                            self.to.write_string(k)
+                        };
+                        let value = self.cg(*v);
+                        self.to.property(key, value, 0, SourceLocation::SYNTHETIC)
+                    })
+                    .collect();
+                self.to.object(&props, SourceLocation::SYNTHETIC)
+            }
+            Cg::NodeArray(list) => self.node_array(list),
+            Cg::PropertyNames(names) => {
+                let items: Vec<NodeIdentifier> =
+                    names.iter().map(|n| self.to.write_string(n)).collect();
+                self.to.array(&items, SourceLocation::SYNTHETIC)
+            }
+            Cg::Lit { lit, .. } => match lit {
+                Lit::String(s) => self.to.write_string(s),
+                Lit::Number(v) => self.to.write_number(*v, SourceLocation::SYNTHETIC),
+                Lit::Boolean(b) => self.to.write_boolean(*b, SourceLocation::SYNTHETIC),
+            },
+            Cg::Exp(e) => self.exp(*e),
+            &Cg::Handler { exp, inline } => {
+                if inline {
+                    let body = self.exp(exp);
+                    let p = self.to.identifier("$event");
+                    return self
+                        .to
+                        .arrow(&[p], body, true, false, SourceLocation::SYNTHETIC);
+                }
+                let a = self.exp(exp);
+                let f = self.exp(exp);
+                let arguments = self.to.identifier("args");
+                let spread = self.to.spread(arguments, SourceLocation::SYNTHETIC);
+                let call = self.to.call0(f, &[spread]);
+                let body =
+                    self.to
+                        .logical(LogicalOperator::And, a, call, SourceLocation::SYNTHETIC);
+                let arguments = self.to.identifier("args");
+                let rest = self.to.rest(arguments, SourceLocation::SYNTHETIC);
+                self.to
+                    .arrow(&[rest], body, true, false, SourceLocation::SYNTHETIC)
+            }
+            Cg::Function {
+                parameters,
+                returns,
+            } => {
+                let ps: Vec<NodeIdentifier> = parameters
+                    .iter()
+                    .map(|&p| copy(&self.c.javascript, self.to, &mut Verbatim, p))
+                    .collect();
+                let r = self.cg(*returns);
+                let ret = self.to.return_(Some(r), SourceLocation::SYNTHETIC);
+                let body = self.to.block(&[ret], SourceLocation::SYNTHETIC);
+                self.to
+                    .arrow(&ps, body, false, false, SourceLocation::SYNTHETIC)
+            }
+            &Cg::Conditional {
+                test,
+                consequent,
+                alternate,
+            } => {
+                let t = self.exp(test);
+                let c = self.cg(consequent);
+                let a = self.cg(alternate);
+                self.to.cond(t, c, a, SourceLocation::SYNTHETIC)
+            }
+            &Cg::Cache {
+                index,
+                value,
+                spread,
+            } => {
+                #[expect(clippy::cast_precision_loss, reason = "a cache slot")]
+                let slot = |to: &mut SyntaxTree| {
+                    let cache = to.identifier("_cache");
+                    let i = to.write_number(index as f64, SourceLocation::SYNTHETIC);
+                    to.member(cache, i, true, false, SourceLocation::SYNTHETIC)
+                };
+                let read = slot(self.to);
+                let v = self.cg(value);
+                let target = slot(self.to);
+                let assign = self.to.assign(
+                    AssignmentOperator::Assign,
+                    target,
+                    v,
+                    SourceLocation::SYNTHETIC,
+                );
+                let cached =
+                    self.to
+                        .logical(LogicalOperator::Or, read, assign, SourceLocation::SYNTHETIC);
+                if !spread {
+                    return cached;
+                }
+                let s = self.to.spread(cached, SourceLocation::SYNTHETIC);
+                self.to.array(&[s], SourceLocation::SYNTHETIC)
+            }
+            Cg::Hoisted(i) => self.to.identifier(&format!("_hoisted_{i}")),
+            Cg::Node(n) => self.node(*n),
+        }
+    }
+
+    fn node_array(&mut self, list: &[Nid]) -> NodeIdentifier {
+        let items: Vec<NodeIdentifier> = list.iter().map(|&n| self.node(n)).collect();
+        self.to.array(&items, SourceLocation::SYNTHETIC)
+    }
+
+    fn flag(&mut self, f: i32) -> NodeIdentifier {
+        let n = self
+            .to
+            .write_number(f64::from(f.abs()), SourceLocation::SYNTHETIC);
+        if f < 0 {
+            self.to
+                .unary(UnaryOperator::Neg, n, SourceLocation::SYNTHETIC)
+        } else {
+            n
+        }
+    }
+}

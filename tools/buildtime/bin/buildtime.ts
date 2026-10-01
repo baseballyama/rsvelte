@@ -38,11 +38,11 @@ const SCENARIOS: Scenario[] = [
 	{ name: 'check.clean', description: 'cargo check, every target, from nothing', cargo: ['check', ...WS] },
 	{ name: 'clippy.clean', description: 'the lint gate, from nothing', cargo: ['clippy', ...WS] },
 	{ name: 'debug.clean', description: 'debug build of every target (tests included), from nothing', cargo: ['build', ...WS] },
-	{ name: 'release.clean', description: 'the shipped `rsv` binary (release: thin LTO, one codegen unit)', cargo: ['build', '--release', '-p', 'rsv_cli'] },
+	{ name: 'release.clean', description: 'the shipped `rsvelte` binary (release: thin LTO, one codegen unit)', cargo: ['build', '--release', '-p', 'rsvelte_command_line'] },
 	...(
 		[
-			['kernel', 'crates/rsv_kernel/src/lib.rs'],
-			['svelte', 'crates/rsv_svelte/src/lib.rs']
+			['kernel', 'crates/rsvelte_kernel/src/lib.rs'],
+			['svelte', 'crates/rsvelte_svelte/src/lib.rs']
 		] as const
 	).flatMap(([crate, file]) =>
 		(['touch', 'body', 'api'] as const).map(

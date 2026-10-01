@@ -2,11 +2,11 @@
 # - rust: formatting, the lint gate (both feature sets, rustdoc), the test suites;
 # - fixtures: every task over every fixture unit, against the oracle snapshots (the parity ratchet,
 #   fixtures/_registry/parity.json) and the adjustments' validity;
-# - perf: the deterministic performance ratchet (tools/perf/baseline.json): allocations exactly,
+# - performance: the deterministic performance ratchet (tools/performance/baseline.json): allocations exactly,
 #   and cachegrind's instruction counts (a warm round, and loading) on the platform the baseline
 #   records (arm64 Linux);
 # - site: the /learn course's tests (every quoted kernel item still exists and its marked lines
-#   still occur; the perf history ends at the current baseline), svelte-check and the build.
+#   still occur; the performance history ends at the current baseline), svelte-check and the build.
 # The two ratchets are two-sided: an improvement that is not recorded fails as a regression does.
 name: CI
 
@@ -61,7 +61,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
         working-directory: tools/fixtures
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      - run: cargo build --release -p rsv_cli
+      - run: cargo build --release -p rsvelte_command_line
       - run: node tools/fixtures/bin/run-all.ts
       - run: node bin/fixtures.ts check
         working-directory: tools/fixtures
@@ -70,7 +70,7 @@ jobs:
       - name: typecheck the tools
         run: |
           (cd tools/fixtures && pnpm run typecheck)
-          (cd tools/perf && node ../fixtures/node_modules/typescript-7/bin/tsc -p .)
+          (cd tools/performance && node ../fixtures/node_modules/typescript-7/bin/tsc -p .)
           (cd tools/buildtime && node ../fixtures/node_modules/typescript-7/bin/tsc -p .)
 
   site:
@@ -80,7 +80,7 @@ jobs:
       run:
         working-directory: apps/site
     steps:
-      # The measure and polish chapters read every committed tools/perf/baseline.json.
+      # The measure and polish chapters read every committed tools/performance/baseline.json.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
@@ -99,8 +99,8 @@ jobs:
       - run: pnpm run check
       - run: pnpm run build
 
-  perf:
-    # The instruction baseline is recorded on arm64 Linux (tools/perf/linux.sh runs the same
+  performance:
+    # The instruction baseline is recorded on arm64 Linux (tools/performance/linux.sh runs the same
     # environment locally); allocation counts are the same on every platform.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
@@ -114,10 +114,10 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends valgrind
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: cargo fetch
-      - run: node tools/perf/bin/perf.ts --instructions --json perf-report.json
+      - run: node tools/performance/bin/performance.ts --instructions --json performance-report.json
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: perf-report
-          path: perf-report.json
+          name: performance-report
+          path: performance-report.json
           if-no-files-found: ignore

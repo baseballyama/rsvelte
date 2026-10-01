@@ -1,0 +1,24 @@
+[package]
+name = "rsvelte_svelte"
+version = "0.0.0"
+edition.workspace = true
+publish = false
+
+[[example]]
+name = "export_site_layers"
+path = "tools/export_site_layers.rs"
+
+[[example]]
+name = "export_site_source_maps"
+path = "tools/export_site_source_maps.rs"
+
+[dependencies]
+rsvelte_kernel.workspace = true
+rsvelte_javascript.workspace = true
+rsvelte_stylesheet.workspace = true
+rsvelte_markup.workspace = true
+rustc-hash.workspace = true
+unicode-id-start.workspace = true
+
+[lints]
+workspace = true

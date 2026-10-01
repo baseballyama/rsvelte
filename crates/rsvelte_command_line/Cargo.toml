@@ -1,0 +1,26 @@
+[package]
+name = "rsvelte_command_line"
+description = "The `rsvelte` binary: runs registered tasks over files or fixture units"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "rsvelte"
+path = "src/main.rs"
+
+[features]
+metrics = ["rsvelte_kernel/metrics"]
+
+[dependencies]
+rsvelte_kernel.workspace = true
+rsvelte_javascript.workspace = true
+rsvelte_svelte.workspace = true
+rsvelte_vue.workspace = true
+rsvelte_svue.workspace = true
+rayon.workspace = true
+libc.workspace = true
+
+[lints]
+workspace = true

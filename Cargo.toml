@@ -9,13 +9,13 @@ license = "MIT"
 publish = false
 
 [workspace.dependencies]
-rsv_kernel = { path = "crates/rsv_kernel" }
-rsv_js = { path = "crates/rsv_js" }
-rsv_css = { path = "crates/rsv_css" }
-rsv_svelte = { path = "crates/rsv_svelte" }
-rsv_html = { path = "crates/rsv_html" }
-rsv_vue = { path = "crates/rsv_vue" }
-rsv_svue = { path = "crates/rsv_svue" }
+rsvelte_kernel = { path = "crates/rsvelte_kernel" }
+rsvelte_javascript = { path = "crates/rsvelte_javascript" }
+rsvelte_stylesheet = { path = "crates/rsvelte_stylesheet" }
+rsvelte_svelte = { path = "crates/rsvelte_svelte" }
+rsvelte_markup = { path = "crates/rsvelte_markup" }
+rsvelte_vue = { path = "crates/rsvelte_vue" }
+rsvelte_svue = { path = "crates/rsvelte_svue" }
 rayon = "1.12"
 rustc-hash = "2.1"
 libc = "0.2"
@@ -45,7 +45,7 @@ unused_qualifications = "deny"
 # Not enabled:
 # - missing_docs: 773 public items; documenting them wholesale would write the docs the lint
 #   wants rather than the ones a reader needs. Revisit when the public surface settles.
-# - unused_results: 224 sites, nearly all builder calls (`JsonWriter`) and `insert`s whose
+# - unused_results: 224 sites, nearly all builder calls (`StructuredDataWriter`) and `insert`s whose
 #   result is deliberately dropped.
 # - unused_crate_dependencies: fires in every test and example target for the crate's own deps.
 
@@ -147,6 +147,6 @@ debug = "line-tables-only"
 lto = "thin"
 codegen-units = 1
 
-# The profile benchmarks and perf gates measure: release plus symbols for profilers.
-[profile.bench]
+# The profile benchmarks and performance gates measure: release plus symbols for profilers.
+[profile.benchmark]
 inherits = "release"

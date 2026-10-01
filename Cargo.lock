@@ -96,39 +96,28 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsv_cli"
+name = "rsvelte_command_line"
 version = "0.0.0"
 dependencies = [
  "libc",
  "rayon",
- "rsv_js",
- "rsv_kernel",
- "rsv_svelte",
- "rsv_svue",
- "rsv_vue",
+ "rsvelte_javascript",
+ "rsvelte_kernel",
+ "rsvelte_svelte",
+ "rsvelte_svue",
+ "rsvelte_vue",
 ]
 
 [[package]]
-name = "rsv_css"
+name = "rsvelte_javascript"
 version = "0.0.0"
 dependencies = [
- "rsv_kernel",
-]
-
-[[package]]
-name = "rsv_html"
-version = "0.0.0"
-
-[[package]]
-name = "rsv_js"
-version = "0.0.0"
-dependencies = [
- "rsv_kernel",
+ "rsvelte_kernel",
  "rustc-hash",
 ]
 
 [[package]]
-name = "rsv_kernel"
+name = "rsvelte_kernel"
 version = "0.0.0"
 dependencies = [
  "rayon",
@@ -137,43 +126,57 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsv_kernel_wasm"
+name = "rsvelte_kernel_browser"
 version = "0.0.0"
 dependencies = [
- "rsv_kernel",
+ "rsvelte_kernel",
+ "rsvelte_svelte",
+ "rsvelte_svue",
+ "rsvelte_vue",
  "wasm-bindgen",
 ]
 
 [[package]]
-name = "rsv_svelte"
+name = "rsvelte_markup"
+version = "0.0.0"
+
+[[package]]
+name = "rsvelte_stylesheet"
 version = "0.0.0"
 dependencies = [
- "rsv_css",
- "rsv_html",
- "rsv_js",
- "rsv_kernel",
+ "rsvelte_kernel",
+]
+
+[[package]]
+name = "rsvelte_svelte"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_javascript",
+ "rsvelte_kernel",
+ "rsvelte_markup",
+ "rsvelte_stylesheet",
  "rustc-hash",
  "unicode-id-start",
 ]
 
 [[package]]
-name = "rsv_svue"
+name = "rsvelte_svue"
 version = "0.0.0"
 dependencies = [
- "rsv_js",
- "rsv_kernel",
- "rsv_svelte",
- "rsv_vue",
+ "rsvelte_javascript",
+ "rsvelte_kernel",
+ "rsvelte_svelte",
+ "rsvelte_vue",
 ]
 
 [[package]]
-name = "rsv_vue"
+name = "rsvelte_vue"
 version = "0.0.0"
 dependencies = [
- "rsv_css",
- "rsv_html",
- "rsv_js",
- "rsv_kernel",
+ "rsvelte_javascript",
+ "rsvelte_kernel",
+ "rsvelte_markup",
+ "rsvelte_stylesheet",
  "rustc-hash",
 ]
 
