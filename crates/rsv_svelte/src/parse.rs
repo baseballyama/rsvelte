@@ -1,5 +1,5 @@
 //! The template parser: markup, `{expression}` tags, `{#if}` and `{#each}` blocks, `bind:`
-//! directives, one instance `<script>` and one `<style>`.
+//! directives, `{@attach}` tags, one instance `<script>` and one `<style>`.
 //!
 //! Expressions are parsed by `rsv_js` in place, and the parser, not a brace scan,
 //! decides where each one ends.
@@ -461,6 +461,11 @@ impl<'a> P<'a> {
                 }
                 Some(b'{') => {
                     let lo = self.pos;
+                    if self.rest()[1..].trim_start().starts_with("@attach") {
+                        let a = self.attach_tag(lo)?;
+                        self.c.attrs.push(a);
+                        continue;
+                    }
                     if self.rest()[1..].trim_start().starts_with("...") {
                         return self.err("spread attributes are not supported yet");
                     }
@@ -576,6 +581,30 @@ impl<'a> P<'a> {
             value: AttrValue::Parts(parts),
             span: Span::new(lo as u32, self.pos as u32),
             quoted,
+            shorthand: false,
+        })
+    }
+
+    /// `{@attach expression}` from its `{`: upstream `read_attribute`.
+    fn attach_tag(&mut self, lo: usize) -> R<Attr> {
+        self.eat_tok(Tk::MustacheOpen, 1);
+        self.skip_ws();
+        self.eat_tok(Tk::BlockKeyword, "@attach".len());
+        if !self.peek().is_some_and(|c| c.is_ascii_whitespace()) {
+            return self.err("expected whitespace");
+        }
+        self.skip_ws();
+        let expr = self.expression()?;
+        self.close_mustache()?;
+        let span = Span::new(lo as u32, self.pos as u32);
+        let parts = self.c.parts.len();
+        self.c.parts.push(Part::Expr { expr, span });
+        Ok(Attr {
+            kind: AttrKind::Attach,
+            name: Span::new(lo as u32, lo as u32),
+            value: AttrValue::Parts(self.parts_since(parts)),
+            span,
+            quoted: false,
             shorthand: false,
         })
     }

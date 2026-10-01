@@ -302,7 +302,7 @@ impl Sx<'_> {
                 template.push(Piece::Expr(self.out.runtime("$", "attr", &args)));
                 continue;
             }
-            if event_attribute(self.src, a).is_some() {
+            if event_attribute(self.src, a).is_some() || matches!(a.value, AttrValue::Attach(_)) {
                 continue;
             }
             let attr_name = super::client::normalize_attribute(raw_name);
@@ -389,8 +389,11 @@ impl Sx<'_> {
                 return self.expr(expr);
             }
             AttrValue::Interpolated(parts) => parts,
-            AttrValue::Boolean | AttrValue::Static(_) | AttrValue::Bind(_) => {
-                unreachable!("literal values and bindings are handled by the caller")
+            AttrValue::Boolean
+            | AttrValue::Static(_)
+            | AttrValue::Bind(_)
+            | AttrValue::Attach(_) => {
+                unreachable!("literal values and directives are handled by the caller")
             }
         };
         let mut quasis = vec![String::new()];

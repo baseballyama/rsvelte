@@ -375,8 +375,9 @@ fn mark_dynamic(
                             });
                             (references, None, true)
                         }
-                        // A binding's expression is a reference by construction.
-                        AttrValue::Bind(_) => {
+                        // A binding's expression is a reference by construction; an attachment
+                        // marks the subtree dynamic whatever it reads.
+                        AttrValue::Bind(_) | AttrValue::Attach(_) => {
                             any = true;
                             continue;
                         }
@@ -426,6 +427,9 @@ impl El<'_> {
 
     fn attr_state(&self, name: &str, check: impl Fn(&str) -> bool) -> Match {
         for a in self.hir.attrs(self.element().attrs) {
+            if let AttrValue::Attach(_) = a.value {
+                continue;
+            }
             // Upstream compares a binding's name case-sensitively and stops at it.
             if let AttrValue::Bind(_) = a.value {
                 if a.name.text(self.src) == name {
@@ -443,7 +447,9 @@ impl El<'_> {
                 AttrValue::Expression { .. }
                 | AttrValue::Shorthand(_)
                 | AttrValue::Interpolated(_) => Match::Maybe,
-                AttrValue::Bind(_) => unreachable!("bindings are matched above"),
+                AttrValue::Bind(_) | AttrValue::Attach(_) => {
+                    unreachable!("bindings and attachments are matched above")
+                }
             };
         }
         Match::No

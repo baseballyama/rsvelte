@@ -79,7 +79,9 @@ impl Projector<'_> {
                     ));
                 }
                 self.e.push("{ svelteHTML.createElement(\"");
-                self.e.push(tag);
+                // Copied, as svelte2tsx does: an error on the attribute object maps to the name's
+                // end.
+                self.e.copy(self.src, name);
                 self.e.push("\", {");
                 for a in self.c.attrs(attrs) {
                     if a.kind == AttrKind::Bind {
@@ -120,6 +122,16 @@ impl Projector<'_> {
             AttrValue::Parts(r) => self.c.parts(r),
         };
         self.e.push(" ");
+        if a.kind == AttrKind::Attach {
+            let [Part::Expr { expr, .. }] = parts else {
+                unreachable!("an attachment is one expression")
+            };
+            self.e.push("[Symbol(\"@attach\")]: ");
+            self.e.copy(src, expression_range(&self.c.js, *expr));
+            self.e.mark(a.span.hi - 1);
+            self.e.push(",");
+            return;
+        }
         if a.shorthand {
             // `{name}` is a shorthand property: TypeScript reports an undeclared name on it.
             self.expression(a.span);

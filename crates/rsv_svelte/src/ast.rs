@@ -90,7 +90,7 @@ impl TNode {
 #[derive(Debug)]
 pub struct Attr {
     pub kind: AttrKind,
-    /// As written: `bind:value` for a binding.
+    /// As written: `bind:value` for a binding, empty for an `{@attach}`.
     pub name: Span,
     pub value: AttrValue,
     pub span: Span,
@@ -105,6 +105,8 @@ pub enum AttrKind {
     Attribute,
     /// `bind:name={expression}`; the value is the one expression.
     Bind,
+    /// `{@attach expression}`; the name is empty and the value is the one expression.
+    Attach,
 }
 
 impl Attr {
@@ -189,7 +191,7 @@ pub enum Tk {
     /// `}`
     MustacheClose,
     BlockOpen,
-    /// `if` in `{:else if`, `as` in `{#each … as …}`.
+    /// `if` in `{:else if`, `as` in `{#each … as …}`, `@attach` in `{@attach …}`.
     BlockKeyword,
     Js(rsv_js::lexer::T),
     JsComment,

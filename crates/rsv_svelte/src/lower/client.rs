@@ -2,7 +2,7 @@
 //! date.
 //!
 //! Mirrors upstream `3-transform/client` (Fragment, `RegularElement`, `IfBlock`, `EachBlock`,
-//! `BindDirective`, shared/fragment).
+//! `BindDirective`, `AttachTag`, shared/fragment).
 
 use rsv_html::decode_text;
 use rsv_js::ast::flag;
@@ -857,41 +857,78 @@ impl<'a> Cx<'a> {
         frag.tpl.needs_import_node |= tag == "video";
 
         let attr_list = hir.attrs(el.attrs);
-        let has_class = attr_list
-            .iter()
-            .any(|a| a.name.text(self.src).eq_ignore_ascii_case("class"));
-        let synthetic_class = !has_class && self.an.scoped[id];
-
-        // Upstream's `has_spread` and `bindings` terms have no input here: the parser rejects both.
+        // Upstream visits directives into their own lists, which follow the children's.
+        let mut directives = self.element_directives(attr_list, &tag, node)?;
         // Upstream compares the name as written.
         if el.name.text(self.src) == "input" {
-            let src = self.src;
-            let has_value = attr_list.iter().any(|a| {
-                matches!(a.name.text(src), "value" | "checked")
-                    && !matches!(a.value, AttrValue::Static(_))
-            });
-            let has_default_value = attr_list
-                .iter()
-                .any(|a| matches!(a.name.text(src), "defaultValue" | "defaultChecked"));
-            if has_value && !has_default_value {
-                let x = self.out.id(node);
-                let call = self.call("remove_input_defaults", vec![Some(x)]);
-                let s = self.stmt(call);
-                l.init.push(s);
-            }
+            self.remove_input_defaults(attr_list, node, l);
         }
+        self.element_attributes(id, attr_list, node, frag, l)?;
 
-        // Upstream visits directives into their own lists, which follow the children's.
+        let outer_preserve = self.preserve_ws;
+        self.preserve_ws |= tag == "pre" || tag == "textarea";
+        let children = self.element_children(id, &tag, node, frag);
+        self.preserve_ws = outer_preserve;
+        let mut child = children?;
+        if self.an.dynamic[id] {
+            l.init.append(&mut child.init);
+            l.update.append(&mut child.update);
+            l.after.append(&mut child.after);
+        }
+        l.init.append(&mut directives.init);
+        l.after.append(&mut directives.after);
+        frag.tpl.pop_element();
+        Ok(())
+    }
+
+    /// The directives of upstream `RegularElement`'s `other_directives`, in attribute order.
+    fn element_directives(&mut self, attrs: &[Attribute], tag: &str, node: &str) -> R<Lists> {
         let mut directives = Lists::default();
-        for a in attr_list {
-            if let AttrValue::Bind(_) = a.value {
-                let call = self.binding(a, &tag, attr_list, node)?;
-                directives.after.push(self.stmt(call));
+        for a in attrs {
+            match a.value {
+                AttrValue::Bind(_) => {
+                    let call = self.binding(a, tag, attrs, node)?;
+                    directives.after.push(self.stmt(call));
+                }
+                AttrValue::Attach(e) => {
+                    let call = self.attach(e, node);
+                    directives.init.push(self.stmt(call));
+                }
+                _ => {}
             }
         }
+        Ok(directives)
+    }
 
-        for a in attr_list {
-            if let AttrValue::Bind(_) = a.value {
+    /// Upstream's `$.remove_input_defaults` condition for an `<input>`; a binding is named by its
+    /// property, so `bind:value` counts as a dynamic `value`.
+    fn remove_input_defaults(&mut self, attrs: &[Attribute], node: &str, l: &mut Lists) {
+        let src = self.src;
+        let has_value = attrs.iter().any(|a| {
+            matches!(a.name.text(src), "value" | "checked")
+                && !matches!(a.value, AttrValue::Static(_))
+        });
+        let has_default_value = attrs
+            .iter()
+            .any(|a| matches!(a.name.text(src), "defaultValue" | "defaultChecked"));
+        if has_value && !has_default_value {
+            let x = self.out.id(node);
+            let call = self.call("remove_input_defaults", vec![Some(x)]);
+            l.init.push(self.stmt(call));
+        }
+    }
+
+    /// The attribute loop of upstream `RegularElement` (no spread).
+    fn element_attributes(
+        &mut self,
+        id: HirId,
+        attrs: &[Attribute],
+        node: &str,
+        frag: &mut Frag,
+        l: &mut Lists,
+    ) -> R<()> {
+        for a in attrs {
+            if let AttrValue::Bind(_) | AttrValue::Attach(_) = a.value {
                 continue;
             }
             let raw_name = a.name.text(self.src);
@@ -922,23 +959,12 @@ impl<'a> Cx<'a> {
                 }
             }
         }
-        if synthetic_class {
+        let has_class = attrs
+            .iter()
+            .any(|a| a.name.text(self.src).eq_ignore_ascii_case("class"));
+        if !has_class && self.an.scoped[id] {
             self.static_attribute(frag, id, "class", "class", Some(String::new()));
         }
-
-        let outer_preserve = self.preserve_ws;
-        self.preserve_ws |= tag == "pre" || tag == "textarea";
-        let children = self.element_children(id, &tag, node, frag);
-        self.preserve_ws = outer_preserve;
-        let mut child = children?;
-        if self.an.dynamic[id] {
-            l.init.append(&mut child.init);
-            l.update.append(&mut child.update);
-            l.after.append(&mut child.after);
-        }
-        l.init.append(&mut directives.init);
-        l.after.append(&mut directives.after);
-        frag.tpl.pop_element();
         Ok(())
     }
 
@@ -1028,6 +1054,14 @@ impl<'a> Cx<'a> {
         Ok(self.call(method, vec![Some(x), Some(get), Some(set)]))
     }
 
+    /// Upstream `AttachTag` (client).
+    fn attach(&mut self, e: NodeId, node: &str) -> NodeId {
+        let value = self.expr(e);
+        let thunk = self.thunk(value);
+        let x = self.out.id(node);
+        self.call("attach", vec![Some(x), Some(thunk)])
+    }
+
     fn static_attribute(
         &self,
         frag: &mut Frag,
@@ -1068,7 +1102,9 @@ impl<'a> Cx<'a> {
                 let items = self.chunk_items(parts);
                 self.template_chunk(&items, frag)
             }
-            AttrValue::Bind(_) => unreachable!("bindings are lowered by `binding`"),
+            AttrValue::Bind(_) | AttrValue::Attach(_) => {
+                unreachable!("directives are lowered by `element`")
+            }
         }
     }
 
