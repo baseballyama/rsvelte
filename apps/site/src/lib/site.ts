@@ -114,7 +114,7 @@ export const chapters: Chapter[] = [
 			s('stack', 'Svelte の層'),
 			s('resolve', '名前解決'),
 			s('hir', 'HIR'),
-			s('svue', 'フロントエンドの差し替え — svue'),
+			s('svue', 'Vue を Svelte のランタイムへ — svue'),
 			s('lint', 'early と late のルール'),
 			s('shared-lint', '言語をまたぐ判断'),
 			s('next', 'この先の層')

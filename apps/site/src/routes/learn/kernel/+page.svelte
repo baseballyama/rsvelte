@@ -216,10 +216,9 @@
 		</li>
 	</ul>
 	<p>
-		さらに、二つのプラグインを組み合わせた三つ目の言語もあります。<code>rsv_svue</code> は、Vue のテンプレート構文で書いたコンポーネントを Svelte
-		の意味でコンパイルします。Vue のパーサと Svelte のコンパイラをそのまま使い、自分で持つのは Vue の木を Svelte の HIR に変換する部分だけです（<a
-			href="/learn/kernel/layers#svue">05</a
-		>）。
+		さらに、二つのプラグインを組み合わせた翻訳もあります。<code>rsv_svue</code> は <code>.vue</code> のコンポーネントを、Vue
+		の意味のまま Svelte のランタイム向けにコンパイルします。Vue のパーサと名前解決、Svelte のコンパイラをそのまま使い、自分で持つのは Vue の木を
+		runes のスクリプトと Svelte の HIR に翻訳する部分だけです（<a href="/learn/kernel/layers#svue">05</a>）。
 	</p>
 	<p>crate の大きさ（<code>src/</code> の Rust の行数、テストを含む。ビルドのたびに数え直しています）:</p>
 </div>
