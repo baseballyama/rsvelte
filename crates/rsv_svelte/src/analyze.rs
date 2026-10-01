@@ -216,7 +216,8 @@ impl MetaWalker<'_> {
                         info.kind,
                         BindKind::Prop | BindKind::BindableProp | BindKind::RestProp
                     );
-                    if (prop || !info.is_function)
+                    if info.kind != BindKind::StaticIndex
+                        && (prop || !info.is_function)
                         && !self.res.evaluate(self.ast, self.src, id).is_known
                     {
                         self.meta.has_state = true;
@@ -342,6 +343,13 @@ fn mark_dynamic(
                     mark_dynamic(input, an, hir.children(*o), out);
                 }
             }
+            NodeKind::Each(each) => {
+                any = true;
+                mark_dynamic(input, an, hir.children(each.body), out);
+                if let Some(f) = each.fallback {
+                    mark_dynamic(input, an, hir.children(f), out);
+                }
+            }
             NodeKind::Element(el) => {
                 let own = mark_dynamic(input, an, hir.children(el.children), out);
                 out[id] = own;
@@ -366,6 +374,11 @@ fn mark_dynamic(
                                 Part::Text(_) => false,
                             });
                             (references, None, true)
+                        }
+                        // A binding's expression is a reference by construction.
+                        AttrValue::Bind(_) => {
+                            any = true;
+                            continue;
                         }
                     };
                     let is_event = attr.starts_with("on") && single_expr.is_some();
@@ -413,6 +426,13 @@ impl El<'_> {
 
     fn attr_state(&self, name: &str, check: impl Fn(&str) -> bool) -> Match {
         for a in self.hir.attrs(self.element().attrs) {
+            // Upstream compares a binding's name case-sensitively and stops at it.
+            if let AttrValue::Bind(_) = a.value {
+                if a.name.text(self.src) == name {
+                    return Match::Yes;
+                }
+                continue;
+            }
             if !a.name.text(self.src).eq_ignore_ascii_case(name) {
                 continue;
             }
@@ -423,6 +443,7 @@ impl El<'_> {
                 AttrValue::Expression { .. }
                 | AttrValue::Shorthand(_)
                 | AttrValue::Interpolated(_) => Match::Maybe,
+                AttrValue::Bind(_) => unreachable!("bindings are matched above"),
             };
         }
         Match::No

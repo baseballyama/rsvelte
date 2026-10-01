@@ -44,8 +44,8 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let res = resolve::resolve(&c.js, c.program, &c.template_exprs);
     let h = hir::lower(&c, &src);
+    let res = resolve::resolve(&c.js, c.program, &h);
 
     let mut w = JsonWriter::new(true);
     w.begin_object().key("src").str(&src);
@@ -167,6 +167,7 @@ fn surface(w: &mut JsonWriter, c: &Component, src: &str, list: &[TId], depth: u3
             TNode::If { elseif, span, .. } => {
                 row(w, depth, if elseif { "If (elseif)" } else { "If" }, span);
             }
+            TNode::Each { span, .. } => row(w, depth, "Each", span),
         }
         w.key("id").num(t);
         w.end_object();
@@ -178,6 +179,19 @@ fn surface(w: &mut JsonWriter, c: &Component, src: &str, list: &[TId], depth: u3
                     row(w, depth + 1, "alt", n.span());
                     w.key("id").null().end_object();
                     surface(w, c, src, c.children(a), depth + 2);
+                }
+            }
+            TNode::Each {
+                body,
+                fallback,
+                has_fallback,
+                ..
+            } => {
+                surface(w, c, src, c.children(body), depth + 1);
+                if has_fallback {
+                    row(w, depth + 1, "else", n.span());
+                    w.key("id").null().end_object();
+                    surface(w, c, src, c.children(fallback), depth + 2);
                 }
             }
             _ => {}
@@ -202,6 +216,7 @@ fn lowered(w: &mut JsonWriter, c: &Component, h: &Hir, src: &str, list: Children
             NodeKind::If { branches, .. } => {
                 format!("If, {} branches", h.branches(*branches).len())
             }
+            NodeKind::Each(_) => "Each".to_owned(),
         };
         row(w, depth, &label, node.span);
         w.key("id").num(id.index()).key("origin").num(h.origin[id]);
@@ -220,6 +235,7 @@ fn lowered(w: &mut JsonWriter, c: &Component, h: &Hir, src: &str, list: Children
                     AttrValue::Interpolated(p) => {
                         w.str(&format!("Interpolated, {} parts", p.len()))
                     }
+                    AttrValue::Bind(_) => w.str("Bind"),
                 };
                 w.end_object();
             }
@@ -247,6 +263,14 @@ fn lowered(w: &mut JsonWriter, c: &Component, h: &Hir, src: &str, list: Children
                     row(w, depth + 1, "else", node.span);
                     w.key("id").null().key("origin").null().end_object();
                     lowered(w, c, h, src, *alt, depth + 2);
+                }
+            }
+            NodeKind::Each(each) => {
+                lowered(w, c, h, src, each.body, depth + 1);
+                if let Some(f) = each.fallback {
+                    row(w, depth + 1, "else", node.span);
+                    w.key("id").null().key("origin").null().end_object();
+                    lowered(w, c, h, src, f, depth + 2);
                 }
             }
             _ => {}

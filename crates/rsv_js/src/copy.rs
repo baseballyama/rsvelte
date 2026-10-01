@@ -93,6 +93,18 @@ pub fn copy_node<R: Rewrite + ?Sized>(f: &Ast, to: &mut Ast, rw: &mut R, id: Nod
             let a = copy_opt(f, to, rw, alt);
             to.if_(t, c, a, span)
         }
+        Kind::For {
+            init,
+            test,
+            update,
+            body,
+        } => {
+            let init = copy_opt(f, to, rw, init);
+            let test = copy_opt(f, to, rw, test);
+            let update = copy_opt(f, to, rw, update);
+            let body = copy(f, to, rw, body);
+            to.for_(init, test, update, body, span)
+        }
         Kind::Block(body) => {
             let b = copy_all(f, to, rw, body);
             to.block(&b, span)

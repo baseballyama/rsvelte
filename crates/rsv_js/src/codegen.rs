@@ -165,6 +165,31 @@ impl Gen<'_> {
                     }
                 }
             }
+            Kind::For {
+                init,
+                test,
+                update,
+                body,
+            } => {
+                self.e.push("for (");
+                match init.map(|i| (i, self.ast.kind(i))) {
+                    Some((_, Kind::VarDecl { kind, decls })) => self.var_decl(kind, decls),
+                    Some((i, _)) => self.expr(i, prec::SEQ),
+                    None => {}
+                }
+                self.e.push(";");
+                if let Some(t) = test {
+                    self.e.push(" ");
+                    self.expr(t, prec::SEQ);
+                }
+                self.e.push(";");
+                if let Some(u) = update {
+                    self.e.push(" ");
+                    self.expr(u, prec::SEQ);
+                }
+                self.e.push(") ");
+                self.block(body);
+            }
             Kind::Block(_) => self.block(id),
             Kind::Empty => self.e.push(";"),
             Kind::Import {
@@ -606,6 +631,7 @@ impl Gen<'_> {
             | Kind::ExprStmt(_)
             | Kind::Return(_)
             | Kind::If { .. }
+            | Kind::For { .. }
             | Kind::Block(_)
             | Kind::Empty
             | Kind::Import { .. }

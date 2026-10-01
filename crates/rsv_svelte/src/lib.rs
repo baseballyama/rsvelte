@@ -64,7 +64,8 @@ impl Artifact for Resolved {
 
     fn compute(ctx: &Ctx<'_>) -> Self::Output {
         let c = ctx.get::<Parsed>().as_ref().ok()?;
-        Some(resolve::resolve(&c.js, c.program, &c.template_exprs))
+        let hir = ctx.get::<Normalized>().as_ref()?;
+        Some(resolve::resolve(&c.js, c.program, hir))
     }
 }
 

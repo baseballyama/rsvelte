@@ -1,17 +1,21 @@
-//! The template parser: markup, `{expression}` tags, `{#if}` blocks, one instance `<script>` and
-//! one `<style>`.
+//! The template parser: markup, `{expression}` tags, `{#if}` and `{#each}` blocks, `bind:`
+//! directives, one instance `<script>` and one `<style>`.
 //!
 //! Expressions are parsed by `rsv_js` in place, and the parser, not a brace scan,
 //! decides where each one ends.
 
-use rsv_js::parser::{parse_expression_prefix, parse_program};
+use rsv_js::ast::TsKind;
+use rsv_js::lexer::T;
+use rsv_js::parser::{parse_expression, parse_expression_prefix, parse_params, parse_program};
 use rsv_js::{Ast, NodeId};
 use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::pool;
 use rsv_kernel::source::Span;
 use rsv_kernel::token::Tokens;
 
-use crate::ast::{Attr, AttrValue, Component, Part, Range, Script, Style, TId, TNode, Tk};
+use crate::ast::{
+    Attr, AttrKind, AttrValue, Component, Part, Range, Script, Style, TId, TNode, Tk,
+};
 
 type R<T> = Result<T, Diagnostic>;
 
@@ -61,6 +65,53 @@ pub fn parse(src: &str) -> R<Component> {
         None => p.c.js.program(&[], Span::new(0, 0)),
     };
     Ok(p.c)
+}
+
+fn js_error(e: rsv_js::parser::ParseError) -> Diagnostic {
+    Diagnostic::error("js_parse_error", e.message, e.span)
+}
+
+/// The length of the identifier `s` starts with (`$` and `_` included), 0 if none.
+fn identifier_len(s: &str) -> usize {
+    let mut chars = s.char_indices();
+    match chars.next() {
+        Some((_, c)) if c == '$' || c == '_' || unicode_id_start::is_id_start(c) => {}
+        _ => return 0,
+    }
+    chars
+        .find(|&(_, c)| !(c == '$' || unicode_id_start::is_id_continue(c)))
+        .map_or(s.len(), |(i, _)| i)
+}
+
+/// The length of the bracketed text `s` starts with, through its matching bracket; strings and
+/// template literals are skipped. Upstream `match_bracket`.
+const fn match_bracket(s: &str) -> Option<usize> {
+    let b = s.as_bytes();
+    let mut depth = 0usize;
+    let mut i = 0;
+    while i < b.len() {
+        match b[i] {
+            b'{' | b'[' | b'(' => depth += 1,
+            b'}' | b']' | b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i + 1);
+                }
+            }
+            q @ (b'"' | b'\'' | b'`') => {
+                i += 1;
+                while i < b.len() && b[i] != q {
+                    if b[i] == b'\\' {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
 }
 
 /// What closes the fragment being read.
@@ -272,20 +323,72 @@ impl<'a> P<'a> {
     }
 
     fn expression(&mut self) -> R<NodeId> {
+        self.expression_until(self.src.len() as u32)
+    }
+
+    /// The longest expression from `pos` that ends by `limit`.
+    fn expression_until(&mut self, limit: u32) -> R<NodeId> {
         let (tokens, comments) = (self.c.js.tokens.len(), self.c.js.comments.len());
         let lo = self.pos as u32;
-        let (expr, next) = parse_expression_prefix(
-            &mut self.c.js,
-            self.src,
-            self.pos as u32,
-            self.src.len() as u32,
-            self.ts,
-        )
-        .map_err(|e| Diagnostic::error("js_parse_error", e.message, e.span))?;
+        let (expr, next) =
+            parse_expression_prefix(&mut self.c.js, self.src, self.pos as u32, limit, self.ts)
+                .map_err(js_error)?;
         self.js_region(lo, next, tokens, comments);
         self.pos = next as usize;
         self.c.template_exprs.push(expr);
         Ok(expr)
+    }
+
+    /// An identifier or a destructuring pattern, parsed as a parameter: upstream `read_pattern`.
+    fn pattern(&mut self) -> R<NodeId> {
+        let lo = self.pos;
+        let len = match self.peek() {
+            Some(b'{' | b'[') => match_bracket(self.rest()).ok_or_else(|| {
+                Diagnostic::error(
+                    "parse_error",
+                    "unterminated pattern",
+                    Span::new(lo as u32, lo as u32),
+                )
+            })?,
+            _ => identifier_len(self.rest()),
+        };
+        if len == 0 {
+            return self.err("expected an identifier or a destructuring pattern");
+        }
+        let span = Span::new(lo as u32, (lo + len) as u32);
+        let (tokens, comments) = (self.c.js.tokens.len(), self.c.js.comments.len());
+        let params = parse_params(&mut self.c.js, self.src, span, self.ts).map_err(js_error)?;
+        let [pattern] = params[..] else {
+            return Self::err_at(span, "expected one pattern");
+        };
+        self.js_region(span.lo, span.hi, tokens, comments);
+        self.pos = span.hi as usize;
+        Ok(pattern)
+    }
+
+    /// An identifier, as a node of the component's [`Ast`].
+    fn identifier(&mut self) -> R<NodeId> {
+        let lo = self.pos;
+        let len = identifier_len(self.rest());
+        if len == 0 {
+            return self.err("expected an identifier");
+        }
+        let span = Span::new(lo as u32, (lo + len) as u32);
+        let (tokens, comments) = (self.c.js.tokens.len(), self.c.js.comments.len());
+        let id = parse_expression(&mut self.c.js, self.src, span, self.ts).map_err(js_error)?;
+        self.js_region(span.lo, span.hi, tokens, comments);
+        self.pos = span.hi as usize;
+        Ok(id)
+    }
+
+    /// Whether `word` is next and not the start of a longer identifier.
+    fn at_word(&self, word: &str) -> bool {
+        self.rest().starts_with(word)
+            && !self
+                .rest()
+                .get(word.len()..)
+                .and_then(|r| r.chars().next())
+                .is_some_and(|c| c == '$' || unicode_id_start::is_id_continue(c))
     }
 
     fn tag_name(&mut self) -> Span {
@@ -378,6 +481,7 @@ impl<'a> P<'a> {
                     self.c.parts.push(Part::Expr { expr, span });
                     let parts = self.parts_since(parts);
                     self.c.attrs.push(Attr {
+                        kind: AttrKind::Attribute,
                         name,
                         value: AttrValue::Parts(parts),
                         span,
@@ -423,12 +527,16 @@ impl<'a> P<'a> {
             return self.err("expected an attribute name");
         }
         self.tok(Tk::AttrName, lo);
+        if name.text(self.src).starts_with("bind:") {
+            return self.bind_directive(lo, name);
+        }
         if name.text(self.src).contains(':') {
-            return Self::err_at(name, "directives are not supported yet");
+            return Self::err_at(name, "directives other than `bind:` are not supported yet");
         }
         self.skip_ws();
         if self.peek() != Some(b'=') {
             return Ok(Attr {
+                kind: AttrKind::Attribute,
                 name,
                 value: AttrValue::True,
                 span: name,
@@ -463,11 +571,54 @@ impl<'a> P<'a> {
         }
         let parts = self.parts_since(start);
         Ok(Attr {
+            kind: AttrKind::Attribute,
             name,
             value: AttrValue::Parts(parts),
             span: Span::new(lo as u32, self.pos as u32),
             quoted,
             shorthand: false,
+        })
+    }
+
+    /// `bind:name={expression}` or `bind:name`, after the name.
+    fn bind_directive(&mut self, lo: usize, name: Span) -> R<Attr> {
+        let property = Span::new(name.lo + 5, name.hi);
+        if identifier_len(property.text(self.src)) != property.len() as usize {
+            return Self::err_at(name, "expected a property name after `bind:`");
+        }
+        let (at, tokens_at) = (self.pos, self.c.tokens.len());
+        self.skip_ws();
+        let (expr, span, shorthand) = if self.peek() == Some(b'=') {
+            self.eat_tok(Tk::Eq, 1);
+            self.skip_ws();
+            if self.peek() != Some(b'{') {
+                return self.err("expected `{` after `bind:…=`");
+            }
+            let s = self.pos;
+            let expr = self.expression_tag()?;
+            (expr, Span::new(s as u32, self.pos as u32), false)
+        } else {
+            // The whitespace belongs to the start tag, not to the directive.
+            self.pos = at;
+            self.c.tokens.truncate(tokens_at);
+            let (tokens, comments) = (self.c.js.tokens.len(), self.c.js.comments.len());
+            let expr =
+                parse_expression(&mut self.c.js, self.src, property, self.ts).map_err(js_error)?;
+            // The name's token already covers the identifier.
+            self.c.js.tokens.truncate(tokens);
+            self.c.js.comments.truncate(comments);
+            self.c.template_exprs.push(expr);
+            (expr, property, true)
+        };
+        let parts = self.c.parts.len();
+        self.c.parts.push(Part::Expr { expr, span });
+        Ok(Attr {
+            kind: AttrKind::Bind,
+            name,
+            value: AttrValue::Parts(self.parts_since(parts)),
+            span: Span::new(lo as u32, self.pos as u32),
+            quoted: false,
+            shorthand,
         })
     }
 
@@ -508,11 +659,119 @@ impl<'a> P<'a> {
 
     fn block(&mut self) -> R<TId> {
         let lo = self.pos;
-        if !self.rest().starts_with("{#if") {
-            return self.err("only `{#if}` blocks are supported yet");
+        self.pos += 2;
+        let (is_if, is_each) = (self.at_word("if"), self.at_word("each"));
+        self.pos = lo;
+        if is_if {
+            self.eat_tok(Tk::BlockOpen, 4);
+            return self.if_block(lo, false);
         }
-        self.eat_tok(Tk::BlockOpen, 4);
-        self.if_block(lo, false)
+        if is_each {
+            self.eat_tok(Tk::BlockOpen, 6);
+            return self.each_block(lo);
+        }
+        self.err("only `{#if}` and `{#each}` blocks are supported yet")
+    }
+
+    /// After `{#each`: upstream `open` in phases/1-parse/state/tag.js, then the body, the
+    /// `{:else}` fallback and `{/each}`.
+    fn each_block(&mut self, lo: usize) -> R<TId> {
+        if !self.peek().is_some_and(|c| c.is_ascii_whitespace()) {
+            return self.err("expected whitespace");
+        }
+        self.skip_ws();
+        let expr = self.each_expression()?;
+        self.skip_ws();
+        if !self.at_word("as") {
+            return self.err("`{#each}` without `as` is not supported yet");
+        }
+        self.eat_tok(Tk::BlockKeyword, 2);
+        if !self.peek().is_some_and(|c| c.is_ascii_whitespace()) {
+            return self.err("expected whitespace");
+        }
+        self.skip_ws();
+        let context = self.pattern()?;
+        self.skip_ws();
+        let mut index = NodeId::NONE;
+        if self.peek() == Some(b',') {
+            self.eat_tok(Tk::Js(T::Comma), 1);
+            self.skip_ws();
+            index = self.identifier()?;
+            self.skip_ws();
+        }
+        let mut key = NodeId::NONE;
+        if self.peek() == Some(b'(') {
+            self.eat_tok(Tk::Js(T::LParen), 1);
+            self.skip_ws();
+            key = self.expression()?;
+            self.skip_ws();
+            if self.peek() != Some(b')') {
+                return self.err("expected `)`");
+            }
+            self.eat_tok(Tk::Js(T::RParen), 1);
+        }
+        self.close_mustache()?;
+        let body = self.fragment(End::Block)?;
+        let mut fallback = Range {
+            start: self.c.kids.len() as u32,
+            len: 0,
+        };
+        let has_fallback = if self.rest().starts_with("{:else") {
+            self.eat_tok(Tk::BlockOpen, "{:else".len());
+            self.skip_ws();
+            if self.peek() != Some(b'}') {
+                return self.err("expected `}` after `{:else`");
+            }
+            self.eat_tok(Tk::MustacheClose, 1);
+            fallback = self.fragment(End::Block)?;
+            true
+        } else {
+            false
+        };
+        if !self.rest().starts_with("{/each") {
+            return self.err("expected `{/each}`");
+        }
+        self.eat_tok(Tk::BlockOpen, "{/each".len());
+        self.close_mustache()?;
+        let span = Span::new(lo as u32, self.pos as u32);
+        Ok(self.push(TNode::Each {
+            expr,
+            context,
+            index,
+            key,
+            body,
+            fallback,
+            has_fallback,
+            span,
+        }))
+    }
+
+    /// The collection of an `{#each}`. With TypeScript, `items as item` reads as an assertion;
+    /// as upstream, a trailing `as` that leaves no `as` after the expression is read again as
+    /// the context's keyword.
+    fn each_expression(&mut self) -> R<NodeId> {
+        let (pos, tokens, mark) = (self.pos, self.c.tokens.len(), self.c.js.mark());
+        let ts_from = self.c.js.ts.len();
+        let expr = self.expression()?;
+        if self.at_word("as") {
+            return Ok(expr);
+        }
+        let end = self.c.js.tokens.iter().next_back().map(|t| t.span.hi);
+        let Some(assertion) = self.c.js.ts[ts_from..]
+            .iter()
+            .rev()
+            .find(|t| t.kind == TsKind::As && Some(t.span.hi) == end)
+        else {
+            return Ok(expr);
+        };
+        let Some(keyword) = self.src[..assertion.span.lo as usize].rfind("as") else {
+            return Ok(expr);
+        };
+        self.pos = pos;
+        self.c.tokens.truncate(tokens);
+        self.c.js.rewind(mark);
+        self.c.template_exprs.pop();
+        self.expression_until(keyword as u32)
     }
 
     /// After `{#if` or `{:else if`: the test, the branches, and the closing `{/if}`.

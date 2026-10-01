@@ -13,7 +13,7 @@ use rsv_kernel::diag::Unsupported;
 use rsv_kernel::emit::Emitter;
 use rsv_kernel::source::Span;
 
-use crate::ast::{Attr, AttrValue, Component, Part, TId, TNode};
+use crate::ast::{Attr, AttrKind, AttrValue, Component, Part, TId, TNode};
 
 #[derive(Debug)]
 pub enum Projection {
@@ -82,6 +82,9 @@ impl Projector<'_> {
                 self.e.push(tag);
                 self.e.push("\", {");
                 for a in self.c.attrs(attrs) {
+                    if a.kind == AttrKind::Bind {
+                        return Err(Unsupported::at("bind: directives", a.span));
+                    }
                     self.attribute(a);
                 }
                 self.e.push("});\n");
@@ -105,6 +108,7 @@ impl Projector<'_> {
                 }
                 self.e.push("\n");
             }
+            TNode::Each { span, .. } => return Err(Unsupported::at("{#each} blocks", span)),
         }
         Ok(())
     }

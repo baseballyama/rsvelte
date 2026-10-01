@@ -94,6 +94,8 @@ pub struct Reference {
 pub enum HostRoot {
     /// An expression evaluated in the enclosing scope.
     Expr(NodeId),
+    /// An expression the host's syntax reads and also assigns (Svelte's `bind:value={x}`).
+    Bound(NodeId),
     Scope(HostScope),
 }
 
@@ -146,6 +148,23 @@ impl Semantic {
     #[must_use]
     pub fn root_binding(&self, name: Atom) -> Option<BindingId> {
         self.names.get(&(ScopeId::ROOT, name)).copied()
+    }
+
+    /// The scope `node` opens (a function, a block, a [`HostScope`]'s node).
+    #[must_use]
+    pub fn scope_of(&self, node: NodeId) -> Option<ScopeId> {
+        self.node_scope.get(&node).copied()
+    }
+
+    /// What `name` refers to in `scope`: its own binding or the nearest enclosing one.
+    #[must_use]
+    pub fn lookup(&self, mut scope: ScopeId, name: Atom) -> Option<BindingId> {
+        loop {
+            if let Some(&b) = self.names.get(&(scope, name)) {
+                return Some(b);
+            }
+            scope = self.scopes[scope].parent?;
+        }
     }
 
     pub fn references_to(&self, b: BindingId) -> impl Iterator<Item = &Reference> {
@@ -303,7 +322,7 @@ impl Analyzer<'_> {
     fn declare_host(&mut self, roots: &[HostRoot]) {
         for r in roots {
             match r {
-                HostRoot::Expr(e) => self.declare(*e),
+                HostRoot::Expr(e) | HostRoot::Bound(e) => self.declare(*e),
                 HostRoot::Scope(h) => {
                     let id = self.push_scope(h.node, false);
                     self.host_scopes.push(id);
@@ -460,14 +479,7 @@ impl Analyzer<'_> {
     }
 
     fn lookup_from(&self, scope: ScopeId, name: Atom) -> Option<BindingId> {
-        let mut s = Some(scope);
-        while let Some(scope) = s {
-            if let Some(&b) = self.s.names.get(&(scope, name)) {
-                return Some(b);
-            }
-            s = self.s.scopes[scope].parent;
-        }
-        None
+        self.s.lookup(scope, name)
     }
 
     /// Looks each type-syntax identifier up from the innermost scope whose node contains it; one
@@ -532,6 +544,7 @@ impl Analyzer<'_> {
         for r in roots {
             match r {
                 HostRoot::Expr(e) => self.resolve(*e, Ctx::Expr),
+                HostRoot::Bound(e) => self.resolve(*e, Ctx::Target { read: true }),
                 HostRoot::Scope(h) => {
                     let id = self.host_scopes[self.next_host_scope];
                     self.next_host_scope += 1;

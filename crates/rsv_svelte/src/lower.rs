@@ -11,9 +11,14 @@ pub mod server;
 
 use std::borrow::Cow;
 
-use rsv_js::{Ast, NodeId};
+use rsv_js::scope::{DeclKind, ScopeId};
+use rsv_js::{Ast, Kind, NodeId};
+use rsv_kernel::diag::Diagnostic;
+use rsv_kernel::source::Span;
+use rustc_hash::FxHashMap;
 
-use crate::hir::{AttrValue, Attribute, Hir, HirId, NodeKind};
+use crate::hir::{AttrValue, Attribute, Children, Hir, HirId, NodeKind};
+use crate::resolve::{BindKind, Resolution};
 
 /// A component as the compiler reads it, whatever syntax it was written in.
 #[derive(Clone, Copy, Debug)]
@@ -54,7 +59,10 @@ pub enum Item<'a> {
 pub enum Parent<'a> {
     Root,
     Element(&'a str),
+    /// An `{#if}` branch.
     Block,
+    /// The body or the fallback of an `{#each}`.
+    Each,
 }
 
 #[derive(Debug)]
@@ -89,7 +97,9 @@ pub fn clean_nodes<'a>(
                 });
             }
             NodeKind::Expr { expr } => regular.push(Item::Expr(*expr)),
-            NodeKind::Element(_) | NodeKind::If { .. } => regular.push(Item::Node(id)),
+            NodeKind::Element(_) | NodeKind::If { .. } | NodeKind::Each(_) => {
+                regular.push(Item::Node(id));
+            }
         }
     }
     let is_expr = |i: Option<&Item<'_>>| matches!(i, Some(Item::Expr(_)));
@@ -152,7 +162,7 @@ pub fn clean_nodes<'a>(
         trimmed.remove(0);
     }
 
-    let text_first = matches!(parent, Parent::Root)
+    let text_first = matches!(parent, Parent::Root | Parent::Each)
         && matches!(trimmed.first(), Some(Item::Text { .. } | Item::Expr(_)));
     Cleaned {
         items: trimmed,
@@ -298,6 +308,414 @@ pub fn cannot_be_set_statically(name: &str) -> bool {
         name,
         "autofocus" | "muted" | "defaultValue" | "defaultChecked"
     )
+}
+
+/// Each `{#each}`'s `$$index` name. Upstream takes them from `scope.root.unique` while it builds
+/// the scopes, before any transform: the collection, then the fallback, then the body, then the
+/// block itself.
+pub fn each_index_names(hir: &Hir, names: &mut names::Names) -> FxHashMap<HirId, String> {
+    fn walk(
+        hir: &Hir,
+        list: Children,
+        names: &mut names::Names,
+        out: &mut FxHashMap<HirId, String>,
+    ) {
+        for &id in hir.children(list) {
+            match &hir.node(id).kind {
+                NodeKind::Element(el) => walk(hir, el.children, names, out),
+                NodeKind::If {
+                    branches,
+                    otherwise,
+                } => {
+                    for b in hir.branches(*branches) {
+                        walk(hir, b.body, names, out);
+                    }
+                    if let Some(o) = otherwise {
+                        walk(hir, *o, names, out);
+                    }
+                }
+                NodeKind::Each(each) => {
+                    if let Some(f) = each.fallback {
+                        walk(hir, f, names, out);
+                    }
+                    walk(hir, each.body, names, out);
+                    out.insert(id, names.unique("$$index"));
+                }
+                NodeKind::Text { .. } | NodeKind::Comment { .. } | NodeKind::Expr { .. } => {}
+            }
+        }
+    }
+    let mut out = FxHashMap::default();
+    walk(hir, hir.root, names, &mut out);
+    out
+}
+
+/// Upstream's `EACH_ITEM_REACTIVE` test: the collection reads a binding (references inside a
+/// function of the expression are not its dependencies).
+#[must_use]
+pub fn has_dependency(js: &Ast, res: &Resolution, e: NodeId) -> bool {
+    match js.kind(e) {
+        Kind::Ident(_) => res
+            .binding(e)
+            .is_some_and(|(b, _)| res.sem.bindings[b].node != e),
+        Kind::Function { .. } | Kind::Arrow { .. } => false,
+        _ => {
+            let mut any = false;
+            js.for_each_child(e, |c| any = any || has_dependency(js, res, c));
+            any
+        }
+    }
+}
+
+/// The checks this port makes before lowering a `bind:` directive.
+///
+/// A supported property on a supported element, and a target that is `$state` or a member of
+/// `$state` or of an `{#each}` item. Upstream validates more and accepts more.
+///
+/// # Errors
+///
+/// An `unsupported` [`Diagnostic`] for anything else.
+pub fn check_binding(
+    js: &Ast,
+    res: &Resolution,
+    src: &str,
+    tag: &str,
+    attrs: &[Attribute],
+    a: &Attribute,
+) -> Result<NodeId, Diagnostic> {
+    let AttrValue::Bind(e) = a.value else {
+        unreachable!("called on bindings")
+    };
+    let unsupported = |what: String, span: Span| {
+        Err(Diagnostic::error(
+            "unsupported",
+            format!("{what} is not supported yet"),
+            span,
+        ))
+    };
+    let property = a.name.text(src);
+    if !supported_binding(src, tag, attrs, property) {
+        return unsupported(format!("`bind:{property}` on this `<{tag}>`"), a.span);
+    }
+    let beside = attrs
+        .iter()
+        .any(|o| !std::ptr::eq(o, a) && matches!(o.name.text(src), "value" | "checked" | "group"));
+    if beside {
+        return unsupported(
+            "a binding beside a `value`, `checked` or `group` attribute".into(),
+            a.span,
+        );
+    }
+    let mut root = e;
+    while let Kind::Member { object, .. } = js.kind(root) {
+        root = object;
+    }
+    let kind = matches!(js.kind(root), Kind::Ident(_))
+        .then(|| res.binding(root).map(|(_, info)| info.kind))
+        .flatten();
+    let member = root != e;
+    let ok = match kind {
+        Some(BindKind::State | BindKind::RawState) => true,
+        Some(BindKind::Each) => member,
+        _ => false,
+    };
+    if !ok {
+        return unsupported(
+            "a binding to anything but `$state` or a member of `$state` or of an `{#each}` item"
+                .into(),
+            a.span,
+        );
+    }
+    Ok(e)
+}
+
+const SVG_ELEMENTS: &[&str] = &[
+    "altGlyph",
+    "altGlyphDef",
+    "altGlyphItem",
+    "animate",
+    "animateColor",
+    "animateMotion",
+    "animateTransform",
+    "circle",
+    "clipPath",
+    "color-profile",
+    "cursor",
+    "defs",
+    "desc",
+    "discard",
+    "ellipse",
+    "feBlend",
+    "feColorMatrix",
+    "feComponentTransfer",
+    "feComposite",
+    "feConvolveMatrix",
+    "feDiffuseLighting",
+    "feDisplacementMap",
+    "feDistantLight",
+    "feDropShadow",
+    "feFlood",
+    "feFuncA",
+    "feFuncB",
+    "feFuncG",
+    "feFuncR",
+    "feGaussianBlur",
+    "feImage",
+    "feMerge",
+    "feMergeNode",
+    "feMorphology",
+    "feOffset",
+    "fePointLight",
+    "feSpecularLighting",
+    "feSpotLight",
+    "feTile",
+    "feTurbulence",
+    "filter",
+    "font",
+    "font-face",
+    "font-face-format",
+    "font-face-name",
+    "font-face-src",
+    "font-face-uri",
+    "foreignObject",
+    "g",
+    "glyph",
+    "glyphRef",
+    "hatch",
+    "hatchpath",
+    "hkern",
+    "image",
+    "line",
+    "linearGradient",
+    "marker",
+    "mask",
+    "mesh",
+    "meshgradient",
+    "meshpatch",
+    "meshrow",
+    "metadata",
+    "missing-glyph",
+    "mpath",
+    "path",
+    "pattern",
+    "polygon",
+    "polyline",
+    "radialGradient",
+    "rect",
+    "set",
+    "solidcolor",
+    "stop",
+    "svg",
+    "switch",
+    "symbol",
+    "text",
+    "textPath",
+    "tref",
+    "tspan",
+    "unknown",
+    "use",
+    "view",
+    "vkern",
+];
+
+const MATHML_ELEMENTS: &[&str] = &[
+    "annotation",
+    "annotation-xml",
+    "maction",
+    "math",
+    "merror",
+    "mfrac",
+    "mi",
+    "mmultiscripts",
+    "mn",
+    "mo",
+    "mover",
+    "mpadded",
+    "mphantom",
+    "mprescripts",
+    "mroot",
+    "mrow",
+    "ms",
+    "mspace",
+    "msqrt",
+    "mstyle",
+    "msub",
+    "msubsup",
+    "msup",
+    "mtable",
+    "mtd",
+    "mtext",
+    "mtr",
+    "munder",
+    "munderover",
+    "semantics",
+];
+
+/// Refuses an element upstream's `is_svg` or `is_mathml` names (case-sensitively).
+///
+/// With `<svg>` and `<math>` refused, such an element would need upstream's namespace inference,
+/// which this port does not do.
+///
+/// # Errors
+///
+/// An `unsupported` [`Diagnostic`] at the element's name.
+pub fn check_foreign_element(src: &str, name: Span) -> Result<(), Diagnostic> {
+    let text = name.text(src);
+    if SVG_ELEMENTS.contains(&text) || MATHML_ELEMENTS.contains(&text) {
+        return Err(Diagnostic::error(
+            "unsupported",
+            format!("`<{text}>` outside `<svg>` or `<math>` is not supported yet"),
+            name,
+        ));
+    }
+    Ok(())
+}
+
+const RUNES: &[&str] = &[
+    "$state",
+    "$state.raw",
+    "$derived",
+    "$derived.by",
+    "$state.eager",
+    "$state.snapshot",
+    "$props",
+    "$props.id",
+    "$bindable",
+    "$effect",
+    "$effect.pre",
+    "$effect.tracking",
+    "$effect.root",
+    "$effect.pending",
+    "$inspect",
+    "$inspect().with",
+    "$inspect.trace",
+    "$host",
+];
+
+/// Refuses a `$name` reference that upstream's analysis turns into a store subscription (its
+/// synthetic `store_sub` bindings); this port has no store support.
+///
+/// # Errors
+///
+/// An `unsupported` [`Diagnostic`] at the first such reference.
+pub fn check_stores(
+    js: &Ast,
+    res: &Resolution,
+    src: &str,
+    program: NodeId,
+) -> Result<(), Diagnostic> {
+    for r in &res.sem.references {
+        if r.binding.is_some() {
+            continue;
+        }
+        let name = js.name(r.node);
+        let Some(store) = name.strip_prefix('$') else {
+            continue;
+        };
+        if store.is_empty() || store.starts_with('$') {
+            continue;
+        }
+        let declaration = res
+            .sem
+            .bindings
+            .iter()
+            .find(|b| b.scope == ScopeId::ROOT && js.atoms.get(b.name) == store);
+        let store_sub = !RUNES.contains(&name)
+            || declaration.is_some_and(|b| {
+                let rune = b.init(js).and_then(|init| get_rune(js, res, init));
+                (rune.is_none() || (store != "props" && rune.as_deref() == Some("$props")))
+                    && !(name == "$derived"
+                        && b.kind == DeclKind::Import
+                        && import_source(js, src, program, b.decl) == Some("svelte/store"))
+            });
+        if store_sub {
+            let Some(span) = js.loc(r.node).span() else {
+                unreachable!("a reference is parsed from source")
+            };
+            return Err(Diagnostic::error(
+                "unsupported",
+                format!("the store subscription `{name}` is not supported yet"),
+                span,
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Upstream `get_rune`: the rune a call's callee names through unbound globals.
+fn get_rune(js: &Ast, res: &Resolution, e: NodeId) -> Option<String> {
+    let Kind::Call { callee, .. } = js.kind(e) else {
+        return None;
+    };
+    let keypath = global_keypath(js, res, callee)?;
+    RUNES.contains(&keypath.as_str()).then_some(keypath)
+}
+
+/// Upstream `get_global_keypath`.
+fn global_keypath(js: &Ast, res: &Resolution, e: NodeId) -> Option<String> {
+    match js.kind(e) {
+        Kind::Ident(_) => res
+            .sem
+            .binding_of(e)
+            .is_none()
+            .then(|| js.name(e).to_owned()),
+        Kind::Member {
+            object,
+            property,
+            computed: false,
+            ..
+        } => Some(format!(
+            "{}.{}",
+            global_keypath(js, res, object)?,
+            js.name(property)
+        )),
+        Kind::Call { callee, .. } => Some(format!("{}()", global_keypath(js, res, callee)?)),
+        _ => None,
+    }
+}
+
+/// The module an import specifier of the instance script imports from.
+fn import_source<'a>(
+    js: &'a Ast,
+    src: &'a str,
+    program: NodeId,
+    spec: Option<NodeId>,
+) -> Option<&'a str> {
+    let spec = spec?;
+    let Kind::Program(body) = js.kind(program) else {
+        return None;
+    };
+    body.iter().find_map(|&stmt| match js.kind(stmt) {
+        Kind::Import {
+            specifiers, source, ..
+        } if specifiers.contains(&spec) => Some(js.str_value(source, src)),
+        _ => None,
+    })
+}
+
+/// Upstream `binding_properties` that this port lowers, by element.
+///
+/// `bind:value` on `<input>` (not a checkbox, radio or file input) and `bind:checked` on a
+/// checkbox, with the `type` written as static text.
+#[must_use]
+pub fn supported_binding(src: &str, tag: &str, attrs: &[Attribute], property: &str) -> bool {
+    if tag != "input" {
+        return false;
+    }
+    let mut ty = Some("text");
+    for a in attrs {
+        if a.name.text(src) == "type" && !matches!(a.value, AttrValue::Bind(_)) {
+            ty = match &a.value {
+                AttrValue::Static(v) => Some(&**v),
+                _ => None,
+            };
+        }
+    }
+    match (property, ty) {
+        ("value", Some(t)) => !matches!(t, "checkbox" | "radio" | "file"),
+        ("checked", Some(t)) => t == "checkbox",
+        _ => false,
+    }
 }
 
 /// Upstream `is_event_attribute` for this port's attribute shapes.

@@ -1,11 +1,14 @@
 //! Client lowering: a DOM template per fragment plus the statements that walk it and keep it up to
-//! date. Mirrors upstream `3-transform/client` (Fragment, `RegularElement`, `IfBlock`,
-//! shared/fragment).
+//! date.
+//!
+//! Mirrors upstream `3-transform/client` (Fragment, `RegularElement`, `IfBlock`, `EachBlock`,
+//! `BindDirective`, shared/fragment).
 
 use rsv_html::decode_text;
 use rsv_js::ast::flag;
 use rsv_js::copy::copy;
 use rsv_js::ops::{AssignOp, LogicalOp};
+use rsv_js::scope::{BindingId, ScopeId};
 use rsv_js::{Ast, Kind, NodeId};
 use rsv_kernel::diag::Diagnostic;
 use rsv_kernel::source::{Loc, Span};
@@ -14,7 +17,8 @@ use rustc_hash::FxHashMap;
 use super::names::Names;
 use super::script::{ScriptRewrite, lower_instance};
 use super::{
-    CompileInput, Item, Parent, Target, clean_nodes, escape_html, event_attribute,
+    CompileInput, Item, Parent, Target, check_binding, check_foreign_element, check_stores,
+    clean_nodes, each_index_names, escape_html, event_attribute, has_dependency,
     sanitize_template_string,
 };
 use crate::analyze::{Analysis, ExprMeta};
@@ -24,6 +28,10 @@ use crate::resolve::Resolution;
 
 const TEMPLATE_FRAGMENT: u32 = 1;
 const TEMPLATE_USE_IMPORT_NODE: u32 = 2;
+const EACH_ITEM_REACTIVE: u32 = 1;
+const EACH_INDEX_REACTIVE: u32 = 1 << 1;
+const EACH_IS_CONTROLLED: u32 = 1 << 2;
+const EACH_ITEM_IMMUTABLE: u32 = 1 << 4;
 const PASSIVE_EVENTS: &[&str] = &["touchstart", "touchmove"];
 const DELEGATED_EVENTS: &[&str] = &[
     "beforeinput",
@@ -237,6 +245,13 @@ struct Cx<'a> {
     hoisted: Vec<NodeId>,
     templates: FxHashMap<String, String>,
     events: Vec<String>,
+    /// The `{#each}` names in scope, and whether a read goes through `$.get`.
+    each: FxHashMap<BindingId, bool>,
+    each_index: FxHashMap<HirId, String>,
+    /// Where names in lowered expressions resolve: the innermost `{#each}` scope.
+    scope: ScopeId,
+    /// Upstream `state.preserve_whitespace`: inside `<pre>` or `<textarea>`.
+    preserve_ws: bool,
 }
 
 /// # Errors
@@ -245,6 +260,7 @@ struct Cx<'a> {
 /// handle yet.
 pub fn lower(input: &CompileInput<'_>, res: &Resolution, an: &Analysis) -> R<(Ast, NodeId)> {
     let js = input.js;
+    check_stores(js, res, input.src, input.program)?;
     let declared = res.sem.bindings.iter().map(|b| js.atoms.get(b.name));
     let referenced = res.sem.references.iter().map(|r| js.name(r.node));
     let mut cx = Cx {
@@ -258,12 +274,26 @@ pub fn lower(input: &CompileInput<'_>, res: &Resolution, an: &Analysis) -> R<(As
         hoisted: Vec::new(),
         templates: FxHashMap::default(),
         events: Vec::new(),
+        each: FxHashMap::default(),
+        each_index: FxHashMap::default(),
+        scope: ScopeId::ROOT,
+        preserve_ws: false,
     };
+    cx.each_index = each_index_names(input.hir, &mut cx.names);
     let mut rw = ScriptRewrite {
         target: Target::Client,
         res,
+        src: input.src,
+        each: None,
     };
-    let instance = lower_instance(js, &mut cx.out, &mut rw, input.program, &mut cx.hoisted)?;
+    let instance = lower_instance(
+        js,
+        &mut cx.out,
+        &mut rw,
+        input.program,
+        &mut cx.hoisted,
+        &mut cx.names,
+    )?;
     let template = cx.fragment(Parent::Root, input.hir.children(input.hir.root))?;
 
     let o = &mut cx.out;
@@ -313,8 +343,48 @@ impl<'a> Cx<'a> {
         let mut rw = ScriptRewrite {
             target: Target::Client,
             res: self.res,
+            src: self.src,
+            each: Some(&self.each),
         };
         copy(self.js, &mut self.out, &mut rw, e)
+    }
+
+    /// `b.thunk`: `() => e`, or `f` for `() => f()`.
+    fn thunk(&mut self, e: NodeId) -> NodeId {
+        let arrow = self.out.arrow(&[], e, true, false, Loc::SYNTHETIC);
+        self.unthunk(arrow)
+    }
+
+    /// `b.unthunk`: `(a, b) => f(a, b)` is `f`.
+    fn unthunk(&self, arrow: NodeId) -> NodeId {
+        let o = &self.out;
+        let Kind::Arrow {
+            params,
+            body,
+            expr_body: true,
+            is_async: false,
+            ..
+        } = o.kind(arrow)
+        else {
+            return arrow;
+        };
+        let Kind::Call {
+            callee,
+            args,
+            optional: false,
+            ..
+        } = o.kind(body)
+        else {
+            return arrow;
+        };
+        let same = matches!(o.kind(callee), Kind::Ident(_))
+            && params.len() == args.len()
+            && params.iter().zip(args).all(|(&p, &a)| {
+                matches!(o.kind(p), Kind::Ident(_))
+                    && matches!(o.kind(a), Kind::Ident(_))
+                    && o.name(p) == o.name(a)
+            });
+        if same { callee } else { arrow }
     }
 
     /// `b.call` drops trailing missing arguments and turns inner ones into `undefined`.
@@ -390,7 +460,7 @@ impl<'a> Cx<'a> {
 
     /// Upstream `Fragment` visitor: the statements of one block.
     fn fragment(&mut self, parent: Parent<'_>, list: &[HirId]) -> R<Vec<NodeId>> {
-        let cleaned = clean_nodes(self.hir, self.src, parent, list, false);
+        let cleaned = clean_nodes(self.hir, self.src, parent, list, self.preserve_ws);
         let items = cleaned.items;
         if items.is_empty() {
             return Ok(Vec::new());
@@ -434,7 +504,7 @@ impl<'a> Cx<'a> {
                     .all(|i| matches!(i, Item::Text { .. } | Item::Expr(_)));
             if use_space_template {
                 let text = self.names.generate("text");
-                self.process_children(&items, Prev::Ident(text.clone()), &mut frag, &mut l)?;
+                self.process_children(&items, Prev::Ident(text.clone()), false, &mut frag, &mut l)?;
                 let call = self.call("text", vec![]);
                 let decl = self.var(&text, call);
                 l.init.insert(0, decl);
@@ -446,6 +516,7 @@ impl<'a> Cx<'a> {
                         method: "first_child",
                         of: id.clone(),
                     },
+                    false,
                     &mut frag,
                     &mut l,
                 )?;
@@ -545,6 +616,7 @@ impl<'a> Cx<'a> {
         &mut self,
         items: &[Item<'_>],
         initial: Prev,
+        is_element: bool,
         frag: &mut Frag,
         l: &mut Lists,
     ) -> R<()> {
@@ -568,6 +640,12 @@ impl<'a> Cx<'a> {
             if self.is_static_element(id) {
                 st.skipped += 1;
                 self.visit(id, &st.prev_name(), frag, l)?;
+            } else if is_element
+                && items.len() == 1
+                && matches!(self.hir.node(id).kind, NodeKind::Each(_))
+            {
+                // Upstream's `is_controlled`: the element is the block's anchor.
+                self.each_block(id, &st.prev_name(), true, frag, l)?;
             } else {
                 let name = match &self.hir.node(id).kind {
                     NodeKind::Element(el) => el.name.text(self.src).to_owned(),
@@ -687,7 +765,9 @@ impl<'a> Cx<'a> {
             let meta = self.an.meta(expr);
             let built = self.expr(expr);
             let mut value = self.memoize(frag, built, meta);
-            let evaluated = self.res.evaluate_output(js, self.src, &self.out, value);
+            let evaluated = self
+                .res
+                .evaluate_output(js, self.src, &self.out, value, self.scope);
             let known = evaluated.is_known.then_some(&evaluated);
             has_state |= meta.has_state && known.is_none();
             if values.len() == 1 {
@@ -746,15 +826,12 @@ impl<'a> Cx<'a> {
         match self.hir.node(id).kind {
             NodeKind::Element(_) => self.element(id, node, frag, l),
             NodeKind::If { .. } => self.if_block(id, node, frag, l),
+            NodeKind::Each(_) => self.each_block(id, node, false, frag, l),
             _ => unreachable!("clean_nodes keeps only elements and blocks as nodes"),
         }
     }
 
     /// Upstream `RegularElement`.
-    #[expect(
-        clippy::too_many_lines,
-        reason = "ports upstream's `RegularElement` visitor in one piece"
-    )]
     fn element(&mut self, id: HirId, node: &str, frag: &mut Frag, l: &mut Lists) -> R<()> {
         let hir = self.hir;
         let NodeKind::Element(el) = &hir.node(id).kind else {
@@ -771,6 +848,7 @@ impl<'a> Cx<'a> {
         {
             return unsupported(&format!("`<{tag}>`"), el.name);
         }
+        check_foreign_element(self.src, el.name)?;
         frag.tpl.push_element(&tag);
         if tag == "noscript" {
             frag.tpl.pop_element();
@@ -803,7 +881,19 @@ impl<'a> Cx<'a> {
             }
         }
 
+        // Upstream visits directives into their own lists, which follow the children's.
+        let mut directives = Lists::default();
         for a in attr_list {
+            if let AttrValue::Bind(_) = a.value {
+                let call = self.binding(a, &tag, attr_list, node)?;
+                directives.after.push(self.stmt(call));
+            }
+        }
+
+        for a in attr_list {
+            if let AttrValue::Bind(_) = a.value {
+                continue;
+            }
             let raw_name = a.name.text(self.src);
             if let Some(handler) = event_attribute(self.src, a) {
                 self.event(raw_name, handler, node, l);
@@ -836,13 +926,34 @@ impl<'a> Cx<'a> {
             self.static_attribute(frag, id, "class", "class", Some(String::new()));
         }
 
-        let preserve = tag == "pre" || tag == "textarea";
+        let outer_preserve = self.preserve_ws;
+        self.preserve_ws |= tag == "pre" || tag == "textarea";
+        let children = self.element_children(id, &tag, node, frag);
+        self.preserve_ws = outer_preserve;
+        let mut child = children?;
+        if self.an.dynamic[id] {
+            l.init.append(&mut child.init);
+            l.update.append(&mut child.update);
+            l.after.append(&mut child.after);
+        }
+        l.init.append(&mut directives.init);
+        l.after.append(&mut directives.after);
+        frag.tpl.pop_element();
+        Ok(())
+    }
+
+    /// The children half of upstream `RegularElement`, under the element's whitespace rule.
+    fn element_children(&mut self, id: HirId, tag: &str, node: &str, frag: &mut Frag) -> R<Lists> {
+        let hir = self.hir;
+        let NodeKind::Element(el) = &hir.node(id).kind else {
+            unreachable!()
+        };
         let cleaned = clean_nodes(
             hir,
             self.src,
-            Parent::Element(&tag),
+            Parent::Element(tag),
             hir.children(el.children),
-            preserve,
+            self.preserve_ws,
         );
         let items = cleaned.items;
         let mut child = Lists::default();
@@ -875,6 +986,7 @@ impl<'a> Cx<'a> {
                     method: "child",
                     of: node.to_owned(),
                 },
+                true,
                 frag,
                 &mut child,
             )?;
@@ -884,13 +996,36 @@ impl<'a> Cx<'a> {
                 child.init.push(self.stmt(call));
             }
         }
-        if self.an.dynamic[id] {
-            l.init.append(&mut child.init);
-            l.update.append(&mut child.update);
-            l.after.append(&mut child.after);
-        }
-        frag.tpl.pop_element();
-        Ok(())
+        Ok(child)
+    }
+
+    /// Upstream `BindDirective` (client, non-dev) for the bindings [`check_binding`] admits.
+    fn binding(&mut self, a: &Attribute, tag: &str, attrs: &[Attribute], node: &str) -> R<NodeId> {
+        let e = check_binding(self.js, self.res, self.src, tag, attrs, a)?;
+        let get = self.expr(e);
+        let get = self.thunk(get);
+        let value = self.out.id("$$value");
+        let assignment = if let Kind::Ident(_) = self.js.kind(e) {
+            // An element binding's value is a primitive: upstream never proxies it.
+            let x = self.out.ident(self.js.name(e), self.js.loc(e));
+            self.out.runtime("$", "set", &[x, value])
+        } else {
+            let target = self.expr(e);
+            self.out
+                .assign(AssignOp::Assign, target, value, Loc::SYNTHETIC)
+        };
+        let param = self.out.id("$$value");
+        let set = self
+            .out
+            .arrow(&[param], assignment, true, false, Loc::SYNTHETIC);
+        let set = self.unthunk(set);
+        let x = self.out.id(node);
+        let method = match a.name.text(self.src) {
+            "value" => "bind_value",
+            "checked" => "bind_checked",
+            p => unreachable!("`check_binding` admits no `bind:{p}`"),
+        };
+        Ok(self.call(method, vec![Some(x), Some(get), Some(set)]))
     }
 
     fn static_attribute(
@@ -933,6 +1068,7 @@ impl<'a> Cx<'a> {
                 let items = self.chunk_items(parts);
                 self.template_chunk(&items, frag)
             }
+            AttrValue::Bind(_) => unreachable!("bindings are lowered by `binding`"),
         }
     }
 
@@ -1147,6 +1283,149 @@ impl<'a> Cx<'a> {
         let call = self.call("if", vec![Some(x), Some(f)]);
         statements.push(self.stmt(call));
         l.init.push(self.out.block(&statements, Loc::SYNTHETIC));
+        Ok(())
+    }
+
+    /// Upstream `EachBlock` (client, runes mode) for a block whose context is an identifier.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "ports upstream's `EachBlock` visitor in one piece"
+    )]
+    fn each_block(
+        &mut self,
+        id: HirId,
+        node: &str,
+        controlled: bool,
+        frag: &mut Frag,
+        l: &mut Lists,
+    ) -> R<()> {
+        let (hir, js, res) = (self.hir, self.js, self.res);
+        let NodeKind::Each(each) = &hir.node(id).kind else {
+            unreachable!()
+        };
+        let context = each.context().expect("the parser requires `as`");
+        if !matches!(js.kind(context), Kind::Ident(_)) {
+            let span = js.loc(context).span().expect("parsed from source");
+            return unsupported("a destructuring `{#each}` context", span);
+        }
+        let collection = self.expr(each.collection);
+        if !controlled {
+            frag.tpl.push_comment();
+        }
+        let keyed = each.keyed(js);
+        let mut flags = 0;
+        if keyed && each.index().is_some() {
+            flags |= EACH_INDEX_REACTIVE;
+        }
+        let key_is_item = each.key().is_some_and(|k| {
+            matches!(js.kind(k), Kind::Ident(_)) && js.atom(k) == js.atom(context)
+        });
+        if !key_is_item && has_dependency(js, res, each.collection) {
+            flags |= EACH_ITEM_REACTIVE;
+        }
+        flags |= EACH_ITEM_IMMUTABLE;
+        if controlled {
+            flags |= EACH_IS_CONTROLLED;
+        }
+
+        let item = res.sem.binding_of(context);
+        let index = each.index().and_then(|i| res.sem.binding_of(i));
+        let shadows = [item, index].into_iter().flatten().any(|b| {
+            let s = &res.sem.bindings[b];
+            res.sem.scopes[s.scope]
+                .parent
+                .is_some_and(|p| res.sem.lookup(p, s.name).is_some())
+        });
+        let collection_id = shadows.then(|| self.names.unique("$$array"));
+        let index_name = each
+            .index()
+            .map_or_else(|| self.each_index[&id].clone(), |i| js.name(i).to_owned());
+
+        let key_span = each.key().and_then(|k| js.loc(k).span());
+        let in_key = |n: NodeId| {
+            let at = js.loc(n).span();
+            key_span.is_some_and(|k| at.is_some_and(|a| k.lo <= a.lo && a.hi <= k.hi))
+        };
+        let (mut uses_index, mut key_uses_index) = (false, false);
+        if let Some(b) = index {
+            for r in res.sem.references_to(b) {
+                if in_key(r.node) {
+                    key_uses_index = true;
+                } else {
+                    uses_index = true;
+                }
+            }
+        }
+        // Upstream's `assign` and `mutate` transforms of the item set `uses_index`.
+        if let Some(b) = item {
+            let s = &res.sem.bindings[b];
+            uses_index |= s.writes > 0 || s.mutations > 0;
+        }
+
+        if let Some(b) = item {
+            self.each.insert(b, flags & EACH_ITEM_REACTIVE != 0);
+        }
+        if let Some(b) = index {
+            self.each.insert(b, flags & EACH_INDEX_REACTIVE != 0);
+        }
+        let outer = self.scope;
+        self.scope = res
+            .sem
+            .scope_of(context)
+            .expect("an `{#each}` context opens a scope");
+        let body = self.fragment(Parent::Each, hir.children(each.body));
+        self.scope = outer;
+        let body = body?;
+
+        let key_function = if keyed {
+            for b in [item, index].into_iter().flatten() {
+                self.each.insert(b, false);
+            }
+            let pattern = self.out.ident(js.name(context), js.loc(context));
+            let key = self.expr(each.key().expect("a keyed block has a key"));
+            let mut params = vec![pattern];
+            if key_uses_index {
+                params.push(self.out.id(&index_name));
+            }
+            self.out.arrow(&params, key, true, false, Loc::SYNTHETIC)
+        } else {
+            let ns = self.out.id("$");
+            self.out.dot(ns, "index")
+        };
+        for b in [item, index].into_iter().flatten() {
+            self.each.remove(&b);
+        }
+
+        let thunk = self.thunk(collection);
+        let mut render_args = vec![
+            self.out.id("$$anchor"),
+            self.out.ident(js.name(context), js.loc(context)),
+        ];
+        if uses_index || collection_id.is_some() {
+            render_args.push(self.out.id(&index_name));
+        }
+        if let Some(c) = &collection_id {
+            render_args.push(self.out.id(c));
+        }
+        let block = self.out.block(&body, Loc::SYNTHETIC);
+        let render = self
+            .out
+            .arrow(&render_args, block, false, false, Loc::SYNTHETIC);
+        let x = self.out.id(node);
+        let flags = self.num(flags);
+        let mut args = vec![
+            Some(x),
+            Some(flags),
+            Some(thunk),
+            Some(key_function),
+            Some(render),
+        ];
+        if let Some(f) = each.fallback {
+            let fallback = self.fragment(Parent::Each, hir.children(f))?;
+            args.push(Some(self.anchor_arrow(&fallback)));
+        }
+        let call = self.call("each", args);
+        l.init.push(self.stmt(call));
         Ok(())
     }
 

@@ -3,16 +3,24 @@
 use rsv_js::ast::flag;
 use rsv_js::copy::{Rewrite, copy, copy_node};
 use rsv_js::ops::{AssignOp, BinOp, LogicalOp, UpdateOp};
+use rsv_js::scope::BindingId;
 use rsv_js::{Ast, Kind, NodeId};
 use rsv_kernel::diag::Diagnostic;
+use rustc_hash::FxHashMap;
 
 use super::Target;
+use super::names::Names;
 use crate::resolve::{BindKind, Resolution, rune_call};
 
 #[derive(Debug)]
 pub struct ScriptRewrite<'a> {
     pub target: Target,
     pub res: &'a Resolution,
+    /// The document the source tree's spans index.
+    pub src: &'a str,
+    /// The `{#each}` names in scope on the client, and whether a read goes through `$.get`
+    /// (upstream's per-block `transform`).
+    pub each: Option<&'a FxHashMap<BindingId, bool>>,
 }
 
 impl ScriptRewrite<'_> {
@@ -55,6 +63,16 @@ impl ScriptRewrite<'_> {
                     false,
                     rsv_kernel::source::Loc::SYNTHETIC,
                 ))
+            }
+            (Target::Client, BindKind::Each | BindKind::StaticIndex | BindKind::KeyedIndex) => {
+                let Some(&through_get) = self.each.and_then(|m| m.get(&b)) else {
+                    unreachable!("an `{{#each}}` name is read only inside its block")
+                };
+                if !through_get {
+                    return None;
+                }
+                let x = to.ident(name, loc);
+                Some(to.runtime("$", "get", &[x]))
             }
             (Target::Server, BindKind::Derived | BindKind::DerivedBy) => {
                 let x = to.ident(name, loc);
@@ -179,6 +197,11 @@ fn binary_of(op: AssignOp) -> BinOp {
 /// Upstream `should_proxy`.
 #[must_use]
 pub fn should_proxy(ast: &Ast, res: &Resolution, e: NodeId) -> bool {
+    proxyable(ast, Some(res), e)
+}
+
+/// `res` is `None` for a binding's initial value, which upstream checks without a scope.
+fn proxyable(ast: &Ast, res: Option<&Resolution>, e: NodeId) -> bool {
     match ast.kind(e) {
         Kind::Str
         | Kind::Num(_)
@@ -191,14 +214,22 @@ pub fn should_proxy(ast: &Ast, res: &Resolution, e: NodeId) -> bool {
         | Kind::Function { decl: false, .. } => false,
         Kind::Ident(_) if ast.name(e) == "undefined" => false,
         Kind::Ident(_) => {
-            let Some((b, _)) = res.binding(e) else {
+            let Some(res) = res else {
+                return true;
+            };
+            let Some((b, info)) = res.binding(e) else {
                 return true;
             };
             let s = &res.sem.bindings[b];
             if s.writes > 0 {
                 return true;
             }
-            s.init(ast).is_none_or(|init| should_proxy(ast, res, init))
+            // Analysis rewires a prop's initial from `$props()` to its default.
+            let initial = match info.kind {
+                BindKind::Prop | BindKind::BindableProp | BindKind::RestProp => info.initial,
+                _ => s.init(ast),
+            };
+            initial.is_none_or(|init| proxyable(ast, None, init))
         }
         _ => true,
     }
@@ -219,6 +250,7 @@ pub fn lower_instance(
     rw: &mut ScriptRewrite<'_>,
     program: NodeId,
     hoisted: &mut Vec<NodeId>,
+    names: &mut Names,
 ) -> Result<Vec<NodeId>, Diagnostic> {
     let Kind::Program(body) = from.kind(program) else {
         unreachable!("scripts parse to programs")
@@ -242,7 +274,7 @@ pub fn lower_instance(
             Kind::VarDecl { kind, decls } => {
                 let mut lowered = Vec::with_capacity(decls.len());
                 for &d in decls {
-                    lower_declarator(from, to, rw, d, &mut lowered);
+                    lower_declarator(from, to, rw, d, &mut lowered, hoisted, names);
                 }
                 if !lowered.is_empty() {
                     out.push(to.var_decl(kind, &lowered, from.loc(stmt)));
@@ -260,6 +292,8 @@ fn lower_declarator(
     rw: &mut ScriptRewrite<'_>,
     d: NodeId,
     out: &mut Vec<NodeId>,
+    hoisted: &mut Vec<NodeId>,
+    names: &mut Names,
 ) {
     let Kind::Declarator {
         id,
@@ -317,29 +351,58 @@ fn lower_declarator(
             let props = to.id("$$props");
             out.push(to.declarator(target, Some(props), loc));
         }
-        (Target::Client, "$props") => lower_client_props(from, to, rw, id, out),
+        (Target::Client, "$props") => lower_client_props(from, to, rw, id, out, hoisted, names),
         _ => out.push(copy(from, to, rw, d)),
     }
 }
 
 /// Upstream client `VariableDeclaration`, `$props` branch: only props that need a source get a
-/// declaration (`$.prop(…)`); the rest are read as `$$props.x`.
+/// declaration (`$.prop(…)`); the rest are read as `$$props.x`, and a rest pattern is
+/// `$.rest_props` without the names declared before it.
 fn lower_client_props(
     from: &Ast,
     to: &mut Ast,
     rw: &mut ScriptRewrite<'_>,
     pattern: NodeId,
     out: &mut Vec<NodeId>,
+    hoisted: &mut Vec<NodeId>,
+    names: &mut Names,
 ) {
+    let mut seen: Vec<String> = ["$$slots", "$$events", "$$legacy"]
+        .map(str::to_owned)
+        .to_vec();
+    let mut rest_props = |target: NodeId, seen: &[String], to: &mut Ast| {
+        let exclude = names.unique("rest_excludes");
+        let items: Vec<NodeId> = seen.iter().map(|n| to.str(n)).collect();
+        let array = to.array(&items, rsv_kernel::source::Loc::SYNTHETIC);
+        let set = to.id("Set");
+        let new = to.new_(set, &[array], rsv_kernel::source::Loc::SYNTHETIC);
+        let id = to.id(&exclude);
+        hoisted.push(to.let_(flag::VAR, id, Some(new)));
+        let props = to.id("$$props");
+        let exclude = to.id(&exclude);
+        let call = to.runtime("$", "rest_props", &[props, exclude]);
+        let target = to.ident(from.name(target), from.loc(target));
+        to.declarator(target, Some(call), rsv_kernel::source::Loc::SYNTHETIC)
+    };
     let Kind::ObjectPat(props) = from.kind(pattern) else {
-        // `let props = $props()`: rest_props needs the excluded-names set; not ported yet.
-        out.push(copy(from, to, rw, pattern));
+        out.push(rest_props(pattern, &seen, to));
         return;
     };
     for &p in props {
-        let Kind::Property { key, value, .. } = from.kind(p) else {
-            continue;
+        let (key, value) = match from.kind(p) {
+            Kind::Property { key, value, .. } => (key, value),
+            Kind::Rest(arg) => {
+                out.push(rest_props(arg, &seen, to));
+                continue;
+            }
+            _ => continue,
         };
+        let key_name = match from.kind(key) {
+            Kind::Ident(_) => from.name(key).to_owned(),
+            _ => from.str_value(key, rw.src).to_owned(),
+        };
+        seen.push(key_name.clone());
         let local = match from.kind(value) {
             Kind::AssignPat(l, _) => l,
             _ => value,
@@ -350,10 +413,6 @@ fn lower_client_props(
         if !rw.res.is_prop_source(b) {
             continue;
         }
-        let key_name = match from.kind(key) {
-            Kind::Ident(_) => from.name(key).to_owned(),
-            _ => from.str_value(key, "").to_owned(),
-        };
         let s = &rw.res.sem.bindings[b];
         let mut flags = 1 | 2; // PROPS_IS_IMMUTABLE | PROPS_IS_RUNES
         if info.kind == BindKind::BindableProp {
