@@ -11,7 +11,7 @@ function request(id = 'svelte'): PipelineRequest {
 	const example = examples.find((item) => item.id === id)!;
 	return {
 		source: example.source, filename: example.filename,
-		plugins: ['svelte', 'vue', 'svue'], operations: ['compile-client', 'format', 'lint'], shared: true
+		plugins: [example.plugin], operations: ['compile-client', 'format', 'lint'], shared: true
 	};
 }
 
@@ -36,9 +36,9 @@ describe('language plugins through the real Rust pipeline in WebAssembly', () =>
 	it('does not run removed plugins, mismatching plugins, or an empty operation list', () => {
 		const input = request();
 		expect(steps({ ...input, plugins: [] })).toEqual([]);
-		expect(steps({ ...input, plugins: ['vue'] })).toEqual([]);
+		expect(steps({ ...input, plugins: ['vue', 'svue'] })).toEqual([]);
 		expect(steps({ ...input, operations: [] })).toEqual([]);
-		expect(steps({ ...input, plugins: ['svelte'] }).map((step) => step.id))
+		expect(steps({ ...input, plugins: ['svelte', 'vue', 'svue'] }).map((step) => step.id))
 			.toEqual(steps(input).map((step) => step.id));
 	});
 
@@ -58,11 +58,19 @@ describe('language plugins through the real Rust pipeline in WebAssembly', () =>
 			.toEqual(isolated.map(({ id, files, diagnostics }) => ({ id, files, diagnostics })));
 	});
 
-	it('reads Vue syntax and translates it to the Svelte compiler representation', () => {
+	it('translates a Vue component for the Svelte runtime', () => {
 		const result = steps(request('svue'));
+		expect(result[0].id).toBe('svue.compile/client');
 		expect(result[0].artifacts.map((artifact) => artifact.name)).toContain('vue.parse');
-		expect(result[0].artifacts.map((artifact) => artifact.name)).toContain('svue.frontend');
+		expect(result[0].artifacts.map((artifact) => artifact.name)).toContain('svue.translate.client');
 		expect(result[0].files.find((file) => file.name === 'js')?.text).toContain('svelte');
+	});
+
+	it('translates a Svelte component for the Vue runtime, sharing the Svelte parse', () => {
+		const result = steps({ ...request('vuelte'), operations: ['compile-client', 'compile-server'] });
+		expect(result.map((step) => step.id)).toEqual(['vuelte.compile/client', 'vuelte.compile/server']);
+		expect(computationCount(result, 'svelte.parse')).toBe(1);
+		expect(result[0].files.find((file) => file.name === 'js')?.text).toContain('vue');
 	});
 
 	it('uses one parser for both Svelte compile targets', () => {

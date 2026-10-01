@@ -63,7 +63,7 @@ function refreshLocal(source: string, seen: Map<string, string>): Record<string,
 				return;
 			}
 			const relPath = decodePath(rel(root, dir));
-			const lang = languageOf(relPath);
+			const lang = languageOf(relPath, family);
 			const ext = input.name.slice('input'.length);
 			if (!lang || lang.family !== family || languageById(lang.id).ext !== ext) {
 				throw new Error(`${source}/${relPath}: the path's extension does not match ${input.name}`);

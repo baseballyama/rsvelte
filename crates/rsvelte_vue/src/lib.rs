@@ -6,9 +6,11 @@
 //! | artifact | output |
 //! |---|---|
 //! | [`Parsed`] | the surface tree ([`syntax_tree::SingleFileComponent`]) or the parse error |
+//! | [`Lowered`] | the template as compiler-core reads it ([`compiler_syntax_tree`]) |
 //! | [`Resolved`] | one scope analysis, compileScript's binding types ([`resolve::Resolution`]) |
 
 pub mod compile;
+pub mod compiler_syntax_tree;
 pub mod format;
 pub mod lint;
 pub mod parse;
@@ -42,6 +44,21 @@ impl Artifact for Parsed {
 }
 
 #[derive(Debug)]
+pub struct Lowered;
+
+impl Artifact for Lowered {
+    /// `None` when the document did not parse or has no `<template>`.
+    type Output = Option<compiler_syntax_tree::CompilerSyntaxTree>;
+
+    const NAME: &'static str = "vue.compiler_syntax_tree";
+
+    fn compute(context: &DocumentContext<'_>) -> Self::Output {
+        let c = context.get::<Parsed>().as_ref().ok()?;
+        compiler_syntax_tree::lower(c, context.source_text())
+    }
+}
+
+#[derive(Debug)]
 pub struct Resolved;
 
 impl Artifact for Resolved {
@@ -52,7 +69,13 @@ impl Artifact for Resolved {
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let c = context.get::<Parsed>().as_ref().ok()?;
-        Some(resolve::resolve(c, context.source_text()))
+        let compiler_syntax_tree = context.get::<Lowered>().as_ref();
+        Some(resolve::resolve(
+            &c.javascript,
+            c.program,
+            compiler_syntax_tree,
+            context.source_text(),
+        ))
     }
 }
 
@@ -74,6 +97,8 @@ pub struct TypeCheckConfiguration {
 }
 
 pub fn register(reg: &mut Registry, config: &Configuration) {
-    reg.artifact::<Parsed>().artifact::<Resolved>();
+    reg.artifact::<Parsed>()
+        .artifact::<Lowered>()
+        .artifact::<Resolved>();
     tasks::register(reg, config);
 }

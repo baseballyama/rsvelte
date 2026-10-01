@@ -38,8 +38,8 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let res = resolve::resolve(&c.javascript, c.program, &c.template_expressions);
     let compiler_syntax_tree = compiler_syntax_tree::lower(&c, &source_text);
+    let res = resolve::resolve(&c.javascript, c.program, &compiler_syntax_tree);
     let input = svelte_input(&c, &compiler_syntax_tree, &source_text);
     let an = analyze::analyze(&input, &res, path);
     let lowered = match target.as_str() {

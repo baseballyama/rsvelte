@@ -12,7 +12,7 @@ use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::positions::Span;
 
 use crate::project::Projection;
-use crate::{Configuration, Parsed, Resolved};
+use crate::{Configuration, Lowered, Parsed, Resolved};
 
 pub fn register(reg: &mut Registry, config: &Configuration) {
     reg.task(Compile)
@@ -62,7 +62,13 @@ impl Task for Compile {
             .expect("a parsed component is resolved");
         let compiled = {
             let _p = measurement::phase("vue.compile");
-            crate::compile::compile(c, context.source_text(), res, &context.document.path)
+            let compiler_syntax_tree = context.get::<Lowered>().as_ref();
+            let input = crate::compile::CompileInput::from_single_file_component(
+                c,
+                compiler_syntax_tree,
+                context.source_text(),
+            );
+            crate::compile::compile(&input, res, &context.document.path)
         };
         match compiled {
             Ok(o) => {

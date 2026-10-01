@@ -11,6 +11,9 @@ use rsvelte_javascript::{Kind, NodeIdentifier, SyntaxTree};
 use rsvelte_kernel::source::interning::Atom;
 use rustc_hash::FxHashMap;
 
+use crate::compiler_syntax_tree::{
+    CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind, PropertyKind,
+};
 use crate::syntax_tree::{
     AttributeKind, DirectiveExpression, DirectiveName, SingleFileComponent, TemplateNode,
     TemplateNodeIdentifier,
@@ -58,11 +61,18 @@ impl Resolution {
     }
 }
 
+/// `program` is the script's program (or an empty one); `compiler_syntax_tree` is the template,
+/// `None` without one.
 #[must_use]
-pub fn resolve(c: &SingleFileComponent, source_text: &str) -> Resolution {
-    let host = template_roots(c);
-    let sem = scope::analyze(&c.javascript, c.program, &host);
-    let (bindings, define_props) = binding_metadata(&c.javascript, source_text, c.program);
+pub fn resolve(
+    javascript: &SyntaxTree,
+    program: NodeIdentifier,
+    compiler_syntax_tree: Option<&CompilerSyntaxTree>,
+    source_text: &str,
+) -> Resolution {
+    let host = compiler_syntax_tree.map_or_else(Vec::new, template_roots);
+    let sem = scope::analyze(javascript, program, &host);
+    let (bindings, define_props) = binding_metadata(javascript, source_text, program);
     Resolution {
         sem,
         bindings,
@@ -71,29 +81,29 @@ pub fn resolve(c: &SingleFileComponent, source_text: &str) -> Resolution {
     }
 }
 
-fn template_roots(c: &SingleFileComponent) -> Vec<HostRoot> {
+/// The template's scope roots, in document order.
+#[must_use]
+pub fn template_roots(compiler_syntax_tree: &CompilerSyntaxTree) -> Vec<HostRoot> {
     let mut out = Vec::new();
-    for &n in c.root() {
-        node_roots(c, n, &mut out);
+    for &n in compiler_syntax_tree.root() {
+        node_roots(compiler_syntax_tree, n, &mut out);
     }
     out
 }
 
-fn node_roots(c: &SingleFileComponent, n: TemplateNodeIdentifier, out: &mut Vec<HostRoot>) {
-    match c.node(n) {
-        TemplateNode::Text { .. } | TemplateNode::Comment { .. } => {}
-        TemplateNode::Interpolation { expression, .. } => {
-            out.push(HostRoot::Expression(*expression));
-        }
-        TemplateNode::Element {
-            attributes,
-            children,
-            ..
-        } => {
+fn node_roots(
+    compiler_syntax_tree: &CompilerSyntaxTree,
+    n: CompilerNodeIdentifier,
+    out: &mut Vec<HostRoot>,
+) {
+    match &compiler_syntax_tree.node(n).kind {
+        NodeKind::Text(_) | NodeKind::Comment { .. } => {}
+        NodeKind::Interpolation { expression } => out.push(HostRoot::Expression(*expression)),
+        NodeKind::Element(el) => {
             let mut inner = Vec::new();
             let mut for_exp = None;
-            for a in c.attributes(*attributes) {
-                if let AttributeKind::Directive(d) = &a.kind {
+            for p in compiler_syntax_tree.props(el.props) {
+                if let PropertyKind::Directive(d) = &p.kind {
                     match &d.exp {
                         DirectiveExpression::None => {}
                         DirectiveExpression::Expression(e) => inner.push(HostRoot::Expression(*e)),
@@ -101,8 +111,8 @@ fn node_roots(c: &SingleFileComponent, n: TemplateNodeIdentifier, out: &mut Vec<
                     }
                 }
             }
-            for &k in c.children(*children) {
-                node_roots(c, k, &mut inner);
+            for &k in compiler_syntax_tree.children(el.children) {
+                node_roots(compiler_syntax_tree, k, &mut inner);
             }
             match for_exp {
                 // vue-eslint-parser: the aliases are visible on the whole element.

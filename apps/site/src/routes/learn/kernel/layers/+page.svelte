@@ -277,47 +277,132 @@
 <div class="prose-learn">
 	<H2 id="svue" />
 	<p>
-		コンパイラが コンパイル用に整理した構文木だけを読むので、コンパイル用に整理した構文木を作れる別の構文があれば、そのまま Svelte としてコンパイルできます。<code>rsvelte_svue</code>
-		はその実験です。<code>.svue</code> は Vue のテンプレート構文で書き、Svelte の意味でコンパイルします。<code>{'{{ e }}'}</code> は <code
-			>{'{e}'}</code
-		>、<code>:x="e"</code> は <code>x={'{e}'}</code>、<code>@x="e"</code> は <code>onx={'{e}'}</code>、<code>v-if</code> /
-		<code>v-else-if</code> / <code>v-else</code> の並びは一つの <code>{'{#if}'}</code> です。
-	</p>
-	<p>
-		新しいコンパイラは書いていません。パースは Vue プラグインのパーサ（計算結果も Vue プラグインの <code>rsvelte_vue::Parsed</code>
-		そのもの）、名前解決と解析と出力は Svelte プラグインのものです。<code>rsvelte_svue</code> が持っているのは、Vue の木から Svelte の コンパイル用に整理した構文木
-		を作る変換だけです。
+		コンパイラは コンパイル用に整理した構文木だけを読みます。そのため、別の言語からこの構文木を作れれば、同じコンパイラで Svelte
+		のランタイム向けの JavaScript を出力できます。<code>rsvelte_svue</code> はこの仕組みを使い、<code>.vue</code> のコンポーネントを
+		<strong>Vue の意味のまま</strong> Svelte のランタイム向けにコンパイルします。新しい言語は足さず、<code>.vue</code> の文書に適用するタスク
+		<code>svue.compile/client</code> と <code>svue.compile/server</code> を足すだけです。構文解析と名前解決は Vue プラグインの計算結果を使い、解析と出力は Svelte
+		プラグインのコンパイラを使います。<code>rsvelte_svue</code> が持っているのは、Vue の構文木から Svelte の runes を使うスクリプトと
+		コンパイル用に整理した構文木を作る翻訳だけです。
 	</p>
 </div>
 
-<Code item={data.code.svueRegister} mark={['.artifact::<rsvelte_vue::Parsed>()']} />
-<Code item={data.code.svueFrontend} />
-<Code item={data.code.svueBuild} mark={['CompilerSyntaxTreeBuilder::new(source_text, sfc.nodes.len(), sfc.attributes.len())']} />
+<Code item={data.code.svueRegister} />
+<Code item={data.code.svueTranslated} />
+<Code item={data.code.svueInput} />
 
 <div class="prose-learn">
 	<p>
-		名前解決も Svelte の関数を、Vue のパーサが作った JavaScript の木と、変換が集めたテンプレートの式に対して呼ぶだけです。コンパイラが受け取るのは、どちらのフロントエンドでも同じ形の入力です。
+		書き方が同じでも、二つのランタイムでは意味が違います。Vue の <code>{'{{ e }}'}</code> は <code>toDisplayString</code>
+		を通るので、オブジェクトは <code>JSON.stringify</code> と同じ形の文字列になります。Svelte の <code>{'{e}'}</code> は <code>String(e)</code> です。また Vue
+		では、渡されなかった <code>Boolean</code> の prop は <code>false</code> になり、宣言していない属性はルート要素に引き継がれます。
+	</p>
+	<p>
+		翻訳はこうした違いを近似せず、Vue 自身の実装を呼んで再現します。
+	</p>
+	<ul>
+		<li>補間: <code>vue</code> の <code>toDisplayString</code> を呼びます。</li>
+		<li><code>v-for</code>: <code>renderList</code> を呼びます。</li>
+		<li><code>Boolean</code> の prop: runtime-core の <code>resolvePropValue</code> を写した <code>$derived.by</code> にします。</li>
+		<li>サーバー向けの <code>v-model</code>: compiler-ssr が出力するのと同じ属性にします。</li>
+	</ul>
+	<p>
+		svue には上流のコンパイラがないので、比較元は出力の文字列ではなく動作です。公式の Vue でビルドしたコンポーネントについて、操作の手順ごとに画面の要素の木とサーバー描画の結果を記録します。それを、rsvelte
+		の出力を Svelte のランタイムで動かした記録と比べます。
+	</p>
+	<p>
+		Svelte の移植は svue のために変えていません。Svelte の移植はどれも上流の <code>svelte/compiler</code>
+		と出力を突き合わせる、という規則を守るためです。Svelte プラグインに足したのは、別の言語から渡された文字列をテキストとして構文木に置く
+		<code>compiler_syntax_tree::spelled_text</code> だけです。足す前後で <code>svelte.compile</code> の出力はバイト単位で一致しました（ed7af962b2）。
+	</p>
+	<p>
+		翻訳が出力するのは、Svelte の移植が上流と同じにコンパイルできる構文だけです。Vue のテキストは空白をすでに畳んでいるので、Svelte
+		のコンパイラは上流の <code>preserveWhitespace</code> オプションを付けて走らせ、空白を二度畳まないようにします。ルートに引き継ぐ属性は
+		<code>{'{...attrs}'}</code> にし、<code>class</code> は runtime-core の <code>mergeProps</code> と同じ規則で合成します。Vue は props に
+		<code>class</code> のキーがあるときだけ属性を書きます。そのため、自分の <code>class</code> を持たない要素では、スプレッド構文の中で合成します。動作の比較では、見えない空白と空の
+		<code>class</code> 属性を区別できません。この二つは crate のテストで固定しています。
 	</p>
 </div>
 
-<Code item={data.code.svueResolved} />
-<Code item={data.code.compileInputType} />
+<Code item={data.code.svueClass} />
 
 <div class="prose-learn">
 	<p>
-		Svelte に変換できない構文は <code>compile_unsupported</code> で拒否します。
-		対象は <code>v-for</code>、引数と値を持つ <code>:x</code> と <code>@x</code> 以外の指令、二つ目のスタイル要素です。
-		比較用の変換処理は、Rust の実装とは別に <code>tools/fixtures/src/svue.ts</code> に書いています。
-		この処理で Svelte の構文に書き直し、公式コンパイラに渡します。
-		導入時は、5検証例のクライアント用・サーバー用の出力がすべて一致しました（96b8f37ac8）。
+		導入したコミットでは、手書きの 12 検証例のうち、クライアント用で 4、サーバー用で 7 が一致しました。残りは拒否で、不一致は 0 でした（73c8eea9c1）。拒否したのは、翻訳は書いてあるものの、Svelte
+		の移植がその構文をまだコンパイルできないものだけでした。対象はクライアント用の <code>v-model</code>（<code>{'{@attach}'}</code>
+		で Vue の <code>vModelText</code> などを走らせる）、ルートへの属性の引き継ぎ（<code>{'{...attrs}'}</code>）、<code>&lt;select&gt;</code>
+		です。Svelte の移植がこれらに対応してからは、クライアント用とサーバー用の両方で 12 検証例すべてが一致します。
 	</p>
 	<p>
-		Svelte プラグインにも二つの変更が必要でした。コンパイル用の構文木を外部から作れるようにしました。
-		また、属性名を元のソース内の位置だけでなく、文字列としても保存できるようにしました。たとえば <code
-			>@click</code
-		>
-		は <code>onclick</code> という名前になります。元のソースにはその名前は書かれていません。その前段として、解析と出力が元の構文木ではなく
-		コンパイル用に整理した構文木を読むように移しています。移したときは、Svelte の検証用のソースファイル集で compile・format・lint の出力 70,608 ファイルのハッシュが前後で一致しました（db94f0bd13）。
+		Vue の移植の側には、<code>v-on</code> の修飾子を足しました。<code>vue.compile</code> も compiler-dom と同じく、<code>withModifiers</code> と <code
+			>withKeys</code
+		> を使って出力します。
+	</p>
+	<p>
+		この仕組みの前段として、Svelte プラグインの解析と出力は、元の構文木ではなくコンパイル用に整理した構文木を読むように移してあります。この構文木は外部から作れます。属性名は元のソース内の位置だけでなく、文字列としても持てます。たとえば
+		Vue の <code>@click</code> は <code>onclick</code> という名前になりますが、元のソースにはその名前は書かれていません。移したときは、Svelte の検証用のソースファイル集で
+		compile・format・lint の出力 70,608 ファイルのハッシュが前後で一致しました（db94f0bd13）。
+	</p>
+
+	<H2 id="vuelte" />
+	<p>
+		逆向きの翻訳もあります。<code>rsvelte_vuelte</code> は <code>.svelte</code> のコンポーネントを、Svelte の意味のまま Vue
+		のランタイム向けの JavaScript にコンパイルします。新しい言語は足さず、<code>.svelte</code> の文書に適用するタスク
+		<code>vuelte.compile/client</code> と <code>vuelte.compile/server</code> を足すだけです。構文解析、名前解決、コンパイル用に整理した構文木、解析は
+		<code>svelte.compile</code> と同じ計算結果を使い、出力には Vue プラグインの名前解決とコンパイラを使います。<code>rsvelte_vuelte</code>
+		が持っているのは、Svelte の構文木から Vue の構文木とスクリプトを作る翻訳だけです。
+	</p>
+</div>
+
+<Code item={data.code.vuelteRegister} />
+<Code item={data.code.vuelteModule} />
+
+<div class="prose-learn">
+	<p>
+		vuelte にも上流のコンパイラがないので、比較元は動作です。公式の Svelte でビルドしたコンポーネントを画面に表示し、操作の手順ごとに画面の要素の木とサーバー描画の結果を記録します。それを、rsvelte
+		の出力を Vue のランタイムで動かした記録と比べます。
+	</p>
+	<p>
+		書き方が同じでも、二つのランタイムでは意味が違います。補間の表示、要素の間の空白、<code>value</code>
+		を属性としても書くかどうかなどです。翻訳は、Svelte のランタイムの判断を Vue の上で再現します。たとえば Svelte の束縛は要素に対する effect
+		です。そこで、Vue が要素を更新するたびと取り外すときに呼ぶ関数 ref の中で、その処理を動かします。
+	</p>
+</div>
+
+<Code item={data.code.vuelteRef} />
+<Code item={data.code.vuelteBindText} />
+
+<div class="prose-learn">
+	<p>動作の比較で見つかった違い（<code>docs/fixtures.md</code> §12.8）は、それぞれ次のように再現しています。</p>
+	<ul>
+		<li>
+			補間: Vue の <code>toDisplayString</code> は、オブジェクトを <code>JSON.stringify</code> と同じ形の文字列にします。翻訳は、先に Svelte
+			と同じ変換をしてから渡します。クライアント用は <code>{'`${e ?? \'\'}`'}</code>、サーバー用は <code>{"String(e ?? '')"}</code> です。
+		</li>
+		<li>
+			要素の間の空白: Svelte の <code>clean_nodes</code> が残したテキストを、そのまま Vue の構文木に入れます。Vue の空白の畳み込みは、構文木を作った後には走りません。
+		</li>
+		<li>渡されなかった prop: <code>defineProps</code> に <code>type</code> を書かないので、Vue の <code>Boolean</code> への変換が起きません。</li>
+		<li>
+			宣言していない属性: すべてのコンポーネントに <code>defineOptions({'{ inheritAttrs: false }'})</code> を付けます。<code
+				>{'let { ...rest } = $props()'}</code
+			> は <code>useAttrs()</code> にします。スプレッド構文を持つ要素では、すべての属性を一つのオブジェクトにまとめます。それを Svelte の
+			<code>set_attributes</code>（クライアント用）と <code>attributes</code>（サーバー用）を移植した補助関数に渡します。
+		</li>
+		<li>数値の入力欄の <code>bind:value</code>: 意味を再現できないので拒否します。</li>
+	</ul>
+	<p>
+		再現できない構文は、それらしく変換せずに、出力を作る前に拒否します。たとえば <code>{'{@attach}'}</code> は拒否します。Svelte
+		はこれを、読んだ値を追跡する effect として走らせます。一方、Vue の関数 ref は自分では何も追跡しないからです。
+	</p>
+	<p>
+		導入したコミット（24c6e6a123）では、手書きの 12 検証例のうち 11 で、クライアント用とサーバー用の両方が一致しました。残りの一つはスプレッド構文の属性で、拒否していました。スプレッド構文に対応した後（6b5621c994）は、12
+		検証例すべてが一致します。Svelte の検証用のソースファイル集では、クライアント用 685 件、サーバー用 686 件を出力し、異常終了は 0 件です。出力はどれも、公式の
+		Svelte と並べて動かしたとき、表示した時点の記録が一致しました。両方が同じ例外を投げるものも含みます。
+	</p>
+	<p>
+		Vue の移植の側に足したのは、<code>defineOptions</code>、<code>&lt;pre&gt;</code>、関数の <code>:ref</code>、オブジェクトの <code
+			>v-bind</code
+		> の四つです。足す前後で、Vue の検証例のコンパイル出力は変わっていません。
 	</p>
 
 	<H2 id="lint" />

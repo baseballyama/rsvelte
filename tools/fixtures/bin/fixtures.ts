@@ -60,7 +60,7 @@ switch (positionals[0]) {
 		break;
 	case 'compare': {
 		if (!values.task || !values.variant) throw new Error('--task and --variant are required');
-		const r = compare({ taskId: values.task, variantId: values.variant, sourceIds: list(values.source), families: list(values.family) });
+		const r = await compare({ taskId: values.task, variantId: values.variant, sourceIds: list(values.source), families: list(values.family) });
 		console.log(`units: ${r.units}  ${JSON.stringify(r.counts)}`);
 		const lines = r.rows
 			.filter((x) => x.verdict !== 'match')
@@ -74,7 +74,7 @@ switch (positionals[0]) {
 	}
 	case 'check': {
 		// The parity ratchet, one verdict per task, variant and unit: `match`, or its worst artifact
-		// verdict. A unit rsv refuses (it wrote only diagnostics where the oracle has output) is not
+		// verdict. A unit rsvelte refuses (it wrote only diagnostics where the oracle has output) is not
 		// listed, so a unit becoming refused shows as an entry that went and a newly supported one as
 		// an entry that came. Two-sided: every difference from _registry/parity.json fails, a fix
 		// included, so the change that makes it records it. Nothing is capped: CI's log is the list
@@ -84,7 +84,7 @@ switch (positionals[0]) {
 		const now: Record<string, string> = {};
 		for (const t of TASKS) {
 			for (const v of t.variants) {
-				const r = compare({ taskId: t.id, variantId: v.id });
+				const r = await compare({ taskId: t.id, variantId: v.id });
 				const units = new Map<string, typeof r.rows>();
 				for (const x of r.rows) units.set(x.key, [...(units.get(x.key) ?? []), x]);
 				let refused = 0;

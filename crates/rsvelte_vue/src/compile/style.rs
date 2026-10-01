@@ -5,14 +5,14 @@ use rsvelte_kernel::output::emitter::Edits;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_stylesheet::syntax_tree::{Rule, RuleKind, Simple};
 
-use crate::syntax_tree::Style;
+use super::StyleInput;
 
 /// # Errors
 ///
 /// [`Unsupported`] for a scoped selector the port does not rewrite yet.
 pub(super) fn compile(
     source_text: &str,
-    style: &Style,
+    style: &StyleInput<'_>,
     identifier: &str,
 ) -> Result<String, Unsupported> {
     let mut edits = Edits::default();

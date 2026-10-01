@@ -163,6 +163,11 @@ impl<I: TypedIndex, T> IndexVector<I, T> {
     pub fn reserve(&mut self, n: usize) {
         self.raw.reserve(n);
     }
+
+    /// Keeps the first `len` elements.
+    pub fn truncate(&mut self, len: usize) {
+        self.raw.truncate(len);
+    }
 }
 
 impl<I: TypedIndex, T> Default for IndexVector<I, T> {

@@ -1,0 +1,2 @@
+[behaviour]
+steps = [{ input = ["input", "5"] }, { input = ["input", ""] }, { input = ["input", "2.50"] }]

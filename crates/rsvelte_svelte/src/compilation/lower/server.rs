@@ -1,29 +1,41 @@
 //! Server lowering: the component becomes string pushes onto `$$renderer`. Mirrors upstream
-//! `3-transform/server` (Fragment, `RegularElement`, `IfBlock`, shared/utils, shared/element).
+//! `3-transform/server` (Fragment, `RegularElement`, `IfBlock`, `EachBlock`, shared/utils,
+//! shared/element).
 
 use rsvelte_javascript::copy::copy;
+use rsvelte_javascript::operators::{BinaryOperator, UpdateOperator};
+use rsvelte_javascript::scope::ScopeIdentifier;
+use rsvelte_javascript::syntax_tree::flag;
 use rsvelte_javascript::{Kind, NodeIdentifier, SyntaxTree};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::source::positions::SourceLocation;
 use rsvelte_markup::decode_text;
+use rustc_hash::FxHashMap;
 
+use super::client::{call_arguments, init_property, runtime_call};
+use super::names::Names;
 use super::script::{ScriptRewrite, lower_instance};
 use super::{
-    CompileInput, Item, Parent, Target, clean_nodes, escape_markup, event_attribute,
-    is_boolean_attribute, sanitize_template_string,
+    CompileInput, Item, Parent, Target, check_binding, check_foreign_element, check_runes,
+    check_stores, clean_nodes, each_index_names, escape_markup, event_attribute,
+    is_boolean_attribute, is_customizable_select, is_directive, is_load_error_element, needs_clsx,
+    sanitize_template_string, synthetic_value,
 };
 use crate::compilation::compiler_syntax_tree::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, ElementKind, NodeKind,
-    Part,
+    Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,
+    NodeKind, Part,
 };
 use crate::semantic::analyze::Analysis;
-use crate::semantic::resolve::Resolution;
+use crate::semantic::resolve::{BindingKind, Resolution};
 use crate::syntax::parse::is_void;
 
 type R<T> = Result<T, Diagnostic>;
 
+const BLOCK_OPEN: &str = "<!--[-->";
+const BLOCK_OPEN_ELSE: &str = "<!--[!-->";
 const BLOCK_CLOSE: &str = "<!--]-->";
 const EMPTY_COMMENT: &str = "<!---->";
+const ELEMENT_IS_INPUT: u32 = 1 << 2;
 
 /// One piece of a server template before it is folded into `$$renderer.push(…)` calls.
 enum Piece {
@@ -42,29 +54,53 @@ struct Sx<'a> {
     res: &'a Resolution,
     an: &'a Analysis,
     out: SyntaxTree,
+    names: Names,
+    each_index: FxHashMap<CompilerNodeIdentifier, String>,
+    /// Upstream `state.preserve_whitespace`: the option, or inside `<pre>` or `<textarea>`.
+    preserve_ws: bool,
 }
 
 /// # Errors
 ///
 /// An `unsupported` [`Diagnostic`] if the component uses an element or attribute the server
 /// lowering does not handle yet.
+#[expect(
+    clippy::too_many_lines,
+    reason = "ports upstream's server component transform in one piece"
+)]
 pub fn lower(
     input: &CompileInput<'_>,
     res: &Resolution,
     an: &Analysis,
 ) -> R<(SyntaxTree, NodeIdentifier)> {
+    let javascript = input.javascript;
+    check_stores(javascript, res, input.source_text, input.program)?;
+    check_runes(input, res, Target::Server)?;
+    let declared = res
+        .sem
+        .bindings
+        .iter()
+        .map(|b| javascript.atoms.get(b.name));
+    let referenced = res.sem.references.iter().map(|r| javascript.name(r.node));
+    let mut names = Names::new(declared, referenced);
+    let each_index = each_index_names(input.compiler_syntax_tree, &mut names);
     let mut sx = Sx {
-        javascript: input.javascript,
+        javascript,
         compiler_syntax_tree: input.compiler_syntax_tree,
         source_text: input.source_text,
         res,
         an,
         out: SyntaxTree::new(),
+        names,
+        each_index,
+        preserve_ws: input.preserve_whitespace,
     };
     let mut hoisted = Vec::new();
     let mut rw = ScriptRewrite {
         target: Target::Server,
         res,
+        source_text: input.source_text,
+        each: None,
     };
     let instance = lower_instance(
         input.javascript,
@@ -72,6 +108,7 @@ pub fn lower(
         &mut rw,
         input.program,
         &mut hoisted,
+        &mut sx.names,
     )?;
     let template = sx.fragment(
         Parent::Root,
@@ -83,6 +120,34 @@ pub fn lower(
     let o = &mut sx.out;
     let mut body: Vec<NodeIdentifier> = instance;
     body.extend(template);
+    // Upstream: in runes mode this only throws when `undefined` is passed to a bound prop that
+    // has a default.
+    let mut bound = Vec::new();
+    for (b, binding) in res.sem.bindings.iter_enumerated() {
+        let info = &res.bindings[b];
+        let name = javascript.atoms.get(binding.name);
+        if binding.scope != ScopeIdentifier::ROOT
+            || info.kind != BindingKind::BindableProperty
+            || name.starts_with("$$")
+        {
+            continue;
+        }
+        let key = info.prop_key.map_or_else(
+            || name.to_owned(),
+            |k| match javascript.kind(k) {
+                Kind::Identifier(_) => javascript.name(k).to_owned(),
+                _ => javascript.str_value(k, input.source_text).to_owned(),
+            },
+        );
+        let value = o.identifier(name);
+        bound.push(init_property(o, &key, value));
+    }
+    if !bound.is_empty() {
+        let props = o.identifier("$$props");
+        let object = o.object(&bound, SourceLocation::SYNTHETIC);
+        let call = o.runtime("$", "bind_props", &[props, object]);
+        body.push(o.expression_statement(call));
+    }
     if an.needs_context {
         let block = o.block(&body, SourceLocation::SYNTHETIC);
         let param = o.identifier("$$renderer");
@@ -117,11 +182,13 @@ pub fn lower(
     Ok((sx.out, root))
 }
 
-impl Sx<'_> {
+impl<'a> Sx<'a> {
     fn expression(&mut self, e: NodeIdentifier) -> NodeIdentifier {
         let mut rw = ScriptRewrite {
             target: Target::Server,
             res: self.res,
+            source_text: self.source_text,
+            each: None,
         };
         copy(self.javascript, &mut self.out, &mut rw, e)
     }
@@ -136,7 +203,7 @@ impl Sx<'_> {
             self.source_text,
             parent,
             list,
-            false,
+            self.preserve_ws,
         );
         let mut template = Vec::new();
         if cleaned.text_first {
@@ -157,6 +224,7 @@ impl Sx<'_> {
                     match self.compiler_syntax_tree.node(*identifier).kind {
                         NodeKind::Element(_) => self.element(*identifier, template)?,
                         NodeKind::If { .. } => self.if_block(*identifier, template)?,
+                        NodeKind::Each(_) => self.each_block(*identifier, template)?,
                         _ => unreachable!("clean_nodes keeps only elements and blocks as nodes"),
                     }
                 }
@@ -278,7 +346,7 @@ impl Sx<'_> {
         let tag = el.name.text(self.source_text).to_ascii_lowercase();
         if matches!(
             tag.as_str(),
-            "svg" | "math" | "script" | "style" | "select" | "option" | "textarea" | "template"
+            "svg" | "math" | "script" | "style" | "textarea" | "template"
         ) || tag.contains('-')
         {
             return Err(Diagnostic::error(
@@ -287,20 +355,163 @@ impl Sx<'_> {
                 el.name,
             ));
         }
+        if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {
+            return Err(Diagnostic::error(
+                "unsupported",
+                format!("rich content in `<{tag}>` is not supported yet"),
+                el.name,
+            ));
+        }
+        check_foreign_element(self.source_text, el.name)?;
+        let select_special = tag == "select"
+            && compiler_syntax_tree
+                .attributes(el.attributes)
+                .iter()
+                .any(|a| match a.value {
+                    AttributeValue::Spread(_) => true,
+                    AttributeValue::Attach(_) | AttributeValue::Class(_) => false,
+                    _ => {
+                        let name = a.name.text(self.source_text);
+                        name == "value" || name.eq_ignore_ascii_case("defaultvalue")
+                    }
+                });
+        if select_special || tag == "option" {
+            return self.select_element(identifier, el, &tag, template);
+        }
         template.push(Piece::Text(format!("<{tag}")));
+        self.element_attributes(
+            identifier,
+            &tag,
+            compiler_syntax_tree.attributes(el.attributes),
+            template,
+        )?;
+        let void = is_void(&tag);
+        template.push(Piece::Text(if void { "/>".into() } else { ">".into() }));
+        let outer_preserve = self.preserve_ws;
+        self.preserve_ws |= tag == "pre" || tag == "textarea";
+        let cleaned = clean_nodes(
+            compiler_syntax_tree,
+            self.source_text,
+            Parent::Element(&tag),
+            compiler_syntax_tree.children(el.children),
+            self.preserve_ws,
+        );
+        let children = self.process_children(&cleaned.items, template);
+        self.preserve_ws = outer_preserve;
+        children?;
+        if !void {
+            template.push(Piece::Text(format!("</{tag}>")));
+        }
+        Ok(())
+    }
+
+    /// Upstream `RegularElement`'s `is_select_special` / `is_option_special` branches: the
+    /// renderer writes the element, so it can mark the selected option.
+    fn select_element(
+        &mut self,
+        identifier: CompilerNodeIdentifier,
+        el: &Element,
+        tag: &str,
+        template: &mut Vec<Piece>,
+    ) -> R<()> {
+        let compiler_syntax_tree = self.compiler_syntax_tree;
+        let body = if let Some(e) = synthetic_value(compiler_syntax_tree, self.source_text, tag, el)
+        {
+            self.expression(e)
+        } else {
+            let cleaned = clean_nodes(
+                compiler_syntax_tree,
+                self.source_text,
+                Parent::Element(tag),
+                compiler_syntax_tree.children(el.children),
+                self.preserve_ws,
+            );
+            let mut inner = Vec::new();
+            self.process_children(&cleaned.items, &mut inner)?;
+            let statements = self.build_template(inner);
+            let block = self.out.block(&statements, SourceLocation::SYNTHETIC);
+            let param = self.out.identifier("$$renderer");
+            self.out
+                .arrow(&[param], block, false, false, SourceLocation::SYNTHETIC)
+        };
+        let (mut arguments, _) = self.spread_args(
+            identifier,
+            tag,
+            compiler_syntax_tree.attributes(el.attributes),
+            true,
+        )?;
+        arguments.insert(1, Some(body));
+        let arguments = call_arguments(&mut self.out, arguments);
+        let r = self.out.identifier("$$renderer");
+        let callee = self.out.dot(r, tag);
+        let call = self
+            .out
+            .call(callee, &arguments, false, SourceLocation::SYNTHETIC);
+        template.push(Piece::Statement(self.out.expression_statement(call)));
+        Ok(())
+    }
+
+    /// Upstream `build_element_attributes` (no spread).
+    #[expect(
+        clippy::too_many_lines,
+        reason = "ports upstream's `build_element_attributes` in one piece"
+    )]
+    fn element_attributes(
+        &mut self,
+        identifier: CompilerNodeIdentifier,
+        tag: &str,
+        list: &'a [Attribute],
+        template: &mut Vec<Piece>,
+    ) -> R<()> {
+        let source_text = self.source_text;
+        // A `defaultValue` on an `<input>` deopts to the spread path, which orders it at runtime.
+        let has_spread = list.iter().any(|a| {
+            matches!(a.value, AttributeValue::Spread(_))
+                || (tag == "input"
+                    && !is_directive(&a.value)
+                    && matches!(a.name.text(source_text), "defaultValue" | "defaultChecked"))
+        });
+        if has_spread {
+            return self.spread_attributes(identifier, tag, list, template);
+        }
         let hash = if self.an.scoped[identifier] {
             self.an.stylesheet_hash.clone()
         } else {
             None
         };
-        let list = compiler_syntax_tree.attributes(el.attributes);
+        let mut events = Vec::new();
+        let class_directives: Vec<&Attribute> = list
+            .iter()
+            .filter(|a| matches!(a.value, AttributeValue::Class(_)))
+            .collect();
         for a in list {
             let raw_name = a.name.text(self.source_text);
-            if event_attribute(self.source_text, a).is_some() {
-                continue;
+            match a.value {
+                AttributeValue::Bind(_) => {
+                    let e =
+                        check_binding(self.javascript, self.res, self.source_text, tag, list, a)?;
+                    let name = raw_name.to_ascii_lowercase();
+                    let value = self.expression(e);
+                    let n = self.out.write_string(&name);
+                    let mut arguments = vec![n, value];
+                    if is_boolean_attribute(&name) {
+                        arguments.push(self.out.write_boolean(true, SourceLocation::SYNTHETIC));
+                    }
+                    template.push(Piece::Expression(self.out.runtime("$", "attr", &arguments)));
+                    continue;
+                }
+                AttributeValue::Attach(_) | AttributeValue::Class(_) => continue,
+                AttributeValue::Spread(_) => unreachable!("spreads take the spread path"),
+                _ if event_attribute(self.source_text, a).is_some() => {
+                    capture_event(&mut events, tag, raw_name);
+                    continue;
+                }
+                _ if matches!(raw_name, "defaultValue" | "defaultChecked") => continue,
+                _ => {}
             }
-            let attribute_name = super::client::normalize_attribute(raw_name);
-            let trim = matches!(attribute_name.as_str(), "class" | "style");
+            let name = raw_name.to_ascii_lowercase();
+            let trim = matches!(name.as_str(), "class" | "style");
+            let can_use_literal = name != "class" || class_directives.is_empty();
             let literal = match &a.value {
                 AttributeValue::Boolean => Some(None),
                 AttributeValue::Static(v) => Some(Some(
@@ -308,46 +519,200 @@ impl Sx<'_> {
                 )),
                 _ => None,
             };
-            if let Some(v) = literal {
-                Self::literal_attribute(template, &attribute_name, v, hash.as_deref());
+            if can_use_literal && let Some(v) = literal {
+                Self::literal_attribute(template, &name, v, hash.as_deref());
                 continue;
             }
-            if attribute_name == "class" || attribute_name == "style" {
+            if name == "style" {
                 return Err(Diagnostic::error(
                     "unsupported",
-                    format!("a dynamic `{attribute_name}` attribute is not supported yet"),
+                    "a dynamic `style` attribute is not supported yet",
                     a.span,
                 ));
             }
-            let value = self.attribute_value(a, trim);
-            let n = self.out.write_string(&attribute_name);
-            let mut arguments = vec![n, value];
-            if is_boolean_attribute(&attribute_name) {
-                arguments.push(self.out.write_boolean(true, SourceLocation::SYNTHETIC));
+            let value = self.attribute_value(a, trim, raw_name == "class");
+            if can_use_literal && matches!(self.out.kind(value), Kind::String) {
+                let mut v = self.out.str_value(value, self.source_text).to_owned();
+                if name == "class"
+                    && let Some(h) = &hash
+                {
+                    format!("{v} {h}").trim().clone_into(&mut v);
+                }
+                let v = escape_markup(&v, true);
+                template.push(Piece::Text(format!(" {name}=\"{v}\"")));
+            } else if name == "class" {
+                let call = self.attribute_class(&class_directives, value, hash.as_deref());
+                template.push(Piece::Expression(call));
+            } else {
+                let n = self.out.write_string(&name);
+                let mut arguments = vec![n, value];
+                if is_boolean_attribute(&name) {
+                    arguments.push(self.out.write_boolean(true, SourceLocation::SYNTHETIC));
+                }
+                template.push(Piece::Expression(self.out.runtime("$", "attr", &arguments)));
             }
-            template.push(Piece::Expression(self.out.runtime("$", "attr", &arguments)));
         }
-        let has_class = list
-            .iter()
-            .any(|a| a.name.text(self.source_text).eq_ignore_ascii_case("class"));
-        if !has_class && self.an.scoped[identifier] {
+        // Upstream's analysis appends `class=""` to such an element.
+        let has_class = list.iter().any(|a| {
+            !matches!(a.value, AttributeValue::Class(_))
+                && a.name.text(self.source_text).eq_ignore_ascii_case("class")
+        });
+        if !has_class && !class_directives.is_empty() {
+            let value = self.out.write_string("");
+            let call = self.attribute_class(&class_directives, value, hash.as_deref());
+            template.push(Piece::Expression(call));
+        } else if !has_class && self.an.scoped[identifier] {
             Self::literal_attribute(template, "class", Some(String::new()), hash.as_deref());
         }
-        let void = is_void(&tag);
-        template.push(Piece::Text(if void { "/>".into() } else { ">".into() }));
-        let preserve = tag == "pre" || tag == "textarea";
-        let cleaned = clean_nodes(
-            compiler_syntax_tree,
-            self.source_text,
-            Parent::Element(&tag),
-            compiler_syntax_tree.children(el.children),
-            preserve,
-        );
-        self.process_children(&cleaned.items, template)?;
-        if !void {
-            template.push(Piece::Text(format!("</{tag}>")));
-        }
+        push_captured_events(template, &events);
         Ok(())
+    }
+
+    /// Upstream `build_element_attributes`' spread path: `build_element_spread_attributes` and
+    /// `prepare_element_spread`.
+    fn spread_attributes(
+        &mut self,
+        identifier: CompilerNodeIdentifier,
+        tag: &str,
+        list: &'a [Attribute],
+        template: &mut Vec<Piece>,
+    ) -> R<()> {
+        let (arguments, events) = self.spread_args(identifier, tag, list, false)?;
+        let call = runtime_call(&mut self.out, "attributes", arguments);
+        template.push(Piece::Expression(call));
+        push_captured_events(template, &events);
+        Ok(())
+    }
+
+    /// Upstream `prepare_element_spread`'s arguments. `all` is `prepare_element_spread_object`,
+    /// which keeps every attribute; otherwise the spread path of `build_element_attributes`
+    /// filters events (returned for capture) and the values the runtime sets elsewhere.
+    fn spread_args(
+        &mut self,
+        identifier: CompilerNodeIdentifier,
+        tag: &str,
+        list: &'a [Attribute],
+        all: bool,
+    ) -> R<(Vec<Option<NodeIdentifier>>, Vec<&'a str>)> {
+        let mut events = Vec::new();
+        let mut props = Vec::with_capacity(list.len());
+        let mut class_directives = Vec::new();
+        for a in list {
+            let raw_name = a.name.text(self.source_text);
+            match a.value {
+                AttributeValue::Bind(_) => {
+                    let e =
+                        check_binding(self.javascript, self.res, self.source_text, tag, list, a)?;
+                    let value = self.expression(e);
+                    let name = raw_name.to_ascii_lowercase();
+                    props.push(init_property(&mut self.out, &name, value));
+                    continue;
+                }
+                AttributeValue::Attach(_) => continue,
+                AttributeValue::Class(e) => {
+                    class_directives.push((raw_name, e));
+                    continue;
+                }
+                AttributeValue::Spread(e) => {
+                    let v = self.expression(e);
+                    props.push(self.out.spread(v, SourceLocation::SYNTHETIC));
+                    if is_load_error_element(tag) {
+                        capture_event(&mut events, tag, "onload");
+                        capture_event(&mut events, tag, "onerror");
+                    }
+                    continue;
+                }
+                _ if all => {}
+                _ if raw_name == "value" && tag == "select" => continue,
+                _ if event_attribute(self.source_text, a).is_some() => {
+                    capture_event(&mut events, tag, raw_name);
+                    continue;
+                }
+                _ if tag != "input" && matches!(raw_name, "defaultValue" | "defaultChecked") => {
+                    continue;
+                }
+                _ => {}
+            }
+            let mut name = raw_name.to_ascii_lowercase();
+            if tag == "select" && name == "defaultvalue" {
+                "defaultValue".clone_into(&mut name);
+            }
+            let trim = matches!(name.as_str(), "class" | "style");
+            let value = self.attribute_value(a, trim, raw_name == "class");
+            props.push(init_property(&mut self.out, &name, value));
+        }
+        // Upstream's analysis appends `class=""` to such an element.
+        let has_class = list.iter().any(|a| {
+            !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case("class")
+        });
+        let has_spread = list
+            .iter()
+            .any(|a| matches!(a.value, AttributeValue::Spread(_)));
+        if !has_spread && !has_class && (self.an.scoped[identifier] || !class_directives.is_empty())
+        {
+            let empty = self.out.write_string("");
+            props.push(init_property(&mut self.out, "class", empty));
+        }
+        let object = self.out.object(&props, SourceLocation::SYNTHETIC);
+        let classes = (!class_directives.is_empty()).then(|| {
+            let props: Vec<NodeIdentifier> = class_directives
+                .iter()
+                .map(|&(name, e)| {
+                    let v = self.expression(e);
+                    init_property(&mut self.out, name, v)
+                })
+                .collect();
+            self.out.object(&props, SourceLocation::SYNTHETIC)
+        });
+        let hash = if self.an.scoped[identifier] {
+            self.an.stylesheet_hash.clone()
+        } else {
+            None
+        };
+        let hash = hash.map(|h| self.out.write_string(&h));
+        let flags = (tag == "input").then(|| {
+            self.out
+                .write_number(f64::from(ELEMENT_IS_INPUT), SourceLocation::SYNTHETIC)
+        });
+        Ok((vec![Some(object), hash, classes, None, flags], events))
+    }
+
+    /// Upstream `build_attr_class`.
+    fn attribute_class(
+        &mut self,
+        directives: &[&Attribute],
+        value: NodeIdentifier,
+        hash: Option<&str>,
+    ) -> NodeIdentifier {
+        let directives = (!directives.is_empty()).then(|| {
+            let props: Vec<NodeIdentifier> = directives
+                .iter()
+                .map(|d| {
+                    let AttributeValue::Class(e) = d.value else {
+                        unreachable!("class directives")
+                    };
+                    let key = self.out.write_string(d.name.text(self.source_text));
+                    let v = self.expression(e);
+                    self.out.property(key, v, 0, SourceLocation::SYNTHETIC)
+                })
+                .collect();
+            self.out.object(&props, SourceLocation::SYNTHETIC)
+        });
+        let mut value = value;
+        let mut stylesheet_hash = None;
+        if let Some(h) = hash {
+            if matches!(self.out.kind(value), Kind::String) {
+                let v = self.out.str_value(value, self.source_text);
+                value = self.out.write_string(format!("{v} {h}").trim());
+            } else {
+                stylesheet_hash = Some(self.out.write_string(h));
+            }
+        }
+        runtime_call(
+            &mut self.out,
+            "attr_class",
+            vec![Some(value), stylesheet_hash, directives],
+        )
     }
 
     fn literal_attribute(
@@ -373,16 +738,40 @@ impl Sx<'_> {
         }
     }
 
-    /// Upstream `build_attribute_value` (server) for a value with at least one expression.
-    fn attribute_value(&mut self, a: &Attribute, trim: bool) -> NodeIdentifier {
+    /// Upstream `build_attribute_value` (server); a `class`
+    /// written as one unquoted expression goes through `$.clsx` when upstream's `needs_clsx`.
+    fn attribute_value(&mut self, a: &Attribute, trim: bool, class: bool) -> NodeIdentifier {
         let parts = match &a.value {
-            &(AttributeValue::Expression { expression, .. }
-            | AttributeValue::Shorthand(expression)) => {
-                return self.expression(expression);
+            &AttributeValue::Expression { expression, quoted } => {
+                let v = self.expression(expression);
+                return if class && !quoted && needs_clsx(self.javascript, expression) {
+                    self.out.runtime("$", "clsx", &[v])
+                } else {
+                    v
+                };
+            }
+            &AttributeValue::Shorthand(expression) => {
+                let v = self.expression(expression);
+                return if class && needs_clsx(self.javascript, expression) {
+                    self.out.runtime("$", "clsx", &[v])
+                } else {
+                    v
+                };
             }
             AttributeValue::Interpolated(parts) => parts,
-            AttributeValue::Boolean | AttributeValue::Static(_) => {
-                unreachable!("literal values are handled by the caller")
+            AttributeValue::Boolean => {
+                return self.out.write_boolean(true, SourceLocation::SYNTHETIC);
+            }
+            AttributeValue::Static(v) => {
+                return self
+                    .out
+                    .write_string(&escape_markup(&attribute_text(v, trim), true));
+            }
+            AttributeValue::Bind(_)
+            | AttributeValue::Attach(_)
+            | AttributeValue::Class(_)
+            | AttributeValue::Spread(_) => {
+                unreachable!("directives are handled by the caller")
             }
         };
         let mut quasis = vec![String::new()];
@@ -469,6 +858,121 @@ impl Sx<'_> {
         Ok(())
     }
 
+    /// Upstream `EachBlock` (server) for a block whose context is an identifier.
+    fn each_block(
+        &mut self,
+        identifier: CompilerNodeIdentifier,
+        template: &mut Vec<Piece>,
+    ) -> R<()> {
+        let (compiler_syntax_tree, javascript) = (self.compiler_syntax_tree, self.javascript);
+        let NodeKind::Each(each) = &compiler_syntax_tree.node(identifier).kind else {
+            unreachable!()
+        };
+        let context = each.context().expect("the parser requires `as`");
+        if !matches!(javascript.kind(context), Kind::Identifier(_)) {
+            return Err(Diagnostic::error(
+                "unsupported",
+                "a destructuring `{#each}` context is not supported yet",
+                javascript
+                    .source_location(context)
+                    .span()
+                    .expect("parsed from source"),
+            ));
+        }
+        let collection = self.expression(each.collection);
+        let index = each.index().map_or_else(
+            || self.each_index[&identifier].clone(),
+            |i| javascript.name(i).to_owned(),
+        );
+        let array_id = self.names.unique("each_array");
+        let ensure = self.out.runtime("$", "ensure_array_like", &[collection]);
+        let array = self.out.identifier(&array_id);
+        let array_declaration = self.out.let_(flag::CONST, array, Some(ensure));
+
+        let mut body = Vec::new();
+        let item = self.out.ident(
+            javascript.name(context),
+            javascript.source_location(context),
+        );
+        let array = self.out.identifier(&array_id);
+        let at = self.out.identifier(&index);
+        let element = self
+            .out
+            .member(array, at, true, false, SourceLocation::SYNTHETIC);
+        body.push(self.out.let_(flag::LET, item, Some(element)));
+        body.extend(self.fragment(Parent::Each, compiler_syntax_tree.children(each.body))?);
+
+        let i = self.out.identifier(&index);
+        let zero = self.out.write_number(0.0, SourceLocation::SYNTHETIC);
+        let first = self
+            .out
+            .declarator(i, Some(zero), SourceLocation::SYNTHETIC);
+        let length = self.out.identifier("$$length");
+        let array = self.out.identifier(&array_id);
+        let array_length = self.out.dot(array, "length");
+        let second = self
+            .out
+            .declarator(length, Some(array_length), SourceLocation::SYNTHETIC);
+        let initializer =
+            self.out
+                .var_declaration(flag::LET, &[first, second], SourceLocation::SYNTHETIC);
+        let i = self.out.identifier(&index);
+        let length = self.out.identifier("$$length");
+        let test = self
+            .out
+            .binary(BinaryOperator::Lt, i, length, SourceLocation::SYNTHETIC);
+        let i = self.out.identifier(&index);
+        let update = self
+            .out
+            .update(UpdateOperator::Inc, false, i, SourceLocation::SYNTHETIC);
+        let block = self.out.block(&body, SourceLocation::SYNTHETIC);
+        let for_loop = self.out.for_(
+            Some(initializer),
+            Some(test),
+            Some(update),
+            block,
+            SourceLocation::SYNTHETIC,
+        );
+
+        if let Some(f) = each.fallback {
+            let open = self.push_literal(BLOCK_OPEN);
+            let fallback = self.fragment(Parent::Each, compiler_syntax_tree.children(f))?;
+            let fallback = self.prepend_block_marker(fallback, BLOCK_OPEN_ELSE);
+            let array = self.out.identifier(&array_id);
+            let array_length = self.out.dot(array, "length");
+            let zero = self.out.write_number(0.0, SourceLocation::SYNTHETIC);
+            let test = self.out.binary(
+                BinaryOperator::StrictNotEq,
+                array_length,
+                zero,
+                SourceLocation::SYNTHETIC,
+            );
+            let consequent = self.out.block(&[open, for_loop], SourceLocation::SYNTHETIC);
+            let statement =
+                self.out
+                    .if_(test, consequent, Some(fallback), SourceLocation::SYNTHETIC);
+            template.push(Piece::Statement(array_declaration));
+            template.push(Piece::Statement(statement));
+        } else {
+            template.push(Piece::Text(BLOCK_OPEN.into()));
+            template.push(Piece::Statement(array_declaration));
+            template.push(Piece::Statement(for_loop));
+        }
+        template.push(Piece::Text(BLOCK_CLOSE.into()));
+        Ok(())
+    }
+
+    /// `$$renderer.push('…')`.
+    fn push_literal(&mut self, text: &str) -> NodeIdentifier {
+        let r = self.out.identifier("$$renderer");
+        let callee = self.out.dot(r, "push");
+        let m = self.out.write_string(text);
+        let call = self
+            .out
+            .call(callee, &[m], false, SourceLocation::SYNTHETIC);
+        self.out.expression_statement(call)
+    }
+
     /// Upstream `prepend_block_marker`: folds the marker into a leading static push.
     fn prepend_block_marker(
         &mut self,
@@ -533,6 +1037,21 @@ impl Sx<'_> {
             body.insert(0, self.out.expression_statement(call));
         }
         self.out.block(&body, SourceLocation::SYNTHETIC)
+    }
+}
+
+/// Upstream's `events_to_capture`: a load or error event on an element that emits them is
+/// replayed after hydration, so the server marks it.
+fn capture_event<'a>(events: &mut Vec<&'a str>, tag: &str, name: &'a str) {
+    if matches!(name, "onload" | "onerror") && is_load_error_element(tag) && !events.contains(&name)
+    {
+        events.push(name);
+    }
+}
+
+fn push_captured_events(template: &mut Vec<Piece>, events: &[&str]) {
+    for e in events {
+        template.push(Piece::Text(format!(" {e}=\"this.__e=event\"")));
     }
 }
 

@@ -8,7 +8,7 @@ import type { Task } from '../types.ts';
 const SVELTE_CHECK = path.resolve(import.meta.dirname, '../../node_modules/svelte-check/bin/svelte-check');
 
 // TypeScript diagnostics only (`--diagnostic-sources js`): compiler warnings belong to svelte.compile.
-// The project configuration is the source directory's tsconfig.json, the same file rsv reads.
+// The project configuration is the source directory's tsconfig.json, the same file rsvelte reads.
 const task: Task = {
 	id: 'svelte.check',
 	storage: 'committed',

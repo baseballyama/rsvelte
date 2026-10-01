@@ -6,7 +6,7 @@
 	import { accessSummary, artifactLabel, computationCount, examples, operations, plugins, taskLabel } from '$lib/kernel/pipeline-playground';
 	let exampleId = $state('svelte');
 	let drafts = $state(Object.fromEntries(examples.map((example) => [example.id, example.source])));
-	let enabledPlugins = $state(['svelte', 'vue', 'svue']);
+	let enabledPlugins = $state(['svelte', 'vue', 'svue', 'vuelte']);
 	let selectedOperations = $state(['compile-client', 'format', 'lint']);
 	let shared = $state(true);
 	let ready = $state(false);
@@ -22,7 +22,7 @@
 	let artifactIndex = $state(0);
 	let fileIndex = $state(0);
 	const example = $derived(examples.find((item) => item.id === exampleId)!);
-	const language = $derived<CodeLanguage>(exampleId === 'svelte' ? 'svelte' : 'vue');
+	const language = $derived<CodeLanguage>(example.filename.endsWith('.svelte') ? 'svelte' : 'vue');
 	const request = $derived({ source: drafts[exampleId], filename: example.filename, plugins: enabledPlugins, operations: selectedOperations, shared });
 	const currentInput = $derived(JSON.stringify(request));
 	const stale = $derived(result !== null && currentInput !== executedInput);

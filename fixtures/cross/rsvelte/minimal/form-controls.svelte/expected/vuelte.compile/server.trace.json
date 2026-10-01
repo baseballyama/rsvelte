@@ -1,0 +1,19 @@
+{
+	"html": [
+		"<select class=\"size\" .value=\"m\">",
+		"  <option value=\"s\" .selected=false>",
+		"    \"small\"",
+		"  </option>",
+		"  <option selected=\"\" value=\"m\" .selected=true>",
+		"    \"medium\"",
+		"  </option>",
+		"  <option value=\"l\" .selected=false>",
+		"    \"large\"",
+		"  </option>",
+		"</select>",
+		"<input class=\"note\" value=\"none\" .value=\"none\">",
+		"<p class=\"summary\">",
+		"  \"size m, note none\"",
+		"</p>"
+	]
+}

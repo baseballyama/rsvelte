@@ -1,7 +1,7 @@
 # Every gate the repository has, on every push and pull request:
 # - rust: formatting, the lint gate (both feature sets, rustdoc), the test suites;
 # - fixtures: every task over every fixture unit, against the oracle snapshots (the parity ratchet,
-#   fixtures/_registry/parity.json) and the adjustments' validity;
+#   fixtures/_registry/parity.json), the adjustments' validity and the behaviour oracle's own tests;
 # - performance: the deterministic performance ratchet (tools/performance/baseline.json): allocations exactly,
 #   and cachegrind's instruction counts (a warm round, and loading) on the platform the baseline
 #   records (arm64 Linux);
@@ -66,6 +66,9 @@ jobs:
       - run: node bin/fixtures.ts check
         working-directory: tools/fixtures
       - run: node bin/fixtures.ts adjust
+        working-directory: tools/fixtures
+      # The behaviour oracle against hand-written twins and deliberately wrong translations.
+      - run: pnpm test
         working-directory: tools/fixtures
       - name: typecheck the tools
         run: |

@@ -76,9 +76,7 @@ impl<'a> Rule<SyntaxTreeContext<'a>> for NoUnusedVariables {
 /// With the default options, so the `forbiddenTypeAttribute` message cannot fire.
 ///
 /// The judgement is [`rsvelte_markup::button_type`]'s, shared with `vue/html-button-has-type`; what
-/// is Svelte's is which attribute is the `type` and that findings sit on the whole attribute. The
-/// parser rejects directives and spreads, so upstream's `bind:type` and spread branches have no
-/// input to decide.
+/// is Svelte's is which attribute is the `type` and that findings sit on the whole attribute.
 #[derive(Debug)]
 pub struct ButtonHasType;
 
@@ -97,7 +95,10 @@ impl<'a> Rule<CompilerSyntaxTreeContext<'a>> for ButtonHasType {
             let types: Vec<_> = compiler_syntax_tree
                 .attributes(el.attributes)
                 .iter()
-                .filter(|a| a.name.text(source_text) == "type")
+                .filter(|a| {
+                    !matches!(a.value, AttributeValue::Class(_))
+                        && a.name.text(source_text) == "type"
+                })
                 .collect();
             // A shorthand `{type}` is its own node kind upstream: `findAttribute` skips it, and
             // finding one afterwards satisfies the rule.
@@ -114,7 +115,15 @@ impl<'a> Rule<CompilerSyntaxTreeContext<'a>> for ButtonHasType {
                     };
                     (problem, a.span)
                 }
-                None if types.is_empty() => (Some(Problem::Missing), el.start_tag),
+                // Upstream: a spread may set the type.
+                None if types.is_empty()
+                    && !compiler_syntax_tree
+                        .attributes(el.attributes)
+                        .iter()
+                        .any(|a| matches!(a.value, AttributeValue::Spread(_))) =>
+                {
+                    (Some(Problem::Missing), el.start_tag)
+                }
                 None => continue,
             };
             if let Some(p) = problem {
@@ -130,9 +139,9 @@ mod tests {
 
     fn lint(source_text: &str) -> String {
         let c = crate::syntax::parse::parse(source_text).expect("parses");
-        let res =
-            crate::semantic::resolve::resolve(&c.javascript, c.program, &c.template_expressions);
         let compiler_syntax_tree = crate::compilation::compiler_syntax_tree::lower(&c, source_text);
+        let res =
+            crate::semantic::resolve::resolve(&c.javascript, c.program, &compiler_syntax_tree);
         let parents = c.javascript.parents();
         let early = super::SyntaxTreeContext {
             c: &c,

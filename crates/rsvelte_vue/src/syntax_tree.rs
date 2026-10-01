@@ -84,6 +84,8 @@ pub struct Directive {
     pub name: DirectiveName,
     /// `href` in `:href`, `click` in `@click`.
     pub arg: Option<Span>,
+    /// `trim` in `v-model.trim`, in order; only `v-model` and `v-on` take modifiers yet.
+    pub modifiers: Box<[Span]>,
     pub exp: DirectiveExpression,
 }
 
@@ -98,6 +100,7 @@ pub enum DirectiveName {
     ElseIf,
     Else,
     For,
+    Model,
 }
 
 #[derive(Debug)]
@@ -273,4 +276,4 @@ const _: () = assert!(
     "`TemplateNode` is 44 bytes"
 );
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(size_of::<Attribute>() == 80, "`Attribute` is 80 bytes");
+const _: () = assert!(size_of::<Attribute>() == 96, "`Attribute` is 96 bytes");

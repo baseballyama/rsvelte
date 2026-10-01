@@ -1,0 +1,816 @@
+{
+	"rules": [
+		"accessor-pairs",
+		"array-callback-return",
+		"arrow-body-style",
+		"block-scoped-var",
+		"camelcase",
+		"capitalized-comments",
+		"class-methods-use-this",
+		"complexity",
+		"consistent-return",
+		"consistent-this",
+		"constructor-super",
+		"curly",
+		"default-case",
+		"default-case-last",
+		"default-param-last",
+		"dot-notation",
+		"eqeqeq",
+		"for-direction",
+		"func-name-matching",
+		"func-names",
+		"func-style",
+		"getter-return",
+		"grouped-accessor-pairs",
+		"guard-for-in",
+		"id-denylist",
+		"id-length",
+		"id-match",
+		"init-declarations",
+		"logical-assignment-operators",
+		"max-classes-per-file",
+		"max-depth",
+		"max-lines",
+		"max-lines-per-function",
+		"max-nested-callbacks",
+		"max-params",
+		"max-statements",
+		"new-cap",
+		"no-alert",
+		"no-array-constructor",
+		"no-async-promise-executor",
+		"no-await-in-loop",
+		"no-bitwise",
+		"no-caller",
+		"no-case-declarations",
+		"no-class-assign",
+		"no-compare-neg-zero",
+		"no-cond-assign",
+		"no-console",
+		"no-const-assign",
+		"no-constant-binary-expression",
+		"no-constant-condition",
+		"no-constructor-return",
+		"no-continue",
+		"no-control-regex",
+		"no-debugger",
+		"no-delete-var",
+		"no-div-regex",
+		"no-dupe-args",
+		"no-dupe-class-members",
+		"no-dupe-else-if",
+		"no-dupe-keys",
+		"no-duplicate-case",
+		"no-duplicate-imports",
+		"no-else-return",
+		"no-empty",
+		"no-empty-character-class",
+		"no-empty-function",
+		"no-empty-pattern",
+		"no-empty-static-block",
+		"no-eq-null",
+		"no-eval",
+		"no-ex-assign",
+		"no-extend-native",
+		"no-extra-bind",
+		"no-extra-boolean-cast",
+		"no-extra-label",
+		"no-fallthrough",
+		"no-func-assign",
+		"no-global-assign",
+		"no-implicit-coercion",
+		"no-implicit-globals",
+		"no-implied-eval",
+		"no-import-assign",
+		"no-inline-comments",
+		"no-invalid-regexp",
+		"no-invalid-this",
+		"no-irregular-whitespace",
+		"no-iterator",
+		"no-label-var",
+		"no-labels",
+		"no-lone-blocks",
+		"no-lonely-if",
+		"no-loop-func",
+		"no-loss-of-precision",
+		"no-magic-numbers",
+		"no-misleading-character-class",
+		"no-multi-assign",
+		"no-multi-str",
+		"no-negated-condition",
+		"no-nested-ternary",
+		"no-new",
+		"no-new-func",
+		"no-new-native-nonconstructor",
+		"no-new-wrappers",
+		"no-nonoctal-decimal-escape",
+		"no-obj-calls",
+		"no-object-constructor",
+		"no-octal",
+		"no-octal-escape",
+		"no-param-reassign",
+		"no-plusplus",
+		"no-promise-executor-return",
+		"no-proto",
+		"no-prototype-builtins",
+		"no-redeclare",
+		"no-regex-spaces",
+		"no-restricted-exports",
+		"no-restricted-globals",
+		"no-restricted-imports",
+		"no-restricted-properties",
+		"no-restricted-syntax",
+		"no-return-assign",
+		"no-script-url",
+		"no-self-compare",
+		"no-sequences",
+		"no-setter-return",
+		"no-shadow",
+		"no-shadow-restricted-names",
+		"no-sparse-arrays",
+		"no-template-curly-in-string",
+		"no-ternary",
+		"no-this-before-super",
+		"no-throw-literal",
+		"no-unassigned-vars",
+		"no-undef",
+		"no-undef-init",
+		"no-undefined",
+		"no-underscore-dangle",
+		"no-unexpected-multiline",
+		"no-unmodified-loop-condition",
+		"no-unneeded-ternary",
+		"no-unreachable",
+		"no-unreachable-loop",
+		"no-unsafe-finally",
+		"no-unsafe-negation",
+		"no-unsafe-optional-chaining",
+		"no-unused-expressions",
+		"no-unused-labels",
+		"no-unused-private-class-members",
+		"no-unused-vars",
+		"no-use-before-define",
+		"no-useless-assignment",
+		"no-useless-backreference",
+		"no-useless-call",
+		"no-useless-catch",
+		"no-useless-computed-key",
+		"no-useless-concat",
+		"no-useless-constructor",
+		"no-useless-escape",
+		"no-useless-rename",
+		"no-useless-return",
+		"no-var",
+		"no-void",
+		"no-warning-comments",
+		"no-with",
+		"object-shorthand",
+		"one-var",
+		"operator-assignment",
+		"prefer-arrow-callback",
+		"prefer-const",
+		"prefer-destructuring",
+		"prefer-exponentiation-operator",
+		"prefer-named-capture-group",
+		"prefer-numeric-literals",
+		"prefer-object-has-own",
+		"prefer-object-spread",
+		"prefer-promise-reject-errors",
+		"prefer-regex-literals",
+		"prefer-rest-params",
+		"prefer-spread",
+		"prefer-template",
+		"preserve-caught-error",
+		"radix",
+		"require-atomic-updates",
+		"require-await",
+		"require-unicode-regexp",
+		"require-yield",
+		"sort-imports",
+		"sort-keys",
+		"sort-vars",
+		"strict",
+		"symbol-description",
+		"unicode-bom",
+		"use-isnan",
+		"valid-typeof",
+		"vars-on-top",
+		"yoda",
+		"svelte/comment-directive",
+		"svelte/system",
+		"svelte/@typescript-eslint/no-unnecessary-condition",
+		"svelte/block-lang",
+		"svelte/button-has-type",
+		"svelte/consistent-selector-style",
+		"svelte/derived-has-same-inputs-outputs",
+		"svelte/experimental-require-slot-types",
+		"svelte/experimental-require-strict-events",
+		"svelte/first-attribute-linebreak",
+		"svelte/html-closing-bracket-new-line",
+		"svelte/html-closing-bracket-spacing",
+		"svelte/html-quotes",
+		"svelte/html-self-closing",
+		"svelte/indent",
+		"svelte/infinite-reactive-loop",
+		"svelte/max-attributes-per-line",
+		"svelte/max-lines-per-block",
+		"svelte/mustache-spacing",
+		"svelte/no-add-event-listener",
+		"svelte/no-at-const-tags",
+		"svelte/no-at-debug-tags",
+		"svelte/no-at-html-tags",
+		"svelte/no-bind-value-on-checkable-inputs",
+		"svelte/no-conflicting-module-names",
+		"svelte/no-dom-manipulating",
+		"svelte/no-dupe-else-if-blocks",
+		"svelte/no-dupe-on-directives",
+		"svelte/no-dupe-style-properties",
+		"svelte/no-dupe-use-directives",
+		"svelte/no-dynamic-slot-name",
+		"svelte/no-export-load-in-svelte-module-in-kit-pages",
+		"svelte/no-extra-reactive-curlies",
+		"svelte/no-goto-without-base",
+		"svelte/no-ignored-unsubscribe",
+		"svelte/no-immutable-reactive-statements",
+		"svelte/no-inline-styles",
+		"svelte/no-inner-declarations",
+		"svelte/no-inspect",
+		"svelte/no-navigation-without-base",
+		"svelte/no-navigation-without-resolve",
+		"svelte/no-nested-style-tag",
+		"svelte/no-not-function-handler",
+		"svelte/no-object-in-text-mustaches",
+		"svelte/no-raw-special-elements",
+		"svelte/no-reactive-functions",
+		"svelte/no-reactive-literals",
+		"svelte/no-reactive-reassign",
+		"svelte/no-shorthand-style-property-overrides",
+		"svelte/no-spaces-around-equal-signs-in-attribute",
+		"svelte/no-store-async",
+		"svelte/no-svelte-internal",
+		"svelte/no-target-blank",
+		"svelte/no-top-level-browser-globals",
+		"svelte/no-trailing-spaces",
+		"svelte/no-unknown-style-directive-property",
+		"svelte/no-unnecessary-state-wrap",
+		"svelte/no-unused-class-name",
+		"svelte/no-unused-props",
+		"svelte/no-unused-svelte-ignore",
+		"svelte/no-useless-children-snippet",
+		"svelte/no-useless-mustaches",
+		"svelte/prefer-attribute-interpolation",
+		"svelte/prefer-class-directive",
+		"svelte/prefer-const",
+		"svelte/prefer-derived-over-derived-by",
+		"svelte/prefer-destructured-store-props",
+		"svelte/prefer-style-directive",
+		"svelte/prefer-svelte-reactivity",
+		"svelte/prefer-writable-derived",
+		"svelte/require-each-key",
+		"svelte/require-event-dispatcher-types",
+		"svelte/require-event-prefix",
+		"svelte/require-optimized-style-attribute",
+		"svelte/require-store-callbacks-use-set-param",
+		"svelte/require-store-reactive-access",
+		"svelte/require-stores-init",
+		"svelte/shorthand-attribute",
+		"svelte/shorthand-directive",
+		"svelte/sort-attributes",
+		"svelte/spaced-html-comment",
+		"svelte/valid-compile",
+		"svelte/valid-each-key",
+		"svelte/valid-prop-names-in-kit-pages",
+		"svelte/valid-style-parse"
+	],
+	"findings": [
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 2 spaces but found 1 whitespace.",
+			"start": {
+				"line": 2,
+				"column": 1
+			},
+			"end": {
+				"line": 2,
+				"column": 2
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 4 spaces but found 2 whitespaces.",
+			"start": {
+				"line": 3,
+				"column": 1
+			},
+			"end": {
+				"line": 3,
+				"column": 3
+			}
+		},
+		{
+			"rule": "sort-keys",
+			"message": "Expected object keys to be in ascending order. 'done' should be before 'text'.",
+			"start": {
+				"line": 3,
+				"column": 34
+			},
+			"end": {
+				"line": 3,
+				"column": 38
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 4 spaces but found 2 whitespaces.",
+			"start": {
+				"line": 4,
+				"column": 1
+			},
+			"end": {
+				"line": 4,
+				"column": 3
+			}
+		},
+		{
+			"rule": "sort-keys",
+			"message": "Expected object keys to be in ascending order. 'done' should be before 'text'.",
+			"start": {
+				"line": 4,
+				"column": 37
+			},
+			"end": {
+				"line": 4,
+				"column": 41
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 2 spaces but found 1 whitespace.",
+			"start": {
+				"line": 5,
+				"column": 1
+			},
+			"end": {
+				"line": 5,
+				"column": 2
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 2 spaces but found 1 whitespace.",
+			"start": {
+				"line": 6,
+				"column": 1
+			},
+			"end": {
+				"line": 6,
+				"column": 2
+			}
+		},
+		{
+			"rule": "one-var",
+			"message": "Combine this with the previous 'let' statement.",
+			"start": {
+				"line": 6,
+				"column": 2
+			},
+			"end": {
+				"line": 6,
+				"column": 25
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 2 spaces but found 1 whitespace.",
+			"start": {
+				"line": 7,
+				"column": 1
+			},
+			"end": {
+				"line": 7,
+				"column": 2
+			}
+		},
+		{
+			"rule": "one-var",
+			"message": "Combine this with the previous 'let' statement.",
+			"start": {
+				"line": 7,
+				"column": 2
+			},
+			"end": {
+				"line": 7,
+				"column": 17
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 2 spaces but found 1 whitespace.",
+			"start": {
+				"line": 8,
+				"column": 1
+			},
+			"end": {
+				"line": 8,
+				"column": 2
+			}
+		},
+		{
+			"rule": "one-var",
+			"message": "Combine this with the previous 'let' statement.",
+			"start": {
+				"line": 8,
+				"column": 2
+			},
+			"end": {
+				"line": 8,
+				"column": 64
+			}
+		},
+		{
+			"rule": "prefer-const",
+			"message": "'remaining' is never reassigned. Use 'const' instead.",
+			"start": {
+				"line": 8,
+				"column": 6
+			},
+			"end": {
+				"line": 8,
+				"column": 15
+			}
+		},
+		{
+			"rule": "id-length",
+			"message": "Identifier name 't' is too short (< 2).",
+			"start": {
+				"line": 8,
+				"column": 41
+			},
+			"end": {
+				"line": 8,
+				"column": 42
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 2 spaces but found 1 whitespace.",
+			"start": {
+				"line": 10,
+				"column": 1
+			},
+			"end": {
+				"line": 10,
+				"column": 2
+			}
+		},
+		{
+			"rule": "func-style",
+			"message": "Expected a function expression.",
+			"start": {
+				"line": 10,
+				"column": 2
+			},
+			"end": {
+				"line": 14,
+				"column": 3
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 4 spaces but found 2 whitespaces.",
+			"start": {
+				"line": 11,
+				"column": 1
+			},
+			"end": {
+				"line": 11,
+				"column": 3
+			}
+		},
+		{
+			"rule": "curly",
+			"message": "Expected { after 'if' condition.",
+			"start": {
+				"line": 11,
+				"column": 22
+			},
+			"end": {
+				"line": 11,
+				"column": 29
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 4 spaces but found 2 whitespaces.",
+			"start": {
+				"line": 12,
+				"column": 1
+			},
+			"end": {
+				"line": 12,
+				"column": 3
+			}
+		},
+		{
+			"rule": "no-plusplus",
+			"message": "Unary operator '++' used.",
+			"start": {
+				"line": 12,
+				"column": 20
+			},
+			"end": {
+				"line": 12,
+				"column": 28
+			}
+		},
+		{
+			"rule": "sort-keys",
+			"message": "Expected object keys to be in ascending order. 'done' should be before 'text'.",
+			"start": {
+				"line": 12,
+				"column": 43
+			},
+			"end": {
+				"line": 12,
+				"column": 47
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 4 spaces but found 2 whitespaces.",
+			"start": {
+				"line": 13,
+				"column": 1
+			},
+			"end": {
+				"line": 13,
+				"column": 3
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 2 spaces but found 1 whitespace.",
+			"start": {
+				"line": 14,
+				"column": 1
+			},
+			"end": {
+				"line": 14,
+				"column": 2
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 2 spaces but found 1 whitespace.",
+			"start": {
+				"line": 16,
+				"column": 1
+			},
+			"end": {
+				"line": 16,
+				"column": 2
+			}
+		},
+		{
+			"rule": "func-style",
+			"message": "Expected a function expression.",
+			"start": {
+				"line": 16,
+				"column": 2
+			},
+			"end": {
+				"line": 18,
+				"column": 3
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 4 spaces but found 2 whitespaces.",
+			"start": {
+				"line": 17,
+				"column": 1
+			},
+			"end": {
+				"line": 17,
+				"column": 3
+			}
+		},
+		{
+			"rule": "id-length",
+			"message": "Identifier name 't' is too short (< 2).",
+			"start": {
+				"line": 17,
+				"column": 25
+			},
+			"end": {
+				"line": 17,
+				"column": 26
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 2 spaces but found 1 whitespace.",
+			"start": {
+				"line": 18,
+				"column": 1
+			},
+			"end": {
+				"line": 18,
+				"column": 2
+			}
+		},
+		{
+			"rule": "svelte/max-attributes-per-line",
+			"message": "'placeholder' should be on a new line.",
+			"start": {
+				"line": 22,
+				"column": 27
+			},
+			"end": {
+				"line": 22,
+				"column": 58
+			}
+		},
+		{
+			"rule": "svelte/sort-attributes",
+			"message": "Attribute 'placeholder' should go before 'bind:value'.",
+			"start": {
+				"line": 22,
+				"column": 27
+			},
+			"end": {
+				"line": 22,
+				"column": 58
+			}
+		},
+		{
+			"rule": "svelte/button-has-type",
+			"message": "Missing an explicit type attribute for button.",
+			"start": {
+				"line": 23,
+				"column": 1
+			},
+			"end": {
+				"line": 23,
+				"column": 23
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 2 spaces but found 1 whitespace.",
+			"start": {
+				"line": 26,
+				"column": 1
+			},
+			"end": {
+				"line": 26,
+				"column": 2
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 4 spaces but found 2 whitespaces.",
+			"start": {
+				"line": 27,
+				"column": 1
+			},
+			"end": {
+				"line": 27,
+				"column": 3
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 6 spaces but found 3 whitespaces.",
+			"start": {
+				"line": 28,
+				"column": 1
+			},
+			"end": {
+				"line": 28,
+				"column": 4
+			}
+		},
+		{
+			"rule": "svelte/max-attributes-per-line",
+			"message": "'bind:checked' should be on a new line.",
+			"start": {
+				"line": 28,
+				"column": 27
+			},
+			"end": {
+				"line": 28,
+				"column": 51
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 6 spaces but found 3 whitespaces.",
+			"start": {
+				"line": 29,
+				"column": 1
+			},
+			"end": {
+				"line": 29,
+				"column": 4
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 6 spaces but found 3 whitespaces.",
+			"start": {
+				"line": 30,
+				"column": 1
+			},
+			"end": {
+				"line": 30,
+				"column": 4
+			}
+		},
+		{
+			"rule": "svelte/button-has-type",
+			"message": "Missing an explicit type attribute for button.",
+			"start": {
+				"line": 30,
+				"column": 4
+			},
+			"end": {
+				"line": 30,
+				"column": 70
+			}
+		},
+		{
+			"rule": "id-length",
+			"message": "Identifier name 't' is too short (< 2).",
+			"start": {
+				"line": 30,
+				"column": 50
+			},
+			"end": {
+				"line": 30,
+				"column": 51
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 4 spaces but found 2 whitespaces.",
+			"start": {
+				"line": 31,
+				"column": 1
+			},
+			"end": {
+				"line": 31,
+				"column": 3
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 2 spaces but found 1 whitespace.",
+			"start": {
+				"line": 32,
+				"column": 1
+			},
+			"end": {
+				"line": 32,
+				"column": 2
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 4 spaces but found 2 whitespaces.",
+			"start": {
+				"line": 33,
+				"column": 1
+			},
+			"end": {
+				"line": 33,
+				"column": 3
+			}
+		},
+		{
+			"rule": "svelte/indent",
+			"message": "Expected indentation of 2 spaces but found 1 whitespace.",
+			"start": {
+				"line": 34,
+				"column": 1
+			},
+			"end": {
+				"line": 34,
+				"column": 2
+			}
+		},
+		{
+			"rule": "svelte/button-has-type",
+			"message": "Missing an explicit type attribute for button.",
+			"start": {
+				"line": 38,
+				"column": 1
+			},
+			"end": {
+				"line": 38,
+				"column": 25
+			}
+		}
+	]
+}

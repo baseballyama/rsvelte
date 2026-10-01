@@ -14,6 +14,7 @@ rsvelte_kernel = { workspace = true, features = ["trace-artifacts"] }
 rsvelte_svelte.workspace = true
 rsvelte_vue.workspace = true
 rsvelte_svue.workspace = true
+rsvelte_vuelte.workspace = true
 wasm-bindgen = "=0.2.126"
 
 [lints]

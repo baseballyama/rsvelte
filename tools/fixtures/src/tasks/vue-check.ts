@@ -33,7 +33,7 @@ const ts: typeof TS = (() => {
 
 const NODE_MODULES = path.resolve(import.meta.dirname, '../../node_modules');
 
-// The project configuration is the source directory's tsconfig.json, the same file rsv reads; the
+// The project configuration is the source directory's tsconfig.json, the same file rsvelte reads; the
 // workspace links this package's node_modules so `vue` resolves as in a real project.
 const task: Task = {
 	id: 'vue.check',

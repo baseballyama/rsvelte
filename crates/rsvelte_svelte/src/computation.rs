@@ -39,10 +39,11 @@ impl Artifact for Resolved {
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let c = context.get::<Parsed>().as_ref().ok()?;
+        let compiler_syntax_tree = context.get::<Normalized>().as_ref()?;
         Some(resolve::resolve(
             &c.javascript,
             c.program,
-            &c.template_expressions,
+            compiler_syntax_tree,
         ))
     }
 }
@@ -115,6 +116,7 @@ pub fn svelte_input<'a>(
         style: c.style.as_ref().map(|s| &s.sheet),
         template_expressions: &c.template_expressions,
         source_text,
+        preserve_whitespace: false,
     }
 }
 

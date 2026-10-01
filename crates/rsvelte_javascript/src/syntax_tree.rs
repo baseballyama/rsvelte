@@ -61,6 +61,8 @@ pub enum Tag {
     FunctionDeclaration,
     Return,
     If,
+    /// `for (initializer; test; update) body`. Built by compilers; the parser does not read it yet.
+    For,
     Block,
     Empty,
     Import,
@@ -155,6 +157,13 @@ pub enum Kind<'a> {
         test: NodeIdentifier,
         consequent: NodeIdentifier,
         alternate: Option<NodeIdentifier>,
+    },
+    For {
+        /// A variable declaration or an expression.
+        initializer: Option<NodeIdentifier>,
+        test: Option<NodeIdentifier>,
+        update: Option<NodeIdentifier>,
+        body: NodeIdentifier,
     },
     Block(&'a [NodeIdentifier]),
     Empty,
@@ -278,6 +287,16 @@ pub struct SyntaxTree {
     pub type_references: Vec<TypeRef>,
     /// The parser's stack of lists being gathered; empty between parses.
     pub(crate) scratch: Vec<NodeIdentifier>,
+}
+
+/// A position in an [`SyntaxTree`]'s side tables ([`SyntaxTree::mark`], [`SyntaxTree::rewind`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Mark {
+    tokens: usize,
+    comments: usize,
+    typescript: usize,
+    typescript_runtime: usize,
+    type_references: usize,
 }
 
 /// One piece of erased TypeScript syntax, attached to the node it belongs to.
@@ -472,6 +491,12 @@ impl SyntaxTree {
                 consequent: self.rec(a, 1),
                 alternate: self.rec(a, 2).opt(),
             },
+            Tag::For => Kind::For {
+                initializer: self.rec(a, 0).opt(),
+                test: self.rec(a, 1).opt(),
+                update: self.rec(a, 2).opt(),
+                body: self.rec(a, 3),
+            },
             Tag::Block => Kind::Block(self.list_at(a)),
             Tag::Empty => Kind::Empty,
             Tag::Import => Kind::Import {
@@ -566,6 +591,7 @@ impl SyntaxTree {
     }
 
     /// Calls `f` on each direct child, in source order.
+    #[expect(clippy::too_many_lines, reason = "one arm per node kind")]
     pub fn for_each_child(&self, identifier: NodeIdentifier, mut f: impl FnMut(NodeIdentifier)) {
         let mut each =
             |identifiers: &[NodeIdentifier]| Self::visit_present_nodes(identifiers, &mut f);
@@ -608,6 +634,17 @@ impl SyntaxTree {
                 consequent,
                 alternate,
             } => each(&[test, consequent, alternate.unwrap_or(NodeIdentifier::NONE)]),
+            Kind::For {
+                initializer,
+                test,
+                update,
+                body,
+            } => each(&[
+                initializer.unwrap_or(NodeIdentifier::NONE),
+                test.unwrap_or(NodeIdentifier::NONE),
+                update.unwrap_or(NodeIdentifier::NONE),
+                body,
+            ]),
             Kind::Import {
                 specifiers, source, ..
             } => {
@@ -700,6 +737,28 @@ impl SyntaxTree {
                 each(&[*expression]);
             }
         }
+    }
+
+    /// How far the side tables a parse appends to (tokens, comments, TypeScript syntax) reach now.
+    #[must_use]
+    pub const fn mark(&self) -> Mark {
+        Mark {
+            tokens: self.tokens.len(),
+            comments: self.comments.len(),
+            typescript: self.typescript.len(),
+            typescript_runtime: self.typescript_runtime.len(),
+            type_references: self.type_references.len(),
+        }
+    }
+
+    /// Drops what parses after `mark` recorded in the side tables, for an embedding language that
+    /// discards a parse and reads the region again. The nodes stay, unreachable from any root.
+    pub fn rewind(&mut self, mark: Mark) {
+        self.tokens.truncate(mark.tokens);
+        self.comments.truncate(mark.comments);
+        self.typescript.truncate(mark.typescript);
+        self.typescript_runtime.truncate(mark.typescript_runtime);
+        self.type_references.truncate(mark.type_references);
     }
 
     /// What the parser recorded since `tokens_from` tokens and `comments_from` comments, merged in
@@ -915,6 +974,24 @@ impl SyntaxTree {
     ) -> NodeIdentifier {
         let r = self.record(&[test, consequent, alternate.unwrap_or(NodeIdentifier::NONE)]);
         self.push(Tag::If, 0, [r, 0], source_location)
+    }
+
+    pub fn for_(
+        &mut self,
+        initializer: Option<NodeIdentifier>,
+        test: Option<NodeIdentifier>,
+        update: Option<NodeIdentifier>,
+        body: NodeIdentifier,
+        source_location: impl Into<SourceLocation>,
+    ) -> NodeIdentifier {
+        let none = NodeIdentifier::NONE;
+        let r = self.record(&[
+            initializer.unwrap_or(none),
+            test.unwrap_or(none),
+            update.unwrap_or(none),
+            body,
+        ]);
+        self.push(Tag::For, 0, [r, 0], source_location)
     }
 
     pub fn block(

@@ -114,7 +114,8 @@ export const chapters: Chapter[] = [
 			s('stack', 'Svelte の層'),
 			s('resolve', '名前解決'),
 			s('compiler_syntax_tree', 'コンパイル用に整理した構文木'),
-			s('svue', '構文解析を別の言語向けに差し替える'),
+			s('svue', 'Vue のコンポーネントを Svelte のランタイムで動かす'),
+			s('vuelte', 'Svelte のコンポーネントを Vue のランタイムで動かす'),
 			s('lint', '構文解析直後の検査と解析結果を使う検査'),
 			s('shared-lint', '言語をまたぐ判断'),
 			s('next', 'この先の層')

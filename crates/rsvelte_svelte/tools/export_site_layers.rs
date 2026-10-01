@@ -48,8 +48,8 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let res = resolve::resolve(&c.javascript, c.program, &c.template_expressions);
     let h = compiler_syntax_tree::lower(&c, &source_text);
+    let res = resolve::resolve(&c.javascript, c.program, &h);
 
     let mut w = StructuredDataWriter::new(true);
     w.begin_object().key("source").write_string(&source_text);
@@ -208,6 +208,7 @@ fn surface(
             TemplateNode::If { elseif, span, .. } => {
                 row(w, depth, if elseif { "If (elseif)" } else { "If" }, span);
             }
+            TemplateNode::Each { span, .. } => row(w, depth, "Each", span),
         }
         w.key("id").write_number(t);
         w.end_object();
@@ -225,6 +226,19 @@ fn surface(
                     row(w, depth + 1, "alt", n.span());
                     w.key("id").null().end_object();
                     surface(w, c, source_text, c.children(a), depth + 2);
+                }
+            }
+            TemplateNode::Each {
+                body,
+                fallback,
+                has_fallback,
+                ..
+            } => {
+                surface(w, c, source_text, c.children(body), depth + 1);
+                if has_fallback {
+                    row(w, depth + 1, "else", n.span());
+                    w.key("id").null().end_object();
+                    surface(w, c, source_text, c.children(fallback), depth + 2);
                 }
             }
             _ => {}
@@ -258,6 +272,7 @@ fn lowered(
             NodeKind::If { branches, .. } => {
                 format!("If, {} branches", h.branches(*branches).len())
             }
+            NodeKind::Each(_) => "Each".to_owned(),
         };
         row(w, depth, &label, node.span);
         w.key("id")
@@ -279,6 +294,10 @@ fn lowered(
                     AttributeValue::Interpolated(p) => {
                         w.write_string(&format!("Interpolated, {} parts", p.len()))
                     }
+                    AttributeValue::Bind(_) => w.write_string("Bind"),
+                    AttributeValue::Attach(_) => w.write_string("Attach"),
+                    AttributeValue::Class(_) => w.write_string("Class"),
+                    AttributeValue::Spread(_) => w.write_string("Spread"),
                 };
                 w.end_object();
             }
@@ -315,6 +334,14 @@ fn lowered(
                     row(w, depth + 1, "else", node.span);
                     w.key("id").null().key("origin").null().end_object();
                     lowered(w, c, h, source_text, *alternate, depth + 2);
+                }
+            }
+            NodeKind::Each(each) => {
+                lowered(w, c, h, source_text, each.body, depth + 1);
+                if let Some(f) = each.fallback {
+                    row(w, depth + 1, "else", node.span);
+                    w.key("id").null().key("origin").null().end_object();
+                    lowered(w, c, h, source_text, f, depth + 2);
                 }
             }
             _ => {}

@@ -9,7 +9,7 @@ use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 
 const MAX_INPUT_BYTES: usize = 64 * 1024;
 const MAX_SNAPSHOT_CHARS: usize = 80_000;
-const PLUGINS: &[&str] = &["svelte", "vue", "svue"];
+const PLUGINS: &[&str] = &["svelte", "vue", "svue", "vuelte"];
 const OPERATIONS: &[&str] = &["compile-client", "compile-server", "format", "lint"];
 
 struct Observation {
@@ -60,10 +60,45 @@ fn snapshot(context: &DocumentContext<'_>, name: &str) -> Option<String> {
         "svelte.analyze" => format!("{:#?}", context.get::<rsvelte_svelte::Analyzed>()),
         "svelte.css" => format!("{:#?}", context.get::<rsvelte_svelte::ScopedStylesheet>()),
         "vue.parse" => format!("{:#?}", context.get::<rsvelte_vue::Parsed>()),
+        "vue.compiler_syntax_tree" => format!("{:#?}", context.get::<rsvelte_vue::Lowered>()),
         "vue.resolve" => format!("{:#?}", context.get::<rsvelte_vue::Resolved>()),
-        "svue.frontend" => format!("{:#?}", context.get::<rsvelte_svue::Frontend>()),
-        "svue.resolve" => format!("{:#?}", context.get::<rsvelte_svue::Resolved>()),
-        "svue.analyze" => format!("{:#?}", context.get::<rsvelte_svue::Analyzed>()),
+        "svue.translate.client" => {
+            format!(
+                "{:#?}",
+                context.get::<rsvelte_svue::Translated<rsvelte_svue::Client>>()
+            )
+        }
+        "svue.resolve.client" => {
+            format!(
+                "{:#?}",
+                context.get::<rsvelte_svue::Resolved<rsvelte_svue::Client>>()
+            )
+        }
+        "svue.analyze.client" => {
+            format!(
+                "{:#?}",
+                context.get::<rsvelte_svue::Analyzed<rsvelte_svue::Client>>()
+            )
+        }
+        "svue.translate.server" => {
+            format!(
+                "{:#?}",
+                context.get::<rsvelte_svue::Translated<rsvelte_svue::Server>>()
+            )
+        }
+        "svue.resolve.server" => {
+            format!(
+                "{:#?}",
+                context.get::<rsvelte_svue::Resolved<rsvelte_svue::Server>>()
+            )
+        }
+        "svue.analyze.server" => {
+            format!(
+                "{:#?}",
+                context.get::<rsvelte_svue::Analyzed<rsvelte_svue::Server>>()
+            )
+        }
+        "vuelte.check" => format!("{:#?}", context.get::<rsvelte_vuelte::Checked>()),
         _ => return None,
     };
     if let Some((at, _)) = text.char_indices().nth(MAX_SNAPSHOT_CHARS) {
@@ -82,6 +117,7 @@ fn registry(plugins: &[&str]) -> Registry {
             }
             "vue" => rsvelte_vue::register(&mut reg, &rsvelte_vue::Configuration::default()),
             "svue" => rsvelte_svue::register(&mut reg),
+            "vuelte" => rsvelte_vuelte::register(&mut reg),
             _ => unreachable!("plugin names were validated at the boundary"),
         }
     }
@@ -301,11 +337,12 @@ mod tests {
                 "vue.parse",
             ),
             (
-                "App.svue",
+                "App.vue",
                 "<template><p>Hello</p></template>",
                 "svue",
-                "svue.frontend",
+                "svue.translate.client",
             ),
+            ("App.svelte", "<p>Hello</p>", "vuelte", "vuelte.check"),
         ] {
             let json = run(source, file, plugin, "compile-client", true);
             assert!(json.contains(r#""name":"js""#), "{json}");

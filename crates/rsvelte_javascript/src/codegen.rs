@@ -173,6 +173,33 @@ impl Gen<'_> {
                     }
                 }
             }
+            Kind::For {
+                initializer,
+                test,
+                update,
+                body,
+            } => {
+                self.e.push("for (");
+                match initializer.map(|i| (i, self.syntax_tree.kind(i))) {
+                    Some((_, Kind::VariableDeclaration { kind, declarations })) => {
+                        self.var_declaration(kind, declarations);
+                    }
+                    Some((i, _)) => self.expression(i, prec::SEQ),
+                    None => {}
+                }
+                self.e.push(";");
+                if let Some(t) = test {
+                    self.e.push(" ");
+                    self.expression(t, prec::SEQ);
+                }
+                self.e.push(";");
+                if let Some(u) = update {
+                    self.e.push(" ");
+                    self.expression(u, prec::SEQ);
+                }
+                self.e.push(") ");
+                self.block(body);
+            }
             Kind::Block(_) => self.block(identifier),
             Kind::Empty => self.e.push(";"),
             Kind::Import {
@@ -650,6 +677,7 @@ impl Gen<'_> {
             | Kind::ExpressionStatement(_)
             | Kind::Return(_)
             | Kind::If { .. }
+            | Kind::For { .. }
             | Kind::Block(_)
             | Kind::Empty
             | Kind::Import { .. }

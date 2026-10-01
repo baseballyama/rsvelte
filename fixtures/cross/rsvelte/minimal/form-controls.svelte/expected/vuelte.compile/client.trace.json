@@ -1,0 +1,96 @@
+{
+	"steps": [
+		{
+			"do": "mount",
+			"dom": [
+				"<select class=\"size\" .value=\"m\">",
+				"  <option value=\"s\" .selected=false>",
+				"    \"small\"",
+				"  </option>",
+				"  <option value=\"m\" .selected=true>",
+				"    \"medium\"",
+				"  </option>",
+				"  <option value=\"l\" .selected=false>",
+				"    \"large\"",
+				"  </option>",
+				"</select>",
+				"<input class=\"note\" .value=\"none\">",
+				"<p class=\"summary\">",
+				"  \"size m, note none\"",
+				"</p>"
+			]
+		},
+		{
+			"do": {
+				"select": [
+					"select.size",
+					"l"
+				]
+			},
+			"dom": [
+				"<select class=\"size\" .value=\"l\">",
+				"  <option value=\"s\" .selected=false>",
+				"    \"small\"",
+				"  </option>",
+				"  <option value=\"m\" .selected=false>",
+				"    \"medium\"",
+				"  </option>",
+				"  <option value=\"l\" .selected=true>",
+				"    \"large\"",
+				"  </option>",
+				"</select>",
+				"<input class=\"note\" .value=\"none\">",
+				"<p class=\"summary\">",
+				"  \"size l, note none\"",
+				"</p>"
+			]
+		},
+		{
+			"do": {
+				"input": [
+					"input.note",
+					"typed"
+				]
+			},
+			"dom": [
+				"<select class=\"size\" .value=\"l\">",
+				"  <option value=\"s\" .selected=false>",
+				"    \"small\"",
+				"  </option>",
+				"  <option value=\"m\" .selected=false>",
+				"    \"medium\"",
+				"  </option>",
+				"  <option value=\"l\" .selected=true>",
+				"    \"large\"",
+				"  </option>",
+				"</select>",
+				"<input class=\"note\" .value=\"typed\">",
+				"<p class=\"summary\">",
+				"  \"size l, note none\"",
+				"</p>"
+			]
+		},
+		{
+			"do": {
+				"change": "input.note"
+			},
+			"dom": [
+				"<select class=\"size\" .value=\"l\">",
+				"  <option value=\"s\" .selected=false>",
+				"    \"small\"",
+				"  </option>",
+				"  <option value=\"m\" .selected=false>",
+				"    \"medium\"",
+				"  </option>",
+				"  <option value=\"l\" .selected=true>",
+				"    \"large\"",
+				"  </option>",
+				"</select>",
+				"<input class=\"note\" .value=\"typed\">",
+				"<p class=\"summary\">",
+				"  \"size l, note typed\"",
+				"</p>"
+			]
+		}
+	]
+}

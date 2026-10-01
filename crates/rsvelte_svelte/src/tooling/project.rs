@@ -14,7 +14,7 @@ use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 
 use crate::syntax::syntax_tree::{
-    Attribute, AttributeValue, Component, Part, TemplateNode, TemplateNodeIdentifier,
+    Attribute, AttributeKind, AttributeValue, Component, Part, TemplateNode, TemplateNodeIdentifier,
 };
 
 #[derive(Debug)]
@@ -81,12 +81,37 @@ impl Projector<'_> {
                     ));
                 }
                 self.e.push("{ svelteHTML.createElement(\"");
-                self.e.push(tag);
+                // Copied, as svelte2tsx does: an error on the attribute object maps to the name's
+                // end.
+                self.e.copy(self.source_text, name);
                 self.e.push("\", {");
                 for a in self.c.attributes(attributes) {
-                    self.attribute(a);
+                    match a.kind {
+                        AttributeKind::Bind => {
+                            return Err(Unsupported::at("bind: directives", a.span));
+                        }
+                        AttributeKind::Class => {}
+                        AttributeKind::Attribute
+                        | AttributeKind::Attach
+                        | AttributeKind::Spread => {
+                            self.attribute(a);
+                        }
+                    }
                 }
                 self.e.push("});\n");
+                // svelte2tsx checks a class directive's expression as a statement after the
+                // element.
+                for a in self.c.attributes(attributes) {
+                    if a.kind == AttributeKind::Class
+                        && let AttributeValue::Parts(r) = a.value
+                        && let [Part::Expression { expression, .. }] = self.c.parts(r)
+                    {
+                        let range = expression_range(&self.c.javascript, *expression);
+                        self.e.copy(self.source_text, range);
+                        self.e.mark(range.end_offset);
+                        self.e.push(";\n");
+                    }
+                }
                 self.children(self.c.children(children))?;
                 self.e.push("}\n");
             }
@@ -110,6 +135,7 @@ impl Projector<'_> {
                 }
                 self.e.push("\n");
             }
+            TemplateNode::Each { span, .. } => return Err(Unsupported::at("{#each} blocks", span)),
         }
         Ok(())
     }
@@ -121,6 +147,26 @@ impl Projector<'_> {
             AttributeValue::Parts(r) => self.c.parts(r),
         };
         self.e.push(" ");
+        if a.kind == AttributeKind::Spread {
+            // svelte2tsx copies what the braces hold: `...expression`.
+            self.e.copy(source_text, inner(a.span));
+            self.e.mark(a.span.end_offset - 1);
+            self.e.push(",");
+            return;
+        }
+        if a.kind == AttributeKind::Attach {
+            let [Part::Expression { expression, .. }] = parts else {
+                unreachable!("an attachment is one expression")
+            };
+            self.e.push("[Symbol(\"@attach\")]: ");
+            self.e.copy(
+                source_text,
+                expression_range(&self.c.javascript, *expression),
+            );
+            self.e.mark(a.span.end_offset - 1);
+            self.e.push(",");
+            return;
+        }
         if a.shorthand {
             // `{name}` is a shorthand property: TypeScript reports an undeclared name on it.
             self.expression(a.span);

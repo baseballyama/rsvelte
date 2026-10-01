@@ -56,6 +56,22 @@ pub enum TemplateNode {
         elseif: bool,
         span: Span,
     },
+    /// `{#each expression as context, index (key)}…{:else}…{/each}`; an absent part is
+    /// `NodeIdentifier::NONE`.
+    Each {
+        expression: NodeIdentifier,
+        /// The pattern after `as`.
+        context: NodeIdentifier,
+        /// An identifier node in the component's [`SyntaxTree`], so scope analysis can declare it.
+        index: NodeIdentifier,
+        key: NodeIdentifier,
+        body: Range,
+        /// Meaningful only with `has_fallback`: `{:else}` with nothing after it is an empty
+        /// fallback, not an absent one.
+        fallback: Range,
+        has_fallback: bool,
+        span: Span,
+    },
 }
 
 impl TemplateNode {
@@ -66,20 +82,55 @@ impl TemplateNode {
             | Self::Comment { span, .. }
             | Self::Expression { span, .. }
             | Self::Element { span, .. }
-            | Self::If { span, .. } => span,
+            | Self::If { span, .. }
+            | Self::Each { span, .. } => span,
         }
     }
 }
 
 #[derive(Debug)]
 pub struct Attribute {
+    pub kind: AttributeKind,
+    /// As written: `bind:value` for a binding, `class:active` for a class directive, empty for an
+    /// `{@attach}` or a spread.
     pub name: Span,
     pub value: AttributeValue,
     pub span: Span,
     /// `a="…"` rather than `a={…}`; upstream keeps the two apart and a few rules differ.
     pub quoted: bool,
-    /// Written `{a}` rather than `a={a}`.
+    /// Written `{a}` rather than `a={a}`, or `bind:a` rather than `bind:a={a}`.
     pub shorthand: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AttributeKind {
+    Attribute,
+    /// `bind:name={expression}`; the value is the one expression.
+    Bind,
+    /// `{@attach expression}`; the name is empty and the value is the one expression.
+    Attach,
+    /// `class:name={expression}`; the value is the one expression.
+    Class,
+    /// `{...expression}`; the name is empty and the value is the one expression.
+    Spread,
+}
+
+impl Attribute {
+    /// The name after a directive's prefix: `value` in `bind:value`, `active` in `class:active`.
+    #[must_use]
+    pub const fn directive_name(&self) -> Option<Span> {
+        let prefix = match self.kind {
+            AttributeKind::Bind => "bind:".len(),
+            AttributeKind::Class => "class:".len(),
+            AttributeKind::Attribute | AttributeKind::Attach | AttributeKind::Spread => {
+                return None;
+            }
+        };
+        Some(Span::new(
+            self.name.start_offset + prefix as u32,
+            self.name.end_offset,
+        ))
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -157,7 +208,7 @@ pub enum TokenType {
     /// `}`
     MustacheClose,
     BlockOpen,
-    /// `if` in `{:else if`.
+    /// `if` in `{:else if`, `as` in `{#each … as …}`, `@attach` in `{@attach …}`.
     BlockKeyword,
     JavaScript(rsvelte_javascript::lexer::T),
     JavaScriptComment,

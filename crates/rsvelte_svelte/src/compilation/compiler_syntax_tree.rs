@@ -5,6 +5,10 @@
 //! source text is read only for names. What changes on the way:
 //!
 //! - an `{#if}…{:else if}…{:else}` chain is one node with its branches, not nested `If`s;
+//! - a `bind:` directive is an attribute named by its property, with an [`AttributeValue::Bind`],
+//!   and a `class:` directive one named by its class, with an [`AttributeValue::Class`]; an
+//!   `{@attach}` tag and a spread are attributes with an empty name and an
+//!   [`AttributeValue::Attach`] or [`AttributeValue::Spread`];
 //! - every element knows its kind (regular, component, `<title>` in `<svelte:head>`, `<slot>`,
 //!   `svelte:` meta tag), decided the way the Svelte parser decides it;
 //! - an attribute value is classified (boolean, static text with character references decoded, one
@@ -79,6 +83,9 @@ pub enum NodeKind {
         raw: Span,
         /// Present only when decoding changed the text.
         decoded: Option<Box<str>>,
+        /// The frontend spelled `decoded` itself (Vue's condensed text): `raw` is only where it
+        /// came from, and the markup is `decoded` escaped.
+        spelled: bool,
     },
     Comment {
         data: Span,
@@ -92,6 +99,62 @@ pub enum NodeKind {
         /// The final `{:else}`.
         otherwise: Option<Children>,
     },
+    Each(Each),
+}
+
+/// `{#each collection as context, index (key)}…{:else}…{/each}`. The context and the index are
+/// declared in a scope of their own, which the key and the body see and the collection and the
+/// fallback do not.
+#[derive(Debug)]
+pub struct Each {
+    pub collection: NodeIdentifier,
+    /// A pattern node; `NodeIdentifier::NONE` when absent, as are `index` and `key`.
+    pub context: NodeIdentifier,
+    /// An identifier node.
+    pub index: NodeIdentifier,
+    pub key: NodeIdentifier,
+    pub body: Children,
+    pub fallback: Option<Children>,
+}
+
+impl Each {
+    #[must_use]
+    pub const fn context(&self) -> Option<NodeIdentifier> {
+        some(self.context)
+    }
+
+    #[must_use]
+    pub const fn index(&self) -> Option<NodeIdentifier> {
+        some(self.index)
+    }
+
+    #[must_use]
+    pub const fn key(&self) -> Option<NodeIdentifier> {
+        some(self.key)
+    }
+
+    /// Upstream's `metadata.keyed`: a key other than the index itself.
+    #[must_use]
+    pub fn keyed(&self, javascript: &rsvelte_javascript::SyntaxTree) -> bool {
+        let Some(key) = self.key() else {
+            return false;
+        };
+        let is_index = matches!(
+            javascript.kind(key),
+            rsvelte_javascript::Kind::Identifier(_)
+        ) && self.index().is_some_and(|i| {
+            javascript.atom(i).is_some() && javascript.atom(i) == javascript.atom(key)
+        });
+        !is_index
+    }
+}
+
+const fn some(identifier: NodeIdentifier) -> Option<NodeIdentifier> {
+    if identifier.0 == NodeIdentifier::NONE.0 {
+        None
+    } else {
+        Some(identifier)
+    }
 }
 
 #[derive(Debug)]
@@ -198,6 +261,14 @@ pub enum AttributeValue {
     /// Text and expressions, or several expressions: `class="a {b}"`. Empty for `a=` followed by
     /// nothing, which is not the empty text `a=""`: the compiler sets it at runtime.
     Interpolated(Box<[Part]>),
+    /// `bind:name={e}`: the attribute's name is the bound property.
+    Bind(NodeIdentifier),
+    /// `{@attach e}`: the attribute's name is empty.
+    Attach(NodeIdentifier),
+    /// `class:name={e}`: the attribute's name is the class.
+    Class(NodeIdentifier),
+    /// `{...e}`: the attribute's name is empty.
+    Spread(NodeIdentifier),
 }
 
 impl CompilerSyntaxTree {
@@ -245,7 +316,7 @@ impl NodeKind {
     #[must_use]
     pub fn text<'a>(&'a self, source_text: &'a str) -> Option<&'a str> {
         match self {
-            Self::Text { raw, decoded } => {
+            Self::Text { raw, decoded, .. } => {
                 Some(decoded.as_deref().unwrap_or_else(|| raw.text(source_text)))
             }
             _ => None,
@@ -463,7 +534,7 @@ impl SurfaceBuilder<'_> {
                     self.b
                         .attributes(c.attributes(attributes).iter().enumerate().map(|(i, a)| {
                             Attribute {
-                                name: Name::Source(a.name),
+                                name: Name::Source(a.directive_name().unwrap_or(a.name)),
                                 value: attribute_value(c, source_text, a),
                                 span: a.span,
                                 owner: identifier,
@@ -484,6 +555,28 @@ impl SurfaceBuilder<'_> {
                 let children = self.list(c.children(children), Some(identifier));
                 self.b.set_element_children(identifier, children);
                 return identifier;
+            }
+            TemplateNode::Each {
+                expression,
+                context,
+                index,
+                key,
+                body,
+                fallback,
+                has_fallback,
+                ..
+            } => {
+                let body = self.list(c.children(body), Some(identifier));
+                let fallback =
+                    has_fallback.then(|| self.list(c.children(fallback), Some(identifier)));
+                NodeKind::Each(Each {
+                    collection: expression,
+                    context,
+                    index,
+                    key,
+                    body,
+                    fallback,
+                })
             }
             TemplateNode::If { .. } => {
                 let chain = c.if_branches(t);
@@ -526,6 +619,17 @@ pub fn text(raw: Span, source_text: &str) -> NodeKind {
             std::borrow::Cow::Borrowed(_) => None,
             std::borrow::Cow::Owned(s) => Some(s.into_boxed_str()),
         },
+        spelled: false,
+    }
+}
+
+/// A text node whose text a frontend spelled; `from` is where it was written.
+#[must_use]
+pub const fn spelled_text(from: Span, text: Box<str>) -> NodeKind {
+    NodeKind::Text {
+        raw: from,
+        decoded: Some(text),
+        spelled: true,
     }
 }
 
@@ -551,6 +655,18 @@ fn attribute_value(c: &Component, source_text: &str, a: &syntax_tree::Attribute)
         syntax_tree::AttributeValue::Parts(r) => c.parts(r),
     };
     match parts {
+        [Part::Expression { expression, .. }] if a.kind == syntax_tree::AttributeKind::Bind => {
+            AttributeValue::Bind(*expression)
+        }
+        [Part::Expression { expression, .. }] if a.kind == syntax_tree::AttributeKind::Attach => {
+            AttributeValue::Attach(*expression)
+        }
+        [Part::Expression { expression, .. }] if a.kind == syntax_tree::AttributeKind::Class => {
+            AttributeValue::Class(*expression)
+        }
+        [Part::Expression { expression, .. }] if a.kind == syntax_tree::AttributeKind::Spread => {
+            AttributeValue::Spread(*expression)
+        }
         [Part::Expression { expression, .. }] if a.shorthand => {
             AttributeValue::Shorthand(*expression)
         }
@@ -691,6 +807,10 @@ mod tests {
                 AttributeValue::Expression { quoted, .. } => format!("expression quoted={quoted}"),
                 AttributeValue::Shorthand(_) => "shorthand".into(),
                 AttributeValue::Interpolated(p) => format!("interpolated {}", p.len()),
+                AttributeValue::Bind(_) => "bind".into(),
+                AttributeValue::Attach(_) => "attach".into(),
+                AttributeValue::Class(_) => "class".into(),
+                AttributeValue::Spread(_) => "spread".into(),
             })
             .collect();
         assert_eq!(

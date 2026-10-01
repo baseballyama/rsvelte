@@ -10,8 +10,9 @@ fixtures/
 └── <family>/<source>/<path>/   one unit, e.g. svelte/bits-ui/src/lib/button.svelte/
 ```
 
-`<family>` is a language family (`svelte` today), `<source>` is the repository the file came from,
-and `<path>` is the file's path in that repository.
+`<family>` is a language family (`svelte`, `vue`, and `cross` for components compiled for
+the other runtime), `<source>` is the repository the file came from, and `<path>` is the file's
+path in that repository.
 
 ## Files
 
@@ -23,8 +24,8 @@ and `<path>` is the file's path in that repository.
 | `_registry/licenses/` | License files of the sources. | `import` | yes |
 | `<unit>/input.*` | The copied input (written by hand in a local source). | `import` or a person | yes |
 | `<unit>/meta.json` | Language, hash, and mode of the input. | `import` | yes |
-| `<unit>/fixture.toml` | Manual notes: `[skip]` and `[[adjust]]` (below). `import` never changes it. | a person | yes |
-| `<unit>/expected/<task>/<variant>.*` | Output of the official tool: `.js`, `.css`, `.warnings.json`, or `.error.json`. | `regen` | yes |
+| `<unit>/fixture.toml` | Manual notes: `[skip]`, `[[adjust]]` (below) and, for `cross` units, `[behaviour]` (props and user steps). `import` never changes it. | a person | yes |
+| `<unit>/expected/<task>/<variant>.*` | Output of the official tool: `.js`, `.css`, `.warnings.json`, `.error.json`, or for `cross` units `.trace.json` (what the official build renders after each step). | `regen` | yes |
 | `<unit>/actual/<task>/<variant>.*` | rsvelte's output, same names as `expected/`. | rsvelte tests | no |
 | `<unit>/cache/<task>/<variant>.*` | Expected output too large to commit. | `regen` | no |
 

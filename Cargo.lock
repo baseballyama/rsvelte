@@ -106,6 +106,7 @@ dependencies = [
  "rsvelte_svelte",
  "rsvelte_svue",
  "rsvelte_vue",
+ "rsvelte_vuelte",
 ]
 
 [[package]]
@@ -133,6 +134,7 @@ dependencies = [
  "rsvelte_svelte",
  "rsvelte_svue",
  "rsvelte_vue",
+ "rsvelte_vuelte",
  "wasm-bindgen",
 ]
 
@@ -167,6 +169,7 @@ dependencies = [
  "rsvelte_kernel",
  "rsvelte_svelte",
  "rsvelte_vue",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -177,6 +180,17 @@ dependencies = [
  "rsvelte_kernel",
  "rsvelte_markup",
  "rsvelte_stylesheet",
+ "rustc-hash",
+]
+
+[[package]]
+name = "rsvelte_vuelte"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_javascript",
+ "rsvelte_kernel",
+ "rsvelte_svelte",
+ "rsvelte_vue",
  "rustc-hash",
 ]
 

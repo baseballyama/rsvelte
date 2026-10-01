@@ -16,6 +16,7 @@ rsvelte_svelte = { path = "crates/rsvelte_svelte" }
 rsvelte_markup = { path = "crates/rsvelte_markup" }
 rsvelte_vue = { path = "crates/rsvelte_vue" }
 rsvelte_svue = { path = "crates/rsvelte_svue" }
+rsvelte_vuelte = { path = "crates/rsvelte_vuelte" }
 rayon = "1.12"
 rustc-hash = "2.1"
 libc = "0.2"

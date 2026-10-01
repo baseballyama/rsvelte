@@ -57,7 +57,7 @@ tools/fixtures/
 
 設計上の判断:
 - **unit 単位で同じ場所に置く。** 1 つの fixture を開けば、入力・期待値・実装の出力・調整がすべて並ぶ。
-- **最上位を言語ファミリーで分ける。** いまのファミリーは `svelte`、`vue`、`svue` の 3 つ。Svelte と Vue が混ざらない。Tailwind 付き Svelte は言語ではなく文脈なので、`svelte/` の下に置く（§9）。
+- **最上位を言語ファミリーで分ける。** いまのファミリーは `svelte`、`vue`、`cross` の 3 つ。Svelte と Vue が混ざらない。`cross` は、別のランタイム向けにコンパイルする（`.vue` → Svelte ランタイム、`.svelte` → Vue ランタイム）unit で、振る舞いのオラクル（§12）だけを当てる。Tailwind 付き Svelte は言語ではなく文脈なので、`svelte/` の下に置く（§9）。
 - **タスク単位のビューは git の glob で取る。** 例: `git diff --stat -- ':(glob)fixtures/**/expected/svelte.compile/**'`。
 - **予約名の退避。** 元のパスの要素が予約名（`expected` `actual` `cache` `meta.json` `fixture.toml` `input.*`）なら `~` を前置する。`~` で始まる要素にも前置するので、変換は可逆になる。これで `.gitignore` の `/fixtures/**/actual/` は unit の子にしか当たらない。実コーパスでは 543 要素が退避された（svelte 本体のテストが `input.svelte` という名前を多用しているため）。
 - **`.gitignore` の規則は必ずアンカーする。** 当初の `target/` は、元のパスに `target` を含む sveltekit のテストアプリの入力 9 件と snapshot 20 件を黙って無視していた。配置を移行したときの照合で、件数が合わないことから見つかった。
@@ -80,12 +80,12 @@ mise exec -- node tools/fixtures/bin/fixtures.ts import --from <submodule を持
    - `svelte-module-js`: `compileModule` が通ること。
    - `svelte-module-ts`: 無条件で受け入れる（§11 の未決事項を参照）。
    - `vue`: `@vue/compiler-sfc` の `parse` がエラーなしで通ること。`meta.json` の `mode` に `setup`（`<script setup>`）、`options`（素の `<script>` だけ）、`template`（スクリプトなし）を記録する。
-   - `svue`: `tools/fixtures/src/svue.ts` が Svelte の構文に書き直せて、Svelte コンパイラ（`runes: true`）がそれを受け入れること。
+   - `cross-vue` / `cross-svelte`（ファミリー `cross`、手書きのみ）: 公式ツールチェーンでビルドできること（§12.2）。
 7. unit ディレクトリに `input<ext>` と `meta.json` を書き、LICENSE の写しを置く。上流で消えた unit はディレクトリごと消す。ただし `fixture.toml`（手書き）を持つ unit は消さずに残して列挙し、終了コードを 1 にする。
 
 ### 2026-09-29 時点の取り込み結果
 
-対象は `svelte` ファミリー。`vue` と `svue` のユニットは、いまは手書きの `rsvelte` source（`fixtures/vue/rsvelte` 19 件、`fixtures/svue/rsvelte` 5 件）だけで、取り込み元のリポジトリはまだ無い。
+対象は `svelte` ファミリー。`vue` のユニットは、いまは手書きの `rsvelte` source（`fixtures/vue/rsvelte` 28 件）だけで、取り込み元のリポジトリはまだ無い。
 
 測った対象は、主チェックアウト（`/Users/baseballyama/git/rsvelte`、`main` `5ed8ea3a3`）の submodule。admission のオラクルは svelte 5.57.1。
 
@@ -130,7 +130,8 @@ mise exec -- node tools/fixtures/bin/fixtures.ts regen [--task id,...] [--source
 | `vue.lint` | 同上 | `default`（全ルール） | eslint + eslint-plugin-vue + vue-eslint-parser + @typescript-eslint/parser | `lint.json`（lint） |
 | `vue.check` | 同上 | `default` | vue-tsc + @vue/language-core + @volar/typescript + typescript + vue | `json`（json） |
 | `ts.check` | `svelte.check` と `vue.check` の unit の和 | `default` | unit ごとに svelte-check か vue-tsc | `json`（json） |
-| `svue.compile` | `svue` の全 unit | `client`、`server` | `.svue` を Svelte の構文に書き直して svelte | `svelte.compile` と同じ |
+| `svue.compile` | `cross` の `.vue`（言語 `cross-vue`） | `client`、`server` | @vue/compiler-sfc + vue（+ jsdom） | `trace.json`（実装の `js` を Svelte ランタイムで動かした trace と比較、§12） |
+| `vuelte.compile` | `cross` の `.svelte`（言語 `cross-svelte`） | `client`、`server` | svelte（+ jsdom） | `trace.json`（実装の `js` を Vue ランタイムで動かした trace と比較、§12） |
 
 storage はすべて `committed`。`ts.check` は rsvelte の言語に依存しない型検査（1 回の tsc で両方の言語）を測るためのタスクで、期待値は unit の言語のオラクルがそのまま出す。
 
@@ -228,7 +229,7 @@ lint・format・型検査はタスクになった（§5）。残りは次のと�
 
 ### ユニット単位の例外
 
-unit の `fixture.toml` に書く。いまは `[skip]`（task id または `task/variant` → 理由）と `[[adjust]]` を持つ。skip の例: `vue/rsvelte/check/template-shapes.vue` と `vue/rsvelte/lint/button-types.vue` は、rsvelte の compile の移植が拒否する構文（束縛した `class`、`type` と `:type` の重複）を含むので `vue.compile/default` を外している。どちらも別のタスクを測るための unit である。今後、lint 設定の差し替えやコンパイルオプション（`experimental.async` など）といった、タスク固有の per-unit オプションもここに置く。
+unit の `fixture.toml` に書く。いまは `[skip]`（task id または `task/variant` → 理由）、`[[adjust]]`、`[behaviour]`（振る舞いタスクの props と操作手順、§12.4）を持つ。skip の例: `vue/rsvelte/check/template-shapes.vue` と `vue/rsvelte/lint/button-types.vue` は、rsvelte の compile の移植が拒否する構文（束縛した `class`、`type` と `:type` の重複）を含むので `vue.compile/default` を外している。どちらも別のタスクを測るための unit である。今後、lint 設定の差し替えやコンパイルオプション（`experimental.async` など）といった、タスク固有の per-unit オプションもここに置く。
 
 ## 10. 実装との接続
 
@@ -247,6 +248,7 @@ unit の `fixture.toml` に書く。いまは `[skip]`（task id または `task
 
 - `mise exec -- node tools/fixtures/bin/fixtures.ts compare --task svelte.compile --variant client [--family svelte] [--source id,...] [--report <file>]`
 - verdict は `match` / `mismatch` / `missing` / `unexpected` / `unparseable` の 5 種類。
+- 振る舞いタスク（§12）では、実装の `actual/<task>/<variant>.js` から trace を取り、それを期待値の `trace.json` と比べる（`Task.observe`）。
 - 画面に出すのは先頭 20 件だけで、`… and N more` を必ず添える。全件は `--report` のファイルに書く。
 - canonical AST（§6）の実装は Node 側の 1 つだけで、Rust 側は出力を書くだけ。
 
@@ -273,4 +275,169 @@ unit の `fixture.toml` に書く。いまは `[skip]`（task id または `task
 | 生成コーパス（matrix / mutation） | 実コーパスだけでは相互作用のバグが出ない。旧 `pattern-corpus` はライセンス上の理由で除外したので、生成器を作り直して `fixtures/` に別の source として置く |
 | 並列化 | regen は 1 スレッドで 107 s。タスクが増えたら worker に分ける |
 | `experimental.async` を使う runes ファイル | `await` を使うコンポーネント 304 件が、`experimental_async` で admission に落ちている。legacy ではなく、元プロジェクトが `svelte.config` で有効にしている正しい runes ファイル。per-unit のコンパイルオプション（`fixture.toml`、または source 単位の既定値）を入れてから取り込む |
+| 振る舞いの比較範囲 | trace は DOM とフォームのプロパティだけを見る。CSS（どのスタイルが当たるか）、hydration（SSR の HTML に client を被せる経路）、IME の composition、フォーカス、タイマーや `fetch` を待つ非同期の更新は比べない（§12.4、§12.8） |
 | svelte 本体のテスト fixture | 本体の `_config.js` にあるコンパイルオプション（`dev` など）は、まだ取り込んでいない。取り込むまでは既定オプションの unit として扱う |
+
+## 12. 振る舞いのオラクル（別ランタイム向けのコンパイル）
+
+- 実装: `tools/fixtures/src/behaviour/`（`official.ts`、`runtime.ts`、`client.ts`、`server.ts`、`dom.ts`、`modules.ts`）と `tools/fixtures/src/tasks/behaviour.ts`
+- オラクル自身のテスト: `tools/fixtures/test/behaviour.test.ts`（`pnpm test`、CI の `fixtures` ジョブ）
+
+### 12.1 何を正しいとするか
+
+`svue`（`.vue` を Svelte ランタイム向けにコンパイルする）と `vuelte`（`.svelte` を Vue ランタイム向けにコンパイルする）には、上流のコンパイラが存在しない。したがって「公式の出力とバイト一致／AST 一致」は定義できない。代わりに、**元の言語の公式ツールチェーンと同じ振る舞いをすること**を正しさとする。
+
+- **期待値**: 元のコンポーネントを、その言語の公式コンパイラでビルドする（`.vue` は `@vue/compiler-sfc`、`.svelte` は `svelte/compiler`）。それを元の言語のランタイムで DOM にマウントし、unit の操作手順を順に実行して、マウント直後と各手順の後の正規化した DOM を記録する。SSR は、`vue/server-renderer` の `renderToString` か `svelte/server` の `render` の HTML を、同じ規則で正規化して記録する。これが trace で、`fixtures regen` が `expected/<task>/<variant>.trace.json` に書く。
+- **実装側**: rsvelte が出力した、もう一方のランタイム向けの JS（§12.3）を、そのランタイムで同じようにマウントし、同じ props と同じ手順で trace を取る。
+- **判定**: 2 つの trace が等しければ `match`。違えば `mismatch` で、最初に違う手順と行を報告する（例: `step 3 {"click":"button.remove"}: line 3: expected "1. banana", actual "1. item 3"`）。
+
+公式のビルドが自分の手順で例外を出したら（セレクタに一致する要素が無い、など）、regen はその unit で失敗する。期待値に例外は入らない。
+
+### 12.2 unit の置き場所と言語
+
+```
+fixtures/cross/rsvelte/<グループ>/<名前>.vue/      言語 cross-vue    → svue.compile
+  input.vue  meta.json  fixture.toml  expected/svue.compile/{client,server}.trace.json
+fixtures/cross/rsvelte/<グループ>/<名前>.svelte/   言語 cross-svelte → vuelte.compile
+  input.svelte  meta.json  fixture.toml  expected/vuelte.compile/{client,server}.trace.json
+```
+
+- ファミリー `cross` には言語が 2 つある。`cross-vue`（`.vue`、admission は公式ビルドが client と server の両方で通ること）と `cross-svelte`（`.svelte`、admission は `runes: true` の compile が通ること）。`vue` / `svelte` ファミリーの unit には振る舞いタスクは当たらず、`cross` の unit には compile・lint などのタスクは当たらない。
+  - 手書き unit の言語は、拡張子だけでなくファミリーでも決める（`languageOf(path, family)`）。取り込み元リポジトリのファイルは、従来どおり `svelte` / `vue` に入る。
+- いまの unit は 12 組・24 件で、どの `.vue` にも、同じ振る舞いを手で書いた `.svelte` の双子がある（逆も同じ）。
+  - `minimal/`: counter、conditional、list、text-input、checkbox、props、form-controls、todo。
+  - `semantics/`: 2 つのランタイムの意味が違うところ（§12.8）。number-input、interpolation、boolean-prop、fallthrough。
+- `rsvelte fixtures` はファミリーを区別しないので、`cross` の unit にも `vue.compile` などを走らせて `actual/` に書く。Node 側はそれを比べない。
+
+### 12.3 実装が書くファイル（Rust 側の契約）
+
+| タスク | 書くファイル | モジュールの形 | マウントのしかた |
+|---|---|---|---|
+| `svue.compile/client` | `actual/svue.compile/client.js` | `svelte/compiler` が `generate: 'client'` で出す形。コンポーネントを `export default` する | `mount(C, { target, props })`（`svelte`）、各手順の後に `flushSync()` |
+| `svue.compile/server` | `actual/svue.compile/server.js` | `generate: 'server'` で出す形。`export default` | `render(C, { props }).body`（`svelte/server`） |
+| `vuelte.compile/client` | `actual/vuelte.compile/client.js` | `@vitejs/plugin-vue` のクライアントビルドが出すコンポーネント（`setup` が render 関数を返す、または `render` を持つオブジェクト）を `export default` する | `createApp(C, props).mount(el)`（`vue`）、各手順の後に `nextTick()` |
+| `vuelte.compile/server` | `actual/vuelte.compile/server.js` | SSR ビルドのコンポーネント（`ssrRender`、`__ssrInlineRender` 付きで `setup` が SSR render 関数を返すもの、または vnode の render 関数）を `export default` する | `renderToString(createSSRApp(C, props))`（`vue/server-renderer`） |
+
+- Rust のタスク名は `svue.compile/client` のように `<task>/<variant>` にし、成果物の名前を `js` にする。`rsvelte fixtures` は `actual/<task>/<variant>.<name>` に書くので、上の表のパスになる。
+- 拒否する unit には、従来どおり `<variant>.diagnostics.json` だけを書く。`fixtures check` はそれを「拒否」として数え、`parity.json` に載せない。
+- モジュールが import してよいのは、ランタイムのパッケージ（`svelte`、`svelte/*`、`vue`、`@vue/*`）だけ。これらは `tools/fixtures` に pin した版に解決される（期待値側と同じ 1 つのコピー）。`svelte` は、client では `browser` 条件付き（バンドラのクライアントビルドと同じ）で解決し、server では付けない。相対 import や他のパッケージは解決できず、`load:` のエラーになる。
+- 比較の前に、`client.js` / `server.js` を acorn でパースする。パースできなければ `unparseable`。読み込みやマウントで例外が出たら、それが trace に入って `mismatch` になる。
+- `fixtures compare` は、実装側の trace を `actual/<task>/<variant>.trace.json` に書く（調べるため。比較には使わない）。
+- `svue.compile` の実装は `crates/rsvelte_svue`。翻訳の対応表、拒否の一覧、trace に映らない差はクレートの doc に書いてある。
+
+### 12.4 操作手順（`fixture.toml` の `[behaviour]`）
+
+```toml
+[behaviour]
+props = { start = 5 }                      # ルートコンポーネントの props（省略可）
+steps = [
+  { click = "button.inc" },                # el.click()。チェックボックスの切り替えと input/change、label の活性化、submit ボタンによる送信まで、ブラウザの既定動作を含む
+  { input = ["input.name", "Ada"] },       # .value を設定して input（InputEvent、inputType insertText）
+  { change = "input.note" },               # change（入力の確定。v-model.lazy が待つもの）
+  { select = ["select.size", "l"] },       # <select> の .value を設定して input と change
+  { key = ["input.draft", "Escape"] },     # keydown と keyup（key を指定）
+  { submit = "form.new" },                 # submit（cancelable）
+]
+```
+
+- 手順は 1 つにつき動作が 1 つ。対象は、マウント先の中でセレクタに最初に一致する要素。一致しなければ、その手順でエラーになって trace が終わる。
+- `meta.json` ではなく `fixture.toml` に置く。`meta.json` は `fixtures import` が毎回作り直すので、手書きの内容は消える。
+- 各手順の後、ランタイムの flush（Svelte は `flushSync()`、Vue は `nextTick()`）、`setTimeout(0)` 1 回、もう一度 flush をしてから DOM を記録する。同じイベントの中で、どの時点で描画するか（同期かマイクロタスクか）は比べない。利用者には、その違いは見えないため。
+
+### 12.5 trace の形式
+
+```json
+{ "steps": [
+  { "do": "mount", "dom": ["<button class=\"inc\">", "  \"clicks: 0\"", "</button>"] },
+  { "do": { "click": "button.inc" }, "dom": ["…"], "errors": ["Uncaught [Error: …]"] }
+] }
+```
+
+- `client.trace.json` は `steps`。`do` は `"mount"` か手順そのもの。`dom` は正規化した DOM で、要素 1 つかテキスト 1 つにつき 1 行。子は 2 空白ずつ字下げする。
+- `errors` は、その手順の間にイベントリスナーから投げられた例外（jsdom の報告）。無ければキーごと無い。
+- 手順が例外で止まった場合は、その手順が `{ "do": …, "error": "…" }` になり、trace はそこで終わる。
+- `server.trace.json` は `{ "html": [ … ] }`。読み込みや描画が失敗した場合は `{ "error": "load: …" }` か `{ "error": "render: …" }`。
+- 要素の行は `<タグ 属性="値" … .プロパティ=値>`。属性は名前順で、値は JSON 文字列。プロパティは `.` で始まる。
+
+### 12.6 正規化の規則
+
+利用者に見えるものを比べ、どちらかのランタイムの実装の都合でしかないものは比べない。仕様は `tools/fixtures/src/behaviour/dom.ts` の冒頭のコメントで、内容は次のとおり。
+
+| 規則 | 理由 | 隠さないもの |
+|---|---|---|
+| コメントノードを落とす。落としたコメントの両側のテキストはつなげる | Svelte のアンカー（`<!---->`、`<!--[-->`）と Vue のフラグメントの目印（`<!--[-->`、`<!--]-->`、`<!--v-if-->`）は何も描画しない | テキストそのもの |
+| `data-v-<hash>` 属性と、`svelte-<hash>` クラスを落とす | どちらも自分のスタイルのスコープ用で、スタイルは比べない | `svelte-` 以外のクラス。`svelte-1x2y3z extra` と `extra` が無いものは違う |
+| 属性を名前順にする。クラスのトークンを重複除去してソートする。`style` を宣言ごとに読み直して `プロパティ: 値` のソート済みの列にする | CSS はどの順序も読まない | 属性の値、クラスの有無、宣言の値 |
+| 空になった `class` / `style` 属性は落とす | `class=""` と属性なしは見た目が同じ（Vue は空のクラス束縛で `class=""` を残す） | — |
+| テキストは CSS の `white-space: normal` に従う。空白の連続を 1 つの空白にし、ブロックの境界（ブロックレベルの親の端、ブロックレベルの兄弟や `<br>` の隣）にある空白は落とす | その位置の空白は描画されない | インライン要素の間の空白。`<b>a</b> <b>b</b>` と `<b>a</b><b>b</b>` は見た目が違うので、違うものとして残る |
+| `<pre>` の中のテキストはそのまま残す | 空白がそのまま描画される | — |
+| フォームのプロパティを記録する: `<input>`（checkbox と radio 以外）・`<textarea>`・`<select>` の `.value`、checkbox と radio の `.checked`、`<option>` の `.selected`。`<textarea>` の子（初期値でしかない）は `.value` で置き換える | `v-model` も `bind:` も、属性ではなくプロパティに書く。属性だけを見ると、入力欄に見えている値を比べられない | — |
+
+- インライン要素の端は境界として扱わない。行頭に来たインライン要素の端の空白のように、見えない違いを報告してしまうことはありうるが、見える違いを隠すことはない。
+- ブロックレベルかどうかは、HTML の既定の表示（`div`、`p`、`li`、`ul`、`form`、`table` の各要素、`option` など）で決める。CSS で `display` を変えたものは見ない。
+- SSR の HTML は、ブラウザがブロックのコンテナの中にパースするのと同じように jsdom でパースしてから、同じ規則で正規化する。属性 `value` や `checked` も、パースした結果のプロパティとして記録される。
+- 正規化の両方向（隠すべきものが消え、見えるものが残る）は、`behaviour.test.ts` の最後のテストに 23 組の HTML として固定してある。
+
+### 12.7 実行環境
+
+- DOM は jsdom 30.1.1（exact pin）。Svelte 本体と Vue 本体のテストが使う DOM でもある。`window` を 1 つ作り、その DOM のクラスと `document` をグローバルに置いてから、両方のランタイムを読み込む（Vue の runtime-dom は、読み込んだ時点で `document` を掴む）。Node 自身の `Event` 系のクラスは jsdom のものに置き換える（jsdom は自分のイベントしか配送しない）。
+- client の trace は worker スレッドの中で取る。同じプロセスで走る他のタスク（prettier、eslint、vue-tsc など）に DOM のグローバルを漏らさないため。全タスクの regen の前後で、振る舞いタスク以外の snapshot が 1 つも変わらないことを確かめてある。
+- SSR はさらに別の worker スレッドで描画する。サーバーのコードは、`window` も `document` も存在しない場所で動くべきだから。対照: `typeof window === 'undefined'` で初期値を変える翻訳は、server だけが `mismatch` になる（`counter-server-only.svelte`）。
+- unit ごとに新しいコンテナ（`<body>` の子の `<div>`）にマウントし、終わったらアンマウントして取り除く。ランタイムのモジュールはプロセスに 1 つずつで、期待値側と実装側が共有する。
+- Vue は Node の既定の入口（開発ビルド）で動かし、警告は `app.config.warnHandler` で捨てる。`NODE_ENV` は変えない。同じプロセスの他のタスクが使う `@vue/compiler-dom` の選ぶビルドまで変わってしまうため。
+
+### 12.8 2 つのランタイムの意味の違い（オラクルが表に出すもの）
+
+いずれも、公式どうしで同じ見た目の書き方をすると振る舞いが違うことを、オラクルで実測したもの。翻訳器が扱う必要がある。
+
+| 違い | Vue | Svelte | 実測した unit / 対照 |
+|---|---|---|---|
+| 要素の間の改行を含む空白 | `whitespace: 'condense'` が、改行を含む空白だけのテキストを消す | 1 つの空白として残す | インライン要素の間では見える違い。`minimal/counter`、対照 `counter-whitespace.svelte` |
+| 改行を含まない要素間の空白 | 1 つの空白に縮めて残す | 同じ | `minimal/todo` の `<span>…</span> <span>…</span>`（違いなし） |
+| `v-model.lazy` | `change` で更新する | 対応する束縛が無い。`value={x}` と `onchange` で書く | `minimal/form-controls`、対照 `form-controls-eager.svelte`、`text-input-lazy.vue` |
+| 数値の入力欄の `v-model` / `bind:value` | `parseFloat` し、NaN なら文字列のまま（`''` は `''`）。モデルと数値が等しい間は入力欄を書き換えない（`2.50` が残る） | `bind:value` は数値か `null`（`''` は `null`） | `semantics/number-input`、対照 `number-input-bind.svelte`（`""` を入れた手順で `string` と `object` が分かれる） |
+| 補間の値の表示 | `toDisplayString`: オブジェクトと配列は 2 空白字下げの JSON、`null` / `undefined` は空 | `String(value)`（`[object Object]`、`x,y`）。`null` / `undefined` は空 | `semantics/interpolation`、対照 `interpolation-naive.svelte` |
+| 渡されなかった `Boolean` の prop | `false` | 既定値が無ければ `undefined` | `semantics/boolean-prop`、対照 `boolean-prop-naive.svelte` |
+| 宣言していない属性（`$attrs`） | ルート要素が 1 つなら、そこに引き継ぎ、`class` は結合する | 引き継がない（`...rest` を明示的に展開する） | `semantics/fallthrough`、対照 `fallthrough-naive.svelte` |
+| テキストの `v-model` と `bind:value` のイベント | `input`（composition 中は更新しない。`vModelText` のソースより） | `input` | 通常の入力では同じ（`minimal/text-input`）。composition は語彙に無く未測定 |
+| チェックボックス・`<select>` | `change` | `change` | 同じ（`minimal/checkbox`、`minimal/form-controls`）。`label` のクリックでも切り替わる |
+| 空のクラス束縛 | `class=""` を残す | 属性を付けない | 見た目は同じなので正規化で吸収する（§12.6） |
+| 描画のタイミング | `nextTick`（マイクロタスク） | バッチをマイクロタスクで flush | 同じイベントの中の違いは比べない（§12.4）。ハンドラの中で DOM を同期的に読むコードでは見える違いになりうるが、未測定 |
+
+### 12.9 オラクル自身の検証
+
+オラクルを rsvelte の実装と独立に確かめるため、`behaviour.test.ts` は「正しい翻訳」と「誤った翻訳」を、もう一方の公式コンパイラで作って確かめる。`fixtures/` に、rsvelte の出力を装ったファイルは置かない。
+
+1. **双子は一致する**: `cross` の各 unit について、双子（他方の言語で手書きした同じ振る舞いのコンポーネント）を公式コンパイラでビルドし、`compare` と同じ関数（`Task.observe`）で trace を取って、committed の期待値と比べる。24 unit × 2 ターゲットのすべてが一致する。
+2. **誤った翻訳は、手順と差分を名指しして `mismatch` になる**: `test/behaviour/wrong/` の 20 ファイル（オフバイワン、手順の後に 1 件足りないリスト、入力欄の `.value` だけが違うもの、空白の扱い、`.lazy` の取り違え、リスナーの例外、server だけが違うもの、など）について、ターゲットごとの報告文を `test/behaviour/controls.json` に完全一致で固定してある。`null` は「そのターゲットは一致したままでなければならない」で、一方の誤りが他方を動かさないことの陰性側の確認になる。
+3. **観測できない出力は報告される**: `export default` が無い、マウントで例外、解決できない import。
+4. **正規化**: §12.6 の 23 組。
+
+テスト自身の陽性対照として、オラクルに欠陥を入れて赤になることを確かめた（フォームのプロパティを記録しない → 1 と 2 が失敗、最初の手順を飛ばす → 1 と 2 が失敗。戻した後は全件成功）。
+
+`fixtures compare` の経路も、手で置いた `actual/` で一度だけ確かめた（その後は削除）。正しい翻訳 → `match`、誤った翻訳 → 手順を名指した `mismatch`、壊れた JS → `unparseable`、`diagnostics.json` だけ → 拒否（`missing` と `unexpected`）。
+
+### 12.10 vuelte の現状（`vuelte.compile`）
+
+実装は `crates/rsvelte_vuelte`（対応表と拒否の一覧はその `lib.rs` の冒頭、設計は [architecture.md](architecture.md) の「vuelte」）。数は exp/cross と exp/svelte-ext をマージして spread などに対応したコミット（`6b5621c994`）の `run-all` と `fixtures check` のもの。
+
+| unit | client | server |
+|---|---|---|
+| `minimal/` の 8 件（counter、conditional、list、text-input、checkbox、props、form-controls、todo） | match | match |
+| `semantics/interpolation`、`number-input`、`boolean-prop` | match | match |
+| `semantics/fallthrough` | match | match |
+
+§12.8 の違いの扱い:
+
+- 補間: Svelte の `set_text` / `escape` と同じ強制（`` `${e ?? ''}` `` / `String(e ?? '')`）にしてから `toDisplayString` に渡す。オブジェクトは JSON にならない。
+- 要素間の空白: Svelte の `clean_nodes` が残したテキストを Vue の HIR に入れる。Vue の `condense` は HIR を作った後には走らない。
+- 数値の入力欄の `bind:value`、form をリセットできるコンポーネントの束縛など、Svelte の束縛が Vue の状態と違う動きをするものは拒否する。テキスト・チェックボックス・静的な選択肢の `<select>` の束縛は、Svelte の client のランタイムの effect（`bind_value`、`bind_checked`、`bind_select_value`）を要素の関数 ref で再現する。
+- 渡されなかった prop: `defineProps` に `type` を書かないので、Vue の Boolean への変換が起きず `undefined` か既定値になる。
+- `$attrs`: 全コンポーネントに `inheritAttrs: false`。`let { ...rest } = $props()` は `useAttrs()` に写し（宣言していない属性で、Svelte の rest が宣言していない props を持つのと同じ）、テンプレートの spread でだけ読める。spread を持つ要素は全属性を属性順に 1 つのオブジェクトにまとめ、client は Svelte の `set_attributes`、server は `attributes` を移植したヘルパーに渡す（server は Vue の移植に足したオブジェクトの `v-bind` で出す）。これで `fallthrough` は両ターゲットで match になった。
+
+コーパス（`run-all` の 17,582 unit）では、client が 685 件、server が 686 件を出力し、残りは拒否する（`diagnostics.json` が client 16,853 件・server 16,852 件。うち `vuelte_unsupported` は 7,607 件・7,606 件で、残りは Svelte プラグインが読まない文書）。panic は 0。マージの前は 673 / 674 件、マージして新しい構文（spread、`class:`、`{@attach}`）をすべて拒否した段階で 673 / 674 件（`vuelte_unsupported` 7,619 / 7,618 件）、対応した後が 685 / 686 件。
+
+出力したものは、公式の Svelte の build と並べて、props も手順も渡さずにマウント（client）と `renderToString`（server）の trace を比べた（期待値の無いコーパスなので、マウント時点の振る舞いだけの確認）。client は 685 件中 663 件が一致、22 件は両方が同じ例外で一致。server は 686 件中 665 件が一致、20 件は両方が同じ例外、1 件（`props-default-value-function/inner`）は両方が例外で、メッセージの変数名だけが違う（Svelte は `getter is not a function`、vuelte は `$$props.getter is not a function`）。この比較で見つかった不一致は、写さずに拒否へ変えた: 共有の文字参照のデコーダが Svelte と違う読み方をする参照（`&rsaquo;`、`;` の無い `&quot`、`&#128;` など）、ブラウザが Svelte の client のテンプレートをパースし直すと消える・付け替わる要素（`<body>`、親の外にある表の部品）、`<select>` の中の豊かな内容、二度宣言した名前（Svelte は再宣言した `var` を再代入として読み、共有のスコープは最初の初期化子で畳み込む）。
+
+拒否の多い順（client、メッセージの中の名前を `X` にまとめたもの）: 要素 `<X>`（コンポーネントや `svelte:` 要素、5,876）、パーサの `unexpected token`（1,868）、`{#if}` / `{#each}` 以外のブロック（1,734）、モジュールスクリプト（1,581）、未対応の指令（1,294）。新しい構文の拒否は、`<input>` などの上の spread 35、spread の横の束縛 19、spread の横のイベント属性 11、`{@attach}` 12、rest を spread 以外で読むもの 6。Vue の移植自身の拒否（`the Vue compiler: …`）は 11 件（Vue の HTML タグの表に無い要素名をコンポーネントとして扱うもの 8、など）で、翻訳がそれを出力の前に拒否していないところである。
+

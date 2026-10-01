@@ -12,6 +12,7 @@ export const CRATES: Record<string, string> = {
 	rsvelte_command_line: 'command_line',
 	rsvelte_vue: 'vue',
 	rsvelte_svue: 'svue',
+	rsvelte_vuelte: 'vuelte',
 	rsvelte_markup: 'markup'
 };
 
@@ -42,7 +43,9 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 		'rsvelte_vue/src/tasks.rs',
 		'rsvelte_vue/src/lint.rs',
 		'rsvelte_svue/src/lib.rs',
-		'rsvelte_svue/src/frontend.rs',
+		'rsvelte_svue/src/template.rs',
+		'rsvelte_vuelte/src/lib.rs',
+		'rsvelte_vuelte/src/template.rs',
 		'rsvelte_markup/src/button_type.rs',
 		'rsvelte_command_line/src/benchmark.rs',
 		'rsvelte_command_line/src/performance.rs'

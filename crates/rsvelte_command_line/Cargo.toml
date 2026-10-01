@@ -19,6 +19,7 @@ rsvelte_javascript.workspace = true
 rsvelte_svelte.workspace = true
 rsvelte_vue.workspace = true
 rsvelte_svue.workspace = true
+rsvelte_vuelte.workspace = true
 rayon.workspace = true
 libc.workspace = true
 

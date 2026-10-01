@@ -23,7 +23,8 @@ use rsvelte_kernel::output::document::{
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 
 use crate::syntax::syntax_tree::{
-    Attribute, AttributeValue, Component, Part, TagAttributes, TemplateNode, TemplateNodeIdentifier,
+    Attribute, AttributeKind, AttributeValue, Component, Part, TagAttributes, TemplateNode,
+    TemplateNodeIdentifier,
 };
 
 type R<T> = Result<T, Unsupported>;
@@ -638,6 +639,7 @@ impl<'a> Printer<'a, '_> {
             }
             TemplateNode::Element { .. } => self.element(identifier),
             TemplateNode::If { .. } => self.if_block(identifier),
+            TemplateNode::Each { .. } => self.each_block(identifier),
         }
     }
 
@@ -983,6 +985,28 @@ impl<'a> Printer<'a, '_> {
             AttributeValue::True => return Ok(self.d().text(name)),
             AttributeValue::Parts(r) => r.get(&comp.parts),
         };
+        if matches!(a.kind, AttributeKind::Attach | AttributeKind::Spread) {
+            let [Part::Expression { expression, .. }] = parts else {
+                unreachable!("an attachment or a spread is one expression")
+            };
+            let open = self.lit(if a.kind == AttributeKind::Attach {
+                "{@attach "
+            } else {
+                "{..."
+            });
+            let e = self.expression(*expression, false, false)?;
+            let close = self.lit("}");
+            return Ok(self.cat(&[open, e, close]));
+        }
+        if let (Some(property), [Part::Expression { expression, .. }]) = (a.directive_name(), parts)
+            && matches!(
+                comp.javascript.kind(*expression),
+                rsvelte_javascript::Kind::Identifier(_)
+            )
+            && comp.javascript.name(*expression) == property.text(source_text)
+        {
+            return Ok(self.d().text(name));
+        }
         let lone = matches!(parts, [Part::Expression { .. }]);
         if let [Part::Expression { expression, .. }] = parts
             && matches!(
@@ -1046,6 +1070,63 @@ impl<'a> Printer<'a, '_> {
         let mut def = vec![open, t, close, body];
         def.push(self.if_alternate(identifier)?);
         def.push(self.lit("{/if}"));
+        let def = self.cat(&def);
+        let bp = self.d().break_parent();
+        Ok(self.group(&[def, bp]))
+    }
+
+    fn each_block(&mut self, identifier: TemplateNodeIdentifier) -> R<LayoutInstructionIdentifier> {
+        let TemplateNode::Each {
+            expression,
+            context,
+            index,
+            key,
+            body,
+            fallback,
+            has_fallback,
+            ..
+        } = *self.c.node(identifier)
+        else {
+            unreachable!("an each block")
+        };
+        let javascript = &self.c.javascript;
+        if !matches!(
+            javascript.kind(context),
+            rsvelte_javascript::Kind::Identifier(_)
+        ) {
+            let span = javascript
+                .source_location(context)
+                .span()
+                .unwrap_or_else(|| self.c.node(identifier).span());
+            return Err(Unsupported::at("destructuring in {#each}", span));
+        }
+        let open = self.lit("{#each ");
+        let e = self.expression(expression, true, false)?;
+        let mut def = vec![open, e];
+        let context = format!(" as {}", self.c.javascript.name(context));
+        def.push(self.d().text(&context));
+        if index != rsvelte_javascript::NodeIdentifier::NONE {
+            let index = format!(", {}", self.c.javascript.name(index));
+            def.push(self.d().text(&index));
+        }
+        if key != rsvelte_javascript::NodeIdentifier::NONE {
+            def.push(self.lit(" ("));
+            def.push(self.expression(key, true, false)?);
+            def.push(self.lit(")"));
+        }
+        def.push(self.lit("}"));
+        let c = self.c;
+        def.push(self.block_children(c.children(body))?);
+        if has_fallback {
+            #[expect(
+                clippy::literal_string_with_formatting_args,
+                reason = "Svelte's `{:else}` tag"
+            )]
+            let open = self.lit("{:else}");
+            def.push(open);
+            def.push(self.block_children(c.children(fallback))?);
+        }
+        def.push(self.lit("{/each}"));
         let def = self.cat(&def);
         let bp = self.d().break_parent();
         Ok(self.group(&[def, bp]))
@@ -1255,6 +1336,10 @@ mod tests {
         assert_eq!(
             refusal("<script>\n\tlet a = { 'b': 1 };\n</script>\n"),
             ("quoted or numeric property key", Some("'b'"))
+        );
+        assert_eq!(
+            refusal("{#each xs as { a }}{a}{/each}\n"),
+            ("destructuring in {#each}", Some("{ a }"))
         );
     }
 }

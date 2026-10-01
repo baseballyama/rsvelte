@@ -6,9 +6,15 @@
 //! [`NodeIdentifier`]s; the tree is not touched. Compilation, lint rules and the HIR all read this
 //! one resolution.
 
-use rsvelte_javascript::scope::{self, BindingIdentifier, DeclarationKind, Semantic};
+use rsvelte_javascript::scope::{
+    self, BindingIdentifier, DeclarationKind, HostRoot, HostScope, Semantic,
+};
 use rsvelte_javascript::{Kind, NodeIdentifier, SyntaxTree};
 use rsvelte_kernel::source::index::IndexVector;
+
+use crate::compilation::compiler_syntax_tree::{
+    AttributeValue, Children, CompilerSyntaxTree, NodeKind, Part,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BindingKind {
@@ -20,6 +26,12 @@ pub enum BindingKind {
     Property,
     BindableProperty,
     RestProperty,
+    /// Declared by an `{#each}` context.
+    Each,
+    /// The index of an unkeyed `{#each}` (upstream `static`): it never changes for an item.
+    StaticIndex,
+    /// The index of a keyed `{#each}` (upstream `template`).
+    KeyedIndex,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -41,22 +53,152 @@ pub struct Resolution {
     pub uses_props: bool,
 }
 
+/// Resolves the script and the template of `compiler_syntax_tree`, which any frontend may have
+/// built over `syntax_tree`.
 #[must_use]
 pub fn resolve(
     syntax_tree: &SyntaxTree,
     program: NodeIdentifier,
-    template_expressions: &[NodeIdentifier],
+    compiler_syntax_tree: &CompilerSyntaxTree,
 ) -> Resolution {
-    let host: Vec<scope::HostRoot> = template_expressions
-        .iter()
-        .map(|&e| scope::HostRoot::Expression(e))
-        .collect();
+    let mut host = Vec::new();
+    template_roots(compiler_syntax_tree, compiler_syntax_tree.root, &mut host);
     let sem = scope::analyze(syntax_tree, program, &host);
-    let bindings = classify(syntax_tree, &sem, program);
+    let mut bindings = classify(syntax_tree, &sem, program);
+    classify_each(syntax_tree, &sem, compiler_syntax_tree, &mut bindings);
     Resolution {
         uses_props: has_props_rune(syntax_tree, program),
         sem,
         bindings,
+    }
+}
+
+/// The template's expressions in document order, with the scope each `{#each}` opens (upstream
+/// `create_scopes`' `EachBlock`: the collection outside it, the key and the body inside it).
+fn template_roots(
+    compiler_syntax_tree: &CompilerSyntaxTree,
+    list: Children,
+    out: &mut Vec<HostRoot>,
+) {
+    for &identifier in compiler_syntax_tree.children(list) {
+        match &compiler_syntax_tree.node(identifier).kind {
+            NodeKind::Text { .. } | NodeKind::Comment { .. } => {}
+            NodeKind::Expression { expression } => out.push(HostRoot::Expression(*expression)),
+            NodeKind::Element(el) => {
+                for a in compiler_syntax_tree.attributes(el.attributes) {
+                    match &a.value {
+                        AttributeValue::Boolean | AttributeValue::Static(_) => {}
+                        &(AttributeValue::Expression { expression, .. }
+                        | AttributeValue::Shorthand(expression)
+                        | AttributeValue::Attach(expression)
+                        | AttributeValue::Class(expression)
+                        | AttributeValue::Spread(expression)) => {
+                            out.push(HostRoot::Expression(expression));
+                        }
+                        AttributeValue::Interpolated(parts) => {
+                            out.extend(parts.iter().filter_map(|p| match *p {
+                                Part::Expression { expression, .. } => {
+                                    Some(HostRoot::Expression(expression))
+                                }
+                                Part::Text(_) => None,
+                            }));
+                        }
+                        &AttributeValue::Bind(expression) => out.push(HostRoot::Bound(expression)),
+                    }
+                }
+                template_roots(compiler_syntax_tree, el.children, out);
+            }
+            NodeKind::If {
+                branches,
+                otherwise,
+            } => {
+                for b in compiler_syntax_tree.branches(*branches) {
+                    out.push(HostRoot::Expression(b.test));
+                    template_roots(compiler_syntax_tree, b.body, out);
+                }
+                if let Some(o) = otherwise {
+                    template_roots(compiler_syntax_tree, *o, out);
+                }
+            }
+            NodeKind::Each(each) => {
+                out.push(HostRoot::Expression(each.collection));
+                let parameters: Vec<NodeIdentifier> =
+                    each.context().into_iter().chain(each.index()).collect();
+                let mut body = Vec::new();
+                body.extend(each.key().map(HostRoot::Expression));
+                template_roots(compiler_syntax_tree, each.body, &mut body);
+                match parameters.first() {
+                    Some(&node) => out.push(HostRoot::Scope(HostScope {
+                        node,
+                        parameters,
+                        body,
+                    })),
+                    None => out.extend(body),
+                }
+                if let Some(f) = each.fallback {
+                    template_roots(compiler_syntax_tree, f, out);
+                }
+            }
+        }
+    }
+}
+
+/// Upstream declares an each block's names `each`, and its index `static` or `template`.
+fn classify_each(
+    syntax_tree: &SyntaxTree,
+    sem: &Semantic,
+    compiler_syntax_tree: &CompilerSyntaxTree,
+    out: &mut IndexVector<BindingIdentifier, BindingInformation>,
+) {
+    for n in &compiler_syntax_tree.nodes {
+        let NodeKind::Each(each) = &n.kind else {
+            continue;
+        };
+        if let Some(context) = each.context() {
+            for_each_pattern_identifier(syntax_tree, context, &mut |identifier| {
+                if let Some(b) = sem.binding_of(identifier) {
+                    out[b].kind = BindingKind::Each;
+                    out[b].is_function = false;
+                }
+            });
+        }
+        if let Some(b) = each.index().and_then(|i| sem.binding_of(i)) {
+            out[b].kind = if each.keyed(syntax_tree) {
+                BindingKind::KeyedIndex
+            } else {
+                BindingKind::StaticIndex
+            };
+            out[b].is_function = false;
+        }
+    }
+}
+
+/// The identifiers a binding pattern declares.
+pub fn for_each_pattern_identifier(
+    syntax_tree: &SyntaxTree,
+    p: NodeIdentifier,
+    f: &mut impl FnMut(NodeIdentifier),
+) {
+    match syntax_tree.kind(p) {
+        Kind::Identifier(_) => f(p),
+        Kind::ObjectPattern(props) => {
+            for &pr in props {
+                match syntax_tree.kind(pr) {
+                    Kind::Property { value, .. } => {
+                        for_each_pattern_identifier(syntax_tree, value, f);
+                    }
+                    Kind::Rest(a) => for_each_pattern_identifier(syntax_tree, a, f),
+                    _ => {}
+                }
+            }
+        }
+        Kind::ArrayPattern(items) => {
+            for &it in items {
+                for_each_pattern_identifier(syntax_tree, it, f);
+            }
+        }
+        Kind::AssignPattern(l, _) | Kind::Rest(l) => for_each_pattern_identifier(syntax_tree, l, f),
+        _ => {}
     }
 }
 
@@ -102,7 +244,7 @@ impl Resolution {
             .evaluate(crate::semantic::evaluate::Tree::Source, e)
     }
 
-    /// Evaluates `e` of a lowered tree, resolving names in the component scope.
+    /// Evaluates `e` of a lowered tree, resolving names in `scope`.
     #[must_use]
     pub fn evaluate_output(
         &self,
@@ -110,9 +252,10 @@ impl Resolution {
         source_text: &str,
         out: &SyntaxTree,
         e: NodeIdentifier,
+        scope: scope::ScopeIdentifier,
     ) -> crate::semantic::evaluate::Evaluation {
         crate::semantic::evaluate::Evaluator::new(source, source_text, self)
-            .evaluate(crate::semantic::evaluate::Tree::Output(out), e)
+            .evaluate(crate::semantic::evaluate::Tree::Output(out, scope), e)
     }
 }
 

@@ -151,6 +151,7 @@ pub fn analyze(input: &CompileInput<'_>, res: &Resolution, filename: &str) -> An
         meta: ExpressionMetadata::default(),
         deps: 0,
         needs_context: false,
+        function_depth: 0,
     };
     walker.visit(input.program);
     let script_needs_context = walker.needs_context;
@@ -164,6 +165,7 @@ pub fn analyze(input: &CompileInput<'_>, res: &Resolution, filename: &str) -> An
             meta: ExpressionMetadata::default(),
             deps: 0,
             needs_context: false,
+            function_depth: 0,
         };
         w.visit(e);
         needs_context |= w.needs_context;
@@ -174,7 +176,6 @@ pub fn analyze(input: &CompileInput<'_>, res: &Resolution, filename: &str) -> An
     let mut dynamic = IndexVector::from_element_n(false, compiler_syntax_tree.nodes.len());
     an.root_dynamic = mark_dynamic(
         input,
-        &an,
         compiler_syntax_tree.children(compiler_syntax_tree.root),
         &mut dynamic,
     );
@@ -215,10 +216,17 @@ struct MetadataWalker<'a> {
     /// Bindings referenced so far (upstream `metadata.dependencies`, as a count).
     deps: u32,
     needs_context: bool,
+    function_depth: u32,
 }
 
 impl MetadataWalker<'_> {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "ports upstream's expression visitors in one walk"
+    )]
     fn visit(&mut self, identifier: NodeIdentifier) {
+        // Upstream `NewExpression`.
+        self.needs_context |= matches!(self.syntax_tree.kind(identifier), Kind::New { .. });
         match self.syntax_tree.kind(identifier) {
             Kind::Identifier(_) => {
                 let declares = self
@@ -236,7 +244,8 @@ impl MetadataWalker<'_> {
                             | BindingKind::BindableProperty
                             | BindingKind::RestProperty
                     );
-                    if (prop || !info.is_function)
+                    if info.kind != BindingKind::StaticIndex
+                        && (prop || !info.is_function)
                         && !self
                             .res
                             .evaluate(self.syntax_tree, self.source_text, identifier)
@@ -295,6 +304,25 @@ impl MetadataWalker<'_> {
                 }
                 self.visit(value);
             }
+            // Upstream `SpreadElement`: `[...x]` reads like `[...x.values()]`. Its expression state
+            // is cleared inside functions.
+            Kind::Spread(arg) => {
+                if self.function_depth == 0 {
+                    self.meta.has_call = true;
+                    self.meta.has_state = true;
+                }
+                self.visit(arg);
+            }
+            Kind::Function { .. } | Kind::Arrow { .. } => {
+                self.function_depth += 1;
+                let mut children = Vec::new();
+                self.syntax_tree
+                    .for_each_child(identifier, |c| children.push(c));
+                for c in children {
+                    self.visit(c);
+                }
+                self.function_depth -= 1;
+            }
             _ => {
                 let mut children = Vec::new();
                 self.syntax_tree
@@ -347,7 +375,6 @@ impl MetadataWalker<'_> {
 /// `list` makes its fragment dynamic, and records the answer for each element's own children.
 fn mark_dynamic(
     input: &CompileInput<'_>,
-    an: &Analysis,
     list: &[CompilerNodeIdentifier],
     out: &mut IndexVector<CompilerNodeIdentifier, bool>,
 ) -> bool {
@@ -362,57 +389,62 @@ fn mark_dynamic(
             } => {
                 any = true;
                 for b in compiler_syntax_tree.branches(*branches) {
-                    mark_dynamic(input, an, compiler_syntax_tree.children(b.body), out);
+                    mark_dynamic(input, compiler_syntax_tree.children(b.body), out);
                 }
                 if let Some(o) = otherwise {
-                    mark_dynamic(input, an, compiler_syntax_tree.children(*o), out);
+                    mark_dynamic(input, compiler_syntax_tree.children(*o), out);
+                }
+            }
+            NodeKind::Each(each) => {
+                any = true;
+                mark_dynamic(input, compiler_syntax_tree.children(each.body), out);
+                if let Some(f) = each.fallback {
+                    mark_dynamic(input, compiler_syntax_tree.children(f), out);
                 }
             }
             NodeKind::Element(el) => {
-                let own = mark_dynamic(input, an, compiler_syntax_tree.children(el.children), out);
+                let own = mark_dynamic(input, compiler_syntax_tree.children(el.children), out);
                 out[identifier] = own;
                 any |= own;
                 for a in compiler_syntax_tree.attributes(el.attributes) {
                     let attribute = a.name.text(source_text);
-                    let (references, single_expression, quoted) = match &a.value {
+                    // Upstream's `ExpressionTag` marks the subtree dynamic whatever the tag holds,
+                    // in an attribute value as in the template.
+                    let (has_tag, single_expression, quoted) = match &a.value {
                         AttributeValue::Boolean => {
                             any |= crate::compilation::lower::cannot_be_set_statically(attribute);
                             continue;
                         }
                         AttributeValue::Static(_) => (false, None, true),
                         &AttributeValue::Expression { expression, quoted } => {
-                            (an.meta(expression).has_reference, Some(expression), quoted)
+                            (true, Some(expression), quoted)
                         }
-                        &AttributeValue::Shorthand(expression) => {
-                            (an.meta(expression).has_reference, Some(expression), false)
-                        }
-                        AttributeValue::Interpolated(parts) => {
-                            let references = parts.iter().any(|p| match *p {
-                                Part::Expression { expression, .. } => {
-                                    an.meta(expression).has_reference
-                                }
-                                Part::Text(_) => false,
-                            });
-                            (references, None, true)
+                        &AttributeValue::Shorthand(expression) => (true, Some(expression), false),
+                        AttributeValue::Interpolated(parts) => (
+                            parts.iter().any(|p| matches!(p, Part::Expression { .. })),
+                            None,
+                            true,
+                        ),
+                        // A binding's expression is a reference by construction; an attachment,
+                        // a class directive and a spread mark the subtree dynamic whatever they
+                        // read.
+                        AttributeValue::Bind(_)
+                        | AttributeValue::Attach(_)
+                        | AttributeValue::Class(_)
+                        | AttributeValue::Spread(_) => {
+                            any = true;
+                            continue;
                         }
                     };
                     let is_event = attribute.starts_with("on") && single_expression.is_some();
                     let class_expression = attribute == "class"
                         && !quoted
                         && single_expression.is_some_and(|e| {
-                            !matches!(
-                                input.javascript.kind(e),
-                                Kind::String
-                                    | Kind::Number(_)
-                                    | Kind::Boolean(_)
-                                    | Kind::Null
-                                    | Kind::Template { .. }
-                                    | Kind::Binary(..)
-                            )
+                            crate::compilation::lower::needs_clsx(input.javascript, e)
                         });
                     let option_value =
                         attribute == "value" && el.name.text(source_text) == "option";
-                    any |= references
+                    any |= has_tag
                         || is_event
                         || class_expression
                         || option_value
@@ -440,11 +472,34 @@ impl El<'_> {
         el
     }
 
+    fn has_class_directive(&self, name: Option<&str>) -> bool {
+        self.compiler_syntax_tree
+            .attributes(self.element().attributes)
+            .iter()
+            .any(|a| {
+                matches!(a.value, AttributeValue::Class(_))
+                    && name.is_none_or(|n| a.name.text(self.source_text) == n)
+            })
+    }
+
     fn attribute_state(&self, name: &str, check: impl Fn(&str) -> bool) -> Match {
         for a in self
             .compiler_syntax_tree
             .attributes(self.element().attributes)
         {
+            match a.value {
+                AttributeValue::Attach(_) | AttributeValue::Class(_) => continue,
+                // Upstream `attribute_matches`: a spread may set any attribute.
+                AttributeValue::Spread(_) => return Match::Maybe,
+                _ => {}
+            }
+            // Upstream compares a binding's name case-sensitively and stops at it.
+            if let AttributeValue::Bind(_) = a.value {
+                if a.name.text(self.source_text) == name {
+                    return Match::Yes;
+                }
+                continue;
+            }
             if !a.name.text(self.source_text).eq_ignore_ascii_case(name) {
                 continue;
             }
@@ -457,6 +512,10 @@ impl El<'_> {
                 AttributeValue::Expression { .. }
                 | AttributeValue::Shorthand(_)
                 | AttributeValue::Interpolated(_) => Match::Maybe,
+                AttributeValue::Bind(_)
+                | AttributeValue::Attach(_)
+                | AttributeValue::Class(_)
+                | AttributeValue::Spread(_) => unreachable!("directives are matched above"),
             };
         }
         Match::No
@@ -478,7 +537,12 @@ impl Element for El<'_> {
         Some(self.element().name.text(self.source_text))
     }
 
+    /// A `class:` directive of that name matches, whichever attribute comes first (upstream
+    /// `attribute_matches` goes on past a static `class` that does not).
     fn class(&self, name: &str) -> Match {
+        if self.has_class_directive(Some(name)) {
+            return Match::Yes;
+        }
         self.attribute_state("class", |v| v.split_ascii_whitespace().any(|c| c == name))
     }
 
@@ -487,6 +551,9 @@ impl Element for El<'_> {
     }
 
     fn attribute(&self, name: &str) -> Match {
+        if name.eq_ignore_ascii_case("class") && self.has_class_directive(None) {
+            return Match::Yes;
+        }
         match self.attribute_state(name, |_| true) {
             Match::No => Match::No,
             _ => Match::Yes,

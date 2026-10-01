@@ -24,10 +24,14 @@ describe('performance history', () => {
 		]);
 	});
 
-	it('adds a working-tree record only for an uncommitted baseline', () => {
+	it('adds a working-tree record only when the uncommitted baseline records other counters', () => {
+		const counters = (text: string) => {
+			const recorded = JSON.parse(text);
+			return [recorded.allocs, recorded.alloc_bytes, recorded.peak_live_growth_bytes, recorded.instructions?.[PLATFORM], recorded.load_instructions?.[PLATFORM]];
+		};
 		const recordedFile = execFileSync('git', ['-C', root, 'ls-tree', '--name-only', 'HEAD', '--', 'tools/performance/baseline.json', 'tools/perf/baseline.json'], { encoding: 'utf8' }).trim();
-		const committed = execFileSync('git', ['-C', root, 'show', `HEAD:${recordedFile}`], { encoding: 'utf8' });
-		const edited = committed !== readFileSync(path.join(root, 'tools/performance/baseline.json'), 'utf8');
-		expect(records.at(-1)!.sha === null).toBe(edited);
+		const committed = counters(execFileSync('git', ['-C', root, 'show', `HEAD:${recordedFile}`], { encoding: 'utf8' }));
+		const now = counters(readFileSync(path.join(root, 'tools/performance/baseline.json'), 'utf8'));
+		expect(records.at(-1)!.sha === null).toBe(JSON.stringify(committed) !== JSON.stringify(now));
 	});
 });

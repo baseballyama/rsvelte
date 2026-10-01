@@ -108,6 +108,11 @@ impl<K: TokenKind> Tokens<K> {
         self.tokens.iter()
     }
 
+    /// Keeps the first `n` tokens: a nested parser's tokens are dropped when its result is.
+    pub fn truncate(&mut self, n: usize) {
+        self.tokens.truncate(n);
+    }
+
     /// The tokens after the first `n`: what a nested parser appended since the table had `n`.
     #[must_use]
     pub fn since(&self, n: usize) -> &[Token<K>] {

@@ -40,6 +40,7 @@ fn registry(svelte: &rsvelte_svelte::Configuration, vue: &rsvelte_vue::Configura
     rsvelte_svelte::register(&mut reg, svelte);
     rsvelte_vue::register(&mut reg, vue);
     rsvelte_svue::register(&mut reg);
+    rsvelte_vuelte::register(&mut reg);
     reg
 }
 
@@ -451,6 +452,8 @@ mod tests {
                     "svelte.compile/server",
                     "svelte.format/default",
                     "svelte.lint/default",
+                    "vuelte.compile/client",
+                    "vuelte.compile/server",
                 ],
                 true,
             ),
@@ -460,13 +463,10 @@ mod tests {
                     "vue.compile/default",
                     "vue.format/default",
                     "vue.lint/default",
+                    "svue.compile/client",
+                    "svue.compile/server",
                 ],
                 true,
-            ),
-            (
-                "a.svue",
-                vec!["svue.compile/client", "svue.compile/server"],
-                false,
             ),
             ("README", vec![], false),
         ] {

@@ -419,7 +419,10 @@ impl<'a> Tree<'a> {
                     span,
                 } => {
                     let tag = name.text(self.source_text);
-                    if REFUSED_TAGS.contains(&tag) || tag.contains('-') || tag.contains(':') {
+                    // An empty `<textarea>` has no content for its `white-space` to preserve.
+                    let empty_textarea = tag == "textarea" && children.len == 0;
+                    let refused = REFUSED_TAGS.contains(&tag) && !empty_textarea;
+                    if refused || tag.contains('-') || tag.contains(':') {
                         return Err(Unsupported::at("this element", name));
                     }
                     let attributes = c.attributes(attributes);
