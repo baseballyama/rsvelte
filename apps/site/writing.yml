@@ -1,0 +1,32 @@
+version: 1
+rules:
+  - expected: 計算結果
+    pattern: アーティファクト
+  - expected: 言語ごとの処理を呼び出す共通窓口
+    pattern: ファセット
+  - expected: 型検査用に生成するコード
+    pattern: 射影
+  - expected: 基準値からの変化を検出する検査
+    pattern: ラチェット
+  - expected: 比較対象
+    pattern: アーム
+  - expected: 実行時間
+    pattern: 壁時計
+  - expected: 渡された値
+    pattern: ペイロード
+  - expected: 指定位置以前で最も近い対応点
+    pattern: 最大下界
+  - expected: 比較元の公式ツール
+    pattern: オラクル
+  - expected: 検証用のソースファイル集
+    pattern: コーパス
+  - expected: テスト用の入力と期待値
+    pattern: フィクスチャ
+  - expected: 保証
+    pattern: 担保
+  - expected: 改善する
+    pattern: /最適化を図る|改善を図る|向上を図る/
+  - expected: 次の
+    pattern: 以下の通り
+  - expected: 必要な説明を直接書く
+    pattern: /言うまでもなく|特筆すべき|包括的な|シームレスな|強力な|革新的な/
