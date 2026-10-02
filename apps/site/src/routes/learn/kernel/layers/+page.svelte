@@ -68,7 +68,7 @@
 
 <div class="prose-learn">
 	<p>
-		<code>rsvelte_javascript</code> のスコープ解析は、この型を最初に使った場所です。<code>BindingIdentifier</code> と <code>ScopeIdentifier</code>
+		<code>rsvelte_typescript</code> のスコープ解析は、この型を最初に使った場所です。<code>BindingIdentifier</code> と <code>ScopeIdentifier</code>
 		は型付きの番号になり、ルートのスコープの親は番兵の <code>u32::MAX</code> ではなく <code>None</code> になりました。例外は、要素ごとの束縛を引く表です。これは今も生の
 		<code>u32</code> に番兵 <code>u32::MAX</code> を入れる形で持ち、外には <code>binding_of</code> だけを見せています。この形を選んだ当時は
 		<code>Option&lt;BindingIdentifier&gt;</code> が 8 バイトだったためで、次の節の変更のあとは <code>Option&lt;BindingIdentifier&gt;</code> も 4 バイトです。

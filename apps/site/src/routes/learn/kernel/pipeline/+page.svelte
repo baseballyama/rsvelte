@@ -76,7 +76,7 @@
 		型検査だけを選んだ場合は、compile を実行せずにこの処理へ進みます。
 	</p>
 	<p>
-		型検査のプロジェクトタスクは、言語プラグインの中ではなく <code>rsvelte_javascript::check</code> に一つだけあります。どの文書を扱うかは
+		型検査のプロジェクトタスクは、言語プラグインの中ではなく <code>rsvelte_typescript_check</code> に一つだけあります。どの文書を扱うかは
 		<code>matches</code> に渡す判定関数で決めます。Svelte 用、Vue 用、両方をまとめて扱うものを登録します。
 	</p>
 </div>

@@ -25,7 +25,7 @@
 		Prettier のアルゴリズムは知らなくても読めます。必要なところで説明します。
 	</p>
 	<p>
-		カーネルは {data.kernelFiles} ファイル、テストを含めて {data.kernelLines.toLocaleString('en-US')} 行と小さく<Note>この数字はビルドのたびに <code>crates/rsvelte_kernel/src</code> を数え直したものです。</Note>、どのファイルも一度に読み切れる長さです。それでも、コードだけでは<em
+		カーネルは {data.kernelFiles} ファイル、テストを含めて {data.kernelLines.toLocaleString('en-US')} 行と小さく<Note>この数字はビルドのたびに <code>crates/kernel/src</code> を数え直したものです。</Note>、どのファイルも一度に読み切れる長さです。それでも、コードだけでは<em
 			>なぜそう書いたか</em
 		>と<em>どこが弱いか</em>が見えません。この教材はその二つを補います。
 	</p>

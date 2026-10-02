@@ -73,7 +73,7 @@
 		</div>
 	</div>
 	{#snippet caption()}
-		模型です。<code>rsvelte_javascript::SyntaxTree</code> の列の一つ（一つの鍵）だけを追います。順序は実際の Svelte プラグインと同じで、パースした木は文書の終わりまで生き、compile
+		模型です。<code>rsvelte_typescript::SyntaxTree</code> の列の一つ（一つの鍵）だけを追います。順序は実際の Svelte プラグインと同じで、パースした木は文書の終わりまで生き、compile
 		の各ターゲットが作る木は出力のあとに落ちます。ノード数と、lower した木がパースの 1.6 倍・1.3 倍になるという比は例示です。「予算」は要素の数で数えていますが、本物の
 		<code>MAXIMUM_BYTES</code> はスレッドのすべての鍵を合わせたバイト数（64 MiB）です。
 	{/snippet}

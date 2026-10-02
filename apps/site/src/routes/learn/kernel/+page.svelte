@@ -64,7 +64,7 @@
 <Figure label="図 1.1 · 層">
 	<div class="overflow-x-auto px-4 py-5">
 		<ol class="flex min-w-[640px] items-stretch gap-2 font-mono text-[12.5px] tracking-normal">
-			{#each [['rsvelte_command_line', 'ホスト: 引数、読み込み、書き出し'], ['rsvelte_svelte · rsvelte_vue · rsvelte_svue', '言語プラグイン'], ['rsvelte_javascript · rsvelte_stylesheet · rsvelte_markup', '埋め込み言語と共有の判断'], ['rsvelte_kernel', '言語を知らない']] as [name, role], i (name)}
+			{#each [['rsvelte_command_line', 'ホスト: 引数、読み込み、書き出し'], ['rsvelte_svelte · rsvelte_vue · rsvelte_svue', '言語プラグイン'], ['rsvelte_typescript · rsvelte_stylesheet · rsvelte_markup', '埋め込み言語と共有の判断'], ['rsvelte_kernel', '言語を知らない']] as [name, role], i (name)}
 				<li class="flex flex-1 items-center gap-2">
 					<div class={['flex-1 rounded-sm border px-3 py-2', i === 3 ? 'border-fg bg-surface' : 'border-line-strong']}>
 						<div class="font-medium text-fg">{name}</div>
@@ -244,7 +244,7 @@
 	</p>
 	<ul>
 		<li>
-			<strong>ホストが開くスコープ</strong>: スコープ解析（<code>rsvelte_javascript</code>）は、ホストの言語が渡す根を木として受け取ります。Vue の
+			<strong>ホストが開くスコープ</strong>: スコープ解析（<code>rsvelte_typescript</code>）は、ホストの言語が渡す根を木として受け取ります。Vue の
 			<code>v-for</code> は、テンプレートが開くスコープです。
 		</li>
 		<li><strong>終端のない診断</strong>: ESLint の報告には位置が一つしかないものがあり、lint の書き出しはその終端を <code>null</code> と書きます。</li>

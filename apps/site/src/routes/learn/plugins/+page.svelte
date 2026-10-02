@@ -73,7 +73,7 @@
 <Code item={data.code.register} />
 
 <div class="prose-learn">
-	<p>この登録なら、Svelte のコンパイルや型検査のタスクは入りません。Svelte の標準タスクも使いたい場合は、同じ登録先に <code>rsvelte_svelte::register</code> を一度呼んでから、この追加例を登録できます。</p>
+	<p>この登録なら、Svelte のコンパイルや型検査のタスクは入りません。To use standard tools too, register each tool crate in the same registry, for example <code>rsvelte_svelte_format::register</code>. The core registration adds shared facts only.</p>
 </div>
 
 <Code item={data.code.svelteRegister} />
@@ -88,7 +88,7 @@
 
 <div class="prose-learn">
 	<p>次のコマンドで例を実行すると、<code>elements.txt: 2</code> と表示します。</p>
-	<pre><code>cargo run -p rsvelte_svelte --example plugin</code></pre>
+	<pre><code>cargo run -p rsvelte_command_line --example plugin</code></pre>
 	<p><code>Sharing::Shared</code> は同じ文書のタスク間で計算結果を共有します。<code>Sharing::Isolated</code> は共有しない場合の比較計測に使います。文書は並列に処理し、一つの文書内のタスクは順に実行します。</p>
 	<p><code>tasks</code> が空なら登録済みの全タスクを選びます。未知の識別名は実行前にエラーになります。通常の診断は各タスクの出力に入り、タスクの異常終了は <code>DocumentResult.panic</code> に入ります。呼び出し側は両方を確認します。</p>
 	<H2 id="extension" />

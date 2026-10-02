@@ -21,7 +21,7 @@ export const terms: Record<string, string> = {
 	LayoutInstruction: '整形の指示',
 	StructuredDataWriter: '構造化データを書き出す処理',
 	CountingAllocator: 'メモリ割り当てを数える処理',
-	'rsvelte_javascript::check::TypeScriptView': '型検査用のコードと位置情報を取得する共通窓口',
+	'rsvelte_typescript_check::TypeScriptView': '型検査用のコードと位置情報を取得する共通窓口',
 	'TypeScriptDocument::Unchecked': '型検査が不要という結果',
 	'SourceLocation::span': '元のソース上の範囲を取り出す関数',
 	'DocumentContext::line_index': '行と列の対応表を取得する関数'

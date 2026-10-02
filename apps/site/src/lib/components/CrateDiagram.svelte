@@ -20,16 +20,16 @@
 	const boxes: Box[] = [
 		{ id: 'rsvelte_command_line', x: 250, y: 10, w: 260, role: 'fixtures · run · benchmark' },
 		{ id: 'rsvelte_svelte', x: 250, y: 110, w: 260, role: 'Artifacts · facet providers · tasks' },
-		{ id: 'rsvelte_javascript', x: 110, y: 210, w: 230, role: 'JS/TS: parse · scope · print' },
+		{ id: 'rsvelte_typescript', x: 110, y: 210, w: 230, role: 'JS/TS: parse · scope · print' },
 		{ id: 'rsvelte_stylesheet', x: 420, y: 210, w: 230, role: 'CSS: parse · scope' },
 		{ id: 'rsvelte_kernel', x: 20, y: 320, w: 720, role: 'source · intern · db · pipeline · diag · lint · doc · emit · json · metrics · pool' }
 	];
 	const by = (id: string) => boxes.find((b) => b.id === id)!;
 	const edges: [string, string][] = [
 		['rsvelte_command_line', 'rsvelte_svelte'],
-		['rsvelte_svelte', 'rsvelte_javascript'],
+		['rsvelte_svelte', 'rsvelte_typescript'],
 		['rsvelte_svelte', 'rsvelte_stylesheet'],
-		['rsvelte_javascript', 'rsvelte_kernel'],
+		['rsvelte_typescript', 'rsvelte_kernel'],
 		['rsvelte_stylesheet', 'rsvelte_kernel'],
 		['rsvelte_svelte', 'rsvelte_kernel'],
 		['rsvelte_command_line', 'rsvelte_kernel']

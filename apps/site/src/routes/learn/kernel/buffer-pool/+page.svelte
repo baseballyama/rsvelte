@@ -24,7 +24,7 @@
 <div class="prose-learn">
 	<H2 id="idea" />
 	<p>
-		<code>rsvelte_javascript</code> の構文木<code>SyntaxTree</code> は、ノードの種類、フラグ、データ、位置などを列ごとのベクタに持っています。文書を一つパースすると、それぞれのベクタがノードの数まで伸び、そのたびに確保し直します。文書が終わると木は捨てられ、次の文書でまた
+		<code>rsvelte_typescript</code> の構文木<code>SyntaxTree</code> は、ノードの種類、フラグ、データ、位置などを列ごとのベクタに持っています。文書を一つパースすると、それぞれのベクタがノードの数まで伸び、そのたびに確保し直します。文書が終わると木は捨てられ、次の文書でまた
 		0 から伸ばします。
 	</p>
 	<p>
@@ -146,7 +146,7 @@
 	<H2 id="users" />
 	<p>今プールを使っている構造は次のとおりです。</p>
 	<ul>
-		<li><code>rsvelte_javascript::SyntaxTree</code>:構文木の列、文字列、コメント、型の表、パーサの作業用スタック（<a href="/learn/polish#history">14</a>）。</li>
+		<li><code>rsvelte_typescript::SyntaxTree</code>:構文木の列、文字列、コメント、型の表、パーサの作業用スタック（<a href="/learn/polish#history">14</a>）。</li>
 		<li><code>Tokens&lt;K&gt;</code>: トークン表（<a href="/learn/kernel/layers#tokens">05</a>）。鍵は要素の型 <code>Token&lt;K&gt;</code> だけです。</li>
 		<li><code>rsvelte_svelte::syntax::syntax_tree::Component</code>: テンプレートの列。</li>
 		<li><Term name="LayoutInstructions" />: 整形用のデータ構造 のアリーナ（<a href="/learn/kernel/document#ir">08</a>）と、プリンタのスタックや作業リスト。</li>

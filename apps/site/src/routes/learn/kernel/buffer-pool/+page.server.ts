@@ -19,7 +19,7 @@ export const load = () => ({
 		giveAt: 'kernel/performance/buffer_pool/give_at',
 		drop: 'kernel/performance/buffer_pool/Pool::drop',
 		setEnabled: 'kernel/performance/buffer_pool/set_enabled',
-		syntaxTreeDrop: 'javascript/syntax_tree/SyntaxTree::drop',
+		syntaxTreeDrop: 'typescript/syntax/syntax_tree/SyntaxTree::drop',
 		tokensDefault: 'kernel/source/tokens/impl Default for Tokens',
 		componentDrop: 'svelte/syntax/syntax_tree/Component::drop',
 		test: 'kernel/performance/buffer_pool/tests::capacity_is_reused_on_the_same_thread',

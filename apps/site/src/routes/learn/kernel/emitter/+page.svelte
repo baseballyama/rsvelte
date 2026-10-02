@@ -60,7 +60,7 @@
 <div class="prose-learn">
 	<p>
 		位置の対応はまだ {data.counter.mappings.length} 個しかなく、すべて点です<Note
-			>出力と位置の対応は <code>crates/rsvelte_svelte/tools/export_site_source_maps.rs</code> で生成し、サイトのデータとしてコミットしています。コンパイルタスク自体は、今は位置の対応をファイルに書き出していません。</Note
+			>出力と位置の対応は <code>crates/languages/svelte/core/tools/export_site_source_maps.rs</code> で生成し、サイトのデータとしてコミットしています。コンパイルタスク自体は、今は位置の対応をファイルに書き出していません。</Note
 		>。同じ入力を上流の Svelte 5.57.1 でコンパイルすると、source map のセグメントは 28 個になります<Note>公式コンパイラの出力で、位置の対応を表す項目を数えました。rsvelte の <code>source_map</code> はコピーの文字ごとと点ごとにセグメントを書きますが、この出力にはコピーがなく点が 6 個なので、6 個です。</Note>。位置の対応のない文字は、同じ行の直前の位置の対応点に引き寄せられます。
 	</p>
 

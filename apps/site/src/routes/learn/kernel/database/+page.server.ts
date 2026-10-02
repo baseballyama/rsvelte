@@ -14,16 +14,16 @@ export const load = () => ({
 		context: 'kernel/computation/database/DocumentContext',
 		contextNew: 'kernel/computation/database/DocumentContext::new',
 		get: 'kernel/computation/database/DocumentContext::get',
-		lint: 'svelte/computation/tasks/Lint::run',
+		lint: 'svelte/lint/task/Lint::run',
 		compileInput: 'svelte/computation/compile_input',
 		facet: 'kernel/computation/database/Facet',
 		provide: 'kernel/computation/database/ArtifactRegistry::provide',
 		contextFacet: 'kernel/computation/database/DocumentContext::facet',
-		typescriptView: 'javascript/check/TypeScriptView',
-		typescriptDocument: 'javascript/check/TypeScriptDocument',
-		svelteRegister: 'svelte/computation/tasks/register',
-		vueRegister: 'vue/tasks/register',
-		svelteView: 'svelte/computation/tasks/typescript_view',
-		prepare: 'javascript/check/Check::prepare'
+		typescriptView: 'typescript/check/check/TypeScriptView',
+		typescriptDocument: 'typescript/check/check/TypeScriptDocument',
+		svelteRegister: 'svelte/check/registration/register',
+		vueRegister: 'vue/check/registration/register',
+		svelteView: 'svelte/check/registration/typescript_view',
+		prepare: 'typescript/check/check/Check::prepare'
 	})
 });

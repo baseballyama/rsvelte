@@ -1,4 +1,4 @@
-// A model of `pool::take_keyed` / `pool::give_keyed` for one key (one column type of `rsvelte_javascript::SyntaxTree`)
+// A model of `pool::take_keyed` / `pool::give_keyed` for one key (one column type of `rsvelte_typescript::SyntaxTree`)
 // on one worker, driven by the order in which rsvelte_svelte creates and drops `SyntaxTree`s for a document:
 // the parsed tree lives until the document ends; each compile target lowers into a fresh tree that
 // is dropped after printing. Growth follows Rust's `Vec` (amortised doubling, first allocation of 4

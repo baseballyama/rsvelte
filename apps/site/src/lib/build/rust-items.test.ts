@@ -3,7 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseRustModule } from './rust-items.ts';
 
-const kernel = path.resolve(import.meta.dirname, '../../../../../crates/rsvelte_kernel/src');
+const kernel = path.resolve(import.meta.dirname, '../../../../../crates/kernel/src');
 
 describe('parseRustModule', () => {
 	it('names impl methods after their type and keeps doc comments', () => {

@@ -1,5 +1,5 @@
 // One component's layers as the Rust pipeline built them, printed by
-// `cargo run -p rsvelte_svelte --example export_site_layers -- src/lib/data/layers/Toolbar.svelte.txt` (a `.txt` so
+// `cargo run -p rsvelte_command_line --example export_site_layers -- src/lib/data/layers/Toolbar.svelte.txt` (a `.txt` so
 // the site's own svelte-check does not type-check the sample).
 import toolbar from './Toolbar.json';
 

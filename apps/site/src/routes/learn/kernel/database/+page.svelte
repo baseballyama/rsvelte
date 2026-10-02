@@ -210,7 +210,7 @@
 
 <div class="prose-learn">
 	<p>
-		最初の共通の呼び出し窓口は <Term name="rsvelte_javascript::check::TypeScriptView" /> です。答えは、文書を TypeScript として見たもの、つまり生成した TypeScript（<code
+		最初の共通の呼び出し窓口は <Term name="rsvelte_typescript_check::TypeScriptView" /> です。答えは、文書を TypeScript として見たもの、つまり生成した TypeScript（<code
 			>Emitter</code
 		>）、そこから元の文書へ位置を戻す関数、プロジェクトに足す宣言ファイルです。
 	</p>
@@ -232,7 +232,7 @@
 
 <div class="prose-learn">
 	<p>
-		型検査のタスク <code>rsvelte_javascript::check::Check</code> は、共通の呼び出し窓口だけを見て書かれています。言語の名前も計算結果の名前も出てきません。
+		型検査のタスク <code>rsvelte_typescript_check::Check</code> は、共通の呼び出し窓口だけを見て書かれています。言語の名前も計算結果の名前も出てきません。
 	</p>
 </div>
 

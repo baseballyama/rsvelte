@@ -19,8 +19,8 @@ export const load = () => {
 		crates: crateSizes(),
 		code: excerpts({
 			register: 'svelte/computation/register',
-			vueRegister: 'vue/lib/register',
-			vueParsed: 'vue/lib/impl Artifact for Parsed',
+			vueRegister: 'vue/computation/artifacts/register',
+			vueParsed: 'vue/computation/artifacts/impl Artifact for Parsed',
 			registry: 'kernel/computation/pipeline/Registry',
 			runDocument: 'kernel/computation/pipeline/run_document'
 		})

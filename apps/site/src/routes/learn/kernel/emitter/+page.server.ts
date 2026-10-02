@@ -18,7 +18,7 @@ export const load = () => ({
 		edits: 'kernel/output/emitter/Edits',
 		applyIn: 'kernel/output/emitter/Edits::apply_in',
 		lookupOverlap: 'kernel/output/emitter/Emitter::lookup_overlap',
-		mapBack: 'javascript/check/MapBack',
-		checkProjected: 'javascript/check/check_projected'
+		mapBack: 'typescript/check/check/MapBack',
+		checkProjected: 'typescript/check/check/check_projected'
 	})
 });

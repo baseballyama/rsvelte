@@ -98,6 +98,6 @@
 		各行は、そのタスクが <code>context.get</code>（check は <code>context.facet</code>）を呼んだ順です。字下げした札は、別の計算結果の
 		<code>compute</code> の中から呼ばれた <code>get</code> です。<code>ts.view</code> は計算結果ではなく共通の呼び出し窓口ですが、同じ
 		配列の位置の表にキャッシュされます。呼び出しの順は <code>rsvelte_svelte</code> の <code>tasks.rs</code>・<code>lib.rs</code> と
-		<code>rsvelte_javascript</code> の <code>check.rs</code> から書き写したモデルです。実際の Rust を動かしているわけではありません。
+		<code>rsvelte_typescript</code> の <code>check.rs</code> から書き写したモデルです。実際の Rust を動かしているわけではありません。
 	{/snippet}
 </Figure>

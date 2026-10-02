@@ -23,8 +23,8 @@ export const load = () => ({
 		finishTasks: 'kernel/computation/pipeline/run_finish_tasks',
 		run: 'kernel/computation/pipeline/run',
 		inPool: 'kernel/computation/pipeline/in_pool',
-		checkPrepare: 'javascript/check/Check::prepare',
-		check: 'javascript/check/Check',
+		checkPrepare: 'typescript/check/check/Check::prepare',
+		check: 'typescript/check/check/Check',
 		test: 'kernel/computation/pipeline/tests::a_finish_task_sees_every_prepared_document_once',
 		testTwo: 'kernel/computation/pipeline/tests::each_finish_task_gets_only_its_own_parts'
 	})

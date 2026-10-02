@@ -9,7 +9,7 @@
 	"scripts": {
 		"lint:code-names": "node scripts/lint-code-names.mjs",
 		"lint:prose": "node scripts/lint-prose.mjs",
-		"build:wasm": "wasm-pack build ../../crates/rsvelte_kernel_browser --out-dir ../../apps/site/src/lib/wasm/kernel --out-name rsvelte_kernel_browser --target web --release",
+		"build:wasm": "wasm-pack build ../../crates/hosts/browser --out-dir ../../../apps/site/src/lib/wasm/kernel --out-name rsvelte_kernel_browser --target web --release",
 		"predev": "pnpm run build:wasm",
 		"dev": "vite dev",
 		"prebuild": "pnpm run build:wasm",

@@ -26,7 +26,7 @@
 		<code>u32</code>）になるので、比較は整数の比較になります。
 	</p>
 	<p>
-		カーネルは Interner を提供するだけで、使うのは言語の側です。今は <code>rsvelte_javascript</code> の <code>SyntaxTree</code>
+		カーネルは Interner を提供するだけで、使うのは言語の側です。今は <code>rsvelte_typescript</code> の <code>SyntaxTree</code>
 		が一つずつ持ち、スコープ解析が <code>(ScopeIdentifier, Atom)</code> をキーに束縛を引きます<Note
 			>Interner は文書ごとに作られます。文書をまたいで Atom を比べることはできませんし、その必要もありません。</Note
 		>。

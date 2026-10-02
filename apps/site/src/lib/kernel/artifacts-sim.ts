@@ -1,6 +1,6 @@
 // A model of `DocumentContext::get` with the Svelte plugin's artifacts and the `ts.view` facet. The call order
 // inside each task and each artifact's `compute` is transcribed from rsvelte_svelte (tasks.rs, lib.rs:
-// `compile_input` asks for the parse and the HIR) and rsvelte_javascript/check.rs; the kernel rule it models is
+// `compile_input` asks for the parse and the HIR) and rsvelte_typescript/check.rs; the kernel rule it models is
 // computation/database.rs: the first request computes; later requests reuse the cached value.
 
 export type ArtifactName =

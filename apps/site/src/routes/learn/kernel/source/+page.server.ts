@@ -16,6 +16,6 @@ export const load = () => ({
 		offset: 'kernel/source/positions/LineIndex::offset',
 		wide: 'kernel/source/positions/Wide',
 		roundTest: 'kernel/source/positions/tests::an_offset_inside_a_character_rounds_down_to_its_start',
-		reportEnd: 'javascript/check/parse_report'
+		reportEnd: 'typescript/check/check/report/parse_report'
 	})
 });

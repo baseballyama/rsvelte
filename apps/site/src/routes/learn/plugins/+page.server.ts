@@ -9,7 +9,7 @@ export const load = () => ({
 		register: 'svelte/examples/plugin/register',
 		host: 'svelte/examples/plugin/main',
 		svelteRegister: 'svelte/computation/register',
-		svelteTasks: 'svelte/computation/tasks/register',
+		svelteTasks: 'svelte/check/registration/register',
 		resolved: 'svelte/computation/impl Artifact for Resolved'
 	})
 });

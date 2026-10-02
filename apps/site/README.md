@@ -1,6 +1,6 @@
 # rsvelte Learn site
 
-The pipeline playground builds `crates/rsvelte_kernel_browser` and runs the actual Svelte,
+The pipeline playground builds `crates/hosts/browser` and runs the actual Svelte,
 Vue, and Vue-syntax/Svelte-compiler plugins in the browser. It shows task outputs,
 artifact computation and cache access, and snapshots of the parsed trees and analysis.
 Tasks use the same registry and scheduler as native runs, without browser threads.

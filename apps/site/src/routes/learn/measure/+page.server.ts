@@ -28,6 +28,6 @@ export const load = () => {
 		rounds: plainA.rounds,
 		maxRss: metricsA.max_rss_bytes,
 		rawRounds: Object.fromEntries(plainA.arms.map((a) => [a.name, a.wall_ms])),
-		code: excerpts({ doc: 'command_line/benchmark/ARMS', perfDoc: 'command_line/performance/measure' })
+		code: excerpts({ doc: 'command_line/commands/benchmark/ARMS', perfDoc: 'command_line/commands/performance/measure' })
 	};
 };
