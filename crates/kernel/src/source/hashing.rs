@@ -1,72 +1,9 @@
 //! SHA-256 (FIPS 180-4), for outputs a tool derives from a digest: `@vitejs/plugin-vue`'s scope
 //! identifier is the first eight hex digits of the SHA-256 of the component's path.
 
-const K: [u32; 64] = [
-    0x428A_2F98,
-    0x7137_4491,
-    0xB5C0_FBCF,
-    0xE9B5_DBA5,
-    0x3956_C25B,
-    0x59F1_11F1,
-    0x923F_82A4,
-    0xAB1C_5ED5,
-    0xD807_AA98,
-    0x1283_5B01,
-    0x2431_85BE,
-    0x550C_7DC3,
-    0x72BE_5D74,
-    0x80DE_B1FE,
-    0x9BDC_06A7,
-    0xC19B_F174,
-    0xE49B_69C1,
-    0xEFBE_4786,
-    0x0FC1_9DC6,
-    0x240C_A1CC,
-    0x2DE9_2C6F,
-    0x4A74_84AA,
-    0x5CB0_A9DC,
-    0x76F9_88DA,
-    0x983E_5152,
-    0xA831_C66D,
-    0xB003_27C8,
-    0xBF59_7FC7,
-    0xC6E0_0BF3,
-    0xD5A7_9147,
-    0x06CA_6351,
-    0x1429_2967,
-    0x27B7_0A85,
-    0x2E1B_2138,
-    0x4D2C_6DFC,
-    0x5338_0D13,
-    0x650A_7354,
-    0x766A_0ABB,
-    0x81C2_C92E,
-    0x9272_2C85,
-    0xA2BF_E8A1,
-    0xA81A_664B,
-    0xC24B_8B70,
-    0xC76C_51A3,
-    0xD192_E819,
-    0xD699_0624,
-    0xF40E_3585,
-    0x106A_A070,
-    0x19A4_C116,
-    0x1E37_6C08,
-    0x2748_774C,
-    0x34B0_BCB5,
-    0x391C_0CB3,
-    0x4ED8_AA4A,
-    0x5B9C_CA4F,
-    0x682E_6FF3,
-    0x748F_82EE,
-    0x78A5_636F,
-    0x84C8_7814,
-    0x8CC7_0208,
-    0x90BE_FFFA,
-    0xA450_6CEB,
-    0xBEF9_A3F7,
-    0xC671_78F2,
-];
+const BLOCK_BYTES: usize = 64;
+const LENGTH_BYTES: usize = 8;
+const TAIL_BYTES: usize = 2 * BLOCK_BYTES;
 
 const H0: [u32; 8] = [
     0x6A09_E667,
@@ -83,66 +20,30 @@ const H0: [u32; 8] = [
 pub fn sha256(data: &[u8]) -> [u8; 32] {
     let mut h = H0;
     let bit_len = (data.len() as u64).wrapping_mul(8);
-    let (blocks, rest) = data.as_chunks::<64>();
-    for block in blocks {
-        compress(&mut h, block);
+    // Keep short paths and their padding in one compression call.
+    let (blocks, rest) = if data.len() < TAIL_BYTES - LENGTH_BYTES {
+        (&[][..], data)
+    } else {
+        data.as_chunks::<BLOCK_BYTES>()
+    };
+    if !blocks.is_empty() {
+        sha2::block_api::compress256(&mut h, blocks);
     }
-    let mut tail = [0u8; 128];
+    let mut tail = [0u8; TAIL_BYTES];
     tail[..rest.len()].copy_from_slice(rest);
     tail[rest.len()] = 0x80;
-    let tail_len = if rest.len() < 56 { 64 } else { 128 };
-    tail[tail_len - 8..tail_len].copy_from_slice(&bit_len.to_be_bytes());
-    for block in tail[..tail_len].as_chunks::<64>().0 {
-        compress(&mut h, block);
-    }
+    let tail_len = if rest.len() < BLOCK_BYTES - LENGTH_BYTES {
+        BLOCK_BYTES
+    } else {
+        TAIL_BYTES
+    };
+    tail[tail_len - LENGTH_BYTES..tail_len].copy_from_slice(&bit_len.to_be_bytes());
+    sha2::block_api::compress256(&mut h, tail[..tail_len].as_chunks::<BLOCK_BYTES>().0);
     let mut out = [0u8; 32];
     for (o, word) in out.as_chunks_mut::<4>().0.iter_mut().zip(h) {
         *o = word.to_be_bytes();
     }
     out
-}
-
-#[expect(
-    clippy::many_single_char_names,
-    reason = "the working variables keep the names FIPS 180-4 gives them"
-)]
-fn compress(h: &mut [u32; 8], block: &[u8; 64]) {
-    let mut w = [0u32; 64];
-    for (wi, b) in w.iter_mut().zip(block.as_chunks::<4>().0) {
-        *wi = u32::from_be_bytes(*b);
-    }
-    for i in 16..64 {
-        let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3);
-        let s1 = w[i - 2].rotate_right(17) ^ w[i - 2].rotate_right(19) ^ (w[i - 2] >> 10);
-        w[i] = w[i - 16]
-            .wrapping_add(s0)
-            .wrapping_add(w[i - 7])
-            .wrapping_add(s1);
-    }
-    let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut hh] = *h;
-    for (k, wi) in K.iter().zip(w) {
-        let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
-        let ch = (e & f) ^ (!e & g);
-        let t1 = hh
-            .wrapping_add(s1)
-            .wrapping_add(ch)
-            .wrapping_add(*k)
-            .wrapping_add(wi);
-        let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
-        let maj = (a & b) ^ (a & c) ^ (b & c);
-        let t2 = s0.wrapping_add(maj);
-        hh = g;
-        g = f;
-        f = e;
-        e = d.wrapping_add(t1);
-        d = c;
-        c = b;
-        b = a;
-        a = t1.wrapping_add(t2);
-    }
-    for (x, y) in h.iter_mut().zip([a, b, c, d, e, f, g, hh]) {
-        *x = x.wrapping_add(y);
-    }
 }
 
 /// Lowercase hex of `bytes`.
@@ -182,5 +83,68 @@ mod tests {
             hex(&sha256(&vec![b'a'; 1_000_000])),
             "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0"
         );
+    }
+
+    #[test]
+    fn binary_padding_boundaries() {
+        for (len, expected) in [
+            (
+                55_usize,
+                "0a029c039b4853c530f7cef160a48c06e06ab8233c46b665d088a825f5a49c93",
+            ),
+            (
+                56,
+                "74d933e31f80a44b658969a1d4a7d078f785ba9f789e1f7c95f7bc8a70e0e34a",
+            ),
+            (
+                63,
+                "9c1546d1c4de7e0f37dd1ee89f5fcbf3a976b9d778d1034edbc74914e6f7cfdb",
+            ),
+            (
+                64,
+                "4fd817dcaa16924ddf8b172da321a4189440c800686d043b25121267078c9d45",
+            ),
+            (
+                65,
+                "91c1b77da0bc3f612880a13a86a518aa8493cb5c5780b60f6d52d592485f89d4",
+            ),
+            (
+                119,
+                "13cfd93a8d755041af964735096349e0b900b65c0e380a6e7bac47f8f96b096f",
+            ),
+            (
+                120,
+                "8c4ae9614e608bace52efc98f5a0ec79571830aaa10222e51644f9217d2081f8",
+            ),
+            (
+                127,
+                "604c12530dc8c7cea548f7cac8ff22bdf7a1fea7bf0dd948bfd10b077ec5fcef",
+            ),
+            (
+                128,
+                "c3ffe4a6a7e0702fa12098468d55cfa10079dc4b5c13382bdf94147c0834f939",
+            ),
+            (
+                129,
+                "f132cd23d6b7c172dcd6fbe092143abba720662a00b5225f15cd47ee29dae320",
+            ),
+            (
+                191,
+                "f58f24db8156db569960d08a8dfc26b5ad48f8d2271ca08cbba5d95a52368894",
+            ),
+            (
+                192,
+                "7ac63b07f1ba0e58f8f8c171ef2429c22f4a8529002d05193291c0d4df52fe2a",
+            ),
+            (
+                193,
+                "51e8a05ed4d5d5cb1b47a0b1fbc8c6b74a47c47fd63e6fe158b45554c605c851",
+            ),
+        ] {
+            let data: Vec<u8> = (0..len)
+                .map(|i| (i as u8).wrapping_mul(37).wrapping_add(len as u8))
+                .collect();
+            assert_eq!(hex(&sha256(&data)), expected, "length {len}");
+        }
     }
 }

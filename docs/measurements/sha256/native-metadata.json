@@ -1,0 +1,23 @@
+{
+  "head": "a25573c64087dd1f417321f19139b3edd709bf03",
+  "baselineRev": "a25573c64087dd1f417321f19139b3edd709bf03",
+  "baselineSha256": "e0117322152d2d13bfef695f1a8624c0a6aa04cdb67b4a49e6cbc83d38c78b8c",
+  "currentSha256": "84af7286acef99314aba7328ddefe1d8f949d67e40cbc539f466febc994aecbe",
+  "binarySha256": "d2a53afe2e944b61735ffdd9d14ab4f875d8f9e296ce8f3d4b942cab26961a3d",
+  "benchmarkSha256": "4fd381476f0bd78af343c8e2d5a86e3f26f9b9f574799ec2860d087f584f3329",
+  "diffSha256": "28e6df8bcd6105e2e17b81b3d07016b660697d2ec9d6f731aa7700d6118eae5e",
+  "paths": 178,
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "node": "v26.7.0",
+  "openssl": "3.5.7",
+  "arch": "arm64",
+  "platform": "darwin",
+  "cpu": "Apple M1 Pro",
+  "measuredAt": "2026-10-02T09:12:55.775Z",
+  "rustflags": "",
+  "verifiedInputs": 4099,
+  "verifierPositiveControl": true,
+  "allocationCounterPositiveControl": true,
+  "instructionCount": "UNMEASURED",
+  "oracleSink": 0
+}
