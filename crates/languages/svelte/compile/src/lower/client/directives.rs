@@ -1,11 +1,35 @@
 use super::{
-    AssignmentOperator, Attribute, ClientCompilationContext, Kind, NodeIdentifier, R,
-    SourceLocation, check_binding,
+    AssignmentOperator, Attribute, AttributeValue, ClientCompilationContext, Kind, Lists,
+    NodeIdentifier, R, SourceLocation, check_binding,
 };
 
 impl ClientCompilationContext<'_> {
+    /// The directives of upstream `RegularElement`'s `other_directives`, in attribute order.
+    pub(super) fn element_directives(
+        &mut self,
+        attributes: &[Attribute],
+        tag: &str,
+        node: &str,
+    ) -> R<Lists> {
+        let mut directives = Lists::default();
+        for a in attributes {
+            match a.value {
+                AttributeValue::Bind(_) => {
+                    let call = self.binding(a, tag, attributes, node)?;
+                    directives.after.push(self.statement(call));
+                }
+                AttributeValue::Attach(e) => {
+                    let call = self.attach(e, node);
+                    directives.initializer.push(self.statement(call));
+                }
+                _ => {}
+            }
+        }
+        Ok(directives)
+    }
+
     /// Upstream `BindDirective` (client, non-dev) for the bindings [`check_binding`] admits.
-    pub(super) fn binding(
+    fn binding(
         &mut self,
         a: &Attribute,
         tag: &str,
@@ -54,7 +78,7 @@ impl ClientCompilationContext<'_> {
     }
 
     /// Upstream `AttachTag` (client).
-    pub(super) fn attach(&mut self, e: NodeIdentifier, node: &str) -> NodeIdentifier {
+    fn attach(&mut self, e: NodeIdentifier, node: &str) -> NodeIdentifier {
         let value = self.expression(e);
         let thunk = self.thunk(value);
         let x = self.out.identifier(node);

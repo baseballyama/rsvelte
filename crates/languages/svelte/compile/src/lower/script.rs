@@ -14,8 +14,8 @@ use rsvelte_typescript::syntax_tree::flag;
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
-use super::Target;
 use super::names::Names;
+use super::{Target, unsupported};
 
 #[derive(Debug)]
 pub(super) struct ScriptRewrite<'a> {
@@ -333,13 +333,12 @@ pub(super) fn lower_instance(
             // Upstream turns these into the component's exports; copying them would put an
             // `export` inside the component function.
             Kind::ExportNamed(_) | Kind::ExportDefault(_) => {
-                return Err(Diagnostic::error(
-                    "unsupported",
-                    "exports from the instance script are not supported yet",
+                return unsupported(
+                    "an export from the instance script",
                     from.source_location(statement)
                         .span()
                         .expect("a parsed statement has a source range"),
-                ));
+                );
             }
             Kind::VariableDeclaration { kind, declarations } => {
                 for &d in declarations {
@@ -385,13 +384,12 @@ fn check_destructured_rune(
         _ => false,
     };
     if split {
-        return Err(Diagnostic::error(
-            "unsupported",
-            format!("a destructured `{rune}` declaration is not supported yet"),
+        return unsupported(
+            &format!("a destructured `{rune}` declaration"),
             from.source_location(d)
                 .span()
                 .expect("a parsed declarator has a source range"),
-        ));
+        );
     }
     Ok(())
 }

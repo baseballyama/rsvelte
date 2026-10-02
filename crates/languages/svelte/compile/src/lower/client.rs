@@ -1,17 +1,18 @@
 //! DOM templates and reactive updates.
 
 mod attributes;
-mod bindings;
 mod blocks;
 mod children;
+mod directives;
 mod elements;
 mod events;
 mod expressions;
 mod fragments;
 mod template;
+mod template_chunk;
 
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
-use rsvelte_kernel::source::positions::{SourceLocation, Span};
+use rsvelte_kernel::source::positions::SourceLocation;
 use rsvelte_markup::decode_text;
 use rsvelte_svelte::compilation::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,
@@ -33,7 +34,7 @@ use super::script::ScriptRewrite;
 use super::{
     Item, Prepared, Target, check_binding, check_foreign_element, escape_markup, event_attribute,
     has_dependency, is_customizable_select, is_directive, is_load_error_element, needs_clsx,
-    sanitize_template_string, synthetic_value,
+    sanitize_template_string, synthetic_value, unsupported,
 };
 use crate::render_plan::RenderPlan;
 
@@ -71,14 +72,6 @@ const DELEGATED_EVENTS: &[&str] = &[
 ];
 
 type R<T> = Result<T, Diagnostic>;
-
-fn unsupported<T>(what: &str, span: Span) -> R<T> {
-    Err(Diagnostic::error(
-        "unsupported",
-        format!("{what} is not supported yet"),
-        span,
-    ))
-}
 
 /// Upstream `normalize_attribute`.
 #[must_use]

@@ -1,7 +1,6 @@
 use super::{
     AssignmentOperator, ClientCompilationContext, CompilerNodeIdentifier, Frag, Item, Kind, Lists,
-    LogicalOperator, NodeIdentifier, NodeKind, Prev, R, SourceLocation, Walk,
-    sanitize_template_string,
+    NodeIdentifier, NodeKind, Prev, R, SourceLocation, Walk,
 };
 
 impl ClientCompilationContext<'_> {
@@ -64,7 +63,7 @@ impl ClientCompilationContext<'_> {
         Ok(())
     }
 
-    pub(super) fn prev_expression(&mut self, prev: &Prev, is_text: bool) -> NodeIdentifier {
+    fn prev_expression(&mut self, prev: &Prev, is_text: bool) -> NodeIdentifier {
         match prev {
             Prev::Identifier(name) => self.out.identifier(name),
             Prev::Call { method, of } => {
@@ -75,7 +74,7 @@ impl ClientCompilationContext<'_> {
         }
     }
 
-    pub(super) fn get_node(&mut self, st: &Walk, is_text: bool) -> NodeIdentifier {
+    fn get_node(&mut self, st: &Walk, is_text: bool) -> NodeIdentifier {
         if st.skipped == 0 {
             return self.prev_expression(&st.prev, is_text);
         }
@@ -85,13 +84,7 @@ impl ClientCompilationContext<'_> {
         self.call("sibling", vec![Some(p), n, t])
     }
 
-    pub(super) fn flush_node(
-        &mut self,
-        st: &mut Walk,
-        is_text: bool,
-        name: &str,
-        l: &mut Lists,
-    ) -> String {
+    fn flush_node(&mut self, st: &mut Walk, is_text: bool, name: &str, l: &mut Lists) -> String {
         let expression = self.get_node(st, is_text);
         let identifier = if let Kind::Identifier(_) = self.out.kind(expression) {
             self.out.name(expression).to_owned()
@@ -106,13 +99,7 @@ impl ClientCompilationContext<'_> {
         identifier
     }
 
-    pub(super) fn flush_sequence(
-        &mut self,
-        seq: &[Item<'_>],
-        st: &mut Walk,
-        frag: &mut Frag,
-        l: &mut Lists,
-    ) {
+    fn flush_sequence(&mut self, seq: &[Item<'_>], st: &mut Walk, frag: &mut Frag, l: &mut Lists) {
         if seq.iter().all(|i| matches!(i, Item::Text { .. })) {
             st.skipped += 1;
             let raw: String = seq
@@ -144,119 +131,7 @@ impl ClientCompilationContext<'_> {
         }
     }
 
-    /// Upstream `build_template_chunk`.
-    pub(super) fn template_chunk(
-        &mut self,
-        values: &[Item<'_>],
-        frag: &mut Frag,
-    ) -> (NodeIdentifier, bool) {
-        let mut quasis: Vec<String> = vec![String::new()];
-        let mut expressions: Vec<NodeIdentifier> = Vec::new();
-        let mut has_state = false;
-        for item in values {
-            let expression = match item {
-                Item::Text { data, .. } => {
-                    quasis.last_mut().expect("never empty").push_str(data);
-                    continue;
-                }
-                Item::Expression(e) => *e,
-                Item::Node(_) => unreachable!("sequences hold text and expression tags"),
-            };
-            let javascript = self.javascript;
-            match javascript.kind(expression) {
-                Kind::String | Kind::Number(_) | Kind::Boolean(_) | Kind::Null => {
-                    if !matches!(javascript.kind(expression), Kind::Null) {
-                        let v = self
-                            .res
-                            .evaluate(javascript, self.source_text, expression)
-                            .value
-                            .to_javascript_string();
-                        quasis.last_mut().expect("never empty").push_str(&v);
-                    }
-                    continue;
-                }
-                Kind::Identifier(_)
-                    if javascript.name(expression) == "undefined"
-                        && self.res.binding(expression).is_none() =>
-                {
-                    continue;
-                }
-                _ => {}
-            }
-            let meta = self.an.meta(expression);
-            let built = self.expression(expression);
-            let mut value = self.memoize(frag, built, meta);
-            let evaluated = self.res.evaluate_output(
-                javascript,
-                self.source_text,
-                &self.out,
-                value,
-                self.scope,
-            );
-            let known = evaluated.is_known.then_some(&evaluated);
-            has_state |= meta.has_state && known.is_none();
-            if values.len() == 1 {
-                if let Some(k) = known {
-                    let s = Self::template_string(&k.value);
-                    value = self.out.write_string(&s);
-                }
-                return (value, has_state);
-            }
-            if let Kind::Logical(op @ (LogicalOperator::Nullish | LogicalOperator::Or), l, r) =
-                self.out.kind(value)
-                && matches!(self.out.kind(r), Kind::Null)
-            {
-                let empty = self.out.write_string("");
-                value = self
-                    .out
-                    .logical(op, l, empty, self.out.source_location(value));
-            }
-            if let Some(k) = known {
-                let s = Self::template_string(&k.value);
-                quasis.last_mut().expect("never empty").push_str(&s);
-            } else {
-                if !evaluated.is_defined {
-                    let empty = self.out.write_string("");
-                    value = self.out.logical(
-                        LogicalOperator::Nullish,
-                        value,
-                        empty,
-                        SourceLocation::SYNTHETIC,
-                    );
-                }
-                expressions.push(value);
-                quasis.push(String::new());
-            }
-        }
-        if expressions.is_empty() {
-            let s = quasis.pop().expect("never empty");
-            return (self.out.write_string(&s), has_state);
-        }
-        let n = quasis.len();
-        let elements: Vec<NodeIdentifier> = quasis
-            .iter()
-            .enumerate()
-            .map(|(i, q)| {
-                self.out
-                    .template_element(&sanitize_template_string(q), i + 1 == n)
-            })
-            .collect();
-        (
-            self.out
-                .template(&elements, &expressions, SourceLocation::SYNTHETIC),
-            has_state,
-        )
-    }
-
-    pub(super) fn template_string(value: &rsvelte_svelte::semantic::evaluate::Value) -> String {
-        match value {
-            rsvelte_svelte::semantic::evaluate::Value::Null
-            | rsvelte_svelte::semantic::evaluate::Value::Undefined => String::new(),
-            value => value.to_javascript_string(),
-        }
-    }
-
-    pub(super) fn visit(
+    fn visit(
         &mut self,
         identifier: CompilerNodeIdentifier,
         node: &str,

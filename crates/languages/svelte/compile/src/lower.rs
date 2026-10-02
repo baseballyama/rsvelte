@@ -108,6 +108,15 @@ pub(crate) struct Prepared {
     instance: Vec<NodeIdentifier>,
 }
 
+/// The diagnostic for input this compiler does not lower yet. `what` is a singular subject.
+fn unsupported<T>(what: &str, span: Span) -> Result<T, Diagnostic> {
+    Err(Diagnostic::error(
+        "unsupported",
+        format!("{what} is not supported yet"),
+        span,
+    ))
+}
+
 mod validation;
 use template::{
     check_binding, event_attribute, has_dependency, is_boolean_attribute, is_directive,

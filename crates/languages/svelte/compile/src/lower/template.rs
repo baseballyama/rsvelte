@@ -1,6 +1,6 @@
 use super::{
     Attribute, AttributeValue, BindingKind, Children, CompilerNodeIdentifier, CompilerSyntaxTree,
-    Cow, Diagnostic, Element, Kind, NodeIdentifier, NodeKind, Resolution, Span, SyntaxTree,
+    Cow, Diagnostic, Element, Kind, NodeIdentifier, NodeKind, Resolution, SyntaxTree, unsupported,
 };
 
 /// Upstream `sanitize_template_string`: cooked text → raw template literal text.
@@ -115,23 +115,16 @@ pub(super) fn check_binding(
     let AttributeValue::Bind(e) = a.value else {
         unreachable!("called on bindings")
     };
-    let unsupported = |what: String, span: Span| {
-        Err(Diagnostic::error(
-            "unsupported",
-            format!("{what} is not supported yet"),
-            span,
-        ))
-    };
     let property = a.name.text(source_text);
     if !supported_binding(source_text, tag, attributes, property) {
-        return unsupported(format!("`bind:{property}` on this `<{tag}>`"), a.span);
+        return unsupported(&format!("`bind:{property}` on this `<{tag}>`"), a.span);
     }
     let beside = attributes.iter().any(|o| {
         !std::ptr::eq(o, a) && matches!(o.name.text(source_text), "value" | "checked" | "group")
     });
     if beside {
         return unsupported(
-            "a binding beside a `value`, `checked` or `group` attribute".into(),
+            "a binding beside a `value`, `checked` or `group` attribute",
             a.span,
         );
     }
@@ -150,8 +143,7 @@ pub(super) fn check_binding(
     };
     if !ok {
         return unsupported(
-            "a binding to anything but `$state` or a member of `$state` or of an `{#each}` item"
-                .into(),
+            "a binding to anything but `$state` or a member of `$state` or of an `{#each}` item",
             a.span,
         );
     }

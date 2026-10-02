@@ -1,7 +1,10 @@
 use rsvelte_typescript::scope::{DeclarationKind, ScopeIdentifier};
 use rsvelte_typescript::syntax_tree::{TypeScriptFeature, TypeScriptRuntime};
 
-use super::{CompileInput, Diagnostic, Kind, NodeIdentifier, Resolution, Span, SyntaxTree, Target};
+use super::{
+    CompileInput, Diagnostic, Kind, NodeIdentifier, Resolution, Span, SyntaxTree, Target,
+    unsupported,
+};
 
 const SVG_ELEMENTS: &[&str] = &[
     "altGlyph",
@@ -136,11 +139,7 @@ const MATHML_ELEMENTS: &[&str] = &[
 pub fn check_foreign_element(source_text: &str, name: Span) -> Result<(), Diagnostic> {
     let text = name.text(source_text);
     if SVG_ELEMENTS.contains(&text) || MATHML_ELEMENTS.contains(&text) {
-        return Err(Diagnostic::error(
-            "unsupported",
-            format!("`<{text}>` outside `<svg>` or `<math>` is not supported yet"),
-            name,
-        ));
+        return unsupported(&format!("`<{text}>` outside `<svg>` or `<math>`"), name);
     }
     Ok(())
 }
@@ -189,11 +188,7 @@ pub(super) fn check_stores(
             let Some(span) = javascript.source_location(r.node).span() else {
                 unreachable!("a reference is parsed from source")
             };
-            return Err(Diagnostic::error(
-                "unsupported",
-                "`$$slots` is not supported yet",
-                span,
-            ));
+            return unsupported("`$$slots`", span);
         }
         let Some(store) = name.strip_prefix('$') else {
             continue;
@@ -220,11 +215,7 @@ pub(super) fn check_stores(
             let Some(span) = javascript.source_location(r.node).span() else {
                 unreachable!("a reference is parsed from source")
             };
-            return Err(Diagnostic::error(
-                "unsupported",
-                format!("the store subscription `{name}` is not supported yet"),
-                span,
-            ));
+            return unsupported(&format!("the store subscription `{name}`"), span);
         }
     }
     Ok(())
@@ -260,11 +251,7 @@ pub(super) fn check_runes(
                 let Some(span) = javascript.source_location(e).span() else {
                     unreachable!("a rune call is parsed from source")
                 };
-                return Err(Diagnostic::error(
-                    "unsupported",
-                    format!("`{rune}` is not supported yet"),
-                    span,
-                ));
+                return unsupported(&format!("`{rune}`"), span);
             }
         }
         let mut children = Vec::new();

@@ -103,7 +103,7 @@ impl ClientCompilationContext<'_> {
         Ok(body)
     }
 
-    pub(super) fn append(&mut self, identifier: &str) -> NodeIdentifier {
+    fn append(&mut self, identifier: &str) -> NodeIdentifier {
         let anchor = self.out.identifier("$$anchor");
         let x = self.out.identifier(identifier);
         let call = self.call("append", vec![Some(anchor), Some(x)]);
@@ -111,11 +111,7 @@ impl ClientCompilationContext<'_> {
     }
 
     /// Upstream `build_render_statement`.
-    pub(super) fn render_statement(
-        &mut self,
-        frag: &mut Frag,
-        update: &[NodeIdentifier],
-    ) -> NodeIdentifier {
+    fn render_statement(&mut self, frag: &mut Frag, update: &[NodeIdentifier]) -> NodeIdentifier {
         let identifiers: Vec<NodeIdentifier> = (0..frag.memo.len())
             .map(|i| self.out.identifier(&format!("${i}")))
             .collect();
@@ -153,12 +149,7 @@ impl ClientCompilationContext<'_> {
 
     /// Upstream `transform_template`: hoists `var root = $.from_html(…)` (shared by identical
     /// templates) and returns the callee that builds the fragment.
-    pub(super) fn transform_template(
-        &mut self,
-        tpl: &Template,
-        name: &str,
-        flags: u32,
-    ) -> NodeIdentifier {
+    fn transform_template(&mut self, tpl: &Template, name: &str, flags: u32) -> NodeIdentifier {
         if tpl.is_lone_comment() {
             let ns = self.out.identifier("$");
             return self.out.dot(ns, "comment");
