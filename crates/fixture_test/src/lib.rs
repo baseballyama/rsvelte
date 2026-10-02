@@ -11,8 +11,13 @@
     clippy::print_stderr,
     reason = "a test harness lists cases on stdout, as libtest does, and reports on stderr"
 )]
+#![expect(
+    clippy::multiple_crate_versions,
+    reason = "oxc's own proc macros need both syn 2 and syn 3; only tests depend on this crate"
+)]
 
 mod cases;
+mod javascript;
 mod node;
 mod snapshots;
 
@@ -53,7 +58,22 @@ impl Fixtures {
     ///
     /// If the task or the name is already used, or the name is not a plain file stem.
     #[must_use]
-    pub fn snapshot(mut self, task: &'static str, name: &'static str) -> Self {
+    pub fn snapshot(self, task: &'static str, name: &'static str) -> Self {
+        self.add(task, name, false)
+    }
+
+    /// Like [`Fixtures::snapshot`], but in a case copied from the corpus, the `<name>.js` file
+    /// also matches the official one when both parse to the same syntax tree.
+    ///
+    /// # Panics
+    ///
+    /// As [`Fixtures::snapshot`].
+    #[must_use]
+    pub fn javascript_snapshot(self, task: &'static str, name: &'static str) -> Self {
+        self.add(task, name, true)
+    }
+
+    fn add(mut self, task: &'static str, name: &'static str, javascript_tree: bool) -> Self {
         assert!(
             !name.is_empty()
                 && name != "input"
@@ -68,7 +88,11 @@ impl Fixtures {
                 .all(|s| s.task != task && s.name != name),
             "{task} as {name:?}: each task and each name is used once"
         );
-        self.snapshots.push(Snapshot { task, name });
+        self.snapshots.push(Snapshot {
+            task,
+            name,
+            javascript_tree,
+        });
         self
     }
 
@@ -140,11 +164,21 @@ impl Fixtures {
             outcome.written,
             outcome.removed,
         );
-        if outcome.matching + outcome.differing + outcome.not_run > 0 {
+        let oracle_cases = outcome.matching
+            + outcome.equivalent
+            + outcome.differing
+            + outcome.unparseable
+            + outcome.not_run;
+        if oracle_cases > 0 {
             eprintln!(
-                "official output: {} cases match it byte for byte, {} differ (compare their \
-                 `expected/` and `actual/`), {} not run",
-                outcome.matching, outcome.differing, outcome.not_run,
+                "official output, {oracle_cases} cases: {} match it byte for byte, {} match it as \
+                 JavaScript syntax trees, {} differ (compare their `expected/` and `actual/`), {} \
+                 have JavaScript that does not parse, {} not run",
+                outcome.matching,
+                outcome.equivalent,
+                outcome.differing,
+                outcome.unparseable,
+                outcome.not_run,
             );
         }
         if problems > 0 {

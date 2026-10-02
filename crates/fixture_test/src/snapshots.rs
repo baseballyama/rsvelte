@@ -7,6 +7,7 @@ use rsvelte_kernel::source::positions::LineIndex;
 use rustc_hash::FxHashSet;
 
 use crate::cases::{Case, Expected};
+use crate::javascript;
 
 const EXPECTED_DIR: &str = "expected";
 const ACTUAL_DIR: &str = "actual";
@@ -17,6 +18,18 @@ const CONTEXT_LINES: usize = 3;
 pub(crate) struct Snapshot {
     pub(crate) task: &'static str,
     pub(crate) name: &'static str,
+    /// Whether the `.js` file of a corpus case may match the official one as a syntax tree.
+    pub(crate) javascript_tree: bool,
+}
+
+/// How a corpus case compares with the official output. A case takes the worst verdict of its
+/// files.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Verdict {
+    Bytes,
+    Tree,
+    Differs,
+    Unparseable,
 }
 
 #[derive(Default)]
@@ -27,7 +40,11 @@ pub(crate) struct Outcome {
     pub(crate) problems: usize,
     /// Oracle cases whose output is the official output byte for byte.
     pub(crate) matching: usize,
+    /// Oracle cases that match only when JavaScript is compared as a syntax tree.
+    pub(crate) equivalent: usize,
     pub(crate) differing: usize,
+    /// Oracle cases with a JavaScript file, official or ours, that does not parse.
+    pub(crate) unparseable: usize,
     /// Oracle cases where none of the tasks applies, such as a module rsvelte does not compile.
     pub(crate) not_run: usize,
     pub(crate) messages: Vec<String>,
@@ -40,7 +57,9 @@ impl Outcome {
         self.removed += other.removed;
         self.problems += other.problems;
         self.matching += other.matching;
+        self.equivalent += other.equivalent;
         self.differing += other.differing;
+        self.unparseable += other.unparseable;
         self.not_run += other.not_run;
         self.messages.extend(other.messages);
     }
@@ -109,20 +128,51 @@ pub(crate) fn check(
         }
         Expected::Oracle if !ran => outcome.not_run += 1,
         Expected::Oracle => {
-            let matches = existing.len() == produced.len()
-                && produced.iter().all(|(name, text)| {
-                    existing.contains(name)
-                        && std::fs::read_to_string(expected_dir.join(name))
-                            .is_ok_and(|e| e == *text)
-                });
-            if matches {
-                outcome.matching += 1;
-            } else {
-                outcome.differing += 1;
+            match compare_with_oracle(&expected_dir, &existing, &produced, snapshots) {
+                Verdict::Bytes => outcome.matching += 1,
+                Verdict::Tree => outcome.equivalent += 1,
+                Verdict::Differs => outcome.differing += 1,
+                Verdict::Unparseable => outcome.unparseable += 1,
             }
         }
     }
     outcome
+}
+
+fn compare_with_oracle(
+    expected_dir: &Path,
+    existing: &[String],
+    produced: &[(String, String)],
+    snapshots: &[Snapshot],
+) -> Verdict {
+    if existing.len() != produced.len() {
+        return Verdict::Differs;
+    }
+    let mut worst = Verdict::Bytes;
+    for (name, text) in produced {
+        let verdict = match existing
+            .contains(name)
+            .then(|| std::fs::read_to_string(expected_dir.join(name)))
+        {
+            Some(Ok(e)) if e == *text => Verdict::Bytes,
+            Some(Ok(e)) if is_javascript_tree(name, snapshots) => {
+                match javascript::same_tree(&e, text) {
+                    Ok(true) => Verdict::Tree,
+                    Ok(false) => Verdict::Differs,
+                    Err(_) => Verdict::Unparseable,
+                }
+            }
+            _ => Verdict::Differs,
+        };
+        worst = worst.max(verdict);
+    }
+    worst
+}
+
+fn is_javascript_tree(file: &str, snapshots: &[Snapshot]) -> bool {
+    snapshots
+        .iter()
+        .any(|s| s.javascript_tree && file.strip_prefix(s.name).is_some_and(|rest| rest == ".js"))
 }
 
 fn write_actual(dir: &Path, produced: &[(String, String)]) -> Result<(), String> {

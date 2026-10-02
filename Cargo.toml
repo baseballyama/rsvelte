@@ -35,6 +35,12 @@ rsvelte_stylesheet_format = { path = "crates/languages/css/format" }
 rsvelte_typescript_compile = { path = "crates/languages/typescript/compile" }
 rsvelte_svelte_compile = { path = "crates/languages/svelte/compile" }
 rsvelte_vue_compile = { path = "crates/languages/vue/compile" }
+oxc_allocator = "0.152"
+oxc_ast = "0.152"
+oxc_ast_visit = "0.152"
+oxc_parser = "0.152"
+oxc_span = "0.152"
+oxc_syntax = "0.152"
 rayon = "1.12"
 rustc-hash = "2.1"
 libc = "0.2"

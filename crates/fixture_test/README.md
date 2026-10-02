@@ -11,8 +11,11 @@ A case has one of two kinds of `expected/`:
 | hand-written | any directory without `source.json` above it (`rsvelte/` in the compile crate) | rsvelte's own output, accepted with `UPDATE_EXPECT=1` | fails the test |
 | copied from the corpus | `tests/fixtures/<source>/`, which holds `source.json` | the official tool's output | is counted, not failed |
 
-Snapshots show what changed. Only copied cases show what is correct, and only as text: the full
-check (JavaScript compared as a syntax tree, with `[[adjust]]`) is over [`fixtures/`](../../fixtures/README.md).
+Snapshots show what changed. Only copied cases show what is correct. A snapshot registered with
+`javascript_snapshot` compares its `.js` file with the official one as a syntax tree, with the
+meaning of `tools/fixtures/src/canonical.ts` (layout, comments and literal spelling are ignored;
+`@__PURE__` on calls is not). Other files are compared as bytes. `[[adjust]]` entries apply only to
+the full check over [`fixtures/`](../../fixtures/README.md).
 
 ## A case
 
@@ -75,7 +78,8 @@ UPDATE_EXPECT=1 cargo test -p rsvelte_svelte_compile --test fixtures  # write ch
 
 The test fails when a hand-written snapshot differs, is missing, or is no longer produced, when a
 task panics on any case, and when no case exists. For copied cases it prints how many match the
-official output byte for byte, how many differ, and how many no task ran on (for example
+official output byte for byte, how many match it only as JavaScript syntax trees, how many differ,
+how many have JavaScript that does not parse, and how many no task ran on (for example
 `.svelte.ts` modules, which rsvelte does not compile yet).
 
 ## Add fixture tests to a crate
@@ -100,8 +104,8 @@ fn main() -> ExitCode {
     let mut registry = Registry::new();
     rsvelte_svelte_compile::register(&mut registry);
     rsvelte_fixture_test::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
-        .snapshot("svelte.compile/client", "client")
-        .snapshot("svelte.compile/server", "server")
+        .javascript_snapshot("svelte.compile/client", "client")
+        .javascript_snapshot("svelte.compile/server", "server")
         .run()
 }
 ```
