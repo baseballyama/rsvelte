@@ -61,6 +61,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
         working-directory: tools/fixtures
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - run: node --test tools/structure/test/*.test.ts
+      - run: node tools/structure/bin/structure.ts
       - run: cargo build --release -p rsvelte_command_line
       - run: node tools/fixtures/bin/run-all.ts
       - run: node bin/fixtures.ts check
@@ -75,6 +77,7 @@ jobs:
           (cd tools/fixtures && pnpm run typecheck)
           (cd tools/performance && node ../fixtures/node_modules/typescript-7/bin/tsc -p .)
           (cd tools/buildtime && node ../fixtures/node_modules/typescript-7/bin/tsc -p .)
+          (cd tools/structure && node ../fixtures/node_modules/typescript-7/bin/tsc -p .)
 
   site:
     runs-on: ubuntu-24.04

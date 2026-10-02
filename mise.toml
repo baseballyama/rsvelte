@@ -11,7 +11,12 @@ run = "cargo +nightly-2026-07-11 fmt --all"
 description = "Fail when the Rust workspace is not formatted"
 run = "cargo +nightly-2026-07-11 fmt --all --check"
 
+[tasks.structure]
+description = "Check source file lengths and the checker controls"
+run = ["node --test tools/structure/test/*.test.ts", "node tools/structure/bin/structure.ts"]
+
 [tasks.lint]
+depends = ["structure"]
 description = "The lint gate: every lint in [workspace.lints] denies"
 # Both feature sets: `metrics` swaps whole module bodies, so one set never checks the other's.
 run = [

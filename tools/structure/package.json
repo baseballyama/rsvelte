@@ -1,0 +1,13 @@
+{
+  "name": "@rsvelte-experimental/structure",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "check": "node bin/structure.ts",
+    "test": "node --test test/*.test.ts",
+    "typecheck": "node ../fixtures/node_modules/typescript-7/bin/tsc -p ."
+  }
+}
