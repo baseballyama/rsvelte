@@ -112,10 +112,11 @@
 						コンパイル、整形、lint、型検査を、同じパースと同じ解析の上で走らせます。文書ごとに一度だけパースし、移植していない構文は近似せずに「未対応」と報告します。どこで時間とメモリを使ったかは、カーネル自身が数えます。
 					</p>
 					<div class="mt-9 flex flex-wrap items-center gap-3 text-[15px]">
+						<a href="/guide" class="inline-flex h-11 items-center gap-2 rounded-md bg-fg px-5 font-medium text-bg shadow-sm hover:bg-accent">使い方ガイド<Icon name="arrow-right" size={15} /></a>
 						<a href="/why" class="inline-flex h-11 items-center gap-2 rounded-md border border-line bg-raised px-5 font-medium text-fg hover:border-line-strong">なぜrsvelteを作るのか<Icon name="arrow-right" size={15} /></a>
 						<a
 							href="/learn"
-							class="inline-flex h-11 items-center gap-2 rounded-md bg-fg px-5 font-medium text-bg shadow-sm hover:bg-accent"
+							class="inline-flex h-11 items-center gap-2 rounded-md border border-line bg-raised px-5 font-medium text-fg hover:border-line-strong"
 							>カーネルを学ぶ<Icon name="arrow-right" size={15} /></a
 						>
 						<a

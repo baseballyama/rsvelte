@@ -6,8 +6,9 @@
 	import ThemeToggle from './ThemeToggle.svelte';
 
 	const links = [
+		{ href: '/guide', label: '使い方' },
 		{ href: '/why', label: 'なぜrsvelteか' },
-		{ href: '/learn', label: 'Learn' },
+		{ href: '/learn', label: '開発者向け' },
 		{ href: '/learn/reference', label: 'リファレンス' },
 		{ href: '/learn/playground', label: 'プレイグラウンド' }
 	];
@@ -48,7 +49,7 @@
 					class={[
 						'rounded-md px-2.5 py-1.5 whitespace-nowrap',
 						current(l.href) ? 'bg-surface font-medium text-fg' : 'text-fg-2 hover:bg-surface hover:text-fg',
-						!['/learn', '/why'].includes(l.href) && 'max-sm:hidden'
+						!['/guide', '/learn'].includes(l.href) && 'max-sm:hidden'
 					]}
 					aria-current={current(l.href) ? 'page' : undefined}
 				>
@@ -65,7 +66,7 @@
 				aria-keyshortcuts="Meta+K Control+K /"
 			>
 				<Icon name="search" size={15} />
-				<span class="hidden md:inline">教材を検索…</span>
+				<span class="hidden md:inline">ガイド・教材を検索…</span>
 				<span class="ml-auto hidden items-center gap-0.5 sm:flex"
 					><span class="kbd">{mac ? '⌘' : 'Ctrl'}</span><span class="kbd">K</span></span
 				>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { appendix, chapters } from '$lib/site';
+	import { guideSections } from '$lib/guide';
 	import Icon from './Icon.svelte';
 	import { search } from './search.svelte';
 
@@ -9,12 +10,26 @@
 		title: string;
 		/** Chapter number and title, for a section; the abstract, for a chapter. */
 		context: string;
-		kind: 'chapter' | 'section' | 'appendix';
+		kind: 'chapter' | 'section' | 'appendix' | 'guide';
 		number?: string;
 		haystack: string;
 	}
 
 	const entries: Entry[] = [
+		{
+			href: '/guide',
+			title: '使い方ガイド',
+			context: '導入、コンパイル、整形、検査、型チェック、Web アプリへの組み込み',
+			kind: 'guide',
+			haystack: '使い方 ガイド 導入 コンパイル 整形 検査 型チェック WebAssembly'.toLowerCase()
+		},
+		...guideSections.map((section) => ({
+			href: `/guide#${section.id}`,
+			title: section.title,
+			context: '使い方ガイド',
+			kind: 'section' as const,
+			haystack: `${section.title} 使い方 ガイド`.toLowerCase()
+		})),
 		...chapters.flatMap((c) => [
 			{
 				href: c.href,
@@ -115,7 +130,7 @@
 	onclick={(e) => {
 		if (e.target === dialog) search.open = false;
 	}}
-	aria-label="教材を検索"
+	aria-label="ガイド・教材を検索"
 >
 	<div
 		class="flex h-full flex-col overflow-hidden border-line bg-raised text-fg sm:h-auto sm:max-h-[70vh] sm:rounded-[10px] sm:border sm:shadow-[var(--shadow-pop)]"
@@ -127,7 +142,7 @@
 				bind:value={q}
 				{onkeydown}
 				class="h-14 min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted"
-				placeholder="章や節を探す（例: fits, ユニコードの16ビット符号化方式, 並列）"
+				placeholder="使い方や教材を探す（例: 整形、型、並列）"
 				role="combobox"
 				aria-expanded="true"
 				aria-controls="palette-results"
@@ -171,7 +186,7 @@
 					</a>
 				</li>
 			{:else}
-				<li class="px-3 py-10 text-center text-[14px] text-muted">「{q}」に一致する章・節はありません</li>
+				<li class="px-3 py-10 text-center text-[14px] text-muted">「{q}」に一致するページ・節はありません</li>
 			{/each}
 		</ul>
 		<div
