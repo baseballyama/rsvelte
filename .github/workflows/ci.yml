@@ -1,5 +1,6 @@
 # Every gate the repository has, on every push and pull request:
-# - rust: formatting, the lint gate (both feature sets, rustdoc), the test suites;
+# - rust: formatting, the lint gate (both feature sets, rustdoc), the test suites (each crate's
+#   fixture snapshots included; the type-check ones run tsc from tools/fixtures/node_modules);
 # - fixtures: every task over every fixture unit, against the oracle snapshots (the parity ratchet,
 #   fixtures/_registry/parity.json), the adjustments' validity and the behaviour oracle's own tests;
 # - performance: the deterministic performance ratchet (tools/performance/baseline.json): allocations exactly,
@@ -43,6 +44,14 @@ jobs:
       - run: cargo clippy --offline --workspace --all-targets
       - run: cargo clippy --offline --workspace --all-targets --all-features
       - run: cargo doc --offline --workspace --no-deps --all-features
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 26.7.0
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 10.33.4
+      - run: pnpm install --frozen-lockfile
+        working-directory: tools/fixtures
       - run: cargo test --offline --workspace
 
   fixtures:

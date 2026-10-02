@@ -5,6 +5,7 @@
 - ファイルごとの役割: [fixtures/README.md](../fixtures/README.md)
 - データ: `fixtures/`
 - コンセプト上の位置づけ: [concept.md](concept.md) §3-C2、§8
+- 手書きのテストは `fixtures/` には置かない。各 crate の `tests/fixtures/` に置き、rsvelte 自身の出力の snapshot と比べる（[crates/fixture_test/README.md](../crates/fixture_test/README.md)）。オラクルとは比べないので、`fixtures/` は外部コーパスとオラクルの比較だけを扱う。
 
 ## 1. 要件
 
@@ -85,7 +86,7 @@ mise exec -- node tools/fixtures/bin/fixtures.ts import --from <submodule を持
 
 ### 2026-09-29 時点の取り込み結果
 
-対象は `svelte` ファミリー。`vue` のユニットは、いまは手書きの `rsvelte` source（`fixtures/vue/rsvelte` 28 件）だけで、取り込み元のリポジトリはまだ無い。
+対象は `svelte` ファミリー。`vue` の取り込み元のリポジトリはまだ無い。
 
 測った対象は、主チェックアウト（`/Users/baseballyama/git/rsvelte`、`main` `5ed8ea3a3`）の submodule。admission のオラクルは svelte 5.57.1。
 
@@ -122,16 +123,18 @@ mise exec -- node tools/fixtures/bin/fixtures.ts regen [--task id,...] [--source
 |---|---|---|---|---|
 | `svelte.compile` | `svelte` の全 unit | `client`、`server`（`runes: true`、`filename` = unit の path） | svelte | `js`（js-syntax_tree）、`css`（text）、`warnings.json`（json）、または `error.json`（json） |
 | `svelte.compileModule` | `svelte-module-js` | `client`、`server` | svelte | 同上 |
-| `svelte.format` | `svelte` の `rsvelte` source | `default` | prettier + prettier-plugin-svelte | `svelte`（text、バイト一致） |
+| `svelte.format` | `svelte` の `rsvelte` source（いまは 0 件） | `default` | prettier + prettier-plugin-svelte | `svelte`（text、バイト一致） |
 | `svelte.lint` | 同上 | `default`（全ルール） | eslint + eslint-plugin-svelte + svelte-eslint-parser + @typescript-eslint/parser | `lint.json`（lint: 実装側が走らせたルールの指摘に絞って比較） |
 | `svelte.check` | 同上 | `default` | svelte-check + typescript + svelte | `json`（json） |
-| `vue.compile` | `vue` の全 unit | `default` | @vue/compiler-sfc（+ typescript） | `js`（js-syntax_tree）、`css`（text） |
-| `vue.format` | `vue` の `rsvelte` source | `default` | prettier | `vue`（text） |
+| `vue.compile` | `vue` の全 unit（いまは 0 件） | `default` | @vue/compiler-sfc（+ typescript） | `js`（js-syntax_tree）、`css`（text） |
+| `vue.format` | `vue` の `rsvelte` source（いまは 0 件） | `default` | prettier | `vue`（text） |
 | `vue.lint` | 同上 | `default`（全ルール） | eslint + eslint-plugin-vue + vue-eslint-parser + @typescript-eslint/parser | `lint.json`（lint） |
 | `vue.check` | 同上 | `default` | vue-tsc + @vue/language-core + @volar/typescript + typescript + vue | `json`（json） |
 | `ts.check` | `svelte.check` と `vue.check` の unit の和 | `default` | unit ごとに svelte-check か vue-tsc | `json`（json） |
-| `svue.compile` | `cross` の `.vue`（言語 `cross-vue`） | `client`、`server` | @vue/compiler-sfc + vue（+ jsdom） | `trace.json`（実装の `js` を Svelte ランタイムで動かした trace と比較、§12） |
-| `vuelte.compile` | `cross` の `.svelte`（言語 `cross-svelte`） | `client`、`server` | svelte（+ jsdom） | `trace.json`（実装の `js` を Vue ランタイムで動かした trace と比較、§12） |
+| `svue.compile` | `cross` の `.vue`（言語 `cross-vue`、いまは 0 件） | `client`、`server` | @vue/compiler-sfc + vue（+ jsdom） | `trace.json`（実装の `js` を Svelte ランタイムで動かした trace と比較、§12） |
+| `vuelte.compile` | `cross` の `.svelte`（言語 `cross-svelte`、いまは 0 件） | `client`、`server` | svelte（+ jsdom） | `trace.json`（実装の `js` を Vue ランタイムで動かした trace と比較、§12） |
+
+`rsvelte` source（手書きの unit）は crate の fixture テストへ移したので、「0 件」のタスクはいまオラクルと比べる unit を持たない。タスクの定義は、取り込み元のリポジトリを足したときのために残してある。
 
 storage はすべて `committed`。`ts.check` は rsvelte の言語に依存しない型検査（1 回の tsc で両方の言語）を測るためのタスクで、期待値は unit の言語のオラクルがそのまま出す。
 
@@ -229,7 +232,7 @@ lint・format・型検査はタスクになった（§5）。残りは次のと�
 
 ### ユニット単位の例外
 
-unit の `fixture.toml` に書く。いまは `[skip]`（task id または `task/variant` → 理由）、`[[adjust]]`、`[behaviour]`（振る舞いタスクの props と操作手順、§12.4）を持つ。skip の例: `vue/rsvelte/check/template-shapes.vue` と `vue/rsvelte/lint/button-types.vue` は、rsvelte の compile の移植が拒否する構文（束縛した `class`、`type` と `:type` の重複）を含むので `vue.compile/default` を外している。どちらも別のタスクを測るための unit である。今後、lint 設定の差し替えやコンパイルオプション（`experimental.async` など）といった、タスク固有の per-unit オプションもここに置く。
+unit の `fixture.toml` に書く。いまは `[skip]`（task id または `task/variant` → 理由）、`[[adjust]]`、`[behaviour]`（振る舞いタスクの props と操作手順、§12.4）を持つ。今後、lint 設定の差し替えやコンパイルオプション（`experimental.async` など）といった、タスク固有の per-unit オプションもここに置く。
 
 ## 10. 実装との接続
 
@@ -295,18 +298,22 @@ unit の `fixture.toml` に書く。いまは `[skip]`（task id または `task
 
 ### 12.2 unit の置き場所と言語
 
+いま `fixtures/cross/` に unit は無い。手書きの 12 組・24 件は crate の fixture テストの case になり、rsvelte の出力は自前の snapshot とだけ比べる。オラクルは、下の双子とともにオラクル自身のテスト（§12.9）だけが使う。
+
 ```
-fixtures/cross/rsvelte/<グループ>/<名前>.vue/      言語 cross-vue    → svue.compile
-  input.vue  meta.json  fixture.toml  expected/svue.compile/{client,server}.trace.json
-fixtures/cross/rsvelte/<グループ>/<名前>.svelte/   言語 cross-svelte → vuelte.compile
-  input.svelte  meta.json  fixture.toml  expected/vuelte.compile/{client,server}.trace.json
+crates/languages/vue/compile_svelte/tests/fixtures/<名前>/      svue の case
+  input.vue  behaviour.toml  client.js  server.js
+crates/languages/svelte/compile_vue/tests/fixtures/<名前>/      vuelte の case
+  input.svelte  behaviour.toml  client.js  server.js
 ```
+
+以下は `fixtures/cross/` に unit を置く場合の規則である。
 
 - ファミリー `cross` には言語が 2 つある。`cross-vue`（`.vue`、admission は公式ビルドが client と server の両方で通ること）と `cross-svelte`（`.svelte`、admission は `runes: true` の compile が通ること）。`vue` / `svelte` ファミリーの unit には振る舞いタスクは当たらず、`cross` の unit には compile・lint などのタスクは当たらない。
   - 手書き unit の言語は、拡張子だけでなくファミリーでも決める（`languageOf(path, family)`）。取り込み元リポジトリのファイルは、従来どおり `svelte` / `vue` に入る。
-- いまの unit は 12 組・24 件で、どの `.vue` にも、同じ振る舞いを手で書いた `.svelte` の双子がある（逆も同じ）。
-  - `minimal/`: counter、conditional、list、text-input、checkbox、props、form-controls、todo。
-  - `semantics/`: 2 つのランタイムの意味が違うところ（§12.8）。number-input、interpolation、boolean-prop、fallthrough。
+- 24 件の case のどの `.vue` にも、同じ振る舞いを手で書いた `.svelte` の双子がある（逆も同じ）。
+  - 基本: counter、conditional、list、text-input、checkbox、props、form-controls、todo。
+  - 2 つのランタイムの意味が違うところ（§12.8）: number-input、interpolation、boolean-prop、fallthrough。
 - `rsvelte fixtures` はファミリーを区別しないので、`cross` の unit にも `vue.compile` などを走らせて `actual/` に書く。Node 側はそれを比べない。
 
 ### 12.3 実装が書くファイル（Rust 側の契約）
@@ -325,7 +332,9 @@ fixtures/cross/rsvelte/<グループ>/<名前>.svelte/   言語 cross-svelte →
 - `fixtures compare` は、実装側の trace を `actual/<task>/<variant>.trace.json` に書く（調べるため。比較には使わない）。
 - `svue.compile` の実装は `crates/languages/vue/compile_svelte`。翻訳の対応表、拒否の一覧、trace に映らない差はクレートの doc に書いてある。
 
-### 12.4 操作手順（`fixture.toml` の `[behaviour]`）
+### 12.4 操作手順（`[behaviour]`）
+
+`fixtures/` の unit では `fixture.toml` の `[behaviour]` に、crate の case では `behaviour.toml` の最上位に、同じキーで書く。
 
 ```toml
 [behaviour]
@@ -341,7 +350,7 @@ steps = [
 ```
 
 - 手順は 1 つにつき動作が 1 つ。対象は、マウント先の中でセレクタに最初に一致する要素。一致しなければ、その手順でエラーになって trace が終わる。
-- `meta.json` ではなく `fixture.toml` に置く。`meta.json` は `fixtures import` が毎回作り直すので、手書きの内容は消える。
+- `fixtures/` の unit では、`meta.json` ではなく `fixture.toml` に置く。`meta.json` は `fixtures import` が毎回作り直すので、手書きの内容は消える。
 - 各手順の後、ランタイムの flush（Svelte は `flushSync()`、Vue は `nextTick()`）、`setTimeout(0)` 1 回、もう一度 flush をしてから DOM を記録する。同じイベントの中で、どの時点で描画するか（同期かマイクロタスクか）は比べない。利用者には、その違いは見えないため。
 
 ### 12.5 trace の形式
@@ -408,7 +417,7 @@ steps = [
 
 オラクルを rsvelte の実装と独立に確かめるため、`behaviour.test.ts` は「正しい翻訳」と「誤った翻訳」を、もう一方の公式コンパイラで作って確かめる。`fixtures/` に、rsvelte の出力を装ったファイルは置かない。
 
-1. **双子は一致する**: `cross` の各 unit について、双子（他方の言語で手書きした同じ振る舞いのコンポーネント）を公式コンパイラでビルドし、`compare` と同じ関数（`Task.observe`）で trace を取って、committed の期待値と比べる。24 unit × 2 ターゲットのすべてが一致する。
+1. **双子は一致する**: svue と vuelte の各 case について、双子（他方の言語で手書きした同じ振る舞いのコンポーネント）を公式コンパイラでビルドし、`compare` と同じ関数（`Task.observe`）で trace を取って、その case 自身を公式ビルドした trace と比べる。24 unit × 2 ターゲットのすべてが一致する。
 2. **誤った翻訳は、手順と差分を名指しして `mismatch` になる**: `test/behaviour/wrong/` の 20 ファイル（オフバイワン、手順の後に 1 件足りないリスト、入力欄の `.value` だけが違うもの、空白の扱い、`.lazy` の取り違え、リスナーの例外、server だけが違うもの、など）について、ターゲットごとの報告文を `test/behaviour/controls.json` に完全一致で固定してある。`null` は「そのターゲットは一致したままでなければならない」で、一方の誤りが他方を動かさないことの陰性側の確認になる。
 3. **観測できない出力は報告される**: `export default` が無い、マウントで例外、解決できない import。
 4. **正規化**: §12.6 の 23 組。

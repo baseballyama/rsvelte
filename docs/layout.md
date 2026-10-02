@@ -5,6 +5,7 @@ The workspace separates shared data, hosts, languages, and task capabilities.
 | Path | Owns |
 |---|---|
 | `crates/kernel` | Shared source data, computation, diagnostics, and output |
+| `crates/fixture_test` | The snapshot harness for each crate's `tests/fixtures/` |
 | `crates/hosts/command_line` | CLI and integration tests |
 | `crates/hosts/browser` | Browser bindings |
 | `crates/languages/<language>/core` | Shared language data and artifact registration |
@@ -45,7 +46,8 @@ files are not counted.
 
 It measures Rust, TypeScript, JavaScript, component, and stylesheet files in `crates/`,
 `tools/`, and `apps/`, including tests. Vendor declarations, generated Wasm
-bindings, and deliberately wrong fixture inputs are not measured. The fixture
+bindings, deliberately wrong fixture inputs, and crate fixture cases
+(`crates/**/tests/fixtures/`) are not measured. The fixture
 corpus and oracle snapshots are not application source.
 
 The existing long files in the two reference crates have individual limits and

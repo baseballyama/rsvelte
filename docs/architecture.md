@@ -159,6 +159,8 @@ context.facet::<TypeScriptView>()（matching provider's answer, document pass）
 
 ### 手書きユニット
 
+この表は、手書きのユニットを crate の fixture テスト（`crates/*/tests/fixtures/`、自前の snapshot との比較）へ移す前の測定である。移した後は、どのユニットもオラクルと比べていない。移す直前（`67fa02372a`）にオラクルと照合した結果は、拒否したもの（`svelte.format` 5 件、`svelte.check` と `ts.check` の `each-ts` 各 1 件）を除いて全件 match だった。
+
 | タスク | オラクル | ユニット | 結果 |
 |---|---|---|---|
 | `svelte.compile/client` / `server` | svelte 5.57.1 | `fixtures/svelte/rsvelte`（13） | 13/13 |

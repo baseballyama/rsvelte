@@ -1,5 +1,5 @@
-//! The surface layer loses nothing: over every component of the Vue fixtures, the token table is
-//! the source byte for byte, and each trivia token holds only what its kind says.
+//! The surface layer loses nothing: over every component of the Vue crates' fixture cases, the
+//! token table is the source byte for byte, and each trivia token holds only what its kind says.
 
 use std::path::{Path, PathBuf};
 
@@ -21,7 +21,7 @@ fn inputs(dir: &Path, out: &mut Vec<PathBuf>) {
 
 #[test]
 fn every_component_is_its_tokens() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../fixtures/vue");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     let mut files = Vec::new();
     inputs(&root, &mut files);
     let mut wrong = Vec::new();
@@ -64,7 +64,7 @@ fn every_component_is_its_tokens() {
             }
         }
     }
-    // The hand-written units all parse; this only catches an absent fixture directory.
+    // The hand-written cases all parse; this only catches absent fixture directories.
     assert!(files.len() >= 12, "only {} Vue fixtures found", files.len());
     assert!(wrong.is_empty(), "{}", wrong.join("\n"));
 }
