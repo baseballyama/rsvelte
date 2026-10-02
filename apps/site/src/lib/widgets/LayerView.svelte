@@ -66,7 +66,7 @@
 	};
 </script>
 
-<Figure label="図 5.1 · 一つのコンポーネントの層" wide>
+<Figure label="図 5.1 · Svelte の構文木と解析結果の例" wide>
 	<div class="border-b border-line p-4">
 		<div class="mb-2 font-mono text-[11.5px] tracking-normal text-muted">Toolbar.svelte</div>
 			<pre class="overflow-x-auto font-mono text-[12px] leading-[1.65] tracking-normal text-fg-2">{#each runs as r, i (i)}<span

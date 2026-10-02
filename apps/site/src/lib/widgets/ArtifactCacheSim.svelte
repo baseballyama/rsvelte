@@ -39,7 +39,7 @@
 	}
 </script>
 
-<Figure label="図 4.1 · 一つの文書を五つのタスクで処理したときの計算記録" wide>
+<Figure label="図 4.1 · Svelte の文書で計算結果を共有するモデル" wide>
 	{#snippet controls()}
 		<button type="button" class="btn-ghost" aria-pressed={sharing === 'shared'} onclick={() => (sharing = 'shared')}>計算結果を共有する場合</button>
 		<button type="button" class="btn-ghost" aria-pressed={sharing === 'isolated'} onclick={() => (sharing = 'isolated')}>タスクごとに計算する場合</button>

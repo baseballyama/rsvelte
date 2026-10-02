@@ -18,7 +18,7 @@
 
 <ChapterHeader
 	chapter={c}
-	lead="コンパイラは JavaScript を、型検査は TypeScript を生成します。生成したものに見つかった問題を元のコンポーネントの位置で報告するには、生成した文字がどこから来たかを覚えておく必要があります。Emitter は出力の文字列と、その対応表を一緒に作ります。"
+	lead="コードを生成すると、出力上の位置と元のソース上の位置が変わります。出力で見つかった問題を元のソースの位置で報告するために、Emitter は出力文字列と位置の対応表を一緒に作ります。出力先の言語に関係なく使える部品です。"
 />
 
 <div class="prose-learn">
@@ -52,7 +52,7 @@
 		<code>push_for</code> は <Term name="SourceLocation" /> を受け取り、合成されたノードなら印を付けません（<a href="/learn/kernel/source#loc">02</a
 		>）。偽の位置を位置の対応に混ぜないための仕組みです。
 	</p>
-	<p>次の図は、rsvelte のコンパイラが実際に出力した JavaScript と、その位置の対応です。トップページの図と同じものです。</p>
+	<p>次の図は、Svelte プラグインが実際に出力した JavaScript と、その位置の対応を示す例です。トップページの図と同じものです。</p>
 </div>
 
 <SpanFigure data={data.counter} label="図 9.0 · Counter.svelte の出力（本物）" />
@@ -123,7 +123,7 @@
 
 <div class="prose-learn">
 	<p>
-		tsc が報告した位置は、この関数で元のコンポーネントに戻します。写らない診断（生成したコードの中で起きたもの）は捨てます。svelte-check
+		tsc が報告した位置は、この関数で元のソースに戻します。写らない診断（生成したコードの中で起きたもの）は捨てます。svelte-check
 		も、写した範囲の行が負になった診断を捨てています（<code>hasNoNegativeLines</code>）。
 	</p>
 </div>

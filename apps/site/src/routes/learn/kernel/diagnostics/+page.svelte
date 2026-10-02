@@ -58,7 +58,7 @@
 	<p>
 		<code>Unsupported</code> は、何に対応していないか（<code>what</code>）と、それがどこにあるか（<code>source_location</code>）を持ちます。位置は
 		<Term name="SourceLocation" /> なので、特定の構文のせいではない拒否（文書全体のレイアウトが一行に収まらない、など）は
-		<code>nowhere</code> で「位置なし」と明示します（<a href="/learn/kernel/source#loc">02</a>）。整形タスクは、<code>Unsupported</code>
+		<code>nowhere</code> で「位置なし」と明示します（<a href="/learn/kernel/source#loc">02</a>）。次の Svelte の整形タスクの例では、<code>Unsupported</code>
 		を受け取るとファイルを書かずに、その構文を指す診断だけを残します。
 	</p>
 </div>

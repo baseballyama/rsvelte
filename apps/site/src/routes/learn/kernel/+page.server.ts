@@ -15,7 +15,6 @@ export const load = () => {
 	return {
 		modules,
 		libDocs: sourceModule('kernel/lib').docs,
-		vueDocs: sourceModule('vue/lib').docs,
 		crates: crateSizes(),
 		code: excerpts({
 			register: 'svelte/computation/register',

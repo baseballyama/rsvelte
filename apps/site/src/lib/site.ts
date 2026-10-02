@@ -111,7 +111,7 @@ export const chapters: Chapter[] = [
 			s('ids', '型付きの識別番号と解析結果の表'),
 			s('niche', '空き値を利用した識別番号と大きさの固定'),
 			s('tokens', '元の文字列をすべて保持する — トークン表'),
-			s('stack', 'Svelte の層'),
+			s('stack', '言語プラグインの層の例'),
 			s('resolve', '名前解決'),
 			s('compiler_syntax_tree', 'コンパイル用に整理した構文木'),
 			s('svue', 'Vue のコンポーネントを Svelte のランタイムで動かす'),
@@ -273,7 +273,7 @@ export const chapters: Chapter[] = [
 		href: '/learn/plugins',
 		number: '15',
 		title: 'プラグインを実装する',
-		abstract: 'Svelte の構文解析結果を使い、独自の計算結果とタスクをカーネルに登録する。',
+		abstract: '独自の計算結果とタスクをカーネルに登録する手順。既存の言語プラグインの構文木を使う例を実行する。',
 		minutes: 12,
 		sections: [
 			s('boundary', 'ライブラリとして使う場合とタスクとして使う場合'),

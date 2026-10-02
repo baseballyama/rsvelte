@@ -88,8 +88,8 @@
 <div class="prose-learn">
 	<H2 id="line-index" />
 	<p>
-		カーネルの中の位置はバイトですが、外に出すときは行と列にします。ESLint も svelte-check も source map
-		も、行と列で位置を報告するからです。しかも JavaScript の道具が数える「列」は、バイトでも文字でもなく、<strong
+		カーネルの中の位置はバイトで持ち、出力先の形式に合わせて行と列へ変換します。
+		たとえばコード検査の診断や source map は、行と列で位置を表します。しかも JavaScript の道具が数える「列」は、バイトでも文字でもなく、<strong
 			>ユニコードの16ビット符号化方式 のコード単位</strong
 		>です。
 	</p>
@@ -158,7 +158,7 @@
 			（Unicode スカラー値）で数えると、絵文字や一部の漢字（中国語・日本語・韓国語 統合漢字拡張 B 以降）を含む行で、上流と位置がずれます。
 		</p>
 		<p>
-			lint の出力は列を 1 から数え（<code>column + 1</code>）、svelte-check の出力は 0 から数えます。どちらも
+			現在のコード検査の出力は列を 1 から数え（<code>column + 1</code>）、型検査の出力は 0 から数えます。どちらも
 			<code>LineColumn</code> の <code>column</code> から作ります。
 		</p>
 	</DeepDive>

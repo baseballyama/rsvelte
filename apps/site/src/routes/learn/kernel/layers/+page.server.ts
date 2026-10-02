@@ -31,7 +31,7 @@ export const load = () => ({
 		compiler_syntax_tree: 'svelte/compilation/compiler_syntax_tree/CompilerSyntaxTree',
 		attributeValue: 'svelte/compilation/compiler_syntax_tree/AttributeValue',
 		elementKind: 'svelte/compilation/compiler_syntax_tree/CompilerSyntaxTreeBuilder::element_kind',
-		list: 'svelte/compilation/compiler_syntax_tree/SurfaceBuilder::list',
+		list: 'svelte/compilation/normalize/SurfaceBuilder::list',
 		compilerSyntaxTreeBuilder: 'svelte/compilation/compiler_syntax_tree/CompilerSyntaxTreeBuilder',
 		compileInputType: 'svelte/computation/svelte_input',
 		svueRegister: 'svue/computation/register',

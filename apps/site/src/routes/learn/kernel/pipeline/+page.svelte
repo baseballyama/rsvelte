@@ -45,7 +45,7 @@
 		<dfn>Task</dfn> は文書一つで完結する処理です。compile、format、lint がそうです。<code>applies</code>
 		で自分の文書かを判断し、<code>run</code> で結果を <code>TaskOutput</code> に書きます。
 	</p>
-	<p>独自の処理を追加する手順は、<a href="/learn/plugins">15 プラグインを実装する</a>で説明しています。Svelte の構文解析結果を使う例を、そのまま実行できます。</p>
+	<p>独自の処理を追加する手順は、<a href="/learn/plugins">15 プラグインを実装する</a>で説明しています。計算結果とタスクを登録する手順を、実行できる言語プラグインの例で示します。</p>
 </div>
 
 <Code item={data.code.task} />
@@ -53,9 +53,8 @@
 
 <div class="prose-learn">
 	<p>
-		型検査は事情が違います。一つのコンポーネントの型は、それが import する他のファイルに依存します。上流の svelte-check
-		も、全ファイルを一つの TypeScript プロジェクトとして検査します。そこで型検査は <dfn>FinishTask</dfn>
-		として二つに分けます。
+		他の文書も必要な処理は、一つの文書だけでは完結しません。たとえば型検査では、参照する他のファイルの宣言も調べます。
+		このような処理を <dfn>FinishTask</dfn> として、文書ごとの準備と、全文書を集めた実行に分けます。
 	</p>
 </div>
 
@@ -69,7 +68,7 @@
 		が走るころには、文書の <Term name="DocumentContext" /> はもうないからです。
 	</p>
 	<p>
-		現在は文書内の compile・format・lint の後に <code>prepare</code> が走ります。
+		現在の TypeScript 型検査では、文書内の compile・format・lint の後に <code>prepare</code> が走ります。
 		compile も選んでいれば、その文書の JavaScript/スタイルシートはすでに生成済みです。
 		型検査はその JavaScript を入力にせず、元の構文木から型検査用の TypeScript を別に作ります。
 		<code>prepare</code> はコンパイルの準備ではなく、型検査に渡す文書ごとのデータを用意する処理です。
@@ -86,9 +85,8 @@
 <div class="prose-learn">
 	<p>
 		<code>prepare</code> は、共通の呼び出し窓口から型検査用のコードを取得します（<a href="/learn/kernel/database#facet">04</a>）。
-		生成したテキスト、元のテキスト、両者の位置の対応を <code>Part</code> に保存します。<code>&lt;script lang="ts"&gt;</code>
-		を持たない Svelte の文書は、svelte-check も意味の診断を出しません。標準の設定では JavaScript の型検査が無効だからです。
-		言語側は <Term name="TypeScriptDocument::Unchecked" /> と答えます。そのときは空の結果を書いて <code>None</code> を返し、プロジェクト全体の処理を待ちません。
+		生成したテキスト、元のテキスト、両者の位置の対応を <code>Part</code> に保存します。
+		言語プラグインがその文書を型検査の対象にしない場合は、<Term name="TypeScriptDocument::Unchecked" /> と答えます。そのときは空の結果を書いて <code>None</code> を返し、プロジェクト全体の処理を待ちません。
 	</p>
 </div>
 

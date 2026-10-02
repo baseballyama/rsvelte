@@ -12,7 +12,7 @@ export const call = {
 export const fill = {
 	name: 'fill',
 	width: 24,
-	source: `fill(join(line, ["Svelte", "の", "ツールチェーン", "を", "ひとつ", "の", "カーネル", "で", "動かす"]))`
+	source: `fill(join(line, ["複数言語", "の", "処理", "を", "ひとつ", "の", "カーネル", "で", "動かす"]))`
 };
 
 export const groupIds = {

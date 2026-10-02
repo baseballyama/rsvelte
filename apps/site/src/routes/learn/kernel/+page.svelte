@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Term from '$lib/components/Term.svelte';
+	import KernelModuleFigure from '$lib/widgets/KernelModuleFigure.svelte';
 	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
 	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
 	import Code from '$lib/components/Code.svelte';
@@ -16,17 +17,17 @@
 		{ functionName: 'Registry::document', label: '元のソースを持つ文書を作る', what: 'Document にパスとソース文字列を保存し、サイズの上限を確かめる。この時点では構文木も解析結果もない。', href: '/learn/kernel/pipeline#document' },
 		{ functionName: 'run_each', label: '選ばれたタスクを文書ごとに実行する', what: 'タスクの識別番号で実行候補を選び、文書を rayon のワーカーに配る。各タスクはパスや内容から処理対象かを判断する。', href: '/learn/kernel/pipeline#run-each' },
 		{ functionName: 'run_document', label: '文書ごとの保存領域を用意する', what: '最初のタスクを実行するときに DocumentContext を作る。元の文書を参照し、計算結果を保存する場所を用意する。この時点では構文解析はしない。', href: '/learn/kernel/pipeline#run-document' },
-		{ functionName: 'Task::run / DocumentContext::get', label: '必要になった木と解析結果を作る', what: '各タスクは DocumentContext::get で必要な計算結果を求める。構文解析、名前解決、コンパイル用の木の作成、式や要素の解析を、必要になったときに行う。一度計算した結果は保存し、後のタスクでも再利用する。', href: '/learn/kernel/database#get' },
-		{ functionName: 'TaskOutput', label: 'compile・format・lint の結果を保存する', what: 'コンパイルは JavaScript とスタイルシートの文字列を作る。整形は書き直したソースを、コード検査はエラーや警告を返す。出力は TaskOutput に入れ、元の構文木や解析結果とは別に保持する。', href: '/learn/kernel/emitter' },
-		{ functionName: 'FinishTask::prepare', label: '型検査に渡す文書ごとのデータを作る', what: '型検査も選ばれていれば、同じ文書ごとの保存領域から 型検査用のコードと位置情報 を求める。Svelte のプラグインは元の構文木から型検査用の TypeScript を作る。prepare はその文字列、元ソースへの位置対応表、型宣言の設定、元ソースのコピーを Part にまとめる。コンパイル済みの JavaScript は使わない。', href: '/learn/kernel/pipeline#tasks' },
+		{ functionName: 'Task::run / DocumentContext::get', label: '必要になった木と解析結果を作る', what: '各タスクは DocumentContext::get で必要な計算結果を求める。構文解析、名前解決、コンパイル用の木の作成、言語ごとの解析を、必要になったときに行う。一度計算した結果は保存し、後のタスクでも再利用する。', href: '/learn/kernel/database#get' },
+		{ functionName: 'TaskOutput', label: 'compile・format・lint の結果を保存する', what: 'コンパイルは言語プラグインが定める形式のファイルを作る。整形は書き直したソースを、コード検査はエラーや警告を返す。出力は TaskOutput に入れ、元の構文木や解析結果とは別に保持する。', href: '/learn/kernel/emitter' },
+		{ functionName: 'FinishTask::prepare', label: '型検査に渡す文書ごとのデータを作る', what: '型検査も選ばれていれば、同じ文書ごとの保存領域から 型検査用のコードと位置情報 を求める。TypeScript で型検査するプラグインの場合は、元の構文木から検査用コードを作る。prepare はその文字列、元ソースへの位置対応表、型宣言の設定、元ソースのコピーを Part にまとめる。コンパイル済みの JavaScript は使わない。', href: '/learn/kernel/pipeline#tasks' },
 		{ functionName: 'FinishTask::finish', label: '文書ごとのデータを集めて型検査する', what: '全文書の処理後に Part をタスクごとに集め、TypeScript のコンパイラで型を調べる。指摘の位置を元のソース上の位置に戻し、各文書の TaskOutput に加える。文書ごとの保存領域は、この時点で解放されている。', href: '/learn/kernel/pipeline#project' },
 		{ functionName: 'sink', label: '結果が揃った文書を呼び出し側に渡す', what: 'Part を返さなかった文書は文書処理の直後に、返した文書は finish の後に sink へ渡す。呼び出し側は TaskOutput のファイルや診断を受け取る。', href: '/learn/kernel/pipeline#run-each' }
 	];
 	const structures = [
 		{ name: 'Document', content: 'ファイルのパスと元のソース文字列。言語や構文木は持たない。', lifetime: '文書の処理中。文書ごとの保存領域が参照する。' },
-		{ name: 'Parsed（構文木）', content: 'テンプレート、スクリプトの JavaScript/TypeScript、スタイルの構文木と、空白・コメントを含むトークン。何が書かれているかを表す。', lifetime: '最初の要求で作り、文書ごとの保存領域のキャッシュに保持する。' },
-		{ name: 'Resolved / Analyzed（解析結果の表）', content: '変数がどの束縛を指すか、式が状態を参照するか、要素を動的に更新するかなどの解析結果。ノードや束縛の識別番号で引く別の表に持ち、元の構文木を書き換えない。', lifetime: '必要になったものだけ作り、文書ごとの保存領域に保持する。' },
-		{ name: 'Normalized（コンパイル用の構文木）', content: 'コンパイラ向けに組み直したテンプレートの木。構文木とは別の木で、元の構文との対応も持つ。', lifetime: '必要になったときに作り、文書ごとの保存領域に保持する。' },
+		{ name: '構文木（言語ごとの型）', content: '言語プラグインがソースから作る木と、空白・コメントを含むトークン。埋め込み言語があれば、その構文木も保持する。', lifetime: '最初の要求で作り、文書ごとの保存領域のキャッシュに保持する。' },
+		{ name: '解析結果の表（言語ごとの型）', content: '変数がどの宣言を参照するかなどの解析結果。ノードや束縛の識別番号で引く別の表に持ち、元の構文木を書き換えない。', lifetime: '必要になったものだけ作り、文書ごとの保存領域に保持する。' },
+		{ name: '変換後の木（言語ごとの型）', content: '出力先の処理に適した形へ組み直した木。元の構文木とは別に作り、元の構文との対応も持つ。', lifetime: '必要になったときに作り、文書ごとの保存領域に保持する。' },
 		{ name: 'TaskOutput', content: '生成したファイルの名前と文字列、エラーや警告。構文木や解析の表とは別に持つ。', lifetime: '文書処理の後も保持し、結果が揃ったら sink に渡す。' },
 		{ name: 'Part（型検査の場合）', content: '型検査用の TypeScript、元ソースへの位置対応表、型宣言の設定、元ソースのコピー。構文木の参照は持ち越さない。', lifetime: 'prepare で作り、全文書の処理後に finish が受け取る。' }
 	];
@@ -36,22 +37,23 @@
 
 <ChapterHeader
 	chapter={c}
-	lead="カーネルは、構文解析の結果の保存や処理の実行など、各言語に共通する機能をまとめたものです。Svelte と Vue のプラグインが言語固有の処理を登録します。この章では、各モジュールの役割と、入力から出力までの手順を説明します。"
+	lead="カーネルは、構文解析の結果の保存や処理の実行など、各言語に共通する機能をまとめたものです。言語プラグインが、構文解析やコンパイルなどの言語固有の処理を登録します。この章では、各モジュールの役割と、入力から出力までの手順を説明します。"
 />
 
 <div class="prose-learn">
 	<H2 id="why" />
 	<p>
-		Svelte のツールチェーンは、上流ではコンパイラ、Prettier プラグイン、ESLint プラグイン、svelte-check
-		が別々の道具として動いています。同じコンポーネントを整形し、lint をかけ、型を調べるたびに、それぞれが自分でソースを読みます。
+		同じソースをコンパイルし、整形やコード検査、型検査も選ぶ場合、それぞれが構文解析を始めると、同じ計算を繰り返します。
+		各処理が必要な構文木や解析結果を共有できれば、一度計算した値を再利用できます。
 	</p>
 	<p>
-		これらの道具には、共通の処理があります。ソースの位置を行と列に直し、構文木を作って変数を参照できる範囲を調べます。
+		言語が違っても、ソースの位置を行と列に直す仕組みや、計算結果を保存する仕組みは共通にできます。
+		構文木の形や変数を参照できる範囲の規則は言語ごとに異なるため、言語プラグインが決めます。
 		エラーや警告の報告、出力文字列の組み立て、生成したコードの位置を元のソースに対応させる処理も共通です。
 		rsvelte はこれらを一つの Rust ライブラリにまとめました。それがカーネルです。
 	</p>
 	<p>
-		分け方の基準は一つだけです。<strong>別の言語（たとえば Vue）を足すときに書き直すものか。</strong>書き直さないもの、つまりスケジューラ、計算結果のキャッシュ、ルールの走らせ方、元のソース位置を求める処理、文書プリンタはカーネルに置きます。
+		分け方の基準は一つだけです。<strong>扱う言語が変わると、処理の規則も変わるか。</strong>書き直さないもの、つまりスケジューラ、計算結果のキャッシュ、ルールの走らせ方、元のソース位置を求める処理、文書プリンタはカーネルに置きます。
 	</p>
 	<p>
 		この基準は、実際に二つ目の言語を足して試されています（<a href="#languages">二つ目の言語</a>）。
@@ -84,10 +86,10 @@
 	</p>
 	<blockquote class="border-l-0 font-mono text-[14px] leading-[1.7] text-fg-2">{data.libDocs}</blockquote>
 	<p>
-		プラグインの側から見ると、カーネルとの接点は登録だけです。Svelte プラグインの <code>register</code>
-		は、計算結果の型を五つ登録します。<code>tasks::register</code> は、タスクを四つ、プロジェクト全体の処理を一つ登録します。言語ごとの処理を呼ぶ共通窓口も登録します。計算結果のうち三つは、構文木に解析結果を加えたものです（<a
-			href="/learn/kernel/layers">05</a
-		>）。
+		プラグインは、計算結果の型やタスクを <code>Registry</code> に登録します。登録する型やタスクの数は言語ごとに決めます。
+		次の Svelte プラグインの <code>register</code> は、構文木や名前解決などの計算結果を登録する例です。
+		コンパイルや整形などのタスクは、それぞれのツールが登録します。
+		複数の言語から同じ形式の結果を受け取る共通窓口については、<a href="/learn/kernel/database#facet">04</a>で説明します。
 	</p>
 </div>
 
@@ -102,51 +104,50 @@
 <div class="prose-learn">
 	<H2 id="modules" />
 	<p>
-		カーネルは {data.modules.length} のモジュールでできています<Note>
-			<code>lib.rs</code> は <code>pub mod</code> と再エクスポートだけなので数えていません。</Note
-		>。行数はテストを含み、ビルドのたびに数え直しています。各モジュールを、日本語の役割名と説明で示します。コードを調べるときは「実装ファイル名」を開いてください。
+		ホストは文書を作り、選んだタスクをカーネルに渡します。言語プラグインは必要な構文木や解析結果を求め、出力を返します。
+		カーネルのモジュールは、この実行と保存を支えます。
 	</p>
 </div>
 
-<figure class="my-8 overflow-x-auto xl:mr-[calc(-232px-48px)]">
-	<table class="table">
-		<thead><tr><th>役割</th><th class="num">行</th><th>章</th><th>何をするか</th></tr></thead>
-		<tbody>
-			{#each data.modules as m (m.key)}
-				<tr>
-					<td><span class="font-medium">{m.title}</span><div class="mt-1 text-[12px] text-muted"><code>{m.file}</code></div></td>
-					<td class="num">{m.lines}</td>
-					<td class="whitespace-nowrap">
-						{#if m.chapter}<a class="link" href={m.chapter.href}>{m.chapter.number}</a>{/if}
-					</td>
-					<td class="text-[14px] text-fg-2">{m.summary}</td>
-				</tr>
-			{/each}
-		</tbody>
-	</table>
-</figure>
+<Figure label="図 1.2 · 言語に共通する実行の流れ">
+	<ol class="grid gap-3 p-5 sm:grid-cols-3">
+		<li><strong>1. 文書を作る</strong><p>ホストがパスとソースを渡す。</p></li>
+		<li><strong>2. タスクを実行する</strong><p>言語プラグインが必要な計算結果を求め、文書ごとに再利用する。</p></li>
+		<li><strong>3. 出力を返す</strong><p>生成したファイルと診断を呼び出し側へ渡す。</p></li>
+	</ol>
+	{#snippet caption()}他の文書も必要な処理は、文書ごとのデータを準備してからまとめて実行します。構文木の型や出力形式は言語プラグインが決めます。{/snippet}
+</Figure>
 
 <div class="prose-learn">
-	<p>役割でまとめると、次のグループに分かれます。</p>
-	<ul>
-		<li>
-			ソース内の位置と名前を保存します。字句の記録には空白やコメントも含め、元の文字列を失っていないことを確認します。
-		</li>
-		<li>
-			計算結果を保存し、必要なときに取り出します。構文木の要素と解析結果を対応させ、各処理の実行順序を決めます。
-		</li>
-		<li>
-			出力文字列を組み立て、コードを整形し、エラーや警告を報告します。
-		</li>
-		<li>処理時間とメモリ使用量を計測します。作業用の保存領域を再利用し、メモリを確保する回数を減らします。</li>
-		<li>
-			ハッシュ値を計算します。Vue の公式プラグインは、コンポーネントのパスから計算したハッシュ値の先頭8桁を、スタイルの適用範囲の識別に使います。
-		</li>
-	</ul>
+	<p>
+		カーネルの「処理の登録と実行」が、選んだ処理を文書ごとに順に呼び出します。
+		「計算結果の保存と再利用」は、言語プラグインが作る構文木や名前解決の表を保持します。
+		整形は文書プリンタを使い、コード検査はルールの実行と指摘の書き出しを使います。
+		コンパイルと型検査用コードの生成では、文字列の出力と位置の対応付けを使います。
+	</p>
+	<p>
+		たとえば TypeScript で型検査する場合は、検査用コード、位置の対応表、型宣言の設定、元ソースのコピーを準備した後、文書ごとの構文木と解析結果は解放します。
+		全文書の準備が終わると、型検査器が TypeScript を解析して型を調べます。
+		位置の対応表で指摘を元のソースに戻し、整形・コード検査・コンパイルの出力と合わせて呼び出し側へ返します。
+	</p>
+</div>
+
+<details class="my-8">
+	<summary class="cursor-pointer text-[14px] font-medium text-fg-2">カーネルのモジュールと実装ファイルを見る</summary>
+	<KernelModuleFigure modules={data.modules} />
+</details>
+
+<div class="prose-learn">
+	<p>
+		実装は {data.modules.length} のモジュールに分かれています<Note>
+			<code>lib.rs</code> は <code>pub mod</code> と再エクスポートだけなので数えていません。</Note
+		>。「カーネルのモジュールと実装ファイルを見る」を開くと、役割ごとの一覧を確認できます。各グループの「実装ファイルと行数」に説明と行数を示します。行数はテストを含み、ビルドのたびに数え直しています。
+	</p>
 
 	<H2 id="life" />
 	<p>
-		一つの <code>.svelte</code> ファイルに compile・format・lint・型検査を選んだ場合を追います。
+		一つの文書にコンパイル、整形、コード検査、型検査を選んだ場合を追います。
+		構文木と解析結果の型はプラグインが決めます。ここでの <code>Part</code> は TypeScript による型検査の例です。
 		まず、保持するデータを整理します。<Term name="DocumentContext" /> は文書ごとの計算結果を保存する場所で、
 		構文木や解析結果はその中に、成果物の型ごとに分けて保持します。
 	</p>
@@ -159,7 +160,7 @@
 		</tbody>
 	</table>
 	<p>
-		解析結果の表は、たとえば「この式の識別番号→ 状態を参照するか」という対応表です。
+		解析結果の表は、たとえば「この識別子の番号 → 参照先の宣言」という対応表です。
 		木そのものに解析用の印を書き込む代わりに、別の表に保存します。コンパイル用に整理した構文木は対応表ではなく、構文木から作る別の木です。
 	</p>
 	<p>
@@ -223,9 +224,17 @@
 	<H2 id="languages" />
 	<p>
 		カーネルが本当に言語を知らないかは、二つ目の言語を足してみるまで分かりません。<code>rsvelte_vue</code> は、それを試すために足した Vue
-		の単一ファイルコンポーネントのプラグインです。crate の冒頭のコメントがその目的を書いています。
+		の単一ファイルコンポーネントのプラグインです。Svelte と同じ仕組みで、次の計算結果を文書ごとに保存します。
 	</p>
-	<blockquote class="border-l-0 font-mono text-[14px] leading-[1.7] whitespace-pre-line text-fg-2" lang="en">{data.vueDocs}</blockquote>
+	<table class="table">
+		<caption class="mb-3 text-left text-[14px] text-fg-2">Vue プラグインが保存する計算結果</caption>
+		<thead><tr><th scope="col">役割</th><th scope="col">保存するもの</th></tr></thead>
+		<tbody>
+			<tr><th scope="row">構文解析（<code>Parsed</code>）</th><td>スクリプト・テンプレート・スタイルの構文木。構文解析に失敗した場合は、そのエラー。</td></tr>
+			<tr><th scope="row">コンパイル用の木（<code>Lowered</code>）</th><td>Vue のコンパイラが扱う構造に変換したテンプレート。</td></tr>
+			<tr><th scope="row">名前解決（<code>Resolved</code>）</th><td>変数の宣言と参照の対応、スクリプト内の各束縛の種類。</td></tr>
+		</tbody>
+	</table>
 	<p>Vue プラグインの登録は、Svelte と同じ形をしています。</p>
 </div>
 

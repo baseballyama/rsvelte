@@ -25,7 +25,11 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 	const groups: [string, string, string[]][] = [
 		['typescript', 'languages/typescript/core/src', ['syntax/lexer', 'syntax/lexer/tests', 'syntax/parser', 'syntax/syntax_tree']],
 		['typescript/check', 'languages/typescript/check/src', ['check', 'check/report']],
-		['svelte', 'languages/svelte/core/src', ['lib', 'computation', 'syntax/syntax_tree', 'syntax/parse', 'semantic/resolve', 'compilation/compiler_syntax_tree']],
+		['svelte', 'languages/svelte/core/src', ['lib', 'computation', 'compilation/normalize']],
+		['svelte/syntax', 'languages/svelte/syntax/src/syntax', ['syntax_tree']],
+		['svelte/syntax', 'languages/svelte/parser/src/syntax', ['parse']],
+		['svelte/semantic', 'languages/svelte/semantic/src/semantic', ['resolve']],
+		['svelte/compilation', 'languages/svelte/hir/src/compilation', ['compiler_syntax_tree']],
 		['svelte/format', 'languages/svelte/format/src', ['task']],
 		['svelte/lint', 'languages/svelte/lint/src', ['task', 'lint']],
 		['svelte/compile', 'languages/svelte/compile/src', ['task', 'computation']],
