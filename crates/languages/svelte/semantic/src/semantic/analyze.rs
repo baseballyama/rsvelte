@@ -7,13 +7,13 @@
 
 use rsvelte_kernel::source::index::IndexVector;
 use rsvelte_stylesheet::matcher::{self, Element, Match};
+use rsvelte_svelte_hir::compiler_syntax_tree::{
+    self, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind, Part,
+};
 use rsvelte_typescript::scope::DeclarationKind;
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
-use crate::compilation::compiler_syntax_tree::{
-    self, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind, Part,
-};
 use crate::semantic::input::ComponentInput;
 use crate::semantic::resolve::{BindingKind, Resolution, rune_call};
 

@@ -16,7 +16,9 @@ const metadata = JSON.parse(execFileSync('cargo', ['metadata', '--offline', '--n
 function toolDependencies(packages: Package[]): string[] {
 	const failures: string[] = [];
 	for (const pkg of packages) {
-		if (pkg.name !== 'rsvelte_kernel' && !pkg.manifest_path.includes('/core/')) continue;
+		if (pkg.name !== 'rsvelte_kernel' &&
+			!pkg.manifest_path.includes('/core/') &&
+			!/^rsvelte_svelte_(syntax|parser|hir|semantic)$/.test(pkg.name)) continue;
 		for (const dependency of pkg.dependencies) {
 			if (/_(compile|format|lint|check)$/.test(dependency.name)) {
 				failures.push(`${pkg.name} depends on ${dependency.name}`);
@@ -37,4 +39,50 @@ test('the dependency check rejects an injected formatter dependency', () => {
 	assert.ok(core);
 	const injected = { ...core, dependencies: [...core.dependencies, { name: 'rsvelte_svelte_format' }] };
 	assert.deepEqual(toolDependencies([injected]), ['rsvelte_svelte depends on rsvelte_svelte_format']);
+});
+
+const svelteLayers: Record<string, readonly string[]> = {
+	rsvelte_svelte_syntax: [],
+	rsvelte_svelte_parser: ['rsvelte_svelte_syntax'],
+	rsvelte_svelte_hir: ['rsvelte_svelte_syntax'],
+	rsvelte_svelte_semantic: ['rsvelte_svelte_hir'],
+};
+
+function svelteDependencies(packages: Package[]): string[] {
+	return packages.flatMap(pkg => {
+		const allowed = svelteLayers[pkg.name];
+		if (!allowed) return [];
+		return pkg.dependencies.filter(dependency =>
+			(dependency.name === 'rsvelte_svelte' || dependency.name.startsWith('rsvelte_svelte_')) &&
+			!allowed.includes(dependency.name)
+		).map(dependency => `${pkg.name} depends on ${dependency.name}`);
+	});
+}
+
+test('Svelte shared crates keep their dependency boundaries', () => {
+	for (const name of Object.keys(svelteLayers)) {
+		assert.ok(metadata.packages.some(pkg => pkg.name === name), `${name} is measured`);
+	}
+	assert.deepEqual(svelteDependencies(metadata.packages), []);
+});
+
+test('Svelte boundaries reject injected dependencies on parsing, normalization, and tools', () => {
+	for (const [name, forbidden] of [
+		['rsvelte_svelte_syntax', 'rsvelte_svelte_parser'],
+		['rsvelte_svelte_hir', 'rsvelte_svelte_parser'],
+		['rsvelte_svelte_semantic', 'rsvelte_svelte_parser'],
+		['rsvelte_svelte_hir', 'rsvelte_svelte'],
+		['rsvelte_svelte_semantic', 'rsvelte_svelte_compile'],
+	] as const) {
+		const pkg = metadata.packages.find(pkg => pkg.name === name);
+		assert.ok(pkg);
+		const injected = { ...pkg, dependencies: [...pkg.dependencies, { name: forbidden }] };
+		assert.deepEqual(svelteDependencies([injected]), [`${name} depends on ${forbidden}`]);
+	}
+	for (const name of Object.keys(svelteLayers)) {
+		const pkg = metadata.packages.find(pkg => pkg.name === name);
+		assert.ok(pkg);
+		const injected = { ...pkg, dependencies: [...pkg.dependencies, { name: 'rsvelte_svelte_format' }] };
+		assert.deepEqual(toolDependencies([injected]), [`${name} depends on rsvelte_svelte_format`]);
+	}
 });

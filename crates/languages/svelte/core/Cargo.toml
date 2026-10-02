@@ -6,11 +6,10 @@ publish = false
 
 [dependencies]
 rsvelte_kernel.workspace = true
-rsvelte_typescript.workspace = true
-rsvelte_stylesheet.workspace = true
-rsvelte_markup.workspace = true
-rustc-hash.workspace = true
-unicode-id-start.workspace = true
+rsvelte_svelte_syntax.workspace = true
+rsvelte_svelte_parser.workspace = true
+rsvelte_svelte_hir.workspace = true
+rsvelte_svelte_semantic.workspace = true
 
 [lints]
 workspace = true

@@ -1,0 +1,14 @@
+[package]
+name = "rsvelte_svelte_syntax"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+rsvelte_kernel.workspace = true
+rsvelte_typescript.workspace = true
+rsvelte_stylesheet.workspace = true
+rsvelte_markup.workspace = true
+
+[lints]
+workspace = true

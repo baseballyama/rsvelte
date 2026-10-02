@@ -1,0 +1,15 @@
+[package]
+name = "rsvelte_svelte_semantic"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+rsvelte_kernel.workspace = true
+rsvelte_typescript.workspace = true
+rsvelte_stylesheet.workspace = true
+rsvelte_svelte_hir.workspace = true
+rustc-hash.workspace = true
+
+[lints]
+workspace = true

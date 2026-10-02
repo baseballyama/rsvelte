@@ -7,14 +7,13 @@
 //! one resolution.
 
 use rsvelte_kernel::source::index::IndexVector;
+use rsvelte_svelte_hir::compiler_syntax_tree::{
+    AttributeValue, Children, CompilerSyntaxTree, NodeKind, Part,
+};
 use rsvelte_typescript::scope::{
     self, BindingIdentifier, DeclarationKind, HostRoot, HostScope, Semantic,
 };
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
-
-use crate::compilation::compiler_syntax_tree::{
-    AttributeValue, Children, CompilerSyntaxTree, NodeKind, Part,
-};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BindingKind {

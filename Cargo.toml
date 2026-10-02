@@ -13,6 +13,10 @@ rsvelte_kernel = { path = "crates/kernel" }
 rsvelte_typescript = { path = "crates/languages/typescript/core" }
 rsvelte_stylesheet = { path = "crates/languages/css/core" }
 rsvelte_svelte = { path = "crates/languages/svelte/core" }
+rsvelte_svelte_syntax = { path = "crates/languages/svelte/syntax" }
+rsvelte_svelte_parser = { path = "crates/languages/svelte/parser" }
+rsvelte_svelte_hir = { path = "crates/languages/svelte/hir" }
+rsvelte_svelte_semantic = { path = "crates/languages/svelte/semantic" }
 rsvelte_markup = { path = "crates/languages/html/core" }
 rsvelte_vue = { path = "crates/languages/vue/core" }
 rsvelte_svue = { path = "crates/languages/vue/compile_svelte" }

@@ -2,7 +2,7 @@
 
 pub mod compilation;
 pub mod computation;
-pub mod semantic;
+pub use rsvelte_svelte_semantic::semantic;
 pub mod syntax;
 
 pub use computation::{

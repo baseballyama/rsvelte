@@ -3,7 +3,12 @@
 | Path | Responsibility |
 |---|---|
 | `kernel/` | Sources, positions, diagnostics, output, metrics, and task scheduling |
-| `languages/<language>/core/` | Immutable trees, parsing, semantic facts, and shared IR |
+| `languages/<language>/core/` | Shared language data and artifact registration; Svelte uses the crates below |
+| `languages/svelte/syntax/` | Source AST and token types |
+| `languages/svelte/parser/` | Source parsing into the AST |
+| `languages/svelte/hir/` | Shared template HIR and frontend builder |
+| `languages/svelte/semantic/` | Name resolution, binding facts, and component analysis |
+| `languages/svelte/core/` | AST to HIR normalization, artifact registration, and public re-exports |
 | `languages/<language>/compile/` | Lowering, emission, and compile tasks |
 | `languages/<language>/lint/` | Rules and lint tasks |
 | `languages/<language>/format/` | Formatting and format tasks |
@@ -15,6 +20,10 @@
 
 TypeScript core also parses JavaScript. CSS and HTML contain the tools implemented today;
 there are no empty crates for tools that do not exist yet.
+
+Svelte parser depends on syntax. HIR depends on syntax types, not the parser. Semantic analysis
+depends on HIR, not the parser or core. Core connects these crates and keeps the shared artifact
+cache. JavaScript scope analysis stays in TypeScript core.
 
 Core crates never depend on tool crates. Tools depend on core and read facts through the
 kernel's `DocumentContext`. Each tool's `register` adds its required artifacts and its task.

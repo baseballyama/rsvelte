@@ -7,12 +7,15 @@ The workspace separates shared data, hosts, languages, and task capabilities.
 | `crates/kernel` | Shared source data, computation, diagnostics, and output |
 | `crates/hosts/command_line` | CLI and integration tests |
 | `crates/hosts/browser` | Browser bindings |
-| `crates/languages/<language>/core` | Source trees, semantic facts, and shared transforms |
+| `crates/languages/<language>/core` | Shared language data and artifact registration |
+| `crates/languages/svelte/{syntax,parser,hir,semantic}` | Source AST, parsing, shared HIR, and semantic facts |
 | `crates/languages/<language>/{compile,format,lint,check}` | Task implementations and registration |
 | `crates/languages/vue/compile_svelte` | Vue to Svelte translation |
 | `crates/languages/svelte/compile_vue` | Svelte to Vue translation |
 
-Core and translation crates use layers like the kernel and the Svelte core.
+See [crates/README.md](../crates/README.md) for Svelte crate dependencies and the normalization boundary.
+
+Core, shared language, and translation crates use layers like the kernel.
 A layer has a `name.rs` entry and a `name/` directory for its parts.
 
 | Layer | Owns |

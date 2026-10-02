@@ -1,6 +1,5 @@
+use rsvelte_svelte_hir::compiler_syntax_tree::CompilerSyntaxTree;
 use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
-
-use crate::compilation::compiler_syntax_tree::CompilerSyntaxTree;
 
 /// Shared component trees and source data, independent of task options.
 #[derive(Clone, Copy, Debug)]

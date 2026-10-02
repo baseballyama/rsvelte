@@ -9,6 +9,10 @@ use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
+use rsvelte_svelte_syntax::syntax_tree::{
+    Attribute, AttributeKind, AttributeValue, Component, Part, Range, Script, Style, TemplateNode,
+    TemplateNodeIdentifier, TokenType,
+};
 use rsvelte_typescript::lexer::T;
 use rsvelte_typescript::parser::{
     parse_expression, parse_expression_prefix, parse_parameters, parse_program,
@@ -16,11 +20,6 @@ use rsvelte_typescript::parser::{
 use rsvelte_typescript::syntax_tree::TypeScriptKind;
 use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
 use unicode_id_start as unicode_identifier_start;
-
-use crate::syntax::syntax_tree::{
-    Attribute, AttributeKind, AttributeValue, Component, Part, Range, Script, Style, TemplateNode,
-    TemplateNodeIdentifier, TokenType,
-};
 
 type R<T> = Result<T, Diagnostic>;
 
