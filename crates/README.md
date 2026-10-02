@@ -19,6 +19,8 @@
 | `hosts/browser/` | Browser bindings |
 | `fixture_test/` | The snapshot harness for each crate's `tests/fixtures/` |
 
+See [Hosts](hosts/README.md) for CLI usage, browser exports, and their intended users.
+
 TypeScript core also parses JavaScript. CSS and HTML contain the tools implemented today;
 there are no empty crates for tools that do not exist yet.
 
