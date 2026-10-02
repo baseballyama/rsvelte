@@ -175,19 +175,47 @@ fn is_javascript_tree(file: &str, snapshots: &[Snapshot]) -> bool {
         .any(|s| s.javascript_tree && file.strip_prefix(s.name).is_some_and(|rest| rest == ".js"))
 }
 
+/// Makes `dir` hold exactly `produced`. Most runs change few files, and creating and removing
+/// files costs far more than reading them, so only changed files are written.
 fn write_actual(dir: &Path, produced: &[(String, String)]) -> Result<(), String> {
-    match std::fs::remove_dir_all(dir) {
-        Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
-            return Err(format!("{}: {e}", dir.display()));
+    let at = |e: std::io::Error| format!("{}: {e}", dir.display());
+    let entries = match std::fs::read_dir(dir) {
+        Ok(r) => r.collect::<Result<Vec<_>, _>>().map_err(at)?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+        Err(e) => return Err(at(e)),
+    };
+    for entry in &entries {
+        let path = entry.path();
+        let is_dir = entry.file_type().map_err(at)?.is_dir();
+        if !is_dir
+            && produced
+                .iter()
+                .any(|(name, _)| entry.file_name() == name.as_str())
+        {
+            continue;
         }
-        _ => {}
+        let removed = if is_dir {
+            std::fs::remove_dir_all(&path)
+        } else {
+            std::fs::remove_file(&path)
+        };
+        removed.map_err(|e| format!("{}: {e}", path.display()))?;
     }
     if produced.is_empty() {
-        return Ok(());
+        return match std::fs::remove_dir(dir) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(at(e)),
+            _ => Ok(()),
+        };
     }
-    std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    if entries.is_empty() {
+        std::fs::create_dir_all(dir).map_err(at)?;
+    }
     for (name, text) in produced {
-        std::fs::write(dir.join(name), text).map_err(|e| format!("{ACTUAL_DIR}/{name}: {e}"))?;
+        let path = dir.join(name);
+        if std::fs::read(&path).is_ok_and(|old| old == text.as_bytes()) {
+            continue;
+        }
+        std::fs::write(&path, text).map_err(|e| format!("{ACTUAL_DIR}/{name}: {e}"))?;
     }
     Ok(())
 }
@@ -332,4 +360,82 @@ fn excerpt(text: &str) -> String {
         writeln!(out, "    | {line}").expect("writing to a String");
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use super::write_actual;
+
+    fn scratch(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "rsvelte-fixture-test-{}-{name}",
+            std::process::id()
+        ));
+        drop(std::fs::remove_dir_all(&dir));
+        dir
+    }
+
+    fn files(dir: &Path) -> Vec<(String, String)> {
+        let mut out: Vec<_> = std::fs::read_dir(dir)
+            .unwrap()
+            .map(|e| {
+                let e = e.unwrap();
+                let name = e.file_name().into_string().unwrap();
+                (name, std::fs::read_to_string(e.path()).unwrap())
+            })
+            .collect();
+        out.sort();
+        out
+    }
+
+    fn produced(files: &[(&str, &str)]) -> Vec<(String, String)> {
+        files
+            .iter()
+            .map(|(n, t)| ((*n).to_owned(), (*t).to_owned()))
+            .collect()
+    }
+
+    #[test]
+    fn leaves_exactly_the_produced_files() {
+        let dir = scratch("exact");
+        std::fs::create_dir_all(dir.join("stale-dir")).unwrap();
+        std::fs::write(dir.join("stale.js"), "old").unwrap();
+        std::fs::write(dir.join("client.js"), "old").unwrap();
+        write_actual(&dir, &produced(&[("client.js", "new"), ("server.js", "s")])).unwrap();
+        assert_eq!(
+            files(&dir),
+            produced(&[("client.js", "new"), ("server.js", "s")])
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn does_not_rewrite_an_unchanged_file() {
+        let dir = scratch("unchanged");
+        let same = produced(&[("client.js", "same")]);
+        write_actual(&dir, &same).unwrap();
+        let path = dir.join("client.js");
+        let past = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1);
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(past)
+            .unwrap();
+        write_actual(&dir, &same).unwrap();
+        assert_eq!(std::fs::metadata(&path).unwrap().modified().unwrap(), past);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn removes_the_directory_when_nothing_is_produced() {
+        let dir = scratch("empty");
+        write_actual(&dir, &produced(&[("client.js", "x")])).unwrap();
+        write_actual(&dir, &[]).unwrap();
+        assert!(!dir.exists());
+        write_actual(&dir, &[]).unwrap();
+        assert!(!dir.exists());
+    }
 }
