@@ -5,7 +5,8 @@ For substantial explanation pages, use [site-writing](../../.claude/skills/site-
 Use Japanese for reader-facing text. Use common words and short sentences. Describe what
 each module does before showing its implementation name. Do not use abbreviations in prose,
 headings, navigation, captions, controls, or labels. Use the full word or a clear Japanese
-description. This includes quoted code: rename project-defined files, modules, types,
+description. AST and HIR are allowed technical terms; define them at their first use on a page.
+This includes quoted code: rename project-defined files, modules, types,
 fields and variables in the implementation, then update their references and excerpts.
 `Term` supplies a Japanese explanation; it must not hide an abbreviated implementation name.
 Keep quoted source code exact. Rust keywords, Cargo's required layout, external library names,

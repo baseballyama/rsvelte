@@ -1,7 +1,10 @@
 <script lang="ts">
 	import ParseSharingFigure from '$lib/widgets/ParseSharingFigure.svelte';
 	import ProjectFactsFigure from '$lib/widgets/ProjectFactsFigure.svelte';
+	import SvelteSourceFigure from '$lib/widgets/SvelteSourceFigure.svelte';
 	import { REPO_URL } from '$lib/site';
+
+	let { data } = $props();
 
 	const sections = [
 		{ id: 'whole-file', label: 'テンプレートの構文解析' },
@@ -34,20 +37,7 @@
 		<p class="eyebrow">01 · 言語の対応範囲</p>
 		<h2>OxlintはSvelteの<br />テンプレートを解析しない</h2>
 		<p>Svelteでは、スクリプトで宣言した変数をテンプレートから参照できます。下の例では、式 <code>&#123;name&#125;</code> が変数の読み取り、<code>bind:value=&#123;name&#125;</code> が入力イベントに伴う書き込みを含みます。この関係を解析するには、JavaScriptの構文木に加えて、Svelteのテンプレートの構文木と名前解決が必要です。</p>
-		<figure class="source-figure">
-			<figcaption>変数の宣言・参照・バインディングと、セレクターの対応</figcaption>
-			<div class="source-regions">
-				<div><span class="region-label">スクリプト · JavaScriptの変数宣言</span><pre><code>&lt;script&gt;
-  let name = $state("");
-&lt;/script&gt;</code></pre><p>name は $state で宣言したリアクティブな変数。</p></div>
-				<div><span class="region-label">テンプレート · 変数参照とバインディング</span><pre><code>&lt;input bind:value=&#123;name&#125; /&gt;
-&lt;p class="greeting"&gt;こんにちは、&#123;name&#125;&lt;/p&gt;</code></pre><p>式 <code>&#123;name&#125;</code> は参照、bind:value は双方向バインディング。</p></div>
-				<div><span class="region-label">スタイル · セレクターと要素の対応</span><pre><code>&lt;style&gt;
-  .greeting &#123; color: navy; &#125;
-&lt;/style&gt;</code></pre><p>セレクター .greeting がテンプレートの段落に対応する。</p></div>
-			</div>
-			<div class="scope"><span>Oxlintの検査対象</span><strong>スクリプト部分</strong><span>rsvelteの言語プラグインが扱う情報</span><strong>変数の名前解決・バインディング・セレクター照合</strong></div>
-		</figure>
+		<SvelteSourceFigure markup={data.examples} />
 		<p>OxcはJavaScriptとTypeScriptの解析や変換のためのツール群です。OxlintはSvelteやVueのファイルでもスクリプト部分を検査できます。ただし、公式の対応表ではテンプレートの検査は未対応とされています。Oxfmtでは、Svelteの整形に別途 <code>svelte/compiler</code> が必要です。<a href="https://oxc.rs/compatibility">公式の対応表</a>と<a href="https://oxc.rs/docs/guide/usage/linter">Oxlintの対象範囲</a>で確認できます。</p>
 		<p>スクリプト内の宣言だけを解析しても、テンプレート内の参照先や書き込み先は得られません。変数の使用状況、バインディングの妥当性、未使用のスタイルなどを検査するには、テンプレートを含む解析が必要です。</p>
 		<p>rsvelteはJavaScript、テンプレート、スタイルの構文木を保持します。名前解決では、テンプレート内の識別子を、スクリプトの宣言やテンプレート内のローカル変数に対応付けます。変数のスコープや参照先は構文木とは別の表に保存し、lintとcompileから利用します。一般的なJavaScriptルールの網羅性より、Svelte固有の意味解析を優先します。</p>
@@ -72,10 +62,35 @@
 
 	<section id="sharing">
 		<p class="eyebrow">03 · 構文解析の重複</p>
-		<h2>lint・format・compileで、<br />構文解析と名前解決を共有する</h2>
+		<h2>4種類の処理に、<br />同じSvelteの構文木を渡す</h2>
 		<p>lint、format、compileを別々のプロセスで実行する構成では、各ツールがソースから独自の構文木を生成します。ESLintでSvelteを解析した結果は、通常、そのままPrettierやSvelteコンパイラには渡されません。同じ入力でも、プロセスごとに構文解析が発生します。</p>
 		<p>一つのlint実行内での構文木の共有や、未変更ファイルを省略するキャッシュは、既存ツールにもあります。rsvelteが共通化するのは、種類の異なるタスクが同じ文書から生成する構文木と解析結果です。</p>
-		<ParseSharingFigure />
+		<p>下の例では、同じSvelteファイルにフォーマット、Lint、コンパイル、型検査を選んでいます。文書内の処理を順に実行し、型検査は全ファイルの検査用TypeScriptがそろった後に行います。工程の枠を選ぶと、その時点の入力と生成データを確認できます。</p>
+		<p>図では、ソースの構造を保持するAST（抽象構文木）と、コンパイラ向けに整理したHIR（高水準の中間表現）を区別します。スコープや参照先は、ノードの識別番号で引くサイドテーブルに保存します。</p>
+		<div class="data-structures">
+			<table>
+				<caption>パイプラインが保持する主なデータ構造</caption>
+				<thead><tr><th scope="col">データ構造</th><th scope="col">保持する情報</th><th scope="col">利用する処理</th></tr></thead>
+				<tbody>
+					<tr><th scope="row">ソースAST<br /><code>Component</code></th><td>テンプレートのノード、JavaScript/TypeScript AST、スタイルの構文木、元のソース範囲。字句トークンも保持する。</td><td>フォーマット、HIR生成、Lint、型検査用コードの生成。</td></tr>
+					<tr><th scope="row">JavaScript/TypeScript AST<br /><code>SyntaxTree</code></th><td>スクリプトとテンプレート内のJavaScript式を、同じ木に格納する。</td><td>スコープ・参照解析、Lint、コンパイル。</td></tr>
+					<tr><th scope="row">テンプレートHIR<br /><code>CompilerSyntaxTree</code></th><td>分岐や属性を整理したノード、親子関係、元のテンプレートとの対応。JavaScript式はJavaScript/TypeScript ASTのノードを参照する。</td><td>スコープ・参照解析、Lint、コンパイル用の解析と描画計画。</td></tr>
+					<tr><th scope="row">スコープ・参照のサイドテーブル<br /><code>Resolution</code>・<code>Semantic</code></th><td>スコープ、宣言、参照先、読み書き、Svelte固有の宣言種別。ASTやHIRのノードに書き込まず、別の表に保存する。</td><td>Lint、コンパイル。</td></tr>
+					<tr><th scope="row">コンパイル用の解析結果・描画計画<br /><code>Analysis</code>・<code>RenderPlan</code></th><td>式の依存関係、動的な断片、スタイルの対応、描画する領域の計画。</td><td>出力JavaScript ASTの生成、スタイルの生成。</td></tr>
+					<tr><th scope="row">出力JavaScript AST<br /><code>LoweredModule</code></th><td>コンパイル先に合わせて新しく生成した <code>SyntaxTree</code>。元のソースASTとは別の木。</td><td>JavaScriptテキストの出力。</td></tr>
+					<tr><th scope="row">型検査用テキスト・位置対応表<br /><code>TypeScriptDocument</code>・<code>Emitter</code></th><td>元のソースASTから生成したTypeScriptと、元のSvelteの位置への対応。テンプレートHIRや出力JavaScript ASTとは別のデータ。</td><td>外部の型検査器、診断位置の変換。</td></tr>
+				</tbody>
+			</table>
+		</div>
+		<ParseSharingFigure markup={data.pipeline} />
+		<p>図の「スコープ構築・参照解析」では、識別子と宣言の対応付けに加えて、次のデータを生成します。</p>
+		<ul>
+			<li>スコープ表：関数、ブロック、テンプレートの <code>&#123;#each&#125;</code> などが作るスコープと、その親子関係。</li>
+			<li>宣言表：変数やimportの宣言と所属スコープ。Svelte側では、<code>$state</code> やpropsなどの宣言種別も記録します。</li>
+			<li>参照表：識別子の参照先と読み書き。<code>bind:value</code> のようなテンプレート側の書き込みも解析対象です。</li>
+		</ul>
+		<p>制御フロー解析は、これとは別の処理です。分岐やループを通る実行経路と、識別子が属するスコープは異なる情報です。到達可能性や経路ごとの代入状態を調べる処理では、制御フローの情報が必要になります。現在のrsvelteのスコープ・参照解析は、制御フローグラフを生成していません。型検査は生成したTypeScriptを外部の型検査器に渡すため、その内部の解析も文書コンテキストの共有対象には含まれません。</p>
+		<p class="reading">実装：<a href="{REPO_URL}/blob/experimental/crates/languages/typescript/core/src/semantic/scope.rs">2パスのスコープ・参照解析</a>と<a href="{REPO_URL}/blob/experimental/crates/languages/svelte/core/src/semantic/resolve.rs">Svelteのテンプレートとrunesの解析</a></p>
 		<p>タスクは文書の実行コンテキストから、型を指定して解析結果を要求します。最初の要求で計算し、同じ結果への後続の要求にはキャッシュを返します。formatだけを選んだ場合は、コード生成用の計算結果を要求しません。依存関係は、各計算処理が要求する結果によって決まります。</p>
 		<p>共有する構文木は不変です。コンパイルの変換処理は別の構文木を生成し、lintやformatが参照する元の構文木を変更しません。途中のコードを文字列として出力し、再解析して次の変換を続ける設計も採りません。</p>
 		<p>キャッシュの有効期間は、同じ文書のスナップショットを処理する実行コンテキスト内です。別々のコマンドを起動しても共有される永続キャッシュや、編集前後の結果を使う仕組みは未実装です。型検査用に生成したTypeScriptは外部の型検査器が読むため、ツール全体からすべての構文解析をなくすわけでもありません。</p>
@@ -144,16 +159,13 @@
 	.premise > span { font-size: 13px; font-weight: 600; }
 	.premise p { font-size: 14px; margin: 8px 0 0; }
 	.reading { font-size: 14px; }
-	.source-figure { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 32px 0; }
-	figcaption { padding: 20px 24px; font-size: 15px; font-weight: 600; background: var(--sunken); }
-	.source-regions { display: grid; grid-template-columns: 1fr 1.3fr 1fr; }
-	.source-regions > div { min-width: 0; padding: 24px 20px; }
-	.source-regions > div + div { border-left: 1px solid var(--border); }
-	.region-label { font-size: 12px; color: var(--accent); }
-	pre { margin: 16px 0 0; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.9; }
-	.source-regions p { font-size: 13px; line-height: 1.8; margin-bottom: 0; }
-	.scope { display: grid; grid-template-columns: auto 1fr; gap: 8px 24px; background: var(--sunken); padding: 20px 24px; font-size: 13px; }
-	.scope span { color: var(--muted); }
+	.data-structures { overflow-x: auto; margin: 28px 0; border: 1px solid var(--border); border-radius: 8px; }
+	table { width: 100%; min-width: 650px; border-collapse: collapse; font-size: 13px; line-height: 1.8; }
+	caption { padding: 16px; text-align: left; font-weight: 600; background: var(--sunken); }
+	th, td { padding: 14px 16px; text-align: left; vertical-align: top; border-top: 1px solid var(--border); }
+	th { font-weight: 600; }
+	tbody th { width: 28%; }
+	td { color: var(--fg-2); }
 	.extension-flow { display: flex; align-items: center; gap: 14px; margin: 32px 0; }
 	.extension-flow > div { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 22px 16px; background: var(--sunken); }
 	.extension-flow span, .project-flow span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 8px; }
@@ -174,5 +186,5 @@
 	.references h2 { font-size: 20px; }
 	.references p, .references li { font-size: 13px; line-height: 2; }
 	.references ul { list-style: disc; padding-left: 20px; }
-	@media (max-width: 760px) { .why { padding: 40px 20px 0; } .source-regions, .status-grid { grid-template-columns: 1fr; } .source-regions > div + div { border-left: 0; border-top: 1px solid var(--border); } .extension-flow { flex-direction: column; align-items: stretch; } .extension-flow b { text-align: center; transform: rotate(90deg); } .project-flow { grid-template-columns: 1fr 1fr; } .scope { grid-template-columns: 1fr; } section { margin-top: 64px; } }
+	@media (max-width: 760px) { .why { padding: 40px 20px 0; } .status-grid { grid-template-columns: 1fr; } .extension-flow { flex-direction: column; align-items: stretch; } .extension-flow b { text-align: center; transform: rotate(90deg); } .project-flow { grid-template-columns: 1fr 1fr; } section { margin-top: 64px; } }
 </style>

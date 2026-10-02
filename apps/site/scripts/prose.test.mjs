@@ -12,7 +12,7 @@ const linter = createLinter({ descriptor });
 
 test('rejects abbreviations, jargon, hype, redundancy and long sentences', async () => {
 	for (const [text, rule] of [
-		['AST を使います。', 'no-abbreviations'],
+		['CFG を作ります。', 'no-abbreviations'],
 		['32 MB を使います。', 'no-abbreviations'],
 		['`db.rs` と `Ctx` を使います。', 'no-abbreviations'],
 		['アーティファクトを使います。', 'prh'],
@@ -24,6 +24,9 @@ test('rejects abbreviations, jargon, hype, redundancy and long sentences', async
 		assert.ok(result.messages.some(message => message.ruleId.includes(rule)), `${rule} must reject ${text}`);
 	}
 	assert.deepEqual((await linter.lintText('構文解析の結果を保存して再利用します。', 'control.md')).messages, []);
+	for (const text of ['AST（抽象構文木）を保持します。', 'HIR（高水準の中間表現）を生成します。', '`AST` と `HIR` を保持します。']) {
+		assert.deepEqual((await linter.lintText(text, 'control.md')).messages, []);
+	}
 });
 
 test('reads prose from templates, attributes, expressions, branches and scripts', () => {
