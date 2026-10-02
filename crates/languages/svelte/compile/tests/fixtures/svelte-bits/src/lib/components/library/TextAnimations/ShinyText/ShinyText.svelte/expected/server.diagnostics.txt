@@ -1,0 +1,2 @@
+warning state_referenced_locally 36:24-36:33 This reference only captures the initial value of `direction`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

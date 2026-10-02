@@ -1,0 +1,4 @@
+warning a11y_figcaption_index 4:2-6:15 `<figcaption>` must be first or last child of `<figure>`
+    https://svelte.dev/e/a11y_figcaption_index
+warning a11y_figcaption_parent 15:3-17:16 `<figcaption>` must be an immediate child of `<figure>`
+    https://svelte.dev/e/a11y_figcaption_parent

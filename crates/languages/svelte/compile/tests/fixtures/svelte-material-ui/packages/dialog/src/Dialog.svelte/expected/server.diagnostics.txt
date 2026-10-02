@@ -1,0 +1,8 @@
+warning state_referenced_locally 228:38-228:48 This reference only captures the initial value of `fullscreen`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 256:39-256:48 This reference only captures the initial value of `selection`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 260:64-260:74 This reference only captures the initial value of `fullscreen`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 262:7-262:12 This reference only captures the initial value of `sheet`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

@@ -1,0 +1,74 @@
+
+    body {
+        min-height: 1400px;
+        padding-bottom: 20px;
+    }
+    .pvtUi {
+        width: 100%;
+    }
+    p.svelte-1uha8ag,
+    .navbar.svelte-1uha8ag {
+        font-family: "Open Sans", sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+    }
+
+    .navbar.svelte-1uha8ag {
+        margin-bottom: 0;
+    }
+    .jumbotron.svelte-1uha8ag {
+        color: white;
+        background: linear-gradient(27deg, #1e427d 0%, #1d9cfc 100%);
+        text-align: center;
+    }
+
+    .jumbotron.svelte-1uha8ag h1:where(.svelte-1uha8ag) {
+        font-size: 58px;
+        line-height: 60px;
+        font-family: "Dosis", sans-serif;
+    }
+
+    .jumbotron.svelte-1uha8ag p:where(.svelte-1uha8ag) {
+        font-size: 22px;
+        line-height: 36px;
+    }
+
+    /* h2 {
+        font-size: 34px;
+        line-height: 44px;
+        font-family: "Dosis", sans-serif;
+    } */
+
+    .btn-primary.svelte-1uha8ag {
+        background: #119dff;
+        border: 1px solid #119dff;
+    }
+    /* .btn-default {
+        background: #f2f5fa;
+        border: 1px solid #c8d4e3;
+    }
+    .pvtUi {
+        width: 100%;
+    }
+    .pvtVertList {
+        width: 15%;
+    }
+
+    textarea {
+        width: 100%;
+        height: 100px;
+    }
+
+    .dropzone {
+        width: 100%;
+        height: 100px;
+        padding: 10px;
+        border: 2px dashed lightgrey;
+        cursor: pointer;
+    }
+    .dropzoneActive {
+        border: 2px dashed green;
+    }
+    .dropzoneReject {
+        border: 2px dashed red;
+    } */

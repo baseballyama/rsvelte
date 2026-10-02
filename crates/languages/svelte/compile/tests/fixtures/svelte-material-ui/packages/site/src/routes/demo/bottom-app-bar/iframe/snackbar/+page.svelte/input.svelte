@@ -1,0 +1,86 @@
+<AutoAdjust {bottomAppBar}>
+  <h5>Standard</h5>
+
+  <div>
+    <FormField>
+      <Checkbox bind:checked={withFab} />
+      {#snippet label()}
+        With FAB
+      {/snippet}
+    </FormField>
+  </div>
+
+  <Button onclick={() => snackbar?.open()}>
+    <Label>Open Snackbar</Label>
+  </Button>
+
+  <Snackbar bind:this={snackbar}>
+    <Label>This is a snackbar.</Label>
+    <Actions>
+      <IconButton title="Dismiss">
+        <Icon class="material-icons">close</Icon>
+      </IconButton>
+    </Actions>
+  </Snackbar>
+
+  <LoremIpsum />
+  <img
+    alt="Page content placeholder"
+    src="/page-content.jpg"
+    style="display: block; max-width: 100%; height: auto; margin: 1em auto;"
+  />
+</AutoAdjust>
+
+<BottomAppBar bind:this={bottomAppBar}>
+  <Section>
+    <IconButton>
+      <Icon class="material-icons">menu</Icon>
+    </IconButton>
+  </Section>
+  {#if withFab}
+    <Section fabInset>
+      <Fab aria-label="New item">
+        <Icon class="material-icons">add</Icon>
+      </Fab>
+    </Section>
+  {/if}
+  <Section>
+    <IconButton aria-label="Search">
+      <Icon class="material-icons">search</Icon>
+    </IconButton>
+    <IconButton aria-label="More">
+      <Icon class="material-icons">more_vert</Icon>
+    </IconButton>
+  </Section>
+</BottomAppBar>
+
+<script lang="ts">
+  import BottomAppBar, {
+    Section,
+    AutoAdjust,
+  } from '@smui-extra/bottom-app-bar';
+  import Snackbar, { Actions, Label } from '@smui/snackbar';
+  import Button from '@smui/button';
+  import IconButton from '@smui/icon-button';
+  import Fab from '@smui/fab';
+  import { Icon } from '@smui/common';
+  import Checkbox from '@smui/checkbox';
+  import FormField from '@smui/form-field';
+  import LoremIpsum from '$lib/LoremIpsum.svelte';
+
+  let bottomAppBar: BottomAppBar | null = $state(null);
+  let snackbar: Snackbar | undefined = $state();
+  let withFab = $state(false);
+</script>
+
+<style>
+  /* Hide everything above this component. */
+  :global(#smui-app),
+  :global(body),
+  :global(html) {
+    display: block !important;
+    height: auto !important;
+    width: auto !important;
+    position: static !important;
+  }
+</style>

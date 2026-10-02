@@ -1,0 +1,29 @@
+
+	.wx-calendar.svelte-4c5n4z {
+		height: auto;
+		width: 100%;
+		padding: var(--wx-calendar-padding);
+		cursor: default;
+		font-family: var(--wx-calendar-font-family);
+		font-size: var(--wx-calendar-font-size);
+		line-height: var(--wx-calendar-line-height);
+		font-weight: var(--wx-calendar-font-weight);
+		color: var(--wx-calendar-font-color);
+	}
+	.wx-calendar.wx-part.svelte-4c5n4z {
+		padding-bottom: 0;
+	}
+	.wx-wrap.svelte-4c5n4z {
+		width: calc(var(--wx-calendar-cell-size) * 7);
+		margin: 0 auto;
+	}
+	.wx-buttons.svelte-4c5n4z {
+		display: flex;
+		flex-wrap: nowrap;
+		align-items: center;
+		justify-content: flex-end;
+		margin-top: calc(var(--wx-calendar-gap) * 2);
+	}
+	.wx-button-item.svelte-4c5n4z + .wx-button-item:where(.svelte-4c5n4z) {
+		margin-left: calc(var(--wx-calendar-gap) * 3);
+	}

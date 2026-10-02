@@ -14,5 +14,12 @@ rsvelte_stylesheet.workspace = true
 rsvelte_vue.workspace = true
 rsvelte_kernel.workspace = true
 
+[dev-dependencies]
+rsvelte_fixture_test.workspace = true
+
+[[test]]
+name = "fixtures"
+harness = false
+
 [lints]
 workspace = true

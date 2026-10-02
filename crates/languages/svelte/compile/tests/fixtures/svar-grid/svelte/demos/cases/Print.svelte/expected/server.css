@@ -1,0 +1,5 @@
+
+	.rowStyle:not(.wx-selected) .wx-cell:not(.cellStyle) {
+		color: white;
+		background: #457b9d;
+	}

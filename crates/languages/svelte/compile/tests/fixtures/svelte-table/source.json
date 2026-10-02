@@ -1,0 +1,13 @@
+{
+	"commit": "4c9537f0b1bbbd311d06fcf19af3b17a77e7bdc1",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/dasDaniel/svelte-table"
+}

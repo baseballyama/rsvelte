@@ -1,0 +1,13 @@
+{
+	"commit": "2c179e9b19e1f0c23c1374cea404363a7c12acf3",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/sveltejs/kit.git"
+}

@@ -1,0 +1,4 @@
+warning a11y_aria_attributes 1:7-1:26 `<meta>` should not have aria-* attributes
+    https://svelte.dev/e/a11y_aria_attributes
+warning a11y_misplaced_role 2:7-2:21 `<meta>` should not have role attribute
+    https://svelte.dev/e/a11y_misplaced_role

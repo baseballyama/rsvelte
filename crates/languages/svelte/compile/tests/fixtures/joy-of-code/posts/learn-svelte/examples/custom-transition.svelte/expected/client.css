@@ -1,0 +1,10 @@
+
+	.text.svelte-1hdyhhy {
+		font-size: var(--font-48);
+	}
+
+	button.svelte-1hdyhhy {
+		margin-inline: auto;
+		justify-self: start;
+		margin-top: var(--spacing-32);
+	}

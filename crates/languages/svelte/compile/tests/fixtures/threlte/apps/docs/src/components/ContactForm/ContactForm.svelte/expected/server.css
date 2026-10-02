@@ -1,0 +1,21 @@
+
+  /* https://cssloaders.github.io/ */
+  .loader.svelte-10rausk {
+    width: 90px;
+    height: 90px;
+    border: 6px solid #fff;
+    border-bottom-color: #ff5b28;
+    border-radius: 50%;
+    display: inline-block;
+    box-sizing: border-box;
+    animation: svelte-10rausk-rotation 1s linear infinite;
+  }
+
+  @keyframes svelte-10rausk-rotation {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }

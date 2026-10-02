@@ -1,0 +1,8 @@
+warning state_referenced_locally 16:19-16:32 This reference only captures the initial value of `initialBounds`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 17:19-17:32 This reference only captures the initial value of `initialBounds`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 18:19-18:32 This reference only captures the initial value of `initialBounds`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 19:19-19:32 This reference only captures the initial value of `initialBounds`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

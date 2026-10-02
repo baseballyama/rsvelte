@@ -1,0 +1,10 @@
+warning element_invalid_self_closing_tag 1:1-1:22 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning element_invalid_self_closing_tag 2:1-2:24 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning element_invalid_self_closing_tag 3:1-3:26 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning element_invalid_self_closing_tag 5:1-5:26 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning element_invalid_self_closing_tag 6:1-6:37 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag

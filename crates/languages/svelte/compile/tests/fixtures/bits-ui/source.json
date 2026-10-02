@@ -1,0 +1,13 @@
+{
+	"commit": "d9cc7ccd804e781596c68ca755d0ebb373d0776b",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/huntabyte/bits-ui.git"
+}

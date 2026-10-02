@@ -1,0 +1,13 @@
+{
+	"commit": "85f20a048ec51598e2be099bd57b5f555fe7a5b4",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/themesberg/flowbite-svelte.git"
+}

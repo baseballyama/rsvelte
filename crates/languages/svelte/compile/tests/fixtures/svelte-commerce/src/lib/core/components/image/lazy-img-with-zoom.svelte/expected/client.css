@@ -1,0 +1,15 @@
+
+	@keyframes svelte-v7i00l-shimmer {
+		0% {
+			background-position: -200% 0;
+		}
+		100% {
+			background-position: 200% 0;
+		}
+	}
+
+	.shimmer.svelte-v7i00l {
+		background: linear-gradient(90deg, #f0f0f0 25%, #f8f8f8 50%, #f0f0f0 75%);
+		background-size: 200% 100%;
+		animation: svelte-v7i00l-shimmer 1.5s infinite;
+	}

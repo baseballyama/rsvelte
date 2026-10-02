@@ -1,0 +1,13 @@
+{
+	"commit": "95d2265c7802723a4908e004a1e4d209c163d7b6",
+	"license": "BSD-3-Clause",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/appwrite/console.git"
+}

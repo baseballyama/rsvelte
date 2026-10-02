@@ -1,0 +1,84 @@
+
+  .timeline.svelte-s67xbs {
+    position: relative;
+    padding-left: 0;
+  }
+
+  .timeline-item.svelte-s67xbs {
+    position: relative;
+    display: flex;
+    padding-bottom: 24px;
+  }
+
+  .timeline-item.svelte-s67xbs:last-child {
+    padding-bottom: 0;
+  }
+
+  .timeline-marker.svelte-s67xbs {
+    position: relative;
+    flex-shrink: 0;
+    width: 32px;
+    /* Remove fixed height to let it grow with content */
+    margin-right: 16px;
+    /* Stretch to match content height */
+    align-self: stretch;
+  }
+
+  .timeline-dot.svelte-s67xbs {
+    width: 24px;
+    height: 24px;
+    background-color: var(--color-header);
+    border-radius: 50%;
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+    /* Ensure dot stays on top of the line */
+    z-index: 1;
+  }
+
+  .timeline-marker.svelte-s67xbs::after {
+    content: "";
+    position: absolute;
+    width: 2px;
+    /* Use 100% height to fill the entire marker container */
+    height: calc(100% + 24px);
+    background-color: var(--color-header);
+    left: 15px;
+    top: 28px;
+  }
+
+  .timeline-item.svelte-s67xbs:last-child .timeline-marker:where(.svelte-s67xbs)::after {
+    display: none;
+  }
+
+  .timeline-content.svelte-s67xbs {
+    flex: 1;
+    padding-top: 2px;
+    min-height: 32px; /* Reduced min-height since we're handling height dynamically */
+  }
+
+  .timeline-date.svelte-s67xbs {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--color-header);
+  }
+
+  .timeline-description.svelte-s67xbs {
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+  }
+
+  /* Dark mode styles */
+  .dark .timeline-date.svelte-s67xbs {
+    color: #e5e7eb;
+  }
+
+  .dark .timeline-description.svelte-s67xbs {
+    color: #d1d5db;
+  }

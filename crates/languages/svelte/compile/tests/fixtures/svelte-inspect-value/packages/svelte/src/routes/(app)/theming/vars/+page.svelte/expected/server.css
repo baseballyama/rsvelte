@@ -1,0 +1,18 @@
+
+  table.svelte-bmkt69 {
+    border: 1px solid var(--docs-border-color);
+    border-collapse: collapse;
+    font-size: 14px;
+    font-family: monospace;
+    text-align: left;
+  }
+
+  td.svelte-bmkt69,
+  th.svelte-bmkt69 {
+    border: 1px solid var(--docs-border-color);
+    padding: 0.5em;
+  }
+
+  .varname.svelte-bmkt69 {
+    width: 400px;
+  }

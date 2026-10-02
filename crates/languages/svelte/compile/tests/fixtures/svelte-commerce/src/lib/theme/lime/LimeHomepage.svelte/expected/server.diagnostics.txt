@@ -1,0 +1,8 @@
+warning css_unused_selector 365:2-365:19 Unused CSS selector ".lime-product img"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 372:2-372:18 Unused CSS selector ".lime-product h4"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 382:2-382:17 Unused CSS selector ".lime-product p"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 538:2-538:40 Unused CSS selector ".lime-faq details[open] .lime-faq-icon"
+    https://svelte.dev/e/css_unused_selector

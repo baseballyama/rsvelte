@@ -1,0 +1,16 @@
+
+	.bubble-menu-panel {
+		display: flex;
+		align-items: center;
+		border-radius: var(--edra-radius-lg);
+		border: 1px solid var(--edra-border);
+		width: fit-content;
+		padding: 4px;
+		gap: 4px;
+		background-color: var(--edra-canvas);
+		box-shadow: var(--edra-shadow-4);
+	}
+	.active.svelte-szouqa {
+		background-color: var(--edra-canvas-soft-2) !important;
+		color: var(--edra-ink) !important;
+	}

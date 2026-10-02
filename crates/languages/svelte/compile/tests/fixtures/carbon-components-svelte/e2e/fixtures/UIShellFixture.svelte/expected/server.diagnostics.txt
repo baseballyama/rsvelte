@@ -1,0 +1,4 @@
+warning a11y_invalid_attribute 38:26-38:34 '#' is not a valid href attribute
+    https://svelte.dev/e/a11y_invalid_attribute
+warning non_reactive_update 21:7-21:20 `isSideNavOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

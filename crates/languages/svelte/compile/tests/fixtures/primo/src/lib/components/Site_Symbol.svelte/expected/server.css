@@ -1,0 +1,39 @@
+
+	.sidebar-symbol.svelte-1w96kt8 {
+		width: 100%;
+		--IconButton-opacity: 0;
+
+		&:hover:not(.dragging) {
+			--IconButton-opacity: 1;
+		}
+
+		.symbol:where(.svelte-1w96kt8) {
+			width: 100%;
+			border-radius: 0.25rem;
+			overflow: hidden;
+			position: relative;
+			min-height: 2rem;
+			transition: box-shadow 0.2s;
+			border: 1px solid var(--color-gray-8);
+		}
+	}
+	.check.svelte-1w96kt8 {
+		position: absolute;
+		inset: 0;
+		z-index: 9;
+		background: rgba(0, 0, 0, 0.9);
+		font-size: 3rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--primo-primary-color);
+	}
+	.error.svelte-1w96kt8 {
+		display: flex;
+		justify-content: center;
+		height: 100%;
+		position: absolute;
+		inset: 0;
+		align-items: center;
+		background: #ff0000;
+	}

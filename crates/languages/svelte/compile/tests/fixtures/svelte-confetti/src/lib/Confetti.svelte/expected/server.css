@@ -1,0 +1,94 @@
+
+  .confetti-holder.svelte-1l3pvrr {
+    position: relative;
+  }
+
+  @keyframes svelte-1l3pvrr-rotate {
+    0% {
+      transform: skew(var(--skew)) rotate3d(var(--full-rotation));
+    }
+
+    100% {
+      transform: skew(var(--skew)) rotate3d(var(--rotation-xyz), calc(var(--rotation-deg) + 360deg));
+    }
+  }
+
+  @keyframes svelte-1l3pvrr-translate {
+    0% {
+      opacity: 1;
+    }
+
+    8% {
+      transform: translateY(calc(var(--translate-y) * 0.95)) translateX(calc(var(--translate-x) * (var(--x-spread) * 0.9)));
+      opacity: 1;
+    }
+
+    12% {
+      transform: translateY(var(--translate-y)) translateX(calc(var(--translate-x) * (var(--x-spread) * 0.95)));
+      opacity: 1;
+    }
+
+    16% {
+      transform: translateY(var(--translate-y)) translateX(calc(var(--translate-x) * var(--x-spread)));
+      opacity: 1;
+    }
+
+    100% {
+      transform: translateY(calc(var(--translate-y) + var(--fall-distance))) translateX(var(--translate-x));
+      opacity: 0;
+    }
+  }
+
+  @keyframes svelte-1l3pvrr-no-gravity-translate {
+    0% {
+      opacity: 1;
+    }
+
+    100% {
+      transform: translateY(var(--translate-y)) translateX(var(--translate-x));
+      opacity: 0;
+    }
+  }
+
+  .confetti.svelte-1l3pvrr {
+    --translate-y: calc(-200px * var(--translate-y-multiplier));
+    --translate-x: calc(200px * var(--translate-x-multiplier));
+    position: absolute;
+    height: calc(var(--size) * var(--scale));
+    width: calc(var(--size) * var(--scale));
+    animation: svelte-1l3pvrr-translate var(--transition-duration) var(--transition-delay) var(--transition-iteration-count) linear;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .confetti.svelte-1l3pvrr::before {
+    --full-rotation: var(--rotation-xyz), var(--rotation-deg);
+    content: '';
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: var(--color);
+    background-size: contain;
+    transform: skew(var(--skew)) rotate3d(var(--full-rotation));
+    animation: svelte-1l3pvrr-rotate var(--transition-duration) var(--transition-delay) var(--transition-iteration-count) linear;
+  }
+
+  .rounded.svelte-1l3pvrr .confetti:where(.svelte-1l3pvrr)::before {
+    border-radius: 50%;
+  }
+
+  .cone.svelte-1l3pvrr .confetti:where(.svelte-1l3pvrr) {
+    --translate-x: calc(200px * var(--translate-y-multiplier) * var(--translate-x-multiplier));
+  }
+
+  .no-gravity.svelte-1l3pvrr .confetti:where(.svelte-1l3pvrr) {
+    animation-name: svelte-1l3pvrr-no-gravity-translate;
+    animation-timing-function: ease-out;
+  }
+
+  @media (prefers-reduced-motion) {
+    .reduced-motion.svelte-1l3pvrr .confetti:where(.svelte-1l3pvrr),
+    .reduced-motion.svelte-1l3pvrr .confetti:where(.svelte-1l3pvrr)::before {
+      animation: none;
+    }
+  }

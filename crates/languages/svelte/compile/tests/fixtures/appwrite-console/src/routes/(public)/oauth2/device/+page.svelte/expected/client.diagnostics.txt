@@ -1,0 +1,2 @@
+warning a11y_autofocus 172:33-172:42 Avoid using autofocus
+    https://svelte.dev/e/a11y_autofocus

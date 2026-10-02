@@ -1,0 +1,12 @@
+
+  button.svelte-14kx1bs {
+    all: unset;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.25em;
+  }
+
+  button.svelte-14kx1bs:hover {
+    background-color: transparent;
+  }

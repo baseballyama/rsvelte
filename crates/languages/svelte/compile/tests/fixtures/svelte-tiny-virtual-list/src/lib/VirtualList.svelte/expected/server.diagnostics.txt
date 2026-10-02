@@ -1,0 +1,36 @@
+warning state_referenced_locally 53:60-53:68 This reference only captures the initial value of `itemSize`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 53:70-53:79 This reference only captures the initial value of `itemCount`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 53:81-53:98 This reference only captures the initial value of `estimatedItemSize`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 64:11-64:23 This reference only captures the initial value of `scrollOffset`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 64:28-64:41 This reference only captures the initial value of `scrollToIndex`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 64:77-64:90 This reference only captures the initial value of `scrollToIndex`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 67:35-67:41 This reference only captures the initial value of `scroll`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 72:34-72:47 This reference only captures the initial value of `scrollToIndex`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 73:38-73:55 This reference only captures the initial value of `scrollToAlignment`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 74:33-74:45 This reference only captures the initial value of `scrollOffset`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 75:30-75:39 This reference only captures the initial value of `itemCount`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 76:20-76:28 This reference only captures the initial value of `itemSize`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 76:46-76:54 This reference only captures the initial value of `itemSize`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 76:73-76:81 This reference only captures the initial value of `itemSize`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 77:38-77:55 This reference only captures the initial value of `estimatedItemSize`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 78:33-78:45 This reference only captures the initial value of `heightNumber`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 79:32-79:43 This reference only captures the initial value of `widthNumber`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 80:34-80:47 This reference only captures the initial value of `stickyIndices`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

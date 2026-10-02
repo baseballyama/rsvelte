@@ -1,0 +1,21 @@
+
+  .form-grid.svelte-2918zk {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-lg);
+  }
+
+  .form-group.svelte-2918zk label:where(.svelte-2918zk) {
+    flex-direction: column;
+
+    small:where(.svelte-2918zk) {
+      color: var(--text-secondary);
+      font-size: var(--font-size-xs);
+      margin-top: var(--spacing-xs);
+    }
+  }
+
+  .example-card.svelte-2918zk small:where(.svelte-2918zk) {
+    color: var(--text-secondary);
+    font-size: var(--font-size-xs);
+  }

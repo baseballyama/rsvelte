@@ -1,0 +1,226 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import TrendingUpIcon from "@lucide/svelte/icons/trending-up";
+import { Arc, PieChart } from "layerchart";
+import * as Card from "$lib/registry/ui/card/index.js";
+import * as Chart from "$lib/registry/ui/chart/index.js";
+
+var root = $.from_html(`<!> <!>`, 1);
+var root_1 = $.from_html(`<div class="flex items-center gap-2 leading-none font-medium">Trending up by 5.2% this month <!></div> <div class="leading-none text-muted-foreground">Showing total visitors for the last 6 months</div>`, 1);
+var root_2 = $.from_html(`<!> <!> <!>`, 1);
+
+export default function Chart_pie_stacked($$anchor) {
+	const desktopData = [
+		{
+			month: "january",
+			desktop: 186,
+			color: "var(--color-january)"
+		},
+
+		{
+			month: "february",
+			desktop: 305,
+			color: "var(--color-february)"
+		},
+		{ month: "march", desktop: 237, color: "var(--color-march)" },
+		{ month: "april", desktop: 173, color: "var(--color-april)" },
+		{ month: "may", desktop: 209, color: "var(--color-may)" }
+	];
+
+	const mobileData = [
+		{ month: "january", mobile: 80, color: "var(--color-january)" },
+		{
+			month: "february",
+			mobile: 200,
+			color: "var(--color-february)"
+		},
+		{ month: "march", mobile: 120, color: "var(--color-march)" },
+		{ month: "april", mobile: 190, color: "var(--color-april)" },
+		{ month: "may", mobile: 130, color: "var(--color-may)" }
+	];
+
+	const monthOrder = ["january", "february", "march", "april", "may"];
+
+	const sortMonths = (a, b) => {
+		return monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month);
+	};
+
+	const chartConfig = {
+		desktop: { label: "Desktop" },
+		mobile: { label: "Mobile" },
+		january: { label: "January", color: "var(--chart-1)" },
+		february: { label: "February", color: "var(--chart-2)" },
+		march: { label: "March", color: "var(--chart-3)" },
+		april: { label: "April", color: "var(--chart-4)" },
+		may: { label: "May", color: "var(--chart-5)" }
+	};
+
+	const tooltipLabelFormatter = (_, payload) => {
+		return chartConfig[payload?.[0].key].label;
+	};
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.component(node, () => Card.Root, ($$anchor, Card_Root) => {
+		Card_Root($$anchor, {
+			class: 'flex flex-col',
+			children: ($$anchor, $$slotProps) => {
+				var fragment_1 = root_2();
+				var node_1 = $.first_child(fragment_1);
+
+				$.component(node_1, () => Card.Header, ($$anchor, Card_Header) => {
+					Card_Header($$anchor, {
+						class: 'items-center',
+						children: ($$anchor, $$slotProps) => {
+							var fragment_2 = root();
+							var node_2 = $.first_child(fragment_2);
+
+							$.component(node_2, () => Card.Title, ($$anchor, Card_Title) => {
+								Card_Title($$anchor, {
+									children: ($$anchor, $$slotProps) => {
+										$.next();
+
+										var text = $.text('Pie Chart - Stacked');
+
+										$.append($$anchor, text);
+									},
+									$$slots: { default: true }
+								});
+							});
+
+							var node_3 = $.sibling(node_2, 2);
+
+							$.component(node_3, () => Card.Description, ($$anchor, Card_Description) => {
+								Card_Description($$anchor, {
+									children: ($$anchor, $$slotProps) => {
+										$.next();
+
+										var text_1 = $.text('January - June 2024');
+
+										$.append($$anchor, text_1);
+									},
+									$$slots: { default: true }
+								});
+							});
+
+							$.append($$anchor, fragment_2);
+						},
+						$$slots: { default: true }
+					});
+				});
+
+				var node_4 = $.sibling(node_1, 2);
+
+				$.component(node_4, () => Card.Content, ($$anchor, Card_Content) => {
+					Card_Content($$anchor, {
+						class: 'flex-1',
+						children: ($$anchor, $$slotProps) => {
+							var fragment_3 = $.comment();
+							var node_5 = $.first_child(fragment_3);
+
+							$.component(node_5, () => Chart.Container, ($$anchor, Chart_Container) => {
+								Chart_Container($$anchor, {
+									get config() {
+										return chartConfig;
+									},
+									class: 'mx-auto aspect-square max-h-[250px]',
+									children: ($$anchor, $$slotProps) => {
+										{
+											const arc = ($$anchor, $$arg0) => {
+												let props = () => ($$arg0?.()).props;
+
+												Arc($$anchor, $.spread_props(props, {
+													get fill() {
+														return props().data.color;
+													}
+												}));
+											};
+
+											const tooltip = ($$anchor) => {
+												var fragment_6 = $.comment();
+												var node_6 = $.first_child(fragment_6);
+
+												$.component(node_6, () => Chart.Tooltip, ($$anchor, Chart_Tooltip) => {
+													Chart_Tooltip($$anchor, {
+														nameKey: 'month',
+														indicator: 'line',
+														labelFormatter: tooltipLabelFormatter
+													});
+												});
+
+												$.append($$anchor, fragment_6);
+											};
+
+											let $0 = $.derived(() => [
+												{
+													key: "desktop",
+													value: "value",
+													data: desktopData.map((d) => ({ month: d.month, value: d.desktop, color: d.color })),
+													props: { innerRadius: -20 }
+												},
+
+												{
+													key: "mobile",
+													value: "value",
+													data: mobileData.map((d) => ({ month: d.month, value: d.mobile, color: d.color })),
+													props: { outerRadius: -30 }
+												}
+											]);
+
+											PieChart($$anchor, {
+												key: 'month',
+												label: 'month',
+												c: 'color',
+												props: {
+													pie: { sort: sortMonths, motion: "tween" },
+													tooltip: { context: { hideDelay: 250 } }
+												},
+
+												get series() {
+													return $.get($0);
+												},
+												padding: 29,
+												arc,
+												tooltip,
+												$$slots: { arc: true, tooltip: true }
+											});
+										}
+									},
+									$$slots: { default: true }
+								});
+							});
+
+							$.append($$anchor, fragment_3);
+						},
+						$$slots: { default: true }
+					});
+				});
+
+				var node_7 = $.sibling(node_4, 2);
+
+				$.component(node_7, () => Card.Footer, ($$anchor, Card_Footer) => {
+					Card_Footer($$anchor, {
+						class: 'flex-col gap-2 text-sm',
+						children: ($$anchor, $$slotProps) => {
+							var fragment_7 = root_1();
+							var div = $.first_child(fragment_7);
+							var node_8 = $.sibling($.child(div));
+
+							TrendingUpIcon(node_8, { class: 'size-4' });
+							$.reset(div);
+							$.next(2);
+							$.append($$anchor, fragment_7);
+						},
+						$$slots: { default: true }
+					});
+				});
+
+				$.append($$anchor, fragment_1);
+			},
+			$$slots: { default: true }
+		});
+	});
+
+	$.append($$anchor, fragment);
+}

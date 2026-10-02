@@ -1,0 +1,12 @@
+warning event_directive_deprecated 18:3-18:51 Using `on:introstart` to listen to the introstart event is deprecated. Use the event attribute `onintrostart` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 19:3-19:51 Using `on:outrostart` to listen to the outrostart event is deprecated. Use the event attribute `onoutrostart` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 20:3-20:47 Using `on:introend` to listen to the introend event is deprecated. Use the event attribute `onintroend` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 21:3-21:47 Using `on:outroend` to listen to the outroend event is deprecated. Use the event attribute `onoutroend` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning non_reactive_update 4:6-4:13 `visible` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 5:6-5:12 `status` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

@@ -1,0 +1,47 @@
+<script lang="ts">
+    import { page } from '$app/state';
+    import { canWriteTables } from '$lib/stores/roles';
+    import { resolveRoute } from '$lib/stores/navigation';
+
+    import { type Entity, Header } from '$database/(entity)';
+
+    const path = $derived(
+        resolveRoute(
+            '/(console)/project-[region]-[project]/databases/database-[database]/table-[table]',
+            page.params
+        )
+    );
+
+    const table = $derived(page.data.table) as Entity;
+
+    const tabs = $derived(
+        [
+            {
+                href: path,
+                title: 'Rows',
+                event: 'rows',
+                hasChildren: true
+            },
+            {
+                href: `${path}/columns`,
+                title: 'Columns',
+                event: 'columns'
+            },
+            {
+                href: `${path}/indexes`,
+                title: 'Indexes',
+                event: 'indexes'
+            },
+            {
+                href: `${path}/settings`,
+                title: 'Settings',
+                event: 'settings',
+                disabled: !$canWriteTables
+            }
+        ].filter((tab) => !tab.disabled)
+    );
+</script>
+
+{#if table}
+    <Header {tabs} entity={table} />
+{/if}

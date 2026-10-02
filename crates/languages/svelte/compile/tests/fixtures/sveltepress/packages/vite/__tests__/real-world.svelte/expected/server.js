@@ -1,0 +1,498 @@
+import * as $ from 'svelte/internal/server';
+
+export default function Real_world($$renderer) {
+	$$renderer.push(`<p>This feature integrate <a href="https://github.com/twoslashes/twoslash">Twoslash</a></p> <p>All of the Typescript code blocks would provide inline type hover.</p> <h2>Enable twoslash</h2> <ul><li>Install @sveltepress/twoslash package</li></ul> <p>@install-pkg(@sveltepress/twoslash)</p> <ul><li>Config <code>highlighter.twoslash</code> to <code>true</code></li></ul> <div class="svp-code-block-wrapper"><div class="svp-code-block--title">vite.config.(js|ts)</div> <div class="svp-code-block"><div class="svp-code-block--command-line svp-code-block--diff-bg-add" style="top: calc(12em + 12px);"><div class="svp-code-block--diff-add">+</div></div> <div class="svp-code-block--command-line svp-code-block--diff-bg-add" style="top: calc(13.5em + 12px);"><div class="svp-code-block--diff-add">+</div></div> <div class="svp-code-block--command-line svp-code-block--diff-bg-add" style="top: calc(15em + 12px);"><div class="svp-code-block--diff-add">+</div></div> <pre class="shiki shiki-themes vitesse-light night-owl twoslash lsp" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#1E754F;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic">import</span><span style="color:#999999;--shiki-dark:#D6DEEB"> {</span><span style="color:#B07D48;--shiki-dark:#D6DEEB"> </span><span style="color:#B07D48;--shiki-dark:#D6DEEB">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#AB5959;--shiki-dark:#C792EA">const</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> defaultTheme</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-light-font-style:inherit;--shiki-dark:#FFCB8B;--shiki-dark-font-style:italic"> ThemeDefault</span></code></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>defaultTheme</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#D6DEEB"> }</span><span style="color:#1E754F;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic"> from</span><span style="color:#B5695977;--shiki-dark:#D9F5DD"> '</span><span style="color:#B56959;--shiki-dark:#ECC48D">@sveltepress/theme-default</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">'</span></span>
+<span class="line"><span style="color:#1E754F;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic">import</span><span style="color:#999999;--shiki-dark:#D6DEEB"> {</span><span style="color:#B07D48;--shiki-dark:#D6DEEB"> </span><span style="color:#B07D48;--shiki-dark:#D6DEEB">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#AB5959;--shiki-dark:#C792EA">const</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> sveltepress</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#999999;--shiki-dark:#D9F5DD"> (</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#D7DBE0;--shiki-dark-font-style:italic">options</span><span style="color:#AB5959;--shiki-dark:#7FDBCA">?</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-light-font-style:inherit;--shiki-dark:#FFCB8B;--shiki-dark-font-style:italic"> SveltepressVitePluginOptions</span><span style="color:#999999;--shiki-dark:#D9F5DD">)</span><span style="color:#999999;--shiki-dark:#C792EA"> =></span><span style="color:#2E8F82;--shiki-light-font-style:inherit;--shiki-dark:#FFCB8B;--shiki-dark-font-style:italic"> PluginOption</span></code></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>sveltepress</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#D6DEEB"> }</span><span style="color:#1E754F;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic"> from</span><span style="color:#B5695977;--shiki-dark:#D9F5DD"> '</span><span style="color:#B56959;--shiki-dark:#ECC48D">@sveltepress/vite</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">'</span></span>
+<span class="line"><span style="color:#1E754F;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic">import</span><span style="color:#999999;--shiki-dark:#D6DEEB"> {</span><span style="color:#B07D48;--shiki-dark:#D6DEEB"> </span><span style="color:#B07D48;--shiki-dark:#D6DEEB">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#AB5959;--shiki-dark:#C792EA">function</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> defineConfig</span><span style="color:#999999;--shiki-dark:#D9F5DD">(</span><span style="color:#B07D48;--shiki-dark:#D7DBE0">config</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-dark:#FFCB8B"> UserConfig</span><span style="color:#999999;--shiki-dark:#D9F5DD">)</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-dark:#FFCB8B"> UserConfig</span><span style="color:#999999;--shiki-dark:#D6DEEB"> (</span><span style="color:#393A34;--shiki-dark:#D6DEEB">+</span><span style="color:#2F798A;--shiki-dark:#F78C6C">5</span><span style="color:#2E8F82;--shiki-dark:#FFCB8B"> overloads</span><span style="color:#999999;--shiki-dark:#D6DEEB">)</span></code><div class="twoslash-popup-docs"><p>Type helper to make it easier to use vite.config.ts
+accepts a direct</p>
+<p>UserConfig</p>
+<p>object, or a function that returns it.
+The function receives a</p>
+<p>ConfigEnv</p>
+<p>object.</p></div></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>defineConfig</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#D6DEEB"> }</span><span style="color:#1E754F;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic"> from</span><span style="color:#B5695977;--shiki-dark:#D9F5DD"> '</span><span style="color:#B56959;--shiki-dark:#ECC48D">vite</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#1E754F;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic">export</span><span style="color:#1E754F;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic"> default</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> </span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#AB5959;--shiki-dark:#C792EA">function</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> defineConfig</span><span style="color:#999999;--shiki-dark:#D9F5DD">(</span><span style="color:#B07D48;--shiki-dark:#D7DBE0">config</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-dark:#FFCB8B"> UserConfig</span><span style="color:#999999;--shiki-dark:#D9F5DD">)</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-dark:#FFCB8B"> UserConfig</span><span style="color:#999999;--shiki-dark:#D6DEEB"> (</span><span style="color:#393A34;--shiki-dark:#D6DEEB">+</span><span style="color:#2F798A;--shiki-dark:#F78C6C">5</span><span style="color:#2E8F82;--shiki-dark:#FFCB8B"> overloads</span><span style="color:#999999;--shiki-dark:#D6DEEB">)</span></code><div class="twoslash-popup-docs"><p>Type helper to make it easier to use vite.config.ts
+accepts a direct</p>
+<p>UserConfig</p>
+<p>object, or a function that returns it.
+The function receives a</p>
+<p>ConfigEnv</p>
+<p>object.</p></div></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>defineConfig</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#D6DEEB">({</span></span>
+<span class="line"><span style="color:#998418;--shiki-dark:#D6DEEB">  </span><span style="color:#998418;--shiki-dark:#D6DEEB">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#B07D48;--shiki-dark:#D6DEEB">UserConfig</span><span style="color:#999999;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic">.</span><span style="color:#B07D48;--shiki-dark:#BAEBE2">plugins</span><span style="color:#AB5959;--shiki-dark:#C792EA">?:</span><span style="color:#B07D48;--shiki-dark:#D6DEEB"> PluginOption</span><span style="color:#999999;--shiki-dark:#D6DEEB">[]</span><span style="color:#AB5959;--shiki-dark:#C792EA"> |</span><span style="color:#AB5959;--shiki-dark:#82AAFF"> undefined</span></code><div class="twoslash-popup-docs"><p>Array of vite plugins to use.</p></div></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>plugins</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#D6DEEB">: [</span></span>
+<span class="line"><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic">    </span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#AB5959;--shiki-dark:#C792EA">function</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> sveltepress</span><span style="color:#999999;--shiki-dark:#D9F5DD">(</span><span style="color:#B07D48;--shiki-dark:#D7DBE0">options</span><span style="color:#AB5959;--shiki-dark:#7FDBCA">?</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-dark:#FFCB8B"> SveltepressVitePluginOptions</span><span style="color:#999999;--shiki-dark:#D9F5DD">)</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-dark:#FFCB8B"> PluginOption</span></code></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>sveltepress</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#D6DEEB">({</span></span>
+<span class="line"><span style="color:#998418;--shiki-dark:#D6DEEB">      </span><span style="color:#998418;--shiki-dark:#D6DEEB">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#B07D48;--shiki-dark:#D6DEEB">SveltepressVitePluginOptions</span><span style="color:#999999;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic">.</span><span style="color:#B07D48;--shiki-dark:#BAEBE2">theme</span><span style="color:#AB5959;--shiki-dark:#C792EA">?:</span><span style="color:#B07D48;--shiki-dark:#D6DEEB"> ResolvedTheme</span><span style="color:#AB5959;--shiki-dark:#C792EA"> |</span><span style="color:#AB5959;--shiki-dark:#82AAFF"> undefined</span></code></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>theme</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#D6DEEB">: </span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#AB5959;--shiki-dark:#C792EA">function</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> defaultTheme</span><span style="color:#999999;--shiki-dark:#D9F5DD">(</span><span style="color:#B07D48;--shiki-dark:#D7DBE0">themeOptions</span><span style="color:#AB5959;--shiki-dark:#7FDBCA">?</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-dark:#FFCB8B"> DefaultThemeOptions</span><span style="color:#999999;--shiki-dark:#7FDBCA"> |</span><span style="color:#AB5959;--shiki-dark:#C5E478"> undefined</span><span style="color:#999999;--shiki-dark:#D9F5DD">)</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-dark:#FFCB8B"> ResolvedTheme</span></code></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>defaultTheme</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#D6DEEB">({</span></span>
+<span class="line"><span style="color:#998418;--shiki-dark:#D6DEEB">        </span><span style="color:#998418;--shiki-dark:#D6DEEB">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><pre class="shiki shiki-themes vitesse-light night-owl" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#B07D48;--shiki-dark:#D6DEEB">DefaultThemeOptions</span><span style="color:#999999;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic">.</span><span style="color:#B07D48;--shiki-dark:#BAEBE2">highlighter</span><span style="color:#AB5959;--shiki-dark:#C792EA">?:</span><span style="color:#999999;--shiki-dark:#D6DEEB"> {</span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">    languages?: </span><span style="color:#B07D48;--shiki-dark:#D6DEEB">BundledLanguage</span><span style="color:#999999;--shiki-dark:#D6DEEB">[];</span></span>
+<span class="line"><span style="color:#B07D48;--shiki-dark:#D6DEEB">    themeLight</span><span style="color:#AB5959;--shiki-dark:#C792EA">?:</span><span style="color:#B07D48;--shiki-dark:#D6DEEB"> BundledTheme</span><span style="color:#999999;--shiki-dark:#D6DEEB">;</span></span>
+<span class="line"><span style="color:#B07D48;--shiki-dark:#D6DEEB">    themeDark</span><span style="color:#AB5959;--shiki-dark:#C792EA">?:</span><span style="color:#B07D48;--shiki-dark:#D6DEEB"> BundledTheme</span><span style="color:#999999;--shiki-dark:#D6DEEB">;</span></span>
+<span class="line"><span style="color:#B07D48;--shiki-dark:#D6DEEB">    twoslash</span><span style="color:#AB5959;--shiki-dark:#C792EA">?:</span><span style="color:#B07D48;--shiki-dark:#D6DEEB"> boolean</span><span style="color:#AB5959;--shiki-dark:#C792EA"> |</span><span style="color:#B07D48;--shiki-dark:#D6DEEB"> CreateTwoslashSvelteOptions</span><span style="color:#999999;--shiki-dark:#D6DEEB">;</span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">}</span><span style="color:#AB5959;--shiki-dark:#C792EA"> |</span><span style="color:#AB5959;--shiki-dark:#82AAFF"> undefined</span></span></code></pre></code></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>highlighter</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#D6DEEB">: { </span></span>
+<span class="line"><span style="color:#998418;--shiki-dark:#D6DEEB">          </span><span style="color:#998418;--shiki-dark:#D6DEEB">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#B07D48;--shiki-dark:#D6DEEB">twoslash</span><span style="color:#AB5959;--shiki-dark:#C792EA">?:</span><span style="color:#B07D48;--shiki-dark:#D6DEEB"> boolean</span><span style="color:#AB5959;--shiki-dark:#C792EA"> |</span><span style="color:#B07D48;--shiki-dark:#D6DEEB"> CreateTwoslashSvelteOptions</span><span style="color:#AB5959;--shiki-dark:#C792EA"> |</span><span style="color:#AB5959;--shiki-dark:#82AAFF"> undefined</span></code></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>twoslash</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#D6DEEB">: </span><span style="color:#1E754F;--shiki-dark:#FF5874">true</span><span style="color:#999999;--shiki-dark:#D6DEEB"> </span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">        } </span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">      })</span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">    })</span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">  ]</span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">})</span></span></code></pre> <div class="svp-code-block--lang">ts</div> `);
+
+	CopyCode($$renderer, {});
+
+	$$renderer.push(`<!----></div></div> <h2>Basic type annotation</h2> <div class="svp-code-block-wrapper"><div class="svp-code-block"><pre class="shiki shiki-themes vitesse-light night-owl" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">\`\`\`</span><span style="color:#393A34;--shiki-dark:#D6DEEB">ts</span></span>
+<span class="line"><span style="color:#AB5959;--shiki-dark:#C792EA">const</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> foo</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#1E754F;--shiki-light-font-style:inherit;--shiki-dark:#FF5874;--shiki-dark-font-style:italic"> false</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#AB5959;--shiki-dark:#C792EA">const</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> obj</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#999999;--shiki-dark:#C792EA"> {</span></span>
+<span class="line"><span style="color:#998418;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic">  a</span><span style="color:#999999;--shiki-dark:#C792EA">:</span><span style="color:#B5695977;--shiki-dark:#D9F5DD"> '</span><span style="color:#B56959;--shiki-dark:#ECC48D">a</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">'</span><span style="color:#999999;--shiki-dark:#C792EA">,</span></span>
+<span class="line"><span style="color:#998418;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic">  b</span><span style="color:#999999;--shiki-dark:#C792EA">:</span><span style="color:#2F798A;--shiki-dark:#F78C6C"> 1</span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#C792EA">}</span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">\`\`\`</span></span></code></pre> <div class="svp-code-block--lang">md</div> `);
+
+	CopyCode($$renderer, {});
+
+	$$renderer.push(`<!----></div></div> <h2>Errors</h2> <div class="svp-code-block-wrapper"><div class="svp-code-block"><pre class="shiki shiki-themes vitesse-light night-owl" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">\`\`\`</span><span style="color:#393A34;--shiki-dark:#D6DEEB">ts</span></span>
+<span class="line"><span style="color:#A0ADA0;--shiki-light-font-style:inherit;--shiki-dark:#637777;--shiki-dark-font-style:italic">// @errors: 2304 2322</span></span>
+<span class="line"><span style="color:#AB5959;--shiki-dark:#C792EA">const</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> foo</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-light-font-style:inherit;--shiki-dark:#FFCB8B;--shiki-dark-font-style:italic"> Foo</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#AB5959;--shiki-light-font-style:inherit;--shiki-dark:#FF5874;--shiki-dark-font-style:italic"> null</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#AB5959;--shiki-dark:#C792EA">const</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> a</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-light-font-style:inherit;--shiki-dark:#C5E478;--shiki-dark-font-style:italic"> number</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#B5695977;--shiki-dark:#D9F5DD"> '</span><span style="color:#B56959;--shiki-dark:#ECC48D">1</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">'</span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">\`\`\`</span></span></code></pre> <div class="svp-code-block--lang">md</div> `);
+
+	CopyCode($$renderer, {});
+
+	$$renderer.push(`<!----></div></div> <h2>Queries</h2> <div class="svp-code-block-wrapper"><div class="svp-code-block"><pre class="shiki shiki-themes vitesse-light night-owl" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">\`\`\`</span><span style="color:#393A34;--shiki-dark:#D6DEEB">ts</span></span>
+<span class="line"><span style="color:#AB5959;--shiki-dark:#C792EA">const</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> hi</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#B5695977;--shiki-dark:#D9F5DD"> '</span><span style="color:#B56959;--shiki-dark:#ECC48D">Hello</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">'</span></span>
+<span class="line"><span style="color:#AB5959;--shiki-dark:#C792EA">const</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> msg</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#B5695977;--shiki-dark:#D6DEEB"> \`</span><span style="color:#1E754F;--shiki-dark:#D3423E">\${</span><span style="color:#B56959;--shiki-light-font-style:inherit;--shiki-dark:#D6DEEB;--shiki-dark-font-style:italic">hi</span><span style="color:#1E754F;--shiki-dark:#D3423E">}</span><span style="color:#B56959;--shiki-light-font-style:inherit;--shiki-dark:#ECC48D;--shiki-dark-font-style:italic">, world</span><span style="color:#B5695977;--shiki-dark:#D6DEEB">\`</span></span>
+<span class="line"><span style="color:#A0ADA0;--shiki-light-font-style:inherit;--shiki-dark:#637777;--shiki-dark-font-style:italic">//    ^?</span></span>
+<span class="line"><span style="color:#A0ADA0;--shiki-light-font-style:inherit;--shiki-dark:#637777;--shiki-dark-font-style:italic">//</span></span>
+<span class="line"><span style="color:#A0ADA0;--shiki-light-font-style:inherit;--shiki-dark:#637777;--shiki-dark-font-style:italic">//</span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">\`\`\`</span></span></code></pre> <div class="svp-code-block--lang">md</div> `);
+
+	CopyCode($$renderer, {});
+
+	$$renderer.push(`<!----></div></div> <h2>Cut codes</h2> <h3>Cut before</h3> <p>use <code>// ---cut---</code> or <code>// ---cut-before---</code> can cut all codes before this line</p> <div class="svp-code-block-wrapper"><div class="svp-code-block"><pre class="shiki shiki-themes vitesse-light night-owl" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">\`\`\`</span><span style="color:#393A34;--shiki-dark:#D6DEEB">ts</span></span>
+<span class="line"><span style="color:#AB5959;--shiki-dark:#C792EA">const</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> level</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-light-font-style:inherit;--shiki-dark:#C5E478;--shiki-dark-font-style:italic"> string</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#B5695977;--shiki-dark:#D9F5DD"> '</span><span style="color:#B56959;--shiki-dark:#ECC48D">Danger</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">'</span></span>
+<span class="line"><span style="color:#A0ADA0;--shiki-light-font-style:inherit;--shiki-dark:#637777;--shiki-dark-font-style:italic">// ---cut---</span></span>
+<span class="line"><span style="color:#B07D48;--shiki-dark:#D6DEEB">console</span><span style="color:#999999;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic">.</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic">log</span><span style="color:#999999;--shiki-dark:#D6DEEB">(</span><span style="color:#B07D48;--shiki-dark:#D6DEEB">level</span><span style="color:#999999;--shiki-dark:#D6DEEB">)</span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">\`\`\`</span></span></code></pre> <div class="svp-code-block--lang">md</div> `);
+
+	CopyCode($$renderer, {});
+
+	$$renderer.push(`<!----></div></div> <h3>Cut after</h3> <p>use <code>// ---cut-after---</code> can cut all codes after this line</p> <div class="svp-code-block-wrapper"><div class="svp-code-block"><pre class="shiki shiki-themes vitesse-light night-owl" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">\`\`\`</span><span style="color:#393A34;--shiki-dark:#D6DEEB">ts</span></span>
+<span class="line"><span style="color:#AB5959;--shiki-dark:#C792EA">const</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> level</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-light-font-style:inherit;--shiki-dark:#C5E478;--shiki-dark-font-style:italic"> string</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#B5695977;--shiki-dark:#D9F5DD"> '</span><span style="color:#B56959;--shiki-dark:#ECC48D">Danger</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">'</span></span>
+<span class="line"><span style="color:#A0ADA0;--shiki-light-font-style:inherit;--shiki-dark:#637777;--shiki-dark-font-style:italic">// ---cut-before---</span></span>
+<span class="line"><span style="color:#B07D48;--shiki-dark:#D6DEEB">console</span><span style="color:#999999;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic">.</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic">log</span><span style="color:#999999;--shiki-dark:#D6DEEB">(</span><span style="color:#B07D48;--shiki-dark:#D6DEEB">level</span><span style="color:#999999;--shiki-dark:#D6DEEB">)</span></span>
+<span class="line"><span style="color:#A0ADA0;--shiki-light-font-style:inherit;--shiki-dark:#637777;--shiki-dark-font-style:italic">// ---cut-after---</span></span>
+<span class="line"><span style="color:#B07D48;--shiki-dark:#D6DEEB">console</span><span style="color:#999999;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic">.</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic">log</span><span style="color:#999999;--shiki-dark:#D6DEEB">(</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">'</span><span style="color:#B56959;--shiki-dark:#ECC48D">This is not shown</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">'</span><span style="color:#999999;--shiki-dark:#D6DEEB">)</span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">\`\`\`</span></span></code></pre> <div class="svp-code-block--lang">md</div> `);
+
+	CopyCode($$renderer, {});
+
+	$$renderer.push(`<!----></div></div> <h3>Cut start/end</h3> <p>use <code>// ---cut-start---</code> and <code>// ---cut-end---</code> to cut contents between them</p> <div class="svp-code-block-wrapper"><div class="svp-code-block"><pre class="shiki shiki-themes vitesse-light night-owl" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">\`\`\`</span><span style="color:#393A34;--shiki-dark:#D6DEEB">ts</span></span>
+<span class="line"><span style="color:#AB5959;--shiki-dark:#C792EA">const</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> level</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-light-font-style:inherit;--shiki-dark:#C5E478;--shiki-dark-font-style:italic"> string</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#B5695977;--shiki-dark:#D9F5DD"> '</span><span style="color:#B56959;--shiki-dark:#ECC48D">Danger</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">'</span></span>
+<span class="line"><span style="color:#A0ADA0;--shiki-light-font-style:inherit;--shiki-dark:#637777;--shiki-dark-font-style:italic">// ---cut-start---</span></span>
+<span class="line"><span style="color:#B07D48;--shiki-dark:#D6DEEB">console</span><span style="color:#999999;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic">.</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic">log</span><span style="color:#999999;--shiki-dark:#D6DEEB">(</span><span style="color:#B07D48;--shiki-dark:#D6DEEB">level</span><span style="color:#999999;--shiki-dark:#D6DEEB">)</span><span style="color:#A0ADA0;--shiki-light-font-style:inherit;--shiki-dark:#637777;--shiki-dark-font-style:italic"> // This is not shown.</span></span>
+<span class="line"><span style="color:#A0ADA0;--shiki-light-font-style:inherit;--shiki-dark:#637777;--shiki-dark-font-style:italic">// ---cut-end---</span></span>
+<span class="line"><span style="color:#B07D48;--shiki-dark:#D6DEEB">console</span><span style="color:#999999;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic">.</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic">log</span><span style="color:#999999;--shiki-dark:#D6DEEB">(</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">'</span><span style="color:#B56959;--shiki-dark:#ECC48D">This is shown</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">'</span><span style="color:#999999;--shiki-dark:#D6DEEB">)</span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">\`\`\`</span></span></code></pre> <div class="svp-code-block--lang">md</div> `);
+
+	CopyCode($$renderer, {});
+
+	$$renderer.push(`<!----></div></div> <h2>Twoslash for svelte</h2> <div class="svp-code-block-wrapper"><div class="svp-code-block"><pre class="shiki shiki-themes vitesse-light night-owl twoslash lsp" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#999999;--shiki-dark:#7FDBCA">&lt;</span><span style="color:#1E754F;--shiki-dark:#CAECE6">script</span><span style="color:#999999;--shiki-dark:#7FDBCA">></span></span>
+<span class="line"><span style="color:#1E754F;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic">  import</span><span style="color:#999999;--shiki-dark:#D6DEEB"> {</span><span style="color:#B07D48;--shiki-dark:#D6DEEB"> </span><span style="color:#B07D48;--shiki-dark:#D6DEEB">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#393A34;--shiki-dark:#D6DEEB">function onMount</span><span style="color:#999999;--shiki-dark:#7FDBCA">&lt;</span><span style="color:#998418;--shiki-dark:#C5E478">T</span><span style="color:#999999;--shiki-dark:#7FDBCA">></span><span style="color:#393A34;--shiki-dark:#D6DEEB">(fn: () => NotFunction</span><span style="color:#999999;--shiki-dark:#7FDBCA">&lt;</span><span style="color:#998418;--shiki-dark:#C5E478">T</span><span style="color:#999999;--shiki-dark:#7FDBCA">></span><span style="color:#393A34;--shiki-dark:#D6DEEB"> | Promise</span><span style="color:#999999;--shiki-dark:#7FDBCA">&lt;</span><span style="color:#998418;--shiki-dark:#C5E478">NotFunction</span><span style="color:#393A34;--shiki-dark:#7FDBCA">&lt;</span><span style="color:#998418;--shiki-dark:#C5E478">T</span><span style="color:#999999;--shiki-dark:#7FDBCA">></span><span style="color:#393A34;--shiki-dark:#D6DEEB">> | (() => any)): void</span></code><div class="twoslash-popup-docs"><p><code>onMount</code>, like <a href="https://svelte.dev/docs/svelte/$effect"><code>$effect</code></a>, schedules a function to run as soon as the component has been mounted to the DOM.
+Unlike <code>$effect</code>, the provided function only runs once.</p>
+<p>It must be called during the component's initialisation (but doesn't need to live <em>inside</em> the component;
+it can be called from an external module). If a function is returned <em>synchronously</em> from <code>onMount</code>,
+it will be called when the component is unmounted.</p>
+<p><code>onMount</code> functions do not run during <a href="https://svelte.dev/docs/svelte/svelte-server#render">server-side rendering</a>.</p></div></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>onMount</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#D6DEEB"> }</span><span style="color:#1E754F;--shiki-light-font-style:inherit;--shiki-dark:#C792EA;--shiki-dark-font-style:italic"> from</span><span style="color:#B5695977;--shiki-dark:#D9F5DD"> '</span><span style="color:#B56959;--shiki-dark:#ECC48D">svelte</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#AB5959;--shiki-dark:#C792EA">  let</span><span style="color:#999999;--shiki-dark:#C792EA"> {</span><span style="color:#B07D48;--shiki-dark:#D7DBE0"> </span><span style="color:#B07D48;--shiki-dark:#D7DBE0">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#393A34;--shiki-dark:#D6DEEB">let message: any</span></code></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>message</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#B5695977;--shiki-dark:#D9F5DD"> '</span><span style="color:#B56959;--shiki-dark:#ECC48D">World</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">'</span><span style="color:#999999;--shiki-dark:#C792EA"> }</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#999999;--shiki-dark:#C792EA"> </span><span style="color:#999999;--shiki-dark:#C792EA">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><pre class="shiki shiki-themes vitesse-light night-owl" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#393A34;--shiki-dark:#D6DEEB">function $props(): any</span></span>
+<span class="line"><span style="color:#393A34;--shiki-dark:#D6DEEB">namespace $props</span></span></code></pre></code><div class="twoslash-popup-docs"><p>Declares the props that a component accepts. Example:</p>
+<pre class="shiki shiki-themes vitesse-light night-owl" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#AB5959;--shiki-dark:#C792EA">let</span><span style="color:#999999;--shiki-dark:#C792EA"> {</span><span style="color:#B07D48;--shiki-dark:#D7DBE0"> optionalProp</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#2F798A;--shiki-dark:#F78C6C"> 42</span><span style="color:#999999;--shiki-dark:#C792EA">,</span><span style="color:#B07D48;--shiki-dark:#D7DBE0"> requiredProp</span><span style="color:#999999;--shiki-dark:#C792EA">,</span><span style="color:#B07D48;--shiki-dark:#D7DBE0"> bindableProp</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> $bindable</span><span style="color:#999999;--shiki-dark:#D6DEEB">()</span><span style="color:#999999;--shiki-dark:#C792EA"> }</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#999999;--shiki-dark:#C792EA"> {</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#D6DEEB;--shiki-dark-font-style:italic"> optionalProp</span><span style="color:#AB5959;--shiki-dark:#7FDBCA">?</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-light-font-style:inherit;--shiki-dark:#C5E478;--shiki-dark-font-style:italic"> number</span><span style="color:#999999;--shiki-dark:#C792EA">;</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#D6DEEB;--shiki-dark-font-style:italic"> requiredProps</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-light-font-style:inherit;--shiki-dark:#C5E478;--shiki-dark-font-style:italic"> string</span><span style="color:#999999;--shiki-dark:#C792EA">;</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#D6DEEB;--shiki-dark-font-style:italic"> bindableProp</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-light-font-style:inherit;--shiki-dark:#C5E478;--shiki-dark-font-style:italic"> boolean</span><span style="color:#999999;--shiki-dark:#C792EA"> }</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> $props</span><span style="color:#999999;--shiki-dark:#D6DEEB">();</span></span></code></pre>
+<p><a href="https://svelte.dev/docs/svelte/$props">https://svelte.dev/docs/svelte/$props</a></p></div></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>$</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><pre class="shiki shiki-themes vitesse-light night-owl" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#393A34;--shiki-dark:#D6DEEB">function $props(): any</span></span>
+<span class="line"><span style="color:#393A34;--shiki-dark:#D6DEEB">namespace $props</span></span></code></pre></code><div class="twoslash-popup-docs"><p>Declares the props that a component accepts. Example:</p>
+<pre class="shiki shiki-themes vitesse-light night-owl" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#AB5959;--shiki-dark:#C792EA">let</span><span style="color:#999999;--shiki-dark:#C792EA"> {</span><span style="color:#B07D48;--shiki-dark:#D7DBE0"> optionalProp</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#2F798A;--shiki-dark:#F78C6C"> 42</span><span style="color:#999999;--shiki-dark:#C792EA">,</span><span style="color:#B07D48;--shiki-dark:#D7DBE0"> requiredProp</span><span style="color:#999999;--shiki-dark:#C792EA">,</span><span style="color:#B07D48;--shiki-dark:#D7DBE0"> bindableProp</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> $bindable</span><span style="color:#999999;--shiki-dark:#D6DEEB">()</span><span style="color:#999999;--shiki-dark:#C792EA"> }</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#999999;--shiki-dark:#C792EA"> {</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#D6DEEB;--shiki-dark-font-style:italic"> optionalProp</span><span style="color:#AB5959;--shiki-dark:#7FDBCA">?</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-light-font-style:inherit;--shiki-dark:#C5E478;--shiki-dark-font-style:italic"> number</span><span style="color:#999999;--shiki-dark:#C792EA">;</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#D6DEEB;--shiki-dark-font-style:italic"> requiredProps</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-light-font-style:inherit;--shiki-dark:#C5E478;--shiki-dark-font-style:italic"> string</span><span style="color:#999999;--shiki-dark:#C792EA">;</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#D6DEEB;--shiki-dark-font-style:italic"> bindableProp</span><span style="color:#999999;--shiki-dark:#7FDBCA">:</span><span style="color:#2E8F82;--shiki-light-font-style:inherit;--shiki-dark:#C5E478;--shiki-dark-font-style:italic"> boolean</span><span style="color:#999999;--shiki-dark:#C792EA"> }</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> $props</span><span style="color:#999999;--shiki-dark:#D6DEEB">();</span></span></code></pre>
+<p><a href="https://svelte.dev/docs/svelte/$props">https://svelte.dev/docs/svelte/$props</a></p></div></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>props</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#D6DEEB">()</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#AB5959;--shiki-dark:#C792EA">  let</span><span style="color:#B07D48;--shiki-dark:#D7DBE0"> </span><span style="color:#B07D48;--shiki-dark:#D7DBE0">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#393A34;--shiki-dark:#D6DEEB">let count: number</span></code></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>count</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#999999;--shiki-dark:#C792EA"> </span><span style="color:#999999;--shiki-dark:#C792EA">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><pre class="shiki shiki-themes vitesse-light night-owl" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#393A34;--shiki-dark:#D6DEEB">function $state</span><span style="color:#999999;--shiki-dark:#7FDBCA">&lt;</span><span style="color:#393A34;--shiki-dark:#7FDBCA">0</span><span style="color:#999999;--shiki-dark:#7FDBCA">></span><span style="color:#393A34;--shiki-dark:#D6DEEB">(initial: 0): 0 (+1 overload)</span></span>
+<span class="line"><span style="color:#393A34;--shiki-dark:#D6DEEB">namespace $state</span></span></code></pre></code><div class="twoslash-popup-docs"><p>Declares reactive state.</p>
+<p>Example:</p>
+<pre class="shiki shiki-themes vitesse-light night-owl" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#AB5959;--shiki-dark:#C792EA">let</span><span style="color:#B07D48;--shiki-dark:#D7DBE0"> count</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> $state</span><span style="color:#999999;--shiki-dark:#D6DEEB">(</span><span style="color:#2F798A;--shiki-dark:#F78C6C">0</span><span style="color:#999999;--shiki-dark:#D6DEEB">);</span></span></code></pre>
+<p><a href="https://svelte.dev/docs/svelte/$state">https://svelte.dev/docs/svelte/$state</a></p></div><div class="twoslash-popup-docs twoslash-popup-docs-tags"><span class="twoslash-popup-docs-tag"><span class="twoslash-popup-docs-tag-name">@param</span><span class="twoslash-popup-docs-tag-value"><code>initial</code>  The initial value</span></span></div></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>$</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><pre class="shiki shiki-themes vitesse-light night-owl" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#393A34;--shiki-dark:#D6DEEB">function $state</span><span style="color:#999999;--shiki-dark:#7FDBCA">&lt;</span><span style="color:#393A34;--shiki-dark:#7FDBCA">0</span><span style="color:#999999;--shiki-dark:#7FDBCA">></span><span style="color:#393A34;--shiki-dark:#D6DEEB">(initial: 0): 0 (+1 overload)</span></span>
+<span class="line"><span style="color:#393A34;--shiki-dark:#D6DEEB">namespace $state</span></span></code></pre></code><div class="twoslash-popup-docs"><p>Declares reactive state.</p>
+<p>Example:</p>
+<pre class="shiki shiki-themes vitesse-light night-owl" style="background-color:#ffffff;--shiki-dark-bg:#011627;color:#393a34;--shiki-dark:#d6deeb" tabindex="0"><code><span class="line"><span style="color:#AB5959;--shiki-dark:#C792EA">let</span><span style="color:#B07D48;--shiki-dark:#D7DBE0"> count</span><span style="color:#999999;--shiki-dark:#C792EA"> =</span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic"> $state</span><span style="color:#999999;--shiki-dark:#D6DEEB">(</span><span style="color:#2F798A;--shiki-dark:#F78C6C">0</span><span style="color:#999999;--shiki-dark:#D6DEEB">);</span></span></code></pre>
+<p><a href="https://svelte.dev/docs/svelte/$state">https://svelte.dev/docs/svelte/$state</a></p></div><div class="twoslash-popup-docs twoslash-popup-docs-tags"><span class="twoslash-popup-docs-tag"><span class="twoslash-popup-docs-tag-name">@param</span><span class="twoslash-popup-docs-tag-value"><code>initial</code>  The initial value</span></span></div></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>state</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#D6DEEB">(</span><span style="color:#2F798A;--shiki-dark:#F78C6C">0</span><span style="color:#999999;--shiki-dark:#D6DEEB">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic">  </span><span style="color:#59873A;--shiki-light-font-style:inherit;--shiki-dark:#82AAFF;--shiki-dark-font-style:italic">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#393A34;--shiki-dark:#D6DEEB">onMount</span><span style="color:#999999;--shiki-dark:#7FDBCA">&lt;</span><span style="color:#1E754F;--shiki-dark:#CAECE6">void</span><span style="color:#999999;--shiki-dark:#7FDBCA">></span><span style="color:#393A34;--shiki-dark:#D6DEEB">(fn: () => void | (() => any) | Promise</span><span style="color:#999999;--shiki-dark:#7FDBCA">&lt;</span><span style="color:#1E754F;--shiki-dark:#CAECE6">void</span><span style="color:#999999;--shiki-dark:#7FDBCA">></span><span style="color:#393A34;--shiki-dark:#D6DEEB">): void</span></code><div class="twoslash-popup-docs"><p><code>onMount</code>, like <a href="https://svelte.dev/docs/svelte/$effect"><code>$effect</code></a>, schedules a function to run as soon as the component has been mounted to the DOM.
+Unlike <code>$effect</code>, the provided function only runs once.</p>
+<p>It must be called during the component's initialisation (but doesn't need to live <em>inside</em> the component;
+it can be called from an external module). If a function is returned <em>synchronously</em> from <code>onMount</code>,
+it will be called when the component is unmounted.</p>
+<p><code>onMount</code> functions do not run during <a href="https://svelte.dev/docs/svelte/svelte-server#render">server-side rendering</a>.</p></div></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>onMount</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#D6DEEB">(</span><span style="color:#999999;--shiki-dark:#D9F5DD">()</span><span style="color:#999999;--shiki-dark:#C792EA"> =></span><span style="color:#999999;--shiki-dark:#D6DEEB"> {</span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#D6DEEB">  })</span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#7FDBCA">&lt;/</span><span style="color:#1E754F;--shiki-dark:#CAECE6">script</span><span style="color:#999999;--shiki-dark:#7FDBCA">></span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#7FDBCA">&lt;</span><span style="color:#1E754F;--shiki-dark:#CAECE6">button</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#C5E478;--shiki-dark-font-style:italic"> onclick</span><span style="color:#999999;--shiki-dark:#7FDBCA">=</span><span style="color:#999999;--shiki-dark:#D3423E">{</span><span style="color:#999999;--shiki-dark:#D9F5DD">()</span><span style="color:#999999;--shiki-dark:#C792EA"> =></span><span style="color:#B07D48;--shiki-dark:#D6DEEB"> </span><span style="color:#B07D48;--shiki-dark:#D6DEEB">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#393A34;--shiki-dark:#D6DEEB">let count: number</span></code></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>count</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#AB5959;--shiki-dark:#C792EA">++</span><span style="color:#999999;--shiki-dark:#D3423E">}</span><span style="color:#999999;--shiki-dark:#7FDBCA">></span></span>
+<span class="line"><span style="color:#393A34;--shiki-dark:#D6DEEB">  Count is: </span><span style="color:#999999;--shiki-dark:#D3423E">{</span><span style="color:#B07D48;--shiki-dark:#D6DEEB">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#393A34;--shiki-dark:#D6DEEB">let count: number</span></code></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>count</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#D3423E">}</span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#7FDBCA">&lt;/</span><span style="color:#1E754F;--shiki-dark:#CAECE6">button</span><span style="color:#999999;--shiki-dark:#7FDBCA">></span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#7FDBCA">&lt;</span><span style="color:#1E754F;--shiki-dark:#CAECE6">div</span><span style="color:#B07D48;--shiki-light-font-style:inherit;--shiki-dark:#C5E478;--shiki-dark-font-style:italic"> class</span><span style="color:#999999;--shiki-dark:#7FDBCA">=</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">"</span><span style="color:#B56959;--shiki-dark:#ECC48D">text-6</span><span style="color:#B5695977;--shiki-dark:#D9F5DD">"</span><span style="color:#999999;--shiki-dark:#7FDBCA">></span></span>
+<span class="line"><span style="color:#393A34;--shiki-dark:#D6DEEB">  Hello, </span><span style="color:#999999;--shiki-dark:#D3423E">{</span><span style="color:#B07D48;--shiki-dark:#D6DEEB">`);
+
+	{
+		function floatingContent($$renderer) {
+			$$renderer.push(`<span class="twoslash-popup-container"><code class="twoslash-popup-code"><span style="color:#393A34;--shiki-dark:#D6DEEB">let message: any</span></code></span>`);
+		}
+
+		Floating($$renderer, {
+			class: 'twoslash-hover',
+			floatingContent,
+			children: ($$renderer) => {
+				$$renderer.push(`<span>message</span>`);
+			},
+			$$slots: { floatingContent: true, default: true }
+		});
+	}
+
+	$$renderer.push(`<!----></span><span style="color:#999999;--shiki-dark:#D3423E">}</span></span>
+<span class="line"><span style="color:#999999;--shiki-dark:#7FDBCA">&lt;/</span><span style="color:#1E754F;--shiki-dark:#CAECE6">div</span><span style="color:#999999;--shiki-dark:#7FDBCA">></span></span></code></pre> <div class="svp-code-block--lang">svelte</div> `);
+
+	CopyCode($$renderer, {});
+	$$renderer.push(`<!----></div></div>`);
+}

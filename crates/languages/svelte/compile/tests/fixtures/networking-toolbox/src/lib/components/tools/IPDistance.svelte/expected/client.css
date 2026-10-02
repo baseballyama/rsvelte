@@ -1,0 +1,345 @@
+
+  .form-row.svelte-esn2mq {
+    display: grid;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+
+    @media (min-width: 768px) {
+      grid-template-columns: 2fr 200px;
+      align-items: start;
+    }
+  }
+
+  .textarea-group.svelte-esn2mq {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+
+    label:where(.svelte-esn2mq) {
+      color: var(--text-primary);
+      font-weight: 500;
+      font-size: var(--font-size-sm);
+    }
+
+    textarea:where(.svelte-esn2mq) {
+      width: 100%;
+      padding: var(--spacing-md);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: var(--font-size-sm);
+      resize: vertical;
+      min-height: 150px;
+      transition: all var(--transition-fast);
+
+      &:focus {
+        border-color: var(--color-primary);
+        outline: 2px solid color-mix(in srgb, var(--color-primary), transparent 70%);
+        outline-offset: 2px;
+      }
+    }
+
+    .input-help:where(.svelte-esn2mq) {
+      color: var(--text-secondary);
+      font-size: var(--font-size-xs);
+      line-height: 1.4;
+    }
+  }
+
+  .checkbox-section.svelte-esn2mq {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+
+    .checkbox-group:where(.svelte-esn2mq) {
+      display: flex;
+      flex-direction: column;
+      align-items: baseline;
+      gap: var(--spacing-xs);
+      .checkbox-label:where(.svelte-esn2mq) {
+        width: 100%;
+      }
+      .checkbox-text:where(.svelte-esn2mq) {
+        flex: 1;
+        justify-content: space-between;
+      }
+    }
+  }
+
+  .loading.svelte-esn2mq {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    justify-content: center;
+    padding: var(--spacing-lg);
+    color: var(--color-primary);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+  }
+
+  .results.svelte-esn2mq {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+    .card:where(.svelte-esn2mq) {
+      width: 100%;
+      .card-header:where(.svelte-esn2mq) {
+        flex-direction: row;
+      }
+    }
+  }
+
+  .error-content.svelte-esn2mq {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+
+    strong:where(.svelte-esn2mq) {
+      color: var(--color-error-light);
+      margin-bottom: var(--spacing-xs);
+    }
+
+    p:where(.svelte-esn2mq) {
+      color: var(--color-error-light);
+      font-size: var(--font-size-sm);
+      margin: var(--spacing-xs) 0;
+      line-height: 1.4;
+    }
+  }
+
+  .summary-stats.svelte-esn2mq {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--spacing-sm);
+    .info-card:where(.svelte-esn2mq) {
+      flex-direction: column;
+    }
+
+    @media (max-width: 768px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .export-buttons.svelte-esn2mq {
+    display: flex;
+    gap: var(--spacing-sm);
+
+    button:where(.svelte-esn2mq) {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      background: var(--color-primary);
+      color: var(--bg-primary);
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-xs);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+
+      &:hover {
+        background: color-mix(in srgb, var(--color-primary), black 10%);
+        transform: translateY(-1px);
+      }
+    }
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+
+      button:where(.svelte-esn2mq) {
+        justify-content: center;
+      }
+    }
+  }
+
+  .calculations-list.svelte-esn2mq {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .calculation-card.svelte-esn2mq {
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    background: var(--bg-tertiary);
+    transition: all var(--transition-fast);
+
+    &.valid {
+      border-color: var(--color-success);
+    }
+
+    &.invalid {
+      border-color: var(--color-error);
+    }
+  }
+
+  .calc-header.svelte-esn2mq {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      gap: var(--spacing-sm);
+      align-items: stretch;
+    }
+  }
+
+  .ip-pair.svelte-esn2mq {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    flex-wrap: wrap;
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      gap: var(--spacing-md);
+      align-items: stretch;
+    }
+  }
+
+  .ip-address.svelte-esn2mq {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xs);
+
+    .ip-label:where(.svelte-esn2mq) {
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      letter-spacing: 0.05em;
+    }
+  }
+
+  .direction-arrow.svelte-esn2mq {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    cursor: help;
+
+    @media (max-width: 768px) {
+      transform: rotate(90deg);
+    }
+  }
+
+  .status.svelte-esn2mq {
+    color: var(--color-success);
+
+    .calculation-card.invalid:where(.svelte-esn2mq) & {
+      color: var(--color-error);
+    }
+  }
+
+  .calculation-details.svelte-esn2mq {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .distance-info.svelte-esn2mq {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-md);
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      gap: var(--spacing-sm);
+      text-align: center;
+    }
+  }
+
+  .distance-value.svelte-esn2mq {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xs);
+
+    .distance-number:where(.svelte-esn2mq) {
+      font-size: var(--font-size-2xl);
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--color-primary);
+    }
+
+    .distance-label:where(.svelte-esn2mq) {
+      font-size: var(--font-size-sm);
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+  }
+
+  .calculation-meta.svelte-esn2mq {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+
+    .meta-item:where(.svelte-esn2mq) {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+  }
+
+  .intermediates.svelte-esn2mq {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+
+    .intermediates-header:where(.svelte-esn2mq) {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-sm);
+
+      h4:where(.svelte-esn2mq) {
+        color: var(--text-primary);
+        font-size: var(--font-size-md);
+        font-weight: 600;
+        margin: 0;
+      }
+    }
+
+    .intermediate-list:where(.svelte-esn2mq) {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+
+      .more-indicator:where(.svelte-esn2mq) {
+        font-size: var(--font-size-sm);
+        color: var(--text-secondary);
+        font-style: italic;
+        text-align: center;
+        padding: var(--spacing-xs);
+      }
+    }
+  }
+
+  .error-message.svelte-esn2mq {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    color: var(--color-error-light);
+    font-size: var(--font-size-sm);
+    padding: var(--spacing-md);
+    background: color-mix(in srgb, var(--color-error), transparent 95%);
+    border: 1px solid var(--color-error);
+    border-radius: var(--radius-md);
+
+    span:where(.svelte-esn2mq) {
+      line-height: 1.4;
+    }
+  }

@@ -1,0 +1,108 @@
+warning event_directive_deprecated 2:39-2:61 Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 3:41-3:63 Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 4:29-4:51 Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 5:26-5:48 Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 6:9-6:28 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 7:35-7:54 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 7:55-7:77 Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 8:34-8:53 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 8:54-8:76 Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 11:1-11:49 Elements with the 'button' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 11:20-11:42 Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 12:1-12:52 Elements with the 'menuitem' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 12:23-12:44 Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 13:1-13:46 Elements with the 'button' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 13:20-13:39 Using `on:keyup` to listen to the keyup event is deprecated. Use the event attribute `onkeyup` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 14:1-14:73 Elements with the 'menuitem' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 14:23-14:42 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 14:43-14:65 Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 15:1-15:52 Elements with the 'button' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 15:20-15:45 Using `on:contextmenu` to listen to the contextmenu event is deprecated. Use the event attribute `oncontextmenu` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 16:1-16:53 Elements with the 'menuitem' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 16:23-16:45 Using `on:dblclick` to listen to the dblclick event is deprecated. Use the event attribute `ondblclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 17:1-17:45 Elements with the 'button' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 17:20-17:38 Using `on:drag` to listen to the drag event is deprecated. Use the event attribute `ondrag` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 18:1-18:52 Elements with the 'menuitem' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 18:23-18:44 Using `on:dragend` to listen to the dragend event is deprecated. Use the event attribute `ondragend` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 19:1-19:50 Elements with the 'button' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 19:20-19:43 Using `on:dragenter` to listen to the dragenter event is deprecated. Use the event attribute `ondragenter` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 20:1-20:53 Elements with the 'menuitem' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 20:23-20:45 Using `on:dragexit` to listen to the dragexit event is deprecated. Use the event attribute `ondragexit` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 21:1-21:50 Elements with the 'button' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 21:20-21:43 Using `on:dragleave` to listen to the dragleave event is deprecated. Use the event attribute `ondragleave` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 22:1-22:53 Elements with the 'menuitem' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 22:23-22:45 Using `on:dragover` to listen to the dragover event is deprecated. Use the event attribute `ondragover` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 23:1-23:50 Elements with the 'button' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 23:20-23:43 Using `on:dragstart` to listen to the dragstart event is deprecated. Use the event attribute `ondragstart` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 24:1-24:49 Elements with the 'menuitem' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 24:23-24:41 Using `on:drop` to listen to the drop event is deprecated. Use the event attribute `ondrop` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 25:1-25:50 Elements with the 'button' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 25:20-25:43 Using `on:mousedown` to listen to the mousedown event is deprecated. Use the event attribute `onmousedown` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 26:1-26:55 Elements with the 'menuitem' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 26:23-26:47 Using `on:mouseenter` to listen to the mouseenter event is deprecated. Use the event attribute `onmouseenter` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 27:1-27:51 Elements with the 'button' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 27:20-27:44 Using `on:mouseleave` to listen to the mouseleave event is deprecated. Use the event attribute `onmouseleave` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 28:1-28:54 Elements with the 'menuitem' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 28:23-28:46 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 29:1-29:49 Elements with the 'button' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning a11y_mouse_events_have_key_events 29:1-29:49 'mouseout' event must be accompanied by 'blur' event
+    https://svelte.dev/e/a11y_mouse_events_have_key_events
+warning event_directive_deprecated 29:20-29:42 Using `on:mouseout` to listen to the mouseout event is deprecated. Use the event attribute `onmouseout` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 30:1-30:54 Elements with the 'menuitem' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning a11y_mouse_events_have_key_events 30:1-30:54 'mouseover' event must be accompanied by 'focus' event
+    https://svelte.dev/e/a11y_mouse_events_have_key_events
+warning event_directive_deprecated 30:23-30:46 Using `on:mouseover` to listen to the mouseover event is deprecated. Use the event attribute `onmouseover` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_interactive_supports_focus 31:1-31:48 Elements with the 'button' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning event_directive_deprecated 31:20-31:41 Using `on:mouseup` to listen to the mouseup event is deprecated. Use the event attribute `onmouseup` instead
+    https://svelte.dev/e/event_directive_deprecated

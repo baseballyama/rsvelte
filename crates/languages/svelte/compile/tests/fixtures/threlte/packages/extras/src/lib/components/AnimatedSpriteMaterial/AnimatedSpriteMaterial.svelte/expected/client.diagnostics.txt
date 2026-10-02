@@ -1,0 +1,10 @@
+warning state_referenced_locally 71:22-71:32 This reference only captures the initial value of `startFrame`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 73:20-73:25 This reference only captures the initial value of `flipX`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 93:16-93:26 This reference only captures the initial value of `textureUrl`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 106:5-106:12 This reference only captures the initial value of `dataUrl`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 107:36-107:43 This reference only captures the initial value of `dataUrl`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

@@ -1,0 +1,9 @@
+
+	.bar.svelte-o6efzn {
+		height: 50px;
+		padding: 12px;
+	}
+	.demo.svelte-o6efzn {
+		padding: 20px;
+		height: calc(100% - 50px);
+	}

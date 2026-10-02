@@ -1,0 +1,10 @@
+
+  @layer base {
+    :where(.lc-trail) {
+      --fill-color: var(--color-surface-content, currentColor);
+    }
+
+    :where(.lc-layout-svg .lc-trail, svg.lc-trail):not([fill]) {
+      fill: var(--fill-color);
+    }
+  }

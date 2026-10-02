@@ -1,0 +1,39 @@
+import * as $ from 'svelte/internal/server';
+import { BarChart, defaultChartPadding } from 'layerchart';
+import { createDateSeries } from '$lib/utils/data.js';
+
+export default function Series_horizontal($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const data = createDateSeries({
+			count: 10,
+			min: 20,
+			max: 100,
+			value: 'integer',
+			keys: ['value', 'baseline']
+		});
+
+		BarChart($$renderer, {
+			data,
+			y: 'date',
+			orientation: 'horizontal',
+			series: [
+				{
+					key: 'baseline',
+					color: 'var(--color-surface-content)',
+					props: { fillOpacity: 0.2 }
+				},
+
+				{
+					key: 'value',
+					color: 'var(--color-primary)',
+					props: { insets: { y: 4 } }
+				}
+			],
+			seriesLayout: 'overlap',
+			padding: defaultChartPadding({ left: 30, right: 25 }),
+			height: 400
+		});
+
+		$.bind_props($$props, { data });
+	});
+}

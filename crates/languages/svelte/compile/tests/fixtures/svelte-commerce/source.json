@@ -1,0 +1,13 @@
+{
+	"commit": "40e0965ecf720acfa38628abbab1982d4d676a15",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/itswadesh/svelte-commerce.git"
+}

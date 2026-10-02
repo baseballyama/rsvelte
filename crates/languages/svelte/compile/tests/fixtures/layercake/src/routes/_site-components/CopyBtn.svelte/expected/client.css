@@ -1,0 +1,50 @@
+
+	button.svelte-rutdsx {
+		all: unset; /* Remove default button styling */
+	}
+	button.svelte-rutdsx:focus {
+		outline: revert;
+		opacity: 1;
+	}
+	.copy.svelte-rutdsx {
+		position: absolute;
+		top: 0;
+		right: 0;
+		width: 20px;
+		height: 36px;
+		opacity: 0.25;
+		cursor: pointer;
+	}
+
+	.copy.svelte-rutdsx:hover {
+		opacity: 1;
+	}
+
+	.copy.svelte-rutdsx:active {
+		opacity: 0.7;
+	}
+
+	.copy.svelte-rutdsx:hover:before {
+		display: block;
+	}
+
+	.copy.svelte-rutdsx:before {
+		content: 'Copy to clipboard';
+		position: absolute;
+		top: -7px;
+		right: 0;
+		background-color: #000;
+		border-radius: 2px;
+		color: #fff;
+		display: none;
+		font-size: 13px;
+		padding: 3px 5px;
+		white-space: nowrap;
+		transform: translate(0%, -100%);
+	}
+
+	@media (max-width: 750px) {
+		.copy.svelte-rutdsx {
+			transform: translate(0, -80%);
+		}
+	}

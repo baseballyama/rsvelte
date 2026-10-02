@@ -1,0 +1,13 @@
+{
+	"commit": "1eb14b4c519d179728dcf1c7352d97fad6f168b9",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/svecosystem/mode-watcher.git"
+}

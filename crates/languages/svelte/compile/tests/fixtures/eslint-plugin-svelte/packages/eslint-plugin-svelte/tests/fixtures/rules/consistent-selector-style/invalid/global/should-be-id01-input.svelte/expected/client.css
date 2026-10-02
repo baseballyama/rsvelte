@@ -1,0 +1,50 @@
+
+  .link {
+    color: red;
+  }
+
+  .bold {
+    color: red;
+  }
+
+  .link:active {
+    color: red;
+  }
+
+  .link + .bold {
+    color: red;
+  }
+
+  .bold[data-key="val"] {
+    color: red;
+  }
+
+  .bold::before {
+    color: red;
+  }
+
+  /* :global {*/
+    .link {
+      color: red;
+    }
+
+    .bold {
+      color: red;
+    }
+
+    .link:active {
+      color: red;
+    }
+
+    .link + .bold {
+      color: red;
+    }
+
+    .bold[data-key="val"] {
+      color: red;
+    }
+
+    .bold::before {
+      color: red;
+    }
+  /*}*/

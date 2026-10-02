@@ -1,0 +1,2 @@
+warning non_reactive_update 4:7-4:19 `currentIndex` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

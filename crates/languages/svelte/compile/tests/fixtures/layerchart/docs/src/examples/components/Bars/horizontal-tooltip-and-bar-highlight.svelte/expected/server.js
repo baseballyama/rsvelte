@@ -1,0 +1,101 @@
+import * as $ from 'svelte/internal/server';
+import { scaleBand } from 'd3-scale';
+import { Bars, Axis, Chart, Highlight, Layer, Tooltip } from 'layerchart';
+import { createDateSeries } from '$lib/utils/data.js';
+
+export default function Horizontal_tooltip_and_bar_highlight($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const data = createDateSeries({
+			count: 10,
+			min: 20,
+			max: 100,
+			value: 'integer',
+			keys: ['value', 'baseline']
+		});
+
+		Chart($$renderer, {
+			data,
+			x: 'value',
+			xDomain: [0, null],
+			xNice: true,
+			y: 'date',
+			yScale: scaleBand().padding(0.4),
+			padding: { left: 32, bottom: 20, right: 8 },
+			tooltipContext: { mode: 'band' },
+			class: 'group',
+			height: 300,
+			children: ($$renderer) => {
+				Layer($$renderer, {
+					children: ($$renderer) => {
+						Axis($$renderer, { placement: 'bottom', grid: true, rule: true });
+						$$renderer.push(`<!----> `);
+						Axis($$renderer, { placement: 'left', rule: true });
+						$$renderer.push(`<!----> `);
+
+						Bars($$renderer, {
+							strokeWidth: 1,
+							class: 'fill-primary group-hover:fill-gray-300 transition-colors'
+						});
+
+						$$renderer.push(`<!----> `);
+						Highlight($$renderer, { area: true, bar: { class: 'fill-primary', strokeWidth: 1 } });
+						$$renderer.push(`<!---->`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!----> `);
+
+				{
+					function children($$renderer, { data }) {
+						if (Tooltip.Header) {
+							$$renderer.push('<!--[-->');
+							Tooltip.Header($$renderer, { value: data.date, format: 'day' });
+							$$renderer.push('<!--]-->');
+						} else {
+							$$renderer.push('<!--[!-->');
+							$$renderer.push('<!--]-->');
+						}
+
+						$$renderer.push(` `);
+
+						if (Tooltip.List) {
+							$$renderer.push('<!--[-->');
+
+							Tooltip.List($$renderer, {
+								children: ($$renderer) => {
+									if (Tooltip.Item) {
+										$$renderer.push('<!--[-->');
+										Tooltip.Item($$renderer, { label: 'value', value: data.value });
+										$$renderer.push('<!--]-->');
+									} else {
+										$$renderer.push('<!--[!-->');
+										$$renderer.push('<!--]-->');
+									}
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push('<!--]-->');
+						} else {
+							$$renderer.push('<!--[!-->');
+							$$renderer.push('<!--]-->');
+						}
+					}
+
+					if (Tooltip.Root) {
+						$$renderer.push('<!--[-->');
+						Tooltip.Root($$renderer, { children, $$slots: { default: true } });
+						$$renderer.push('<!--]-->');
+					} else {
+						$$renderer.push('<!--[!-->');
+						$$renderer.push('<!--]-->');
+					}
+				}
+			},
+			$$slots: { default: true }
+		});
+
+		$.bind_props($$props, { data });
+	});
+}

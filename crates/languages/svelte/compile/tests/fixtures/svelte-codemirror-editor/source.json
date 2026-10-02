@@ -1,0 +1,13 @@
+{
+	"commit": "034a0873b2f53065265f220887b499c7d1ed1e90",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/touchifyapp/svelte-codemirror-editor.git"
+}

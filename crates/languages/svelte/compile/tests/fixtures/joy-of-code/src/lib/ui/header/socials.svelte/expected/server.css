@@ -1,0 +1,10 @@
+
+	.socials.svelte-21474c {
+		display: none;
+
+		@media (width >= 768px) {
+			display: flex;
+			align-items: center;
+			gap: var(--spacing-16);
+		}
+	}

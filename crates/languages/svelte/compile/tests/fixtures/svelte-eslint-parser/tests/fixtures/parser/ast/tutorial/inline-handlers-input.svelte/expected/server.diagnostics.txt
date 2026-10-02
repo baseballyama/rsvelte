@@ -1,0 +1,6 @@
+warning a11y_no_static_element_interactions 14:1-16:7 `<div>` with a mousemove handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning event_directive_deprecated 14:6-14:62 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning non_reactive_update 2:6-2:7 `m` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

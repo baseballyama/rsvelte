@@ -1,0 +1,9 @@
+
+	.foo.svelte-1je22cm {
+		height: 20px;
+		width: 20px;
+		& .bar:where(.svelte-1je22cm) {
+			height: 10px;
+			width: 10px;
+		}
+	}

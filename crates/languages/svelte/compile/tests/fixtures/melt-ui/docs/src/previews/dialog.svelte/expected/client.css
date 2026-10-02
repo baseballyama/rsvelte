@@ -1,0 +1,49 @@
+
+	dialog.svelte-152tzhz {
+		opacity: 0;
+		scale: 0.8;
+		transition:
+			scale cubic-bezier(0.175, 0.885, 0.32, 1.275) 250ms,
+			opacity 200ms ease;
+	}
+
+	dialog.svelte-152tzhz::backdrop {
+		display: none;
+	}
+
+	dialog[data-open].svelte-152tzhz {
+		opacity: 1;
+		scale: 1;
+	}
+
+	[data-melt-dialog-overlay].svelte-152tzhz {
+		position: fixed;
+		width: 100%;
+		height: 100%;
+		background: transparent;
+		background: color-mix(in oklch, var(--color-black) 50%, transparent);
+		backdrop-filter: blur(20px);
+		opacity: 0;
+		transition: 200ms ease;
+	}
+
+	[data-melt-dialog-overlay][data-open].svelte-152tzhz {
+		opacity: 1;
+	}
+
+	.fade-in.svelte-152tzhz {
+		animation: svelte-152tzhz-fade-in 0.2s ease-in-out;
+	}
+
+	@keyframes svelte-152tzhz-fade-in {
+		from {
+			opacity: 0;
+			filter: blur(10px);
+			scale: 1.2;
+		}
+		to {
+			opacity: 1;
+			filter: blur(0);
+			scale: 1;
+		}
+	}

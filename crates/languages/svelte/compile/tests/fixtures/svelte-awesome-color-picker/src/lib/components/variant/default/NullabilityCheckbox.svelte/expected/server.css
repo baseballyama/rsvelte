@@ -1,0 +1,33 @@
+
+	label.svelte-16zqh08 {
+		display: flex;
+		justify-content: center;
+		margin-bottom: 4px;
+		grid-area: nullable;
+		user-select: none;
+	}
+	input.svelte-16zqh08 {
+		margin: 0;
+	}
+	input.svelte-16zqh08:focus-visible {
+		outline: none;
+	}
+	input.svelte-16zqh08:focus-visible + span:where(.svelte-16zqh08) {
+		width: 14px;
+		height: 14px;
+		border-radius: 2px;
+		outline: 2px solid var(--focus-color, red);
+		outline-offset: 2px;
+	}
+
+	div.svelte-16zqh08 {
+		width: 32px;
+		aspect-ratio: 2;
+		position: relative;
+	}
+	div.svelte-16zqh08 :where(.svelte-16zqh08) {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+	}

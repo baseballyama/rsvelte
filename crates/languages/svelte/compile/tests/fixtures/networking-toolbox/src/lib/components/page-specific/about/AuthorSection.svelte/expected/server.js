@@ -1,0 +1,101 @@
+import * as $ from 'svelte/internal/server';
+import { author } from '$lib/constants/site';
+
+export default function AuthorSection($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { longMode = false } = $$props;
+
+		const moreApps = [
+			{
+				name: 'domain-locker',
+				title: 'Domain Locker',
+				icon: 'https://cdn.as93.net/logo/domain-locker/w128',
+				description: 'Domain name portfolio app for monitoring your domains',
+				color: '#9571ff'
+			},
+
+			{
+				name: 'web-check',
+				title: 'Web Check',
+				description: 'The ultimate all-in-one OSINT tool for analyzing any website',
+				icon: 'https://cdn.as93.net/logo/web-check/w128',
+				color: '#9fef00'
+			},
+
+			{
+				name: 'permissionator',
+				title: 'Permissionator',
+				description: 'A Linux chmod calculator, for generating safe file permissions',
+				icon: 'https://cdn.as93.net/logo/permissionator/w128',
+				color: '#05df72'
+			},
+
+			{
+				name: 'personal-security-checklist',
+				title: 'Digital Defense',
+				description: 'The ultimate security checklist, for protecting your data online',
+				icon: 'https://pixelflare.cc/alicia/logo/digital-defense/w128',
+				color: '#a78bfa'
+			},
+
+			{
+				name: 'awesome-privacy',
+				title: 'Awesome Privacy',
+				icon: 'https://pixelflare.cc/alicia/logo/awesome-privacy/w128',
+				description: 'A curated list of services which respects your privacy',
+				color: '#fc60a8'
+			},
+
+			{
+				name: 'dashy',
+				title: 'Dashy',
+				description: 'A self-hostable personal server dashboard',
+				icon: 'https://cdn.as93.net/logo/dashy/w128',
+				color: '#00efe3'
+			}
+		];
+
+		$$renderer.push(`<section id="author"><h2>Author</h2> `);
+
+		if (longMode) {
+			$$renderer.push(`<!--[0--><h3>About Me</h3>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> <div class="author-section svelte-183v3ap"><div class="author-bio"><p class="svelte-183v3ap">This was built by me, <a${$.attr('href', author.url)} target="_blank" rel="noopener noreferrer">${$.escape(author.name)}</a> (<a target="_blank" rel="noopener noreferrer"${$.attr('href', author.githubUrl)}>@${$.escape(author.github)}</a> on GitHub). I'm an open
+        source developer, passionate about Linux, security and the web.</p> <p class="svelte-183v3ap">I build free and open source software for the developers, sysadmins and sometimes humans. My objective is to
+        build tools that respect a user's privacy and are accessible to everyone. I have a particular interest in
+        security, Linux and self-hosting. But also just love to build things that are fun and (sometimes, maybe) useful.</p></div> <img class="profile-photo svelte-183v3ap"${$.attr('src', author.avatar)}${$.attr('alt', author.name)} width="128"/></div> `);
+
+		if (longMode) {
+			$$renderer.push(`<!--[0--><div class="link-button blue"><a href="https://aliciasykes.com" target="_blank">Website</a></div>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> `);
+
+		if (longMode) {
+			$$renderer.push(`<!--[0--><h3>Sponsorship</h3> <p>I have developed, open sourced and maintain 100+ applications and libraries, used by over 1 million people every
+      year. And pretty much everything I build is free to use, open source, and without ads, tracking or paywalls.
+      Because I believe software should be free and accessible to everyone. <br/><br/> But running these projects does cost money. And maintaining them takes time. So, if you've found this app useful, please
+      consider <a${$.attr('href', author.sponsor)} target="_blank" rel="noopener noreferrer">sponsoring me</a>. My sponsors mean
+      the world to me, and it's because of their generosity that this app can remain free for everyone.</p> <div class="link-button pink"><a href="https://github.com/sponsors/lissy93" target="_blank">Sponsor</a></div> <h3 id="more-apps">More Apps</h3> <p>If you've found this app useful, you might also like some of my other projects:</p> <ul class="more-app-list svelte-183v3ap"><!--[-->`);
+
+			const each_array = $.ensure_array_like(moreApps);
+
+			for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+				let app = each_array[$$index];
+
+				$$renderer.push(`<li class="app-item svelte-183v3ap"><img${$.attr('src', app.icon)}${$.attr('alt', app.title)} width="24" height="24" class="svelte-183v3ap"/> <div class="app-content svelte-183v3ap"><a${$.attr('href', `https://github.com/lissy93/${$.stringify(app.name)}`)} target="_blank" rel="noopener noreferrer"${$.attr_style(`--app-color: ${$.stringify(app.color)}`)} class="svelte-183v3ap">${$.escape(app.title)}</a> <span class="app-description svelte-183v3ap">${$.escape(app.description)}</span></div></li>`);
+			}
+
+			$$renderer.push(`<!--]--></ul> <div class="link-button purple"><a href="https://lissy93.github.io" target="_blank">More Apps</a></div>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></section>`);
+	});
+}

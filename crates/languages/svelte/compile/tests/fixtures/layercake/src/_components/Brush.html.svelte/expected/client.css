@@ -1,0 +1,32 @@
+
+	.brush-outer.svelte-4c8z9u {
+		position: relative;
+		width: 100%;
+		height: calc(100% + 5px);
+		top: -5px;
+	}
+
+	.brush-inner.svelte-4c8z9u {
+		position: absolute;
+		height: 100%;
+		cursor: move;
+		/* mix-blend-mode: difference; */
+		background-color: #cccccc90;
+		/* border: 1px solid #000; */
+	}
+
+	.brush-handle.svelte-4c8z9u {
+		position: absolute;
+		width: 0;
+		height: 100%;
+		cursor: ew-resize;
+	}
+
+	.brush-handle.svelte-4c8z9u::before {
+		position: absolute;
+		content: '';
+		width: 8px;
+		left: -4px;
+		height: 100%;
+		background: transparent;
+	}

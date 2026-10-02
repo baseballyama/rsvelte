@@ -1,0 +1,9 @@
+
+  .hide-file-ui.svelte-s8jtzn input[type='file']::file-selector-button {
+    display: none;
+  }
+
+  .hide-file-ui.svelte-s8jtzn
+    :not(.mdc-text-field--label-floating) input[type='file'] {
+    color: transparent;
+  }

@@ -1,0 +1,13 @@
+{
+	"commit": "e7b421e30e31fd5189b65a6bca0f6d4cc8edb129",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/mhkeller/layercake"
+}

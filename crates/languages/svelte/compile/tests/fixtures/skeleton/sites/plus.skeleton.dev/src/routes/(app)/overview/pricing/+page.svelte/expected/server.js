@@ -1,0 +1,303 @@
+import * as $ from 'svelte/internal/server';
+import { MinusIcon, PlusIcon } from '@lucide/svelte';
+import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
+import CheckIcon from '@lucide/svelte/icons/check';
+import { Accordion } from '@skeletonlabs/skeleton-svelte';
+
+export default function _page($$renderer, $$props) {
+	const freeFeatures = [
+		'Studio tools',
+		'Save & manage themes',
+		'All free blocks',
+		'All free templates',
+		'Community tools',
+		'Fundamental tutorials',
+		'Community tools'
+	];
+
+	const individualFeatures = [
+		'Everything in Free',
+		'Expanded theme storage',
+		'All premium blocks',
+		'All premium templates',
+		'Figma UI kit',
+		'Advanced tutorials',
+		'Priority support'
+	];
+
+	const teamFeatures = [
+		'Everything in Individual',
+		'Up to 25 team seats',
+		'Shared theme collections',
+		'Admin controls',
+		'Dedicated support'
+	];
+
+	const compareRows = [
+		{
+			feature: 'Studio tools',
+			free: '✓',
+			individual: '✓',
+			team: '✓'
+		},
+
+		{
+			feature: 'Community themes',
+			free: '✓',
+			individual: '✓',
+			team: '✓'
+		},
+
+		{
+			feature: 'Save & manage themes',
+			free: 'Max of 5',
+			individual: 'Unlimited',
+			team: 'Unlimited'
+		},
+
+		{
+			feature: 'Blocks',
+			free: 'Limited',
+			individual: 'All',
+			team: 'All'
+		},
+
+		{
+			feature: 'Templates',
+			free: '2 Free',
+			individual: 'All',
+			team: 'All'
+		},
+
+		{
+			feature: 'Tutorials',
+			free: 'Fundamentals',
+			individual: 'All',
+			team: 'All'
+		},
+
+		{
+			feature: 'Figma UI Kit',
+			free: '',
+			individual: '✓',
+			team: '✓'
+		},
+
+		{
+			feature: 'Community tools',
+			free: '✓',
+			individual: '✓',
+			team: '✓'
+		},
+		{ feature: 'Team seats', free: '', individual: '', team: '25' },
+		{
+			feature: 'Shared theme collections',
+			free: '',
+			individual: '',
+			team: '✓'
+		},
+
+		{
+			feature: 'Admin controls',
+			free: '',
+			individual: '',
+			team: '✓'
+		},
+
+		{
+			feature: 'Priority support',
+			free: '',
+			individual: '✓',
+			team: '✓'
+		},
+
+		{
+			feature: 'Dedicated support',
+			free: '',
+			individual: '',
+			team: '✓'
+		}
+	];
+
+	const faqs = [
+		{
+			value: 'free-tier',
+			question: 'What do I get for free?',
+			answer: 'Full access to all Studio tools, the ability to save and manage up to 5 themes, all free blocks and templates, community tools, and our fundamentals tutorial library. Free forever with a basic Plus account. No credit card required.'
+		},
+
+		{
+			value: 'lifetime-updates',
+			question: 'Does "lifetime updates" really mean lifetime?',
+			answer: 'Yes. A one-time purchase of any Plus tier grants you access to all future updates to the assets and features included in that tier, with no recurring subscription fee. As Skeleton evolves, your Plus license evolves with it.'
+		},
+
+		{
+			value: 'team-seats',
+			question: 'How do team seats work?',
+			answer: 'A Plus Team license covers up to 25 individual seats. Each seat holder gets their own Plus Individual benefits plus access to shared team features like theme collections and admin controls. Seats are managed by the account owner through the team admin panel.'
+		},
+
+		{
+			value: 'upgrade',
+			question: 'Can I upgrade from Individual to Team later?',
+			answer: 'Yes. You can upgrade your license at any time. When upgrading from Plus Individual to Plus Team, you will only be charged the difference in price. Your existing themes, blocks, and templates remain intact.'
+		}
+	];
+
+	$$renderer.push(`<section class="container-page preset-tonal-warning text-center space-y-2!"><p><strong>WARNING</strong>: this page is a <u>work in progress</u> and may not represent the final tier information.</p></section> <section class="container-page border-b border-surface-200-800 lg:py-20! text-center space-y-2!"><h1 class="h1 text-balance">Purchase once. Access forever.</h1> <p class="opacity-60">Access a variety of free and premium features to level up your Skeleton applications.</p></section> <section class="border-b border-surface-200-800"><div class="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-surface-200-800"><div class="container-cell p-10! lg:p-16! flex flex-col gap-6"><div class="space-y-2"><p class="text-xs font-semibold uppercase tracking-widest opacity-60">Basic</p> <div class="flex items-end gap-2"><p class="text-5xl font-bold">FREE</p></div> <p class="opacity-60 text-sm">For everyone, forever.</p></div> <a href="/auth/sign-in" class="btn btn-lg preset-outlined-surface-200-800 w-full"><span>Get Plus</span> `);
+	ArrowRightIcon($$renderer, {});
+	$$renderer.push(`<!----></a> <ul class="space-y-3"><!--[-->`);
+
+	const each_array = $.ensure_array_like(freeFeatures);
+
+	for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+		let feature = each_array[$$index];
+
+		$$renderer.push(`<li class="flex items-center gap-3">`);
+		CheckIcon($$renderer, { class: 'size-4 opacity-60 shrink-0' });
+		$$renderer.push(`<!----> <span class="text-sm">${$.escape(feature)}</span></li>`);
+	}
+
+	$$renderer.push(`<!--]--></ul></div> <div class="preset-tonal-primary container-cell p-10! lg:p-16! flex flex-col gap-6"><div class="space-y-2"><p class="text-xs font-semibold uppercase tracking-widest opacity-60">Individual</p> <div class="flex items-end gap-2"><p class="text-5xl font-bold">$XXX</p> <div><p>USD</p> <p>One-Time</p></div></div> <p class="opacity-60 text-sm">One-time payment. Lifetime updates for you.</p></div> <a href="/#" class="btn btn-lg preset-filled w-full"><span>Get Plus</span> `);
+	ArrowRightIcon($$renderer, {});
+	$$renderer.push(`<!----></a> <ul class="space-y-3"><!--[-->`);
+
+	const each_array_1 = $.ensure_array_like(individualFeatures);
+
+	for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
+		let feature = each_array_1[$$index_1];
+
+		$$renderer.push(`<li class="flex items-center gap-3">`);
+		CheckIcon($$renderer, { class: 'size-4 opacity-60 shrink-0' });
+		$$renderer.push(`<!----> <span class="text-sm">${$.escape(feature)}</span></li>`);
+	}
+
+	$$renderer.push(`<!--]--></ul></div> <div class="container-cell p-10! lg:p-16! flex flex-col gap-6"><div class="space-y-2"><p class="text-xs font-semibold uppercase tracking-widest opacity-60">Team</p> <div class="flex items-end gap-2"><p class="text-5xl font-bold">$XXX</p> <div><p>USD</p> <p>One-Time</p></div></div> <p class="opacity-60 text-sm">One-time payment. Lifetime updates for your team.</p></div> <a href="/#" class="btn btn-lg preset-filled w-full"><span>Get Plus</span> `);
+	ArrowRightIcon($$renderer, {});
+	$$renderer.push(`<!----></a> <ul class="space-y-3"><!--[-->`);
+
+	const each_array_2 = $.ensure_array_like(teamFeatures);
+
+	for (let $$index_2 = 0, $$length = each_array_2.length; $$index_2 < $$length; $$index_2++) {
+		let feature = each_array_2[$$index_2];
+
+		$$renderer.push(`<li class="flex items-center gap-3">`);
+		CheckIcon($$renderer, { class: 'size-4 opacity-60 shrink-0' });
+		$$renderer.push(`<!----> <span class="text-sm">${$.escape(feature)}</span></li>`);
+	}
+
+	$$renderer.push(`<!--]--></ul></div></div></section> <section class="container-page border-b border-surface-200-800"><div class="card preset-filled-surface-50-950 border border-surface-200-800 table-wrap"><table class="table caption-bottom"><thead><tr><th class="text-surface-950-50"> </th><th class="text-surface-950-50 text-center">Basic</th><th class="text-surface-950-50 text-center">Individual</th><th class="text-surface-950-50 text-center">Team</th></tr></thead><tbody class="[&amp;>tr]:hover:preset-filled-surface-100-900"><!--[-->`);
+
+	const each_array_3 = $.ensure_array_like(compareRows);
+
+	for (let $$index_3 = 0, $$length = each_array_3.length; $$index_3 < $$length; $$index_3++) {
+		let row = each_array_3[$$index_3];
+
+		$$renderer.push(`<tr><td class="p-4 font-bold">${$.escape(row.feature)}</td><td class="p-4 text-center opacity-60">${$.escape(row.free)}</td><td class="p-4 text-center opacity-60">${$.escape(row.individual)}</td><td class="p-4 text-center opacity-60">${$.escape(row.team)}</td></tr>`);
+	}
+
+	$$renderer.push(`<!--]--></tbody></table></div></section> <section class="container-page mx-auto grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4 md:gap-10"><h2 class="h2 text-balance">Frequently Asked Questions.</h2> `);
+
+	Accordion($$renderer, {
+		collapsible: true,
+		children: ($$renderer) => {
+			$$renderer.push(`<!--[-->`);
+
+			const each_array_4 = $.ensure_array_like(faqs);
+
+			for (let i = 0, $$length = each_array_4.length; i < $$length; i++) {
+				let faq = each_array_4[i];
+
+				if (Accordion.Item) {
+					$$renderer.push('<!--[-->');
+
+					Accordion.Item($$renderer, {
+						value: faq.value,
+						children: ($$renderer) => {
+							$$renderer.push(`<h3>`);
+
+							if (Accordion.ItemTrigger) {
+								$$renderer.push('<!--[-->');
+
+								Accordion.ItemTrigger($$renderer, {
+									class: 'flex justify-between items-center font-bold type-scale-5',
+									children: ($$renderer) => {
+										$$renderer.push(`<span class="h5">${$.escape(faq.question)}</span> `);
+
+										if (Accordion.ItemIndicator) {
+											$$renderer.push('<!--[-->');
+
+											Accordion.ItemIndicator($$renderer, {
+												class: 'group',
+												children: ($$renderer) => {
+													MinusIcon($$renderer, { class: 'size-4 group-data-[state=open]:block hidden' });
+													$$renderer.push(`<!----> `);
+													PlusIcon($$renderer, { class: 'size-4 group-data-[state=open]:hidden block' });
+													$$renderer.push(`<!---->`);
+												},
+												$$slots: { default: true }
+											});
+
+											$$renderer.push('<!--]-->');
+										} else {
+											$$renderer.push('<!--[!-->');
+											$$renderer.push('<!--]-->');
+										}
+									},
+									$$slots: { default: true }
+								});
+
+								$$renderer.push('<!--]-->');
+							} else {
+								$$renderer.push('<!--[!-->');
+								$$renderer.push('<!--]-->');
+							}
+
+							$$renderer.push(`</h3> `);
+
+							if (Accordion.ItemContent) {
+								$$renderer.push('<!--[-->');
+
+								Accordion.ItemContent($$renderer, {
+									class: 'opacity-60',
+									children: ($$renderer) => {
+										$$renderer.push(`<!---->${$.escape(faq.answer)}`);
+									},
+									$$slots: { default: true }
+								});
+
+								$$renderer.push('<!--]-->');
+							} else {
+								$$renderer.push('<!--[!-->');
+								$$renderer.push('<!--]-->');
+							}
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push('<!--]-->');
+				} else {
+					$$renderer.push('<!--[!-->');
+					$$renderer.push('<!--]-->');
+				}
+
+				$$renderer.push(` `);
+
+				if (i < faqs.length - 1) {
+					$$renderer.push(`<!--[0--><hr class="hr"/>`);
+				} else {
+					$$renderer.push('<!--[-1-->');
+				}
+
+				$$renderer.push(`<!--]-->`);
+			}
+
+			$$renderer.push(`<!--]-->`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></section>`);
+	$.bind_props($$props, { faqs });
+}

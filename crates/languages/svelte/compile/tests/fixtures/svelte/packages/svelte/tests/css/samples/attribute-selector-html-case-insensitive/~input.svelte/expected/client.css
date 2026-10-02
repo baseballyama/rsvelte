@@ -1,0 +1,12 @@
+
+	form[method="get"].svelte-gbyeyc h1:where(.svelte-gbyeyc) {
+		color: red;
+	}
+
+	form[method="post"].svelte-gbyeyc h1:where(.svelte-gbyeyc) {
+		color: blue;
+	}
+
+	input[type="text"].svelte-gbyeyc {
+		color: green;
+	}

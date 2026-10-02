@@ -1,0 +1,2 @@
+warning bind_invalid_each_rest 5:36-5:40 The rest operator (...) will create a new object and binding 'rest' with the original object will not work
+    https://svelte.dev/e/bind_invalid_each_rest

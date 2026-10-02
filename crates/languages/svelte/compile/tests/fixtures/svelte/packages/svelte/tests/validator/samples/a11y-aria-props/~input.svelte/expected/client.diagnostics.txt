@@ -1,0 +1,4 @@
+warning a11y_unknown_aria_attribute 1:21-1:41 Unknown aria attribute 'aria-labeledby'. Did you mean 'labelledby'?
+    https://svelte.dev/e/a11y_unknown_aria_attribute
+warning a11y_missing_attribute 1:1-1:42 `<input type="image">` element should have an alt, aria-label or aria-labelledby attribute
+    https://svelte.dev/e/a11y_missing_attribute

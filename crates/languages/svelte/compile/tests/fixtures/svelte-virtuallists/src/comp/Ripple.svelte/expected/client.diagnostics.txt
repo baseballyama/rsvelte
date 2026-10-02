@@ -1,0 +1,10 @@
+warning state_referenced_locally 29:30-29:36 This reference only captures the initial value of `sizeIn`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 29:50-29:55 This reference only captures the initial value of `speed`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 30:33-30:42 This reference only captures the initial value of `opacityIn`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 30:56-30:61 This reference only captures the initial value of `speed`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 30:64-30:69 This reference only captures the initial value of `speed`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

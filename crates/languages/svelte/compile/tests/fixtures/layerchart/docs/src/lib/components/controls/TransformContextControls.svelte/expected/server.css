@@ -1,0 +1,67 @@
+
+	@layer components {
+		:where(.lc-transform-controls.svelte-1i98pia) {
+			display: flex;
+			background: color-mix(
+				in oklab,
+				var(--color-surface-300, light-dark(white, black)) 50%,
+				transparent
+			);
+			border: 1px solid
+				color-mix(in oklab, var(--color-surface-content, currentColor) 20%, transparent);
+			border-radius: 9999px;
+			margin: 4px;
+			backdrop-filter: blur(8px);
+			z-index: 10;
+
+			&[data-orientation='vertical'] {
+				flex-direction: column;
+			}
+
+			&[data-placement] {
+				position: absolute;
+			}
+
+			&[data-placement='top-left'] {
+				top: 0;
+				left: 0;
+			}
+			&[data-placement='top'] {
+				top: 0;
+				left: 50%;
+				transform: translateX(-50%);
+			}
+			&[data-placement='top-right'] {
+				top: 0;
+				right: 0;
+			}
+			&[data-placement='left'] {
+				top: 50%;
+				left: 0;
+				transform: translateY(-50%);
+			}
+			&[data-placement='center'] {
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+			}
+			&[data-placement='right'] {
+				top: 50%;
+				right: 0;
+				transform: translateY(-50%);
+			}
+			&[data-placement='bottom-left'] {
+				bottom: 0;
+				left: 0;
+			}
+			&[data-placement='bottom'] {
+				bottom: 0;
+				left: 50%;
+				transform: translateX(-50%);
+			}
+			&[data-placement='bottom-right'] {
+				bottom: 0;
+				right: 0;
+			}
+		}
+	}

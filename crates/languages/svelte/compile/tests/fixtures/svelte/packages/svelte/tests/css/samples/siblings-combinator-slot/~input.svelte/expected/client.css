@@ -1,0 +1,7 @@
+
+	.d.svelte-jiw1g0 + .e:where(.svelte-jiw1g0) { color: green; }
+	.a.svelte-jiw1g0 + .b:where(.svelte-jiw1g0) { color: green; }
+	.c.svelte-jiw1g0 + .f:where(.svelte-jiw1g0) { color: green; }
+
+	/* no match */
+	/* (unused) .b + .c { color: red; }*/

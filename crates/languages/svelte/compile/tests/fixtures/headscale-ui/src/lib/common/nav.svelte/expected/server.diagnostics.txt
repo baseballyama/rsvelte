@@ -1,0 +1,6 @@
+warning event_directive_deprecated 37:36-37:143 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning element_invalid_self_closing_tag 43:4-43:11 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning non_reactive_update 10:6-10:21 `componentLoaded` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

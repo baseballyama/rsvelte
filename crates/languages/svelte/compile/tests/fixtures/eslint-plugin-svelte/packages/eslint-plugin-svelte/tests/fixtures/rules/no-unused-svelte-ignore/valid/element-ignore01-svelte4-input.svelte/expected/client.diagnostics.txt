@@ -1,0 +1,4 @@
+warning legacy_code 1:20-1:51 `a11y-no-noninteractive-tabindex` is no longer valid — please use `a11y_no_noninteractive_tabindex` instead
+    https://svelte.dev/e/legacy_code
+warning a11y_no_noninteractive_tabindex 2:1-4:8 noninteractive element cannot have nonnegative tabIndex value
+    https://svelte.dev/e/a11y_no_noninteractive_tabindex

@@ -1,0 +1,10 @@
+warning css_unused_selector 18:3-18:16 Unused CSS selector ":root .unused"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 25:3-25:21 Unused CSS selector ":root:has(.unused)"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 37:5-37:12 Unused CSS selector ".unused"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 43:5-43:18 Unused CSS selector ":has(.unused)"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 49:5-49:19 Unused CSS selector "&:has(.unused)"
+    https://svelte.dev/e/css_unused_selector

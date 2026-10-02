@@ -1,0 +1,4 @@
+warning block_empty 15:19-16:1 Empty block
+    https://svelte.dev/e/block_empty
+warning a11y_consider_explicit_label 18:1-18:41 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label

@@ -1,0 +1,4 @@
+warning non_reactive_update 8:7-8:22 `listenToGamepad` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 9:7-9:19 `mountGamepad` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

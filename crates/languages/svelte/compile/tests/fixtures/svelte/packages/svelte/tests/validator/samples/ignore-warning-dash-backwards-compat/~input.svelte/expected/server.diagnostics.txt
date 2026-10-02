@@ -1,0 +1,16 @@
+warning legacy_code 3:20-3:54 `non-top-level-reactive-declaration` is no longer valid — please use `reactive_declaration_invalid_placement` instead
+    https://svelte.dev/e/legacy_code
+warning legacy_code 8:20-8:42 `a11y-missing-attribute` is no longer valid — please use `a11y_missing_attribute` instead
+    https://svelte.dev/e/legacy_code
+warning a11y_missing_attribute 10:2-10:30 `<img>` element should have an alt attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning legacy_code 13:20-13:40 `a11y-misplaced-scope` is no longer valid — please use `a11y_misplaced_scope` instead
+    https://svelte.dev/e/legacy_code
+warning a11y_misplaced_scope 14:6-14:11 The scope attribute should only be used with `<th>` elements
+    https://svelte.dev/e/a11y_misplaced_scope
+warning legacy_code 16:20-16:42 `a11y-missing-attribute` is no longer valid — please use `a11y_missing_attribute` instead
+    https://svelte.dev/e/legacy_code
+warning a11y_missing_attribute 18:2-18:30 `<img>` element should have an alt attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning a11y_misplaced_scope 19:7-19:12 The scope attribute should only be used with `<th>` elements
+    https://svelte.dev/e/a11y_misplaced_scope

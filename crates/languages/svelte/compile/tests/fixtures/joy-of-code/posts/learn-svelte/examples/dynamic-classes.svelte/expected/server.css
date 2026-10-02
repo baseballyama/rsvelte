@@ -1,0 +1,15 @@
+
+	.container.svelte-1qwf8ul {
+		button:where(.svelte-1qwf8ul) {
+			border: none;
+		}
+	}
+
+	.trigger.svelte-1qwf8ul {
+		display: inline-block;
+		transition: rotate 0.2s ease;
+
+		&.open {
+			rotate: -90deg;
+		}
+	}

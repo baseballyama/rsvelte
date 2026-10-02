@@ -1,0 +1,189 @@
+
+	.wx-measure-cell-header,
+	.wx-print-cell-header,
+	.wx-cell.svelte-1t83xbl {
+		padding: 8px;
+		position: relative;
+		display: flex;
+		align-items: center;
+		font-weight: var(--wx-header-font-weight);
+		background: var(--wx-table-header-background);
+		line-height: 20px;
+	}
+
+	.wx-cell.svelte-1t83xbl:focus {
+		outline: 1px solid var(--wx-color-primary);
+		outline-offset: -1px;
+	}
+
+	.wx-print-cell-header {
+		display: table-cell;
+		position: static;
+	}
+
+	.wx-cell.wx-vertical.svelte-1t83xbl {
+		align-items: flex-end;
+	}
+
+	.wx-measure-cell-header,
+	.wx-cell.svelte-1t83xbl:not(:last-child) {
+		border-right: var(--wx-table-header-cell-border);
+	}
+
+	.wx-print-cell-filter,
+	.wx-cell.wx-filter.svelte-1t83xbl {
+		padding: 4px;
+		z-index: 8;
+	}
+
+	.wx-print-cell-header .wx-text,
+	.wx-text.svelte-1t83xbl {
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		overflow: hidden;
+	}
+
+	.wx-print-cell-header.wx-vertical .wx-text,
+	.wx-vertical.svelte-1t83xbl .wx-text:where(.svelte-1t83xbl) {
+		height: 100%;
+		transform: rotate(-180deg);
+		writing-mode: vertical-lr;
+		text-overflow: ellipsis;
+		overflow: hidden;
+	}
+
+	.wx-print-cell-header.wx-vertical .wx-text {
+		display: block;
+	}
+	.wx-cell.wx-shadow.svelte-1t83xbl {
+		clip-path: inset(0px -15px 0px 0px);
+		border-right: var(--wx-table-fixed-column-border);
+	}
+
+	.wx-cell.wx-fixed-right.wx-shadow.svelte-1t83xbl {
+		border-right: var(--wx-table-cell-border);
+		border-left: var(--wx-table-fixed-column-border);
+	}
+
+	.wx-cell.wx-fixed-right.wx-cell.svelte-1t83xbl:last-child {
+		border-right: none;
+	}
+
+	.wx-shadow.svelte-1t83xbl,
+	.wx-fixed.svelte-1t83xbl {
+		z-index: 7; /* because colspans have z-index: 6 */
+	}
+
+	.wx-shadow.wx-rowspan.svelte-1t83xbl,
+	.wx-shadow.wx-colspan.svelte-1t83xbl,
+	.wx-fixed.wx-rowspan.svelte-1t83xbl,
+	.wx-fixed.wx-colspan.svelte-1t83xbl {
+		z-index: 8; /* because fixed columns have z-index: 7 */
+	}
+
+	.wx-grip.svelte-1t83xbl {
+		box-sizing: border-box;
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		right: -4px;
+		width: 9px;
+		background-color: transparent;
+		opacity: 0;
+		cursor: ew-resize;
+		z-index: 5;
+	}
+	.wx-grip.svelte-1t83xbl div:where(.svelte-1t83xbl) {
+		margin-left: 5px;
+		width: 1px;
+		height: 100%;
+		background-color: var(--wx-color-primary);
+	}
+	.wx-cell.svelte-1t83xbl:last-child .wx-grip:where(.svelte-1t83xbl) {
+		width: 5px;
+		right: 0;
+	}
+	.wx-cell.svelte-1t83xbl:last-child .wx-grip:where(.svelte-1t83xbl) div:where(.svelte-1t83xbl) {
+		margin-left: 4px;
+	}
+
+	.wx-grip.svelte-1t83xbl::before,
+	.wx-cell.svelte-1t83xbl:not(:last-child) .wx-grip:where(.svelte-1t83xbl)::after {
+		content: "";
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		width: 0;
+		height: 0;
+		margin: auto;
+	}
+
+	.wx-grip.svelte-1t83xbl::before {
+		border: 3px dashed transparent;
+		border-right: 3px solid var(--wx-color-primary);
+		right: 7px;
+	}
+	.wx-cell.svelte-1t83xbl:last-child .wx-grip:where(.svelte-1t83xbl)::before {
+		right: 3px;
+	}
+
+	.wx-cell.svelte-1t83xbl:not(:last-child) .wx-grip:where(.svelte-1t83xbl)::after {
+		border: 3px dashed transparent;
+		border-left: 3px solid var(--wx-color-primary);
+		left: 9px;
+	}
+
+	.wx-cell.svelte-1t83xbl:has(.wx-grip:where(.svelte-1t83xbl):hover:not(:active)) {
+		z-index: 9;
+	}
+
+	.wx-grip.svelte-1t83xbl:hover {
+		opacity: 1;
+	}
+
+	.wx-sort.svelte-1t83xbl {
+		height: 100%;
+		margin-left: auto;
+		display: flex;
+		align-items: center;
+	}
+
+	.wx-order.svelte-1t83xbl {
+		width: 16px;
+		height: 16px;
+		line-height: 16px;
+		border-radius: 50%;
+		font-size: 12px;
+		text-align: center;
+		color: #fff;
+		background-color: #3498ff;
+	}
+
+	.wx-collapse.svelte-1t83xbl:focus {
+		outline: none;
+	}
+	.wx-collapse.svelte-1t83xbl:focus i:where(.svelte-1t83xbl),
+	.wx-collapse.svelte-1t83xbl:hover i:where(.svelte-1t83xbl) {
+		color: var(--wx-color-primary);
+	}
+
+	.wx-rowspan.svelte-1t83xbl,
+	.wx-colspan.svelte-1t83xbl {
+		z-index: 6; /* because resize grips have z-index: 5 */
+	}
+
+	.wx-collapse.svelte-1t83xbl,
+	.wx-collapsed.svelte-1t83xbl {
+		cursor: pointer;
+		z-index: 1;
+	}
+	.wx-collapsed.svelte-1t83xbl {
+		position: relative;
+	}
+	.wx-collapse.svelte-1t83xbl i:where(.svelte-1t83xbl) {
+		margin-right: 4px;
+	}
+
+	.wx-h-row:not(:last-child) .wx-cell.svelte-1t83xbl:not(.wx-rowspan) {
+		border-bottom: var(--wx-table-header-cell-border);
+	}

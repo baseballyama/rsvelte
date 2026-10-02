@@ -1,0 +1,6 @@
+warning legacy_code 3:20-3:54 `non-top-level-reactive-declaration` is no longer valid — please use `reactive_declaration_invalid_placement` instead
+    https://svelte.dev/e/legacy_code
+warning unknown_code 8:20-8:44 `a11y-something-something` is not a recognised code
+    https://svelte.dev/e/unknown_code
+warning unknown_code 11:20-11:44 `a11y-something-something` is not a recognised code
+    https://svelte.dev/e/unknown_code

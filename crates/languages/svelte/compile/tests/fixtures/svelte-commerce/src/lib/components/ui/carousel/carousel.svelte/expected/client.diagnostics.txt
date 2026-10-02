@@ -1,0 +1,6 @@
+warning state_referenced_locally 11:3-11:14 This reference only captures the initial value of `orientation`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 15:12-15:16 This reference only captures the initial value of `opts`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 16:3-16:10 This reference only captures the initial value of `plugins`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

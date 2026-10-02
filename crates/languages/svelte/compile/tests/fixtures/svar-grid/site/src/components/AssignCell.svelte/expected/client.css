@@ -1,0 +1,25 @@
+
+	.employees.svelte-18tc0gp {
+		height: 100%;
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 4px;
+	}
+	.employees.svelte-18tc0gp .employee:where(.svelte-18tc0gp) {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.employees.svelte-18tc0gp .avatar:where(.svelte-18tc0gp) {
+		height: 26px;
+		width: 26px;
+		border-radius: 50%;
+	}
+	.employees.svelte-18tc0gp .avatar:where(.svelte-18tc0gp) img:where(.svelte-18tc0gp) {
+		height: 100%;
+		width: 100%;
+		border-radius: 50%;
+		object-fit: cover;
+	}

@@ -1,0 +1,12 @@
+warning state_referenced_locally 26:19-26:26 This reference only captures the initial value of `product`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 26:34-26:41 This reference only captures the initial value of `product`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 26:48-26:55 This reference only captures the initial value of `product`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 26:77-26:84 This reference only captures the initial value of `product`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 26:91-26:98 This reference only captures the initial value of `product`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 26:108-26:115 This reference only captures the initial value of `product`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

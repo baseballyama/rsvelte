@@ -1,0 +1,10 @@
+warning css_unused_selector 170:3-170:9 Unused CSS selector ".width"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 176:3-176:9 Unused CSS selector ".width"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 182:3-182:9 Unused CSS selector ".width"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 188:3-188:9 Unused CSS selector ".width"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 194:3-194:9 Unused CSS selector ".width"
+    https://svelte.dev/e/css_unused_selector

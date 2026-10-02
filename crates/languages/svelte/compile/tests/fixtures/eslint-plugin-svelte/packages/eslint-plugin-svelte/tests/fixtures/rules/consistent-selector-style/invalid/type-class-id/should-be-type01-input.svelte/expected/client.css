@@ -1,0 +1,40 @@
+
+  .link.svelte-1pjjq4g {
+    color: red;
+  }
+
+  .bold.svelte-1pjjq4g {
+    color: red;
+  }
+
+  .link.svelte-1pjjq4g:active {
+    color: red;
+  }
+
+  .link.svelte-1pjjq4g + .bold:where(.svelte-1pjjq4g) {
+    color: red;
+  }
+
+  .bold[data-key="val"].svelte-1pjjq4g {
+    color: red;
+  }
+
+  .bold.svelte-1pjjq4g::before {
+    color: red;
+  }
+
+  #italic.svelte-1pjjq4g {
+    color: red;
+  }
+
+  #italic.svelte-1pjjq4g:active {
+    color: red;
+  }
+
+  b.svelte-1pjjq4g + #italic:where(.svelte-1pjjq4g) {
+    color: red;
+  }
+
+  #italic.svelte-1pjjq4g::before {
+    color: red;
+  }

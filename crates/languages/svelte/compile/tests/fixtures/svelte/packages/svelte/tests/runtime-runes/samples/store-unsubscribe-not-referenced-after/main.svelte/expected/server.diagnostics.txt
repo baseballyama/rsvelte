@@ -1,0 +1,4 @@
+warning event_directive_deprecated 21:10-21:42 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 23:10-23:48 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated

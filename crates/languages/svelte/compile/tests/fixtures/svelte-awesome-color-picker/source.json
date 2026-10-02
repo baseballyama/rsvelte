@@ -1,0 +1,13 @@
+{
+	"commit": "b696795ed9bcb9ca26c748d4e2c8bc9bcbf66e2f",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/Ennoriel/svelte-awesome-color-picker.git"
+}

@@ -1,0 +1,9 @@
+
+  @layer components {
+    :where(.lc-tooltip-list.svelte-eck0ml) {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px 8px;
+      align-items: start;
+    }
+  }

@@ -1,0 +1,67 @@
+
+	.SelectField.svelte-1r2bcda {
+		display: grid;
+		gap: 1rem;
+		/* margin-left: 1rem; */
+	}
+	.select-field.svelte-1r2bcda {
+		display: grid;
+		grid-template-columns: auto 1fr 1fr auto;
+		grid-gap: 1rem;
+		gap: 0.5rem;
+	}
+	.option-icon.svelte-1r2bcda {
+		display: grid;
+		align-items: flex-end;
+	}
+	.field-button.svelte-1r2bcda {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		width: 100%;
+		background: var(--color-gray-7);
+		color: var(--color-gray-3);
+		padding: 8px 0;
+		border-bottom-right-radius: var(--primo-border-radius);
+		border-bottom-left-radius: var(--primo-border-radius);
+		transition: var(--transition-colors);
+	}
+	.field-button.svelte-1r2bcda:hover {
+		background: var(--color-gray-9);
+	}
+	.field-button.subfield-button.svelte-1r2bcda {
+		border-radius: 4px;
+		/* margin-top: 8px;
+		margin-bottom: 8px; */
+		font-size: var(--font-size-1);
+		background: var(--primo-color-codeblack);
+		color: var(--color-gray-2);
+		transition: var(--transition-colors);
+		outline: 0;
+	}
+	.field-button.subfield-button.svelte-1r2bcda:hover {
+		background: var(--color-gray-8);
+	}
+	.field-button.subfield-button.svelte-1r2bcda:focus {
+		/* background: var(--color-gray-8); */
+		border-color: var(--primo-primary-color);
+		outline: 0;
+	}
+	.item-options.svelte-1r2bcda {
+		display: flex;
+		align-items: center;
+		margin-top: 15px; /* to align with inputs */
+		justify-content: flex-end;
+		/* gap: 0.25rem; */
+
+		button:where(.svelte-1r2bcda) {
+			padding: 0.5rem 9px; /* align with inputs */
+			transition: 0.1s;
+			border-radius: var(--primo-border-radius);
+
+			&:hover {
+				background: var(--color-gray-8);
+			}
+		}
+	}

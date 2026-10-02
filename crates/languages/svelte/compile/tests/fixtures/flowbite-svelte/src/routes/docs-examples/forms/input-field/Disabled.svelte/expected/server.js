@@ -1,0 +1,16 @@
+import * as $ from 'svelte/internal/server';
+import { Input } from "flowbite-svelte";
+
+export default function Disabled($$renderer) {
+	Input($$renderer, { class: 'mb-6', disabled: true, value: 'Disabled input' });
+	$$renderer.push(`<!----> `);
+
+	Input($$renderer, {
+		class: 'mb-6',
+		disabled: true,
+		readonly: true,
+		value: 'Disabled readonly input'
+	});
+
+	$$renderer.push(`<!---->`);
+}

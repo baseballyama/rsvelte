@@ -1,0 +1,26 @@
+
+	.demo.svelte-13iihmv .wx-checkboxgroup {
+		flex-wrap: nowrap;
+	}
+	.demo.svelte-13iihmv .wx-field {
+		--wx-label-width: 65px;
+	}
+	.search.svelte-13iihmv {
+		margin-bottom: 12px;
+		gap: 20px;
+	}
+	.search.svelte-13iihmv,
+	.navigation.svelte-13iihmv {
+		display: flex;
+		align-items: center;
+	}
+	.navigation.svelte-13iihmv {
+		gap: 8px;
+	}
+
+	.demo.svelte-13iihmv .search-highlight {
+		background-color: #fffacf;
+	}
+	.wx-willow-dark-theme .demo .search-highlight {
+		background-color: #a0995b;
+	}

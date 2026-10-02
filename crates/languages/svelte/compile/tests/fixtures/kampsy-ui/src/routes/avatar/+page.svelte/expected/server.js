@@ -1,0 +1,432 @@
+import * as $ from 'svelte/internal/server';
+import { CircleArrowUp, CircleCheck, Info } from "@lucide/svelte";
+import Aside from "$lib/../docs/ui/aside.svelte";
+import Row from "$lib/../docs/ui/row.svelte";
+import Shell from "$lib/../docs/ui/shell.svelte";
+import { asideData } from "$lib/../docs/utils/data.js";
+import CollapseCode from "$lib/collapse/collapseCode.svelte";
+import { Avatar, AvatarGroup, AvatarWithIcon } from "$lib/index.js";
+import Pagination from "$lib/pagination/pagination.svelte";
+import LinkH2 from "$lib/../docs/ui/linkH2.svelte";
+
+import {
+	avatarFixedOverlap,
+	avatarGroup,
+	avatarGroupReverse,
+	avatarLetter,
+	avatarOverlap,
+	avatarPlaceholder,
+	avatarSize,
+	avatarWithIcon
+} from "../../docs/data/avatar.js";
+
+function avatar($$renderer) {
+	Row($$renderer, {
+		children: ($$renderer) => {
+			$$renderer.push(`<h1 class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000 mb-3 text-[24px] leading-8 font-semibold tracking-[-0.96px] first-letter:capitalize lg:text-[40px] lg:leading-12 lg:tracking-[-2.4px]">avatar</h1> <p class="text-kui-light-gray-900 dark:text-kui-dark-gray-900 text-[16px] leading-6 font-normal tracking-normal first-letter:capitalize lg:text-[20px] lg:leading-7.5 lg:tracking-[-0.33px]">Avatars represent a user or a team. Stacked avatars represent a group of people.</p>`);
+		},
+		$$slots: { default: true }
+	});
+}
+
+function demoAndCode($$renderer, demo, code) {
+	$$renderer.push(`<div class="bg-kui-light-bg dark:bg-kui-dark-bg border-kui-light-gray-200 dark:border-kui-dark-gray-400 overflow-hidden rounded-xl border"><div class="w-full p-4 lg:p-6"><div class="flex w-full flex-wrap justify-between gap-4">`);
+	demo($$renderer);
+	$$renderer.push(`<!----></div></div> `);
+	CollapseCode($$renderer, { code });
+	$$renderer.push(`<!----></div>`);
+}
+
+function roundedCode($$renderer, rct) {
+	$$renderer.push(`<code class="text-kui-light-gray-900 bg-kui-light-gray-100 dark:bg-kui-dark-gray-100 dark:text-kui-dark-gray-900 border-kui-light-gray-200 dark:border-kui-dark-gray-400 rounded-md border px-2 py-[3.6px] text-xs">${$.escape(rct)}</code>`);
+}
+
+function size($$renderer) {
+	Row($$renderer, {
+		children: ($$renderer) => {
+			function demo($$renderer) {
+				$$renderer.push(`<div class="flex items-center gap-6">`);
+				Avatar($$renderer, { size: 24, username: 'evilrabbit' });
+				$$renderer.push(`<!----> `);
+				Avatar($$renderer, { size: 32, username: 'evilrabbit' });
+				$$renderer.push(`<!----> `);
+				Avatar($$renderer, { size: 48, username: 'evilrabbit' });
+				$$renderer.push(`<!----></div>`);
+			}
+
+			LinkH2($$renderer, {
+				href: '/avatar#size',
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->size`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <div class="mt-4 xl:mt-7">`);
+			demoAndCode($$renderer, demo, avatarSize);
+			$$renderer.push(`<!----></div>`);
+		},
+		$$slots: { default: true }
+	});
+}
+
+function withIcon($$renderer) {
+	Row($$renderer, {
+		children: ($$renderer) => {
+			function demo($$renderer) {
+				$$renderer.push(`<div class="flex items-center gap-6">`);
+
+				{
+					function icon($$renderer) {
+						CircleArrowUp($$renderer, {});
+					}
+
+					AvatarWithIcon($$renderer, {
+						size: 32,
+						iconBackground: true,
+						role: 'img',
+						'aria-label': 'Upload avatar',
+						icon,
+						$$slots: { icon: true }
+					});
+				}
+
+				$$renderer.push(`<!----> `);
+
+				{
+					function icon($$renderer) {
+						CircleCheck($$renderer, {});
+					}
+
+					AvatarWithIcon($$renderer, {
+						size: 32,
+						iconBackground: true,
+						role: 'img',
+						'aria-label': 'Verified avatar',
+						icon,
+						$$slots: { icon: true }
+					});
+				}
+
+				$$renderer.push(`<!----> `);
+
+				{
+					function icon($$renderer) {
+						Info($$renderer, {});
+					}
+
+					AvatarWithIcon($$renderer, {
+						size: 32,
+						iconBackground: true,
+						role: 'img',
+						'aria-label': 'Information avatar',
+						icon,
+						$$slots: { icon: true }
+					});
+				}
+
+				$$renderer.push(`<!----></div>`);
+			}
+
+			LinkH2($$renderer, {
+				href: '/avatar#with-custom-icon',
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->with custom icon`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <div class="mt-4 xl:mt-7">`);
+			demoAndCode($$renderer, demo, avatarWithIcon);
+			$$renderer.push(`<!----></div>`);
+		},
+		$$slots: { default: true }
+	});
+}
+
+function letter($$renderer) {
+	Row($$renderer, {
+		children: ($$renderer) => {
+			function demo($$renderer) {
+				$$renderer.push(`<div class="flex items-center gap-6">`);
+				Avatar($$renderer, { letter: 'SL', size: 32 });
+				$$renderer.push(`<!----> `);
+				Avatar($$renderer, { letter: 'EK', size: 32 });
+				$$renderer.push(`<!----> `);
+				Avatar($$renderer, { letter: 'CK', size: 32 });
+				$$renderer.push(`<!----></div>`);
+			}
+
+			LinkH2($$renderer, {
+				href: '/avatar#letter',
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->letter`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <div class="mt-4 xl:mt-7">`);
+			demoAndCode($$renderer, demo, avatarLetter);
+			$$renderer.push(`<!----></div>`);
+		},
+		$$slots: { default: true }
+	});
+}
+
+function placeholder($$renderer) {
+	Row($$renderer, {
+		children: ($$renderer) => {
+			function demo($$renderer) {
+				Avatar($$renderer, { placeholder: true, size: 90 });
+			}
+
+			LinkH2($$renderer, {
+				href: '/avatar#placeholder',
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->placeholder`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <div class="mt-4 xl:mt-7">`);
+			demoAndCode($$renderer, demo, avatarPlaceholder);
+			$$renderer.push(`<!----></div>`);
+		},
+		$$slots: { default: true }
+	});
+}
+
+function bestPractices($$renderer) {
+	Row($$renderer, {
+		children: ($$renderer) => {
+			$$renderer.push(`<h2 class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000 mb-3 text-[24px] leading-8 font-semibold tracking-[-0.96px] first-letter:capitalize">Best Practices</h2> <ul class="mt-4 list-disc"><li class="[&amp;_strong]:text-kui-light-gray-1000 text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 ml-8 py-0.5 leading-6 [&amp;_strong]:font-normal">Use a single `);
+			roundedCode($$renderer, "Avatar");
+
+			$$renderer.push(`<!----> for one person, team, or organization. For two
+				or more stacked avatars, use `);
+
+			roundedCode($$renderer, "AvatarGroup");
+
+			$$renderer.push(`<!----> so the cluster gets correct
+				overlap, sizing, and a single accessible label.</li> <li class="[&amp;_strong]:text-kui-light-gray-1000 text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 ml-8 py-0.5 leading-6 [&amp;_strong]:font-normal">Pass `);
+
+			roundedCode($$renderer, "src");
+			$$renderer.push(`<!----> first and fall back to `);
+			roundedCode($$renderer, "letter");
+			$$renderer.push(`<!----> (1–2 uppercase chars) when the image is missing. Reserve `);
+			roundedCode($$renderer, "placeholder");
+			$$renderer.push(`<!----> for the loading shell, never as a permanent fallback.</li> <li class="[&amp;_strong]:text-kui-light-gray-1000 text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 ml-8 py-0.5 leading-6 [&amp;_strong]:font-normal">`);
+			roundedCode($$renderer, "title");
+			$$renderer.push(`<!----> is the literal entity name (`);
+			roundedCode($$renderer, "Acme Inc.");
+			$$renderer.push(`<!---->, `);
+			roundedCode($$renderer, "Jane Doe");
+
+			$$renderer.push(`<!---->). The component already prefixes letter avatars
+				with "Avatar with initials:" for screen readers, so don't hand-write `);
+
+			roundedCode($$renderer, "Avatar of …");
+			$$renderer.push(`<!---->.</li> <li class="[&amp;_strong]:text-kui-light-gray-1000 text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 ml-8 py-0.5 leading-6 [&amp;_strong]:font-normal">Keep `);
+			roundedCode($$renderer, "letter");
+
+			$$renderer.push(`<!----> uppercase and derived from the entity name. No emoji,
+				no punctuation, no `);
+
+			roundedCode($$renderer, "?");
+
+			$$renderer.push(`<!---->.</li> <li class="[&amp;_strong]:text-kui-light-gray-1000 text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 ml-8 py-0.5 leading-6 [&amp;_strong]:font-normal">Pick a size that matches adjacent type: 20–24 px next to small text, 32 px next to body
+				text, 48–64 px in headers and onboarding states.</li></ul>`);
+		},
+		$$slots: { default: true }
+	});
+}
+
+function prevAndNext($$renderer) {
+	Row($$renderer, {
+		bottomLine: false,
+		children: ($$renderer) => {
+			Pagination($$renderer, {
+				previous: { title: "introduction", href: "/" },
+				next: { title: "badge", href: "/badge" }
+			});
+		},
+		$$slots: { default: true }
+	});
+}
+
+function aside($$renderer) {
+	Aside($$renderer, { asideDataList: asideData });
+}
+
+export default function _page($$renderer) {
+	const members = [
+		{ username: "evilrabbit" },
+		{ username: "severinlandolt" },
+		{ username: "rauchg" },
+		{ username: "christopherkindl" },
+		{ username: "rauno" },
+		{ username: "shuding" },
+		{ username: "skllcrn" },
+		{ username: "almonk" }
+	];
+
+	function group($$renderer) {
+		Row($$renderer, {
+			children: ($$renderer) => {
+				function demo($$renderer) {
+					$$renderer.push(`<div class="flex items-center gap-4"><div>`);
+					AvatarGroup($$renderer, { members: members.slice(0, 3), size: 32 });
+					$$renderer.push(`<!----></div> <div>`);
+					AvatarGroup($$renderer, { limit: 4, members, size: 32 });
+					$$renderer.push(`<!----></div></div>`);
+				}
+
+				LinkH2($$renderer, {
+					href: '/avatar#group',
+					children: ($$renderer) => {
+						$$renderer.push(`<!---->group`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!----> <div class="mt-4 xl:mt-7">`);
+				demoAndCode($$renderer, demo, avatarGroup);
+				$$renderer.push(`<!----></div>`);
+			},
+			$$slots: { default: true }
+		});
+	}
+
+	function stackingOrder($$renderer) {
+		Row($$renderer, {
+			children: ($$renderer) => {
+				function demo($$renderer) {
+					$$renderer.push(`<div class="flex items-center gap-4">`);
+					AvatarGroup($$renderer, { members: members.slice(0, 3), size: 32 });
+					$$renderer.push(`<!----> `);
+					AvatarGroup($$renderer, { members: members.slice(0, 3), size: 32, reverse: true });
+					$$renderer.push(`<!----></div>`);
+				}
+
+				LinkH2($$renderer, {
+					href: '/avatar#stacking-order',
+					children: ($$renderer) => {
+						$$renderer.push(`<!---->stacking order`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!----> <p class="text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 text-[16px] leading-6 font-normal first-letter:capitalize xl:mt-4">By default the first member sits on top of the stack, so the first credited author stays
+			the most prominent. Set `);
+
+				roundedCode($$renderer, "reverse");
+
+				$$renderer.push(`<!----> to flip the order so the last member
+			sits on top instead. The visual left-to-right order is unchanged.</p> <div class="mt-4 xl:mt-7">`);
+
+				demoAndCode($$renderer, demo, avatarGroupReverse);
+				$$renderer.push(`<!----></div>`);
+			},
+			$$slots: { default: true }
+		});
+	}
+
+	function overlap($$renderer) {
+		Row($$renderer, {
+			children: ($$renderer) => {
+				function demo($$renderer) {
+					$$renderer.push(`<div class="flex items-center gap-6">`);
+					AvatarGroup($$renderer, { members: members.slice(0, 3), overlap: 'auto', size: 16 });
+					$$renderer.push(`<!----> `);
+					AvatarGroup($$renderer, { members: members.slice(0, 3), overlap: 'auto', size: 24 });
+					$$renderer.push(`<!----> `);
+					AvatarGroup($$renderer, { members: members.slice(0, 3), overlap: 'auto', size: 32 });
+					$$renderer.push(`<!----> `);
+					AvatarGroup($$renderer, { members: members.slice(0, 3), overlap: 'auto', size: 48 });
+					$$renderer.push(`<!----></div>`);
+				}
+
+				LinkH2($$renderer, {
+					href: '/avatar#overlap',
+					children: ($$renderer) => {
+						$$renderer.push(`<!---->overlap`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!----> <p class="text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 text-[16px] leading-6 font-normal first-letter:capitalize xl:mt-4">By default `);
+				roundedCode($$renderer, 'overlap="auto"');
+				$$renderer.push(`<!----> scales the spacing with `);
+				roundedCode($$renderer, "size");
+				$$renderer.push(`<!---->, keeping a generous, evenly-spaced cluster at any size.</p> <div class="mt-4 xl:mt-7">`);
+				demoAndCode($$renderer, demo, avatarOverlap);
+				$$renderer.push(`<!----></div>`);
+			},
+			$$slots: { default: true }
+		});
+	}
+
+	function fixedOverlap($$renderer) {
+		Row($$renderer, {
+			children: ($$renderer) => {
+				function demo($$renderer) {
+					$$renderer.push(`<div class="flex items-center gap-6">`);
+					AvatarGroup($$renderer, { members: members.slice(0, 3), overlap: 10, size: 24 });
+					$$renderer.push(`<!----> `);
+					AvatarGroup($$renderer, { members: members.slice(0, 3), overlap: 6, size: 24 });
+					$$renderer.push(`<!----> `);
+					AvatarGroup($$renderer, { members: members.slice(0, 3), overlap: 0, size: 24 });
+					$$renderer.push(`<!----></div>`);
+				}
+
+				LinkH2($$renderer, {
+					href: '/avatar#fixed-overlap',
+					children: ($$renderer) => {
+						$$renderer.push(`<!---->fixed overlap`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!----> <p class="text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 text-[16px] leading-6 font-normal first-letter:capitalize xl:mt-4">Pass a number to set the overlap in pixels instead. Lower values give more generous
+			spacing; higher values pack tighter for dense, space-constrained UI.</p> <div class="mt-4 xl:mt-7">`);
+
+				demoAndCode($$renderer, demo, avatarFixedOverlap);
+				$$renderer.push(`<!----></div>`);
+			},
+			$$slots: { default: true }
+		});
+	}
+
+	function cont($$renderer) {
+		avatar($$renderer);
+		$$renderer.push(`<!----> `);
+		group($$renderer);
+		$$renderer.push(`<!----> `);
+		stackingOrder($$renderer);
+		$$renderer.push(`<!----> `);
+		overlap($$renderer);
+		$$renderer.push(`<!----> `);
+		fixedOverlap($$renderer);
+		$$renderer.push(`<!----> `);
+		size($$renderer);
+		$$renderer.push(`<!----> `);
+		withIcon($$renderer);
+		$$renderer.push(`<!----> `);
+		letter($$renderer);
+		$$renderer.push(`<!----> `);
+		placeholder($$renderer);
+		$$renderer.push(`<!----> `);
+		bestPractices($$renderer);
+		$$renderer.push(`<!----> `);
+		prevAndNext($$renderer);
+		$$renderer.push(`<!---->`);
+	}
+
+	$.head('5za1fe', $$renderer, ($$renderer) => {
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>Avatar</title>`);
+		});
+	});
+
+	Shell($$renderer, { asideSlot: aside, contSlot: cont });
+}

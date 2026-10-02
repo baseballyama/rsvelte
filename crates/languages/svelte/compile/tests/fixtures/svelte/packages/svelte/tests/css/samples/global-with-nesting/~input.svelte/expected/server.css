@@ -1,0 +1,11 @@
+
+	div.svelte-12b2r1i {
+		&.class{
+			color: green;
+		}
+	}
+	* {
+		&:hover .class.svelte-12b2r1i {
+			color: green;
+		}
+	}

@@ -1,0 +1,4 @@
+warning state_referenced_locally 9:14-9:22 This reference only captures the initial value of `userName`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 9:24-9:31 This reference only captures the initial value of `userAge`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

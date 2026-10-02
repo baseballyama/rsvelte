@@ -1,0 +1,2 @@
+warning export_let_unused 6:13-6:19 Component has unused export property 'object'. If it is for external reference only, please consider using `export const object`
+    https://svelte.dev/e/export_let_unused

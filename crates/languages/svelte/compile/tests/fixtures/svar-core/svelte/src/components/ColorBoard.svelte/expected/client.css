@@ -1,0 +1,110 @@
+
+	.wx-colorboard.svelte-a8fdvd {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding: 8px;
+		width: 100%;
+	}
+
+	.wx-color-block.svelte-a8fdvd {
+		height: 140px;
+		width: 100%;
+		position: relative;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+	}
+
+	.wx-color-block.svelte-a8fdvd::before,
+	.wx-color-block.svelte-a8fdvd::after {
+		content: "";
+		width: 100%;
+		height: 100%;
+		position: absolute;
+	}
+	.wx-color-block.svelte-a8fdvd:before {
+		background-image: linear-gradient(0deg, #000, hsla(0, 0%, 100%, 0));
+		z-index: 2;
+	}
+	.wx-color-block.svelte-a8fdvd::after {
+		background-image: linear-gradient(90deg, #fff, hsla(20, 42%, 65%, 0));
+		z-index: 1;
+	}
+
+	.wx-color-block-slider.svelte-a8fdvd {
+		height: 16px;
+		width: 16px;
+		margin: -8px 0 0 -8px;
+	}
+
+	.wx-slider.svelte-a8fdvd {
+		border: 2px solid white;
+		border-radius: 50%;
+		position: absolute;
+		z-index: 3;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+	}
+
+	.wx-slider.svelte-a8fdvd:focus,
+	.wx-slider.svelte-a8fdvd:hover {
+		outline: none;
+		box-shadow:
+			0 1px 3px rgba(0, 0, 0, 0.2),
+			inset 0 0 4px #ffffff;
+	}
+
+	.wx-color-line.svelte-a8fdvd {
+		width: 100%;
+		height: 8px;
+		background-image: linear-gradient(
+			90deg,
+			red,
+			#ff0 17%,
+			#0f0 33%,
+			#0ff 50%,
+			#00f 67%,
+			#f0f 83%,
+			red
+		);
+		position: relative;
+		border-radius: 6px;
+	}
+
+	.wx-color-line-slider.svelte-a8fdvd {
+		height: 14px;
+		width: 14px;
+		margin: 0 0 0 -7px;
+		top: -4px;
+	}
+
+	.wx-color-controls.svelte-a8fdvd {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+	}
+
+	.wx-color.svelte-a8fdvd,
+	.wx-text.svelte-a8fdvd {
+		width: calc(50% - 4px);
+	}
+
+	.wx-color.svelte-a8fdvd {
+		height: 32px;
+	}
+
+	.wx-text.svelte-a8fdvd {
+		outline: none;
+		background: var(--wx-input-background);
+		border: var(--wx-input-border);
+		border-radius: var(--wx-input-border-radius);
+		font-family: var(--wx-input-font-family);
+		font-size: var(--wx-input-font-size);
+		line-height: var(--wx-input-line-height);
+		font-weight: var(--wx-input-font-weight);
+		text-align: var(--wx-input-text-align);
+		color: var(--wx-input-font-color);
+		padding: var(--wx-input-padding);
+	}
+
+	.wx-text.svelte-a8fdvd:focus {
+		border: var(--wx-input-border-focus);
+	}

@@ -1,0 +1,13 @@
+{
+	"commit": "eec28f19e0242277f0d49ace137e9903c6b7a5c1",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/jonasgeiler/svelte-tiny-virtual-list.git"
+}

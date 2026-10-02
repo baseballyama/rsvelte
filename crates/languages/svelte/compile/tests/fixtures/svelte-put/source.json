@@ -1,0 +1,13 @@
+{
+	"commit": "5dfb433d251532f3e7d6bb986c5d58ae02ddb574",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/vnphanquang/svelte-put.git"
+}

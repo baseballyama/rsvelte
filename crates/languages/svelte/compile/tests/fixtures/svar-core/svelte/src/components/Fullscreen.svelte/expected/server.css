@@ -1,0 +1,26 @@
+
+	.wx-fullscreen.svelte-1oh95pl::backdrop {
+		background-color: var(--wx-background);
+	}
+	.wx-fullscreen.svelte-1oh95pl {
+		position: relative;
+		height: 100%;
+		width: 100%;
+		outline: none;
+	}
+	.wx-fullscreen-icon.svelte-1oh95pl {
+		font-size: 20px;
+		height: 20px;
+		margin: auto;
+	}
+	.wx-fullscreen.svelte-1oh95pl .wx-fullscreen-button {
+		width: 40px;
+		height: 40px;
+		border: none;
+		border-radius: 50%;
+		position: absolute;
+		right: 25px;
+		bottom: 35px;
+		display: flex;
+		padding: initial;
+	}

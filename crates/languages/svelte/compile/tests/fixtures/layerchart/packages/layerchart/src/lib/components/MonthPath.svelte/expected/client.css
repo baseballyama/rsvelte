@@ -1,0 +1,10 @@
+
+  @layer components {
+    :where(.lc-month-path) {
+      --stroke-color: color-mix(
+        in oklab,
+        var(--color-surface-content, currentColor) 20%,
+        transparent
+      );
+    }
+  }

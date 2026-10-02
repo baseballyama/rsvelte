@@ -1,0 +1,11 @@
+
+  @layer base {
+    :where(.lc-line) {
+      --stroke-color: var(--color-surface-content, currentColor);
+    }
+
+    /* Html layers */
+    :where(.lc-layout-html .lc-line):not([background-color]) {
+      background-color: var(--stroke-color);
+    }
+  }

@@ -1,0 +1,42 @@
+
+  fieldset.svelte-19pj2h0 {
+    display: flex;
+    flex-flow: row wrap;
+    align-items: stretch;
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .nowrap.svelte-19pj2h0 {
+    flex-wrap: nowrap;
+  }
+
+  .nowrap.svelte-19pj2h0 * {
+    flex-wrap: nowrap;
+  }
+
+  .center.svelte-19pj2h0 {
+    justify-content: center;
+  }
+
+  .right.svelte-19pj2h0 {
+    flex-direction: row-reverse;
+  }
+
+  legend.svelte-19pj2h0 {
+    font-weight: bold;
+    margin: 0.3em 0 0.3em 0;
+    padding: 0;
+  }
+
+  @media (max-width: 600px) {
+    fieldset.svelte-19pj2h0 {
+      flex-direction: column;
+    }
+
+    fieldset.svelte-19pj2h0 button {
+      width: 100%;
+    }
+  }

@@ -1,0 +1,2 @@
+warning a11y_aria_activedescendant_has_tabindex 16:6-16:37 An element with an aria-activedescendant attribute should have a tabindex value
+    https://svelte.dev/e/a11y_aria_activedescendant_has_tabindex

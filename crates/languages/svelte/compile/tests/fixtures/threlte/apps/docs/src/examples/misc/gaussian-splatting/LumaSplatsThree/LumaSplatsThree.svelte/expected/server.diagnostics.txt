@@ -1,0 +1,12 @@
+warning state_referenced_locally 23:26-23:30 This reference only captures the initial value of `mode`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 23:44-23:48 This reference only captures the initial value of `mode`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 46:11-46:17 This reference only captures the initial value of `source`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 51:5-51:26 This reference only captures the initial value of `particleRevealEnabled`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 51:30-51:53 This reference only captures the initial value of `loadingAnimationEnabled`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 51:62-51:85 This reference only captures the initial value of `loadingAnimationEnabled`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

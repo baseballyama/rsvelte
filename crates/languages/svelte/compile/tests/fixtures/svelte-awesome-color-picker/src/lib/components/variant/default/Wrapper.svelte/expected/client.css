@@ -1,0 +1,19 @@
+
+	div.svelte-rvh4bn {
+		padding: 8px;
+		background-color: var(--cp-bg-color, white);
+		margin: 0 10px 10px;
+		border: 1px solid var(--cp-border-color, black);
+		border-radius: 12px;
+		display: none;
+		width: max-content;
+	}
+	.is-open.svelte-rvh4bn {
+		display: inline-block;
+	}
+	[role='dialog'].svelte-rvh4bn {
+		position: absolute;
+		top: calc(var(--input-size, 25px) + 12px);
+		left: 0;
+		z-index: var(--picker-z-index, 2);
+	}

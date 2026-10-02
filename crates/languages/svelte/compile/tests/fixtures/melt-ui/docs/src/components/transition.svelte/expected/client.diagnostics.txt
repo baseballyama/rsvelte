@@ -1,0 +1,12 @@
+warning script_context_deprecated 1:19-1:35 `context="module"` is deprecated, use the `module` attribute instead
+    https://svelte.dev/e/script_context_deprecated
+warning state_referenced_locally 102:17-102:21 This reference only captures the initial value of `show`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 106:56-106:72 This reference only captures the initial value of `applyImmediately`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 115:23-115:27 This reference only captures the initial value of `show`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 116:24-116:31 This reference only captures the initial value of `unmount`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 116:35-116:39 This reference only captures the initial value of `show`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

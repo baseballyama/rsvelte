@@ -1,0 +1,38 @@
+warning event_directive_deprecated 6:9-6:28 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 8:6-8:27 Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 9:20-9:39 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 10:6-10:24 Using `on:copy` to listen to the copy event is deprecated. Use the event attribute `oncopy` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 11:16-11:35 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 12:25-12:44 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 14:9-14:30 Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 17:1-17:34 `<div>` with a keydown handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning event_directive_deprecated 17:6-17:27 Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 19:1-19:77 `<a>` with a mousedown or mouseup handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning event_directive_deprecated 19:4-19:27 Using `on:mousedown` to listen to the mousedown event is deprecated. Use the event attribute `onmousedown` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 19:28-19:49 Using `on:mouseup` to listen to the mouseup event is deprecated. Use the event attribute `onmouseup` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 19:50-19:68 Using `on:copy` to listen to the copy event is deprecated. Use the event attribute `oncopy` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 20:1-20:38 `<div>` with a pointerdown handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning event_directive_deprecated 20:6-20:31 Using `on:pointerdown` to listen to the pointerdown event is deprecated. Use the event attribute `onpointerdown` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 21:1-21:39 `<div>` with a pointerenter handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning event_directive_deprecated 21:6-21:32 Using `on:pointerenter` to listen to the pointerenter event is deprecated. Use the event attribute `onpointerenter` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 22:1-22:37 `<div>` with a touchstart handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning event_directive_deprecated 22:6-22:30 Using `on:touchstart` to listen to the touchstart event is deprecated. Use the event attribute `ontouchstart` instead
+    https://svelte.dev/e/event_directive_deprecated

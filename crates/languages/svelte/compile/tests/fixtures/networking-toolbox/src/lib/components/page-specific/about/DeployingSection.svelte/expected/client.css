@@ -1,0 +1,13 @@
+
+  ol.svelte-n7f4bn {
+    padding-left: 2rem;
+  }
+  h3.svelte-n7f4bn {
+    margin-top: var(--spacing-lg);
+  }
+  .sponsor-section.svelte-n7f4bn {
+    background: color-mix(in srgb, var(--color-pink), transparent 40%);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    border: 2px solid var(--color-pink);
+  }

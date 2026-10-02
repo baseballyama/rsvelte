@@ -1,0 +1,4 @@
+warning non_reactive_update 115:7-115:18 `activeIndex` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 116:7-116:21 `isDropdownOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

@@ -1,0 +1,14 @@
+
+	.text.svelte-dljcew {
+		@include typography.base;
+
+		color: variables.$bg-5;
+
+		a:where(.svelte-dljcew) {
+			@include mixins.link;
+		}
+	}
+
+	.button-container.svelte-dljcew {
+		width: fit-content;
+	}

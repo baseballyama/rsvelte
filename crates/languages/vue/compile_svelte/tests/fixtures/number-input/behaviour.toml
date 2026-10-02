@@ -1,0 +1,9 @@
+[[steps]]
+input = [ "input", "5" ]
+
+[[steps]]
+input = [ "input", "" ]
+
+[[steps]]
+input = [ "input", "2.50" ]
+

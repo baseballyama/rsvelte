@@ -1,0 +1,8 @@
+warning a11y_click_events_have_key_events 1:1-1:87 Visible, non-interactive element `<h1>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+    https://svelte.dev/e/a11y_click_events_have_key_events
+warning a11y_no_noninteractive_element_interactions 1:1-1:87 Non-interactive element `<h1>` should not be assigned mouse or keyboard event listeners
+    https://svelte.dev/e/a11y_no_noninteractive_element_interactions
+warning event_directive_deprecated 1:5-1:40 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 1:41-1:76 Using `on:UpperCaseEvent` to listen to the UpperCaseEvent event is deprecated. Use the event attribute `onUpperCaseEvent` instead
+    https://svelte.dev/e/event_directive_deprecated

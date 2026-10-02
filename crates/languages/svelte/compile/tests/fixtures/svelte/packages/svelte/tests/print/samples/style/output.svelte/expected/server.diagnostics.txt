@@ -1,0 +1,36 @@
+warning css_unused_selector 4:2-4:6 Unused CSS selector ".foo"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 8:2-8:10 Unused CSS selector ".foo.bar"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 13:3-13:7 Unused CSS selector ".box"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 35:2-35:18 Unused CSS selector ".container .item"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 39:2-39:15 Unused CSS selector "nav > ul.menu"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 43:2-43:13 Unused CSS selector "h2 + p.note"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 47:2-47:22 Unused CSS selector "li:nth-child(2n + 1)"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 51:2-51:15 Unused CSS selector ".button:hover"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 55:2-55:15 Unused CSS selector ".card::before"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 60:2-60:20 Unused CSS selector ".container > .item"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 64:2-64:8 Unused CSS selector "h1 + p"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 68:2-68:18 Unused CSS selector ".container .item"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 69:2-69:15 Unused CSS selector "nav > ul.menu"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 73:2-73:14 Unused CSS selector "#id-selector"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 77:2-77:18 Unused CSS selector "[data-attribute]"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 81:2-81:26 Unused CSS selector "[data-attribute="value"]"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 85:2-85:7 Unused CSS selector ".card"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 87:3-87:10 Unused CSS selector "&:hover"
+    https://svelte.dev/e/css_unused_selector

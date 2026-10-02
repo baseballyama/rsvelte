@@ -1,0 +1,115 @@
+
+	.Fields.svelte-fzf0fs {
+		width: 100%;
+		display: grid;
+		gap: 1rem;
+		/* padding-top: 0.5rem; */
+		padding-bottom: 1rem;
+		/* padding-right: 10px; */
+		color: var(--color-gray-2);
+		height: 100%;
+		overflow-y: auto;
+		place-content: flex-start;
+		justify-content: stretch;
+	}
+	.entries-item.svelte-fzf0fs {
+		display: grid;
+		background: #1a1a1a;
+		border-radius: 0.5rem;
+		/* grid-template-columns: 1fr auto; */
+
+		.container:where(.svelte-fzf0fs) {
+			border-bottom-left-radius: var(--primo-border-radius);
+			border-bottom-right-radius: var(--primo-border-radius);
+			overflow: hidden;
+		}
+		.top-tabs:where(.svelte-fzf0fs) {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			button:where(.svelte-fzf0fs) {
+				background: #111;
+				transition: 0.1s;
+				opacity: 0.5;
+				padding: 0.5rem;
+				border-bottom: 1px solid var(--color-gray-9);
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				gap: 0.5rem;
+				font-size: 0.75rem;
+				position: relative;
+			}
+
+			button:where(.svelte-fzf0fs):hover {
+				opacity: 0.6;
+			}
+
+			button:where(.svelte-fzf0fs):first-child {
+				border-top-left-radius: var(--primo-border-radius);
+			}
+
+			button:where(.svelte-fzf0fs):last-child {
+				border-top-right-radius: var(--primo-border-radius);
+			}
+
+			button.active:where(.svelte-fzf0fs) {
+				background: transparent;
+				color: var(--color-gray-2);
+				opacity: 1;
+			}
+
+			button.showing_key_hint:where(.svelte-fzf0fs) .tab-content:where(.svelte-fzf0fs) {
+				visibility: hidden;
+			}
+
+			button:where(.svelte-fzf0fs) .tab-content:where(.svelte-fzf0fs) {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 0.5rem;
+			}
+
+			button:where(.svelte-fzf0fs) .key-hint:where(.svelte-fzf0fs) {
+				position: absolute;
+				inset: 0;
+				font-size: 0.75rem;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 0.25rem;
+				pointer-events: none;
+			}
+		}
+	}
+	.field-button.svelte-fzf0fs {
+		width: 100%;
+		/* background: #292929; */
+		background: var(--primo-color-codeblack);
+		color: var(--button-color);
+		transition:
+			background 0.1s,
+			color 0.1s;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		/* font-size: 0.875rem; */
+		font-size: var(--font-size-1);
+		padding: 0.375rem;
+		border-radius: 4px;
+		font-weight: 400;
+		border: 1px solid transparent;
+		transition: 0.1s;
+
+		&:hover {
+			/* background: #333333; */
+			background: #292929;
+		}
+
+		&:focus {
+			border-color: var(--primo-primary-color);
+		}
+		&:focus-visible {
+			outline: 0;
+		}
+	}

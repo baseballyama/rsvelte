@@ -1,0 +1,27 @@
+
+	.first-row-last-col-fill.svelte-1kvaajo {
+		position: relative;
+
+		grid-column: -2;
+
+		background-color: var(--color-bg);
+		border-color: var(--color-outline);
+		border-style: solid;
+		border-top-right-radius: 4px;
+	}
+
+	.codeblock-group.svelte-1kvaajo {
+		position: relative;
+
+		overflow: auto;
+		display: grid;
+		grid-template-columns: repeat(var(--cols), auto) 1fr;
+		grid-template-rows: auto 1fr;
+
+		max-width: 100%;
+		margin-block: 24px;
+
+		&:where(.codeblock-group--files) .first-row-last-col-fill:where(.svelte-1kvaajo) {
+			border-width: 1px 1px 0 0;
+		}
+	}

@@ -1,0 +1,8 @@
+warning state_referenced_locally 51:3-51:5 This reference only captures the initial value of `id`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 68:3-68:9 This reference only captures the initial value of `onSave`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 69:3-69:11 This reference only captures the initial value of `onCancel`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 71:3-71:11 This reference only captures the initial value of `validate`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

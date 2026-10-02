@@ -1,0 +1,8 @@
+warning state_referenced_locally 17:14-17:19 This reference only captures the initial value of `props`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 17:24-17:29 This reference only captures the initial value of `props`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 17:36-17:41 This reference only captures the initial value of `props`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 17:63-17:68 This reference only captures the initial value of `props`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

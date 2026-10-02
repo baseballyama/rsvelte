@@ -1,0 +1,32 @@
+warning slot_element_deprecated 6:3-6:11 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated
+warning legacy_code 9:16-9:35 `css-unused-selector` is no longer valid — please use `css_unused_selector` instead
+    https://svelte.dev/e/legacy_code
+warning css_unused_selector 12:5-12:10 Unused CSS selector ".hero"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 14:7-14:9 Unused CSS selector "h2"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 18:7-18:12 Unused CSS selector ".lead"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 24:5-24:12 Unused CSS selector "section"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 27:7-27:9 Unused CSS selector "h3"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 33:7-33:9 Unused CSS selector "h4"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 40:7-40:8 Unused CSS selector "p"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 46:7-46:9 Unused CSS selector "ul"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 50:9-50:11 Unused CSS selector "li"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 55:11-55:17 Unused CSS selector "strong"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 61:7-61:8 Unused CSS selector "a"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 66:9-66:16 Unused CSS selector "&:hover"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 73:5-73:13 Unused CSS selector ".updated"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 80:5-80:13 Unused CSS selector ".contact"
+    https://svelte.dev/e/css_unused_selector

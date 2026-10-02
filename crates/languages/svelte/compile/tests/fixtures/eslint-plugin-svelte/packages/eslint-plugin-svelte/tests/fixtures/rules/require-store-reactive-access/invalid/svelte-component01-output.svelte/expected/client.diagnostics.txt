@@ -1,0 +1,8 @@
+warning svelte_component_deprecated 8:1-8:61 `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+    https://svelte.dev/e/svelte_component_deprecated
+warning svelte_component_deprecated 9:1-9:58 `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+    https://svelte.dev/e/svelte_component_deprecated
+warning svelte_component_deprecated 10:1-10:63 `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+    https://svelte.dev/e/svelte_component_deprecated
+warning svelte_component_deprecated 11:1-11:51 `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+    https://svelte.dev/e/svelte_component_deprecated

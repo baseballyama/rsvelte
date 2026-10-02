@@ -1,0 +1,4 @@
+warning a11y_click_events_have_key_events 19:1-23:11 Visible, non-interactive element `<section>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+    https://svelte.dev/e/a11y_click_events_have_key_events
+warning a11y_no_static_element_interactions 19:1-23:11 `<section>` with a click handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions

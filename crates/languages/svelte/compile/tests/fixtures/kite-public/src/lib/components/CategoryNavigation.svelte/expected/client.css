@@ -1,0 +1,92 @@
+
+  .category-tabs.svelte-1ooartu {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Add safe area padding for mobile browsers */
+  .bottom-safe.svelte-1ooartu {
+    padding-bottom: env(safe-area-inset-bottom, 0.25rem);
+  }
+
+  /* Ensure the container accounts for safe areas */
+  @supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .bottom-safe.svelte-1ooartu {
+      padding-bottom: calc(0.25rem + env(safe-area-inset-bottom));
+    }
+  }
+
+  .category-tabs.svelte-1ooartu::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-tab.svelte-1ooartu {
+    flex-shrink: 0;
+    min-width: fit-content;
+  }
+
+  .category-tab.svelte-1ooartu:first-child {
+    margin-left: 0;
+  }
+
+  .category-tab.svelte-1ooartu:last-child {
+    margin-right: 0;
+  }
+
+  .scrollbar-hide.svelte-1ooartu {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide.svelte-1ooartu::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Drag and drop wrapper */
+  .category-tab-wrapper.svelte-1ooartu {
+    position: relative;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    cursor: grab;
+    border-radius: 0.25rem;
+  }
+
+  .category-tab-wrapper.svelte-1ooartu:active {
+    cursor: grabbing;
+  }
+
+  /* Override svelte-dnd-action default styling - must use :global for library-added classes */
+  [data-is-dnd-shadow-item-hint],
+  .svelte-dnd-action-dragged-el,
+  [data-is-dnd-shadow-item],
+  .category-tab-wrapper.svelte-1ooartu[data-is-dnd-shadow-item-hint],
+  .category-tab-wrapper.svelte-1ooartu.svelte-dnd-action-dragged-el {
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .category-tabs.svelte-1ooartu {
+    outline: none !important;
+    transition: background-color 0.15s ease;
+  }
+
+  /* Remove any focus outline during drag */
+  .category-tabs.svelte-1ooartu:focus,
+  .category-tabs.svelte-1ooartu:focus-visible,
+  .category-tab-wrapper.svelte-1ooartu:focus,
+  .category-tab-wrapper.svelte-1ooartu:focus-visible {
+    outline: none !important;
+  }
+
+  /* Subtle background change during drag instead of outline */
+  .category-tabs.svelte-1ooartu.svelte-dnd-action-dragged-item-parent {
+    background-color: rgba(59, 130, 246, 0.05);
+    border-radius: 0.375rem;
+    outline: none !important;
+  }
+
+  .dark .category-tabs.svelte-1ooartu.svelte-dnd-action-dragged-item-parent {
+    background-color: rgba(59, 130, 246, 0.1);
+  }

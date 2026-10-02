@@ -1,0 +1,8 @@
+warning a11y_missing_attribute 2:2-2:32 `<img>` element should have an alt attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning a11y_distracting_elements 3:2-3:50 Avoid `<marquee>` elements
+    https://svelte.dev/e/a11y_distracting_elements
+warning a11y_misplaced_scope 6:6-6:11 The scope attribute should only be used with `<th>` elements
+    https://svelte.dev/e/a11y_misplaced_scope
+warning a11y_missing_attribute 8:1-8:25 `<img>` element should have an alt attribute
+    https://svelte.dev/e/a11y_missing_attribute

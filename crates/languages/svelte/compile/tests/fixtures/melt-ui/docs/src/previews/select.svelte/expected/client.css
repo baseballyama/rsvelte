@@ -1,0 +1,19 @@
+
+	[data-melt-select-content].svelte-1ctrcbj {
+		position: absolute;
+		pointer-events: none;
+		opacity: 0;
+
+		transform: scale(0.975);
+
+		transition: 0.2s;
+		transition-property: opacity, transform;
+		transform-origin: var(--melt-popover-content-transform-origin, center);
+	}
+
+	[data-melt-select-content][data-open].svelte-1ctrcbj {
+		pointer-events: auto;
+		opacity: 1;
+
+		transform: scale(1);
+	}

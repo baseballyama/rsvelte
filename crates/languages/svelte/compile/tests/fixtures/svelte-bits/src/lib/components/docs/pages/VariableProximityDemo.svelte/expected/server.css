@@ -1,0 +1,12 @@
+
+	.variable-proximity-demo.svelte-16lttmn .variable-proximity {
+		max-width: 20ch;
+		line-height: 100%;
+		font-size: 4rem;
+		text-align: center;
+	}
+	@media (max-width: 967px) {
+		.variable-proximity-demo.svelte-16lttmn .variable-proximity {
+			font-size: 1.6rem;
+		}
+	}

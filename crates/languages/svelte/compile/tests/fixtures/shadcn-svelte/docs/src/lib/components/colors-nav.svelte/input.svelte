@@ -1,0 +1,30 @@
+<script lang="ts">
+	import { page } from "$app/state";
+	import { getColors } from "$lib/colors.js";
+	import { ScrollArea } from "$lib/registry/ui/scroll-area/index.js";
+	import { cn } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+
+	const colors = getColors();
+
+	let { class: className, ...restProps }: HTMLAttributes<HTMLElement> = $props();
+</script>
+
+<div class={cn("flex items-center", className)} {...restProps}>
+	<ScrollArea class="max-w-full" orientation="both" scrollbarXClasses="invisible">
+		<div class="flex items-center">
+			{#each colors as colorPalette, index (colorPalette.name)}
+				<a
+					href="/colors#{colorPalette.name}"
+					data-active={page.url.pathname?.startsWith(colorPalette.name) ||
+						(index === 0 && page.url.pathname === "/colors")}
+					class={cn(
+						"flex h-7 items-center justify-center px-4 text-center text-base font-medium text-muted-foreground capitalize transition-colors hover:text-primary data-[active=true]:text-primary"
+					)}
+				>
+					{colorPalette.name}
+				</a>
+			{/each}
+		</div>
+	</ScrollArea>
+</div>

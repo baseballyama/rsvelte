@@ -1,0 +1,12 @@
+warning state_referenced_locally 5:23-5:28 This reference only captures the initial value of `count`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 8:14-8:19 This reference only captures the initial value of `count`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 9:14-9:21 This reference only captures the initial value of `doubled`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 15:26-15:30 This reference only captures the initial value of `prop`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 17:14-17:18 This reference only captures the initial value of `prop`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 18:14-18:26 This reference only captures the initial value of `prop_derived`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

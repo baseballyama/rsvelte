@@ -1,0 +1,17 @@
+
+  img.svelte-17bjp6z {
+    transition: filter 0.2s ease-in-out;
+  }
+
+  img.high-quality.svelte-17bjp6z {
+    /* Subtle indication that high quality version loaded */
+    filter: contrast(1.05);
+  }
+
+  img.needs-invert.svelte-17bjp6z {
+    filter: invert(1) hue-rotate(180deg);
+  }
+
+  img.high-quality.needs-invert.svelte-17bjp6z {
+    filter: invert(1) hue-rotate(180deg) contrast(1.05);
+  }

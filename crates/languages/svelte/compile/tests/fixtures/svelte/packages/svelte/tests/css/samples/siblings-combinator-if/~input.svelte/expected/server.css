@@ -1,0 +1,13 @@
+
+	.a.svelte-kpclan + .b:where(.svelte-kpclan) { color: green; }
+	.a.svelte-kpclan + .c:where(.svelte-kpclan) { color: green; }
+	.a.svelte-kpclan + .d:where(.svelte-kpclan) { color: green; }
+	.b.svelte-kpclan + .e:where(.svelte-kpclan) { color: green; }
+	.c.svelte-kpclan + .e:where(.svelte-kpclan) { color: green; }
+	.d.svelte-kpclan + .e:where(.svelte-kpclan) { color: green; }
+
+	/* no match */
+	/* (unused) .a + .e { color: green; }*/
+	/* (unused) .b + .c { color: green; }*/
+	/* (unused) .b + .d { color: green; }*/
+	/* (unused) .c + .d { color: green; }*/

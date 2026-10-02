@@ -1,0 +1,6 @@
+warning svelte_element_invalid_this 6:17-6:27 `this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte
+    https://svelte.dev/e/svelte_element_invalid_this
+warning a11y_no_static_element_interactions 9:1-9:51 `<svelte:element>` with a click handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning event_directive_deprecated 9:28-9:48 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated

@@ -1,0 +1,60 @@
+
+	.RichText.svelte-w985o7 {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.toolbar.svelte-w985o7 {
+		display: flex;
+		border: 1px solid var(--color-gray-8);
+		border-bottom: 0;
+		overflow-x: auto;
+		white-space: nowrap;
+	}
+
+	.separator.svelte-w985o7 {
+		width: 1px;
+		background: var(--color-gray-8);
+	}
+
+	.container.svelte-w985o7 {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		min-height: 200px;
+		padding-top: 0;
+		border-radius: var(--input-border-radius);
+		background: var(--primo-color-codeblack);
+		color: var(--color-gray-2);
+		overflow-y: auto;
+	}
+
+	.editor.svelte-w985o7 {
+		flex: 1;
+		width: 100%;
+		max-width: none;
+		border: 1px solid var(--color-gray-8);
+		display: flex;
+		flex-direction: column;
+	}
+
+	.editor.svelte-w985o7 .tiptap-editor {
+		flex: 1;
+		width: 100%;
+		padding: 0.75rem;
+	}
+
+	.editor.svelte-w985o7 .tiptap-editor:focus {
+		outline: none;
+		box-shadow: 0 0 0 1px var(--color-gray-7);
+	}
+
+	.editor.svelte-w985o7 .tiptap-editor p {
+		margin: 0.25rem 0;
+	}
+
+	/* Override prose heading top margins for editor - only for first child */
+	.editor.svelte-w985o7 .tiptap-editor :where(h1, h2, h3, h4, h5, h6):first-child {
+		margin-top: 0 !important;
+	}

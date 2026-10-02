@@ -1,0 +1,10 @@
+warning legacy_code 24:20-24:42 `a11y-invalid-attribute` is no longer valid — please use `a11y_invalid_attribute` instead
+    https://svelte.dev/e/legacy_code
+warning a11y_invalid_attribute 25:13-25:20 '' is not a valid href attribute
+    https://svelte.dev/e/a11y_invalid_attribute
+warning non_reactive_update 4:6-4:21 `times_triggered` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 5:6-5:12 `unload` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 7:6-7:21 `navigation_type` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

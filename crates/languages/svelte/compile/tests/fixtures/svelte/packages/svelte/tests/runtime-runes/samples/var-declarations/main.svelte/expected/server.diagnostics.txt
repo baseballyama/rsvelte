@@ -1,0 +1,4 @@
+warning state_referenced_locally 5:14-5:17 This reference only captures the initial value of `foo`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 5:19-5:25 This reference only captures the initial value of `double`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

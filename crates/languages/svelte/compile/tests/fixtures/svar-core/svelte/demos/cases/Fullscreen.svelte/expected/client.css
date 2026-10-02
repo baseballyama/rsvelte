@@ -1,0 +1,27 @@
+
+	.fullscreen-demo.svelte-fufkhu {
+		display: flex;
+		flex-direction: column;
+		gap: 24px;
+	}
+	.demo-button.svelte-fufkhu {
+		margin: 20px;
+	}
+	.demo-box.svelte-fufkhu {
+		border: var(--wx-border);
+		padding: 0 12px 12px;
+		border-radius: var(--wx-border-radius, 3px);
+	}
+	.demo-content.svelte-fufkhu {
+		display: flex;
+		flex-direction: row;
+		max-width: 900px;
+		gap: 8px;
+	}
+
+	@media (max-width: 767px) {
+		.demo-content.svelte-fufkhu {
+			flex-direction: column;
+			max-width: 300px;
+		}
+	}

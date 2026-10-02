@@ -1,0 +1,48 @@
+
+	.features.svelte-84hc0p {
+		position: relative;
+	}
+
+	.features-header.svelte-84hc0p {
+		text-align: center;
+		max-width: 600px;
+		margin: 0 auto var(--space-3xl);
+	}
+
+	.features-header.svelte-84hc0p .badge:where(.svelte-84hc0p) {
+		margin-bottom: var(--space-md);
+	}
+
+	.features-header.svelte-84hc0p h2:where(.svelte-84hc0p) {
+		margin-bottom: var(--space-md);
+	}
+
+	.features-header.svelte-84hc0p p:where(.svelte-84hc0p) {
+		font-size: 1.125rem;
+	}
+
+	.feature-card.svelte-84hc0p {
+		padding: var(--space-xl);
+	}
+
+	.feature-card.svelte-84hc0p h3:where(.svelte-84hc0p) {
+		font-size: 1.125rem;
+		margin-bottom: var(--space-sm);
+	}
+
+	.feature-card.svelte-84hc0p p:where(.svelte-84hc0p) {
+		font-size: 0.9375rem;
+		line-height: 1.6;
+	}
+
+	.feature-icon.svelte-84hc0p {
+		width: 48px;
+		height: 48px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 1.5rem;
+		background: var(--color-accent-subtle);
+		border-radius: var(--radius-md);
+		margin-bottom: var(--space-md);
+	}

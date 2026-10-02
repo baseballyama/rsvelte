@@ -1,0 +1,35 @@
+
+  .title-bar.svelte-tq03kl {
+    height: 32px;
+    /* background: var(--mantle); */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    -webkit-user-select: none;
+    user-select: none;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .title.svelte-tq03kl {
+    display: flex;
+    align-items: center;
+    position: relative;
+    height: 100%;
+  }
+
+  .neon.svelte-tq03kl {
+    font-family: "Courier New", monospace;
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--text);
+  }
+
+  .app-icon.svelte-tq03kl {
+    width: 24px;
+    height: 24px;
+    margin-right: 4px;
+    display: flex;
+    align-items: center;
+  }

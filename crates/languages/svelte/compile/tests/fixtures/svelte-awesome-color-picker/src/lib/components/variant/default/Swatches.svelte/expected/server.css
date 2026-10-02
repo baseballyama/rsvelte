@@ -1,0 +1,24 @@
+
+	.swatches.svelte-33r1sg {
+		display: grid;
+		grid-template-columns: var(--cp-swatch-grid-template-columns, repeat(auto-fit, minmax(24px, 1fr)));
+		gap: 8px;
+		width: 100%;
+		height: 100%;
+		margin-top: 8px;
+		margin-bottom: 8px;
+	}
+	.swatch.svelte-33r1sg {
+		cursor: pointer;
+		margin: 0;
+		padding: 0;
+		border: none;
+		width: 100%;
+		aspect-ratio: 1 / 1;
+		height: auto;
+		display: block;
+	}
+	.swatch.svelte-33r1sg:focus {
+		outline: 2px solid var(--focus-color, red);
+		outline-offset: 2px;
+	}

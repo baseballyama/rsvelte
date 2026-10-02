@@ -1,0 +1,12 @@
+warning legacy_code 5:20-5:34 `a11y-autofocus` is no longer valid — please use `a11y_autofocus` instead
+    https://svelte.dev/e/legacy_code
+warning a11y_autofocus 6:40-6:49 Avoid using autofocus
+    https://svelte.dev/e/a11y_autofocus
+warning a11y_missing_attribute 6:1-6:52 `<img>` element should have an alt attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning legacy_code 9:20-9:34 `a11y-autofocus` is no longer valid — please use `a11y_autofocus` instead
+    https://svelte.dev/e/legacy_code
+warning element_invalid_self_closing_tag 13:2-13:21 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning legacy_code 16:16-16:35 `css-unused-selector` is no longer valid — please use `css_unused_selector` instead
+    https://svelte.dev/e/legacy_code

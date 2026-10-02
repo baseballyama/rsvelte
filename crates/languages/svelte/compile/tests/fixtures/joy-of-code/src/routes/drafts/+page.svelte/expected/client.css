@@ -1,0 +1,43 @@
+
+	section.svelte-1nln88x {
+		max-width: 740px;
+		margin-inline: auto;
+		margin-block-start: var(--spacing-64);
+
+		.container:where(.svelte-1nln88x) {
+			display: flex;
+			justify-content: space-between;
+
+			.results:where(.svelte-1nln88x) {
+				font-weight: 700;
+			}
+		}
+	}
+
+	.posts.svelte-1nln88x {
+		margin-top: var(--spacing-64);
+
+		a:where(.svelte-1nln88x)::before {
+			content: none;
+		}
+
+		.post:where(.svelte-1nln88x) {
+			margin-block-start: var(--spacing-32);
+			padding-block-end: var(--spacing-32);
+			border-bottom: 1px solid var(--clr-menu-border);
+
+			html[data-font='dyslexic'] & .title:where(.svelte-1nln88x) {
+				font-family: var(--font-dyslexic);
+				font-size: var(--font-24);
+				line-height: 32px;
+			}
+
+			.title:where(.svelte-1nln88x) {
+				font-family: var(--font-sans);
+				font-size: clamp(var(--font-24), 4vw, var(--font-32));
+				font-weight: 500;
+				line-height: 40px;
+				text-transform: capitalize;
+			}
+		}
+	}

@@ -1,0 +1,13 @@
+
+	.hint.svelte-o01vfb {
+		margin: 12px 0 8px 0;
+		font-size: 14px;
+	}
+	.examples.svelte-o01vfb {
+		margin: 0;
+		padding-left: 20px;
+		font-size: 13px;
+	}
+	.examples.svelte-o01vfb li:where(.svelte-o01vfb) {
+		margin: 4px 0;
+	}

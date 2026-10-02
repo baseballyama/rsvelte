@@ -1,0 +1,63 @@
+
+  .reference-section.svelte-1yargik {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    margin: var(--spacing-lg) 0;
+  }
+
+  .reference-card.svelte-1yargik {
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    background: var(--bg-secondary);
+    padding: var(--spacing-md);
+    transition: all var(--transition-fast);
+
+    &:hover {
+      border-color: var(--color-primary);
+      background-color: var(--surface-hover);
+      box-shadow: var(--shadow-md);
+    }
+  }
+
+  .card-header-inline.svelte-1yargik {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-sm);
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--spacing-sm);
+    }
+  }
+
+  .range-info.svelte-1yargik h3:where(.svelte-1yargik) {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .range-description.svelte-1yargik {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+  }
+
+  .rfc-badge.svelte-1yargik {
+    font-size: var(--font-size-xs);
+    color: var(--color-info-light);
+    background-color: rgba(9, 105, 218, 0.1);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+  }
+
+  .private-notice.svelte-1yargik {
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background-color: rgba(35, 134, 54, 0.1);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    color: var(--color-success-light);
+  }

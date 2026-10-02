@@ -1,0 +1,93 @@
+
+  .form-grid.svelte-15x3kkc {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--spacing-lg);
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .form-group.svelte-15x3kkc label:where(.svelte-15x3kkc) {
+    flex-direction: column;
+  }
+
+  .dnssec-status.svelte-15x3kkc {
+    display: grid;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .status-item.svelte-15x3kkc {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    border: 1px solid;
+
+    &.success {
+      background: color-mix(in srgb, var(--color-success), transparent 90%);
+      color: var(--color-success);
+      border-color: var(--color-success);
+    }
+
+    &.warning {
+      background: color-mix(in srgb, var(--color-warning), transparent 90%);
+      color: var(--color-warning);
+      border-color: var(--color-warning);
+    }
+
+    &.error {
+      background: color-mix(in srgb, var(--color-error), transparent 90%);
+      color: var(--color-error);
+      border-color: var(--color-error);
+    }
+
+    &.info {
+      background: color-mix(in srgb, var(--color-info), transparent 90%);
+      color: var(--color-info);
+      border-color: var(--color-info);
+    }
+
+    strong:where(.svelte-15x3kkc) {
+      color: var(--text-primary);
+      display: block;
+      margin-bottom: var(--spacing-xs);
+    }
+
+    p:where(.svelte-15x3kkc) {
+      color: var(--text-secondary);
+      margin: 0;
+      font-size: var(--font-size-sm);
+    }
+  }
+
+  .explanation.svelte-15x3kkc {
+    background: var(--bg-tertiary);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-primary);
+
+    h5:where(.svelte-15x3kkc) {
+      margin: 0 0 var(--spacing-sm) 0;
+      color: var(--color-primary);
+    }
+
+    p:where(.svelte-15x3kkc) {
+      margin: 0;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+  }
+
+  .record-ttl.svelte-15x3kkc {
+    color: var(--text-secondary);
+    font-size: var(--font-size-xs);
+  }
+
+  .example-card.svelte-15x3kkc small:where(.svelte-15x3kkc) {
+    color: var(--text-secondary);
+    font-size: var(--font-size-xs);
+  }

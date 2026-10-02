@@ -1,0 +1,10 @@
+warning state_referenced_locally 4:21-4:25 This reference only captures the initial value of `test`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning a11y_consider_explicit_label 7:1-15:10 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label
+warning a11y_consider_explicit_label 17:1-25:10 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label
+warning a11y_consider_explicit_label 27:1-35:10 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label
+warning a11y_consider_explicit_label 37:1-45:10 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label

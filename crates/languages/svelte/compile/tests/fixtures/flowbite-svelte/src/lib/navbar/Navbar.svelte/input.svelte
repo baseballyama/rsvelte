@@ -1,0 +1,64 @@
+<script lang="ts">
+  import clsx from "clsx";
+  import NavContainer from "./NavContainer.svelte";
+  import { navbar } from "./theme";
+  import type { NavbarState, NavbarProps } from "$lib/types";
+  import { getTheme } from "$lib/theme/themeUtils";
+  import { setNavbarStateContext, setNavbarBreakpointContext } from "$lib/context";
+  import type { NavbarBreakpoint } from "$lib/types";
+  import { untrack } from "svelte";
+
+  let { children, fluid, navContainerClass, class: className, closeOnClickOutside = true, breakpoint = "md", ...restProps }: NavbarProps = $props();
+
+  const theme = $derived(getTheme("navbar"));
+
+  let navState = $state<NavbarState>({ hidden: true });
+  setNavbarStateContext(navState);
+
+  let breakpointState = $state<{ value: NavbarBreakpoint }>({ value: untrack(() => breakpoint) });
+  setNavbarBreakpointContext(breakpointState);
+
+  $effect(() => {
+    breakpointState.value = breakpoint;
+  });
+
+  // Add reference to the navbar element
+  let navbarElement: HTMLElement;
+
+  let toggle = () => {
+    navState.hidden = !navState.hidden;
+  };
+
+  function handleDocumentClick(event: MouseEvent) {
+    if (!closeOnClickOutside) return;
+    // Check if the click was outside the navbar AND the dropdown is open
+    if (!navState.hidden && navbarElement && !navbarElement.contains(event.target as Node)) {
+      navState.hidden = true;
+    }
+  }
+</script>
+
+<svelte:document onclick={handleDocumentClick} />
+
+<nav bind:this={navbarElement}>
+  <div {...restProps} class={navbar({ class: clsx(theme, className) })}>
+    <NavContainer {fluid} class={clsx(navContainerClass)}>
+      {@render children({ hidden: navState.hidden, toggle, NavContainer })}
+    </NavContainer>
+  </div>
+</nav>
+
+<!--
+@component
+[Go to docs](https://flowbite-svelte.com/)
+## Type
+[NavbarProps](https://github.com/themesberg/flowbite-svelte/blob/main/src/lib/types.ts#L1189)
+## Props
+@prop children
+@prop fluid
+@prop navContainerClass
+@prop class: className
+@prop closeOnClickOutside = true
+@prop breakpoint = "md"
+@prop ...restProps
+-->

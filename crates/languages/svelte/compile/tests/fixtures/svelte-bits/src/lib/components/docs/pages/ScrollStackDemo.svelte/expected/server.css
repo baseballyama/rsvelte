@@ -1,0 +1,39 @@
+
+	.scroll-stack-card-demo {
+		background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+		color: #fff;
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+	}
+	.scroll-stack-card-demo h3 {
+		font-size: 2rem;
+		font-weight: 700;
+		color: #fff;
+	}
+	.refresh-btn.svelte-488nc9 {
+		position: absolute;
+		top: 12px;
+		right: 12px;
+		z-index: 2;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 36px;
+		height: 36px;
+		padding: 8px;
+		border-radius: 10px;
+		background: #1a1a1a;
+		border: 1px solid #333;
+		color: #fff;
+		cursor: pointer;
+		transition: background-color 0.3s ease;
+	}
+	.refresh-btn.svelte-488nc9:hover,
+	.refresh-btn.svelte-488nc9:active {
+		background: #262626;
+	}
+	.refresh-btn.svelte-488nc9 svg:where(.svelte-488nc9) {
+		width: 16px;
+		height: 16px;
+	}

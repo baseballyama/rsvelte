@@ -1,0 +1,16 @@
+
+  div.svelte-jgosct {
+    position: relative;
+    height: 100%;
+  }
+
+  svg.svelte-jgosct {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+  }
+
+  path.svelte-jgosct {
+    stroke: #ccc;
+    fill: transparent;
+  }

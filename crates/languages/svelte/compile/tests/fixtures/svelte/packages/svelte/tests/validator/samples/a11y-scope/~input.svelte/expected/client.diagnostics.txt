@@ -1,0 +1,2 @@
+warning a11y_misplaced_scope 6:6-6:11 The scope attribute should only be used with `<th>` elements
+    https://svelte.dev/e/a11y_misplaced_scope

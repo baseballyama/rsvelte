@@ -1,0 +1,4 @@
+warning state_referenced_locally 5:31-5:36 This reference only captures the initial value of `count`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 14:2-14:8 This reference only captures the initial value of `linked`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

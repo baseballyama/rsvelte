@@ -1,0 +1,81 @@
+<script lang="ts">
+    import { page } from '$app/state';
+    import { Button } from '$lib/elements/forms';
+    import { EmptySearch, PaginationWithLimit, EmptyFilter } from '$lib/components';
+    import { Container, ResponsiveContainerHeader } from '$lib/layout';
+    import { columns } from './store';
+    import { hasPageQueries } from '$lib/components/filters';
+    import CreateProviderDropdown from './createProviderDropdown.svelte';
+    import Table from './table.svelte';
+    import { base } from '$app/paths';
+    import { canWriteProviders } from '$lib/stores/roles';
+    import { Card, Empty, Icon } from '@appwrite.io/pink-svelte';
+    import { View } from '$lib/helpers/load';
+    import { IconPlus } from '@appwrite.io/pink-icons-svelte';
+    import type { PageData } from './$types';
+
+    let { data }: { data: PageData } = $props();
+</script>
+
+<Container>
+    <ResponsiveContainerHeader
+        {columns}
+        view={View.Table}
+        hideView
+        hasFilters
+        hasSearch
+        filtersStyle="dropdown"
+        analyticsSource="messaging_providers"
+        searchPlaceholder="Search by name or ID">
+        {#if $canWriteProviders}
+            <CreateProviderDropdown let:toggle>
+                <Button on:click={toggle} event="create_provider">
+                    <Icon icon={IconPlus} slot="start" size="s" />
+                    Create provider
+                </Button>
+            </CreateProviderDropdown>
+        {/if}
+    </ResponsiveContainerHeader>
+
+    {#if data.providers.total}
+        <Table {data} />
+
+        <PaginationWithLimit
+            name="Providers"
+            limit={data.limit}
+            offset={data.offset}
+            total={data.providers.total} />
+    {:else if $hasPageQueries}
+        <EmptyFilter resource="providers" />
+    {:else if data.search && data.search !== 'empty'}
+        <EmptySearch target="providers" search={data.search}>
+            <Button
+                secondary
+                href={`${base}/project-${page.params.region}-${page.params.project}/messaging/providers`}>
+                Clear search
+            </Button>
+        </EmptySearch>
+    {:else}
+        <Card.Base padding="none">
+            <Empty
+                title="Create your first provider"
+                description="Need a hand? Learn more in our documentation.">
+                <svelte:fragment slot="actions">
+                    <Button
+                        external
+                        href="https://appwrite.io/docs/products/messaging/providers"
+                        text
+                        event="empty_documentation"
+                        size="s">Documentation</Button>
+                    {#if $canWriteProviders}
+                        <CreateProviderDropdown let:toggle>
+                            <Button on:click={toggle} event="create_provider" secondary>
+                                Create provider
+                            </Button>
+                        </CreateProviderDropdown>
+                    {/if}
+                </svelte:fragment>
+            </Empty>
+        </Card.Base>
+    {/if}
+</Container>

@@ -1,0 +1,16 @@
+
+  .embed.svelte-181toye {
+    padding: 1em;
+  }
+
+  .image.svelte-181toye {
+    width: 100px;
+    height: 100px;
+    overflow: scroll;
+    resize: both;
+  }
+
+  img.svelte-181toye {
+    image-rendering: pixelated;
+    object-fit: contain;
+  }

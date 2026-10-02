@@ -1,0 +1,20 @@
+warning a11y_positive_tabindex 8:6-8:18 Avoid tabindex values above zero
+    https://svelte.dev/e/a11y_positive_tabindex
+warning a11y_no_noninteractive_tabindex 8:1-8:21 noninteractive element cannot have nonnegative tabIndex value
+    https://svelte.dev/e/a11y_no_noninteractive_tabindex
+warning element_invalid_self_closing_tag 8:1-8:21 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning a11y_no_noninteractive_tabindex 9:1-9:21 noninteractive element cannot have nonnegative tabIndex value
+    https://svelte.dev/e/a11y_no_noninteractive_tabindex
+warning element_invalid_self_closing_tag 9:1-9:21 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning a11y_no_noninteractive_tabindex 10:1-10:19 noninteractive element cannot have nonnegative tabIndex value
+    https://svelte.dev/e/a11y_no_noninteractive_tabindex
+warning element_invalid_self_closing_tag 10:1-10:19 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning a11y_no_noninteractive_tabindex 11:1-11:23 noninteractive element cannot have nonnegative tabIndex value
+    https://svelte.dev/e/a11y_no_noninteractive_tabindex
+warning a11y_no_noninteractive_tabindex 12:1-12:23 noninteractive element cannot have nonnegative tabIndex value
+    https://svelte.dev/e/a11y_no_noninteractive_tabindex
+warning element_invalid_self_closing_tag 12:1-12:23 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag

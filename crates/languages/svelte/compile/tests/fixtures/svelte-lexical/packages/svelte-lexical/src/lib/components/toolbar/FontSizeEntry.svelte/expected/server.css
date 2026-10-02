@@ -1,0 +1,11 @@
+
+  input[type='number'].svelte-131dsfp::-webkit-outer-spin-button,
+  input[type='number'].svelte-131dsfp::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type='number'].svelte-131dsfp {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }

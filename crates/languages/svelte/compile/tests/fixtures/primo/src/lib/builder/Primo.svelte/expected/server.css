@@ -1,0 +1,38 @@
+
+	.files-mode-banner.svelte-1v59ayk {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.5rem 0.75rem;
+		background: #3a2a08;
+		color: #fcd9a3;
+		border-bottom: 1px solid #5a3f12;
+		font-family: Inter, system-ui, sans-serif;
+		font-size: 0.8125rem;
+		line-height: 1.2;
+		z-index: 100;
+	}
+	.files-mode-banner.svelte-1v59ayk code:where(.svelte-1v59ayk) {
+		background: rgba(0, 0, 0, 0.3);
+		padding: 1px 6px;
+		border-radius: 3px;
+		font-family: 'Fira Code', monospace;
+		font-size: 0.75rem;
+	}
+	.expand.svelte-1v59ayk {
+		height: 100%;
+		color: var(--color-gray-1);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--color-gray-9);
+	}
+	.grab-handle.svelte-1v59ayk {
+		color: #222;
+		padding-block: 3px;
+		background: var(--color-gray-6);
+		z-index: 9;
+		border-radius: 1px;
+		font-size: 10px;
+	}

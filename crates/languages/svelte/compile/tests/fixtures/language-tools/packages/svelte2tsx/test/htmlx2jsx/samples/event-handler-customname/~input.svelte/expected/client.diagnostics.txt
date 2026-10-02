@@ -1,0 +1,4 @@
+warning event_directive_deprecated 1:5-1:21 Using `on:click-outside` to listen to the click-outside event is deprecated. Use the event attribute `onclick-outside` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 1:22-1:52 Using `on:click-outside2` to listen to the click-outside2 event is deprecated. Use the event attribute `onclick-outside2` instead
+    https://svelte.dev/e/event_directive_deprecated

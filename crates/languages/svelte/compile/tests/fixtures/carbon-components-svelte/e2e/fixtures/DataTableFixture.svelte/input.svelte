@@ -1,0 +1,96 @@
+<script>
+  import { DataTable } from "carbon-components-svelte";
+
+  const basicHeaders = [
+    { key: "name", value: "Name" },
+    { key: "value", value: "Value" },
+  ];
+
+  const basicRows = Array.from({ length: 20 }, (_, i) => ({
+    id: i,
+    name: `Row ${i}`,
+    value: `Value ${i}`,
+  }));
+
+  const sortHeaders = [
+    { key: "name", value: "Name" },
+    { key: "n", value: "N" },
+  ];
+
+  const sortRows = [
+    { id: "s1", name: "Zebra", n: 1 },
+    { id: "s2", name: "Alpha", n: 2 },
+    { id: "s3", name: "Mike", n: 3 },
+  ];
+
+  const expandHeaders = [{ key: "name", value: "Name" }];
+
+  const expandRows = [
+    { id: "e1", name: "First" },
+    { id: "e2", name: "Second" },
+    { id: "e3", name: "Third" },
+    { id: "e4", name: "Fourth" },
+  ];
+
+  const prototypeIdRows = [{ id: "toString", name: "Prototype ID" }];
+
+  const batchHeaders = [{ key: "name", value: "Product" }];
+
+  const batchRows = [
+    { id: "b1", name: "Item A" },
+    { id: "b2", name: "Item B" },
+  ];
+
+  const selectRangeHeaders = [{ key: "name", value: "Product" }];
+
+  const selectRangeRows = [
+    { id: "r1", name: "Item A" },
+    { id: "r2", name: "Item B" },
+    { id: "r3", name: "Item C" },
+  ];
+</script>
+
+<div data-testid="data-table-basic">
+  <DataTable headers={basicHeaders} rows={basicRows} />
+</div>
+
+<div data-testid="data-table-sort">
+  <DataTable sortable headers={sortHeaders} rows={sortRows} />
+</div>
+
+<div data-testid="data-table-expand">
+  <DataTable expandable headers={expandHeaders} rows={expandRows}>
+    <svelte:fragment slot="expandedRow" let:row>
+      <p data-testid="expanded-detail">Extra row: {row.name}</p>
+    </svelte:fragment>
+  </DataTable>
+</div>
+
+<div data-testid="data-table-prototype-id">
+  <DataTable expandable headers={expandHeaders} rows={prototypeIdRows}>
+    <svelte:fragment slot="expandedRow" let:row>
+      <p data-testid="prototype-id-detail">Extra row: {row.name}</p>
+    </svelte:fragment>
+  </DataTable>
+</div>
+
+<div data-testid="data-table-expand-selectable">
+  <DataTable
+    expandable
+    batchSelection
+    headers={expandHeaders}
+    rows={expandRows}
+  >
+    <svelte:fragment slot="expandedRow" let:row>
+      <p data-testid="expand-selectable-detail">Extra row: {row.name}</p>
+    </svelte:fragment>
+  </DataTable>
+</div>
+
+<div data-testid="data-table-batch">
+  <DataTable batchSelection headers={batchHeaders} rows={batchRows} />
+</div>
+
+<div data-testid="data-table-select-range">
+  <DataTable selectable headers={selectRangeHeaders} rows={selectRangeRows} />
+</div>

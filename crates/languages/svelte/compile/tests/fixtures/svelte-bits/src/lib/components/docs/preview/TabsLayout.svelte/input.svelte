@@ -1,0 +1,236 @@
+<script lang="ts">
+	import { page } from '$app/state';
+	import type { Snippet } from 'svelte';
+	import Dependencies from './Dependencies.svelte';
+	import { dependenciesForSlug } from '$lib/constants/componentDependencies';
+	import { stripSvelteBitsHeader } from '$lib/utils/svelte-bits-source-header';
+	import type { PropRow } from './PropTable.svelte';
+	import { UseClipboard } from '$lib/hooks/use-clipboard.svelte';
+
+	type Props = {
+		preview: Snippet;
+		code: Snippet;
+		customize?: Snippet;
+		propTable?: Snippet;
+		onreset?: () => void;
+		hasChanges?: boolean;
+		componentName?: string;
+		usage?: string;
+		source?: string;
+		props?: PropRow[];
+	};
+	let {
+		preview,
+		code,
+		customize,
+		propTable,
+		onreset,
+		hasChanges = false,
+		componentName,
+		usage = '',
+		source = '',
+		props = []
+	}: Props = $props();
+
+	let active: 'preview' | 'code' = $state('preview');
+	const previewTabId = $derived(`${page.params.subcategory ?? 'component'}-preview-tab`);
+	const codeTabId = $derived(`${page.params.subcategory ?? 'component'}-code-tab`);
+	const previewPanelId = $derived(`${page.params.subcategory ?? 'component'}-preview-panel`);
+	const codePanelId = $derived(`${page.params.subcategory ?? 'component'}-code-panel`);
+	const dependencyList = $derived(dependenciesForSlug(page.params.subcategory));
+	const promptComponentName = $derived(componentName ?? page.params.subcategory?.split('-').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(''));
+	const hasPrompt = $derived(Boolean(promptComponentName && source));
+	const clipboard = new UseClipboard();
+
+	function buildPrompt() {
+		const sourceShown = stripSvelteBitsHeader(source);
+		const deps = dependencyList.join(', ');
+		let prompt = `## Integrate the <${promptComponentName} /> component from Svelte Bits
+
+You are helping integrate an open-source Svelte component into an existing application.
+
+### Component: ${promptComponentName}
+### Variant: TypeScript + Tailwind
+${deps ? `### Dependencies: ${deps}` : ''}
+
+---
+
+### Usage Example
+\`\`\`svelte
+${usage}
+\`\`\`
+`;
+
+		if (props.length > 0) {
+			prompt += `
+### Props
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+${props.map((p) => `| ${p.name} | ${p.type} | ${p.default || '—'} | ${p.description} |`).join('\n')}
+`;
+		}
+
+		prompt += `
+### Full Component Source
+\`\`\`svelte
+${sourceShown}
+\`\`\`
+
+### Integration Instructions
+1. Install any listed dependencies.
+2. Copy the component source into the appropriate directory in the project.
+3. Import and render the component using the usage example above as a starting point.
+4. Adjust props as needed for the specific use case — refer to the props table for all available options.
+`;
+
+		return prompt;
+	}
+
+	async function copyPrompt() {
+		if (!hasPrompt) return;
+		await clipboard.copy(buildPrompt());
+	}
+
+	function selectTab(tab: 'preview' | 'code') {
+		active = tab;
+		requestAnimationFrame(() => {
+			document.getElementById(tab === 'preview' ? previewTabId : codeTabId)?.focus();
+		});
+	}
+
+	function handleTabKey(event: KeyboardEvent) {
+		if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+			event.preventDefault();
+			selectTab(active === 'preview' ? 'code' : 'preview');
+		} else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+			event.preventDefault();
+			selectTab(active === 'preview' ? 'code' : 'preview');
+		} else if (event.key === 'Home') {
+			event.preventDefault();
+			selectTab('preview');
+		} else if (event.key === 'End') {
+			event.preventDefault();
+			selectTab('code');
+		}
+	}
+</script>
+
+<div class="tabs-root">
+	<div
+		class="tabs-list"
+		role="tablist"
+		aria-label="Component example sections"
+		tabindex="-1"
+		onkeydown={handleTabKey}
+	>
+		<button
+			id={previewTabId}
+			type="button"
+			role="tab"
+			aria-selected={active === 'preview'}
+			aria-controls={previewPanelId}
+			tabindex={active === 'preview' ? 0 : -1}
+			class="tab-trigger"
+			data-active={active === 'preview'}
+			onclick={() => selectTab('preview')}
+		>
+			<svg
+				width="14"
+				height="14"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-hidden="true"
+			>
+				<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+				<circle cx="12" cy="12" r="3" />
+			</svg>
+			Preview
+		</button>
+		<button
+			id={codeTabId}
+			type="button"
+			role="tab"
+			aria-selected={active === 'code'}
+			aria-controls={codePanelId}
+			tabindex={active === 'code' ? 0 : -1}
+			class="tab-trigger"
+			data-active={active === 'code'}
+			onclick={() => selectTab('code')}
+		>
+			<svg
+				width="14"
+				height="14"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-hidden="true"
+			>
+				<polyline points="16 18 22 12 16 6" />
+				<polyline points="8 6 2 12 8 18" />
+			</svg>
+			Code
+		</button>
+
+		<div class="tab-actions">
+			{#if hasPrompt}
+				<button
+					type="button"
+					class="tab-action"
+					onclick={copyPrompt}
+					aria-label="Copy AI prompt"
+					title="Copy AI prompt"
+				>
+					{#if clipboard.copied}
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<polyline points="20 6 9 17 4 12" />
+						</svg>
+						Copied!
+					{:else}
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+							<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+						</svg>
+						Copy Prompt
+					{/if}
+				</button>
+			{/if}
+			{#if onreset && active === 'preview' && hasChanges}
+				<button
+					type="button"
+					class="tab-action"
+					onclick={onreset}
+					aria-label="Reset props"
+					title="Reset props"
+				>
+					Reset
+				</button>
+			{/if}
+		</div>
+	</div>
+
+	{#if active === 'preview'}
+		<div id={previewPanelId} class="tab-panel" data-active="true" role="tabpanel" aria-labelledby={previewTabId}>
+			<div class="demo-container">
+				{@render preview()}
+			</div>
+			{#if customize}
+				{@render customize()}
+			{/if}
+			{#if propTable}
+				{@render propTable()}
+			{/if}
+			<Dependencies {dependencyList} />
+		</div>
+	{:else}
+		<div id={codePanelId} class="tab-panel" data-active="true" role="tabpanel" aria-labelledby={codeTabId}>
+			{@render code()}
+		</div>
+	{/if}
+</div>

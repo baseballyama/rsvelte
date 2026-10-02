@@ -1,0 +1,31 @@
+
+	.a.svelte-1eyp7n0 ~ .e:where(.svelte-1eyp7n0) { color: green; }
+	.a.svelte-1eyp7n0 ~ .f:where(.svelte-1eyp7n0) { color: green; }
+	.b.svelte-1eyp7n0 ~ .c:where(.svelte-1eyp7n0) { color: green; }
+	.b.svelte-1eyp7n0 ~ .d:where(.svelte-1eyp7n0) { color: green; }
+	.c.svelte-1eyp7n0 ~ .e:where(.svelte-1eyp7n0) { color: green; }
+	.c.svelte-1eyp7n0 ~ .f:where(.svelte-1eyp7n0) { color: green; }
+	.d.svelte-1eyp7n0 ~ .e:where(.svelte-1eyp7n0) { color: green; }
+	.d.svelte-1eyp7n0 ~ .f:where(.svelte-1eyp7n0) { color: green; }
+	.e.svelte-1eyp7n0 ~ .e:where(.svelte-1eyp7n0) { color: green; }
+	.i.svelte-1eyp7n0 ~ .j:where(.svelte-1eyp7n0) { color: green; }
+	.g.svelte-1eyp7n0 ~ .h:where(.svelte-1eyp7n0) ~ .j:where(.svelte-1eyp7n0) { color: green; }
+	.g.svelte-1eyp7n0 ~ .i:where(.svelte-1eyp7n0) ~ .j:where(.svelte-1eyp7n0) { color: green; }
+	.m.svelte-1eyp7n0 ~ .m:where(.svelte-1eyp7n0) { color: green; }
+	.m.svelte-1eyp7n0 ~ .l:where(.svelte-1eyp7n0) { color: green; }
+	.l.svelte-1eyp7n0 ~ .m:where(.svelte-1eyp7n0) { color: green; }
+	.a.svelte-1eyp7n0 ~ .c:where(.svelte-1eyp7n0) { color: green; }
+	.a.svelte-1eyp7n0 ~ .g:where(.svelte-1eyp7n0) { color: green; }
+	.b.svelte-1eyp7n0 ~ .e:where(.svelte-1eyp7n0) { color: green; }
+	.c.svelte-1eyp7n0 ~ .g:where(.svelte-1eyp7n0) { color: green; }
+	.c.svelte-1eyp7n0 ~ .k:where(.svelte-1eyp7n0) { color: green; }
+	.d.svelte-1eyp7n0 ~ .d:where(.svelte-1eyp7n0) { color: green; }
+	.g.svelte-1eyp7n0 ~ .g:where(.svelte-1eyp7n0) { color: green; }
+	.h.svelte-1eyp7n0 ~ .h:where(.svelte-1eyp7n0) { color: green; }
+	.i.svelte-1eyp7n0 ~ .i:where(.svelte-1eyp7n0) { color: green; }
+	.j.svelte-1eyp7n0 ~ .j:where(.svelte-1eyp7n0) { color: green; }
+	.g.svelte-1eyp7n0 ~ .j:where(.svelte-1eyp7n0) { color: green; }
+	.g.svelte-1eyp7n0 ~ .h:where(.svelte-1eyp7n0) ~ .i:where(.svelte-1eyp7n0) ~ .j:where(.svelte-1eyp7n0) { color: green; }
+
+	/* no match */
+	/* (unused) .e ~ .f { color: green; }*/

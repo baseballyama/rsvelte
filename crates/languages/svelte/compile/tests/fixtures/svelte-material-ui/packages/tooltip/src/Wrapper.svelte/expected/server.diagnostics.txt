@@ -1,0 +1,4 @@
+warning state_referenced_locally 60:35-60:39 This reference only captures the initial value of `rich`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning non_reactive_update 54:7-54:42 `element` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

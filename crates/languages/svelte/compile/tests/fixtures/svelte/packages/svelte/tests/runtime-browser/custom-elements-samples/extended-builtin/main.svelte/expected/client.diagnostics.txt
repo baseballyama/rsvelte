@@ -1,0 +1,4 @@
+warning options_missing_custom_element 1:17-1:47 The `customElement` option is used when generating a custom element. Did you forget the `customElement: true` compile option?
+    https://svelte.dev/e/options_missing_custom_element
+warning attribute_avoid_is 7:9-7:27 The "is" attribute is not supported cross-browser and should be avoided
+    https://svelte.dev/e/attribute_avoid_is

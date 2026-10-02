@@ -1,0 +1,18 @@
+warning state_referenced_locally 144:7-144:13 This reference only captures the initial value of `filter`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 144:17-144:23 This reference only captures the initial value of `choice`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 148:7-148:13 This reference only captures the initial value of `choice`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 153:5-153:11 This reference only captures the initial value of `filter`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 176:32-176:35 This reference only captures the initial value of `key`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 178:40-178:54 This reference only captures the initial value of `nonInteractive`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 183:32-183:38 This reference only captures the initial value of `choice`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 188:32-188:38 This reference only captures the initial value of `filter`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 194:26-194:32 This reference only captures the initial value of `filter`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

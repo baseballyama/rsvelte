@@ -1,0 +1,4 @@
+warning a11y_consider_explicit_label 12:1-12:36 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label
+warning a11y_consider_explicit_label 13:1-13:36 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label

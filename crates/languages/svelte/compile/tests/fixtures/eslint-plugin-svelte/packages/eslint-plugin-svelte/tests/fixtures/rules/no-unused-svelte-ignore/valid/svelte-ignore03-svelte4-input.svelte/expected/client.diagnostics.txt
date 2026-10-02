@@ -1,0 +1,18 @@
+warning legacy_code 1:20-1:53 `a11y-label-has-associated-control` is no longer valid — please use `a11y_label_has_associated_control` instead
+    https://svelte.dev/e/legacy_code
+warning a11y_no_noninteractive_tabindex 4:2-4:35 noninteractive element cannot have nonnegative tabIndex value
+    https://svelte.dev/e/a11y_no_noninteractive_tabindex
+warning a11y_label_has_associated_control 4:2-4:35 A form label must be associated with a control
+    https://svelte.dev/e/a11y_label_has_associated_control
+warning a11y_no_noninteractive_tabindex 5:2-5:24 noninteractive element cannot have nonnegative tabIndex value
+    https://svelte.dev/e/a11y_no_noninteractive_tabindex
+warning legacy_code 8:20-8:51 `a11y-no-noninteractive-tabindex` is no longer valid — please use `a11y_no_noninteractive_tabindex` instead
+    https://svelte.dev/e/legacy_code
+warning legacy_code 7:20-7:53 `a11y-label-has-associated-control` is no longer valid — please use `a11y_label_has_associated_control` instead
+    https://svelte.dev/e/legacy_code
+warning a11y_no_noninteractive_tabindex 10:2-10:35 noninteractive element cannot have nonnegative tabIndex value
+    https://svelte.dev/e/a11y_no_noninteractive_tabindex
+warning a11y_label_has_associated_control 10:2-10:35 A form label must be associated with a control
+    https://svelte.dev/e/a11y_label_has_associated_control
+warning a11y_no_noninteractive_tabindex 11:2-11:24 noninteractive element cannot have nonnegative tabIndex value
+    https://svelte.dev/e/a11y_no_noninteractive_tabindex

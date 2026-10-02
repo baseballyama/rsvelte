@@ -1,0 +1,9 @@
+
+  .about-content.svelte-3yd7a3 {
+    max-width: 1200px;
+    margin: 0 auto;
+
+    &.license-page {
+      width: fit-content;
+    }
+  }

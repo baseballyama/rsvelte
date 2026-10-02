@@ -1,0 +1,12 @@
+
+    .suggestions-switch.svelte-14wp6wu button:not(:disabled) {
+        cursor: pointer;
+    }
+
+    .context-input.svelte-14wp6wu .input {
+        background: var(--bgcolor-neutral-primary);
+    }
+
+    .context-input.required.svelte-14wp6wu .input {
+        background: var(--bgcolor-neutral-default);
+    }

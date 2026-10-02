@@ -1,0 +1,6 @@
+warning state_referenced_locally 54:3-54:14 This reference only captures the initial value of `granularity`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 56:3-56:11 This reference only captures the initial value of `minValue`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 57:3-57:11 This reference only captures the initial value of `maxValue`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

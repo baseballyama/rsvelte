@@ -1,0 +1,13 @@
+{
+	"commit": "e130961b6e9676c5c01cfa582d91d2d2b34e6b2f",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/ieedan/shadcn-svelte-extras.git"
+}

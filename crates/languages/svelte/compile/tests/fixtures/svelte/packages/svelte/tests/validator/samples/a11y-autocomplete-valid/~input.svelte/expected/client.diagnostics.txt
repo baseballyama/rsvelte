@@ -1,0 +1,6 @@
+warning a11y_autocomplete_valid 25:20-25:32 'true' is an invalid value for 'autocomplete' on `<input type="text">`
+    https://svelte.dev/e/a11y_autocomplete_valid
+warning a11y_autocomplete_valid 26:20-26:44 'incorrect' is an invalid value for 'autocomplete' on `<input type="text">`
+    https://svelte.dev/e/a11y_autocomplete_valid
+warning a11y_autocomplete_valid 27:20-27:43 'webauthn' is an invalid value for 'autocomplete' on `<input type="text">`
+    https://svelte.dev/e/a11y_autocomplete_valid

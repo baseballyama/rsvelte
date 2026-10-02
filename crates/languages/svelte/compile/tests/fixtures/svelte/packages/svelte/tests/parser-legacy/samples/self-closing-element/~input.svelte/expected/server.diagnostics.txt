@@ -1,0 +1,2 @@
+warning element_invalid_self_closing_tag 1:1-1:7 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag

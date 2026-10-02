@@ -1,0 +1,65 @@
+
+	.top.svelte-1ldfa0q {
+		display: flex;
+		gap: 0.5rem;
+		align-items: flex-end;
+	}
+	form.svelte-1ldfa0q {
+		padding: 0.25rem;
+		display: flex;
+		gap: 0.5rem;
+		padding: 0.825rem 1.125rem;
+		align-items: center;
+		background: #1a1a1a;
+		--TextInput-label-font-size: 0.75rem;
+
+		button.save:where(.svelte-1ldfa0q) {
+			border: 1px solid var(--primo-primary-color);
+			border-radius: 0.25rem;
+			padding: 9px 0.75rem;
+			margin-top: 23px;
+
+			&:disabled {
+				opacity: 20%;
+			}
+		}
+	}
+
+	.color-picker.svelte-1ldfa0q {
+		position: absolute;
+		background: var(--color-gray-9);
+		padding: 1rem;
+		z-index: 9;
+		border: 1px solid var(--color-gray-7);
+		border-radius: 0.5rem;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+	}
+
+	.color-grid.svelte-1ldfa0q {
+		display: grid;
+		grid-template-columns: repeat(5, 1fr);
+		gap: 0.5rem;
+	}
+
+	.color-option.svelte-1ldfa0q {
+		width: 2rem;
+		height: 2rem;
+		border-radius: 50%;
+		border: 2px solid transparent;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition:
+			transform 0.15s ease,
+			border-color 0.15s ease;
+
+		&:hover {
+			transform: scale(1.1);
+			border-color: rgba(255, 255, 255, 0.5);
+		}
+
+		&:active {
+			transform: scale(0.95);
+		}
+	}

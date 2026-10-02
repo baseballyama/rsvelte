@@ -1,0 +1,51 @@
+
+    /* Responsive table container */
+    .responsive-table.svelte-15t2ozq {
+        overflow-x: auto;
+        width: 100%;
+        min-width: 0;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        position: relative;
+        z-index: 2;
+    }
+
+    /* Small viewport optimizations */
+    @media (max-width: 640px) {
+        .responsive-table.svelte-15t2ozq {
+            margin-inline: -1rem;
+            padding-inline: 1rem;
+            z-index: 5;
+        }
+
+        .responsive-table.svelte-15t2ozq td,
+        .responsive-table.svelte-15t2ozq th {
+            padding: 0.5rem 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        .responsive-table.svelte-15t2ozq td:nth-child(1) .badge {
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .responsive-table.svelte-15t2ozq td:nth-child(1) .layout-stack {
+            flex-wrap: nowrap;
+            gap: 6px !important;
+        }
+
+        .responsive-table.svelte-15t2ozq th:nth-child(4),
+        .responsive-table.svelte-15t2ozq td:nth-child(4) {
+            width: 96px;
+            min-width: 96px;
+        }
+    }
+
+    .controlled-selection.svelte-15t2ozq [role='rowheader'] {
+        pointer-events: none;
+
+        [role='cell'] {
+            opacity: 0.5;
+            cursor: not-allowed;
+            color: var(--fgcolor-neutral-secondary);
+        }
+    }

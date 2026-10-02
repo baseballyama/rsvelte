@@ -1,0 +1,18 @@
+
+	.dropdown-box.svelte-7yu0ai {
+		width: 250px;
+		height: 302px;
+		position: relative;
+		top: 200px;
+		left: 300px;
+	}
+	.label.svelte-7yu0ai {
+		font-weight: 600;
+		padding: 10px 0;
+	}
+	.wx-button.my-button {
+		width: 250px;
+	}
+	.my-dropdown {
+		background: var(--wx-background-alt) !important;
+	}

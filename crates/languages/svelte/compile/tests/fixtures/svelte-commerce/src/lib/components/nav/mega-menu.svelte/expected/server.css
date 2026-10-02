@@ -1,0 +1,73 @@
+
+	/* ---------- Refined Editorial header menu — default theme only ---------- */
+	[data-theme='default'] .ed-mm-link {
+		color: var(--ed-soft);
+		font-weight: 600;
+		font-size: 0.78rem;
+		letter-spacing: 0.18em;
+		font-family: var(--ed-body);
+	}
+
+	[data-theme='default'] .ed-mm-link:hover {
+		color: var(--ed-ink);
+	}
+
+	[data-theme='default'] .ed-mm-panel {
+		background: var(--ed-surface);
+		border-color: var(--ed-line);
+		border-radius: 0 0 var(--ed-radius) var(--ed-radius);
+		box-shadow: 0 24px 48px -24px rgba(27, 26, 23, 0.28);
+	}
+
+	[data-theme='default'] .ed-mm-cat {
+		color: var(--ed-ink);
+		font-family: var(--ed-body);
+	}
+
+	[data-theme='default'] .ed-mm-cat:hover {
+		color: hsl(var(--primary));
+	}
+
+	[data-theme='default'] .ed-mm-sub {
+		color: var(--ed-soft);
+		font-family: var(--ed-body);
+	}
+
+	[data-theme='default'] .ed-mm-sub:hover {
+		color: hsl(var(--primary));
+	}
+
+	[data-theme='default'] .ed-mm-foot {
+		background: var(--ed-canvas);
+		border-color: var(--ed-line);
+	}
+
+	[data-theme='default'] .ed-mm-viewall {
+		color: var(--ed-soft);
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+	}
+
+	[data-theme='default'] .ed-mm-viewall:hover {
+		color: hsl(var(--primary));
+	}
+
+	.mega-menu.svelte-1w8y9gc {
+		visibility: hidden;
+		opacity: 0;
+		transform: translate(-50%, 10px);
+		z-index: 9999;
+	}
+
+	/* :focus-within as well as :hover — otherwise the panel that focusin renders stays
+	   visibility:hidden and the keyboard path is still dead. */
+	.hoverable.svelte-1w8y9gc:hover .mega-menu:where(.svelte-1w8y9gc),
+	.hoverable.svelte-1w8y9gc:focus-within .mega-menu:where(.svelte-1w8y9gc) {
+		visibility: visible;
+		opacity: 1;
+		transform: translate(-50%, 0);
+	}
+
+	.hoverable.svelte-1w8y9gc {
+		position: static;
+	}

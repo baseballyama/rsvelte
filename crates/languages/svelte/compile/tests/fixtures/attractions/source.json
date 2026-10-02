@@ -1,0 +1,13 @@
+{
+	"commit": "aad470e9372a053a5316bb5835739b62c1539134",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/illright/attractions"
+}

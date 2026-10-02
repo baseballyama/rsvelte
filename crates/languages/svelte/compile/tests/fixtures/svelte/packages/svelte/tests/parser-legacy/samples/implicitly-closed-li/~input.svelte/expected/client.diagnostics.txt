@@ -1,0 +1,6 @@
+warning element_implicitly_closed 2:2-2:6 This element is implicitly closed by the following `<li>`, which can cause an unexpected DOM structure. Add an explicit `</li>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 3:2-3:6 This element is implicitly closed by the following `<li>`, which can cause an unexpected DOM structure. Add an explicit `</li>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 4:2-4:6 This element is implicitly closed by the following `</ul>`, which can cause an unexpected DOM structure. Add an explicit `</li>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed

@@ -1,0 +1,26 @@
+
+	.tick.svelte-1v83wlc {
+		font-size: 11px;
+	}
+
+	line.svelte-1v83wlc,
+	.tick.svelte-1v83wlc line:where(.svelte-1v83wlc) {
+		stroke: #aaa;
+		stroke-dasharray: 2;
+	}
+
+	.tick.svelte-1v83wlc text:where(.svelte-1v83wlc) {
+		fill: #666;
+	}
+
+	.tick.svelte-1v83wlc .tick-mark:where(.svelte-1v83wlc),
+	.baseline.svelte-1v83wlc {
+		stroke-dasharray: 0;
+	}
+	/* This looks slightly better */
+	.axis.snapLabels.svelte-1v83wlc .tick:where(.svelte-1v83wlc):last-child text:where(.svelte-1v83wlc) {
+		transform: translateX(3px);
+	}
+	.axis.snapLabels.svelte-1v83wlc .tick.tick-0:where(.svelte-1v83wlc) text:where(.svelte-1v83wlc) {
+		transform: translateX(-3px);
+	}

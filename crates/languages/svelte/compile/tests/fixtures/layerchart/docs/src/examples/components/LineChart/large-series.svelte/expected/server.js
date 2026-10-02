@@ -1,0 +1,38 @@
+import * as $ from 'svelte/internal/server';
+import { LineChart, defaultChartPadding } from 'layerchart';
+import { flatGroup } from 'd3-array';
+import { getDailyTemperatures } from '$lib/data.remote';
+
+const data = await getDailyTemperatures();
+
+export default function Large_series($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		LineChart($$renderer, {
+			x: 'date',
+			y: 'value',
+			yDomain: null,
+			props: {
+				spline: { class: 'stroke' },
+				xAxis: { format: 'month' },
+				yAxis: { ticks: 4, format: (v) => v + '° F' },
+				highlight: { points: false },
+				tooltip: { context: { mode: 'manual' } }
+			},
+
+			series: flatGroup(data, (d) => d.year).map(([year, data]) => {
+				return {
+					key: year.toString(),
+					data,
+					color: year >= 2023
+						? 'var(--color-primary)'
+						: 'var(--color-surface-content)',
+					props: { opacity: year === 2024 ? 1 : year === 2023 ? 0.5 : 0.1 }
+				};
+			}),
+			padding: defaultChartPadding({ left: 30 }),
+			height: 500
+		});
+
+		$.bind_props($$props, { data });
+	});
+}

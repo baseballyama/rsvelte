@@ -1,0 +1,6 @@
+
+  @layer components {
+    :where(.lc-density-contour) {
+      --stroke-color: none;
+    }
+  }

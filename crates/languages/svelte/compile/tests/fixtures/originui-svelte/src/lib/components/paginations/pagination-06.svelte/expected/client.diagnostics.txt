@@ -1,0 +1,6 @@
+warning state_referenced_locally 27:3-27:14 This reference only captures the initial value of `currentPage`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 28:3-28:27 This reference only captures the initial value of `paginationItemsToDisplay`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 29:3-29:13 This reference only captures the initial value of `totalPages`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

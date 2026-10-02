@@ -1,0 +1,6 @@
+warning a11y_consider_explicit_label 10:1-12:14 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label
+warning event_directive_deprecated 10:9-12:4 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 13:8-15:4 Using `on:input` to listen to the input event is deprecated. Use the event attribute `oninput` instead
+    https://svelte.dev/e/event_directive_deprecated

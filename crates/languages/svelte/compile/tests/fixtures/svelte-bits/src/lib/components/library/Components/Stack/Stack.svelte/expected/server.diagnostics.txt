@@ -1,0 +1,6 @@
+warning state_referenced_locally 51:34-51:43 This reference only captures the initial value of `cardsData`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 51:54-51:63 This reference only captures the initial value of `cardsData`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning a11y_no_static_element_interactions 192:3-210:9 `<div>` with a pointerdown, pointermove, pointerup or pointercancel handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions

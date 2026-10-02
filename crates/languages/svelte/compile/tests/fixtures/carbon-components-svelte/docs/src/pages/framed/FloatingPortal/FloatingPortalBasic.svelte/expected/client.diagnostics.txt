@@ -1,0 +1,16 @@
+warning event_directive_deprecated 62:5-62:35 Using `on:dragstart` to listen to the dragstart event is deprecated. Use the event attribute `ondragstart` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 63:5-63:25 Using `on:drag` to listen to the drag event is deprecated. Use the event attribute `ondrag` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 64:5-64:31 Using `on:dragend` to listen to the dragend event is deprecated. Use the event attribute `ondragend` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 65:5-67:7 Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning non_reactive_update 4:7-4:13 `anchor` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 6:7-6:11 `open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 7:7-7:8 `x` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 8:7-8:8 `y` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

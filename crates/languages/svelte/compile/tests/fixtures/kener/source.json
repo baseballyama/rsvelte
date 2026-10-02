@@ -1,0 +1,13 @@
+{
+	"commit": "880080cea1ef162e4945c9f306fba98ca3e99898",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/rajnandan1/kener.git"
+}

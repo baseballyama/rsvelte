@@ -1,0 +1,19 @@
+{
+	"rules": [
+		"no-unused-vars",
+		"vue/html-button-has-type",
+		"vue/multi-word-component-names",
+		"vue/no-unused-vars"
+	],
+	"findings": [
+		{
+			"rule": "vue/multi-word-component-names",
+			"message": "Component name \"derived\" should always be multi-word.",
+			"start": {
+				"line": 1,
+				"column": 1
+			},
+			"end": null
+		}
+	]
+}

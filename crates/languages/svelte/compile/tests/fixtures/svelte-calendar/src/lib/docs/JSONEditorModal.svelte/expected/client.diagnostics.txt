@@ -1,0 +1,12 @@
+warning event_directive_deprecated 15:8-15:79 Using `on:submit` to listen to the submit event is deprecated. Use the event attribute `onsubmit` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 16:3-33:9 `<div>` with a keydown handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning event_directive_deprecated 18:4-18:39 Using `on:blurr` to listen to the blurr event is deprecated. Use the event attribute `onblurr` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 19:4-19:30 Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 31:31-31:81 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning non_reactive_update 11:6-11:14 `newValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

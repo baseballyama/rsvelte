@@ -1,0 +1,4 @@
+warning legacy_code 2:20-2:42 `a11y-invalid-attribute` is no longer valid — please use `a11y_invalid_attribute` instead
+    https://svelte.dev/e/legacy_code
+warning a11y_invalid_attribute 3:7-3:15 '#' is not a valid href attribute
+    https://svelte.dev/e/a11y_invalid_attribute

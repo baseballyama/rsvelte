@@ -1,0 +1,14 @@
+
+	.box.svelte-tpp10s {
+		aspect-ratio: 1;
+		width: 100px;
+		margin-bottom: var(--spacing-8);
+		background-color: orangered;
+		border-radius: 1rem;
+	}
+
+	label.svelte-tpp10s {
+		display: flex;
+		gap: var(--spacing-8);
+		margin-top: var(--spacing-32);
+	}

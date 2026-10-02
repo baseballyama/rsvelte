@@ -1,0 +1,4 @@
+warning a11y_no_static_element_interactions 450:3-569:9 `<div>` with a touchmove handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning a11y_no_static_element_interactions 470:5-568:11 `<div>` with a touchmove handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions

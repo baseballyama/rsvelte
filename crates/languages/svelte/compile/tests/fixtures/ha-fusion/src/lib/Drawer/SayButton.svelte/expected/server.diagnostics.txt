@@ -1,0 +1,14 @@
+warning event_directive_deprecated 110:2-110:35 Using `on:pointerdown` to listen to the pointerdown event is deprecated. Use the event attribute `onpointerdown` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 111:2-111:32 Using `on:pointerup` to listen to the pointerup event is deprecated. Use the event attribute `onpointerup` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 112:2-112:35 Using `on:pointerleave` to listen to the pointerleave event is deprecated. Use the event attribute `onpointerleave` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning non_reactive_update 12:6-12:26 `recognizing` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 15:6-15:13 `interim` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 16:6-16:11 `final` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 17:6-17:34 `response` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

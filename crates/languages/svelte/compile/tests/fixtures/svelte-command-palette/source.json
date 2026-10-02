@@ -1,0 +1,13 @@
+{
+	"commit": "17a479638020b95ce68483e15232625b36a2e9fb",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/rohitpotato/svelte-command-palette.git"
+}

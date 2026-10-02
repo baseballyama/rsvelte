@@ -1,0 +1,13 @@
+{
+	"commit": "0307b83c3db928b293820b2d8e1f603a361a2657",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/arabdevelop/svelte-formly"
+}

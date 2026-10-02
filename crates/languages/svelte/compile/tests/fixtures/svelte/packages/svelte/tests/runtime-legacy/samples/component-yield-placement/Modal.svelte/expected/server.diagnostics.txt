@@ -1,0 +1,10 @@
+warning a11y_click_events_have_key_events 7:1-7:58 Visible, non-interactive element `<div>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+    https://svelte.dev/e/a11y_click_events_have_key_events
+warning a11y_no_static_element_interactions 7:1-7:58 `<div>` with a click handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning event_directive_deprecated 7:31-7:51 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning slot_element_deprecated 10:2-10:15 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated
+warning event_directive_deprecated 11:10-11:30 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated

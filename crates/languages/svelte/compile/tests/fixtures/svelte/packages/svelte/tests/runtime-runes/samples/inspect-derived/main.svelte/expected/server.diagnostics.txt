@@ -1,0 +1,4 @@
+warning state_referenced_locally 8:19-8:23 This reference only captures the initial value of `push`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning event_directive_deprecated 11:9-11:34 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated

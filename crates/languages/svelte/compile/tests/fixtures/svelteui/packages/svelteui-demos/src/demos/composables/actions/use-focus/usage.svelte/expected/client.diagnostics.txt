@@ -1,0 +1,6 @@
+warning script_context_deprecated 1:19-1:35 `context="module"` is deprecated, use the `module` attribute instead
+    https://svelte.dev/e/script_context_deprecated
+warning non_reactive_update 35:6-35:10 `name` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 36:6-36:13 `editing` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

@@ -1,0 +1,8 @@
+warning event_directive_deprecated 70:12-70:36 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 70:37-70:63 Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 80:13-80:83 Using `on:input` to listen to the input event is deprecated. Use the event attribute `oninput` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning non_reactive_update 5:7-5:12 `nodes` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

@@ -1,0 +1,4 @@
+warning svelte_self_deprecated 2:2-2:36 `<svelte:self>` is deprecated — use self-imports (e.g. `import Input from './input.svelte'`) instead
+    https://svelte.dev/e/svelte_self_deprecated
+warning attribute_quoted 2:15-2:34 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+    https://svelte.dev/e/attribute_quoted

@@ -1,0 +1,6 @@
+
+	.a.svelte-c0rrfb + .b:where(.svelte-c0rrfb) { color: green; }
+	.b.svelte-c0rrfb + .c:where(.svelte-c0rrfb) { color: green; }
+
+	/* no match */
+	/* (unused) .a + .c { color: red; }*/

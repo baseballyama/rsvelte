@@ -1,0 +1,160 @@
+
+	.noor-card.svelte-2y8o17 {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		background: #fff;
+		color: #171717;
+		font-family: var(--font-body);
+	}
+
+	.noor-card-media.svelte-2y8o17 {
+		position: relative;
+		display: block;
+		overflow: hidden;
+		background: #f6f2ec;
+	}
+
+	.noor-card-media.svelte-2y8o17 img:where(.svelte-2y8o17) {
+		display: block;
+		width: 100%;
+		/* Driven by the store's productImageAspectRatio (see mediaRatio above); 3/4 is only
+		   the fallback when the store has not configured one. */
+		aspect-ratio: var(--noor-media-ratio, 3 / 4);
+		object-fit: cover;
+		object-position: top center;
+		transition: transform 0.45s ease;
+	}
+
+	.noor-card.svelte-2y8o17:hover .noor-card-media:where(.svelte-2y8o17) img:where(.svelte-2y8o17) {
+		transform: scale(1.035);
+	}
+
+	.noor-sale.svelte-2y8o17 {
+		position: absolute;
+		left: 10px;
+		top: 10px;
+		background: #111;
+		color: #fff;
+		padding: 4px 8px;
+		font-size: 10px;
+		font-weight: 600;
+		line-height: 1;
+		letter-spacing: 0.08em;
+	}
+
+	.noor-wish.svelte-2y8o17 {
+		position: absolute;
+		right: 10px;
+		top: 10px;
+		display: grid;
+		width: 34px;
+		height: 34px;
+		place-items: center;
+		border: 1px solid rgb(0 0 0 / 0.14);
+		background: rgb(255 255 255 / 0.92);
+		color: #111;
+	}
+
+	.noor-wish.is-active.svelte-2y8o17 {
+		background: #111;
+		color: #fff;
+	}
+
+	.noor-wish.is-active.svelte-2y8o17 svg {
+		fill: currentColor;
+	}
+
+	.noor-wish.svelte-2y8o17:disabled {
+		cursor: default;
+		opacity: 0.6;
+	}
+
+	/* No opacity here — .noor-add's opacity is the hover-reveal animation. */
+	.noor-add.svelte-2y8o17:disabled {
+		cursor: default;
+	}
+
+	.noor-add.svelte-2y8o17 .noor-add-spin {
+		animation: svelte-2y8o17-noor-spin 0.7s linear infinite;
+	}
+
+	@keyframes svelte-2y8o17-noor-spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	.noor-card-body.svelte-2y8o17 {
+		display: block;
+		padding: 13px 0 0;
+		text-align: center;
+		text-decoration: none;
+	}
+
+	.noor-card-body.svelte-2y8o17 h3:where(.svelte-2y8o17) {
+		margin: 0;
+		color: #171717;
+		font-family: var(--font-body);
+		font-size: 13px;
+		font-weight: 500;
+		letter-spacing: 0.04em;
+		line-height: 1.45;
+		text-transform: uppercase;
+	}
+
+	.noor-card-body.svelte-2y8o17 p:where(.svelte-2y8o17) {
+		margin: 6px 0 0;
+		color: #111;
+		font-size: 13px;
+		font-weight: 500;
+		line-height: 1.4;
+	}
+
+	.noor-card-body.svelte-2y8o17 span:where(.svelte-2y8o17) {
+		margin-left: 8px;
+		color: #8a8a8a;
+		text-decoration: line-through;
+	}
+
+	.noor-add.svelte-2y8o17 {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		width: 100%;
+		margin-top: 14px;
+		border: 1px solid #111;
+		background: #111;
+		color: #fff;
+		padding: 11px 12px;
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		opacity: 0;
+		transform: translateY(4px);
+		transition:
+			opacity 0.2s ease,
+			transform 0.2s ease,
+			background 0.2s ease,
+			color 0.2s ease;
+	}
+
+	.noor-add.svelte-2y8o17:hover {
+		background: #fff;
+		color: #111;
+	}
+
+	.noor-card.svelte-2y8o17:hover .noor-add:where(.svelte-2y8o17),
+	.noor-card.svelte-2y8o17:focus-within .noor-add:where(.svelte-2y8o17) {
+		opacity: 1;
+		transform: none;
+	}
+
+	@media (hover: none) {
+		.noor-add.svelte-2y8o17 {
+			opacity: 1;
+			transform: none;
+		}
+	}

@@ -1,0 +1,4 @@
+warning element_invalid_self_closing_tag 7:1-7:41 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning attribute_quoted 9:6-9:29 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+    https://svelte.dev/e/attribute_quoted

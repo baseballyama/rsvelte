@@ -1,0 +1,166 @@
+
+  .global-options.svelte-14mtmgv {
+    --title-height: 3rem;
+    display: flex;
+    position: fixed;
+    right: 2rem;
+    bottom: 0;
+    flex-direction: column;
+    transform: translateY(calc(100% - var(--title-height)));
+    opacity: 0.5;
+    z-index: 9999;
+    transition-duration: 0.3s;
+    transition-property: transform, opacity, border, border-color, box-shadow;
+    transition-timing-function: ease;
+    margin-inline: auto;
+    box-shadow: 0.1rem 0.1rem 0.2rem #00000028;
+    border: 1px solid var(--sl-color-gray-4);
+    border-bottom: none;
+    border-top-right-radius: 8px;
+    border-top-left-radius: 8px;
+    background-color: var(--sl-color-gray-6);
+
+    width: 20rem;
+    /* height: 30px; */
+    overflow: hidden;
+    color: var(--sl-color-white);
+    font-size: 14px;
+
+    .options-title:where(.svelte-14mtmgv) {
+      font-size: 16px;
+    }
+
+    &:focus-within {
+      box-shadow:
+        0.1rem 0.1rem 0.2rem var(--sl-color-accent),
+        -0.1rem -0.1rem 0.2rem var(--sl-color-accent);
+    }
+
+    &.keep-open,
+    &:hover,
+    &:focus-within {
+      transform: translateY(0);
+      opacity: 1;
+      /* border-color: var(--sl-color-gray-4); */
+      /* height: 320px; */
+      /* overflow: auto; */
+
+      a:where(.svelte-14mtmgv) {
+        opacity: 1;
+      }
+    }
+  }
+
+  @media screen and (min-width: 800px) {
+    .global-options.svelte-14mtmgv {
+      width: 18rem;
+      /* height: 26px; */
+      font-size: 12px;
+
+      .options-title:where(.svelte-14mtmgv) {
+        font-size: 16px;
+      }
+    }
+  }
+
+  .go-body label {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5em 1em;
+    width: 100%;
+    overflow: visible;
+    font-size: inherit !important;
+    text-wrap: nowrap;
+  }
+
+  input[type='number'].svelte-14mtmgv,
+  select.svelte-14mtmgv {
+    /* outline: 1px solid var(--sl-color-accent-high); */
+    /* border: none; */
+    /* border-radius: 8px; */
+    /* background-color: transparent; */
+    width: 105px;
+    height: 1.5em;
+    font-size: inherit !important;
+    text-align: center;
+  }
+
+  .options-title.svelte-14mtmgv {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--sl-color-gray-4);
+    /* background-color: var(--sl-color-gray-); */
+    padding-inline: 0.5rem;
+    padding-block: 0.25rem;
+    width: 100%;
+    height: var(--title-height);
+    font-weight: bold;
+    font-size: 28px;
+    /* font-family: monospace; */
+
+    a:where(.svelte-14mtmgv) {
+      opacity: 0;
+      transition: opacity, 0.5s;
+    }
+  }
+
+  .tool-buttons.svelte-14mtmgv {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .go-body.svelte-14mtmgv {
+    display: flex;
+    flex-flow: column nowrap;
+    background: linear-gradient(to top, rgb(0 0 0 / 0.4), transparent 30%);
+    background-attachment: local;
+    height: 320px;
+    overflow-y: scroll;
+    font-family: monospace;
+  }
+
+  .go-body > :not(:last-child) {
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+
+  .tool-button.svelte-14mtmgv {
+    all: unset;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition-duration: 300ms;
+    transition-property: color, background-color;
+    transition-timing-function: ease-out;
+    cursor: pointer;
+    outline: 1px solid var(--sl-color-gray-4);
+    border-radius: 9999px;
+    width: 24px;
+    height: 24px;
+    /* color: var(--sl-color-accent-high); */
+
+    &:hover {
+      background-color: var(--sl-color-accent-high);
+      color: var(--sl-color-gray-6);
+    }
+
+    &:focus {
+      outline: 1px solid var(--sl-color-accent-high);
+    }
+  }
+
+  .pin-button.svelte-14mtmgv {
+    svg:where(.svelte-14mtmgv) {
+      transform: rotate(60deg) translate(0, -2px) scale(0.8);
+      /* color: currentColor; */
+      transition: transform 300ms ease-out;
+    }
+
+    &.keep-open {
+      svg:where(.svelte-14mtmgv) {
+        transform: translate(0, 0) rotate(0) scale(1);
+      }
+    }
+  }

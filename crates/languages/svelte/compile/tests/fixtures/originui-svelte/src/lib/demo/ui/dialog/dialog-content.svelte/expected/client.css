@@ -1,0 +1,18 @@
+
+	div[data-dialog-content] {
+		overflow: auto;
+	}
+
+	div[data-dialog-content]::-webkit-scrollbar {
+		width: 5px;
+	}
+
+	div[data-dialog-content]::-webkit-scrollbar-thumb {
+		background: hsl(var(--border));
+		border-radius: 5px;
+	}
+
+	div[data-dialog-content] {
+		scrollbar-width: thin;
+		scrollbar-color: hsl(var(--border)) transparent;
+	}

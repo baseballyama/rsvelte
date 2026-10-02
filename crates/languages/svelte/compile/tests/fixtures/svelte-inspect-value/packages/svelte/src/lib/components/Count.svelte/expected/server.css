@@ -1,0 +1,15 @@
+
+  .count.svelte-qm7g4h {
+    display: flex;
+    gap: 0.5ch;
+    transition: color var(--__transition-duration) ease-in-out;
+    margin-right: 1ch;
+    color: var(--_length-color);
+    font-style: italic;
+    font-weight: bold;
+    font-size: 0.857em;
+  }
+
+  .count .unit {
+    display: var(--unit-display);
+  }

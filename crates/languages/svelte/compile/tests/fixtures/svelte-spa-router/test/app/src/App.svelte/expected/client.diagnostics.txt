@@ -1,0 +1,8 @@
+warning a11y_interactive_supports_focus 58:13-63:14 Elements with the 'button' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning a11y_click_events_have_key_events 58:13-63:14 Visible, non-interactive element `<i>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+    https://svelte.dev/e/a11y_click_events_have_key_events
+warning a11y_interactive_supports_focus 77:13-83:17 Elements with the 'button' interactive role must have a tabindex value
+    https://svelte.dev/e/a11y_interactive_supports_focus
+warning a11y_click_events_have_key_events 77:13-83:17 Visible, non-interactive element `<i>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+    https://svelte.dev/e/a11y_click_events_have_key_events

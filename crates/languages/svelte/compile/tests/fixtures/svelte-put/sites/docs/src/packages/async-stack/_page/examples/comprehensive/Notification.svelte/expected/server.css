@@ -1,0 +1,18 @@
+
+	.progress.svelte-r8lj3d {
+		animation: svelte-r8lj3d-progress var(--progress-duration) linear;
+	}
+
+	.progress.paused.svelte-r8lj3d {
+		animation-play-state: paused;
+	}
+
+	@keyframes svelte-r8lj3d-progress {
+		from {
+			transform: scaleX(0);
+		}
+
+		to {
+			transform: scaleX(1);
+		}
+	}

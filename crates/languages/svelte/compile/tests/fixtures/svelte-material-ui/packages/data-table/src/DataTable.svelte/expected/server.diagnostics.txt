@@ -1,0 +1,6 @@
+warning state_referenced_locally 214:42-214:50 This reference only captures the initial value of `sortable`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 217:56-217:78 This reference only captures the initial value of `sortAscendingAriaLabel`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 220:5-220:28 This reference only captures the initial value of `sortDescendingAriaLabel`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

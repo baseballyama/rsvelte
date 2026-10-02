@@ -1,0 +1,8 @@
+warning css_unused_selector 457:3-457:10 Unused CSS selector ".letter"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 473:3-473:15 Unused CSS selector ".status-pill"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 481:4-481:13 Unused CSS selector "&.pending"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 486:4-486:10 Unused CSS selector "&.sent"
+    https://svelte.dev/e/css_unused_selector

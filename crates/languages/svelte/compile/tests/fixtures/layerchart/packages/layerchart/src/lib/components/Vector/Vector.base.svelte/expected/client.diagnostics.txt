@@ -1,0 +1,26 @@
+warning state_referenced_locally 100:45-100:51 This reference only captures the initial value of `motion`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 170:20-170:32 This reference only captures the initial value of `initialXProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 170:44-170:45 This reference only captures the initial value of `x`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 170:61-170:62 This reference only captures the initial value of `x`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 171:20-171:32 This reference only captures the initial value of `initialYProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 171:44-171:45 This reference only captures the initial value of `y`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 171:61-171:62 This reference only captures the initial value of `y`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 172:25-172:42 This reference only captures the initial value of `initialLengthProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 172:54-172:64 This reference only captures the initial value of `lengthProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 172:80-172:90 This reference only captures the initial value of `lengthProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 174:81-174:87 This reference only captures the initial value of `motion`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 175:81-175:87 This reference only captures the initial value of `motion`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 179:5-179:11 This reference only captures the initial value of `motion`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

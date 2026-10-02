@@ -1,0 +1,16 @@
+
+  .input-row.svelte-ifv3rm {
+    display: flex;
+    gap: 1em;
+    font-family: monospace;
+  }
+
+  .search-example.svelte-ifv3rm {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border-radius: 8px;
+    background-color: var(--sl-color-gray-6);
+    padding: 0.5rem;
+    height: 555px;
+  }

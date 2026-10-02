@@ -1,0 +1,4 @@
+warning state_referenced_locally 168:20-168:28 This reference only captures the initial value of `rotation`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 169:22-169:32 This reference only captures the initial value of `autoRotate`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

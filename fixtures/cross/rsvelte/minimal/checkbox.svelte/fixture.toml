@@ -1,2 +1,0 @@
-[behaviour]
-steps = [{ click = "input.agree" }, { click = "input.agree" }, { click = "label" }]

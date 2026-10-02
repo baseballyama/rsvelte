@@ -1,0 +1,63 @@
+import * as $ from 'svelte/internal/server';
+import { cn } from '$lib/utils';
+import { tv } from 'tailwind-variants';
+
+export const buttonVariants = tv({
+	base: "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[color,box-shadow] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+	defaultVariants: { size: 'default', variant: 'default' },
+	variants: {
+		size: {
+			default: 'h-9 px-4 py-2',
+			icon: 'size-9',
+			lg: 'h-10 rounded-md px-8',
+			sm: 'h-8 rounded-md px-3 text-xs'
+		},
+		variant: {
+			default: 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90',
+			destructive: 'bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40',
+			ghost: 'hover:bg-accent hover:text-accent-foreground',
+			link: 'text-primary underline-offset-4 hover:underline',
+			outline: 'border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground',
+			secondary: 'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80'
+		}
+	}
+});
+
+export default function Button($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let {
+			children,
+			class: className,
+			href = null,
+			ref = null,
+			size = 'default',
+			variant = 'default',
+			$$slots,
+			$$events,
+			...restProps
+		} = $$props;
+
+		if (!href && restProps?.role !== 'link') {
+			$$renderer.push(`<!--[0--><button${$.attributes({
+				type: 'button',
+				class: $.clsx(cn(buttonVariants({ className, size, variant }))),
+				...restProps
+			})}>`);
+
+			children?.($$renderer);
+			$$renderer.push(`<!----></button>`);
+		} else {
+			$$renderer.push(`<!--[-1--><a${$.attributes({
+				href,
+				class: $.clsx(cn(buttonVariants({ className, size, variant }))),
+				...restProps
+			})}>`);
+
+			children?.($$renderer);
+			$$renderer.push(`<!----></a>`);
+		}
+
+		$$renderer.push(`<!--]-->`);
+		$.bind_props($$props, { ref });
+	});
+}

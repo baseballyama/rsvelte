@@ -1,0 +1,8 @@
+warning state_referenced_locally 24:9-24:13 This reference only captures the initial value of `size`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 25:14-25:23 This reference only captures the initial value of `fullWidth`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 28:6-28:10 This reference only captures the initial value of `name`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 29:22-29:26 This reference only captures the initial value of `name`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

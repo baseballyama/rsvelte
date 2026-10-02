@@ -1,0 +1,30 @@
+warning css_unused_selector 39:3-39:27 Unused CSS selector ".splitpanes.modern-theme"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 40:5-40:22 Unused CSS selector ".splitpanes__pane"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 43:5-43:26 Unused CSS selector ".splitpanes__splitter"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 47:7-47:15 Unused CSS selector "&:before"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 57:7-57:21 Unused CSS selector "&:hover:before"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 60:7-60:37 Unused CSS selector "&.splitpanes__splitter__active"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 65:3-65:16 Unused CSS selector ".modern-theme"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 66:5-66:58 Unused CSS selector "&.splitpanes--vertical > .splitpanes__splitter:before"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 72:5-72:60 Unused CSS selector "&.splitpanes--horizontal > .splitpanes__splitter:before"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 80:3-80:26 Unused CSS selector ".splitpanes.no-splitter"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 81:5-81:22 Unused CSS selector ".splitpanes__pane"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 84:5-84:26 Unused CSS selector ".splitpanes__splitter"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 89:3-89:15 Unused CSS selector ".no-splitter"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 90:5-90:60 Unused CSS selector "&.splitpanes--horizontal > .splitpanes__splitter:before"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 95:5-95:58 Unused CSS selector "&.splitpanes--vertical > .splitpanes__splitter:before"
+    https://svelte.dev/e/css_unused_selector

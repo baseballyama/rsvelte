@@ -1,0 +1,14 @@
+warning css_unused_selector 140:9-140:15 Unused CSS selector "&-main"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 152:9-152:18 Unused CSS selector "&-primary"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 163:9-163:18 Unused CSS selector "&-primary"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 214:9-214:15 Unused CSS selector "&-item"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 220:13-220:22 Unused CSS selector "&::before"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 240:13-240:22 Unused CSS selector "&-primary"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 251:13-251:19 Unused CSS selector "&-item"
+    https://svelte.dev/e/css_unused_selector

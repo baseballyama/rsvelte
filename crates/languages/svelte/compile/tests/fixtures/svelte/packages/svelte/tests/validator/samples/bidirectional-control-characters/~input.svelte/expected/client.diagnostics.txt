@@ -1,0 +1,8 @@
+warning bidirectional_control_characters 2:16-2:59 A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences
+    https://svelte.dev/e/bidirectional_control_characters
+warning bidirectional_control_characters 4:1-4:3 A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences
+    https://svelte.dev/e/bidirectional_control_characters
+warning bidirectional_control_characters 4:6-4:8 A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences
+    https://svelte.dev/e/bidirectional_control_characters
+warning bidirectional_control_characters 4:11-4:13 A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences
+    https://svelte.dev/e/bidirectional_control_characters

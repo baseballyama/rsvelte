@@ -1,0 +1,47 @@
+<script lang="ts" context="module">
+	import type { CodeDemoType, CodeDemoConfiguration } from '$lib/types';
+
+	const code = `
+<script>
+	import { ObserverRender, Text, Paper } from '@svelteuidev/core';
+<\/script>
+
+<Paper>
+  <ObserverRender let:visible options={{ threshold: 1 }}>
+    <Paper
+        padding="xl"
+        override={{
+          bc: visible ? '$green900' : '$red900', minW: '50%'
+        }}
+    >
+      <Text weight="extrabold">
+        {visible ? 'Fully visible' : 'Obscured'}
+      </Text>
+    </Paper>
+  </ObserverRender>
+</Paper>
+`;
+
+	export const type: CodeDemoType['type'] = 'demo';
+
+	export const configuration: CodeDemoConfiguration = {
+		code,
+		spacing: false
+	};
+</script>
+
+<script>
+	import { ObserverRender, Text, Paper } from '@svelteuidev/core';
+</script>
+
+<Paper override={{ overflowY: 'scroll', h: 300 }}>
+	<div style="padding-top: 260px; padding-bottom: 280px;">
+		<ObserverRender let:visible options={{ threshold: 1 }}>
+			<Paper override={{ bc: visible ? '$green900' : '$red900', minW: '50%' }} padding="xl">
+				<Text override={{ color: 'white' }} weight="extrabold">
+					{visible ? 'Fully visible' : 'Obscured'}
+				</Text>
+			</Paper>
+		</ObserverRender>
+	</div>
+</Paper>

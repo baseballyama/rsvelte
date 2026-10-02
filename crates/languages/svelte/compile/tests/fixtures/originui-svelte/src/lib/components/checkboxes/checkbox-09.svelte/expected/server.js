@@ -1,0 +1,21 @@
+import * as $ from 'svelte/internal/server';
+import Checkbox from '$lib/components/ui/checkbox.svelte';
+import Label from '$lib/components/ui/label.svelte';
+
+export default function Checkbox_09($$renderer) {
+	const uid = $.props_id($$renderer);
+
+	$$renderer.push(`<div class="flex items-center justify-between gap-2">`);
+	Checkbox($$renderer, { id: uid, class: 'order-1' });
+	$$renderer.push(`<!----> `);
+
+	Label($$renderer, {
+		for: uid,
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Right aligned checkbox`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></div>`);
+}

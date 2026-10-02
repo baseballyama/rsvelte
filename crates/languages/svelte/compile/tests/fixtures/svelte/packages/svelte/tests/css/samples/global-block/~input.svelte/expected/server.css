@@ -1,0 +1,106 @@
+
+	/* :global {*/
+		.x {
+			color: green;
+		}
+
+		.a, .selector, .list {
+			color: green;
+		}
+	/*}*/
+
+	div.svelte-1yk7nd8 {
+		.y {
+			color: green;
+		}
+	}
+
+	/* some css preprocessors de-nest :global blocks with a single child
+	   (e.g turn `:global { div { ... } }` into `:global div { ... }`),
+	   so we need to support it, too */
+	 div {
+		.y {
+			color: green;
+		}
+	}
+
+	div.svelte-1yk7nd8 p {
+		.y {
+			color: green;
+		}
+	}
+
+	/* `div { :global { &.x { ...} } }` is allowed ... */
+	div.svelte-1yk7nd8 {
+		/* :global {*/
+			&.x {
+				color: green;
+			}
+		/*}*/
+	}
+
+	/* ...which is equivalent to `div :global { &.x { ...} }` ... */
+	div.svelte-1yk7nd8 {
+		&.x {
+			color: green;
+		}
+	}
+
+	/* ...so `div :global.x` must be, too ... */
+	div.svelte-1yk7nd8.x {
+		color: green;
+	}
+
+	/* ...and therefore `div { :global.x { ... }` as well */
+	div.svelte-1yk7nd8 {
+		&.x {
+			color: green;
+		}
+	}
+
+	div.svelte-1yk7nd8 {
+		&.x {
+			color: green;
+		}
+	}
+
+	div.svelte-1yk7nd8:is(html.dark-mode *) {
+		color: green;
+	}
+
+	/* (unused) .unused :global {
+		.z {
+			color: red;
+		}
+	}*/
+	/* :global{*/
+		.x{
+			animation: svelte-1yk7nd8-test 1s;
+		}
+
+		.y{
+			animation: test-in 1s;
+		}
+
+		@keyframes test-in{
+			to{
+				opacity: 1;
+			}
+		}
+	/*}*/
+
+	@keyframes svelte-1yk7nd8-test{
+		to{
+			opacity: 1;
+		}
+	}
+
+	 x,  y {
+		color: green;
+	}
+
+	div.svelte-1yk7nd8, div.svelte-1yk7nd8 y /* (unused) unused*/ {
+		z {
+			color: green;
+		}
+	}

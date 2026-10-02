@@ -1,0 +1,211 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+import {
+	Area,
+	Axis,
+	Chart,
+	Layer,
+	Highlight,
+	Tooltip,
+	defaultChartPadding
+} from 'layerchart';
+
+import TooltipContextControls2 from '$lib/components/controls/TooltipContextControls2.svelte';
+import { createDateSeries } from '$lib/utils/data.js';
+
+var root = $.from_html(`<!> <!> <!> <!>`, 1);
+var root_1 = $.from_html(`<!> <!>`, 1);
+
+export default function Anchor_location($$anchor, $$props) {
+	$.push($$props, true);
+
+	const data = createDateSeries({
+		count: 30,
+		min: 20,
+		max: 100,
+		value: 'integer',
+		keys: ['value', 'baseline']
+	});
+
+	let anchor = $.state('top-left');
+	let snap = $.state('pointer');
+	let contained = $.state('container');
+	let portal = $.state(true);
+	var $$exports = { data };
+	var fragment = root_1();
+	var node = $.first_child(fragment);
+
+	TooltipContextControls2(node, {
+		get anchor() {
+			return $.get(anchor);
+		},
+
+		set anchor($$value) {
+			$.set(anchor, $$value, true);
+		},
+
+		get snap() {
+			return $.get(snap);
+		},
+
+		set snap($$value) {
+			$.set(snap, $$value, true);
+		},
+
+		get contained() {
+			return $.get(contained);
+		},
+
+		set contained($$value) {
+			$.set(contained, $$value, true);
+		},
+
+		get portal() {
+			return $.get(portal);
+		},
+
+		set portal($$value) {
+			$.set(portal, $$value, true);
+		}
+	});
+
+	var node_1 = $.sibling(node, 2);
+
+	{
+		let $0 = $.derived(() => defaultChartPadding({ top: 5, left: 28, bottom: 24, right: 15 }));
+
+		Chart(node_1, {
+			get data() {
+				return data;
+			},
+			x: 'date',
+			y: 'value',
+			yDomain: [0, null],
+			yNice: true,
+			get padding() {
+				return $.get($0);
+			},
+			tooltipContext: { mode: 'quadtree-x' },
+			height: 300,
+			children: ($$anchor, $$slotProps) => {
+				var fragment_1 = root_1();
+				var node_2 = $.first_child(fragment_1);
+
+				Layer(node_2, {
+					children: ($$anchor, $$slotProps) => {
+						var fragment_2 = root();
+						var node_3 = $.first_child(fragment_2);
+
+						Axis(node_3, { placement: 'left', grid: true, rule: true });
+
+						var node_4 = $.sibling(node_3, 2);
+
+						Axis(node_4, { placement: 'bottom', rule: true });
+
+						var node_5 = $.sibling(node_4, 2);
+
+						Area(node_5, {
+							class: 'fill-primary/30',
+							line: { class: 'stroke-primary stroke-2' }
+						});
+
+						var node_6 = $.sibling(node_5, 2);
+
+						Highlight(node_6, { points: true, lines: true });
+						$.append($$anchor, fragment_2);
+					},
+					$$slots: { default: true }
+				});
+
+				var node_7 = $.sibling(node_2, 2);
+
+				{
+					const children = ($$anchor, $$arg0) => {
+						let data = () => ($$arg0?.()).data;
+						var fragment_3 = root_1();
+						var node_8 = $.first_child(fragment_3);
+
+						$.component(node_8, () => Tooltip.Header, ($$anchor, Tooltip_Header) => {
+							Tooltip_Header($$anchor, {
+								get value() {
+									return data().date;
+								},
+								format: 'day'
+							});
+						});
+
+						var node_9 = $.sibling(node_8, 2);
+
+						$.component(node_9, () => Tooltip.List, ($$anchor, Tooltip_List) => {
+							Tooltip_List($$anchor, {
+								children: ($$anchor, $$slotProps) => {
+									var fragment_4 = $.comment();
+									var node_10 = $.first_child(fragment_4);
+
+									$.component(node_10, () => Tooltip.Item, ($$anchor, Tooltip_Item) => {
+										Tooltip_Item($$anchor, {
+											label: 'value',
+											get value() {
+												return data().value;
+											}
+										});
+									});
+
+									$.append($$anchor, fragment_4);
+								},
+								$$slots: { default: true }
+							});
+						});
+
+						$.append($$anchor, fragment_3);
+					};
+
+					let $0 = $.derived(() => ['top', 'center', 'bottom'].includes($.get(anchor) ?? '') ? 0 : 10);
+					let $1 = $.derived(() => ['left', 'center', 'right'].includes($.get(anchor) ?? '') ? 0 : 10);
+
+					$.component(node_7, () => Tooltip.Root, ($$anchor, Tooltip_Root) => {
+						Tooltip_Root($$anchor, {
+							get anchor() {
+								return $.get(anchor);
+							},
+
+							get x() {
+								return $.get(snap);
+							},
+
+							get xOffset() {
+								return $.get($0);
+							},
+
+							get y() {
+								return $.get(snap);
+							},
+
+							get yOffset() {
+								return $.get($1);
+							},
+
+							get contained() {
+								return $.get(contained);
+							},
+
+							get portal() {
+								return $.get(portal);
+							},
+							children,
+							$$slots: { default: true }
+						});
+					});
+				}
+
+				$.append($$anchor, fragment_1);
+			},
+			$$slots: { default: true }
+		});
+	}
+
+	$.append($$anchor, fragment);
+
+	return $.pop($$exports);
+}

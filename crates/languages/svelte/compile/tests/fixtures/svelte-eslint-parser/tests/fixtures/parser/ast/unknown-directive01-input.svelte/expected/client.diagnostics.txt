@@ -1,0 +1,4 @@
+warning attribute_illegal_colon 5:6-5:19 Attributes should not contain ':' characters to prevent ambiguity with Svelte directives
+    https://svelte.dev/e/attribute_illegal_colon
+warning attribute_illegal_colon 6:6-6:13 Attributes should not contain ':' characters to prevent ambiguity with Svelte directives
+    https://svelte.dev/e/attribute_illegal_colon

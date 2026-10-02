@@ -1,0 +1,4 @@
+warning svelte_component_deprecated 21:1-21:46 `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+    https://svelte.dev/e/svelte_component_deprecated
+warning non_reactive_update 12:6-12:14 `selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

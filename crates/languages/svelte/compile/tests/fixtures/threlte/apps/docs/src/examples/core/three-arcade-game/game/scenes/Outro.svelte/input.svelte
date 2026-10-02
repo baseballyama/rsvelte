@@ -1,0 +1,106 @@
+<script lang="ts">
+  import { MathUtils } from 'three'
+  import { T } from '@threlte/core'
+  import { Audio, Edges, Text } from '@threlte/extras'
+  import { Tween } from 'svelte/motion'
+  import { useTimeout } from '../hooks/useTimeout.svelte'
+  import { useArcadeControls } from '../controls.svelte'
+  import { game } from '../Game.svelte'
+  import ThrelteLogo from '../objects/ThrelteLogo.svelte'
+
+  const { timeout } = useTimeout()
+  const controls = useArcadeControls()
+  const left = controls.action('left')
+  const right = controls.action('right')
+
+  let direction = $state<1 | -1>(1)
+
+  $effect(() => {
+    if (left.justPressed) direction = -1
+    else if (right.justPressed) direction = 1
+  })
+  const logoScale = new Tween(0)
+  timeout(() => {
+    logoScale.set(1)
+  }, 1.5e3)
+
+  const textScale = new Tween(0)
+  const textRotation = new Tween(10)
+
+  timeout(() => {
+    textScale.set(1)
+    textRotation.set(0)
+  }, 200)
+
+  let showPressSpaceToStart = $state(false)
+  let blinkClock = $state<0 | 1>(0)
+
+  timeout(() => {
+    showPressSpaceToStart = true
+  }, 5e3)
+
+  $effect(() => {
+    const intervalHandler = setInterval(() => {
+      if (!showPressSpaceToStart) return
+      blinkClock = blinkClock ? 0 : 1
+    }, 500)
+    return () => clearInterval(intervalHandler)
+  })
+</script>
+
+<Audio
+  src="/audio/arcade_intro.mp3"
+  loop
+  autoplay
+/>
+
+<T.Group position.z={-0.35}>
+  <ThrelteLogo
+    positionZ={-1.2}
+    {direction}
+  />
+
+  <T.Group
+    scale={textScale.current}
+    position.z={1.3}
+    rotation.x={MathUtils.degToRad(-90)}
+    rotation.z={textRotation}
+  >
+    <T.Mesh position.y={-0.05}>
+      <T.PlaneGeometry args={[11, 2]} />
+      <T.MeshBasicMaterial
+        transparent
+        opacity={0}
+      />
+      <Edges color={game.baseColor} />
+    </T.Mesh>
+    <Text
+      font="/fonts/beefd.ttf"
+      anchorX="50%"
+      anchorY="50%"
+      textAlign="center"
+      fontSize={0.5}
+      color={game.baseColor}
+      text={`THRELTE MASTER\nSCORE ${game.score}`}
+    />
+  </T.Group>
+</T.Group>
+
+{#if showPressSpaceToStart}
+  <T.Group
+    scale={textScale.current}
+    position.z={3.3}
+    rotation.x={MathUtils.degToRad(-90)}
+    visible={!!blinkClock}
+  >
+    <Text
+      font="/fonts/beefd.ttf"
+      anchorX="50%"
+      anchorY="50%"
+      textAlign="center"
+      fontSize={0.35}
+      color={game.baseColor}
+      text="PRESS SPACE TO RESTART"
+    />
+  </T.Group>
+{/if}

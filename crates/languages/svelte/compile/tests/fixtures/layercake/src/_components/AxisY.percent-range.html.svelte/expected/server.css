@@ -1,0 +1,32 @@
+
+	.axis.svelte-1395tj,
+	.tick.svelte-1395tj,
+	.tick-mark.svelte-1395tj,
+	.gridline.svelte-1395tj,
+	.baseline.svelte-1395tj,
+	.text.svelte-1395tj {
+		position: absolute;
+	}
+	.axis.svelte-1395tj {
+		width: 100%;
+		height: 100%;
+	}
+	.tick.svelte-1395tj {
+		font-size: 11px;
+		width: 100%;
+	}
+
+	.gridline.svelte-1395tj {
+		border-top: 1px dashed #aaa;
+	}
+	.tick-mark.svelte-1395tj {
+		border-top: 1px solid #aaa;
+	}
+
+	.baseline.gridline.svelte-1395tj {
+		border-top-style: solid;
+	}
+
+	.tick.svelte-1395tj .text:where(.svelte-1395tj) {
+		color: #666;
+	}

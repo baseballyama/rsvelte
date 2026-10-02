@@ -1,0 +1,2 @@
+warning css_unused_selector 92:2-92:29 Unused CSS selector ":--g-fullscreen-focus label"
+    https://svelte.dev/e/css_unused_selector

@@ -1,0 +1,30 @@
+
+  /* clears the 'X' from Internet Explorer */
+  input[type="search"].svelte-t5ihcw::-ms-clear {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+  input[type="search"].svelte-t5ihcw::-ms-reveal {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  /* clears the 'X' from Chrome */
+  input[type="search"].svelte-t5ihcw::-webkit-search-decoration,
+  input[type="search"].svelte-t5ihcw::-webkit-search-cancel-button,
+  input[type="search"].svelte-t5ihcw::-webkit-search-results-button,
+  input[type="search"].svelte-t5ihcw::-webkit-search-results-decoration {
+    display: none;
+  }
+
+  /* Only add vertical padding to the scrollbar */
+  .os-scrollbar.os-scrollbar-vertical {
+    --os-padding-axis: 8px; /* vertical padding (top/bottom) */
+  }
+
+  /* Make sure dropdown content respects border radius */
+  .os-viewport {
+    overflow: hidden;
+  }

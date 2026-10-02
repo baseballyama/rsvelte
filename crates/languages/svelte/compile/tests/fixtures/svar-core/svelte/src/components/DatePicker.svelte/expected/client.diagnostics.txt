@@ -1,0 +1,2 @@
+warning state_referenced_locally 31:12-31:18 This reference only captures the initial value of `format`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

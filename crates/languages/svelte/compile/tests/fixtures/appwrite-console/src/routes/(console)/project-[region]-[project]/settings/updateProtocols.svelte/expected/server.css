@@ -1,0 +1,35 @@
+
+    .protocols-list.svelte-1un77eg {
+        width: 100%;
+    }
+
+    .protocol-list-content.svelte-1un77eg {
+        max-width: 36rem;
+        padding-top: var(--space-6);
+    }
+
+    .protocol-toolbar.svelte-1un77eg {
+        display: flex;
+        justify-content: flex-end;
+        padding-bottom: var(--space-6);
+    }
+
+    .protocol-row.svelte-1un77eg {
+        width: 100%;
+    }
+
+    .protocol-control.svelte-1un77eg {
+        display: flex;
+        align-items: center;
+        gap: var(--space-4);
+        width: 100%;
+    }
+
+    .protocol-control.svelte-1un77eg label {
+        flex: 1;
+    }
+
+    .protocol-spinner.svelte-1un77eg {
+        opacity: 0.75;
+        flex-shrink: 0;
+    }

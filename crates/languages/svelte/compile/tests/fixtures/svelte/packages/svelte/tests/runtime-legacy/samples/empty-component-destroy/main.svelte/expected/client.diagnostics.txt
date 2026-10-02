@@ -1,0 +1,6 @@
+warning event_directive_deprecated 6:9-6:41 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning svelte_component_deprecated 8:1-8:50 `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+    https://svelte.dev/e/svelte_component_deprecated
+warning non_reactive_update 3:6-3:12 `active` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

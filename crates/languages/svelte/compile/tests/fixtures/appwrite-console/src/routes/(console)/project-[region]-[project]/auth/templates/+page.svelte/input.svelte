@@ -1,0 +1,155 @@
+<script module lang="ts">
+    import {
+        ProjectEmailTemplateLocale,
+        ProjectEmailTemplateId,
+        type Models
+    } from '@appwrite.io/console';
+
+    import { sdk } from '$lib/stores/sdk';
+    import { addNotification } from '$lib/stores/notifications';
+    import type { EmailTemplateForm } from './store';
+
+    export async function loadEmailTemplate(
+        region: string,
+        projectId: string,
+        type: ProjectEmailTemplateId,
+        locale: ProjectEmailTemplateLocale = ProjectEmailTemplateLocale.En
+    ): Promise<EmailTemplateForm> {
+        try {
+            const template = await sdk.forProject(region, projectId).project.getEmailTemplate({
+                templateId: type,
+                locale
+            });
+            return normalizeEmailTemplate(template, type, locale);
+        } catch (e) {
+            addNotification({
+                type: 'error',
+                message: e.message
+            });
+        }
+    }
+
+    function normalizeEmailTemplate(
+        template: Models.EmailTemplate,
+        type: ProjectEmailTemplateId,
+        locale: ProjectEmailTemplateLocale = ProjectEmailTemplateLocale.En
+    ): EmailTemplateForm {
+        return {
+            ...template,
+            type,
+            templateId: template.templateId ?? type,
+            locale: template.locale ?? locale
+        };
+    }
+</script>
+
+<script lang="ts">
+    import { base } from '$app/paths';
+    import { CardGrid } from '$lib/components';
+    import { Container } from '$lib/layout';
+    import { baseEmailTemplate, emailTemplate, templates } from './store';
+    import { Button } from '$lib/elements/forms';
+    import { currentPlan } from '$lib/stores/organization';
+    import EmailSignature from './emailSignature.svelte';
+    import { isCloud } from '$lib/system';
+    import { Accordion, Alert, Badge, Layout, Link, Typography } from '@appwrite.io/pink-svelte';
+    import { page } from '$app/state';
+    import type { PageProps } from './$types';
+
+    let { data }: PageProps = $props();
+
+    let templateType = $state(null);
+    let isTemplateLoading = $state(false);
+    let openStates = $state(Object.fromEntries(templates.map(({ key }) => [key, false])));
+
+    loadTemplateFor(ProjectEmailTemplateId.Verification);
+
+    async function loadTemplateFor(type: ProjectEmailTemplateId) {
+        // return, already loaded!
+        if (templateType === type) return;
+
+        templateType = type;
+        isTemplateLoading = true;
+
+        $emailTemplate = await loadEmailTemplate(
+            page.params.region,
+            page.params.project,
+            type,
+            ProjectEmailTemplateLocale.En
+        );
+        $baseEmailTemplate = { ...$emailTemplate };
+
+        isTemplateLoading = false;
+    }
+
+    function toggleAccordion(type: ProjectEmailTemplateId) {
+        for (const key in openStates) {
+            openStates[key] = false;
+        }
+
+        openStates[type] = true;
+
+        loadTemplateFor(type);
+    }
+</script>
+
+<Container>
+    {#if !data.project.smtpEnabled}
+        <Alert.Inline
+            dismissible={false}
+            status="info"
+            title="Custom SMTP server is required for customizing emails">
+            Configure a custom SMTP server to enable custom email templates and prevent emails from
+            being labeled as spam.
+            <Button
+                compact
+                slot="actions"
+                href={`${base}/project-${page.params.region}-${page.params.project}/settings/smtp`}>
+                SMTP settings
+            </Button>
+        </Alert.Inline>
+    {/if}
+
+    <CardGrid>
+        <svelte:fragment slot="title">
+            Email templates <Badge variant="secondary" content="Experimental" />
+        </svelte:fragment>
+        Use templates to send and process account management emails.
+        <Link.Anchor
+            target="_blank"
+            href="https://appwrite.io/docs/advanced/platform/message-templates">
+            Learn more
+        </Link.Anchor>
+        <svelte:fragment slot="aside">
+            <Layout.Stack gap="s">
+                {#each templates as section (section.key)}
+                    <Accordion
+                        title={section.title}
+                        hideDivider={section.hideDivider}
+                        bind:open={openStates[section.key]}
+                        on:toggle={(event) => event.detail && toggleAccordion(section.key)}>
+                        <Layout.Stack>
+                            <Typography.Text>{section.description}</Typography.Text>
+                            {@const SectionComponent = section.component}
+                            <SectionComponent
+                                loading={isTemplateLoading}
+                                project={data.project}
+                                localeCodes={data.localeCodes} />
+                        </Layout.Stack>
+                    </Accordion>
+                {/each}
+            </Layout.Stack>
+        </svelte:fragment>
+        <svelte:fragment slot="actions">
+            <Button
+                href={`${base}/project-${page.params.region}-${page.params.project}/settings/smtp`}
+                secondary>
+                SMTP settings
+            </Button>
+        </svelte:fragment>
+    </CardGrid>
+
+    {#if isCloud && $currentPlan.emailBranding}
+        <EmailSignature project={data.project} />
+    {/if}
+</Container>

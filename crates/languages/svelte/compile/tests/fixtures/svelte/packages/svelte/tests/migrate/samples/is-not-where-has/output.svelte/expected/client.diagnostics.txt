@@ -1,0 +1,52 @@
+warning css_unused_selector 23:2-23:24 Unused CSS selector "div:has(:global(span))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 24:2-24:18 Unused CSS selector "div > :not(span)"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 25:2-25:26 Unused CSS selector "div > :is(:global(span))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 26:2-26:29 Unused CSS selector "div > :where(:global(span))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 28:2-28:29 Unused CSS selector "div:has(:global(:is(span)))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 29:2-29:23 Unused CSS selector "div > :not(:is(span))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 30:2-30:31 Unused CSS selector "div > :is(:global(:is(span)))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 31:2-31:34 Unused CSS selector "div > :where(:global(:is(span)))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 33:2-33:35 Unused CSS selector "div:has(:global(.class:is(span)))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 34:2-34:29 Unused CSS selector "div > :not(.class:is(span))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 35:2-35:37 Unused CSS selector "div > :is(:global(.class:is(span)))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 36:2-36:40 Unused CSS selector "div > :where(:global(.class:is(span)))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 38:2-38:50 Unused CSS selector "div :has(:global(.class:is(span:where(:focus))))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 39:2-39:48 Unused CSS selector "div :not(.class:is(span:where(:focus-within)))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 40:2-40:46 Unused CSS selector "div :is(:global(.class:is(span:is(:hover))))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 41:2-41:49 Unused CSS selector "div :where(:global(.class:is(span:has(* > *))))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 42:2-42:50 Unused CSS selector "div :is(:global(.class:is(span:is(:hover)), .x))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 44:2-44:54 Unused CSS selector "div :has(    :global(.class:is(span:where(:focus))))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 45:2-45:57 Unused CSS selector "div :not(:global(.class:is(span:where(:focus-within))))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 46:2-46:46 Unused CSS selector "div :is(:global(.class:is(span:is(:hover))))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 47:2-47:49 Unused CSS selector "div :where(:global(.class:is(span:has(* > *))))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 48:2-48:50 Unused CSS selector "div :is(:global(.class:is(span:is(:hover)), .x))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 52:2-52:5 Unused CSS selector "div"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 53:3-53:20 Unused CSS selector "p:has(:global(&))"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 56:3-56:17 Unused CSS selector ":not(span > *)"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 57:4-57:25 Unused CSS selector ":where(:global(form))"
+    https://svelte.dev/e/css_unused_selector

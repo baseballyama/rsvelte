@@ -1,0 +1,13 @@
+{
+	"commit": "f57329acf22dc8ab81aa2d7d90613e258460b8a9",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/ampled/svelte-inspect-value.git"
+}

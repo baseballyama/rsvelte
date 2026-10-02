@@ -1,0 +1,74 @@
+import * as $ from 'svelte/internal/server';
+import Inspect from '$lib/index.js';
+import { getContext } from 'svelte';
+
+export default function Functions($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		getContext('toc')?.set('Functions', 'functions');
+
+		const arrowFunction = eval(`(num) => num * 2`);
+		const asyncFn = eval(`async (num) => num * 2`);
+
+		const someFunction = eval(`(function someFunction(some, thing) {
+    if (!some) return thing
+    const obj = {
+      some: thing,
+      thing: some,
+      [Symbol('oh')]: 'doodle',
+    }
+
+    try {
+      Math.random()
+    } catch {
+      const { log } = console
+      log('oh no')
+      log(obj)
+    }
+    return some + ' ' + thing
+  })`);
+
+		const generator = eval(`(function* fibonacci() {
+    let current = 1
+    let next = 1
+    while (true) {
+      yield current
+      ;[current, next] = [next, current + next]
+    }
+  })`);
+
+		const asyncGenerator = eval(`(async function* suspensefulFibonacci() {
+  let current = 1
+  let next = 1
+  while (true) {
+    await new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(undefined)
+      }, 1000)
+    })
+    yield current
+    ;[current, next] = [next, current + next]
+  }
+})`);
+
+		$$renderer.push(`<div class="flex col"><h3 id="functions">Functions</h3> <p>Display bodies of functions with <code>hljs</code> syntax highlighting.</p> `);
+
+		if (Inspect.Values.Expand0) {
+			$$renderer.push('<!--[-->');
+
+			Inspect.Values.Expand0($$renderer, {
+				arrowFunction,
+				asyncFn,
+				someFunction,
+				generator,
+				asyncGenerator
+			});
+
+			$$renderer.push('<!--]-->');
+		} else {
+			$$renderer.push('<!--[!-->');
+			$$renderer.push('<!--]-->');
+		}
+
+		$$renderer.push(`</div>`);
+	});
+}

@@ -1,0 +1,59 @@
+
+  .nav-item.svelte-tmo9uq {
+    --at-apply: 'flex items-center cursor-pointer position-relative z-1 cursor-pointer decoration-none px-3';
+  }
+  .nav-item--icon.svelte-tmo9uq {
+    --at-apply: text-6;
+  }
+  .nav-item--icon.svelte-tmo9uq .dropdown:where(.svelte-tmo9uq) {
+    --at-apply: 'text-4';
+  }
+  .nav-item--icon.svelte-tmo9uq:not(:first-child)::after,
+  .navbar-pc .toggle::after {
+    --at-apply: 'absolute left-0 bg-stone-2 w-[1px] top-[50%] h-[20px] dark:bg-stone-7';
+    transform: translateY(-50%);
+    content: ' ';
+  }
+  .nav-item--icon.svelte-tmo9uq:first-of-type::after {
+    --at-apply: 'hidden sm:display-[unset]';
+  }
+
+  .nav-item--icon.svelte-tmo9uq:hover {
+    --at-apply: 'opacity-80';
+  }
+  :not(.dropdown) > .nav-item:not(.nav-item--icon):hover {
+    --at-apply: 'text-svp-hover';
+  }
+  .dropdown.svelte-tmo9uq {
+    --at-apply: 'transition-transform transition-opacity transition-300 opacity-0 pointer-events-none  absolute top-0 right-0 bg-white dark:bg-[#202023] whitespace-nowrap z-3 rounded-lg shadow-lg b-1 b-solid b-black/5 dark:b-white/8 p-1.5';
+    transform: translateY(72px);
+  }
+  .dropdown > .nav-item {
+    --at-apply: 'block py-2 px-4 decoration-none rounded-md hover:bg-svp-primary hover:bg-opacity-15 hover:text-svp-primary-deep dark:hover:text-svp-primary text-zinc-7 dark:text-zinc-2';
+  }
+  .dropdown > .nav-item:hover {
+    background-image: none;
+  }
+  .nav-item.svelte-tmo9uq:hover .dropdown:where(.svelte-tmo9uq) {
+    --at-apply: 'opacity-100 pointer-events-initial';
+    transform: translateY(54px);
+  }
+  .arrow.svelte-tmo9uq {
+    --at-apply: 'flex items-center transition-transform transition-300 text-6 text-zinc-7 dark:text-zinc-3';
+  }
+  .nav-item.svelte-tmo9uq:hover .arrow:where(.svelte-tmo9uq) {
+    transform: rotate(180deg);
+  }
+  .active.svelte-tmo9uq {
+    --at-apply: 'text-svp-primary-deep dark:text-svp-primary hover:text-svp-primary-deep dark:hover:text-svp-primary font-600 cursor-default';
+  }
+  .active.svelte-tmo9uq:not(.brand)::after {
+    content: ' ';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 0;
+    height: 2px;
+    border-radius: 2px;
+    background-color: currentColor;
+  }

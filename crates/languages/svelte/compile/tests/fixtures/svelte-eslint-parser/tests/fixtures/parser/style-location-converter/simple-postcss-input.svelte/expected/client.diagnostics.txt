@@ -1,0 +1,2 @@
+warning css_unused_selector 8:3-8:7 Unused CSS selector "body"
+    https://svelte.dev/e/css_unused_selector

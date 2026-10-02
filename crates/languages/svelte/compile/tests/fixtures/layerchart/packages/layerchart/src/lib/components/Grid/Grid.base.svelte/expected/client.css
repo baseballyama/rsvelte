@@ -1,0 +1,28 @@
+
+  @layer components {
+    
+      :where(
+        .lc-grid-x-rule,
+        .lc-grid-x-end-rule,
+        .lc-grid-x-radial-line,
+        .lc-grid-y-rule,
+        .lc-grid-y-end-rule,
+        .lc-grid-y-radial-line
+      )
+     {
+      --stroke-color: color-mix(
+        in oklab,
+        var(--color-surface-content, currentColor) 10%,
+        transparent
+      );
+    }
+
+    :where(.lc-grid-y-radial-circle) {
+      --fill-color: none;
+      --stroke-color: color-mix(
+        in oklab,
+        var(--color-surface-content, currentColor) 10%,
+        transparent
+      );
+    }
+  }

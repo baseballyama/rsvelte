@@ -1,0 +1,26 @@
+
+	.container.svelte-1571mmu {
+		display: flex;
+		height: 100vh;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		background-color: variables.$bg-1;
+		gap: 2rem;
+
+		.text-container:where(.svelte-1571mmu) {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			gap: 0.5rem;
+
+			.title:where(.svelte-1571mmu) {
+				@include typography.heading-2;
+			}
+
+			.link:where(.svelte-1571mmu) {
+				@include mixins.link;
+			}
+		}
+	}

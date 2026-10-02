@@ -1,0 +1,55 @@
+
+  body {
+    margin: 0;
+  }
+  .error-wrap.svelte-1j96wlh {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    color: #09090b;
+    font-family:
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      Roboto,
+      sans-serif;
+  }
+  .error-card.svelte-1j96wlh {
+    max-width: 28rem;
+    margin: 1rem;
+    padding: 2rem;
+    border: 1px solid #e4e4e7;
+    border-radius: 1rem;
+    text-align: center;
+  }
+  h1.svelte-1j96wlh {
+    font-size: 1.25rem;
+    margin: 0 0 0.5rem;
+  }
+  p.svelte-1j96wlh {
+    color: #71717a;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin: 0.25rem 0;
+  }
+  .error-code.svelte-1j96wlh {
+    color: #71717a;
+    font-size: 0.75rem;
+    margin-top: 1.25rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    .error-wrap.svelte-1j96wlh {
+      background: #09090b;
+      color: #fafafa;
+    }
+    .error-card.svelte-1j96wlh {
+      border-color: #27272a;
+    }
+    p.svelte-1j96wlh,
+    .error-code.svelte-1j96wlh {
+      color: #a1a1aa;
+    }
+  }

@@ -1,0 +1,13 @@
+
+	.voronoi-cell.svelte-eilwqv {
+		fill: none;
+		stroke: none;
+		pointer-events: all;
+		outline: none;
+	}
+
+	/* Useful to testing but you'll want to disable this for production */
+	.voronoi-cell.svelte-eilwqv:hover {
+		stroke: #333 !important;
+		stroke-width: 3px;
+	}

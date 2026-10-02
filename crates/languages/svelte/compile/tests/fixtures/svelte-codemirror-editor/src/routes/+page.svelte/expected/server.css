@@ -1,0 +1,55 @@
+
+    .demo.svelte-1uha8ag {
+        position: relative;
+        height: 100%;
+        display: grid;
+        grid-template-rows: 1fr auto;
+        overflow: hidden;
+    }
+
+    .editor {
+        overflow: hidden;
+    }
+
+    .props.svelte-1uha8ag {
+        padding: 1rem;
+        background: #edf2ff;
+        border-top: solid 1px #ddd;
+    }
+
+    .props.svelte-1uha8ag > h5:where(.svelte-1uha8ag):not(:first-child) {
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .props-section.svelte-1uha8ag {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .toggle.svelte-1uha8ag {
+        display: flex;
+        align-items: center;
+        font-size: 0.85rem;
+        margin-right: 1rem;
+    }
+    .toggle.svelte-1uha8ag > label:where(.svelte-1uha8ag) {
+        margin-left: 0.5rem;
+        user-select: none;
+    }
+
+    .input.svelte-1uha8ag {
+        display: flex;
+        align-items: center;
+        font-size: 0.85rem;
+        margin-right: 1rem;
+    }
+    .input.svelte-1uha8ag > label:where(.svelte-1uha8ag) {
+        margin-right: 0.5rem;
+        user-select: none;
+    }
+
+    input[type="number"].svelte-1uha8ag {
+        width: 50px;
+        text-align: right;
+    }

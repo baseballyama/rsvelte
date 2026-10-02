@@ -1,0 +1,9 @@
+[[steps]]
+select = [ "select.size", "l" ]
+
+[[steps]]
+input = [ "input.note", "typed" ]
+
+[[steps]]
+change = "input.note"
+

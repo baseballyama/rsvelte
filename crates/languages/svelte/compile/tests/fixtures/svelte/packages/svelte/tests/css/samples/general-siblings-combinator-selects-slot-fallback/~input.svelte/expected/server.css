@@ -1,0 +1,4 @@
+
+  h1.svelte-1psur7u ~ p:where(.svelte-1psur7u) {
+    color: red;
+  }

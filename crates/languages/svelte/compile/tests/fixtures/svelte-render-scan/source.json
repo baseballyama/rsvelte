@@ -1,0 +1,13 @@
+{
+	"commit": "a4c8049b57bf5c22aa238c484047b5073d302650",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/khromov/svelte-render-scan.git"
+}

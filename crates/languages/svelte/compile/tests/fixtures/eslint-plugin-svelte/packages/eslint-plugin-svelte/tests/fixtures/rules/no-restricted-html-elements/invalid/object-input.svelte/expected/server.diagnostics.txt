@@ -1,0 +1,10 @@
+warning a11y_distracting_elements 8:1-8:60 Avoid `<marquee>` elements
+    https://svelte.dev/e/a11y_distracting_elements
+warning a11y_distracting_elements 10:1-10:75 Avoid `<marquee>` elements
+    https://svelte.dev/e/a11y_distracting_elements
+warning a11y_distracting_elements 12:1-14:11 Avoid `<marquee>` elements
+    https://svelte.dev/e/a11y_distracting_elements
+warning a11y_distracting_elements 13:2-13:65 Avoid `<marquee>` elements
+    https://svelte.dev/e/a11y_distracting_elements
+warning a11y_distracting_elements 17:2-17:61 Avoid `<marquee>` elements
+    https://svelte.dev/e/a11y_distracting_elements

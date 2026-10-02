@@ -1,0 +1,13 @@
+
+  main.svelte-u8rdjy {
+    display: grid;
+    gap: 24px;
+    grid-template-columns: 1fr;
+    max-width: 800px;
+    padding: 32px;
+  }
+
+  main.svelte-u8rdjy,
+  main.svelte-u8rdjy :where(.svelte-u8rdjy) {
+    box-sizing: border-box;
+  }

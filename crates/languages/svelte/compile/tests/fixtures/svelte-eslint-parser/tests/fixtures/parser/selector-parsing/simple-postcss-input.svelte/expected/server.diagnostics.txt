@@ -1,0 +1,12 @@
+warning css_unused_selector 8:3-8:7 Unused CSS selector "body"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 13:3-13:11 Unused CSS selector "a:active"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 14:3-14:12 Unused CSS selector "a::before"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 15:3-15:8 Unused CSS selector "b + a"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 16:3-16:15 Unused CSS selector "b + .myClass"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 17:3-17:22 Unused CSS selector "a[data-key="value"]"
+    https://svelte.dev/e/css_unused_selector

@@ -1,0 +1,16 @@
+
+  .sp-siderail.svelte-10u7wuu {
+    position: absolute;
+    top: 0;
+    right: 0;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-family: var(--sp-font-sans);
+    font-size: 0.625rem;
+    font-weight: 500;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--sp-blog-muted);
+    opacity: 0.55;
+    pointer-events: none;
+  }

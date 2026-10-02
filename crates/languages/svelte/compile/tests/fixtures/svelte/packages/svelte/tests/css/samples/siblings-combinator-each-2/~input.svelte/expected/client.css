@@ -1,0 +1,24 @@
+
+	/* boundary of each */
+	.a.svelte-7czsa2 + .b:where(.svelte-7czsa2) {
+		color: green;
+	}
+	.c.svelte-7czsa2 + .d:where(.svelte-7czsa2) {
+		color: green;
+	}
+	/* if array is empty */
+	.a.svelte-7czsa2 + .d:where(.svelte-7czsa2) {
+		color: green;
+	}
+	/* if array has multiple items */
+	.c.svelte-7czsa2 + .b:where(.svelte-7czsa2) {
+		color: green;
+	}
+	/* normal sibling */
+	.b.svelte-7czsa2 + .c:where(.svelte-7czsa2) {
+		color: green;
+	}
+	/* not match */
+	/* (unused) .a + .c {
+		color: green;
+	}*/

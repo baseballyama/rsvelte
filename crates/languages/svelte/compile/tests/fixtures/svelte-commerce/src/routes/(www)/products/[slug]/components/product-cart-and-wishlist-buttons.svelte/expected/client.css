@@ -1,0 +1,47 @@
+
+	/* Refined Editorial — default theme only. Primary fill CTA + bordered ghost wishlist. */
+	[data-theme='default'] .edp-atc {
+		border-radius: var(--ed-radius) !important;
+		font-size: 0.82rem !important;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		transition:
+			transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+			opacity 0.25s ease,
+			background 0.25s ease;
+	}
+
+	[data-theme='default'] .edp-atc:hover:not(:disabled) {
+		transform: translateY(-2px);
+	}
+
+	[data-theme='default'] .edp-wish {
+		border: 1px solid var(--ed-line-strong) !important;
+		border-radius: var(--ed-radius) !important;
+		background: transparent !important;
+		transition:
+			border-color 0.2s ease,
+			background 0.2s ease;
+	}
+
+	[data-theme='default'] .edp-wish:hover {
+		border-color: var(--ed-ink) !important;
+		background: rgba(27, 26, 23, 0.04) !important;
+	}
+
+	[data-theme='default'] .edp-toast {
+		border: 1px solid var(--ed-line) !important;
+		border-radius: var(--ed-radius) !important;
+		background: var(--ed-surface) !important;
+		box-shadow: 0 18px 48px -20px rgba(27, 26, 23, 0.35) !important;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		[data-theme='default'] .edp-atc,
+		[data-theme='default'] .edp-wish {
+			transition: none;
+		}
+		[data-theme='default'] .edp-atc:hover:not(:disabled) {
+			transform: none;
+		}
+	}

@@ -1,0 +1,8 @@
+
+	.demo.svelte-1i2jdcc {
+		--wx-table-header-cell-border: var(--wx-table-cell-border);
+		--wx-table-footer-cell-border: var(--wx-table-cell-border);
+
+		padding: 20px;
+		height: 50%;
+	}

@@ -1,0 +1,13 @@
+{
+	"commit": "e218694c40b52a5d0a50f658f5b60ef11c3a2b29",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/kitschpatrol/svelte-tweakpane-ui.git"
+}

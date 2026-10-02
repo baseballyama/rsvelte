@@ -1,0 +1,2 @@
+warning css_unused_selector 18:2-18:14 Unused CSS selector ":host > span"
+    https://svelte.dev/e/css_unused_selector

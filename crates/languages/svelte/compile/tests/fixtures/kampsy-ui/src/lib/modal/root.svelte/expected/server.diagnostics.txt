@@ -1,0 +1,2 @@
+warning state_referenced_locally 19:11-19:17 This reference only captures the initial value of `sticky`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

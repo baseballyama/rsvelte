@@ -1,0 +1,4 @@
+warning event_directive_deprecated 84:5-89:7 Using `on:submit` to listen to the submit event is deprecated. Use the event attribute `onsubmit` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning non_reactive_update 9:7-9:12 `value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

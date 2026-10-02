@@ -1,0 +1,5 @@
+
+	.no-scrollbar.svelte-1l21zmq {
+		-ms-overflow-style: none; /* IE and Edge */
+		scrollbar-width: none; /* Firefox */
+	}

@@ -1,0 +1,6 @@
+warning event_directive_deprecated 78:13-78:37 Using `on:submit` to listen to the submit event is deprecated. Use the event attribute `onsubmit` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 111:19-111:46 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 131:19-131:46 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated

@@ -1,0 +1,12 @@
+
+	._sft-toaster.svelte-1kymlcg {
+		--default-offset: 16px;
+
+		position: fixed;
+		z-index: 9999;
+		top: var(--default-offset);
+		left: var(--default-offset);
+		right: var(--default-offset);
+		bottom: var(--default-offset);
+		pointer-events: none;
+	}

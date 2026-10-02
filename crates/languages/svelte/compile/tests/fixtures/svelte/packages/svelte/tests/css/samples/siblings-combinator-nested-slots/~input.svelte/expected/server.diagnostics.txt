@@ -1,0 +1,10 @@
+warning slot_element_deprecated 1:1-7:8 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated
+warning slot_element_deprecated 2:3-6:10 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated
+warning slot_element_deprecated 3:5-5:12 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated
+warning slot_element_deprecated 8:1-12:8 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated
+warning slot_element_deprecated 9:3-11:10 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated

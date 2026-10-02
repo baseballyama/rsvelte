@@ -1,0 +1,22 @@
+
+	header.svelte-1az1ati {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 20px;
+		align-items: center;
+		margin: 2rem 0;
+	}
+
+	h1.svelte-1az1ati {
+		margin: 0rem 0 0.5rem;
+	}
+
+	img.svelte-1az1ati {
+		border-radius: 4px;
+		max-width: 100px;
+	}
+
+	.guest_socials.svelte-1az1ati {
+		display: flex;
+		gap: 10px;
+	}

@@ -1,0 +1,38 @@
+
+	.demo-header.svelte-6s3ww {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 1rem;
+		background-color: var(--edra-canvas);
+		border-bottom: 1px solid var(--edra-border);
+	}
+	.demo-container.svelte-6s3ww {
+		border: 1px solid var(--edra-border);
+		border-radius: var(--edra-radius-lg);
+		max-width: 64rem; /* max-w-5xl */
+		margin-left: auto;
+		margin-right: auto;
+		margin-top: 2rem;
+		margin-bottom: 2rem;
+		background-color: var(--edra-canvas);
+		box-shadow: var(--edra-shadow-3);
+		overflow: hidden;
+	}
+	.demo-toolbar {
+		border-bottom: 1px solid var(--edra-border);
+		padding: 4px;
+		background-color: var(--edra-canvas-soft) !important;
+		overflow-x: scroll;
+		max-width: 100% !important;
+	}
+	.demo-content {
+		cursor: auto;
+		padding: 2rem;
+		height: 30rem; /* h-120 */
+		overflow-y: scroll;
+		background-color: var(--edra-canvas);
+	}
+	.demo-content *:outline-none {
+		outline: none;
+	}

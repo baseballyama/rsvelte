@@ -1,0 +1,14 @@
+warning event_directive_deprecated 114:3-114:33 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 115:3-115:33 Using `on:mousedown` to listen to the mousedown event is deprecated. Use the event attribute `onmousedown` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning element_invalid_self_closing_tag 123:3-123:47 Self-closing HTML tags for non-void elements are ambiguous — use `<progress ...></progress>` rather than `<progress ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning non_reactive_update 3:6-3:10 `time` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 4:6-4:14 `duration` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 5:6-5:12 `paused` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 7:6-7:18 `showControls` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

@@ -1,0 +1,2 @@
+warning a11y_incorrect_aria_attribute_type_boolean 83:27-83:38 The value of 'aria-hidden' must be either 'true' or 'false'. It cannot be empty
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_boolean

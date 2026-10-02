@@ -1,0 +1,8 @@
+warning a11y_missing_attribute 1:1-1:20 `<img>` element should have an alt attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning a11y_missing_attribute 4:2-4:8 `<area>` element should have an alt, aria-label or aria-labelledby attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning a11y_missing_attribute 7:1-7:18 `<object>` element should have a title, aria-label or aria-labelledby attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning a11y_missing_attribute 9:1-9:21 `<input type="image">` element should have an alt, aria-label or aria-labelledby attribute
+    https://svelte.dev/e/a11y_missing_attribute

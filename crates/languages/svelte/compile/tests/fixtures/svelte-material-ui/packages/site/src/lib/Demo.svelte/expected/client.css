@@ -1,0 +1,38 @@
+
+  .demo-file.svelte-1sqykeq {
+    background: #212121;
+    color: #eeffff;
+    border-radius: 0.4em;
+    border: 1px solid #636363;
+  }
+
+  .demo-file-source.svelte-1sqykeq {
+    max-height: 350px;
+    overflow: auto;
+    border-top-left-radius: 0.4em;
+    border-top-right-radius: 0.4em;
+  }
+
+  .demo-file-source.svelte-1sqykeq > pre {
+    margin: 0;
+  }
+
+  .demo-file-source.svelte-1sqykeq .hljs {
+    padding: 0.6em !important;
+  }
+
+  .demo-file-footer.svelte-1sqykeq {
+    background: #383838;
+    padding: 0 0.6em;
+    border-top: 1px solid #636363;
+    border-bottom-left-radius: 0.4em;
+    border-bottom-right-radius: 0.4em;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .demo-file-footer.svelte-1sqykeq a:where(.svelte-1sqykeq) {
+    color: inherit;
+  }

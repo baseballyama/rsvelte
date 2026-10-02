@@ -1,0 +1,10 @@
+
+  input + div.svelte-12kiksv { color: red; }
+  input ~ div.svelte-12kiksv { color: red; }
+  input + h1.svelte-12kiksv { color: red; }
+  input ~ h1.svelte-12kiksv { color: red; }
+  input + p.svelte-12kiksv { color: red; }
+  input ~ p.svelte-12kiksv { color: red; }
+
+  /* (unused) :global(input) + span { color: red; }*/
+  /* (unused) :global(input) ~ span { color: red; }*/

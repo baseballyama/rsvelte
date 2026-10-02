@@ -1,0 +1,26 @@
+
+  input.svelte-1vvibjn {
+    margin-right: 50px;
+    border-radius: 4px;
+    width: 1.5em;
+    height: 1.5em;
+  }
+
+  label.svelte-1vvibjn {
+    transition: outline 200ms linear;
+    outline: 0px solid transparent;
+  }
+
+  input.svelte-1vvibjn:focus {
+    outline: 1px solid var(--sl-color-accent);
+    outline-offset: 1px;
+  }
+
+  /* label:focus-within {
+    outline: 2px solid var(--sl-color-accent);
+  } */
+
+  label:has(input.opt-tgl-chk.focused) {
+    transition: outline 200ms linear;
+    outline: 2px solid var(--sl-color-accent);
+  }

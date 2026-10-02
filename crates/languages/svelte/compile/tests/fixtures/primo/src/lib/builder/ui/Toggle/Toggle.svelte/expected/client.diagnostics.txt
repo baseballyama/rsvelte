@@ -1,0 +1,4 @@
+warning attribute_global_event_reference 52:5-52:14 You are referencing `globalThis.onfocus`. Did you forget to declare a variable with that name?
+    https://svelte.dev/e/attribute_global_event_reference
+warning attribute_global_event_reference 53:5-53:13 You are referencing `globalThis.onblur`. Did you forget to declare a variable with that name?
+    https://svelte.dev/e/attribute_global_event_reference

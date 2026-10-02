@@ -1,0 +1,29 @@
+
+  div#container.svelte-1hpyy2g {
+    height: 100%;
+    background: white;
+  }
+  div#content.svelte-1hpyy2g {
+    position: relative;
+    z-index: 1;
+    height: 100%;
+    overflow-y: scroll;
+  }
+  div#item.svelte-1hpyy2g {
+    margin: 1rem;
+    display: inline-block;
+    padding: 1rem;
+    box-shadow:
+      rgba(0, 0, 0, 0) 0px 0px 0px 0px,
+      rgba(0, 0, 0, 0) 0px 0px 0px 0px,
+      rgba(0, 0, 0, 0.1) 0px 4px 6px -1px,
+      rgba(0, 0, 0, 0.1) 0px 2px 4px -2px;
+  }
+  div#item.svelte-1hpyy2g > div:where(.svelte-1hpyy2g):first-child {
+    height: 200px;
+    width: 200px;
+  }
+  div#item.svelte-1hpyy2g > div:where(.svelte-1hpyy2g):last-child {
+    margin-top: 0.5rem;
+    color: #888;
+  }

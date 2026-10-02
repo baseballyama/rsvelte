@@ -1,0 +1,11 @@
+
+  @layer components {
+    :where(.lc-annotation-line) {
+      --stroke-color: var(--color-surface-content, currentColor);
+    }
+
+    :where(.lc-annotation-line-label) {
+      font-size: 12px;
+      pointer-events: none;
+    }
+  }

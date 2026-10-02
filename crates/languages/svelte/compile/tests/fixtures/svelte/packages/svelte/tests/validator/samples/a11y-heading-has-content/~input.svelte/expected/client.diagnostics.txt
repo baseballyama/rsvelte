@@ -1,0 +1,4 @@
+warning a11y_missing_content 1:1-1:10 `<h1>` element should contain text
+    https://svelte.dev/e/a11y_missing_content
+warning a11y_hidden 2:5-2:23 `<h2>` element should not be hidden
+    https://svelte.dev/e/a11y_hidden

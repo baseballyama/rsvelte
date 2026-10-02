@@ -1,0 +1,98 @@
+warning a11y_no_noninteractive_element_to_interactive_role 2:1-2:34 Non-interactive element `<article>` cannot have interactive role 'button'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 3:1-3:53 Non-interactive element `<aside>` cannot have interactive role 'checkbox'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 4:1-4:46 Non-interactive element `<blockquote>` cannot have interactive role 'columnheader'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 5:1-5:19 Non-interactive element `<br>` cannot have interactive role 'grid'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 6:1-6:36 Non-interactive element `<caption>` cannot have interactive role 'gridcell'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 7:1-7:22 Non-interactive element `<dd>` cannot have interactive role 'link'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 8:1-8:35 Non-interactive element `<details>` cannot have interactive role 'listbox'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 9:1-9:24 Non-interactive element `<dir>` cannot have interactive role 'menu'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 10:1-10:25 Non-interactive element `<dl>` cannot have interactive role 'menubar'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 11:1-11:28 Non-interactive element `<dfn>` cannot have interactive role 'menuitem'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 12:1-12:54 Non-interactive element `<dt>` cannot have interactive role 'menuitemcheckbox'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 13:1-13:63 Non-interactive element `<fieldset>` cannot have interactive role 'menuitemradio'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 15:2-15:68 Non-interactive element `<figcaption>` cannot have interactive role 'menuitemradio'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 17:1-17:53 Non-interactive element `<figure>` cannot have interactive role 'option'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 18:1-18:51 Non-interactive element `<footer>` cannot have interactive role 'radio'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 19:1-19:32 Non-interactive element `<form>` cannot have interactive role 'radiogroup'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 20:1-20:33 Non-interactive element `<h1>` cannot have interactive role 'rowheader'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 21:1-21:70 Non-interactive element `<h2>` cannot have interactive role 'scrollbar'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 22:1-22:33 Non-interactive element `<h3>` cannot have interactive role 'searchbox'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 23:1-23:48 Non-interactive element `<h4>` cannot have interactive role 'slider'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 24:1-24:34 Non-interactive element `<h5>` cannot have interactive role 'spinbutton'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 25:1-25:50 Non-interactive element `<h6>` cannot have interactive role 'switch'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 26:1-26:18 Non-interactive element `<hr>` cannot have interactive role 'tab'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 27:1-27:39 Non-interactive element `<img>` cannot have interactive role 'tabpanel'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 28:1-28:31 Non-interactive element `<label>` cannot have interactive role 'textbox'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_label_has_associated_control 28:1-28:31 A form label must be associated with a control
+    https://svelte.dev/e/a11y_label_has_associated_control
+warning a11y_no_noninteractive_element_to_interactive_role 29:1-29:33 Non-interactive element `<legend>` cannot have interactive role 'toolbar'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 30:1-30:22 Non-interactive element `<li>` cannot have interactive role 'tree'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 31:1-31:30 Non-interactive element `<main>` cannot have interactive role 'treegrid'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 32:1-32:51 Non-interactive element `<mark>` cannot have interactive role 'treeitem'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 33:1-33:40 Non-interactive element `<marquee>` cannot have interactive role 'doc-backlink'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_distracting_elements 33:1-33:40 Avoid `<marquee>` elements
+    https://svelte.dev/e/a11y_distracting_elements
+warning a11y_no_noninteractive_element_to_interactive_role 34:1-34:35 Non-interactive element `<menu>` cannot have interactive role 'doc-biblioref'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 35:1-35:36 Non-interactive element `<meter>` cannot have interactive role 'doc-glossref'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 36:1-36:31 Non-interactive element `<nav>` cannot have interactive role 'doc-noteref'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 37:1-37:24 Non-interactive element `<ol>` cannot have interactive role 'button'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 38:1-38:59 Non-interactive element `<optgroup>` cannot have interactive role 'treeitem'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 39:1-39:34 Non-interactive element `<output>` cannot have interactive role 'treegrid'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 40:1-40:28 Non-interactive element `<p>` cannot have interactive role 'columnheader'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 41:1-41:24 Non-interactive element `<pre>` cannot have interactive role 'tree'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 42:1-42:78 Non-interactive element `<progress>` cannot have interactive role 'combobox'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 43:1-43:29 Non-interactive element `<ruby>` cannot have interactive role 'toolbar'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 44:1-44:72 Non-interactive element `<section>` cannot have interactive role 'radio'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 45:1-45:28 Non-interactive element `<table>` cannot have interactive role 'menu'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 46:1-46:33 Non-interactive element `<tbody>` cannot have interactive role 'searchbox'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 47:1-47:31 Non-interactive element `<tfoot>` cannot have interactive role 'listbox'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 48:1-48:48 Non-interactive element `<thead>` cannot have interactive role 'slider'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 49:1-49:34 Non-interactive element `<time>` cannot have interactive role 'doc-backlink'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role
+warning a11y_no_noninteractive_element_to_interactive_role 50:1-50:28 Non-interactive element `<ul>` cannot have interactive role 'spinbutton'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role

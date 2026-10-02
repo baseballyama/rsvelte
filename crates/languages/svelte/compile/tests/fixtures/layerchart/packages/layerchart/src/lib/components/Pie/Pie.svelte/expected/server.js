@@ -1,0 +1,23 @@
+import * as $ from 'svelte/internal/server';
+import { getLayerContext } from '$lib/contexts/layer.js';
+import PieSvg from './Pie.svg.svelte';
+import PieCanvas from './Pie.canvas.svelte';
+
+export default function Pie($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const layerCtx = getLayerContext();
+		let { $$slots, $$events, ...props } = $$props;
+
+		if (layerCtx === 'svg') {
+			$$renderer.push('<!--[0-->');
+			PieSvg($$renderer, $.spread_props([props]));
+		} else if (layerCtx === 'canvas') {
+			$$renderer.push('<!--[1-->');
+			PieCanvas($$renderer, $.spread_props([props]));
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]-->`);
+	});
+}

@@ -9,8 +9,6 @@ export interface Source {
 	checkout: string;
 	license?: { spdx: string; file: string };
 	excluded?: string;
-	/** Units written by hand in fixtures/<family>/<id>/; `import` only refreshes their meta.json. */
-	local?: true;
 }
 
 /** The generated part of a unit, stored in its meta.json. */

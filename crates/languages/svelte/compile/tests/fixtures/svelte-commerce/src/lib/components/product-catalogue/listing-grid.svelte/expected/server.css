@@ -1,0 +1,79 @@
+
+	/* ---- Refined Editorial · listing grid (default theme only) ---- */
+
+	/* Generous, symmetric gutters echoing the homepage product grid */
+	[data-theme='default'] .ed-grid.svelte-bn04g9 {
+		column-gap: clamp(16px, 2vw, 28px);
+		row-gap: clamp(30px, 3.4vw, 52px);
+	}
+
+	/* Empty state */
+	[data-theme='default'] .ed-empty.svelte-bn04g9 {
+		min-height: 58vh;
+		gap: 14px;
+	}
+
+	[data-theme='default'] .ed-empty__title.svelte-bn04g9 {
+		font-family: var(--ed-display);
+		font-weight: 500;
+		font-size: clamp(1.5rem, 3vw, 2.1rem);
+		letter-spacing: -0.01em;
+		text-transform: none;
+		color: var(--ed-ink);
+	}
+
+	[data-theme='default'] .ed-empty__link.svelte-bn04g9 {
+		color: hsl(var(--primary));
+		text-underline-offset: 4px;
+	}
+
+	[data-theme='default'] .ed-more.svelte-bn04g9,
+	[data-theme='default'] .ed-end.svelte-bn04g9 {
+		color: var(--ed-soft);
+	}
+
+	/* Editorial pagination — hairline chips, primary fill for the active page */
+	[data-theme='default'] .ed-pagination {
+		font-family: var(--ed-body);
+		margin-top: clamp(28px, 4vw, 44px);
+	}
+
+	[data-theme='default'] .ed-pagination a,
+	[data-theme='default'] .ed-pagination button {
+		border: 1px solid var(--ed-line);
+		border-radius: var(--ed-radius);
+		background: var(--ed-surface);
+		color: var(--ed-ink);
+		font-family: var(--ed-body);
+		font-size: 0.85rem;
+		font-weight: 500;
+		box-shadow: none;
+		transition:
+			border-color 0.2s ease,
+			background 0.2s ease,
+			color 0.2s ease;
+	}
+
+	[data-theme='default'] .ed-pagination a:hover,
+	[data-theme='default'] .ed-pagination button:not(:disabled):hover {
+		border-color: hsl(var(--primary));
+		background: var(--ed-surface);
+		color: hsl(var(--primary));
+	}
+
+	[data-theme='default'] .ed-pagination a[aria-current='page'] {
+		background: hsl(var(--primary));
+		border-color: hsl(var(--primary));
+		color: hsl(var(--primary-foreground));
+	}
+
+	[data-theme='default'] .ed-pagination button:disabled {
+		opacity: 0.45;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		[data-theme='default'] .ed-pagination a,
+		[data-theme='default'] .ed-pagination button {
+			transition: none;
+		}
+	}

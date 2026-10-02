@@ -1,0 +1,2 @@
+warning state_referenced_locally 16:46-16:55 This reference only captures the initial value of `restProps`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

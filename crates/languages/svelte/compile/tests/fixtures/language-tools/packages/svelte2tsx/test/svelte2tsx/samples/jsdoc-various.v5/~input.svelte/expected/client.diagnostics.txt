@@ -1,0 +1,4 @@
+warning slot_element_deprecated 12:1-12:14 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated
+warning non_reactive_update 4:7-4:11 `rect` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

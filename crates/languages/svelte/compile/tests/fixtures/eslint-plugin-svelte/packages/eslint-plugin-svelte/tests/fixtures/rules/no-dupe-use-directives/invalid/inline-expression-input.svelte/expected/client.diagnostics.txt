@@ -1,0 +1,8 @@
+warning a11y_consider_explicit_label 6:1-6:81 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label
+warning element_invalid_self_closing_tag 6:1-6:81 Self-closing HTML tags for non-void elements are ambiguous — use `<button ...></button>` rather than `<button ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning a11y_consider_explicit_label 8:1-16:3 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label
+warning element_invalid_self_closing_tag 8:1-16:3 Self-closing HTML tags for non-void elements are ambiguous — use `<button ...></button>` rather than `<button ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag

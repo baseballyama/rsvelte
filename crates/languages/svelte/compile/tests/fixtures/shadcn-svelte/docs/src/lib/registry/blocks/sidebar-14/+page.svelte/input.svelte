@@ -1,0 +1,33 @@
+<script lang="ts">
+	import * as Breadcrumb from "$lib/registry/ui/breadcrumb/index.js";
+	import * as Sidebar from "$lib/registry/ui/sidebar/index.js";
+	import AppSidebar from "./components/app-sidebar.svelte";
+</script>
+
+<Sidebar.Provider>
+	<Sidebar.Inset>
+		<header class="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+			<Breadcrumb.Root>
+				<Breadcrumb.List>
+					<Breadcrumb.Item class="hidden md:block">
+						<Breadcrumb.Link href="##">Build Your Application</Breadcrumb.Link>
+					</Breadcrumb.Item>
+					<Breadcrumb.Separator class="hidden md:block" />
+					<Breadcrumb.Item>
+						<Breadcrumb.Page>Data Fetching</Breadcrumb.Page>
+					</Breadcrumb.Item>
+				</Breadcrumb.List>
+			</Breadcrumb.Root>
+			<Sidebar.Trigger class="ms-auto -me-1 rotate-180" />
+		</header>
+		<div class="flex flex-1 flex-col gap-4 p-4">
+			<div class="grid auto-rows-min gap-4 md:grid-cols-3">
+				<div class="aspect-video rounded-xl bg-muted/50"></div>
+				<div class="aspect-video rounded-xl bg-muted/50"></div>
+				<div class="aspect-video rounded-xl bg-muted/50"></div>
+			</div>
+			<div class="min-h-screen flex-1 rounded-xl bg-muted/50 md:min-h-min"></div>
+		</div>
+	</Sidebar.Inset>
+	<AppSidebar side="right" />
+</Sidebar.Provider>

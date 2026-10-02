@@ -1,0 +1,33 @@
+<script lang="ts">
+	import { page, navigating } from '$app/state';
+	import Nav from '$lib/Nav.svelte';
+	import PreloadingIndicator from '$lib/PreloadingIndicator.svelte';
+	import ThemeToggler from '$lib/ThemeToggler.svelte';
+	import '../app.css';
+
+	const { children } = $props();
+
+	const section = $derived(page.url.pathname.split('/')[1]);
+</script>
+
+<Nav {section} />
+
+{#if navigating.from}
+	<PreloadingIndicator />
+{/if}
+
+<main>
+	{@render children()}
+</main>
+
+<ThemeToggler />
+
+<style>
+	main {
+		position: relative;
+		max-width: 56em;
+		padding: 2em;
+		margin: 0 auto;
+		box-sizing: border-box;
+	}
+</style>

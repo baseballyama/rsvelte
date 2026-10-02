@@ -1,0 +1,4 @@
+warning script_context_deprecated 1:9-1:25 `context="module"` is deprecated, use the `module` attribute instead
+    https://svelte.dev/e/script_context_deprecated
+warning non_reactive_update 122:7-122:13 `isOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

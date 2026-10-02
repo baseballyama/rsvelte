@@ -1,0 +1,2 @@
+warning a11y_accesskey 1:6-1:19 Avoid using accesskey
+    https://svelte.dev/e/a11y_accesskey

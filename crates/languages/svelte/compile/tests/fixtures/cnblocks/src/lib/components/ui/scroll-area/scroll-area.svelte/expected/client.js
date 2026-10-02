@@ -1,0 +1,146 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { ScrollArea as ScrollAreaPrimitive } from "bits-ui";
+import { Scrollbar } from "./index.js";
+import { cn } from "$lib/utils.js";
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'ref',
+	'viewportRef',
+	'class',
+	'orientation',
+	'scrollbarXClasses',
+	'scrollbarYClasses',
+	'fade',
+	'children'
+]);
+
+var root = $.from_html(`<!> <!> <!> <!>`, 1);
+
+export default function Scroll_area($$anchor, $$props) {
+	$.push($$props, true);
+
+	let ref = $.prop($$props, 'ref', 15, null),
+		viewportRef = $.prop($$props, 'viewportRef', 15, null),
+		orientation = $.prop($$props, 'orientation', 3, "vertical"),
+		scrollbarXClasses = $.prop($$props, 'scrollbarXClasses', 3, ""),
+		scrollbarYClasses = $.prop($$props, 'scrollbarYClasses', 3, ""),
+		fade = $.prop($$props, 'fade', 3, true),
+		restProps = $.rest_props($$props, rest_excludes);
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	{
+		let $0 = $.derived(() => cn("relative", $$props.class));
+
+		$.component(node, () => ScrollAreaPrimitive.Root, ($$anchor, ScrollAreaPrimitive_Root) => {
+			ScrollAreaPrimitive_Root($$anchor, $.spread_props(
+				{
+					'data-slot': 'scroll-area',
+					get class() {
+						return $.get($0);
+					}
+				},
+				() => restProps,
+				{
+					get ref() {
+						return ref();
+					},
+
+					set ref($$value) {
+						ref($$value);
+					},
+
+					children: ($$anchor, $$slotProps) => {
+						var fragment_1 = root();
+						var node_1 = $.first_child(fragment_1);
+
+						{
+							let $0 = $.derived(() => cn("size-full rounded-[inherit] ring-ring/10 outline-ring/50 transition-[color,box-shadow] focus-visible:ring-4 focus-visible:outline-1 dark:ring-ring/20 dark:outline-ring/40", fade() && "data-[orientation=horizontal]:overflow-x-auto data-[orientation=vertical]:overflow-y-auto", fade() && "data-[orientation=horizontal]:scroll-fade-effect-x data-[orientation=vertical]:scroll-fade-effect-y"));
+
+							$.component(node_1, () => ScrollAreaPrimitive.Viewport, ($$anchor, ScrollAreaPrimitive_Viewport) => {
+								ScrollAreaPrimitive_Viewport($$anchor, {
+									'data-slot': 'scroll-area-viewport',
+									get 'data-orientation'() {
+										return orientation();
+									},
+
+									get class() {
+										return $.get($0);
+									},
+
+									get ref() {
+										return viewportRef();
+									},
+
+									set ref($$value) {
+										viewportRef($$value);
+									},
+
+									children: ($$anchor, $$slotProps) => {
+										var fragment_2 = $.comment();
+										var node_2 = $.first_child(fragment_2);
+
+										$.snippet(node_2, () => $$props.children ?? $.noop);
+										$.append($$anchor, fragment_2);
+									},
+									$$slots: { default: true }
+								});
+							});
+						}
+
+						var node_3 = $.sibling(node_1, 2);
+
+						{
+							var consequent = ($$anchor) => {
+								Scrollbar($$anchor, {
+									orientation: 'vertical',
+									get class() {
+										return scrollbarYClasses();
+									}
+								});
+							};
+
+							$.if(node_3, ($$render) => {
+								if (orientation() === "vertical" || orientation() === "both") $$render(consequent);
+							});
+						}
+
+						var node_4 = $.sibling(node_3, 2);
+
+						{
+							var consequent_1 = ($$anchor) => {
+								Scrollbar($$anchor, {
+									orientation: 'horizontal',
+									get class() {
+										return scrollbarXClasses();
+									}
+								});
+							};
+
+							$.if(node_4, ($$render) => {
+								if (orientation() === "horizontal" || orientation() === "both") $$render(consequent_1);
+							});
+						}
+
+						var node_5 = $.sibling(node_4, 2);
+
+						$.component(node_5, () => ScrollAreaPrimitive.Corner, ($$anchor, ScrollAreaPrimitive_Corner) => {
+							ScrollAreaPrimitive_Corner($$anchor, {});
+						});
+
+						$.append($$anchor, fragment_1);
+					},
+					$$slots: { default: true }
+				}
+			));
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}

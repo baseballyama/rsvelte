@@ -1,0 +1,12 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<section><div class="bg-muted/50 py-24"><div class="mx-auto max-w-5xl px-6"><div><h2 class="text-4xl font-semibold lg:text-5xl">Tailark in numbers</h2> <p class="mt-4 text-lg text-balance text-muted-foreground">Our platform continues to grow with developers and businesses using our tools to
+					create innovative solutions and enhance productivity.</p></div> <div class="mt-8 grid grid-cols-2 gap-4 md:mt-16 md:grid-cols-4"><div><div class="text-4xl font-bold text-foreground">90+</div> <p class="text-muted-foreground">Integrations</p></div> <div><div class="text-4xl font-bold text-foreground">56%</div> <p class="text-muted-foreground">Productivity Boost</p></div> <div><div class="text-4xl font-bold text-foreground">24/7</div> <p class="text-muted-foreground">Customer Support</p></div> <div><div class="text-4xl font-bold text-foreground">10k+</div> <p class="text-muted-foreground">Active Users</p></div></div></div></div></section>`);
+
+export default function Two($$anchor) {
+	var // Component logic here
+	section = root();
+
+	$.append($$anchor, section);
+}

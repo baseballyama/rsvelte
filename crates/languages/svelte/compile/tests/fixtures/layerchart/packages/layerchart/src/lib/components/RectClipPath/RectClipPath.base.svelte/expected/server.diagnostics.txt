@@ -1,0 +1,32 @@
+warning state_referenced_locally 38:32-38:40 This reference only captures the initial value of `initialX`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 38:44-38:45 This reference only captures the initial value of `x`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 38:56-38:62 This reference only captures the initial value of `motion`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 38:82-38:88 This reference only captures the initial value of `motion`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 39:32-39:40 This reference only captures the initial value of `initialY`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 39:44-39:45 This reference only captures the initial value of `y`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 39:56-39:62 This reference only captures the initial value of `motion`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 39:82-39:88 This reference only captures the initial value of `motion`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 41:5-41:17 This reference only captures the initial value of `initialWidth`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 41:21-41:26 This reference only captures the initial value of `width`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 43:5-43:11 This reference only captures the initial value of `motion`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 43:31-43:37 This reference only captures the initial value of `motion`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 46:5-46:18 This reference only captures the initial value of `initialHeight`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 46:22-46:28 This reference only captures the initial value of `height`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 48:5-48:11 This reference only captures the initial value of `motion`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 48:31-48:37 This reference only captures the initial value of `motion`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

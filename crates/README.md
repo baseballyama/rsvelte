@@ -17,6 +17,7 @@
 | `languages/svelte/compile_vue/` | Svelte semantics compiled for the Vue runtime |
 | `hosts/command_line/` | CLI and integration examples |
 | `hosts/browser/` | Browser bindings |
+| `fixture_test/` | The snapshot harness for each crate's `tests/fixtures/` |
 
 TypeScript core also parses JavaScript. CSS and HTML contain the tools implemented today;
 there are no empty crates for tools that do not exist yet.

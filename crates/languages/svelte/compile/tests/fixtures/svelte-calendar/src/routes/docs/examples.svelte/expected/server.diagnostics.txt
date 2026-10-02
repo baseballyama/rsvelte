@@ -1,0 +1,10 @@
+warning event_directive_deprecated 91:8-91:49 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 104:5-104:28 Using `on:blurr` to listen to the blurr event is deprecated. Use the event attribute `onblurr` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 113:16-113:39 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning svelte_component_deprecated 116:8-116:53 `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+    https://svelte.dev/e/svelte_component_deprecated
+warning non_reactive_update 20:6-20:13 `example` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

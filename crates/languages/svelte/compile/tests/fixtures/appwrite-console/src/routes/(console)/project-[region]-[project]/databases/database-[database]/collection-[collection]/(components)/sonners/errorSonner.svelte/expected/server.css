@@ -1,0 +1,28 @@
+
+    .floating-action-bar.svelte-1y4xpqh {
+        max-width: 325px;
+        transform: translateX(60%);
+
+        @media (max-width: 768px) {
+            left: 50%;
+            bottom: 5%;
+            position: absolute;
+        }
+
+        & > div:first-of-type {
+            bottom: 32px;
+            max-width: 100%;
+            min-height: 44px;
+            width: fit-content;
+            align-content: center;
+        }
+    }
+
+    .sonner-message.svelte-1y4xpqh {
+        flex: 1;
+        font-size: 13px;
+        min-width: 0;
+        white-space: normal;
+        word-break: break-word;
+        font-family: var(--font-family-code);
+    }

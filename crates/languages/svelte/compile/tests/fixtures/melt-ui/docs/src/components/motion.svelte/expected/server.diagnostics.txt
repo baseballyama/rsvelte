@@ -1,0 +1,4 @@
+warning state_referenced_locally 107:47-107:54 This reference only captures the initial value of `initial`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 107:58-107:65 This reference only captures the initial value of `animate`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

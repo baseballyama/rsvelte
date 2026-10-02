@@ -1,0 +1,38 @@
+
+	/* Refined Editorial — default theme only. Route component renders for all themes,
+	   so every rule is gated under [data-theme='default']. */
+	[data-theme='default'] .edp-grid {
+		column-gap: clamp(28px, 5vw, 72px);
+		row-gap: 18px;
+	}
+
+	@media (min-width: 1024px) {
+		[data-theme='default'] .edp-buybox {
+			padding-left: clamp(16px, 3vw, 44px);
+		}
+	}
+
+	[data-theme='default'] .edp-mobilebar {
+		background: var(--ed-surface);
+		border-top: 1px solid var(--ed-line);
+		box-shadow: 0 -6px 24px -14px rgba(27, 26, 23, 0.22);
+		backdrop-filter: none;
+	}
+
+	[data-theme='default'] .edp-empty-title {
+		font-family: var(--ed-display);
+		font-weight: 500;
+		letter-spacing: -0.01em;
+		font-size: clamp(1.8rem, 4vw, 2.6rem);
+		color: var(--ed-ink);
+	}
+
+	[data-theme='default'] .edp-empty-link {
+		color: var(--ed-ink);
+		text-transform: uppercase;
+		letter-spacing: 0.14em;
+		font-size: 0.76rem;
+		text-decoration: none;
+		border-bottom: 1px solid var(--ed-ink);
+		padding-bottom: 2px;
+	}

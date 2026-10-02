@@ -1,0 +1,10 @@
+warning attribute_quoted 13:12-13:25 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+    https://svelte.dev/e/attribute_quoted
+warning svelte_component_deprecated 15:1-15:46 `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+    https://svelte.dev/e/svelte_component_deprecated
+warning attribute_quoted 15:30-15:43 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+    https://svelte.dev/e/attribute_quoted
+warning attribute_quoted 19:15-19:28 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+    https://svelte.dev/e/attribute_quoted
+warning attribute_quoted 22:17-22:30 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+    https://svelte.dev/e/attribute_quoted

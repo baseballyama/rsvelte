@@ -1,0 +1,10 @@
+
+	.custom.svelte-nvqmc8 span::before {
+		background-image: url(../assets/icons/Willow.svg);
+		background-position: center;
+		background-repeat: no-repeat;
+		background-size: 16px 16px;
+	}
+	.custom.dark.svelte-nvqmc8 span::before {
+		background-image: url(../assets/icons/Willow_dark.svg);
+	}

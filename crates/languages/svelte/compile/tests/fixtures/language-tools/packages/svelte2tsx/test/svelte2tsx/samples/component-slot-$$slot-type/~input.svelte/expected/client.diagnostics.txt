@@ -1,0 +1,4 @@
+warning slot_element_deprecated 14:5-14:19 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated
+warning slot_element_deprecated 15:5-15:28 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated

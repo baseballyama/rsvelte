@@ -1,0 +1,2 @@
+warning a11y_positive_tabindex 7:9-7:21 Avoid tabindex values above zero
+    https://svelte.dev/e/a11y_positive_tabindex

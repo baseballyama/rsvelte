@@ -1,0 +1,42 @@
+warning css_unused_selector 194:2-194:18 Unused CSS selector ".steps-indicator"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 199:3-199:8 Unused CSS selector ".step"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 207:4-207:8 Unused CSS selector "span"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 219:4-219:12 Unused CSS selector "&.active"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 222:5-222:9 Unused CSS selector "span"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 228:4-228:15 Unused CSS selector "&.completed"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 231:5-231:9 Unused CSS selector "span"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 315:2-315:15 Unused CSS selector ".step-content"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 318:3-318:5 Unused CSS selector "h2"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 324:3-324:4 Unused CSS selector "p"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 330:3-330:16 Unused CSS selector ".instructions"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 336:3-336:19 Unused CSS selector ".credentials-box"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 345:4-345:20 Unused CSS selector ".credential-item"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 349:5-349:11 Unused CSS selector "strong"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 355:4-355:12 Unused CSS selector ".warning"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 366:4-366:9 Unused CSS selector ".info"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 378:3-378:17 Unused CSS selector ".database-link"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 385:4-385:11 Unused CSS selector "&:hover"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 390:3-390:10 Unused CSS selector ".button"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 403:4-403:11 Unused CSS selector "&:hover"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 409:4-409:16 Unused CSS selector "&.full-width"
+    https://svelte.dev/e/css_unused_selector

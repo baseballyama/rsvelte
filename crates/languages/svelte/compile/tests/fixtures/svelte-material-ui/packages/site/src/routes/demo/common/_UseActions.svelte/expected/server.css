@@ -1,0 +1,10 @@
+
+  .container.svelte-15r9h79 {
+    height: 80vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    border: 1px solid currentcolor;
+    overflow: hidden;
+  }

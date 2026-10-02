@@ -1,2 +1,0 @@
-[skip]
-"vue.compile/default" = "the compile port refuses a repeated attribute (a static type beside :type); this unit exercises vue.lint"

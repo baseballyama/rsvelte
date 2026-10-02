@@ -1,0 +1,8 @@
+warning state_referenced_locally 31:18-31:23 This reference only captures the initial value of `width`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 33:20-33:27 This reference only captures the initial value of `opacity`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 34:7-34:14 This reference only captures the initial value of `opacity`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 35:11-35:18 This reference only captures the initial value of `overlay`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

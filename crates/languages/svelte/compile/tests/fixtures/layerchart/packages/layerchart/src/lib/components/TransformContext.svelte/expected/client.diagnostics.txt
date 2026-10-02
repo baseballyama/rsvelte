@@ -1,0 +1,36 @@
+warning state_referenced_locally 64:5-64:9 This reference only captures the initial value of `mode`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 65:5-65:9 This reference only captures the initial value of `axis`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 66:5-66:11 This reference only captures the initial value of `motion`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 67:5-67:21 This reference only captures the initial value of `processTranslate`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 68:5-68:19 This reference only captures the initial value of `disablePointer`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 69:5-69:15 This reference only captures the initial value of `scrollMode`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 70:5-70:18 This reference only captures the initial value of `clickDistance`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 71:5-71:21 This reference only captures the initial value of `initialTranslate`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 72:5-72:17 This reference only captures the initial value of `initialScale`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 73:5-73:16 This reference only captures the initial value of `onTransform`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 74:5-74:16 This reference only captures the initial value of `ondragstart`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 75:5-75:14 This reference only captures the initial value of `ondragend`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 76:5-76:16 This reference only captures the initial value of `scaleExtent`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 77:5-77:20 This reference only captures the initial value of `translateExtent`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 78:5-78:14 This reference only captures the initial value of `constrain`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 79:5-79:12 This reference only captures the initial value of `inertia`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 80:5-80:10 This reference only captures the initial value of `pinch`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 81:5-81:24 This reference only captures the initial value of `scrollActivationKey`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

@@ -1,0 +1,19 @@
+
+	div.svelte-e63w81 > span:where(.svelte-e63w81) {
+		color: green;
+	}
+	div.svelte-e63w81 span:where(.svelte-e63w81) {
+		color: green;
+	}
+	div.svelte-e63w81 span {
+		color: green;
+	}
+	p.svelte-e63w81 span:where(.svelte-e63w81) {
+		color: green;
+	}
+	/* (unused) p .foo {
+		color: red;
+	}*/
+	/* (unused) span div {
+		color: red;
+	}*/

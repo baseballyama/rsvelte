@@ -1,0 +1,6 @@
+warning state_referenced_locally 23:24-23:30 This reference only captures the initial value of `policy`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 24:27-24:33 This reference only captures the initial value of `policy`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 24:48-24:54 This reference only captures the initial value of `policy`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

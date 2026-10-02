@@ -1,0 +1,13 @@
+
+	div.svelte-e8uynz::-webkit-scrollbar {
+		width: 5px;
+	}
+
+	div.svelte-e8uynz::-webkit-scrollbar-thumb {
+		background: hsl(var(--border));
+		border-radius: 5px;
+	}
+	div.svelte-e8uynz {
+		scrollbar-width: thin;
+		scrollbar-color: hsl(var(--border)) transparent;
+	}

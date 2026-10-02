@@ -1,0 +1,25 @@
+
+  .svp-live-code--container {
+    --at-apply: 'mb-8 shadow-sm b-1 b-solid b-black/6 dark:b-white/8 rounded-lg';
+  }
+  .svp-live-code--demo {
+    --at-apply: 'p-4';
+  }
+  .c-expansion--body .svp-code-block {
+    --at-apply: 'mb-none';
+  }
+  .c-expansion--header.svelte-1q97gs7 {
+    --at-apply: 'rounded-b flex justify-between px-4 py-1.5 items-center';
+  }
+  .c-expansion--icon.svelte-1q97gs7 {
+    --at-apply: 'mr-2 text-4.5 flex items-center';
+  }
+  .c-expansion--arrow.svelte-1q97gs7 {
+    --at-apply: 'text-5 flex items-center';
+  }
+  .c-expansion--header-left.svelte-1q97gs7 {
+    --at-apply: 'flex items-center';
+  }
+  .c-expansion--title.svelte-1q97gs7 {
+    --at-apply: 'text-3.5';
+  }

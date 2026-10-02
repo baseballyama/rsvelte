@@ -1,0 +1,4 @@
+warning non_reactive_update 19:7-19:20 `isSideNavOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 20:7-20:13 `isOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

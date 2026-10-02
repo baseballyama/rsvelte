@@ -1,0 +1,34 @@
+
+    .hoverable-compact {
+        width: 20px;
+        height: 20px;
+        --p-button-padding-inline: var(--space-0);
+
+        &:hover {
+            background-color: var(--bgcolor-neutral-secondary);
+            border: var(--border-width-s) solid var(--bgcolor-neutral-secondary);
+
+            & i {
+                --icon-fill: var(--fgcolor-neutral-secondary) !important;
+            }
+        }
+
+        &:active {
+            background-color: var(--bgcolor-neutral-tertiary);
+            border: var(--border-width-s) solid var(--bgcolor-neutral-tertiary);
+        }
+
+        &:disabled {
+            & i {
+                --icon-fill: var(--fgcolor-neutral-secondary) !important;
+            }
+        }
+    }
+
+    .hoverable-compact.asc,
+    .hoverable-compact.desc {
+        background-color: var(--bgcolor-neutral-secondary) !important;
+        & i {
+            --icon-fill: var(--fgcolor-neutral-secondary) !important;
+        }
+    }

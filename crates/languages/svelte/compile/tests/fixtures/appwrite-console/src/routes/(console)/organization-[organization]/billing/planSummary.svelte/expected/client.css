@@ -1,0 +1,150 @@
+
+    .billing-cycle-header.svelte-v1pleg {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .card-only-on-desktop {
+        background: hsl(var(--color-neutral-5));
+        border-radius: var(--corner-radius-medium, 8px);
+        border: 1px solid var(--billing-card-border-color);
+    }
+
+    .theme-dark .card-only-on-desktop {
+        background: #2c2c2f;
+        --billing-card-border-color: #424248;
+    }
+
+    .card-only-on-desktop .collapsible-item:only-of-type {
+        margin-block-start: 0.5rem;
+        border-block-start: solid 0.0625rem hsl(var(--p-toggle-border-color));
+    }
+
+    /* indent child rows on tablet */
+    .child-row.is-tablet {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    /* prevent wrapping on desktop; truncate on small/tablet */
+    .cell-item-text.svelte-v1pleg {
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .theme-dark .cell-item-text.svelte-v1pleg,
+    .theme-light .cell-item-text.svelte-v1pleg {
+        display: block;
+    }
+
+    /* Small and tablet: allow truncation to avoid multi-line wrapping */
+    @media (max-width: 1000px) {
+        .cell-item-text.svelte-v1pleg {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    }
+
+    .usage-cell-content.svelte-v1pleg {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        padding-left: 1.5rem;
+        gap: 0.75rem;
+        width: 100%;
+        min-height: 2rem;
+    }
+
+    /* tablet tweaks */
+    .usage-cell-content.is-tablet {
+        padding-left: 1rem;
+        gap: 0.5rem;
+    }
+
+    /* mobile tweaks: compact inline layout with proper spacing */
+    .usage-cell-content.is-mobile {
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+        padding-left: 0;
+        min-height: 2rem;
+        flex-wrap: nowrap;
+    }
+
+    .usage-text-section.svelte-v1pleg {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        padding-left: 1rem;
+        flex: 1;
+        text-align: left;
+    }
+
+    .usage-cell-content.is-mobile .usage-text-section,
+    .usage-cell-content.is-tablet .usage-text-section {
+        padding-left: 0;
+    }
+
+    .usage-progress-section.svelte-v1pleg {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        width: 264px;
+    }
+
+    .usage-progress-section .progressbar__container {
+        margin-top: 0;
+        width: 264px;
+        max-width: 264px;
+        /* Neutral background for unfilled track */
+        --progressbar-background-color: var(--bgcolor-neutral-tertiary);
+    }
+
+    /* smaller bars for tablet/mobile */
+    .usage-cell-content.is-tablet .usage-progress-section .progressbar__container {
+        width: 200px;
+        max-width: 200px;
+    }
+    .usage-cell-content.is-mobile .usage-progress-section .progressbar__container {
+        width: 120px;
+        max-width: 120px;
+    }
+
+    .usage-cell-content.is-mobile .usage-progress-section {
+        width: 120px;
+        flex-shrink: 0;
+    }
+
+    @media (max-width: 768px) {
+        .billing-cycle-header.svelte-v1pleg {
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        [data-expandable-row-id='additional-projects'],
+        [data-expandable-row-id^='addon-'] {
+            background-color: var(--bgcolor-neutral-tertiary);
+            border-left: 3px solid var(--bgcolor-accent-neutral);
+        }
+
+        .card-only-on-desktop {
+            padding: 0.5rem;
+            box-shadow: unset;
+            border-radius: unset;
+
+            /* yes, these `!important`s are needed */
+            border: unset !important;
+            background: unset !important;
+        }
+    }
+
+    /* reducingh size of paginator */
+    .pagination-left.svelte-v1pleg {
+        display: inline-block;
+        transform: scale(0.95);
+        transform-origin: left center;
+    }

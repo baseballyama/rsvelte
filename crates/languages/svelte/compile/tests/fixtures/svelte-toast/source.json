@@ -1,0 +1,13 @@
+{
+	"commit": "1c9ac2bef17249abadf0a1d2393bfaee3e756b7b",
+	"license": "ISC",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/zerodevx/svelte-toast"
+}

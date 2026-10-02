@@ -1,0 +1,52 @@
+
+  .sp-card-small.svelte-69hb18 {
+    background: var(--sp-blog-surface);
+    border-radius: 10px;
+    overflow: hidden;
+    break-inside: avoid;
+    margin-bottom: 1rem;
+    border-left: 4px solid var(--sp-blog-primary);
+    transition: transform 0.2s;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 150px;
+  }
+  .sp-card-small.svelte-69hb18:hover {
+    transform: translateY(-3px);
+  }
+  .sp-card-small__link.svelte-69hb18 {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    padding: 1rem 1rem 1rem 0.875rem;
+  }
+  .sp-card-small__title.svelte-69hb18 {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--sp-blog-text);
+    margin: 0.3rem 0 0.45rem;
+    line-height: 1.35;
+  }
+  .sp-card-small__quote.svelte-69hb18 {
+    font-size: 0.8rem;
+    color: var(--sp-blog-muted);
+    line-height: 1.5;
+  }
+  .sp-card__tags.svelte-69hb18 {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .sp-card__tag.svelte-69hb18 {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--sp-blog-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .sp-card__meta.svelte-69hb18 {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--sp-blog-muted);
+    margin-top: 0.75rem;
+  }

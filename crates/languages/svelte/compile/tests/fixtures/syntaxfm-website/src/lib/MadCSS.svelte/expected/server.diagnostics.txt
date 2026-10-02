@@ -1,0 +1,4 @@
+warning css_unused_selector 123:2-123:6 Unused CSS selector ".cta"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 132:2-132:8 Unused CSS selector ".prize"
+    https://svelte.dev/e/css_unused_selector

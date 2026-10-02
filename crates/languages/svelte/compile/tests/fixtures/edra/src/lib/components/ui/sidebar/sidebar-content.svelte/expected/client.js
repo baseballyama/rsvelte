@@ -1,0 +1,44 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { cn } from '$lib/utils.js';
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'ref',
+	'class',
+	'children'
+]);
+
+var root = $.from_html(`<div><!></div>`);
+
+export default function Sidebar_content($$anchor, $$props) {
+	$.push($$props, true);
+
+	let ref = $.prop($$props, 'ref', 15, null),
+		restProps = $.rest_props($$props, rest_excludes);
+
+	var div = root();
+
+	$.attribute_effect(
+		div,
+		($0) => ({
+			'data-slot': 'sidebar-content',
+			'data-sidebar': 'content',
+			class: $0,
+			...restProps
+		}),
+		[
+			() => cn('no-scrollbar flex min-h-0 flex-1 flex-col gap-0 overflow-auto group-data-[collapsible=icon]:overflow-hidden', $$props.class)
+		]
+	);
+
+	var node = $.child(div);
+
+	$.snippet(node, () => $$props.children ?? $.noop);
+	$.reset(div);
+	$.bind_this(div, ($$value) => ref($$value), () => ref());
+	$.append($$anchor, div);
+	$.pop();
+}

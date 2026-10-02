@@ -1,0 +1,2 @@
+warning state_referenced_locally 29:36-29:38 This reference only captures the initial value of `id`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

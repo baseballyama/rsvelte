@@ -1,0 +1,2 @@
+warning options_deprecated_accessors 1:17-1:26 The `accessors` option has been deprecated. It will have no effect in runes mode
+    https://svelte.dev/e/options_deprecated_accessors

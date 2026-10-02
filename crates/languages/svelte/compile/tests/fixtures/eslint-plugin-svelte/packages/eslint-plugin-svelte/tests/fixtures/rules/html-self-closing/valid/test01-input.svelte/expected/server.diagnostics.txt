@@ -1,0 +1,4 @@
+warning a11y_missing_attribute 4:2-4:9 `<img>` element should have an alt attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning svelte_self_deprecated 8:3-8:18 `<svelte:self>` is deprecated — use self-imports (e.g. `import Test01_input from './test01-input.svelte'`) instead
+    https://svelte.dev/e/svelte_self_deprecated

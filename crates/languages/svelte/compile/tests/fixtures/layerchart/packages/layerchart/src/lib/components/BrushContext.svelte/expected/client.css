@@ -1,0 +1,39 @@
+
+  @layer base {
+    :where(.lc-brush-context.svelte-20h5iz) {
+      position: absolute;
+      touch-action: none;
+    }
+
+    :where(.lc-brush-container.svelte-20h5iz) {
+      position: absolute;
+    }
+
+    :where(.lc-brush-panel.svelte-20h5iz) {
+      position: absolute;
+    }
+
+    :where(.lc-brush-range.svelte-20h5iz) {
+      position: absolute;
+      cursor: move;
+      user-select: none;
+      z-index: 10;
+      background: color-mix(in oklab, var(--color-surface-content, currentColor) 10%, transparent);
+    }
+
+    :where(.lc-brush-handle.svelte-20h5iz) {
+      position: absolute;
+      user-select: none;
+      z-index: 10;
+
+      &[data-position='top'],
+      &[data-position='bottom'] {
+        cursor: ns-resize;
+      }
+
+      &[data-position='left'],
+      &[data-position='right'] {
+        cursor: ew-resize;
+      }
+    }
+  }

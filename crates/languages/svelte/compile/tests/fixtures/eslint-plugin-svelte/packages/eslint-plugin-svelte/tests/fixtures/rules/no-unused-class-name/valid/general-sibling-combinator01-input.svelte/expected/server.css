@@ -1,0 +1,4 @@
+
+	.div-class.svelte-1gj60ou ~ .span-class:where(.svelte-1gj60ou) {
+		color: red;
+	}

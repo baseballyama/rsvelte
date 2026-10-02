@@ -1,0 +1,29 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Skeleton } from "flowbite-svelte";
+
+var root = $.from_html(`<!> <!> <!> <!> <!>`, 1);
+
+export default function Default($$anchor) {
+	var fragment = root();
+	var node = $.first_child(fragment);
+
+	Skeleton(node, { size: 'sm', class: 'my-8' });
+
+	var node_1 = $.sibling(node, 2);
+
+	Skeleton(node_1, { size: 'md', class: 'my-8' });
+
+	var node_2 = $.sibling(node_1, 2);
+
+	Skeleton(node_2, { size: 'lg', class: 'my-8' });
+
+	var node_3 = $.sibling(node_2, 2);
+
+	Skeleton(node_3, { size: 'xl', class: 'my-8' });
+
+	var node_4 = $.sibling(node_3, 2);
+
+	Skeleton(node_4, { size: '2xl', class: 'mt-8 mb-2.5' });
+	$.append($$anchor, fragment);
+}

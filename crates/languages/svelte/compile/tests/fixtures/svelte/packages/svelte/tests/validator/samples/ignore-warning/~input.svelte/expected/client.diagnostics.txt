@@ -1,0 +1,4 @@
+warning a11y_distracting_elements 4:2-4:50 Avoid `<marquee>` elements
+    https://svelte.dev/e/a11y_distracting_elements
+warning a11y_missing_attribute 10:1-10:23 `<img>` element should have an alt attribute
+    https://svelte.dev/e/a11y_missing_attribute

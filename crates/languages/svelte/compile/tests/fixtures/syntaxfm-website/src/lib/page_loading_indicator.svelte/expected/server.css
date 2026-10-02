@@ -1,0 +1,23 @@
+
+	.progress.svelte-qdp9z9 {
+		width: 100%;
+		position: fixed;
+		z-index: 2;
+		top: 0;
+		transform: translateY(-100%);
+		transition: transform 0.5s;
+		&.visible {
+			transition: none;
+			transform: translateY(0);
+		}
+	}
+	.track.svelte-qdp9z9 {
+		height: 4px;
+		width: calc(var(--progress, 0) * 1%);
+		background: var(--primary);
+		border-radius: 0 4px 4px 0;
+		transition: width 0.05s;
+		.progress.visible:where(.svelte-qdp9z9) & {
+			transition: none;
+		}
+	}

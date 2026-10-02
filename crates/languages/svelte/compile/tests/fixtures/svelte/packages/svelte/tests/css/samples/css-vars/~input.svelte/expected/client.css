@@ -1,0 +1,12 @@
+
+	:root {
+		--root-test: 20;
+	}
+	div.svelte-1rtycqj {
+		--test: 10;
+	}
+
+	div.svelte-1rtycqj {
+		--foo: ;
+		--bar: !important;
+	}

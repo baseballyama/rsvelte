@@ -1,0 +1,13 @@
+{
+	"commit": "348617e72080217edf05ffc282cb464ad348e43d",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/sockmaster27/svader.git"
+}

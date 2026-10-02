@@ -1,0 +1,6 @@
+
+  @layer components {
+    :where(.lc-contour-band) {
+      --stroke-color: none;
+    }
+  }

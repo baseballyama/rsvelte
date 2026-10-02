@@ -1,0 +1,16 @@
+
+	tr.svelte-yjk7gi {
+		display: grid;
+		align-items: center;
+		grid-template-columns: 150px 100px min(550px) 300px;
+	}
+
+	.show-type.svelte-yjk7gi {
+		background: var(--yellow);
+		color: var(--black);
+		font-size: var(--font-size-xs);
+		rotate: 2deg;
+		margin-bottom: -4px;
+		text-transform: uppercase;
+		z-index: 1;
+	}

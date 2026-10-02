@@ -1,0 +1,12 @@
+
+	.wx-text.svelte-185hkbp {
+		width: 100%;
+		height: 100%;
+		border: none;
+		outline: none;
+		padding-left: 8px;
+		font: inherit;
+		background: var(--wx-background);
+		color: var(--wx-color-font);
+		border: 1px solid var(--wx-color-primary);
+	}

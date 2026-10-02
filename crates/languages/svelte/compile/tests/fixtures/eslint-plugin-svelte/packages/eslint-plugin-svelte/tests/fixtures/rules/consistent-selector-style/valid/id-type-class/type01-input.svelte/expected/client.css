@@ -1,0 +1,24 @@
+
+  a.svelte-tqqwuz {
+    color: red;
+  }
+
+  b.svelte-tqqwuz {
+    color: red;
+  }
+
+  a.svelte-tqqwuz:active {
+    color: red;
+  }
+
+  a.svelte-tqqwuz + b:where(.svelte-tqqwuz) {
+    color: red;
+  }
+
+  b[data-key="val"].svelte-tqqwuz {
+    color: red;
+  }
+
+  b.svelte-tqqwuz::before {
+    color: red;
+  }

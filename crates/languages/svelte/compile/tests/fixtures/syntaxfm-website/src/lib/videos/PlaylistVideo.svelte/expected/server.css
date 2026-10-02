@@ -1,0 +1,19 @@
+
+	a.svelte-7mgmi5 {
+		display: grid;
+		grid-template-rows: auto 1fr;
+		gap: 10px;
+	}
+
+	.h6.svelte-7mgmi5 {
+		margin-top: 0;
+	}
+
+	.thumbnail.svelte-7mgmi5 {
+		overflow: hidden;
+		border-radius: var(--brad);
+	}
+
+	img.svelte-7mgmi5 {
+		width: 100%;
+	}

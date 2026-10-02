@@ -1,0 +1,2 @@
+warning svelte_self_deprecated 8:3-8:62 `<svelte:self>` is deprecated — use self-imports (e.g. `import Ignore_svelte_self01_input from './ignore-svelte-self01-input.svelte'`) instead
+    https://svelte.dev/e/svelte_self_deprecated

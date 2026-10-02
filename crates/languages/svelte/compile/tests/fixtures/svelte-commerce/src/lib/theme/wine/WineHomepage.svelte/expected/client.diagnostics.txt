@@ -1,0 +1,30 @@
+warning css_unused_selector 898:2-898:20 Unused CSS selector ".offer-price small"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 1030:2-1030:20 Unused CSS selector ".category-tile img"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 1039:2-1039:26 Unused CSS selector ".category-tile:hover img"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 1217:2-1217:29 Unused CSS selector ".menu-image.placeholder img"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 1223:2-1223:28 Unused CSS selector ".menu-image.placeholder em"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 1324:2-1324:18 Unused CSS selector ".offer-price img"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 1350:2-1350:20 Unused CSS selector ".offer-price small"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 1385:2-1385:26 Unused CSS selector ".testimonial-dots button"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 1394:2-1394:33 Unused CSS selector ".testimonial-dots button.active"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 1637:2-1637:22 Unused CSS selector ".menu-image > em.hot"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 1675:2-1675:19 Unused CSS selector ".menu-content del"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 2052:2-2052:20 Unused CSS selector ".hours-card h3 svg"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 2053:2-2053:16 Unused CSS selector ".hours-row svg"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 2114:2-2114:16 Unused CSS selector ".hours-cta svg"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 2228:2-2228:26 Unused CSS selector ".contact-panel div > svg"
+    https://svelte.dev/e/css_unused_selector

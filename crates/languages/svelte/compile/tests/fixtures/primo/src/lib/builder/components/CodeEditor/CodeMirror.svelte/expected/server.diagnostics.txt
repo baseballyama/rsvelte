@@ -1,0 +1,18 @@
+warning state_referenced_locally 398:31-398:35 This reference only captures the initial value of `mode`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 459:28-459:36 This reference only captures the initial value of `disabled`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 464:9-464:13 This reference only captures the initial value of `mode`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 569:8-569:12 This reference only captures the initial value of `mode`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 569:107-569:118 This reference only captures the initial value of `completions`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 570:8-570:12 This reference only captures the initial value of `mode`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 571:8-571:12 This reference only captures the initial value of `mode`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 571:48-571:52 This reference only captures the initial value of `mode`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning a11y_no_static_element_interactions 661:4-677:10 `<div>` with a click handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions

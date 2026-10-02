@@ -1,0 +1,64 @@
+
+	.ll-btn.svelte-kb7xdd {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		min-width: 118px;
+		padding: 11px 22px;
+		border: 1px solid var(--lime-plum, #460032);
+		border-radius: 0;
+		font-family: var(--font-body);
+		font-size: 12px;
+		font-weight: 500;
+		line-height: 16px;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		text-decoration: none;
+		cursor: pointer;
+		transition:
+			background-color 0.25s ease,
+			color 0.25s ease;
+	}
+
+	.ll-btn--filled.svelte-kb7xdd {
+		background: var(--lime-plum, #460032);
+		color: #fff;
+	}
+
+	.ll-btn--filled.svelte-kb7xdd:hover {
+		background: var(--lime-wine, #6f1648);
+		border-color: var(--lime-wine, #6f1648);
+	}
+
+	.ll-btn--outline.svelte-kb7xdd {
+		background: #fff;
+		color: var(--lime-plum, #460032);
+	}
+
+	.ll-btn--outline.svelte-kb7xdd:hover {
+		background: var(--lime-plum, #460032);
+		color: #fff;
+	}
+
+	.ll-btn--full.svelte-kb7xdd {
+		width: 100%;
+	}
+
+	.ll-btn.svelte-kb7xdd:disabled,
+	.ll-btn--disabled.svelte-kb7xdd {
+		opacity: 0.55;
+		pointer-events: none;
+	}
+
+	.ll-btn.svelte-kb7xdd .ll-btn-spin {
+		width: 15px;
+		height: 15px;
+		animation: svelte-kb7xdd-ll-spin 0.7s linear infinite;
+	}
+
+	@keyframes svelte-kb7xdd-ll-spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}

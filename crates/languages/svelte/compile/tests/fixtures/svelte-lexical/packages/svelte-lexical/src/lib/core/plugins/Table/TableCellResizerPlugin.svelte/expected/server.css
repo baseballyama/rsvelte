@@ -1,0 +1,12 @@
+
+  .SL_Theme__tableCellResizer.svelte-44612d {
+    position: absolute;
+    touch-action: none;
+  }
+
+  @media (pointer: coarse) {
+    .SL_Theme__tableCellResizer.svelte-44612d {
+      background-color: #adf;
+      mix-blend-mode: color;
+    }
+  }

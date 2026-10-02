@@ -1,0 +1,11 @@
+
+	@keyframes svelte-15qsqvs-stepper-enter {
+		from { transform: translateX(var(--enter-x)); opacity: 0; }
+		to { transform: translateX(0); opacity: 1; }
+	}
+	.next-button.svelte-15qsqvs {
+		background-color: #ff8a4c;
+		color: #120f17;
+	}
+	.next-button.svelte-15qsqvs:hover { background-color: #ff7a36; }
+	.next-button.svelte-15qsqvs:active { background-color: #e86a2a; }

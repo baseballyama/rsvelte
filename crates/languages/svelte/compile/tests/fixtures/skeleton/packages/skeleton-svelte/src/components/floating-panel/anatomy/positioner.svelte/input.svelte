@@ -1,0 +1,27 @@
+<script lang="ts" module>
+	import type { HTMLAttributes } from '../../../internal/html-attributes.js';
+	import type { PropsWithElement } from '../../../internal/props-with-element.js';
+
+	export interface FloatingPanelPositionerProps extends PropsWithElement<'div'>, HTMLAttributes<'div'> {}
+</script>
+
+<script lang="ts">
+	import { FloatingPanelRootContext } from '../modules/root-context.js';
+	import { mergeProps } from '@zag-js/svelte';
+
+	const props: FloatingPanelPositionerProps = $props();
+
+	const floatingPanel = FloatingPanelRootContext.consume();
+
+	const { element, children, ...rest } = $derived(props);
+
+	const attributes = $derived(mergeProps(floatingPanel().getPositionerProps(), rest));
+</script>
+
+{#if element}
+	{@render element(attributes)}
+{:else}
+	<div {...attributes}>
+		{@render children?.()}
+	</div>
+{/if}

@@ -1,0 +1,12 @@
+warning attribute_quoted 43:25-43:51 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+    https://svelte.dev/e/attribute_quoted
+warning attribute_quoted 44:37-44:63 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+    https://svelte.dev/e/attribute_quoted
+warning attribute_quoted 45:29-45:47 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+    https://svelte.dev/e/attribute_quoted
+warning attribute_quoted 46:33-46:55 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+    https://svelte.dev/e/attribute_quoted
+warning attribute_quoted 47:31-47:51 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+    https://svelte.dev/e/attribute_quoted
+warning non_reactive_update 12:9-12:20 `showOptions` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

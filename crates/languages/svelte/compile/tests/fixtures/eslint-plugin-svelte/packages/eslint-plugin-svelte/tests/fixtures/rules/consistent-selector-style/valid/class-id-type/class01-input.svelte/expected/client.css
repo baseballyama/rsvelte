@@ -1,0 +1,24 @@
+
+  .link.svelte-yiffn7 {
+    color: red;
+  }
+
+  .bold.svelte-yiffn7 {
+    color: red;
+  }
+
+  .link.svelte-yiffn7:active {
+    color: red;
+  }
+
+  .link.svelte-yiffn7 + .bold:where(.svelte-yiffn7) {
+    color: red;
+  }
+
+  /* (unused) .bold[data-key="val"] {
+    color: red;
+  }*/
+
+  .bold.svelte-yiffn7::before {
+    color: red;
+  }

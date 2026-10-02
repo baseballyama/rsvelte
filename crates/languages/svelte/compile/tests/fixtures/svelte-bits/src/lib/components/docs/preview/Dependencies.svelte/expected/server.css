@@ -1,0 +1,25 @@
+
+	.dependencies-section.svelte-1c2tki4 {
+		margin-top: 3rem;
+	}
+
+	.demo-details.svelte-1c2tki4 {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+	}
+
+	.demo-details.svelte-1c2tki4 span:where(.svelte-1c2tki4) {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 25px;
+		padding: .4rem .8rem;
+		border-radius: 8px;
+		border: 1px solid rgba(255, 138, 76, 0.16);
+		background: rgba(255, 138, 76, 0.06);
+		color: var(--color-accent-muted);
+		font-size: 14px;
+		font-family: 'Geist Mono', ui-monospace, monospace;
+		font-weight: 500;
+	}

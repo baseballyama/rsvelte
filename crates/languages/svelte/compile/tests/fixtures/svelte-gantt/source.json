@@ -1,0 +1,13 @@
+{
+	"commit": "eee1c5dc428cfd65535cb99361684c913c6c318d",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/ANovokmet/svelte-gantt.git"
+}

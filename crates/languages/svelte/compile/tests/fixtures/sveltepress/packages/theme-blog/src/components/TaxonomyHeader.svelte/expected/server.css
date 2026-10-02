@@ -1,0 +1,25 @@
+
+  .sp-taxonomy.svelte-1yg6wfl {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--sp-blog-border);
+  }
+  .sp-taxonomy__type.svelte-1yg6wfl {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--sp-blog-muted);
+    margin-bottom: 0.4rem;
+  }
+  .sp-taxonomy__name.svelte-1yg6wfl {
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--sp-blog-primary);
+    letter-spacing: -0.02em;
+  }
+  .sp-taxonomy__count.svelte-1yg6wfl {
+    font-size: 0.875rem;
+    color: var(--sp-blog-muted);
+    margin-top: 0.4rem;
+  }

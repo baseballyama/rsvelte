@@ -1,0 +1,18 @@
+
+  .svelte-1cf6sxh .margins {
+    margin: 18px 0 24px;
+  }
+
+  .svelte-1cf6sxh .columns {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .svelte-1cf6sxh .columns > * {
+    flex-basis: 0;
+    min-width: 245px;
+    margin-right: 12px;
+  }
+  .svelte-1cf6sxh .columns > *:last-child {
+    margin-right: 0;
+  }

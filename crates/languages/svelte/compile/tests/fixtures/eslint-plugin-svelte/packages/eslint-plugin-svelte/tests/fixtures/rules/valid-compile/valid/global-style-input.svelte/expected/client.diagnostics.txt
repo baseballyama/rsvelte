@@ -1,0 +1,2 @@
+warning css_unused_selector 2:2-2:7 Unused CSS selector "input"
+    https://svelte.dev/e/css_unused_selector

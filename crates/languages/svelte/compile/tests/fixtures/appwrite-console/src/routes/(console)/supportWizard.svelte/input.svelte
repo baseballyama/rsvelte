@@ -1,0 +1,212 @@
+<script lang="ts">
+    import { Wizard } from '$lib/layout';
+    import { Icon, Input, Layout, Typography, Card, Upload } from '@appwrite.io/pink-svelte';
+    import { supportData, isSupportOnline } from './wizard/support/store';
+    import { onMount, onDestroy } from 'svelte';
+    import { sdk } from '$lib/stores/sdk';
+    import { Form, InputText, InputTextarea, Button } from '$lib/elements/forms/index.js';
+    import { Query } from '@appwrite.io/console';
+    import { Submit, trackError, trackEvent } from '$lib/actions/analytics';
+    import {
+        localeTimezoneName,
+        utcHourToLocaleHour,
+        utcWeekDayToLocaleWeekDay,
+        type WeekDay
+    } from '$lib/helpers/date';
+    import { addNotification } from '$lib/stores/notifications';
+    import { organization } from '$lib/stores/organization';
+    import { user } from '$lib/stores/user';
+    import { wizard } from '$lib/stores/wizard';
+    import { VARS } from '$lib/system';
+    import { IconCheckCircle, IconXCircle } from '@appwrite.io/pink-icons-svelte';
+    import { removeFile } from '$lib/helpers/files';
+
+    let projectOptions = $state<Array<{ value: string; label: string }>>([]);
+    let files = $state<FileList | null>(null);
+
+    onMount(async () => {
+        // Filter projects by organization ID using server-side queries
+        const projectList = $organization?.$id
+            ? await sdk.forConsole.organization($organization.$id).listProjects({
+                  queries: [Query.equal('teamId', $organization.$id), Query.select(['$id', 'name'])]
+              })
+            : { projects: [] };
+        projectOptions = projectList.projects.map((project) => ({
+            value: project.$id,
+            label: project.name
+        }));
+    });
+
+    // Cleanup on component destroy
+    onDestroy(() => {
+        $supportData = {
+            message: null,
+            subject: null,
+            file: null
+        };
+    });
+
+    async function handleSubmit() {
+        const formData = new FormData();
+        formData.append('email', $user.email);
+        formData.append('subject', $supportData.subject ?? '');
+        formData.append('firstName', ($user?.name || 'Unknown').slice(0, 40));
+        formData.append('message', $supportData.message ?? '');
+        formData.append('tags[]', 'cloud');
+        formData.append(
+            'metaFields',
+            JSON.stringify({
+                orgId: $organization?.$id ?? '',
+                projectId: $supportData?.project ?? '',
+                billingPlan: $organization?.billingPlanId ?? ''
+            })
+        );
+        if (files && files.length > 0) {
+            formData.append('attachment', files[0]);
+        }
+
+        const response = await fetch(`${VARS.GROWTH_ENDPOINT}/support`, {
+            method: 'POST',
+            body: formData
+        });
+        trackEvent(Submit.SupportTicket);
+        if (response.status !== 200) {
+            trackError(new Error(response.status.toString()), Submit.SupportTicket);
+            addNotification({
+                message:
+                    'There was an error submitting your support ticket. Please try again later.',
+                type: 'error'
+            });
+        } else {
+            addNotification({
+                message:
+                    'Your support ticket was submitted successfully. The Appwrite team will get back to you shortly.',
+                type: 'success'
+            });
+        }
+        resetData();
+        wizard.hide();
+    }
+
+    function resetData() {
+        $supportData = {
+            message: null,
+            subject: null,
+            file: null,
+            project: null
+        };
+    }
+
+    $wizard.finalAction = handleSubmit;
+
+    function handleInvalid(_e: CustomEvent) {
+        addNotification({
+            type: 'error',
+            message: 'Invalid file'
+        });
+    }
+
+    const workTimings = {
+        start: '04:00',
+        end: '17:00',
+        startDay: 'Monday' as WeekDay,
+        endDay: 'Friday' as WeekDay
+    };
+
+    const supportTimings = $derived(
+        `${utcHourToLocaleHour(workTimings.start)} - ${utcHourToLocaleHour(workTimings.end)} ${localeTimezoneName()}`
+    );
+    const supportWeekDays = $derived(
+        `${utcWeekDayToLocaleWeekDay(workTimings.startDay, workTimings.start)} - ${utcWeekDayToLocaleWeekDay(workTimings.endDay, workTimings.end)}`
+    );
+</script>
+
+<Wizard title="Contact us" confirmExit={true}>
+    <Form onSubmit={handleSubmit}>
+        <Layout.Stack gap="xl">
+            <Layout.Stack gap="s">
+                <Typography.Text
+                    >Please describe your request in detail. If applicable, include steps for
+                    reproduction of any in-app issues.</Typography.Text>
+            </Layout.Stack>
+            <Input.ComboBox
+                id="project"
+                label="Choose a project"
+                options={projectOptions ?? []}
+                bind:value={$supportData.project}
+                placeholder="Select project" />
+            <InputText
+                id="subject"
+                label="Subject"
+                bind:value={$supportData.subject}
+                placeholder="What do you need help with?"
+                maxlength={128}
+                required />
+            <InputTextarea
+                id="message"
+                bind:value={$supportData.message}
+                placeholder="Type here..."
+                label="Tell us a bit more"
+                required
+                maxlength={4096} />
+            <Upload.Dropzone bind:files on:invalid={handleInvalid} maxSize={5 * 1024 * 1024}>
+                <Layout.Stack alignItems="center" gap="s">
+                    <Typography.Text variant="l-500"
+                        >Drag and drop a file here or click to upload</Typography.Text>
+                    <Typography.Caption variant="400">Max file size: 5MB</Typography.Caption>
+                </Layout.Stack>
+            </Upload.Dropzone>
+            {#if files}
+                <Upload.List
+                    files={Array.from(files).map((f) => {
+                        return {
+                            ...f,
+                            name: f.name,
+                            size: f.size,
+                            extension: f.type,
+                            removable: true
+                        };
+                    })}
+                    on:remove={(e) => (files = removeFile(e.detail, files))} />
+            {/if}
+            <Layout.Stack direction="row" justifyContent="flex-end" gap="s">
+                <Button
+                    size="s"
+                    secondary
+                    on:click={() => {
+                        wizard.hide();
+                    }}>Cancel</Button>
+                <Button submit size="s">Submit</Button>
+            </Layout.Stack>
+        </Layout.Stack>
+    </Form>
+
+    <svelte:fragment slot="aside">
+        <Card.Base padding="m">
+            <Layout.Stack gap="xl">
+                <Typography.Title size="s">Contact the Appwrite Team</Typography.Title>
+                <Typography.Text
+                    >If you found a bug or have questions, please reach out to the Appwrite team. We
+                    try to respond to all messages within our office hours.</Typography.Text>
+                <Layout.Stack direction="row" gap="s">
+                    <Typography.Text>Available:</Typography.Text>
+                    <Typography.Text variant="m-500"
+                        >{supportWeekDays}, {supportTimings}</Typography.Text>
+                </Layout.Stack>
+                <Layout.Stack direction="row" gap="s">
+                    <Typography.Text>Currently:</Typography.Text>
+                    {#if isSupportOnline()}
+                        <Layout.Stack direction="row" gap="xxxs" alignItems="center">
+                            <Icon icon={IconCheckCircle} color="--fgcolor-success" />
+                            <Typography.Text color="--fgcolor-success">Online</Typography.Text>
+                        </Layout.Stack>{:else}
+                        <Layout.Stack direction="row" gap="xxxs" alignItems="center">
+                            <Icon icon={IconXCircle} />
+                            <Typography.Text>Offline</Typography.Text>
+                        </Layout.Stack>
+                    {/if}
+                </Layout.Stack>
+            </Layout.Stack>
+        </Card.Base>
+    </svelte:fragment>
+</Wizard>

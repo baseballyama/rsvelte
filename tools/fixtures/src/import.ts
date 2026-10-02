@@ -5,8 +5,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { loadSources, readSourceUnits, writeMeta } from './manifest.ts';
-import { languageOf, languageById, FAMILIES } from './languages.ts';
-import { unitDir, inputFile, fixtureFile, sourceDir, licensesDir, IMPORT_REPORT_FILE, SOURCES_FILE, rel, decodePath } from './paths.ts';
+import { languageOf, FAMILIES } from './languages.ts';
+import { unitDir, inputFile, fixtureFile, sourceDir, licensesDir, IMPORT_REPORT_FILE, SOURCES_FILE, rel } from './paths.ts';
 import { writeIfChanged, stableStringify, pruneEmptyDirs } from './fsutil.ts';
 
 const LICENSE_NAME = /^(licen[cs]e|copying)(\.(md|txt))?$/i;
@@ -50,37 +50,6 @@ function nearestLicense(root: string, file: string, cache: Map<string, string | 
 	}
 }
 
-/** Hand-written units: every directory under fixtures/<family>/<source>/ that holds an `input.*`. */
-function refreshLocal(source: string, seen: Map<string, string>): Record<string, number> {
-	const counts: Record<string, number> = { admitted: 0 };
-	for (const family of FAMILIES) {
-		const root = sourceDir(family, source);
-		const visit = (dir: string): void => {
-			const entries = fs.readdirSync(dir, { withFileTypes: true });
-			const input = entries.find((e) => e.isFile() && e.name.startsWith('input.'));
-			if (!input) {
-				for (const e of entries) if (e.isDirectory()) visit(path.join(dir, e.name));
-				return;
-			}
-			const relPath = decodePath(rel(root, dir));
-			const lang = languageOf(relPath, family);
-			const ext = input.name.slice('input'.length);
-			if (!lang || lang.family !== family || languageById(lang.id).ext !== ext) {
-				throw new Error(`${source}/${relPath}: the path's extension does not match ${input.name}`);
-			}
-			const src = fs.readFileSync(path.join(dir, input.name), 'utf8');
-			const sha256 = crypto.createHash('sha256').update(src).digest('hex');
-			const admission = lang.admit(src, relPath);
-			if (!admission.include) throw new Error(`${source}/${relPath}: not admitted (${admission.reason})`);
-			seen.set(sha256, `${source}/${relPath}`);
-			counts.admitted!++;
-			writeMeta({ family, source, path: relPath, lang: lang.id, sha256, ...admission.fields });
-		};
-		if (fs.existsSync(root)) visit(root);
-	}
-	return counts;
-}
-
 export interface ImportOptions {
 	from: string;
 	only?: string[];
@@ -98,13 +67,6 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 
 	for (const source of sources) {
 		if (source.excluded || !source.license) continue;
-		if (source.local) {
-			// Local units come first in the registry, so the same file copied from a repository counts as a duplicate.
-			const counts = refreshLocal(source.id, seen);
-			report[source.id] = counts;
-			console.log(`${source.id}: ${stableStringify(counts, '')}`);
-			continue;
-		}
 		if (only && !only.includes(source.id)) {
 			// Earlier sources claim duplicates first, so a partial import dedups exactly like a full one.
 			for (const u of readSourceUnits(source.id)) if (!seen.has(u.sha256)) seen.set(u.sha256, `${source.id}/${u.path}`);

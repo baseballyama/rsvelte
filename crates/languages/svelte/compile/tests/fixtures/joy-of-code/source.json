@@ -1,0 +1,13 @@
+{
+	"commit": "73dc40eac5b5a93d80346cd613d53506173464cb",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/matiadev/joy-of-code.git"
+}

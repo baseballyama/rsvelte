@@ -1,0 +1,4 @@
+warning state_referenced_locally 5:22-5:26 This reference only captures the initial value of `data`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning event_directive_deprecated 14:9-14:26 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated

@@ -1,0 +1,4 @@
+warning script_context_deprecated 1:9-1:25 `context="module"` is deprecated, use the `module` attribute instead
+    https://svelte.dev/e/script_context_deprecated
+warning slot_element_deprecated 29:1-29:9 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated

@@ -1,0 +1,6 @@
+warning legacy_code 1:20-1:34 `a11y-autofocus` is no longer valid — please use `a11y_autofocus` instead
+    https://svelte.dev/e/legacy_code
+warning legacy_code 4:20-4:34 `a11y-autofocus` is no longer valid — please use `a11y_autofocus` instead
+    https://svelte.dev/e/legacy_code
+warning a11y_autofocus 5:26-5:35 Avoid using autofocus
+    https://svelte.dev/e/a11y_autofocus

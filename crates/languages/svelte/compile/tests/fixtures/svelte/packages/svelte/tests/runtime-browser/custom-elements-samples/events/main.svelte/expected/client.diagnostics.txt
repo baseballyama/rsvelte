@@ -1,0 +1,4 @@
+warning options_missing_custom_element 1:17-1:47 The `customElement` option is used when generating a custom element. Did you forget the `customElement: true` compile option?
+    https://svelte.dev/e/options_missing_custom_element
+warning event_directive_deprecated 9:9-9:51 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated

@@ -1,0 +1,6 @@
+warning script_context_deprecated 1:19-1:35 `context="module"` is deprecated, use the `module` attribute instead
+    https://svelte.dev/e/script_context_deprecated
+warning event_directive_deprecated 44:34-44:58 Using `on:change` to listen to the change event is deprecated. Use the event attribute `onchange` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning non_reactive_update 38:6-38:13 `visible` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

@@ -1,0 +1,40 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<button> </button>`);
+
+export default function Main($$anchor, $$props) {
+	$.push($$props, true);
+
+	const logger = (obj) => {
+		console.log(obj.count);
+	};
+
+	class Counter {
+		#_count = $.state();
+
+		get count() {
+			return $.get(this.#_count);
+		}
+
+		set count(value) {
+			$.set(this.#_count, value, true);
+		}
+
+		#count;
+
+		constructor(initial_count) {
+			logger(this);
+			this.count = initial_count;
+		}
+	}
+
+	const counter = new Counter(0);
+	var button = root();
+	var text = $.only_child(button, true);
+
+	$.template_effect(() => $.set_text(text, counter.count));
+	$.event('click', button, () => counter.count++);
+	$.append($$anchor, button);
+	$.pop();
+}

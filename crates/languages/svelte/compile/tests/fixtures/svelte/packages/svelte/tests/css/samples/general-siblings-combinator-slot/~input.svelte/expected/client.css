@@ -1,0 +1,11 @@
+
+	.d.svelte-611nr7 ~ .e:where(.svelte-611nr7) { color: green; }
+	.a.svelte-611nr7 ~ .g:where(.svelte-611nr7) { color: green; }
+	.a.svelte-611nr7 ~ .b:where(.svelte-611nr7) { color: green; }
+	.f.svelte-611nr7 ~ .g:where(.svelte-611nr7) { color: green; }
+	.b.svelte-611nr7 ~ .g:where(.svelte-611nr7) { color: green; }
+
+	/* no match */
+	/* (unused) .b ~ .c { color: red; }*/
+	/* (unused) .c ~ .f { color: red; }*/
+	/* (unused) .b ~ .f { color: red; }*/

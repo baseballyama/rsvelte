@@ -1,0 +1,23 @@
+
+	button.svelte-2cxc25 {
+		animation: svelte-2cxc25-bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+	}
+
+	@keyframes svelte-2cxc25-bounce-in {
+		0% {
+			opacity: 0;
+			transform: scale(0.3);
+		}
+		50% {
+			opacity: 0.9;
+			transform: scale(1.1);
+		}
+		80% {
+			opacity: 1;
+			transform: scale(0.89);
+		}
+		100% {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}

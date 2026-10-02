@@ -1,0 +1,12 @@
+
+	span.svelte-1ojjn5g::after {
+		content: 'i am a pseudo-element';
+	}
+
+	span.svelte-1ojjn5g:first-child {
+		color: red;
+	}
+
+	span.svelte-1ojjn5g:last-child::after {
+		color: blue;
+	}

@@ -1,0 +1,17 @@
+
+	.fade-in.svelte-1yyvp2u {
+		animation: svelte-1yyvp2u-fade-in 0.5s ease-in-out;
+	}
+
+	@keyframes svelte-1yyvp2u-fade-in {
+		from {
+			opacity: 0;
+			filter: blur(10px);
+			scale: 1.2;
+		}
+		to {
+			opacity: 1;
+			filter: blur(0);
+			scale: 1;
+		}
+	}

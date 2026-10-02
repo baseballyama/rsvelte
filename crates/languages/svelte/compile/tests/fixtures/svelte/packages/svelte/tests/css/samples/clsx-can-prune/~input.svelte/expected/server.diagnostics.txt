@@ -1,0 +1,2 @@
+warning css_unused_selector 24:2-24:9 Unused CSS selector ".unused"
+    https://svelte.dev/e/css_unused_selector

@@ -1,0 +1,1 @@
+error check_unsupported 5:1-7:8 not supported by the type-check projection yet: {#each} blocks

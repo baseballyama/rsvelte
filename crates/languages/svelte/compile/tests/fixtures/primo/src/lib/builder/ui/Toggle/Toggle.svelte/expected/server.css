@@ -1,0 +1,88 @@
+
+	label.svelte-vzdnzf {
+		display: block;
+		margin-bottom: 0.25rem;
+		font-size: 0.75rem;
+	}
+
+	/**
+  * Visually hide element without breaking screen readers
+  * https://a11yproject.com/posts/how-to-hide-content/
+  */
+	.hideLabel.svelte-vzdnzf {
+		position: absolute;
+		height: 1px;
+		width: 1px;
+		overflow: hidden;
+		clip: rect(1px 1px 1px 1px);
+		clip: rect(1px, 1px, 1px, 1px);
+		white-space: nowrap;
+	}
+
+	button.svelte-vzdnzf {
+		position: relative;
+		padding: 0 0.25rem;
+		border: 0;
+		border-radius: 1rem;
+		height: 1.25rem;
+		width: 2.5rem;
+		/* height: 0.875rem;
+		width: 1.5rem; */
+		font: inherit;
+		/* color: inherit; */
+		line-height: inherit;
+	}
+
+	button.svelte-vzdnzf:not([disabled]) {
+		cursor: pointer;
+	}
+
+	button[disabled].svelte-vzdnzf {
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+
+	button.svelte-vzdnzf:before {
+		position: absolute;
+		content: '';
+		top: 0;
+		bottom: 0;
+		left: 0.125rem;
+		/* left: 1px; */
+		margin: auto;
+		height: 1rem;
+		width: 1rem;
+		/* height: 0.75rem;
+		width: 0.75rem; */
+		text-align: center;
+		border-radius: 50%;
+		background-color: currentColor;
+		transition: transform 150ms ease-out;
+	}
+
+	button[aria-checked='true'].svelte-vzdnzf:before {
+		transform: translateX(1.25rem);
+	}
+
+	button.small.svelte-vzdnzf {
+		height: 1rem;
+		width: 1.75rem;
+	}
+
+	button.small.svelte-vzdnzf:before {
+		height: 0.75rem;
+		width: 0.75rem;
+	}
+
+	button.small[aria-checked='true'].svelte-vzdnzf:before {
+		transform: translateX(0.75rem);
+	}
+
+	div.svelte-vzdnzf {
+		display: flex;
+		align-items: center;
+	}
+
+	span.svelte-vzdnzf {
+		margin-left: 0.5rem;
+	}

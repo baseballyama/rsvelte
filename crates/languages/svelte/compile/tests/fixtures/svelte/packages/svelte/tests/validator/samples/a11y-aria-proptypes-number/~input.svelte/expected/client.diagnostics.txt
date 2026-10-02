@@ -1,0 +1,6 @@
+warning a11y_incorrect_aria_attribute_type 1:6-1:25 The value of 'aria-valuemax' must be a number
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type
+warning a11y_incorrect_aria_attribute_type 2:6-2:24 The value of 'aria-valuemax' must be a number
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type
+warning a11y_incorrect_aria_attribute_type 5:6-5:26 The value of 'aria-valuemax' must be a number
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type

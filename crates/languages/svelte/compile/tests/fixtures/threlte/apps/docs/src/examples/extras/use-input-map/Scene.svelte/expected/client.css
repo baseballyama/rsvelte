@@ -1,0 +1,50 @@
+
+  .overlay.svelte-gausnq {
+    font-family: 'Inter', system-ui, sans-serif;
+    color: white;
+    text-align: center;
+    user-select: none;
+    pointer-events: none;
+    width: 260px;
+  }
+
+  .hint.svelte-gausnq {
+    font-size: 12px;
+    opacity: 0.6;
+    margin: 0 0 8px;
+  }
+
+  .info.svelte-gausnq {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 13px;
+  }
+
+  .label.svelte-gausnq {
+    opacity: 0.5;
+    font-weight: 600;
+  }
+
+  .value.svelte-gausnq {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .badge.svelte-gausnq {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .sprint.svelte-gausnq {
+    background: rgba(255, 62, 0, 0.8);
+  }
+
+  .walk.svelte-gausnq {
+    background: rgba(74, 144, 217, 0.8);
+  }

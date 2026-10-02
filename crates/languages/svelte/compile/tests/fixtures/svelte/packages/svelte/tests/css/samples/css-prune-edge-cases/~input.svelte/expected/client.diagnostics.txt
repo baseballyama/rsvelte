@@ -1,0 +1,6 @@
+warning css_unused_selector 64:2-64:7 Unused CSS selector ".foob"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 84:2-84:39 Unused CSS selector "main > article > div > section > span"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 95:2-95:25 Unused CSS selector "nav:has(button).primary"
+    https://svelte.dev/e/css_unused_selector

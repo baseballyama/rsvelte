@@ -1,0 +1,13 @@
+{
+	"commit": "d910f5096c4e96b5901eda84d5a5b46e582806f1",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/skeletonlabs/skeleton.git"
+}

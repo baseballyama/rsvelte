@@ -1,0 +1,13 @@
+{
+	"commit": "2c47dc66b0434fe2bc931d0e64e02f223d2aa192",
+	"license": "Unlicense",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/Mitcheljager/svelte-confetti.git"
+}

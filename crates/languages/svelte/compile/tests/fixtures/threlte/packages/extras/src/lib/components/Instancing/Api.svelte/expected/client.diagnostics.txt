@@ -1,0 +1,10 @@
+warning state_referenced_locally 19:35-19:48 This reference only captures the initial value of `instancedMesh`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 19:50-19:52 This reference only captures the initial value of `id`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 23:37-23:42 This reference only captures the initial value of `limit`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 24:23-24:28 This reference only captures the initial value of `limit`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 26:35-26:40 This reference only captures the initial value of `limit`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

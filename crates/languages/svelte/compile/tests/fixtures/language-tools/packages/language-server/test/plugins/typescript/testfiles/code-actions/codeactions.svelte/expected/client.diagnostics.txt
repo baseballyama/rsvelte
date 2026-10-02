@@ -1,0 +1,6 @@
+warning a11y_consider_explicit_label 14:1-14:42 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label
+warning element_invalid_self_closing_tag 14:1-14:42 Self-closing HTML tags for non-void elements are ambiguous — use `<button ...></button>` rather than `<button ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning event_directive_deprecated 14:9-14:39 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated

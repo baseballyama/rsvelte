@@ -1,0 +1,25 @@
+import * as $ from 'svelte/internal/server';
+import { cn } from '$lib/utils.js';
+
+export default function Popover_description($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let {
+			ref = null,
+			class: className,
+			children,
+			$$slots,
+			$$events,
+			...restProps
+		} = $$props;
+
+		$$renderer.push(`<div${$.attributes({
+			'data-slot': 'popover-description',
+			class: $.clsx(cn('text-muted-foreground', className)),
+			...restProps
+		})}>`);
+
+		children?.($$renderer);
+		$$renderer.push(`<!----></div>`);
+		$.bind_props($$props, { ref });
+	});
+}

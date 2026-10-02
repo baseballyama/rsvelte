@@ -1,0 +1,13 @@
+{
+	"commit": "2921b5b151a575e540209a3e89262da7d082fe62",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/orefalo/svelte-virtuallists.git"
+}

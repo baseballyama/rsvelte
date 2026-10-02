@@ -1,0 +1,21 @@
+
+    img.backups-promo {
+        width: 220px !important;
+
+        @media (max-width: 768px) {
+            width: 100% !important;
+            height: unset !important;
+        }
+    }
+
+    .card-selector {
+        & div:has(p:first-child) {
+            /* make the title take only fitting space so the icon is beside it */
+            width: fit-content;
+        }
+
+        & i:has(.custom-tag) {
+            /* fitting space for tag and icon */
+            width: unset;
+        }
+    }

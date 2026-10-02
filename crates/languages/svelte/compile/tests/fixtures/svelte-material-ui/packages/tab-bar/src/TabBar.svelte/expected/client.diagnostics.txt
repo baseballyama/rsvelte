@@ -1,0 +1,8 @@
+warning state_referenced_locally 129:9-129:13 This reference only captures the initial value of `tabs`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 135:42-135:57 This reference only captures the initial value of `focusOnActivate`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 137:37-137:40 This reference only captures the initial value of `key`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 138:5-138:8 This reference only captures the initial value of `key`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

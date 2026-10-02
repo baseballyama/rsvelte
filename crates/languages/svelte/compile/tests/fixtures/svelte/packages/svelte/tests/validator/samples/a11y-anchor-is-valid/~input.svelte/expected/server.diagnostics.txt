@@ -1,0 +1,12 @@
+warning a11y_missing_attribute 1:1-1:27 `<a>` element should have an href attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning a11y_invalid_attribute 2:4-2:11 '' is not a valid href attribute
+    https://svelte.dev/e/a11y_invalid_attribute
+warning a11y_invalid_attribute 3:4-3:12 '#' is not a valid href attribute
+    https://svelte.dev/e/a11y_invalid_attribute
+warning a11y_invalid_attribute 4:4-4:29 'javascript:void(0)' is not a valid href attribute
+    https://svelte.dev/e/a11y_invalid_attribute
+warning a11y_missing_attribute 5:1-5:23 `<a>` element should have an href attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning a11y_missing_attribute 6:1-6:21 `<a>` element should have an href attribute
+    https://svelte.dev/e/a11y_missing_attribute

@@ -101,6 +101,7 @@ version = "0.0.0"
 dependencies = [
  "libc",
  "rayon",
+ "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_svelte",
  "rsvelte_svelte_check",
@@ -119,6 +120,14 @@ dependencies = [
  "rsvelte_vue_format",
  "rsvelte_vue_lint",
  "rsvelte_vuelte",
+]
+
+[[package]]
+name = "rsvelte_fixture_test"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -184,6 +193,7 @@ dependencies = [
 name = "rsvelte_svelte_check"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_svelte",
  "rsvelte_typescript",
@@ -194,6 +204,7 @@ dependencies = [
 name = "rsvelte_svelte_compile"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_markup",
  "rsvelte_stylesheet",
@@ -207,6 +218,7 @@ dependencies = [
 name = "rsvelte_svelte_format"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_stylesheet_format",
  "rsvelte_svelte",
@@ -228,6 +240,7 @@ dependencies = [
 name = "rsvelte_svelte_lint"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_markup",
  "rsvelte_svelte",
@@ -270,6 +283,7 @@ dependencies = [
 name = "rsvelte_svue"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_svelte",
  "rsvelte_svelte_compile",
@@ -333,6 +347,7 @@ dependencies = [
 name = "rsvelte_vue_check"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_typescript",
  "rsvelte_typescript_check",
@@ -344,6 +359,7 @@ dependencies = [
 name = "rsvelte_vue_compile"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_stylesheet",
  "rsvelte_typescript",
@@ -356,6 +372,7 @@ dependencies = [
 name = "rsvelte_vue_format"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_stylesheet_format",
  "rsvelte_typescript",
@@ -367,6 +384,7 @@ dependencies = [
 name = "rsvelte_vue_lint"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_markup",
  "rsvelte_typescript",
@@ -378,6 +396,7 @@ dependencies = [
 name = "rsvelte_vuelte"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_svelte",
  "rsvelte_svelte_compile",

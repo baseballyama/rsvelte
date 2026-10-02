@@ -1,0 +1,8 @@
+warning event_directive_deprecated 4:3-4:51 Using `on:introstart` to listen to the introstart event is deprecated. Use the event attribute `onintrostart` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 5:3-5:51 Using `on:outrostart` to listen to the outrostart event is deprecated. Use the event attribute `onoutrostart` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 6:3-6:47 Using `on:introend` to listen to the introend event is deprecated. Use the event attribute `onintroend` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 7:3-7:47 Using `on:outroend` to listen to the outroend event is deprecated. Use the event attribute `onoutroend` instead
+    https://svelte.dev/e/event_directive_deprecated

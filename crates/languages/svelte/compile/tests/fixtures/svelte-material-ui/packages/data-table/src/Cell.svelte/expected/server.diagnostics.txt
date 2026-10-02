@@ -1,0 +1,6 @@
+warning state_referenced_locally 150:7-150:15 This reference only captures the initial value of `sortable`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 153:53-153:61 This reference only captures the initial value of `columnId`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning non_reactive_update 136:7-136:36 `element` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

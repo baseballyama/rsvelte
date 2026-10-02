@@ -1,0 +1,6 @@
+
+	button.svelte-a8z3u7 {
+		--button-bg: transparent;
+		--button-fg: var(--fg);
+		padding: 0;
+	}

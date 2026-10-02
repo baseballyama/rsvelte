@@ -1,0 +1,23 @@
+
+	.container.svelte-17atuhh {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		align-items: center;
+	}
+
+	p.svelte-17atuhh {
+		margin-block-end: 0.6rem;
+		font-size: 0.9rem;
+		opacity: 0.75;
+	}
+
+	p.svelte-17atuhh:hover {
+		cursor: default;
+	}
+
+	code.svelte-17atuhh {
+		font-size: 0.9rem;
+		background-color: rgba(0, 0, 0, 0.2);
+		padding: 0.2rem 0.4rem;
+		border-radius: 0.4rem;
+	}

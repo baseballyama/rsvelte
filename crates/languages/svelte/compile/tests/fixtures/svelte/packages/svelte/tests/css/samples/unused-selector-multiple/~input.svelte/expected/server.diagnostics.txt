@@ -1,0 +1,22 @@
+warning a11y_missing_content 1:1-1:10 `<h1>` element should contain text
+    https://svelte.dev/e/a11y_missing_content
+warning a11y_missing_content 2:1-2:10 `<h4>` element should contain text
+    https://svelte.dev/e/a11y_missing_content
+warning css_unused_selector 6:6-6:8 Unused CSS selector "h2"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 6:10-6:12 Unused CSS selector "h3"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 9:6-9:8 Unused CSS selector "h2"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 13:6-13:8 Unused CSS selector "h2"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 13:10-13:12 Unused CSS selector "h3"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 17:6-17:8 Unused CSS selector "h2"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 17:10-17:12 Unused CSS selector "h3"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 17:18-17:20 Unused CSS selector "h5"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 17:22-17:24 Unused CSS selector "h6"
+    https://svelte.dev/e/css_unused_selector

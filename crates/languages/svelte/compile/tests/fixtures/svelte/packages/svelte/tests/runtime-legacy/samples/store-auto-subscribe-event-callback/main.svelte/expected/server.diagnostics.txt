@@ -1,0 +1,2 @@
+warning non_reactive_update 18:6-18:11 `email` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

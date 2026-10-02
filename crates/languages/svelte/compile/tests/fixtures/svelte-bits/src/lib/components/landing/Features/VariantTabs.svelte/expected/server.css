@@ -1,0 +1,186 @@
+
+	.ln-feat-stack.svelte-sdoiib {
+		position: relative;
+		width: 100%;
+		height: 100%;
+		min-height: 200px;
+		overflow: hidden;
+		box-sizing: border-box;
+	}
+
+	/* Each chip is positioned absolutely and drifts on its own loop. */
+	.ln-feat-stack-chip.svelte-sdoiib {
+		--chip-color: rgba(255, 255, 255, 0.12);
+		position: absolute;
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 9px 14px;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 10px;
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+		z-index: 1;
+		white-space: nowrap;
+	}
+
+	/* ── Positions ── */
+
+	.ln-feat-stack-chip--svelte.svelte-sdoiib {
+		--chip-color: #ff3e00;
+		top: 22%;
+		left: 14%;
+		transform: rotate(-5deg);
+		animation:
+			svelte-sdoiib-driftA 7s ease-in-out infinite,
+			svelte-sdoiib-pulseSvelte 6s ease-in-out infinite;
+	}
+
+	.ln-feat-stack-chip--ts.svelte-sdoiib {
+		--chip-color: #3178c6;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 2;
+		animation:
+			svelte-sdoiib-driftB 8s ease-in-out infinite,
+			svelte-sdoiib-pulseTs 6s ease-in-out infinite 2s;
+	}
+
+	.ln-feat-stack-chip--tw.svelte-sdoiib {
+		--chip-color: #38bdf8;
+		bottom: 20%;
+		right: 12%;
+		transform: rotate(4deg);
+		animation:
+			svelte-sdoiib-driftC 7.5s ease-in-out infinite,
+			svelte-sdoiib-pulseTw 6s ease-in-out infinite 4s;
+	}
+
+	/* ── Drift animations (gentle floating) ── */
+
+	@keyframes svelte-sdoiib-driftA {
+		0%, 100% { transform: translate(0, 0) rotate(-5deg); }
+		50%      { transform: translate(6px, -8px) rotate(-3deg); }
+	}
+
+	@keyframes svelte-sdoiib-driftB {
+		0%, 100% { transform: translate(-50%, -50%); }
+		50%      { transform: translate(calc(-50% + 4px), calc(-50% - 6px)); }
+	}
+
+	@keyframes svelte-sdoiib-driftC {
+		0%, 100% { transform: translate(0, 0) rotate(4deg); }
+		50%      { transform: translate(-7px, 5px) rotate(6deg); }
+	}
+
+	/* ── Border pulse: each chip glows briefly in its own brand color ── */
+
+	@keyframes svelte-sdoiib-pulseSvelte {
+		0%, 70%, 100% {
+			border-color: rgba(255, 255, 255, 0.08);
+			box-shadow: 0 0 0 0 transparent;
+			background: rgba(255, 255, 255, 0.03);
+		}
+		15%, 25% {
+			border-color: #ff3e00;
+			box-shadow:
+				0 0 0 1px rgba(255, 62, 0, 0.35),
+				0 0 24px rgba(255, 62, 0, 0.32);
+			background: rgba(255, 62, 0, 0.07);
+		}
+	}
+
+	@keyframes svelte-sdoiib-pulseTs {
+		0%, 70%, 100% {
+			border-color: rgba(255, 255, 255, 0.08);
+			box-shadow: 0 0 0 0 transparent;
+			background: rgba(255, 255, 255, 0.03);
+		}
+		15%, 25% {
+			border-color: #3178c6;
+			box-shadow:
+				0 0 0 1px rgba(49, 120, 198, 0.4),
+				0 0 24px rgba(49, 120, 198, 0.32);
+			background: rgba(49, 120, 198, 0.08);
+		}
+	}
+
+	@keyframes svelte-sdoiib-pulseTw {
+		0%, 70%, 100% {
+			border-color: rgba(255, 255, 255, 0.08);
+			box-shadow: 0 0 0 0 transparent;
+			background: rgba(255, 255, 255, 0.03);
+		}
+		15%, 25% {
+			border-color: #38bdf8;
+			box-shadow:
+				0 0 0 1px rgba(56, 189, 248, 0.4),
+				0 0 24px rgba(56, 189, 248, 0.32);
+			background: rgba(56, 189, 248, 0.08);
+		}
+	}
+
+	/* ── Mark + label ── */
+
+	.ln-feat-stack-mark.svelte-sdoiib {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 22px;
+		height: 22px;
+		flex-shrink: 0;
+	}
+
+	.ln-feat-stack-mark--svelte.svelte-sdoiib img:where(.svelte-sdoiib) {
+		width: auto;
+		height: 20px;
+	}
+
+	.ln-feat-stack-name.svelte-sdoiib {
+		font-family: 'Geist Mono', monospace;
+		font-size: 12px;
+		color: rgba(255, 255, 255, 0.88);
+		letter-spacing: -0.01em;
+	}
+
+	/* ── Connecting lines hint at composition (subtle) ── */
+
+	.ln-feat-stack.svelte-sdoiib::before,
+	.ln-feat-stack.svelte-sdoiib::after {
+		content: '';
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		width: 1px;
+		height: 70%;
+		background: linear-gradient(
+			to bottom,
+			transparent 0%,
+			rgba(255, 255, 255, 0.05) 50%,
+			transparent 100%
+		);
+		transform-origin: center;
+		pointer-events: none;
+		z-index: 0;
+	}
+
+	.ln-feat-stack.svelte-sdoiib::before {
+		transform: translate(-50%, -50%) rotate(35deg);
+	}
+
+	.ln-feat-stack.svelte-sdoiib::after {
+		transform: translate(-50%, -50%) rotate(-35deg);
+	}
+
+	@media (max-width: 1024px) {
+		.ln-feat-stack-chip--svelte.svelte-sdoiib {
+			top: 18%;
+			left: 8%;
+		}
+		.ln-feat-stack-chip--tw.svelte-sdoiib {
+			bottom: 16%;
+			right: 6%;
+		}
+	}

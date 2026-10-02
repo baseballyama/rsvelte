@@ -1,0 +1,21 @@
+
+	/** copied from CodeBlock.svelte */
+	@custom-selector :--fullscreen :has(.codeblock-fullscreen:checked);
+	@custom-selector :--collapsed :has(.codeblock-collapsed:checked);
+	@custom-selector :--c-collapsible-not-fullscreen
+		:global(.codeblock.collapsible:not(:--fullscreen));
+	@custom-selector :--c-not-collapsed :global(.codeblock:not(:--collapsed));
+
+	label.svelte-5u15ai {
+		transform: rotate(180deg);
+		display: none;
+		transition: transform 150ms ease-out;
+
+		/* (unused) :--c-collapsible-not-fullscreen & {
+			display: block;
+		}*/
+
+		/* (unused) :--c-not-collapsed & {
+			transform: rotate(0deg);
+		}*/
+	}

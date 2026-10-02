@@ -1,0 +1,24 @@
+
+	.items.svelte-r5xqhe {
+		width: 600px;
+		display: grid;
+		grid-template-columns: repeat(5, 1fr);
+		gap: var(--spacing-8);
+		color: orangered;
+		font-size: var(--font-32);
+		font-weight: 700;
+		text-shadow: 2px 2px 0px #000;
+
+		.item:where(.svelte-r5xqhe) {
+			display: grid;
+			place-content: center;
+			aspect-ratio: 1;
+			background-color: #222;
+			border: 1px solid #333;
+			border-radius: var(--rounded-20);
+		}
+	}
+
+	button.svelte-r5xqhe {
+		margin-top: var(--spacing-24);
+	}

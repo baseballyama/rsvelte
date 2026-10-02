@@ -1,0 +1,8 @@
+warning state_referenced_locally 50:29-50:41 This reference only captures the initial value of `initial_name`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 51:25-51:38 This reference only captures the initial value of `initial_color`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 52:24-52:36 This reference only captures the initial value of `initial_icon`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 86:6-86:18 This reference only captures the initial value of `initial_name`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

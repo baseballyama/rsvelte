@@ -1,0 +1,20 @@
+
+  @layer components {
+    :where(.lc-boxplot) {
+      --stroke-color: var(--color-surface-content, currentColor);
+    }
+
+    :where(.lc-boxplot-box) {
+      --fill-color: color-mix(
+        in oklab,
+        var(--color-surface-content, currentColor) 15%,
+        transparent
+      );
+      --stroke-color: var(--color-surface-content, currentColor);
+    }
+
+    :where(.lc-boxplot-outlier) {
+      --fill-color: none;
+      --stroke-color: var(--color-surface-content, currentColor);
+    }
+  }

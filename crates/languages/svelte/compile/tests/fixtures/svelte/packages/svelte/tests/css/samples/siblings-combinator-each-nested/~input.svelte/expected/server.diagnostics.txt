@@ -1,0 +1,16 @@
+warning css_unused_selector 58:2-58:9 Unused CSS selector ".a + .h"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 59:2-59:9 Unused CSS selector ".a + .i"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 60:2-60:9 Unused CSS selector ".c + .h"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 61:2-61:9 Unused CSS selector ".c + .i"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 62:2-62:9 Unused CSS selector ".d + .f"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 63:2-63:9 Unused CSS selector ".d + .g"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 64:2-64:9 Unused CSS selector ".e + .g"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 65:2-65:9 Unused CSS selector ".g + .i"
+    https://svelte.dev/e/css_unused_selector

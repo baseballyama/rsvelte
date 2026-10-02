@@ -1,0 +1,10 @@
+warning a11y_incorrect_aria_attribute_type_tokenlist 1:6-1:22 The value of 'aria-relevant' must be a space-separated list of one or more of "additions", "all", "removals" or "text"
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_tokenlist
+warning a11y_incorrect_aria_attribute_type_tokenlist 2:6-2:28 The value of 'aria-relevant' must be a space-separated list of one or more of "additions", "all", "removals" or "text"
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_tokenlist
+warning a11y_incorrect_aria_attribute_type_tokenlist 3:6-3:26 The value of 'aria-relevant' must be a space-separated list of one or more of "additions", "all", "removals" or "text"
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_tokenlist
+warning a11y_incorrect_aria_attribute_type_tokenlist 6:6-6:41 The value of 'aria-relevant' must be a space-separated list of one or more of "additions", "all", "removals" or "text"
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_tokenlist
+warning a11y_incorrect_aria_attribute_type_tokenlist 7:6-7:42 The value of 'aria-relevant' must be a space-separated list of one or more of "additions", "all", "removals" or "text"
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_tokenlist

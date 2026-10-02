@@ -1,0 +1,12 @@
+
+  .controls.svelte-r0s2ik {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    padding: 0.5rem;
+  }
+
+  .controls-select.svelte-r0s2ik {
+    box-sizing: border-box;
+    padding: 10px 20px;
+  }

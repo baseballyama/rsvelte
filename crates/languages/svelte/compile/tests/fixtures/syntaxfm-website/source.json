@@ -1,0 +1,13 @@
+{
+	"commit": "0320d6e4b878dd8bafddba1175c59070dd22b431",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/syntaxfm/website.git"
+}

@@ -1,0 +1,8 @@
+warning css_unused_selector 12:2-12:15 Unused CSS selector "article ~ div"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 13:2-13:16 Unused CSS selector "span ~ article"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 14:2-14:13 Unused CSS selector "b ~ article"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 15:2-15:12 Unused CSS selector "span ~ div"
+    https://svelte.dev/e/css_unused_selector

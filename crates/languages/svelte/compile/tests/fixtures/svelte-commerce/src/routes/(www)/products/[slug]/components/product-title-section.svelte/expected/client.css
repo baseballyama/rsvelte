@@ -1,0 +1,46 @@
+
+	/* Refined Editorial — default theme only. */
+	[data-theme='default'] .edp-cat {
+		margin-bottom: 12px;
+		font-family: var(--ed-body);
+		font-size: 0.72rem;
+		font-weight: 600;
+		font-style: normal;
+		letter-spacing: 0.18em;
+		line-height: 1.2;
+		text-transform: uppercase;
+		color: var(--ed-soft);
+	}
+
+	[data-theme='default'] .edp-title {
+		font-family: var(--ed-display);
+		font-weight: 500;
+		letter-spacing: -0.01em;
+		font-size: clamp(1.55rem, 2.6vw, 2.3rem);
+		line-height: 1.12;
+		color: var(--ed-ink);
+	}
+
+	[data-theme='default'] .edp-subtitle {
+		margin-top: 14px;
+		color: var(--ed-soft);
+		font-size: 0.92rem;
+		line-height: 1.6;
+	}
+
+	[data-theme='default'] .edp-reviewrow {
+		margin-top: 16px;
+	}
+
+	[data-theme='default'] .edp-reviewrow .text-gray-900 {
+		color: var(--ed-ink);
+	}
+
+	[data-theme='default'] .edp-reviewrow .text-gray-500,
+	[data-theme='default'] .edp-review-empty {
+		color: var(--ed-soft);
+	}
+
+	[data-theme='default'] .edp-reviewrow .bg-gray-300 {
+		background: var(--ed-line-strong);
+	}

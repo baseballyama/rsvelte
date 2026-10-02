@@ -1,0 +1,14 @@
+
+	.date.svelte-l1v42m {
+		height: 100%;
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+	.date.svelte-l1v42m i:where(.svelte-l1v42m) {
+		color: var(--wx-color-primary);
+		font-size: 20px;
+	}
+	.empty.svelte-l1v42m {
+		color: var(--wx-color-font-disabled);
+	}

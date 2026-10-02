@@ -1,0 +1,13 @@
+{
+	"commit": "776805f692c20e59fe5de1942e999ccf91944f54",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/lissy93/networking-toolbox.git"
+}

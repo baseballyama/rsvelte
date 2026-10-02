@@ -1,0 +1,4 @@
+warning element_implicitly_closed 1:7-1:26 This element is implicitly closed by the following `</main>`, which can cause an unexpected DOM structure. Add an explicit `</div>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 4:2-4:21 This element is implicitly closed by the following `</main>`, which can cause an unexpected DOM structure. Add an explicit `</div>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed

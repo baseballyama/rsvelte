@@ -1,0 +1,19 @@
+
+	.example.svelte-7vj7zx {
+		width: 500px;
+
+		video:where(.svelte-7vj7zx) {
+			margin-bottom: var(--spacing-8);
+			border-radius: 0.5rem;
+		}
+
+		.controls:where(.svelte-7vj7zx) {
+			display: flex;
+			align-items: center;
+			gap: 1rem;
+
+			input[type='range']:where(.svelte-7vj7zx) {
+				flex-grow: 1;
+			}
+		}
+	}

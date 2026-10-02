@@ -1,0 +1,26 @@
+
+	.csm-dropdown.svelte-ewd8h4 {
+		position: absolute;
+		z-index: var(--z-index-popup);
+		top: calc(100% + var(--spacing) * 2);
+		right: 0;
+
+		display: grid;
+		grid-template-rows: 0fr;
+
+		width: max-content;
+
+		transition: grid-template-rows 150ms var(--default-transition-timing-function);
+
+		.csm:where(.svelte-ewd8h4):has(#csm-toggler:where(.svelte-ewd8h4) input:where(.svelte-ewd8h4):checked) & {
+			grid-template-rows: 1fr;
+		}
+	}
+
+	.csm-caret.svelte-ewd8h4 {
+		transition: transform 150ms var(--default-transition-timing-function);
+
+		.csm:where(.svelte-ewd8h4):has(#csm-toggler:where(.svelte-ewd8h4) input:where(.svelte-ewd8h4):checked) & {
+			transform: rotate(180deg);
+		}
+	}

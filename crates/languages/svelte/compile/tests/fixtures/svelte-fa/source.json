@@ -1,0 +1,13 @@
+{
+	"commit": "cff04bcaf87c489fd6014835fb1104b03db4bc49",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/Cweili/svelte-fa"
+}

@@ -1,0 +1,10 @@
+
+	/* use mask so that text can match foreground text color (--fg) */
+	img.svelte-1rpji6v {
+		width: 100%;
+		mask-image: url(/snackpack/snackpack-submark-mask.webp);
+		mask-position: 0 0;
+		mask-size: 100% 100%;
+		background: var(--fg);
+		mask-type: alpha;
+	}

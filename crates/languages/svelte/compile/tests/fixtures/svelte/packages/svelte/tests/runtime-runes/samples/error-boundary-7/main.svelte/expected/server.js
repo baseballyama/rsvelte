@@ -1,0 +1,20 @@
+import * as $ from 'svelte/internal/server';
+import Child from './Child.svelte';
+
+export default function Main($$renderer) {
+	{
+		function failed($$renderer, e, retry) {
+			$$renderer.push(`<div>Error!</div> <button>Retry</button>`);
+		}
+
+		$$renderer.boundary({ failed }, ($$renderer) => {
+			$$renderer.push(`<!--[-->`);
+
+			{
+				Child($$renderer, {});
+			}
+
+			$$renderer.push(`<!--]-->`);
+		});
+	}
+}

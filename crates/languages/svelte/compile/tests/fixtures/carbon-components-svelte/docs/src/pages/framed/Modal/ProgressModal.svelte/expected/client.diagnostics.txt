@@ -1,0 +1,10 @@
+warning event_directive_deprecated 52:31-52:70 Using `on:submit` to listen to the submit event is deprecated. Use the event attribute `onsubmit` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning non_reactive_update 15:7-15:11 `open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 16:7-16:11 `step` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 17:7-17:11 `name` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 18:7-18:13 `region` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

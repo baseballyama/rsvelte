@@ -1,0 +1,12 @@
+warning state_referenced_locally 87:20-87:24 This reference only captures the initial value of `draw`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 91:24-91:28 This reference only captures the initial value of `draw`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 91:45-91:49 This reference only captures the initial value of `draw`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 91:59-91:63 This reference only captures the initial value of `draw`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 103:7-103:19 This reference only captures the initial value of `startContent`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 103:23-103:33 This reference only captures the initial value of `endContent`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

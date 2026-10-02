@@ -43,5 +43,12 @@ rsvelte_vuelte.workspace = true
 rayon.workspace = true
 libc.workspace = true
 
+[dev-dependencies]
+rsvelte_fixture_test.workspace = true
+
+[[test]]
+name = "fixtures"
+harness = false
+
 [lints]
 workspace = true

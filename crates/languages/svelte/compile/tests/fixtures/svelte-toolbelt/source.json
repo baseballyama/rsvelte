@@ -1,0 +1,13 @@
+{
+	"commit": "7b0e2a6d90d2b0e9e4ec8e25b183cc889639388a",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/huntabyte/svelte-toolbelt.git"
+}

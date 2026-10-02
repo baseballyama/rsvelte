@@ -1,0 +1,9 @@
+
+	.SymbolPalette.svelte-1foy1ra {
+		min-height: 500px;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		background: var(--color-gray-1);
+		border: 3px dashed var(--color-gray-3);
+	}

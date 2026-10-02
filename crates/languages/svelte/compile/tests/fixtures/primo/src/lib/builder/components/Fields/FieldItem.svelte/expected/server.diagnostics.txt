@@ -1,0 +1,8 @@
+warning state_referenced_locally 100:26-100:31 This reference only captures the initial value of `field`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 126:39-126:44 This reference only captures the initial value of `field`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 223:28-223:33 This reference only captures the initial value of `field`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 224:32-224:37 This reference only captures the initial value of `field`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

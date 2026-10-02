@@ -1,0 +1,15 @@
+
+  @layer components {
+    :where(.lc-tooltip-separator.svelte-37nscw) {
+      height: 1px;
+      border-radius: 4px;
+      background-color: color-mix(
+        in oklab,
+        var(--color-surface-content, currentColor) 20%,
+        transparent
+      );
+      margin-top: 4px;
+      margin-bottom: 4px;
+      grid-column: 1 / -1; /* col-span-full */
+    }
+  }

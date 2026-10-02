@@ -1,0 +1,6 @@
+warning state_referenced_locally 197:5-197:36 This reference only captures the initial value of `shouldRemoveOnTrailingIconClick`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 207:36-207:44 This reference only captures the initial value of `selected`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 221:17-221:25 This reference only captures the initial value of `selected`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

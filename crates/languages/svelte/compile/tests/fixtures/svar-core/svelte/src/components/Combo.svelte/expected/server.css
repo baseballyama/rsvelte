@@ -1,0 +1,83 @@
+
+	.wx-combo.svelte-7wd1iy {
+		position: relative;
+		width: var(--wx-input-width);
+	}
+
+	input.svelte-7wd1iy {
+		display: block;
+		width: 100%;
+		height: var(--wx-input-height);
+		outline: none;
+		background: var(--wx-input-background);
+		border: var(--wx-input-border);
+		border-radius: var(--wx-input-border-radius);
+		font-family: var(--wx-input-font-family);
+		font-size: var(--wx-input-font-size);
+		line-height: var(--wx-input-line-height);
+		font-weight: var(--wx-input-font-weight);
+		text-align: var(--wx-input-text-align);
+		color: var(--wx-input-font-color);
+		padding: var(--wx-input-padding);
+		padding-right: calc(
+			var(--wx-input-icon-size) + var(--wx-input-icon-indent) * 2
+		);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		cursor: pointer;
+	}
+	input.svelte-7wd1iy:focus {
+		border: var(--wx-input-border-focus);
+	}
+	input.svelte-7wd1iy::placeholder {
+		color: var(--wx-input-placeholder-color);
+	}
+	input[disabled].svelte-7wd1iy {
+		cursor: not-allowed;
+		border: var(--wx-input-border-disabled);
+		color: var(--wx-color-font-disabled);
+		background: var(--wx-input-background-disabled);
+	}
+	input[disabled].svelte-7wd1iy::placeholder {
+		color: var(--wx-color-font-disabled);
+	}
+	input[disabled].svelte-7wd1iy ~ .wx-icon:where(.svelte-7wd1iy) {
+		color: var(--wx-color-font-disabled);
+	}
+	input.wx-error.svelte-7wd1iy {
+		border-color: var(--wx-color-danger);
+		color: var(--wx-color-danger);
+	}
+	input.wx-error.svelte-7wd1iy ~ .wx-icon:where(.svelte-7wd1iy) {
+		color: var(--wx-color-danger);
+	}
+
+	.wx-icon.svelte-7wd1iy {
+		position: absolute;
+		right: var(--wx-input-icon-indent);
+		top: 50%;
+		transform: translateY(-50%);
+		font-size: var(--wx-input-icon-size);
+		line-height: 1;
+		width: var(--wx-input-icon-size);
+		height: var(--wx-input-icon-size);
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		pointer-events: none;
+		user-select: none;
+		color: var(--wx-input-icon-color);
+	}
+	.wx-icon.svelte-7wd1iy:before {
+		display: block;
+	}
+
+	.wx-icon.wxi-close.svelte-7wd1iy {
+		pointer-events: all;
+		cursor: pointer;
+	}
+
+	.wx-icon.wxi-close.svelte-7wd1iy:hover {
+		background: var(--wx-background-hover);
+		border-radius: var(--wx-icon-border-radius);
+	}

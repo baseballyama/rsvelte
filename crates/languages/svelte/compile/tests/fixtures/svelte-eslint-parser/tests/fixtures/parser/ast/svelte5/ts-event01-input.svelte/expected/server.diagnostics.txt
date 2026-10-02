@@ -1,0 +1,4 @@
+warning a11y_consider_explicit_label 4:1-4:36 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label
+warning attribute_quoted 5:12-5:29 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+    https://svelte.dev/e/attribute_quoted

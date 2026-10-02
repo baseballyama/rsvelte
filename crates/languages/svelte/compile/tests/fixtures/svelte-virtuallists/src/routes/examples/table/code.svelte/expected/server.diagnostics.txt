@@ -1,0 +1,8 @@
+warning css_unused_selector 28:3-28:20 Unused CSS selector ".list-table table"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 29:3-29:17 Unused CSS selector ".list-table td"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 30:3-30:17 Unused CSS selector ".list-table th"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 33:3-33:20 Unused CSS selector ".list-table table"
+    https://svelte.dev/e/css_unused_selector

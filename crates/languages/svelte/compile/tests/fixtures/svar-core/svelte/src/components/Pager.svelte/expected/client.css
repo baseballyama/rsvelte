@@ -1,0 +1,59 @@
+
+	.wx-pager.svelte-a9l91d {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--wx-padding);
+		align-items: center;
+		padding: var(--wx-padding);
+	}
+
+	input.svelte-a9l91d {
+		display: block;
+		width: 50px;
+		height: var(--wx-input-height);
+		padding: var(--wx-input-padding);
+		outline: none;
+		font-family: var(--wx-input-font-family);
+		font-size: var(--wx-input-font-size);
+		line-height: var(--wx-input-line-height);
+		font-weight: var(--wx-input-font-weight);
+		text-align: var(--wx-input-text-align);
+		color: var(--wx-input-font-color);
+		border: var(--wx-input-border);
+		border-radius: var(--wx-input-border-radius);
+		background: var(--wx-input-background);
+	}
+	input.svelte-a9l91d:focus {
+		border: var(--wx-input-border-focus);
+	}
+	input.svelte-a9l91d::placeholder {
+		color: var(--wx-input-placeholder-color);
+	}
+
+	.wx-icon.svelte-a9l91d {
+		cursor: pointer;
+		padding: var(--wx-input-padding);
+		border-radius: var(--wx-input-border-radius);
+		font-size: var(--wx-icon-size);
+		line-height: 1;
+		color: var(--wx-color-link);
+	}
+	.wx-icon.svelte-a9l91d:before {
+		display: block;
+	}
+	.wx-icon.svelte-a9l91d:hover {
+		background-color: var(--wx-background-hover);
+	}
+	.wx-icon.wx-disabled.svelte-a9l91d {
+		cursor: default;
+		pointer-events: none;
+		color: var(--wx-color-font-disabled);
+	}
+
+	.wx-left.svelte-a9l91d,
+	.wx-center.svelte-a9l91d,
+	.wx-right.svelte-a9l91d {
+		display: flex;
+		align-items: center;
+		gap: var(--wx-padding);
+	}

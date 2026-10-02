@@ -1,0 +1,14 @@
+
+  @layer components {
+    :where(.lc-calendar-cell) {
+      --stroke-color: color-mix(
+        in oklab,
+        var(--color-surface-content, currentColor) 5%,
+        transparent
+      );
+    }
+
+    :where(.lc-calendar-month-label) {
+      font-size: 12px;
+    }
+  }

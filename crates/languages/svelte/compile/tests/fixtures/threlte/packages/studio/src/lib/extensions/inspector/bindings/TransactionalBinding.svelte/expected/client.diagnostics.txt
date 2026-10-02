@@ -1,0 +1,8 @@
+warning state_referenced_locally 63:58-63:69 This reference only captures the initial value of `firstObject`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 63:71-63:74 This reference only captures the initial value of `key`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 68:7-68:16 This reference only captures the initial value of `transform`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 69:26-69:35 This reference only captures the initial value of `transform`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

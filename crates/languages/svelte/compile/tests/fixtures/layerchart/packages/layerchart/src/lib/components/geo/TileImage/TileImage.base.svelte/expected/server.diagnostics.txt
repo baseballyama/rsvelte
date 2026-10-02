@@ -1,0 +1,10 @@
+warning state_referenced_locally 30:21-30:33 This reference only captures the initial value of `disableCache`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 30:36-30:39 This reference only captures the initial value of `url`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 30:40-30:41 This reference only captures the initial value of `x`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 30:43-30:44 This reference only captures the initial value of `y`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 30:46-30:47 This reference only captures the initial value of `z`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

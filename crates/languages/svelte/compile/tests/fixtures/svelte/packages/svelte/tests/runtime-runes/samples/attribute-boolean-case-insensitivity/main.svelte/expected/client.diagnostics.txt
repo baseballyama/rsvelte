@@ -1,0 +1,8 @@
+warning a11y_consider_explicit_label 12:2-12:40 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label
+warning a11y_missing_attribute 13:2-13:21 `<img>` element should have an alt attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning a11y_missing_attribute 17:2-17:41 `<iframe>` element should have a title attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning a11y_autofocus 20:7-20:22 Avoid using autofocus
+    https://svelte.dev/e/a11y_autofocus

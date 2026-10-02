@@ -1,0 +1,22 @@
+
+	.logo.svelte-18y08rk {
+		margin: 0 auto;
+		width: 50%;
+		max-width: 100px;
+	}
+	.links.svelte-18y08rk {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		padding: 20px 0;
+	}
+
+	.subscribe.svelte-18y08rk {
+		--button-fg: #000;
+		--button-bg: linear-gradient(to bottom, rgb(255, 255, 255) 0%, rgb(200, 200, 200) 96%);
+	}
+
+	a.svelte-18y08rk {
+		font-size: var(--font-size-md);
+		font-variation-settings: var(--fw-400);
+	}

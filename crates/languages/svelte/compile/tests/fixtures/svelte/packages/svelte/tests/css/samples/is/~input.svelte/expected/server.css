@@ -1,0 +1,49 @@
+
+	x.svelte-110d78b :is(y:where(.svelte-110d78b)) {
+		color: green;
+	}
+	x.svelte-110d78b :is(y:where(.svelte-110d78b) /* (unused) .unused*/) {
+		color: green;
+	}
+	/* (unused) x :is(.unused) {
+		color: red;
+	}*/
+
+	x.svelte-110d78b :is(y) {
+		color: green;
+	}
+	x.svelte-110d78b :is(.foo) {
+		color: green;
+	}
+
+	.foo :is(x.svelte-110d78b) {
+		color: green;
+	}
+	/* (unused) :global(.foo) :is(.unused) {
+		color: red;
+	}*/
+	.foo:is(x.svelte-110d78b) {
+		color: green;
+	}
+	/* (unused) :global(.foo):is(.unused) {
+		color: red;
+	}*/
+
+	x.svelte-110d78b :is(html *) {
+		color: green;
+	}
+	x.svelte-110d78b :is(html:where(.svelte-110d78b) :where(.svelte-110d78b)) {
+		color: red; /* TODO would be nice to prune this one day */
+	}
+	y.svelte-110d78b :is(x:where(.svelte-110d78b) :where(.svelte-110d78b)) {
+		color: green; /* matches z */
+	}
+
+	.foo {
+		:is(x.svelte-110d78b) {
+			color: green;
+		}
+		/* (unused) :is(.unused) {
+			color: red;
+		}*/
+	}

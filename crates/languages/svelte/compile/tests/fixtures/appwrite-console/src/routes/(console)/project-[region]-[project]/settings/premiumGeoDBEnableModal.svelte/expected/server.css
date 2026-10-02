@@ -1,0 +1,22 @@
+
+    .price-breakdown.svelte-9s7rey {
+        border: 1px solid hsl(var(--color-border));
+        border-radius: var(--border-radius-small);
+        padding: 1rem;
+    }
+
+    .price-row.svelte-9s7rey {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .divider.svelte-9s7rey {
+        border: none;
+        border-top: 1px solid hsl(var(--color-border));
+        margin-block: 0.75rem;
+    }
+
+    .u-text-end.svelte-9s7rey {
+        text-align: end;
+    }

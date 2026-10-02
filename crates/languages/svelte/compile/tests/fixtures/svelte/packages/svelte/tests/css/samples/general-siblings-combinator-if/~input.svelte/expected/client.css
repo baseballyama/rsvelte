@@ -1,0 +1,13 @@
+
+	.a.svelte-1yypvr0 ~ .b:where(.svelte-1yypvr0) { color: green; }
+	.a.svelte-1yypvr0 ~ .c:where(.svelte-1yypvr0) { color: green; }
+	.a.svelte-1yypvr0 ~ .d:where(.svelte-1yypvr0) { color: green; }
+	.b.svelte-1yypvr0 ~ .e:where(.svelte-1yypvr0) { color: green; }
+	.c.svelte-1yypvr0 ~ .e:where(.svelte-1yypvr0) { color: green; }
+	.d.svelte-1yypvr0 ~ .e:where(.svelte-1yypvr0) { color: green; }
+	.a.svelte-1yypvr0 ~ .e:where(.svelte-1yypvr0) { color: green; }
+
+	/* no match */
+	/* (unused) .b ~ .c { color: green; }*/
+	/* (unused) .b ~ .d { color: green; }*/
+	/* (unused) .c ~ .d { color: green; }*/

@@ -1,0 +1,26 @@
+
+  .settings-menu.svelte-cfx6oj {
+    position: relative;
+  }
+
+  .settings-trigger.svelte-cfx6oj {
+    svg {
+      transition: transform var(--transition-normal);
+    }
+
+    &:hover {
+      svg {
+        transform: rotate(45deg);
+      }
+    }
+
+    &[aria-expanded='true'] {
+      background: var(--surface-active);
+      color: var(--color-primary);
+      border-color: var(--color-primary);
+
+      svg {
+        transform: rotate(45deg);
+      }
+    }
+  }

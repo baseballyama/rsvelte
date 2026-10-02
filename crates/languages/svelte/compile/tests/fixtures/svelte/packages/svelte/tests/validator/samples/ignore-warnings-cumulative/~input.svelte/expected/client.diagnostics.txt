@@ -1,0 +1,2 @@
+warning a11y_distracting_elements 5:3-7:13 Avoid `<marquee>` elements
+    https://svelte.dev/e/a11y_distracting_elements

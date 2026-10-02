@@ -1,0 +1,12 @@
+warning store_rune_conflict 4:15-4:21 It looks like you're using the `$state` rune, but there is a local binding called `state`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `state` to avoid the ambiguity
+    https://svelte.dev/e/store_rune_conflict
+warning store_rune_conflict 16:21-16:27 It looks like you're using the `$state` rune, but there is a local binding called `state`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `state` to avoid the ambiguity
+    https://svelte.dev/e/store_rune_conflict
+warning store_rune_conflict 5:5-5:12 It looks like you're using the `$effect` rune, but there is a local binding called `effect`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `effect` to avoid the ambiguity
+    https://svelte.dev/e/store_rune_conflict
+warning store_rune_conflict 16:29-16:36 It looks like you're using the `$effect` rune, but there is a local binding called `effect`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `effect` to avoid the ambiguity
+    https://svelte.dev/e/store_rune_conflict
+warning event_directive_deprecated 20:9-20:33 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning non_reactive_update 4:9-4:12 `foo` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

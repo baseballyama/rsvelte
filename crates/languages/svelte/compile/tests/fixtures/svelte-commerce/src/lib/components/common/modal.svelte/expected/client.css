@@ -1,0 +1,35 @@
+
+	.frosted-black.svelte-1lvnw2h {
+		backdrop-filter: blur(12px);
+		background-color: hsla(0, 0%, 0%, 0.75);
+	}
+
+	@media (max-width: 640px) {
+		/* (unused) .width {
+			width: 90vw;
+		}*/
+	}
+
+	@media (min-width: 640px) {
+		/* (unused) .width {
+			width: 80vw;
+		}*/
+	}
+
+	@media (min-width: 768px) {
+		/* (unused) .width {
+			width: 70vw;
+		}*/
+	}
+
+	@media (min-width: 1024px) {
+		/* (unused) .width {
+			width: 60vw;
+		}*/
+	}
+
+	@media (min-width: 1024px) {
+		/* (unused) .width {
+			width: 50vw;
+		}*/
+	}

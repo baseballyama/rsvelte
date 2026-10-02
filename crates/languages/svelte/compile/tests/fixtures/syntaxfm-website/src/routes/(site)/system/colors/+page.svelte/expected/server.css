@@ -1,0 +1,28 @@
+
+	section.svelte-19zn03o {
+		display: flex;
+		gap: 10px;
+	}
+
+	.primary.svelte-19zn03o {
+		border: solid 5px var(--line-color);
+	}
+
+	.wrapper.svelte-19zn03o {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		width: 100%;
+		flex-grow: 1;
+	}
+
+	.box.svelte-19zn03o {
+		cursor: pointer;
+		display: flex;
+		height: 100px;
+		padding: 5%;
+		justify-content: center;
+		align-items: flex-end;
+		background: var(--fg_demo_box_color);
+		color: var(--fg_demo_color);
+	}

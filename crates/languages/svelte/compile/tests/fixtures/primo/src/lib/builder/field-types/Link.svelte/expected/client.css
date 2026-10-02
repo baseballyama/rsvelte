@@ -1,0 +1,49 @@
+
+	.Link.svelte-1izzlya {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.toggle.svelte-1izzlya {
+		display: flex;
+		background: var(--color-gray-9);
+		border: 1px solid var(--color-gray-8);
+		padding: 2px;
+		border-radius: var(--primo-border-radius);
+		--Dropdown-font-size: 0.875rem;
+
+		button:where(.svelte-1izzlya) {
+			border-radius: var(--primo-border-radius);
+			font-size: 0.875rem;
+			flex: 1;
+			background: var(--color-gray-8);
+			color: #8a8c8e;
+			padding: 0.25rem 0.5rem;
+			font-weight: 500;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 0.5rem;
+			transition: 0.1s;
+			background: transparent;
+
+			&:focus,
+			&.active {
+				color: white;
+				background: var(--color-gray-8);
+				/* z-index: 1; */
+			}
+		}
+	}
+
+	.inputs.svelte-1izzlya {
+		display: grid;
+		gap: 0.5rem;
+		width: 100%;
+
+		.url-select:where(.svelte-1izzlya) {
+			display: flex;
+			gap: 0.25rem;
+			flex-wrap: wrap;
+		}
+	}

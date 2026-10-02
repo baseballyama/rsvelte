@@ -1,0 +1,6 @@
+warning state_referenced_locally 88:3-88:19 This reference only captures the initial value of `countriesGeojson`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 89:3-89:16 This reference only captures the initial value of `statesGeojson`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 90:3-90:18 This reference only captures the initial value of `timezoneGeojson`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

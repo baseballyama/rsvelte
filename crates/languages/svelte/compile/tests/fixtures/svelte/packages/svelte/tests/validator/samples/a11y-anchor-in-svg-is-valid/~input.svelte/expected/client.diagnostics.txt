@@ -1,0 +1,6 @@
+warning a11y_missing_attribute 1:12-1:38 `<a>` element should have an href attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning a11y_invalid_attribute 2:15-2:28 '' is not a valid xlink:href attribute
+    https://svelte.dev/e/a11y_invalid_attribute
+warning a11y_invalid_attribute 3:15-3:29 '#' is not a valid xlink:href attribute
+    https://svelte.dev/e/a11y_invalid_attribute

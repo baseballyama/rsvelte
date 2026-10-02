@@ -1,0 +1,13 @@
+{
+	"commit": "ca3e1977acfbe8c30491b4020cab8f859017b8a6",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/threlte/threlte.git"
+}

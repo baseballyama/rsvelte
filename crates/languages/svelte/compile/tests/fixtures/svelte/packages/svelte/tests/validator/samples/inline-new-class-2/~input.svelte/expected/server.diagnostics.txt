@@ -1,0 +1,2 @@
+warning perf_avoid_nested_class 3:3-5:4 Avoid declaring classes below the top level scope
+    https://svelte.dev/e/perf_avoid_nested_class

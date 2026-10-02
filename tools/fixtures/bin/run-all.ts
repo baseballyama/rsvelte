@@ -13,6 +13,6 @@ import { FIXTURES, ROOT } from '../src/paths.ts';
 const { values } = parseArgs({ options: { binary: { type: 'string', default: path.join(ROOT, 'target/release/rsvelte') } } });
 const pkg = (name: string) => fs.realpathSync(path.join(import.meta.dirname, '../node_modules', name));
 const families = fs.readdirSync(FIXTURES).filter((d) => !d.startsWith('_') && fs.statSync(path.join(FIXTURES, d)).isDirectory());
-const args = ['fixtures', ...families.map((f) => path.join(FIXTURES, f)), '--tsc', getExePath(), '--svelte', pkg('svelte'), '--vue', pkg('vue'), '--tsconfig', path.join(FIXTURES, 'svelte/rsvelte/tsconfig.json')];
+const args = ['fixtures', ...families.map((f) => path.join(FIXTURES, f)), '--tsc', getExePath(), '--svelte', pkg('svelte'), '--vue', pkg('vue')];
 const r = spawnSync(values.binary, args, { stdio: 'inherit' });
 process.exit(r.status ?? 1);

@@ -1,0 +1,2 @@
+warning css_unused_selector 35:2-35:9 Unused CSS selector ".e ~ .f"
+    https://svelte.dev/e/css_unused_selector

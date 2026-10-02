@@ -1,0 +1,23 @@
+
+  @layer components {
+    :where(.lc-month-cell) {
+      stroke-width: 1;
+      --stroke-color: color-mix(
+        in oklab,
+        var(--color-surface-content, currentColor) 20%,
+        transparent
+      );
+    }
+
+    :where(.lc-month-day-number) {
+      font-size: 10px;
+      pointer-events: none;
+      stroke: var(--color-surface-100, light-dark(white, black));
+      stroke-width: 1px;
+      font-weight: 600;
+    }
+
+    :where(.lc-month-month-label) {
+      font-size: 16px;
+    }
+  }

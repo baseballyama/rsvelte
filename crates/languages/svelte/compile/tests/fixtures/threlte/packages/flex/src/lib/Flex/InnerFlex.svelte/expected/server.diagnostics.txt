@@ -1,0 +1,26 @@
+warning state_referenced_locally 116:14-116:25 This reference only captures the initial value of `reflowStage`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 122:5-122:9 This reference only captures the initial value of `yoga`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 142:32-142:37 This reference only captures the initial value of `width`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 143:33-143:39 This reference only captures the initial value of `height`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 144:34-144:45 This reference only captures the initial value of `scaleFactor`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 145:31-145:36 This reference only captures the initial value of `plane`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 146:32-146:37 This reference only captures the initial value of `plane`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 147:45-147:50 This reference only captures the initial value of `plane`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 150:5-150:16 This reference only captures the initial value of `classParser`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 153:20-153:24 This reference only captures the initial value of `yoga`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 165:10-165:21 This reference only captures the initial value of `classParser`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 165:24-165:30 This reference only captures the initial value of `_class`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 165:40-165:45 This reference only captures the initial value of `props`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

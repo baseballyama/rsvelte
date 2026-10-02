@@ -1,0 +1,13 @@
+{
+	"commit": "4ce829f15c3a6f1cb0dcbbfd193d789c878b86e5",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/kbrgl/svelte-french-toast.git"
+}

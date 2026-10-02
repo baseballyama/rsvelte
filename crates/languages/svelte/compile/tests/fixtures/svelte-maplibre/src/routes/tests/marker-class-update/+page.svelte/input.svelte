@@ -1,0 +1,42 @@
+<script lang="ts">
+  import MapLibre from '$lib/MapLibre.svelte';
+  import CodeSample from '$site/CodeSample.svelte';
+  import code from './+page.svelte?raw';
+  import states from '$site/states.json?url';
+  import MarkerLayer from '$lib/MarkerLayer.svelte';
+  import GeoJSON from '$lib/GeoJSON.svelte';
+
+  let colors = $state([
+    'bg-gray-200 text-gray-800',
+    'bg-red-200 text-red-800',
+    'bg-teal-200 text-teal-800',
+  ]);
+
+  function swapColor() {
+    colors = [...colors.slice(1), colors[0]];
+  }
+</script>
+
+<button
+  class="bg-primary text-primary-foreground hover:bg-primary/90 mb-4 inline-flex h-9 items-center justify-center rounded-md px-4 py-2 text-sm font-medium shadow-xs transition-colors"
+  type="button"
+  onclick={swapColor}>Cycle Color</button
+>
+
+<MapLibre
+  style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
+  class="relative aspect-[9/16] max-h-[70vh] w-full sm:aspect-video sm:max-h-full"
+  center={[-98.137, 40.137]}
+  zoom={4}
+  standardControls
+>
+  <GeoJSON id="states" data={states} promoteId="STATEFP">
+    <MarkerLayer draggable class="rounded-full p-2 shadow {colors[0]}">
+      {#snippet children({ feature })}
+        <div class="text-sm font-bold">{feature.properties?.NAME}</div>
+      {/snippet}
+    </MarkerLayer>
+  </GeoJSON>
+</MapLibre>
+
+<CodeSample {code} />

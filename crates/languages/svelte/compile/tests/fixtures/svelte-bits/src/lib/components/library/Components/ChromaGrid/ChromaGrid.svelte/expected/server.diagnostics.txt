@@ -1,0 +1,4 @@
+warning a11y_no_static_element_interactions 88:1-118:7 `<div>` with a pointermove or pointerleave handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning a11y_no_noninteractive_element_to_interactive_role 96:3-114:13 Non-interactive element `<article>` cannot have interactive role 'button'
+    https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role

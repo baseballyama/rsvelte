@@ -1,0 +1,39 @@
+
+	.art-wrapper.svelte-1l7jk1h {
+		width: 90px;
+		height: 85px;
+		cursor: pointer;
+		flex-shrink: 0;
+		display: none;
+		position: relative;
+		@media (--above-med) {
+			display: block;
+		}
+	}
+	.cd.svelte-1l7jk1h {
+		position: absolute;
+		inset: 0;
+		font-size: 68px;
+		animation:
+			svelte-1l7jk1h-spin 0.5s linear 5,
+			svelte-1l7jk1h-slide-in 1s ease-in-out 2 alternate;
+		transform-origin: center center;
+		text-align: center;
+		z-index: -1;
+	}
+
+	/* Define the second animation */
+	@keyframes svelte-1l7jk1h-slide-in {
+		80% {
+			translate: 35px;
+		}
+		100% {
+			translate: 35px;
+		}
+	}
+
+	@keyframes svelte-1l7jk1h-spin {
+		to {
+			rotate: 360deg;
+		}
+	}

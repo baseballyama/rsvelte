@@ -1,0 +1,21 @@
+
+	div.svelte-1r1hugr {
+		position: relative;
+		display: inline-block;
+	}
+
+	label.svelte-1r1hugr {
+		position: absolute;
+		top: -40%;
+		left: 0;
+		font-size: var(--font-size-xs);
+	}
+
+	input.svelte-1r1hugr {
+		font-size: var(--font-size-base);
+		padding: 8px 14px;
+		border: none;
+		box-shadow: inset 0 0 0 3px oklch(var(--blacklch) / 0.2);
+		border-radius: 4px;
+		width: 100%;
+	}

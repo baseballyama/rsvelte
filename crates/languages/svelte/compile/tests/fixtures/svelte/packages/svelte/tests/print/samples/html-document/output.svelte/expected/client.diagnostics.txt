@@ -1,0 +1,2 @@
+warning a11y_missing_attribute 3:1-16:8 `<html>` element should have a lang attribute
+    https://svelte.dev/e/a11y_missing_attribute

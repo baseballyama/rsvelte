@@ -1,0 +1,46 @@
+
+	.banner.svelte-1gwi47l {
+		position: relative;
+		z-index: 1;
+		overflow: hidden;
+		height: 2.5rem;
+		border-bottom: 1px solid variables.$bg-3;
+		background-color: variables.$bg-1;
+		transition: background-color variables.$transition;
+
+		&:hover {
+			background-color: variables.$bg-2;
+		}
+
+		.content:where(.svelte-1gwi47l) {
+			@include typography.bold;
+
+			position: absolute;
+			display: flex;
+			width: 100%;
+			height: 2.5rem;
+			align-items: center;
+			justify-content: center;
+			gap: 0.5rem;
+			inset: 0;
+
+			svg {
+				height: 1.25rem;
+			}
+		}
+
+		.close:where(.svelte-1gwi47l) {
+			position: absolute;
+			padding: 0 0.5rem;
+			inset: 0 0 0 auto;
+			transition: color variables.$transition;
+
+			&:not(:hover) {
+				color: variables.$bg-5;
+			}
+
+			svg {
+				height: 1rem;
+			}
+		}
+	}

@@ -1,0 +1,23 @@
+
+  @layer components {
+    :where(.lc-labels-text) {
+      /* var (settable via the `fontSize` prop) so it wins over the presentation attribute */
+      font-size: var(--labels-font-size, 12px);
+
+      --fill-color: var(--color-surface-content, currentColor);
+      --stroke-color: var(--color-surface-100, light-dark(white, black));
+
+      &[data-placement='inside'],
+      &[data-placement='center'] {
+        --fill-color: var(--color-surface-100, light-dark(white, black));
+        --stroke-color: var(--color-surface-content, currentColor);
+      }
+    }
+
+    :where(.lc-labels-link) {
+      --stroke-color: var(--color-surface-content, currentColor);
+      fill: none;
+      opacity: 0.4;
+      pointer-events: none;
+    }
+  }

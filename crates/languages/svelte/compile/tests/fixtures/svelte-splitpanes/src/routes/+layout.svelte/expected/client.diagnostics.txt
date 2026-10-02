@@ -1,0 +1,4 @@
+warning slot_element_deprecated 66:5-66:13 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated
+warning non_reactive_update 9:7-9:12 `isRTL` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

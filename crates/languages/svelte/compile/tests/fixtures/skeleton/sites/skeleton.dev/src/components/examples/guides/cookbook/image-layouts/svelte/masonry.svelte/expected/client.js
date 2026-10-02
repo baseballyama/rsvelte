@@ -1,0 +1,10 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<section class="grid grid-cols-2 gap-4 md:grid-cols-4"><div class="grid gap-4"><img class="bg-surface-500 rounded-container" src="https://picsum.photos/220/320?random=1" alt=""/> <img class="bg-surface-500 rounded-container" src="https://picsum.photos/220/120?random=2" alt=""/> <img class="bg-surface-500 rounded-container" src="https://picsum.photos/220/280?random=3" alt=""/></div> <div class="grid gap-4"><img class="bg-surface-500 rounded-container" src="https://picsum.photos/220/300?random=4" alt=""/> <img class="bg-surface-500 rounded-container" src="https://picsum.photos/220/280?random=5" alt=""/> <img class="bg-surface-500 rounded-container" src="https://picsum.photos/220/140?random=6" alt=""/></div> <div class="grid gap-4"><img class="bg-surface-500 rounded-container" src="https://picsum.photos/220/280?random=7" alt=""/> <img class="bg-surface-500 rounded-container" src="https://picsum.photos/220/320?random=8" alt=""/> <img class="bg-surface-500 rounded-container" src="https://picsum.photos/220/140?random=9" alt=""/></div> <div class="grid gap-4"><img class="bg-surface-500 rounded-container" src="https://picsum.photos/220/320?random=10" alt=""/> <img class="bg-surface-500 rounded-container" src="https://picsum.photos/220/140?random=11" alt=""/> <img class="bg-surface-500 rounded-container" src="https://picsum.photos/220/280?random=12" alt=""/></div></section>`);
+
+export default function Masonry($$anchor) {
+	var section = root();
+
+	$.append($$anchor, section);
+}

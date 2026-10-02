@@ -1,0 +1,27 @@
+
+	section.svelte-1kjg4f1 {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		flex: 1;
+	}
+
+	h1.svelte-1kjg4f1 {
+		width: 100%;
+	}
+
+	.welcome.svelte-1kjg4f1 {
+		position: relative;
+		width: 100%;
+		height: 0;
+		padding: 0 0 calc(100% * 495 / 2048) 0;
+	}
+
+	.welcome.svelte-1kjg4f1 img:where(.svelte-1kjg4f1) {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		top: 0;
+		display: block;
+	}

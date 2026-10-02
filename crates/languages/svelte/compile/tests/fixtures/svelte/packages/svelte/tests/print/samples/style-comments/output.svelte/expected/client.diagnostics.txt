@@ -1,0 +1,10 @@
+warning css_unused_selector 6:2-6:6 Unused CSS selector ".foo"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 7:2-7:6 Unused CSS selector ".bar"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 14:3-14:7 Unused CSS selector ".baz"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 19:2-19:8 Unused CSS selector ".empty"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 23:2-23:35 Unused CSS selector ".part::part(/* argument */ label)"
+    https://svelte.dev/e/css_unused_selector

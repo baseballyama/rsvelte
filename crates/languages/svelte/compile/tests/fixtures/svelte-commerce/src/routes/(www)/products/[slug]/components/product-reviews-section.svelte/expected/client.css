@@ -1,0 +1,26 @@
+
+	/* Refined Editorial — default theme only. */
+	[data-theme='default'] .edp-rev {
+		border-top: 1px solid var(--ed-line);
+		padding-top: clamp(32px, 5vw, 56px);
+		margin-top: clamp(32px, 5vw, 56px);
+	}
+
+	[data-theme='default'] .edp-rev-title {
+		font-family: var(--ed-display);
+		font-weight: 500;
+		letter-spacing: -0.01em;
+		font-size: clamp(1.8rem, 3vw, 2.4rem);
+		color: var(--ed-ink);
+		border-color: var(--ed-line);
+	}
+
+	[data-theme='default'] .edp-rev-score {
+		font-family: var(--ed-display);
+		font-weight: 500;
+		color: var(--ed-ink);
+	}
+
+	[data-theme='default'] .edp-rev-photo {
+		border-radius: var(--ed-radius);
+	}

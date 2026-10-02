@@ -1,0 +1,4 @@
+warning css_unused_selector 73:2-73:17 Unused CSS selector ".unused :global"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 104:30-104:44 Unused CSS selector "unused :global"
+    https://svelte.dev/e/css_unused_selector

@@ -1,0 +1,4 @@
+warning css_unused_selector 6:2-6:12 Unused CSS selector "#div-class"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 10:2-10:13 Unused CSS selector "#span-class"
+    https://svelte.dev/e/css_unused_selector

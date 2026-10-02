@@ -1,0 +1,13 @@
+{
+	"commit": "09e126fc77f7716d912c85ce8f308ce708bc2530",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/ByteAtATime/flare.git"
+}

@@ -1,0 +1,20 @@
+
+	button.show-menu.svelte-rmvwxl {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex: 1;
+		padding: 0.25rem;
+		transition: 0.1s;
+		border-radius: 4px;
+		transition: 0.1s;
+		height: 100%;
+		/* opacity: 0; */
+		opacity: var(--IconButton-opacity, 1);
+
+		/* (empty) &:hover,
+		&.active {
+			/* background: #f4f4f6; *\/
+			/* opacity: 1; *\/
+		}*/
+	}

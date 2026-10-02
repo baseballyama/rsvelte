@@ -1,0 +1,13 @@
+{
+	"commit": "d5d28fe2a8d2a485be1aa1211d799c47c6177ee0",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/ItalyPaleAle/svelte-spa-router.git"
+}

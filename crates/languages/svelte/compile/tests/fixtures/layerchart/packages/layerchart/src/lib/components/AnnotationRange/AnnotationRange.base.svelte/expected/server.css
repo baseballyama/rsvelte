@@ -1,0 +1,7 @@
+
+  @layer components {
+    :where(.lc-annotation-range-label) {
+      font-size: 12px;
+      pointer-events: none;
+    }
+  }

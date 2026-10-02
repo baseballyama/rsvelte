@@ -1,0 +1,317 @@
+
+  .shortcuts-backdrop.svelte-1me4x3i {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-md);
+    animation: svelte-1me4x3i-fadeIn 0.15s ease-out;
+
+    @media (max-width: 768px) {
+      padding: 0;
+      align-items: stretch;
+      background: var(--bg-primary);
+    }
+  }
+
+  .shortcuts-dialog.svelte-1me4x3i {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    max-width: 32rem;
+    width: 100%;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: svelte-1me4x3i-slideInScale 0.2s ease-out;
+    min-height: 548px;
+
+    @media (max-width: 768px) {
+      max-width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      max-height: none;
+      border-radius: 0;
+      border: none;
+      box-shadow: none;
+      animation: svelte-1me4x3i-slideInFromBottom var(--transition-normal);
+      min-height: auto;
+    }
+  }
+
+  .dialog-header.svelte-1me4x3i {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid var(--border-primary);
+    .dialog-header-main:where(.svelte-1me4x3i) {
+      display: flex;
+      width: 100%;
+      padding-right: var(--spacing-sm);
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    @media (max-width: 768px) {
+      padding: var(--spacing-md);
+      position: sticky;
+      top: 0;
+      background: var(--bg-primary);
+      z-index: 10;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    h2:where(.svelte-1me4x3i) {
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0;
+    }
+  }
+
+  .close-btn.svelte-1me4x3i {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    @media (max-width: 768px) {
+      padding: var(--spacing-sm);
+    }
+
+    &:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+  }
+
+  .shortcuts-content.svelte-1me4x3i {
+    padding: var(--spacing-md) var(--spacing-lg);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+
+    @media (max-width: 768px) {
+      padding: var(--spacing-md);
+      flex: 1;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  .shortcuts-category.svelte-1me4x3i {
+    h3:where(.svelte-1me4x3i) {
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin: 0 0 var(--spacing-sm) 0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    ul:where(.svelte-1me4x3i) {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+
+    li:where(.svelte-1me4x3i) {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--spacing-md);
+      padding: var(--spacing-xs) 0;
+
+      kbd:where(.svelte-1me4x3i) {
+        display: inline-block;
+        padding: var(--spacing-xs) var(--spacing-sm);
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-xs);
+        font-family: var(--font-mono);
+        color: var(--color-primary);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        min-width: 5rem;
+        text-align: center;
+        white-space: nowrap;
+      }
+
+      span:where(.svelte-1me4x3i) {
+        flex: 1;
+        font-size: var(--font-size-sm);
+        color: var(--text-primary);
+      }
+    }
+  }
+
+  .no-bookmarks-tip.svelte-1me4x3i {
+    display: flex;
+    flex-direction: column;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin-top: var(--spacing-sm);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    padding: var(--spacing-sm) var(--spacing-md);
+    i:where(.svelte-1me4x3i) {
+      opacity: 0.8;
+    }
+  }
+
+  .bookmarks-details.svelte-1me4x3i {
+    margin-top: var(--spacing-sm);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+
+    summary:where(.svelte-1me4x3i) {
+      padding: var(--spacing-sm) var(--spacing-md);
+      cursor: pointer;
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+      color: var(--text-primary);
+      user-select: none;
+      transition: background var(--transition-fast);
+
+      &:hover {
+        background: var(--bg-tertiary);
+      }
+
+      &::marker {
+        color: var(--color-primary);
+      }
+    }
+
+    .bookmarks-list:where(.svelte-1me4x3i) {
+      list-style: none;
+      padding: 0 var(--spacing-md) var(--spacing-sm);
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+
+      li:where(.svelte-1me4x3i) {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--spacing-md);
+        padding: var(--spacing-xs) 0;
+
+        kbd:where(.svelte-1me4x3i) {
+          display: inline-block;
+          padding: var(--spacing-xs) var(--spacing-sm);
+          background: var(--bg-primary);
+          border: 1px solid var(--border-primary);
+          border-radius: var(--radius-sm);
+          font-size: var(--font-size-xs);
+          font-family: var(--font-mono);
+          color: var(--color-primary);
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+          min-width: 4rem;
+          text-align: center;
+          white-space: nowrap;
+        }
+
+        span:where(.svelte-1me4x3i) {
+          flex: 1;
+          font-size: var(--font-size-sm);
+          color: var(--text-secondary);
+        }
+      }
+    }
+  }
+
+  .about-content.svelte-1me4x3i {
+    padding: var(--spacing-md) var(--spacing-lg);
+
+    p:where(.svelte-1me4x3i) {
+      color: var(--text-primary);
+      font-size: var(--font-size-md);
+    }
+    .sponsor:where(.svelte-1me4x3i) {
+      font-size: var(--font-size-xs);
+      color: var(--color-pink);
+      background: color-mix(in srgb, var(--color-pink), transparent 90%);
+      padding: var(--spacing-sm);
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--color-pink);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      margin: var(--spacing-md) auto;
+      a:where(.svelte-1me4x3i) {
+        color: var(--color-pink);
+        text-decoration: underline;
+      }
+      opacity: 0;
+      animation: svelte-1me4x3i-fadeIn 1s ease-out 10s forwards;
+    }
+    .about-license-section:where(.svelte-1me4x3i) {
+      font-size: var(--font-size-xs);
+      text-align: center;
+      color: var(--text-secondary);
+      a:where(.svelte-1me4x3i) {
+        color: var(--text-secondary);
+        text-decoration: underline;
+      }
+    }
+    ul:where(.svelte-1me4x3i) {
+      padding-left: var(--spacing-lg);
+      margin: var(--spacing-lg) 0;
+      li:where(.svelte-1me4x3i) {
+        a:where(.svelte-1me4x3i) {
+          color: var(--color-primary);
+          text-decoration: underline;
+        }
+      }
+    }
+  }
+
+  @keyframes svelte-1me4x3i-fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes svelte-1me4x3i-slideInScale {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(-1rem);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  @keyframes svelte-1me4x3i-slideInFromBottom {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }

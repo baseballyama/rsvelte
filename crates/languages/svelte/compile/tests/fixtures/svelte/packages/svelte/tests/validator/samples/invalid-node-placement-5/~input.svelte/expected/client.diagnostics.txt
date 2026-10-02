@@ -1,0 +1,2 @@
+warning node_invalid_placement_ssr 4:4-6:11 `<form>` cannot be a child of `<form>`. When rendering this component on the server, the resulting HTML will be modified by the browser (by moving, removing, or inserting elements), likely resulting in a `hydration_mismatch` warning
+    https://svelte.dev/e/node_invalid_placement_ssr

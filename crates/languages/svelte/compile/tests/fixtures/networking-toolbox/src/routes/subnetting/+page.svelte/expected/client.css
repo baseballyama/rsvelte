@@ -1,0 +1,336 @@
+
+  section.svelte-1novvv6 {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  h2.svelte-1novvv6 {
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-lg);
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+  }
+
+  /* Intro Card */
+  .intro-card.svelte-1novvv6 {
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+
+    p:where(.svelte-1novvv6) {
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin: 0 0 var(--spacing-md) 0;
+      font-size: var(--font-size-md);
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    .tools-intro:where(.svelte-1novvv6) {
+      color: var(--text-tertiary);
+      font-size: var(--font-size-sm);
+    }
+  }
+
+  /* Concepts Grid */
+  .concepts-grid.svelte-1novvv6 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .concept-card.svelte-1novvv6 {
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+
+    p:where(.svelte-1novvv6) {
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin: 0 0 var(--spacing-sm) 0;
+    }
+  }
+
+  .concept-header.svelte-1novvv6 {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+
+    .icon {
+      color: var(--color-primary);
+      flex-shrink: 0;
+    }
+
+    h3:where(.svelte-1novvv6) {
+      margin: 0;
+      color: var(--text-primary);
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+    }
+  }
+
+  .concept-example.svelte-1novvv6 {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    color: var(--color-primary);
+    display: inline-block;
+  }
+
+  /* Techniques Grid */
+  .techniques-grid.svelte-1novvv6 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .technique-card.svelte-1novvv6 {
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+    border: 2px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--accent-color);
+    }
+  }
+
+  .technique-header.svelte-1novvv6 {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+
+    .icon {
+      color: var(--accent-color);
+      flex-shrink: 0;
+    }
+
+    h3:where(.svelte-1novvv6) {
+      margin: 0;
+      color: var(--text-primary);
+      font-size: var(--font-size-lg);
+      font-weight: 700;
+    }
+  }
+
+  .technique-description.svelte-1novvv6 {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0 0 var(--spacing-md) 0;
+  }
+
+  .technique-use-case.svelte-1novvv6 {
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+
+    strong:where(.svelte-1novvv6) {
+      color: var(--accent-color);
+    }
+  }
+
+  /* Subnet Masks Table */
+  .masks-section.svelte-1novvv6 {
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    border: 1px solid var(--border-primary);
+  }
+
+  .masks-table-wrapper.svelte-1novvv6 {
+    overflow-x: auto;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-primary);
+  }
+
+  .masks-table.svelte-1novvv6 {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+
+    th:where(.svelte-1novvv6) {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+      color: var(--bg-primary);
+      padding: var(--spacing-md);
+      text-align: left;
+      font-weight: 600;
+      cursor: help;
+      border: none;
+
+      &:first-child {
+        border-radius: var(--radius-sm) 0 0 0;
+      }
+
+      &:last-child {
+        border-radius: 0 var(--radius-sm) 0 0;
+      }
+    }
+
+    td:where(.svelte-1novvv6) {
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+      background-color: var(--bg-primary);
+      transition: all ease-in 0.2s;
+    }
+
+    tr:where(.svelte-1novvv6):hover td:where(.svelte-1novvv6) {
+      background-color: var(--bg-secondary);
+    }
+
+    tr:where(.svelte-1novvv6):last-child td:where(.svelte-1novvv6) {
+      border-bottom: none;
+    }
+
+    .cidr-cell:where(.svelte-1novvv6) {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--color-primary);
+    }
+
+    .mask-cell:where(.svelte-1novvv6) {
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+    }
+
+    .hosts-cell:where(.svelte-1novvv6),
+    .networks-cell:where(.svelte-1novvv6) {
+      text-align: right;
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+    }
+  }
+
+  /* Tips Grid */
+  .tips-grid.svelte-1novvv6 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .tips-card.svelte-1novvv6,
+  .mistakes-card.svelte-1novvv6 {
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    border: 1px solid var(--border-primary);
+
+    ul:where(.svelte-1novvv6) {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+
+      li:where(.svelte-1novvv6) {
+        padding: var(--spacing-2xs) 0;
+        color: var(--text-secondary);
+        line-height: 1.6;
+        position: relative;
+        padding-left: var(--spacing-lg);
+
+        &::before {
+          content: '•';
+          position: absolute;
+          left: 0;
+          font-weight: bold;
+          font-size: 1.2em;
+        }
+      }
+    }
+  }
+
+  .tips-card.svelte-1novvv6 {
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-success), transparent 90%),
+      color-mix(in srgb, var(--color-success), transparent 95%)
+    );
+
+    li:where(.svelte-1novvv6)::before {
+      color: var(--color-success);
+    }
+  }
+
+  .mistakes-card.svelte-1novvv6 {
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-warning), transparent 90%),
+      color-mix(in srgb, var(--color-warning), transparent 95%)
+    );
+
+    li:where(.svelte-1novvv6)::before {
+      color: var(--color-warning);
+    }
+  }
+
+  .tips-header.svelte-1novvv6,
+  .mistakes-header.svelte-1novvv6 {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+
+    h2:where(.svelte-1novvv6) {
+      margin: 0;
+      font-size: var(--font-size-lg);
+    }
+  }
+
+  .tips-header.svelte-1novvv6 .icon {
+    color: var(--color-success);
+  }
+
+  .mistakes-header.svelte-1novvv6 .icon {
+    color: var(--color-warning);
+  }
+
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .concepts-grid.svelte-1novvv6,
+    .techniques-grid.svelte-1novvv6,
+    .tips-grid.svelte-1novvv6 {
+      grid-template-columns: 1fr;
+    }
+
+    .technique-card.svelte-1novvv6,
+    .concept-card.svelte-1novvv6 {
+      padding: var(--spacing-md);
+    }
+
+    .masks-section.svelte-1novvv6,
+    .intro-card.svelte-1novvv6 {
+      padding: var(--spacing-md);
+    }
+
+    .masks-table.svelte-1novvv6 {
+      font-size: var(--font-size-xs);
+
+      th:where(.svelte-1novvv6),
+      td:where(.svelte-1novvv6) {
+        padding: var(--spacing-xs) var(--spacing-sm);
+      }
+    }
+  }
+
+  @media (max-width: 480px) {
+    .tips-grid.svelte-1novvv6 {
+      gap: var(--spacing-md);
+    }
+
+    .tips-card.svelte-1novvv6,
+    .mistakes-card.svelte-1novvv6 {
+      padding: var(--spacing-md);
+    }
+  }

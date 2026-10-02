@@ -1,0 +1,23 @@
+
+  @layer components {
+    :where(.lc-tooltip-header.svelte-18kx2t4) {
+      font-weight: 600;
+      white-space: nowrap;
+      border-bottom: 1px solid
+        color-mix(in oklab, var(--color-surface-content, currentColor) 20%, transparent);
+      margin-bottom: 4px;
+      padding-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    :where(.lc-tooltip-header-color.svelte-18kx2t4) {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 9999px; /* rounded-full */
+      background-color: var(--color);
+      flex-shrink: 0;
+    }
+  }

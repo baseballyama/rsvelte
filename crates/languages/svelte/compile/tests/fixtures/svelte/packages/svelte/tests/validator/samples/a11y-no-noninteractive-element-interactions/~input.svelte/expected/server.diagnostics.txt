@@ -1,0 +1,38 @@
+warning event_directive_deprecated 2:26-2:47 Using `on:mouseup` to listen to the mouseup event is deprecated. Use the event attribute `onmouseup` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 3:34-3:53 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 3:54-3:76 Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 4:41-4:60 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 4:61-4:83 Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 5:9-5:28 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 6:9-6:28 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 7:28-7:49 Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_noninteractive_element_interactions 11:1-11:52 Non-interactive element `<div>` should not be assigned mouse or keyboard event listeners
+    https://svelte.dev/e/a11y_no_noninteractive_element_interactions
+warning event_directive_deprecated 11:22-11:45 Using `on:mousedown` to listen to the mousedown event is deprecated. Use the event attribute `onmousedown` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_noninteractive_element_interactions 12:1-12:59 Non-interactive element `<h1>` should not be assigned mouse or keyboard event listeners
+    https://svelte.dev/e/a11y_no_noninteractive_element_interactions
+warning event_directive_deprecated 12:5-12:24 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 12:25-12:46 Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_noninteractive_element_interactions 13:1-13:51 Non-interactive element `<h1>` should not be assigned mouse or keyboard event listeners
+    https://svelte.dev/e/a11y_no_noninteractive_element_interactions
+warning event_directive_deprecated 13:19-13:38 Using `on:keyup` to listen to the keyup event is deprecated. Use the event attribute `onkeyup` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_noninteractive_element_interactions 14:1-14:31 Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners
+    https://svelte.dev/e/a11y_no_noninteractive_element_interactions
+warning event_directive_deprecated 14:4-14:26 Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_noninteractive_element_interactions 15:1-15:51 Non-interactive element `<div>` should not be assigned mouse or keyboard event listeners
+    https://svelte.dev/e/a11y_no_noninteractive_element_interactions
+warning event_directive_deprecated 15:23-15:44 Using `on:mouseup` to listen to the mouseup event is deprecated. Use the event attribute `onmouseup` instead
+    https://svelte.dev/e/event_directive_deprecated

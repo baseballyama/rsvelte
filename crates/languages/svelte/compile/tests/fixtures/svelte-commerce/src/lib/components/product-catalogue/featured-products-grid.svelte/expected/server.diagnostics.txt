@@ -1,0 +1,6 @@
+warning state_referenced_locally 6:57-6:65 This reference only captures the initial value of `loadMore`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 6:67-6:74 This reference only captures the initial value of `loading`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 6:76-6:83 This reference only captures the initial value of `hasMore`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

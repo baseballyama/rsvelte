@@ -1,0 +1,6 @@
+warning state_referenced_locally 33:5-33:16 This reference only captures the initial value of `dracoLoader`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 34:5-34:19 This reference only captures the initial value of `meshoptDecoder`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 35:5-35:15 This reference only captures the initial value of `ktx2Loader`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

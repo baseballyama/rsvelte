@@ -1,0 +1,2 @@
+warning css_unused_selector 32:2-32:11 Unused CSS selector ".x + .bar"
+    https://svelte.dev/e/css_unused_selector

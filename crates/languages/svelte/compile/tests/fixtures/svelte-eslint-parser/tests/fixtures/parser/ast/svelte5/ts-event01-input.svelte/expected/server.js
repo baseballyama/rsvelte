@@ -1,0 +1,8 @@
+import * as $ from 'svelte/internal/server';
+import Component from 'foo.svelte';
+
+export default function Ts_event01_input($$renderer) {
+	$$renderer.push(`<button></button> `);
+	Component($$renderer, { onclick: (e) => {} });
+	$$renderer.push(`<!---->`);
+}

@@ -1,0 +1,18 @@
+
+	.movie-list-mask.svelte-9l4vau {
+		--shadow-height: 20px;
+		--scrollbar-width: 12px;
+		position: relative;
+
+		--mask-image: linear-gradient(
+				to bottom,
+				transparent,
+				#000 var(--shadow-height),
+				#000 calc(100% - var(--shadow-height)),
+				transparent 100%
+			),
+			linear-gradient(to left, #fff var(--scrollbar-width), transparent var(--scrollbar-width));
+
+		mask-image: var(--mask-image);
+		-webkit-mask-image: var(--mask-image);
+	}

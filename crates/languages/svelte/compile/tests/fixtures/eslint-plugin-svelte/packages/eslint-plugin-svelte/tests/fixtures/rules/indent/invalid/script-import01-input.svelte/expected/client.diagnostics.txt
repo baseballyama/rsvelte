@@ -1,0 +1,2 @@
+warning script_context_deprecated 2:9-2:25 `context="module"` is deprecated, use the `module` attribute instead
+    https://svelte.dev/e/script_context_deprecated

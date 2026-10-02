@@ -1,0 +1,8 @@
+warning state_referenced_locally 23:21-23:34 This reference only captures the initial value of `proxyRuleList`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 24:11-24:24 This reference only captures the initial value of `proxyRuleList`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 32:22-32:33 This reference only captures the initial value of `selectedUrl`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 32:56-32:67 This reference only captures the initial value of `selectedUrl`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

@@ -1,0 +1,10 @@
+warning state_referenced_locally 14:10-14:15 This reference only captures the initial value of `value`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning a11y_missing_attribute 1:1-1:6 `<img>` element should have an alt attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning a11y_consider_explicit_label 4:5-4:12 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label
+warning a11y_missing_attribute 4:5-4:12 `<a>` element should have an href attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning a11y_invalid_attribute 7:9-7:16 '' is not a valid href attribute
+    https://svelte.dev/e/a11y_invalid_attribute

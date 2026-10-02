@@ -1,0 +1,16 @@
+warning state_referenced_locally 126:17-126:21 This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 127:20-127:24 This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 128:23-128:27 This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 129:24-129:28 This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 130:23-130:27 This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 131:24-131:28 This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 132:23-132:27 This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 133:22-133:26 This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

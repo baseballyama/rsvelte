@@ -1,0 +1,3 @@
+<svelte:boundary onerror={(e) => report(e)}>
+	...
+</svelte:boundary>

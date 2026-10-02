@@ -1,0 +1,13 @@
+{
+	"commit": "161ffc72dc27b50ac5742a29b1aaa3ad75943dac",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/sveltejs/svelte-eslint-parser.git"
+}

@@ -6,6 +6,7 @@
 // fixtures check [--update]   every task and variant over every unit, against _registry/parity.json
 // fixtures upgrade    regen every task, then re-validate adjustments (after bumping an oracle in package.json)
 // fixtures stats
+// fixtures crate --family name --task id,... --to <crate>/tests/fixtures [--source id,...]   copies units and their expected output into a crate
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -13,6 +14,7 @@ import { runImport } from '../src/import.ts';
 import { regen } from '../src/regen.ts';
 import { verifyAdjustments } from '../src/adjust.ts';
 import { compare } from '../src/compare.ts';
+import { exportToCrate } from '../src/crate.ts';
 import { allUnits, applies, includedSources } from '../src/manifest.ts';
 import { TASKS } from '../src/tasks/index.ts';
 import { REGISTRY } from '../src/paths.ts';
@@ -26,6 +28,7 @@ const { positionals, values } = parseArgs({
 		task: { type: 'string' },
 		variant: { type: 'string' },
 		report: { type: 'string' },
+		to: { type: 'string' },
 		write: { type: 'boolean', default: false },
 		update: { type: 'boolean', default: false },
 		'accept-commit': { type: 'boolean', default: false }
@@ -116,6 +119,12 @@ switch (positionals[0]) {
 		failures += moved.length;
 		break;
 	}
+	case 'crate': {
+		const tasks = list(values.task);
+		if (!values.family || !tasks || !values.to) throw new Error('--family, --task and --to are required');
+		exportToCrate({ family: values.family, taskIds: tasks, to: path.resolve(values.to), sourceIds: list(values.source) });
+		break;
+	}
 	case 'stats': {
 		const units = allUnits();
 		const by = (f: (u: (typeof units)[number]) => string) =>
@@ -127,7 +136,7 @@ switch (positionals[0]) {
 		break;
 	}
 	default:
-		console.error('usage: fixtures <import|regen|adjust|compare|check|upgrade|stats> [options]');
+		console.error('usage: fixtures <import|regen|adjust|compare|check|upgrade|stats|crate> [options]');
 		process.exit(2);
 }
 process.exit(failures ? 1 : 0);

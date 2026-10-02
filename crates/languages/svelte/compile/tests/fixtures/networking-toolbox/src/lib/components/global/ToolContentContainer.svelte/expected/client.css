@@ -1,0 +1,129 @@
+
+  .card-header.svelte-zg8wei {
+    flex-direction: row;
+    gap: var(--spacing-md);
+    @media (max-width: 600px) {
+      flex-direction: column;
+    }
+  }
+
+  .title-row.svelte-zg8wei {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    position: relative;
+
+    h1:where(.svelte-zg8wei) {
+      margin: 0;
+      flex: 1;
+      font-size: var(--font-size-2xl);
+    }
+  }
+
+  .bookmark-btn.svelte-zg8wei {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      background: color-mix(in srgb, var(--color-primary), transparent 90%);
+      border-radius: 50%;
+      transition: all 0.3s ease;
+      transform: translate(-50%, -50%);
+      z-index: -1;
+    }
+
+    &:hover {
+      background: var(--surface-hover);
+      color: var(--color-success);
+      transform: scale(1.15);
+      border-radius: 100%;
+
+      &::before {
+        width: 100%;
+        height: 100%;
+      }
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+
+    .bookmark-icon:where(.svelte-zg8wei) {
+      display: flex;
+      width: fit-content;
+      height: fit-content;
+      transition: opacity 0.2s ease;
+    }
+
+    .bookmark-icon-hover:where(.svelte-zg8wei) {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    &.bookmarked {
+      color: var(--color-primary);
+
+      &:hover {
+        color: var(--color-error);
+        transform: scale(1.1) rotate(-5deg);
+
+        .bookmark-icon:where(.svelte-zg8wei):not(.bookmark-icon-hover) {
+          opacity: 0;
+        }
+
+        .bookmark-icon-hover:where(.svelte-zg8wei) {
+          opacity: 1;
+        }
+      }
+    }
+
+    svg {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  }
+
+  @keyframes svelte-zg8wei-slideInFromTop {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes svelte-zg8wei-bookmarkPulse {
+    0% {
+      transform: scale(1);
+    }
+    25% {
+      transform: scale(1.2);
+    }
+    50% {
+      transform: scale(1.1);
+    }
+    75% {
+      transform: scale(1.15);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }

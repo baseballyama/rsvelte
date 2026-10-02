@@ -1,0 +1,72 @@
+
+	.docs-link.svelte-k4ycog {
+		color: var(--color-accent);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+	}
+	.docs-link.svelte-k4ycog:hover {
+		color: var(--color-primary);
+	}
+
+	.docs-paragraph.short.svelte-k4ycog {
+		margin-bottom: 0.5rem;
+	}
+
+	.installation-methods.svelte-k4ycog {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 14px;
+		margin: 18px 0 32px;
+	}
+
+	.installation-method.svelte-k4ycog {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		padding: 32px 16px;
+		border-radius: 12px;
+		border: 1px solid var(--border-primary);
+		background: var(--bg-card);
+		color: rgba(255, 255, 255, 0.55);
+		cursor: pointer;
+		transition: border-color 0.18s, color 0.18s, background 0.18s, transform 0.18s;
+	}
+
+	.installation-method.svelte-k4ycog:hover {
+		color: rgba(255, 255, 255, 0.9);
+		border-color: rgba(255, 255, 255, 0.18);
+		transform: translateY(-1px);
+	}
+
+	.installation-method.method-active.svelte-k4ycog {
+		color: var(--color-accent);
+		border-color: rgba(255, 138, 76, 0.5);
+		background: rgba(255, 138, 76, 0.06);
+	}
+
+	.installation-method-label.svelte-k4ycog {
+		font-family: 'Geist Mono', monospace;
+		font-size: 13px;
+		font-weight: 500;
+		letter-spacing: 0.02em;
+	}
+
+	.mcp-learn-more.svelte-k4ycog {
+		margin-bottom: 16px;
+	}
+
+	@media (max-width: 640px) {
+		.installation-methods.svelte-k4ycog {
+			grid-template-columns: 1fr;
+		}
+		.installation-method.svelte-k4ycog {
+			padding: 24px 16px;
+		}
+	}
+
+	.docs-separator + .docs-category-title,
+	.docs-separator + .docs-category-subtitle {
+		margin-top: 0;
+	}

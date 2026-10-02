@@ -1,0 +1,108 @@
+
+	.RepeaterFieldItem.svelte-1hwtezn {
+		border-top: 1px solid transparent;
+		border-bottom: 1px solid transparent;
+		transition: 0.1s;
+		padding-block: 0.5rem;
+
+		&.hovering-above {
+			border-top-color: var(--primo-primary-color);
+		}
+
+		&.hovering-below {
+			border-bottom-color: var(--primo-primary-color);
+		}
+	}
+
+	.repeater-item-container.svelte-1hwtezn {
+		flex: 1;
+		padding-left: 1.5rem;
+		border-left: 0.5rem solid var(--field-border-color, #252627);
+		display: grid;
+		gap: 1rem;
+		position: relative;
+		border-radius: 1px;
+		min-width: 10rem;
+
+		--label-font-size: 0.875rem;
+		--label-font-weight: 400;
+
+		&:last-of-type {
+			margin-bottom: 0;
+		}
+
+		.item-options:where(.svelte-1hwtezn) {
+			transition:
+				0.1s padding,
+				0.1s border-color;
+			font-size: var(--title-font-size);
+			font-weight: var(--title-font-weight);
+			border-bottom: 1px solid transparent;
+			display: flex;
+			gap: 1rem;
+			justify-content: space-between;
+			align-items: center;
+			color: var(--color-gray-2);
+
+			.primo-buttons:where(.svelte-1hwtezn) {
+				white-space: nowrap;
+			}
+
+			&:not(:only-child) {
+				border-bottom: var(--input-border);
+				/* padding-bottom: 0.75rem; */
+			}
+
+			button.title:where(.svelte-1hwtezn) {
+				padding: 0.5rem 0;
+				display: grid;
+				grid-template-columns: auto 1fr auto;
+				gap: 1rem;
+				align-items: center;
+				text-align: left;
+
+				img:where(.svelte-1hwtezn) {
+					width: 3rem;
+					border-radius: 2px;
+					aspect-ratio: 1;
+					object-fit: cover;
+				}
+
+				.key-hint:where(.svelte-1hwtezn) {
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					gap: 0.25rem;
+					font-size: 0.75rem;
+				}
+			}
+
+			.primo-buttons:where(.svelte-1hwtezn) button:where(.svelte-1hwtezn) {
+				/* (empty) &:focus {
+					/* outline: 0; *\/
+				}*/
+				&:hover {
+					color: var(--primo-primary-color);
+				}
+				&:last-child {
+					margin-left: 0.5rem;
+					color: var(--color-gray-5);
+
+					&:hover {
+						color: var(--primo-primary-color);
+					}
+				}
+			}
+		}
+
+		.field-values:where(.svelte-1hwtezn) {
+			display: grid;
+			gap: 0.5rem;
+		}
+	}
+	.repeater-item-field.svelte-1hwtezn {
+		margin-bottom: 0.5rem;
+	}
+	.repeater-item-field.svelte-1hwtezn:not(:first-child) {
+		padding-top: 0;
+	}

@@ -1,0 +1,20 @@
+
+	.tabs.svelte-h216gr {
+		display: flex;
+		justify-content: center;
+		color: white;
+		font-size: 0.875rem;
+		button:where(.svelte-h216gr) {
+			font-size: 0.875rem;
+			padding: 0.75rem 1rem;
+			display: flex;
+			align-items: center;
+			gap: 0.25rem;
+			border-bottom: 1px solid var(--color-gray-8);
+			transition: 0.1s;
+
+			&.active {
+				border-bottom-color: var(--primo-primary-color);
+			}
+		}
+	}

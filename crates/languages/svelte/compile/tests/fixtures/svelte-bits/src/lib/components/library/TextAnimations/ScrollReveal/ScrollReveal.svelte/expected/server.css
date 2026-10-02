@@ -1,0 +1,14 @@
+
+	.scroll-reveal.svelte-1d0scom {
+		margin: 20px 0;
+	}
+
+	.scroll-reveal-text.svelte-1d0scom {
+		font-size: clamp(1.6rem, 4vw, 3rem);
+		line-height: 1.5;
+		font-weight: 600;
+	}
+
+	.scroll-reveal-word.svelte-1d0scom {
+		display: inline-block;
+	}

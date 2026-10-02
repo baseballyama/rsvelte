@@ -1,0 +1,66 @@
+
+	.column.svelte-1hhf5b0 {
+		border-radius: var(--wx-border-radius);
+		display: flex;
+		flex-direction: column;
+		justify-content: flex-start;
+		gap: 6px;
+		width: 380px;
+		min-width: 240px;
+		border: var(--wx-input-border);
+		padding: 16px 16px 8px;
+	}
+	.card.svelte-1hhf5b0 > .avatar:where(.svelte-1hhf5b0) img:where(.svelte-1hhf5b0) {
+		height: 100%;
+		width: 100%;
+		object-fit: cover;
+		border-radius: 50%;
+	}
+	.list.svelte-1hhf5b0 {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		padding-top: 6px;
+	}
+
+	.list.svelte-1hhf5b0 .card:where(.svelte-1hhf5b0):not(:first-child) {
+		border-top: var(--wx-input-border);
+		padding-top: 6px;
+		height: 46px;
+	}
+	.card.svelte-1hhf5b0 {
+		height: 40px;
+		width: 100%;
+		display: flex;
+		gap: 12px;
+	}
+	.card.svelte-1hhf5b0 > .avatar:where(.svelte-1hhf5b0) {
+		height: 40px;
+		width: 40px;
+	}
+	.card.svelte-1hhf5b0 > .avatar:where(.svelte-1hhf5b0) .avatar-box:where(.svelte-1hhf5b0) {
+		height: 100%;
+		width: 100%;
+		border-radius: 50%;
+		background-color: #00d19a;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 16px;
+		line-height: 24px;
+		color: var(--wx-background);
+	}
+	.card.svelte-1hhf5b0 > .info:where(.svelte-1hhf5b0) {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		overflow: hidden;
+	}
+
+	.card.svelte-1hhf5b0 .info:where(.svelte-1hhf5b0) .position:where(.svelte-1hhf5b0) {
+		color: var(--wx-color-font-alt);
+		width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}

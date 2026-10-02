@@ -1,0 +1,19 @@
+
+    .email-verification-scrim.svelte-ue0o1w {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: hsl(240 5% 8% / 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* avoids the background scroll and bars */
+    html:has(.email-verification-scrim) {
+        height: 100%;
+        overflow: hidden !important;
+    }

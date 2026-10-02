@@ -1,0 +1,43 @@
+
+	.guide-toc.svelte-p8o6km {
+		margin: 0;
+		padding: 0;
+	}
+
+	.guide-toc.svelte-p8o6km a:where(.svelte-p8o6km) {
+		text-decoration: none;
+	}
+
+	.guide-toc.svelte-p8o6km a:where(.svelte-p8o6km):hover {
+		text-decoration: underline;
+	}
+
+	.guide-toc.svelte-p8o6km li:where(.svelte-p8o6km) {
+		display: block;
+		margin: 0 0 1.5em 0;
+	}
+
+	.section.svelte-p8o6km {
+		display: block;
+		font-weight: 700;
+		color: #333;
+		font-size: 1.2rem;
+		margin: 0 0 0.25em 0;
+		line-height: 1.25em;
+	}
+
+	.subsection.svelte-p8o6km {
+		display: block;
+		/*font-weight: 500;*/
+		color: #727272;
+		font-size: 1em;
+		margin: 0;
+		padding-top: 0.075em;
+		padding-bottom: 0.4em;
+		line-height: 1.25em;
+	}
+
+	.section.active.svelte-p8o6km,
+	.subsection.active.svelte-p8o6km {
+		color: #ff3e00;
+	}

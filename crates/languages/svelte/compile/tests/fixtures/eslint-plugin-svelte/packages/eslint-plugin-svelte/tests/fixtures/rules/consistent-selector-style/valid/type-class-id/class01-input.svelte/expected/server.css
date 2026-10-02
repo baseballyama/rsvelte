@@ -1,0 +1,28 @@
+
+  .link.svelte-zna95z {
+    color: red;
+  }
+
+  .bold.svelte-zna95z {
+    color: red;
+  }
+
+  .link.svelte-zna95z:active {
+    color: red;
+  }
+
+  .link.svelte-zna95z + .bold:where(.svelte-zna95z) {
+    color: red;
+  }
+
+  /* (unused) .bold[data-key="val"] {
+    color: red;
+  }*/
+
+  .bold.svelte-zna95z::before {
+    color: red;
+  }
+
+  .conditional.svelte-zna95z {
+    color: red;
+  }

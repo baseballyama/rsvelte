@@ -1,0 +1,37 @@
+
+	.content.svelte-1uq20qa {
+		height: 100%;
+		width: 100%;
+		overflow: hidden;
+		padding: 0;
+		margin: 0;
+	}
+	.content.svelte-1uq20qa h4 {
+		font-size: 16px;
+		font-weight: 300;
+		margin-bottom: 12px;
+		border-bottom: var(--wx-border);
+	}
+
+	.content.svelte-1uq20qa h3 {
+		font-size: 18px;
+		margin: 12px 0;
+		font-weight: normal;
+	}
+	.content.svelte-1uq20qa .demo-box {
+		margin: 20px;
+	}
+	.content.svelte-1uq20qa .demo-box + .demo-box {
+		margin-top: 40px;
+	}
+	.content.svelte-1uq20qa .demo-code {
+		font-family: monospace;
+		line-height: 30px;
+	}
+
+	.content.svelte-1uq20qa .demo-status {
+		height: 30px;
+		line-height: 30px;
+		background: rgba(0, 0, 0, 0.15);
+		padding-left: 10px;
+	}

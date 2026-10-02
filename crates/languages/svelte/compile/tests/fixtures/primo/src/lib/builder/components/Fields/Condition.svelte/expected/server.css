@@ -1,0 +1,26 @@
+
+	.collapsed.svelte-1agxqep .container:where(.svelte-1agxqep) {
+		grid-template-columns: 1fr !important;
+		gap: 0.75rem;
+	}
+	.container.svelte-1agxqep {
+		display: grid;
+		grid-template-columns: auto auto 1fr auto;
+		gap: 0.5rem;
+		/* place-items: center; */
+	}
+	.delete.svelte-1agxqep {
+		height: 100%;
+		padding: 10px;
+		border-radius: 0.25rem;
+		font-size: 0.75rem;
+		color: var(--primo-color-danger);
+		justify-self: flex-start;
+
+		&:hover {
+			/* border: 1px solid #c62828; */
+			transition: 0.1s;
+			background: var(--primo-color-danger);
+			color: white;
+		}
+	}

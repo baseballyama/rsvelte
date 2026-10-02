@@ -1,0 +1,7 @@
+
+    .example.svelte-1aih802 .gradient {
+        @apply bg-gradient-to-tr from-pink-500 to-violet-500 rounded-md;
+    }
+    .example.svelte-1aih802 .gradient:hover {
+        @apply bg-gradient-to-tr from-pink-600 to-violet-600 rounded-md shadow-xl;
+    }

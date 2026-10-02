@@ -1,121 +1,121 @@
 [
 	{
 		"file": "boolean-prop-naive.svelte",
-		"unit": "semantics/boolean-prop.vue",
+		"unit": "boolean-prop.vue",
 		"client": "step 0 \"mount\": line 2: expected \"flag false, shown true\", actual \"flag undefined, shown true\"",
 		"server": "server html: line 2: expected \"flag false, shown true\", actual \"flag undefined, shown true\""
 	},
 	{
 		"file": "checkbox-one-way.svelte",
-		"unit": "minimal/checkbox.vue",
+		"unit": "checkbox.vue",
 		"client": "step 1 {\"click\":\"input.agree\"}: line 6: expected \"agreed\", actual \"not yet\"",
 		"server": null
 	},
 	{
 		"file": "conditional-class.svelte",
-		"unit": "minimal/conditional.vue",
+		"unit": "conditional.vue",
 		"client": "step 0 \"mount\": line 4: expected <p class=\"hint\">, actual <p class=\"hint muted\">",
 		"server": "server html: line 4: expected <p class=\"hint\">, actual <p class=\"hint muted\">"
 	},
 	{
 		"file": "conditional-inverted.svelte",
-		"unit": "minimal/conditional.vue",
+		"unit": "conditional.vue",
 		"client": "step 0 \"mount\": line 4: expected <p class=\"hint\">, actual <p class=\"details\">",
 		"server": "server html: line 4: expected <p class=\"hint\">, actual <p class=\"details\">"
 	},
 	{
 		"file": "counter-off-by-one.svelte",
-		"unit": "minimal/counter.vue",
+		"unit": "counter.vue",
 		"client": "step 1 {\"click\":\"button.inc\"}: line 6: expected \"1\", actual \"2\"",
 		"server": null
 	},
 	{
 		"file": "counter-off-by-one.vue",
-		"unit": "minimal/counter.svelte",
+		"unit": "counter.svelte",
 		"client": "step 1 {\"click\":\"button.inc\"}: line 6: expected \"1\", actual \"2\"",
 		"server": null
 	},
 	{
 		"file": "counter-server-only.svelte",
-		"unit": "minimal/counter.vue",
+		"unit": "counter.vue",
 		"client": null,
 		"server": "server html: line 6: expected \"0\", actual \"1\""
 	},
 	{
 		"file": "counter-whitespace.svelte",
-		"unit": "minimal/counter.vue",
+		"unit": "counter.vue",
 		"client": "step 0 \"mount\": line 5: expected <span class=\"count\">, actual \" \"",
 		"server": "server html: line 5: expected <span class=\"count\">, actual \" \""
 	},
 	{
 		"file": "fallthrough-naive.svelte",
-		"unit": "semantics/fallthrough.vue",
+		"unit": "fallthrough.vue",
 		"client": "step 0 \"mount\": line 1: expected <p class=\"inner outer\" title=\"tip\">, actual <p class=\"inner\">",
 		"server": "server html: line 1: expected <p class=\"inner outer\" title=\"tip\">, actual <p class=\"inner\">"
 	},
 	{
 		"file": "form-controls-eager.svelte",
-		"unit": "minimal/form-controls.vue",
+		"unit": "form-controls.vue",
 		"client": "step 2 {\"input\":[\"input.note\",\"typed\"]}: line 14: expected \"size l, note none\", actual \"size l, note typed\"",
 		"server": null
 	},
 	{
 		"file": "interpolation-naive.svelte",
-		"unit": "semantics/interpolation.vue",
+		"unit": "interpolation.vue",
 		"client": "step 0 \"mount\": line 2: expected \"{\\n  \\\"a\\\": 1,\\n  \\\"b\\\": [\\n    true,\\n    null\\n  ]\\n}\", actual \"[object Object]\"",
 		"server": "server html: line 2: expected \"{\\n  \\\"a\\\": 1,\\n  \\\"b\\\": [\\n    true,\\n    null\\n  ]\\n}\", actual \"[object Object]\""
 	},
 	{
 		"file": "list-missing.vue",
-		"unit": "minimal/list.svelte",
+		"unit": "list.svelte",
 		"client": "step 0 \"mount\": line 3: expected \"1. apple\", actual \"1. banana\"",
 		"server": "server html: line 3: expected \"1. apple\", actual \"1. banana\""
 	},
 	{
 		"file": "list-remove-two.svelte",
-		"unit": "minimal/list.vue",
+		"unit": "list.vue",
 		"client": "step 3 {\"click\":\"button.remove\"}: line 3: expected \"1. banana\", actual \"1. item 3\"",
 		"server": null
 	},
 	{
 		"file": "number-input-bind.svelte",
-		"unit": "semantics/number-input.vue",
+		"unit": "number-input.vue",
 		"client": "step 2 {\"input\":[\"input\",\"\"]}: line 3: expected \"string: + 1 = 1\", actual \"object: + 1 = 1\"",
 		"server": null
 	},
 	{
 		"file": "props-default.svelte",
-		"unit": "minimal/props.vue",
+		"unit": "props.vue",
 		"client": "step 0 \"mount\": line 2: expected \"Count: 5\", actual \"count: 5\"",
 		"server": "server html: line 2: expected \"Count: 5\", actual \"count: 5\""
 	},
 	{
 		"file": "text-input-lazy.vue",
-		"unit": "minimal/text-input.svelte",
+		"unit": "text-input.svelte",
 		"client": "step 1 {\"input\":[\"input.name\",\"Ada\"]}: line 6: expected \"Hello, Ada!\", actual \"Hello, world!\"",
 		"server": null
 	},
 	{
 		"file": "text-input-value-prop.svelte",
-		"unit": "minimal/text-input.vue",
+		"unit": "text-input.vue",
 		"client": "step 0 \"mount\": line 3: expected <input class=\"name\" .value=\"world\">, actual <input class=\"name\" .value=\"WORLD\">",
 		"server": "server html: line 3: expected <input class=\"name\" value=\"world\" .value=\"world\">, actual <input class=\"name\" value=\"WORLD\" .value=\"WORLD\">"
 	},
 	{
 		"file": "todo-no-trim.svelte",
-		"unit": "minimal/todo.vue",
+		"unit": "todo.vue",
 		"client": "step 4 {\"submit\":\"form.new\"}: line 2: expected <input class=\"draft\" placeholder=\"What needs doing?\" .value=\"   \">, actual <input class=\"draft\" placeholder=\"What needs doing?\" .value=\"\">",
 		"server": null
 	},
 	{
 		"file": "todo-remaining.vue",
-		"unit": "minimal/todo.svelte",
+		"unit": "todo.svelte",
 		"client": "step 0 \"mount\": line 17: expected \"0\", actual \"1\"",
 		"server": "server html: line 17: expected \"0\", actual \"1\""
 	},
 	{
 		"file": "todo-throws.svelte",
-		"unit": "minimal/todo.vue",
+		"unit": "todo.vue",
 		"client": "step 10 {\"click\":\"button.clear\"}: listener errors [\"Uncaught [Error: clear failed]\"], expected []",
 		"server": null
 	}

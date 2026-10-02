@@ -1,0 +1,11 @@
+
+	body {
+		background-color: tan;
+		display: flex;
+		flex-direction: column;
+	}
+
+	a.svelte-1boria6 {
+		display: block;
+		margin: 20px;
+	}

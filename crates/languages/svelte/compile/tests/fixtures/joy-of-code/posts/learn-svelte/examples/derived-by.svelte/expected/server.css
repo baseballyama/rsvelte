@@ -1,0 +1,19 @@
+
+	.container.svelte-7s141g {
+		text-align: left;
+	}
+
+	div.svelte-7s141g {
+		display: grid;
+		justify-items: start;
+		gap: var(--spacing-16);
+
+		> :where(.svelte-7s141g) {
+			margin: 0;
+		}
+	}
+
+	hr.svelte-7s141g {
+		width: 100%;
+		margin-top: var(--spacing-24);
+	}

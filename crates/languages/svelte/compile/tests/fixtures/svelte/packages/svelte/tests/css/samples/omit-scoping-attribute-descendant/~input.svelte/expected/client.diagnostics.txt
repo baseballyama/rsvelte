@@ -1,0 +1,2 @@
+warning css_unused_selector 8:2-8:9 Unused CSS selector "div > p"
+    https://svelte.dev/e/css_unused_selector

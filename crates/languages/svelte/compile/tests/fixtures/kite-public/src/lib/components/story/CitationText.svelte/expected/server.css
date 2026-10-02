@@ -1,0 +1,44 @@
+
+  .citation-wrapper.svelte-hchnco {
+    display: block;
+  }
+
+  .citation-wrapper.svelte-hchnco:has(.citation-content.inline:where(.svelte-hchnco)) {
+    display: inline;
+  }
+
+  .citation-content.svelte-hchnco {
+    display: block;
+  }
+
+  .citation-content.inline.svelte-hchnco {
+    display: inline;
+  }
+
+  .citation-sources.svelte-hchnco {
+    margin-top: 0.25rem;
+  }
+
+  .citation-number.svelte-hchnco {
+    font-weight: 500;
+    margin: 0;
+    margin-right: -2px;
+  }
+
+  .favicon-wrapper.svelte-hchnco {
+    transition:
+      transform 0.2s,
+      z-index 0.2s;
+  }
+
+  .citation-list.svelte-hchnco {
+    border-left: 2px solid;
+    padding-left: 0.75rem;
+    margin-top: 0.5rem;
+  }
+
+  .citation-item.svelte-hchnco {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.25rem;
+  }

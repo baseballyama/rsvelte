@@ -1,0 +1,40 @@
+warning state_referenced_locally 31:12-31:19 This reference only captures the initial value of `gravity`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 31:27-31:34 This reference only captures the initial value of `gravity`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 31:42-31:49 This reference only captures the initial value of `gravity`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 32:7-32:31 This reference only captures the initial value of `rawIntegrationParameters`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 33:7-33:17 This reference only captures the initial value of `rawIslands`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 34:7-34:20 This reference only captures the initial value of `rawBroadPhase`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 35:7-35:21 This reference only captures the initial value of `rawNarrowPhase`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 36:7-36:16 This reference only captures the initial value of `rawBodies`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 37:7-37:19 This reference only captures the initial value of `rawColliders`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 38:7-38:23 This reference only captures the initial value of `rawImpulseJoints`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 39:7-39:25 This reference only captures the initial value of `rawMultibodyJoints`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 40:7-40:19 This reference only captures the initial value of `rawCCDSolver`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 41:7-41:23 This reference only captures the initial value of `rawQueryPipeline`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 42:7-42:25 This reference only captures the initial value of `rawPhysicsPipeline`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 43:7-43:31 This reference only captures the initial value of `rawSerializationPipeline`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 44:7-44:29 This reference only captures the initial value of `rawDebugRenderPipeline`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 47:7-47:16 This reference only captures the initial value of `framerate`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 48:7-48:16 This reference only captures the initial value of `autoStart`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 49:7-49:29 This reference only captures the initial value of `simulationStageOptions`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 50:7-50:34 This reference only captures the initial value of `synchronizationStageOptions`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

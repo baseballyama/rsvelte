@@ -1,0 +1,9 @@
+
+	.example.svelte-8raa54 {
+		display: flex;
+		align-items: center;
+
+		span:where(.svelte-8raa54) {
+			width: 240px;
+		}
+	}

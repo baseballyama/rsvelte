@@ -1,0 +1,4 @@
+warning a11y_missing_attribute 1:1-1:30 `<a>` element should have an href attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning css_unused_selector 24:3-24:24 Unused CSS selector ".bold[data-key="val"]"
+    https://svelte.dev/e/css_unused_selector

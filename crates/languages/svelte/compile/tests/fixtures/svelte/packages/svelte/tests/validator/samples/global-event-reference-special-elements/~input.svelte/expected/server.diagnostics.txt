@@ -1,0 +1,6 @@
+warning attribute_global_event_reference 5:28-5:38 You are referencing `globalThis.onresize`. Did you forget to declare a variable with that name?
+    https://svelte.dev/e/attribute_global_event_reference
+warning attribute_global_event_reference 6:18-6:38 You are referencing `globalThis.onvisibilitychange`. Did you forget to declare a variable with that name?
+    https://svelte.dev/e/attribute_global_event_reference
+warning attribute_global_event_reference 7:14-7:23 You are referencing `globalThis.onfocus`. Did you forget to declare a variable with that name?
+    https://svelte.dev/e/attribute_global_event_reference

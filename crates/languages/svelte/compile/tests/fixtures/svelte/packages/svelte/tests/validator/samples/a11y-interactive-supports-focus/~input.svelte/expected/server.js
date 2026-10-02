@@ -1,0 +1,5 @@
+import * as $ from 'svelte/internal/server';
+
+export default function Input($$renderer) {
+	$$renderer.push(`<div aria-hidden="true" role="button"></div> <div aria-disabled="true" role="button"></div> <div disabled="" role="button"></div> <div role="presentation"></div> <button>click me</button> <div role="menuitem" tabindex="0"></div> <div role="button" tabindex="-1"></div> <div role="button"></div> <span role="menuitem"></span> <div role="button"></div> <span role="menuitem"></span> <div role="button"></div> <span role="menuitem"></span> <div role="button"></div> <span role="menuitem"></span> <div role="button"></div> <span role="menuitem"></span> <div role="button"></div> <span role="menuitem"></span> <div role="button"></div> <span role="menuitem"></span> <div role="button"></div> <span role="menuitem"></span> <div role="button"></div> <span role="menuitem"></span> <div role="button"></div> <span role="menuitem"></span> <div role="button"></div>`);
+}

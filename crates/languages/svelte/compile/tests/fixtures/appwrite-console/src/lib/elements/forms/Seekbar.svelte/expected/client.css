@@ -1,0 +1,107 @@
+
+    :root {
+        --seekbar-height: 4px;
+        --seekbar-thumb-size: 16px;
+        --seekbar-thumb-radius: 50%;
+        --seekbar-track-radius: 13px;
+
+        --seekbar-breakpoint-height-small: 6px;
+        --seekbar-breakpoint-height-medium: 6px;
+        --seekbar-breakpoint-height-major: 12px;
+
+        --seekbar-thumb-color: var(--bgcolor-neutral-primary);
+        --seekbar-track-color: var(--bgcolor-neutral-tertiary);
+        --seekbar-progress-color: var(--bgcolor-neutral-invert);
+        --seekbar-thumb-border-color: var(--fgcolor-accent-neutral);
+        --seekbar-breakpoint-color: var(--bgcolor-neutral-invert-weaker);
+
+        // experimental, disabled seekbar progress color
+        --seekbar-disabled-area-color: var(--overlay-neutral-pressed);
+    }
+
+    .seekbar.svelte-10wus3k {
+        width: 100%;
+        position: relative;
+        padding: 1.25rem 0 0.75rem 0;
+    }
+
+    .breakpoints.svelte-10wus3k {
+        left: 0;
+        right: 0;
+        height: 12px;
+        position: absolute;
+        margin-inline: 1px;
+        pointer-events: none;
+        top: calc(1.25rem + var(--seekbar-height) + 8px);
+    }
+
+    .breakpoint.svelte-10wus3k {
+        position: absolute;
+        top: 0;
+        transform: translateX(-50%);
+        width: 1px;
+        height: var(--seekbar-breakpoint-height-small);
+        background-color: var(--seekbar-breakpoint-color);
+
+        &.is-major {
+            height: var(--seekbar-breakpoint-height-major);
+        }
+    }
+
+    .track.svelte-10wus3k {
+        position: relative;
+        height: var(--seekbar-height);
+        background-color: var(--seekbar-track-color);
+        border-radius: var(--seekbar-track-radius);
+        cursor: pointer;
+    }
+
+    .extra-space.svelte-10wus3k {
+        margin-block-start: 2px;
+    }
+
+    .disabled-area.svelte-10wus3k {
+        top: 0;
+        height: 100%;
+        position: absolute;
+        border-top-right-radius: var(--seekbar-track-radius);
+        border-bottom-right-radius: var(--seekbar-track-radius);
+        background-color: var(--seekbar-disabled-area-color);
+    }
+
+    .progress.svelte-10wus3k {
+        top: 0;
+        left: 0;
+        height: 100%;
+        position: absolute;
+        width: var(--progress-width);
+        background-color: var(--seekbar-progress-color);
+        border-radius: var(--seekbar-track-radius);
+    }
+
+    .thumb-container.svelte-10wus3k {
+        top: 50%;
+        position: absolute;
+        transform: translateX(-50%) translateY(-50%);
+    }
+
+    .badge.svelte-10wus3k {
+        left: 50%;
+        position: absolute;
+        bottom: calc(100% + 8px);
+        transform: translateX(-50%);
+
+        .badge {
+            color: var(--fgcolor-on-invert) !important;
+            background: var(--bgcolor-neutral-invert) !important;
+        }
+    }
+
+    .thumb.svelte-10wus3k {
+        width: var(--seekbar-thumb-size);
+        height: var(--seekbar-thumb-size);
+        border-radius: var(--seekbar-thumb-radius);
+        background-color: var(--seekbar-thumb-color);
+        border: 1px solid var(--seekbar-thumb-border-color);
+        cursor: grab;
+    }

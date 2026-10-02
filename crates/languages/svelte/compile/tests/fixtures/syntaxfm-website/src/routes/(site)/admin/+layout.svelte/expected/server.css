@@ -1,0 +1,15 @@
+
+	nav.svelte-1k5m4xw {
+		padding: 1rem 0;
+		display: flex;
+		gap: 20px;
+		a:where(.svelte-1k5m4xw) {
+			color: var(--fg);
+		}
+		.active:where(.svelte-1k5m4xw) {
+			text-decoration: underline;
+		}
+	}
+	.admin.svelte-1k5m4xw {
+		padding-bottom: 4rem;
+	}

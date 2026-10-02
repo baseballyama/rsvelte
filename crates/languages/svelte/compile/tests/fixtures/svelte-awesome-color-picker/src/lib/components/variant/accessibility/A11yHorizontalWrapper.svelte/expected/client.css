@@ -1,0 +1,44 @@
+
+	div.svelte-h6u3ly {
+		padding: 6px;
+		background-color: var(--cp-bg-color, white);
+		margin: 0 10px 10px;
+		border: 1px solid var(--cp-border-color, black);
+		border-radius: 12px;
+		display: none;
+		width: max-content;
+	}
+	.is-open.svelte-h6u3ly {
+		display: block;
+	}
+	@media (min-width: 768px) {
+		.is-open.svelte-h6u3ly {
+			display: grid;
+			gap: 5px;
+			grid-template:
+				'nullable . . .'
+				'picker hue alpha a11y'
+				'input input input a11y';
+			grid-template-rows: auto var(--picker-height, 200px) auto;
+		}
+	}
+
+	div.svelte-h6u3ly .picker {
+		grid-area: picker;
+	}
+
+	div.svelte-h6u3ly .text-input {
+		grid-area: input;
+	}
+
+	div.svelte-h6u3ly .a11y-notice {
+		grid-area: a11y;
+		margin: 0 4px 0 6px;
+	}
+
+	[role='dialog'].svelte-h6u3ly {
+		position: absolute;
+		top: calc(var(--input-size, 25px) + 12px);
+		left: 0;
+		z-index: var(--picker-z-index, 2);
+	}

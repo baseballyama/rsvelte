@@ -1,0 +1,4 @@
+warning state_referenced_locally 113:22-113:27 This reference only captures the initial value of `toast`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 113:40-113:59 This reference only captures the initial value of `durationFromToaster`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

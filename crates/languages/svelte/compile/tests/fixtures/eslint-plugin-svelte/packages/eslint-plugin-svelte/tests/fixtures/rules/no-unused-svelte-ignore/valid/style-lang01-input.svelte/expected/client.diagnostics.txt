@@ -1,0 +1,4 @@
+warning legacy_code 3:16-3:35 `css-unused-selector` is no longer valid — please use `css_unused_selector` instead
+    https://svelte.dev/e/legacy_code
+warning css_unused_selector 5:2-5:6 Unused CSS selector ".bar"
+    https://svelte.dev/e/css_unused_selector

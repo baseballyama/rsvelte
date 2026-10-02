@@ -1,0 +1,4 @@
+warning attribute_invalid_property_name 1:6-1:21 'className' is not a valid HTML attribute. Did you mean 'class'?
+    https://svelte.dev/e/attribute_invalid_property_name
+warning attribute_invalid_property_name 2:8-2:19 'htmlFor' is not a valid HTML attribute. Did you mean 'for'?
+    https://svelte.dev/e/attribute_invalid_property_name

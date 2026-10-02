@@ -1,0 +1,45 @@
+
+  @layer components {
+    :where(.lc-tooltip-item-root.svelte-3cu8im) {
+      display: contents;
+    }
+
+    :where(.lc-tooltip-item-root[data-highlighted].svelte-3cu8im)
+      > :where(.lc-tooltip-item-label.svelte-3cu8im, .lc-tooltip-item-value.svelte-3cu8im) {
+      opacity: 1;
+      transition: opacity 150ms ease;
+    }
+
+    :where(.lc-tooltip-item-root[data-highlighted='false'].svelte-3cu8im)
+      > :where(.lc-tooltip-item-label.svelte-3cu8im, .lc-tooltip-item-value.svelte-3cu8im) {
+      opacity: 0.1;
+    }
+
+    :where(.lc-tooltip-item-color.svelte-3cu8im) {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 9999px; /* full */
+      background-color: var(--color);
+    }
+
+    :where(.lc-tooltip-item-label.svelte-3cu8im) {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    :where(.lc-tooltip-item-value.svelte-3cu8im) {
+      /* tabular-nums */
+      font-variant-numeric: tabular-nums;
+
+      &[data-align='right'] {
+        text-align: right;
+      }
+
+      &[data-align='center'] {
+        text-align: center;
+      }
+    }
+  }

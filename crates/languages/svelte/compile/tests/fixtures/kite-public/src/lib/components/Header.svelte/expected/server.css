@@ -1,0 +1,9 @@
+
+  .tt-pill-highlight.svelte-1elxaub {
+    animation: svelte-1elxaub-tt-pulse 2s ease-in-out 3;
+  }
+
+  @keyframes svelte-1elxaub-tt-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }

@@ -1,0 +1,31 @@
+
+	.tooltip.svelte-1c6q2af {
+		position: absolute;
+		font-size: 13px;
+		pointer-events: none;
+		border: 1px solid #ccc;
+		background: rgba(255, 255, 255, 0.85);
+		transform: translate(-50%, -100%);
+		padding: 5px;
+		z-index: 15;
+	}
+	.line.svelte-1c6q2af {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		width: 1px;
+		border-left: 1px dotted #666;
+		pointer-events: none;
+	}
+	.tooltip.svelte-1c6q2af,
+	.line.svelte-1c6q2af {
+		transition:
+			left 250ms ease-out,
+			top 250ms ease-out;
+	}
+	.title.svelte-1c6q2af {
+		font-weight: bold;
+	}
+	.key.svelte-1c6q2af {
+		color: #999;
+	}

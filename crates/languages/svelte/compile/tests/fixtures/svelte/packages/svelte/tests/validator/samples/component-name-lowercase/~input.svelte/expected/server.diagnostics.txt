@@ -1,0 +1,2 @@
+warning component_name_lowercase 8:1-8:38 `<thisShouldWarnMe>` will be treated as an HTML element unless it begins with a capital letter
+    https://svelte.dev/e/component_name_lowercase

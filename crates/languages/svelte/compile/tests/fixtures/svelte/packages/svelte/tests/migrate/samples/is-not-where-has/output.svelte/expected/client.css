@@ -1,0 +1,38 @@
+
+	/* (empty) div:has(:global(span)){}*/
+	/* (empty) div > :not(span){}*/
+	/* (empty) div > :is(:global(span)){}*/
+	/* (empty) div > :where(:global(span)){}*/
+
+	/* (empty) div:has(:global(:is(span))){}*/
+	/* (empty) div > :not(:is(span)){}*/
+	/* (empty) div > :is(:global(:is(span))){}*/
+	/* (empty) div > :where(:global(:is(span))){}*/
+
+	/* (empty) div:has(:global(.class:is(span))){}*/
+	/* (empty) div > :not(.class:is(span)){}*/
+	/* (empty) div > :is(:global(.class:is(span))){}*/
+	/* (empty) div > :where(:global(.class:is(span))){}*/
+
+	/* (empty) div :has(:global(.class:is(span:where(:focus)))){}*/
+	/* (empty) div :not(.class:is(span:where(:focus-within))){}*/
+	/* (empty) div :is(:global(.class:is(span:is(:hover)))){}*/
+	/* (empty) div :where(:global(.class:is(span:has(* > *)))){}*/
+	/* (empty) div :is(:global(.class:is(span:is(:hover)), .x)){}*/
+
+	/* (empty) div :has(    :global(.class:is(span:where(:focus)))){}*/
+	/* (empty) div :not(:global(.class:is(span:where(:focus-within)))){}*/
+	/* (empty) div :is(:global(.class:is(span:is(:hover)))){}*/
+	/* (empty) div :where(:global(.class:is(span:has(* > *)))){}*/
+	/* (empty) div :is(:global(.class:is(span:is(:hover)), .x)){}*/
+
+	/* (empty) :global(button:has(.is-active)){}*/
+
+	/* (empty) div{
+		p:has(:global(&)){
+
+		}
+		:not(span > *){
+			:where(:global(form)){}
+		}
+	}*/

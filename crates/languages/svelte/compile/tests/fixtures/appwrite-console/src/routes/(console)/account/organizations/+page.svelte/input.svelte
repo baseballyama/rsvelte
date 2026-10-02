@@ -1,0 +1,203 @@
+<script lang="ts">
+    import { base } from '$app/paths';
+    import {
+        GridItem1,
+        Empty,
+        AvatarGroup,
+        CardContainer,
+        PaginationWithLimit
+    } from '$lib/components';
+    import { Button } from '$lib/elements/forms';
+    import { Container } from '$lib/layout';
+    import CreateOrganization from '../../createOrganization.svelte';
+    import { sdk } from '$lib/stores/sdk';
+    import type { PageData } from './$types';
+    import { isCloud } from '$lib/system';
+    import { Badge, Skeleton } from '@appwrite.io/pink-svelte';
+    import type { Models } from '@appwrite.io/console';
+    import { daysLeftInTrial, billingIdToPlan } from '$lib/stores/billing';
+    import { toLocaleDate } from '$lib/helpers/date';
+    import {
+        BODY_TOOLTIP_MAX_WIDTH,
+        BODY_TOOLTIP_WRAPPER_STYLE
+    } from '$lib/helpers/tooltipContent';
+    import { goto } from '$app/navigation';
+    import { Icon, Tooltip, Typography } from '@appwrite.io/pink-svelte';
+    import { IconPlus } from '@appwrite.io/pink-icons-svelte';
+
+    const {
+        data
+    }: {
+        data: PageData;
+    } = $props();
+
+    let addOrganization = $state(false);
+
+    async function getMemberships(teamId: string): Promise<string[]> {
+        const memberships = await sdk.forConsole.teams.listMemberships({ teamId });
+        return memberships.memberships.map((team) => team.userName || team.userEmail);
+    }
+
+    async function getPlanName(billingPlan: string | undefined): Promise<string> {
+        if (!billingPlan) return 'Unknown';
+
+        // For known plans, use tierToPlan
+        const tierData = billingIdToPlan(billingPlan);
+
+        // If it's not a custom plan, or we got a non-custom result, return the name
+        if (tierData.name !== 'Custom') {
+            return tierData.name;
+        }
+
+        // For custom plans, fetch from API
+        try {
+            const plan = await sdk.forConsole.console.getPlan({
+                planId: billingPlan
+            });
+            return plan.name;
+        } catch (error) {
+            // Fallback to 'Custom' if fetch fails
+            return 'Custom';
+        }
+    }
+
+    function isOrganizationOnTrial(organization: Models.Organization): boolean {
+        if (!organization?.billingTrialStartDate) return false;
+        if ($daysLeftInTrial <= 0) return false;
+        if (!organization.billingPlanDetails.trial) return false;
+
+        return !!organization?.billingTrialDays;
+    }
+
+    function isNonPayingOrganization(organization: Models.Organization): boolean {
+        // plan doesn't require payments, it is a non-paying org!
+        return !organization?.billingPlanDetails.requiresPaymentMethod;
+    }
+
+    function isPayingOrganization(
+        team: Models.Preferences | Models.Organization
+    ): Models.Organization | null {
+        const isPayingOrganization =
+            isCloudOrg(team) && !isOrganizationOnTrial(team) && !isNonPayingOrganization(team);
+
+        if (isPayingOrganization) return team as Models.Organization;
+        else return null;
+    }
+
+    function isCloudOrg(
+        data: Partial<Models.TeamList<Models.Preferences>> | Models.Organization
+    ): data is Models.Organization {
+        return isCloud && 'billingPlanId' in data;
+    }
+
+    function createOrg() {
+        if (isCloud) {
+            goto(`${base}/create-organization`);
+        } else addOrganization = true;
+    }
+</script>
+
+<Container>
+    <div class="u-flex u-gap-12 common-section u-main-space-between">
+        <Typography.Title>Organizations</Typography.Title>
+
+        <Button on:click={createOrg} event="create_organization">
+            <Icon icon={IconPlus} slot="start" size="s" />
+            Create organization
+        </Button>
+    </div>
+
+    {#if data.organizations.teams.length}
+        <CardContainer
+            event="organization"
+            offset={data.offset}
+            on:click={createOrg}
+            disableEmpty={false}
+            total={data.organizations.total}>
+            {#each data.organizations.teams as organization}
+                {@const avatarList = getMemberships(organization.$id)}
+                {@const payingOrg = isPayingOrganization(organization)}
+                {@const planName = isCloudOrg(organization)
+                    ? getPlanName(organization.billingPlanId)
+                    : null}
+
+                <GridItem1 href={`${base}/organization-${organization.$id}`}>
+                    <svelte:fragment slot="eyebrow">
+                        {organization?.total}
+                        {organization?.total > 1 ? 'members' : 'member'}
+                    </svelte:fragment>
+                    <svelte:fragment slot="title">
+                        {organization.name}
+                    </svelte:fragment>
+                    <svelte:fragment slot="status">
+                        {#if isCloudOrg(organization)}
+                            {#if isNonPayingOrganization(organization)}
+                                {#if planName}
+                                    {#await planName}
+                                        <Skeleton width={30} height={20} variant="line" />
+                                    {:then name}
+                                        <Tooltip maxWidth={BODY_TOOLTIP_MAX_WIDTH}>
+                                            <Badge size="xs" variant="secondary" content={name} />
+
+                                            <div slot="tooltip" style={BODY_TOOLTIP_WRAPPER_STYLE}>
+                                                You are limited to 1 free organization per account
+                                            </div>
+                                        </Tooltip>
+                                    {/await}
+                                {/if}
+                            {/if}
+
+                            {#if isOrganizationOnTrial(organization)}
+                                <Tooltip maxWidth={BODY_TOOLTIP_MAX_WIDTH}>
+                                    <div class="u-flex u-cross-center">
+                                        <Badge
+                                            class="eyebrow-heading-3"
+                                            variant="secondary"
+                                            content="TRIAL" />
+                                    </div>
+                                    <div slot="tooltip" style={BODY_TOOLTIP_WRAPPER_STYLE}>
+                                        {`Your trial ends on ${toLocaleDate(
+                                            organization.billingStartDate
+                                        )}. ${$daysLeftInTrial} days remaining.`}
+                                    </div>
+                                </Tooltip>
+                            {/if}
+
+                            {#if payingOrg}
+                                {#await planName}
+                                    <Skeleton width={30} height={20} variant="line" />
+                                {:then name}
+                                    <Badge
+                                        size="xs"
+                                        type="success"
+                                        variant="secondary"
+                                        content={name} />
+                                {/await}
+                            {/if}
+                        {/if}
+                    </svelte:fragment>
+                    {#await avatarList}
+                        <Skeleton width={40} height={40} variant="circle" />
+                    {:then avatars}
+                        <AvatarGroup {avatars} />
+                    {/await}
+                </GridItem1>
+            {/each}
+            <svelte:fragment slot="empty">
+                <p>Create a new organization</p>
+            </svelte:fragment>
+        </CardContainer>
+    {:else}
+        <Empty single on:click={createOrg} target="organization">
+            <p>Create a new organization</p>
+        </Empty>
+    {/if}
+
+    <PaginationWithLimit
+        name="Organizations"
+        limit={data.limit}
+        offset={data.offset}
+        total={data.organizations.total} />
+</Container>
+
+<CreateOrganization bind:show={addOrganization} />

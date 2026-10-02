@@ -1,0 +1,20 @@
+
+  pre.svelte-1i97yq6 {
+    line-height: 1.1;
+    background: #222;
+    color: #fff;
+    margin: 0;
+    padding: 10px;
+    font-size: 12px;
+    overflow: auto;
+    max-height: 400px;
+  }
+
+  pre.svelte-1i97yq6::-webkit-scrollbar {
+    background: transparent;
+    width: 10px;
+  }
+
+  pre.svelte-1i97yq6::-webkit-scrollbar-thumb {
+    background: #999;
+  }

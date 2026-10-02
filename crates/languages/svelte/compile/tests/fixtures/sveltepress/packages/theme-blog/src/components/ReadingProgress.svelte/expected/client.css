@@ -1,0 +1,20 @@
+
+  .sp-reading-progress.svelte-akrghc {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    z-index: 100;
+    pointer-events: none;
+    background: transparent;
+  }
+  .sp-reading-progress.svelte-akrghc::after {
+    content: '';
+    display: block;
+    height: 100%;
+    width: calc(var(--progress) * 100%);
+    background: var(--sp-blog-primary);
+    transition: width 0.1s linear;
+    will-change: width;
+  }

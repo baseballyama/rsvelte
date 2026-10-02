@@ -1,0 +1,8 @@
+warning state_referenced_locally 558:31-558:44 This reference only captures the initial value of `selectedIndex`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning non_reactive_update 535:7-535:47 `floatingLabel` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 536:7-536:41 `lineRipple` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 537:7-537:49 `notchedOutline` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

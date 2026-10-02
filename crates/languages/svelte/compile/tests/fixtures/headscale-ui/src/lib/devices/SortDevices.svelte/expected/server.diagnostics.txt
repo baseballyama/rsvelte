@@ -1,0 +1,10 @@
+warning event_directive_deprecated 17:3-17:14 Using `on:keypress` to listen to the keypress event is deprecated. Use the event attribute `onkeypress` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 17:15-19:5 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 37:57-37:115 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 38:64-38:129 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 39:63-39:127 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated

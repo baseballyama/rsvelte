@@ -1,0 +1,23 @@
+<script lang="ts">
+	import { setContext, type Snippet } from "svelte"
+	import { createCollapseState } from "./root.svelte.js"
+
+	interface Props {
+		multiple?: boolean | undefined
+		children: Snippet | undefined
+	}
+	let { multiple = false, children }: Props = $props()
+
+	const collapseState = createCollapseState({ multiple: multiple, item: [] })
+
+	setContext("collapse", collapseState)
+</script>
+
+<div
+	class="*:border-kui-light-gray-200 dark:*:border-kui-dark-gray-400 last:border-kui-light-gray-200 dark:last:border-kui-dark-gray-400
+ w-full *:border-t last:border-b"
+>
+	{#if children}
+		{@render children()}
+	{/if}
+</div>

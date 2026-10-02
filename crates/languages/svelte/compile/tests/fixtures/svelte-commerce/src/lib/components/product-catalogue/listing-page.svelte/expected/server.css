@@ -1,0 +1,27 @@
+
+	/* ---- Refined Editorial · PLP shell (default theme only) ----
+	   For every other theme the wrapper is display:contents, so it adds no
+	   box and the original layout is untouched. */
+	.ed-plp.svelte-109fhqo {
+		display: contents;
+	}
+
+	[data-theme='default'] .ed-plp.svelte-109fhqo {
+		display: block;
+		background: var(--ed-surface);
+		padding-bottom: clamp(48px, 8vw, 100px);
+	}
+
+	[data-theme='default'] .ed-plp__crumbs.svelte-109fhqo {
+		padding-top: clamp(20px, 3vw, 34px);
+	}
+
+	[data-theme='default'] .ed-plp__row.svelte-109fhqo {
+		gap: clamp(24px, 3vw, 48px);
+		padding-top: clamp(20px, 2.6vw, 34px);
+	}
+
+	[data-theme='default'] .ed-plp__aside.svelte-109fhqo {
+		border-right: 1px solid var(--ed-line);
+		padding-right: clamp(16px, 1.8vw, 30px);
+	}

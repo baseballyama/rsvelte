@@ -1,0 +1,7 @@
+
+	input[type='radio'].svelte-5alodk {
+		@apply appearance-none;
+	}
+	._sft-checked.svelte-5alodk {
+		@apply border-blue-500 font-bold;
+	}

@@ -1,0 +1,2 @@
+warning state_referenced_locally 33:9-33:21 This reference only captures the initial value of `onlyExisting`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

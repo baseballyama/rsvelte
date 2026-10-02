@@ -1,0 +1,13 @@
+{
+	"commit": "ce7569c8473b70f6f8359385f2dbd6af66f21e55",
+	"license": "BSD-3-Clause",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/gurucomputing/headscale-ui.git"
+}

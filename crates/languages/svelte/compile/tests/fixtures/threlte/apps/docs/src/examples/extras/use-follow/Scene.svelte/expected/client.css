@@ -1,0 +1,43 @@
+
+  .overlay.svelte-bh3o30 {
+    font-family: 'Inter', system-ui, sans-serif;
+    color: white;
+    text-align: center;
+    user-select: none;
+    pointer-events: none;
+    width: 260px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  }
+
+  .hint.svelte-bh3o30 {
+    font-size: 12px;
+    opacity: 0.8;
+    margin: 0 0 4px;
+  }
+
+  .stats.svelte-bh3o30 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 12px;
+    opacity: 0.8;
+  }
+
+  .value.svelte-bh3o30 {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .badge.svelte-bh3o30 {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .on.svelte-bh3o30 {
+    background: rgba(74, 144, 217, 0.8);
+  }

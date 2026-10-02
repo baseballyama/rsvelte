@@ -1,0 +1,22 @@
+
+	@keyframes svelte-yrwm06-spin {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
+	}
+	.spin_anim.svelte-yrwm06 {
+		animation-name: svelte-yrwm06-spin;
+		animation-timing-function: linear;
+		animation-iteration-count: infinite;
+	}
+	.line_top_gradient.svelte-yrwm06 {
+		background:
+			linear-gradient(to right, transparent 50%, var(--line) 50%),
+			linear-gradient(to right, rgba(186, 186, 186, 0), rgba(186, 186, 186, 1));
+		background-size:
+			10px 1px,
+			100% 1px;
+	}

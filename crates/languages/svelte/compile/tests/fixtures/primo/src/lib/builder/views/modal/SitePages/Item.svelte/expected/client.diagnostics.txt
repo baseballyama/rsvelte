@@ -1,0 +1,10 @@
+warning state_referenced_locally 65:27-65:31 This reference only captures the initial value of `page`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning non_reactive_update 242:6-242:19 `name_input_el` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning css_unused_selector 537:4-537:6 Unused CSS selector "hr"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 616:5-616:12 Unused CSS selector "div.url"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 623:6-623:10 Unused CSS selector "span"
+    https://svelte.dev/e/css_unused_selector

@@ -1,0 +1,2 @@
+warning perf_avoid_inline_class 2:12-4:3 Avoid 'new class' — instead, declare the class at the top level scope
+    https://svelte.dev/e/perf_avoid_inline_class

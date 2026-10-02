@@ -1,0 +1,30 @@
+
+	.header.svelte-10tpybp {
+		height: 32px;
+		display: flex;
+		border-bottom: 1px #ddd solid;
+	}
+	.title.svelte-10tpybp {
+		font-size: 120%;
+		display: flex;
+		align-items: center;
+		padding-right: 16px;
+	}
+	.menu.svelte-10tpybp {
+		padding: 4px 16px;
+		border-radius: 4px 4px 0 0;
+		border-color: #ddd #ddd transparent #ddd;
+		border-style: solid;
+		border-width: 1px;
+	}
+	.menu.active.svelte-10tpybp {
+		margin-bottom: -2px;
+		border-bottom: 2px solid #ff3e00;
+	}
+	.github-link.svelte-10tpybp {
+		display: flex;
+		align-items: center;
+	}
+	.debug.svelte-10tpybp {
+		display: none;
+	}

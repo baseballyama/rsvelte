@@ -1,0 +1,13 @@
+{
+	"commit": "844ac255a78bcec2afb3c85df471eb5f4aa761e9",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/wobsoriano/svelte-sonner"
+}

@@ -1,0 +1,29 @@
+import * as $ from 'svelte/internal/server';
+import { TooltipRootContext } from '../modules/root-context.js';
+import { mergeProps, portal } from '@zag-js/svelte';
+import { createAttachmentKey, fromAction } from 'svelte/attachments';
+
+export default function Positioner($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const { $$slots, $$events, ...props } = $$props;
+		const tooltip = TooltipRootContext.consume();
+
+		const element = $.derived(() => props.element),
+			children = $.derived(() => props.children),
+			rest = $.derived(() => $.exclude_from_object(props, ['element', 'children']));
+
+		const attributes = $.derived(() => mergeProps(tooltip().getPositionerProps(), { [createAttachmentKey()]: fromAction(portal, () => undefined) }, rest()));
+
+		if (element()) {
+			$$renderer.push('<!--[0-->');
+			element()($$renderer, attributes());
+			$$renderer.push(`<!---->`);
+		} else {
+			$$renderer.push(`<!--[-1--><div${$.attributes({ ...attributes() })}>`);
+			children()?.($$renderer);
+			$$renderer.push(`<!----></div>`);
+		}
+
+		$$renderer.push(`<!--]-->`);
+	});
+}

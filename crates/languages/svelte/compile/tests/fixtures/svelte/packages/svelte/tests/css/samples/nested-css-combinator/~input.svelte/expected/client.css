@@ -1,0 +1,10 @@
+
+	.foo.svelte-230yvb {
+		> .bar:where(.svelte-230yvb) {
+			color: red;
+		}
+
+		/* (unused) ~ .unused {
+			color: red;
+		}*/
+	}

@@ -1,0 +1,10 @@
+warning state_referenced_locally 27:31-27:40 This reference only captures the initial value of `page_type`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 30:34-30:43 This reference only captures the initial value of `page_type`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 47:20-47:29 This reference only captures the initial value of `page_type`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 48:20-48:29 This reference only captures the initial value of `page_type`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 58:44-58:53 This reference only captures the initial value of `page_type`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

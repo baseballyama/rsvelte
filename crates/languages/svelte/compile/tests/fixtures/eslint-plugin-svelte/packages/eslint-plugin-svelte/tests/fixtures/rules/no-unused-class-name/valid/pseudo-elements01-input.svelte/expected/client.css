@@ -1,0 +1,7 @@
+
+	.div-class.svelte-a92x7m:visited {
+		color: red;
+	}
+	.span-class.svelte-a92x7m::before {
+		color: red;
+	}

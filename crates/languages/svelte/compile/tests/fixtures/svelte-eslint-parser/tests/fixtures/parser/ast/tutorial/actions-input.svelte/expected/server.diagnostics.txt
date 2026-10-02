@@ -1,0 +1,6 @@
+warning event_directive_deprecated 45:2-45:30 Using `on:panstart` to listen to the panstart event is deprecated. Use the event attribute `onpanstart` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 46:2-46:28 Using `on:panmove` to listen to the panmove event is deprecated. Use the event attribute `onpanmove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 47:2-47:26 Using `on:panend` to listen to the panend event is deprecated. Use the event attribute `onpanend` instead
+    https://svelte.dev/e/event_directive_deprecated

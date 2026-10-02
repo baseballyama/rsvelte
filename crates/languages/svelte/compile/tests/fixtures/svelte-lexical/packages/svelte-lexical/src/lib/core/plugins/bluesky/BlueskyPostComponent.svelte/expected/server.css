@@ -1,0 +1,6 @@
+
+  /* :global {*/
+    @import 'bluesky-post-embed/style.css';
+    @import 'bluesky-post-embed/themes/light.css' (prefers-color-scheme: light);
+    @import 'bluesky-post-embed/themes/dim.css' (prefers-color-scheme: dark);
+  /*}*/

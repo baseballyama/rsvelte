@@ -1,0 +1,6 @@
+warning unknown_code 4:19-4:41 `static-state-reference` is not a recognised code
+    https://svelte.dev/e/unknown_code
+warning state_referenced_locally 5:14-5:19 This reference only captures the initial value of `count`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning unknown_code 7:20-7:42 `static-state-reference` is not a recognised code
+    https://svelte.dev/e/unknown_code

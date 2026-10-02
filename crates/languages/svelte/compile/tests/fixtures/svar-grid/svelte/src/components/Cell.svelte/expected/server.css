@@ -1,0 +1,66 @@
+
+	.wx-measure-cell-body,
+	.wx-print-cell,
+	.wx-cell.svelte-ys2x3c {
+		background: inherit;
+		box-sizing: border-box;
+		padding: 8px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.wx-print-tree-cell,
+	.wx-tree-cell.svelte-ys2x3c {
+		display: flex;
+	}
+
+	.wx-measure-cell-body,
+	.wx-cell.svelte-ys2x3c:not(:last-child) {
+		border-right: var(--wx-table-cell-border);
+	}
+
+	.wx-print-draggable,
+	.wx-draggable.svelte-ys2x3c,
+	.wx-draggable-stub.svelte-ys2x3c {
+		display: inline-block;
+		vertical-align: middle;
+		margin-right: 3px;
+		font-size: 20px;
+		height: 20px;
+		width: 20px;
+	}
+
+	.wx-draggable.svelte-ys2x3c {
+		cursor: move;
+	}
+
+	.wx-shadow.wx-cell.svelte-ys2x3c {
+		border-right: var(--wx-table-fixed-column-border);
+		clip-path: inset(0px -15px 0px 0px);
+		z-index: 1;
+	}
+
+	.wx-fixed-right.wx-shadow.wx-cell.svelte-ys2x3c {
+		border-right: var(--wx-table-cell-border);
+		border-left: var(--wx-table-fixed-column-border);
+	}
+	.wx-fixed-right.wx-shadow.wx-cell.svelte-ys2x3c:last-child {
+		border-right: none;
+	}
+
+	.wx-print-grid-tree-toggle,
+	.wx-table-tree-toggle.svelte-ys2x3c {
+		font-size: 20px;
+		cursor: pointer;
+		margin: 0 4px 0 0;
+		display: inline-block;
+	}
+
+	.wx-cell[tabindex="0"].svelte-ys2x3c:focus {
+		outline: 1px solid var(--wx-color-primary);
+		outline-offset: -1px;
+	}
+
+	.wx-search.svelte-ys2x3c {
+		background-color: #ffeb3b;
+	}

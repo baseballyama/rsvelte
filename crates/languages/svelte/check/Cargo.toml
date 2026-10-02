@@ -12,5 +12,12 @@ rsvelte_kernel.workspace = true
 rsvelte_typescript_check.workspace = true
 rsvelte_typescript.workspace = true
 
+[dev-dependencies]
+rsvelte_fixture_test.workspace = true
+
+[[test]]
+name = "fixtures"
+harness = false
+
 [lints]
 workspace = true

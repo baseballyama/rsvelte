@@ -1,0 +1,198 @@
+
+	.code-preview.svelte-sjqicf {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+
+		.error-panel:where(.svelte-sjqicf) {
+			background: var(--color-gray-9);
+			border: 1px solid var(--primo-color-danger);
+			color: var(--primo-color-white);
+			display: flex;
+			flex-direction: column;
+			gap: 0.75rem;
+			padding: 0.75rem 0.875rem;
+		}
+
+		.error-header:where(.svelte-sjqicf) {
+			display: flex;
+			align-items: flex-start;
+			gap: 0.75rem;
+		}
+
+		.error-icon:where(.svelte-sjqicf) {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			color: var(--primo-color-white);
+			flex-shrink: 0;
+		}
+
+		.error-text:where(.svelte-sjqicf) {
+			display: flex;
+			flex-direction: column;
+			gap: 0.25rem;
+			min-width: 0;
+		}
+
+		.error-title:where(.svelte-sjqicf) {
+			font-weight: 600;
+			letter-spacing: 0.01em;
+			text-transform: capitalize;
+		}
+
+		.error-body:where(.svelte-sjqicf) {
+			background: rgba(0, 0, 0, 0.25);
+			border-radius: 0.5rem;
+			padding: 0.75rem;
+			max-height: 18rem;
+			overflow: auto;
+			font-size: 0.85rem;
+			line-height: 1.4;
+		}
+
+		.error-body:where(.svelte-sjqicf) code:where(.svelte-sjqicf) {
+			display: block;
+			white-space: pre-wrap;
+			word-break: break-word;
+		}
+
+		.block-data:where(.svelte-sjqicf) {
+			background: var(--color-gray-9);
+			border-bottom: 1px solid var(--color-gray-8);
+		}
+
+		.block-data-header:where(.svelte-sjqicf) {
+			display: flex;
+			align-items: center;
+			width: 100%;
+			gap: 0.25rem;
+			padding: 5px;
+			background: var(--color-gray-9);
+			color: #eee;
+			font-size: 0.675rem;
+			cursor: pointer;
+			transition: var(--transition-colors);
+
+			&:hover {
+				background: var(--color-gray-8);
+			}
+
+			.chevron:where(.svelte-sjqicf) {
+				display: flex;
+				align-items: center;
+				transition: transform 0.1s;
+			}
+
+			.chevron.rotated:where(.svelte-sjqicf) {
+				transform: rotate(90deg);
+			}
+		}
+
+		/* (empty) .block-data-content {
+		}*/
+
+		/* (empty) .logs {
+		}*/
+	}
+	iframe.svelte-sjqicf {
+		opacity: 0;
+		border: 0;
+		transition: opacity 0.2s;
+		background: var(--primo-color-white);
+		height: 100%;
+		width: 100%;
+		transform-origin: top left;
+	}
+	.fadein.svelte-sjqicf {
+		opacity: 1;
+	}
+	.preview-container.svelte-sjqicf {
+		background: var(--primo-color-white);
+		border: 2px solid var(--color-gray-8);
+		overflow: hidden;
+		transition: border-color 0.2s;
+		will-change: border-color;
+		border-bottom: 0;
+		flex: 1;
+	}
+	.preview-container.loading.svelte-sjqicf {
+		border-color: var(--color-gray-7);
+	}
+	.footer-buttons.svelte-sjqicf {
+		display: flex;
+		flex-wrap: wrap;
+
+		.preview-width:where(.svelte-sjqicf) {
+			background: var(--primo-color-black);
+			font-weight: 500;
+			z-index: 10;
+			display: flex;
+			align-items: center;
+
+			span:where(.svelte-sjqicf) {
+				padding: 0.5rem;
+				font-size: 0.75rem;
+				border: 1px solid var(--color-gray-9);
+				background: var(--color-gray-9);
+
+				&:first-child {
+					padding-right: 0;
+				}
+
+				&:last-child {
+					padding-left: 0.25rem;
+				}
+			}
+
+			.static-width:where(.svelte-sjqicf) {
+				&:focus-visible {
+					outline: none;
+				}
+				&::selection {
+					background: var(--color-gray-7);
+				}
+			}
+		}
+
+		.switch-view:where(.svelte-sjqicf) {
+			flex: 1;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 0.5rem;
+		}
+
+		.preview-orientation:where(.svelte-sjqicf) {
+			font-size: 1.25rem;
+			padding: 0.25rem 0.5rem;
+		}
+
+		.auto-refresh:where(.svelte-sjqicf) {
+			font-size: 1.5rem;
+			padding: 0.25rem 0.5rem;
+			opacity: 0.5;
+
+			&.toggled {
+				opacity: 1;
+			}
+		}
+	}
+
+	.footer-buttons.svelte-sjqicf {
+		button:where(.svelte-sjqicf) {
+			outline: 0;
+			background: var(--color-gray-9);
+			border: 1px solid var(--color-gray-8);
+			font-size: var(--font-size-1);
+			padding: 0.5rem;
+			display: block;
+			text-align: center;
+			transition: var(--transition-colors);
+
+			&:hover {
+				background: var(--color-gray-8);
+			}
+		}
+	}

@@ -1,0 +1,9 @@
+
+	.wx-rangecalendar.svelte-lgxeuh {
+		display: flex;
+		padding-bottom: var(--wx-calendar-padding);
+	}
+
+	.wx-half.svelte-lgxeuh {
+		flex: 1;
+	}

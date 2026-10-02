@@ -1,0 +1,30 @@
+warning event_directive_deprecated 103:10-103:39 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 104:10-104:39 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_click_events_have_key_events 107:1-118:7 Visible, non-interactive element `<svg>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+    https://svelte.dev/e/a11y_click_events_have_key_events
+warning a11y_no_static_element_interactions 107:1-118:7 `<svg>` with a click handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning event_directive_deprecated 107:6-107:28 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_click_events_have_key_events 109:3-116:5 Visible, non-interactive element `<circle>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+    https://svelte.dev/e/a11y_click_events_have_key_events
+warning a11y_no_static_element_interactions 109:3-116:5 `<circle>` with a click or contextmenu handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning event_directive_deprecated 110:4-110:47 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 111:4-114:7 Using `on:contextmenu` to listen to the contextmenu event is deprecated. Use the event attribute `oncontextmenu` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 123:42-123:59 Using `on:input` to listen to the input event is deprecated. Use the event attribute `oninput` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning non_reactive_update 10:6-10:7 `i` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 11:6-11:15 `undoStack` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 12:6-12:13 `circles` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 13:6-13:14 `selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 14:6-14:15 `adjusting` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

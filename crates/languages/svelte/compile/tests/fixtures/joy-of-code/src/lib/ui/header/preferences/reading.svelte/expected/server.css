@@ -1,0 +1,33 @@
+
+	.slider.svelte-7mfisf {
+		display: grid;
+		justify-items: center;
+		row-gap: var(--spacing-16);
+	}
+
+	input[type='range'].svelte-7mfisf {
+		appearance: none;
+		height: 4px;
+		background-color: hsl(0 0% 24%);
+		border-radius: var(--rounded-20);
+
+		&::-webkit-slider-thumb {
+			appearance: none;
+			width: 16px;
+			height: 16px;
+			background-color: var(--clr-primary);
+			border-radius: 50%;
+			box-shadow: var(--shadow-sm);
+			cursor: pointer;
+		}
+
+		&::-moz-range-thumb {
+			appearance: none;
+			width: 16px;
+			height: 16px;
+			background-color: var(--clr-primary);
+			border-radius: 50%;
+			box-shadow: var(--shadow-sm);
+			cursor: pointer;
+		}
+	}

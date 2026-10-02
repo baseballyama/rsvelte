@@ -1,0 +1,4 @@
+warning state_referenced_locally 70:22-70:37 This reference only captures the initial value of `selectedCarNode`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 70:41-70:57 This reference only captures the initial value of `groupedHierarchy`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

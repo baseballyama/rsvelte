@@ -1,0 +1,13 @@
+{
+	"commit": "0499ba8041b526cf4a6cc677faeacc90c8ce4ce8",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/max-got/originui-svelte.git"
+}

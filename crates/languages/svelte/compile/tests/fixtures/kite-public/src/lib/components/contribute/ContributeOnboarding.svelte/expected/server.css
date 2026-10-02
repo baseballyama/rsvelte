@@ -1,0 +1,168 @@
+
+	/* Hero entrance animation */
+	.hero-fade.svelte-cvsk4a {
+		opacity: 0;
+		transform: translateY(16px);
+		animation: svelte-cvsk4a-hero-enter 0.6s ease-out forwards;
+	}
+
+	@keyframes svelte-cvsk4a-hero-enter {
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	/* Scroll-reveal sections */
+	.reveal-section.svelte-cvsk4a {
+		opacity: 0;
+		transform: translateY(24px);
+		transition:
+			opacity 0.5s ease-out,
+			transform 0.5s ease-out;
+	}
+	.reveal-section.svelte-cvsk4a.revealed {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	/* === Clustering SVG animation === */
+	@keyframes svelte-cvsk4a-cluster-a1 {
+		0%, 15% { transform: translate(0, 0); opacity: 0.7; }
+		50%, 75% { transform: translate(25px, 35px); opacity: 1; }
+		90%, 100% { transform: translate(0, 0); opacity: 0.7; }
+	}
+	@keyframes svelte-cvsk4a-cluster-a2 {
+		0%, 15% { transform: translate(0, 0); opacity: 0.7; }
+		50%, 75% { transform: translate(-25px, -35px); opacity: 1; }
+		90%, 100% { transform: translate(0, 0); opacity: 0.7; }
+	}
+	@keyframes svelte-cvsk4a-cluster-a3 {
+		0%, 15% { transform: translate(0, 0); opacity: 0.7; }
+		50%, 75% { transform: translate(5px, 0); opacity: 1; }
+		90%, 100% { transform: translate(0, 0); opacity: 0.7; }
+	}
+	@keyframes svelte-cvsk4a-cluster-a4 {
+		0%, 15% { transform: translate(0, 0); opacity: 0.6; }
+		50%, 75% { transform: translate(40px, -15px); opacity: 0.9; }
+		90%, 100% { transform: translate(0, 0); opacity: 0.6; }
+	}
+	@keyframes svelte-cvsk4a-cluster-a5 {
+		0%, 15% { transform: translate(0, 0); opacity: 0.6; }
+		50%, 75% { transform: translate(-20px, 25px); opacity: 0.9; }
+		90%, 100% { transform: translate(0, 0); opacity: 0.6; }
+	}
+	@keyframes svelte-cvsk4a-cluster-b1 {
+		0%, 15% { transform: translate(0, 0); opacity: 0.7; }
+		50%, 75% { transform: translate(28px, 27px); opacity: 1; }
+		90%, 100% { transform: translate(0, 0); opacity: 0.7; }
+	}
+	@keyframes svelte-cvsk4a-cluster-b2 {
+		0%, 15% { transform: translate(0, 0); opacity: 0.7; }
+		50%, 75% { transform: translate(-22px, -28px); opacity: 1; }
+		90%, 100% { transform: translate(0, 0); opacity: 0.7; }
+	}
+	@keyframes svelte-cvsk4a-cluster-b3 {
+		0%, 15% { transform: translate(0, 0); opacity: 0.7; }
+		50%, 75% { transform: translate(8px, -13px); opacity: 1; }
+		90%, 100% { transform: translate(0, 0); opacity: 0.7; }
+	}
+	@keyframes svelte-cvsk4a-cluster-b4 {
+		0%, 15% { transform: translate(0, 0); opacity: 0.6; }
+		50%, 75% { transform: translate(-37px, 17px); opacity: 0.9; }
+		90%, 100% { transform: translate(0, 0); opacity: 0.6; }
+	}
+	@keyframes svelte-cvsk4a-lone-l1 {
+		0%, 15% { opacity: 0.7; transform: translate(0, 0); }
+		50%, 75% { opacity: 0.35; transform: translate(4px, -6px); }
+		90%, 100% { opacity: 0.7; transform: translate(0, 0); }
+	}
+	@keyframes svelte-cvsk4a-lone-l2 {
+		0%, 15% { opacity: 0.7; transform: translate(0, 0); }
+		50%, 75% { opacity: 0.35; transform: translate(-5px, 4px); }
+		90%, 100% { opacity: 0.7; transform: translate(0, 0); }
+	}
+	@keyframes svelte-cvsk4a-lone-l3 {
+		0%, 20% { opacity: 0.6; transform: translate(0, 0); }
+		55%, 75% { opacity: 0.3; transform: translate(6px, 5px); }
+		90%, 100% { opacity: 0.6; transform: translate(0, 0); }
+	}
+	@keyframes svelte-cvsk4a-ring-appear {
+		0%, 30% { opacity: 0; transform: scale(0.5); }
+		50%, 75% { opacity: 0.5; transform: scale(1); }
+		90%, 100% { opacity: 0; transform: scale(0.5); }
+	}
+	@keyframes svelte-cvsk4a-label-appear {
+		0%, 35% { opacity: 0; }
+		55%, 75% { opacity: 0.8; }
+		90%, 100% { opacity: 0; }
+	}
+
+	.dot-a1.svelte-cvsk4a { animation: svelte-cvsk4a-cluster-a1 7s ease-in-out infinite; }
+	.dot-a2.svelte-cvsk4a { animation: svelte-cvsk4a-cluster-a2 7s ease-in-out infinite; }
+	.dot-a3.svelte-cvsk4a { animation: svelte-cvsk4a-cluster-a3 7s ease-in-out infinite; }
+	.dot-a4.svelte-cvsk4a { animation: svelte-cvsk4a-cluster-a4 7s ease-in-out infinite; }
+	.dot-a5.svelte-cvsk4a { animation: svelte-cvsk4a-cluster-a5 7s ease-in-out infinite; }
+	.dot-b1.svelte-cvsk4a { animation: svelte-cvsk4a-cluster-b1 7s ease-in-out infinite; }
+	.dot-b2.svelte-cvsk4a { animation: svelte-cvsk4a-cluster-b2 7s ease-in-out infinite; }
+	.dot-b3.svelte-cvsk4a { animation: svelte-cvsk4a-cluster-b3 7s ease-in-out infinite; }
+	.dot-b4.svelte-cvsk4a { animation: svelte-cvsk4a-cluster-b4 7s ease-in-out infinite; }
+	.dot-l1.svelte-cvsk4a { animation: svelte-cvsk4a-lone-l1 7s ease-in-out infinite; }
+	.dot-l2.svelte-cvsk4a { animation: svelte-cvsk4a-lone-l2 7s 0.3s ease-in-out infinite; }
+	.dot-l3.svelte-cvsk4a { animation: svelte-cvsk4a-lone-l3 7s 0.5s ease-in-out infinite; }
+	.ring-a.svelte-cvsk4a, .ring-b.svelte-cvsk4a { animation: svelte-cvsk4a-ring-appear 7s ease-in-out infinite; transform-origin: center; }
+	.label-a.svelte-cvsk4a, .label-b.svelte-cvsk4a { animation: svelte-cvsk4a-label-appear 7s ease-in-out infinite; }
+
+	/* === Bipartite flow animation (feeds → stories) === */
+	.bfeed.svelte-cvsk4a, .bstory.svelte-cvsk4a {
+		transform-box: fill-box;
+		transform-origin: center;
+	}
+
+	/* Pause animations until their section scrolls into view */
+	.reveal-section.svelte-cvsk4a .dot:where(.svelte-cvsk4a),
+	.reveal-section.svelte-cvsk4a .cluster-ring:where(.svelte-cvsk4a),
+	.reveal-section.svelte-cvsk4a .cluster-label:where(.svelte-cvsk4a),
+	.reveal-section.svelte-cvsk4a .bfeed:where(.svelte-cvsk4a),
+	.reveal-section.svelte-cvsk4a .bline:where(.svelte-cvsk4a),
+	.reveal-section.svelte-cvsk4a .bstory:where(.svelte-cvsk4a),
+	.reveal-section.svelte-cvsk4a .blabel:where(.svelte-cvsk4a) {
+		animation-play-state: paused;
+	}
+	.reveal-section.svelte-cvsk4a.revealed .dot:where(.svelte-cvsk4a),
+	.reveal-section.svelte-cvsk4a.revealed .cluster-ring:where(.svelte-cvsk4a),
+	.reveal-section.svelte-cvsk4a.revealed .cluster-label:where(.svelte-cvsk4a),
+	.reveal-section.svelte-cvsk4a.revealed .bfeed:where(.svelte-cvsk4a),
+	.reveal-section.svelte-cvsk4a.revealed .bline:where(.svelte-cvsk4a),
+	.reveal-section.svelte-cvsk4a.revealed .bstory:where(.svelte-cvsk4a),
+	.reveal-section.svelte-cvsk4a.revealed .blabel:where(.svelte-cvsk4a) {
+		animation-play-state: running;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.hero-fade.svelte-cvsk4a { opacity: 1; transform: none; animation: none; }
+		.reveal-section.svelte-cvsk4a { opacity: 1; transform: none; transition: none; }
+		.dot.svelte-cvsk4a, .cluster-ring.svelte-cvsk4a, .cluster-label.svelte-cvsk4a { animation: none !important; }
+		.dot-a1.svelte-cvsk4a { transform: translate(25px, 35px); opacity: 1; }
+		.dot-a2.svelte-cvsk4a { transform: translate(-25px, -35px); opacity: 1; }
+		.dot-a3.svelte-cvsk4a { transform: translate(5px, 0); opacity: 1; }
+		.dot-a4.svelte-cvsk4a { transform: translate(40px, -15px); opacity: 0.9; }
+		.dot-a5.svelte-cvsk4a { transform: translate(-20px, 25px); opacity: 0.9; }
+		.dot-b1.svelte-cvsk4a { transform: translate(28px, 27px); opacity: 1; }
+		.dot-b2.svelte-cvsk4a { transform: translate(-22px, -28px); opacity: 1; }
+		.dot-b3.svelte-cvsk4a { transform: translate(8px, -13px); opacity: 1; }
+		.dot-b4.svelte-cvsk4a { transform: translate(-37px, 17px); opacity: 0.9; }
+		.dot-l1.svelte-cvsk4a { opacity: 0.35; transform: translate(4px, -6px); }
+		.dot-l2.svelte-cvsk4a { opacity: 0.35; transform: translate(-5px, 4px); }
+		.dot-l3.svelte-cvsk4a { opacity: 0.3; transform: translate(6px, 5px); }
+		.ring-a.svelte-cvsk4a, .ring-b.svelte-cvsk4a { opacity: 0.5; transform: scale(1); }
+		.label-a.svelte-cvsk4a, .label-b.svelte-cvsk4a { opacity: 0.8; }
+		/* Bipartite flow: show fully connected state */
+		.bfeed.svelte-cvsk4a, .bline.svelte-cvsk4a, .bstory.svelte-cvsk4a, .blabel.svelte-cvsk4a { animation: none !important; }
+		.bfeed.svelte-cvsk4a { opacity: 0.7; transform: scale(1); }
+		.bfeed-you.svelte-cvsk4a { opacity: 0.9; transform: scale(1); }
+		.bline.svelte-cvsk4a { opacity: 0.25; stroke-dashoffset: 0; }
+		.bline-you.svelte-cvsk4a { opacity: 0.35; }
+		.bstory.svelte-cvsk4a { opacity: 0.6; transform: scale(1); }
+		.blabel.svelte-cvsk4a { opacity: 0.6; }
+	}

@@ -1,0 +1,40 @@
+
+  .link.svelte-17smh6p {
+    color: red;
+  }
+
+  .bold.svelte-17smh6p {
+    color: red;
+  }
+
+  .link.svelte-17smh6p:active {
+    color: red;
+  }
+
+  /* (unused) .link + .bold {
+    color: red;
+  }*/
+
+  /* (unused) .bold[data-key="val"] {
+    color: red;
+  }*/
+
+  .bold.svelte-17smh6p::before {
+    color: red;
+  }
+
+  i.svelte-17smh6p {
+    color: red;
+  }
+
+  i.svelte-17smh6p:active {
+    color: red;
+  }
+
+  /* (unused) .bold + i {
+    color: red;
+  }*/
+
+  i.svelte-17smh6p::before {
+    color: red;
+  }

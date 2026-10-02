@@ -1,0 +1,4 @@
+warning a11y_mouse_events_have_key_events 9:1-9:35 'mouseover' event must be accompanied by 'focus' event
+    https://svelte.dev/e/a11y_mouse_events_have_key_events
+warning a11y_mouse_events_have_key_events 15:1-15:34 'mouseout' event must be accompanied by 'blur' event
+    https://svelte.dev/e/a11y_mouse_events_have_key_events

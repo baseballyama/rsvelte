@@ -1,0 +1,2 @@
+warning a11y_invalid_attribute 28:4-28:12 '#' is not a valid href attribute
+    https://svelte.dev/e/a11y_invalid_attribute

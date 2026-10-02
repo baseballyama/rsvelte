@@ -1,0 +1,14 @@
+
+  div.svelte-awn0pb {
+    height: 100%;
+    display: flex;
+    place-items: center;
+    justify-content: center;
+  }
+
+  button.svelte-awn0pb {
+    background-color: white;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    height: fit-content;
+  }

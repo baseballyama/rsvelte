@@ -1,0 +1,12 @@
+
+	.virtual-list-wrapper.svelte-16nckvm {
+		overflow: auto;
+		will-change: transform;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.virtual-list-inner.svelte-16nckvm {
+		position: relative;
+		display: flex;
+		width: 100%;
+	}

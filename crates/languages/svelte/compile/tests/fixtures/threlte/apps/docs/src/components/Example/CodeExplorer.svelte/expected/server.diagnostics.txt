@@ -1,0 +1,2 @@
+warning state_referenced_locally 13:3-13:12 This reference only captures the initial value of `filePaths`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

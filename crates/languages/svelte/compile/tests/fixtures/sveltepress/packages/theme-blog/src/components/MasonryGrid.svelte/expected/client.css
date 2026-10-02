@@ -1,0 +1,17 @@
+
+  /* (empty) .sp-masonry-wrap {
+  }*/
+  .sp-masonry.svelte-1pedet4 {
+    columns: 1;
+    column-gap: 1rem;
+  }
+  @media (min-width: 640px) {
+    .sp-masonry.svelte-1pedet4 {
+      columns: 2;
+    }
+  }
+  @media (min-width: 1024px) {
+    .sp-masonry.svelte-1pedet4 {
+      columns: 3;
+    }
+  }

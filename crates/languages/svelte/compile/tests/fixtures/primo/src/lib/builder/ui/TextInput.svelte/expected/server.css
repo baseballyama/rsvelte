@@ -1,0 +1,98 @@
+
+	.TextInput.svelte-a16uxj {
+		display: flex;
+		/* width: 100%; */
+		flex: 1;
+		flex-wrap: wrap;
+		justify-content: flex-start;
+		/* gap: 0.5rem; */
+	}
+	.options.svelte-a16uxj {
+		display: flex;
+		border-radius: 0.25rem;
+		background: var(--color-gray-8);
+		padding-inline: 0.5rem;
+
+		option:where(.svelte-a16uxj) {
+			font-size: 0.75rem;
+			display: flex;
+			align-items: center;
+			gap: 0.25rem;
+			padding: 1px 10px;
+
+			&:not(:last-child) {
+				border-right: 1px solid var(--color-gray-7);
+			}
+		}
+	}
+	label.svelte-a16uxj {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		justify-content: flex-end;
+		/* gap: 0.25rem; */
+		color: var(--color-gray-2);
+		margin-top: var(--TextInput-mt, 0);
+		margin-bottom: var(--TextInput-mb, 0);
+		margin-right: var(--TextInput-mr, 0);
+		margin-left: var(--TextInput-ml, 0);
+		width: 100%;
+
+		span.primo--field-label:where(.svelte-a16uxj) {
+			font-size: var(--TextInput-label-font-size, 0.75rem);
+		}
+	}
+
+	.input-container.svelte-a16uxj {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		width: 100%;
+		background: var(--primo-color-codeblack);
+		border: 1px solid var(--color-gray-8);
+		color: var(--color-gray-2);
+		font-weight: 400;
+		border-radius: var(--input-border-radius);
+		padding: 6px 8px;
+		flex: 1;
+		transition: 0.1s;
+
+		&:has(input:where(.svelte-a16uxj):focus) {
+			border-color: var(--color-gray-7);
+		}
+
+		span.prefix:where(.svelte-a16uxj) {
+			display: flex;
+			align-items: center;
+			margin-right: 1rem;
+		}
+
+		input:where(.svelte-a16uxj),
+		textarea:where(.svelte-a16uxj) {
+			font-size: 0.875rem;
+			flex: 1;
+			background: transparent;
+			width: 100%;
+
+			&:focus {
+				outline: 0;
+			}
+
+			&::placeholder {
+				color: var(--color-gray-7);
+			}
+		}
+
+		button:where(.svelte-a16uxj) {
+			font-size: 0.75rem;
+			background: var(--color-gray-9);
+			padding: 3px 8px;
+			border-radius: var(--primo-border-radius);
+			transition: 0.1s;
+
+			&[disabled] {
+				opacity: 0.5;
+				cursor: initial;
+			}
+		}
+	}

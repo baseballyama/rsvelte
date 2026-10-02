@@ -1,0 +1,8 @@
+warning a11y_no_noninteractive_tabindex 4:3-4:36 noninteractive element cannot have nonnegative tabIndex value
+    https://svelte.dev/e/a11y_no_noninteractive_tabindex
+warning a11y_no_noninteractive_tabindex 5:3-5:25 noninteractive element cannot have nonnegative tabIndex value
+    https://svelte.dev/e/a11y_no_noninteractive_tabindex
+warning a11y_no_noninteractive_tabindex 14:3-14:36 noninteractive element cannot have nonnegative tabIndex value
+    https://svelte.dev/e/a11y_no_noninteractive_tabindex
+warning a11y_no_noninteractive_tabindex 15:3-15:25 noninteractive element cannot have nonnegative tabIndex value
+    https://svelte.dev/e/a11y_no_noninteractive_tabindex

@@ -1,0 +1,239 @@
+import * as $ from 'svelte/internal/server';
+import './FloatingLinkEditor.css';
+
+import {
+	$isLinkNode as isLinkNode,
+	$isAutoLinkNode as isAutoLinkNode,
+	TOGGLE_LINK_COMMAND,
+	$createLinkNode as createLinkNode
+} from '@lexical/link';
+
+import { mergeRegister, $findMatchingParent as findMatchingParent } from '@lexical/utils';
+
+import {
+	$getSelection as getSelection,
+	$isRangeSelection as isRangeSelection,
+	COMMAND_PRIORITY_HIGH,
+	COMMAND_PRIORITY_LOW,
+	KEY_ESCAPE_COMMAND,
+	SELECTION_CHANGE_COMMAND,
+	getDOMSelection,
+	$isNodeSelection as isNodeSelection
+} from 'lexical';
+
+import { onMount } from 'svelte';
+import getSelectedNode from '../../../components/toolbar/getSelectionInfo.js';
+import { setFloatingElemPositionForLinkEditor } from './setFloatingElemPositionForLinkEditor.js';
+import { sanitizeUrl } from './url.js';
+
+export default function FloatingLinkEditor($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let editorRef;
+		let inputRef = void 0;
+		let linkUrl = '';
+		let editedLinkUrl = '';
+		let { editor, isLink, anchorElem, isEditMode = false } = $$props;
+		let lastSelection = null;
+
+		function preventDefault(event) {
+			event.preventDefault();
+		}
+
+		onMount(() => {
+			const scrollerElem = anchorElem.parentElement;
+
+			const update = () => {
+				editor.getEditorState().read(() => {
+					updateLinkEditor();
+				});
+			};
+
+			window.addEventListener('resize', update);
+
+			if (scrollerElem) {
+				scrollerElem.addEventListener('scroll', update);
+			}
+
+			return mergeRegister(
+				() => {
+					window.removeEventListener('resize', update);
+
+					if (scrollerElem) {
+						scrollerElem.removeEventListener('scroll', update);
+					}
+				},
+				editor.registerUpdateListener(({ editorState }) => {
+					editorState.read(() => {
+						updateLinkEditor();
+					});
+				}),
+				editor.registerCommand(
+					SELECTION_CHANGE_COMMAND,
+					() => {
+						updateLinkEditor();
+
+						return true;
+					},
+					COMMAND_PRIORITY_LOW
+				),
+				editor.registerCommand(
+					KEY_ESCAPE_COMMAND,
+					() => {
+						if (isLink) {
+							isLink = false;
+
+							return true;
+						}
+
+						return false;
+					},
+					COMMAND_PRIORITY_HIGH
+				)
+			);
+		});
+
+		// isLink = false; // goes into a race with code that launches link editor
+		function updateLinkEditor() {
+			const selection = getSelection();
+
+			if (isRangeSelection(selection)) {
+				const node = getSelectedNode(selection);
+				const linkParent = findMatchingParent(node, isLinkNode);
+
+				if (isLinkNode(linkParent)) {
+					linkUrl = linkParent.getURL();
+				} else if (isLinkNode(node)) {
+					linkUrl = node.getURL();
+				} else {
+					linkUrl = '';
+				}
+
+				if (isEditMode) {
+					editedLinkUrl = linkUrl;
+				}
+			} else if (isNodeSelection(selection)) {
+				const nodes = selection.getNodes();
+
+				if (nodes.length > 0) {
+					const node = nodes[0];
+					const parent = node.getParent();
+
+					if (isLinkNode(parent)) {
+						linkUrl = parent.getURL();
+					} else if (isLinkNode(node)) {
+						linkUrl = node.getURL();
+					} else {
+						linkUrl = '';
+					}
+				}
+
+				if (isEditMode) {
+					editedLinkUrl = linkUrl;
+				}
+			}
+
+			const editorElem = editorRef;
+			const nativeSelection = getDOMSelection(editor._window);
+			const activeElement = document.activeElement;
+
+			if (editorElem === null) {
+				return;
+			}
+
+			const rootElement = editor.getRootElement();
+
+			if (selection !== null && rootElement !== null && editor.isEditable()) {
+				let domRect;
+
+				if (isNodeSelection(selection)) {
+					const nodes = selection.getNodes();
+
+					if (nodes.length > 0) {
+						const element = editor.getElementByKey(nodes[0].getKey());
+
+						if (element) {
+							domRect = element.getBoundingClientRect();
+						}
+					}
+				} else if (nativeSelection !== null && rootElement.contains(nativeSelection.anchorNode)) {
+					domRect = nativeSelection.focusNode?.parentElement?.getBoundingClientRect();
+				}
+
+				if (domRect) {
+					domRect.y += 40;
+					setFloatingElemPositionForLinkEditor(domRect, editorElem, anchorElem);
+				}
+
+				lastSelection = selection;
+			} else if (!activeElement || activeElement.className !== 'link-input') {
+				if (rootElement !== null) {
+					setFloatingElemPositionForLinkEditor(null, editorElem, anchorElem);
+				}
+
+				lastSelection = null;
+				isEditMode = false;
+				linkUrl = '';
+			}
+
+			return true;
+		}
+
+		function monitorInputInteraction(event) {
+			if (event.key === 'Enter') {
+				handleLinkSubmission(event);
+			} else if (event.key === 'Escape') {
+				event.preventDefault();
+				isEditMode = false;
+			}
+		}
+
+		function handleLinkSubmission(event) {
+			event.preventDefault();
+
+			if (lastSelection !== null) {
+				if (linkUrl !== '') {
+					editor.update(() => {
+						editor.dispatchCommand(TOGGLE_LINK_COMMAND, sanitizeUrl(editedLinkUrl));
+
+						const selection = getSelection();
+
+						if (isRangeSelection(selection)) {
+							const parent = getSelectedNode(selection).getParent();
+
+							if (isAutoLinkNode(parent)) {
+								const linkNode = createLinkNode(parent.getURL(), {
+									rel: parent.__rel,
+									target: parent.__target,
+									title: parent.__title
+								});
+
+								parent.replace(linkNode, true);
+							}
+						}
+					});
+				}
+
+				isEditMode = false;
+			}
+		}
+
+		$$renderer.push(`<div class="link-editor">`);
+
+		if (isLink) {
+			$$renderer.push('<!--[0-->');
+
+			if (isEditMode) {
+				$$renderer.push(`<!--[0--><input class="link-input"${$.attr('value', editedLinkUrl)}/> <div><div class="link-cancel" role="button"${$.attr('tabindex', 0)}></div> <div class="link-confirm" role="button"${$.attr('tabindex', 0)}></div></div>`);
+			} else {
+				$$renderer.push(`<!--[-1--><div class="link-view"><a${$.attr('href', sanitizeUrl(linkUrl))} target="_blank" rel="noopener noreferrer">${$.escape(linkUrl)}</a>  <div class="link-edit" role="button"${$.attr('tabindex', 0)}></div> <div class="link-trash" role="button"${$.attr('tabindex', 0)}></div></div>`);
+			}
+
+			$$renderer.push(`<!--]-->`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+		$.bind_props($$props, { isEditMode });
+	});
+}

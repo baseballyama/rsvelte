@@ -1,0 +1,4 @@
+warning slot_element_deprecated 3:2-3:15 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated
+warning css_unused_selector 22:2-22:20 Unused CSS selector ":global(.x) + .bar"
+    https://svelte.dev/e/css_unused_selector

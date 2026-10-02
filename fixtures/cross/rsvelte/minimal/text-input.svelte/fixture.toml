@@ -1,2 +1,0 @@
-[behaviour]
-steps = [{ input = ["input.name", "Ada"] }, { input = ["input.name", ""] }, { input = ["input.name", "  two  words "] }]

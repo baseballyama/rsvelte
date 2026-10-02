@@ -1,0 +1,6 @@
+warning slot_element_deprecated 1:1-1:9 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated
+warning legacy_code 3:20-3:34 `a11y-autofocus` is no longer valid — please use `a11y_autofocus` instead
+    https://svelte.dev/e/legacy_code
+warning a11y_autofocus 4:8-4:17 Avoid using autofocus
+    https://svelte.dev/e/a11y_autofocus

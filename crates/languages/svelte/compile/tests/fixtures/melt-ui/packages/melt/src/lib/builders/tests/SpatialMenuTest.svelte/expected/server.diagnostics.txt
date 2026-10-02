@@ -1,0 +1,10 @@
+warning state_referenced_locally 45:50-45:55 This reference only captures the initial value of `items`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 57:3-57:7 This reference only captures the initial value of `wrap`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 58:3-58:12 This reference only captures the initial value of `crossAxis`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 59:3-59:15 This reference only captures the initial value of `toleranceCol`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 60:3-60:15 This reference only captures the initial value of `toleranceRow`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

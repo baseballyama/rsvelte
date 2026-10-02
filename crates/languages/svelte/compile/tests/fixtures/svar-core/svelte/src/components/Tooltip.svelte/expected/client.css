@@ -1,0 +1,83 @@
+
+	.wx-tooltip-area.svelte-5wzvst {
+		position: relative;
+		height: 100%;
+		width: 100%;
+	}
+
+	.wx-tooltip.svelte-5wzvst {
+		pointer-events: none;
+		position: absolute;
+		top: 0;
+		left: 0;
+		border: 1px solid var(--wx-tooltip-border, transparent);
+		border-radius: var(--wx-border-radius);
+		background-color: var(--wx-tooltip-background);
+		color: var(--wx-tooltip-font-color);
+		animation: svelte-5wzvst-wx-tooltip-appear 100ms ease-out;
+	}
+
+	.wx-tooltip-transition.svelte-5wzvst {
+		transition: translate 50ms ease;
+	}
+
+	@keyframes svelte-5wzvst-wx-tooltip-appear {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	.wx-tooltip-inner.svelte-5wzvst {
+		border-radius: var(--wx-border-radius);
+		overflow: hidden;
+	}
+
+	.wx-tooltip-text.svelte-5wzvst {
+		padding: var(--wx-tooltip-padding);
+		font: var(--wx-tooltip-font);
+		color: var(--wx-tooltip-font-color);
+	}
+
+	.wx-tooltip.wx-arrow-top.svelte-5wzvst::before,
+	.wx-tooltip.wx-arrow-bottom.svelte-5wzvst::before,
+	.wx-tooltip.wx-arrow-left.svelte-5wzvst::before,
+	.wx-tooltip.wx-arrow-right.svelte-5wzvst::before {
+		content: "";
+		position: absolute;
+		border: var(--wx-tooltip-arrow-size, 6px) solid transparent;
+	}
+
+	.wx-tooltip.wx-arrow-top.svelte-5wzvst::before {
+		top: 100%;
+		left: var(--wx-arrow-offset, 50%);
+		transform: translateX(-50%);
+		border-top-color: var(--wx-tooltip-background);
+		filter: drop-shadow(0 1px 0 var(--wx-tooltip-border, transparent));
+	}
+
+	.wx-tooltip.wx-arrow-bottom.svelte-5wzvst::before {
+		bottom: 100%;
+		left: var(--wx-arrow-offset, 50%);
+		transform: translateX(-50%);
+		border-bottom-color: var(--wx-tooltip-background);
+		filter: drop-shadow(0 -1px 0 var(--wx-tooltip-border, transparent));
+	}
+
+	.wx-tooltip.wx-arrow-left.svelte-5wzvst::before {
+		top: var(--wx-arrow-offset, 50%);
+		left: 100%;
+		transform: translateY(-50%);
+		border-left-color: var(--wx-tooltip-background);
+		filter: drop-shadow(1px 0 0 var(--wx-tooltip-border, transparent));
+	}
+
+	.wx-tooltip.wx-arrow-right.svelte-5wzvst::before {
+		top: var(--wx-arrow-offset, 50%);
+		right: 100%;
+		transform: translateY(-50%);
+		border-right-color: var(--wx-tooltip-background);
+		filter: drop-shadow(-1px 0 0 var(--wx-tooltip-border, transparent));
+	}

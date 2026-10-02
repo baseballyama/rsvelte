@@ -1,0 +1,13 @@
+{
+	"commit": "1dcdbad66c8f60d0255fec9196029626cb4bfebc",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/probablykasper/date-picker-svelte"
+}

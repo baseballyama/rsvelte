@@ -101,6 +101,20 @@ mise exec -- node $F adjust
 
 Tools are TypeScript, run directly by Node (version in `mise.toml`). No build step.
 
+## Crate fixture tests
+
+Cases live in the crate that owns the task, in `tests/fixtures/<case>/input.<ext>`. Each run
+writes rsvelte's output to `<case>/actual/` (not in git), next to `<case>/expected/`. A
+hand-written case expects rsvelte's own accepted output and fails on a difference. A case under
+`tests/fixtures/<source>/` is copied from `fixtures/` and expects the official output; its
+differences are counted, not failed. The full comparison with the oracles (as an AST) is only over
+`fixtures/`. Details: [crates/fixture_test/README.md](crates/fixture_test/README.md).
+
+```sh
+cargo test -p rsvelte_svelte_compile --test fixtures [-- <case filter>]
+UPDATE_EXPECT=1 cargo test -p rsvelte_svelte_compile --test fixtures   # accept new output; review the diff
+```
+
 ## How we know it is fast: measurements
 
 | Layer | What | Use |
@@ -162,7 +176,8 @@ translates them.
 | `crates/` | kernel, language cores and tools, and hosts; see [crates/README.md](crates/README.md) |
 | `docs/concept.md` | the concept and the reasons behind it |
 | `docs/fixtures.md` | why fixtures are designed the way they are |
-| `fixtures/` | test inputs, expected output, per-unit notes |
+| `fixtures/` | the external corpus: test inputs, oracle output, per-unit notes |
+| `crates/fixture_test/` | the snapshot harness for each crate's `tests/fixtures/` |
 | `tools/fixtures/` | import / regen / adjust / compare tools (TypeScript) |
 | `.claude/skills/` | skills for agents (table below) |
 | `.claude/scripts/` | scripts that skills share |

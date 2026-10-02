@@ -1,0 +1,30 @@
+
+  .svelte-jtuboe
+    
+      .shaped-outlined .mdc-notched-outline .mdc-notched-outline__leading
+     {
+    border-radius: 28px 0 0 28px;
+    width: 28px;
+  }
+  .svelte-jtuboe
+    
+      .shaped-outlined .mdc-notched-outline .mdc-notched-outline__trailing
+     {
+    border-radius: 0 28px 28px 0;
+  }
+  .svelte-jtuboe .shaped-outlined .mdc-notched-outline .mdc-notched-outline__notch {
+    max-width: calc(100% - 28px * 2);
+  }
+  .svelte-jtuboe
+    
+      .shaped-outlined.mdc-text-field--with-leading-icon:not(
+          .mdc-text-field--label-floating
+        )
+        .mdc-floating-label
+     {
+    left: 16px;
+  }
+  .svelte-jtuboe .shaped-outlined + .mdc-text-field-helper-line {
+    padding-left: 32px;
+    padding-right: 28px;
+  }

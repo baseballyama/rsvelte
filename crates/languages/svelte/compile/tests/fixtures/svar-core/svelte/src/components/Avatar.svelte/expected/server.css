@@ -1,0 +1,43 @@
+
+	.wx-avatar.svelte-kjji69 {
+		position: relative;
+		border-radius: 50%;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+		font-weight: 600;
+		line-height: 1;
+		user-select: none;
+	}
+
+	.wx-avatar.svelte-kjji69 img:where(.svelte-kjji69) {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.wx-avatar.svelte-kjji69 span:where(.svelte-kjji69) {
+		text-transform: uppercase;
+	}
+
+	.wx-avatar-overflow.svelte-kjji69 .wx-avatar-overflow-badge:where(.svelte-kjji69) {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: rgba(0, 0, 0, 0.5);
+		color: #fff;
+		text-transform: none;
+	}
+
+	.wx-avatar-stack.svelte-kjji69 {
+		display: inline-flex;
+		align-items: center;
+	}
+
+	.wx-avatar-root.svelte-kjji69 {
+		display: block;
+		min-width: 0;
+	}

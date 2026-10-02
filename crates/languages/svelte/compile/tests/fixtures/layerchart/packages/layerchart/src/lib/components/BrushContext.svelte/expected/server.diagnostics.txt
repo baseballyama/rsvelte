@@ -1,0 +1,14 @@
+warning state_referenced_locally 158:5-158:6 This reference only captures the initial value of `x`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 159:5-159:6 This reference only captures the initial value of `y`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 160:5-160:9 This reference only captures the initial value of `axis`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 161:5-161:14 This reference only captures the initial value of `minExtent`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 162:5-162:14 This reference only captures the initial value of `maxExtent`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 163:5-163:14 This reference only captures the initial value of `constrain`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 164:5-164:22 This reference only captures the initial value of `constrainToDomain`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

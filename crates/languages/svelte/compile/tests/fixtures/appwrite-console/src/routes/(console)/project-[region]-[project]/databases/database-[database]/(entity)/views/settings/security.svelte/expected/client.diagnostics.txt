@@ -1,0 +1,2 @@
+warning state_referenced_locally 17:42-17:48 This reference only captures the initial value of `entity`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

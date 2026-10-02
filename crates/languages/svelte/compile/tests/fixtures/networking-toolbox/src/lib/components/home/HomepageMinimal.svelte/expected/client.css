@@ -1,0 +1,17 @@
+
+  .hero-minimal.svelte-10330cd {
+    text-align: center;
+    padding: var(--spacing-lg) 0 var(--spacing-md);
+
+    h1:where(.svelte-10330cd) {
+      font-size: var(--font-size-2xl);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0;
+      line-height: 1.3;
+
+      @media (max-width: 768px) {
+        font-size: var(--font-size-xl);
+      }
+    }
+  }

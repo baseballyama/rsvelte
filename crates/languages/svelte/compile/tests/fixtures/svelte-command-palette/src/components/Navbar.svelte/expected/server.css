@@ -1,0 +1,124 @@
+
+	.navbar.svelte-d8j1hi {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		z-index: 100;
+		background: rgba(10, 10, 15, 0.8);
+		backdrop-filter: blur(20px);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.light .navbar.svelte-d8j1hi {
+		background: rgba(255, 255, 255, 0.8);
+	}
+
+	.navbar-container.svelte-d8j1hi {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 0.875rem 1.5rem;
+	}
+
+	.navbar-brand.svelte-d8j1hi {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		font-size: 1.125rem;
+		font-weight: 600;
+		color: var(--color-text-primary);
+		text-decoration: none;
+	}
+
+	.navbar-brand.svelte-d8j1hi svg:where(.svelte-d8j1hi) {
+		color: var(--color-accent);
+	}
+
+	.navbar-toggle.svelte-d8j1hi {
+		display: none;
+		background: none;
+		border: none;
+		color: var(--color-text-primary);
+		cursor: pointer;
+		padding: 0.5rem;
+	}
+
+	.navbar-menu.svelte-d8j1hi {
+		display: flex;
+		align-items: center;
+		gap: 2rem;
+	}
+
+	.navbar-link.svelte-d8j1hi {
+		font-size: 0.9375rem;
+		color: var(--color-text-secondary);
+		text-decoration: none;
+		transition: color var(--transition-fast);
+	}
+
+	.navbar-link.svelte-d8j1hi:hover,
+	.navbar-link.active.svelte-d8j1hi {
+		color: var(--color-text-primary);
+	}
+
+	.navbar-theme-toggle.svelte-d8j1hi {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 40px;
+		height: 40px;
+		background: var(--color-bg-tertiary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		color: var(--color-text-secondary);
+		cursor: pointer;
+		transition: all var(--transition-fast);
+	}
+
+	.navbar-theme-toggle.svelte-d8j1hi:hover {
+		background: var(--color-bg-hover);
+		color: var(--color-text-primary);
+	}
+
+	.navbar-cta.svelte-d8j1hi {
+		padding: 0.5rem 1.25rem;
+		font-size: 0.875rem;
+	}
+
+	@media (max-width: 768px) {
+		.navbar-toggle.svelte-d8j1hi {
+			display: flex;
+		}
+
+		.navbar-menu.svelte-d8j1hi {
+			position: fixed;
+			top: 60px;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			flex-direction: column;
+			gap: 1rem;
+			padding: 2rem;
+			background: var(--color-bg-primary);
+			border-top: 1px solid var(--color-border);
+			transform: translateX(100%);
+			transition: transform var(--transition-normal);
+		}
+
+		.navbar-menu.active.svelte-d8j1hi {
+			transform: translateX(0);
+		}
+
+		.navbar-link.svelte-d8j1hi {
+			font-size: 1.125rem;
+			padding: 0.75rem 0;
+		}
+
+		.navbar-cta.svelte-d8j1hi {
+			width: 100%;
+			margin-top: 1rem;
+		}
+	}

@@ -1,0 +1,18 @@
+warning css_unused_selector 30:3-30:23 Unused CSS selector ".splitpanes.my-theme"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 31:5-31:22 Unused CSS selector ".splitpanes__pane"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 34:5-34:26 Unused CSS selector ".splitpanes__splitter"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 37:7-37:15 Unused CSS selector "&:before"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 47:7-47:21 Unused CSS selector "&:hover:before"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 50:7-50:37 Unused CSS selector "&.splitpanes__splitter__active"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 55:3-55:12 Unused CSS selector ".my-theme"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 56:5-56:58 Unused CSS selector "&.splitpanes--vertical > .splitpanes__splitter:before"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 62:5-62:60 Unused CSS selector "&.splitpanes--horizontal > .splitpanes__splitter:before"
+    https://svelte.dev/e/css_unused_selector

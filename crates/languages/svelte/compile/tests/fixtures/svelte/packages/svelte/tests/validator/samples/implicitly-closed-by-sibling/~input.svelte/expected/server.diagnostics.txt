@@ -1,0 +1,4 @@
+warning element_implicitly_closed 2:2-2:19 This element is implicitly closed by the following `<p>`, which can cause an unexpected DOM structure. Add an explicit `</p>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 8:2-8:19 This element is implicitly closed by the following `<p>`, which can cause an unexpected DOM structure. Add an explicit `</p>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed

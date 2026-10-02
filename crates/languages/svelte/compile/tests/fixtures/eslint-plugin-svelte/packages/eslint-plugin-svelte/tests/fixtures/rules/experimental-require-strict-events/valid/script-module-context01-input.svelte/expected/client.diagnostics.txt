@@ -1,0 +1,4 @@
+warning script_unknown_attribute 4:19-4:31 Unrecognised attribute — should be one of `generics`, `lang` or `module`. If this exists for a preprocessor, ensure that the preprocessor removes it
+    https://svelte.dev/e/script_unknown_attribute
+warning script_context_deprecated 1:19-1:35 `context="module"` is deprecated, use the `module` attribute instead
+    https://svelte.dev/e/script_context_deprecated

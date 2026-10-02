@@ -1,0 +1,18 @@
+warning legacy_code 12:21-12:43 `a11y-missing-attribute` is no longer valid — please use `a11y_missing_attribute` instead
+    https://svelte.dev/e/legacy_code
+warning a11y_click_events_have_key_events 13:2-13:32 Visible, non-interactive element `<a>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+    https://svelte.dev/e/a11y_click_events_have_key_events
+warning a11y_no_static_element_interactions 13:2-13:32 `<a>` with a click handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning a11y_missing_attribute 13:2-13:32 `<a>` element should have an href attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning legacy_code 17:21-17:43 `a11y-missing-attribute` is no longer valid — please use `a11y_missing_attribute` instead
+    https://svelte.dev/e/legacy_code
+warning a11y_click_events_have_key_events 18:2-18:29 Visible, non-interactive element `<a>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+    https://svelte.dev/e/a11y_click_events_have_key_events
+warning a11y_no_static_element_interactions 18:2-18:29 `<a>` with a click handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning a11y_missing_attribute 18:2-18:29 `<a>` element should have an href attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning non_reactive_update 2:6-2:13 `visible` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

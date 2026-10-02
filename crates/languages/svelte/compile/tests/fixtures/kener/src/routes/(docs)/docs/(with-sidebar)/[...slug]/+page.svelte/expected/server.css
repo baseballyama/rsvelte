@@ -1,0 +1,67 @@
+
+  .copy-code-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.375rem;
+    border-radius: 0.375rem;
+    background-color: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
+    border: 1px solid hsl(var(--border));
+    cursor: pointer;
+    opacity: 0;
+    transition:
+      opacity 0.2s,
+      background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  pre:hover .copy-code-btn {
+    opacity: 1;
+  }
+
+  .copy-code-btn:hover {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+  }
+
+  .copy-code-btn.copied {
+    color: hsl(var(--primary));
+  }
+
+  /* Heading anchor links */
+  .heading-anchor {
+    position: absolute;
+    left: -1.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+    color: hsl(var(--muted-foreground));
+    opacity: 0;
+    transition:
+      opacity 0.2s,
+      color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  h2:hover .heading-anchor,
+  h3:hover .heading-anchor,
+  h4:hover .heading-anchor,
+  h5:hover .heading-anchor,
+  h6:hover .heading-anchor {
+    opacity: 1;
+  }
+
+  .heading-anchor:hover {
+    color: hsl(var(--primary));
+  }
+
+  .heading-anchor.copied {
+    opacity: 1;
+    color: hsl(var(--primary));
+  }

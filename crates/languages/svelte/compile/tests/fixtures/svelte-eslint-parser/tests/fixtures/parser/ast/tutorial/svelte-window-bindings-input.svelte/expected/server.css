@@ -1,0 +1,59 @@
+
+	.parallax-container.svelte-1a4we9h {
+		position: fixed;
+		width: 2400px;
+		height: 712px;
+		left: 50%;
+		transform: translate(-50%,0);
+	}
+
+	.parallax-container.svelte-1a4we9h img:where(.svelte-1a4we9h) {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		will-change: transform;
+	}
+
+	.parallax-container.svelte-1a4we9h img:where(.svelte-1a4we9h):last-child::after {
+		content: '';
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		background: rgb(45,10,13);
+	}
+
+	.text.svelte-1a4we9h {
+		position: relative;
+		width: 100%;
+		height: 300vh;
+		color: rgb(220,113,43);
+		text-align: center;
+		padding: 4em 0.5em 0.5em 0.5em;
+		box-sizing: border-box;
+		pointer-events: none;
+	}
+
+	span.svelte-1a4we9h {
+		display: block;
+		font-size: 1em;
+		text-transform: uppercase;
+		will-change: transform, opacity;
+	}
+
+	.foreground.svelte-1a4we9h {
+		position: absolute;
+		top: 711px;
+		left: 0;
+		width: 100%;
+		height: calc(100% - 712px);
+		background-color: rgb(32,0,1);
+		color: white;
+		padding: 50vh 0 0 0;
+	}
+
+	body {
+		margin: 0;
+		padding: 0;
+		background-color: rgb(253, 174, 51);
+	}

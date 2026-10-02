@@ -1,0 +1,36 @@
+warning css_unused_selector 4:2-4:9 Unused CSS selector "#\31 23"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 8:2-8:9 Unused CSS selector "#\31 23"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 12:2-12:15 Unused CSS selector "#line\a break"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 16:2-16:15 Unused CSS selector "#line\a break"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 20:2-20:9 Unused CSS selector "li\.foo"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 24:2-24:7 Unused CSS selector ".a🙂b"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 28:2-28:7 Unused CSS selector ".a🙂b"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 32:2-32:11 Unused CSS selector "#\2d 1foo"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 36:2-36:7 Unused CSS selector ".a\\b"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 40:2-40:7 Unused CSS selector ".a\\b"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 44:2-44:7 Unused CSS selector ".a\\q"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 48:2-48:7 Unused CSS selector ".a\\q"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 52:2-52:6 Unused CSS selector ".a\\"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 56:2-56:6 Unused CSS selector ".a\\"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 60:2-60:6 Unused CSS selector "#\\a"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 64:2-64:12 Unused CSS selector "[\31 data]"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 76:2-76:14 Unused CSS selector "#id-selector"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 80:2-80:26 Unused CSS selector "[data-attribute="value"]"
+    https://svelte.dev/e/css_unused_selector

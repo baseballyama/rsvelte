@@ -1,0 +1,11 @@
+
+	.container.svelte-zd2s3b {
+		.div-class:where(.svelte-zd2s3b) {
+			// This is an inline comment
+			color: red;
+		}
+
+		.span-class:where(.svelte-zd2s3b) {
+			font-weight: bold;
+		}
+	}

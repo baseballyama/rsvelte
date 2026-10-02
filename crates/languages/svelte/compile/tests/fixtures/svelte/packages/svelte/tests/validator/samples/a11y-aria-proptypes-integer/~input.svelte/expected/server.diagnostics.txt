@@ -1,0 +1,6 @@
+warning a11y_incorrect_aria_attribute_type_integer 1:6-1:22 The value of 'aria-level' must be an integer
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_integer
+warning a11y_incorrect_aria_attribute_type_integer 2:6-2:21 The value of 'aria-level' must be an integer
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_integer
+warning a11y_incorrect_aria_attribute_type_integer 4:6-4:16 The value of 'aria-level' must be an integer
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_integer

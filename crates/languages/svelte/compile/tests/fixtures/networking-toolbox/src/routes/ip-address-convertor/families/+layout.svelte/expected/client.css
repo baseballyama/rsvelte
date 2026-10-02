@@ -1,0 +1,67 @@
+
+  h3.svelte-r8ryd6 .icon {
+    width: 2rem;
+    height: 2rem;
+    color: var(--color-primary);
+  }
+
+  .usage-scenarios.svelte-r8ryd6,
+  .format-explanations.svelte-r8ryd6,
+  .explainer-card.svelte-r8ryd6 {
+    display: grid;
+    gap: var(--spacing-md);
+    h3:where(.svelte-r8ryd6) {
+      margin-bottom: 0;
+      color: var(--color-primary);
+    }
+    .usage-scenario:where(.svelte-r8ryd6),
+    .format-explanation:where(.svelte-r8ryd6),
+    .class-notes:where(.svelte-r8ryd6) {
+      padding: var(--spacing-md);
+      background-color: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+
+      background-color: var(--bg-tertiary);
+      border-left: 4px solid var(--border-primary);
+      h4:where(.svelte-r8ryd6) {
+        color: var(--text-primary);
+        margin-bottom: var(--spacing-sm);
+      }
+      ul:where(.svelte-r8ryd6) {
+        margin: var(--spacing-sm) 0 0 var(--spacing-md);
+        li:where(.svelte-r8ryd6) {
+          margin-bottom: var(--spacing-xs);
+          color: var(--text-primary);
+        }
+      }
+    }
+    .class-notes:where(.svelte-r8ryd6) {
+      background-color: var(--bg-primary);
+      border: 1px solid var(--color-warning);
+      h4:where(.svelte-r8ryd6) {
+        color: var(--color-warning);
+      }
+    }
+  }
+
+  .info-cards-section.svelte-r8ryd6 {
+    margin-top: var(--spacing-xl);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+  }
+
+  .format-badge.svelte-r8ryd6 {
+    color: var(--bg-primary);
+    border-radius: var(--radius-xs);
+    padding: 0.1rem 0.25rem;
+    &.ipv4 {
+      background-color: var(--color-info);
+    }
+    &.ipv6 {
+      background-color: var(--color-success);
+    }
+    &.mapped {
+      background-color: var(--color-warning);
+    }
+  }

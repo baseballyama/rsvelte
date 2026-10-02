@@ -1,0 +1,4 @@
+warning state_referenced_locally 34:25-34:34 This reference only captures the initial value of `thickness`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 35:21-35:26 This reference only captures the initial value of `color`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

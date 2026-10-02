@@ -1,0 +1,319 @@
+
+  .network-visualizer.svelte-1e0xnjm {
+    max-width: 100%;
+  }
+
+  .visualizer-section.svelte-1e0xnjm {
+    margin-bottom: var(--spacing-lg);
+
+    h3:where(.svelte-1e0xnjm) {
+      margin-bottom: var(--spacing-md);
+    }
+  }
+
+  .range-section.svelte-1e0xnjm {
+    margin-bottom: var(--spacing-md);
+
+    .range-header:where(.svelte-1e0xnjm) {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-sm);
+
+      .range-label:where(.svelte-1e0xnjm) {
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+        color: var(--text-primary);
+      }
+
+      .range-count:where(.svelte-1e0xnjm) {
+        font-size: var(--font-size-sm);
+        color: var(--text-secondary);
+      }
+    }
+
+    .range-bar:where(.svelte-1e0xnjm) {
+      position: relative;
+      height: 2rem;
+      background-color: var(--bg-tertiary);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid var(--border-primary);
+
+      .range-segment:where(.svelte-1e0xnjm) {
+        position: absolute;
+        top: 0;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        &.network {
+          left: 0;
+          background-color: var(--color-info);
+        }
+
+        &.usable {
+          background-color: var(--color-success);
+        }
+
+        &.broadcast {
+          right: 0;
+          background-color: var(--color-error);
+        }
+
+        .segment-label:where(.svelte-1e0xnjm) {
+          font-size: var(--font-size-xs);
+          color: var(--bg-tertiary);
+          font-weight: 600;
+        }
+      }
+    }
+
+    .range-legend:where(.svelte-1e0xnjm) {
+      display: flex;
+      justify-content: center;
+      gap: var(--spacing-lg);
+      margin-top: var(--spacing-sm);
+
+      .legend-item:where(.svelte-1e0xnjm) {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        font-size: var(--font-size-sm);
+        color: var(--text-secondary);
+      }
+
+      @media (max-width: 768px) {
+        flex-direction: column;
+        align-items: center;
+        gap: var(--spacing-sm);
+      }
+    }
+  }
+
+  .legend-color.svelte-1e0xnjm {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: var(--radius-sm);
+
+    &.network {
+      background-color: var(--color-info);
+    }
+    &.usable {
+      background-color: var(--color-success);
+    }
+    &.broadcast {
+      background-color: var(--color-error);
+    }
+    &.host {
+      background-color: var(--text-secondary);
+    }
+  }
+
+  .binary-section.svelte-1e0xnjm {
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+
+    h4:where(.svelte-1e0xnjm) {
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .binary-display:where(.svelte-1e0xnjm) {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-sm);
+      font-family: var(--font-mono);
+      font-size: var(--font-size-sm);
+
+      .binary-row:where(.svelte-1e0xnjm) {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+
+        .octet-decimal:where(.svelte-1e0xnjm) {
+          width: 3rem;
+          color: var(--text-secondary);
+          text-align: right;
+        }
+
+        .arrow:where(.svelte-1e0xnjm) {
+          font-size: var(--font-size-lg);
+          color: var(--text-secondary);
+        }
+
+        .bits-group:where(.svelte-1e0xnjm) {
+          display: flex;
+          gap: var(--spacing-xs);
+
+          .bit-box:where(.svelte-1e0xnjm) {
+            width: 1.5rem;
+            height: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--font-size-xs);
+            border-radius: var(--radius-sm);
+            cursor: help;
+
+            &.network-bit {
+              background-color: var(--color-info);
+              color: var(--bg-secondary);
+            }
+
+            &.host-bit {
+              background-color: var(--bg-secondary);
+              color: var(--text-secondary);
+              border: 1px solid var(--border-primary);
+            }
+          }
+        }
+
+        .octet-label:where(.svelte-1e0xnjm) {
+          color: var(--text-secondary);
+          font-size: var(--font-size-xs);
+        }
+
+        @media (max-width: 768px) {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: var(--spacing-xs);
+        }
+      }
+    }
+
+    .binary-summary:where(.svelte-1e0xnjm) {
+      margin-top: var(--spacing-md);
+      padding-top: var(--spacing-sm);
+      border-top: 1px solid var(--border-primary);
+
+      .bit-stats:where(.svelte-1e0xnjm) {
+        display: flex;
+        justify-content: space-between;
+        font-size: var(--font-size-sm);
+
+        .bit-stat:where(.svelte-1e0xnjm) {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          color: var(--text-secondary);
+        }
+
+        @media (max-width: 768px) {
+          flex-direction: column;
+          gap: var(--spacing-sm);
+        }
+      }
+    }
+  }
+
+  .grid-section.svelte-1e0xnjm {
+    margin-bottom: var(--spacing-lg);
+
+    h4:where(.svelte-1e0xnjm) {
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .address-grid-wrap:where(.svelte-1e0xnjm) {
+      padding: var(--spacing-md);
+      background-color: var(--bg-tertiary);
+      border-radius: var(--radius-lg);
+      width: 100%;
+
+      .address-grid:where(.svelte-1e0xnjm) {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: var(--spacing-xs);
+        width: fit-content;
+
+        @media (max-width: 768px) {
+          grid-template-columns: repeat(4, 1fr);
+        }
+
+        .address-block:where(.svelte-1e0xnjm) {
+          width: 3rem;
+          height: 3rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: var(--font-size-xs);
+          font-weight: 600;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: transform var(--transition-fast);
+          color: var(--bg-tertiary);
+
+          &:hover {
+            transform: scale(1.1);
+          }
+
+          &.network {
+            background-color: var(--color-info);
+          }
+
+          &.broadcast {
+            background-color: var(--color-error);
+          }
+
+          &.usable {
+            background-color: var(--color-success);
+            &:hover {
+              background-color: var(--color-success-light);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .efficiency-section.svelte-1e0xnjm {
+    padding: var(--spacing-md);
+    background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-secondary);
+
+    h4:where(.svelte-1e0xnjm) {
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .efficiency-grid:where(.svelte-1e0xnjm) {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--spacing-md);
+
+      .efficiency-metric:where(.svelte-1e0xnjm) {
+        text-align: center;
+
+        .metric-value:where(.svelte-1e0xnjm) {
+          font-size: var(--font-size-2xl);
+          font-weight: 700;
+          color: var(--color-info-light);
+          margin-bottom: var(--spacing-xs);
+        }
+
+        .metric-label:where(.svelte-1e0xnjm) {
+          font-size: var(--font-size-sm);
+          color: var(--text-secondary);
+        }
+      }
+
+      @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+      }
+    }
+  }
+
+  /* Color coding for address utilization */
+  .metric-value.success.svelte-1e0xnjm {
+    color: var(--color-success) !important;
+  }
+
+  .metric-value.warning.svelte-1e0xnjm {
+    color: var(--color-warning) !important;
+  }
+
+  .metric-value.error.svelte-1e0xnjm {
+    color: var(--color-error) !important;
+  }

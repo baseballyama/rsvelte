@@ -1,0 +1,16 @@
+
+  table.svelte-2i34iv {
+    border: 1px solid var(--docs-border-color);
+    border-collapse: collapse;
+  }
+
+  td.svelte-2i34iv {
+    border: 1px solid var(--docs-border-color);
+    padding: 1ch;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  td.svelte-2i34iv:first-of-type {
+    font-family: monospace;
+  }

@@ -1,0 +1,158 @@
+
+	x.svelte-rofjrh:has(y:where(.svelte-rofjrh)) {
+		color: green;
+	}
+	x.svelte-rofjrh:has(z:where(.svelte-rofjrh)) {
+		color: green;
+	}
+	x.svelte-rofjrh:has(y) {
+		color: green;
+	}
+	x.svelte-rofjrh:has(z) {
+		color: green;
+	}
+	x.svelte-rofjrh:has(.foo) {
+		color: green;
+	}
+	.foo:has(y.svelte-rofjrh) {
+		color: green;
+	}
+
+	/* (unused) .unused:has(y) {
+		color: red;
+	}*/
+	/* (unused) .unused:has(:global(y)) {
+		color: red;
+	}*/
+	/* (unused) x:has(.unused) {
+		color: red;
+	}*/
+	/* (unused) :global(.foo):has(.unused) {
+		color: red;
+	}*/
+
+	x.svelte-rofjrh:has(y:where(.svelte-rofjrh) /* (unused) .unused*/) {
+		color: green;
+	}
+	x.svelte-rofjrh:has(y:where(.svelte-rofjrh), .foo) {
+		color: green;
+	}
+	/* (unused) x:has(y):has(.unused) {
+		color: red;
+	}*/
+	x.svelte-rofjrh:has(y:where(.svelte-rofjrh)):has(.foo) {
+		color: green;
+	}
+
+	x.svelte-rofjrh:has(y:where(.svelte-rofjrh)) z:where(.svelte-rofjrh) {
+		color: green;
+	}
+	x.svelte-rofjrh:has(y:where(.svelte-rofjrh)) {
+		z:where(.svelte-rofjrh) {
+			color: green;
+		}
+	}
+	x.svelte-rofjrh:has(y:where(.svelte-rofjrh)) .foo {
+		color: green;
+	}
+	/* (empty) x:has(y) {
+		.unused {
+			color: red;
+		}
+	}*/
+
+	x.svelte-rofjrh y:where(.svelte-rofjrh):has(z:where(.svelte-rofjrh)) {
+		color: green;
+	}
+	x.svelte-rofjrh {
+		y:where(.svelte-rofjrh):has(z:where(.svelte-rofjrh)) {
+			color: green;
+		}
+	}
+	.foo x.svelte-rofjrh:has(y:where(.svelte-rofjrh)) {
+		color: green;
+	}
+	/* (unused) .unused x:has(y) {
+		color: red;
+	}*/
+	/* (unused) .unused:has(.unused),*/ x.svelte-rofjrh:has(y:where(.svelte-rofjrh)) {
+		color: green;
+	}
+
+	x.svelte-rofjrh:has(> y:where(.svelte-rofjrh)) {
+		color: green;
+	}
+	y.svelte-rofjrh:has(> d:where(.svelte-rofjrh)) {
+		color: green;
+	}
+	/* (unused) x:has(> z) {
+		color: red;
+	}*/
+	/* (unused) x:has(> d) {
+		color: red;
+	}*/
+	x.svelte-rofjrh > y:where(.svelte-rofjrh):has(z:where(.svelte-rofjrh)) {
+		color: green;
+	}
+
+	x.svelte-rofjrh:has(y:where(.svelte-rofjrh)) z:where(.svelte-rofjrh) {
+		color: green;
+	}
+	x.svelte-rofjrh:has(y:where(.svelte-rofjrh)) + c:where(.svelte-rofjrh) {
+		color: green;
+	}
+
+	x.svelte-rofjrh:has(+ c:where(.svelte-rofjrh)) {
+		color: green;
+	}
+	x.svelte-rofjrh:has(~ c:where(.svelte-rofjrh)) {
+		color: green;
+	}
+	/* (unused) x:has(~ y) {
+		color: red;
+	}*/
+
+	d.svelte-rofjrh:has(+ e:where(.svelte-rofjrh)) {
+		color: green;
+	}
+	d.svelte-rofjrh:has(~ f:where(.svelte-rofjrh)) {
+		color: green;
+	}
+	/* (unused) d:has(+ f) {
+		color: red;
+	}*/
+	/* (unused) f:has(~ d) {
+		color: red;
+	}*/
+
+	.foo {
+		.svelte-rofjrh:has(x:where(.svelte-rofjrh)) {
+			color: green;
+		}
+		/* (unused) :has(.unused) {
+			color: red;
+		}*/
+		&:has(x.svelte-rofjrh) {
+			color: green;
+		}
+		/* (unused) &:has(.unused) {
+			color: red;
+		}*/
+	}
+
+	.foo:has(x.svelte-rofjrh) {
+		color: green;
+	}
+	/* (unused) :global(.foo):has(.unused) {
+		color: red;
+	}*/
+
+	g.svelte-rofjrh:has(> h:where(.svelte-rofjrh) > i:where(.svelte-rofjrh)) {
+		color: green;
+	}
+	/* (unused) h:has(> h > i) {
+		color: red;
+	}*/
+	g.svelte-rofjrh:has(+ j:where(.svelte-rofjrh) > k:where(.svelte-rofjrh)) {
+		color: green;
+	}

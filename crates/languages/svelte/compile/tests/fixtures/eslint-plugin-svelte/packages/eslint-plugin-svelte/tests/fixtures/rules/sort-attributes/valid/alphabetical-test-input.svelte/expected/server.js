@@ -1,0 +1,5 @@
+import * as $ from 'svelte/internal/server';
+
+export default function Alphabetical_test_input($$renderer) {
+	$$renderer.push(`<div c-foo="" b-foo="" a-foo=""></div> <div a-b="" a-a="" a-c=""></div> <div b-c="" b-b="" b-a=""></div> <div c-a="" c-b="" c-c=""></div>`);
+}

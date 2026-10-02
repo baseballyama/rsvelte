@@ -1,0 +1,9 @@
+
+	.container.svelte-1ozhjsx {
+		width: 100%;
+		height: 100px;
+		position: relative;
+		overflow: hidden;
+		border: var(--wx-border);
+		padding: 20px;
+	}

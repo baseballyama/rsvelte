@@ -1,0 +1,37 @@
+
+	.a11y-notice.svelte-1j34xld {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		grid-template-rows: auto repeat(var(--item-count), 1fr) auto;
+		justify-items: stretch;
+		align-items: center;
+		gap: 0 12px;
+		width: max-content;
+	}
+	.title.svelte-1j34xld {
+		margin: 12px 0 0;
+		grid-column: 1 / 3;
+		background: none;
+		border: none;
+		padding: 0 8px;
+		line-height: 24px;
+	}
+
+	@media (min-width: 768px) {
+		.title.svelte-1j34xld {
+			margin: 0;
+		}
+	}
+
+	.guidelines.svelte-1j34xld {
+		grid-column: 1 / 3;
+		margin-top: 10px;
+		font-size: 12px;
+	}
+
+	.svelte-1j34xld:focus-visible,
+	.guidelines.svelte-1j34xld :focus-visible {
+		border-radius: 2px;
+		outline: 2px solid var(--focus-color, red);
+		outline-offset: 2px;
+	}

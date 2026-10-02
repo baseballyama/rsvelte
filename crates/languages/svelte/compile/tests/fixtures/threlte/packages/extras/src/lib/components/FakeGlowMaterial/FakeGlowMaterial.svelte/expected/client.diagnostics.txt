@@ -1,0 +1,8 @@
+warning state_referenced_locally 19:23-19:30 This reference only captures the initial value of `falloff`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 20:34-20:52 This reference only captures the initial value of `glowInternalRadius`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 21:35-21:44 This reference only captures the initial value of `glowColor`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 22:29-22:42 This reference only captures the initial value of `glowSharpness`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

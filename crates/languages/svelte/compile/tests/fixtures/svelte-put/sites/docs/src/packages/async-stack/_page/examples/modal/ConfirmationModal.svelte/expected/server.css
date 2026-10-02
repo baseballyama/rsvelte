@@ -1,0 +1,41 @@
+
+	dialog.svelte-f6tcn3 {
+		inset: 0;
+
+		display: block; /* required for animation to work */
+
+		margin: auto;
+
+		animation-name: svelte-f6tcn3-fly-out-down;
+		animation-duration: 150ms;
+		animation-timing-function: var(--default-transition-timing-function);
+		animation-fill-mode: forwards;
+	}
+
+	dialog[open].svelte-f6tcn3 {
+		animation-name: svelte-f6tcn3-fly-in-up;
+	}
+
+	@keyframes svelte-f6tcn3-fly-in-up {
+		from {
+			transform: translateY(50px);
+			opacity: 0;
+		}
+
+		to {
+			transform: translateY(0);
+			opacity: 1;
+		}
+	}
+
+	@keyframes svelte-f6tcn3-fly-out-down {
+		from {
+			transform: translateY(0);
+			opacity: 1;
+		}
+
+		to {
+			transform: translateY(50px);
+			opacity: 0;
+		}
+	}

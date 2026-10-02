@@ -1,0 +1,15 @@
+
+	.column.svelte-1cpnak4 {
+		border-radius: var(--wx-border-radius);
+		display: flex;
+		flex-direction: column;
+		width: 264px;
+		gap: 32px;
+	}
+	.column.svelte-1cpnak4 .wx-calendar {
+		padding: 0px;
+	}
+	.column.svelte-1cpnak4 .wx-label {
+		width: 100%;
+		flex-grow: 1;
+	}

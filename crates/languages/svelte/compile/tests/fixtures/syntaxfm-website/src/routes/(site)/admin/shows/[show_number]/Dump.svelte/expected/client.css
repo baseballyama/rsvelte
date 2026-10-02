@@ -1,0 +1,19 @@
+
+	table.svelte-1u1fciw {
+		border: 1px solid black;
+		width: 100%;
+		border-collapse: collapse;
+		position: relative;
+	}
+	th.svelte-1u1fciw {
+		padding: 10px;
+		text-align: left;
+		background: black;
+		color: white;
+	}
+	td.svelte-1u1fciw,
+	th.svelte-1u1fciw {
+		border-bottom: 1px solid black;
+		padding: 10px;
+		min-width: 50px;
+	}

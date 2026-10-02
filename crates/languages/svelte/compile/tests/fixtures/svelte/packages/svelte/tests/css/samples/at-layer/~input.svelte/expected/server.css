@@ -1,0 +1,14 @@
+
+	@layer base, special;
+
+	@layer special {
+		div.svelte-2f3qq2 {
+			color: rebeccapurple;
+		}
+	}
+
+	@layer base {
+		div.svelte-2f3qq2 {
+			color: green;
+		}
+	}

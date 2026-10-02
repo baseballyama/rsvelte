@@ -1,0 +1,14 @@
+
+    section.svelte-18wxjgz {
+        flex: 1;
+        display: flex;
+        align-items: center;
+    }
+    footer.svelte-18wxjgz {
+        padding: 2rem 1rem;
+        display: flex;
+        gap: 0.5rem;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+    }

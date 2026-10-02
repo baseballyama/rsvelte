@@ -1,0 +1,17 @@
+
+  .color.svelte-1x88h7k {
+    margin-inline: 0.25em;
+    outline: 1px solid var(--_border-color);
+    border-radius: 2px;
+    padding-inline: 1ch;
+    min-width: 56px;
+    height: 1.4em;
+    font-size: 10px;
+    line-height: 1.4;
+    text-align: center;
+
+    .text:where(.svelte-1x88h7k) {
+      mix-blend-mode: difference;
+      color: hotpink;
+    }
+  }

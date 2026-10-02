@@ -1,0 +1,9 @@
+
+  .bx--list-box__menu-item,
+  .bx--list-box__menu-item__option {
+    height: auto;
+  }
+
+  .bx--checkbox-label-text {
+    display: block;
+  }

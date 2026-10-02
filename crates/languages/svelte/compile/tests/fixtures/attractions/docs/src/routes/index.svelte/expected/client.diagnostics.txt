@@ -1,0 +1,6 @@
+warning attribute_illegal_colon 17:58-17:73 Attributes should not contain ':' characters to prevent ambiguity with Svelte directives
+    https://svelte.dev/e/attribute_illegal_colon
+warning element_invalid_self_closing_tag 36:3-36:24 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning attribute_illegal_colon 48:34-48:49 Attributes should not contain ':' characters to prevent ambiguity with Svelte directives
+    https://svelte.dev/e/attribute_illegal_colon

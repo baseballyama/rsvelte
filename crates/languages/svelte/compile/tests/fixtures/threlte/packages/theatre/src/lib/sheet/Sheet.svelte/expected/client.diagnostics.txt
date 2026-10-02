@@ -1,0 +1,12 @@
+warning state_referenced_locally 23:46-23:50 This reference only captures the initial value of `name`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 23:54-23:62 This reference only captures the initial value of `instance`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 23:83-23:87 This reference only captures the initial value of `name`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 23:89-23:97 This reference only captures the initial value of `instance`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 26:38-26:42 This reference only captures the initial value of `name`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 26:46-26:54 This reference only captures the initial value of `instance`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

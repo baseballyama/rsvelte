@@ -1,0 +1,53 @@
+
+	article.svelte-ogf5ng {
+		color: var(--toast-color-fg);
+		background-color: var(--toast-color-bg);
+
+		&[data-status='info'] {
+			--toast-color-icon: var(--color-info-fg);
+			--toast-color-progress: var(--color-info-bg-200);
+			--toast-color-bg: var(--color-info-bg);
+			--toast-color-fg: var(--color-info-fg);
+		}
+
+		&[data-status='success'] {
+			--toast-color-icon: var(--color-success-fg);
+			--toast-color-progress: var(--color-success-bg-200);
+			--toast-color-bg: var(--color-success-bg);
+			--toast-color-fg: var(--color-success-fg);
+		}
+
+		&[data-status='warning'] {
+			--toast-color-icon: var(--color-warning-fg);
+			--toast-color-progress: var(--color-warning-bg-200);
+			--toast-color-bg: var(--color-warning-bg);
+			--toast-color-fg: var(--color-warning-fg);
+		}
+
+		&[data-status='error'] {
+			--toast-color-icon: var(--color-error-fg);
+			--toast-color-progress: var(--color-error-bg-200);
+			--toast-color-bg: var(--color-error-bg);
+			--toast-color-fg: var(--color-error-fg);
+		}
+	}
+
+	.progress.svelte-ogf5ng {
+		background-color: var(--toast-color-progress);
+		animation: svelte-ogf5ng-progress var(--progress-duration) linear;
+		animation-play-state: var(--progress-play-state);
+	}
+
+	.i.svelte-ogf5ng {
+		color: var(--toast-color-icon);
+	}
+
+	@keyframes svelte-ogf5ng-progress {
+		from {
+			transform: scaleX(0);
+		}
+
+		to {
+			transform: scaleX(1);
+		}
+	}

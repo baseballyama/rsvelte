@@ -1,0 +1,37 @@
+
+  .solo-demo-container.svelte-gwyy1o {
+    padding: 36px 18px;
+    background-color: var(--mdc-theme-background, #f8f8f8);
+    border: 1px solid
+      var(--mdc-theme-text-hint-on-background, rgba(0, 0, 0, 0.1));
+  }
+
+  .solo-container.svelte-gwyy1o {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .svelte-gwyy1o .solo-paper {
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+    max-width: 600px;
+    margin: 0 12px;
+    padding: 0 12px;
+    height: 48px;
+  }
+  .svelte-gwyy1o .solo-paper > * {
+    display: inline-block;
+    margin: 0 12px;
+  }
+  .svelte-gwyy1o .solo-input {
+    flex-grow: 1;
+    color: var(--mdc-theme-on-surface, #000);
+  }
+  .svelte-gwyy1o .solo-input::placeholder {
+    color: var(--mdc-theme-on-surface, #000);
+    opacity: 0.6;
+  }
+  .svelte-gwyy1o .solo-fab {
+    flex-shrink: 0;
+  }

@@ -1,0 +1,6 @@
+
+  @layer components {
+    :where(.lc-hull-path, .lc-hull-geo-path) {
+      fill: transparent;
+    }
+  }

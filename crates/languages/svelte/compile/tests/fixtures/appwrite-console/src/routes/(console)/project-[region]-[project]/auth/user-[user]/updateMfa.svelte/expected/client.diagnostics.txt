@@ -1,0 +1,4 @@
+warning non_reactive_update 16:9-16:19 `showDelete` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 17:9-17:25 `userMfa` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

@@ -1,0 +1,6 @@
+warning legacy_code 24:22-24:55 `a11y-label-has-associated-control` is no longer valid — please use `a11y_label_has_associated_control` instead
+    https://svelte.dev/e/legacy_code
+warning legacy_code 24:22-24:55 `a11y-label-has-associated-control` is no longer valid — please use `a11y_label_has_associated_control` instead
+    https://svelte.dev/e/legacy_code
+warning non_reactive_update 7:7-7:30 `checked` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

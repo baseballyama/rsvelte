@@ -1,0 +1,44 @@
+
+  #toolbar-items-wrapper.svelte-1rvmgx6 {
+    display: flex;
+    gap: 0.25rem;
+    align-items: stretch;
+    justify-content: space-between;
+    padding: 2px 2px;
+    overflow-x: auto;
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  #toolbar-items-wrapper.svelte-1rvmgx6::-webkit-scrollbar {
+    display: none;
+  }
+
+  .toolbar-items.svelte-1rvmgx6 > * + * {
+    display: block !important;
+    border-left: 1px solid #444548;
+    padding-left: 0.5rem;
+    margin-left: 0.25rem;
+  }
+
+  #toolbar-items-wrapper.svelte-1rvmgx6 .toolbar-items-center:where(.svelte-1rvmgx6) {
+    justify-content: center;
+  }
+
+  #toolbar-items-wrapper.svelte-1rvmgx6 .toolbar-items-right:where(.svelte-1rvmgx6) {
+    justify-content: flex-end;
+  }
+
+  #toolbar-items-wrapper.svelte-1rvmgx6 div:where(.svelte-1rvmgx6) {
+    flex-shrink: 0;
+    flex-grow: 1;
+    display: flex;
+    gap: 0.25rem;
+    align-items: stretch;
+  }
+
+  /* tweakpane checkbox value wrapper */
+  .tp-lblv_v:has(.tp-ckbv) {
+    width: auto !important;
+  }

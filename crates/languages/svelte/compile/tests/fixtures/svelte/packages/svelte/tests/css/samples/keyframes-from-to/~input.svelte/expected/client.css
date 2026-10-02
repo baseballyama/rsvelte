@@ -1,0 +1,9 @@
+
+	@keyframes svelte-8fpg6v-why {
+		from { color: red; }
+		to { color: blue; }
+	}
+
+	.animated.svelte-8fpg6v {
+		animation: svelte-8fpg6v-why 2s;
+	}

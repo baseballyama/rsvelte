@@ -1,0 +1,24 @@
+warning a11y_no_abstract_role 1:6-1:20 Abstract role 'command' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 2:6-2:22 Abstract role 'composite' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 3:6-3:18 Abstract role 'input' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 4:6-4:21 Abstract role 'landmark' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 5:6-5:18 Abstract role 'range' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 6:6-6:21 Abstract role 'roletype' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 7:6-7:20 Abstract role 'section' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 8:6-8:24 Abstract role 'sectionhead' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 9:6-9:19 Abstract role 'select' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 10:6-10:22 Abstract role 'structure' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 11:6-11:19 Abstract role 'widget' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 12:6-12:19 Abstract role 'window' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role

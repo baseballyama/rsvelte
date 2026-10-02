@@ -1,0 +1,13 @@
+{
+	"commit": "c949c1b70fa6686f76af71bd92f072797ecf4668",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/sveltejs/eslint-plugin-svelte.git"
+}

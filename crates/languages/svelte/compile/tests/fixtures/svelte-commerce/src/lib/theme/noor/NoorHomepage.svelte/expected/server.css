@@ -1,0 +1,124 @@
+
+	/*
+	 * Baseline styling for the bundled layout. A store that serves its own `themeCss` overrides
+	 * these (its stylesheet is injected in <head>, this is component CSS on the same classes);
+	 * without one the fallback still reads as noor rather than as unstyled markup.
+	 */
+	.noor-homepage.svelte-1rmt1pq {
+		background: #fff;
+		color: var(--noor-ink, #151515);
+		font-family: var(--font-body);
+	}
+
+	.noor-homepage.svelte-1rmt1pq .noor-section {
+		width: min(var(--container-max, 1240px), 100% - 2 * var(--container-gutter, 16px));
+		margin-inline: auto;
+		padding-block: clamp(40px, 6vw, 80px);
+	}
+
+	.noor-homepage.svelte-1rmt1pq .noor-hero img,
+	.noor-homepage.svelte-1rmt1pq .noor-campaign img {
+		display: block;
+		width: 100%;
+		height: auto;
+		object-fit: cover;
+	}
+
+	.noor-homepage.svelte-1rmt1pq .ts-heading {
+		margin-bottom: clamp(20px, 3vw, 36px);
+		text-align: center;
+	}
+
+	.noor-homepage.svelte-1rmt1pq .ts-heading-label {
+		display: block;
+		margin-bottom: 8px;
+		color: var(--muted-foreground, #6b6b6b);
+		font-size: 11px;
+		letter-spacing: 0.22em;
+		text-transform: uppercase;
+	}
+
+	.noor-homepage.svelte-1rmt1pq .ts-heading h2 {
+		margin: 0;
+		font-family: var(--font-heading);
+		font-size: clamp(1.4rem, 2.6vw, 2rem);
+		font-weight: 500;
+		letter-spacing: 0.06em;
+	}
+
+	.noor-homepage.svelte-1rmt1pq .noor-tile-row,
+	.noor-homepage.svelte-1rmt1pq .noor-product-row {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: clamp(12px, 2vw, 28px);
+	}
+
+	@media (min-width: 768px) {
+		.noor-homepage.svelte-1rmt1pq .noor-tile-row {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+
+		.noor-homepage.svelte-1rmt1pq .noor-product-row {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
+	}
+
+	.noor-homepage.svelte-1rmt1pq .noor-tile img {
+		display: block;
+		width: 100%;
+		aspect-ratio: 3 / 4;
+		object-fit: cover;
+	}
+
+	.noor-homepage.svelte-1rmt1pq .noor-tile span,
+	.noor-homepage.svelte-1rmt1pq .noor-tile figcaption {
+		display: block;
+		padding-top: 10px;
+		font-size: 12px;
+		letter-spacing: 0.1em;
+		text-align: center;
+		text-transform: uppercase;
+	}
+
+	.noor-homepage.svelte-1rmt1pq .noor-newsletter {
+		display: grid;
+		justify-items: center;
+		gap: 16px;
+		background: var(--noor-ivory, #f8f6f2);
+		text-align: center;
+	}
+
+	.noor-homepage.svelte-1rmt1pq .noor-newsletter form {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 8px;
+	}
+
+	.noor-homepage.svelte-1rmt1pq .noor-newsletter input {
+		min-width: 240px;
+		border: 1px solid var(--noor-line, #ded8cf);
+		background: #fff;
+		padding: 11px 14px;
+		font-size: 13px;
+	}
+
+	.noor-homepage.svelte-1rmt1pq .noor-newsletter button {
+		border: 1px solid var(--noor-ink, #151515);
+		background: var(--noor-ink, #151515);
+		color: #fff;
+		padding: 11px 22px;
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+
+	.noor-homepage.svelte-1rmt1pq .ts-empty {
+		display: grid;
+		min-height: 200px;
+		place-items: center;
+		border: 1px solid var(--noor-line, #ded8cf);
+		padding: 28px;
+		text-align: center;
+	}

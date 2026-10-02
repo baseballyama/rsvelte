@@ -1,0 +1,18 @@
+
+	[data-melt-popover-content].svelte-ishmsc {
+		position: absolute;
+		pointer-events: none;
+		opacity: 0;
+
+		transform: scale(0.9);
+
+		transition: 0.3s;
+		transition-property: opacity, transform;
+	}
+
+	[data-melt-popover-content][data-open].svelte-ishmsc {
+		pointer-events: auto;
+		opacity: 1;
+
+		transform: scale(1);
+	}

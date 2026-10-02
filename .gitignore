@@ -7,4 +7,6 @@
 # stored as `~actual` / `~cache` (tools/fixtures/src/paths.ts), so the patterns reach only unit children.
 /fixtures/**/actual/
 /fixtures/**/cache/
+# rsvelte's output in crate fixture tests; `expected/` next to it is committed.
+/crates/**/tests/fixtures/**/actual/
 .DS_Store

@@ -1,0 +1,7 @@
+
+	div.svelte-1qo1fkp {
+		color: red;
+	}
+	div.svelte-1qo1fkp > span:where(.svelte-1qo1fkp) {
+		font-weight: bold;
+	}

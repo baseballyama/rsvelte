@@ -1,0 +1,4 @@
+warning state_referenced_locally 58:5-58:12 This reference only captures the initial value of `toolbar`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 62:5-62:12 This reference only captures the initial value of `toolbar`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

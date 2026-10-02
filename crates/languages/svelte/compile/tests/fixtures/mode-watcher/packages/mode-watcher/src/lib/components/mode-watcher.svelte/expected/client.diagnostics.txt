@@ -1,0 +1,28 @@
+warning state_referenced_locally 35:27-35:45 This reference only captures the initial value of `modeStorageKeyProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 36:28-36:47 This reference only captures the initial value of `themeStorageKeyProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 37:27-37:45 This reference only captures the initial value of `darkClassNamesProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 38:28-38:47 This reference only captures the initial value of `lightClassNamesProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 39:31-39:53 This reference only captures the initial value of `disableTransitionsProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 40:24-40:39 This reference only captures the initial value of `themeColorsProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 41:35-41:61 This reference only captures the initial value of `synchronousModeChangesProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 88:3-88:14 This reference only captures the initial value of `defaultMode`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 89:16-89:31 This reference only captures the initial value of `themeColorsProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 90:19-90:37 This reference only captures the initial value of `darkClassNamesProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 91:20-91:39 This reference only captures the initial value of `lightClassNamesProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 92:3-92:15 This reference only captures the initial value of `defaultTheme`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 93:19-93:37 This reference only captures the initial value of `modeStorageKeyProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 94:20-94:39 This reference only captures the initial value of `themeStorageKeyProp`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

@@ -1,0 +1,5 @@
+import * as $ from 'svelte/internal/server';
+
+export default function Input($$renderer) {
+	$$renderer.push(`<div${$.attr_style('', { shorthand })}>Hello</div> <div${$.attr_style('', { attr: value })}>Hello</div> <div${$.attr_style('', { value })}>Hello</div> <div${$.attr_style('', { attr: value })}>Hello</div> <div${$.attr_style('', { attr: 'string' })}>Hello</div> <div${$.attr_style('', { attr: 'string' })}>Hello</div> <div${$.attr_style('', { attr: `string${$.stringify(mixed)}` })}>Hello</div> <div${$.attr_style('', { attr: `string${$.stringify(mixed)}` })}>Hello</div> <div${$.attr_style('', { attr: `${$.stringify(mixed)}string` })}>Hello</div> <div${$.attr_style('', { attr: `string${$.stringify(mixed)}string` })}>Hello</div> <div${$.attr_style('', { attr: `template${literal}` })}>Hello</div> <div${$.attr_style('', { shorthand })}></div>`);
+}

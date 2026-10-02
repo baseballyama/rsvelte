@@ -1,0 +1,14 @@
+warning block_empty 5:20-6:1 Empty block
+    https://svelte.dev/e/block_empty
+warning block_empty 6:8-7:1 Empty block
+    https://svelte.dev/e/block_empty
+warning block_empty 7:9-8:1 Empty block
+    https://svelte.dev/e/block_empty
+warning block_empty 10:20-11:1 Empty block
+    https://svelte.dev/e/block_empty
+warning block_empty 11:8-12:1 Empty block
+    https://svelte.dev/e/block_empty
+warning block_empty 14:30-15:1 Empty block
+    https://svelte.dev/e/block_empty
+warning block_empty 17:31-18:1 Empty block
+    https://svelte.dev/e/block_empty

@@ -1,0 +1,30 @@
+
+    .floating-action-bar.svelte-vo050l {
+        max-width: 325px;
+        transform: translateX(60%);
+
+        @media (max-width: 768px) {
+            left: 50%;
+            bottom: 5%;
+            position: fixed;
+            max-width: 100%;
+        }
+
+        & div:first-of-type {
+            bottom: 32px;
+            max-width: 280px;
+            transition: width 250ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        &[data-state='saved'] div:first-of-type {
+            height: 44px;
+
+            @media (max-width: 768px) {
+                width: fit-content;
+            }
+        }
+
+        &[data-state='saving'] div:first-of-type {
+            width: fit-content;
+        }
+    }

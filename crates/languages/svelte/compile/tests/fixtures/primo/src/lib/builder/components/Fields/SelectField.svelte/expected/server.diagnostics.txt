@@ -1,0 +1,2 @@
+warning state_referenced_locally 12:23-12:28 This reference only captures the initial value of `field`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

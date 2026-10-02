@@ -1,0 +1,9 @@
+{
+	"rules": [
+		"no-unused-vars",
+		"vue/html-button-has-type",
+		"vue/multi-word-component-names",
+		"vue/no-unused-vars"
+	],
+	"findings": []
+}

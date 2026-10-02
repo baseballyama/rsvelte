@@ -1,0 +1,84 @@
+
+	header.svelte-2n9ygt {
+		h1:where(.svelte-2n9ygt) {
+			text-align: left;
+			font-weight: 500;
+			font-size: 24px;
+			line-height: 24px;
+			padding-bottom: 1rem;
+		}
+	}
+	.error.svelte-2n9ygt {
+		color: #f72228;
+		margin-bottom: 1rem;
+	}
+	.message.svelte-2n9ygt {
+		margin-bottom: 1rem;
+	}
+	.form.svelte-2n9ygt {
+		display: grid;
+		gap: 2rem;
+		width: 100%;
+
+		.fields:where(.svelte-2n9ygt) {
+			display: grid;
+			gap: 1rem;
+		}
+
+		label:where(.svelte-2n9ygt) {
+			color: #b6b6b6;
+			display: grid;
+			gap: 0.5rem;
+			font-size: 0.875rem;
+			font-weight: 400;
+		}
+
+		input:where(.svelte-2n9ygt) {
+			color: #dadada;
+			border-radius: 0.25rem;
+			border: 1px solid #6e6e6e;
+			padding: 0.75rem;
+			background-color: #1c1c1c;
+			font-size: 1rem;
+		}
+
+		:where(.svelte-2n9ygt)::file-selector-button {
+			display: none;
+		}
+
+		.button:where(.svelte-2n9ygt) {
+			color: #cecece;
+			font-weight: 500;
+			display: flex;
+			flex-direction: row;
+			justify-content: center;
+			align-items: center;
+			padding: 0.65rem;
+			border: 1.5px solid var(--primo-primary-color);
+			border-radius: 0.25rem;
+
+			&:hover {
+				background-color: var(--primo-primary-color);
+				transition: 0.2s;
+				color: white;
+			}
+
+			@keyframes svelte-2n9ygt-icon-spin {
+				0% {
+					transform: rotate(0deg);
+				}
+				100% {
+					transform: rotate(360deg);
+				}
+			}
+		}
+	}
+	.footer-text.svelte-2n9ygt {
+		display: flex;
+		gap: 0.25rem;
+		font-size: 0.875rem;
+		line-height: 1.125rem;
+		color: #797979;
+		text-align: left;
+		margin-top: 1rem;
+	}

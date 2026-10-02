@@ -1,0 +1,71 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Progress as ProgressPrimitive } from "bits-ui";
+import { cn } from "$lib/utils.js";
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'ref',
+	'class',
+	'max',
+	'value'
+]);
+
+var root = $.from_html(`<div data-slot="progress-indicator" class="h-full w-full flex-1 bg-primary transition-all"></div>`);
+
+export default function Progress($$anchor, $$props) {
+	$.push($$props, true);
+
+	let ref = $.prop($$props, 'ref', 15, null),
+		max = $.prop($$props, 'max', 3, 100),
+		restProps = $.rest_props($$props, rest_excludes);
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	{
+		let $0 = $.derived(() => cn("relative h-2 w-full overflow-hidden rounded-full bg-primary/20", $$props.class));
+
+		$.component(node, () => ProgressPrimitive.Root, ($$anchor, ProgressPrimitive_Root) => {
+			ProgressPrimitive_Root($$anchor, $.spread_props(
+				{
+					'data-slot': 'progress',
+					get class() {
+						return $.get($0);
+					},
+
+					get value() {
+						return $$props.value;
+					},
+
+					get max() {
+						return max();
+					}
+				},
+				() => restProps,
+				{
+					get ref() {
+						return ref();
+					},
+
+					set ref($$value) {
+						ref($$value);
+					},
+
+					children: ($$anchor, $$slotProps) => {
+						var div = root();
+
+						$.template_effect(() => $.set_style(div, `transform: translateX(-${100 - 100 * ($$props.value ?? 0) / (max() ?? 1)}%)`));
+						$.append($$anchor, div);
+					},
+					$$slots: { default: true }
+				}
+			));
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}

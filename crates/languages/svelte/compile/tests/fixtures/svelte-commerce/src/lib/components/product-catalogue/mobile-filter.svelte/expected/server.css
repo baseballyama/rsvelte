@@ -1,0 +1,156 @@
+
+	/* ---- Refined Editorial · mobile filter chrome (default theme only) ----
+	   The Sort drawer is portalled to <body> (outside [data-theme]) and keeps its
+	   original clean styling. Everything below is gated to [data-theme='default'];
+	   other themes are untouched. */
+
+	/* The bar below is `fixed` and 48px tall, so it covers the last 48px of the listing on every
+	   theme. The default theme paid for that with padding on .ed-plp, but the base .ed-plp rule is
+	   `display: contents` (no box, no padding), so wine/organic/lime/noor got their last card row
+	   and the footer's first line covered. Charge it to the PLP row instead — that one is a real
+	   box on every theme — and only while the bar is on screen (<md). */
+	@media (max-width: 767px) {
+		.ed-plp__row {
+			padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+		}
+	}
+
+	/* Fixed bottom Sort / Filter bar */
+	[data-theme='default'] .ed-mf__bar.svelte-l2jkuf {
+		border-top: 1px solid var(--ed-line);
+		background: var(--ed-surface);
+		box-shadow: 0 -1px 12px rgba(27, 26, 23, 0.06);
+		font-family: var(--ed-body);
+		color: var(--ed-ink);
+	}
+
+	/* Fullscreen filter panel */
+	[data-theme='default'] .ed-mf__panel.svelte-l2jkuf {
+		background: var(--ed-canvas);
+		font-family: var(--ed-body);
+		color: var(--ed-ink);
+	}
+
+	[data-theme='default'] .ed-mf__phead.svelte-l2jkuf {
+		border-bottom: 1px solid var(--ed-line);
+		background: var(--ed-surface);
+	}
+
+	[data-theme='default'] .ed-mf__ptitle.svelte-l2jkuf {
+		font-family: var(--ed-body);
+		letter-spacing: 0.18em;
+		color: var(--ed-ink);
+	}
+
+	/* Apply button — editorial primary fill */
+	[data-theme='default'] .ed-mf__apply {
+		background: hsl(var(--primary));
+		color: hsl(var(--primary-foreground));
+		border-radius: var(--ed-radius);
+		letter-spacing: 0.12em;
+	}
+
+	[data-theme='default'] .ed-mf__apply:hover {
+		background: var(--ed-ink);
+		color: var(--ed-canvas);
+	}
+
+	[data-theme='default'] .ed-mf__clear {
+		color: var(--ed-soft);
+		font-family: var(--ed-body);
+	}
+
+	[data-theme='default'] .ed-mf__clear:hover {
+		color: hsl(var(--primary));
+	}
+
+	/* Section tab list — warm tint, no coloured left stripe (bans a >1px accent
+	   border). Active = white surface + primary text; the 4px border stays
+	   transparent so alignment is preserved but no stripe shows. */
+	[data-theme='default'] .ed-mf__menu.svelte-l2jkuf {
+		background: #efeae1;
+		border-right: 1px solid var(--ed-line);
+	}
+
+	[data-theme='default'] .ed-mf__tab {
+		border-left-color: transparent !important;
+		color: var(--ed-soft);
+		font-family: var(--ed-body);
+	}
+
+	[data-theme='default'] .ed-mf__tab span {
+		letter-spacing: 0.14em;
+	}
+
+	[data-theme='default'] .ed-mf__content {
+		background: var(--ed-surface);
+	}
+
+	/* Search inputs */
+	[data-theme='default'] .ed-mf__search.svelte-l2jkuf {
+		background: var(--ed-canvas);
+		border: 1px solid var(--ed-line-strong);
+		border-radius: var(--ed-radius);
+		color: var(--ed-ink);
+		font-family: var(--ed-body);
+	}
+
+	[data-theme='default'] .ed-mf__search.svelte-l2jkuf:focus {
+		outline: none;
+		border-color: hsl(var(--primary));
+		box-shadow: none;
+	}
+
+	/* Labels + options */
+	[data-theme='default'] .ed-mf__label.svelte-l2jkuf {
+		font-family: var(--ed-body);
+		letter-spacing: 0.18em;
+		color: var(--ed-soft);
+	}
+
+	[data-theme='default'] .ed-mf__opt.svelte-l2jkuf {
+		color: var(--ed-ink);
+		font-family: var(--ed-body);
+	}
+
+	[data-theme='default'] .ed-mf__priceval.svelte-l2jkuf {
+		font-family: var(--ed-display);
+		font-weight: 500;
+		color: var(--ed-ink);
+	}
+
+	/* Editorial checkboxes inside the panel */
+	[data-theme='default'] .ed-mf__content [role='checkbox'] {
+		border-color: var(--ed-line-strong);
+		border-radius: 3px;
+		box-shadow: none;
+	}
+
+	/* Price range slider */
+	[data-theme='default'] .ed-mf__track.svelte-l2jkuf {
+		height: 3px;
+		background: var(--ed-line);
+	}
+
+	[data-theme='default'] .ed-mf__fill.svelte-l2jkuf {
+		height: 3px;
+		background: hsl(var(--primary));
+	}
+
+	[data-theme='default'] .ed-mf__slider input[type='range']::-webkit-slider-thumb {
+		border: 1px solid hsl(var(--primary));
+		background: var(--ed-surface);
+		box-shadow: 0 1px 4px rgba(27, 26, 23, 0.22);
+	}
+
+	[data-theme='default'] .ed-mf__slider input[type='range']::-moz-range-thumb {
+		border: 1px solid hsl(var(--primary));
+		background: var(--ed-surface);
+		box-shadow: 0 1px 4px rgba(27, 26, 23, 0.22);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		[data-theme='default'] .ed-mf__apply {
+			transition: none;
+		}
+	}

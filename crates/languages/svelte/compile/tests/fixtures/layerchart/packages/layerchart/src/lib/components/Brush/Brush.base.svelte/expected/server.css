@@ -1,0 +1,35 @@
+
+  @layer components {
+    /*
+      Without this a touch drag is claimed by the browser as a scroll: the page pans and the
+      pointer stream is cancelled part-way, so the brush never completes.  `BrushContext` sets the
+      same on its container — this is the equivalent for the parts that take a drag here.
+    */
+    :where(.lc-brush-root),
+    :where(.lc-brush-selection),
+    :where(.lc-brush-handle) {
+      touch-action: none;
+    }
+
+    :where(.lc-brush-selection) {
+      fill: color-mix(in oklab, var(--color-surface-content, currentColor) 10%, transparent);
+    }
+
+    :where(.lc-brush-handle) {
+      fill: transparent;
+    }
+
+    /*
+      An html layer draws each rect as a `div`, which takes a background rather than a fill — and
+      one by default, so the region and handles have to clear it.  These win over `Rect`'s own
+      defaults by layer rather than specificity, leaving a passed `class` free to override them.
+    */
+    :where(.lc-layout-html .lc-brush-root),
+    :where(.lc-layout-html .lc-brush-handle) {
+      background: transparent;
+    }
+
+    :where(.lc-layout-html .lc-brush-selection) {
+      background: color-mix(in oklab, var(--color-surface-content, currentColor) 10%, transparent);
+    }
+  }

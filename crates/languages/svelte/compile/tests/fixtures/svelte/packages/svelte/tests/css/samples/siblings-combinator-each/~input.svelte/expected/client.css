@@ -1,0 +1,4 @@
+
+	div.svelte-bbx1ep + span:where(.svelte-bbx1ep) {
+		color: green;
+	}

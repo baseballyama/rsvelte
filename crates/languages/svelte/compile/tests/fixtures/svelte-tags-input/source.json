@@ -1,0 +1,13 @@
+{
+	"commit": "5c8e7ff10deab4858a36da8bf71ab5942da5a390",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/agustinl/svelte-tags-input.git"
+}

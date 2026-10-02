@@ -1,0 +1,146 @@
+
+  .demo-strip.svelte-1wycr3j {
+    border: 1px solid color-mix(in oklch, var(--foreground) 10%, transparent);
+    border-radius: calc(var(--radius) + 4px);
+    background: var(--card);
+    padding: 1.125rem 1.25rem 1rem;
+  }
+
+  .demo-head.svelte-1wycr3j {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.875rem;
+  }
+
+  .demo-state.svelte-1wycr3j {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    min-width: 0;
+  }
+
+  .demo-dot.svelte-1wycr3j {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: var(--demo-up);
+    flex: none;
+    transition: background 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .demo-dot.svelte-1wycr3j {
+      animation: svelte-1wycr3j-demoPing 2.4s cubic-bezier(0.32, 0.72, 0, 1) infinite;
+    }
+  }
+
+  @keyframes svelte-1wycr3j-demoPing {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in oklch, var(--demo-up) 45%, transparent);
+    }
+    70%,
+    100% {
+      box-shadow: 0 0 0 7px transparent;
+    }
+  }
+
+  .demo-state.degraded.svelte-1wycr3j .demo-dot:where(.svelte-1wycr3j) {
+    background: var(--primary);
+    animation: none;
+  }
+
+  .demo-label.svelte-1wycr3j {
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--foreground);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 520px) {
+    .demo-head.svelte-1wycr3j {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.375rem;
+    }
+  }
+
+  .demo-state.degraded.svelte-1wycr3j .demo-label:where(.svelte-1wycr3j) {
+    color: var(--primary);
+  }
+
+  .demo-uptime.svelte-1wycr3j {
+    display: flex;
+    align-items: baseline;
+    gap: 0.375rem;
+    flex: none;
+  }
+
+  .demo-uptime-value.svelte-1wycr3j {
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  .demo-uptime-meta.svelte-1wycr3j {
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+  }
+
+  .demo-bar.svelte-1wycr3j {
+    display: flex;
+    gap: 3px;
+    height: 2rem;
+  }
+
+  .demo-tick.svelte-1wycr3j {
+    flex: 1 1 0;
+    min-width: 0;
+    border-radius: 2px;
+    background: var(--demo-up);
+  }
+
+  .demo-tick.degraded.svelte-1wycr3j {
+    background: var(--primary);
+  }
+
+  /* Newest tick announces itself, then settles. */
+  @media (prefers-reduced-motion: no-preference) {
+    .demo-tick.svelte-1wycr3j:last-child {
+      animation: svelte-1wycr3j-tickIn 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+  }
+
+  @keyframes svelte-1wycr3j-tickIn {
+    from {
+      transform: scaleY(0.4);
+      opacity: 0.4;
+    }
+    to {
+      transform: scaleY(1);
+      opacity: 1;
+    }
+  }
+
+  .demo-meta.svelte-1wycr3j {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.75rem;
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 0.6875rem;
+    color: var(--muted-foreground);
+  }
+
+  /* Hide a third of the ticks on narrow screens so each tick keeps presence. */
+  @media (max-width: 480px) {
+    .demo-tick.svelte-1wycr3j:nth-child(3n) {
+      display: none;
+    }
+  }

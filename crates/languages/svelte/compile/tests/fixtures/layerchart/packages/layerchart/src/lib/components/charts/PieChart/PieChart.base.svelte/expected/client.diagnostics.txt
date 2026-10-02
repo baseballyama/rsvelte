@@ -1,0 +1,2 @@
+warning state_referenced_locally 170:7-170:14 This reference only captures the initial value of `profile`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

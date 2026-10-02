@@ -1,0 +1,12 @@
+
+  /* Default content styles - can be overridden by parent */
+  .modal-content.svelte-5hkr9u {
+    max-height: calc(100vh - 8rem);
+    overflow-y: auto;
+  }
+
+  @media (max-width: 640px) {
+    .modal-content.svelte-5hkr9u {
+      max-height: calc(100vh - 4rem);
+    }
+  }

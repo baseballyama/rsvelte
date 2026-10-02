@@ -1,0 +1,76 @@
+warning a11y_no_redundant_roles 1:13-1:24 Redundant role 'link'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 2:10-2:24 Redundant role 'article'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 3:8-3:28 Redundant role 'complementary'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 4:7-4:22 Redundant role 'document'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 5:9-5:22 Redundant role 'button'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 6:11-6:25 Redundant role 'listbox'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 7:5-7:22 Redundant role 'definition'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 8:6-8:17 Redundant role 'term'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 9:10-9:22 Redundant role 'group'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 10:9-10:22 Redundant role 'dialog'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 11:5-11:16 Redundant role 'term'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 12:11-12:23 Redundant role 'group'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 13:9-13:22 Redundant role 'figure'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 14:7-14:18 Redundant role 'form'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 15:5-15:19 Redundant role 'heading'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 16:5-16:19 Redundant role 'heading'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 17:5-17:19 Redundant role 'heading'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 18:5-18:19 Redundant role 'heading'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 19:5-19:19 Redundant role 'heading'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 20:5-20:19 Redundant role 'heading'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 21:5-21:21 Redundant role 'separator'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 23:7-23:18 Redundant role 'link'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 24:7-24:18 Redundant role 'main'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 26:6-26:23 Redundant role 'navigation'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 28:11-28:23 Redundant role 'group'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 29:9-29:22 Redundant role 'option'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 30:9-30:22 Redundant role 'status'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 31:11-31:29 Redundant role 'progressbar'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 32:10-32:23 Redundant role 'region'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 33:10-33:23 Redundant role 'button'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 34:8-34:20 Redundant role 'table'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 35:8-35:23 Redundant role 'rowgroup'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 36:11-36:25 Redundant role 'textbox'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 37:8-37:23 Redundant role 'rowgroup'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 38:8-38:23 Redundant role 'rowgroup'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 39:5-39:15 Redundant role 'row'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 43:9-43:22 Redundant role 'banner'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_redundant_roles 44:9-44:27 Redundant role 'contentinfo'
+    https://svelte.dev/e/a11y_no_redundant_roles

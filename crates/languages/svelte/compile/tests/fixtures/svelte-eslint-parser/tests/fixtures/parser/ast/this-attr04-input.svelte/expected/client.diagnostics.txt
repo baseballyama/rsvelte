@@ -1,0 +1,2 @@
+warning svelte_element_invalid_this 1:29-1:41 `this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte
+    https://svelte.dev/e/svelte_element_invalid_this

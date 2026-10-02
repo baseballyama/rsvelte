@@ -1,0 +1,125 @@
+
+  .icon.svelte-1q906rh {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    svg {
+      width: 100%;
+      height: 100%;
+      fill: currentColor;
+    }
+    height: 2rem;
+    width: 2rem;
+  }
+
+  /* Size classes */
+  .w-2.svelte-1q906rh {
+    width: 1rem;
+    height: 1rem;
+  }
+  .h-2.svelte-1q906rh {
+    height: 1rem;
+  }
+  .w-4.svelte-1q906rh {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  .h-4.svelte-1q906rh {
+    height: 1.25rem;
+  }
+  .w-6.svelte-1q906rh {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+  .h-6.svelte-1q906rh {
+    height: 1.5rem;
+  }
+  .w-8.svelte-1q906rh {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+  .h-8.svelte-1q906rh {
+    height: 1.75rem;
+  }
+  .w-8.svelte-1q906rh {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .rotate.svelte-1q906rh {
+    transition: transform 0.3s ease;
+    &.rotate-0 {
+      transform: rotate(0deg);
+    }
+    &.rotate-90 {
+      transform: rotate(90deg);
+    }
+    &.rotate-180 {
+      transform: rotate(180deg);
+    }
+    &.rotate-270 {
+      transform: rotate(270deg);
+    }
+  }
+
+  .animate-spin.svelte-1q906rh {
+    animation: svelte-1q906rh-spin 1s linear infinite;
+  }
+
+  .animate-pulse.svelte-1q906rh {
+    animation: svelte-1q906rh-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-pulse-once.svelte-1q906rh {
+    animation: svelte-1q906rh-pulse 1s cubic-bezier(0.4, 0, 0.6, 1) 1;
+  }
+
+  .animate-bounce.svelte-1q906rh {
+    animation: svelte-1q906rh-bounce 1s infinite;
+  }
+
+  .animate-fade.svelte-1q906rh {
+    animation: svelte-1q906rh-fade 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes svelte-1q906rh-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes svelte-1q906rh-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  @keyframes svelte-1q906rh-bounce {
+    0%,
+    100% {
+      transform: translateY(-25%);
+      animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+    }
+    50% {
+      transform: none;
+      animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
+  }
+
+  @keyframes svelte-1q906rh-fade {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.3;
+    }
+  }

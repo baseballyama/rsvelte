@@ -1,0 +1,154 @@
+<script>
+  import { afterNavigate, beforeNavigate } from '$app/navigation'
+  import { page } from '$app/state'
+  import { tick } from 'svelte'
+  import siteConfig from 'virtual:sveltepress/site'
+  import themeOptions from 'virtual:sveltepress/theme-default'
+  import EditPage from './EditPage.svelte'
+  import Home from './Home.svelte'
+  import HeroCode from './home/HeroCode.svelte'
+  import HeroImage from './home/HeroImage.svelte'
+  import LastUpdate from './LastUpdate.svelte'
+  import { anchors, pages, showHeader, showLayout, sidebar } from './layout'
+  import PageSwitcher from './PageSwitcher.svelte'
+
+  const routeId = $derived(page.route.id)
+
+  // The frontmatter info. This would be injected by sveltepress
+  const { fm, children, heroImage } = $props()
+
+  const {
+    pageType,
+    lastUpdate,
+    anchors: fmAnchors = [],
+    sidebar: fmSidebar = true,
+    header = true,
+    layout = true,
+  } = fm
+
+  $sidebar = fmSidebar
+  $showHeader = header
+  $showLayout = layout
+
+  const isHome = $derived(routeId === '/' && fm.home !== false)
+
+  anchors.set(fmAnchors)
+
+  let ready = $state(false)
+
+  beforeNavigate(() => {
+    ready = false
+  })
+
+  afterNavigate(() => {
+    tick().then(() => {
+      ready = true
+    })
+  })
+</script>
+
+<svelte:head>
+  <title
+    >{fm.title ? `${fm.title} - ${siteConfig.title}` : siteConfig.title}</title
+  >
+  <meta name="description" content={fm.description || siteConfig.description} />
+</svelte:head>
+
+{#if layout === false}
+  {@render children?.()}
+{:else}
+  {#snippet defaultHeroImage()}
+    {#if fm.heroImage}
+      <HeroImage heroImage={fm.heroImage} />
+    {:else}
+      <HeroCode />
+    {/if}
+  {/snippet}
+  {#if !isHome}
+    <div pb-4 class="theme-default--page-layout">
+      <div class="content">
+        {#if fm.title}
+          <h1 class="page-title">
+            {fm.title}
+          </h1>
+        {/if}
+        {@render children?.()}
+        <div class="meta" class:without-edit-link={!themeOptions.editLink}>
+          {#if themeOptions.editLink}
+            <EditPage {pageType} />
+          {/if}
+          <LastUpdate {lastUpdate} />
+        </div>
+        {#if ready && $pages.length}
+          <PageSwitcher />
+        {/if}
+      </div>
+    </div>
+  {:else if fm.home !== false}
+    <Home
+      {...fm}
+      {siteConfig}
+      heroImage={heroImage ?? defaultHeroImage}
+      {children}
+    ></Home>
+  {/if}
+{/if}
+
+<style>
+  :global(.theme-default--page-layout h1 .svp-title-anchor),
+  :global(.theme-default--page-layout h2 .svp-title-anchor),
+  :global(.theme-default--page-layout h3 .svp-title-anchor),
+  :global(.theme-default--page-layout h4 .svp-title-anchor),
+  :global(.theme-default--page-layout h5 .svp-title-anchor),
+  :global(.theme-default--page-layout h6 .svp-title-anchor) {
+    --at-apply: 'absolute left-0 top-[50%] flex items-center opacity-0 pointer-events-none hover:text-svp-hover transition-all transition-200';
+    transform: translate(-100%, -50%);
+  }
+
+  :global(.theme-default--page-layout h2 .svp-title-anchor) {
+    transform: translate(-100%, calc((-100% + 1.5rem) / 2));
+  }
+  :global(.theme-default--page-layout h1),
+  :global(.theme-default--page-layout h2),
+  :global(.theme-default--page-layout h3),
+  :global(.theme-default--page-layout h4),
+  :global(.theme-default--page-layout h5),
+  :global(.theme-default--page-layout h6) {
+    --at-apply: 'relative';
+  }
+  :global(.theme-default--page-layout h1) {
+    --at-apply: 'text-8 leading-[1.3] font-700 tracking-[-0.02em] mb-5';
+  }
+  :global(.theme-default--page-layout h2) {
+    --at-apply: 'text-6 leading-[1.35] font-600 tracking-[-0.01em] border-t-solid border-t border-black/8 dark:border-white/10 pt-6 mt-12 mb-4';
+  }
+  :global(.theme-default--page-layout h3) {
+    --at-apply: 'text-5 leading-[1.4] font-600 mt-8 mb-3';
+  }
+  :global(.theme-default--page-layout h4) {
+    --at-apply: 'text-4.5 leading-[1.4] font-600 mt-6 mb-2';
+  }
+  :global(.theme-default--page-layout h1:hover .svp-title-anchor),
+  :global(.theme-default--page-layout h2:hover .svp-title-anchor),
+  :global(.theme-default--page-layout h3:hover .svp-title-anchor),
+  :global(.theme-default--page-layout h4:hover .svp-title-anchor),
+  :global(.theme-default--page-layout h5:hover .svp-title-anchor),
+  :global(.theme-default--page-layout h6:hover .svp-title-anchor) {
+    --at-apply: 'pointer-events-auto opacity-100';
+  }
+  :global(.theme-default--page-layout img) {
+    --at-apply: 'max-w-full';
+  }
+  .content {
+    --at-apply: 'sm:w-[45vw] max-w-[780px] mx-auto pb-8 sm:pb-28 w-[90vw]';
+  }
+  .page-title {
+    --at-apply: 'mt-none';
+  }
+  .meta {
+    --at-apply: 'sm:flex justify-between mt-16 column';
+  }
+  .without-edit-link {
+    --at-apply: 'justify-end';
+  }
+</style>

@@ -1,0 +1,8 @@
+warning state_referenced_locally 41:22-41:30 This reference only captures the initial value of `shortcut`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 44:18-44:26 This reference only captures the initial value of `shortcut`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 44:35-44:43 This reference only captures the initial value of `shortcut`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 44:74-44:82 This reference only captures the initial value of `shortcut`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

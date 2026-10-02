@@ -1,0 +1,18 @@
+
+	@namespace svg url(http://www.w3.org/2000/svg);
+
+	svg|circle.svelte-18t66gh {
+		fill: red;
+	}
+
+	*|circle.svelte-18t66gh {
+		stroke: blue;
+	}
+
+	svg|*.svelte-18t66gh {
+		color: green;
+	}
+
+	*|*.svelte-18t66gh {
+		opacity: 0.5;
+	}

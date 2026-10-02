@@ -1,0 +1,63 @@
+
+    button.svelte-poj9ve, input[type=button].svelte-poj9ve{
+        border: transparent;
+        font-size: 14px;
+        font-weight: 300;
+        padding: 6px 12px;
+        background: #cc595e;
+        color: #ffffff;
+        cursor: pointer;
+        transition: background 0.2s;
+        outline: none;
+    }
+    
+    button.svelte-poj9ve:hover, input[type=button].svelte-poj9ve:hover {
+        background-color: #b14d51;
+    }
+    
+    button.svelte-poj9ve:active, input[type=button].svelte-poj9ve:active{
+        background-color: #9d4548;
+    }
+    
+    .header.svelte-poj9ve {
+        display: flex;
+        padding: 16px;
+        background: #ee6e73;
+    }
+    
+    @media only screen and (max-width: 900px) {
+        .header.svelte-poj9ve {
+            flex-direction: column;
+        }
+    
+        .header-title.svelte-poj9ve {
+            justify-content: center;
+            margin-bottom: 6px;
+        }
+    
+        .header-controls.svelte-poj9ve {
+            justify-content: center;
+        }
+    }
+    
+    .header-title.svelte-poj9ve {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        font-size: 36px;
+        padding: 0 16px;
+    }
+    
+    .header-title.svelte-poj9ve a:where(.svelte-poj9ve) {
+        color: #ffffff;
+        text-decoration: none;
+    }
+    
+    .header-controls.svelte-poj9ve {
+        display: flex;
+        align-items: center;
+    }
+    
+    .header.svelte-poj9ve button:where(.svelte-poj9ve), .header.svelte-poj9ve input[type=button]:where(.svelte-poj9ve) {
+        margin-right: 4px;
+    }

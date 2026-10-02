@@ -1,0 +1,13 @@
+{
+	"commit": "7425e6a25cd53b87cf91d829c272e74b2b0546d9",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/orefalo/svelte-splitpanes"
+}

@@ -1,0 +1,2 @@
+warning state_referenced_locally 54:34-54:43 This reference only captures the initial value of `page_type`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

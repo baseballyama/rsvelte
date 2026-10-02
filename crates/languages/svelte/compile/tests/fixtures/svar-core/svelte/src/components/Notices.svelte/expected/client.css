@@ -1,0 +1,7 @@
+
+	.wx-notices.svelte-2lhd9z {
+		position: fixed;
+		z-index: var(--wx-notice-z-index);
+		top: 0;
+		right: 0;
+	}

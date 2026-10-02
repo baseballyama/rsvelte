@@ -1,0 +1,54 @@
+
+	button.svelte-73pu1d {
+		--button-bg: transparent;
+		--button-fg: var(--fg);
+		border-color: transparent;
+		border-radius: 22.5px;
+		padding: 0;
+		height: 25px;
+		width: 25px;
+	}
+	button.svelte-73pu1d > div:where(.svelte-73pu1d) {
+		transition:
+			0.2s translate linear(0, 0.75, 1),
+			0.2s 0.2s opacity linear(0, 0.75, 1),
+			0.2s rotate linear(0, -0.1, 0.75, 1);
+	}
+	.INITIAL.svelte-73pu1d {
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.UNSAVED.svelte-73pu1d {
+		pointer-events: all;
+	}
+
+	.SAVING.svelte-73pu1d {
+		animation: svelte-73pu1d-pulse 1s infinite;
+	}
+
+	button.svelte-73pu1d:has(.SAVED:where(.svelte-73pu1d)) {
+		border: 1px solid var(--accent);
+	}
+
+	.SAVED.svelte-73pu1d {
+		rotate: -46deg;
+		translate: 1.5px 1px;
+	}
+
+	@keyframes svelte-73pu1d-pulse {
+		0% {
+			opacity: 1;
+			transform: scale(0.8);
+		}
+
+		50% {
+			opacity: 0.7;
+			transform: scale(1);
+		}
+
+		100% {
+			opacity: 1;
+			transform: scale(0.8);
+		}
+	}

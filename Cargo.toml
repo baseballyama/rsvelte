@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/kernel", "crates/hosts/*", "crates/languages/*/*"]
+members = ["crates/kernel", "crates/fixture_test", "crates/hosts/*", "crates/languages/*/*"]
 
 [workspace.package]
 edition = "2024"
@@ -10,6 +10,7 @@ publish = false
 
 [workspace.dependencies]
 rsvelte_kernel = { path = "crates/kernel" }
+rsvelte_fixture_test = { path = "crates/fixture_test" }
 rsvelte_typescript = { path = "crates/languages/typescript/core" }
 rsvelte_stylesheet = { path = "crates/languages/css/core" }
 rsvelte_svelte = { path = "crates/languages/svelte/core" }

@@ -1,0 +1,6 @@
+warning css_unused_selector 93:2-93:45 Unused CSS selector ":global([data-theme='default']) .ed-sub-btn"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 106:2-106:51 Unused CSS selector ":global([data-theme='default']) .ed-sub-btn:hover"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 112:3-112:46 Unused CSS selector ":global([data-theme='default']) .ed-sub-btn"
+    https://svelte.dev/e/css_unused_selector

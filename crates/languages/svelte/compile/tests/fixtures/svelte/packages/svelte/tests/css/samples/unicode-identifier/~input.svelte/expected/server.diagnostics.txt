@@ -1,0 +1,12 @@
+warning css_unused_selector 22:2-22:11 Unused CSS selector ".\61  sdf"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 23:2-24:5 Unused CSS selector ".\61
+    	sdf"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 25:2-26:5 Unused CSS selector ".\61
+     sdf"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 28:2-28:10 Unused CSS selector "#\31span"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 29:2-29:11 Unused CSS selector "#\31 span"
+    https://svelte.dev/e/css_unused_selector

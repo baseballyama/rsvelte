@@ -1,0 +1,13 @@
+
+	.demo.svelte-hlgz5 .center {
+		justify-content: center;
+	}
+
+	.demo.svelte-hlgz5 .wx-h-row .wx-cell:not(:last-child),
+	.demo.svelte-hlgz5 .wx-f-row .wx-cell:not(:last-child) {
+		border-right: var(--wx-table-cell-border);
+	}
+
+	.demo.svelte-hlgz5 .wx-h-row:not(:last-child) {
+		border-bottom: var(--wx-table-cell-border);
+	}

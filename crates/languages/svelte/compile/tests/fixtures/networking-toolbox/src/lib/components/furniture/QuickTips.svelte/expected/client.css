@@ -1,0 +1,179 @@
+
+  .quick-tips.svelte-nj9t3c {
+    position: relative;
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-primary), transparent 92%),
+      color-mix(in srgb, var(--color-primary), transparent 96%)
+    );
+    border: 1px solid color-mix(in srgb, var(--color-primary), transparent 70%);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md) var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+    box-shadow: var(--shadow-md);
+    animation: svelte-nj9t3c-slideInDown 0.5s ease-out;
+
+    @media (max-width: 768px) {
+      padding: var(--spacing-sm) var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
+    }
+
+    @media (max-width: 480px) {
+      display: none;
+    }
+  }
+
+  .close-btn.svelte-nj9t3c {
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+  }
+
+  .tip-main.svelte-nj9t3c {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xs);
+
+    @media (max-width: 640px) {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+  .tip-content.svelte-nj9t3c {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+    flex: 1;
+    padding-right: var(--spacing-lg);
+    margin-top: var(--spacing-sm);
+
+    @media (max-width: 640px) {
+      gap: var(--spacing-sm);
+      padding-right: 0;
+    }
+  }
+
+  .tip-icon.svelte-nj9t3c {
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--color-primary), transparent 85%);
+    border-radius: var(--radius-md);
+
+    svg {
+      color: var(--color-primary);
+    }
+
+    @media (max-width: 640px) {
+      width: 2rem;
+      height: 2rem;
+    }
+  }
+
+  .tip-text.svelte-nj9t3c {
+    flex: 1;
+
+    h3:where(.svelte-nj9t3c) {
+      font-size: var(--font-size-md);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 var(--spacing-xs) 0;
+      line-height: 1.3;
+    }
+
+    p:where(.svelte-nj9t3c) {
+      font-size: var(--font-size-sm);
+      color: var(--text-secondary);
+      margin: 0;
+      line-height: 1.4;
+    }
+  }
+
+  .tip-controls.svelte-nj9t3c {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    flex-shrink: 0;
+    align-self: flex-end;
+
+    @media (max-width: 640px) {
+      align-self: flex-end;
+    }
+
+    .nav-btn:where(.svelte-nj9t3c) {
+      background: transparent;
+      border: 1px solid var(--border-primary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: var(--spacing-xs);
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-fast);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &:hover {
+        background: var(--bg-tertiary);
+        border-color: var(--border-secondary);
+        color: var(--text-primary);
+      }
+    }
+  }
+
+  .tip-dots.svelte-nj9t3c {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    padding-top: var(--spacing-xs);
+
+    .dot:where(.svelte-nj9t3c) {
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: var(--radius-full);
+      background: var(--border-primary);
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      transition: all var(--transition-fast);
+
+      &:hover {
+        background: var(--text-secondary);
+      }
+
+      &.active {
+        background: var(--color-primary);
+      }
+    }
+  }
+
+  @keyframes svelte-nj9t3c-slideInDown {
+    from {
+      opacity: 0;
+      transform: translateY(-1rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }

@@ -1,0 +1,12 @@
+
+    .nav-tiles.svelte-wapswn {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    @media (min-width: 768px) {
+        .nav-tiles.svelte-wapswn {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }

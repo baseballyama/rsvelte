@@ -1,0 +1,6 @@
+warning state_referenced_locally 56:31-56:35 This reference only captures the initial value of `data`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 57:35-57:39 This reference only captures the initial value of `data`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 87:12-87:16 This reference only captures the initial value of `data`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

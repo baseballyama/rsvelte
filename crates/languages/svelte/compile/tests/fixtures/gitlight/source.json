@@ -1,0 +1,13 @@
+{
+	"commit": "231c6bb6729e8532abd4477db6211b6e8f52446a",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/colinlienard/gitlight.git"
+}

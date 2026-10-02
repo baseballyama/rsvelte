@@ -1,0 +1,8 @@
+warning state_referenced_locally 30:20-30:29 This reference only captures the initial value of `quicklink`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 31:20-31:29 This reference only captures the initial value of `quicklink`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 32:27-32:36 This reference only captures the initial value of `quicklink`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 33:20-33:29 This reference only captures the initial value of `quicklink`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

@@ -1,0 +1,43 @@
+<script lang="ts">
+    import { base } from '$app/paths';
+    import { page } from '$app/state';
+    import { Click, trackEvent } from '$lib/actions/analytics';
+    import { Button } from '$lib/elements/forms';
+    import { HeaderAlert } from '$lib/layout';
+    import { hideBillingHeaderRoutes, readOnly, getChangePlanUrl } from '$lib/stores/billing';
+    import { organization } from '$lib/stores/organization';
+</script>
+
+{#if $organization?.$id && !$organization?.billingPlanDetails.usage && $readOnly && !hideBillingHeaderRoutes.includes(page.url.pathname)}
+    <HeaderAlert
+        type="error"
+        title={`${$organization.name} usage has reached the ${$organization.billingPlanDetails.name} plan limit`}>
+        <svelte:fragment>
+            Usage for the <b>{$organization.name}</b> organization has reached the limits of the {$organization
+                .billingPlanDetails.name}
+            plan. Consider upgrading to increase your resource usage.
+        </svelte:fragment>
+        <svelte:fragment slot="buttons">
+            {#if !page.data.currentPlan?.usagePerProject}
+                <Button
+                    href={`${base}/organization-${$organization.$id}/usage`}
+                    text
+                    fullWidthMobile>
+                    <span class="text">View usage</span>
+                </Button>
+            {/if}
+            <Button
+                href={getChangePlanUrl($organization.$id)}
+                on:click={() => {
+                    trackEvent(Click.OrganizationClickUpgrade, {
+                        from: 'button',
+                        source: 'limit_reached_banner'
+                    });
+                }}
+                secondary
+                fullWidthMobile>
+                <span class="text">Upgrade plan</span>
+            </Button>
+        </svelte:fragment>
+    </HeaderAlert>
+{/if}

@@ -1,0 +1,28 @@
+
+  .link.svelte-155xx9s {
+    color: red;
+  }
+
+  .bold.svelte-155xx9s {
+    color: red;
+  }
+
+  .link.svelte-155xx9s:active {
+    color: red;
+  }
+
+  /* (unused) .link + .bold {
+    color: red;
+  }*/
+
+  /* (unused) .bold[data-key="val"] {
+    color: red;
+  }*/
+
+  .bold.svelte-155xx9s::before {
+    color: red;
+  }
+
+  .conditinal.svelte-155xx9s {
+    color: red;
+  }

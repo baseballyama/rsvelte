@@ -1,0 +1,11 @@
+warning css_unused_selector 9:2-9:30 Unused CSS selector "::highlight(rainbow-color-1)"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 12:2-12:27 Unused CSS selector "custom-element::part(foo)"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 15:2-15:21 Unused CSS selector "::slotted(.content)"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 18:2-21:4 Unused CSS selector ":is( /*button*/
+    		button, /*p after h1*/
+    		h1 + p
+    		)"
+    https://svelte.dev/e/css_unused_selector

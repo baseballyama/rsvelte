@@ -1,0 +1,2 @@
+warning state_referenced_locally 10:7-10:11 This reference only captures the initial value of `href`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

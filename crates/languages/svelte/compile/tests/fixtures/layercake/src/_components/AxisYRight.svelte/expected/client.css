@@ -1,0 +1,19 @@
+
+	.tick.svelte-bwiraz {
+		font-size: 11px;
+	}
+
+	.tick.svelte-bwiraz line:where(.svelte-bwiraz) {
+		stroke: #aaa;
+	}
+	.tick.svelte-bwiraz .gridline:where(.svelte-bwiraz) {
+		stroke-dasharray: 2;
+	}
+
+	.tick.svelte-bwiraz text:where(.svelte-bwiraz) {
+		fill: #666;
+	}
+
+	.tick.tick-0.svelte-bwiraz line:where(.svelte-bwiraz) {
+		stroke-dasharray: 0;
+	}

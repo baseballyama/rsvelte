@@ -1,0 +1,8 @@
+warning state_referenced_locally 97:18-97:31 This reference only captures the initial value of `_smuiClassMap`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 109:23-109:36 This reference only captures the initial value of `_smuiContexts`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 110:9-110:22 This reference only captures the initial value of `_smuiContexts`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 111:27-111:40 This reference only captures the initial value of `_smuiContexts`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

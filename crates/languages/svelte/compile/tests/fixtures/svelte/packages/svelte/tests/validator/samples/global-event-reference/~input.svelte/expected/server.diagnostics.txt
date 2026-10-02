@@ -1,0 +1,4 @@
+warning attribute_global_event_reference 8:9-8:20 You are referencing `globalThis.onkeydown`. Did you forget to declare a variable with that name?
+    https://svelte.dev/e/attribute_global_event_reference
+warning attribute_global_event_reference 9:9-9:30 You are referencing `globalThis.onkeydown`. Did you forget to declare a variable with that name?
+    https://svelte.dev/e/attribute_global_event_reference

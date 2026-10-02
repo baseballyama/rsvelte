@@ -1,0 +1,2 @@
+warning options_deprecated_immutable 27:17-27:26 The `immutable` option has been deprecated. It will have no effect in runes mode
+    https://svelte.dev/e/options_deprecated_immutable

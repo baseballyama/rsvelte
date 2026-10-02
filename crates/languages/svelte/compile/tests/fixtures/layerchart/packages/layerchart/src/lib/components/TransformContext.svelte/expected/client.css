@@ -1,0 +1,6 @@
+
+  @layer base {
+    :where(.lc-transform-context.svelte-1fzgqyj) {
+      height: 100%;
+    }
+  }

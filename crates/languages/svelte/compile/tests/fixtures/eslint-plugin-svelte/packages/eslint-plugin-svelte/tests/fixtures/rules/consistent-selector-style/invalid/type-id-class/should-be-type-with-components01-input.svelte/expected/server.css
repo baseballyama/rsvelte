@@ -1,0 +1,40 @@
+
+  .link.svelte-uy77io {
+    color: red;
+  }
+
+  .bold.svelte-uy77io {
+    color: red;
+  }
+
+  .link.svelte-uy77io:active {
+    color: red;
+  }
+
+  .link.svelte-uy77io + .bold:where(.svelte-uy77io) {
+    color: red;
+  }
+
+  .bold[data-key="val"].svelte-uy77io {
+    color: red;
+  }
+
+  .bold.svelte-uy77io::before {
+    color: red;
+  }
+
+  #italic.svelte-uy77io {
+    color: red;
+  }
+
+  #italic.svelte-uy77io:active {
+    color: red;
+  }
+
+  b.svelte-uy77io + #italic:where(.svelte-uy77io) {
+    color: red;
+  }
+
+  #italic.svelte-uy77io::before {
+    color: red;
+  }

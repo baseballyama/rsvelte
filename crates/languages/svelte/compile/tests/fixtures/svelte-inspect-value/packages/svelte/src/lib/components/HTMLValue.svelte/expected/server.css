@@ -1,0 +1,22 @@
+
+   code.value.html.hl {
+    border-radius: 4px;
+    background-color: transparent;
+    padding-inline: 0.5em;
+
+    .tag {
+      color: var(--_text-color);
+    }
+
+    .name {
+      color: var(--_error-color);
+    }
+
+    .attr {
+      color: var(--_function-name-color);
+    }
+
+    .string {
+      color: var(--_string-value-color);
+    }
+  }

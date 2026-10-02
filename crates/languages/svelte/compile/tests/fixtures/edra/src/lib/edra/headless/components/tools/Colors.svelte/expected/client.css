@@ -1,0 +1,43 @@
+
+	.colors-trigger.svelte-1wtg13v {
+		gap: 2px;
+	}
+	.chevron-icon {
+		color: var(--edra-mute);
+		width: 0.5rem;
+		height: 0.5rem;
+	}
+	.colors-panel.svelte-1wtg13v {
+		padding: 12px;
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		min-width: 12rem;
+	}
+	.title.svelte-1wtg13v {
+		font-size: 0.75rem;
+		font-weight: 600;
+		margin-bottom: 4px;
+		color: var(--edra-mute);
+	}
+	.title.margin-top.svelte-1wtg13v {
+		margin-top: 8px;
+	}
+	.colors-grid.svelte-1wtg13v {
+		display: grid;
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+		gap: 6px;
+	}
+	.color-btn.svelte-1wtg13v {
+		width: 1.5rem;
+		height: 1.5rem;
+		padding: 0;
+		border: 1px solid transparent;
+		border-radius: var(--edra-radius-sm);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-weight: 500;
+		transition: all 150ms ease;
+		cursor: pointer;
+	}

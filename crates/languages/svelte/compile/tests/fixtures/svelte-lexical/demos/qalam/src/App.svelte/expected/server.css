@@ -1,0 +1,61 @@
+
+  .app.svelte-zzvfli {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .main-area.svelte-zzvfli {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .welcome.svelte-zzvfli {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fafafa;
+  }
+
+  .welcome-content.svelte-zzvfli {
+    text-align: center;
+    color: #555;
+  }
+
+  .welcome-icon.svelte-zzvfli {
+    font-size: 48px;
+    color: #cba6f7;
+    margin-bottom: 16px;
+  }
+
+  .welcome-content.svelte-zzvfli h1:where(.svelte-zzvfli) {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin: 0 0 8px;
+  }
+
+  .welcome-content.svelte-zzvfli p:where(.svelte-zzvfli) {
+    font-size: 15px;
+    color: #888;
+    margin: 0 0 24px;
+  }
+
+  .cta-btn.svelte-zzvfli {
+    padding: 10px 24px;
+    background: #cba6f7;
+    color: #1e1e2e;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .cta-btn.svelte-zzvfli:hover {
+    background: #b48ef0;
+  }

@@ -1,0 +1,64 @@
+
+	.RepeaterField.svelte-rnwm7y {
+		width: 100%;
+	}
+	.fields.svelte-rnwm7y {
+		display: grid;
+		/* gap: 1.5rem; */
+		padding-bottom: 0.5rem;
+	}
+	button.field-button.svelte-rnwm7y {
+		width: 100%;
+		background: var(--primo-color-codeblack);
+		color: var(--button-color);
+		transition:
+			background 0.1s,
+			color 0.1s;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		font-size: var(--font-size-1);
+		padding: 0.375rem;
+		border-radius: var(--primo-border-radius);
+		font-weight: 400;
+		border: 1px solid transparent;
+		transition: 0.1s;
+
+		&:hover {
+			/* background: var(--button-hover-color); */
+			background: #292929;
+		}
+
+		/* &[disabled] {
+      background: var(--color-gray-5);
+      cursor: not-allowed;
+    } */
+	}
+	.repeater-level-0.svelte-rnwm7y {
+		--field-border-color: #252627;
+	}
+
+	.repeater-level-1.svelte-rnwm7y {
+		--field-border-color: #3e4041;
+	}
+
+	.repeater-level-2.svelte-rnwm7y {
+		--field-border-color: #58595b;
+	}
+
+	.repeater-level-3.svelte-rnwm7y {
+		--field-border-color: #888;
+	}
+
+	.repeater-level-4.svelte-rnwm7y {
+		--field-border-color: #aaa;
+	}
+
+	.repeater-level-5.svelte-rnwm7y {
+		--field-border-color: #ccc;
+	}
+
+	.repeater-level-5.svelte-rnwm7y {
+		--field-border-color: #eee;
+	}

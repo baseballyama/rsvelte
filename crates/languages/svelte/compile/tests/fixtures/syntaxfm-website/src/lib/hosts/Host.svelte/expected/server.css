@@ -1,0 +1,42 @@
+
+	.person.svelte-nnwa4d {
+		border: 1px solid var(--line);
+		border-radius: 50px;
+		position: relative;
+		border-left: 0;
+		padding-right: 0.5rem;
+	}
+	figure.svelte-nnwa4d {
+		display: grid;
+		grid-template-columns: 70px 1fr;
+		margin: 0;
+	}
+
+	figure.svelte-nnwa4d img:where(.svelte-nnwa4d) {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		border-radius: 50%;
+	}
+
+	figcaption.svelte-nnwa4d {
+		padding: 10px;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+	}
+	figcaption.svelte-nnwa4d p:where(.svelte-nnwa4d) {
+		margin: 0;
+		white-space: nowrap;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.host-guest-tag.svelte-nnwa4d {
+		background: var(--yellow);
+		color: var(--black);
+		padding: 0 4px;
+		transform: rotate(-3deg);
+		font-size: var(--font-size-xs);
+	}

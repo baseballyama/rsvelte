@@ -1,0 +1,86 @@
+warning a11y_no_static_element_interactions 1:1-16:7 `<div>` with a mousemove handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning event_directive_deprecated 1:6-1:18 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 1:19-1:31 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 2:2-8:8 `<div>` with a mousemove handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning event_directive_deprecated 2:7-2:19 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 2:20-2:32 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 3:3-3:23 `<div>` with a mousemove handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning element_invalid_self_closing_tag 3:3-3:23 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning event_directive_deprecated 3:8-3:20 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 4:3-4:36 `<div>` with a mousemove handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning element_invalid_self_closing_tag 4:3-4:36 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning event_directive_deprecated 4:8-4:20 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 4:21-4:33 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 5:3-5:23 `<div>` with a mousemove handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning element_invalid_self_closing_tag 5:3-5:23 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning event_directive_deprecated 5:8-5:20 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 6:3-6:36 `<div>` with a mousemove handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning element_invalid_self_closing_tag 6:3-6:36 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning event_directive_deprecated 6:8-6:20 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 6:21-6:33 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 7:3-7:23 `<div>` with a mousemove handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning element_invalid_self_closing_tag 7:3-7:23 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning event_directive_deprecated 7:8-7:20 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 9:2-15:8 `<div>` with a mousemove handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning event_directive_deprecated 9:7-9:19 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 10:3-10:36 `<div>` with a mousemove handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning element_invalid_self_closing_tag 10:3-10:36 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning event_directive_deprecated 10:8-10:20 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 10:21-10:33 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 11:3-11:23 `<div>` with a mousemove handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning element_invalid_self_closing_tag 11:3-11:23 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning event_directive_deprecated 11:8-11:20 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 12:3-12:36 `<div>` with a mousemove handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning element_invalid_self_closing_tag 12:3-12:36 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning event_directive_deprecated 12:8-12:20 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 12:21-12:33 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 13:3-13:23 `<div>` with a mousemove handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning element_invalid_self_closing_tag 13:3-13:23 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning event_directive_deprecated 13:8-13:20 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning a11y_no_static_element_interactions 14:3-14:36 `<div>` with a mousemove handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning element_invalid_self_closing_tag 14:3-14:36 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning event_directive_deprecated 14:8-14:20 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 14:21-14:33 Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead
+    https://svelte.dev/e/event_directive_deprecated

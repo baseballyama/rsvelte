@@ -1,0 +1,22 @@
+
+    .price-breakdown.svelte-1wgjfr3 {
+        border: 1px solid hsl(var(--color-border));
+        border-radius: var(--border-radius-small);
+        padding: 1rem;
+    }
+
+    .price-row.svelte-1wgjfr3 {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .divider.svelte-1wgjfr3 {
+        border: none;
+        border-top: 1px solid hsl(var(--color-border));
+        margin-block: 0.75rem;
+    }
+
+    .u-text-end.svelte-1wgjfr3 {
+        text-align: end;
+    }

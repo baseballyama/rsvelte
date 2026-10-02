@@ -1,0 +1,13 @@
+{
+	"commit": "75a3083a36724eccc5e69649299d9fb3d66bd124",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/SveltePress/sveltepress.git"
+}

@@ -1,0 +1,4 @@
+warning a11y_consider_explicit_label 12:1-12:38 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label
+warning non_reactive_update 4:6-4:7 `x` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

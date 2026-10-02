@@ -1,0 +1,11 @@
+
+	.video_page.svelte-fkg8c8 {
+		padding: 1rem 0;
+	}
+
+	youtube-video.svelte-fkg8c8 {
+		border-radius: var(--brad);
+		overflow: hidden;
+		aspect-ratio: 16 / 9;
+		width: 100%;
+	}

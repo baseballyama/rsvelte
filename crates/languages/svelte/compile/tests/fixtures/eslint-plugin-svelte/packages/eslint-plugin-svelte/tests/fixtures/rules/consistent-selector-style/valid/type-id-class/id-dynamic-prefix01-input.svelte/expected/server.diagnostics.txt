@@ -1,0 +1,8 @@
+warning a11y_missing_attribute 7:1-7:17 `<a>` element should have an href attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning a11y_missing_attribute 9:1-9:46 `<a>` element should have an href attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning a11y_missing_attribute 11:1-11:48 `<a>` element should have an href attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning a11y_missing_attribute 13:1-13:35 `<a>` element should have an href attribute
+    https://svelte.dev/e/a11y_missing_attribute

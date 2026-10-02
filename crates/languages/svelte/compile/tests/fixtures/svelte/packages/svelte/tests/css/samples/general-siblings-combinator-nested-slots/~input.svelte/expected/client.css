@@ -1,0 +1,4 @@
+
+  h1.svelte-nz356c ~ p:where(.svelte-nz356c) {
+    color: red;
+  }

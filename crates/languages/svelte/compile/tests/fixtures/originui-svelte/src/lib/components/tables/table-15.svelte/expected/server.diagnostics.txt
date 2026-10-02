@@ -1,0 +1,4 @@
+warning a11y_no_static_element_interactions 273:10-278:12 `<div>` with a dblclick, mousedown or touchstart handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning element_invalid_self_closing_tag 273:10-278:12 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag

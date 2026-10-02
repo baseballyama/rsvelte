@@ -1,0 +1,14 @@
+
+	.navExpanded.svelte-1je6nqg {
+		transition: ease-out 200ms;
+		width: 180px;
+	}
+
+	.navCollapsed.svelte-1je6nqg {
+		transition: ease-out 200ms;
+		width: 55px;
+	}
+
+	.nav-item.svelte-1je6nqg {
+		@apply flex items-center text-sm py-4 px-4 h-12 overflow-hidden text-base-content stroke-base-content text-ellipsis cursor-default whitespace-nowrap rounded hover:bg-base-300 transition duration-300 ease-in-out;
+	}

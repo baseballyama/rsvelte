@@ -1,0 +1,14 @@
+
+  .flexy-dad.svelte-z66g28 {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .flexy-boy.svelte-z66g28 {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 120px;
+    height: 120px;
+    margin: 0 36px 36px 0;
+  }

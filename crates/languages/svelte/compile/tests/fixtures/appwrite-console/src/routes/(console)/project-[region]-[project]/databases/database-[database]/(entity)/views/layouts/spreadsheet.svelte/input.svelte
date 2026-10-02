@@ -1,0 +1,230 @@
+<script lang="ts">
+    import { debounce } from '$lib/helpers/debounce';
+    import { scrollStore, sheetHeightStore } from './store';
+    import { onMount, onDestroy, type Snippet, tick } from 'svelte';
+    import { isSmallViewport } from '$lib/stores/viewport';
+    import { SideSheet } from '$database/(entity)';
+    import { SvelteSet } from 'svelte/reactivity';
+
+    let {
+        children,
+        noSqlEditor,
+        sideSheetHeaderAction,
+        sideSheetOptions = null,
+        sideSheetStateCallbacks = null,
+        showEditorSideSheet = $bindable(false)
+    }: {
+        children: Snippet;
+        noSqlEditor?: Snippet;
+        sideSheetHeaderAction?: Snippet;
+        showEditorSideSheet?: boolean;
+        /* this sheet is only on mobile */
+        sideSheetStateCallbacks?: {
+            onOpen?: () => void;
+            onClose?: () => void;
+        };
+        sideSheetOptions?: {
+            sideSheetTitle?: string;
+            submit?:
+                | {
+                      text: string;
+                      disabled?: boolean;
+                      onClick?: () => boolean | void | Promise<boolean | void>;
+                  }
+                | undefined;
+        };
+    } = $props();
+
+    let spreadsheetWrapper: HTMLDivElement;
+    let spreadsheetGridContainer: HTMLDivElement;
+
+    /** resizing logic variables */
+    let resizeObserver: ResizeObserver;
+    let mutationObserver: MutationObserver;
+
+    /** to avoid querySelector for perf! */
+    let cachedElements = new SvelteSet<Element>();
+
+    /** writable store to prevent jumps when changing views */
+    let spreadsheetHeight = $state($sheetHeightStore);
+
+    const handleResize = debounce(() => resizeSheet(), 125);
+
+    function observeElement(selector: string) {
+        const element = document.querySelector(selector);
+        if (element && !cachedElements.has(element)) {
+            cachedElements.add(element);
+            resizeObserver.observe(element);
+        }
+    }
+
+    /** get the actual spreadsheet-container */
+    function initSpreadsheetGridContainer(): boolean {
+        if (spreadsheetGridContainer) return true;
+
+        spreadsheetGridContainer = spreadsheetWrapper?.querySelector('.spreadsheet-container');
+        return !!spreadsheetGridContainer;
+    }
+
+    /** adjust height to fill remaining viewport space */
+    function resizeSheet(): void {
+        if (!spreadsheetWrapper) return;
+        const wrapperRect = spreadsheetWrapper.getBoundingClientRect();
+        const wrapperTop = wrapperRect.top;
+        const viewportHeight = window.innerHeight;
+        const availableHeight = viewportHeight - wrapperTop;
+        const finalHeight = Math.max(100, availableHeight);
+
+        const currentHeight = parseFloat(spreadsheetHeight);
+        const heightChanged = Math.abs(currentHeight - finalHeight) > 1;
+
+        if (heightChanged) {
+            const newHeight = `${finalHeight}px`;
+            spreadsheetHeight = newHeight;
+            sheetHeightStore.set(newHeight);
+        }
+    }
+
+    function addObservers() {
+        /** grab the sheet container */
+        initSpreadsheetGridContainer();
+
+        resizeObserver = new ResizeObserver(handleResize);
+
+        /** banners */
+        observeElement('.top-banner');
+
+        /** expand / collapse tabs */
+        observeElement('.layout-header');
+
+        /** just in case */
+        resizeObserver.observe(document.body);
+
+        /** add an observer when a banner pops-in */
+        mutationObserver = new MutationObserver(() => {
+            observeElement('.top-banner');
+        });
+
+        mutationObserver.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
+
+    function manageStateCallbacks(isOpen: boolean) {
+        if (sideSheetStateCallbacks) {
+            if (isOpen) {
+                sideSheetStateCallbacks.onOpen?.();
+            } else {
+                sideSheetStateCallbacks.onClose?.();
+            }
+        }
+    }
+
+    /** save grid sheet scroll for restore */
+    export function saveGridSheetScroll(): void {
+        if (initSpreadsheetGridContainer()) {
+            scrollStore.set(spreadsheetGridContainer.scrollLeft || 0);
+        }
+    }
+
+    /** restore grid sheet scroll from before */
+    export function restoreGridSheetScroll(): void {
+        if (initSpreadsheetGridContainer() && spreadsheetGridContainer.scrollWidth > 0) {
+            spreadsheetGridContainer.scrollTop = 0;
+            spreadsheetGridContainer.scrollLeft = $scrollStore;
+        }
+    }
+
+    onMount(async () => {
+        await tick();
+        addObservers();
+        resizeSheet();
+    });
+
+    onDestroy(() => {
+        resizeObserver?.disconnect();
+        mutationObserver?.disconnect();
+    });
+
+    let previousShowEditorSideSheet = showEditorSideSheet;
+
+    $effect(() => {
+        if (showEditorSideSheet !== previousShowEditorSideSheet) {
+            manageStateCallbacks(showEditorSideSheet);
+            previousShowEditorSideSheet = showEditorSideSheet;
+        }
+    });
+</script>
+
+<!-- in some cases, its window! -->
+<svelte:window on:resize={handleResize} />
+
+<div
+    bind:this={spreadsheetWrapper}
+    class="spreadsheet-wrapper"
+    style:height={spreadsheetHeight}
+    class:has-json-editor={typeof noSqlEditor !== 'undefined'}>
+    {@render children()}
+
+    <div class="no-sql-editor">
+        {#if !$isSmallViewport}
+            <div class="no-sql-editor desktop" style:height={spreadsheetHeight}>
+                {@render noSqlEditor?.()}
+            </div>
+        {:else}
+            <SideSheet
+                noContentPadding
+                bind:show={showEditorSideSheet}
+                submit={sideSheetOptions?.submit}
+                cancel={{
+                    onClick: () => {
+                        // fires state callback.
+                        showEditorSideSheet = false;
+                    }
+                }}
+                title={sideSheetOptions?.sideSheetTitle ?? 'Edit document'}>
+                {@render noSqlEditor?.()}
+
+                {#snippet topEndActions()}
+                    {@render sideSheetHeaderAction?.()}
+                {/snippet}
+            </SideSheet>
+        {/if}
+    </div>
+</div>
+
+<style lang="scss">
+    .spreadsheet-wrapper {
+        transition: height 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+        &.has-json-editor {
+            gap: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+
+            & :global(.cm-indent-markers) {
+                --indent-markers: unset !important;
+            }
+
+            @media (max-width: 768px) {
+                grid-template-columns: 1fr;
+            }
+
+            &:has(.no-sql-editor:empty),
+            &:has(.no-sql-editor.desktop:empty) {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .no-sql-editor {
+            &:empty {
+                display: none;
+            }
+
+            &:has(:global(.sheet-container:empty)) {
+                display: none;
+            }
+        }
+    }
+</style>

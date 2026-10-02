@@ -1,0 +1,6 @@
+warning event_directive_deprecated 27:2-27:24 Using `on:focus` to listen to the focus event is deprecated. Use the event attribute `onfocus` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 28:2-28:23 Using `on:blur` to listen to the blur event is deprecated. Use the event attribute `onblur` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning non_reactive_update 4:6-4:11 `token` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

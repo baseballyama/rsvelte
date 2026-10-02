@@ -1,0 +1,4 @@
+warning css_unused_selector 7:16-7:19 Unused CSS selector "div"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 8:2-8:4 Unused CSS selector ".a"
+    https://svelte.dev/e/css_unused_selector

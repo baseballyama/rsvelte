@@ -1,0 +1,26 @@
+
+	.group-container.svelte-1vnc1j0 {
+		height: calc(100% - 40px);
+		width: 100%;
+	}
+	.input-container.svelte-1vnc1j0 {
+		margin-bottom: 7px;
+	}
+	label.svelte-1vnc1j0 {
+		cursor: pointer;
+	}
+	input.svelte-1vnc1j0 {
+		margin-right: 7px;
+	}
+	/*
+		The wrapper div needs to have an explicit width and height in CSS.
+		It can also be a flexbox child or CSS grid element.
+		The point being it needs dimensions since the <LayerCake> element will
+		expand to fill it.
+	*/
+	.small-multiple-container.svelte-1vnc1j0 {
+		position: relative;
+		display: inline-block;
+		width: 11%;
+		height: 30%;
+	}

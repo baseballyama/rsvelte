@@ -1,0 +1,300 @@
+import * as $ from 'svelte/internal/server';
+import { sidecarService } from '$lib/sidecar.svelte';
+import { uiStore } from '$lib/ui.svelte';
+import SettingsView from '$lib/components/SettingsView.svelte';
+import { listen } from '@tauri-apps/api/event';
+import { onMount } from 'svelte';
+import CommandPalette from '$lib/components/command-palette/CommandPalette.svelte';
+import PluginRunner from '$lib/components/PluginRunner.svelte';
+import Extensions from '$lib/components/Extensions.svelte';
+import OAuthView from '$lib/components/OAuthView.svelte';
+import { openUrl } from '@tauri-apps/plugin-opener';
+import ClipboardHistoryView from '$lib/components/ClipboardHistoryView.svelte';
+import QuicklinkForm from '$lib/components/QuicklinkForm.svelte';
+import { viewManager } from '$lib/viewManager.svelte';
+import SnippetForm from '$lib/components/SnippetForm.svelte';
+import ImportSnippets from '$lib/components/ImportSnippets.svelte';
+import SearchSnippets from '$lib/components/SearchSnippets.svelte';
+import FileSearchView from '$lib/components/FileSearchView.svelte';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import CommandDeeplinkConfirm from '$lib/components/CommandDeeplinkConfirm.svelte';
+import clipboardHistoryCommandIcon from '$lib/assets/command-clipboard-history-1616x16@2x.png?inline';
+import fileSearchCommandIcon from '$lib/assets/command-file-search-1616x16@2x.png?inline';
+import snippetIcon from '$lib/assets/snippets-package-1616x16@2x.png?inline';
+import storeCommandIcon from '$lib/assets/command-store-1616x16@2x.png?inline';
+import quicklinkIcon from '$lib/assets/quicklinks-package-1616x16@2x.png?inline';
+import { invoke } from '@tauri-apps/api/core';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const storePlugin = {
+			title: 'Store',
+			description: 'Browse and install new extensions from the Store',
+			pluginTitle: 'Raycast',
+			pluginName: 'raycast',
+			commandName: 'store',
+			pluginPath: 'builtin:store',
+			icon: storeCommandIcon,
+			preferences: [],
+			mode: 'view',
+			owner: 'raycast'
+		};
+
+		const clipboardHistoryPlugin = {
+			title: 'Clipboard History',
+			description: 'View, search, and manage your clipboard history',
+			pluginTitle: 'Flare',
+			pluginName: 'clipboard-history',
+			commandName: 'clipboard-history',
+			pluginPath: 'builtin:history',
+			icon: clipboardHistoryCommandIcon,
+			preferences: [],
+			mode: 'view',
+			owner: 'flare'
+		};
+
+		const searchSnippetsPlugin = {
+			title: 'Search Snippets',
+			description: 'Search and manage your snippets',
+			pluginTitle: 'Snippets',
+			pluginName: 'snippets',
+			commandName: 'search-snippets',
+			pluginPath: 'builtin:search-snippets',
+			icon: snippetIcon,
+			preferences: [],
+			mode: 'view',
+			owner: 'flare'
+		};
+
+		const createQuicklinkPlugin = {
+			title: 'Create Quicklink',
+			description: 'Create a new Quicklink',
+			pluginTitle: 'Flare',
+			pluginName: 'flare',
+			commandName: 'create-quicklink',
+			pluginPath: 'builtin:create-quicklink',
+			icon: quicklinkIcon,
+			preferences: [],
+			mode: 'view',
+			owner: 'flare'
+		};
+
+		const createSnippetPlugin = {
+			title: 'Create Snippet',
+			description: 'Create a new snippet',
+			pluginTitle: 'Flare',
+			pluginName: 'snippets',
+			commandName: 'create-snippet',
+			pluginPath: 'builtin:create-snippet',
+			icon: snippetIcon,
+			preferences: [],
+			mode: 'view',
+			owner: 'flare'
+		};
+
+		const importSnippetsPlugin = {
+			title: 'Import Snippets',
+			description: 'Import snippets from a JSON file',
+			pluginTitle: 'Flare',
+			pluginName: 'snippets',
+			commandName: 'import-snippets',
+			pluginPath: 'builtin:import-snippets',
+			icon: snippetIcon,
+			preferences: [],
+			mode: 'view',
+			owner: 'flare'
+		};
+
+		const fileSearchPlugin = {
+			title: 'Search Files',
+			description: 'Find files and folders on your computer',
+			pluginTitle: 'Flare',
+			pluginName: 'file-search',
+			commandName: 'search-files',
+			pluginPath: 'builtin:file-search',
+			icon: fileSearchCommandIcon,
+			preferences: [],
+			mode: 'view',
+			owner: 'flare'
+		};
+
+		const pluginList = $.derived(() => uiStore.pluginList),
+			currentPreferences = $.derived(() => uiStore.currentPreferences);
+
+		const allPlugins = $.derived(() => [
+			...pluginList(),
+			storePlugin,
+			clipboardHistoryPlugin,
+			searchSnippetsPlugin,
+			createQuicklinkPlugin,
+			createSnippetPlugin,
+			importSnippetsPlugin,
+			fileSearchPlugin
+		]);
+
+		const currentView = $.derived(() => viewManager.currentView),
+			oauthState = $.derived(() => viewManager.oauthState),
+			oauthStatus = $.derived(() => viewManager.oauthStatus),
+			quicklinkToEdit = $.derived(() => viewManager.quicklinkToEdit),
+			snippetsForImport = $.derived(() => viewManager.snippetsForImport),
+			commandToConfirm = $.derived(() => viewManager.commandToConfirm);
+
+		onMount(() => {
+			sidecarService.setOnGoBackToPluginList(viewManager.showCommandPalette);
+			sidecarService.start();
+
+			invoke('get_discovered_plugins').then((plugins) => {
+				uiStore.setPluginList(plugins);
+			}).catch((e) => {
+				console.error('Failed to discover plugins:', e);
+			});
+
+			const unlisten = listen('deep-link', (event) => {
+				console.log('Received deep link:', event.payload);
+				viewManager.handleDeepLink(event.payload, allPlugins());
+			});
+
+			return () => {
+				sidecarService.stop();
+				unlisten.then((fn) => fn());
+			};
+		});
+
+		function handleKeydown(event) {
+			if (currentView() === 'command-palette' && event.key === ',' && (event.metaKey || event.ctrlKey)) {
+				event.preventDefault();
+				viewManager.showSettings();
+
+				return;
+			}
+
+			if (event.key === 'Escape') {
+				if (currentView() === 'command-palette' && !event.defaultPrevented) {
+					event.preventDefault();
+					getCurrentWindow().hide();
+				}
+			}
+		}
+
+		function handleSavePreferences(pluginName, values) {
+			sidecarService.setPreferences(pluginName, values);
+		}
+
+		function handleGetPreferences(pluginName) {
+			sidecarService.getPreferences(pluginName);
+		}
+
+		function handlePopView() {
+			sidecarService.dispatchEvent('pop-view');
+		}
+
+		function handleToastAction(toastId, actionType) {
+			sidecarService.dispatchEvent('dispatch-toast-action', { toastId, actionType });
+		}
+
+		function onExtensionInstalled() {
+			invoke('get_discovered_plugins').then((plugins) => {
+				uiStore.setPluginList(plugins);
+			}).catch((e) => {
+				console.error('Failed to discover plugins:', e);
+			});
+		}
+
+		if (commandToConfirm()) {
+			$$renderer.push('<!--[0-->');
+
+			CommandDeeplinkConfirm($$renderer, {
+				plugin: commandToConfirm(),
+				onconfirm: viewManager.confirmRunCommand,
+				oncancel: viewManager.cancelRunCommand
+			});
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> `);
+
+		if (oauthState()) {
+			$$renderer.push('<!--[0-->');
+
+			OAuthView($$renderer, {
+				providerName: oauthState().providerName,
+				providerIcon: oauthState().providerIcon,
+				description: oauthState().description,
+				authUrl: oauthState().url,
+				status: oauthStatus(),
+				onSignIn: viewManager.handleOauthSignIn,
+				onBack: () => sidecarService.oauthState = null
+			});
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> `);
+
+		if (currentView() === 'command-palette') {
+			$$renderer.push('<!--[0-->');
+			CommandPalette($$renderer, { plugins: allPlugins(), onRunPlugin: viewManager.runPlugin });
+		} else if (currentView() === 'settings') {
+			$$renderer.push('<!--[1-->');
+
+			SettingsView($$renderer, {
+				plugins: pluginList(),
+				onBack: viewManager.showCommandPalette,
+				onSavePreferences: handleSavePreferences,
+				onGetPreferences: handleGetPreferences,
+				currentPreferences: currentPreferences()
+			});
+		} else if (currentView() === 'extensions-store') {
+			$$renderer.push('<!--[2-->');
+
+			Extensions($$renderer, {
+				onBack: viewManager.showCommandPalette,
+				onInstall: onExtensionInstalled
+			});
+		} else if (currentView() === 'plugin-running') {
+			$$renderer.push(`<!--[3--><!---->`);
+
+			{
+				PluginRunner($$renderer, { onPopView: handlePopView, onToastAction: handleToastAction });
+			}
+
+			$$renderer.push(`<!---->`);
+		} else if (currentView() === 'clipboard-history') {
+			$$renderer.push('<!--[4-->');
+			ClipboardHistoryView($$renderer, { onBack: viewManager.showCommandPalette });
+		} else if (currentView() === 'search-snippets') {
+			$$renderer.push('<!--[5-->');
+			SearchSnippets($$renderer, { onBack: viewManager.showCommandPalette });
+		} else if (currentView() === 'quicklink-form') {
+			$$renderer.push('<!--[6-->');
+
+			QuicklinkForm($$renderer, {
+				quicklink: quicklinkToEdit(),
+				onBack: viewManager.showCommandPalette,
+				onSave: viewManager.showCommandPalette
+			});
+		} else if (currentView() === 'create-snippet-form') {
+			$$renderer.push('<!--[7-->');
+
+			SnippetForm($$renderer, {
+				onBack: viewManager.showCommandPalette,
+				onSave: viewManager.showCommandPalette
+			});
+		} else if (currentView() === 'import-snippets') {
+			$$renderer.push('<!--[8-->');
+
+			ImportSnippets($$renderer, {
+				onBack: viewManager.showCommandPalette,
+				snippetsToImport: snippetsForImport()
+			});
+		} else if (currentView() === 'file-search') {
+			$$renderer.push('<!--[9-->');
+			FileSearchView($$renderer, { onBack: viewManager.showCommandPalette });
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]-->`);
+	});
+}

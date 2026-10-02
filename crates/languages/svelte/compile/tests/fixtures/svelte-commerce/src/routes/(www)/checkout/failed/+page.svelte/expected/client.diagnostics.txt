@@ -1,0 +1,12 @@
+warning css_unused_selector 186:2-186:12 Unused CSS selector ".item-name"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 192:2-192:15 Unused CSS selector ".item-variant"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 241:3-241:15 Unused CSS selector ".back-button"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 242:3-242:16 Unused CSS selector ".retry-button"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 247:2-247:15 Unused CSS selector ".retry-button"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 251:2-251:21 Unused CSS selector ".retry-button:hover"
+    https://svelte.dev/e/css_unused_selector

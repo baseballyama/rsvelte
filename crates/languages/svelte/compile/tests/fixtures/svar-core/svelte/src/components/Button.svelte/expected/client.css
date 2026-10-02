@@ -1,0 +1,148 @@
+
+	.wx-button.svelte-1s0tks0 {
+		display: inline-block;
+		vertical-align: top;
+		text-decoration: none;
+		text-align: center;
+		letter-spacing: normal;
+		text-transform: var(--wx-button-text-transform);
+		font-family: var(--wx-button-font-family);
+		font-size: var(--wx-button-font-size);
+		line-height: var(--wx-button-line-height);
+		font-weight: var(--wx-button-font-weight);
+		padding: var(--wx-button-padding);
+		border: var(--wx-button-border);
+		border-radius: var(--wx-button-border-radius);
+		background-color: var(--wx-button-background);
+		color: var(--wx-button-font-color);
+		cursor: pointer;
+		box-shadow: none;
+		transition: none;
+		max-width: 100%;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		user-select: none;
+		min-width: var(--wx-button-width);
+	}
+
+	.wx-button.svelte-1s0tks0:hover {
+		background-image: linear-gradient(
+			rgba(0, 0, 0, 0.1) 0%,
+			rgba(0, 0, 0, 0.1) 100%
+		);
+	}
+
+	.wx-button.svelte-1s0tks0,
+	.wx-button.svelte-1s0tks0:focus,
+	.wx-button.svelte-1s0tks0:active {
+		outline: none;
+	}
+
+	.wx-button[disabled].svelte-1s0tks0 {
+		cursor: not-allowed;
+		background: var(--wx-color-disabled);
+		border-color: transparent;
+		color: var(--wx-color-font-disabled);
+	}
+
+	.wx-block.svelte-1s0tks0 {
+		display: block;
+		width: 100%;
+	}
+
+	.wx-square.svelte-1s0tks0 {
+		border-radius: 0;
+	}
+
+	i.svelte-1s0tks0 {
+		position: relative;
+		display: inline-block;
+		vertical-align: top;
+		font-size: var(--wx-button-icon-size);
+		line-height: 1;
+		height: var(--wx-button-line-height);
+		margin-right: 2px;
+		opacity: 0.7;
+	}
+	i.svelte-1s0tks0:before {
+		display: block;
+		position: relative;
+		top: 50%;
+		transform: translateY(-50%);
+	}
+
+	.wx-icon.svelte-1s0tks0 {
+		padding-left: var(--wx-button-icon-indent);
+		padding-right: var(--wx-button-icon-indent);
+		min-width: auto;
+	}
+	.wx-icon.svelte-1s0tks0 i:where(.svelte-1s0tks0) {
+		margin: 0;
+		opacity: 1;
+	}
+
+	.wx-primary.svelte-1s0tks0 {
+		background-color: var(--wx-color-primary);
+		color: var(--wx-color-primary-font);
+	}
+
+	.wx-pressed.svelte-1s0tks0,
+	.wx-pressed.svelte-1s0tks0:hover,
+	.wx-pressed.svelte-1s0tks0:active,
+	.wx-pressed[disabled].svelte-1s0tks0 {
+		background-color: var(--wx-button-pressed);
+		box-shadow: var(--wx-button-box-shadow);
+	}
+
+	.wx-primary.wx-pressed.svelte-1s0tks0:not([disabled]),
+	.wx-primary.wx-pressed.svelte-1s0tks0:hover:not([disabled]),
+	.wx-primary.wx-pressed.svelte-1s0tks0:active:not([disabled]) {
+		background-color: var(--wx-button-primary-pressed);
+		box-shadow: var(--wx-button-primary-box-shadow);
+	}
+
+	.wx-danger.wx-pressed.svelte-1s0tks0:not([disabled]),
+	.wx-danger.wx-pressed.svelte-1s0tks0:hover:not([disabled]),
+	.wx-danger.wx-pressed.svelte-1s0tks0:active:not([disabled]) {
+		background-color: var(--wx-button-danger-pressed);
+		box-shadow: var(--wx-button-primary-box-shadow);
+	}
+
+	.wx-secondary.svelte-1s0tks0 {
+		background: var(--wx-color-secondary);
+		color: var(--wx-color-secondary-font);
+		border-color: var(--wx-color-secondary-border);
+	}
+	.wx-secondary.svelte-1s0tks0:hover:not([disabled]) {
+		background: var(--wx-color-secondary-hover);
+	}
+	.wx-secondary.wx-pressed.svelte-1s0tks0:not([disabled]),
+	.wx-secondary.wx-pressed.svelte-1s0tks0:hover:not([disabled]),
+	.wx-secondary.wx-pressed.svelte-1s0tks0:active:not([disabled]) {
+		background: var(--wx-color-secondary-hover);
+		box-shadow: var(--wx-button-primary-box-shadow);
+	}
+	.wx-secondary[disabled].svelte-1s0tks0 {
+		border-color: var(--wx-color-secondary-border-disabled);
+	}
+
+	.wx-danger.svelte-1s0tks0 {
+		background-color: var(--wx-color-danger);
+		color: var(--wx-button-danger-font-color);
+	}
+
+	.wx-link.svelte-1s0tks0 {
+		color: var(--wx-color-link);
+		padding: 0;
+		border: none;
+		vertical-align: baseline;
+	}
+	.wx-link.svelte-1s0tks0,
+	.wx-link.svelte-1s0tks0:hover,
+	.wx-link[disabled].svelte-1s0tks0 {
+		background: transparent;
+	}
+	.wx-link[disabled].svelte-1s0tks0 {
+		color: var(--wx-color-font-disabled);
+	}

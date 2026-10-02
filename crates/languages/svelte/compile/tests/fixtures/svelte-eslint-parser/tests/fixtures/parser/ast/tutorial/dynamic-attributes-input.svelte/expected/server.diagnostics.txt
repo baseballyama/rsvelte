@@ -1,0 +1,4 @@
+warning a11y_missing_attribute 5:1-5:6 `<img>` element should have an alt attribute
+    https://svelte.dev/e/a11y_missing_attribute
+warning a11y_missing_attribute 6:1-6:16 `<img>` element should have an alt attribute
+    https://svelte.dev/e/a11y_missing_attribute

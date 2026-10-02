@@ -1,0 +1,112 @@
+
+  .page-container.svelte-12qhfyh {
+    display: table;
+    font-size: 14px;
+    width: 100%;
+  }
+
+  main.svelte-12qhfyh {
+    max-width: 1150px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 10px;
+    overflow-x: auto;
+  }
+
+  .controls.svelte-12qhfyh {
+    border-top: 1.6px solid rgb(232, 228, 253);
+    padding: 12px 0 0 0;
+    display: flex;
+    justify-content: space-between;
+    margin: 40px 0;
+    gap: 15px;
+  }
+
+  .controls.svelte-12qhfyh > :where(.svelte-12qhfyh):first-child {
+    text-align: left;
+  }
+
+  .controls.svelte-12qhfyh > :where(.svelte-12qhfyh):last-child {
+    text-align: right;
+  }
+
+  .controls.svelte-12qhfyh span:where(.svelte-12qhfyh) {
+    display: block;
+    font-size: 14px;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: rgb(103, 103, 121);
+    margin-bottom: 4px;
+  }
+
+  .controls.svelte-12qhfyh span.faded:where(.svelte-12qhfyh) {
+    opacity: 0.4;
+  }
+
+  .controls.svelte-12qhfyh a:where(.svelte-12qhfyh) {
+    text-decoration: none;
+    font-size: 16px;
+    color: rgb(255, 64, 0);
+  }
+
+  .controls.svelte-12qhfyh a:where(.svelte-12qhfyh):not(:hover) {
+    text-decoration: none;
+  }
+
+  .rtl-containers.svelte-12qhfyh .splitpanes {
+    direction: rtl;
+  }
+
+  .toc-container-space.svelte-12qhfyh {
+    display: none;
+  }
+
+  .toc-container.svelte-12qhfyh {
+    display: flex;
+    flex-flow: column-reverse nowrap;
+    background: rgb(247, 250, 253);
+    color: rgb(65, 65, 72);
+  }
+
+  .toc-head.svelte-12qhfyh {
+    display: flex;
+    flex-flow: row nowrap;
+    gap: 8px;
+    padding-left: 10px;
+  }
+
+  @media (min-width: 832px) {
+    .page-container.svelte-12qhfyh {
+      display: flex;
+      flex-flow: row nowrap;
+    }
+
+    .toc-container-space.svelte-12qhfyh {
+      display: block;
+      min-width: 300px;
+      width: 300px;
+      height: 100vh;
+      margin: auto 0;
+    }
+
+    main.svelte-12qhfyh {
+      flex-grow: 1;
+    }
+
+    .toc-container.svelte-12qhfyh {
+      flex-direction: column;
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 300px;
+      height: 100vh;
+    }
+
+    .toc-contents-wrap.svelte-12qhfyh {
+      overflow-x: hidden;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+      padding: 10px;
+    }
+  }

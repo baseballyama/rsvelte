@@ -1,0 +1,6 @@
+warning a11y_media_has_caption 2:1-2:24 `<video>` elements must have a `<track kind="captions">`
+    https://svelte.dev/e/a11y_media_has_caption
+warning a11y_media_has_caption 3:1-3:33 `<video>` elements must have a `<track kind="captions">`
+    https://svelte.dev/e/a11y_media_has_caption
+warning a11y_media_has_caption 6:1-6:44 `<video>` elements must have a `<track kind="captions">`
+    https://svelte.dev/e/a11y_media_has_caption

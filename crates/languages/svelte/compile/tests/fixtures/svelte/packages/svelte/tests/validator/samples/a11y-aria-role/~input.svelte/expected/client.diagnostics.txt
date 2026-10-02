@@ -1,0 +1,4 @@
+warning a11y_unknown_role 6:6-6:21 Unknown role 'toooltip'. Did you mean 'tooltip'?
+    https://svelte.dev/e/a11y_unknown_role
+warning a11y_unknown_role 7:6-7:28 Unknown role 'toooltip'. Did you mean 'tooltip'?
+    https://svelte.dev/e/a11y_unknown_role

@@ -1,0 +1,9 @@
+
+	.wx-popup.svelte-18sx8fa {
+		z-index: var(--wx-popup-z-index);
+		background: var(--wx-popup-background);
+		box-shadow: var(--wx-popup-shadow);
+		border: var(--wx-popup-border);
+		border-radius: var(--wx-popup-border-radius);
+		overflow: hidden;
+	}

@@ -1,0 +1,4 @@
+warning state_referenced_locally 58:37-58:46 This reference only captures the initial value of `collapsed`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning css_unused_selector 250:3-250:44 Unused CSS selector ":--g-not-fullscreen :--c-first-of-group &"
+    https://svelte.dev/e/css_unused_selector

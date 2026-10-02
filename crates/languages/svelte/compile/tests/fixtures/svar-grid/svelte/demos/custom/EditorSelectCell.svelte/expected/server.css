@@ -1,0 +1,23 @@
+
+	.container.svelte-1yvh7he {
+		height: 100%;
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+	.avatar.svelte-1yvh7he {
+		height: 24px;
+		width: 24px;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background-color: var(--wx-color-primary);
+	}
+	.avatar.svelte-1yvh7he span:where(.svelte-1yvh7he) {
+		color: white;
+		font-weight: 600;
+	}
+	.empty.svelte-1yvh7he {
+		color: var(--wx-color-font-disabled);
+	}

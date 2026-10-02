@@ -1,0 +1,13 @@
+
+  .svelte-ca630h .accordion-container {
+    padding: 24px;
+    background-color: var(--mdc-theme-background, #f8f8f8);
+  }
+
+  .svelte-ca630h .smui-accordion {
+    margin: 0 12px 24px;
+  }
+
+  .svelte-ca630h .smui-accordion:last-child {
+    margin-bottom: 0;
+  }

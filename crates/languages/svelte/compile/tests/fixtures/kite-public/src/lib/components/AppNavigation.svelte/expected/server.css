@@ -1,0 +1,149 @@
+
+	/* Dropdown container */
+	.app-menu-dropdown.svelte-bmbg6x {
+		font-size: 0.875rem;
+	}
+
+	/* Button selected state when dropdown is open */
+	.app-menu-button--selected.svelte-bmbg6x {
+		background-color: rgb(243 244 246); /* gray-100 */
+	}
+
+	.dark .app-menu-button--selected.svelte-bmbg6x {
+		background-color: rgb(31 41 55); /* gray-800 */
+	}
+
+	/* Dropdown panel */
+	.app-menu-panel.svelte-bmbg6x {
+		background-color: white;
+		border: 1px solid rgb(229 231 235); /* gray-200 */
+		border-radius: 12px;
+		box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.1);
+		display: none;
+		flex-direction: column;
+		padding: 8px;
+		position: absolute;
+		top: calc(100% + 5px);
+		inset-inline-end: 0;
+		z-index: var(--z-index-modal);
+		min-width: 209px;
+	}
+
+	.dark .app-menu-panel.svelte-bmbg6x {
+		background-color: #23232f; /* modal-bg - matches design spec */
+		border-color: #454553; /* primary-100 - matches design spec */
+	}
+
+	.app-menu-dropdown.is-open.svelte-bmbg6x .app-menu-panel:where(.svelte-bmbg6x) {
+		display: flex;
+	}
+
+	/* Menu items container */
+	.app-menu-items.svelte-bmbg6x {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	/* Individual menu item */
+	.app-menu-item.svelte-bmbg6x {
+		align-items: center;
+		color: rgb(55 65 81); /* gray-700 */
+		cursor: pointer;
+		display: flex;
+		gap: 6px;
+		height: 32px;
+		padding: 0 4px;
+		border-radius: 6px;
+		text-decoration: none;
+		width: 193px;
+	}
+
+	.dark .app-menu-item.svelte-bmbg6x {
+		color: #e8e8f0; /* matches design spec for dark mode */
+	}
+
+	.app-menu-item.svelte-bmbg6x:hover {
+		background-color: rgb(243 244 246); /* gray-100 */
+	}
+
+	.dark .app-menu-item.svelte-bmbg6x:hover {
+		background-color: rgb(55 65 81); /* gray-700 */
+	}
+
+	.app-menu-item.svelte-bmbg6x:focus {
+		outline: none;
+		background-color: rgb(243 244 246); /* gray-100 */
+	}
+
+	.dark .app-menu-item.svelte-bmbg6x:focus {
+		background-color: rgb(55 65 81); /* gray-700 */
+	}
+
+	/* Active menu item - purple background */
+	.app-menu-item--active.svelte-bmbg6x {
+		background-color: rgba(201, 193, 255, 0.3);
+	}
+
+	.dark .app-menu-item--active.svelte-bmbg6x {
+		background-color: rgba(201, 193, 255, 0.3);
+	}
+
+	.app-menu-item--active.svelte-bmbg6x:hover {
+		background-color: rgba(201, 193, 255, 0.4);
+	}
+
+	.dark .app-menu-item--active.svelte-bmbg6x:hover {
+		background-color: rgba(201, 193, 255, 0.4);
+	}
+
+	/* Icon container */
+	.app-menu-icon.svelte-bmbg6x {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		padding: 4px;
+		border-radius: 4px;
+		flex-shrink: 0;
+	}
+
+	.app-menu-icon.svelte-bmbg6x svg {
+		width: 22px;
+		height: 22px;
+	}
+
+	/* Menu label */
+	.app-menu-label.svelte-bmbg6x {
+		font-size: 14px;
+		font-weight: 400;
+		line-height: 20px;
+		color: rgb(55 65 81); /* gray-700 */
+	}
+
+	.dark .app-menu-label.svelte-bmbg6x {
+		color: #e8e8f0; /* matches design spec for dark mode */
+	}
+
+	/* Active label - bolder text */
+	.app-menu-label--active.svelte-bmbg6x {
+		font-weight: 500;
+		color: rgb(99 102 241); /* indigo-500 */
+	}
+
+	.dark .app-menu-label--active.svelte-bmbg6x {
+		color: white;
+	}
+
+	/* Divider */
+	.app-menu-divider.svelte-bmbg6x {
+		height: 1px;
+		background-color: rgb(229 231 235); /* gray-200 */
+		margin: 0;
+		width: 100%;
+	}
+
+	.dark .app-menu-divider.svelte-bmbg6x {
+		background-color: #454553; /* primary-100 - matches design spec */
+	}

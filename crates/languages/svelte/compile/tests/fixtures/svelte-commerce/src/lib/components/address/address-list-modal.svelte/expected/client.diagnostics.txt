@@ -1,0 +1,8 @@
+warning state_referenced_locally 24:47-24:62 This reference only captures the initial value of `paginateAddress`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 24:64-24:72 This reference only captures the initial value of `onaddnew`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 24:74-24:80 This reference only captures the initial value of `onedit`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 24:82-24:90 This reference only captures the initial value of `onselect`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

@@ -1,0 +1,6 @@
+warning state_referenced_locally 104:27-104:38 This reference only captures the initial value of `panelHeight`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 107:31-107:36 This reference only captures the initial value of `items`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 116:39-116:44 This reference only captures the initial value of `items`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally

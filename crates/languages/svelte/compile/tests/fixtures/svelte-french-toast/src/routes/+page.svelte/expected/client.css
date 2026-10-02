@@ -1,0 +1,16 @@
+
+	.svelte-1uha8ag:not(pre) > code:where(.svelte-1uha8ag),
+	pre.svelte-1uha8ag {
+		@apply p-5 block;
+	}
+
+	input[type='radio'].svelte-1uha8ag {
+		@apply appearance-none hidden;
+	}
+	label.svelte-1uha8ag {
+		cursor: pointer;
+		@apply px-3 py-1 rounded-full;
+	}
+	label.checked.svelte-1uha8ag {
+		@apply bg-gray-200 font-bold;
+	}

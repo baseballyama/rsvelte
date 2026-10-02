@@ -1,0 +1,17 @@
+
+	img.svelte-kzurz4 {
+		position: absolute;
+		left: 0;
+		bottom: -60px;
+		transform: translate(-80%, 0) rotate(-30deg);
+		transform-origin: 100% 100%;
+		transition: transform 0.4s;
+	}
+
+	.curious.svelte-kzurz4 {
+		transform: translate(-15%, 0) rotate(0deg);
+	}
+
+	body {
+		overflow: hidden;
+	}

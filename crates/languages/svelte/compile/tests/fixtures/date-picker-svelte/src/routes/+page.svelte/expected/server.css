@@ -1,0 +1,9 @@
+
+	.theming.svelte-1uha8ag {
+		display: grid;
+		gap: 10px;
+		column-gap: 20px;
+		@media (min-width: 800px) {
+			grid-template-columns: 1fr 1fr;
+		}
+	}

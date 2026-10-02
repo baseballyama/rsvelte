@@ -1,0 +1,20 @@
+
+    /* global because its on a tooltip slot, nested */
+    .actions-menu-wrapper {
+        overflow: scroll;
+        margin-bottom: -0.35rem;
+
+        & .filter-modal-actions-menu {
+            overflow: scroll;
+            max-height: 150px;
+            padding-bottom: unset;
+
+            /* (unused) &.has-actions {
+                margin-bottom: -0.5rem;
+            }*/
+
+            &::-webkit-scrollbar {
+                display: none;
+            }
+        }
+    }

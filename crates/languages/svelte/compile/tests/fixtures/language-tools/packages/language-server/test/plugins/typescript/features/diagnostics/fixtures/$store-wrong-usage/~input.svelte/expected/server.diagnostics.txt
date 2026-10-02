@@ -1,0 +1,4 @@
+warning script_context_deprecated 1:19-1:35 `context="module"` is deprecated, use the `module` attribute instead
+    https://svelte.dev/e/script_context_deprecated
+warning block_empty 13:13-14:1 Empty block
+    https://svelte.dev/e/block_empty

@@ -1,0 +1,25 @@
+import * as $ from 'svelte/internal/server';
+import { ClassAdder } from '@smui/common/classadder';
+
+export default function Image($$renderer, $$props) {
+	let { children, $$slots, $$events, ...restProps } = $$props;
+	let element;
+
+	function getElement() {
+		return element.getElement();
+	}
+
+	ClassAdder($$renderer, $.spread_props([
+		{ _smuiClass: 'mdc-image-list__image', tag: 'img' },
+		restProps,
+		{
+			children: ($$renderer) => {
+				children?.($$renderer);
+				$$renderer.push(`<!---->`);
+			},
+			$$slots: { default: true }
+		}
+	]));
+
+	$.bind_props($$props, { getElement });
+}

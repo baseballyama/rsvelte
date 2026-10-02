@@ -1,0 +1,3 @@
+
+	input.svelte-10t85l6:focus + div:where(.svelte-10t85l6) { color: red; }
+	input.svelte-10t85l6:focus ~ div:where(.svelte-10t85l6) { color: red; }

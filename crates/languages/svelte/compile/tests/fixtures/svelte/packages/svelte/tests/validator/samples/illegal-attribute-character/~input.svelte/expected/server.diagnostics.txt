@@ -1,0 +1,6 @@
+warning event_directive_deprecated 5:9-5:17 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning attribute_illegal_colon 14:9-14:16 Attributes should not contain ':' characters to prevent ambiguity with Svelte directives
+    https://svelte.dev/e/attribute_illegal_colon
+warning attribute_illegal_colon 15:4-15:11 Attributes should not contain ':' characters to prevent ambiguity with Svelte directives
+    https://svelte.dev/e/attribute_illegal_colon

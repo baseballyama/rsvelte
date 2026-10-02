@@ -1,0 +1,29 @@
+
+	.ll-price.svelte-towglw {
+		display: flex;
+		align-items: baseline;
+		gap: 8px;
+	}
+
+	.ll-price-now.svelte-towglw {
+		color: var(--lime-plum, #460032);
+		font-family: var(--font-body);
+		font-weight: 500;
+		letter-spacing: 0.02em;
+	}
+
+	.ll-price-was.svelte-towglw {
+		color: #8a8a8a;
+		text-decoration: line-through;
+		font-size: 0.85em;
+	}
+
+	.ll-price--sm.svelte-towglw .ll-price-now:where(.svelte-towglw) {
+		font-size: 13px;
+	}
+	.ll-price--md.svelte-towglw .ll-price-now:where(.svelte-towglw) {
+		font-size: 15px;
+	}
+	.ll-price--lg.svelte-towglw .ll-price-now:where(.svelte-towglw) {
+		font-size: 22px;
+	}

@@ -1,0 +1,9 @@
+
+	.foo.svelte-xxcpmr {
+		height: 20px;
+		width: 20px;
+		& .bar:where(.svelte-xxcpmr) {
+			height: 10px;
+			width: 10px;
+		}
+	}

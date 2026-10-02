@@ -1,0 +1,95 @@
+
+  .row.svelte-c49e4a {
+    justify-content: center;
+    align-items: center;
+    gap: 0;
+  }
+
+  label.svelte-c49e4a {
+    display: flex;
+  }
+
+  .colors-and-preview.svelte-c49e4a {
+    display: flex;
+    flex-direction: column-reverse;
+  }
+
+  .colors.svelte-c49e4a {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  label.color.svelte-c49e4a {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .lock.svelte-c49e4a {
+    min-width: 37px;
+    text-align: center;
+  }
+
+  @media (min-width: 1024px) {
+    .colors-and-preview.svelte-c49e4a {
+      flex-direction: row;
+      justify-content: center;
+      gap: 1em;
+      margin-left: 1em;
+    }
+
+    .colors.svelte-c49e4a {
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    label.color.svelte-c49e4a {
+      flex-direction: row;
+      gap: 1em;
+    }
+  }
+
+  .colorpicker.svelte-c49e4a {
+    position: relative;
+    outline: 1px solid white;
+    border-radius: 4px;
+    width: 3.5em;
+    height: 2em;
+    overflow: hidden;
+  }
+
+  input[type='color'].svelte-c49e4a {
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    cursor: pointer;
+    margin: 0;
+    border: none;
+    background-color: transparent;
+    padding: 0;
+    aspect-ratio: 1 / 1;
+    width: 40em;
+    height: 50em;
+  }
+
+  pre.svelte-c49e4a {
+    border: 1px solid var(--docs-border-color);
+    border-radius: 8px;
+    background-color: var(--bg);
+    padding: 1em;
+    overflow-x: auto;
+    font-size: 12px;
+
+    .key:where(.svelte-c49e4a) {
+      padding-left: 1em;
+    }
+
+    .selector:where(.svelte-c49e4a) {
+      color: var(--green);
+    }
+
+    .value:where(.svelte-c49e4a) {
+      color: var(--blue);
+    }
+  }

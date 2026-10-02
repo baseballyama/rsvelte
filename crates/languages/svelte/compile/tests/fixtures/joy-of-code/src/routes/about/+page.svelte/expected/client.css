@@ -1,0 +1,8 @@
+
+	main.svelte-cwls5q {
+		max-width: 50ch;
+		margin-inline: auto;
+		display: grid;
+		row-gap: var(--spacing-32);
+		margin-bottom: var(--spacing-64);
+	}

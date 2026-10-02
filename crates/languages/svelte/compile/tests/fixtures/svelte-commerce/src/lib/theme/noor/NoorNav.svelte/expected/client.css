@@ -1,0 +1,154 @@
+
+	.noor-announcement.svelte-loucq3 {
+		position: relative;
+		z-index: 50;
+		background: #111;
+		color: #fff;
+		padding: 8px 16px;
+		text-align: center;
+		font-family: var(--font-body);
+		font-size: 11px;
+		font-weight: 500;
+		letter-spacing: 0.1em;
+		line-height: 1.4;
+		text-transform: uppercase;
+	}
+
+	.noor-header.svelte-loucq3 {
+		position: sticky;
+		top: 0;
+		z-index: 50;
+		background: #fff;
+		border-bottom: 1px solid #ded8cf;
+		color: #151515;
+		font-family: var(--font-body);
+	}
+
+	.noor-header-main.svelte-loucq3 {
+		display: grid;
+		grid-template-columns: 1fr auto 1fr;
+		align-items: center;
+		min-height: 86px;
+		padding: 0 44px;
+	}
+
+	.noor-logo.svelte-loucq3 {
+		justify-self: center;
+	}
+
+	.noor-logo.svelte-loucq3 img:where(.svelte-loucq3) {
+		display: block;
+		width: 120px;
+		height: auto;
+	}
+
+	/* Shown when the store has not uploaded a logo. */
+	.noor-wordmark.svelte-loucq3 {
+		display: block;
+		max-width: 200px;
+		color: var(--ink, #151515);
+		font-family: var(--font-heading);
+		font-size: 22px;
+		line-height: 1.1;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.noor-mobile-trigger.svelte-loucq3 {
+		display: none;
+		justify-self: start;
+		align-items: center;
+		color: #151515;
+		background: transparent;
+		border: 0;
+		padding: 0;
+		cursor: pointer;
+	}
+
+	.noor-actions.svelte-loucq3 {
+		display: flex;
+		justify-content: flex-end;
+		align-items: center;
+		gap: 24px;
+	}
+
+	.noor-actions.svelte-loucq3 svg,
+	.noor-mobile-trigger.svelte-loucq3 svg {
+		width: 20px;
+		height: 20px;
+		stroke-width: 1.75;
+	}
+
+	.noor-nav.svelte-loucq3 {
+		display: flex;
+		justify-content: center;
+		gap: 42px;
+		border-top: 1px solid #ded8cf;
+		padding: 14px 24px;
+	}
+
+	.noor-nav.svelte-loucq3 a:where(.svelte-loucq3) {
+		color: #151515;
+		font-size: 12px;
+		font-weight: 500;
+		letter-spacing: 0.12em;
+		text-decoration: none;
+		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
+	.noor-nav.svelte-loucq3 a:where(.svelte-loucq3):hover {
+		color: #6d6760;
+	}
+
+	@media (max-width: 900px) {
+		.noor-announcement.svelte-loucq3 {
+			font-size: 10px;
+		}
+
+		.noor-header-main.svelte-loucq3 {
+			min-height: 68px;
+			padding: 0 16px;
+		}
+
+		.noor-mobile-trigger.svelte-loucq3 {
+			display: inline-flex;
+		}
+
+		.noor-logo.svelte-loucq3 img:where(.svelte-loucq3) {
+			width: 98px;
+		}
+
+		.noor-wordmark.svelte-loucq3 {
+			max-width: 150px;
+			font-size: 17px;
+		}
+
+		.noor-actions.svelte-loucq3 {
+			gap: 14px;
+		}
+
+		.noor-account.svelte-loucq3 {
+			display: none;
+		}
+
+		.noor-nav.svelte-loucq3 {
+			justify-content: flex-start;
+			gap: 22px;
+			overflow-x: auto;
+			padding: 12px 16px;
+			scrollbar-width: none;
+		}
+
+		.noor-nav.svelte-loucq3::-webkit-scrollbar {
+			display: none;
+		}
+
+		.noor-nav.svelte-loucq3 a:where(.svelte-loucq3) {
+			flex: 0 0 auto;
+			font-size: 11px;
+		}
+	}

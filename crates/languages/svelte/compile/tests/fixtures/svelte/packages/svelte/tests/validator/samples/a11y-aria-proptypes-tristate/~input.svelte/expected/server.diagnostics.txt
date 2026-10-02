@@ -1,0 +1,4 @@
+warning a11y_incorrect_aria_attribute_type_tristate 5:6-5:24 The value of 'aria-checked' must be exactly one of true, false, or mixed
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_tristate
+warning a11y_incorrect_aria_attribute_type_tristate 6:6-6:23 The value of 'aria-checked' must be exactly one of true, false, or mixed
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_tristate

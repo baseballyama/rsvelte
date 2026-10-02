@@ -1,0 +1,14 @@
+
+	.share--x.svelte-1f3h7up {
+		--button-bg: linear-gradient(to bottom, var(--black-7) 0%, var(--black-8) 100%);
+		--button-fg: var(--white);
+	}
+
+	.share--facebook.svelte-1f3h7up {
+		--button-bg: linear-gradient(to bottom, #57b1f9 0%, #2d64f6 100%);
+		--button-fg: var(--white);
+	}
+	.share--linkedin.svelte-1f3h7up {
+		--button-bg: linear-gradient(to bottom, #57b1f9 0%, #2d64bc 100%);
+		--button-fg: var(--white);
+	}

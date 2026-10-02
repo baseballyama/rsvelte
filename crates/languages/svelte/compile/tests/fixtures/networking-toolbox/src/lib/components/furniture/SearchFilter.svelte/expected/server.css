@@ -1,0 +1,109 @@
+
+  .search-container.svelte-18fhlj {
+    margin-bottom: var(--spacing-lg);
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    animation: svelte-18fhlj-slideIn 0.2s ease-out;
+  }
+
+  .search-input-wrapper.svelte-18fhlj {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+
+    .icon {
+      position: absolute;
+      left: var(--spacing-md);
+      color: var(--text-secondary);
+      pointer-events: none;
+      z-index: 1;
+      transition: color var(--transition-fast);
+    }
+  }
+
+  .search-input.svelte-18fhlj {
+    width: 100%;
+    padding: var(--spacing-md) var(--spacing-2xl);
+    font-size: var(--font-size-md);
+    border: 2px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+    font-family: var(--font-mono);
+
+    &:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(227, 237, 112, 0.1);
+    }
+
+    &::placeholder {
+      color: var(--text-secondary);
+    }
+  }
+
+  .close-search-button.svelte-18fhlj {
+    position: absolute;
+    right: var(--spacing-md);
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-md);
+
+    &:hover {
+      background-color: var(--surface-hover);
+      color: var(--text-primary);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 2px;
+    }
+  }
+
+  .search-results-info.svelte-18fhlj {
+    text-align: center;
+    padding: var(--spacing-sm) 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+  }
+
+  .no-results.svelte-18fhlj {
+    color: var(--color-warning);
+    font-weight: 500;
+  }
+
+  .results-count.svelte-18fhlj {
+    color: var(--text-secondary);
+  }
+
+  @keyframes svelte-18fhlj-slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .search-container.svelte-18fhlj {
+      margin-left: var(--spacing-md);
+      margin-right: var(--spacing-md);
+    }
+
+    .search-input.svelte-18fhlj {
+      font-size: var(--font-size-sm);
+    }
+  }

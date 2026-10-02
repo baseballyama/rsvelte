@@ -1,0 +1,1 @@
+error format_unsupported 6:14-6:37 not supported by the formatter yet: TypeScript type other than a plain reference, a union of them or a type literal

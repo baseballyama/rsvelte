@@ -1,0 +1,8 @@
+warning state_referenced_locally 35:40-35:55 This reference only captures the initial value of `all_site_groups`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 50:52-50:75 This reference only captures the initial value of `marketplace_site_groups`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 50:119-50:142 This reference only captures the initial value of `marketplace_site_groups`. Did you mean to reference it inside a derived instead?
+    https://svelte.dev/e/state_referenced_locally
+warning a11y_consider_explicit_label 655:5-660:14 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label

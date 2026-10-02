@@ -1,0 +1,4 @@
+warning state_referenced_locally 15:42-15:50 This reference only captures the initial value of `headings`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 20:53-20:61 This reference only captures the initial value of `headings`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

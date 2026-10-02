@@ -1,0 +1,16 @@
+
+	.before.svelte-1dexvva + .foo:where(.svelte-1dexvva) { color: green; }
+	.before.svelte-1dexvva ~ .foo:where(.svelte-1dexvva) { color: green; }
+	.before.svelte-1dexvva ~ .bar:where(.svelte-1dexvva) { color: green; }
+
+	.x.svelte-1dexvva + .foo:where(.svelte-1dexvva) { color: green; }
+	.x.svelte-1dexvva + .foo:where(.svelte-1dexvva) span:where(.svelte-1dexvva) { color: green; }
+	.x.svelte-1dexvva ~ .foo:where(.svelte-1dexvva) { color: green; }
+	.x.svelte-1dexvva ~ .foo:where(.svelte-1dexvva) span:where(.svelte-1dexvva) { color: green; }
+	.x.svelte-1dexvva ~ .bar:where(.svelte-1dexvva) { color: green; }
+
+	.z.svelte-1dexvva + .z:where(.svelte-1dexvva) { color: green; }
+	.z.svelte-1dexvva ~ .z:where(.svelte-1dexvva) { color: green; }
+
+	/* no match */
+	/* (unused) .x + .bar { color: green; }*/

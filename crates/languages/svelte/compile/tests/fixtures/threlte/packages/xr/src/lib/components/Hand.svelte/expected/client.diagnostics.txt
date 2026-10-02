@@ -1,0 +1,6 @@
+warning state_referenced_locally 52:40-52:44 This reference only captures the initial value of `left`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 52:56-52:61 This reference only captures the initial value of `right`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 52:75-52:79 This reference only captures the initial value of `hand`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

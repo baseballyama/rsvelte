@@ -1,0 +1,11 @@
+
+	.lead.svelte-t7c0hb {
+		font-size: 1.125rem;
+		color: var(--color-text-secondary);
+		margin-bottom: var(--space-xl);
+	}
+
+	.table-wrapper.svelte-t7c0hb {
+		overflow-x: auto;
+		margin: var(--space-lg) 0;
+	}

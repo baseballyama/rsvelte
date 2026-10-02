@@ -1,0 +1,12 @@
+warning a11y_consider_explicit_label 1:1-6:3 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label
+warning element_invalid_self_closing_tag 1:1-6:3 Self-closing HTML tags for non-void elements are ambiguous — use `<button ...></button>` rather than `<button ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning event_directive_deprecated 2:2-2:15 Using `on:focus` to listen to the focus event is deprecated. Use the event attribute `onfocus` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 3:2-3:38 Using `on:focus` to listen to the focus event is deprecated. Use the event attribute `onfocus` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 4:2-4:39 Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 5:2-5:40 Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead
+    https://svelte.dev/e/event_directive_deprecated

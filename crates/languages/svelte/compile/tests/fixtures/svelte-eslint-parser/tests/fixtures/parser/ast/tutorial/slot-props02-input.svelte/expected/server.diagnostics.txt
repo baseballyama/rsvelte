@@ -1,0 +1,10 @@
+warning a11y_no_static_element_interactions 13:1-15:7 `<div>` with a mouseenter or mouseleave handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning event_directive_deprecated 13:6-13:27 Using `on:mouseenter` to listen to the mouseenter event is deprecated. Use the event attribute `onmouseenter` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning event_directive_deprecated 13:28-13:49 Using `on:mouseleave` to listen to the mouseleave event is deprecated. Use the event attribute `onmouseleave` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning slot_element_deprecated 14:2-14:35 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated
+warning non_reactive_update 2:6-2:14 `hovering` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

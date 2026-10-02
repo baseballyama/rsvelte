@@ -1,0 +1,8 @@
+
+	.focus-ring.svelte-1y3lud5 {
+		display: none;
+	}
+
+	.focus-ring.svelte-1y3lud5:has(+ button:where(.svelte-1y3lud5):focus-visible) {
+		display: block;
+	}

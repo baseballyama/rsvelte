@@ -1,0 +1,27 @@
+
+	.grid.svelte-1402ryx {
+		display: grid;
+		width: var(--sc-theme-calendar-width);
+		max-width: var(--sc-theme-calendar-maxWidth);
+		grid-template-rows: auto calc(
+				min(var(--sc-theme-calendar-maxWidth), var(--sc-theme-calendar-width)) * 6 / 7 +
+					var(--sc-theme-calendar-legend-height)
+			);
+		font-family: Rajdhani, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial,
+			sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+		box-shadow: var(--sc-theme-calendar-shadow);
+		background: var(--sc-theme-calendar-colors-background-primary);
+		text-align: center;
+		color: var(--sc-theme-calendar-colors-text-primary);
+	}
+	.contents.svelte-1402ryx {
+		display: grid;
+		overflow: hidden;
+	}
+	.grid.svelte-1402ryx .contents:where(.svelte-1402ryx) > * {
+		display: grid;
+		grid-row: 1;
+		grid-column: 1;
+		height: 100%;
+		grid-template: 1fr / 1fr;
+	}

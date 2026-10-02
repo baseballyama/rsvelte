@@ -1,0 +1,43 @@
+
+    .is-tablet.svelte-aak3ad {
+        display: none;
+    }
+
+    .desktop-locked-card-buttons .common-section {
+        margin-block-start: unset !important;
+    }
+
+    @media (max-width: 524px) {
+        .is-tablet.svelte-aak3ad,
+        .is-desktop.svelte-aak3ad {
+            height: 0;
+            visibility: hidden;
+            display: none !important;
+        }
+    }
+
+    @media (min-width: 525px) and (max-width: 799.99px) {
+        .is-tablet.svelte-aak3ad {
+            display: block;
+        }
+
+        .is-desktop.svelte-aak3ad,
+        .is-only-mobile.svelte-aak3ad {
+            height: 0;
+            visibility: hidden;
+            display: none !important;
+        }
+    }
+
+    @media (min-width: 800px) {
+        .is-desktop.svelte-aak3ad {
+            display: block !important;
+        }
+
+        .is-tablet.svelte-aak3ad,
+        .is-only-mobile.svelte-aak3ad {
+            height: 0;
+            visibility: hidden;
+            display: none !important;
+        }
+    }

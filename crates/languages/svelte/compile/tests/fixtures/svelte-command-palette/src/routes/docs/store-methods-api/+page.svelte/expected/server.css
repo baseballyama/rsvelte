@@ -1,0 +1,40 @@
+
+	.lead.svelte-2wiflo {
+		font-size: 1.125rem;
+		color: var(--color-text-secondary);
+		margin-bottom: var(--space-xl);
+	}
+
+	.methods-grid.svelte-2wiflo {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: var(--space-md);
+		margin: var(--space-lg) 0;
+	}
+
+	.method-card.svelte-2wiflo {
+		padding: var(--space-lg);
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+	}
+
+	.method-card.svelte-2wiflo h3:where(.svelte-2wiflo) {
+		font-size: 1rem;
+		margin-bottom: var(--space-sm);
+	}
+
+	.method-card.svelte-2wiflo p:where(.svelte-2wiflo) {
+		font-size: 0.875rem;
+		margin-bottom: var(--space-sm);
+	}
+
+	.method-return.svelte-2wiflo {
+		font-size: 0.75rem;
+		color: var(--color-text-tertiary);
+	}
+
+	.table-wrapper.svelte-2wiflo {
+		overflow-x: auto;
+		margin: var(--space-lg) 0;
+	}

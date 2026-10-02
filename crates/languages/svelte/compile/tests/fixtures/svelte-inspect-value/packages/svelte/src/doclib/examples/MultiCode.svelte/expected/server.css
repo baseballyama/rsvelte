@@ -1,0 +1,18 @@
+
+  button.svelte-1gkbb0f {
+    z-index: 9999;
+    border-bottom: none;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+    background-color: var(--base00);
+  }
+
+  button.active.svelte-1gkbb0f {
+    border-bottom: none;
+    background-color: var(--bg-lighter);
+  }
+
+  .tabs.svelte-1gkbb0f {
+    width: 100%;
+    font-size: 14px;
+  }

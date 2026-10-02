@@ -1,0 +1,11 @@
+
+	input[type='number'].svelte-1xawprr {
+		appearance: none;
+		-moz-appearance: textfield;
+	}
+
+	input[type='number'].svelte-1xawprr::-webkit-outer-spin-button,
+	input[type='number'].svelte-1xawprr::-webkit-inner-spin-button {
+		-webkit-appearance: none;
+		margin: 0;
+	}

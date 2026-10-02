@@ -1,0 +1,2 @@
+warning svelte_component_deprecated 5:1-5:41 `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+    https://svelte.dev/e/svelte_component_deprecated

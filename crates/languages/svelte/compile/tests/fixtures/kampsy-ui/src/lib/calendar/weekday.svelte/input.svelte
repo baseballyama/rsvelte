@@ -1,0 +1,126 @@
+<script lang="ts">
+	import {
+		getZeroDate,
+		isInDateRange,
+		isStartDateGreaterThanEndDate,
+		isWeekend,
+		isZeroDate,
+	} from "$lib/utils/calendar.js"
+
+	interface Props {
+		dayAndDateObj: { day: number | string; dateObj: Date }
+		startDate: Date
+		endDate: Date
+	}
+
+	let {
+		dayAndDateObj,
+		startDate = $bindable(getZeroDate()),
+		endDate = $bindable(getZeroDate()),
+	}: Props = $props()
+
+	const isToday = (date: Date): boolean => {
+		const today = new Date()
+		return (
+			date.getDate() === today.getDate() &&
+			date.getMonth() === today.getMonth() &&
+			date.getFullYear() === today.getFullYear()
+		)
+	}
+
+	const isHighlighteble = (date: Date): boolean => {
+		if (!isZeroDate(date)) {
+			if (!isZeroDate(startDate) || !isZeroDate(endDate)) {
+				if (
+					(date.getDate() === startDate.getDate() &&
+						date.getMonth() === startDate.getMonth() &&
+						date.getFullYear() === startDate.getFullYear()) ||
+					(date.getDate() === endDate.getDate() &&
+						date.getMonth() === endDate.getMonth() &&
+						date.getFullYear() === endDate.getFullYear())
+				) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	const isRangeHighlighteble = (): boolean => {
+		if (!isZeroDate(dayAndDateObj.dateObj) && !isZeroDate(startDate) && !isZeroDate(endDate)) {
+			if (isInDateRange(dayAndDateObj.dateObj, startDate, endDate)) {
+				return true
+			}
+		}
+		return false
+	}
+
+	const dayBg = $derived.by(() => {
+		if (isHighlighteble(dayAndDateObj.dateObj)) {
+			return `rounded-sm bg-kui-light-gray-1000 dark:bg-kui-dark-gray-1000`
+		}
+		if (isToday(dayAndDateObj.dateObj)) {
+			return `rounded-sm bg-kui-light-blue-900 dark:bg-kui-dark-blue-900`
+		}
+		return ""
+	})
+
+	const dayText = $derived.by(() => {
+		if (isHighlighteble(dayAndDateObj.dateObj)) {
+			return `text-kui-light-bg dark:text-kui-dark-bg`
+		}
+		if (isToday(dayAndDateObj.dateObj)) {
+			return `text-kui-light-bg dark:text-kui-dark-bg`
+		}
+		if (isRangeHighlighteble() && !isWeekend(dayAndDateObj.dateObj)) {
+			return "text-kui-light-gray-1000 dark:text-kui-dark-gray-1000"
+		}
+		if (isWeekend(dayAndDateObj.dateObj)) {
+			return "text-kui-light-gray-900 dark:text-kui-dark-gray-900"
+		}
+
+		return "text-kui-light-gray-1000 dark:text-kui-dark-gray-1000"
+	})
+
+	const rangeBg = $derived.by(() => {
+		if (isRangeHighlighteble()) {
+			return "bg-kui-light-gray-alpha-100 dark:bg-kui-dark-gray-alpha-100"
+		}
+		return ""
+	})
+
+	const onclick = () => {
+		if (isZeroDate(startDate) && isZeroDate(endDate)) {
+			if (!isZeroDate(dayAndDateObj.dateObj)) {
+				startDate = dayAndDateObj.dateObj
+			}
+		} else if (!isZeroDate(startDate) && isZeroDate(endDate)) {
+			if (!isZeroDate(dayAndDateObj.dateObj)) {
+				// an edge ace. if the date selected as end date is less than
+				// the start date, swap the two dates
+				if (isStartDateGreaterThanEndDate(startDate, dayAndDateObj.dateObj)) {
+					endDate = startDate
+					startDate = dayAndDateObj.dateObj
+				} else {
+					endDate = dayAndDateObj.dateObj
+				}
+			}
+		} else if (!isZeroDate(startDate) && !isZeroDate(endDate)) {
+			if (!isZeroDate(dayAndDateObj.dateObj)) {
+				startDate = dayAndDateObj.dateObj
+				endDate = getZeroDate()
+			}
+		}
+	}
+</script>
+
+<div class="absolute top-0 left-0 z-[0.1] h-full w-full {rangeBg}"></div>
+<div class="z-1 h-10 w-10 transition-colors lg:h-8.5 lg:w-8.5 {dayBg}">
+	<div class="flex h-full w-full justify-center">
+		<button {onclick} class="flex h-full w-full items-center justify-center rounded-xs">
+			<span class="text-xs transition-colors {dayText} font-normal tracking-[0.06px]">
+				{dayAndDateObj.day}
+			</span>
+		</button>
+	</div>
+</div>

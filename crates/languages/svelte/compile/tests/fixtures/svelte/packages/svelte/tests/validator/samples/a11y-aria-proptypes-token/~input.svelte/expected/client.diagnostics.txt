@@ -1,0 +1,8 @@
+warning a11y_incorrect_aria_attribute_type_token 1:6-1:18 The value of 'aria-sort' must be exactly one of "ascending", "descending", "none" or "other"
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_token
+warning a11y_incorrect_aria_attribute_type_token 2:6-2:27 The value of 'aria-sort' must be exactly one of "ascending", "descending", "none" or "other"
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_token
+warning a11y_incorrect_aria_attribute_type_token 3:6-3:22 The value of 'aria-sort' must be exactly one of "ascending", "descending", "none" or "other"
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_token
+warning a11y_incorrect_aria_attribute_type_token 6:6-6:38 The value of 'aria-sort' must be exactly one of "ascending", "descending", "none" or "other"
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_token

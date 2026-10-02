@@ -1,0 +1,11 @@
+
+	/* Hide the default disclosure triangle; the chevron is the affordance. */
+	.faq.svelte-fadvfd > summary:where(.svelte-fadvfd) {
+		list-style: none;
+	}
+	.faq.svelte-fadvfd > summary:where(.svelte-fadvfd)::-webkit-details-marker {
+		display: none;
+	}
+	.faq[open].svelte-fadvfd .faq-chevron:where(.svelte-fadvfd) {
+		transform: rotate(180deg);
+	}

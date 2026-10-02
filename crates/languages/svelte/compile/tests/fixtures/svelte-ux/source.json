@@ -1,0 +1,13 @@
+{
+	"commit": "7172294e25f587700608e44e6555f4a4b8879ea9",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/techniq/svelte-ux"
+}

@@ -1,0 +1,8 @@
+warning a11y_invalid_attribute 2:44-2:52 '#' is not a valid href attribute
+    https://svelte.dev/e/a11y_invalid_attribute
+warning a11y_incorrect_aria_attribute_type_boolean 3:25-3:36 The value of 'aria-hidden' must be either 'true' or 'false'. It cannot be empty
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_boolean
+warning a11y_invalid_attribute 4:44-4:52 '#' is not a valid href attribute
+    https://svelte.dev/e/a11y_invalid_attribute
+warning a11y_incorrect_aria_attribute_type_boolean 5:25-5:36 The value of 'aria-hidden' must be either 'true' or 'false'. It cannot be empty
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_boolean

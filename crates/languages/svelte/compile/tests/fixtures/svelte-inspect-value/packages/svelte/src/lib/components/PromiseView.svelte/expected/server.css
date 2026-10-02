@@ -1,0 +1,22 @@
+
+  span.value.svelte-xznbea {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 0;
+
+    &.rejected {
+      color: var(--_promise-rejected-color);
+    }
+    &.pending {
+      color: var(--_promise-pending-color);
+    }
+    &.fulfilled {
+      color: var(--_promise-fulfilled-color);
+    }
+  }
+
+  .bracket.svelte-xznbea {
+    color: var(--_promise-bracket-color);
+    font-weight: bold;
+  }

@@ -1,0 +1,43 @@
+
+	.IFrame.svelte-1yiye7s {
+		position: relative;
+		inset: 0;
+		min-height: 2rem;
+		/* height: 100%; */
+	}
+
+	.spinner-container.svelte-1yiye7s {
+		--Spinner-size: 1rem;
+		width: 100%;
+		height: 100%;
+		position: absolute;
+		left: 0;
+		top: 0;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		z-index: 50;
+	}
+	.iframe-container.svelte-1yiye7s {
+		/* background: var(--primo-color-white); */
+		/* position: absolute; */
+		inset: 0;
+		/* height: 100%; */
+
+		iframe:where(.svelte-1yiye7s) {
+			opacity: 0;
+			transition: opacity 0.2s;
+			position: absolute;
+			top: 0;
+			left: 0;
+			pointer-events: none;
+			width: 100vw;
+			transform-origin: top left;
+			height: 100%;
+
+			&.fadein {
+				opacity: 1;
+				background: white;
+			}
+		}
+	}

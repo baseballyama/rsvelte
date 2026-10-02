@@ -1,0 +1,8 @@
+warning css_unused_selector 6:2-6:12 Unused CSS selector "svg|circle"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 7:2-7:10 Unused CSS selector "*|circle"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 8:2-8:7 Unused CSS selector "svg|*"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 9:2-9:5 Unused CSS selector "*|*"
+    https://svelte.dev/e/css_unused_selector

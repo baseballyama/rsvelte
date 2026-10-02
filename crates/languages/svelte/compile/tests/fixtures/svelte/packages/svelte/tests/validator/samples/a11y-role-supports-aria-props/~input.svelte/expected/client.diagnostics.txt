@@ -1,0 +1,360 @@
+warning a11y_role_supports_aria_props_implicit 2:4-2:20 The attribute 'aria-setsize' is not supported by the role 'link'. This role is implicit on the element `<a>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 3:7-3:26 The attribute 'aria-pressed' is not supported by the role 'link'. This role is implicit on the element `<area>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 4:10-4:36 The attribute 'aria-autocomplete' is not supported by the role 'article'. This role is implicit on the element `<article>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 5:8-5:25 The attribute 'aria-modal' is not supported by the role 'complementary'. This role is implicit on the element `<aside>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 6:7-6:26 The attribute 'aria-invalid' is not supported by the role 'document'. This role is implicit on the element `<body>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 7:9-7:26 The attribute 'aria-valuemax' is not supported by the role 'button'. This role is implicit on the element `<button>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 8:11-8:28 The attribute 'aria-valuenow' is not supported by the role 'listbox'. This role is implicit on the element `<datalist>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 9:5-9:22 The attribute 'aria-rowindex' is not supported by the role 'definition'. This role is implicit on the element `<dd>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 10:6-10:23 The attribute 'aria-colcount' is not supported by the role 'term'. This role is implicit on the element `<dfn>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 11:9-11:26 The attribute 'aria-posinset' is not supported by the role 'dialog'. This role is implicit on the element `<dialog>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 12:10-12:38 The attribute 'aria-orientation' is not supported by the role 'group'. This role is implicit on the element `<details>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 13:5-13:22 The attribute 'aria-valuemin' is not supported by the role 'term'. This role is implicit on the element `<dt>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 14:11-14:39 The attribute 'aria-orientation' is not supported by the role 'group'. This role is implicit on the element `<fieldset>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 15:7-15:27 The attribute 'aria-disabled' is not supported by the role 'form'. This role is implicit on the element `<form>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 16:5-16:25 The attribute 'aria-selected' is not supported by the role 'heading'. This role is implicit on the element `<h1>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 17:5-17:25 The attribute 'aria-selected' is not supported by the role 'heading'. This role is implicit on the element `<h2>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 18:5-18:25 The attribute 'aria-expanded' is not supported by the role 'heading'. This role is implicit on the element `<h3>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 19:5-19:22 The attribute 'aria-valuemin' is not supported by the role 'heading'. This role is implicit on the element `<h4>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 20:5-20:25 The attribute 'aria-readonly' is not supported by the role 'heading'. This role is implicit on the element `<h5>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 21:5-21:22 The attribute 'aria-valuemin' is not supported by the role 'heading'. This role is implicit on the element `<h6>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 22:5-22:25 The attribute 'aria-required' is not supported by the role 'separator'. This role is implicit on the element `<hr>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 23:6-23:20 The attribute 'aria-level' is not supported by the role 'img'. This role is implicit on the element `<img>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 24:5-24:25 The attribute 'aria-required' is not supported by the role 'listitem'. This role is implicit on the element `<li>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 25:7-25:24 The attribute 'aria-rowcount' is not supported by the role 'link'. This role is implicit on the element `<link>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 26:7-26:24 The attribute 'aria-valuemin' is not supported by the role 'list'. This role is implicit on the element `<menu>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 27:8-27:24 The attribute 'aria-colspan' is not supported by the role 'progressbar'. This role is implicit on the element `<meter>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 28:6-28:24 The attribute 'aria-valuetext' is not supported by the role 'navigation'. This role is implicit on the element `<nav>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 29:5-29:21 The attribute 'aria-sort' is not supported by the role 'list'. This role is implicit on the element `<ol>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 30:9-30:28 The attribute 'aria-invalid' is not supported by the role 'option'. This role is implicit on the element `<option>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 31:11-31:27 The attribute 'aria-sort' is not supported by the role 'group'. This role is implicit on the element `<optgroup>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 32:9-32:30 The attribute 'aria-multiline' is not supported by the role 'status'. This role is implicit on the element `<output>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 33:11-33:28 The attribute 'aria-rowcount' is not supported by the role 'progressbar'. This role is implicit on the element `<progress>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 34:10-34:29 The attribute 'aria-invalid' is not supported by the role 'region'. This role is implicit on the element `<section>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 35:10-35:27 The attribute 'aria-rowcount' is not supported by the role 'button'. This role is implicit on the element `<summary>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 36:8-36:24 The attribute 'aria-colspan' is not supported by the role 'rowgroup'. This role is implicit on the element `<tbody>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 37:11-37:28 The attribute 'aria-valuenow' is not supported by the role 'textbox'. This role is implicit on the element `<textarea>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 38:8-38:28 The attribute 'aria-required' is not supported by the role 'rowgroup'. This role is implicit on the element `<tfoot>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 39:8-39:25 The attribute 'aria-valuemin' is not supported by the role 'rowgroup'. This role is implicit on the element `<thead>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 40:5-40:24 The attribute 'aria-pressed' is not supported by the role 'row'. This role is implicit on the element `<tr>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 41:5-41:32 The attribute 'aria-multiselectable' is not supported by the role 'list'. This role is implicit on the element `<ul>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props 43:19-43:35 The attribute 'aria-colspan' is not supported by the role 'alert'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 44:25-44:51 The attribute 'aria-autocomplete' is not supported by the role 'alertdialog'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 45:25-45:45 The attribute 'aria-required' is not supported by the role 'application'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 46:21-46:42 The attribute 'aria-multiline' is not supported by the role 'article'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 47:20-47:46 The attribute 'aria-autocomplete' is not supported by the role 'banner'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 48:24-48:42 The attribute 'aria-valuetext' is not supported by the role 'blockquote'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 49:20-49:36 The attribute 'aria-colspan' is not supported by the role 'button'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 50:21-50:37 The attribute 'aria-setsize' is not supported by the role 'caption'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 51:18-51:39 The attribute 'aria-multiline' is not supported by the role 'cell'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 52:22-52:43 The attribute 'aria-multiline' is not supported by the role 'checkbox'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 53:18-53:37 The attribute 'aria-invalid' is not supported by the role 'code'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 54:26-54:43 The attribute 'aria-colcount' is not supported by the role 'columnheader'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 55:22-55:49 The attribute 'aria-multiselectable' is not supported by the role 'combobox'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 56:27-56:47 The attribute 'aria-readonly' is not supported by the role 'complementary'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 57:25-57:43 The attribute 'aria-valuetext' is not supported by the role 'contentinfo'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 58:24-58:45 The attribute 'aria-multiline' is not supported by the role 'definition'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 59:22-59:42 The attribute 'aria-expanded' is not supported by the role 'deletion'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 60:20-60:41 The attribute 'aria-multiline' is not supported by the role 'dialog'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 61:23-61:40 The attribute 'aria-rowcount' is not supported by the role 'directory'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 62:22-62:39 The attribute 'aria-valuemin' is not supported by the role 'document'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 63:22-63:39 The attribute 'aria-rowindex' is not supported by the role 'emphasis'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 64:18-64:35 The attribute 'aria-colindex' is not supported by the role 'feed'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 65:20-65:37 The attribute 'aria-valuemax' is not supported by the role 'figure'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 66:18-66:38 The attribute 'aria-readonly' is not supported by the role 'form'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 67:21-67:38 The attribute 'aria-valuemax' is not supported by the role 'generic'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 68:18-68:37 The attribute 'aria-checked' is not supported by the role 'grid'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 69:22-69:36 The attribute 'aria-level' is not supported by the role 'gridcell'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 70:19-70:35 The attribute 'aria-colspan' is not supported by the role 'group'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 71:21-71:47 The attribute 'aria-activedescendant' is not supported by the role 'heading'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 72:23-72:48 The attribute 'aria-errormessage' is not supported by the role 'insertion'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 73:18-73:39 The attribute 'aria-multiline' is not supported by the role 'link'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 74:18-74:38 The attribute 'aria-selected' is not supported by the role 'list'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 75:21-75:41 The attribute 'aria-haspopup' is not supported by the role 'listbox'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 76:22-76:48 The attribute 'aria-activedescendant' is not supported by the role 'listitem'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 77:17-77:37 The attribute 'aria-required' is not supported by the role 'log'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 78:18-78:34 The attribute 'aria-sort' is not supported by the role 'main'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 79:21-79:47 The attribute 'aria-autocomplete' is not supported by the role 'marquee'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 80:18-80:39 The attribute 'aria-multiline' is not supported by the role 'math'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 81:18-81:37 The attribute 'aria-checked' is not supported by the role 'menu'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 82:21-82:46 The attribute 'aria-errormessage' is not supported by the role 'menubar'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 83:22-83:41 The attribute 'aria-checked' is not supported by the role 'menuitem'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 84:30-84:49 The attribute 'aria-pressed' is not supported by the role 'menuitemcheckbox'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 85:27-85:43 The attribute 'aria-rowspan' is not supported by the role 'menuitemradio'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 86:37-86:57 The attribute 'aria-haspopup' is not supported by the role 'meter'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 87:24-87:44 The attribute 'aria-expanded' is not supported by the role 'navigation'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 88:18-88:38 The attribute 'aria-placeholder' is not supported by the role 'none'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 89:18-89:35 The attribute 'aria-modal' is not supported by the role 'note'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 90:41-90:58 The attribute 'aria-valuemax' is not supported by the role 'option'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 91:23-91:37 The attribute 'aria-level' is not supported by the role 'paragraph'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 92:26-92:46 The attribute 'aria-disabled' is not supported by the role 'presentation'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 93:25-93:45 The attribute 'aria-expanded' is not supported by the role 'progressbar'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 94:39-94:56 The attribute 'aria-rowindex' is not supported by the role 'radio'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 95:24-95:41 The attribute 'aria-valuenow' is not supported by the role 'radiogroup'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 96:20-96:36 The attribute 'aria-rowspan' is not supported by the role 'region'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 97:17-97:37 The attribute 'aria-required' is not supported by the role 'row'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 98:22-98:42 The attribute 'aria-expanded' is not supported by the role 'rowgroup'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 99:23-99:49 The attribute 'aria-activedescendant' is not supported by the role 'rowheader'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 100:60-100:76 The attribute 'aria-rowspan' is not supported by the role 'scrollbar'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 101:20-101:46 The attribute 'aria-autocomplete' is not supported by the role 'search'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 102:23-102:40 The attribute 'aria-colindex' is not supported by the role 'searchbox'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 103:23-103:39 The attribute 'aria-sort' is not supported by the role 'separator'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 104:38-104:58 The attribute 'aria-placeholder' is not supported by the role 'slider'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 105:24-105:41 The attribute 'aria-posinset' is not supported by the role 'spinbutton'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 106:20-106:37 The attribute 'aria-valuemin' is not supported by the role 'status'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 107:20-107:37 The attribute 'aria-valuemin' is not supported by the role 'strong'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 108:23-108:40 The attribute 'aria-colcount' is not supported by the role 'subscript'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 109:25-109:39 The attribute 'aria-level' is not supported by the role 'superscript'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 110:40-110:57 The attribute 'aria-valuenow' is not supported by the role 'switch'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 111:17-111:37 The attribute 'aria-required' is not supported by the role 'tab'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 112:19-112:36 The attribute 'aria-modal' is not supported by the role 'table'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 113:21-113:37 The attribute 'aria-setsize' is not supported by the role 'tablist'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 114:22-114:49 The attribute 'aria-multiselectable' is not supported by the role 'tabpanel'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 115:18-115:35 The attribute 'aria-posinset' is not supported by the role 'term'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 116:21-116:37 The attribute 'aria-colspan' is not supported by the role 'textbox'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 117:18-117:38 The attribute 'aria-selected' is not supported by the role 'time'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 118:19-118:35 The attribute 'aria-sort' is not supported by the role 'timer'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 119:21-119:39 The attribute 'aria-valuetext' is not supported by the role 'toolbar'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 120:21-120:42 The attribute 'aria-multiline' is not supported by the role 'tooltip'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 121:18-121:38 The attribute 'aria-expanded' is not supported by the role 'tree'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 122:22-122:36 The attribute 'aria-level' is not supported by the role 'treegrid'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 123:43-123:69 The attribute 'aria-activedescendant' is not supported by the role 'treeitem'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 124:26-124:43 The attribute 'aria-colindex' is not supported by the role 'doc-abstract'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 125:33-125:49 The attribute 'aria-setsize' is not supported by the role 'doc-acknowledgments'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 126:27-126:44 The attribute 'aria-modal' is not supported by the role 'doc-afterword'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 127:26-127:52 The attribute 'aria-activedescendant' is not supported by the role 'doc-appendix'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 128:26-128:42 The attribute 'aria-colspan' is not supported by the role 'doc-backlink'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 129:29-129:46 The attribute 'aria-valuemax' is not supported by the role 'doc-biblioentry'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 130:30-130:44 The attribute 'aria-level' is not supported by the role 'doc-bibliography'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 131:27-131:46 The attribute 'aria-checked' is not supported by the role 'doc-biblioref'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 132:25-132:45 The attribute 'aria-required' is not supported by the role 'doc-chapter'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 133:26-133:42 The attribute 'aria-setsize' is not supported by the role 'doc-colophon'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 134:28-134:45 The attribute 'aria-colindex' is not supported by the role 'doc-conclusion'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 135:23-135:40 The attribute 'aria-modal' is not supported by the role 'doc-cover'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 136:24-136:44 The attribute 'aria-selected' is not supported by the role 'doc-credit'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 137:25-137:53 The attribute 'aria-orientation' is not supported by the role 'doc-credits'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 138:28-138:42 The attribute 'aria-level' is not supported by the role 'doc-dedication'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 139:25-139:44 The attribute 'aria-checked' is not supported by the role 'doc-endnote'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 140:26-140:43 The attribute 'aria-colcount' is not supported by the role 'doc-endnotes'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 141:26-141:47 The attribute 'aria-multiline' is not supported by the role 'doc-epigraph'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 142:26-142:43 The attribute 'aria-colcount' is not supported by the role 'doc-epilogue'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 143:24-143:40 The attribute 'aria-sort' is not supported by the role 'doc-errata'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 144:25-144:52 The attribute 'aria-multiselectable' is not supported by the role 'doc-example'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 145:26-145:43 The attribute 'aria-rowcount' is not supported by the role 'doc-footnote'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 146:26-146:43 The attribute 'aria-valuenow' is not supported by the role 'doc-foreword'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 147:26-147:44 The attribute 'aria-valuetext' is not supported by the role 'doc-glossary'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 148:26-148:46 The attribute 'aria-placeholder' is not supported by the role 'doc-glossref'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 149:23-149:40 The attribute 'aria-rowcount' is not supported by the role 'doc-index'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 150:30-150:49 The attribute 'aria-pressed' is not supported by the role 'doc-introduction'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 151:25-151:42 The attribute 'aria-valuenow' is not supported by the role 'doc-noteref'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 152:24-152:44 The attribute 'aria-selected' is not supported by the role 'doc-notice'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 153:27-153:44 The attribute 'aria-rowcount' is not supported by the role 'doc-pagebreak'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 154:26-154:43 The attribute 'aria-modal' is not supported by the role 'doc-pagelist'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 155:22-155:38 The attribute 'aria-setsize' is not supported by the role 'doc-part'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 156:25-156:53 The attribute 'aria-orientation' is not supported by the role 'doc-preface'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 157:26-157:46 The attribute 'aria-required' is not supported by the role 'doc-prologue'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 158:27-158:44 The attribute 'aria-rowcount' is not supported by the role 'doc-pullquote'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 159:21-159:37 The attribute 'aria-setsize' is not supported by the role 'doc-qna'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 160:26-160:43 The attribute 'aria-rowindex' is not supported by the role 'doc-subtitle'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 161:21-161:38 The attribute 'aria-valuenow' is not supported by the role 'doc-tip'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props 162:21-162:38 The attribute 'aria-posinset' is not supported by the role 'doc-toc'
+    https://svelte.dev/e/a11y_role_supports_aria_props
+warning a11y_role_supports_aria_props_implicit 166:20-166:36 The attribute 'aria-rowspan' is not supported by the role 'textbox'. This role is implicit on the element `<input>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 167:19-167:38 The attribute 'aria-pressed' is not supported by the role 'textbox'. This role is implicit on the element `<input>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 168:19-168:33 The attribute 'aria-level' is not supported by the role 'textbox'. This role is implicit on the element `<input>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 169:21-169:40 The attribute 'aria-pressed' is not supported by the role 'textbox'. This role is implicit on the element `<input>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 170:22-170:43 The attribute 'aria-valuetext' is not supported by the role 'searchbox'. This role is implicit on the element `<input>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 171:34-171:51 The attribute 'aria-valuemin' is not supported by the role 'combobox'. This role is implicit on the element `<input>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 172:33-172:49 The attribute 'aria-colspan' is not supported by the role 'combobox'. This role is implicit on the element `<input>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 173:33-173:50 The attribute 'aria-posinset' is not supported by the role 'combobox'. This role is implicit on the element `<input>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 174:35-174:52 The attribute 'aria-modal' is not supported by the role 'combobox'. This role is implicit on the element `<input>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 175:36-175:53 The attribute 'aria-rowindex' is not supported by the role 'combobox'. This role is implicit on the element `<input>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 176:37-176:54 The attribute 'aria-valuemax' is not supported by the role 'button'. This role is implicit on the element `<input>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 177:21-177:38 The attribute 'aria-modal' is not supported by the role 'button'. This role is implicit on the element `<input>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 178:22-178:52 The attribute 'aria-placeholder' is not supported by the role 'button'. This role is implicit on the element `<input>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 179:24-179:41 The attribute 'aria-rowindex' is not supported by the role 'checkbox'. This role is implicit on the element `<input>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 180:21-180:42 The attribute 'aria-valuetext' is not supported by the role 'radio'. This role is implicit on the element `<input>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 181:21-181:40 The attribute 'aria-checked' is not supported by the role 'slider'. This role is implicit on the element `<input>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 182:26-182:43 The attribute 'aria-colindex' is not supported by the role 'menuitem'. This role is implicit on the element `<menuitem>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 183:27-183:44 The attribute 'aria-colcount' is not supported by the role 'menuitemcheckbox'. This role is implicit on the element `<menuitem>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_role_supports_aria_props_implicit 184:24-184:54 The attribute 'aria-placeholder' is not supported by the role 'menuitemradio'. This role is implicit on the element `<menuitem>`
+    https://svelte.dev/e/a11y_role_supports_aria_props_implicit
+warning a11y_incorrect_aria_attribute_type_integer 256:21-256:34 The value of 'aria-level' must be an integer
+    https://svelte.dev/e/a11y_incorrect_aria_attribute_type_integer

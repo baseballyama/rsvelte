@@ -1,0 +1,10 @@
+warning legacy_code 18:21-18:64 `a11y-no-noninteractive-element-interactions` is no longer valid — please use `a11y_no_noninteractive_element_interactions` instead
+    https://svelte.dev/e/legacy_code
+warning legacy_code 17:21-17:54 `a11y-click-events-have-key-events` is no longer valid — please use `a11y_click_events_have_key_events` instead
+    https://svelte.dev/e/legacy_code
+warning a11y_click_events_have_key_events 19:2-58:9 Visible, non-interactive element `<code>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+    https://svelte.dev/e/a11y_click_events_have_key_events
+warning a11y_no_noninteractive_element_interactions 19:2-58:9 Non-interactive element `<code>` should not be assigned mouse or keyboard event listeners
+    https://svelte.dev/e/a11y_no_noninteractive_element_interactions
+warning non_reactive_update 4:6-4:13 `copying` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

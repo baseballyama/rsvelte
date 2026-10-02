@@ -1,0 +1,33 @@
+
+	[popover].svelte-1l1vm98 {
+		background: var(--bg-1);
+		box-shadow: inset 0 0 0 1px var(--subtle);
+		border-radius: var(--brad);
+		padding: 10px;
+		translate: 0 10px;
+		border: none;
+	}
+
+	.select-menu-menu-wrapper.svelte-1l1vm98 {
+		flex-direction: column;
+		gap: 10px;
+		display: flex;
+	}
+
+	div[popover].svelte-1l1vm98 a:where(.svelte-1l1vm98) {
+		background: none;
+		text-align: left;
+		font-size: var(--font-size-sm);
+		box-shadow: none;
+		white-space: nowrap;
+		font-family: var(--body-font-family);
+		padding: 8px 14px;
+		cursor: pointer;
+		font-size: var(--body-font-size);
+		color: var(--fg);
+		border-radius: 4px;
+		&:hover,
+		&.selected {
+			background: var(--subtle);
+		}
+	}

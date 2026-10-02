@@ -1,0 +1,33 @@
+
+  .svelte-yfbnvz .shaped-outlined,
+  .svelte-yfbnvz .shaped-outlined .mdc-select__anchor {
+    border-radius: 28px;
+  }
+  .svelte-yfbnvz .shaped-outlined .mdc-text-field__input {
+    padding-left: 32px;
+    padding-right: 0;
+  }
+  .svelte-yfbnvz
+    
+      .shaped-outlined .mdc-notched-outline .mdc-notched-outline__leading
+     {
+    border-radius: 28px 0 0 28px;
+    width: 28px;
+  }
+  .svelte-yfbnvz
+    
+      .shaped-outlined .mdc-notched-outline .mdc-notched-outline__trailing
+     {
+    border-radius: 0 28px 28px 0;
+  }
+  .svelte-yfbnvz .shaped-outlined .mdc-notched-outline .mdc-notched-outline__notch {
+    max-width: calc(100% - 28px * 2);
+  }
+  .svelte-yfbnvz
+    
+      .shaped-outlined.mdc-select--with-leading-icon
+        .mdc-notched-outline:not(.mdc-notched-outline--notched)
+        .mdc-floating-label
+     {
+    left: 16px;
+  }

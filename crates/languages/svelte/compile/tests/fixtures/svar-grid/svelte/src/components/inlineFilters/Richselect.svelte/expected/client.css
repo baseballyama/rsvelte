@@ -1,0 +1,9 @@
+
+	.wx-cell.wx-filter div.wx-richselect {
+		min-height: 28px;
+		height: 28px;
+		padding: 4px 8px;
+	}
+	.wx-cell.wx-filter div.wx-richselect .wx-label {
+		padding: 0;
+	}

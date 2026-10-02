@@ -1,0 +1,4 @@
+warning a11y_label_has_associated_control 5:1-5:17 A form label must be associated with a control
+    https://svelte.dev/e/a11y_label_has_associated_control
+warning a11y_label_has_associated_control 10:1-10:31 A form label must be associated with a control
+    https://svelte.dev/e/a11y_label_has_associated_control

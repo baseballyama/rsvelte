@@ -1,0 +1,17 @@
+
+	.container.svelte-j39hja {
+		display: flex;
+		justify-content: space-between;
+
+		.tag:where(.svelte-j39hja) {
+			padding: var(--spacing-16);
+			font-weight: 700;
+			background-color: var(--clr-bg);
+			border-radius: var(--rounded-20);
+			box-shadow: var(--shadow-sm);
+		}
+
+		.results:where(.svelte-j39hja) {
+			font-weight: 700;
+		}
+	}

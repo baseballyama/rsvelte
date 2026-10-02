@@ -1,0 +1,2 @@
+warning state_referenced_locally 430:26-430:31 This reference only captures the initial value of `style`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

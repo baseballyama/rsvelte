@@ -1,0 +1,6 @@
+warning css_unused_selector 2:2-2:13 Unused CSS selector "article > *"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 6:2-6:11 Unused CSS selector "article *"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 10:2-10:14 Unused CSS selector ".article > *"
+    https://svelte.dev/e/css_unused_selector

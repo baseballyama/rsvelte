@@ -1,0 +1,51 @@
+
+    .app.svelte-dngl6v {
+        display: flex;
+        flex-direction: column;
+        overflow: auto;
+        height: 100%;
+    }
+    
+    .header.svelte-dngl6v {
+        display: flex;
+        padding: 16px;
+        background: #ee6e73;
+    }
+    
+    @media only screen and (max-width: 900px) {
+        .header.svelte-dngl6v {
+            flex-direction: column;
+        }
+    
+        .header-title.svelte-dngl6v {
+            justify-content: center;
+            margin-bottom: 6px;
+        }
+    
+        .header-controls.svelte-dngl6v {
+            justify-content: center;
+        }
+    }
+    
+    .header-title.svelte-dngl6v {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        font-size: 36px;
+        padding: 0 16px;
+    }
+    
+    .header-title.svelte-dngl6v a:where(.svelte-dngl6v) {
+        color: #ffffff;
+        text-decoration: none;
+    }
+    
+    .header-controls.svelte-dngl6v {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .header.svelte-dngl6v button:where(.svelte-dngl6v) /* (unused) .header input[type=button]*/ {
+        margin-right: 4px;
+    }

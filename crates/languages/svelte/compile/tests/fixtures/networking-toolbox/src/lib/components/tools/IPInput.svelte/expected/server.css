@@ -1,0 +1,19 @@
+
+  .input-ip.svelte-pg6h27 {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-lg);
+    padding-right: 2.5rem;
+    flex: 1;
+
+    &.valid {
+      border-color: var(--color-success);
+    }
+
+    &.invalid {
+      border-color: var(--color-error);
+    }
+
+    &.focused {
+      box-shadow: var(--shadow-md);
+    }
+  }

@@ -1,0 +1,20 @@
+
+  .theme-toggle.svelte-8xukvy {
+    background: none;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 0.35rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+      color 0.15s,
+      background 0.15s;
+  }
+
+  .theme-toggle.svelte-8xukvy:hover {
+    color: var(--color-primary);
+    background: var(--color-bg-secondary);
+  }

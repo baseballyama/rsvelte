@@ -1,0 +1,247 @@
+
+	.dpc.svelte-zzwhth {
+		position: relative;
+		display: flex;
+		width: 100%;
+		flex-direction: column;
+		font-family: var(--ed-body);
+		color: var(--ed-ink);
+	}
+
+	.dpc__media-link.svelte-zzwhth {
+		display: block;
+		cursor: pointer;
+	}
+
+	.dpc__media.svelte-zzwhth {
+		position: relative;
+		margin: 0;
+		overflow: hidden;
+		border-radius: var(--ed-radius);
+		background: var(--ed-surface);
+	}
+
+	/* LazyImg wraps the <img> in its own aspect-ratio box (the store's image ratio). Force that
+	   wrapper (its `.w-full` root — not the absolute tag/rating overlays) to fill this fixed 1:1
+	   container so every card's image area is the exact same height. */
+	.dpc__media.svelte-zzwhth > .w-full {
+		height: 100%;
+	}
+
+	.dpc.svelte-zzwhth .dpc__img {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+		display: block;
+	}
+
+	.dpc__tag.svelte-zzwhth {
+		position: absolute;
+		left: 10px;
+		top: 10px;
+		z-index: 2;
+	}
+
+	.dpc__tag.svelte-zzwhth span:where(.svelte-zzwhth) {
+		display: inline-block;
+		padding: 4px 9px;
+		background: var(--ed-surface);
+		color: var(--ed-ink);
+		font-size: 0.62rem;
+		font-weight: 600;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		border-radius: 2px;
+	}
+
+	.dpc__rating.svelte-zzwhth {
+		position: absolute;
+		left: 10px;
+		bottom: 10px;
+		z-index: 2;
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		padding: 3px 8px;
+		background: var(--ed-surface);
+		border-radius: 999px;
+		font-size: 0.68rem;
+		font-weight: 600;
+	}
+
+	.dpc__wish.svelte-zzwhth {
+		position: absolute;
+		right: 10px;
+		top: 10px;
+		z-index: 2;
+		display: grid;
+		place-items: center;
+		width: 34px;
+		height: 34px;
+		border: 0;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.85);
+		backdrop-filter: blur(4px);
+		cursor: pointer;
+		opacity: 0;
+		transform: translateY(-4px);
+		transition:
+			opacity 0.3s ease,
+			transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+			background 0.2s ease;
+	}
+
+	.dpc.svelte-zzwhth:hover .dpc__wish:where(.svelte-zzwhth),
+	.dpc__wish.svelte-zzwhth:focus-visible {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	.dpc__wish.svelte-zzwhth:hover {
+		background: #fff;
+	}
+
+	.dpc.svelte-zzwhth .dpc__wish-icon {
+		width: 16px;
+		height: 16px;
+		stroke-width: 1.6;
+		color: var(--ed-ink);
+	}
+
+	.dpc.svelte-zzwhth .dpc__wish-icon.is-on {
+		fill: hsl(var(--primary));
+		color: hsl(var(--primary));
+	}
+
+	.dpc__info.svelte-zzwhth {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		padding-top: 12px;
+	}
+
+	.dpc__title-link.svelte-zzwhth {
+		display: block;
+		color: inherit;
+	}
+
+	.dpc__title.svelte-zzwhth {
+		display: block;
+		font-size: 0.9rem;
+		font-weight: 500;
+		line-height: 1.4;
+		color: var(--ed-ink);
+		overflow: hidden;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		transition: color 0.2s ease;
+	}
+
+	.dpc.svelte-zzwhth:hover .dpc__title:where(.svelte-zzwhth) {
+		color: hsl(var(--primary));
+	}
+
+	.dpc__price.svelte-zzwhth {
+		display: flex;
+		align-items: baseline;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+
+	.dpc__price-now.svelte-zzwhth {
+		font-size: 0.95rem;
+		font-weight: 600;
+		color: var(--ed-ink);
+	}
+
+	.dpc__price-mrp.svelte-zzwhth {
+		font-size: 0.8rem;
+		color: var(--ed-soft);
+		text-decoration: line-through;
+	}
+
+	.dpc__price-off.svelte-zzwhth {
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: #2f7d4f;
+	}
+
+	.dpc__cart.svelte-zzwhth {
+		margin-top: 10px;
+	}
+
+	.dpc__add.svelte-zzwhth {
+		width: 100%;
+		height: 44px;
+		border: 1px solid var(--ed-ink);
+		border-radius: var(--ed-radius);
+		background: transparent;
+		color: var(--ed-ink);
+		font-family: var(--ed-body);
+		font-size: 0.74rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		cursor: pointer;
+		transition:
+			background 0.25s ease,
+			color 0.25s ease;
+	}
+
+	.dpc__add.svelte-zzwhth:hover:not(:disabled) {
+		background: var(--ed-ink);
+		color: var(--ed-canvas);
+	}
+
+	.dpc__add.svelte-zzwhth:disabled {
+		opacity: 0.6;
+		cursor: default;
+	}
+
+	.dpc__qty.svelte-zzwhth {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		height: 44px;
+		padding: 0 6px;
+		border: 1px solid var(--ed-line-strong);
+		border-radius: var(--ed-radius);
+	}
+
+	.dpc__qty.svelte-zzwhth button:where(.svelte-zzwhth) {
+		display: grid;
+		place-items: center;
+		width: 32px;
+		height: 32px;
+		border: 0;
+		background: transparent;
+		color: var(--ed-ink);
+		cursor: pointer;
+	}
+
+	.dpc__qty.svelte-zzwhth button:where(.svelte-zzwhth):disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+
+	.dpc.svelte-zzwhth .dpc__qty-icon {
+		width: 15px;
+		height: 15px;
+	}
+
+	.dpc__qty-val.svelte-zzwhth {
+		flex: 1;
+		text-align: center;
+		font-size: 0.85rem;
+		font-weight: 600;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.dpc.svelte-zzwhth .dpc__img,
+		.dpc__wish.svelte-zzwhth {
+			transition: none;
+		}
+	}

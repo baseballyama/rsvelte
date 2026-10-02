@@ -1,0 +1,28 @@
+
+  menu.svelte-1og7xza {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    display: flex;
+    flex-flow: row;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    color: white;
+    font-weight: bold;
+  }
+
+  menu.svelte-1og7xza svg {
+    fill: white;
+    width: 24px;
+    height: 24px;
+  }
+
+  menu.svelte-1og7xza div:where(.svelte-1og7xza) {
+    width: 50px;
+    min-width: 50px;
+  }
+
+  menu.svelte-1og7xza input:where(.svelte-1og7xza) {
+    flex-grow: 1;
+  }

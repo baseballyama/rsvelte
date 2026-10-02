@@ -1,0 +1,11 @@
+
+	main.svelte-1nywjuk {
+		padding: 20px;
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 40px;
+	}
+
+	.chart.svelte-1nywjuk {
+		height: 200px;
+	}

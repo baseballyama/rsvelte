@@ -1,0 +1,48 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { AlertDialog as AlertDialogPrimitive } from 'bits-ui';
+import { cn } from '$lib/utils.js';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'class', 'level', 'ref']);
+
+export default function Alert_dialog_title($$anchor, $$props) {
+	$.push($$props, true);
+
+	let level = $.prop($$props, 'level', 3, 3),
+		ref = $.prop($$props, 'ref', 15, null),
+		restProps = $.rest_props($$props, rest_excludes);
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	{
+		let $0 = $.derived(() => cn('text-lg font-semibold', $$props.class));
+
+		$.component(node, () => AlertDialogPrimitive.Title, ($$anchor, AlertDialogPrimitive_Title) => {
+			AlertDialogPrimitive_Title($$anchor, $.spread_props(
+				{
+					get class() {
+						return $.get($0);
+					},
+
+					get level() {
+						return level();
+					}
+				},
+				() => restProps,
+				{
+					get ref() {
+						return ref();
+					},
+
+					set ref($$value) {
+						ref($$value);
+					}
+				}
+			));
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}

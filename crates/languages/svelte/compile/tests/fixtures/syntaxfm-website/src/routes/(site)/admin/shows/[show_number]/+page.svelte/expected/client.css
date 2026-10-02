@@ -1,0 +1,37 @@
+
+	form.svelte-jf39l4 {
+		margin: 1rem 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+	.errors.svelte-jf39l4 {
+		color: red;
+	}
+	.spotify-sync.svelte-jf39l4 {
+		margin: 2rem 0;
+		padding: 1rem;
+		border: 1px solid var(--fg);
+		border-radius: 0.5rem;
+	}
+	.spotify-sync.svelte-jf39l4 h2:where(.svelte-jf39l4) {
+		margin: 0 0 0.5rem 0;
+	}
+	.spotify-sync.svelte-jf39l4 p:where(.svelte-jf39l4) {
+		margin: 0 0 1rem 0;
+	}
+	.sync-message.svelte-jf39l4 {
+		padding: 0.5rem;
+		margin: 0.5rem 0;
+		border-radius: 0.25rem;
+	}
+	.sync-message.error.svelte-jf39l4 {
+		background-color: #fee;
+		border: 1px solid #f88;
+		color: #c00;
+	}
+	.sync-message.success.svelte-jf39l4 {
+		background-color: #efe;
+		border: 1px solid #8f8;
+		color: #060;
+	}

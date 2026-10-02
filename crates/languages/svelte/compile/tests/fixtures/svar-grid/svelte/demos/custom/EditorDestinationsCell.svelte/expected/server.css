@@ -1,0 +1,25 @@
+
+	.list.svelte-1fo3vwf {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.empty.svelte-1fo3vwf {
+		color: var(--wx-color-font-disabled);
+	}
+	.custom-option.svelte-1fo3vwf {
+		display: flex;
+		flex-direction: row;
+		width: 100%;
+		gap: 4px;
+	}
+	.info.svelte-1fo3vwf {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+	.code.svelte-1fo3vwf {
+		font-size: 12px;
+		font-style: italic;
+		color: var(--wx-color-font-disabled);
+	}

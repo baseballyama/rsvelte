@@ -1,0 +1,6 @@
+warning state_referenced_locally 167:48-167:52 This reference only captures the initial value of `mode`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 175:22-175:26 This reference only captures the initial value of `mode`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 175:41-175:45 This reference only captures the initial value of `mode`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

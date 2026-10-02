@@ -1,0 +1,10 @@
+warning state_referenced_locally 203:42-203:56 This reference only captures the initial value of `nonInteractive`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 207:9-207:24 This reference only captures the initial value of `singleSelection`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 210:16-210:25 This reference only captures the initial value of `radioList`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 213:16-213:25 This reference only captures the initial value of `checkList`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning non_reactive_update 193:7-193:11 `role` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

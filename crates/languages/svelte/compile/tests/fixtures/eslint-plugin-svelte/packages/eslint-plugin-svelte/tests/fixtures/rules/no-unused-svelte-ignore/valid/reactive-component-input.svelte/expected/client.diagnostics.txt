@@ -1,0 +1,4 @@
+warning unknown_code 13:21-13:39 `reactive-component` is not a recognised code
+    https://svelte.dev/e/unknown_code
+warning non_reactive_update 4:6-4:76 `MyComponent` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

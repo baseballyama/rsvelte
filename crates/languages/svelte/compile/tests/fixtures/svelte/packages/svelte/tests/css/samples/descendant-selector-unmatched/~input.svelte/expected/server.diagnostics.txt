@@ -1,0 +1,2 @@
+warning css_unused_selector 6:2-6:7 Unused CSS selector "x y z"
+    https://svelte.dev/e/css_unused_selector

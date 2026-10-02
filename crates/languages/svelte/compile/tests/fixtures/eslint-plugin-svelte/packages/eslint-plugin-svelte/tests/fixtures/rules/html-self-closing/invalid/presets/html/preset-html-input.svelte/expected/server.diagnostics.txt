@@ -1,0 +1,4 @@
+warning element_invalid_self_closing_tag 3:3-3:10 Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`
+    https://svelte.dev/e/element_invalid_self_closing_tag
+warning a11y_missing_attribute 4:3-4:8 `<img>` element should have an alt attribute
+    https://svelte.dev/e/a11y_missing_attribute

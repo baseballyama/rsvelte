@@ -1,0 +1,313 @@
+<script lang="ts">
+    import { afterNavigate, goto, invalidate, preloadData } from '$app/navigation';
+    import { resolve } from '$app/paths';
+    import { page } from '$app/state';
+    import { Submit, trackError, trackEvent } from '$lib/actions/analytics';
+    import { PlanComparisonBox, PlanSelection, SelectPaymentMethod } from '$lib/components/billing';
+    import ValidateCreditModal from '$lib/components/billing/validateCreditModal.svelte';
+    import { Dependencies } from '$lib/constants';
+    import { Button, Form, InputTags, InputText } from '$lib/elements/forms';
+    import { Wizard } from '$lib/layout';
+    import {
+        billingIdToPlan,
+        getBasePlanFromGroup,
+        isPaymentAuthenticationRequired,
+        teamStatusUpgrading
+    } from '$lib/stores/billing';
+    import { addNotification } from '$lib/stores/notifications';
+    import { sdk } from '$lib/stores/sdk';
+    import { confirmPayment } from '$lib/stores/stripe';
+    import { BillingPlanGroup, ID, type Models } from '@appwrite.io/console';
+    import { IconPlus } from '@appwrite.io/pink-icons-svelte';
+    import { Divider, Fieldset, Icon, Layout, Link, Typography } from '@appwrite.io/pink-svelte';
+    import { writable } from 'svelte/store';
+    import EstimatedTotalBox from '$lib/components/billing/estimatedTotalBox.svelte';
+    import { onMount } from 'svelte';
+    import type { PageProps } from './$types';
+
+    const { data }: PageProps = $props();
+
+    let showExitModal = $state(false);
+    let selectedPlan = $state(data.plan);
+    let previousPage: string = $state(resolve('/(console)'));
+    let selectedCoupon: Partial<Models.Coupon> | null = $state(data.coupon);
+
+    let isSubmitting = $state(writable(false));
+    let formComponent: Form | null = $state(null);
+
+    let name: string | null = $state(null);
+    let taxId: string | null = $state(null);
+    let collaborators: string[] = $state([]);
+    let paymentMethodId: string | null = $state(null);
+
+    let showCreditModal = $state(false);
+    let billingBudget: number | undefined = $state(undefined);
+
+    afterNavigate(({ from }) => {
+        previousPage = from?.url?.pathname || previousPage;
+    });
+
+    onMount(async () => {
+        if (page.url.searchParams.has('coupon')) {
+            const coupon = page.url.searchParams.get('coupon');
+            try {
+                selectedCoupon = await sdk.forConsole.console.getCoupon({
+                    couponId: coupon
+                });
+            } catch (e) {
+                selectedCoupon = {
+                    code: null,
+                    status: null,
+                    credits: null
+                };
+            }
+        }
+        if (page.url.searchParams.has('name')) {
+            name = page.url.searchParams.get('name');
+        }
+
+        if (page.url.searchParams.has('plan')) {
+            const plan = page.url.searchParams.get('plan');
+            if (plan) {
+                selectedPlan = billingIdToPlan(plan);
+            }
+        }
+
+        if (
+            data?.hasFreeOrganizations ||
+            (page.url.searchParams.has('type') && page.url.searchParams.get('type') === 'createPro')
+        ) {
+            selectedPlan = getBasePlanFromGroup(BillingPlanGroup.Pro);
+        }
+
+        if (page.url.searchParams.has('type')) {
+            const type = page.url.searchParams.get('type');
+            if (type === 'payment_confirmed') {
+                const organizationId = page.url.searchParams.get('id');
+                const invites = page.url.searchParams.get('invites').split(',');
+                await validate(organizationId, invites);
+            }
+        }
+    });
+
+    async function preloadAndNavigate(organizationId: string) {
+        const resolvedUrl = resolve('/(console)/organization-[organization]', {
+            organization: organizationId
+        });
+
+        await preloadData(resolvedUrl);
+        await goto(resolvedUrl);
+    }
+
+    async function validate(organizationId: string, invites: string[]) {
+        try {
+            const org = await sdk.forConsole.organizations.validatePayment({
+                organizationId,
+                invites
+            });
+
+            if (!isPaymentAuthenticationRequired(org)) {
+                await invalidate(Dependencies.ACCOUNT);
+                await preloadAndNavigate(org.$id);
+
+                if (org.status === teamStatusUpgrading) {
+                    addNotification({
+                        type: 'info',
+                        message:
+                            'Payment is processing — your plan will activate within a few minutes.'
+                    });
+                } else {
+                    addNotification({
+                        type: 'success',
+                        message: `${org.name ?? 'Organization'} has been created`
+                    });
+                }
+            }
+        } catch (e) {
+            addNotification({
+                type: 'error',
+                message: e.message
+            });
+            trackError(e, Submit.OrganizationCreate);
+        }
+    }
+
+    async function create() {
+        try {
+            let org: Models.Organization | Models.PaymentAuthentication;
+
+            if (selectedPlan.group === BillingPlanGroup.Starter) {
+                org = await sdk.forConsole.organizations.create({
+                    organizationId: ID.unique(),
+                    name: name,
+                    billingPlan: getBasePlanFromGroup(BillingPlanGroup.Starter).$id
+                });
+            } else {
+                org = await sdk.forConsole.organizations.create({
+                    organizationId: ID.unique(),
+                    name,
+                    billingPlan: selectedPlan.$id,
+                    paymentMethodId,
+                    couponId: selectedCoupon?.code,
+                    invites: collaborators,
+                    budget: billingBudget,
+                    taxId
+                });
+
+                if (isPaymentAuthenticationRequired(org)) {
+                    const clientSecret = org.clientSecret;
+                    const params = new URLSearchParams();
+                    params.append('type', 'payment_confirmed');
+                    params.append('id', org.organizationId);
+                    for (const [key, value] of page.url.searchParams.entries()) {
+                        if (key !== 'type' && key !== 'id') {
+                            params.append(key, value);
+                        }
+                    }
+                    params.append('invites', collaborators.join(','));
+                    const resolvedUrl = resolve('/(console)/create-organization');
+
+                    const outcome = await confirmPayment({
+                        clientSecret,
+                        paymentMethodId,
+                        route: `${resolvedUrl}?${params}`,
+                        redirectIfRequired: true
+                    });
+
+                    if (!outcome || outcome.status === 'error') {
+                        try {
+                            await sdk.forConsole.organizations.validatePayment({
+                                organizationId: org.organizationId,
+                                invites: []
+                            });
+                        } catch {
+                            // expected: backend throws BILLING_PAYMENT_FAILED after deleting the draft team
+                        }
+                        return;
+                    }
+
+                    if (outcome.status === 'requires_action') {
+                        return;
+                    }
+
+                    await validate(org.organizationId, collaborators);
+                }
+            }
+
+            trackEvent(Submit.OrganizationCreate, {
+                plan: selectedPlan.name,
+                budget_cap_enabled: billingBudget !== null,
+                members_invited: collaborators?.length
+            });
+
+            if (!isPaymentAuthenticationRequired(org)) {
+                await invalidate(Dependencies.ACCOUNT);
+                await preloadAndNavigate(org.$id);
+                addNotification({
+                    type: 'success',
+                    message: `${org.name ?? 'Organization'} has been created`
+                });
+            }
+        } catch (e) {
+            addNotification({
+                type: 'error',
+                message: e.message
+            });
+            trackError(e, Submit.OrganizationCreate);
+        }
+    }
+</script>
+
+<svelte:head>
+    <title>Create organization - Appwrite</title>
+</svelte:head>
+
+<Wizard title="Create organization" href={previousPage} bind:showExitModal confirmExit>
+    <Form bind:this={formComponent} onSubmit={create} bind:isSubmitting>
+        <Layout.Stack gap="xxl">
+            <Fieldset legend="Options">
+                <InputText
+                    bind:value={name}
+                    label="Organization name"
+                    placeholder="Enter organization name"
+                    autofocus
+                    id="name"
+                    required />
+            </Fieldset>
+            <Fieldset legend="Select plan">
+                <Layout.Stack>
+                    <Typography.Text>
+                        For more details on our plans, visit our
+                        <Link.Anchor
+                            href="https://appwrite.io/pricing"
+                            target="_blank"
+                            rel="noopener noreferrer">pricing page</Link.Anchor
+                        >.
+                    </Typography.Text>
+
+                    <PlanSelection
+                        isNewOrg
+                        bind:selectedBillingPlan={selectedPlan}
+                        anyOrgFree={data.hasFreeOrganizations} />
+                </Layout.Stack>
+            </Fieldset>
+
+            {#if selectedPlan.supportsCredits}
+                <Fieldset legend="Payment">
+                    <Layout.Stack gap="s" alignItems="flex-start">
+                        <SelectPaymentMethod
+                            methods={data.paymentMethods}
+                            bind:value={paymentMethodId}
+                            bind:taxId>
+                            <svelte:fragment slot="actions">
+                                {#if !selectedCoupon?.code && paymentMethodId}
+                                    <Divider vertical style="height: 2rem;" />
+                                    <Button compact on:click={() => (showCreditModal = true)}>
+                                        <Icon icon={IconPlus} slot="start" size="s" />
+                                        Add credits
+                                    </Button>
+                                {/if}
+                            </svelte:fragment>
+                        </SelectPaymentMethod>
+
+                        {#if !selectedCoupon?.code && !paymentMethodId}
+                            <Button compact on:click={() => (showCreditModal = true)}>
+                                <Icon icon={IconPlus} slot="start" size="s" />
+                                Add credits
+                            </Button>
+                        {/if}
+                    </Layout.Stack>
+                </Fieldset>
+                <Fieldset legend="Invite members">
+                    <InputTags
+                        bind:tags={collaborators}
+                        label="Invite members by email"
+                        placeholder="Enter email address(es)"
+                        id="members" />
+                </Fieldset>
+            {/if}
+        </Layout.Stack>
+    </Form>
+    <svelte:fragment slot="aside">
+        {#if selectedPlan.supportsCredits}
+            <EstimatedTotalBox
+                billingPlan={selectedPlan}
+                {collaborators}
+                bind:couponData={selectedCoupon}
+                bind:billingBudget />
+        {:else}
+            <PlanComparisonBox />
+        {/if}
+    </svelte:fragment>
+    <svelte:fragment slot="footer">
+        <Button fullWidthMobile secondary on:click={() => (showExitModal = true)}>Cancel</Button>
+        <Button
+            fullWidthMobile
+            on:click={() => formComponent.triggerSubmit()}
+            disabled={$isSubmitting}>
+            Create organization
+        </Button>
+    </svelte:fragment>
+</Wizard>
+
+<ValidateCreditModal bind:show={showCreditModal} bind:couponData={selectedCoupon} isNewOrg />

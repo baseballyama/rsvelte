@@ -1,0 +1,1 @@
+error format_unsupported 7:58-7:79 not supported by the formatter yet: quoted or numeric property key

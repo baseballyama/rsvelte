@@ -1,0 +1,90 @@
+
+	.wx-counter.svelte-x094r8 {
+		display: flex;
+		border: var(--wx-input-border);
+		width: max-content;
+		border-radius: var(--wx-input-border-radius);
+	}
+
+	.wx-counter.svelte-x094r8:not(.wx-readonly):has(.wx-input:focus) {
+		border: var(--wx-input-border-focus);
+	}
+
+	.wx-input.svelte-x094r8 {
+		box-sizing: border-box;
+		background: var(--wx-background);
+		width: 40px;
+		height: 30px;
+		font-family: var(--wx-input-font-family);
+		font-size: var(--wx-input-font-size);
+		color: var(--wx-input-font-color);
+		padding-left: 8px;
+		padding-right: 8px;
+		outline: none;
+		border: none;
+		border-left: var(--wx-input-border);
+		border-right: var(--wx-input-border);
+	}
+
+	.wx-btn.svelte-x094r8 {
+		box-sizing: border-box;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		width: 32px;
+		height: 30px;
+		font-family: var(--wx-input-font-family);
+		font-size: var(--wx-input-font-size);
+		color: var(--wx-input-font-color);
+		background-color: var(--wx-background-alt);
+		outline: none;
+		border: none;
+		cursor: pointer;
+	}
+
+	.wx-counter.svelte-x094r8:not(.wx-readonly):not(.wx-disabled)
+		.wx-btn:where(.svelte-x094r8):active {
+		background-color: var(--wx-background-hover);
+	}
+
+	.wx-dec.svelte-x094r8,
+	.wx-inc.svelte-x094r8 {
+		fill: var(--wx-color-primary);
+	}
+
+	.wx-btn-dec.svelte-x094r8 {
+		border-radius: 2px 0 0 2px;
+	}
+	.wx-btn-inc.svelte-x094r8 {
+		border-radius: 0 2px 2px 0;
+	}
+
+	.wx-error.svelte-x094r8,
+	.wx-counter.wx-error.svelte-x094r8:has(.wx-input:focus) {
+		border: 1px solid var(--wx-color-danger);
+	}
+
+	.wx-error.svelte-x094r8 .wx-input:where(.svelte-x094r8) {
+		color: var(--wx-color-danger);
+	}
+
+	.wx-disabled.svelte-x094r8 .wx-input:where(.svelte-x094r8),
+	.wx-disabled.svelte-x094r8 .wx-btn:where(.svelte-x094r8) {
+		cursor: not-allowed;
+		color: var(--wx-color-font-disabled);
+	}
+
+	.wx-disabled.svelte-x094r8 .wx-btn:where(.svelte-x094r8) {
+		background: var(--wx-color-disabled-alt);
+	}
+
+	.wx-disabled.svelte-x094r8 .wx-btn:where(.svelte-x094r8) .wx-dec:where(.svelte-x094r8),
+	.wx-disabled.svelte-x094r8 .wx-btn:where(.svelte-x094r8) .wx-inc:where(.svelte-x094r8),
+	.wx-readonly.svelte-x094r8 .wx-btn:where(.svelte-x094r8) .wx-dec:where(.svelte-x094r8),
+	.wx-readonly.svelte-x094r8 .wx-btn:where(.svelte-x094r8) .wx-inc:where(.svelte-x094r8) {
+		fill: var(--wx-color-font-disabled);
+	}
+
+	.wx-readonly.svelte-x094r8 .wx-btn:where(.svelte-x094r8) {
+		cursor: default;
+	}

@@ -1,0 +1,99 @@
+
+	.Deploy.primo-reset.svelte-cul2vq {
+		color: white;
+		background: var(--primo-color-black);
+		padding: 3rem 1.25rem 1.125rem 1.25rem;
+		display: grid;
+		gap: 1rem;
+		width: 100%;
+	}
+	.container.svelte-cul2vq {
+		display: grid;
+	}
+
+	.title.svelte-cul2vq {
+		font-size: 1.125rem;
+		font-weight: 600;
+		color: white;
+	}
+
+	.error.svelte-cul2vq {
+		padding: 0.5rem;
+		background: var(--primo-color-danger);
+		border-radius: 0.25rem;
+		margin: 0.5rem 0;
+	}
+
+	.description.svelte-cul2vq {
+		margin-bottom: 2rem;
+		line-height: 1.5;
+		a:where(.svelte-cul2vq) {
+			text-decoration: underline;
+			color: var(--primo-primary-color);
+		}
+		a:where(.svelte-cul2vq):hover {
+			color: white;
+		}
+	}
+
+	.buttons.svelte-cul2vq {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 0.75rem;
+	}
+	.primo-button.svelte-cul2vq {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		padding: 8px 16px;
+		background: var(--primo-color-codeblack);
+		border: 1px solid #333;
+		border-radius: 0.25rem;
+		color: white;
+		cursor: pointer;
+		text-decoration: none;
+		transition: all 0.2s;
+	}
+	.primo-button.svelte-cul2vq:hover {
+		background: #333;
+		border-color: #555;
+	}
+	.primo-button.svelte-cul2vq:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+	.primo-button.primary.svelte-cul2vq {
+		background: var(--primo-primary-color, #4f46e5);
+		border-color: var(--primo-primary-color, #4f46e5);
+		position: relative;
+	}
+	.primo-button.primary.svelte-cul2vq:hover {
+		background: var(--primo-primary-color-dark, #4338ca);
+		border-color: var(--primo-primary-color-dark, #4338ca);
+	}
+	.key-hint.svelte-cul2vq {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0.75rem;
+		pointer-events: none;
+	}
+	.primo-button.svelte-cul2vq:disabled:hover {
+		background: var(--primo-color-codeblack);
+		border-color: #333;
+	}
+	.primo-button.primary.svelte-cul2vq {
+		border: 1px solid var(--primo-primary-color);
+		background: transparent;
+	}
+	.primo-button.primary.svelte-cul2vq:hover {
+		background: var(--primo-primary-color);
+		border-color: var(--primo-primary-color);
+	}
+	form > label {
+		flex: 1;
+	}

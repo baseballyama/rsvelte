@@ -1,0 +1,4 @@
+warning css_unused_selector 21:2-21:4 Unused CSS selector "ul"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 22:3-22:35 Unused CSS selector "& li:nth-child(2n of&.important)"
+    https://svelte.dev/e/css_unused_selector

@@ -1,0 +1,9 @@
+
+	/* Refined Editorial — default theme only. Trigger only (Drawer content is portaled). */
+	[data-theme='default'] .edp-sizeguide {
+		color: var(--ed-ink);
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}

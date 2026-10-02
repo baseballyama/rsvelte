@@ -1,0 +1,15 @@
+
+	@keyframes svelte-q8vj86-why {
+		0% { color: red; }
+		33.3% { color: yellow }
+		66.7% { color: green }
+		100% { color: blue; }
+	}
+
+	.animated.svelte-q8vj86 {
+		animation: svelte-q8vj86-why 2s;
+	}
+
+	.also-animated.svelte-q8vj86 {
+		animation: not-defined-here 2s;
+	}

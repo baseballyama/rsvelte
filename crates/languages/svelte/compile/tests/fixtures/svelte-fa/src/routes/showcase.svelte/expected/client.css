@@ -1,0 +1,15 @@
+
+  .hue.svelte-8eaich {
+    color: #238ae6;
+    animation: svelte-8eaich-hue 30s infinite linear;
+  }
+
+  @keyframes svelte-8eaich-hue {
+    from {
+      filter: hue-rotate(0deg);
+    }
+
+    to {
+      filter: hue-rotate(-360deg);
+    }
+  }

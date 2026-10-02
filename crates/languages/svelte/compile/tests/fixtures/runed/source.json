@@ -1,0 +1,13 @@
+{
+	"commit": "a12cd68fdfc07a5a49e656435b192077151007ad",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/svecosystem/runed.git"
+}

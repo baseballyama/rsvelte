@@ -1,0 +1,30 @@
+
+	.container.svelte-1mobw5b {
+		display: grid;
+		gap: 2rem;
+		padding-top: 2.5rem;
+	}
+	.content.svelte-1mobw5b {
+		display: flex;
+		flex-direction: column;
+	}
+	.buttons.svelte-1mobw5b {
+		display: flex;
+		gap: 0.5rem;
+		justify-content: flex-end;
+	}
+	.button.svelte-1mobw5b {
+		padding: 0.5rem 0.75rem;
+		font-weight: 500;
+		border-radius: 0.25rem;
+		transition: 0.1s background;
+		background: transparent;
+
+		&.outlined {
+			border: 2px solid var(--primo-primary-color);
+		}
+
+		&:hover {
+			background: var(--primo-primary-color);
+		}
+	}

@@ -1,0 +1,8 @@
+
+  /* Styles are already in diagnostics-pages.scss */
+  /* .status-overview, .status-item are defined globally */
+  .status-text.svelte-1mctc6b {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }

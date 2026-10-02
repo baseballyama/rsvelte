@@ -1,0 +1,11 @@
+
+    #example-gantt.svelte-noqqtx {
+        flex-grow: 1;
+        overflow: auto;
+    }
+
+    .container.svelte-noqqtx {
+        display: flex;
+        overflow: auto;
+        flex: 1;
+    }

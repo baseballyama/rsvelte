@@ -1,0 +1,8 @@
+warning a11y_role_has_required_aria_props 1:6-1:20 Elements with the ARIA role "heading" must have the following attributes defined: "aria-level"
+    https://svelte.dev/e/a11y_role_has_required_aria_props
+warning a11y_role_has_required_aria_props 2:7-2:22 Elements with the ARIA role "checkbox" must have the following attributes defined: "aria-checked"
+    https://svelte.dev/e/a11y_role_has_required_aria_props
+warning a11y_role_has_required_aria_props 3:6-3:18 Elements with the ARIA role "meter" must have the following attributes defined: "aria-valuenow"
+    https://svelte.dev/e/a11y_role_has_required_aria_props
+warning a11y_role_has_required_aria_props 4:6-4:22 Elements with the ARIA role "scrollbar" must have the following attributes defined: "aria-controls" and "aria-valuenow"
+    https://svelte.dev/e/a11y_role_has_required_aria_props

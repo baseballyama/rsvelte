@@ -1,0 +1,24 @@
+
+	/* Add smooth scrolling */
+	html {
+		scroll-behavior: smooth;
+	}
+
+	/* Ensure the sidebar has proper height */
+	aside.svelte-brkybl {
+		height: 100vh;
+		height: 100dvh; /* For mobile browsers with dynamic viewport height */
+	}
+
+	/* Improve transition performance */
+	aside.svelte-brkybl {
+		will-change: transform;
+		backface-visibility: hidden;
+	}
+
+	/* Ensure content doesn't overflow on small screens */
+	@media (max-width: 768px) {
+		main.svelte-brkybl {
+			padding-bottom: 2rem;
+		}
+	}

@@ -1,0 +1,6 @@
+warning svelte_element_invalid_this 1:17-1:27 `this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte
+    https://svelte.dev/e/svelte_element_invalid_this
+warning svelte_element_invalid_this 2:17-2:27 `this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte
+    https://svelte.dev/e/svelte_element_invalid_this
+warning svelte_element_invalid_this 6:17-6:28 `this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte
+    https://svelte.dev/e/svelte_element_invalid_this

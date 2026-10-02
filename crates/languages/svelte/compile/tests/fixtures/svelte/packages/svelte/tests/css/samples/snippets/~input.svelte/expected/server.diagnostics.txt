@@ -1,0 +1,4 @@
+warning css_unused_selector 28:2-28:8 Unused CSS selector "p .foo"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 31:2-31:10 Unused CSS selector "span div"
+    https://svelte.dev/e/css_unused_selector

@@ -1,0 +1,22 @@
+
+	#\31\32\33 .svelte-aov5ae{ color: green; }
+	#\31 23.svelte-aov5ae { color: green; }
+	#line\a break.svelte-aov5ae { color: green; }
+	#line\a
+break.svelte-aov5ae { color: green; }
+	#line\00000abreak.svelte-aov5ae { color: green; }
+	#line\00000a break.svelte-aov5ae { color: green; }
+	#line\00000a	break.svelte-aov5ae { color: green; }
+	.a\1f642 b.svelte-aov5ae { color: green; }
+
+	.\61sdf.svelte-aov5ae { color: green; }
+
+	/* (unused) .\61  sdf { color: red; }*/
+	/* (unused) .\61
+	sdf { color: red; }*/
+	/* (unused) .\61
+ sdf { color: red; }*/
+
+	/* (unused) #\31span { color: red; }*/
+	/* (unused) #\31 span { color: red; }*/
+	#\31 .svelte-aov5ae span:where(.svelte-aov5ae) { color: green; }

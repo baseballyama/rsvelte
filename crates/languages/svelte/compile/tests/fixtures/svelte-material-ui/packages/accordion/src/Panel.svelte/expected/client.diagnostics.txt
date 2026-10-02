@@ -1,0 +1,4 @@
+warning state_referenced_locally 106:34-106:42 This reference only captures the initial value of `disabled`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 111:40-111:54 This reference only captures the initial value of `nonInteractive`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

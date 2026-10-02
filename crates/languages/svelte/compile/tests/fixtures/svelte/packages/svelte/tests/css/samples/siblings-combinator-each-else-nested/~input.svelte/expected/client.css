@@ -1,0 +1,28 @@
+
+	.a.svelte-er69un + .e:where(.svelte-er69un) { color: green; }
+	.a.svelte-er69un + .f:where(.svelte-er69un) { color: green; }
+	.a.svelte-er69un + .g:where(.svelte-er69un) { color: green; }
+	.b.svelte-er69un + .c:where(.svelte-er69un) { color: green; }
+	.b.svelte-er69un + .d:where(.svelte-er69un) { color: green; }
+	.c.svelte-er69un + .e:where(.svelte-er69un) { color: green; }
+	.c.svelte-er69un + .f:where(.svelte-er69un) { color: green; }
+	.c.svelte-er69un + .g:where(.svelte-er69un) { color: green; }
+	.c.svelte-er69un + .k:where(.svelte-er69un) { color: green; }
+	.d.svelte-er69un + .e:where(.svelte-er69un) { color: green; }
+	.d.svelte-er69un + .f:where(.svelte-er69un) { color: green; }
+	.e.svelte-er69un + .e:where(.svelte-er69un) { color: green; }
+	.i.svelte-er69un + .j:where(.svelte-er69un) { color: green; }
+	.g.svelte-er69un + .h:where(.svelte-er69un) + .j:where(.svelte-er69un) { color: green; }
+	.g.svelte-er69un + .i:where(.svelte-er69un) + .j:where(.svelte-er69un) { color: green; }
+	.g.svelte-er69un + .j:where(.svelte-er69un) { color: green; }
+	.m.svelte-er69un + .m:where(.svelte-er69un) { color: green; }
+	.m.svelte-er69un + .l:where(.svelte-er69un) { color: green; }
+	.l.svelte-er69un + .m:where(.svelte-er69un) { color: green; }
+
+	/* no match */
+	/* (unused) .a + .c { color: red; }*/
+	/* (unused) .b + .e { color: red; }*/
+	/* (unused) .d + .d { color: red; }*/
+	/* (unused) .e + .f { color: red; }*/
+	/* (unused) .f + .f { color: red; }*/
+	/* (unused) .g + .h + .i + .j { color: red; }*/

@@ -1,0 +1,6 @@
+warning attribute_illegal_colon 1:4-1:19 Attributes should not contain ':' characters to prevent ambiguity with Svelte directives
+    https://svelte.dev/e/attribute_illegal_colon
+warning a11y_consider_explicit_label 1:1-1:24 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label
+warning a11y_missing_attribute 1:1-1:24 `<a>` element should have an href attribute
+    https://svelte.dev/e/a11y_missing_attribute

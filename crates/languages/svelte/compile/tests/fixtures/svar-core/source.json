@@ -1,0 +1,13 @@
+{
+	"commit": "8c22871d51c1e04a875938b135f4564d1633fdab",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/svar-widgets/core"
+}

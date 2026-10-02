@@ -1,0 +1,4 @@
+warning event_directive_deprecated 1:9-1:17 Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+    https://svelte.dev/e/event_directive_deprecated
+warning slot_element_deprecated 1:18-1:26 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated

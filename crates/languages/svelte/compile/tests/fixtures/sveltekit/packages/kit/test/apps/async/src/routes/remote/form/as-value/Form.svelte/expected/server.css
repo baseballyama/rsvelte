@@ -1,0 +1,9 @@
+
+	.form.svelte-ukzv7l {
+		display: flex;
+		flex-direction: column;
+		max-width: 200px;
+		gap: 0.25rem;
+		padding: 0.5rem;
+		background: #eee;
+	}

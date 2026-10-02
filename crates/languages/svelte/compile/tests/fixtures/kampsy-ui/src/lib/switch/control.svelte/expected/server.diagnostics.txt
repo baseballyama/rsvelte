@@ -1,0 +1,6 @@
+warning state_referenced_locally 30:6-30:20 This reference only captures the initial value of `defaultChecked`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 31:25-31:30 This reference only captures the initial value of `value`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 40:39-40:44 This reference only captures the initial value of `value`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

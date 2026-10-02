@@ -1,0 +1,19 @@
+
+  @layer base {
+    :where(.lc-circle) {
+      --fill-color: var(--color-surface-content, currentColor);
+      --stroke-color: initial;
+    }
+
+    /* Html layers */
+    :where(.lc-layout-html .lc-circle) {
+      /* Match SVG sizing (visual extent equals `r * 2`, border on outer edge) */
+      box-sizing: border-box;
+    }
+    :where(.lc-layout-html .lc-circle):not([background]) {
+      background: var(--fill-color);
+    }
+    :where(.lc-layout-html .lc-circle):not([border-color]) {
+      border-color: var(--stroke-color);
+    }
+  }

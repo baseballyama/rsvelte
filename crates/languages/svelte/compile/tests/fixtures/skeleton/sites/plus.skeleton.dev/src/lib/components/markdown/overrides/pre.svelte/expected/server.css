@@ -1,0 +1,8 @@
+
+	/* Highlight line */
+	.prose-pre .shiki .line.highlight {
+		background-color: var(--color-surface-100-900);
+		width: calc(100% + 2rem);
+		margin-left: -1rem;
+		padding-left: 1rem;
+	}

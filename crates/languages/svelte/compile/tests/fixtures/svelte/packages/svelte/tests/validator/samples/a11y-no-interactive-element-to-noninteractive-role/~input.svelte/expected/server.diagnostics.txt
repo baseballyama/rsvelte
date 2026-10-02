@@ -1,0 +1,118 @@
+warning a11y_no_interactive_element_to_noninteractive_role 2:1-2:39 `<a>` cannot have role 'article'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 3:1-3:38 `<a>` cannot have role 'banner'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 4:1-4:45 `<a>` cannot have role 'complementary'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 5:1-5:35 `<a>` cannot have role 'img'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 6:1-6:40 `<a>` cannot have role 'listitem'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 7:1-7:36 `<a>` cannot have role 'main'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 8:1-8:38 `<a>` cannot have role 'region'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 9:1-9:39 `<a>` cannot have role 'tooltip'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 13:1-13:39 `<button>` cannot have role 'article'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 14:1-14:38 `<button>` cannot have role 'banner'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 15:1-15:45 `<button>` cannot have role 'complementary'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 16:1-16:35 `<button>` cannot have role 'img'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 17:1-17:40 `<button>` cannot have role 'listitem'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 18:1-18:36 `<button>` cannot have role 'main'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 19:1-19:38 `<button>` cannot have role 'region'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 20:1-20:39 `<button>` cannot have role 'tooltip'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_redundant_roles 21:9-21:22 Redundant role 'button'
+    https://svelte.dev/e/a11y_no_redundant_roles
+warning a11y_no_interactive_element_to_noninteractive_role 24:1-24:25 `<input>` cannot have role 'article'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 25:1-25:24 `<input>` cannot have role 'banner'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 26:1-26:31 `<input>` cannot have role 'complementary'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 27:1-27:21 `<input>` cannot have role 'img'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 28:1-28:26 `<input>` cannot have role 'listitem'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 29:1-29:22 `<input>` cannot have role 'main'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 30:1-30:24 `<input>` cannot have role 'region'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 31:1-31:25 `<input>` cannot have role 'tooltip'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 35:1-35:33 `<select>` cannot have role 'article'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 36:1-36:32 `<select>` cannot have role 'banner'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 37:1-37:39 `<select>` cannot have role 'complementary'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 38:1-38:29 `<select>` cannot have role 'img'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 39:1-39:34 `<select>` cannot have role 'listitem'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 40:1-40:30 `<select>` cannot have role 'main'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 41:1-41:32 `<select>` cannot have role 'region'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 42:1-42:33 `<select>` cannot have role 'tooltip'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 46:1-46:37 `<textarea>` cannot have role 'article'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 47:1-47:36 `<textarea>` cannot have role 'banner'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 48:1-48:43 `<textarea>` cannot have role 'complementary'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 49:1-49:33 `<textarea>` cannot have role 'img'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 50:1-50:38 `<textarea>` cannot have role 'listitem'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 51:1-51:34 `<textarea>` cannot have role 'main'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 52:1-52:36 `<textarea>` cannot have role 'region'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 53:1-53:37 `<textarea>` cannot have role 'tooltip'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_abstract_role 57:6-57:20 Abstract role 'command' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 58:6-58:22 Abstract role 'composite' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 59:6-59:18 Abstract role 'input' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 60:6-60:21 Abstract role 'landmark' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 61:6-61:18 Abstract role 'range' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 62:6-62:21 Abstract role 'roletype' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 63:6-63:20 Abstract role 'section' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 64:6-64:24 Abstract role 'sectionhead' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 65:6-65:19 Abstract role 'select' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 66:6-66:22 Abstract role 'structure' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 71:6-71:19 Abstract role 'widget' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_abstract_role 72:6-72:19 Abstract role 'window' is forbidden
+    https://svelte.dev/e/a11y_no_abstract_role
+warning a11y_no_interactive_element_to_noninteractive_role 143:1-143:38 `<menuitem>` cannot have role 'listitem'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 144:1-144:46 `<option>` cannot have role 'listitem'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 145:1-145:46 `<select>` cannot have role 'listitem'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 146:1-146:50 `<textarea>` cannot have role 'listitem'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 147:1-147:26 `<tr>` cannot have role 'listitem'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role
+warning a11y_no_interactive_element_to_noninteractive_role 148:1-148:36 `<summary>` cannot have role 'listitem'
+    https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role

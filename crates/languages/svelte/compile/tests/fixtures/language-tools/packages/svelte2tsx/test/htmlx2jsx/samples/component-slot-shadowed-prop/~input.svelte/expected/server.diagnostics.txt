@@ -1,0 +1,2 @@
+warning attribute_quoted 8:5-8:26 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+    https://svelte.dev/e/attribute_quoted

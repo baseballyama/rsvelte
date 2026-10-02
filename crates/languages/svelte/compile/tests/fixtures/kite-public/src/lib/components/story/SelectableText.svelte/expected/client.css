@@ -1,0 +1,16 @@
+
+	@keyframes svelte-5uclpr-jiggle {
+		0%, 100% {
+			transform: rotate(0deg);
+		}
+		10%, 30%, 50%, 70%, 90% {
+			transform: rotate(-1deg);
+		}
+		20%, 40%, 60%, 80% {
+			transform: rotate(1deg);
+		}
+	}
+
+	.animate-jiggle.svelte-5uclpr {
+		animation: svelte-5uclpr-jiggle 0.2s ease;
+	}

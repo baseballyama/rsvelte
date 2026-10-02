@@ -1,0 +1,62 @@
+
+	.circle-pack.svelte-1rwl0z1 {
+		position: relative;
+		width: 100%;
+		height: 100%;
+	}
+	.circle.svelte-1rwl0z1,
+	.text-group.svelte-1rwl0z1 {
+		position: absolute;
+	}
+	.circle.svelte-1rwl0z1 {
+		transform: translate(-50%, -50%);
+	}
+	/* Hide the root node if we want, useful if we are creating our own root */
+	.circle-pack[data-has-parent-key='false'].svelte-1rwl0z1 .circle-group[data-id='all']:where(.svelte-1rwl0z1) {
+		display: none;
+	}
+	/* .circle-group:hover {
+    z-index: 9999;
+  } */
+	.circle-group[data-visible='false'].svelte-1rwl0z1 .text-group:where(.svelte-1rwl0z1) {
+		display: none;
+		padding: 4px 7px;
+		background: #fff;
+		border: 1px solid #ccc;
+		transform: translate(-50%, -100%);
+		top: -4px;
+	}
+	.circle-group[data-visible='false'].svelte-1rwl0z1:hover .text-group:where(.svelte-1rwl0z1) {
+		z-index: 999;
+		display: block !important;
+		/* On hover, set the text color to black and eliminate the shadow */
+		text-shadow: none !important;
+		color: #000 !important;
+	}
+	.circle-group[data-visible='false'].svelte-1rwl0z1:hover .circle:where(.svelte-1rwl0z1) {
+		border-color: #000 !important;
+	}
+	.text-group.svelte-1rwl0z1 {
+		width: auto;
+		top: 50%;
+		left: 50%;
+		text-align: center;
+		transform: translate(-50%, -50%);
+		white-space: nowrap;
+		pointer-events: none;
+		cursor: pointer;
+		line-height: 13px;
+	}
+	.text.svelte-1rwl0z1 {
+		width: 100%;
+		font-size: 11px;
+		/* text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff; */
+	}
+	.text.value.svelte-1rwl0z1 {
+		font-size: 11px;
+	}
+	.circle.svelte-1rwl0z1 {
+		border-radius: 50%;
+		top: 0;
+		left: 0;
+	}

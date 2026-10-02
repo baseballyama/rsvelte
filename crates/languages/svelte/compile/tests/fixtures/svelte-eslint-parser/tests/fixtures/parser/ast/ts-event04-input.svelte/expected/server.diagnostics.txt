@@ -1,0 +1,4 @@
+warning a11y_consider_explicit_label 4:1-6:14 Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+    https://svelte.dev/e/a11y_consider_explicit_label
+warning event_directive_deprecated 4:9-6:4 Using `on:unknown` to listen to the unknown event is deprecated. Use the event attribute `onunknown` instead
+    https://svelte.dev/e/event_directive_deprecated

@@ -1,0 +1,13 @@
+
+	.a.svelte-saribc + .b:where(.svelte-saribc) { color: green; }
+	.a.svelte-saribc + .c:where(.svelte-saribc) { color: green; }
+	.a.svelte-saribc + .d:where(.svelte-saribc) { color: green; }
+	.b.svelte-saribc + .e:where(.svelte-saribc) { color: green; }
+	.c.svelte-saribc + .e:where(.svelte-saribc) { color: green; }
+	.d.svelte-saribc + .e:where(.svelte-saribc) { color: green; }
+
+	/* no match */
+	/* (unused) .a + .e { color: green; }*/
+	/* (unused) .b + .c { color: green; }*/
+	/* (unused) .c + .d { color: green; }*/
+	/* (unused) .b + .d { color: green; }*/

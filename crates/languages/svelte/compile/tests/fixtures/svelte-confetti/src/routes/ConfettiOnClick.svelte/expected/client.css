@@ -1,0 +1,21 @@
+
+  .box.svelte-1soaze9 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    height: 10rem;
+    width: 100%;
+    background: black;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    user-select: none;
+  }
+
+  .mover.svelte-1soaze9 {
+    position: absolute;
+  }
+
+  span.svelte-1soaze9 {
+    pointer-events: none;
+  }

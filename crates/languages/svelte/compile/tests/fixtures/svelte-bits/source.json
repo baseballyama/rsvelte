@@ -1,0 +1,13 @@
+{
+	"commit": "d05265c80f8b9ef7e20e55e8cbc5842ade1eb1bd",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/DavidHDev/svelte-bits.git"
+}

@@ -1,0 +1,4 @@
+warning state_referenced_locally 43:7-43:10 This reference only captures the initial value of `url`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 43:14-43:17 This reference only captures the initial value of `url`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

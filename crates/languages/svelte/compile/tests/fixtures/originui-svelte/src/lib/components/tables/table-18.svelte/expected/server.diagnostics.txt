@@ -1,0 +1,2 @@
+warning a11y_no_static_element_interactions 215:10-239:16 `<div>` with a click or keydown handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions

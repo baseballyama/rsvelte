@@ -1,0 +1,17 @@
+
+  @layer components {
+    :where(.lc-annotation-point-label) {
+      pointer-events: none;
+    }
+
+    :where(.lc-annotation-point-ring) {
+      --fill-color: none;
+      --stroke-color: var(--color-surface-content, currentColor);
+    }
+
+    :where(.lc-annotation-point-link) {
+      --stroke-color: var(--color-surface-content, currentColor);
+      fill: none;
+      pointer-events: none;
+    }
+  }

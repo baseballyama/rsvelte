@@ -1,0 +1,15 @@
+
+	/* Refined Editorial — default theme only. Clean gallery: warm media wells,
+	   editorial radius, hairline thumbnail borders (selected keeps primary). */
+	[data-theme='default'] .edp-gallery .rounded-radius {
+		border-radius: var(--ed-radius);
+	}
+
+	[data-theme='default'] .edp-gallery .bg-gray-50 {
+		background-color: #f0ece4;
+		border-radius: var(--ed-radius);
+	}
+
+	[data-theme='default'] .edp-gallery .border-muted {
+		border-color: var(--ed-line);
+	}

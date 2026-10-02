@@ -1,0 +1,12 @@
+
+	.progress.svelte-1c8hzjv {
+		animation: 2s linear svelte-1c8hzjv-progressAnimation;
+	}
+	@keyframes svelte-1c8hzjv-progressAnimation {
+		0% {
+			right: 100%;
+		}
+		100% {
+			right: 0;
+		}
+	}

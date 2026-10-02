@@ -1,0 +1,2 @@
+warning css_unused_selector 10:2-10:29 Unused CSS selector "[data-active='true'] > span"
+    https://svelte.dev/e/css_unused_selector

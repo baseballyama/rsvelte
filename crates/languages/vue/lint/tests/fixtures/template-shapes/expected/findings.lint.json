@@ -1,0 +1,22 @@
+{
+	"rules": [
+		"no-unused-vars",
+		"vue/html-button-has-type",
+		"vue/multi-word-component-names",
+		"vue/no-unused-vars"
+	],
+	"findings": [
+		{
+			"rule": "vue/html-button-has-type",
+			"message": "Missing an explicit type attribute for button.",
+			"start": {
+				"line": 14,
+				"column": 5
+			},
+			"end": {
+				"line": 14,
+				"column": 74
+			}
+		}
+	]
+}

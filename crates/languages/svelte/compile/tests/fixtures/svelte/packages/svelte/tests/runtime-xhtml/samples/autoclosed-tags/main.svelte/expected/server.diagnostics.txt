@@ -1,0 +1,40 @@
+warning element_implicitly_closed 1:5-1:9 This element is implicitly closed by the following `<li>`, which can cause an unexpected DOM structure. Add an explicit `</li>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 1:9-1:13 This element is implicitly closed by the following `</ul>`, which can cause an unexpected DOM structure. Add an explicit `</li>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 2:5-2:9 This element is implicitly closed by the following `<dd>`, which can cause an unexpected DOM structure. Add an explicit `</dt>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 2:9-2:13 This element is implicitly closed by the following `<dd>`, which can cause an unexpected DOM structure. Add an explicit `</dd>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 2:13-2:17 This element is implicitly closed by the following `</dl>`, which can cause an unexpected DOM structure. Add an explicit `</dd>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 3:1-3:4 This element is implicitly closed by the following `<p>`, which can cause an unexpected DOM structure. Add an explicit `</p>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 3:4-3:7 This element is implicitly closed by the following `<div>`, which can cause an unexpected DOM structure. Add an explicit `</p>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 4:7-4:11 This element is implicitly closed by the following `<rt>`, which can cause an unexpected DOM structure. Add an explicit `</rp>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 4:11-4:15 This element is implicitly closed by the following `<rt>`, which can cause an unexpected DOM structure. Add an explicit `</rt>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 4:15-4:19 This element is implicitly closed by the following `</ruby>`, which can cause an unexpected DOM structure. Add an explicit `</rt>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 5:9-5:17 This element is implicitly closed by the following `<optgroup>`, which can cause an unexpected DOM structure. Add an explicit `</option>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 5:17-5:27 This element is implicitly closed by the following `<optgroup>`, which can cause an unexpected DOM structure. Add an explicit `</optgroup>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 5:27-5:37 This element is implicitly closed by the following `</select>`, which can cause an unexpected DOM structure. Add an explicit `</optgroup>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 6:8-6:15 This element is implicitly closed by the following `<tbody>`, which can cause an unexpected DOM structure. Add an explicit `</thead>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 6:15-6:22 This element is implicitly closed by the following `<tfoot>`, which can cause an unexpected DOM structure. Add an explicit `</tbody>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 6:22-6:29 This element is implicitly closed by the following `<tbody>`, which can cause an unexpected DOM structure. Add an explicit `</tfoot>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 6:40-6:44 This element is implicitly closed by the following `<th>`, which can cause an unexpected DOM structure. Add an explicit `</td>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 6:44-6:48 This element is implicitly closed by the following `</tr>`, which can cause an unexpected DOM structure. Add an explicit `</th>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 6:53-6:57 This element is implicitly closed by the following `</table>`, which can cause an unexpected DOM structure. Add an explicit `</tr>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed
+warning element_implicitly_closed 6:29-6:36 This element is implicitly closed by the following `</table>`, which can cause an unexpected DOM structure. Add an explicit `</tbody>` to avoid surprises.
+    https://svelte.dev/e/element_implicitly_closed

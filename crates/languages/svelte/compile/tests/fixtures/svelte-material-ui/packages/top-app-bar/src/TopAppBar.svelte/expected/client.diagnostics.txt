@@ -1,0 +1,8 @@
+warning state_referenced_locally 148:30-148:37 This reference only captures the initial value of `variant`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 148:39-148:48 This reference only captures the initial value of `prominent`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 148:50-148:55 This reference only captures the initial value of `dense`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally
+warning state_referenced_locally 180:20-180:27 This reference only captures the initial value of `variant`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

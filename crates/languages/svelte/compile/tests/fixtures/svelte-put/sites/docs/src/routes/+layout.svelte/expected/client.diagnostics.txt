@@ -1,0 +1,2 @@
+warning state_referenced_locally 54:37-54:41 This reference only captures the initial value of `data`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

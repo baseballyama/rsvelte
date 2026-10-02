@@ -1,0 +1,8 @@
+warning svelte_self_deprecated 2:1-4:15 `<svelte:self>` is deprecated — use self-imports (e.g. `import Input from './input.svelte'`) instead
+    https://svelte.dev/e/svelte_self_deprecated
+warning slot_element_deprecated 3:5-3:20 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated
+warning svelte_component_deprecated 6:1-8:20 `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+    https://svelte.dev/e/svelte_component_deprecated
+warning slot_element_deprecated 7:5-7:20 Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+    https://svelte.dev/e/slot_element_deprecated

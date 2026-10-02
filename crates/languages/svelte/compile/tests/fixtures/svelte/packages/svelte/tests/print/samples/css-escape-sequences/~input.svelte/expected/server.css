@@ -1,0 +1,22 @@
+
+	/* (unused) #\31\32\33 { color: green; }*/
+	/* (unused) #\31 23 { color: green; }*/
+	/* (unused) #line\a break { color: green; }*/
+	/* (unused) #line\a
+break { color: green; }*/
+	/* (unused) li\.foo { color: green; }*/
+	/* (unused) .a\1f642 b { color: green; }*/
+	/* (unused) .a🙂b { color: green; }*/
+	/* (unused) #\2d 1foo { color: red; }*/
+	/* (unused) .a\5c b { color: red; }*/
+	/* (unused) .a\\b { color: red; }*/
+	/* (unused) .a\5c q { color: red; }*/
+	/* (unused) .a\\q { color: red; }*/
+	/* (unused) .a\5c  { color: red; }*/
+	/* (unused) .a\\ { color: red; }*/
+	/* (unused) #\5c a { color: red; }*/
+	/* (unused) [\31 data] { color: red; }*/
+	.svelte-19iqkn1:\31 st-child { color: red; }
+	.svelte-19iqkn1 { color: red; }
+	/* (unused) #id-selector { color: red; }*/
+	/* (unused) [data-attribute="value"] { color: red; }*/

@@ -1,0 +1,15 @@
+
+  @layer components {
+    :where(.lc-violin) {
+      --stroke-color: var(--color-surface-content, currentColor);
+    }
+
+    :where(.lc-violin-area) {
+      --fill-color: color-mix(
+        in oklab,
+        var(--color-surface-content, currentColor) 20%,
+        transparent
+      );
+      --stroke-color: var(--color-surface-content, currentColor);
+    }
+  }

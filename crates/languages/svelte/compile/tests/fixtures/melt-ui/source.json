@@ -1,0 +1,13 @@
+{
+	"commit": "3450a91f47c1c7392c5c9385c12b3d4897e85ffe",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/melt-ui/next-gen.git"
+}

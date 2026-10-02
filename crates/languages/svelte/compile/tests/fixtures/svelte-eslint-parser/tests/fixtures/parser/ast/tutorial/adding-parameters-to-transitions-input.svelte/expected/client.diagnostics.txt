@@ -1,0 +1,2 @@
+warning non_reactive_update 3:6-3:13 `visible` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

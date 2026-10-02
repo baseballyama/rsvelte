@@ -1,0 +1,9 @@
+
+  .svelte-htnd1v .my-added-class {
+    display: flex;
+    text-align: center;
+    align-items: center;
+    height: 150px;
+    width: 150px;
+    border: 2px solid currentColor;
+  }

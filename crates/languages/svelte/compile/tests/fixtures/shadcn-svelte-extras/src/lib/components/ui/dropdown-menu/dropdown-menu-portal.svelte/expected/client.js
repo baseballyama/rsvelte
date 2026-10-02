@@ -1,0 +1,17 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy']);
+
+export default function Dropdown_menu_portal($$anchor, $$props) {
+	let restProps = $.rest_props($$props, rest_excludes);
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.component(node, () => DropdownMenuPrimitive.Portal, ($$anchor, DropdownMenuPrimitive_Portal) => {
+		DropdownMenuPrimitive_Portal($$anchor, $.spread_props(() => restProps));
+	});
+
+	$.append($$anchor, fragment);
+}

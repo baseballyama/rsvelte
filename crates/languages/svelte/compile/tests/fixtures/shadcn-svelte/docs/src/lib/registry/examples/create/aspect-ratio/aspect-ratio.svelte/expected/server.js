@@ -1,0 +1,23 @@
+import * as $ from 'svelte/internal/server';
+import AspectRatio1x1 from "./aspect-ratio-1x1.svelte";
+import AspectRatio9x16 from "./aspect-ratio-9x16.svelte";
+import AspectRatio16x9 from "./aspect-ratio-16x9.svelte";
+import AspectRatio21x9 from "./aspect-ratio-21x9.svelte";
+import ExampleWrapper from "../../../../../routes/(app)/(layout)/(create)/components/example-wrapper.svelte";
+
+export default function Aspect_ratio($$renderer) {
+	ExampleWrapper($$renderer, {
+		class: 'max-w-4xl 2xl:max-w-4xl',
+		children: ($$renderer) => {
+			AspectRatio16x9($$renderer, {});
+			$$renderer.push(`<!----> `);
+			AspectRatio21x9($$renderer, {});
+			$$renderer.push(`<!----> `);
+			AspectRatio1x1($$renderer, {});
+			$$renderer.push(`<!----> `);
+			AspectRatio9x16($$renderer, {});
+			$$renderer.push(`<!---->`);
+		},
+		$$slots: { default: true }
+	});
+}

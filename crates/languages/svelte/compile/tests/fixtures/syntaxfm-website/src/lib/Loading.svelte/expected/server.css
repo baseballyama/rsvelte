@@ -1,0 +1,35 @@
+
+	.loader.svelte-gftfsn {
+		z-index: 10;
+		position: fixed;
+		background: #000000ee;
+		inset: 0;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	}
+
+	h3.svelte-gftfsn {
+		color: var(--primary);
+	}
+
+	.loader.svelte-gftfsn svg:where(.svelte-gftfsn) {
+		width: 150px;
+		height: 150px;
+		margin: 0 auto;
+	}
+
+	#logo_dot {
+		animation: svelte-gftfsn-spin 1s infinite;
+		transform-origin: 93% 91%;
+	}
+
+	@keyframes svelte-gftfsn-spin {
+		0% {
+			transform: rotate(0deg);
+		}
+
+		100% {
+			transform: rotate(360deg);
+		}
+	}

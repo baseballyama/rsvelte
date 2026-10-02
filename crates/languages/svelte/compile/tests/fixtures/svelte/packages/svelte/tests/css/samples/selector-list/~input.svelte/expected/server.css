@@ -1,0 +1,7 @@
+
+	div.svelte-1yoqzjx {
+		color: red;
+	}
+	div.svelte-1yoqzjx span:where(.svelte-1yoqzjx), div.svelte-1yoqzjx div:where(.svelte-1yoqzjx) {
+		color: blue;
+	}

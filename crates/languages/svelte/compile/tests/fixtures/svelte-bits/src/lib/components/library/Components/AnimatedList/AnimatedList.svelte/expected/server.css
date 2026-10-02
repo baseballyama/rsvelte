@@ -1,0 +1,24 @@
+
+	.al-scrollbar.svelte-1raxkg0 {
+		scrollbar-width: thin;
+		scrollbar-color: #222 #14110e;
+	}
+	.al-scrollbar.svelte-1raxkg0::-webkit-scrollbar {
+		width: 8px;
+	}
+	.al-scrollbar.svelte-1raxkg0::-webkit-scrollbar-track {
+		background: #14110e;
+	}
+	.al-scrollbar.svelte-1raxkg0::-webkit-scrollbar-thumb {
+		background: #222;
+		border-radius: 4px;
+	}
+	.al-scrollbar-hide.svelte-1raxkg0 {
+		scrollbar-width: none;
+	}
+	.al-scrollbar-hide.svelte-1raxkg0::-webkit-scrollbar {
+		display: none;
+	}
+	.al-selected.svelte-1raxkg0 {
+		background: #222 !important;
+	}

@@ -1,0 +1,18 @@
+
+	h3.svelte-1tle3nc {
+		font-weight: normal;
+	}
+
+	a.svelte-1tle3nc {
+		color: var(--sc-theme-calendar-colors-text-primary);
+		text-decoration: none;
+		font-weight: bold;
+	}
+
+	@media (max-width: 720px) {
+		ol.svelte-1tle3nc {
+			margin: 0;
+			margin-left: 10px;
+			padding: 0;
+		}
+	}

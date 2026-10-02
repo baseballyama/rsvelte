@@ -1,0 +1,21 @@
+
+  @import './styles/line.css';
+
+  .indent.svelte-cc7f82 {
+    position: relative;
+    transition-duration: var(--__transition-duration);
+    transition-property: margin-left, border-color;
+    margin-left: var(--__indent);
+    border-left: 1px solid var(--_indent-color);
+    max-height: calc(102 * 1.5em);
+    overflow-x: clip;
+    overflow-y: auto;
+
+    &.match {
+      border-color: var(--base0A);
+    }
+  }
+
+   .indent:has(.highlight):not(.match) {
+    border-color: color-mix(in srgb, var(--_indent-color), var(--_text-search-highlight-color) 50%);
+  }

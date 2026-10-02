@@ -1,3 +1,0 @@
-[behaviour]
-props = { start = 5 }
-steps = [{ click = "button.bump" }, { click = "button.bump" }]

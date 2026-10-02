@@ -1,0 +1,2 @@
+warning non_reactive_update 12:6-12:16 `menuEvents` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

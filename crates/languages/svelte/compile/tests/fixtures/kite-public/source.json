@@ -1,0 +1,13 @@
+{
+	"commit": "c4fc3b579c3bbdcce5277d1956347131283170e5",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/kagisearch/kite-public.git"
+}

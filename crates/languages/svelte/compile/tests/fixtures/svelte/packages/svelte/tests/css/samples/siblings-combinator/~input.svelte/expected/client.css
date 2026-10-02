@@ -1,0 +1,28 @@
+
+	div.svelte-ibboeh + article:where(.svelte-ibboeh) {
+		color: green;
+	}
+	/* (unused) article + div {
+		color: green;
+	}*/
+	/* (unused) span + article {
+		color: green;
+	}*/
+	/* (unused) b + article {
+		color: green;
+	}*/
+	/* (unused) span + div {
+		color: green;
+	}*/
+	span.svelte-ibboeh + b:where(.svelte-ibboeh) {
+		color: green;
+	}
+	div.svelte-ibboeh span:where(.svelte-ibboeh) + b:where(.svelte-ibboeh) {
+		color: green;
+	}
+	.a.svelte-ibboeh + article:where(.svelte-ibboeh) {
+		color: green;
+	}
+	div.svelte-ibboeh + .b:where(.svelte-ibboeh) {
+		color: green;
+	}

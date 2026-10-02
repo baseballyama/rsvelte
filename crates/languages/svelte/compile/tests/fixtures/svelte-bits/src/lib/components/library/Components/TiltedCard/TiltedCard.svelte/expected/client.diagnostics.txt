@@ -1,0 +1,2 @@
+warning a11y_no_redundant_roles 99:2-99:15 Redundant role 'figure'
+    https://svelte.dev/e/a11y_no_redundant_roles

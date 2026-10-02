@@ -1,0 +1,39 @@
+
+	.link-menu {
+		display: flex;
+		height: fit-content;
+		width: fit-content;
+		align-items: center;
+		gap: 4px;
+		border-radius: var(--edra-radius-lg);
+		border: 1px solid var(--edra-border);
+		padding: 4px;
+		background-color: var(--edra-canvas);
+		box-shadow: var(--edra-shadow-4);
+	}
+	.btn-size.svelte-4q8s1j {
+		width: 2rem;
+		height: 2rem;
+	}
+	.link-icon {
+		width: 1rem;
+		height: 1rem;
+	}
+	.link-input-form.svelte-4q8s1j {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 4px;
+		width: 24rem;
+	}
+	.link-input-elem.svelte-4q8s1j {
+		height: 2rem;
+		flex: 1;
+	}
+	.save-btn.svelte-4q8s1j {
+		width: 2rem;
+		height: 2rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}

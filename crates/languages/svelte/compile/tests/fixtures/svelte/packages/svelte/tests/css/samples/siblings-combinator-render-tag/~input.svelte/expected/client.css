@@ -1,0 +1,4 @@
+
+	h1.svelte-j9nscd + p:where(.svelte-j9nscd) {
+		color: green;
+	}

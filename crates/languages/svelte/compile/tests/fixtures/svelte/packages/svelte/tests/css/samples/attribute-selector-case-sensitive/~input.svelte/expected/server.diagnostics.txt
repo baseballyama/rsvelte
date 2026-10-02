@@ -1,0 +1,2 @@
+warning css_unused_selector 4:2-4:15 Unused CSS selector "p[type='B' s]"
+    https://svelte.dev/e/css_unused_selector

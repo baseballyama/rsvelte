@@ -1,0 +1,4 @@
+warning css_unused_selector 46:3-46:36 Unused CSS selector ":--c-collapsible-not-fullscreen &"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 50:3-50:23 Unused CSS selector ":--c-not-collapsed &"
+    https://svelte.dev/e/css_unused_selector

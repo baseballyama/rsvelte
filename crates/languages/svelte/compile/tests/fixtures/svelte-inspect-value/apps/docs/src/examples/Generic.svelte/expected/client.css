@@ -1,0 +1,10 @@
+
+  label.svelte-egb075 {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 1ch;
+    margin: 0 !important;
+    width: 100%;
+    font-size: 0.8em;
+  }

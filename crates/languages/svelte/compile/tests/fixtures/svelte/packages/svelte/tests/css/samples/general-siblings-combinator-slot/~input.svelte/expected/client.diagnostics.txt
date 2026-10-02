@@ -1,0 +1,6 @@
+warning css_unused_selector 13:2-13:9 Unused CSS selector ".b ~ .c"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 14:2-14:9 Unused CSS selector ".c ~ .f"
+    https://svelte.dev/e/css_unused_selector
+warning css_unused_selector 15:2-15:9 Unused CSS selector ".b ~ .f"
+    https://svelte.dev/e/css_unused_selector

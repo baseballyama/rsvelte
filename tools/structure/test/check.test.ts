@@ -51,8 +51,11 @@ test('only handwritten sources are measured and an empty population fails', () =
 	assert.equal(isSource('apps/site/src/component.vue'), true);
 	assert.equal(isSource('apps/site/src/app.css'), true);
 	assert.equal(isSource('apps/site/src/routes/+page.svelte'), true);
+	assert.equal(isSource('crates/languages/svelte/compile/tests/fixtures.rs'), true);
 	for (const file of ['fixtures/input.svelte', 'crates/a/vendor/types.d.ts',
-		'apps/site/src/lib/wasm/kernel/index.js', 'tools/fixtures/test/behaviour/wrong/input.svelte']) {
+		'apps/site/src/lib/wasm/kernel/index.js', 'tools/fixtures/test/behaviour/wrong/input.svelte',
+		'crates/languages/svelte/compile/tests/fixtures/rsvelte/counter/input.svelte',
+		'crates/languages/svelte/compile/tests/fixtures/rsvelte/counter/expected/client.js']) {
 		assert.equal(isSource(file), false);
 	}
 	assert.deepEqual(checkFiles('.', [], limits).failures, ['UNMEASURED: no source files found']);

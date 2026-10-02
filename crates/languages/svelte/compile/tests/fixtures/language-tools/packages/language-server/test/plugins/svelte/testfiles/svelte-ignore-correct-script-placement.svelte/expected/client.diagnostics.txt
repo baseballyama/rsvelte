@@ -1,0 +1,4 @@
+warning script_context_deprecated 1:9-1:25 `context="module"` is deprecated, use the `module` attribute instead
+    https://svelte.dev/e/script_context_deprecated
+warning state_referenced_locally 8:17-8:18 This reference only captures the initial value of `a`. Did you mean to reference it inside a closure instead?
+    https://svelte.dev/e/state_referenced_locally

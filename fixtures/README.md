@@ -4,6 +4,9 @@ Test inputs copied from real projects, and the output of the official tools for 
 result). One input file is one **unit**, and each unit has its own directory.
 Design: [docs/fixtures.md](../docs/fixtures.md).
 
+Hand-written tests do not go here. They live in each crate's `tests/fixtures/` and compare
+rsvelte's output with its own snapshots: see [crates/fixture_test/README.md](../crates/fixture_test/README.md).
+
 ```
 fixtures/
 ├── _registry/                  data shared by all languages
@@ -18,11 +21,11 @@ path in that repository.
 
 | File | Purpose | Written by | In git |
 |---|---|---|---|
-| `_registry/sources.json` | Source repositories: URL, commit, license. Unused ones stay listed with the reason. A source with `"local": true` (`rsvelte`) holds units written by hand in this repository. | a person | yes |
+| `_registry/sources.json` | Source repositories: URL, commit, license. Unused ones stay listed with the reason. | a person | yes |
 | `_registry/oracles.json` | Versions of the official tools that made `expected/`. | `regen` | yes |
 | `_registry/import-report.json` | Per source: files taken, and files skipped per reason. | `import` | yes |
 | `_registry/licenses/` | License files of the sources. | `import` | yes |
-| `<unit>/input.*` | The copied input (written by hand in a local source). | `import` or a person | yes |
+| `<unit>/input.*` | The copied input. | `import` | yes |
 | `<unit>/meta.json` | Language, hash, and mode of the input. | `import` | yes |
 | `<unit>/fixture.toml` | Manual notes: `[skip]`, `[[adjust]]` (below) and, for `cross` units, `[behaviour]` (props and user steps). `import` never changes it. | a person | yes |
 | `<unit>/expected/<task>/<variant>.*` | Output of the official tool: `.js`, `.css`, `.warnings.json`, `.error.json`, or for `cross` units `.trace.json` (what the official build renders after each step). | `regen` | yes |

@@ -1,0 +1,8 @@
+import * as $ from 'svelte/internal/server';
+import { values } from './value.remote.ts';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		$$renderer.push(`<h1>Remote Form Value Test</h1> <form${$.attributes({ ...values })}><label>Leaf: <input${$.attributes({ ...values.fields.leaf.as('text') }, void 0, void 0, void 0, 4)}/></label> <label>Object Leaf: <input${$.attributes({ ...values.fields.object.leaf.as('text') }, void 0, void 0, void 0, 4)}/></label> <label>Object Array 0: <input${$.attributes({ ...values.fields.object.array[0].as('text') }, void 0, void 0, void 0, 4)}/></label> <label>Object Array 1: <input${$.attributes({ ...values.fields.object.array[1].as('text') }, void 0, void 0, void 0, 4)}/></label> <label>Array 0 Leaf: <input${$.attributes({ ...values.fields.array[0].leaf.as('text') }, void 0, void 0, void 0, 4)}/></label> <label>Array 1 Leaf: <input${$.attributes({ ...values.fields.array[1].leaf.as('text') }, void 0, void 0, void 0, 4)}/></label> <button>Submit</button></form> <h2>Full Form Value</h2> <pre id="full-value">${$.escape(JSON.stringify(values.fields.value(), null, '  '))}</pre> <h2>Nested Object Value</h2> <pre id="object-value">${$.escape(JSON.stringify(values.fields.object.value(), null, '  '))}</pre> <h2>Array Value</h2> <pre id="array-value">${$.escape(JSON.stringify(values.fields.array.value(), null, '  '))}</pre>`);
+	});
+}

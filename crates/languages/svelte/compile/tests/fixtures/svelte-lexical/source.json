@@ -1,0 +1,13 @@
+{
+	"commit": "94d90c180c43119ec1724287df26623a8909e9e7",
+	"license": "MIT",
+	"oracles": {
+		"svelte.compile": {
+			"svelte": "5.57.1"
+		},
+		"svelte.compileModule": {
+			"svelte": "5.57.1"
+		}
+	},
+	"url": "https://github.com/umaranis/svelte-lexical.git"
+}
