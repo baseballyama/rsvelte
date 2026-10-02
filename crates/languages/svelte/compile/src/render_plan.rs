@@ -2,10 +2,10 @@
 
 use rsvelte_kernel::newtype_index;
 use rsvelte_kernel::source::index::IndexVector;
+use rsvelte_svelte::compilation::compiler_syntax_tree::{Children, NodeKind};
 use rustc_hash::FxHashMap;
 
-use super::compiler_syntax_tree::{Children, NodeKind};
-use super::input::CompileInput;
+use crate::input::CompileInput;
 
 mod normalize;
 pub use normalize::{Cleaned, Item, Parent, clean_nodes};
@@ -29,7 +29,7 @@ impl RenderPlan {
         };
         plan.region(
             input,
-            input.compiler_syntax_tree.root,
+            input.component.compiler_syntax_tree.root,
             Parent::Root,
             input.preserve_whitespace,
         );
@@ -58,10 +58,10 @@ impl RenderPlan {
         if self.source_regions.contains_key(&children) {
             return;
         }
-        let tree = input.compiler_syntax_tree;
+        let tree = input.component.compiler_syntax_tree;
         let cleaned = clean_nodes(
             tree,
-            input.source_text,
+            input.component.source_text,
             parent,
             tree.children(children),
             preserve,
@@ -86,7 +86,10 @@ impl RenderPlan {
         for &node in tree.children(children) {
             match &tree.node(node).kind {
                 NodeKind::Element(element) => {
-                    let tag = element.name.text(input.source_text).to_ascii_lowercase();
+                    let tag = element
+                        .name
+                        .text(input.component.source_text)
+                        .to_ascii_lowercase();
                     self.region(
                         input,
                         element.children,

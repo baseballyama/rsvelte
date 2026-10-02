@@ -4,8 +4,8 @@ use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::computation::pipeline::{Document, Registry};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 
-use crate::compilation::{compiler_syntax_tree, input};
-use crate::semantic::{analyze, resolve};
+use crate::compilation::compiler_syntax_tree;
+use crate::semantic::{analyze, input, resolve};
 use crate::syntax::{parse, syntax_tree};
 
 #[must_use]
@@ -62,21 +62,6 @@ impl Artifact for Normalized {
 }
 
 #[derive(Debug)]
-pub struct Planned;
-
-impl Artifact for Planned {
-    type Output = Option<crate::compilation::render_plan::RenderPlan>;
-
-    const NAME: &'static str = "svelte.render_plan";
-
-    fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        Some(crate::compilation::render_plan::RenderPlan::build(
-            &compile_input(context)?,
-        ))
-    }
-}
-
-#[derive(Debug)]
 pub struct Analyzed;
 
 impl Artifact for Analyzed {
@@ -86,50 +71,42 @@ impl Artifact for Analyzed {
     const NAME: &'static str = "svelte.analyze";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let input = compile_input(context)?;
+        let input = component_input(context)?;
         let res = context.get::<Resolved>().as_ref()?;
-        Some(analyze::analyze(&input, res, &context.document.path))
-    }
-}
-
-#[derive(Debug)]
-pub struct ScopedStylesheet;
-
-impl Artifact for ScopedStylesheet {
-    type Output = Option<String>;
-
-    const NAME: &'static str = "svelte.css";
-
-    fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let an = context.get::<Analyzed>().as_ref()?;
-        crate::compilation::stylesheet::scoped_stylesheet(&compile_input(context)?, an)
+        Some(analyze::analyze(&input, res))
     }
 }
 
 /// What the compiler reads of a Svelte component: its script from [`Parsed`], its template from
 /// [`Normalized`]. `None` when the document did not parse.
 #[must_use]
-pub fn compile_input<'a>(context: &'a DocumentContext<'_>) -> Option<input::CompileInput<'a>> {
+pub fn component_input<'a>(context: &'a DocumentContext<'_>) -> Option<input::ComponentInput<'a>> {
     let c = context.get::<Parsed>().as_ref().ok()?;
     let compiler_syntax_tree = context.get::<Normalized>().as_ref()?;
-    Some(svelte_input(c, compiler_syntax_tree, context.source_text()))
+    Some(svelte_input(
+        c,
+        compiler_syntax_tree,
+        context.source_text(),
+        &context.document.path,
+    ))
 }
 
-/// [`compile_input`] outside the artifact database.
+/// [`component_input`] outside the artifact database.
 #[must_use]
 pub fn svelte_input<'a>(
     c: &'a syntax_tree::Component,
     compiler_syntax_tree: &'a compiler_syntax_tree::CompilerSyntaxTree,
     source_text: &'a str,
-) -> input::CompileInput<'a> {
-    input::CompileInput {
+    filename: &'a str,
+) -> input::ComponentInput<'a> {
+    input::ComponentInput {
         javascript: &c.javascript,
         program: c.program,
         compiler_syntax_tree,
         style: c.style.as_ref().map(|s| &s.sheet),
         template_expressions: &c.template_expressions,
         source_text,
-        preserve_whitespace: false,
+        filename,
     }
 }
 
@@ -137,7 +114,5 @@ pub fn register(reg: &mut Registry) {
     reg.artifact::<Parsed>()
         .artifact::<Resolved>()
         .artifact::<Normalized>()
-        .artifact::<Analyzed>()
-        .artifact::<Planned>()
-        .artifact::<ScopedStylesheet>();
+        .artifact::<Analyzed>();
 }

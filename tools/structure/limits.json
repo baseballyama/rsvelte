@@ -13,18 +13,6 @@
       "maxLines": 888,
       "reason": "Existing source; keep its size until its responsibility can be split."
     },
-    "crates/languages/svelte/compile/src/lower/client.rs": {
-      "maxLines": 2167,
-      "reason": "Existing source; keep its size until its responsibility can be split."
-    },
-    "crates/languages/svelte/compile/src/lower/script.rs": {
-      "maxLines": 704,
-      "reason": "Existing source; keep its size until its responsibility can be split."
-    },
-    "crates/languages/svelte/compile/src/lower/server.rs": {
-      "maxLines": 1092,
-      "reason": "Existing source; keep its size until its responsibility can be split."
-    },
     "crates/languages/svelte/core/src/semantic/evaluate.rs": {
       "maxLines": 791,
       "reason": "Existing source; keep its size until its responsibility can be split."

@@ -26,14 +26,39 @@ a measured problem that the current representations cannot solve.
 
 | Crate | Responsibility |
 | --- | --- |
-| `crates/languages/svelte/core` | Source syntax, compiler HIR, semantic side tables, compile input and RenderPlan. |
-| `crates/languages/svelte/compile` | Shared script preparation, target lowering and compilation tasks. |
+| `crates/languages/svelte/core` | Source syntax, compiler HIR, semantic side tables, ComponentInput without task options. |
+| `crates/languages/svelte/compile` | RenderPlan, shared script preparation, target lowering, CSS output, output names, compile options and artifacts. |
 | `crates/languages/typescript/core` | The shared JavaScript/TypeScript tree and semantic model. |
 | `crates/languages/typescript/compile` | JavaScript output printing. |
 | `crates/kernel` | Document snapshots, artifact storage, task scheduling and measurements. |
 
-Core has no dependency on the Svelte compile crate. The render normalizer belongs to core;
-a backend asks for its result instead of importing another backend's helpers.
+Core has no dependency on the Svelte compile crate. The render normalizer belongs to the
+compile crate; each backend asks for its result instead of importing another backend's helpers.
+The surface tree owns attribute chunks; HIR reuses that type. Core does not choose an output
+target, normalize output whitespace or escape emitted HTML.
+Core registration adds only syntax and semantic artifacts. Compile registration adds the
+render plan, output identity and scoped stylesheet, so other tools do not allocate slots for compile outputs.
+
+## Compile implementation
+
+| Module | Responsibility |
+| --- | --- |
+| `lower.rs` | Lowering entry points, borrowed facts and target dispatch. |
+| `lower/prepare.rs` | Validate input, reserve names and rewrite the instance script into a new output tree. |
+| `lower/validation.rs` | Shared compile checks, including runtime TypeScript rejection for every lowering entry point. |
+| `lower/template.rs` | Target independent template rules used by backends and translators. |
+| `lower/script.rs` and `lower/script/props.rs` | Rune rewriting and props lowering with a target parameter. |
+| `lower/client.rs` and `lower/client/` | Private client state, DOM templates, children, elements, attributes, bindings, events and blocks. |
+| `lower/server.rs` and `lower/server/` | Private server state, renderer fragments, elements, attributes and blocks. |
+| `emit.rs` | An immutable LoweredModule keeps its tree, program root and source together for emission. |
+
+Backend modules and name allocation are private. Child modules extend their parent's context
+and borrow the same immutable facts. They do not own a second compiler pipeline. Shared
+helpers exposed to translators stay separate from the target implementations.
+
+Public low-level lowering still accepts analysis and a render plan separately. Their common
+origin remains a caller contract; this layout change does not add document identity or a
+revision graph. Typed provenance needs a shared snapshot identity in the core and kernel.
 
 ## Data flow
 
@@ -43,6 +68,7 @@ immutable document
        └─ Normalized: compiler HIR + source origins
             ├─ Resolved: scopes and bindings
             │    └─ Analyzed: expression and stylesheet facts
+            ├─ Identified: output names and CSS hash
             └─ Planned: immutable render regions
                  └─ shared script preparation(Target)
                       ├─ client runtime lowering → new JavaScript tree
@@ -52,7 +78,7 @@ immutable document
 
 `Planned` depends on the source, HIR and whitespace option, rather than a target. It owns its
 normalized text so the artifact database can store it without a self-reference. Both Svelte
-compile tasks borrow the same plan. Standalone callers can build a plan explicitly and pass
+compile tasks borrow the same plan and output identity. Standalone callers can build a plan explicitly and pass
 it to `lower_with_plan`; they must use the same input and whitespace option. The convenience
 `lower` entry point builds one plan for its call.
 
@@ -70,7 +96,7 @@ second copy of the whole component or a general SSA representation.
 | RenderPlan → target | The backend borrows regions. It cannot change the plan or normalize whitespace again. Client DOM instructions and server renderer instructions have different output contracts. |
 | Shared script preparation → target | Store/rune checks, name reservation, generated each indices and instance-script rewriting have one implementation, parameterized by `Target`. Generated node IDs belong to the same output tree as the prepared instance statements. |
 | JavaScript helpers → backend | Call argument padding and object property construction are target independent. Neither the server nor script rewriter depends on the client backend. |
-| Output → printer | Print the completed tree once. Generated text is never parsed to continue a transformation. |
+| Output → printer | LoweredModule keeps the completed tree, its root and source together. Emit that module once. Generated text is never parsed to continue a transformation. |
 | Document → artifact database | Cache lifetime ends with the immutable document snapshot. Formatting and linting do not request RenderPlan. Each output target owns its mutable lowering state. |
 
 The plan stores decoded text and raw markup separately. Collapsing them would double-escape

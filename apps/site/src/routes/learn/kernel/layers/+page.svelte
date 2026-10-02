@@ -477,19 +477,19 @@
 	<Caution>ここから先は計画で、まだコードはありません。</Caution>
 	<ul>
 		<li>
-			<strong>型</strong>: tsgo から引き、<code>CompilerNodeIdentifier</code> と式の <code>NodeIdentifier</code> で引く表にします。型を持つ層は、コンパイル用に整理した構文木
+			型: tsgo から引き、<code>CompilerNodeIdentifier</code> と式の <code>NodeIdentifier</code> で引く表にします。型を持つ層は、コンパイル用に整理した構文木
 			とは別の計算結果です。
 		</li>
 		<li>
-			<strong>制御フローとデータフロー</strong>: コンパイル用に整理した構文木とは別の構造にします。基本ブロックと辺の表、それに <code>$state</code> と
+			制御フローとデータフロー: コンパイル用に整理した構文木とは別の構造にします。基本ブロックと辺の表、それに <code>$state</code> と
 			<code>$derived</code> の依存のグラフです。要素は コンパイル用に整理した構文木の番号を指します。
 		</li>
 		<li>
-			<strong>出力</strong>: クライアントとサーバーの JavaScript は、すでに コンパイル用に整理した構文木から作っています。型検査用に生成する TypeScript コード（<code>ts.view</code>
+			出力: クライアントとサーバーの JavaScript は、すでに コンパイル用に整理した構文木から作っています。型検査用に生成する TypeScript コード（<code>ts.view</code>
 			の Svelte の答え）は、まだ元の構文木から作っています。これを コンパイル用に整理した構文木とデータフローの層から作るように移すと、コンパイラ、lint、型検査が同じ判断を共有します。
 		</li>
 		<li>
-			<strong>独自のツール</strong>: 新しいツールはタスクを一つ書き、必要な層を <code>context.get</code> で求めるだけです。既存のタスクと同じ層を読むなら、その層は計算し直されません。
+			独自のツール: 新しいツールはタスクを一つ書き、必要な層を <code>context.get</code> で求めるだけです。既存のタスクと同じ層を読むなら、その層は計算し直されません。
 		</li>
 	</ul>
 </div>

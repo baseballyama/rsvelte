@@ -10,6 +10,7 @@ publish.workspace = true
 rustc-hash.workspace = true
 rsvelte_typescript_compile.workspace = true
 rsvelte_markup.workspace = true
+rsvelte_stylesheet.workspace = true
 rsvelte_svelte.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_typescript.workspace = true

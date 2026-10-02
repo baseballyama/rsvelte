@@ -10,6 +10,7 @@
 	>
 		<span class="font-mono tracking-normal text-fg-2">rsvelte</span>
 		<span>利用・改変・再配布を認めるライセンス</span>
+		<a class="hover:text-fg" href="/why">なぜrsvelteか</a>
 		<a class="hover:text-fg" href="/learn">Learn</a>
 		<a class="hover:text-fg" href="/learn/reference">リファレンス</a>
 		<a class="hover:text-fg" href={REPO_URL} rel="noopener">GitHub</a>

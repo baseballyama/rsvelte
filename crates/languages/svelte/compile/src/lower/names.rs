@@ -55,7 +55,7 @@ const RESERVED: &[&str] = &[
 ];
 
 #[derive(Debug)]
-pub struct Names {
+pub(super) struct Names {
     counters: FxHashMap<String, u32>,
     /// Upstream `root.conflicts`: every declared name, plus every generated one.
     conflicts: FxHashSet<String>,
@@ -64,7 +64,7 @@ pub struct Names {
 }
 
 impl Names {
-    pub fn new<'a>(
+    pub(super) fn new<'a>(
         declared: impl Iterator<Item = &'a str>,
         referenced: impl Iterator<Item = &'a str>,
     ) -> Self {
@@ -79,15 +79,15 @@ impl Names {
     }
 
     /// Upstream `Scope.generate`.
-    pub fn generate(&mut self, preferred: &str) -> String {
-        let preferred = rsvelte_svelte::semantic::analyze::sanitize_identifier(preferred);
+    pub(super) fn generate(&mut self, preferred: &str) -> String {
+        let preferred = crate::identity::sanitize_identifier(preferred);
         self.allocate(preferred, |n, name| {
             n.scope.contains(name) || n.conflicts.contains(name) || RESERVED.contains(&name)
         })
     }
 
     /// Upstream `ScopeRoot.unique`, used for hoisted names: no leading-digit or keyword check.
-    pub fn unique(&mut self, preferred: &str) -> String {
+    pub(super) fn unique(&mut self, preferred: &str) -> String {
         let preferred: String = preferred
             .chars()
             .map(|c| {

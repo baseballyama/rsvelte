@@ -60,20 +60,26 @@ export interface CrateSize {
 	lines: number;
 }
 
-function crateSizes(cratesDir: string): CrateSize[] {
-	return readdirSync(cratesDir, { withFileTypes: true })
-		.filter((d) => d.isDirectory())
-		.map((d) => {
-			const files = readdirSync(path.join(cratesDir, d.name, 'src'), { recursive: true, encoding: 'utf8' }).filter(
+export function crateSizes(cratesDir: string): CrateSize[] {
+	const metadata = JSON.parse(execFileSync('cargo', ['metadata', '--offline', '--no-deps', '--format-version', '1'], {
+		cwd: path.dirname(cratesDir),
+		encoding: 'utf8'
+	})) as { packages: { id: string; name: string; manifest_path: string }[]; workspace_members: string[] };
+	const members = new Set(metadata.workspace_members);
+	return metadata.packages
+		.filter((entry) => members.has(entry.id))
+		.map((entry) => {
+			const sourceDir = path.resolve(path.dirname(entry.manifest_path), 'src');
+			const files = readdirSync(sourceDir, { recursive: true, encoding: 'utf8' }).filter(
 				(f) => f.endsWith('.rs')
 			);
 			const lines = files.reduce(
-				(n, f) => n + readFileSync(path.join(cratesDir, d.name, 'src', f), 'utf8').split('\n').length - 1,
+				(n, f) => n + readFileSync(path.resolve(sourceDir, f), 'utf8').split('\n').length - 1,
 				0
 			);
-			return { name: d.name, files: files.length, lines };
+			return { name: entry.name, files: files.length, lines };
 		})
-		.sort((a, b) => a.name.localeCompare(b.name));
+		.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
 }
 
 export interface ParityRow {

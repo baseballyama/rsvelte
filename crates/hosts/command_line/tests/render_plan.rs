@@ -1,7 +1,7 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::pipeline::{Registry, Task, TaskOutput};
 use rsvelte_svelte::compilation::compiler_syntax_tree::{Children, CompilerSyntaxTree, NodeKind};
-use rsvelte_svelte::compilation::render_plan::RenderPlan;
+use rsvelte_svelte_compile::RenderPlan;
 use rsvelte_svelte_compile::lower::{self, Item, Target};
 
 fn text(plan: &RenderPlan, children: Children) -> String {
@@ -31,7 +31,12 @@ fn whitespace_context_follows_regions_and_does_not_escape_pre() {
     );
     let component = rsvelte_svelte::syntax::parse::parse(source).expect("parses");
     let tree = rsvelte_svelte::compilation::compiler_syntax_tree::lower(&component, source);
-    let input = rsvelte_svelte::svelte_input(&component, &tree, source);
+    let input = rsvelte_svelte_compile::CompileInput::from(rsvelte_svelte::svelte_input(
+        &component,
+        &tree,
+        source,
+        "App.svelte",
+    ));
     let plan = RenderPlan::build(&input);
     assert_eq!(text(&plan, element(&tree, source, "p")), "after");
     for node in &tree.nodes {
@@ -66,7 +71,9 @@ fn plans_keep_decoded_text_and_markup_separate_and_own_their_text() {
         let component = rsvelte_svelte::syntax::parse::parse(&source).expect("parses");
         let tree = rsvelte_svelte::compilation::compiler_syntax_tree::lower(&component, &source);
         let children = element(&tree, &source, "p");
-        let plan = RenderPlan::build(&rsvelte_svelte::svelte_input(&component, &tree, &source));
+        let plan = RenderPlan::build(&rsvelte_svelte_compile::CompileInput::from(
+            rsvelte_svelte::svelte_input(&component, &tree, &source, "App.svelte"),
+        ));
         (plan, children)
     };
     let [Item::Text { data, raw }] = plan.fragment(children).items.as_slice() else {
@@ -84,7 +91,12 @@ fn whitespace_options_produce_separate_plans_without_changing_the_hir() {
     let tree = rsvelte_svelte::compilation::compiler_syntax_tree::lower(&component, source);
     let before = format!("{tree:?}");
     let children = element(&tree, source, "p");
-    let mut input = rsvelte_svelte::svelte_input(&component, &tree, source);
+    let mut input = rsvelte_svelte_compile::CompileInput::from(rsvelte_svelte::svelte_input(
+        &component,
+        &tree,
+        source,
+        "App.svelte",
+    ));
     let normal = RenderPlan::build(&input);
     input.preserve_whitespace = true;
     let preserved = RenderPlan::build(&input);
@@ -103,7 +115,9 @@ fn empty_regions_are_valid_in_every_parent_context() {
     ] {
         let component = rsvelte_svelte::syntax::parse::parse(source).expect("parses");
         let tree = rsvelte_svelte::compilation::compiler_syntax_tree::lower(&component, source);
-        let plan = RenderPlan::build(&rsvelte_svelte::svelte_input(&component, &tree, source));
+        let plan = RenderPlan::build(&rsvelte_svelte_compile::CompileInput::from(
+            rsvelte_svelte::svelte_input(&component, &tree, source, "App.svelte"),
+        ));
         for (_, element) in tree.elements() {
             assert!(plan.fragment(element.children).items.is_empty());
             assert!(!plan.fragment(element.children).text_first);
@@ -115,15 +129,19 @@ fn empty_regions_are_valid_in_every_parent_context() {
 #[test]
 fn both_targets_reuse_the_document_plan() {
     let mut registry = Registry::new();
-    rsvelte_svelte::register(&mut registry);
+    rsvelte_svelte_compile::register(&mut registry);
     let document = registry
         .document("App.svelte", include_str!("preserve_whitespace/App.svelte"))
         .expect("valid document");
     let context = DocumentContext::new(&document, registry.artifacts());
     let plan = context
-        .get::<rsvelte_svelte::Planned>()
+        .get::<rsvelte_svelte_compile::Planned>()
         .as_ref()
         .expect("plan");
+    let identity = context
+        .get::<rsvelte_svelte_compile::Identified>()
+        .as_ref()
+        .expect("output identity");
     for target in [Target::Client, Target::Server] {
         let mut output = TaskOutput::default();
         rsvelte_svelte_compile::Compile { target }.run(&context, &mut output);
@@ -134,9 +152,16 @@ fn both_targets_reuse_the_document_plan() {
         );
         assert!(output.files.iter().any(|file| file.name == "js"));
         assert!(std::ptr::eq(
+            identity,
+            context
+                .get::<rsvelte_svelte_compile::Identified>()
+                .as_ref()
+                .expect("cached identity")
+        ));
+        assert!(std::ptr::eq(
             plan,
             context
-                .get::<rsvelte_svelte::Planned>()
+                .get::<rsvelte_svelte_compile::Planned>()
                 .as_ref()
                 .expect("cached plan"),
         ));
@@ -150,9 +175,14 @@ fn both_targets_keep_the_oracle_checked_whitespace_modules() {
     let tree = rsvelte_svelte::compilation::compiler_syntax_tree::lower(&component, source);
     let resolution =
         rsvelte_svelte::semantic::resolve::resolve(&component.javascript, component.program, &tree);
-    let mut input = rsvelte_svelte::svelte_input(&component, &tree, source);
+    let mut input = rsvelte_svelte_compile::CompileInput::from(rsvelte_svelte::svelte_input(
+        &component,
+        &tree,
+        source,
+        "App.svelte",
+    ));
     input.preserve_whitespace = true;
-    let analysis = rsvelte_svelte::semantic::analyze::analyze(&input, &resolution, "App.svelte");
+    let analysis = rsvelte_svelte::semantic::analyze::analyze(&input.component, &resolution);
     let plan = RenderPlan::build(&input);
     for (target, expected) in [
         (
@@ -164,10 +194,9 @@ fn both_targets_keep_the_oracle_checked_whitespace_modules() {
             include_str!("preserve_whitespace/server.js"),
         ),
     ] {
-        let (javascript, program) =
+        let module =
             lower::lower_with_plan(&input, &resolution, &analysis, target, &plan).expect("lowers");
-        let actual =
-            rsvelte_typescript_compile::codegen::print_program(&javascript, source, program).out;
+        let actual = module.emit().out;
         assert_eq!(actual, expected, "{target:?}");
     }
 }

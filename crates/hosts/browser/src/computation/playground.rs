@@ -58,7 +58,10 @@ fn snapshot(context: &DocumentContext<'_>, name: &str) -> Option<String> {
             format!("{:#?}", context.get::<rsvelte_svelte::Normalized>())
         }
         "svelte.analyze" => format!("{:#?}", context.get::<rsvelte_svelte::Analyzed>()),
-        "svelte.css" => format!("{:#?}", context.get::<rsvelte_svelte::ScopedStylesheet>()),
+        "svelte.css" => format!(
+            "{:#?}",
+            context.get::<rsvelte_svelte_compile::ScopedStylesheet>()
+        ),
         "vue.parse" => format!("{:#?}", context.get::<rsvelte_vue::Parsed>()),
         "vue.compiler_syntax_tree" => format!("{:#?}", context.get::<rsvelte_vue::Lowered>()),
         "vue.resolve" => format!("{:#?}", context.get::<rsvelte_vue::Resolved>()),

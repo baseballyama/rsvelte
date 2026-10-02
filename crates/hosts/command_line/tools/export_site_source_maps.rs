@@ -41,24 +41,25 @@ fn main() -> ExitCode {
     };
     let compiler_syntax_tree = compiler_syntax_tree::lower(&c, &source_text);
     let res = resolve::resolve(&c.javascript, c.program, &compiler_syntax_tree);
-    let input = svelte_input(&c, &compiler_syntax_tree, &source_text);
-    let an = analyze::analyze(&input, &res, path);
+    let input = svelte_input(&c, &compiler_syntax_tree, &source_text, path);
+    let an = analyze::analyze(&input, &res);
+    let input = rsvelte_svelte_compile::CompileInput::from(input);
     let lowered = match target.as_str() {
-        "client" => lower::client::lower(&input, &res, &an),
-        "server" => lower::server::lower(&input, &res, &an),
+        "client" => lower::lower(&input, &res, &an, rsvelte_svelte_compile::Target::Client),
+        "server" => lower::lower(&input, &res, &an, rsvelte_svelte_compile::Target::Server),
         t => {
             eprintln!("unknown target {t}");
             return ExitCode::FAILURE;
         }
     };
-    let (syntax_tree, root) = match lowered {
+    let module = match lowered {
         Ok(x) => x,
         Err(d) => {
             eprintln!("{path}: {}", d.message);
             return ExitCode::FAILURE;
         }
     };
-    let e = rsvelte_typescript_compile::codegen::print_program(&syntax_tree, &source_text, root);
+    let e = module.emit();
     let mut w = StructuredDataWriter::new(true);
     w.begin_object()
         .key("source")

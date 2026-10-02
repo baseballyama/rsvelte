@@ -45,16 +45,16 @@
 <div class="prose-learn">
 	<p>
 		計算結果は別の計算結果を求めてかまいません。<code>ScopedStylesheet</code> は <code>Analyzed</code>
-		を求め、続けて <code>compile_input</code> でコンパイラの入力を組み立てます。コンポーネントに <code>style</code>
+		を求め、続けて <code>component_input</code> でコンポーネントの入力を組み立てます。コンポーネントに <code>style</code>
 		がなければ <code>None</code> を返します。
 	</p>
 </div>
 
-<Code item={data.code.scoped} mark={['context.get::<Analyzed>()', 'compile_input(context)?']} />
+<Code item={data.code.scoped} mark={['context.get::<Analyzed>()', 'component_input(context)?']} />
 
 <div class="prose-learn">
 	<p>
-		<code>compile_input</code> 自体は計算結果ではなく、二つの計算結果（スクリプトを持つ <code>Parsed</code> とテンプレートを持つ
+		<code>component_input</code> 自体は計算結果ではなく、二つの計算結果（スクリプトを持つ <code>Parsed</code> とテンプレートを持つ
 		<code>Normalized</code>）から借用を集めて束ねる関数です。コンパイラの解析と出力は、表層の構文木ではなくこの入力だけを読みます。そのため、同じ形の入力を別の構文から組み立てられれば、同じコンパイラが使えます（<a
 			href="/learn/kernel/layers#svue">05 svue</a
 		>）。

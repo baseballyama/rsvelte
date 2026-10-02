@@ -2,14 +2,17 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::performance::measurement;
-use rsvelte_svelte::{Analyzed, Parsed, Resolved, ScopedStylesheet};
-use rsvelte_typescript::syntax_tree::{TypeScriptFeature, TypeScriptRuntime};
+use rsvelte_svelte::{Analyzed, Parsed, Resolved};
 
 use crate::lower::{self, Target};
+use crate::{Identified, Planned, ScopedStylesheet};
 
 pub fn register(registry: &mut Registry) {
     rsvelte_svelte::register(registry);
     registry
+        .artifact::<Identified>()
+        .artifact::<Planned>()
+        .artifact::<ScopedStylesheet>()
         .task(Compile {
             target: Target::Client,
         })
@@ -40,8 +43,9 @@ impl Task for Compile {
             out.diagnostics.push(e.clone());
             return;
         }
-        let input =
-            rsvelte_svelte::compile_input(context).expect("a parsed component is lowered to HIR");
+        let input = crate::CompileInput::from(
+            rsvelte_svelte::component_input(context).expect("a parsed component is lowered to HIR"),
+        );
         let res = context
             .get::<Resolved>()
             .as_ref()
@@ -51,10 +55,14 @@ impl Task for Compile {
             .as_ref()
             .expect("a parsed component is analysed");
         let plan = context
-            .get::<rsvelte_svelte::Planned>()
+            .get::<Planned>()
             .as_ref()
             .expect("a parsed component has a render plan");
-        match compile_with_plan(&input, res, an, self.target, plan) {
+        let identity = context
+            .get::<Identified>()
+            .as_ref()
+            .expect("a parsed component has output names");
+        match compile_with_plan(&input, res, an, self.target, plan, identity) {
             Ok(javascript) => out.file("js", javascript),
             Err(d) => {
                 out.diagnostics.push(d);
@@ -83,7 +91,8 @@ pub fn compile(
         res,
         an,
         target,
-        &rsvelte_svelte::compilation::render_plan::RenderPlan::build(input),
+        &crate::render_plan::RenderPlan::build(input),
+        &crate::OutputIdentity::build(&input.component),
     )
 }
 
@@ -92,42 +101,16 @@ fn compile_with_plan(
     res: &rsvelte_svelte::semantic::resolve::Resolution,
     an: &rsvelte_svelte::semantic::analyze::Analysis,
     target: Target,
-    plan: &rsvelte_svelte::compilation::render_plan::RenderPlan,
+    plan: &crate::render_plan::RenderPlan,
+    identity: &crate::OutputIdentity,
 ) -> Result<String, Diagnostic> {
-    if let Some(t) = input.javascript.typescript_runtime.first() {
-        return Err(typescript_invalid_feature(t));
-    }
-    let (syntax_tree, root) = {
+    let module = {
         let _p = measurement::phase(match target {
             Target::Client => "svelte.lower.client",
             Target::Server => "svelte.lower.server",
         });
-        lower::lower_with_plan(input, res, an, target, plan)?
+        lower::lower_with_facts(input, res, an, target, plan, identity)?
     };
     let _p = measurement::phase("js.print");
-    Ok(
-        rsvelte_typescript_compile::codegen::print_program(&syntax_tree, input.source_text, root)
-            .out,
-    )
-}
-
-/// Upstream `remove_typescript_nodes` erases types and refuses what has a runtime value.
-fn typescript_invalid_feature(t: &TypeScriptRuntime) -> Diagnostic {
-    let feature = match t.feature {
-        TypeScriptFeature::Enum => "enums",
-        TypeScriptFeature::NamespaceWithValues => "namespaces with non-type nodes",
-    };
-    Diagnostic::error(
-        "typescript_invalid_feature",
-        format!(
-            "TypeScript language features like {feature} are not natively supported, and their \
-             use is generally discouraged. Outside of `<script>` tags, these features are not \
-             supported. For use within `<script>` tags, you will need to use a preprocessor to \
-             convert it to JavaScript before it gets passed to the Svelte compiler. If you are \
-             using `vitePreprocess`, make sure to specifically enable preprocessing script tags \
-             (`vitePreprocess({{ script: true }})`)\n\
-             https://svelte.dev/e/typescript_invalid_feature"
-        ),
-        t.span,
-    )
+    Ok(module.emit().out)
 }

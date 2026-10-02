@@ -1,9 +1,10 @@
 use std::borrow::Cow;
 
 use rsvelte_markup::decode_text;
+use rsvelte_svelte::compilation::compiler_syntax_tree::{
+    CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind,
+};
 use rsvelte_typescript::NodeIdentifier;
-
-use super::super::compiler_syntax_tree::{CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind};
 
 /// A node after whitespace cleaning; text may have been trimmed, so it carries its own strings.
 #[derive(Debug, Clone)]
@@ -81,7 +82,7 @@ pub fn clean_nodes<'a>(
                 regular.push(Item::Text {
                     data: Cow::Borrowed(data),
                     raw: if *spelled {
-                        crate::semantic::template::escape_markup(data, false)
+                        crate::markup::escape_markup(data, false)
                     } else {
                         Cow::Borrowed(raw)
                     },

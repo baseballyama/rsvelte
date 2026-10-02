@@ -3,7 +3,7 @@
 
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::source::positions::{SourceLocation, Span};
-use rsvelte_svelte::compilation::input::Target;
+use rsvelte_svelte_compile::Target;
 use rsvelte_typescript::copy::{Rewrite, copy, copy_node};
 use rsvelte_typescript::scope::{BindingIdentifier, DeclarationKind, ScopeIdentifier};
 use rsvelte_typescript::syntax_tree::flag;

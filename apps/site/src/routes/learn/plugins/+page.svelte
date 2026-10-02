@@ -73,7 +73,7 @@
 <Code item={data.code.register} />
 
 <div class="prose-learn">
-	<p>この登録なら、Svelte のコンパイルや型検査のタスクは入りません。To use standard tools too, register each tool crate in the same registry, for example <code>rsvelte_svelte_format::register</code>. The core registration adds shared facts only.</p>
+	<p>この登録なら、Svelte のコンパイルや型検査のタスクは入りません。標準のツールも使う場合は、同じ登録先に各ツールの登録関数を呼びます。整形なら <code>rsvelte_svelte_format::register</code> です。言語の中核部分の登録では、共有する解析結果だけを追加します。</p>
 </div>
 
 <Code item={data.code.svelteRegister} />

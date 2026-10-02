@@ -6,6 +6,7 @@
 	import ThemeToggle from './ThemeToggle.svelte';
 
 	const links = [
+		{ href: '/why', label: 'なぜrsvelteか' },
 		{ href: '/learn', label: 'Learn' },
 		{ href: '/learn/reference', label: 'リファレンス' },
 		{ href: '/learn/playground', label: 'プレイグラウンド' }
@@ -13,7 +14,7 @@
 	const current = (href: string) =>
 		href === '/learn'
 			? page.url.pathname.startsWith('/learn') &&
-				!links.slice(1).some((l) => page.url.pathname.startsWith(l.href))
+				!links.some((l) => l.href !== '/learn' && page.url.pathname.startsWith(l.href))
 			: page.url.pathname.startsWith(href);
 
 	let mac = $state(true);
@@ -47,7 +48,7 @@
 					class={[
 						'rounded-md px-2.5 py-1.5 whitespace-nowrap',
 						current(l.href) ? 'bg-surface font-medium text-fg' : 'text-fg-2 hover:bg-surface hover:text-fg',
-						l.href !== '/learn' && 'max-sm:hidden'
+						!['/learn', '/why'].includes(l.href) && 'max-sm:hidden'
 					]}
 					aria-current={current(l.href) ? 'page' : undefined}
 				>

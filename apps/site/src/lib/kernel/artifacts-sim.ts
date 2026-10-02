@@ -72,7 +72,7 @@ class SimulationContext {
 		this.cache.add(a);
 	}
 
-	/** `rsvelte_svelte::compile_input`: the parse, then the HIR when it parsed. */
+	/** `rsvelte_svelte::component_input`: the parse, then the HIR when it parsed. */
 	compileInput(depth = 0): void {
 		this.get('svelte.parse', depth);
 		if (this.doc.parses) this.get('svelte.compiler_syntax_tree', depth);

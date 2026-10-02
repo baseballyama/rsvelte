@@ -1,4 +1,5 @@
 use rsvelte_typescript::scope::{DeclarationKind, ScopeIdentifier};
+use rsvelte_typescript::syntax_tree::{TypeScriptFeature, TypeScriptRuntime};
 
 use super::{CompileInput, Diagnostic, Kind, NodeIdentifier, Resolution, Span, SyntaxTree, Target};
 
@@ -173,7 +174,7 @@ const RUNES: &[&str] = &[
 /// # Errors
 ///
 /// An `unsupported` [`Diagnostic`] at the first such reference.
-pub fn check_stores(
+pub(super) fn check_stores(
     javascript: &SyntaxTree,
     res: &Resolution,
     source_text: &str,
@@ -235,7 +236,7 @@ pub fn check_stores(
 /// # Errors
 ///
 /// An `unsupported` [`Diagnostic`] at the first such call.
-pub fn check_runes(
+pub(super) fn check_runes(
     input: &CompileInput<'_>,
     res: &Resolution,
     target: Target,
@@ -274,9 +275,15 @@ pub fn check_runes(
         }
         Ok(())
     }
-    walk(input.javascript, res, target, input.program, false)?;
-    for &e in input.template_expressions {
-        walk(input.javascript, res, target, e, false)?;
+    walk(
+        input.component.javascript,
+        res,
+        target,
+        input.component.program,
+        false,
+    )?;
+    for &e in input.component.template_expressions {
+        walk(input.component.javascript, res, target, e, false)?;
     }
     Ok(())
 }
@@ -333,4 +340,32 @@ fn import_source<'a>(
             } if specifiers.contains(&spec) => Some(javascript.str_value(source, source_text)),
             _ => None,
         })
+}
+
+pub(super) fn check_typescript(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
+    if let Some(runtime) = input.component.javascript.typescript_runtime.first() {
+        return Err(typescript_invalid_feature(runtime));
+    }
+    Ok(())
+}
+
+/// Upstream `remove_typescript_nodes` erases types and refuses what has a runtime value.
+fn typescript_invalid_feature(t: &TypeScriptRuntime) -> Diagnostic {
+    let feature = match t.feature {
+        TypeScriptFeature::Enum => "enums",
+        TypeScriptFeature::NamespaceWithValues => "namespaces with non-type nodes",
+    };
+    Diagnostic::error(
+        "typescript_invalid_feature",
+        format!(
+            "TypeScript language features like {feature} are not natively supported, and their \
+             use is generally discouraged. Outside of `<script>` tags, these features are not \
+             supported. For use within `<script>` tags, you will need to use a preprocessor to \
+             convert it to JavaScript before it gets passed to the Svelte compiler. If you are \
+             using `vitePreprocess`, make sure to specifically enable preprocessing script tags \
+             (`vitePreprocess({{ script: true }})`)\n\
+             https://svelte.dev/e/typescript_invalid_feature"
+        ),
+        t.span,
+    )
 }

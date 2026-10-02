@@ -141,7 +141,16 @@ pub enum AttributeValue {
     Parts(Range),
 }
 
-pub use crate::compilation::compiler_syntax_tree::Part;
+/// A chunk of an attribute value as written.
+#[derive(Debug, Clone, Copy)]
+pub enum Part {
+    Text(Span),
+    Expression {
+        expression: NodeIdentifier,
+        /// Braces included.
+        span: Span,
+    },
+}
 
 /// An attribute of a `<script>` or `<style>` start tag: name and quoted value.
 pub type TagAttributes = (Span, Option<Span>);

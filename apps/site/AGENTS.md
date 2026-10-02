@@ -1,5 +1,7 @@
 # Writing the site
 
+For substantial explanation pages, use [site-writing](../../.claude/skills/site-writing/SKILL.md).
+
 Use Japanese for reader-facing text. Use common words and short sentences. Describe what
 each module does before showing its implementation name. Do not use abbreviations in prose,
 headings, navigation, captions, controls, or labels. Use the full word or a clear Japanese
@@ -28,6 +30,8 @@ The rules use [Japanese technical writing](https://github.com/textlint-ja/textli
 the terminology dictionary is `writing.yml`. The extractor uses the Svelte and TypeScript
 parsers. It checks visible static text and reader-facing strings, but does not evaluate
 runtime expressions or rewrite quoted code. Review dynamic labels when adding them.
+It preserves emphasis, heading levels and list markers for the AI pattern rules.
+Rules that need adjacent blocks still need manual review because passages are checked separately.
 
 Fragments include headings and controls, so sentence-final punctuation and tone rules are
 disabled. Question marks are allowed in teaching. Number style is not a readability gate.

@@ -6,6 +6,5 @@ pub mod semantic;
 pub mod syntax;
 
 pub use computation::{
-    Analyzed, Normalized, Parsed, Planned, Resolved, ScopedStylesheet, compile_input, matches,
-    register, svelte_input,
+    Analyzed, Normalized, Parsed, Resolved, component_input, matches, register, svelte_input,
 };

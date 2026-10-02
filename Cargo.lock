@@ -197,6 +197,7 @@ version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_markup",
+ "rsvelte_stylesheet",
  "rsvelte_svelte",
  "rsvelte_typescript",
  "rsvelte_typescript_compile",

@@ -184,7 +184,7 @@
 <div class="prose-learn">
 	<p>
 		現在の実装では、文書内の compile・format・lint が先に走り、型検査の <code>prepare</code> がその後に走ります。
-		<strong>したがって、compile も選んでいれば、この時点で JavaScript/スタイルシートは生成済みです。</strong>
+		compile も選んでいれば、この時点で JavaScript とスタイルシートは生成済みです。
 		型検査はその生成コードを検査するのではなく、元の構文木から別に作る TypeScript を検査します。
 		今のコンパイル処理は、プロジェクト全体の型検査結果を入力にしていません。
 	</p>
@@ -244,13 +244,13 @@
 	</p>
 	<ul>
 		<li>
-			<strong>ホストが開くスコープ</strong>: スコープ解析（<code>rsvelte_typescript</code>）は、ホストの言語が渡す根を木として受け取ります。Vue の
+			ホストが開くスコープ: スコープ解析（<code>rsvelte_typescript</code>）は、ホストの言語が渡す根を木として受け取ります。Vue の
 			<code>v-for</code> は、テンプレートが開くスコープです。
 		</li>
-		<li><strong>終端のない診断</strong>: ESLint の報告には位置が一つしかないものがあり、lint の書き出しはその終端を <code>null</code> と書きます。</li>
-		<li><strong>256ビットのハッシュ関数</strong>: 上の <code>hash</code> です。</li>
+		<li>終端のない診断: ESLint の報告には位置が一つしかないものがあり、lint の書き出しはその終端を <code>null</code> と書きます。</li>
+		<li>256ビットのハッシュ関数: 上の <code>hash</code> です。</li>
 		<li>
-			<strong>共通の呼び出し窓口</strong>: 型検査のように、言語ごとに答え方が違う問いを、一つのタスクから尋ねる仕組みです（<a href="/learn/kernel/database#facet">04</a
+			共通の呼び出し窓口: 型検査のように、言語ごとに答え方が違う問いを、一つのタスクから尋ねる仕組みです（<a href="/learn/kernel/database#facet">04</a
 			>）。
 		</li>
 	</ul>

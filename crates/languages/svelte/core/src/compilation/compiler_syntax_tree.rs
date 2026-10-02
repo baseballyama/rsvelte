@@ -28,20 +28,10 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript::NodeIdentifier;
 use unicode_id_start as unicode_identifier_start;
 
+pub use crate::syntax::syntax_tree::Part;
 use crate::syntax::syntax_tree::{
     self, Component, TemplateNode, TemplateNodeIdentifier, decode_text,
 };
-
-/// A chunk of an attribute value as written.
-#[derive(Debug, Clone, Copy)]
-pub enum Part {
-    Text(Span),
-    Expression {
-        expression: NodeIdentifier,
-        /// Braces included.
-        span: Span,
-    },
-}
 
 newtype_index!(
     pub struct CompilerNodeIdentifier;

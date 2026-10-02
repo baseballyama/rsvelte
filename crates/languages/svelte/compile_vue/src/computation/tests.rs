@@ -11,9 +11,8 @@ fn run(source_text: &str, server: bool) -> Result<String, String> {
     let resolution =
         rsvelte_svelte::semantic::resolve::resolve(&c.javascript, c.program, &compiler_syntax_tree);
     let analysis = rsvelte_svelte::semantic::analyze::analyze(
-        &rsvelte_svelte::svelte_input(&c, &compiler_syntax_tree, source_text),
+        &rsvelte_svelte::svelte_input(&c, &compiler_syntax_tree, source_text, "A.svelte"),
         &resolution,
-        "A.svelte",
     );
     let plan = check(&c, &compiler_syntax_tree, &resolution, source_text).map_err(|d| d.message)?;
     let t = translate(

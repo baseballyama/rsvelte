@@ -3,7 +3,7 @@ pub(crate) mod script;
 pub(crate) mod template;
 
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
-use rsvelte_svelte::compilation::input::{CompileInput, Target};
+use rsvelte_svelte_compile::{CompileInput, Target};
 use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
 
 /// The component as the Svelte compiler reads it: a runes instance program and a Svelte HIR, in a
@@ -19,14 +19,21 @@ pub struct Translation {
 
 impl Translation {
     #[must_use]
-    pub fn compile_input<'a>(&'a self, source_text: &'a str) -> CompileInput<'a> {
+    pub fn compile_input<'a>(
+        &'a self,
+        source_text: &'a str,
+        filename: &'a str,
+    ) -> CompileInput<'a> {
         CompileInput {
-            javascript: &self.javascript,
-            program: self.program,
-            compiler_syntax_tree: &self.compiler_syntax_tree,
-            style: None,
-            template_expressions: &self.template_expressions,
-            source_text,
+            component: rsvelte_svelte::semantic::input::ComponentInput {
+                javascript: &self.javascript,
+                program: self.program,
+                compiler_syntax_tree: &self.compiler_syntax_tree,
+                style: None,
+                template_expressions: &self.template_expressions,
+                source_text,
+                filename,
+            },
             // Vue's text is already condensed; Svelte's cleaning would condense it again.
             preserve_whitespace: true,
         }

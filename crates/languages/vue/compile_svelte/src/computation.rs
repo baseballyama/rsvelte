@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
-use rsvelte_svelte::compilation::input::Target;
+use rsvelte_svelte_compile::Target;
 
 /// One of the two targets, as a type, so each gets its own chain of artifacts.
 pub trait Side: Send + Sync + 'static {
@@ -92,9 +92,9 @@ impl<S: Side> Artifact for Analyzed<S> {
         let t = context.get::<Translated<S>>().as_ref()?.as_ref().ok()?;
         let resolution = context.get::<Resolved<S>>().as_ref()?;
         Some(rsvelte_svelte::semantic::analyze::analyze(
-            &t.compile_input(context.source_text()),
+            &t.compile_input(context.source_text(), &context.document.path)
+                .component,
             resolution,
-            &context.document.path,
         ))
     }
 }
@@ -150,7 +150,7 @@ impl<S: Side> Task for Compile<S> {
             .as_ref()
             .expect("a translation is analysed");
         match rsvelte_svelte_compile::compile(
-            &t.compile_input(context.source_text()),
+            &t.compile_input(context.source_text(), &context.document.path),
             resolution,
             analysis,
             S::TARGET,

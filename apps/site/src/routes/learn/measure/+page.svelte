@@ -78,18 +78,18 @@
 	<p>数える量は三種類です。</p>
 	<ul>
 		<li>
-			<strong>割り当て</strong>: <code>metrics</code> feature を入れたビルドの <code>rsvelte performance</code> が、<Term name="CountingAllocator" />（<a
+			割り当て: <code>metrics</code> feature を入れたビルドの <code>rsvelte performance</code> が、<Term name="CountingAllocator" />（<a
 				href="/learn/kernel/measurement#alloc">11</a
 			>）で最後のラウンドの割り当て回数とバイト数を数えます。全体の数に加え、フェーズ（計算結果、タスク、ルール）ごとの呼び出し回数・割り当て回数・バイト数、それに使用中のメモリのピーク増分です。比べ方は<strong>完全一致</strong>です。
 		</li>
 		<li>
-			<strong>命令数（1 ラウンド）</strong>: metrics なしの出荷用ビルドを cachegrind（valgrind）の下で走らせ、実行した命令の数（<code>I references</code>）を数えます。<code
+			命令数（1 ラウンド）: metrics なしの出荷用ビルドを cachegrind（valgrind）の下で走らせ、実行した命令の数（<code>I references</code>）を数えます。<code
 				>rounds=2</code
 			>
 			の実行から <code>rounds=1</code> の実行を引くので、ちょうど温まった 1 ラウンドの分になります。比べ方は <strong>±0.2%</strong> です。
 		</li>
 		<li>
-			<strong>命令数（読み込み）</strong>: <code>rounds=0</code> の実行、つまり起動、ディレクトリの走査、ファイルの読み込み、文書の構築です。コマンドラインの実行プログラム
+			命令数（読み込み）: <code>rounds=0</code> の実行、つまり起動、ディレクトリの走査、ファイルの読み込み、文書の構築です。コマンドラインの実行プログラム
 			を呼ぶたびに払う分なので、別に数えます。比べ方は同じく ±0.2% です。
 		</li>
 	</ul>
@@ -270,20 +270,20 @@
 <div class="prose-learn">
 	<ul>
 		<li>
-			<strong>共有</strong>: isolated → shared で {(a('isolated').plain[0] / a('shared').plain[0]).toFixed(1)} 倍速くなります（<a
+			共有: isolated → shared で {(a('isolated').plain[0] / a('shared').plain[0]).toFixed(1)} 倍速くなります（<a
 				href="/learn/kernel/database#sharing">04</a
 			>）。
 		</li>
 		<li>
-			<strong>並列化</strong>: serial → shared で {(a('serial').plain[0] / a('shared').plain[0]).toFixed(1)} 倍です（{data.threads} スレッド）。
+			並列化: serial → shared で {(a('serial').plain[0] / a('shared').plain[0]).toFixed(1)} 倍です（{data.threads} スレッド）。
 		</li>
 		<li>
-			<strong>pool</strong>: nopool → shared で時間が {((1 - a('shared').plain[0] / a('nopool').plain[0]) * 100).toFixed(0)}% 減ります（<a
+			pool: nopool → shared で時間が {((1 - a('shared').plain[0] / a('nopool').plain[0]) * 100).toFixed(0)}% 減ります（<a
 				href="/learn/kernel/buffer-pool#measure">12</a
 			>）。
 		</li>
 		<li>
-			<strong>ストリーミング</strong>: 時間の差は、同じ比較対象の二回の実行の差（{Math.abs(a('streaming').plain[0] - a('streaming').plain[1]).toFixed(1)}
+			ストリーミング: 時間の差は、同じ比較対象の二回の実行の差（{Math.abs(a('streaming').plain[0] - a('streaming').plain[1]).toFixed(1)}
 			ms）と同じ程度で、差があるとは言えません。
 		</li>
 	</ul>

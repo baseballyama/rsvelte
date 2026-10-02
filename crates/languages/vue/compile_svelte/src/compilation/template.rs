@@ -6,7 +6,7 @@ use rsvelte_svelte::compilation::compiler_syntax_tree::{
     CompilerNodeIdentifier as SvelteNodeIdentifier, CompilerSyntaxTreeBuilder, Each,
     Element as SvelteElement, NodeKind as SvelteNodeKind,
 };
-use rsvelte_svelte::compilation::input::Target;
+use rsvelte_svelte_compile::Target;
 use rsvelte_typescript::operators::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator,
 };

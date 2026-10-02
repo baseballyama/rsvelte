@@ -288,6 +288,7 @@ export const chapters: Chapter[] = [
 ];
 
 export const appendix = [
+	{ href: '/why', title: 'なぜrsvelteを作るのか', abstract: 'テンプレートの構文解析、独自のlintルール、解析結果の共有、クロスファイル最適化の目的と実装状況。' },
 	{ href: '/learn/reference', title: 'リファレンス', abstract: 'カーネルの全項目を検索する。' },
 	{ href: '/learn/playground', title: 'パイプラインのプレイグラウンド', abstract: '言語プラグインを付け外しし、ソースの解析と出力を追う。' },
 	{ href: '/learn/playground/doc', title: '整形の判断を試す', abstract: '整形用のデータ構造を書いて、プリンタの判断を追う。' }

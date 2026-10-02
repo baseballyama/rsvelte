@@ -1,6 +1,3 @@
-//! Compiler trees and JavaScript lowering.
+//! Shared compiler HIR.
 
 pub mod compiler_syntax_tree;
-pub mod input;
-pub mod render_plan;
-pub mod stylesheet;

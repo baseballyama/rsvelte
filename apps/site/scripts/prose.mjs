@@ -50,10 +50,10 @@ export function extractProse(source, file) {
 			else if (value && typeof value === 'object') expression(value);
 		}
 	}
-	function fragment(part) {
+	function fragment(part, prefix = '') {
 		let text = '';
 		let start = 0;
-		const flush = () => { add(text, start); text = ''; };
+		const flush = () => { if (text.trim()) add(prefix + text, start); text = ''; };
 		function visit(node) {
 			if (node.expression && node.type !== 'ExpressionTag') expression(node.expression);
 			if (node.type === 'Component' && node.name === 'Term') {
@@ -85,8 +85,16 @@ export function extractProse(source, file) {
 				}
 			}
 			if (node.fragment) {
-				if (block) fragment(node.fragment);
-				else for (const child of node.fragment.nodes) visit(child);
+				if (block) {
+					const marker = node.name === 'li' ? '- ' : /^h[1-6]$/.test(node.name ?? '') ? '#'.repeat(Number(node.name[1])) + ' ' : '';
+					fragment(node.fragment, marker);
+				} else {
+					const marker = ['strong', 'b'].includes(node.name) ? '**' : ['em', 'i'].includes(node.name) ? '*' : '';
+					if (marker && !text) start = node.start;
+					text += marker;
+					for (const child of node.fragment.nodes) visit(child);
+					text += marker;
+				}
 			}
 			for (const key of ['body', 'fallback', 'consequent', 'alternate', 'pending', 'then', 'catch']) {
 				if (node[key]?.nodes) { flush(); fragment(node[key]); }

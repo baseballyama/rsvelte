@@ -28,7 +28,7 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 		['svelte', 'languages/svelte/core/src', ['lib', 'computation', 'syntax/syntax_tree', 'syntax/parse', 'semantic/resolve', 'compilation/compiler_syntax_tree']],
 		['svelte/format', 'languages/svelte/format/src', ['task']],
 		['svelte/lint', 'languages/svelte/lint/src', ['task', 'lint']],
-		['svelte/compile', 'languages/svelte/compile/src', ['task']],
+		['svelte/compile', 'languages/svelte/compile/src', ['task', 'computation']],
 		['svelte/check', 'languages/svelte/check/src', ['registration', 'project']],
 		['vue', 'languages/vue/core/src', ['lib', 'syntax/syntax_tree', 'computation/artifacts']],
 		['vue/lint', 'languages/vue/lint/src', ['lint']],
