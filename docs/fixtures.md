@@ -323,7 +323,7 @@ fixtures/cross/rsvelte/<グループ>/<名前>.svelte/   言語 cross-svelte →
 - モジュールが import してよいのは、ランタイムのパッケージ（`svelte`、`svelte/*`、`vue`、`@vue/*`）だけ。これらは `tools/fixtures` に pin した版に解決される（期待値側と同じ 1 つのコピー）。`svelte` は、client では `browser` 条件付き（バンドラのクライアントビルドと同じ）で解決し、server では付けない。相対 import や他のパッケージは解決できず、`load:` のエラーになる。
 - 比較の前に、`client.js` / `server.js` を acorn でパースする。パースできなければ `unparseable`。読み込みやマウントで例外が出たら、それが trace に入って `mismatch` になる。
 - `fixtures compare` は、実装側の trace を `actual/<task>/<variant>.trace.json` に書く（調べるため。比較には使わない）。
-- `svue.compile` の実装は `crates/rsvelte_svue`。翻訳の対応表、拒否の一覧、trace に映らない差はクレートの doc に書いてある。
+- `svue.compile` の実装は `crates/languages/vue/compile_svelte`。翻訳の対応表、拒否の一覧、trace に映らない差はクレートの doc に書いてある。
 
 ### 12.4 操作手順（`fixture.toml` の `[behaviour]`）
 
@@ -419,7 +419,7 @@ steps = [
 
 ### 12.10 vuelte の現状（`vuelte.compile`）
 
-実装は `crates/rsvelte_vuelte`（対応表と拒否の一覧はその `lib.rs` の冒頭、設計は [architecture.md](architecture.md) の「vuelte」）。数は exp/cross と exp/svelte-ext をマージして spread などに対応したコミット（`6b5621c994`）の `run-all` と `fixtures check` のもの。
+実装は `crates/languages/svelte/compile_vue`（対応表と拒否の一覧はその `lib.rs` の冒頭、設計は [architecture.md](architecture.md) の「vuelte」）。数は exp/cross と exp/svelte-ext をマージして spread などに対応したコミット（`6b5621c994`）の `run-all` と `fixtures check` のもの。
 
 | unit | client | server |
 |---|---|---|

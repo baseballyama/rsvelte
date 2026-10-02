@@ -1,0 +1,17 @@
+[package]
+name = "rsvelte_vue_format"
+description = "Vue format"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+rsvelte_vue.workspace = true
+rsvelte_stylesheet_format.workspace = true
+rsvelte_kernel.workspace = true
+rsvelte_typescript_format.workspace = true
+rsvelte_typescript.workspace = true
+
+[lints]
+workspace = true

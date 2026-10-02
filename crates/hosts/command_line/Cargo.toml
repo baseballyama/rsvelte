@@ -1,0 +1,47 @@
+[package]
+name = "rsvelte_command_line"
+description = "The `rsvelte` binary: runs registered tasks over files or fixture units"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "rsvelte"
+path = "src/main.rs"
+
+[[example]]
+name = "export_site_layers"
+path = "tools/export_site_layers.rs"
+
+[[example]]
+name = "export_site_source_maps"
+path = "tools/export_site_source_maps.rs"
+
+[features]
+metrics = ["rsvelte_kernel/metrics"]
+
+[dependencies]
+rsvelte_vue_lint.workspace = true
+rsvelte_vue_format.workspace = true
+rsvelte_vue_compile.workspace = true
+rsvelte_vue_check.workspace = true
+rsvelte_svelte_lint.workspace = true
+rsvelte_svelte_format.workspace = true
+rsvelte_svelte_compile.workspace = true
+rsvelte_svelte_check.workspace = true
+rsvelte_typescript_lint.workspace = true
+rsvelte_typescript_format.workspace = true
+rsvelte_typescript_compile.workspace = true
+rsvelte_typescript_check.workspace = true
+rsvelte_kernel.workspace = true
+rsvelte_typescript.workspace = true
+rsvelte_svelte.workspace = true
+rsvelte_vue.workspace = true
+rsvelte_svue.workspace = true
+rsvelte_vuelte.workspace = true
+rayon.workspace = true
+libc.workspace = true
+
+[lints]
+workspace = true

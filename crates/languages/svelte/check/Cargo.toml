@@ -1,0 +1,16 @@
+[package]
+name = "rsvelte_svelte_check"
+description = "Svelte check"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+rsvelte_svelte.workspace = true
+rsvelte_kernel.workspace = true
+rsvelte_typescript_check.workspace = true
+rsvelte_typescript.workspace = true
+
+[lints]
+workspace = true

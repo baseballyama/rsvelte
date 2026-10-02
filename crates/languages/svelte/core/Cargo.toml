@@ -1,0 +1,16 @@
+[package]
+name = "rsvelte_svelte"
+version = "0.0.0"
+edition.workspace = true
+publish = false
+
+[dependencies]
+rsvelte_kernel.workspace = true
+rsvelte_typescript.workspace = true
+rsvelte_stylesheet.workspace = true
+rsvelte_markup.workspace = true
+rustc-hash.workspace = true
+unicode-id-start.workspace = true
+
+[lints]
+workspace = true

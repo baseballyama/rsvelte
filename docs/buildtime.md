@@ -18,7 +18,7 @@ Rust ワークスペース自体のコンパイル時間を、実行時の性能
 | `release.clean` | 出荷する `rsvelte` バイナリ（release: thin LTO、codegen-units 1）を空の target から |
 | `debug.incr.<crate>.<kind>` | 温まった target で 1 ファイルを編集した後の、全ターゲットの debug ビルド |
 
-`<crate>` は依存グラフの根 `kernel`（`crates/rsvelte_kernel/src/lib.rs`）と葉 `svelte`（`crates/rsvelte_svelte/src/lib.rs`）。
+`<crate>` は依存グラフの根 `kernel`（`crates/kernel/src/lib.rs`）と葉 `svelte`（`crates/languages/svelte/compile/src/lib.rs`）。
 `<kind>` は編集の種類:
 
 - `touch`: バイトは変えず mtime だけ動かす（編集・コンパイルの一巡の下限）
@@ -61,7 +61,7 @@ Rust ワークスペース自体のコンパイル時間を、実行時の性能
 |---|---|---:|
 | release | `rsvelte`（bin。thin LTO で全体をここでコード生成する） | 3.53 |
 | release | `rsvelte_svelte` | 3.39 |
-| release | `rsvelte_javascript` | 2.52 |
+| release | `rsvelte_typescript` | 2.52 |
 | release | `rsvelte_kernel` | 1.61 |
 | release | `rayon` | 1.22 |
 | debug | `rsvelte_kernel` のテスト | 1.22 |

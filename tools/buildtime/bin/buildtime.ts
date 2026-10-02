@@ -41,8 +41,8 @@ const SCENARIOS: Scenario[] = [
 	{ name: 'release.clean', description: 'the shipped `rsvelte` binary (release: thin LTO, one codegen unit)', cargo: ['build', '--release', '-p', 'rsvelte_command_line'] },
 	...(
 		[
-			['kernel', 'crates/rsvelte_kernel/src/lib.rs'],
-			['svelte', 'crates/rsvelte_svelte/src/lib.rs']
+			['kernel', 'crates/kernel/src/lib.rs'],
+			['svelte', 'crates/languages/svelte/compile/src/lib.rs']
 		] as const
 	).flatMap(([crate, file]) =>
 		(['touch', 'body', 'api'] as const).map(

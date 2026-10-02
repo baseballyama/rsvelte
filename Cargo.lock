@@ -101,20 +101,24 @@ version = "0.0.0"
 dependencies = [
  "libc",
  "rayon",
- "rsvelte_javascript",
  "rsvelte_kernel",
  "rsvelte_svelte",
+ "rsvelte_svelte_check",
+ "rsvelte_svelte_compile",
+ "rsvelte_svelte_format",
+ "rsvelte_svelte_lint",
  "rsvelte_svue",
+ "rsvelte_typescript",
+ "rsvelte_typescript_check",
+ "rsvelte_typescript_compile",
+ "rsvelte_typescript_format",
+ "rsvelte_typescript_lint",
  "rsvelte_vue",
+ "rsvelte_vue_check",
+ "rsvelte_vue_compile",
+ "rsvelte_vue_format",
+ "rsvelte_vue_lint",
  "rsvelte_vuelte",
-]
-
-[[package]]
-name = "rsvelte_javascript"
-version = "0.0.0"
-dependencies = [
- "rsvelte_kernel",
- "rustc-hash",
 ]
 
 [[package]]
@@ -132,8 +136,16 @@ version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_svelte",
+ "rsvelte_svelte_check",
+ "rsvelte_svelte_compile",
+ "rsvelte_svelte_format",
+ "rsvelte_svelte_lint",
  "rsvelte_svue",
  "rsvelte_vue",
+ "rsvelte_vue_check",
+ "rsvelte_vue_compile",
+ "rsvelte_vue_format",
+ "rsvelte_vue_lint",
  "rsvelte_vuelte",
  "wasm-bindgen",
 ]
@@ -150,47 +162,186 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_stylesheet_format"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_stylesheet",
+]
+
+[[package]]
 name = "rsvelte_svelte"
 version = "0.0.0"
 dependencies = [
- "rsvelte_javascript",
  "rsvelte_kernel",
  "rsvelte_markup",
  "rsvelte_stylesheet",
+ "rsvelte_typescript",
  "rustc-hash",
  "unicode-id-start",
+]
+
+[[package]]
+name = "rsvelte_svelte_check"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_svelte",
+ "rsvelte_typescript",
+ "rsvelte_typescript_check",
+]
+
+[[package]]
+name = "rsvelte_svelte_compile"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_markup",
+ "rsvelte_svelte",
+ "rsvelte_typescript",
+ "rsvelte_typescript_compile",
+ "rustc-hash",
+]
+
+[[package]]
+name = "rsvelte_svelte_format"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_stylesheet_format",
+ "rsvelte_svelte",
+ "rsvelte_typescript",
+ "rsvelte_typescript_format",
+]
+
+[[package]]
+name = "rsvelte_svelte_lint"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_markup",
+ "rsvelte_svelte",
+ "rsvelte_typescript_lint",
 ]
 
 [[package]]
 name = "rsvelte_svue"
 version = "0.0.0"
 dependencies = [
- "rsvelte_javascript",
  "rsvelte_kernel",
  "rsvelte_svelte",
+ "rsvelte_svelte_compile",
+ "rsvelte_typescript",
  "rsvelte_vue",
  "rustc-hash",
+]
+
+[[package]]
+name = "rsvelte_typescript"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rustc-hash",
+]
+
+[[package]]
+name = "rsvelte_typescript_check"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_typescript",
+]
+
+[[package]]
+name = "rsvelte_typescript_compile"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_typescript",
+]
+
+[[package]]
+name = "rsvelte_typescript_format"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_typescript",
+]
+
+[[package]]
+name = "rsvelte_typescript_lint"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_typescript",
 ]
 
 [[package]]
 name = "rsvelte_vue"
 version = "0.0.0"
 dependencies = [
- "rsvelte_javascript",
  "rsvelte_kernel",
  "rsvelte_markup",
  "rsvelte_stylesheet",
+ "rsvelte_typescript",
  "rustc-hash",
+]
+
+[[package]]
+name = "rsvelte_vue_check"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_typescript",
+ "rsvelte_typescript_check",
+ "rsvelte_vue",
+ "rustc-hash",
+]
+
+[[package]]
+name = "rsvelte_vue_compile"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_stylesheet",
+ "rsvelte_typescript",
+ "rsvelte_typescript_compile",
+ "rsvelte_vue",
+ "rustc-hash",
+]
+
+[[package]]
+name = "rsvelte_vue_format"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_stylesheet_format",
+ "rsvelte_typescript",
+ "rsvelte_typescript_format",
+ "rsvelte_vue",
+]
+
+[[package]]
+name = "rsvelte_vue_lint"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_markup",
+ "rsvelte_typescript",
+ "rsvelte_typescript_lint",
+ "rsvelte_vue",
 ]
 
 [[package]]
 name = "rsvelte_vuelte"
 version = "0.0.0"
 dependencies = [
- "rsvelte_javascript",
  "rsvelte_kernel",
  "rsvelte_svelte",
+ "rsvelte_svelte_compile",
+ "rsvelte_typescript",
  "rsvelte_vue",
+ "rsvelte_vue_compile",
  "rustc-hash",
 ]
 

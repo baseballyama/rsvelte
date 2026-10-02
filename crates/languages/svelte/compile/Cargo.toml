@@ -1,0 +1,18 @@
+[package]
+name = "rsvelte_svelte_compile"
+description = "Svelte compile"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+rustc-hash.workspace = true
+rsvelte_typescript_compile.workspace = true
+rsvelte_markup.workspace = true
+rsvelte_svelte.workspace = true
+rsvelte_kernel.workspace = true
+rsvelte_typescript.workspace = true
+
+[lints]
+workspace = true

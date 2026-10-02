@@ -1,0 +1,17 @@
+[package]
+name = "rsvelte_vue_lint"
+description = "Vue lint"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+rsvelte_vue.workspace = true
+rsvelte_markup.workspace = true
+rsvelte_kernel.workspace = true
+rsvelte_typescript_lint.workspace = true
+rsvelte_typescript.workspace = true
+
+[lints]
+workspace = true

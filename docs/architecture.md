@@ -4,16 +4,15 @@
 - 対象: Svelte と Vue のコンポーネントに対する compile / format / lint / type check の一式と、Vue のコンポーネントを Vue の意味のまま Svelte のランタイム向けにコンパイルする svue、Svelte のコンポーネントを Vue のランタイム向けにコンパイルする vuelte。
 - 数値の出どころは節ごとに書く。性能の現在値は `tools/performance/baseline.json`、正しさの現在値は `fixtures/_registry/parity.json` が正本で、この文書の数はその写しである。変更前後の数は、その変更のコミットのメッセージから引用し、短い SHA を添える。
 
+See [crates/README.md](../crates/README.md) for the crate layout and tool registration.
+
 ## 1. 層
 
 ```
-rsvelte_command_line ──► rsvelte_svue ───► rsvelte_svelte ─┐
-   │                     rsvelte_vuelte ─► rsvelte_vue ────┼──► rsvelte_javascript, rsvelte_stylesheet, rsvelte_markup ──► rsvelte_kernel
-   └───────────────────────────────────────────────────────┘
-(ホスト)    (言語プラグイン)              (埋め込み言語と共有の判断)        (言語を知らない)
+hosts -> language tools -> language cores -> kernel
 ```
 
-依存は右向きだけ。カーネルには Svelte も Vue も JavaScript も CSS も出てこない（`crates/rsvelte_kernel/src/lib.rs` の冒頭がその約束）。
+依存は右向きだけ。カーネルには Svelte も Vue も JavaScript も CSS も出てこない（`crates/kernel/src/lib.rs` の冒頭がその約束）。
 
 ### カーネルが持つもの（言語に依存しない契約）
 
@@ -38,15 +37,20 @@ rsvelte_command_line ──► rsvelte_svue ───► rsvelte_svelte ─┐
 
 Svelte と Vue の両方が使う。
 
-- `rsvelte_javascript`: AST（型注釈はサイドテーブル）、スコープ解析（ホストの言語が開くスコープを受け取る）、コード生成、JS 整形、ESLint `no-unused-vars`（判定する束縛の集合はホストが渡す）、型検査 `check.rs`（ファセット `TypeScriptView` と、それに対して書いた一つの `Check` プロジェクトタスク、TypeScript 7 のネイティブ `tsc` バックエンド）
-- `rsvelte_stylesheet`: CSS のパース、スコープ付け、整形
-- `rsvelte_markup`: 文字参照の展開と、`svelte/button-has-type` と `vue/html-button-has-type` が共有する判断 `button_type`
+- `rsvelte_typescript`: JavaScript and TypeScript trees, parsing, scope analysis, and tree copying.
+- `rsvelte_typescript_compile`, `rsvelte_typescript_format`, and `rsvelte_typescript_lint`: shared JavaScript tools.
+- `rsvelte_typescript_check`: `TypeScriptView` and one shared `Check` project task.
+- `rsvelte_stylesheet`: CSS parsing, selector matching, and scoping. `rsvelte_stylesheet_format` owns formatting.
+- `rsvelte_markup`: character references and the shared `button_type` rule.
+
+Core registration adds facts only. Each tool crate registers its own tasks or type-check view.
+Hosts choose which tools to register.
 
 ### Svelte プラグインが持つもの
 
 - 成果物: `Parsed`（表層の木）、`Resolved`（名前解決）、`Normalized`（HIR）、`Analyzed`（コンパイラの解析）、`ScopedStylesheet`
 - ファセット `TypeScriptView` の答え: svelte2tsx と同じ形の射影と、`Emitter::lookup_span` による逆引き
-- タスク: `svelte.compile/{client,server}`、`svelte.format/default`、`svelte.lint/default`、プロジェクトタスク `svelte.check/default`（`rsvelte_javascript::check::Check` の値）
+- タスク: `svelte.compile/{client,server}`、`svelte.format/default`、`svelte.lint/default`、プロジェクトタスク `svelte.check/default`（`rsvelte_typescript_check::Check` の値）
 - コンパイラ（analyze、lower の client と server）は表層の木ではなく `CompileInput`（JS の木、インスタンススクリプト、HIR、スタイルシート、テンプレートの式）だけを読む。HIR を作れる別のフロントエンドは、同じコンパイラでコンパイルできる。この移行の前後で、Svelte コーパスの compile / format / lint の出力 70,608 ファイルがバイト一致した（`db94f0bd13`）
 - HIR は公開の `CompilerSyntaxTreeBuilder` で組み立てる。属性名はソースの範囲（`Name::Source`）か、フロントエンドが綴った名前（`Name::Spelled`、例: Vue の `@click` は `onclick`）
 - lint: early（表層の木）のルール `no-unused-vars` と、late（HIR）のルール `svelte/button-has-type`
@@ -60,41 +64,41 @@ Svelte と Vue の両方が使う。
 - コンパイラと名前解決は表層の木ではなく HIR を読み、コンパイラの入力は `CompileInput`（JS の木、スクリプト、HIR、スタイルシート）だけ。この移行の前後で、全 fixture の出力 105,387 ファイルがバイト一致した
 - ファセット `TypeScriptView` の答え: @vue/language-core の仮想コードと同じ形の射影と、`Emitter::lookup_overlap` による逆引き
 - タスク: `vue.compile/default`（compiler-core と compileScript の移植）、`vue.format/default`（prettier の HTML プリンタの移植）、`vue.lint/default`（`no-unused-vars`、`vue/no-unused-vars`、`vue/multi-word-component-names`、`vue/html-button-has-type`）、プロジェクトタスク `vue.check/default`
-- JS の解析・整形・`no-unused-vars`・`tsc` バックエンドと CSS は、Svelte と同じ `rsvelte_javascript` / `rsvelte_stylesheet` を使う
+- JS の解析・整形・`no-unused-vars`・`tsc` バックエンドと CSS は、Svelte と同じ `rsvelte_typescript` / `rsvelte_stylesheet` を使う
 
 vuelte のために移植に足したもの（どれも compiler-sfc 3.5.43 の出力を期待値にした単体テストつき。足す前後で `fixtures/vue` の `vue.compile` の出力はバイト一致した）: `defineOptions`（`processDefineOptions` と `checkInvalidScopeReference` の拒否、TS なしは `Object.assign(options, {…})`、TS ありは `defineComponent({ ...options, … })`）、`<pre>`（HIR が持つテキストをそのまま使う）、関数の `:ref`（`v-for` の中では `ref_for: true`、`NEED_PATCH`）、オブジェクトの `v-bind`（compiler-core と同じく、単独なら `normalizeProps(guardReactiveProps(obj))`、`v-for` の中では `mergeProps({ key }, { ref_for: true }, obj)`、`v-if` の枝で key を足すときは `normalizeProps(mergeProps({ key }, obj))`、`FULL_PROPS`。`.vue` のパーサは引数の無い `v-bind` をまだ拒否するので、到達するのは vuelte が組む HIR からだけ）。静的な `ref` と `:class` / `:style` は引き続き拒否する。
 
 svue のために移植に足したもの: `v-on` の修飾子。パースし、compiler-dom の `transformOn` と同じく `withModifiers` / `withKeys` と、イベントオプションの付いたキー（`onClickOnce`）で出力する（`ea28d75e8f`。オラクルから期待値を作った `vue/rsvelte/compile/event-modifiers` で一致）。
 
-2 つ目の言語のためにカーネルと `rsvelte_javascript` に足したもの（`573ac584b6`、`a15cdcda04`）: ホストが開くスコープ（Vue の `v-for`）、ホストが渡す `no-unused-vars` の判定対象、終端を持たない診断、SHA-256、ファセット。どれも Vue に固有ではない。
+2 つ目の言語のためにカーネルと `rsvelte_typescript` に足したもの（`573ac584b6`、`a15cdcda04`）: ホストが開くスコープ（Vue の `v-for`）、ホストが渡す `no-unused-vars` の判定対象、終端を持たない診断、SHA-256、ファセット。どれも Vue に固有ではない。
 
 ### 分離の判断基準
 
 **「別の言語を追加するとき、それを書き直すか」**で置き場所を決めた。
 
 - 書き直さないもの（スケジューラ、成果物とファセットのキャッシュ、ルールの走らせ方、対応表の逆引き、doc プリンタ）はカーネルに置く。
-- JavaScript の意味に属するもの（未使用変数、`tsc` の起動と出力解析と写し戻し）は `rsvelte_javascript` に置く。
+- JavaScript の意味に属するもの（未使用変数、`tsc` の起動と出力解析と写し戻し）は `rsvelte_typescript_lint` と `rsvelte_typescript_check` に置く。
 - 二つのマークアップ言語が同じ判断をするもの（文字参照、ボタンの `type`）は `rsvelte_markup` に置く。木の違いから来る部分（どの属性を `type` と見るか、指摘をどこに付けるか）だけを各プラグインに残す。
 
 ### svue
 
-`.vue` のコンポーネントを、Vue の意味のまま Svelte ランタイム向けの JS にする（`crates/rsvelte_svue`）。上流のコンパイラが無いので、正しさは振る舞いのオラクル（[fixtures.md](fixtures.md) §12）で測る。
+`.vue` のコンポーネントを、Vue の意味のまま Svelte ランタイム向けの JS にする（`crates/languages/vue/compile_svelte`）。上流のコンパイラが無いので、正しさは振る舞いのオラクル（[fixtures.md](fixtures.md) §12）で測る。
 
-- 成果物: `Translated`、`Resolved`、`Analyzed`（ターゲットごと）。Vue プラグインの `Parsed`・`Lowered`・`Resolved` を読み、Svelte のコンパイラが読む `CompileInput`（runes のインスタンススクリプトと Svelte の HIR）を作る。lower は Svelte プラグインのもの（`rsvelte_svelte::computation::tasks::compile`）なので、モジュールは `svelte/compiler` の出力の形になり、import は `svelte`、`svelte/*`、`vue`、`@vue/*` だけ。Svelte の lower を svue のために変えることはしない（どの lower も上流と突き合わせる、という規則のため）。Svelte プラグインに足したのは、フロントエンドが綴ったテキストを HIR に置く `compiler_syntax_tree::spelled_text` だけで、`svelte.compile` の出力はバイト一致のまま
+- 成果物: `Translated`、`Resolved`、`Analyzed`（ターゲットごと）。Vue プラグインの `Parsed`・`Lowered`・`Resolved` を読み、Svelte のコンパイラが読む `CompileInput`（runes のインスタンススクリプトと Svelte の HIR）を作る。lower は Svelte プラグインのもの（`rsvelte_svelte_compile::compile`）なので、モジュールは `svelte/compiler` の出力の形になり、import は `svelte`、`svelte/*`、`vue`、`@vue/*` だけ。Svelte の lower を svue のために変えることはしない（どの lower も上流と突き合わせる、という規則のため）。Svelte プラグインに足したのは、フロントエンドが綴ったテキストを HIR に置く `compiler_syntax_tree::spelled_text` だけで、`svelte.compile` の出力はバイト一致のまま
 - タスク: `svue.compile/{client,server}`（`.vue` の文書に適用する）
 - Vue の意味を Svelte が持たないところは、Vue 自身の実装を呼ぶ形に翻訳する: 補間は `toDisplayString`、`v-for` は `renderList`、`Boolean` の prop は runtime-core の `resolvePropValue`、server の `v-model` は compiler-ssr の `ssrTransformModel` が出す属性。対応表と拒否の一覧はクレートの doc
 - client の `v-model` は `{@attach}` で Vue 自身の `vModelText` / `vModelCheckbox` / `vModelRadio` / `vModelSelect` を走らせ、単一要素のルートへの属性の引き継ぎは `{...attrs}` と `mergeProps` と同じ `class` の合成にする。どちらも Svelte プラグインが lower する構文（`exp/svelte-ext` の `{@attach}`・スプレッド・`<select>`）を出すだけで、Svelte の lower は変えていない
-- Vue のテキストは空白を畳み済みなので、Svelte のコンパイラは `preserveWhitespace`（`CompileInput::preserve_whitespace`）で走らせ、二度目の掃除をさせない。ルートの `class` は、自分の `class` が無ければスプレッドの中で合成する（Vue は props に `class` のキーがあるときだけ属性を書き、Svelte はスプレッドの後の `class` 属性を値が `undefined` でも書くため）。trace は見えない空白と空の `class` を区別しないので、この二つは `crates/rsvelte_svue/tests/translate.rs` で固定した
+- Vue のテキストは空白を畳み済みなので、Svelte のコンパイラは `preserveWhitespace`（`CompileInput::preserve_whitespace`）で走らせ、二度目の掃除をさせない。ルートの `class` は、自分の `class` が無ければスプレッドの中で合成する（Vue は props に `class` のキーがあるときだけ属性を書き、Svelte はスプレッドの後の `class` 属性を値が `undefined` でも書くため）。trace は見えない空白と空の `class` を区別しないので、この二つは `crates/languages/vue/compile_svelte/tests/translate.rs` で固定した
 - 正確に再現できないものは `compile_unsupported` で拒否し、近似しない
 
 ### vuelte
 
 `.svelte`（Svelte 5 の runes）を、Svelte の意味のまま Vue のランタイム向けの JS にコンパイルする。`rsvelte_vuelte` は `.svelte` の文書に適用するタスク `vuelte.compile/{client,server}`（成果物 `js`）を足すプラグインで、持つのは翻訳だけ。パース・名前解決・HIR・解析は Svelte プラグインの成果物（`svelte.compile` と共有）、出力は Vue プラグインの `resolve` と `compile` を使う。
 
-- スクリプトは `rsvelte_javascript::copy` の `Rewrite` で Vue の `<script setup>` に写す（`$state` → `ref`、`$derived` → `computed`、`$props()` → `defineProps` と `$$props.<key>`、`onMount` → `onMounted`、全コンポーネントに `defineOptions({ inheritAttrs: false })`）。テンプレートは Svelte の HIR を `clean_nodes` の後で読み、Vue の `CompilerSyntaxTreeBuilder` で Vue の HIR を組む。
+- スクリプトは `rsvelte_typescript::copy` の `Rewrite` で Vue の `<script setup>` に写す（`$state` → `ref`、`$derived` → `computed`、`$props()` → `defineProps` と `$$props.<key>`、`onMount` → `onMounted`、全コンポーネントに `defineOptions({ inheritAttrs: false })`）。テンプレートは Svelte の HIR を `clean_nodes` の後で読み、Vue の `CompilerSyntaxTreeBuilder` で Vue の HIR を組む。
 - client と server で翻訳を分ける。Svelte の 2 つのランタイムは、Vue のランタイムが同じに扱うところで違うため（client の束縛は要素への effect、server の束縛はマークアップ）。client の effect は要素の関数 ref に置く。Vue は要素の patch のたびに要素を、アンマウントで `null` を渡して呼ぶので、Svelte の render effect と `bind:this` が走る時点と同じになる。Vue が `value` / `checked` を属性としても書く（3.4 以降）ので、client はそれらを props に置かない。
 - Svelte のランタイムの判断のうち Vue と違うもの（`set_text` の `?? ''`、`set_attribute` / `attr`、`clsx` と `to_class`、`set_value`、`select_option`、`each` / `ensure_array_like`）は、Svelte 5.57 のランタイム関数を到達する場合に絞った JS のヘルパー（`helpers.rs`）として出力に入れる。`class` は大文字のキー `:CLASS` で束縛する。Vue の client と SSR の両方がキーを小文字にして属性に書き、`null` で属性を外すので、Vue の `class` の正規化を通らずに Svelte と同じ DOM になる。`class:` 指令は client が `set_class`、server が `to_class` の移植。spread を持つ要素は全属性を 1 つのオブジェクトにして、client は `set_attributes`、server は `attributes` の移植に渡す（server は Vue のオブジェクトの `v-bind` で出し、キーの `^` 接頭辞で Vue の SSR の属性フィルタを外す）。`let { ...rest } = $props()` は `useAttrs()`。`{@attach}` は拒否する（Svelte は読んだものを追跡する effect として走らせ、変われば片付けて走らせ直すが、Vue の関数 ref は patch のたびに呼ばれ、自分では何も追跡しない）。
-- 写せない構文は、出力を作る前に `vuelte_unsupported` で拒否する。拒否の一覧と対応表は `crates/rsvelte_vuelte/src/lib.rs` の冒頭にある。近似は書かない。
+- 写せない構文は、出力を作る前に `vuelte_unsupported` で拒否する。拒否の一覧と対応表は `crates/languages/svelte/compile_vue/src/lib.rs` の冒頭にある。近似は書かない。
 - オラクルは振る舞い（[fixtures.md](fixtures.md) §12）。結果は §4。
 
 ## 2. パイプライン
@@ -130,7 +134,7 @@ until `finish` adds their diagnostics, then passed to the sink. A document that 
 ```
 context.facet::<TypeScriptView>()（matching provider's answer, document pass）
   ─► Check::prepare: 射影・逆引き・宣言ファイルの環境を part に
-  ─► Check::finish: 環境を合わせ、Tsc::check（rsvelte_javascript、プロジェクトパス、1 プロセス）
+  ─► Check::finish: 環境を合わせ、Tsc::check（rsvelte_typescript、プロジェクトパス、1 プロセス）
   ─► 文書ごとの MapBack（Svelte: lookup_span、Vue: lookup_overlap）
   ─► svelte-check / vue-tsc の形の JSON
 ```
@@ -245,7 +249,7 @@ svelte2tsx は、値のある属性では `=` をその場で `:` に書き換�
 
 ### 5.2 バッファの再利用（`pool`）
 
-文書ごとに作っては捨てる構造（`rsvelte_javascript::SyntaxTree`、`Tokens<K>`、`rsvelte_svelte::syntax::syntax_tree::Component`、`LayoutInstructions`、`Interner`）は、列のバッファをスレッドローカルのプールから借り、`Drop` で返す。
+文書ごとに作っては捨てる構造（`rsvelte_typescript::SyntaxTree`、`Tokens<K>`、`rsvelte_svelte::syntax::syntax_tree::Component`、`LayoutInstructions`、`Interner`）は、列のバッファをスレッドローカルのプールから借り、`Drop` で返す。
 
 - **鍵**: 要素の型（`take` / `give`）か、要素の型と持ち主の型の組（`take_keyed::<K, T>` / `give_keyed`。`String` は `take_string` / `give_string`）。要素の型だけを鍵にしていたころは、同じ要素型の列を持つ別々の構造がバッファを取り合い、互いの大きさまで伸ばし合っていた（`20f5846343`）。
 - **順序**: 棚は後入れ先出し。一人の持ち主が同じ型の列を複数持つときは借りた順の逆に返すので、次の文書でもそれぞれが自分の大きさのバッファを受け取る。

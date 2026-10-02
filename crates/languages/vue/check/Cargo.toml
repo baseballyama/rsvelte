@@ -1,0 +1,17 @@
+[package]
+name = "rsvelte_vue_check"
+description = "Vue check"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+rustc-hash.workspace = true
+rsvelte_vue.workspace = true
+rsvelte_kernel.workspace = true
+rsvelte_typescript_check.workspace = true
+rsvelte_typescript.workspace = true
+
+[lints]
+workspace = true
