@@ -1,0 +1,16 @@
+[
+	{
+		"code": "a11y_autofocus",
+		"message": "Avoid using autofocus\nhttps://svelte.dev/e/a11y_autofocus",
+		"start": {
+			"line": 2,
+			"column": 25,
+			"character": 48
+		},
+		"end": {
+			"line": 2,
+			"column": 34,
+			"character": 57
+		}
+	}
+]

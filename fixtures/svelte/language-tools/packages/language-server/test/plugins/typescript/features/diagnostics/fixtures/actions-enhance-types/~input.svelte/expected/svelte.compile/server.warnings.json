@@ -1,0 +1,86 @@
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 23,
+			"column": 0,
+			"character": 506
+		},
+		"end": {
+			"line": 23,
+			"column": 45,
+			"character": 551
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:bar` to listen to the bar event is deprecated. Use the event attribute `onbar` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 23,
+			"column": 28,
+			"character": 534
+		},
+		"end": {
+			"line": 23,
+			"column": 42,
+			"character": 548
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 26,
+			"column": 0,
+			"character": 570
+		},
+		"end": {
+			"line": 26,
+			"column": 41,
+			"character": 611
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:bar` to listen to the bar event is deprecated. Use the event attribute `onbar` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 26,
+			"column": 24,
+			"character": 594
+		},
+		"end": {
+			"line": 26,
+			"column": 38,
+			"character": 608
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 27,
+			"column": 0,
+			"character": 612
+		},
+		"end": {
+			"line": 27,
+			"column": 50,
+			"character": 662
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:bar` to listen to the bar event is deprecated. Use the event attribute `onbar` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 27,
+			"column": 28,
+			"character": 640
+		},
+		"end": {
+			"line": 27,
+			"column": 47,
+			"character": 659
+		}
+	}
+]

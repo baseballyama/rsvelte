@@ -1,0 +1,100 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:mousemove` to listen to the mousemove event is deprecated. Use the event attribute `onmousemove` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 114,
+			"column": 2,
+			"character": 2284
+		},
+		"end": {
+			"line": 114,
+			"column": 32,
+			"character": 2314
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:mousedown` to listen to the mousedown event is deprecated. Use the event attribute `onmousedown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 115,
+			"column": 2,
+			"character": 2317
+		},
+		"end": {
+			"line": 115,
+			"column": 32,
+			"character": 2347
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<progress ...></progress>` rather than `<progress ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 123,
+			"column": 2,
+			"character": 2520
+		},
+		"end": {
+			"line": 123,
+			"column": 46,
+			"character": 2564
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`time` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 3,
+			"column": 5,
+			"character": 68
+		},
+		"end": {
+			"line": 3,
+			"column": 9,
+			"character": 72
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`duration` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 83
+		},
+		"end": {
+			"line": 4,
+			"column": 13,
+			"character": 91
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`paused` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 98
+		},
+		"end": {
+			"line": 5,
+			"column": 11,
+			"character": 104
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showControls` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 119
+		},
+		"end": {
+			"line": 7,
+			"column": 17,
+			"character": 131
+		}
+	}
+]

@@ -1,0 +1,16 @@
+[
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 3,
+			"column": 0,
+			"character": 28
+		},
+		"end": {
+			"line": 3,
+			"column": 20,
+			"character": 48
+		}
+	}
+]

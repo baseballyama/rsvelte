@@ -1,0 +1,44 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:panstart` to listen to the panstart event is deprecated. Use the event attribute `onpanstart` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 45,
+			"column": 1,
+			"character": 828
+		},
+		"end": {
+			"line": 45,
+			"column": 29,
+			"character": 856
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:panmove` to listen to the panmove event is deprecated. Use the event attribute `onpanmove` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 46,
+			"column": 1,
+			"character": 858
+		},
+		"end": {
+			"line": 46,
+			"column": 27,
+			"character": 884
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:panend` to listen to the panend event is deprecated. Use the event attribute `onpanend` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 47,
+			"column": 1,
+			"character": 886
+		},
+		"end": {
+			"line": 47,
+			"column": 25,
+			"character": 910
+		}
+	}
+]

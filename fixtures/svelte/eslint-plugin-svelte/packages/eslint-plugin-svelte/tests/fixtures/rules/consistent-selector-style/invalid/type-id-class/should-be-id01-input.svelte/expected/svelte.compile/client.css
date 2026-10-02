@@ -1,0 +1,24 @@
+
+  .link.svelte-1egsi2d {
+    color: red;
+  }
+
+  .bold.svelte-1egsi2d {
+    color: red;
+  }
+
+  .link.svelte-1egsi2d:active {
+    color: red;
+  }
+
+  /* (unused) .link + .bold {
+    color: red;
+  }*/
+
+  /* (unused) .bold[data-key="val"] {
+    color: red;
+  }*/
+
+  .bold.svelte-1egsi2d::before {
+    color: red;
+  }

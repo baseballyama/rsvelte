@@ -1,0 +1,86 @@
+[
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 1,
+			"column": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 6,
+			"column": 2,
+			"character": 142
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<button ...></button>` rather than `<button ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 1,
+			"column": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 6,
+			"column": 2,
+			"character": 142
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:focus` to listen to the focus event is deprecated. Use the event attribute `onfocus` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 2,
+			"column": 1,
+			"character": 9
+		},
+		"end": {
+			"line": 2,
+			"column": 14,
+			"character": 22
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:focus` to listen to the focus event is deprecated. Use the event attribute `onfocus` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 3,
+			"column": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"column": 37,
+			"character": 60
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 4,
+			"column": 1,
+			"character": 62
+		},
+		"end": {
+			"line": 4,
+			"column": 38,
+			"character": 99
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 5,
+			"column": 1,
+			"character": 101
+		},
+		"end": {
+			"line": 5,
+			"column": 39,
+			"character": 139
+		}
+	}
+]

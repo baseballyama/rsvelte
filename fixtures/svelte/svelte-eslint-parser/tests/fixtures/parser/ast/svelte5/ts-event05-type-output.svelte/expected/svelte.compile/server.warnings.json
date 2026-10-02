@@ -1,0 +1,16 @@
+[
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 5,
+			"column": 11,
+			"character": 130
+		},
+		"end": {
+			"line": 11,
+			"column": 3,
+			"character": 452
+		}
+	}
+]

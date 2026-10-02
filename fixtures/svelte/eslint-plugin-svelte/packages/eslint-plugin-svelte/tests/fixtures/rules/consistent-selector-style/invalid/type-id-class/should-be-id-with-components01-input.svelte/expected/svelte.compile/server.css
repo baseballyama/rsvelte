@@ -1,0 +1,24 @@
+
+  .link.svelte-d2y4w7 {
+    color: red;
+  }
+
+  .bold.svelte-d2y4w7 {
+    color: red;
+  }
+
+  .link.svelte-d2y4w7:active {
+    color: red;
+  }
+
+  /* (unused) .link + .bold {
+    color: red;
+  }*/
+
+  /* (unused) .bold[data-key="val"] {
+    color: red;
+  }*/
+
+  .bold.svelte-d2y4w7::before {
+    color: red;
+  }

@@ -1,0 +1,1 @@
+<foo bind:this={dom_node}/>

@@ -1,0 +1,30 @@
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 25,
+			"column": 1,
+			"character": 1691
+		},
+		"end": {
+			"line": 25,
+			"column": 24,
+			"character": 1714
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 29,
+			"column": 8,
+			"character": 1736
+		},
+		"end": {
+			"line": 29,
+			"column": 33,
+			"character": 1761
+		}
+	}
+]

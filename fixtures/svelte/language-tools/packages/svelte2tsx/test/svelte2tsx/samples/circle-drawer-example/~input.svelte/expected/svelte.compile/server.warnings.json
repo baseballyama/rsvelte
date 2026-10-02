@@ -1,0 +1,212 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 103,
+			"column": 9,
+			"character": 1663
+		},
+		"end": {
+			"line": 103,
+			"column": 38,
+			"character": 1692
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 104,
+			"column": 9,
+			"character": 1737
+		},
+		"end": {
+			"line": 104,
+			"column": 38,
+			"character": 1766
+		}
+	},
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<svg>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 107,
+			"column": 0,
+			"character": 1828
+		},
+		"end": {
+			"line": 118,
+			"column": 6,
+			"character": 2187
+		}
+	},
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<svg>` with a click handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 107,
+			"column": 0,
+			"character": 1828
+		},
+		"end": {
+			"line": 118,
+			"column": 6,
+			"character": 2187
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 107,
+			"column": 5,
+			"character": 1833
+		},
+		"end": {
+			"line": 107,
+			"column": 27,
+			"character": 1855
+		}
+	},
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<circle>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 109,
+			"column": 2,
+			"character": 1887
+		},
+		"end": {
+			"line": 116,
+			"column": 4,
+			"character": 2171
+		}
+	},
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<circle>` with a click or contextmenu handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 109,
+			"column": 2,
+			"character": 1887
+		},
+		"end": {
+			"line": 116,
+			"column": 4,
+			"character": 2171
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 110,
+			"column": 3,
+			"character": 1941
+		},
+		"end": {
+			"line": 110,
+			"column": 46,
+			"character": 1984
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:contextmenu` to listen to the contextmenu event is deprecated. Use the event attribute `oncontextmenu` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 111,
+			"column": 3,
+			"character": 1988
+		},
+		"end": {
+			"line": 114,
+			"column": 6,
+			"character": 2116
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:input` to listen to the input event is deprecated. Use the event attribute `oninput` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 123,
+			"column": 41,
+			"character": 2337
+		},
+		"end": {
+			"line": 123,
+			"column": 58,
+			"character": 2354
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`i` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 213
+		},
+		"end": {
+			"line": 10,
+			"column": 6,
+			"character": 214
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`undoStack` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 5,
+			"character": 225
+		},
+		"end": {
+			"line": 11,
+			"column": 14,
+			"character": 234
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`circles` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 12,
+			"column": 5,
+			"character": 248
+		},
+		"end": {
+			"line": 12,
+			"column": 12,
+			"character": 255
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 5,
+			"character": 267
+		},
+		"end": {
+			"line": 13,
+			"column": 13,
+			"character": 275
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`adjusting` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 14,
+			"column": 5,
+			"character": 282
+		},
+		"end": {
+			"line": 14,
+			"column": 14,
+			"character": 291
+		}
+	}
+]

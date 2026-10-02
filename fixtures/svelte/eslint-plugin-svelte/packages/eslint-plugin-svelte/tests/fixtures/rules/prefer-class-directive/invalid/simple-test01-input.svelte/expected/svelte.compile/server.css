@@ -1,0 +1,9 @@
+
+	button.svelte-hk31ny {
+		display: block;
+	}
+
+	.selected.svelte-hk31ny {
+		background-color: #ff3e00;
+		color: white;
+	}

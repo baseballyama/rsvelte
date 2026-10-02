@@ -1,0 +1,17 @@
+
+	.sns-bar.svelte-5ligkr {
+		display: flex;
+		align-items: flex-end;
+		padding-left: 8px;
+		padding-right: 8px;
+	}
+	.sns-bar.svelte-5ligkr .sns:where(.svelte-5ligkr) {
+		display: flex;
+		align-items: flex-start;
+	}
+
+	.sns-bar.svelte-5ligkr .sns:where(.svelte-5ligkr) > :where(.svelte-5ligkr) {
+		vertical-align: top !important;
+		margin-left: 4px;
+		height: 23px !important;
+	}

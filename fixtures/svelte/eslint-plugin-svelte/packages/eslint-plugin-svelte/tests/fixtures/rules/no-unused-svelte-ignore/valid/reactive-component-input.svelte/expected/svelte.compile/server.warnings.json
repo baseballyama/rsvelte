@@ -1,0 +1,30 @@
+[
+	{
+		"code": "unknown_code",
+		"message": "`reactive-component` is not a recognised code\nhttps://svelte.dev/e/unknown_code",
+		"start": {
+			"line": 13,
+			"column": 20,
+			"character": 295
+		},
+		"end": {
+			"line": 13,
+			"column": 38,
+			"character": 313
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`MyComponent` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 59
+		},
+		"end": {
+			"line": 4,
+			"column": 75,
+			"character": 129
+		}
+	}
+]

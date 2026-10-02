@@ -1,0 +1,24 @@
+
+  #link.svelte-guwf96 {
+    color: red;
+  }
+
+  #bold.svelte-guwf96 {
+    color: red;
+  }
+
+  #link.svelte-guwf96:active {
+    color: red;
+  }
+
+  #link.svelte-guwf96 + #bold:where(.svelte-guwf96) {
+    color: red;
+  }
+
+  /* (unused) #bold[data-key="val"] {
+    color: red;
+  }*/
+
+  #bold.svelte-guwf96::before {
+    color: red;
+  }

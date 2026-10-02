@@ -1,0 +1,32 @@
+
+	svg.svelte-1ylurb2 {
+		width: 100%;
+		height: 100%;
+	}
+
+	path.svelte-1ylurb2 {
+		fill: white;
+		opacity: 1;
+	}
+
+	label.svelte-1ylurb2 {
+		position: absolute;
+		top: 1em;
+		left: 1em;
+	}
+
+	.centered.svelte-1ylurb2 {
+		font-size: 20vw;
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		transform: translate(-50%,-50%);
+		font-family: 'Overpass';
+		letter-spacing: 0.12em;
+		color: #676778;
+		font-weight: 400;
+	}
+
+	.centered.svelte-1ylurb2 span:where(.svelte-1ylurb2) {
+		will-change: filter;
+	}

@@ -1,0 +1,30 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`showItems` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 59
+		},
+		"end": {
+			"line": 4,
+			"column": 14,
+			"character": 68
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`i` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 82
+		},
+		"end": {
+			"line": 5,
+			"column": 6,
+			"character": 83
+		}
+	}
+]

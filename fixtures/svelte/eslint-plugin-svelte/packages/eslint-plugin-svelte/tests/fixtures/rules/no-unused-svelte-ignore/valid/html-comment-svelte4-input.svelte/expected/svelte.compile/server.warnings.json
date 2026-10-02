@@ -1,0 +1,44 @@
+[
+	{
+		"code": "legacy_code",
+		"message": "`a11y-autofocus` is no longer valid — please use `a11y_autofocus` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 1,
+			"column": 19,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"column": 33,
+			"character": 33
+		}
+	},
+	{
+		"code": "a11y_autofocus",
+		"message": "Avoid using autofocus\nhttps://svelte.dev/e/a11y_autofocus",
+		"start": {
+			"line": 2,
+			"column": 15,
+			"character": 76
+		},
+		"end": {
+			"line": 2,
+			"column": 24,
+			"character": 85
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 2,
+			"column": 0,
+			"character": 61
+		},
+		"end": {
+			"line": 2,
+			"column": 27,
+			"character": 88
+		}
+	}
+]

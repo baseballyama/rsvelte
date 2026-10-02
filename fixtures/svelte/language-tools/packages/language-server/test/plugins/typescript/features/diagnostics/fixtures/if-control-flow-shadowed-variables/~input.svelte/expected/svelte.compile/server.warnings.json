@@ -1,0 +1,16 @@
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`assignA` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 8,
+			"character": 253
+		},
+		"end": {
+			"line": 7,
+			"column": 23,
+			"character": 268
+		}
+	}
+]

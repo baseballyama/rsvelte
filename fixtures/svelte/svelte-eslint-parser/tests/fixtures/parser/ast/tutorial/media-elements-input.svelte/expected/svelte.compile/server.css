@@ -1,0 +1,51 @@
+
+	div.svelte-1wdmrcy {
+		position: relative;
+	}
+
+	.controls.svelte-1wdmrcy {
+		position: absolute;
+		top: 0;
+		width: 100%;
+		transition: opacity 1s;
+	}
+
+	.info.svelte-1wdmrcy {
+		display: flex;
+		width: 100%;
+		justify-content: space-between;
+	}
+
+	span.svelte-1wdmrcy {
+		padding: 0.2em 0.5em;
+		color: white;
+		text-shadow: 0 0 8px black;
+		font-size: 1.4em;
+		opacity: 0.7;
+	}
+
+	.time.svelte-1wdmrcy {
+		width: 3em;
+	}
+
+	.time.svelte-1wdmrcy:last-child { text-align: right }
+
+	progress.svelte-1wdmrcy {
+		display: block;
+		width: 100%;
+		height: 10px;
+		-webkit-appearance: none;
+		appearance: none;
+	}
+
+	progress.svelte-1wdmrcy::-webkit-progress-bar {
+		background-color: rgba(0,0,0,0.2);
+	}
+
+	progress.svelte-1wdmrcy::-webkit-progress-value {
+		background-color: rgba(255,255,255,0.6);
+	}
+
+	video.svelte-1wdmrcy {
+		width: 100%;
+	}

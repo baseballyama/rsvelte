@@ -1,0 +1,212 @@
+[
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<div>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 5,
+			"column": 0,
+			"character": 45
+		},
+		"end": {
+			"line": 5,
+			"column": 27,
+			"character": 72
+		}
+	},
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a click handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 5,
+			"column": 0,
+			"character": 45
+		},
+		"end": {
+			"line": 5,
+			"column": 27,
+			"character": 72
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 5,
+			"column": 0,
+			"character": 45
+		},
+		"end": {
+			"line": 5,
+			"column": 27,
+			"character": 72
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 50
+		},
+		"end": {
+			"line": 5,
+			"column": 24,
+			"character": 69
+		}
+	},
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<div>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 6,
+			"column": 0,
+			"character": 73
+		},
+		"end": {
+			"line": 6,
+			"column": 47,
+			"character": 120
+		}
+	},
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a click handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 6,
+			"column": 0,
+			"character": 73
+		},
+		"end": {
+			"line": 6,
+			"column": 47,
+			"character": 120
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 6,
+			"column": 0,
+			"character": 73
+		},
+		"end": {
+			"line": 6,
+			"column": 47,
+			"character": 120
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 78
+		},
+		"end": {
+			"line": 6,
+			"column": 24,
+			"character": 97
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 6,
+			"column": 25,
+			"character": 98
+		},
+		"end": {
+			"line": 6,
+			"column": 44,
+			"character": 117
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 11,
+			"column": 0,
+			"character": 253
+		},
+		"end": {
+			"line": 11,
+			"column": 25,
+			"character": 278
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:wat` to listen to the wat event is deprecated. Use the event attribute `onwat` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 11,
+			"column": 5,
+			"character": 258
+		},
+		"end": {
+			"line": 11,
+			"column": 22,
+			"character": 275
+		}
+	},
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<div>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 12,
+			"column": 0,
+			"character": 279
+		},
+		"end": {
+			"line": 12,
+			"column": 29,
+			"character": 308
+		}
+	},
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a click handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 12,
+			"column": 0,
+			"character": 279
+		},
+		"end": {
+			"line": 12,
+			"column": 29,
+			"character": 308
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 12,
+			"column": 0,
+			"character": 279
+		},
+		"end": {
+			"line": 12,
+			"column": 29,
+			"character": 308
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 12,
+			"column": 5,
+			"character": 284
+		},
+		"end": {
+			"line": 12,
+			"column": 26,
+			"character": 305
+		}
+	}
+]

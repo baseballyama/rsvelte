@@ -1,0 +1,4 @@
+
+	.div-class.svelte-s9o84k + .span-class:where(.svelte-s9o84k) {
+		color: red;
+	}

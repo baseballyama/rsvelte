@@ -1,0 +1,30 @@
+[
+	{
+		"code": "attribute_illegal_colon",
+		"message": "Attributes should not contain ':' characters to prevent ambiguity with Svelte directives\nhttps://svelte.dev/e/attribute_illegal_colon",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 60
+		},
+		"end": {
+			"line": 5,
+			"column": 18,
+			"character": 73
+		}
+	},
+	{
+		"code": "attribute_illegal_colon",
+		"message": "Attributes should not contain ':' characters to prevent ambiguity with Svelte directives\nhttps://svelte.dev/e/attribute_illegal_colon",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 86
+		},
+		"end": {
+			"line": 6,
+			"column": 12,
+			"character": 93
+		}
+	}
+]

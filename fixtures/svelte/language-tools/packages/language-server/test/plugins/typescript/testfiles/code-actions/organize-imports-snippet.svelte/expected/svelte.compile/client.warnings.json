@@ -1,0 +1,16 @@
+[
+	{
+		"code": "block_empty",
+		"message": "Empty block\nhttps://svelte.dev/e/block_empty",
+		"start": {
+			"line": 8,
+			"column": 16,
+			"character": 124
+		},
+		"end": {
+			"line": 9,
+			"column": 0,
+			"character": 125
+		}
+	}
+]

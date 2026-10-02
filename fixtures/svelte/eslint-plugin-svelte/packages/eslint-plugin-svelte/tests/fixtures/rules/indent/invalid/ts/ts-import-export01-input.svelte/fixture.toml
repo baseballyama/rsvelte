@@ -1,0 +1,2 @@
+[skip]
+"svelte.compile" = "svelte 5.57.1 emits an import declaration that is not at the top level, which does not parse"

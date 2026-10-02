@@ -1,0 +1,44 @@
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 2,
+			"column": 4,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"column": 32,
+			"character": 60
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 4,
+			"column": 4,
+			"character": 78
+		},
+		"end": {
+			"line": 4,
+			"column": 43,
+			"character": 117
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 7,
+			"column": 4,
+			"character": 160
+		},
+		"end": {
+			"line": 7,
+			"column": 42,
+			"character": 198
+		}
+	}
+]

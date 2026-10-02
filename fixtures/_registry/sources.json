@@ -968,5 +968,35 @@
 		"commit": null,
 		"checkout": "compatibility/pattern-corpus",
 		"excluded": "rsvelte pattern corpus: some repros are reductions of copyleft projects"
+	},
+	{
+		"id": "svelte-eslint-parser",
+		"url": "https://github.com/sveltejs/svelte-eslint-parser.git",
+		"commit": "161ffc72dc27b50ac5742a29b1aaa3ad75943dac",
+		"checkout": "submodules/svelte-eslint-parser",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "eslint-plugin-svelte",
+		"url": "https://github.com/sveltejs/eslint-plugin-svelte.git",
+		"commit": "c949c1b70fa6686f76af71bd92f072797ecf4668",
+		"checkout": "submodules/eslint-plugin-svelte",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
+		"id": "language-tools",
+		"url": "https://github.com/sveltejs/language-tools.git",
+		"commit": "bf2993e192ab210e6691695b648be178b9ae4765",
+		"checkout": "submodules/language-tools",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
 	}
 ]

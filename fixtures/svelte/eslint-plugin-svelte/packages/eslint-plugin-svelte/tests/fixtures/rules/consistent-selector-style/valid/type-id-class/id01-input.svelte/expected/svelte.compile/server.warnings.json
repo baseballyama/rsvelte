@@ -1,0 +1,44 @@
+[
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 3,
+			"column": 0,
+			"character": 28
+		},
+		"end": {
+			"line": 3,
+			"column": 20,
+			"character": 48
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"#link + #bold\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 22,
+			"column": 2,
+			"character": 215
+		},
+		"end": {
+			"line": 22,
+			"column": 15,
+			"character": 228
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"#bold[data-key=\"val\"]\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 26,
+			"column": 2,
+			"character": 254
+		},
+		"end": {
+			"line": 26,
+			"column": 23,
+			"character": 275
+		}
+	}
+]

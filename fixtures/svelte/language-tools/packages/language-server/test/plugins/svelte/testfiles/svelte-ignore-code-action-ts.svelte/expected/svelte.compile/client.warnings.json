@@ -1,0 +1,58 @@
+[
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 8,
+			"column": 0,
+			"character": 104
+		},
+		"end": {
+			"line": 8,
+			"column": 5,
+			"character": 109
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 11,
+			"column": 4,
+			"character": 126
+		},
+		"end": {
+			"line": 11,
+			"column": 11,
+			"character": 133
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 11,
+			"column": 4,
+			"character": 126
+		},
+		"end": {
+			"line": 11,
+			"column": 11,
+			"character": 133
+		}
+	},
+	{
+		"code": "a11y_invalid_attribute",
+		"message": "'' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
+		"start": {
+			"line": 14,
+			"column": 8,
+			"character": 150
+		},
+		"end": {
+			"line": 14,
+			"column": 15,
+			"character": 157
+		}
+	}
+]

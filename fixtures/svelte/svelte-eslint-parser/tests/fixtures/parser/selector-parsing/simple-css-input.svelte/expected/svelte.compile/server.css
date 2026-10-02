@@ -1,0 +1,16 @@
+
+  .myClass.svelte-1e4qekv {
+    color: red;
+  }
+
+  b.svelte-1e4qekv {
+    font-size: xx-large;
+  }
+
+  /* (unused) a:active,
+  a::before,
+  b + a,
+  b + .myClass,
+  a[data-key="value"] {
+    color: blue;
+  }*/

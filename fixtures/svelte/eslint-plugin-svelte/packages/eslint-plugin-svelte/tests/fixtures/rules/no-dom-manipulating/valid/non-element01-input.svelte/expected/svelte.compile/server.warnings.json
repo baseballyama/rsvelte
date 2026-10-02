@@ -1,0 +1,30 @@
+[
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 13,
+			"column": 0,
+			"character": 197
+		},
+		"end": {
+			"line": 13,
+			"column": 75,
+			"character": 272
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 15,
+			"column": 8,
+			"character": 282
+		},
+		"end": {
+			"line": 15,
+			"column": 33,
+			"character": 307
+		}
+	}
+]

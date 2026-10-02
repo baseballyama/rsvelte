@@ -1,0 +1,44 @@
+[
+	{
+		"code": "a11y_no_noninteractive_tabindex",
+		"message": "noninteractive element cannot have nonnegative tabIndex value\nhttps://svelte.dev/e/a11y_no_noninteractive_tabindex",
+		"start": {
+			"line": 6,
+			"column": 2,
+			"character": 124
+		},
+		"end": {
+			"line": 6,
+			"column": 35,
+			"character": 157
+		}
+	},
+	{
+		"code": "a11y_label_has_associated_control",
+		"message": "A form label must be associated with a control\nhttps://svelte.dev/e/a11y_label_has_associated_control",
+		"start": {
+			"line": 6,
+			"column": 2,
+			"character": 124
+		},
+		"end": {
+			"line": 6,
+			"column": 35,
+			"character": 157
+		}
+	},
+	{
+		"code": "a11y_no_noninteractive_tabindex",
+		"message": "noninteractive element cannot have nonnegative tabIndex value\nhttps://svelte.dev/e/a11y_no_noninteractive_tabindex",
+		"start": {
+			"line": 7,
+			"column": 2,
+			"character": 160
+		},
+		"end": {
+			"line": 7,
+			"column": 24,
+			"character": 182
+		}
+	}
+]

@@ -1,0 +1,100 @@
+[
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 7,
+			"column": 0,
+			"character": 97
+		},
+		"end": {
+			"line": 7,
+			"column": 16,
+			"character": 113
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 9,
+			"column": 0,
+			"character": 115
+		},
+		"end": {
+			"line": 9,
+			"column": 48,
+			"character": 163
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 11,
+			"column": 0,
+			"character": 165
+		},
+		"end": {
+			"line": 11,
+			"column": 48,
+			"character": 213
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 13,
+			"column": 0,
+			"character": 215
+		},
+		"end": {
+			"line": 13,
+			"column": 50,
+			"character": 265
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 15,
+			"column": 0,
+			"character": 267
+		},
+		"end": {
+			"line": 15,
+			"column": 50,
+			"character": 317
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 18,
+			"column": 0,
+			"character": 320
+		},
+		"end": {
+			"line": 18,
+			"column": 37,
+			"character": 357
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 20,
+			"column": 0,
+			"character": 359
+		},
+		"end": {
+			"line": 20,
+			"column": 37,
+			"character": 396
+		}
+	}
+]

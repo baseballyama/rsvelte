@@ -1,0 +1,58 @@
+[
+	{
+		"code": "a11y_label_has_associated_control",
+		"message": "A form label must be associated with a control\nhttps://svelte.dev/e/a11y_label_has_associated_control",
+		"start": {
+			"line": 2,
+			"column": 4,
+			"character": 11
+		},
+		"end": {
+			"line": 7,
+			"column": 12,
+			"character": 257
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<span ...></span>` rather than `<span ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 4,
+			"column": 12,
+			"character": 142
+		},
+		"end": {
+			"line": 4,
+			"column": 48,
+			"character": 178
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<span ...></span>` rather than `<span ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 5,
+			"column": 12,
+			"character": 191
+		},
+		"end": {
+			"line": 5,
+			"column": 38,
+			"character": 217
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 8,
+			"column": 4,
+			"character": 262
+		},
+		"end": {
+			"line": 8,
+			"column": 18,
+			"character": 276
+		}
+	}
+]

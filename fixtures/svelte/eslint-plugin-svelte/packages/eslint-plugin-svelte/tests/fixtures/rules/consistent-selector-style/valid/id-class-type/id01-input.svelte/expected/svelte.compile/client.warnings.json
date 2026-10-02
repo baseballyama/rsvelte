@@ -1,0 +1,16 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"#bold[data-key=\"val\"]\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 24,
+			"column": 2,
+			"character": 232
+		},
+		"end": {
+			"line": 24,
+			"column": 23,
+			"character": 253
+		}
+	}
+]

@@ -1,0 +1,11 @@
+
+  .container.svelte-rngv97 {
+    .div-class:where(.svelte-rngv97) {
+      // This is an inline comment
+      color: red;
+    }
+
+    .span-class:where(.svelte-rngv97) {
+      font-weight: bold;
+    }
+  }

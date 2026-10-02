@@ -1,0 +1,72 @@
+[
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 1,
+			"column": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 1,
+			"column": 29,
+			"character": 29
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 3,
+			"column": 0,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"column": 20,
+			"character": 51
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".link + .bold\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 15,
+			"column": 2,
+			"character": 170
+		},
+		"end": {
+			"line": 15,
+			"column": 15,
+			"character": 183
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".bold[data-key=\"val\"]\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 16,
+			"column": 2,
+			"character": 187
+		},
+		"end": {
+			"line": 16,
+			"column": 23,
+			"character": 208
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".bold + i\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 20,
+			"column": 2,
+			"character": 246
+		},
+		"end": {
+			"line": 20,
+			"column": 11,
+			"character": 255
+		}
+	}
+]

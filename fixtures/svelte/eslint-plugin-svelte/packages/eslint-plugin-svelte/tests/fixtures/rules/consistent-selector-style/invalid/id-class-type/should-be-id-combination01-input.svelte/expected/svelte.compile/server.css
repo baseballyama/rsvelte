@@ -1,0 +1,11 @@
+
+  .link.svelte-1juj17v,
+  .bold.svelte-1juj17v,
+  .link.svelte-1juj17v:active /* (unused) .link + .bold,
+  .bold[data-key="val"]*/,
+  .bold.svelte-1juj17v::before,
+  i.svelte-1juj17v,
+  i.svelte-1juj17v:active /* (unused) .bold + i*/,
+  i.svelte-1juj17v::before {
+    color: red;
+  }

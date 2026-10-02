@@ -1,0 +1,11 @@
+
+	div.svelte-12pir8e {
+		padding: 1em;
+		margin: 0 0 1em 0;
+		background-color: #eee;
+	}
+
+	.active.svelte-12pir8e {
+		background-color: #ff3e00;
+		color: white;
+	}

@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 4,
+			"column": 0,
+			"character": 110
+		},
+		"end": {
+			"line": 4,
+			"column": 35,
+			"character": 145
+		}
+	},
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 5,
+			"column": 11,
+			"character": 234
+		},
+		"end": {
+			"line": 5,
+			"column": 28,
+			"character": 251
+		}
+	}
+]

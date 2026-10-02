@@ -1,0 +1,16 @@
+[
+	{
+		"code": "script_unknown_attribute",
+		"message": "Unrecognised attribute — should be one of `generics`, `lang` or `module`. If this exists for a preprocessor, ensure that the preprocessor removes it\nhttps://svelte.dev/e/script_unknown_attribute",
+		"start": {
+			"line": 1,
+			"column": 18,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"column": 30,
+			"character": 30
+		}
+	}
+]

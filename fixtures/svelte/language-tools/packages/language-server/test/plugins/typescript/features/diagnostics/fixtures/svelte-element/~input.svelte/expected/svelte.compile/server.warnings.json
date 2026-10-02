@@ -1,0 +1,58 @@
+[
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<svelte:element>` with a click handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 19,
+			"column": 0,
+			"character": 417
+		},
+		"end": {
+			"line": 19,
+			"column": 73,
+			"character": 490
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 19,
+			"column": 50,
+			"character": 467
+		},
+		"end": {
+			"line": 19,
+			"column": 70,
+			"character": 487
+		}
+	},
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<svelte:element>` with a click handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 20,
+			"column": 0,
+			"character": 491
+		},
+		"end": {
+			"line": 20,
+			"column": 92,
+			"character": 583
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 20,
+			"column": 58,
+			"character": 549
+		},
+		"end": {
+			"line": 20,
+			"column": 89,
+			"character": 580
+		}
+	}
+]

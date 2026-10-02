@@ -1,0 +1,142 @@
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 7,
+			"column": 2,
+			"character": 86
+		},
+		"end": {
+			"line": 7,
+			"column": 17,
+			"character": 101
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 8,
+			"column": 2,
+			"character": 104
+		},
+		"end": {
+			"line": 8,
+			"column": 25,
+			"character": 127
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 9,
+			"column": 2,
+			"character": 130
+		},
+		"end": {
+			"line": 9,
+			"column": 17,
+			"character": 145
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 10,
+			"column": 2,
+			"character": 148
+		},
+		"end": {
+			"line": 10,
+			"column": 25,
+			"character": 171
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 11,
+			"column": 2,
+			"character": 174
+		},
+		"end": {
+			"line": 11,
+			"column": 17,
+			"character": 189
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 14,
+			"column": 2,
+			"character": 215
+		},
+		"end": {
+			"line": 14,
+			"column": 25,
+			"character": 238
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 15,
+			"column": 2,
+			"character": 241
+		},
+		"end": {
+			"line": 15,
+			"column": 17,
+			"character": 256
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 16,
+			"column": 2,
+			"character": 259
+		},
+		"end": {
+			"line": 16,
+			"column": 25,
+			"character": 282
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 17,
+			"column": 2,
+			"character": 285
+		},
+		"end": {
+			"line": 17,
+			"column": 17,
+			"character": 300
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 18,
+			"column": 2,
+			"character": 303
+		},
+		"end": {
+			"line": 18,
+			"column": 25,
+			"character": 326
+		}
+	}
+]

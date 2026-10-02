@@ -1,0 +1,12 @@
+
+	.photos.svelte-1cah974 {
+		width: 100%;
+		display: grid;
+		grid-template-columns: repeat(5, 1fr);
+		grid-gap: 8px;
+	}
+
+	figure.svelte-1cah974, img.svelte-1cah974 {
+		width: 100%;
+		margin: 0;
+	}

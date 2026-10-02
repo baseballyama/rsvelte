@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_autofocus",
+		"message": "Avoid using autofocus\nhttps://svelte.dev/e/a11y_autofocus",
+		"start": {
+			"line": 5,
+			"column": 11,
+			"character": 64
+		},
+		"end": {
+			"line": 5,
+			"column": 20,
+			"character": 73
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 5,
+			"column": 0,
+			"character": 53
+		},
+		"end": {
+			"line": 5,
+			"column": 23,
+			"character": 76
+		}
+	}
+]

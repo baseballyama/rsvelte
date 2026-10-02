@@ -1,0 +1,86 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:introstart` to listen to the introstart event is deprecated. Use the event attribute `onintrostart` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 18,
+			"column": 2,
+			"character": 280
+		},
+		"end": {
+			"line": 18,
+			"column": 50,
+			"character": 328
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:outrostart` to listen to the outrostart event is deprecated. Use the event attribute `onoutrostart` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 19,
+			"column": 2,
+			"character": 331
+		},
+		"end": {
+			"line": 19,
+			"column": 50,
+			"character": 379
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:introend` to listen to the introend event is deprecated. Use the event attribute `onintroend` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 20,
+			"column": 2,
+			"character": 382
+		},
+		"end": {
+			"line": 20,
+			"column": 46,
+			"character": 426
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:outroend` to listen to the outroend event is deprecated. Use the event attribute `onoutroend` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 21,
+			"column": 2,
+			"character": 429
+		},
+		"end": {
+			"line": 21,
+			"column": 46,
+			"character": 473
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`visible` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 57
+		},
+		"end": {
+			"line": 4,
+			"column": 12,
+			"character": 64
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`status` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 78
+		},
+		"end": {
+			"line": 5,
+			"column": 11,
+			"character": 84
+		}
+	}
+]

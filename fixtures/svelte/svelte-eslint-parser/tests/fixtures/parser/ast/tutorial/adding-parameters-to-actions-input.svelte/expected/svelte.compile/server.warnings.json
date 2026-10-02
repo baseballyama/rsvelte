@@ -1,0 +1,58 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:longpress` to listen to the longpress event is deprecated. Use the event attribute `onlongpress` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 14,
+			"column": 1,
+			"character": 240
+		},
+		"end": {
+			"line": 14,
+			"column": 38,
+			"character": 277
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:mouseenter` to listen to the mouseenter event is deprecated. Use the event attribute `onmouseenter` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 15,
+			"column": 1,
+			"character": 279
+		},
+		"end": {
+			"line": 15,
+			"column": 40,
+			"character": 318
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`pressed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 60
+		},
+		"end": {
+			"line": 4,
+			"column": 12,
+			"character": 67
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`duration` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 82
+		},
+		"end": {
+			"line": 5,
+			"column": 13,
+			"character": 90
+		}
+	}
+]

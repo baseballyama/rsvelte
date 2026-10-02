@@ -1,0 +1,16 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:focus` to listen to the focus event is deprecated. Use the event attribute `onfocus` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 8,
+			"column": 7,
+			"character": 160
+		},
+		"end": {
+			"line": 8,
+			"column": 15,
+			"character": 168
+		}
+	}
+]

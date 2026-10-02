@@ -1,0 +1,146 @@
+
+  a {
+    color: red;
+  }
+
+  b {
+    color: red;
+  }
+
+  a:active {
+    color: red;
+  }
+
+  a + b {
+    color: red;
+  }
+
+  b[data-key="val"] {
+    color: red;
+  }
+
+  b::before {
+    color: red;
+  }
+
+  #link {
+    color: red;
+  }
+
+  #bold {
+    color: red;
+  }
+
+  #link:active {
+    color: red;
+  }
+
+  #link + #bold {
+    color: red;
+  }
+
+  #bold[data-key="val"] {
+    color: red;
+  }
+
+  #bold::before {
+    color: red;
+  }
+
+  .link {
+    color: red;
+  }
+
+  .bold {
+    color: red;
+  }
+
+  .link:active {
+    color: red;
+  }
+
+  .link + .bold {
+    color: red;
+  }
+
+  .bold[data-key="val"] {
+    color: red;
+  }
+
+  .bold::before {
+    color: red;
+  }
+
+  /* :global {*/
+    a {
+      color: red;
+    }
+
+    b {
+      color: red;
+    }
+
+    a:active {
+      color: red;
+    }
+
+    a + b {
+      color: red;
+    }
+
+    b[data-key="val"] {
+      color: red;
+    }
+
+    b::before {
+      color: red;
+    }
+
+    #link {
+      color: red;
+    }
+
+    #bold {
+      color: red;
+    }
+
+    #link:active {
+      color: red;
+    }
+
+    #link + #bold {
+      color: red;
+    }
+
+    #bold[data-key="val"] {
+      color: red;
+    }
+
+    #bold::before {
+      color: red;
+    }
+
+    .link {
+      color: red;
+    }
+
+    .bold {
+      color: red;
+    }
+
+    .link:active {
+      color: red;
+    }
+
+    .link + .bold {
+      color: red;
+    }
+
+    .bold[data-key="val"] {
+      color: red;
+    }
+
+    .bold::before {
+      color: red;
+    }
+  /*}*/

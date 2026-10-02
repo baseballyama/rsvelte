@@ -1,0 +1,6 @@
+
+div.svelte-1ve119u {
+    & div:where(.svelte-1ve119u) {
+        color: red;
+    }
+}

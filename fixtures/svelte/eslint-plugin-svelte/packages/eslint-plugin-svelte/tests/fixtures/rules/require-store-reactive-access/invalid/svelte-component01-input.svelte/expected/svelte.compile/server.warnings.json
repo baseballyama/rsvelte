@@ -1,0 +1,72 @@
+[
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 8,
+			"column": 0,
+			"character": 183
+		},
+		"end": {
+			"line": 8,
+			"column": 58,
+			"character": 241
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 9,
+			"column": 0,
+			"character": 242
+		},
+		"end": {
+			"line": 9,
+			"column": 55,
+			"character": 297
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 10,
+			"column": 0,
+			"character": 298
+		},
+		"end": {
+			"line": 10,
+			"column": 60,
+			"character": 358
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 11,
+			"column": 0,
+			"character": 359
+		},
+		"end": {
+			"line": 11,
+			"column": 48,
+			"character": 407
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`store` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 105
+		},
+		"end": {
+			"line": 4,
+			"column": 10,
+			"character": 110
+		}
+	}
+]

@@ -1,0 +1,86 @@
+[
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 13,
+			"column": 0,
+			"character": 308
+		},
+		"end": {
+			"line": 13,
+			"column": 33,
+			"character": 341
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 14,
+			"column": 0,
+			"character": 342
+		},
+		"end": {
+			"line": 16,
+			"column": 19,
+			"character": 482
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 17,
+			"column": 0,
+			"character": 483
+		},
+		"end": {
+			"line": 17,
+			"column": 34,
+			"character": 517
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 22,
+			"column": 0,
+			"character": 587
+		},
+		"end": {
+			"line": 22,
+			"column": 38,
+			"character": 625
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 28,
+			"column": 0,
+			"character": 789
+		},
+		"end": {
+			"line": 30,
+			"column": 19,
+			"character": 893
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 34,
+			"column": 0,
+			"character": 943
+		},
+		"end": {
+			"line": 34,
+			"column": 44,
+			"character": 987
+		}
+	}
+]

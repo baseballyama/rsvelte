@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 4,
+			"column": 1,
+			"character": 52
+		},
+		"end": {
+			"line": 4,
+			"column": 8,
+			"character": 59
+		}
+	},
+	{
+		"code": "svelte_self_deprecated",
+		"message": "`<svelte:self>` is deprecated — use self-imports (e.g. `import Test01_input from './test01-input.svelte'`) instead\nhttps://svelte.dev/e/svelte_self_deprecated",
+		"start": {
+			"line": 8,
+			"column": 2,
+			"character": 123
+		},
+		"end": {
+			"line": 8,
+			"column": 17,
+			"character": 138
+		}
+	}
+]

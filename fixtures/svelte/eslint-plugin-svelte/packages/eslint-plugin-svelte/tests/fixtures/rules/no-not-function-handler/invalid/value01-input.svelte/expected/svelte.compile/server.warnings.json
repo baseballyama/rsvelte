@@ -1,0 +1,128 @@
+[
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 7,
+			"column": 0,
+			"character": 69
+		},
+		"end": {
+			"line": 7,
+			"column": 23,
+			"character": 92
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<button ...></button>` rather than `<button ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 7,
+			"column": 0,
+			"character": 69
+		},
+		"end": {
+			"line": 7,
+			"column": 23,
+			"character": 92
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 7,
+			"column": 8,
+			"character": 77
+		},
+		"end": {
+			"line": 7,
+			"column": 20,
+			"character": 89
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 8,
+			"column": 0,
+			"character": 93
+		},
+		"end": {
+			"line": 8,
+			"column": 23,
+			"character": 116
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<button ...></button>` rather than `<button ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 8,
+			"column": 0,
+			"character": 93
+		},
+		"end": {
+			"line": 8,
+			"column": 23,
+			"character": 116
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 8,
+			"column": 8,
+			"character": 101
+		},
+		"end": {
+			"line": 8,
+			"column": 20,
+			"character": 113
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 9,
+			"column": 0,
+			"character": 117
+		},
+		"end": {
+			"line": 9,
+			"column": 23,
+			"character": 140
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<button ...></button>` rather than `<button ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 9,
+			"column": 0,
+			"character": 117
+		},
+		"end": {
+			"line": 9,
+			"column": 23,
+			"character": 140
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 9,
+			"column": 8,
+			"character": 125
+		},
+		"end": {
+			"line": 9,
+			"column": 20,
+			"character": 137
+		}
+	}
+]

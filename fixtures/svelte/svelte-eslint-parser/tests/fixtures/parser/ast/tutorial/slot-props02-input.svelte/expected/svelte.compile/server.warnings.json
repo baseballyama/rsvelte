@@ -1,0 +1,72 @@
+[
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a mouseenter or mouseleave handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 13,
+			"column": 0,
+			"character": 122
+		},
+		"end": {
+			"line": 15,
+			"column": 6,
+			"character": 213
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:mouseenter` to listen to the mouseenter event is deprecated. Use the event attribute `onmouseenter` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 13,
+			"column": 5,
+			"character": 127
+		},
+		"end": {
+			"line": 13,
+			"column": 26,
+			"character": 148
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:mouseleave` to listen to the mouseleave event is deprecated. Use the event attribute `onmouseleave` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 13,
+			"column": 27,
+			"character": 149
+		},
+		"end": {
+			"line": 13,
+			"column": 48,
+			"character": 170
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 14,
+			"column": 1,
+			"character": 173
+		},
+		"end": {
+			"line": 14,
+			"column": 34,
+			"character": 206
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`hovering` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 2,
+			"column": 5,
+			"character": 14
+		},
+		"end": {
+			"line": 2,
+			"column": 13,
+			"character": 22
+		}
+	}
+]

@@ -1,0 +1,32 @@
+
+  .link.svelte-3b4sig {
+    color: red;
+  }
+
+  .bold.svelte-3b4sig {
+    color: red;
+  }
+
+  .link.svelte-3b4sig:active {
+    color: red;
+  }
+
+  /* (unused) .link + .bold {
+    color: red;
+  }*/
+
+  /* (unused) .bold[data-key="val"] {
+    color: red;
+  }*/
+
+  .bold.svelte-3b4sig::before {
+    color: red;
+  }
+
+  .unique.svelte-3b4sig {
+    color: red;
+  }
+
+  .conditional.svelte-3b4sig {
+    color: red;
+  }

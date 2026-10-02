@@ -1,0 +1,72 @@
+[
+	{
+		"code": "a11y_distracting_elements",
+		"message": "Avoid `<marquee>` elements\nhttps://svelte.dev/e/a11y_distracting_elements",
+		"start": {
+			"line": 8,
+			"column": 0,
+			"character": 170
+		},
+		"end": {
+			"line": 8,
+			"column": 59,
+			"character": 229
+		}
+	},
+	{
+		"code": "a11y_distracting_elements",
+		"message": "Avoid `<marquee>` elements\nhttps://svelte.dev/e/a11y_distracting_elements",
+		"start": {
+			"line": 10,
+			"column": 0,
+			"character": 231
+		},
+		"end": {
+			"line": 10,
+			"column": 74,
+			"character": 305
+		}
+	},
+	{
+		"code": "a11y_distracting_elements",
+		"message": "Avoid `<marquee>` elements\nhttps://svelte.dev/e/a11y_distracting_elements",
+		"start": {
+			"line": 12,
+			"column": 0,
+			"character": 307
+		},
+		"end": {
+			"line": 14,
+			"column": 10,
+			"character": 476
+		}
+	},
+	{
+		"code": "a11y_distracting_elements",
+		"message": "Avoid `<marquee>` elements\nhttps://svelte.dev/e/a11y_distracting_elements",
+		"start": {
+			"line": 13,
+			"column": 1,
+			"character": 402
+		},
+		"end": {
+			"line": 13,
+			"column": 64,
+			"character": 465
+		}
+	},
+	{
+		"code": "a11y_distracting_elements",
+		"message": "Avoid `<marquee>` elements\nhttps://svelte.dev/e/a11y_distracting_elements",
+		"start": {
+			"line": 17,
+			"column": 1,
+			"character": 485
+		},
+		"end": {
+			"line": 17,
+			"column": 60,
+			"character": 544
+		}
+	}
+]

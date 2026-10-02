@@ -1,0 +1,58 @@
+[
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 8,
+			"column": 0,
+			"character": 183
+		},
+		"end": {
+			"line": 8,
+			"column": 60,
+			"character": 243
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 9,
+			"column": 0,
+			"character": 244
+		},
+		"end": {
+			"line": 9,
+			"column": 57,
+			"character": 301
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 10,
+			"column": 0,
+			"character": 302
+		},
+		"end": {
+			"line": 10,
+			"column": 62,
+			"character": 364
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 11,
+			"column": 0,
+			"character": 365
+		},
+		"end": {
+			"line": 11,
+			"column": 50,
+			"character": 415
+		}
+	}
+]

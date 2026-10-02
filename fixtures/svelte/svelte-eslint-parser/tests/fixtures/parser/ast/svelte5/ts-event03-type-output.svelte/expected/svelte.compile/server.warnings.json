@@ -1,0 +1,30 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `onfoo`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 5,
+			"column": 4,
+			"character": 316
+		},
+		"end": {
+			"line": 5,
+			"column": 9,
+			"character": 321
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 8,
+			"column": 0,
+			"character": 374
+		},
+		"end": {
+			"line": 10,
+			"column": 13,
+			"character": 554
+		}
+	}
+]

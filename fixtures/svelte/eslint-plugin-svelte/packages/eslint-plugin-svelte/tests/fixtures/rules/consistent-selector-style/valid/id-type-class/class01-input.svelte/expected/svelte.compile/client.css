@@ -1,0 +1,28 @@
+
+  .link.svelte-18pnlon {
+    color: red;
+  }
+
+  .bold.svelte-18pnlon {
+    color: red;
+  }
+
+  .link.svelte-18pnlon:active {
+    color: red;
+  }
+
+  .link.svelte-18pnlon + .bold:where(.svelte-18pnlon) {
+    color: red;
+  }
+
+  /* (unused) .bold[data-key="val"] {
+    color: red;
+  }*/
+
+  .bold.svelte-18pnlon::before {
+    color: red;
+  }
+
+  .conditional.svelte-18pnlon {
+    color: red;
+  }

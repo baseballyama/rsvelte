@@ -1,0 +1,86 @@
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 60,
+			"column": 2,
+			"character": 1321
+		},
+		"end": {
+			"line": 60,
+			"column": 54,
+			"character": 1373
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:change` to listen to the change event is deprecated. Use the event attribute `onchange` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 71,
+			"column": 25,
+			"character": 1592
+		},
+		"end": {
+			"line": 71,
+			"column": 59,
+			"character": 1626
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 73,
+			"column": 12,
+			"character": 1663
+		},
+		"end": {
+			"line": 73,
+			"column": 43,
+			"character": 1694
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:change` to listen to the change event is deprecated. Use the event attribute `onchange` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 87,
+			"column": 33,
+			"character": 2001
+		},
+		"end": {
+			"line": 87,
+			"column": 68,
+			"character": 2036
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 89,
+			"column": 12,
+			"character": 2073
+		},
+		"end": {
+			"line": 89,
+			"column": 43,
+			"character": 2104
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`todos` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 26,
+			"column": 5,
+			"character": 529
+		},
+		"end": {
+			"line": 26,
+			"column": 10,
+			"character": 534
+		}
+	}
+]

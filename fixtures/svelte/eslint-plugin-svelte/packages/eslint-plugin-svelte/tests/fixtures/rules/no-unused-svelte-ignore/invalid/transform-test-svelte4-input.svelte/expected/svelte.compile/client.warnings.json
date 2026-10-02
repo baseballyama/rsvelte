@@ -1,0 +1,86 @@
+[
+	{
+		"code": "legacy_code",
+		"message": "`a11y-autofocus` is no longer valid — please use `a11y_autofocus` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 5,
+			"column": 19,
+			"character": 55
+		},
+		"end": {
+			"line": 5,
+			"column": 33,
+			"character": 69
+		}
+	},
+	{
+		"code": "a11y_autofocus",
+		"message": "Avoid using autofocus\nhttps://svelte.dev/e/a11y_autofocus",
+		"start": {
+			"line": 6,
+			"column": 39,
+			"character": 136
+		},
+		"end": {
+			"line": 6,
+			"column": 48,
+			"character": 145
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 6,
+			"column": 0,
+			"character": 97
+		},
+		"end": {
+			"line": 6,
+			"column": 51,
+			"character": 148
+		}
+	},
+	{
+		"code": "legacy_code",
+		"message": "`a11y-autofocus` is no longer valid — please use `a11y_autofocus` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 9,
+			"column": 19,
+			"character": 184
+		},
+		"end": {
+			"line": 9,
+			"column": 33,
+			"character": 198
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 13,
+			"column": 1,
+			"character": 298
+		},
+		"end": {
+			"line": 13,
+			"column": 20,
+			"character": 317
+		}
+	},
+	{
+		"code": "legacy_code",
+		"message": "`css-unused-selector` is no longer valid — please use `css_unused_selector` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 16,
+			"column": 15,
+			"character": 341
+		},
+		"end": {
+			"line": 16,
+			"column": 34,
+			"character": 360
+		}
+	}
+]

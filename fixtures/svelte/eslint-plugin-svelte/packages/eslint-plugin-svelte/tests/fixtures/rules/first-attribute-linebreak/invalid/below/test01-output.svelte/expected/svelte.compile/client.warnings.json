@@ -1,0 +1,86 @@
+[
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 9,
+			"column": 0,
+			"character": 117
+		},
+		"end": {
+			"line": 11,
+			"column": 21,
+			"character": 160
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<button ...></button>` rather than `<button ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 9,
+			"column": 0,
+			"character": 117
+		},
+		"end": {
+			"line": 11,
+			"column": 21,
+			"character": 160
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 11,
+			"column": 2,
+			"character": 141
+		},
+		"end": {
+			"line": 11,
+			"column": 18,
+			"character": 157
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 17,
+			"column": 0,
+			"character": 236
+		},
+		"end": {
+			"line": 20,
+			"column": 6,
+			"character": 273
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<button ...></button>` rather than `<button ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 17,
+			"column": 0,
+			"character": 236
+		},
+		"end": {
+			"line": 20,
+			"column": 6,
+			"character": 273
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 18,
+			"column": 2,
+			"character": 246
+		},
+		"end": {
+			"line": 20,
+			"column": 3,
+			"character": 270
+		}
+	}
+]

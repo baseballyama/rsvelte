@@ -1,0 +1,86 @@
+[
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 7,
+			"column": 0,
+			"character": 69
+		},
+		"end": {
+			"line": 7,
+			"column": 22,
+			"character": 91
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<button ...></button>` rather than `<button ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 7,
+			"column": 0,
+			"character": 69
+		},
+		"end": {
+			"line": 7,
+			"column": 22,
+			"character": 91
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 8,
+			"column": 0,
+			"character": 92
+		},
+		"end": {
+			"line": 8,
+			"column": 22,
+			"character": 114
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<button ...></button>` rather than `<button ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 8,
+			"column": 0,
+			"character": 92
+		},
+		"end": {
+			"line": 8,
+			"column": 22,
+			"character": 114
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 9,
+			"column": 0,
+			"character": 115
+		},
+		"end": {
+			"line": 9,
+			"column": 22,
+			"character": 137
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<button ...></button>` rather than `<button ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 9,
+			"column": 0,
+			"character": 115
+		},
+		"end": {
+			"line": 9,
+			"column": 22,
+			"character": 137
+		}
+	}
+]

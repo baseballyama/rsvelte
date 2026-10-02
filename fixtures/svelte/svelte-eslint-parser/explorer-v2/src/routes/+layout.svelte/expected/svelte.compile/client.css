@@ -1,0 +1,10 @@
+
+	.main.svelte-1sjlofm {
+		position: relative;
+		height: calc(100vh - 64px);
+	}
+	.main.svelte-1sjlofm > * {
+		position: relative;
+		width: 100%;
+		height: 100%;
+	}

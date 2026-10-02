@@ -1,0 +1,24 @@
+
+  .link.svelte-5ez9c {
+    color: red;
+  }
+
+  .bold.svelte-5ez9c {
+    color: red;
+  }
+
+  .link.svelte-5ez9c:active {
+    color: red;
+  }
+
+  .link.svelte-5ez9c + .bold:where(.svelte-5ez9c) {
+    color: red;
+  }
+
+  .bold[data-key="val"].svelte-5ez9c {
+    color: red;
+  }
+
+  .bold.svelte-5ez9c::before {
+    color: red;
+  }

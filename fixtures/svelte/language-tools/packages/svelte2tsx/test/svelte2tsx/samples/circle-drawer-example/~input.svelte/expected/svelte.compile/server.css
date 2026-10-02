@@ -1,0 +1,32 @@
+
+	.controls.svelte-cnhafb {
+		position: absolute;
+		width: 100%;
+		text-align: center;
+	}
+
+	svg.svelte-cnhafb {
+		background-color: #eee;
+		width: 100%;
+		height: 100%;
+	}
+
+	circle.svelte-cnhafb {
+		stroke: black;
+	}
+
+	.adjuster.svelte-cnhafb {
+		position: absolute;
+		width: 80%;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%,-50%);
+		padding: 1em;
+		text-align: center;
+		background-color: rgba(255,255,255,0.7);
+		border-radius: 4px;
+	}
+
+	input[type='range'].svelte-cnhafb {
+		width: 100%;
+	}

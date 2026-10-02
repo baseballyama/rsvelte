@@ -1,0 +1,7 @@
+
+	.svelte-1aw36bp:not(.div-class) {
+		color: red;
+	}
+	:is(.span-class-one.svelte-1aw36bp, .span-class-two.svelte-1aw36bp) {
+		color: red;
+	}

@@ -1,0 +1,44 @@
+[
+	{
+		"code": "unknown_code",
+		"message": "`static-state-reference` is not a recognised code\nhttps://svelte.dev/e/unknown_code",
+		"start": {
+			"line": 4,
+			"column": 18,
+			"character": 87
+		},
+		"end": {
+			"line": 4,
+			"column": 40,
+			"character": 109
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `count`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 5,
+			"column": 13,
+			"character": 123
+		},
+		"end": {
+			"line": 5,
+			"column": 18,
+			"character": 128
+		}
+	},
+	{
+		"code": "unknown_code",
+		"message": "`static-state-reference` is not a recognised code\nhttps://svelte.dev/e/unknown_code",
+		"start": {
+			"line": 7,
+			"column": 19,
+			"character": 174
+		},
+		"end": {
+			"line": 7,
+			"column": 41,
+			"character": 196
+		}
+	}
+]

@@ -1,0 +1,19 @@
+
+  .container.svelte-102kqh8 {
+    .div-class:where(.svelte-102kqh8) {
+      // This is an inline comment
+      color: red;
+    }
+
+    .span-class:where(.svelte-102kqh8) {
+      font-weight: bold;
+    }
+
+    /* (unused) a:active,
+    a::before,
+    b + a,
+    b + .myClass,
+    a[data-key="value"] {
+      color: blue;
+    }*/
+  }

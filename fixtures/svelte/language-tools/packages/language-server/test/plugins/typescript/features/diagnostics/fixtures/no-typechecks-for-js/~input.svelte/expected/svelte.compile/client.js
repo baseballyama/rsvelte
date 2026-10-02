@@ -1,0 +1,13 @@
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function Input($$anchor, $$props) {
+	$.push($$props, true);
+
+	function a() {
+		return null;
+	}
+
+	a().b;
+	$.pop();
+}

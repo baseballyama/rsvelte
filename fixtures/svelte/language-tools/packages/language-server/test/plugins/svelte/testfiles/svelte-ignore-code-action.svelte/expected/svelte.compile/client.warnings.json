@@ -1,0 +1,72 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `value`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 14,
+			"column": 9,
+			"character": 120
+		},
+		"end": {
+			"line": 14,
+			"column": 14,
+			"character": 125
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 1,
+			"column": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 1,
+			"column": 5,
+			"character": 5
+		}
+	},
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 4,
+			"column": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"column": 11,
+			"character": 29
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 4,
+			"column": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"column": 11,
+			"character": 29
+		}
+	},
+	{
+		"code": "a11y_invalid_attribute",
+		"message": "'' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute",
+		"start": {
+			"line": 7,
+			"column": 8,
+			"character": 46
+		},
+		"end": {
+			"line": 7,
+			"column": 15,
+			"character": 53
+		}
+	}
+]

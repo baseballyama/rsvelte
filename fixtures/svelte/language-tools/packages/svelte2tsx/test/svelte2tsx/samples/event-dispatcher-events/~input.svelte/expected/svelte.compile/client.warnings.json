@@ -1,0 +1,30 @@
+[
+	{
+		"code": "a11y_consider_explicit_label",
+		"message": "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label",
+		"start": {
+			"line": 15,
+			"column": 0,
+			"character": 267
+		},
+		"end": {
+			"line": 15,
+			"column": 54,
+			"character": 321
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 15,
+			"column": 8,
+			"character": 275
+		},
+		"end": {
+			"line": 15,
+			"column": 44,
+			"character": 311
+		}
+	}
+]

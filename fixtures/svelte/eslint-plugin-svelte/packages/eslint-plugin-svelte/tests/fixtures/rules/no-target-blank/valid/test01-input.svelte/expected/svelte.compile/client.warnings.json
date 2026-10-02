@@ -1,0 +1,44 @@
+[
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 5,
+			"column": 0,
+			"character": 36
+		},
+		"end": {
+			"line": 5,
+			"column": 11,
+			"character": 47
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 6,
+			"column": 0,
+			"character": 48
+		},
+		"end": {
+			"line": 6,
+			"column": 16,
+			"character": 64
+		}
+	},
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 7,
+			"column": 0,
+			"character": 65
+		},
+		"end": {
+			"line": 7,
+			"column": 18,
+			"character": 83
+		}
+	}
+]

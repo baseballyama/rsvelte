@@ -1,0 +1,16 @@
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"div :global(strong)\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 7,
+			"column": 1,
+			"character": 77
+		},
+		"end": {
+			"line": 7,
+			"column": 20,
+			"character": 96
+		}
+	}
+]

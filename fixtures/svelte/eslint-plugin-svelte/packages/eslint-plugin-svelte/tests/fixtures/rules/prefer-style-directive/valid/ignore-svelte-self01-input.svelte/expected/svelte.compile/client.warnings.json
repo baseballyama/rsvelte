@@ -1,0 +1,16 @@
+[
+	{
+		"code": "svelte_self_deprecated",
+		"message": "`<svelte:self>` is deprecated — use self-imports (e.g. `import Ignore_svelte_self01_input from './ignore-svelte-self01-input.svelte'`) instead\nhttps://svelte.dev/e/svelte_self_deprecated",
+		"start": {
+			"line": 7,
+			"column": 4,
+			"character": 74
+		},
+		"end": {
+			"line": 7,
+			"column": 41,
+			"character": 111
+		}
+	}
+]

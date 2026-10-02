@@ -1,0 +1,44 @@
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `props`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 14,
+			"column": 13,
+			"character": 219
+		},
+		"end": {
+			"line": 14,
+			"column": 18,
+			"character": 224
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `props`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 14,
+			"column": 23,
+			"character": 229
+		},
+		"end": {
+			"line": 14,
+			"column": 28,
+			"character": 234
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `props`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 14,
+			"column": 35,
+			"character": 241
+		},
+		"end": {
+			"line": 14,
+			"column": 40,
+			"character": 246
+		}
+	}
+]
