@@ -109,7 +109,7 @@
 	},
 	{
 		"code": 2339,
-		"message": "Property 'undefinedName' does not exist on type '{ $: ComponentInternalInstance; $data: {}; $props: {}; $attrs: Attrs; $refs: Data; $slots: Readonly<InternalSlots>; ... 12 more ...; items: { ...; }[]; }'.",
+		"message": "Property 'undefinedName' does not exist on type '{ $: ComponentInternalInstance; $data: {}; $props: {}; $attrs: Attrs; $refs: Data; $slots: Readonly<InternalSlots>; ... 12 more ...; items: ...; }'.",
 		"start": {
 			"line": 19,
 			"character": 28
