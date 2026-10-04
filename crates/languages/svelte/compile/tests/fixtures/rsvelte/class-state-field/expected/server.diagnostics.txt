@@ -1,0 +1,1 @@
+error unsupported 3:11-3:20 `$state` in a class body is not supported yet

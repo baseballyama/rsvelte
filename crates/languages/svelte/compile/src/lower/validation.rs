@@ -198,8 +198,9 @@ pub(super) fn check_stores(
     Ok(())
 }
 
-/// Refuses a rune call this port does not lower, and on the server an `$effect` that is not a
-/// statement of its own (upstream only drops it as an `ExpressionStatement`).
+/// Refuses a rune call this port does not lower, a state rune in a class body (class fields are
+/// not lowered yet), and on the server an `$effect` that is not a statement of its own (upstream
+/// only drops it as an `ExpressionStatement`).
 ///
 /// # Errors
 ///
@@ -217,11 +218,12 @@ pub(super) fn check_runes(
         custom_element: bool,
         e: NodeIdentifier,
         statement: bool,
+        in_class: bool,
     ) -> Result<(), Diagnostic> {
         if let Some(rune) = get_rune(javascript, res, e) {
             let supported = match rune.as_str() {
-                "$state" | "$state.raw" | "$derived" | "$derived.by" | "$props" | "$bindable"
-                | "$effect.pending" | "$effect.tracking" => true,
+                "$state" | "$state.raw" | "$derived" | "$derived.by" => !in_class,
+                "$props" | "$bindable" | "$effect.pending" | "$effect.tracking" => true,
                 "$host" => custom_element,
                 "$effect" | "$effect.pre" => statement || target == Target::Client,
                 _ => false,
@@ -230,25 +232,50 @@ pub(super) fn check_runes(
                 let Some(span) = javascript.source_location(e).span() else {
                     unreachable!("a rune call is parsed from source")
                 };
-                return unsupported(&format!("`{rune}`"), span);
+                return if in_class {
+                    unsupported(&format!("`{rune}` in a class body"), span)
+                } else {
+                    unsupported(&format!("`{rune}`"), span)
+                };
             }
         }
         let mut children = Vec::new();
         javascript.for_each_child(e, |c| children.push(c));
         let statement = matches!(javascript.kind(e), Kind::ExpressionStatement(_));
+        let in_class = in_class
+            || matches!(
+                javascript.kind(e),
+                Kind::Class(rsvelte_typescript::syntax_tree::Class::Definition { .. })
+            );
         for c in children {
-            walk(javascript, res, target, custom_element, c, statement)?;
+            walk(
+                javascript,
+                res,
+                target,
+                custom_element,
+                c,
+                statement,
+                in_class,
+            )?;
         }
         Ok(())
     }
-    walk(
-        input.component.javascript,
-        res,
-        target,
-        custom_element,
-        input.component.program,
-        false,
-    )?;
+    for program in input
+        .component
+        .module
+        .into_iter()
+        .chain([input.component.program])
+    {
+        walk(
+            input.component.javascript,
+            res,
+            target,
+            custom_element,
+            program,
+            false,
+            false,
+        )?;
+    }
     for &e in input.component.template_expressions {
         walk(
             input.component.javascript,
@@ -256,6 +283,7 @@ pub(super) fn check_runes(
             target,
             custom_element,
             e,
+            false,
             false,
         )?;
     }
