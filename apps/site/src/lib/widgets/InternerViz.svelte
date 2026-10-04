@@ -63,10 +63,9 @@
 			</div>
 			<div class="mt-4 font-mono text-[11px] tracking-normal text-muted">buf（ends の位置で区切って表示）</div>
 			<div class="mt-1 flex flex-wrap font-mono text-[12.5px] tracking-normal">
-				{#each replay.i.ends as end, id (id)}
-					{@const start = id === 0 ? 0 : replay.i.ends[id - 1]}
+				{#each replay.i.ends as _, id (id)}
 					<span class={['border-r border-line-strong px-1', last?.atom === id && 'bg-accent-wash']}>
-						<span class="mr-1 text-[10px] text-muted">{id}</span>{replay.i.buffer.slice(start, end)}
+						<span class="mr-1 text-[10px] text-muted">{id}</span>{replay.i.get(id)}
 					</span>
 				{/each}
 			</div>

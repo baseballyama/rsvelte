@@ -12,11 +12,12 @@ const out = path.resolve(import.meta.dirname, '../src/lib/data/emit');
 mkdirSync(out, { recursive: true });
 
 const rev = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-const dirty = execFileSync('git', ['-C', root, 'status', '--porcelain', '--', 'crates'], { encoding: 'utf8' }).trim();
+// Untracked files (test outputs) cannot change what cargo builds; tracked edits can.
+const dirty = execFileSync('git', ['-C', root, 'status', '--porcelain', '--untracked-files=no', '--', 'crates'], { encoding: 'utf8' }).trim();
 if (dirty) throw new Error(`crates/ has uncommitted changes; the data would name a revision it did not come from:\n${dirty}`);
 
 const samples = [
-	{ name: 'counter', fixture: 'fixtures/svelte/rsvelte/minimal/counter.svelte/input.svelte', file: 'Counter.svelte' }
+	{ name: 'counter', fixture: 'crates/languages/svelte/compile/tests/fixtures/rsvelte/counter/input.svelte', file: 'Counter.svelte' }
 ];
 const tmp = mkdtempSync(path.join(tmpdir(), 'rsvelte-site-'));
 for (const s of samples) {
@@ -25,7 +26,7 @@ for (const s of samples) {
 	for (const target of ['client', 'server']) {
 		const json = execFileSync(
 			'cargo',
-			['run', '-q', '--release', '-p', 'rsvelte_svelte', '--example', 'export_site_source_maps', '--', input, target],
+			['run', '-q', '--release', '-p', 'rsvelte_command_line', '--example', 'export_site_source_maps', '--', input, target],
 			{ cwd: root, encoding: 'utf8' }
 		);
 		const data = { ...JSON.parse(json), fixture: s.fixture, file: s.file, target, rev };

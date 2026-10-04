@@ -1,4 +1,4 @@
-// Port of `rsvelte_kernel::emit`: an output buffer that records where each piece came from, the
+// Port of `rsvelte_kernel::output::emitter`: an output buffer that records where each piece came from, the
 // greatest-lower-bound reverse lookup, and source map v3 encoding. Offsets are UTF-8 bytes as in
 // Rust; `out` is kept as a string, so every piece pushed must be ASCII (checked), which makes a
 // string index a byte offset and every character one byte.

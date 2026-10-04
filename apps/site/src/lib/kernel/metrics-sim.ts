@@ -1,4 +1,4 @@
-// The accounting of `metrics::phase` guards: on drop, a frame's total is added to its parent's child
+// The accounting of `measurement::phase` guards: on drop, a frame's total is added to its parent's child
 // totals, and the row records total minus children. Ported from `impl Drop for PhaseGuard`.
 
 export interface PhaseRow {

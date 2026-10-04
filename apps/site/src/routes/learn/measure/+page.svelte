@@ -309,7 +309,7 @@
 	</table>
 	<figcaption class="mt-2 text-[13px] leading-[1.7] text-muted">
 		metrics ありのビルドの 1 回目、プロセス全体を追跡したラウンド（{data.threads} スレッド）。最大 プロセスが使用する物理メモリ は {mb(data.maxRss)} メガバイト（全比較対象を含むプロセスの最高値）。基準値との比較検査の数（1
-		スレッド、最後のラウンド、4 タスクではなく 9 タスク）とは比べられません。
+		スレッド、最後のラウンド、タスクの数も違う）とは比べられません。
 	</figcaption>
 </figure>
 
@@ -372,6 +372,10 @@ cargo build --release -p rsvelte_command_line --features metrics
 	<p>
 		<code>rsvelte benchmark</code> のレポートの <code>build.rev</code> は、ビルドしたツリーの <code>git rev-parse HEAD</code> です（差分があれば
 		<code>-dirty</code> が付きます）。値を運べない欄は、0 ではなく <code>UNMEASURED</code> と書きます。
+	</p>
+	<p>
+		このサイトのベンチマークのデータ（<code>apps/site/src/lib/data/benchmark/</code>）は、古いビルド（d6f426e250）の出力です。欄の名前は、あとで書き換えてあります（e9c1458ade）。たとえば今のコマンドは
+		<code>allocs</code> と書きますが、データは <code>allocations</code> です。今のコマンドの出力は、そのままではサイトのデータになりません。
 	</p>
 </div>
 

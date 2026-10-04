@@ -38,7 +38,7 @@
 	const why: Record<string, string> = {
 		fits: '平らで収まる',
 		'does-not-fit': '収まらない',
-		broken: '強制的に改行（hardline を含む）',
+		broken: '強制的に改行（hardline、literal line、breakParent、改行すると決めた group を含む）',
 		'parent-flat': '親が平らなのでそのまま'
 	};
 </script>

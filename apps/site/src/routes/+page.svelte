@@ -196,10 +196,10 @@
 				<h2 id="one-kernel" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">カーネルは言語を知らない</h2>
 				<p class="mt-4 text-[16px] leading-[1.9] text-fg-2">
 					<code class="text-[14px]">rsvelte_kernel</code> が持つのは、位置、名前、一度だけ計算するキャッシュ、スケジューラ、診断、レイアウト、出力と位置の対応、計測です。Svelte について知っていることはひとつもありません。Svelte
-					は言語プラグインとして、計算結果・タスク・共通の呼び出し窓口の提供元を登録します。
+					は言語プラグインとして、中核の crate が計算結果を、コンパイル・整形・lint・型検査の crate がタスクと共通の呼び出し窓口の提供元を登録します。
 				</p>
 				<p class="mt-4 text-[14px] leading-[1.8] text-muted">
-					行数はビルド時に数えています。この図を描き直さなくても、コードが変われば数字も変わります。
+					行数はビルド時に数えています。この図を描き直さなくても、コードが変われば数字も変わります。図は主な crate の抜粋で、破線は図にない crate を通した間接の依存です。すべての crate の役割は「01 カーネルの全体像」の図 1.2 にあります。
 				</p>
 				<a href="/learn/kernel" class="mt-5 inline-flex items-center gap-1.5 text-[15px] font-medium text-accent hover:underline"
 					>01 カーネルの全体像<Icon name="arrow-right" size={14} /></a

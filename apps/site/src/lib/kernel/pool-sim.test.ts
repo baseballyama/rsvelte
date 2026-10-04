@@ -20,7 +20,7 @@ describe('pool model', () => {
 		expect(firstTakeOfDoc1.event.kind === 'take' && firstTakeOfDoc1.event.got).toBe(16);
 	});
 
-	it('frees a buffer that would take the pool past its budget, as MAX_BYTES does', () => {
+	it('frees a buffer that would take the pool past its budget, as MAXIMUM_BYTES does', () => {
 		const steps = simulate([100, 100], true, 200);
 		const gives = steps.filter((s) => s.event.kind === 'give').map((s) => s.event.kind === 'give' && s.event.why);
 		expect(gives).toContain('budget');

@@ -46,12 +46,41 @@ describe('source', () => {
 		expect(cells.map(([l, c]) => index.offset(l, c))).toEqual([null, null, null, 2, null, 9]);
 	});
 
+	it('does not count a CRLF terminator as part of the line (positions.rs test)', () => {
+		const index = new LineIndex('a\r\nb');
+		expect([index.offset(1, 1), index.offset(1, 2), index.offset(2, 0)]).toEqual([1, null, 3]);
+		expect(index.crlf).toEqual([0]);
+	});
+
+	it('keeps the CR of a lone CR and the columns of LF lines', () => {
+		const lf = new LineIndex('a\nb');
+		expect([lf.offset(1, 1), lf.offset(1, 2), lf.offset(2, 0)]).toEqual([1, null, 2]);
+		expect(lf.crlf).toEqual([]);
+		const cr = new LineIndex('a\rb\n');
+		expect([cr.offset(1, 2), cr.offset(1, 3), cr.offset(1, 4)]).toEqual([2, 3, null]);
+		expect(cr.crlf).toEqual([]);
+	});
+
 	it('keeps no wide table for ASCII', () => {
 		expect(new LineIndex('abc\ndef').wide).toEqual([]);
 	});
 });
 
 describe('interner', () => {
+	it('records ends as UTF-8 byte offsets, as Rust does', () => {
+		const i = new Interner();
+		for (const name of ['a', 'é', '名前', '😀']) i.intern(name);
+		expect(i.ends).toEqual([1, 3, 9, 13]);
+		expect([0, 1, 2, 3].map((atom) => i.get(atom))).toEqual(['a', 'é', '名前', '😀']);
+		expect(i.lookup('名前')).toBe(2);
+	});
+
+	it('keeps ends equal to string lengths for ASCII names', () => {
+		const i = new Interner();
+		for (const name of ['ab', 'c', 'def']) i.intern(name);
+		expect(i.ends).toEqual([2, 3, 6]);
+	});
+
 	it('interning is idempotent and survives growth', () => {
 		const i = new Interner();
 		const names = Array.from({ length: 500 }, (_, n) => `n${n}`);
@@ -69,10 +98,10 @@ describe('interner', () => {
 describe('json', () => {
 	it('nested values and keys', () => {
 		let w = new StructuredDataWriter(false);
-		w.beginObject().key('a').num(1).key('b').beginArray().str('x\n').null().endArray().key('c').beginObject().endObject().endObject();
+		w.beginObject().key('a').writeNumber(1).key('b').beginArray().writeString('x\n').null().endArray().key('c').beginObject().endObject().endObject();
 		expect(w.finish()).toBe('{"a":1,"b":["x\\n",null],"c":{}}');
 		w = new StructuredDataWriter(true);
-		w.beginArray().beginObject().key('k').bool(true).endObject().endArray();
+		w.beginArray().beginObject().key('k').writeBoolean(true).endObject().endArray();
 		expect(w.finish()).toBe('[\n\t{\n\t\t"k": true\n\t}\n]\n');
 	});
 });

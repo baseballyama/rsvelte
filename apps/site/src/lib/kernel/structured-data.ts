@@ -87,20 +87,20 @@ export class StructuredDataWriter {
 		this.afterKey = true;
 		return this.record(`key(${JSON.stringify(k)})`);
 	}
-	str(s: string) {
+	writeString(s: string) {
 		this.beforeValue();
 		this.out += writeString(s);
-		return this.record(`str(${JSON.stringify(s)})`);
+		return this.record(`write_string(${JSON.stringify(s)})`);
 	}
-	num(n: number | string) {
+	writeNumber(n: number | string) {
 		this.beforeValue();
 		this.out += String(n);
-		return this.record(`num(${n})`);
+		return this.record(`write_number(${n})`);
 	}
-	bool(b: boolean) {
+	writeBoolean(b: boolean) {
 		this.beforeValue();
 		this.out += b ? 'true' : 'false';
-		return this.record(`bool(${b})`);
+		return this.record(`write_boolean(${b})`);
 	}
 	null() {
 		this.beforeValue();

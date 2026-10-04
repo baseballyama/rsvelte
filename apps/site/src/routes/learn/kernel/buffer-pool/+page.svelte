@@ -144,7 +144,7 @@
 	</p>
 
 	<H2 id="users" />
-	<p>今プールを使っている構造は次のとおりです。</p>
+	<p>プールを使う主な構造は次のとおりです。</p>
 	<ul>
 		<li><code>rsvelte_typescript::SyntaxTree</code>:構文木の列、文字列、コメント、型の表、パーサの作業用スタック（<a href="/learn/polish#history">14</a>）。</li>
 		<li><code>Tokens&lt;K&gt;</code>: トークン表（<a href="/learn/kernel/layers#tokens">05</a>）。鍵は要素の型 <code>Token&lt;K&gt;</code> だけです。</li>
@@ -152,6 +152,9 @@
 		<li><Term name="LayoutInstructions" />: 整形用のデータ構造 のアリーナ（<a href="/learn/kernel/document#ir">08</a>）と、プリンタのスタックや作業リスト。</li>
 		<li><code>Interner</code>: 名前の文字列、終端、ハッシュ表（<a href="/learn/kernel/interning#growth">03</a>）。</li>
 	</ul>
+	<p>
+		ほかに、文書ごとの計算結果の保存領域、行の索引、構造化データの書き手、Svelte のパーサ、スタイルシートの解析、型検査用の構文木もプールを使います。
+	</p>
 </div>
 
 <Code item={data.code.tokensDefault} />

@@ -8,7 +8,7 @@
 	// The calls of the kernel test `nested_values_and_keys` (compact half).
 	const steps = $derived.by(() => {
 		const w = new StructuredDataWriter(pretty);
-		w.beginObject().key('a').num(1).key('b').beginArray().str('x\n').null().endArray().key('c').beginObject().endObject().endObject();
+		w.beginObject().key('a').writeNumber(1).key('b').beginArray().writeString('x\n').null().endArray().key('c').beginObject().endObject().endObject();
 		return w.steps;
 	});
 	const cur = $derived(steps[Math.min(step, steps.length - 1)]);

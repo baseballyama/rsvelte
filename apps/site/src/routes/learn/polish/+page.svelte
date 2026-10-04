@@ -274,7 +274,9 @@
 	<H2 id="contracts" />
 
 	{@render item('C1', 'Task::id のドキュメントの例が実際の識別番号と違った', 'fixed', 'computation/pipeline.rs · Task::identifier')}
-	<p>実際の形 <code>&lt;言語&gt;.&lt;タスク&gt;/&lt;変種&gt;</code> と例（<code>svelte.compile/client</code>）に直しました。</p>
+	<p>
+		実際の形 <code>&lt;言語&gt;.&lt;タスク&gt;/&lt;変種&gt;</code> と例（<code>svelte.compile/client</code>）に直しました。その後ドキュメントは書き直され、今は「タスクの選択と計測に使う名前」とだけ書き、名前の形は決めていません。
+	</p>
 
 	{@render item('C2', '知らないタスク識別番号を黙って無視していた', 'fixed', 'computation/pipeline.rs · Registry::check_task_identifiers、run_each')}
 	<p>
@@ -377,10 +379,10 @@
 		のドキュメントに書きました。
 	</p>
 
-	{@render item('M2', 'フェーズの self はスレッド時間の合計', 'docs', 'performance/measurement.rs · PhaseMeasurements、docs/architecture.md')}
+	{@render item('M2', 'フェーズの self はスレッド時間の合計', 'docs', 'performance/measurement.rs · PhaseMeasurements')}
 	<p>
 		<code>PhaseMeasurements</code> の時間は、フェーズを走らせたスレッドの実行時間の時間をスレッドについて足したものです。プロセッサー
-		時間でも経過時間でもないので、割合で読むことをドキュメントに書き、設計文書の表の見出しを「self プロセッサー ms」から「self ms（スレッド時間の合計）」に直しました。
+		時間でも経過時間でもないので、割合で読むことを <code>PhaseMeasurements</code> のドキュメントに書きました。
 	</p>
 
 	{@render item('M3', 'フェーズのガードを別のスレッドで落とせた', 'fixed', 'performance/measurement.rs · PhaseGuard')}

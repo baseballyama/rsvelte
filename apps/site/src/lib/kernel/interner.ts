@@ -1,4 +1,4 @@
-// Port of `rsvelte_kernel::intern` for the visualisation. The table layout, load factor, growth and probe
+// Port of `rsvelte_kernel::source::interning` for the visualisation. The table layout, load factor, growth and probe
 // sequence are the Rust ones; the hash is FNV-1a rather than rustc-hash's FxHasher, so slot numbers
 // shown on the site differ from what the Rust interner would pick for the same names.
 
@@ -15,9 +15,12 @@ export interface InternResult {
 	probes: Probe[];
 }
 
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
 export function fnv1a(s: string): number {
 	let h = 0x811c9dc5;
-	for (const b of new TextEncoder().encode(s)) {
+	for (const b of encoder.encode(s)) {
 		h ^= b;
 		h = Math.imul(h, 0x01000193) >>> 0;
 	}
@@ -25,7 +28,8 @@ export function fnv1a(s: string): number {
 }
 
 export class Interner {
-	buffer = '';
+	/** UTF-8 bytes, so `ends` are byte offsets as in Rust. */
+	buffer: number[] = [];
 	ends: number[] = [];
 	table: number[] = [];
 
@@ -33,7 +37,7 @@ export class Interner {
 
 	get(atom: number): string {
 		const start = atom === 0 ? 0 : this.ends[atom - 1];
-		return this.buffer.slice(start, this.ends[atom]);
+		return decoder.decode(new Uint8Array(this.buffer.slice(start, this.ends[atom])));
 	}
 
 	lookup(s: string): number | null {
@@ -62,7 +66,7 @@ export class Interner {
 			({ slot, probes } = this.probe(s));
 		}
 		const i = slot;
-		this.buffer += s;
+		this.buffer.push(...encoder.encode(s));
 		this.ends.push(this.buffer.length);
 		const atom = this.ends.length - 1;
 		this.table[i] = atom + 1;

@@ -69,12 +69,16 @@
 	<p><code>output.file</code> はファイル名とテキストを結果に追加します。ディスクへの書き込みはしません。保存や表示は呼び出し側の仕事です。</p>
 	<H2 id="register" />
 	<p>登録関数はプラグイン側で用意する普通の Rust 関数です。今回の例では、使う二つの計算結果と一つのタスクを登録します。カーネルは依存する型を自動登録しません。</p>
+	<p>
+		配布する登録関数は、さらに名前・版・依存先を <code>Plugin</code> として宣言し、<code>Registry::plugin</code> で登録します。<code>run</code> と <code>run_each</code>
+		は実行の前に、依存先の不足、版の不一致、循環を確かめます。この例は宣言を省いています。
+	</p>
 </div>
 
 <Code item={data.code.register} />
 
 <div class="prose-learn">
-	<p>この登録なら、Svelte のコンパイルや型検査のタスクは入りません。標準のツールも使う場合は、同じ登録先に各ツールの登録関数を呼びます。整形なら <code>rsvelte_svelte_format::register</code> です。言語の中核部分の登録では、共有する解析結果だけを追加します。</p>
+	<p>この登録なら、Svelte のコンパイルや型検査のタスクは入りません。標準のツールも使う場合は、同じ登録先に各ツールの登録関数を呼びます。整形なら <code>rsvelte_svelte_format::register</code> です。言語の中核部分の登録は、プラグインの宣言、パーサの登録、共有する解析結果の登録をします。</p>
 </div>
 
 <Code item={data.code.svelteRegister} />

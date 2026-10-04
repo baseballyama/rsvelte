@@ -25,6 +25,8 @@
 		{ id: 'rsvelte_kernel', x: 20, y: 320, w: 720, role: 'source · computation (pipeline · database · plugins) · diagnostics · output · performance' }
 	];
 	const by = (id: string) => boxes.find((b) => b.id === id)!;
+	// rsvelte_svelte reaches the stylesheet crate only through its parser crate, which the figure leaves out.
+	const indirect = new Set(['rsvelte_svelte,rsvelte_stylesheet']);
 	const edges: [string, string][] = [
 		['rsvelte_command_line', 'rsvelte_svelte'],
 		['rsvelte_svelte', 'rsvelte_typescript'],
@@ -53,14 +55,14 @@
 </script>
 
 <svg viewBox="0 0 760 390" class="h-auto w-full" role="img">
-	<title>ライブラリの依存関係。コマンドラインの実行プログラムは言語プラグインを使います。言語プラグインは、埋め込み言語の処理とカーネルを使います。</title>
+	<title>主な crate の依存関係の抜粋。コマンドラインの実行プログラムは言語プラグインを使います。言語プラグインは、埋め込み言語の処理とカーネルを使います。破線は、図にない crate を通した間接の依存です。</title>
 	<defs>
 		<marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
 			<path d="M0 0 L8 4 L0 8 z" fill="var(--border-strong)" />
 		</marker>
 	</defs>
 	{#each edges as e (e.join())}
-		<path d={path(e)} fill="none" stroke="var(--border-strong)" stroke-width="1" marker-end="url(#arrow)" />
+		<path d={path(e)} fill="none" stroke="var(--border-strong)" stroke-width="1" stroke-dasharray={indirect.has(e.join()) ? '4 3' : undefined} marker-end="url(#arrow)" />
 	{/each}
 	{#each boxes as b (b.id)}
 		{@const kernel = b.id === 'rsvelte_kernel'}

@@ -30,6 +30,8 @@ const utf8Len = (cp: number) => (cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ?
 
 export class LineIndex {
 	readonly lineStarts: number[] = [0];
+	/** Zero-based lines that end with CRLF, as in Rust. */
+	readonly crlf: number[] = [];
 	/** Empty for ASCII-only text, exactly as in Rust. */
 	readonly wide: WideChar[] = [];
 	readonly bytes: Uint8Array;
@@ -39,6 +41,10 @@ export class LineIndex {
 		this.bytes.forEach((b, i) => {
 			if (b === 0x0a) this.lineStarts.push(i + 1);
 		});
+		for (let line = 1; line < this.lineStarts.length; line++) {
+			const lf = this.lineStarts[line] - 1;
+			if (lf > 0 && this.bytes[lf - 1] === 0x0d) this.crlf.push(line - 1);
+		}
 		let byte = 0;
 		let utf16 = 0;
 		for (const ch of source) {
@@ -93,11 +99,13 @@ export class LineIndex {
 	offset(line: number, column: number): number | null {
 		if (line < 1 || line > this.lineStarts.length) return null;
 		const start = this.lineStarts[line - 1];
+		// The line ends at its newline, before a CR that comes first.
+		const end = line < this.lineStarts.length ? this.lineStarts[line] - 1 - (this.crlf.includes(line - 1) ? 1 : 0) : this.bytes.length;
 		let units = 0;
 		let byte = start;
 		const rest = new TextDecoder().decode(this.bytes.subarray(start));
 		for (const ch of rest) {
-			if (units === column) return byte;
+			if (units === column) return byte <= end ? byte : null;
 			if (units > column || ch === '\n') return null;
 			units += ch.length;
 			byte += utf8Len(ch.codePointAt(0)!);
