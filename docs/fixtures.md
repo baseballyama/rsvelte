@@ -303,7 +303,7 @@ unit の `fixture.toml` に書く。いまは `[skip]`（task id または `task
 ```
 crates/languages/vue/compile_svelte/tests/fixtures/<名前>/      svue の case
   input.vue  behaviour.toml  client.js  server.js
-crates/languages/svelte/compile_vue/tests/fixtures/<名前>/      vuelte の case
+crates/languages/svelte/compile_vapor/tests/fixtures/<名前>/      vuelte の case
   input.svelte  behaviour.toml  client.js  server.js
 ```
 
@@ -322,7 +322,7 @@ crates/languages/svelte/compile_vue/tests/fixtures/<名前>/      vuelte の cas
 |---|---|---|---|
 | `svue.compile/client` | `actual/svue.compile/client.js` | `svelte/compiler` が `generate: 'client'` で出す形。コンポーネントを `export default` する | `mount(C, { target, props })`（`svelte`）、各手順の後に `flushSync()` |
 | `svue.compile/server` | `actual/svue.compile/server.js` | `generate: 'server'` で出す形。`export default` | `render(C, { props }).body`（`svelte/server`） |
-| `vuelte.compile/client` | `actual/vuelte.compile/client.js` | `@vitejs/plugin-vue` のクライアントビルドが出すコンポーネント（`setup` が render 関数を返す、または `render` を持つオブジェクト）を `export default` する | `createApp(C, props).mount(el)`（`vue`）、各手順の後に `nextTick()` |
+| `vuelte.compile/client` | `actual/vuelte.compile/client.js` | A `defineVaporComponent` whose `setup` returns DOM blocks | `createVaporApp(C, props).mount(el)` with Vue 3.6.0-rc.10; `nextTick()` after each step |
 | `vuelte.compile/server` | `actual/vuelte.compile/server.js` | SSR ビルドのコンポーネント（`ssrRender`、`__ssrInlineRender` 付きで `setup` が SSR render 関数を返すもの、または vnode の render 関数）を `export default` する | `renderToString(createSSRApp(C, props))`（`vue/server-renderer`） |
 
 - Rust のタスク名は `svue.compile/client` のように `<task>/<variant>` にし、成果物の名前を `js` にする。`rsvelte fixtures` は `actual/<task>/<variant>.<name>` に書くので、上の表のパスになる。
@@ -428,7 +428,13 @@ steps = [
 
 ### 12.10 vuelte の現状（`vuelte.compile`）
 
-実装は `crates/languages/svelte/compile_vue`（対応表と拒否の一覧はその `lib.rs` の冒頭、設計は [architecture.md](architecture.md) の「vuelte」）。数は exp/cross と exp/svelte-ext をマージして spread などに対応したコミット（`6b5621c994`）の `run-all` と `fixtures check` のもの。
+The client backend now targets Vue Vapor. The server backend keeps Vue SSR compatibility.
+Run `cargo test -p rsvelte_svelte_compile_vapor` and
+`mise exec -- node --test tools/fixtures/test/behaviour.test.ts` for the current fixture result.
+The corpus results below are historical measurements of the Virtual DOM backend.
+Vapor corpus parity and speed: **UNMEASURED**. Hydration is not supported.
+
+実装は `crates/languages/svelte/compile_vapor`（対応表と拒否の一覧はその `lib.rs` の冒頭、設計は [architecture.md](architecture.md) の「Svelte to Vue Vapor」）。数は exp/cross と exp/svelte-ext をマージして spread などに対応したコミット（`6b5621c994`）の `run-all` と `fixtures check` のもの。
 
 | unit | client | server |
 |---|---|---|

@@ -5,14 +5,17 @@ The workspace separates shared data, hosts, languages, and task capabilities.
 | Path | Owns |
 |---|---|
 | `crates/kernel` | Shared source data, computation, diagnostics, and output |
+| `crates/tooling/<task>` | Shared contracts and output specific to a task |
 | `crates/fixture_test` | The snapshot harness for each crate's `tests/fixtures/` |
 | `crates/hosts/command_line` | CLI and integration tests |
+| `crates/hosts/config` | Setting loaders and runtime/native function adapters |
 | `crates/hosts/browser` | Browser bindings |
 | `crates/languages/<language>/core` | Shared language data and artifact registration |
 | `crates/languages/svelte/{syntax,parser,hir,semantic}` | Source AST, parsing, shared HIR, and semantic facts |
-| `crates/languages/<language>/{compile,format,lint,check}` | Task implementations and registration |
+| `crates/languages/<language>/{compile,format,lint,lint_typed,check,typecheck}` | Task implementations and registration |
+| `crates/languages/svelte/typescript_projection` | Svelte to TypeScript projection AST and emission |
 | `crates/languages/vue/compile_svelte` | Vue to Svelte translation |
-| `crates/languages/svelte/compile_vue` | Svelte to Vue translation |
+| `crates/languages/svelte/compile_vapor` | Svelte to Vue Vapor translation |
 
 See [crates/README.md](../crates/README.md) for Svelte crate dependencies and the normalization boundary.
 
@@ -36,6 +39,58 @@ has separate files for blocks, elements, attributes, bindings, and expressions.
 Keep shared state in the parent module. Keep implementation modules private.
 Use the narrowest visibility that lets sibling modules share methods.
 Task APIs belong to their capability crates. Core APIs remain in the core crate.
+
+## Task boundary
+
+The kernel treats task identifiers as opaque names. A `Task` reads a
+`DocumentContext` and writes a `TaskOutput`: files, diagnostics, or both.
+Diagnostic codes are independent of task identifiers. The kernel does not select
+lint rules, enforce rule codes, or define task report formats.
+
+Shared source trees and facts are borrowed. A transform builds a separate tree;
+register it as an artifact if other tasks need it. Output text is a final result,
+not input for another transform. Language trees and facts stay in language crates.
+Generic layout instructions belong in the kernel; language formatting choices do not.
+
+`tooling/lint` owns rule execution, stable finding order, and ESLint report output.
+Language lint crates supply the rule contexts and implementations. Rules live in
+`src/rules/<rule>.rs`; syntax and scope rules use `lint`, and type-aware rules use
+`lint_typed`. Hosts select
+and register tasks; the kernel runs them on one worker per document.
+
+## Plugin dependencies
+
+Each registration crate exposes a static `PLUGIN` declaration: an opaque identifier,
+its SemVer version, and dependency identifiers with Cargo-style SemVer requirements.
+For example:
+
+```rust
+use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
+
+pub static PLUGIN: Plugin = Plugin {
+    identifier: "example.lint.typed",
+    version: "1.0.0",
+    dependencies: &[Dependency {
+        identifier: "example.types",
+        requirement: "^2.1",
+    }],
+};
+```
+
+Register it with `Registry::plugin(&PLUGIN)`. Names identify plugins, not tasks or
+lint rules. The kernel allows one version per name. Repeating the same declaration
+is a no-op; conflicting declarations are errors. Built-in plugins use their crate
+version and require the exact version of their workspace dependencies.
+
+`Registry::validate_plugins()` checks all registered plugins. `run` and `run_each`
+also check before any task, document selection, provider or sink runs. Missing
+plugins, incompatible versions, invalid metadata, duplicate dependencies and
+cycles return errors. Validation is cached until a declaration changes.
+
+Registration functions add their built-in dependencies without enabling their
+tasks. Hosts load external dependencies before validation; the kernel does not
+install plugins or start external services. Plugin versions are independent of
+external executable versions, which their service provider validates.
 
 ## File length
 

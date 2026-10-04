@@ -5,6 +5,8 @@
 - 数値の出どころは節ごとに書く。性能の現在値は `tools/performance/baseline.json`、正しさの現在値は `fixtures/_registry/parity.json` が正本で、この文書の数はその写しである。変更前後の数は、その変更のコミットのメッセージから引用し、短い SHA を添える。
 
 See [crates/README.md](../crates/README.md) for the crate layout and tool registration.
+Task boundaries are defined in [docs/layout.md](layout.md#task-boundary).
+`crates/tooling/lint` owns lint rule execution, ordering, and ESLint report output.
 
 ## 1. 層
 
@@ -26,7 +28,6 @@ hosts -> language tools -> language cores -> kernel
 | `run_each` / `run` | `run_each` は結果が確定した文書から順に sink に渡す。`run` は rayon の `collect` で文書の順に集める（ロックを使わない） | `computation/pipeline.rs` |
 | `idx` | 型付き ID（`newtype_index!`。中身は `NonZeroU32` なので `Option<Identifier>` も 4 バイト）と、ID で引く side table `IndexVector` | `source/index.rs` |
 | `token` | 表層のトークン表 `Tokens<K>`。空白とコメントを含めて並べるとソースに一致することを、言語を知らずに確かめる | `source/tokens.rs` |
-| `lint::Rule<C>` | ルールの契約。コンテキスト型 `C` は言語が決める。カーネルはルールごとに計時し、位置順に並べ、ESLint の形で出力する | `diagnostics/rules.rs` |
 | `doc` | prettier の `printDocToString` の移植（整形の出力エンジン）。文字幅は prettier の `getStringWidth` から生成した表 | `output/document.rs`, `output/width.rs` |
 | `emit::Emitter` | 出力と対応表。逆引きは `lookup`（文字単位のソースマップと同じ最大下界）と `lookup_overlap`（Volar の規則: 範囲内のコピー部分だけを写す） | `output/emitter.rs` |
 | `Diagnostic` / `Unsupported` | 診断と「未対応なので出力しない」。ESLint の一点だけの報告のために、終端を持たない診断（`has_end = false`）も表せる | `diagnostics/diagnostic.rs` |
@@ -91,15 +92,19 @@ svue のために移植に足したもの: `v-on` の修飾子。パースし、
 - Vue のテキストは空白を畳み済みなので、Svelte のコンパイラは `preserveWhitespace`（`CompileInput::preserve_whitespace`）で走らせ、二度目の掃除をさせない。ルートの `class` は、自分の `class` が無ければスプレッドの中で合成する（Vue は props に `class` のキーがあるときだけ属性を書き、Svelte はスプレッドの後の `class` 属性を値が `undefined` でも書くため）。trace は見えない空白と空の `class` を区別しないので、この二つは `crates/languages/vue/compile_svelte/tests/translate.rs` で固定した
 - 正確に再現できないものは `compile_unsupported` で拒否し、近似しない
 
-### vuelte
+### Svelte to Vue Vapor
 
-`.svelte`（Svelte 5 の runes）を、Svelte の意味のまま Vue のランタイム向けの JS にコンパイルする。`rsvelte_vuelte` は `.svelte` の文書に適用するタスク `vuelte.compile/{client,server}`（成果物 `js`）を足すプラグインで、持つのは翻訳だけ。パース・名前解決・HIR・解析は Svelte プラグインの成果物（`svelte.compile` と共有）、出力は Vue プラグインの `resolve` と `compile` を使う。
+`rsvelte_svelte_compile_vapor` shares Svelte parsing, normalization, resolution, and analysis.
+It builds a new JavaScript tree and Vue template tree. Its Rust client backend emits
+`defineVaporComponent`, `template`, `renderEffect`, `createIf`, and `createFor` calls.
+Element bindings run in render effects and clean up with `onScopeDispose`.
+The server target keeps the Vue SSR compatibility backend. Hydration is not supported.
+The task identifiers remain `vuelte.compile/{client,server}`.
 
-- スクリプトは `rsvelte_typescript::copy` の `Rewrite` で Vue の `<script setup>` に写す（`$state` → `ref`、`$derived` → `computed`、`$props()` → `defineProps` と `$$props.<key>`、`onMount` → `onMounted`、全コンポーネントに `defineOptions({ inheritAttrs: false })`）。テンプレートは Svelte の HIR を `clean_nodes` の後で読み、Vue の `CompilerSyntaxTreeBuilder` で Vue の HIR を組む。
-- client と server で翻訳を分ける。Svelte の 2 つのランタイムは、Vue のランタイムが同じに扱うところで違うため（client の束縛は要素への effect、server の束縛はマークアップ）。client の effect は要素の関数 ref に置く。Vue は要素の patch のたびに要素を、アンマウントで `null` を渡して呼ぶので、Svelte の render effect と `bind:this` が走る時点と同じになる。Vue が `value` / `checked` を属性としても書く（3.4 以降）ので、client はそれらを props に置かない。
-- Svelte のランタイムの判断のうち Vue と違うもの（`set_text` の `?? ''`、`set_attribute` / `attr`、`clsx` と `to_class`、`set_value`、`select_option`、`each` / `ensure_array_like`）は、Svelte 5.57 のランタイム関数を到達する場合に絞った JS のヘルパー（`helpers.rs`）として出力に入れる。`class` は大文字のキー `:CLASS` で束縛する。Vue の client と SSR の両方がキーを小文字にして属性に書き、`null` で属性を外すので、Vue の `class` の正規化を通らずに Svelte と同じ DOM になる。`class:` 指令は client が `set_class`、server が `to_class` の移植。spread を持つ要素は全属性を 1 つのオブジェクトにして、client は `set_attributes`、server は `attributes` の移植に渡す（server は Vue のオブジェクトの `v-bind` で出し、キーの `^` 接頭辞で Vue の SSR の属性フィルタを外す）。`let { ...rest } = $props()` は `useAttrs()`。`{@attach}` は拒否する（Svelte は読んだものを追跡する effect として走らせ、変われば片付けて走らせ直すが、Vue の関数 ref は patch のたびに呼ばれ、自分では何も追跡しない）。
-- 写せない構文は、出力を作る前に `vuelte_unsupported` で拒否する。拒否の一覧と対応表は `crates/languages/svelte/compile_vue/src/lib.rs` の冒頭にある。近似は書かない。
-- オラクルは振る舞い（[fixtures.md](fixtures.md) §12）。結果は §4。
+Run `cargo test -p rsvelte_svelte_compile_vapor`, then
+`mise exec -- node --test tools/fixtures/test/behaviour.test.ts` to compare the accepted
+outputs with official Svelte behavior. The client tests use Vue 3.6.0-rc.10's production
+Vapor runtime. The regular Vue oracle keeps Vue 3.5.43.
 
 ## 2. パイプライン
 
