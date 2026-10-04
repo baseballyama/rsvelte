@@ -23,6 +23,9 @@ pub(super) fn collect(tree: &SyntaxTree, root: NodeIdentifier, plan: &mut Plan) 
         let Kind::Class(Class::Definition { members, .. }) = tree.kind(node) else {
             return Ok(());
         };
+        // Keys like `0 = $state()` are literals; `assignment` only matches `this.<identifier>`.
+        let identifier =
+            |key| matches!(tree.kind(key), Kind::Identifier(_)).then(|| tree.name(key));
         let mut initialized = FxHashSet::default();
         for &member in members {
             if let Kind::Class(Class::Field {
@@ -31,8 +34,9 @@ pub(super) fn collect(tree: &SyntaxTree, root: NodeIdentifier, plan: &mut Plan) 
                 computed: false,
                 ..
             }) = tree.kind(member)
+                && let Some(name) = identifier(key)
             {
-                initialized.insert(tree.name(key));
+                initialized.insert(name);
             }
         }
         let mut fields = Vec::new();
@@ -47,7 +51,7 @@ pub(super) fn collect(tree: &SyntaxTree, root: NodeIdentifier, plan: &mut Plan) 
             else {
                 continue;
             };
-            if tree.name(key) != "constructor" {
+            if identifier(key) != Some("constructor") {
                 continue;
             }
             let Kind::Function { body, .. } = tree.kind(function) else {
