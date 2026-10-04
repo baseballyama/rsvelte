@@ -8,11 +8,17 @@ const OPENING = new Set(['(', '[', '{', '<']);
 const CLOSING = new Set([')', ']', '}', '>']);
 const CLOSER = { '(': ')', '[': ']', '{': '}', '<': '>' };
 
-/** Names that a Rust file declares, with their lines. Uses of names from std or dependencies are not declarations. */
-export function rustDeclarations(source) {
+/**
+ * Names that a Rust file declares, with their lines. Uses of names from std or dependencies are not declarations.
+ * A field or variant also has `owner`, the type that declares it. With `traitParameterNamesEnforced`, the `buf`
+ * parameter of `std::io::Write::write` is skipped, because the workspace lint keeps it equal to std's declaration.
+ */
+export function rustDeclarations(source, { traitParameterNamesEnforced = false } = {}) {
 	const tokens = tokenize(source);
 	const found = [];
-	const add = index => found.push({ name: tokens[index].text.replace(/^'/, ''), line: tokens[index].line });
+	const add = (index, owner) => found.push({ name: tokens[index].text.replace(/^'/, ''), line: tokens[index].line, owner });
+	add.traitParameterNamesEnforced = traitParameterNamesEnforced;
+	add.source = source;
 	const traitImplementations = [];
 	for (let index = 0; index < tokens.length; index++) {
 		const token = tokens[index];
@@ -84,10 +90,12 @@ function closingIndex(tokens, open) {
 function implementationHeader(tokens, index, add, traitImplementations) {
 	let next = index + 1;
 	if (tokens[next]?.text === '<') next = genericParameters(tokens, next, add) + 1;
+	const start = next;
 	while (next < tokens.length && !['{', ';', 'for'].includes(tokens[next].text)) next++;
 	if (tokens[next]?.text === 'for') {
+		const trait = tokens.slice(start, next).map(token => token.text).join('');
 		while (next < tokens.length && tokens[next].text !== '{') next++;
-		traitImplementations.push([next, closingIndex(tokens, next)]);
+		traitImplementations.push({ start: next, end: closingIndex(tokens, next), trait });
 	}
 	return next;
 }
@@ -104,17 +112,20 @@ function item(tokens, index, add, traitImplementations) {
 	const keyword = tokens[index].text;
 	if (keyword === 'const' && ['fn', 'unsafe', 'async'].includes(tokens[index + 1].text)) return;
 	const name = index + 1;
-	if (!traitImplementations.some(([start, end]) => name > start && name < end)) add(name);
+	const implementation = traitImplementations.find(({ start, end }) => name > start && name < end);
+	if (!implementation) add(name);
 	let next = name + 1;
 	if (tokens[next]?.text === '<') next = genericParameters(tokens, next, add) + 1;
-	if (keyword === 'fn' && tokens[next]?.text === '(') functionParameters(tokens, next, add);
+	const keepsWriteBuffer = add.traitParameterNamesEnforced && keyword === 'fn' && tokens[name].text === 'write'
+		&& implementation && isStdWrite(implementation.trait, add.source);
+	if (keyword === 'fn' && tokens[next]?.text === '(') functionParameters(tokens, next, add, keepsWriteBuffer);
 	if (keyword === 'struct' || keyword === 'union') {
 		while (next < tokens.length && !['{', ';', '('].includes(tokens[next].text)) next++;
-		if (tokens[next]?.text === '{') fields(tokens, next, add);
+		if (tokens[next]?.text === '{') fields(tokens, next, add, tokens[name].text);
 	}
 	if (keyword === 'enum') {
 		while (next < tokens.length && tokens[next].text !== '{') next++;
-		variants(tokens, next, add);
+		variants(tokens, next, add, tokens[name].text);
 	}
 }
 
@@ -137,7 +148,13 @@ function genericParameters(tokens, open, add) {
 	return end;
 }
 
-function functionParameters(tokens, open, add) {
+function isStdWrite(trait, source) {
+	if (trait === 'std::io::Write') return true;
+	if (trait === 'io::Write') return /\buse\s+std::io(\s*;|::\{[^}]*\bself\b)/.test(source);
+	return trait === 'Write' && /\buse\s+std::io::(Write\s*;|\{[^}]*\bWrite\b)/.test(source);
+}
+
+function functionParameters(tokens, open, add, keepsWriteBuffer) {
 	const end = closingIndex(tokens, open);
 	let depth = 0;
 	let segment = open + 1;
@@ -147,7 +164,9 @@ function functionParameters(tokens, open, add) {
 		else if (CLOSING.has(text) && index !== end) depth--;
 		if ((text === ',' && depth === 0) || index === end) {
 			const colon = topLevelColon(tokens, segment, index);
-			if (colon < index) patternBindings(tokens, segment, colon, add);
+			if (colon < index && !(keepsWriteBuffer && colon === segment + 1 && tokens[segment].text === 'buf')) {
+				patternBindings(tokens, segment, colon, add);
+			}
 			segment = index + 1;
 		}
 	}
@@ -164,21 +183,22 @@ function topLevelColon(tokens, from, to) {
 	return to;
 }
 
-function fields(tokens, open, add) {
+function fields(tokens, open, add, owner) {
 	const end = closingIndex(tokens, open);
 	let depth = 0;
 	for (let index = open + 1; index < end; index++) {
 		const token = tokens[index];
 		if (OPENING.has(token.text)) depth++;
 		else if (CLOSING.has(token.text)) depth--;
-		else if (depth === 0 && token.kind === 'identifier' && tokens[index + 1]?.text === ':' && token.text !== 'pub') add(index);
+		else if (depth === 0 && token.kind === 'identifier' && tokens[index + 1]?.text === ':' && token.text !== 'pub') add(index, owner);
 	}
 }
 
-function variants(tokens, open, add) {
+function variants(tokens, open, add, owner) {
 	const end = closingIndex(tokens, open);
 	let depth = 0;
 	let start = true;
+	let variant = owner;
 	for (let index = open + 1; index < end; index++) {
 		const token = tokens[index];
 		if (token.text === '#') {
@@ -186,14 +206,17 @@ function variants(tokens, open, add) {
 			continue;
 		}
 		if (OPENING.has(token.text)) {
-			if (token.text === '{' && depth === 0) fields(tokens, index, add);
+			if (token.text === '{' && depth === 0) fields(tokens, index, add, variant);
 			depth++;
 		} else if (CLOSING.has(token.text)) depth--;
 		else if (token.text === ',' && depth === 0) {
 			start = true;
 			continue;
 		}
-		if (start && depth === 0 && token.kind === 'identifier') add(index);
+		if (start && depth === 0 && token.kind === 'identifier') {
+			add(index, owner);
+			variant = `${owner}::${token.text}`;
+		}
 		start = false;
 	}
 }

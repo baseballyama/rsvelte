@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { nameFindings, sourceFindings, scriptFindings, checkCodeNames, manifestFindings } from './code-names.mjs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import {
+	nameFindings, sourceFindings, scriptFindings, checkCodeNames, manifestFindings, upstreamNames, traitParameterNamesEnforced, pathFindings, keepsWriteBuffer, WRITE_BUFFER_FILE
+} from './code-names.mjs';
 
 test('rejects abbreviated names in paths and identifiers, not substrings', () => {
 	for (const name of ['db.rs', 'rsv_kernel/src/idx.rs', 'Ctx', 'TsDoc', 'NodeIdx', 'source_pos', 'Ast']) {
@@ -81,4 +86,69 @@ test('does not report names that std, dependencies, traits or literals impose', 
 test('checks crate names where the manifest declares them', () => {
 	assert.deepEqual(manifestFindings('[package]\nname = "rsvelte_svelte_hir"\nversion = "0.1.0"\n').map(finding => finding.name), ['rsvelte_svelte_hir']);
 	assert.deepEqual(manifestFindings('[package]\nname = "rsvelte_kernel"\n[dependencies]\nhir = { path = "x" }\n'), []);
+});
+
+const kept = (source, options) => sourceFindings(source, options).map(finding => `${finding.qualified}@${finding.line}`);
+
+test('keeps a Rust name only where it copies a public Svelte name that the installed types still declare', () => {
+	const names = upstreamNames([{ file: 'a.rs', name: 'Namespace::Html', upstream: "type Namespace = 'html'" }], "type Namespace = 'html' | 'svg';");
+	const upstream = names.get('a.rs');
+	assert.deepEqual(kept('pub enum Namespace {\n Html,\n}\npub(super) enum Namespaces {\n Html,\n}', { upstreamNames: upstream }), ['Namespaces::Html@5']);
+	assert.deepEqual(kept('pub enum Other {\n Html,\n}', { upstreamNames: upstream }), ['Other::Html@2']);
+	assert.deepEqual(kept('pub struct BufReader;\nstruct Ctx;', { upstreamNames: upstream }), ['BufReader@1', 'Ctx@2']);
+	assert.throws(() => upstreamNames([{ file: 'a.rs', name: 'CssHash', upstream: 'cssHash?: CssHashGetter;' }], 'export {};'), /no longer contain/);
+});
+
+test('skips only the buf parameter of std::io::Write::write, and only while the workspace lint keeps it', () => {
+	const options = { traitParameterNamesEnforced: true };
+	const write = (header, parameter = 'buf: &[u8]') => `${header}\nimpl Write for B {\n fn write(&mut self, ${parameter}) -> usize { 0 } }`;
+	assert.deepEqual(kept(write('use std::io::{Read, Write};'), options), []);
+	assert.deepEqual(kept(write('use std::io::Write;'), options), []);
+	assert.deepEqual(kept('impl std::io::Write for B {\n fn write(&mut self, buf: &[u8]) -> usize { 0 } }', options), []);
+	assert.deepEqual(kept('use std::io;\nimpl io::Write for B {\n fn write(&mut self, buf: &[u8]) -> usize { 0 } }', options), []);
+	assert.deepEqual(kept(write('use std::io::{Read, Write};')), ['buf@3']);
+	assert.deepEqual(kept(write('use std::io::{Read, Write};', 'ctx: &[u8]'), options), ['ctx@3']);
+	assert.deepEqual(kept(write('use std::io::{Read, Write};', 'mut buf: &[u8]'), options), ['buf@3']);
+	assert.deepEqual(kept(write('use std::fmt::Write;'), options), ['buf@3']);
+	assert.deepEqual(kept(write('trait Write { fn write(&mut self, buf: &[u8]) -> usize; }'), options), ['buf@1', 'buf@3']);
+	assert.deepEqual(kept('use std::io::Write;\nimpl Write for B {\n fn write_all(&mut self, buf: &[u8]) {} }', options), ['buf@3']);
+	assert.deepEqual(kept('impl B {\n fn write(&mut self, buf: &[u8]) {} }', options), ['buf@2']);
+	assert.deepEqual(kept('impl From<u8> for B {\n fn from(buf: u8) -> Self { Self(buf) } }', options), ['buf@2']);
+	assert.equal(traitParameterNamesEnforced('[workspace.lints.clippy]\nrenamed_function_params = "deny"\n', ''), true);
+	assert.equal(traitParameterNamesEnforced('[workspace.lints.clippy]\nrenamed_function_params = "deny"\n', 'allow-renamed-params-for = ["..", "std::io::Write"]'), false);
+	assert.equal(traitParameterNamesEnforced('[workspace.lints.clippy]\nrenamed_function_params = "warn"\n', ''), false);
+});
+
+test('allows only the css and html language directories directly under crates/languages', () => {
+	assert.deepEqual(pathFindings('languages/css/core/src/lib.rs'), []);
+	assert.deepEqual(pathFindings('languages/html/core/Cargo.toml'), []);
+	assert.deepEqual(pathFindings('languages/css/core/src/ctx.rs'), ['ctx']);
+	assert.deepEqual(pathFindings('languages/css/css/src/lib.rs'), ['css']);
+	assert.deepEqual(pathFindings('languages/svelte/compile/src/css.rs'), ['css']);
+	assert.deepEqual(pathFindings('languages/svelte/hir/src/lib.rs'), ['hir']);
+	assert.deepEqual(pathFindings('languages/hir/core/src/lib.rs'), ['hir']);
+	assert.deepEqual(pathFindings('languages/ctx/core/src/lib.rs'), ['ctx']);
+	assert.deepEqual(pathFindings('hosts/css/src/lib.rs'), ['css']);
+	assert.deepEqual(pathFindings('languages/js/core/src/lib.rs'), ['js']);
+	assert.deepEqual(pathFindings('languages/ts/x/Cargo.toml'), ['ts']);
+});
+
+test('keeps the std Write::write buf only in the one file that implements it, and fails when it is gone', () => {
+	const wire = readFileSync(path.join('../../crates', WRITE_BUFFER_FILE), 'utf8');
+	assert.equal(keepsWriteBuffer(wire), true);
+	assert.equal(keepsWriteBuffer(wire.replace('buf: &[u8]', 'bytes: &[u8]')), false);
+	assert.equal(keepsWriteBuffer('use std::io::Read;\nimpl Read for X {\n fn read(&mut self, buf: &mut [u8]) -> usize { 0 } }'), false);
+	const root = mkdtempSync(path.join(tmpdir(), 'code-names-'));
+	const put = (file, text) => { mkdirSync(path.dirname(path.join(root, file)), { recursive: true }); writeFileSync(path.join(root, file), text); };
+	put('Cargo.toml', '[workspace.lints.clippy]\nrenamed_function_params = "deny"\n');
+	put('apps/site/src/empty.ts', '');
+	put(path.join('crates', WRITE_BUFFER_FILE), wire);
+	put('crates/hosts/other/src/lib.rs', 'use std::io::Write;\nimpl Write for B {\n fn write(&mut self, buf: &[u8]) -> usize { 0 } }');
+	const bufferErrors = () => checkCodeNames(root).errors.filter(error => /\bbuf\b/.test(error));
+	assert.deepEqual(bufferErrors(), ['hosts/other/src/lib.rs:3: buf: use buffer']);
+	put(path.join('crates', WRITE_BUFFER_FILE), wire.replace('buf: &[u8]', 'bytes: &[u8]'));
+	assert.deepEqual(bufferErrors(), ['hosts/other/src/lib.rs:3: buf: use buffer', `${WRITE_BUFFER_FILE}: no std Write::write with a buf parameter is declared there`]);
+	put(path.join('crates', WRITE_BUFFER_FILE), wire);
+	put('Cargo.toml', '[workspace.lints.clippy]\nrenamed_function_params = "warn"\n');
+	assert.deepEqual(bufferErrors().map(error => error.split(':')[0]).sort(), [WRITE_BUFFER_FILE, 'hosts/other/src/lib.rs']);
 });

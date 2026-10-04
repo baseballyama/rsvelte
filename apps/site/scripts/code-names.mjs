@@ -1,4 +1,5 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { rustDeclarations } from './rust-declarations.mjs';
 import typescript from 'typescript';
@@ -24,12 +25,49 @@ export function nameFindings(name) {
 }
 
 // Only declarations are checked, so names that std or a dependency declares are never reported.
-export function sourceFindings(source) {
+export function sourceFindings(source, { traitParameterNamesEnforced = false, upstreamNames = new Set() } = {}) {
 	const findings = [];
-	for (const { name, line } of rustDeclarations(source)) {
-		for (const abbreviation of nameFindings(name)) findings.push({ name, abbreviation, line });
+	for (const { name, line, owner } of rustDeclarations(source, { traitParameterNamesEnforced })) {
+		const qualified = owner ? `${owner}::${name}` : name;
+		if (upstreamNames.has(qualified)) continue;
+		for (const abbreviation of nameFindings(name)) findings.push({ name, qualified, abbreviation, line });
 	}
 	return findings;
+}
+
+/** Each kept Rust name must copy a public Svelte name, and the installed Svelte types must still contain it. */
+export function upstreamNames(entries, svelteTypes) {
+	const byFile = new Map();
+	for (const entry of entries) {
+		if (!svelteTypes.includes(entry.upstream)) throw new Error(`${entry.file}: ${entry.name}: Svelte types no longer contain ${JSON.stringify(entry.upstream)}`);
+		if (!byFile.has(entry.file)) byFile.set(entry.file, new Set());
+		byFile.get(entry.file).add(entry.name);
+	}
+	return byFile;
+}
+
+// The workspace lint keeps a trait implementation's parameter names equal to the trait's declaration.
+export function traitParameterNamesEnforced(manifest, clippyConfiguration) {
+	return /^renamed_function_params\s*=\s*"deny"/m.test(manifest) && !/allow-renamed-params-for/.test(clippyConfiguration);
+}
+
+// The one std `Write::write` implementation whose `buf` the workspace lint keeps.
+export const WRITE_BUFFER_FILE = 'hosts/config/src/wire.rs';
+
+/** True when `source` declares `buf` only because it implements std `Write::write` under the lint. */
+export function keepsWriteBuffer(source) {
+	const keptOff = sourceFindings(source).filter(finding => finding.name === 'buf').length;
+	const keptOn = sourceFindings(source, { traitParameterNamesEnforced: true }).filter(finding => finding.name === 'buf').length;
+	return keptOn < keptOff;
+}
+
+// `crates/languages/<language>/` is named after the language (crates/README.md); these are the language names.
+const LANGUAGE_DIRECTORIES = new Set(['css', 'html']);
+
+export function pathFindings(file) {
+	const language = file.match(/^languages\/([^/]+)\//)?.[1];
+	const rest = LANGUAGE_DIRECTORIES.has(language) ? file.replace(`languages/${language}/`, 'languages/') : file;
+	return nameFindings(rest.replaceAll('/src/', '/source/'));
 }
 
 // Crate names are declared in the manifest; Rust files only use them.
@@ -46,17 +84,39 @@ export function manifestFindings(manifest) {
 export function checkCodeNames(root) {
 	const errors = [];
 	let files = 0;
+	const require = createRequire(import.meta.url);
+	const svelteTypes = readFileSync(path.join(path.dirname(require.resolve('svelte/package.json')), 'types/index.d.ts'), 'utf8');
+	const kept = upstreamNames(JSON.parse(readFileSync(new URL('./upstream-names.json', import.meta.url), 'utf8')), svelteTypes);
+	const read = file => existsSync(path.join(root, file)) ? readFileSync(path.join(root, file), 'utf8') : '';
+	const enforced = traitParameterNamesEnforced(read('Cargo.toml'), read('clippy.toml'));
+	const used = new Set();
 	for (const file of readdirSync(path.join(root, 'crates'), { recursive: true, encoding: 'utf8' })) {
 		if (!file.endsWith('.rs') && !file.endsWith('Cargo.toml')) continue;
 		// Cargo's conventional source directory is not a project-defined module name.
-		for (const abbreviation of nameFindings(file.replaceAll('/src/', '/source/'))) errors.push(`${file}: abbreviated path component ${abbreviation}`);
-		const findings = file.endsWith('.rs') ? sourceFindings : manifestFindings;
-		if (file.endsWith('.rs')) files++;
-		for (const finding of findings(readFileSync(path.join(root, 'crates', file), 'utf8'))) {
+		for (const abbreviation of pathFindings(file)) errors.push(`${file}: abbreviated path component ${abbreviation}`);
+		const text = readFileSync(path.join(root, 'crates', file), 'utf8');
+		if (file.endsWith('.rs')) {
+			files++;
+			const names = kept.get(file) ?? new Set();
+			for (const { name, owner } of rustDeclarations(text)) {
+				const qualified = owner ? `${owner}::${name}` : name;
+				if (names.has(qualified)) used.add(`${file}\0${qualified}`);
+			}
+		}
+		const findings = file.endsWith('.rs')
+			? sourceFindings(text, { traitParameterNamesEnforced: enforced && file === WRITE_BUFFER_FILE, upstreamNames: kept.get(file) })
+			: manifestFindings(text);
+		for (const finding of findings) {
 			errors.push(`${file}:${finding.line}: ${finding.name}: use ${abbreviations.get(finding.abbreviation)}`);
 		}
 	}
 	if (!files) throw new Error('No Rust source files were checked');
+	if (enforced && !keepsWriteBuffer(read(path.join('crates', WRITE_BUFFER_FILE)))) {
+		errors.push(`${WRITE_BUFFER_FILE}: no std Write::write with a buf parameter is declared there`);
+	}
+	for (const [file, names] of kept) for (const name of names) {
+		if (!used.has(`${file}\0${name}`)) errors.push(`scripts/upstream-names.json: ${file}: ${name} is not declared there`);
+	}
 	const siteSource = path.join(root, 'apps/site/src');
 	for (const file of readdirSync(siteSource, { recursive: true, encoding: 'utf8' })) {
 		if (!/\.(ts|svelte)$/.test(file) || file.includes('/wasm/')) continue;

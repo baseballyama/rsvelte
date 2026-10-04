@@ -1,0 +1,12 @@
+[
+	{ "file": "languages/svelte/compile/src/configuration.rs", "name": "CssHash", "upstream": "cssHash?: CssHashGetter;", "reason": "The `cssHash` compile option" },
+	{ "file": "languages/svelte/compile/src/configuration.rs", "name": "CssHashInput", "upstream": "type CssHashGetter = (args: {", "reason": "The argument of the `cssHash` option" },
+	{ "file": "languages/svelte/compile/src/configuration.rs", "name": "CssHashInput::css", "upstream": "\t\tfilename: string;\n\t\tcss: string;", "reason": "The `css` field of the `cssHash` argument" },
+	{ "file": "languages/svelte/compile/src/configuration.rs", "name": "Configuration::css_hash", "upstream": "cssHash?: CssHashGetter;", "reason": "The `cssHash` compile option" },
+	{ "file": "languages/svelte/compile_vapor/src/compilation/template/options.rs", "name": "CssMode", "upstream": "css?: 'injected' | 'external'", "reason": "The values of the `css` compile option" },
+	{ "file": "languages/svelte/compile_vapor/src/compilation/template/options.rs", "name": "Options::css_mode", "upstream": "css?: 'injected' | 'external'", "reason": "The `css` compile option" },
+	{ "file": "languages/svelte/compile_vapor/src/compilation.rs", "name": "Translation::css_mode", "upstream": "css?: 'injected' | 'external'", "reason": "The `css` compile option" },
+	{ "file": "languages/svelte/compile/src/render_plan/namespace.rs", "name": "Namespace::Html", "upstream": "type Namespace = 'html' | 'svg' | 'mathml';", "reason": "The `html` namespace" },
+	{ "file": "languages/svelte/syntax/src/syntax/syntax_tree.rs", "name": "TemplateNode::Html", "upstream": "type: 'HtmlTag';", "reason": "The `{@html}` tag" },
+	{ "file": "languages/svelte/hir/src/compilation/compiler_syntax_tree.rs", "name": "NodeKind::Html", "upstream": "type: 'HtmlTag';", "reason": "The `{@html}` tag" }
+]
