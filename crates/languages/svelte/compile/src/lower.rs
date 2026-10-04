@@ -147,6 +147,9 @@ pub(crate) struct Prepared<'a> {
     out: SyntaxTree,
     names: names::Names,
     each_index: FxHashMap<CompilerNodeIdentifier, String>,
+    /// The module script, imports included. Upstream places it apart from `hoisted`, and the
+    /// client and server place it differently.
+    module: Vec<NodeIdentifier>,
     hoisted: Vec<NodeIdentifier>,
     instance: Vec<NodeIdentifier>,
     custom_element: Option<&'a custom_element::CustomElement>,

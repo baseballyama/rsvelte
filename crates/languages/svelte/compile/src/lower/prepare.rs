@@ -35,6 +35,7 @@ pub(super) fn prepare<'a>(
     let each_index = each_index_names(input.component.compiler_syntax_tree, &mut names);
     let component_name = names.generate(&facts.identity.name);
     let mut out = SyntaxTree::new();
+    let mut module_statements = Vec::new();
     let mut hoisted = Vec::new();
     let mut rewrite = script::ScriptRewrite {
         target,
@@ -50,11 +51,11 @@ pub(super) fn prepare<'a>(
             &mut out,
             &mut rewrite,
             module,
-            &mut hoisted,
+            &mut module_statements,
             &mut names,
             script::ScriptContext::Module,
         )?;
-        hoisted.extend(statements);
+        module_statements.extend(statements);
     }
     let instance = script::lower_script(
         javascript,
@@ -69,6 +70,7 @@ pub(super) fn prepare<'a>(
         out,
         names,
         each_index,
+        module: module_statements,
         hoisted,
         instance,
         custom_element,

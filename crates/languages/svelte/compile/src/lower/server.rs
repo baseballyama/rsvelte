@@ -97,6 +97,7 @@ pub(super) fn lower_prepared(
         out,
         names,
         each_index,
+        module,
         hoisted,
         instance,
         component_name,
@@ -178,6 +179,7 @@ pub(super) fn lower_prepared(
     let source = o.write_string("svelte/internal/server");
     let mut program = vec![o.import(&[spec], source, false, SourceLocation::SYNTHETIC)];
     program.extend(hoisted);
+    program.extend(module);
     program.push(o.export_default(func, SourceLocation::SYNTHETIC));
     let root = o.program(&program, SourceLocation::SYNTHETIC);
     Ok((sx.out, root))

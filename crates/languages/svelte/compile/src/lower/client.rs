@@ -166,6 +166,7 @@ pub(super) fn lower_prepared(
         out,
         names,
         each_index,
+        module,
         hoisted,
         instance,
         custom_element,
@@ -209,8 +210,16 @@ pub(super) fn lower_prepared(
     let ns = o.identifier("$");
     let spec = o.import_namespace(ns, SourceLocation::SYNTHETIC);
     let src2 = o.write_string("svelte/internal/client");
-    program.push(o.import(&[spec], src2, false, SourceLocation::SYNTHETIC));
-    program.extend(context.hoisted.iter().copied());
+    let runtime = o.import(&[spec], src2, false, SourceLocation::SYNTHETIC);
+    // Upstream lists `[...module, $, ...hoisted]` and moves every import to the top in that order.
+    let (imports, rest): (Vec<_>, Vec<_>) = module
+        .iter()
+        .copied()
+        .chain([runtime])
+        .chain(context.hoisted.iter().copied())
+        .partition(|&statement| matches!(o.kind(statement), Kind::Import { .. }));
+    program.extend(imports);
+    program.extend(rest);
     program.extend(stylesheet);
     let o = &mut context.out;
     program.push(o.export_default(func, SourceLocation::SYNTHETIC));
