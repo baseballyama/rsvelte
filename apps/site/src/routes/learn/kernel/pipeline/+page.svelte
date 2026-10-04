@@ -205,7 +205,7 @@
 	</p>
 </div>
 
-<Code item={data.code.run} mark={['.map(|d| run_document(reg, d, &tasks, &finish_tasks, options.sharing))']} />
+<Code item={data.code.run} mark={['let compile = |d| run_document(reg, d, &tasks, &finish_tasks, options.sharing);']} />
 
 <div class="prose-learn">
 	<p>

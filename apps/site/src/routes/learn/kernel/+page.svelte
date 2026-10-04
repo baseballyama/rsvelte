@@ -267,7 +267,7 @@
 		さらに、二つのプラグインを組み合わせて、一方の言語のコンポーネントをもう一方のランタイムで動かす翻訳もあります。<code>rsvelte_svue</code> は
 		<code>.vue</code> のコンポーネントを、Vue の意味のまま Svelte のランタイム向けにコンパイルします。Vue のパーサと名前解決、Svelte
 		のコンパイラはそのまま使います。自分で持つのは、Vue の構文木を Svelte の runes を使うスクリプトとコンパイル用に整理した構文木に翻訳する部分だけです。<code
-			>rsvelte_vuelte</code
+			>rsvelte_svelte_compile_vapor</code
 		> は逆向きで、<code>.svelte</code> のコンポーネントを Svelte の意味のまま Vue のランタイム向けにコンパイルします（<a href="/learn/kernel/layers#svue"
 			>05</a
 		>）。

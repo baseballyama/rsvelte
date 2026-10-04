@@ -7,7 +7,7 @@ export const load = () => ({
 	isolated: arm('isolated'),
 	code: excerpts({
 		artifact: 'kernel/computation/database/Artifact',
-		parsed: 'svelte/computation/impl Artifact for Parsed',
+		parsed: 'svelte/parser/computation/impl Artifact for Parsed',
 		scoped: 'svelte/compile/computation/impl Artifact for ScopedStylesheet',
 		register: 'kernel/computation/database/ArtifactRegistry::register',
 		slot: 'kernel/computation/database/ArtifactRegistry::slot',
@@ -21,9 +21,9 @@ export const load = () => ({
 		contextFacet: 'kernel/computation/database/DocumentContext::facet',
 		typescriptView: 'typescript/check/check/TypeScriptView',
 		typescriptDocument: 'typescript/check/check/TypeScriptDocument',
-		svelteRegister: 'svelte/check/registration/register',
+		svelteRegister: 'svelte/typecheck/registration/register',
 		vueRegister: 'vue/check/registration/register',
-		svelteView: 'svelte/check/registration/typescript_view',
+		svelteView: 'svelte/typecheck/registration/typescript_view',
 		prepare: 'typescript/check/check/Check::prepare'
 	})
 });

@@ -82,7 +82,7 @@
 
 	<H2 id="rule" />
 	<p>
-		lint ルールの守るべき条件は、カーネルの <code>lint</code> モジュールにあります。ルールはコンテキストの型 <code>C</code>
+		lint ルールの守るべき条件は、各言語で共有する <code>rsvelte_lint</code> にあります。カーネルはタスクを実行し、成果物と診断を受け取ります。ルールはコンテキストの型 <code>C</code>
 		について総称的で、<code>C</code> を決めるのは言語の側です。
 	</p>
 </div>
@@ -102,7 +102,7 @@
 
 <div class="prose-learn">
 	<p>
-		<code>no-unused-variables</code> の本体は <code>rsvelte_typescript</code> にあります。JavaScript の意味に属するルールなので、Vue
+		<code>no-unused-variables</code> の本体は <code>rsvelte_typescript_lint</code> にあります。JavaScript の意味に属するルールなので、Vue
 		プラグインもそのまま使っています。違うのは、どの束縛を判定するかをホストが渡すことだけです。Vue では <code>v-for</code>
 		の変数を中核のルールには判定させず、<code>vue/no-unused-variables</code> が判定します。逆にすると、比較元の公式ツールとの比較で <code>lint-cases</code> が赤になります（73e09d6167）。二つのプラグインで同じ判断を共有する別の例は
 		<a href="/learn/kernel/layers#shared-lint">05</a> にあります。
@@ -111,7 +111,7 @@
 	<H2 id="order" />
 	<p>
 		<code>Findings</code> は、層ごとのルールの組を順に走らせ、ルールごとに計測のフェーズを開き、最後に指摘を開始位置で並べます。層が一つなら
-		<code>lint::run</code> が同じことをします。
+		<code>rsvelte_lint::rules::run</code> が同じことをします。
 	</p>
 </div>
 

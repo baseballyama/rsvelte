@@ -4,7 +4,7 @@ export const plugins = [
 	{ id: 'svelte', name: 'Svelte', description: 'Svelte の構文を読み取り、コンパイル・整形・コード検査を提供します。' },
 	{ id: 'vue', name: 'Vue', description: 'Vue の構文を読み取り、コンパイル・整形・コード検査を提供します。' },
 	{ id: 'svue', name: 'Vue から Svelte のランタイムへ', description: 'Vue のコンポーネントを Vue の意味のまま、Svelte のランタイムで動く JavaScript にコンパイルします。' },
-	{ id: 'vuelte', name: 'Svelte から Vue のランタイムへ', description: 'Svelte のコンポーネントを Svelte の意味のまま、Vue のランタイムで動く JavaScript にコンパイルします。' }
+	{ id: 'vuelte', name: 'Svelte から Vue Vapor のランタイムへ', description: 'Svelte のコンポーネントを Svelte の意味のまま、Vue Vapor のランタイムで動く JavaScript にコンパイルします。' }
 ];
 
 export const operations = [
@@ -28,7 +28,7 @@ export const examples = [
 		source: '<script setup>\nimport { ref } from "vue";\nconst count = ref(0);\n</script>\n\n<template>\n  <button @click="count++">Count: {{ count }}</button>\n</template>\n'
 	},
 	{
-		id: 'vuelte', name: 'Svelte を Vue のランタイムへ', filename: 'Counter.svelte', plugin: 'vuelte',
+		id: 'vuelte', name: 'Svelte を Vue Vapor のランタイムへ', filename: 'Counter.svelte', plugin: 'vuelte',
 		source: '<script>\n  let count = $state(0);\n</script>\n\n<button onclick={() => count++}>\n  Count: {count}\n</button>\n'
 	}
 ];

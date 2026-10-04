@@ -115,7 +115,7 @@ export const chapters: Chapter[] = [
 			s('resolve', '名前解決'),
 			s('compiler_syntax_tree', 'コンパイル用に整理した構文木'),
 			s('svue', 'Vue のコンポーネントを Svelte のランタイムで動かす'),
-			s('vuelte', 'Svelte のコンポーネントを Vue のランタイムで動かす'),
+			s('vuelte', 'Svelte のコンポーネントを Vue Vapor のランタイムで動かす'),
 			s('lint', '構文解析直後の検査と解析結果を使う検査'),
 			s('shared-lint', '言語をまたぐ判断'),
 			s('next', 'この先の層')
@@ -145,7 +145,7 @@ export const chapters: Chapter[] = [
 		number: '07',
 		title: 'エラーや警告の報告とコード検査',
 		abstract: 'Diagnostic、近似しないための Unsupported、Rule の守るべき条件と並び順。',
-		module: 'kernel/diagnostics/rules',
+		module: 'lint/rules',
 		minutes: 8,
 		sections: [
 			s('diagnostic', 'エラーや警告の記録'),

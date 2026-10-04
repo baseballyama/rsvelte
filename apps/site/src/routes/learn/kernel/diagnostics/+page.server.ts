@@ -11,12 +11,12 @@ export const load = () => ({
 		unsupported: 'kernel/diagnostics/diagnostic/Unsupported',
 		unsupportedImpl: 'kernel/diagnostics/diagnostic/impl Unsupported',
 		format: 'svelte/format/task/Format::run',
-		rule: 'kernel/diagnostics/rules/Rule',
-		run: 'kernel/diagnostics/rules/impl Findings',
+		rule: 'lint/rules/Rule',
+		run: 'lint/rules/impl Findings',
 		rules: 'svelte/lint/lint/lint',
 		noUnused: 'svelte/lint/lint/impl Rule for NoUnusedVariables',
-		orderTest: 'kernel/diagnostics/rules/tests::findings_are_ordered_by_offset_and_ties_keep_rule_order',
-		render: 'kernel/diagnostics/rules/render_json',
-		columnsTest: 'kernel/diagnostics/rules/tests::columns_are_one_based_utf16'
+		orderTest: 'lint/rules/tests::findings_are_ordered_by_offset_and_ties_keep_rule_order',
+		render: 'lint/output/render_json',
+		columnsTest: 'lint/output/tests::columns_are_one_based_utf16'
 	})
 });

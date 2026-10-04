@@ -16,7 +16,7 @@ export const load = () => ({
 		sourceMap: 'kernel/output/emitter/Emitter::source_map',
 		vlq: 'kernel/output/emitter/vlq',
 		edits: 'kernel/output/emitter/Edits',
-		applyIn: 'kernel/output/emitter/Edits::apply_in',
+		applyIn: 'kernel/output/emitter/TextEdits::apply_in',
 		lookupOverlap: 'kernel/output/emitter/Emitter::lookup_overlap',
 		mapBack: 'typescript/check/check/MapBack',
 		checkProjected: 'typescript/check/check/check_projected'

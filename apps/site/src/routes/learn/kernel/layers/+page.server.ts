@@ -30,7 +30,7 @@ export const load = () => ({
 		bindKind: 'svelte/semantic/resolve/BindingKind',
 		compiler_syntax_tree: 'svelte/compilation/compiler_syntax_tree/CompilerSyntaxTree',
 		attributeValue: 'svelte/compilation/compiler_syntax_tree/AttributeValue',
-		elementKind: 'svelte/compilation/compiler_syntax_tree/CompilerSyntaxTreeBuilder::element_kind',
+		elementKind: 'svelte/compilation/compiler_syntax_tree/builder/CompilerSyntaxTreeBuilder::element_kind',
 		list: 'svelte/compilation/normalize/SurfaceBuilder::list',
 		compilerSyntaxTreeBuilder: 'svelte/compilation/compiler_syntax_tree/CompilerSyntaxTreeBuilder',
 		compileInputType: 'svelte/computation/svelte_input',
@@ -40,13 +40,13 @@ export const load = () => ({
 		svueClass: 'svue/compilation/template/attributes/T::dynamic_class',
 		vuelteRegister: 'vuelte/computation/register',
 		vuelteModule: 'vuelte/computation/Compile::module',
-		vuelteRef: 'vuelte/compilation/template/elements/Builder::ref_function',
+		vuelteRef: 'vuelte/compilation/vapor/elements/Builder::element',
 		vuelteBindText: 'vuelte/compilation/template/bindings/Builder::bind_text',
 		buttonType: 'markup/button_type/check_static',
 		vueButton: 'vue/lint/lint/MarkupButtonHasType::check',
 		tokensDefault: 'kernel/source/tokens/impl Default for Tokens',
-		findings: 'kernel/diagnostics/rules/impl Findings',
+		findings: 'lint/rules/impl Findings',
 		lint: 'svelte/lint/lint/lint',
-		button: 'svelte/lint/lint/ButtonHasType::check'
+		button: 'svelte/lint/rules/button_has_type/check'
 	})
 });

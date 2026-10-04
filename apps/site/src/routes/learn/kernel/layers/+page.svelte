@@ -349,11 +349,11 @@
 
 	<H2 id="vuelte" />
 	<p>
-		逆向きの翻訳もあります。<code>rsvelte_vuelte</code> は <code>.svelte</code> のコンポーネントを、Svelte の意味のまま Vue
-		のランタイム向けの JavaScript にコンパイルします。新しい言語は足さず、<code>.svelte</code> の文書に適用するタスク
-		<code>vuelte.compile/client</code> と <code>vuelte.compile/server</code> を足すだけです。構文解析、名前解決、コンパイル用に整理した構文木、解析は
-		<code>svelte.compile</code> と同じ計算結果を使い、出力には Vue プラグインの名前解決とコンパイラを使います。<code>rsvelte_vuelte</code>
-		が持っているのは、Svelte の構文木から Vue の構文木とスクリプトを作る翻訳だけです。
+		<code>rsvelte_svelte_compile_vapor</code> compiles Svelte components to Vue Vapor.
+		It shares parsing, name resolution, normalization, and analysis with <code>svelte.compile</code>.
+		The translation builds new trees. A Rust backend emits element factories and render effects from those trees.
+		The task identifiers remain <code>vuelte.compile/client</code> and <code>vuelte.compile/server</code>.
+		The server target keeps the Vue server rendering backend. Hydration is not supported.
 	</p>
 </div>
 
@@ -366,9 +366,9 @@
 		の出力を Vue のランタイムで動かした記録と比べます。
 	</p>
 	<p>
-		書き方が同じでも、二つのランタイムでは意味が違います。補間の表示、要素の間の空白、<code>value</code>
-		を属性としても書くかどうかなどです。翻訳は、Svelte のランタイムの判断を Vue の上で再現します。たとえば Svelte の束縛は要素に対する effect
-		です。そこで、Vue が要素を更新するたびと取り外すときに呼ぶ関数 ref の中で、その処理を動かします。
+		Svelte element bindings run inside Vapor's <code>renderEffect</code>.
+		The effect tracks the values it reads and updates the element when they change.
+		<code>onScopeDispose</code> clears element bindings when a branch, loop item, or component is removed.
 	</p>
 </div>
 
@@ -423,7 +423,7 @@
 		</li>
 	</ul>
 	<p>
-		カーネルの <code>Findings</code> は、層ごとのルールの組を順に走らせて、一つの並びにまとめます。同じ位置の指摘は、先に走った層、同じ層の中ではルールの順になります。
+		<code>rsvelte_lint</code> の <code>Findings</code> は、層ごとのルールの組を順に走らせて、一つの並びにまとめます。同じ位置の指摘は、先に走った層、同じ層の中ではルールの順になります。
 	</p>
 </div>
 
