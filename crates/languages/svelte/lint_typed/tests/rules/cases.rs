@@ -1,5 +1,6 @@
-use super::CaseConfiguration;
 use rsvelte_kernel::diagnostics::diagnostic::Severity;
+
+use super::CaseConfiguration;
 
 pub(crate) const CASES: &[CaseConfiguration] = &[
     CaseConfiguration {

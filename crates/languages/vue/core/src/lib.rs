@@ -16,6 +16,4 @@ pub mod compilation;
 pub use compilation::compiler_syntax_tree;
 
 pub mod computation;
-pub use computation::artifacts::{Lowered, Parsed, Resolved, matches, register};
-
-pub use computation::artifacts::PLUGIN;
+pub use computation::artifacts::{Lowered, PLUGIN, Parsed, Resolved, matches, register};

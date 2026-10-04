@@ -3,12 +3,11 @@
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::computation::pipeline::Registry;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
+pub use rsvelte_svelte_parser::{Parsed, matches};
 
 use crate::compilation::compiler_syntax_tree;
 use crate::semantic::{analyze, input, resolve};
 use crate::syntax::syntax_tree;
-
-pub use rsvelte_svelte_parser::{Parsed, matches};
 
 #[derive(Debug)]
 pub struct Resolved;

@@ -6,6 +6,4 @@ pub use project::*;
 mod configuration;
 pub use configuration::{Configuration, TypeCheckConfiguration};
 mod registration;
-pub use registration::register;
-
-pub use registration::PLUGIN;
+pub use registration::{PLUGIN, register};

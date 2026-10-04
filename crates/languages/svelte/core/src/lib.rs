@@ -6,7 +6,6 @@ pub use rsvelte_svelte_semantic::semantic;
 pub mod syntax;
 
 pub use computation::{
-    Analyzed, Normalized, Parsed, Resolved, component_input, matches, register, svelte_input,
+    Analyzed, Normalized, PLUGIN, Parsed, Resolved, component_input, matches, register,
+    svelte_input,
 };
-
-pub use computation::PLUGIN;

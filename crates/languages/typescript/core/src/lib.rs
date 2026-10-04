@@ -16,6 +16,4 @@ pub mod compilation;
 pub use compilation::copy;
 
 pub mod computation;
-pub use computation::{Parsed, Program, Resolved, is_typescript, matches, register};
-
-pub use computation::PLUGIN;
+pub use computation::{PLUGIN, Parsed, Program, Resolved, is_typescript, matches, register};

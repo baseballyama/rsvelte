@@ -1,4 +1,5 @@
-use rsvelte_kernel::source::{positions::Span, tokens::Tokens};
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_kernel::source::tokens::Tokens;
 use rsvelte_svelte_syntax::syntax_tree::TokenType;
 
 use super::Parser;

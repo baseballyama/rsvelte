@@ -1,3 +1,6 @@
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::pipeline::{Document, Registry, Task};
 use rsvelte_kernel::diagnostics::diagnostic::Severity;
@@ -5,8 +8,6 @@ use rsvelte_markup::button_type::Allowed;
 use rsvelte_svelte_lint_typed::Configuration;
 use rsvelte_svelte_lint_typed::computation::ConditionTypes;
 use rsvelte_svelte_lint_typed::types::{ConditionType, TypeFacts};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[test]
 fn type_providers_are_lazy_cached_and_replaceable() {

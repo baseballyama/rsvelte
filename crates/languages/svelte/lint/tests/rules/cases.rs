@@ -1,7 +1,8 @@
-use super::CaseConfiguration;
 use rsvelte_kernel::diagnostics::diagnostic::Severity;
 use rsvelte_markup::button_type::Allowed;
 use rsvelte_svelte_lint::RuleConfiguration;
+
+use super::CaseConfiguration;
 
 pub(crate) const CASES: &[CaseConfiguration] = &[
     CaseConfiguration {

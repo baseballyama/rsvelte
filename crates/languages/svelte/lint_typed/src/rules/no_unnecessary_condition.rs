@@ -1,4 +1,3 @@
-use crate::computation::ConditionTypes;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::diagnostics::diagnostic::{Diagnostic, Severity};
 use rsvelte_kernel::source::positions::Span;
@@ -8,6 +7,7 @@ use rsvelte_typescript::operators::{LogicalOperator, UnaryOperator};
 use rsvelte_typescript::syntax_tree::TypeScriptKind;
 use rsvelte_typescript::{Kind, NodeIdentifier};
 
+use crate::computation::ConditionTypes;
 use crate::types::TypeFacts;
 
 pub(crate) const RULE: &str = "svelte/@typescript-eslint/no-unnecessary-condition";

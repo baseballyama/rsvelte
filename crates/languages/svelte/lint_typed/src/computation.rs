@@ -1,13 +1,15 @@
 use rsvelte_kernel::computation::database::{DocumentContext, Facet};
 use rsvelte_svelte::{Parsed, Resolved};
 
-use crate::{Configuration, types::TypeFacts};
+use crate::Configuration;
+use crate::types::TypeFacts;
 
 #[derive(Debug)]
 pub struct LintConfiguration;
 
 impl Facet for LintConfiguration {
     type Output = std::sync::Arc<Configuration>;
+
     const NAME: &'static str = "svelte.lint.typed.configuration";
 }
 
@@ -16,6 +18,7 @@ pub struct ConditionTypes;
 
 impl Facet for ConditionTypes {
     type Output = TypeFacts;
+
     const NAME: &'static str = "svelte.lint.typed.condition_types";
 }
 

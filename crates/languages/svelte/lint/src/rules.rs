@@ -1,9 +1,9 @@
 use rsvelte_kernel::computation::database::DocumentContext;
+use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_lint::rules::{Findings, Rule};
 use rsvelte_svelte::Parsed;
 
 use crate::RuleConfiguration;
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 
 mod button_has_type;
 mod no_unused_variables;
