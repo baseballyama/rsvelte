@@ -1,8 +1,7 @@
 //! Type checking with TypeScript's own checker.
 //!
-//! The native `tsc` (TypeScript 7) runs once over a
-//! whole set of generated files, and its diagnostics come back in generated coordinates for the
-//! host language to map to its documents.
+//! Native TypeScript 7.1 checks a batch. Content-mapped inputs receive diagnostics in original
+//! coordinates. Plain generated inputs use their language's mapping policy.
 //!
 //! `tsc` has no machine-readable output, so the pretty report is parsed: its header gives the
 //! start, its underline gives the end. The parser accepts only the shapes it knows and checks the
@@ -33,6 +32,8 @@ pub struct Tsc {
 pub struct CheckRequest {
     /// Generated TypeScript, one per document.
     pub files: Vec<String>,
+    pub mapped_files: Vec<Option<ContentMappedInput>>,
+    pub content_mapper: Option<PathBuf>,
     /// Declaration files written beside the generated ones, by name.
     pub declarations: Vec<(&'static str, &'static str)>,
     /// Existing declaration files to include.
@@ -49,7 +50,7 @@ pub struct TypeScriptDiagnostic {
     /// The message chain, one line per link, indented two spaces per level (as svelte-check and
     /// `ts.flattenDiagnosticMessageText(…, "\n")` render it).
     pub message: String,
-    /// Byte range in the generated file.
+    /// Byte range in the input: original for content-mapped files, generated otherwise.
     pub span: Span,
 }
 
@@ -82,6 +83,8 @@ pub enum TypeScriptDocument {
 /// What a language adds to the checked project besides its documents.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct TypeScriptEnv {
+    pub mapped_extension: Option<&'static str>,
+    pub content_mapper: Option<PathBuf>,
     /// Declaration files written beside the generated ones, by name.
     pub declarations: Vec<(&'static str, &'static str)>,
     /// Existing declaration files to include.
@@ -98,6 +101,15 @@ impl TypeScriptEnv {
     /// A message naming a declaration file or module specifier the two environments define
     /// differently.
     pub fn merge(&mut self, other: &Self) -> Result<(), String> {
+        if let Some(mapper) = &other.content_mapper {
+            match &self.content_mapper {
+                None => self.content_mapper = Some(mapper.clone()),
+                Some(existing) if existing == mapper => {}
+                Some(_) => {
+                    return Err("languages require different content mapper executables".into());
+                }
+            }
+        }
         for d in &other.declarations {
             match self.declarations.iter().find(|x| x.0 == d.0) {
                 None => self.declarations.push(*d),
@@ -123,8 +135,8 @@ impl TypeScriptEnv {
 
 /// How a host maps a generated range back to its document.
 ///
-/// [`Emitter::lookup_span`] for svelte2tsx's source map, [`Emitter::lookup_overlap`] for Volar.
-/// `None` drops the finding, as both upstreams drop what lands in generated code.
+/// Plain generated inputs use this policy. Content-mapped inputs use native TypeScript's mapping.
+/// `None` drops a generated finding with no original counterpart.
 pub type MapBack = fn(&Emitter, Span) -> Option<Span>;
 
 /// Type checking over matching documents whose plugins provide [`TypeScriptView`].
@@ -230,6 +242,17 @@ fn check_projected(
     outs: Vec<&mut TaskOutput>,
 ) {
     let req = CheckRequest {
+        mapped_files: docs
+            .iter()
+            .map(|d| {
+                d.env.mapped_extension.map(|extension| ContentMappedInput {
+                    source: d.source_text.clone(),
+                    extension,
+                    mappings: d.projection.mappings.clone(),
+                })
+            })
+            .collect(),
+        content_mapper: env.content_mapper.clone(),
         files: docs
             .iter_mut()
             .map(|d| std::mem::take(&mut d.projection.out))
@@ -253,7 +276,12 @@ fn check_projected(
     let mut per_doc: Vec<Vec<(Span, u32, String)>> = vec![Vec::new(); docs.len()];
     for f in found {
         let d = &docs[f.file];
-        if let Some(span) = (d.map_back)(&d.projection, f.span) {
+        let mapped = if d.env.mapped_extension.is_some() {
+            Some(f.span)
+        } else {
+            (d.map_back)(&d.projection, f.span)
+        };
+        if let Some(span) = mapped {
             per_doc[f.file].push((span, f.code, f.message));
         }
     }
@@ -301,6 +329,12 @@ impl Tsc {
     /// A message if the temporary project cannot be written, `tsc` cannot be run, or its report
     /// cannot be parsed.
     pub fn check(&self, req: &CheckRequest) -> Result<Vec<TypeScriptDiagnostic>, String> {
+        if !req.mapped_files.is_empty() && req.mapped_files.len() != req.files.len() {
+            return Err("mapped inputs must match the projection population".into());
+        }
+        if req.content_mapper.is_none() && req.mapped_files.iter().any(Option::is_some) {
+            return Err("content-mapped inputs require a mapper executable".into());
+        }
         let dir = std::env::temp_dir().join(format!(
             "rsvelte-tsc-{}-{}",
             std::process::id(),
@@ -322,8 +356,19 @@ impl Tsc {
             std::fs::write(dir.join(name), text).map_err(|e| format!("{name}: {e}"))
         };
         for (i, text) in req.files.iter().enumerate() {
-            write(&file_name(i), text)?;
+            let mapped = req.mapped_files.get(i).and_then(Option::as_ref);
+            write(
+                &req.file_name(i),
+                mapped.map_or(text.as_str(), |file| file.source.as_str()),
+            )?;
+            if let Some(mapped) = mapped {
+                write(
+                    &format!("{}.projection.json", req.file_name(i)),
+                    &mapped.json(text),
+                )?;
+            }
         }
+        req.write_mapper_package(dir)?;
         for (name, text) in &req.declarations {
             write(name, text)?;
         }
@@ -331,7 +376,7 @@ impl Tsc {
         let output = {
             let _p = measurement::phase("ts.tsc");
             Command::new(&self.binary)
-                .args(["-p", ".", "--pretty", "true"])
+                .args(["-p", ".", "--pretty", "true", "--runExternalCode"])
                 .current_dir(dir)
                 .output()
                 .map_err(|e| format!("{}: {e}", self.binary.display()))?
@@ -345,7 +390,19 @@ impl Tsc {
             ));
         }
         let _p = measurement::phase("ts.report");
-        let lines: Vec<LineIndex> = req.files.iter().map(|f| LineIndex::new(f)).collect();
+        let lines: Vec<LineIndex> = req
+            .files
+            .iter()
+            .enumerate()
+            .map(|(i, f)| {
+                LineIndex::new(
+                    req.mapped_files
+                        .get(i)
+                        .and_then(Option::as_ref)
+                        .map_or(f.as_str(), |mapped| mapped.source.as_str()),
+                )
+            })
+            .collect();
         parse_report(&strip_ansi(&stdout), |file, line, column| {
             lines.get(file).and_then(|l| l.offset(line, column))
         })
@@ -372,9 +429,11 @@ impl Tsc {
                 .write_string(&file.to_string_lossy())
                 .end_array();
         }
-        w.end_object().end_object().key("files").begin_array();
+        w.end_object().end_object();
+        req.write_mapper_config(&mut w);
+        w.key("files").begin_array();
         for i in 0..req.files.len() {
-            w.write_string(&file_name(i));
+            w.write_string(&req.file_name(i));
         }
         for (name, _) in &req.declarations {
             w.write_string(name);
@@ -388,7 +447,9 @@ impl Tsc {
 }
 
 mod report;
-use report::{file_name, parse_report, strip_ansi};
+use report::{parse_report, strip_ansi};
+mod mapped;
+pub use mapped::ContentMappedInput;
 
 #[cfg(test)]
 mod tests;

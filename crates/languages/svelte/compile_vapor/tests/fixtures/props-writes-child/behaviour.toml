@@ -1,0 +1,7 @@
+include_unmount = true
+
+[[steps]]
+click = "button.value"
+
+[[steps]]
+click = "button.other"

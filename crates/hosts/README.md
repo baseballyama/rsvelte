@@ -1,5 +1,8 @@
 # Hosts
 
+[Configuration hosts](config/README.md) load JSON, JS/TS or custom settings and
+resolve runtime or native functions before tasks run. Node is optional.
+
 A host connects the rsvelte toolchain to an execution environment. It chooses
 tools, accepts input, runs tasks through the kernel, and returns their output.
 Language trees and tool implementations live in `../languages/`; shared data and
@@ -31,9 +34,11 @@ diagnostics to standard output, with task labels. It does not edit the input fil
 | `benchmark <dir> --task <identifier>` | Measure pipeline time |
 | `performance <dir>... --task <identifier>` | Measure performance counters |
 
-Type checking also needs an external TypeScript executable. For example:
+Svelte type checking needs native TypeScript 7.1 and the precomputed content mapper executable.
+The CLI finds the mapper on `PATH`; `RSVELTE_TYPESCRIPT_CONTENT_MAPPER` can set its path.
 
 ```sh
+cargo install --path crates/languages/typescript/content_mapper
 cargo run -p rsvelte_command_line -- run App.svelte \
   --task svelte.check/default --tsc /path/to/tsc \
   --svelte /path/to/node_modules/svelte --tsconfig /path/to/tsconfig.json
@@ -79,3 +84,8 @@ accepts at most 64 KiB of source, and includes tree and analysis snapshots in it
 results. Type checking is not exposed because it needs an external TypeScript
 process. Check `ok` for request errors and each step's `diagnostics` for source
 errors.
+
+The CLI includes Svelte type-aware lint with the optional `lint-typed` Cargo feature
+(`cargo run -p rsvelte_command_line --features lint-typed -- run App.svelte --task svelte.lint.typed/default`).
+It is off by default. The current provider is a limited Rust prototype; it is not
+a tsgo connection. See [typed lint](../languages/svelte/lint_typed/README.md).

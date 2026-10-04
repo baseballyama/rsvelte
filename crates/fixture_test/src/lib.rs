@@ -32,11 +32,14 @@ use snapshots::{Outcome, Snapshot};
 
 const FIXTURES_DIR: &str = "tests/fixtures";
 const UPDATE_VARIABLE: &str = "UPDATE_EXPECT";
+/// A path: each file of each corpus case is written there as one `verdict case file` line.
+pub(crate) const VERDICTS_VARIABLE: &str = "FIXTURE_VERDICTS";
 
 /// The fixture test of one crate: which tasks run, and the snapshot name of each.
 #[derive(Debug)]
 pub struct Fixtures {
     root: PathBuf,
+    input_root: PathBuf,
     registry: Registry,
     snapshots: Vec<Snapshot>,
 }
@@ -47,9 +50,25 @@ impl Fixtures {
     pub fn new(manifest_dir: &str, registry: Registry) -> Self {
         Self {
             root: Path::new(manifest_dir).join(FIXTURES_DIR),
+            input_root: Path::new(manifest_dir).join(FIXTURES_DIR),
             registry,
             snapshots: Vec::new(),
         }
+    }
+
+    /// Reads another crate's exact input population; keeps this crate's snapshots and actuals.
+    #[must_use]
+    pub fn inputs_from(mut self, manifest_dir: &str) -> Self {
+        self.input_root = Path::new(manifest_dir).join(FIXTURES_DIR);
+        self
+    }
+
+    /// Uses a separate suite for tasks with rule-specific inputs and options.
+    #[must_use]
+    pub fn directory(mut self, path: impl Into<PathBuf>) -> Self {
+        self.root = path.into();
+        self.input_root.clone_from(&self.root);
+        self
     }
 
     /// Runs `task` on every case and keeps its output as `<name>.*` in `actual/` and `expected/`.
@@ -111,7 +130,7 @@ impl Fixtures {
             Ok(a) => a,
             Err(e) => return fail(&e),
         };
-        let all = match cases::discover(&self.root) {
+        let all = match self.cases() {
             Ok(c) => c,
             Err(e) => return fail(&e),
         };
@@ -155,6 +174,15 @@ impl Fixtures {
             eprintln!("{m}");
         }
         problems += outcome.problems;
+        if let Some(path) = std::env::var_os(VERDICTS_VARIABLE) {
+            let mut lines = outcome.verdicts.clone();
+            lines.sort_unstable();
+            let mut text = lines.join("\n");
+            text.push('\n');
+            if let Err(e) = std::fs::write(&path, text) {
+                return fail(&format!("{}: {e}", Path::new(&path).display()));
+            }
+        }
         eprintln!(
             "fixtures {}: {} of {total} cases, {} snapshots same, {} written, {} removed, \
              {problems} problems",
@@ -168,17 +196,20 @@ impl Fixtures {
             + outcome.equivalent
             + outcome.differing
             + outcome.unparseable
-            + outcome.not_run;
+            + outcome.not_run
+            + outcome.unmeasured;
         if oracle_cases > 0 {
             eprintln!(
                 "official output, {oracle_cases} cases: {} match it byte for byte, {} match it as \
                  JavaScript syntax trees, {} differ (compare their `expected/` and `actual/`), {} \
-                 have JavaScript that does not parse, {} not run",
+                 have JavaScript that does not parse, {} not run, \
+                 {} UNMEASURED (no oracle snapshot)",
                 outcome.matching,
                 outcome.equivalent,
                 outcome.differing,
                 outcome.unparseable,
                 outcome.not_run,
+                outcome.unmeasured,
             );
         }
         if problems > 0 {
@@ -189,6 +220,16 @@ impl Fixtures {
             return ExitCode::FAILURE;
         }
         ExitCode::SUCCESS
+    }
+
+    fn cases(&self) -> Result<Vec<Case>, String> {
+        let mut cases = cases::discover(&self.input_root)?;
+        if self.input_root != self.root {
+            for case in &mut cases {
+                case.dir = self.root.join(&case.name);
+            }
+        }
+        Ok(cases)
     }
 
     fn check(
@@ -204,16 +245,28 @@ impl Fixtures {
             threads: None,
         };
         let outcomes = Mutex::new(Vec::with_capacity(cases.len()));
-        // Each case is checked as soon as its result is final, so memory stays at the working set.
-        run_each(&self.registry, documents, &options, &|i, result| {
-            let outcome =
-                snapshots::check(&cases[i], &documents[i], &result, &self.snapshots, update);
-            outcomes
-                .lock()
-                .expect("no check panics while holding the lock")
-                .push((i, outcome));
-        })
-        .map_err(|e| e.to_string())?;
+        let mut offset = 0;
+        for project in cases.chunk_by(|a, b| {
+            self.input_root == self.root || a.name.split('/').next() == b.name.split('/').next()
+        }) {
+            let project_documents = &documents[offset..offset + project.len()];
+            // Unrelated repositories can declare conflicting global TypeScript types.
+            run_each(&self.registry, project_documents, &options, &|i, result| {
+                let outcome = snapshots::check(
+                    &project[i],
+                    &project_documents[i],
+                    &result,
+                    &self.snapshots,
+                    update,
+                );
+                outcomes
+                    .lock()
+                    .expect("no check panics while holding the lock")
+                    .push((offset + i, outcome));
+            })
+            .map_err(|e| e.to_string())?;
+            offset += project.len();
+        }
         let mut outcomes = outcomes.into_inner().map_err(|e| e.to_string())?;
         outcomes.sort_unstable_by_key(|(i, _)| *i);
         let mut total = Outcome::default();
@@ -273,5 +326,82 @@ impl Arguments {
                     name.contains(f.as_str())
                 }
             })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rsvelte_kernel::computation::database::DocumentContext;
+    use rsvelte_kernel::computation::pipeline::{Task, TaskOutput};
+
+    use super::*;
+
+    #[derive(Debug)]
+    struct Findings;
+
+    impl Task for Findings {
+        fn identifier(&self) -> &'static str {
+            "test.findings"
+        }
+
+        fn applies(&self, _: &Document) -> bool {
+            true
+        }
+
+        fn run(&self, _: &DocumentContext<'_>, out: &mut TaskOutput) {
+            out.file("json", "[]\n".to_owned());
+        }
+    }
+
+    #[test]
+    fn shared_inputs_keep_the_population_and_do_not_claim_missing_oracles_match() {
+        let root =
+            std::env::temp_dir().join(format!("rsvelte-shared-inputs-{}", std::process::id()));
+        let shared = root.join("compile");
+        let own = root.join("typecheck");
+        let case = shared.join("tests/fixtures/source/file.svelte");
+        std::fs::create_dir_all(&case).unwrap();
+        std::fs::write(case.join("input.svelte"), "<p />").unwrap();
+        std::fs::write(case.parent().unwrap().join("source.json"), "{}").unwrap();
+        let extra = own.join("tests/fixtures/extra");
+        std::fs::create_dir_all(&extra).unwrap();
+        std::fs::write(extra.join("input.svelte"), "<div />").unwrap();
+        let mut registry = Registry::new();
+        registry.task(Findings);
+        let fixtures = Fixtures::new(own.to_str().unwrap(), registry)
+            .inputs_from(shared.to_str().unwrap())
+            .snapshot("test.findings", "findings");
+        let cases = fixtures.cases().unwrap();
+        assert_eq!(
+            cases.len(),
+            1,
+            "local copies must not change the shared input population"
+        );
+        assert_eq!(cases[0].name, "source/file.svelte");
+        assert_eq!(cases[0].dir, own.join("tests/fixtures/source/file.svelte"));
+        let documents = [cases[0].document().unwrap()];
+        let outcome = fixtures.check(&cases, &documents, false).unwrap();
+        assert_eq!(
+            outcome.unmeasured, 1,
+            "a missing oracle must remain unmeasured"
+        );
+        assert_eq!(
+            outcome.matching, 0,
+            "a missing oracle must not count as a match"
+        );
+        let expected = cases[0].dir.join("expected");
+        std::fs::create_dir_all(&expected).unwrap();
+        std::fs::write(expected.join("findings.json"), "[]\n").unwrap();
+        let control = fixtures.check(&cases, &documents, false).unwrap();
+        assert_eq!(
+            control.matching, 1,
+            "the same output must match a real oracle snapshot"
+        );
+        assert_eq!(control.unmeasured, 0);
+        assert!(
+            !case.join("actual").exists(),
+            "shared compiler snapshots must be untouched"
+        );
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

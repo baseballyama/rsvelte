@@ -8,8 +8,27 @@ impl ServerCompilationContext<'_> {
         &mut self,
         children: rsvelte_svelte::compilation::compiler_syntax_tree::Children,
     ) -> R<Vec<NodeIdentifier>> {
+        self.fragment_with_snippets(children, true)
+    }
+
+    pub(super) fn fragment_with_snippets(
+        &mut self,
+        children: rsvelte_svelte::compilation::compiler_syntax_tree::Children,
+        include_snippets: bool,
+    ) -> R<Vec<NodeIdentifier>> {
         let cleaned = self.plan.fragment(children);
         let mut template = Vec::new();
+        for &identifier in &cleaned.hoisted {
+            if !include_snippets
+                && matches!(
+                    self.compiler_syntax_tree.node(identifier).kind,
+                    super::NodeKind::Snippet(_)
+                )
+            {
+                continue;
+            }
+            self.special_element(identifier, &mut template)?;
+        }
         if cleaned.text_first {
             template.push(Piece::Text(EMPTY_COMMENT.into()));
         }

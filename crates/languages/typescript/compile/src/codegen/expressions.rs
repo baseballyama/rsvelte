@@ -23,14 +23,14 @@ impl Gen<'_> {
     pub(super) fn starts_with_brace_or_function(&self, e: NodeIdentifier) -> bool {
         matches!(
             self.syntax_tree.tag(self.leftmost(e)),
-            Tag::Object | Tag::ObjectPattern | Tag::FunctionExpression
+            Tag::Object | Tag::ObjectPattern | Tag::FunctionExpression | Tag::Class
         )
     }
 
     pub(super) fn prec_of(&self, identifier: NodeIdentifier) -> u8 {
         match self.syntax_tree.kind(identifier) {
             Kind::Sequence(_) => prec::SEQ,
-            Kind::Assign(..) | Kind::Arrow { .. } => prec::ASSIGN,
+            Kind::Assign(..) | Kind::Arrow { .. } | Kind::Yield { .. } => prec::ASSIGN,
             Kind::Conditional { .. } => prec::COND,
             Kind::Logical(op, ..) => prec::BIN + op.precedence(),
             Kind::Binary(op, ..) => prec::BIN + op.precedence(),
@@ -43,13 +43,43 @@ impl Gen<'_> {
 
     pub(super) fn expression(&mut self, identifier: NodeIdentifier, min: u8) {
         let p = self.prec_of(identifier);
-        if p < min {
+        if p < min || self.syntax_tree.flags(identifier) & flag::GROUPED != 0 {
             self.e.push("(");
             self.expression_inner(identifier);
             self.e.push(")");
         } else {
             self.expression_inner(identifier);
         }
+    }
+
+    pub(super) fn expression_no_in(&mut self, node: NodeIdentifier, min: u8) {
+        let wrap = self.contains_in(node);
+        if wrap {
+            self.e.push("(");
+        }
+        self.expression(node, min);
+        if wrap {
+            self.e.push(")");
+        }
+    }
+
+    fn contains_in(&self, node: NodeIdentifier) -> bool {
+        if matches!(
+            self.syntax_tree.kind(node),
+            Kind::Binary(BinaryOperator::In, ..)
+        ) {
+            return true;
+        }
+        if matches!(
+            self.syntax_tree.kind(node),
+            Kind::Function { .. } | Kind::Arrow { .. }
+        ) {
+            return false;
+        }
+        let mut found = false;
+        self.syntax_tree
+            .for_each_child(node, |child| found |= self.contains_in(child));
+        found
     }
 
     pub(super) fn logical_operand(
@@ -77,6 +107,35 @@ impl Gen<'_> {
     pub(super) fn expression_inner(&mut self, identifier: NodeIdentifier) {
         self.mark(identifier);
         match self.syntax_tree.kind(identifier) {
+            Kind::Class(class) => self.class(class),
+            Kind::Super => self.e.push("super"),
+            Kind::Yield { argument, delegate } => {
+                self.e.push(if delegate { "yield*" } else { "yield" });
+                if let Some(argument) = argument {
+                    self.e.push(" ");
+                    self.expression(argument, prec::ASSIGN);
+                }
+            }
+            Kind::ImportExpression { source, options } => {
+                self.e.push("import(");
+                self.expression(source, prec::ASSIGN);
+                if let Some(o) = options {
+                    self.e.push(", ");
+                    self.expression(o, prec::ASSIGN);
+                }
+                self.e.push(")");
+            }
+            Kind::MetaProperty { meta, property } => {
+                self.expression(meta, prec::PRIMARY);
+                self.e.push(".");
+                self.expression(property, prec::PRIMARY);
+            }
+            Kind::BigInt => {
+                let [lo, hi] = self.syntax_tree.raw_data(identifier);
+                self.e.push(
+                    rsvelte_kernel::source::positions::Span::new(lo, hi).text(self.source_text),
+                );
+            }
             Kind::Identifier(a) => self.e.push(self.syntax_tree.atoms.get(a)),
             Kind::Number(v) => match self.syntax_tree.source_location(identifier).span() {
                 Some(s) => self.e.push(s.text(self.source_text)),
@@ -95,6 +154,12 @@ impl Gen<'_> {
                         .to_owned();
                     quote(&mut self.e.out, &v);
                 }
+            }
+            Kind::Regex { pattern, flags } => {
+                self.e.push("/");
+                self.e.push(pattern.text(self.source_text));
+                self.e.push("/");
+                self.e.push(flags.text(self.source_text));
             }
             Kind::Boolean(b) => self.e.push(if b { "true" } else { "false" }),
             Kind::Null => self.e.push("null"),
@@ -153,7 +218,23 @@ impl Gen<'_> {
                 shorthand,
                 computed,
                 method,
+                getter,
+                setter,
             } => {
+                if method {
+                    if let Kind::Function { is_async: true, .. } = self.syntax_tree.kind(value) {
+                        self.e.push("async ");
+                    }
+                    if self.syntax_tree.flags(value) & flag::GENERATOR != 0 {
+                        self.e.push("*");
+                    }
+                }
+                if getter {
+                    self.e.push("get ");
+                }
+                if setter {
+                    self.e.push("set ");
+                }
                 if shorthand {
                     self.expression(value, prec::ASSIGN);
                     return;
@@ -165,7 +246,7 @@ impl Gen<'_> {
                 } else {
                     self.expression(key, prec::PRIMARY);
                 }
-                if method {
+                if method || getter || setter {
                     if let Kind::Function {
                         parameters, body, ..
                     } = self.syntax_tree.kind(value)
@@ -336,7 +417,8 @@ impl Gen<'_> {
                 self.expression(r, prec::ASSIGN);
             }
             Kind::Hole => {}
-            k @ (Kind::Program(_)
+            k @ (Kind::Control(_)
+            | Kind::Program(_)
             | Kind::VariableDeclaration { .. }
             | Kind::Declarator { .. }
             | Kind::ExpressionStatement(_)

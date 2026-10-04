@@ -1,0 +1,5 @@
+[[steps]]
+input = ["input", "changed"]
+
+[[steps]]
+click = "button"

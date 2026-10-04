@@ -1,0 +1,43 @@
+include_unmount = true
+[[steps]]
+click = "#spread"
+[[steps]]
+click = "#before"
+[[steps]]
+click = "#after"
+[[steps]]
+click = "#explicit"
+[[steps]]
+click = "#child"
+[[steps]]
+click = "#change"
+[[steps]]
+click = "#spread"
+[[steps]]
+click = "#before"
+[[steps]]
+click = "#explicit"
+[[steps]]
+click = "#change"
+[[steps]]
+click = "#spread"
+[[steps]]
+click = "#before"
+[[steps]]
+click = "#after"
+[[steps]]
+click = "#explicit"
+[[steps]]
+click = "#change"
+[[steps]]
+click = "#spread"
+[[steps]]
+click = "#before"
+[[steps]]
+click = "#after"
+[[steps]]
+click = "#explicit"
+[[steps]]
+click = "#change"
+[[steps]]
+click = "#explicit"

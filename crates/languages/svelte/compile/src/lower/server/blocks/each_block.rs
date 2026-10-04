@@ -1,5 +1,5 @@
 use crate::lower::server::{
-    BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, BinaryOperator, CompilerNodeIdentifier, Kind,
+    BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, BinaryOperator, CompilerNodeIdentifier,
     NodeIdentifier, NodeKind, Piece, R, ServerCompilationContext, SourceLocation, UpdateOperator,
     flag, unsupported,
 };
@@ -16,7 +16,7 @@ impl ServerCompilationContext<'_> {
             unreachable!()
         };
         let context = each.context().expect("the parser requires `as`");
-        if !matches!(javascript.kind(context), Kind::Identifier(_)) {
+        if !javascript.is_identifier(context) {
             let span = javascript
                 .source_location(context)
                 .span()

@@ -1,0 +1,1 @@
+<script>let x = $state(0); function get() { return x; } function set(value) { x = value; }</script><svelte:window bind:scrollX={get, set}/>

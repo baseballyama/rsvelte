@@ -1,0 +1,19 @@
+{
+	"rules": [
+		"svelte/@typescript-eslint/no-unnecessary-condition"
+	],
+	"findings": [
+		{
+			"rule": "svelte/@typescript-eslint/no-unnecessary-condition",
+			"message": "Unnecessary conditional, expected left-hand side of `??` operator to be possibly null or undefined.",
+			"start": {
+				"line": 1,
+				"column": 62
+			},
+			"end": {
+				"line": 1,
+				"column": 67
+			}
+		}
+	]
+}

@@ -1,0 +1,1 @@
+<svelte:boundary><p>Hello</p></svelte:boundary>

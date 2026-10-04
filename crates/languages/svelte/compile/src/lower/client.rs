@@ -1,15 +1,22 @@
 //! DOM templates and reactive updates.
 
 mod attributes;
+mod binding_accessors;
 mod blocks;
+mod boundary;
 mod children;
+mod custom_element;
 mod directives;
+mod dynamic_element;
 mod elements;
 mod events;
 mod expressions;
 mod fragments;
+mod global_bindings;
+mod special;
 mod template;
 mod template_chunk;
+mod title;
 
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::source::positions::SourceLocation;
@@ -30,7 +37,7 @@ use rustc_hash::FxHashMap;
 
 use super::javascript::{init_property, runtime_call};
 use super::names::Names;
-use super::script::ScriptRewrite;
+use super::script::{Read, ScriptRewrite};
 use super::{
     Item, Prepared, Target, check_binding, check_foreign_element, escape_markup, event_attribute,
     has_dependency, is_customizable_select, is_directive, is_load_error_element, needs_clsx,
@@ -129,18 +136,21 @@ struct ClientCompilationContext<'a> {
     hoisted: Vec<NodeIdentifier>,
     templates: FxHashMap<String, String>,
     events: Vec<String>,
-    /// The `{#each}` names in scope, and whether a read goes through `$.get`.
-    each: FxHashMap<BindingIdentifier, bool>,
+    /// How the template's names in scope are read.
+    reads: FxHashMap<BindingIdentifier, Read>,
     each_index: FxHashMap<CompilerNodeIdentifier, String>,
     /// Where names in lowered expressions resolve: the innermost `{#each}` scope.
     scope: ScopeIdentifier,
     plan: &'a RenderPlan,
     identity: &'a crate::OutputIdentity,
+    custom_element: Option<&'a super::custom_element::CustomElement>,
+    rest_reads: &'a rustc_hash::FxHashSet<NodeIdentifier>,
+    needs_props: bool,
 }
 
 pub(super) fn lower_prepared(
     facts: super::Lowering<'_, '_>,
-    prepared: Prepared,
+    prepared: Prepared<'_>,
 ) -> R<(SyntaxTree, NodeIdentifier)> {
     let super::Lowering {
         input,
@@ -148,6 +158,7 @@ pub(super) fn lower_prepared(
         an,
         plan,
         identity,
+        ..
     } = facts;
     let javascript = input.component.javascript;
     let Prepared {
@@ -156,6 +167,7 @@ pub(super) fn lower_prepared(
         each_index,
         hoisted,
         instance,
+        custom_element,
     } = prepared;
     let mut context = ClientCompilationContext {
         javascript,
@@ -168,42 +180,25 @@ pub(super) fn lower_prepared(
         hoisted,
         templates: FxHashMap::default(),
         events: Vec::new(),
-        each: FxHashMap::default(),
+        reads: FxHashMap::default(),
         each_index,
         scope: ScopeIdentifier::ROOT,
         plan,
         identity,
+        custom_element,
+        rest_reads: &facts.validated.rest_reads,
+        needs_props: res.sem.references.iter().any(|reference| {
+            javascript.name(reference.node) == "$host"
+                && res.sem.binding_of(reference.node).is_none()
+        }),
     };
     let template = context.fragment(input.component.compiler_syntax_tree.root)?;
 
+    let css = context.custom_element_stylesheet(facts.stylesheet);
+    let exports = context.custom_element_exports();
+    let func = context.component_function(instance, template, &exports, css.is_some());
+    let registration = context.custom_element_registration();
     let o = &mut context.out;
-    let mut body = Vec::new();
-    if an.needs_context {
-        let props = o.identifier("$$props");
-        let t = o.write_boolean(true, SourceLocation::SYNTHETIC);
-        let push = o.runtime("$", "push", &[props, t]);
-        body.push(o.expression_statement(push));
-    }
-    body.extend(instance);
-    body.extend(template);
-    if an.needs_context {
-        let pop = o.runtime("$", "pop", &[]);
-        body.push(o.expression_statement(pop));
-    }
-    let mut parameters = vec![o.identifier("$$anchor")];
-    if res.uses_props || an.needs_context {
-        parameters.push(o.identifier("$$props"));
-    }
-    let block = o.block(&body, SourceLocation::SYNTHETIC);
-    let name = o.identifier(&identity.name);
-    let func = o.function(
-        true,
-        Some(name),
-        &parameters,
-        block,
-        false,
-        SourceLocation::SYNTHETIC,
-    );
 
     let mut program = Vec::new();
     let src1 = o.write_string("svelte/internal/disclose-version");
@@ -213,6 +208,7 @@ pub(super) fn lower_prepared(
     let src2 = o.write_string("svelte/internal/client");
     program.push(o.import(&[spec], src2, false, SourceLocation::SYNTHETIC));
     program.extend(context.hoisted.iter().copied());
+    program.extend(css);
     let o = &mut context.out;
     program.push(o.export_default(func, SourceLocation::SYNTHETIC));
     if !context.events.is_empty() {
@@ -221,6 +217,7 @@ pub(super) fn lower_prepared(
         let d = o.runtime("$", "delegate", &[arr]);
         program.push(o.expression_statement(d));
     }
+    program.extend(registration);
     let root = o.program(&program, SourceLocation::SYNTHETIC);
     Ok((context.out, root))
 }
@@ -237,5 +234,62 @@ impl Walk {
             Prev::Identifier(n) => n.clone(),
             Prev::Call { of, .. } => of.clone(),
         }
+    }
+}
+
+impl ClientCompilationContext<'_> {
+    fn component_function(
+        &mut self,
+        instance: Vec<NodeIdentifier>,
+        template: Vec<NodeIdentifier>,
+        exports: &[NodeIdentifier],
+        stylesheet: bool,
+    ) -> NodeIdentifier {
+        let needs_context = self.an.needs_context || !exports.is_empty();
+        let o = &mut self.out;
+        let mut body = Vec::new();
+        if needs_context {
+            let props = o.identifier("$$props");
+            let t = o.write_boolean(true, SourceLocation::SYNTHETIC);
+            let push = o.runtime("$", "push", &[props, t]);
+            body.push(o.expression_statement(push));
+        }
+        if stylesheet {
+            let anchor = o.identifier("$$anchor");
+            let stylesheet = o.identifier("$$css");
+            let call = o.runtime("$", "append_styles", &[anchor, stylesheet]);
+            body.push(o.expression_statement(call));
+        }
+        body.extend(instance);
+        if !exports.is_empty() {
+            let object = o.object(exports, SourceLocation::SYNTHETIC);
+            let name = o.identifier("$$exports");
+            body.push(o.let_(flag::VAR, name, Some(object)));
+        }
+        body.extend(template);
+        if needs_context {
+            if exports.is_empty() {
+                let pop = o.runtime("$", "pop", &[]);
+                body.push(o.expression_statement(pop));
+            } else {
+                let exports = o.identifier("$$exports");
+                let pop = o.runtime("$", "pop", &[exports]);
+                body.push(o.return_(Some(pop), SourceLocation::SYNTHETIC));
+            }
+        }
+        let mut parameters = vec![o.identifier("$$anchor")];
+        if self.res.uses_props || needs_context || self.needs_props {
+            parameters.push(o.identifier("$$props"));
+        }
+        let block = o.block(&body, SourceLocation::SYNTHETIC);
+        let name = o.identifier(&self.identity.name);
+        o.function(
+            true,
+            Some(name),
+            &parameters,
+            block,
+            false,
+            SourceLocation::SYNTHETIC,
+        )
     }
 }

@@ -1,0 +1,11 @@
+[[steps]]
+click = "button"
+
+[[steps]]
+click = "strong + button"
+
+[[steps]]
+click = "button"
+
+[[steps]]
+click = "strong + button"

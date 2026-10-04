@@ -1,0 +1,1 @@
+<script lang="ts">const a = true; function f(a: unknown) { if (a) console.log(a); }</script>

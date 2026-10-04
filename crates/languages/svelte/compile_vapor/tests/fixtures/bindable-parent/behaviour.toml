@@ -1,0 +1,19 @@
+include_unmount = true
+
+[[steps]]
+click = "button.value"
+
+[[steps]]
+click = "button.other"
+
+[[steps]]
+click = "button.parent"
+
+[[steps]]
+input = ["input.input", "50"]
+
+[[steps]]
+click = "button.toggle"
+
+[[steps]]
+click = "button.toggle"

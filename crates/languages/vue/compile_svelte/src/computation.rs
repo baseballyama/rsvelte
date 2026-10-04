@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput};
+use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_svelte_compile::Target;
 
@@ -99,13 +100,21 @@ impl<S: Side> Artifact for Analyzed<S> {
     }
 }
 
+pub static PLUGIN: Plugin = Plugin {
+    identifier: "svue",
+    version: env!("CARGO_PKG_VERSION"),
+    dependencies: &[Dependency {
+        identifier: "vue",
+        requirement: concat!("=", env!("CARGO_PKG_VERSION")),
+    }],
+};
+
 /// Registers svue's tasks on `.vue` documents, and the Vue plugin's artifacts they read (which
 /// [`rsvelte_vue::register`] registers too; a second registration is a no-op).
 pub fn register(reg: &mut Registry) {
-    reg.artifact::<rsvelte_vue::Parsed>()
-        .artifact::<rsvelte_vue::Lowered>()
-        .artifact::<rsvelte_vue::Resolved>()
-        .artifact::<Translated<Client>>()
+    reg.plugin(&PLUGIN);
+    rsvelte_vue::register(reg);
+    reg.artifact::<Translated<Client>>()
         .artifact::<Resolved<Client>>()
         .artifact::<Analyzed<Client>>()
         .artifact::<Translated<Server>>()

@@ -67,6 +67,16 @@ impl SyntaxTree {
         self.str_owned(value, SourceLocation::SYNTHETIC)
     }
 
+    pub fn regex(&mut self, pattern: Span, flags: Span) -> NodeIdentifier {
+        let span = Span::new(pattern.start_offset - 1, flags.end_offset);
+        self.push(
+            Tag::Regex,
+            0,
+            [pattern.start_offset, pattern.end_offset],
+            span,
+        )
+    }
+
     pub fn write_boolean(
         &mut self,
         v: bool,
@@ -367,5 +377,60 @@ impl SyntaxTree {
 
     pub fn hole(&mut self, source_location: impl Into<SourceLocation>) -> NodeIdentifier {
         self.push(Tag::Hole, 0, [0, 0], source_location)
+    }
+}
+
+impl SyntaxTree {
+    pub fn import_expression(
+        &mut self,
+        source: NodeIdentifier,
+        options: Option<NodeIdentifier>,
+        span: impl Into<SourceLocation>,
+    ) -> NodeIdentifier {
+        self.push(
+            Tag::ImportExpression,
+            0,
+            [source.0, options.unwrap_or(NodeIdentifier::NONE).0],
+            span,
+        )
+    }
+
+    pub fn meta_property(
+        &mut self,
+        meta: NodeIdentifier,
+        property: NodeIdentifier,
+        span: impl Into<SourceLocation>,
+    ) -> NodeIdentifier {
+        self.push(Tag::MetaProperty, 0, [meta.0, property.0], span)
+    }
+
+    pub fn bigint(&mut self, raw: Span) -> NodeIdentifier {
+        self.push(Tag::BigInt, 0, [raw.start_offset, raw.end_offset], raw)
+    }
+}
+
+impl SyntaxTree {
+    pub fn mark_generator(&mut self, function: NodeIdentifier, generator: bool) {
+        if generator {
+            self.flags[function.index()] |= flag::GENERATOR;
+        }
+    }
+
+    pub fn super_(&mut self, span: impl Into<SourceLocation>) -> NodeIdentifier {
+        self.push(Tag::Super, 0, [0, 0], span)
+    }
+
+    pub fn yield_(
+        &mut self,
+        argument: Option<NodeIdentifier>,
+        delegate: bool,
+        span: impl Into<SourceLocation>,
+    ) -> NodeIdentifier {
+        self.push(
+            Tag::Yield,
+            u8::from(delegate),
+            [argument.unwrap_or(NodeIdentifier::NONE).0, 0],
+            span,
+        )
     }
 }

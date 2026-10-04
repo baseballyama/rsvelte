@@ -5,11 +5,21 @@ use super::{
 
 impl ClientCompilationContext<'_> {
     pub(super) fn expression(&mut self, e: NodeIdentifier) -> NodeIdentifier {
+        self.expression_with_rest_reads(e, true)
+    }
+
+    pub(super) fn expression_with_rest_reads(
+        &mut self,
+        e: NodeIdentifier,
+        rest_reads: bool,
+    ) -> NodeIdentifier {
         let mut rw = ScriptRewrite {
             target: Target::Client,
+            accessors: self.custom_element.is_some(),
+            rest_reads: rest_reads.then_some(self.rest_reads),
             res: self.res,
             source_text: self.source_text,
-            each: Some(&self.each),
+            template: Some(&self.reads),
         };
         copy(self.javascript, &mut self.out, &mut rw, e)
     }
@@ -44,13 +54,12 @@ impl ClientCompilationContext<'_> {
         else {
             return arrow;
         };
-        let same = matches!(o.kind(callee), Kind::Identifier(_))
+        let same = o.is_identifier(callee)
             && parameters.len() == arguments.len()
-            && parameters.iter().zip(arguments).all(|(&p, &a)| {
-                matches!(o.kind(p), Kind::Identifier(_))
-                    && matches!(o.kind(a), Kind::Identifier(_))
-                    && o.name(p) == o.name(a)
-            });
+            && parameters
+                .iter()
+                .zip(arguments)
+                .all(|(&p, &a)| o.is_identifier(p) && o.is_identifier(a) && o.name(p) == o.name(a));
         if same { callee } else { arrow }
     }
 

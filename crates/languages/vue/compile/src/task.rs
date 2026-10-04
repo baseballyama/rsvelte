@@ -1,10 +1,21 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput};
+use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_vue::{Lowered, Parsed, Resolved};
 
+pub static PLUGIN: Plugin = Plugin {
+    identifier: "vue.compile",
+    version: env!("CARGO_PKG_VERSION"),
+    dependencies: &[Dependency {
+        identifier: "vue",
+        requirement: concat!("=", env!("CARGO_PKG_VERSION")),
+    }],
+};
+
 pub fn register(registry: &mut Registry) {
+    registry.plugin(&PLUGIN);
     rsvelte_vue::register(registry);
     registry.task(Compile);
 }

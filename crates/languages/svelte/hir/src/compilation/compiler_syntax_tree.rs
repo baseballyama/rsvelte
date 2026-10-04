@@ -1,12 +1,16 @@
 //! Shared template HIR and frontend builder.
 
+mod builder;
+
+use builder::Either;
+pub use builder::{spelled_text, text};
 use rsvelte_kernel::newtype_index;
 use rsvelte_kernel::source::index::{IndexRange, IndexVector};
 use rsvelte_kernel::source::positions::Span;
+pub use rsvelte_svelte_syntax::names::is_component_name;
 pub use rsvelte_svelte_syntax::syntax_tree::Part;
 use rsvelte_svelte_syntax::syntax_tree::{TemplateNodeIdentifier, decode_text};
 use rsvelte_typescript::NodeIdentifier;
-use unicode_id_start as unicode_identifier_start;
 
 newtype_index!(
     pub struct CompilerNodeIdentifier;
@@ -24,7 +28,18 @@ pub struct CompilerSyntaxTree {
     pub origin: IndexVector<CompilerNodeIdentifier, TemplateNodeIdentifier>,
     children: Vec<CompilerNodeIdentifier>,
     branches: Vec<Branch>,
+    /// Lists of JavaScript nodes: snippet parameters and `{@debug}` identifiers.
+    javascript_lists: Vec<NodeIdentifier>,
+    // Keep component references outside Node so its size stays fixed.
+    component_references: Vec<(CompilerNodeIdentifier, NodeIdentifier)>,
     pub root: Children,
+}
+
+/// A slice of [`CompilerSyntaxTree`]'s list of JavaScript nodes.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct NodeList {
+    start: u32,
+    len: u32,
 }
 
 /// A slice of [`CompilerSyntaxTree`]'s child list.
@@ -65,6 +80,129 @@ pub enum NodeKind {
         otherwise: Option<Children>,
     },
     Each(Each),
+    /// `{#key expression}…{/key}`
+    Key {
+        expression: NodeIdentifier,
+        body: Children,
+    },
+    /// Boxed: the three branches would make every node larger, and the block is rare.
+    Await(Box<Await>),
+    Snippet(Snippet),
+    /// `{@render f(…)}`: a call or an optional call.
+    Render {
+        expression: NodeIdentifier,
+    },
+    /// `{@html expression}`
+    Html {
+        expression: NodeIdentifier,
+    },
+    /// `{@const pattern = expression}`: a `const` declaration in the enclosing fragment's scope.
+    Const {
+        declaration: NodeIdentifier,
+    },
+    /// `{@debug a, b}`
+    Debug {
+        identifiers: NodeList,
+    },
+    /// `{let …}` or `{const …}`: a declaration in the enclosing fragment's scope.
+    Declaration {
+        declaration: NodeIdentifier,
+    },
+}
+
+/// `{#await expression}…{:then value}…{:catch error}…{/await}`. The value and the error are
+/// declared in scopes of their own, which only their branch sees.
+#[derive(Debug)]
+pub struct Await {
+    pub expression: NodeIdentifier,
+    /// A pattern node; `NodeIdentifier::NONE` when absent, as is `error`.
+    pub value: NodeIdentifier,
+    pub error: NodeIdentifier,
+    pending: Children,
+    then: Children,
+    catch: Children,
+    /// Which of `pending`, `then` and `catch` were written, as [`Await::PENDING`] and the others.
+    present: u8,
+}
+
+impl Await {
+    const CATCH: u8 = 4;
+    const PENDING: u8 = 1;
+    const THEN: u8 = 2;
+
+    #[must_use]
+    pub fn new(
+        expression: NodeIdentifier,
+        value: NodeIdentifier,
+        error: NodeIdentifier,
+        pending: Option<Children>,
+        then: Option<Children>,
+        catch: Option<Children>,
+    ) -> Self {
+        let mut present = 0;
+        for (branch, bit) in [
+            (pending, Self::PENDING),
+            (then, Self::THEN),
+            (catch, Self::CATCH),
+        ] {
+            if branch.is_some() {
+                present |= bit;
+            }
+        }
+        Self {
+            expression,
+            value,
+            error,
+            pending: pending.unwrap_or_default(),
+            then: then.unwrap_or_default(),
+            catch: catch.unwrap_or_default(),
+            present,
+        }
+    }
+
+    #[must_use]
+    pub const fn pending(&self) -> Option<Children> {
+        self.branch(self.pending, Self::PENDING)
+    }
+
+    #[must_use]
+    pub const fn then(&self) -> Option<Children> {
+        self.branch(self.then, Self::THEN)
+    }
+
+    #[must_use]
+    pub const fn catch(&self) -> Option<Children> {
+        self.branch(self.catch, Self::CATCH)
+    }
+
+    #[must_use]
+    pub const fn value(&self) -> Option<NodeIdentifier> {
+        some(self.value)
+    }
+
+    #[must_use]
+    pub const fn error(&self) -> Option<NodeIdentifier> {
+        some(self.error)
+    }
+
+    const fn branch(&self, children: Children, bit: u8) -> Option<Children> {
+        if self.present & bit == 0 {
+            None
+        } else {
+            Some(children)
+        }
+    }
+}
+
+/// `{#snippet name(parameters)}…{/snippet}`: `name` is declared in the enclosing fragment's
+/// scope, the parameters in a scope of their own that the body sees.
+#[derive(Debug)]
+pub struct Snippet {
+    /// An identifier node.
+    pub name: NodeIdentifier,
+    /// Pattern nodes.
+    pub parameters: NodeList,
+    pub body: Children,
 }
 
 /// `{#each collection as context, index (key)}…{:else}…{/each}`. The context and the index are
@@ -126,10 +264,14 @@ const fn some(identifier: NodeIdentifier) -> Option<NodeIdentifier> {
 pub struct Element {
     pub name: Span,
     pub kind: ElementKind,
+    /// Without the `this` of `<svelte:element>` and `<svelte:component>`, which is [`Self::this`].
     pub attributes: IndexRange<AttributeIdentifier>,
     pub children: Children,
     /// `<name …>` (or `<name … />`).
     pub start_tag: Span,
+    /// The `this` attribute of `<svelte:element>` and `<svelte:component>`, which is not in
+    /// [`Self::attributes`].
+    pub this: Option<AttributeIdentifier>,
 }
 
 /// The Svelte parser's element node types.
@@ -234,9 +376,122 @@ pub enum AttributeValue {
     Class(NodeIdentifier),
     /// `{...e}`: the attribute's name is empty.
     Spread(NodeIdentifier),
+    /// `on:name={handler}`: the attribute's name is the event; without a handler the event is
+    /// forwarded.
+    On {
+        handler: Option<NodeIdentifier>,
+        modifiers: Modifiers,
+    },
+    /// `use:action={argument}`: `action` is an identifier or a member chain.
+    Use {
+        action: NodeIdentifier,
+        argument: Option<NodeIdentifier>,
+    },
+    /// `transition:`, `in:` or `out:`.
+    Transition {
+        function: NodeIdentifier,
+        argument: Option<NodeIdentifier>,
+        intro: bool,
+        outro: bool,
+        modifiers: Modifiers,
+    },
+    /// `animate:name={parameters}`
+    Animate {
+        function: NodeIdentifier,
+        argument: Option<NodeIdentifier>,
+    },
+    /// `style:property={value}`: the attribute's name is the property. Boxed: the value has the
+    /// shapes of an attribute's, and directives are rare.
+    Style {
+        value: Box<StyleValue>,
+        modifiers: Modifiers,
+    },
+    /// `let:name={pattern}`
+    Let(Option<NodeIdentifier>),
+}
+
+/// The value of a `style:` directive.
+#[derive(Debug)]
+pub enum StyleValue {
+    /// `style:color`, which reads `color`.
+    Shorthand(NodeIdentifier),
+    /// `style:--name`: nothing to read.
+    Empty,
+    Static(Box<str>),
+    Expression {
+        expression: NodeIdentifier,
+        quoted: bool,
+    },
+    Interpolated(Box<[Part]>),
+}
+
+/// A directive's `|modifier`s, one bit each.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Modifiers(u16);
+
+impl Modifiers {
+    pub const CAPTURE: Self = Self(1 << 3);
+    pub const GLOBAL: Self = Self(1 << 9);
+    pub const IMPORTANT: Self = Self(1 << 11);
+    pub const LOCAL: Self = Self(1 << 10);
+    pub const NONPASSIVE: Self = Self(1 << 6);
+    pub const ONCE: Self = Self(1 << 4);
+    pub const PASSIVE: Self = Self(1 << 5);
+    pub const PREVENT_DEFAULT: Self = Self(1);
+    pub const SELF: Self = Self(1 << 7);
+    pub const STOP_IMMEDIATE_PROPAGATION: Self = Self(1 << 2);
+    pub const STOP_PROPAGATION: Self = Self(1 << 1);
+    pub const TRUSTED: Self = Self(1 << 8);
+
+    /// The modifier a name stands for, if any.
+    #[must_use]
+    pub fn parse(name: &str) -> Option<Self> {
+        Some(match name {
+            "preventDefault" => Self::PREVENT_DEFAULT,
+            "stopPropagation" => Self::STOP_PROPAGATION,
+            "stopImmediatePropagation" => Self::STOP_IMMEDIATE_PROPAGATION,
+            "capture" => Self::CAPTURE,
+            "once" => Self::ONCE,
+            "passive" => Self::PASSIVE,
+            "nonpassive" => Self::NONPASSIVE,
+            "self" => Self::SELF,
+            "trusted" => Self::TRUSTED,
+            "global" => Self::GLOBAL,
+            "local" => Self::LOCAL,
+            "important" => Self::IMPORTANT,
+            _ => return None,
+        })
+    }
+
+    #[must_use]
+    pub const fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+
+    #[must_use]
+    pub const fn with(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+
+    #[must_use]
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
 }
 
 impl CompilerSyntaxTree {
+    #[must_use]
+    pub fn component_reference(
+        &self,
+        identifier: CompilerNodeIdentifier,
+    ) -> Option<NodeIdentifier> {
+        let index = self
+            .component_references
+            .binary_search_by_key(&identifier, |&(node, _)| node)
+            .ok()?;
+        Some(self.component_references[index].1)
+    }
+
     #[must_use]
     pub fn node(&self, identifier: CompilerNodeIdentifier) -> &Node {
         &self.nodes[identifier]
@@ -248,6 +503,11 @@ impl CompilerSyntaxTree {
     }
 
     #[must_use]
+    pub fn javascript_list(&self, l: NodeList) -> &[NodeIdentifier] {
+        &self.javascript_lists[l.start as usize..(l.start + l.len) as usize]
+    }
+
+    #[must_use]
     pub fn branches(&self, b: Branches) -> &[Branch] {
         &self.branches[b.start as usize..(b.start + b.len) as usize]
     }
@@ -255,6 +515,41 @@ impl CompilerSyntaxTree {
     #[must_use]
     pub fn attributes(&self, r: IndexRange<AttributeIdentifier>) -> &[Attribute] {
         self.attributes.slice(r)
+    }
+
+    /// The child lists of a node, in document order: an `{#each}`'s body before its fallback.
+    pub fn child_lists(
+        &self,
+        identifier: CompilerNodeIdentifier,
+    ) -> impl Iterator<Item = Children> {
+        let (first, rest): (Option<Children>, [Option<Children>; 3]) =
+            match &self.node(identifier).kind {
+                NodeKind::Element(el) => (Some(el.children), [None; 3]),
+                NodeKind::Each(each) => (Some(each.body), [each.fallback, None, None]),
+                &NodeKind::Key { body, .. } => (Some(body), [None; 3]),
+                NodeKind::Snippet(s) => (Some(s.body), [None; 3]),
+                NodeKind::Await(a) => (None, [a.pending(), a.then(), a.catch()]),
+                NodeKind::If {
+                    branches,
+                    otherwise,
+                } => {
+                    return Either::Left(
+                        self.branches(*branches)
+                            .iter()
+                            .map(|b| b.body)
+                            .chain(*otherwise),
+                    );
+                }
+                NodeKind::Text { .. }
+                | NodeKind::Comment { .. }
+                | NodeKind::Expression { .. }
+                | NodeKind::Render { .. }
+                | NodeKind::Html { .. }
+                | NodeKind::Const { .. }
+                | NodeKind::Debug { .. }
+                | NodeKind::Declaration { .. } => (None, [None; 3]),
+            };
+        Either::Right(first.into_iter().chain(rest.into_iter().flatten()))
     }
 
     pub fn elements(&self) -> impl Iterator<Item = (CompilerNodeIdentifier, &Element)> {
@@ -273,6 +568,7 @@ impl CompilerSyntaxTree {
             + self.origin.capacity() * size_of::<TemplateNodeIdentifier>()
             + self.children.capacity() * size_of::<CompilerNodeIdentifier>()
             + self.branches.capacity() * size_of::<Branch>()
+            + self.javascript_lists.capacity() * size_of::<NodeIdentifier>()
     }
 }
 
@@ -299,250 +595,3 @@ pub struct CompilerSyntaxTreeBuilder<'s> {
     source_text: &'s str,
     compiler_syntax_tree: CompilerSyntaxTree,
 }
-
-impl<'s> CompilerSyntaxTreeBuilder<'s> {
-    #[must_use]
-    pub fn new(source_text: &'s str, nodes: usize, attributes: usize) -> Self {
-        CompilerSyntaxTreeBuilder {
-            source_text,
-            compiler_syntax_tree: CompilerSyntaxTree {
-                nodes: IndexVector::with_capacity(nodes),
-                attributes: IndexVector::with_capacity(attributes),
-                origin: IndexVector::with_capacity(nodes),
-                children: Vec::with_capacity(nodes),
-                branches: Vec::new(),
-                root: Children::default(),
-            },
-        }
-    }
-
-    /// Adds a node; an element or an `if` gets its kind from
-    /// [`CompilerSyntaxTreeBuilder::set_kind`] once its children are built.
-    pub fn node(
-        &mut self,
-        kind: NodeKind,
-        span: Span,
-        parent: Option<CompilerNodeIdentifier>,
-        origin: TemplateNodeIdentifier,
-    ) -> CompilerNodeIdentifier {
-        self.compiler_syntax_tree.origin.push(origin);
-        self.compiler_syntax_tree
-            .nodes
-            .push(Node { kind, span, parent })
-    }
-
-    pub fn set_kind(&mut self, identifier: CompilerNodeIdentifier, kind: NodeKind) {
-        self.compiler_syntax_tree.nodes[identifier].kind = kind;
-    }
-
-    /// For a node whose extent is known only after its children (a chain of branches).
-    pub fn set_span(&mut self, identifier: CompilerNodeIdentifier, span: Span) {
-        self.compiler_syntax_tree.nodes[identifier].span = span;
-    }
-
-    /// Records the attributes of the element `owner` will be; returns their range.
-    pub fn attributes(
-        &mut self,
-        attributes: impl IntoIterator<Item = Attribute>,
-    ) -> IndexRange<AttributeIdentifier> {
-        let first = self.compiler_syntax_tree.attributes.next_identifier();
-        for a in attributes {
-            self.compiler_syntax_tree.attributes.push(a);
-        }
-        IndexRange::new(
-            first,
-            self.compiler_syntax_tree.attributes.next_identifier(),
-        )
-    }
-
-    pub fn children(&mut self, identifiers: &[CompilerNodeIdentifier]) -> Children {
-        let start = self.compiler_syntax_tree.children.len() as u32;
-        self.compiler_syntax_tree.children.extend(identifiers);
-        Children {
-            start,
-            len: identifiers.len() as u32,
-        }
-    }
-
-    pub fn branches(&mut self, branches: impl IntoIterator<Item = Branch>) -> Branches {
-        let start = self.compiler_syntax_tree.branches.len() as u32;
-        self.compiler_syntax_tree.branches.extend(branches);
-        Branches {
-            start,
-            len: self.compiler_syntax_tree.branches.len() as u32 - start,
-        }
-    }
-
-    /// Sets the children of an element added with no children yet.
-    ///
-    /// # Panics
-    ///
-    /// If `identifier` is not an element.
-    pub fn set_element_children(&mut self, identifier: CompilerNodeIdentifier, children: Children) {
-        let NodeKind::Element(el) = &mut self.compiler_syntax_tree.nodes[identifier].kind else {
-            panic!("{identifier:?} is not an element")
-        };
-        el.children = children;
-    }
-
-    #[must_use]
-    pub fn finish(mut self, root: Children) -> CompilerSyntaxTree {
-        self.compiler_syntax_tree.root = root;
-        self.compiler_syntax_tree
-    }
-
-    /// Upstream `element` (phases/1-parse/state/element.js): `meta_tags`, then
-    /// `regex_valid_component_name`, then `<title>` under `<svelte:head>`, then `<slot>`.
-    #[must_use]
-    pub fn element_kind(&self, name: &str, parent: Option<CompilerNodeIdentifier>) -> ElementKind {
-        if let Some(meta) = name.strip_prefix("svelte:") {
-            return ElementKind::Metadata(meta_tag(meta));
-        }
-        if is_component_name(name) {
-            return ElementKind::Component;
-        }
-        if name == "title" && self.parent_is_head(parent) {
-            return ElementKind::Title;
-        }
-        if name == "slot" && !self.parent_is_shadowroot_template(parent) {
-            return ElementKind::Slot;
-        }
-        ElementKind::Regular
-    }
-
-    /// Blocks and elements other than regular elements and components are transparent.
-    fn parent_is_head(&self, mut at: Option<CompilerNodeIdentifier>) -> bool {
-        while let Some(identifier) = at {
-            if let NodeKind::Element(el) = &self.compiler_syntax_tree.nodes[identifier].kind {
-                match el.kind {
-                    ElementKind::Metadata(Some(MetadataTag::Head)) => return true,
-                    ElementKind::Regular | ElementKind::Component => return false,
-                    _ => {}
-                }
-            }
-            at = self.compiler_syntax_tree.nodes[identifier].parent;
-        }
-        false
-    }
-
-    fn parent_is_shadowroot_template(&self, mut at: Option<CompilerNodeIdentifier>) -> bool {
-        while let Some(identifier) = at {
-            if let NodeKind::Element(el) = &self.compiler_syntax_tree.nodes[identifier].kind
-                && el.kind == ElementKind::Regular
-                && self
-                    .compiler_syntax_tree
-                    .attributes(el.attributes)
-                    .iter()
-                    .any(|a| a.name.text(self.source_text) == "shadowrootmode")
-            {
-                return true;
-            }
-            at = self.compiler_syntax_tree.nodes[identifier].parent;
-        }
-        false
-    }
-}
-
-/// A text node of `raw`, with its decoded text when decoding changes it.
-#[must_use]
-pub fn text(raw: Span, source_text: &str) -> NodeKind {
-    NodeKind::Text {
-        raw,
-        decoded: match decode_text(raw.text(source_text)) {
-            std::borrow::Cow::Borrowed(_) => None,
-            std::borrow::Cow::Owned(s) => Some(s.into_boxed_str()),
-        },
-        spelled: false,
-    }
-}
-
-/// A text node whose text a frontend spelled; `from` is where it was written.
-#[must_use]
-pub const fn spelled_text(from: Span, text: Box<str>) -> NodeKind {
-    NodeKind::Text {
-        raw: from,
-        decoded: Some(text),
-        spelled: true,
-    }
-}
-
-fn meta_tag(name: &str) -> Option<MetadataTag> {
-    Some(match name {
-        "head" => MetadataTag::Head,
-        "options" => MetadataTag::Options,
-        "window" => MetadataTag::Window,
-        "document" => MetadataTag::Document,
-        "body" => MetadataTag::Body,
-        "element" => MetadataTag::Element,
-        "component" => MetadataTag::Component,
-        "self" => MetadataTag::SelfRef,
-        "fragment" => MetadataTag::Fragment,
-        "boundary" => MetadataTag::Boundary,
-        _ => return None,
-    })
-}
-
-/// Upstream `regex_valid_component_name`, split at its alternation (ZWNJ and ZWJ escaped):
-///
-/// ```text
-/// ^(?:\p{Lu}[$\u{200C}\u{200D}\p{ID_Continue}.]*
-///   |\p{ID_Start}[$\u{200C}\u{200D}\p{ID_Continue}]*(?:\.[$\u{200C}\u{200D}\p{ID_Continue}]+)+)$
-/// ```
-#[must_use]
-pub fn is_component_name(name: &str) -> bool {
-    let continues = |c: char| {
-        c == '$'
-            || c == '\u{200c}'
-            || c == '\u{200d}'
-            || unicode_identifier_start::is_id_continue(c)
-    };
-    let mut chars = name.chars();
-    let Some(first) = chars.next() else {
-        return false;
-    };
-    let rest = chars.as_str();
-    if is_uppercase_letter(first) && rest.chars().all(|c| continues(c) || c == '.') {
-        return true;
-    }
-    if !unicode_identifier_start::is_id_start(first) {
-        return false;
-    }
-    let mut segments = rest.split('.');
-    let Some(head) = segments.next() else {
-        return false;
-    };
-    let mut members = 0;
-    for seg in segments {
-        if seg.is_empty() || !seg.chars().all(continues) {
-            return false;
-        }
-        members += 1;
-    }
-    members > 0 && head.chars().all(continues)
-}
-
-/// `\p{Lu}`: Rust's `is_uppercase` is the Uppercase property, which adds `Other_Uppercase`.
-fn is_uppercase_letter(c: char) -> bool {
-    const OTHER_UPPERCASE: &[(char, char)] = &[
-        ('\u{2160}', '\u{216f}'),
-        ('\u{24b6}', '\u{24cf}'),
-        ('\u{1f130}', '\u{1f149}'),
-        ('\u{1f150}', '\u{1f169}'),
-        ('\u{1f170}', '\u{1f189}'),
-    ];
-    c.is_uppercase()
-        && !OTHER_UPPERCASE
-            .iter()
-            .any(|&(start_offset, end_offset)| (start_offset..=end_offset).contains(&c))
-}
-
-// Pinned so a change to a node's layout is a decision: one `Node` per HIR node, one `Attribute`
-// per attribute of every component.
-#[cfg(target_pointer_width = "64")]
-const _: () = assert!(size_of::<Node>() == 56, "`Node` is 56 bytes");
-#[cfg(target_pointer_width = "64")]
-const _: () = assert!(size_of::<Attribute>() == 64, "`Attribute` is 64 bytes");
-const _: () = assert!(
-    size_of::<Option<CompilerNodeIdentifier>>() == 4,
-    "`Option<CompilerNodeIdentifier>` is 4 bytes"
-);

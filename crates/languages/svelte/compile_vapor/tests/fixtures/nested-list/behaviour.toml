@@ -1,0 +1,17 @@
+[[steps]]
+click = "button.item"
+
+[[steps]]
+click = "button.reverse"
+
+[[steps]]
+click = "button.item"
+
+[[steps]]
+click = "button.clear"
+
+[[steps]]
+click = "button.restore"
+
+[[steps]]
+click = "button.item"

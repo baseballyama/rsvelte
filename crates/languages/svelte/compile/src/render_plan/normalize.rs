@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 
-use rsvelte_markup::decode_text;
 use rsvelte_svelte::compilation::compiler_syntax_tree::{
-    CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind,
+    CompilerNodeIdentifier, CompilerSyntaxTree, ElementKind, MetadataTag, NodeKind,
 };
+use rsvelte_svelte::syntax::syntax_tree::decode_text;
 use rsvelte_typescript::NodeIdentifier;
 
 /// A node after whitespace cleaning; text may have been trimmed, so it carries its own strings.
@@ -28,10 +28,12 @@ pub enum Parent<'a> {
     Block,
     /// The body or the fallback of an `{#each}`.
     Each,
+    Snippet,
 }
 
 #[derive(Debug)]
 pub struct Cleaned<'a> {
+    pub hoisted: Box<[CompilerNodeIdentifier]>,
     pub items: Vec<Item<'a>>,
     /// Upstream `is_text_first`: the fragment starts with text and needs an anchor comment.
     pub text_first: bool,
@@ -59,6 +61,7 @@ pub fn clean_nodes<'a>(
         .trim_end_matches(|c: char| c.is_whitespace() || c == '\u{feff}')
         .len();
     let mut regular: Vec<Item<'a>> = Vec::with_capacity(list.len());
+    let mut hoisted = Vec::new();
     for &identifier in list {
         match &compiler_syntax_tree.node(identifier).kind {
             NodeKind::Comment { .. } => {}
@@ -89,7 +92,33 @@ pub fn clean_nodes<'a>(
                 });
             }
             NodeKind::Expression { expression } => regular.push(Item::Expression(*expression)),
-            NodeKind::Element(_) | NodeKind::If { .. } | NodeKind::Each(_) => {
+            NodeKind::Element(el)
+                if matches!(
+                    el.kind,
+                    ElementKind::Title
+                        | ElementKind::Metadata(Some(
+                            MetadataTag::Head
+                                | MetadataTag::Window
+                                | MetadataTag::Document
+                                | MetadataTag::Body
+                        ))
+                ) =>
+            {
+                hoisted.push(identifier);
+            }
+            NodeKind::Element(el)
+                if el.kind == ElementKind::Metadata(Some(MetadataTag::Options)) => {}
+            NodeKind::Const { .. }
+            | NodeKind::Declaration { .. }
+            | NodeKind::Debug { .. }
+            | NodeKind::Snippet(_) => hoisted.push(identifier),
+            NodeKind::Element(_)
+            | NodeKind::If { .. }
+            | NodeKind::Each(_)
+            | NodeKind::Key { .. }
+            | NodeKind::Await(_)
+            | NodeKind::Render { .. }
+            | NodeKind::Html { .. } => {
                 regular.push(Item::Node(identifier));
             }
         }
@@ -153,12 +182,15 @@ pub fn clean_nodes<'a>(
         trimmed.remove(0);
     }
 
-    let text_first = matches!(parent, Parent::Root | Parent::Each)
-        && matches!(
-            trimmed.first(),
-            Some(Item::Text { .. } | Item::Expression(_))
-        );
+    let text_first = matches!(
+        parent,
+        Parent::Root | Parent::Each | Parent::Snippet | Parent::Element("svelte:boundary")
+    ) && matches!(
+        trimmed.first(),
+        Some(Item::Text { .. } | Item::Expression(_))
+    );
     Cleaned {
+        hoisted: hoisted.into_boxed_slice(),
         items: trimmed,
         text_first,
     }

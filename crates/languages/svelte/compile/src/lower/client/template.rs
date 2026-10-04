@@ -1,4 +1,5 @@
 use super::{escape_markup, is_void};
+use crate::render_plan::Namespace;
 
 /// The HTML of one fragment, built while its nodes are visited (upstream `Template`).
 #[derive(Default)]
@@ -7,11 +8,13 @@ pub(super) struct Template {
     roots: Vec<usize>,
     stack: Vec<usize>,
     pub(super) needs_import_node: bool,
+    pub(super) namespace: Option<Namespace>,
 }
 
 enum TplNode {
     Element {
         name: String,
+        namespace: Namespace,
         attributes: Vec<(String, Option<String>)>,
         children: Vec<usize>,
     },
@@ -33,8 +36,15 @@ impl Template {
         i
     }
 
-    pub(super) fn push_element(&mut self, name: &str) {
+    pub(super) fn push_element(&mut self, name: &str, namespace: Namespace) {
+        if self.stack.is_empty() {
+            self.namespace = Some(match self.namespace {
+                Some(previous) if previous != namespace => Namespace::Html,
+                _ => namespace,
+            });
+        }
         let i = self.add(TplNode::Element {
+            namespace,
             name: name.to_owned(),
             attributes: Vec::new(),
             children: Vec::new(),
@@ -92,6 +102,7 @@ impl Template {
             TplNode::Comment(None) => out.push_str("<!>"),
             TplNode::Element {
                 name,
+                namespace,
                 attributes,
                 children,
             } => {
@@ -99,7 +110,11 @@ impl Template {
                 out.push_str(name);
                 for (k, v) in attributes {
                     out.push(' ');
-                    out.push_str(&k.to_ascii_lowercase());
+                    if *namespace == Namespace::Html {
+                        out.push_str(&k.to_ascii_lowercase());
+                    } else {
+                        out.push_str(k);
+                    }
                     if let Some(v) = v {
                         out.push_str("=\"");
                         out.push_str(&escape_markup(v, true));

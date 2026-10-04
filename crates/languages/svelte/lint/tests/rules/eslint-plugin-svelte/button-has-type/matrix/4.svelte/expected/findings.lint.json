@@ -1,0 +1,31 @@
+{
+	"rules": [
+		"svelte/button-has-type"
+	],
+	"findings": [
+		{
+			"rule": "svelte/button-has-type",
+			"message": "button is a forbidden value for button type attribute.",
+			"start": {
+				"line": 6,
+				"column": 9
+			},
+			"end": {
+				"line": 6,
+				"column": 22
+			}
+		},
+		{
+			"rule": "svelte/button-has-type",
+			"message": "submit is a forbidden value for button type attribute.",
+			"start": {
+				"line": 7,
+				"column": 9
+			},
+			"end": {
+				"line": 7,
+				"column": 22
+			}
+		}
+	]
+}

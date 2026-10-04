@@ -1,0 +1,1 @@
+<script>let show = $state(true);</script><svelte:head>{#if show}<title>Shown</title><meta name="test" content="shown" />{/if}</svelte:head><p>Body</p>

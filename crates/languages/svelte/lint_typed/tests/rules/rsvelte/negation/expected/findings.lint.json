@@ -1,0 +1,43 @@
+{
+	"rules": [
+		"svelte/@typescript-eslint/no-unnecessary-condition"
+	],
+	"findings": [
+		{
+			"rule": "svelte/@typescript-eslint/no-unnecessary-condition",
+			"message": "Unnecessary conditional, value is always falsy.",
+			"start": {
+				"line": 1,
+				"column": 24
+			},
+			"end": {
+				"line": 1,
+				"column": 28
+			}
+		},
+		{
+			"rule": "svelte/@typescript-eslint/no-unnecessary-condition",
+			"message": "Unnecessary conditional, value is always falsy.",
+			"start": {
+				"line": 1,
+				"column": 52
+			},
+			"end": {
+				"line": 1,
+				"column": 56
+			}
+		},
+		{
+			"rule": "svelte/@typescript-eslint/no-unnecessary-condition",
+			"message": "Unnecessary conditional, value is always truthy.",
+			"start": {
+				"line": 1,
+				"column": 97
+			},
+			"end": {
+				"line": 1,
+				"column": 101
+			}
+		}
+	]
+}

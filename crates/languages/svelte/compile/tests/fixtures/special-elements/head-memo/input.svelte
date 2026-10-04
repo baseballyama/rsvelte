@@ -1,0 +1,1 @@
+<script>let title = $state("A"); function value() { return title; }</script><svelte:head><title>{value()}</title></svelte:head><button onclick={() => title = "B"}>change</button>

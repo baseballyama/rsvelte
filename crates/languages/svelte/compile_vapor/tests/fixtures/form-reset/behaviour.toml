@@ -1,0 +1,40 @@
+include_unmount = true
+
+[[steps]]
+input = ["input.text", "edited"]
+
+[[steps]]
+input = ["input.number", "8"]
+
+[[steps]]
+select = ["select.single", "b"]
+
+[[steps]]
+select = ["select.multiple", "b"]
+
+[[steps]]
+click = "input.group[value=b]"
+
+[[steps]]
+click = "input.radio[value=b]"
+
+[[steps]]
+click = "button.reset"
+
+[[steps]]
+input = ["input.adopted", "changed"]
+
+[[steps]]
+click = "input.checked"
+
+[[steps]]
+click = "button.cancel"
+
+[[steps]]
+click = "button.reset"
+
+[[steps]]
+click = "button.cancel"
+
+[[steps]]
+click = "button.program"

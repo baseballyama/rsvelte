@@ -10,18 +10,30 @@ impl ClientCompilationContext<'_> {
         &mut self,
         children: rsvelte_svelte::compilation::compiler_syntax_tree::Children,
     ) -> R<Vec<NodeIdentifier>> {
+        self.fragment_with_snippets(children, true)
+    }
+
+    pub(super) fn fragment_with_snippets(
+        &mut self,
+        children: rsvelte_svelte::compilation::compiler_syntax_tree::Children,
+        include_snippets: bool,
+    ) -> R<Vec<NodeIdentifier>> {
         let cleaned = self.plan.fragment(children);
         let items = &cleaned.items;
-        if items.is_empty() {
-            return Ok(Vec::new());
-        }
         let mut frag = Frag::default();
         let mut l = Lists::default();
+        self.fragment_hoisted(&cleaned.hoisted, include_snippets, &mut frag, &mut l)?;
+        if items.is_empty() {
+            l.initializer.append(&mut l.after);
+            return Ok(l.initializer);
+        }
         let close;
 
-        let single_element = match items.as_slice() {
+        let single_element = match items.as_ref() {
             [Item::Node(identifier)] => match &self.compiler_syntax_tree.node(*identifier).kind {
-                NodeKind::Element(e) => Some((*identifier, e.name)),
+                NodeKind::Element(e) if e.kind == super::ElementKind::Regular => {
+                    Some((*identifier, e.name))
+                }
                 _ => None,
             },
             _ => None,
@@ -39,7 +51,7 @@ impl ClientCompilationContext<'_> {
             let declaration = self.var(&identifier, call);
             l.initializer.insert(0, declaration);
             close = self.append(&identifier);
-        } else if let [Item::Text { data, .. }] = items.as_slice() {
+        } else if let [Item::Text { data, .. }] = items.as_ref() {
             let identifier = self.names.generate("text");
             let s = self.out.write_string(data);
             let call = self.call("text", vec![Some(s)]);
@@ -103,6 +115,27 @@ impl ClientCompilationContext<'_> {
         Ok(body)
     }
 
+    fn fragment_hoisted(
+        &mut self,
+        identifiers: &[super::CompilerNodeIdentifier],
+        include_snippets: bool,
+        frag: &mut Frag,
+        lists: &mut Lists,
+    ) -> R<()> {
+        for &identifier in identifiers {
+            if !include_snippets
+                && matches!(
+                    self.compiler_syntax_tree.node(identifier).kind,
+                    NodeKind::Snippet(_)
+                )
+            {
+                continue;
+            }
+            self.special_element(identifier, "", frag, lists)?;
+        }
+        Ok(())
+    }
+
     fn append(&mut self, identifier: &str) -> NodeIdentifier {
         let anchor = self.out.identifier("$$anchor");
         let x = self.out.identifier(identifier);
@@ -111,7 +144,11 @@ impl ClientCompilationContext<'_> {
     }
 
     /// Upstream `build_render_statement`.
-    fn render_statement(&mut self, frag: &mut Frag, update: &[NodeIdentifier]) -> NodeIdentifier {
+    pub(super) fn render_statement(
+        &mut self,
+        frag: &mut Frag,
+        update: &[NodeIdentifier],
+    ) -> NodeIdentifier {
         let identifiers: Vec<NodeIdentifier> = (0..frag.memo.len())
             .map(|i| self.out.identifier(&format!("${i}")))
             .collect();
@@ -155,7 +192,12 @@ impl ClientCompilationContext<'_> {
             return self.out.dot(ns, "comment");
         }
         let markup = tpl.markup();
-        let key = format!("html {flags} {markup}");
+        let namespace = match tpl.namespace.unwrap_or_default() {
+            crate::render_plan::Namespace::Html => "html",
+            crate::render_plan::Namespace::Svg => "svg",
+            crate::render_plan::Namespace::Mathml => "mathml",
+        };
+        let key = format!("{namespace} {flags} {markup}");
         if let Some(existing) = self.templates.get(&key) {
             let existing = existing.clone();
             return self.out.identifier(&existing);
@@ -164,7 +206,14 @@ impl ClientCompilationContext<'_> {
         let q = self.out.template_element(&raw, true);
         let t = self.out.template(&[q], &[], SourceLocation::SYNTHETIC);
         let flags_arg = (flags != 0).then(|| self.write_number(flags));
-        let call = self.call("from_html", vec![Some(t), flags_arg]);
+        let call = self.call(
+            match namespace {
+                "svg" => "from_svg",
+                "mathml" => "from_mathml",
+                _ => "from_html",
+            },
+            vec![Some(t), flags_arg],
+        );
         let identifier = self.names.unique(name);
         let declaration = self.var(&identifier, call);
         self.hoisted.push(declaration);

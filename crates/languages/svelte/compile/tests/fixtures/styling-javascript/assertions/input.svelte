@@ -1,0 +1,1 @@
+<script lang="ts">const value=<string>("a" as unknown as string);const fn=((x:string)=>x) as (x:string)=>string;</script><p class={fn(value)}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

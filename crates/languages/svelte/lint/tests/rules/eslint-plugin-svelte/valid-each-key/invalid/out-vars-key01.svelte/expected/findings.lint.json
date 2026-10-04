@@ -1,0 +1,19 @@
+{
+	"rules": [
+		"svelte/valid-each-key"
+	],
+	"findings": [
+		{
+			"rule": "svelte/valid-each-key",
+			"message": "Expected key to use the variables which are defined by the `{#each}` block.",
+			"start": {
+				"line": 12,
+				"column": 25
+			},
+			"end": {
+				"line": 12,
+				"column": 28
+			}
+		}
+	]
+}

@@ -1,0 +1,1 @@
+<script lang="ts">const values=["a","b"];</script>{#each values as string[] as value,i (i)}<p class={value}/>{/each}<style>.a{color:red}.b{color:blue}.unused{color:green}</style>

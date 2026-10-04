@@ -1,9 +1,5 @@
 use super::{Span, TypeScriptDiagnostic};
 
-pub(super) fn file_name(i: usize) -> String {
-    format!("f{i}.ts")
-}
-
 pub(super) fn strip_ansi(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut chars = s.chars();
@@ -29,7 +25,8 @@ pub(super) fn header(line: &str) -> Option<(usize, u32, u32, u32, &str)> {
     let column = it.next()?.parse().ok()?;
     let ln = it.next()?.parse().ok()?;
     let file = it.next()?;
-    let index = file.strip_prefix('f')?.strip_suffix(".ts")?.parse().ok()?;
+    let (number, _) = file.strip_prefix('f')?.split_once('.')?;
+    let index = number.parse().ok()?;
     Some((index, ln, column, code.parse().ok()?, message))
 }
 
@@ -48,7 +45,7 @@ pub(super) fn is_table_row(line: &str) -> bool {
     let mut it = line.split_whitespace();
     matches!(
         (it.next(), it.next(), it.next()),
-        (Some(n), Some(at), None) if n.parse::<u32>().is_ok() && at.contains(".ts:")
+        (Some(n), Some(at), None) if n.parse::<u32>().is_ok() && at.contains(':')
     )
 }
 

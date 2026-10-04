@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::pipeline::Registry;
+use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
@@ -11,7 +12,24 @@ use rsvelte_vue::{Parsed, Resolved};
 use crate::Configuration;
 use crate::project::Projection;
 
+pub static PLUGIN: Plugin = Plugin {
+    identifier: "vue.check",
+    version: env!("CARGO_PKG_VERSION"),
+    dependencies: &[
+        Dependency {
+            identifier: "vue",
+            requirement: concat!("=", env!("CARGO_PKG_VERSION")),
+        },
+        Dependency {
+            identifier: "typescript.check",
+            requirement: concat!("=", env!("CARGO_PKG_VERSION")),
+        },
+    ],
+};
+
 pub fn register(reg: &mut Registry, config: &Configuration) {
+    reg.plugin(&PLUGIN);
+    rsvelte_typescript_check::register_service(reg);
     rsvelte_vue::register(reg);
     reg.finish_task(Check {
         identifier: "vue.check/default",
@@ -38,6 +56,8 @@ const HELPERS: (&str, &str) = (
 /// What vue-tsc adds to the project: @vue/language-core's template helpers and the vue package.
 fn typescript_env(vue: &std::path::Path) -> TypeScriptEnv {
     TypeScriptEnv {
+        mapped_extension: None,
+        content_mapper: None,
         declarations: vec![HELPERS],
         include: Vec::new(),
         paths: vec![

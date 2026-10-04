@@ -138,8 +138,10 @@ impl Formatter<'_> {
                 shorthand,
                 computed,
                 method,
+                getter,
+                setter,
             } => {
-                if method {
+                if method || getter || setter {
                     return Err(Unsupported::at(
                         "object method",
                         self.syntax_tree.source_location(p),

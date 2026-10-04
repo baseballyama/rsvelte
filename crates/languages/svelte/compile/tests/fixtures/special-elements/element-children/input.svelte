@@ -1,0 +1,1 @@
+<script>let tag = $state("div"); let text = $state("Hello");</script><svelte:element this={tag} id="example"><p>{text}</p></svelte:element>

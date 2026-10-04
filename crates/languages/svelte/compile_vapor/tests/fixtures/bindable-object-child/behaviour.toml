@@ -1,0 +1,10 @@
+include_unmount = true
+
+[[steps]]
+click = "button.mutate"
+
+[[steps]]
+click = "button.replace"
+
+[[steps]]
+click = "button.mutate"

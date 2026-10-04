@@ -93,6 +93,21 @@ impl Parser<'_, '_> {
         }
     }
 
+    pub(super) fn accessor_parameters(&self, parameters: super::List, getter: bool) -> R<()> {
+        let parameters = &self.syntax_tree.scratch[parameters.0..];
+        let valid = if getter {
+            parameters.is_empty()
+        } else {
+            parameters.len() == 1
+                && !matches!(self.syntax_tree.kind(parameters[0]), super::Kind::Rest(_))
+        };
+        if valid {
+            Ok(())
+        } else {
+            self.fail("invalid accessor parameters")
+        }
+    }
+
     pub(super) fn binding_element(&mut self) -> R<NodeIdentifier> {
         let start_offset = self.token.span.start_offset;
         let target = self.binding_target()?;
@@ -103,5 +118,41 @@ impl Parser<'_, '_> {
                 .assign_pat(target, d, self.span_from(start_offset)));
         }
         Ok(target)
+    }
+}
+
+impl Parser<'_, '_> {
+    pub(super) fn assignment_pattern(&mut self, node: NodeIdentifier) -> R<NodeIdentifier> {
+        let span = self.syntax_tree.source_location(node);
+        match self.syntax_tree.kind(node) {
+            super::Kind::Identifier(_) | super::Kind::Member { .. } | super::Kind::Hole => Ok(node),
+            super::Kind::Object(items) | super::Kind::Array(items) => {
+                let object = self.syntax_tree.tag(node) == crate::syntax_tree::Tag::Object;
+                let mut items = items.to_vec();
+                for item in &mut items {
+                    *item = self.assignment_pattern(*item)?;
+                }
+                Ok(if object {
+                    self.syntax_tree.object_pat(&items, span)
+                } else {
+                    self.syntax_tree.array_pat(&items, span)
+                })
+            }
+            super::Kind::Property { key, value, .. } => {
+                let value = self.assignment_pattern(value)?;
+                Ok(self
+                    .syntax_tree
+                    .property(key, value, self.syntax_tree.flags(node), span))
+            }
+            super::Kind::Spread(arg) => {
+                let arg = self.assignment_pattern(arg)?;
+                Ok(self.syntax_tree.rest(arg, span))
+            }
+            super::Kind::Assign(super::AssignmentOperator::Assign, left, right) => {
+                let left = self.assignment_pattern(left)?;
+                Ok(self.syntax_tree.assign_pat(left, right, span))
+            }
+            _ => self.fail("invalid assignment target"),
+        }
     }
 }

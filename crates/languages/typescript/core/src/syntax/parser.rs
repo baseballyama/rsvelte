@@ -50,6 +50,7 @@ pub struct Parser<'a, 'b> {
     in_type: u32,
     syntax_tree: &'b mut SyntaxTree,
     typescript: bool,
+    allow_in: bool,
     end: u32,
     /// [`SyntaxTree::scratch`]'s length when this parse began.
     base: usize,
@@ -171,6 +172,37 @@ pub fn parse_expression_prefix(
     Ok((e, next))
 }
 
+/// Parses the `let` or `const` declaration starting at `start` (no `;`) and returns it with the
+/// start of the next token, like [`parse_expression_prefix`].
+///
+/// Svelte's `{let a = 1}` tag ends where the declaration does.
+///
+/// # Errors
+///
+/// [`ParseError`] at the first lexical or syntax error before the declaration ends.
+pub fn parse_declaration_prefix(
+    syntax_tree: &mut SyntaxTree,
+    source_text: &str,
+    start: u32,
+    limit: u32,
+    typescript: bool,
+) -> R<(NodeIdentifier, u32)> {
+    let mut p = Parser::new(
+        syntax_tree,
+        source_text,
+        Span::new(start, limit),
+        typescript,
+    )?;
+    let d = p.var_declaration()?;
+    let next = if p.token.t == T::Eof {
+        limit
+    } else {
+        p.token.span.start_offset
+    };
+    p.done();
+    Ok((d, next))
+}
+
 /// Identifiers in type syntax that are never a binding's name.
 const TYPE_KEYWORDS: &[&str] = &[
     "any",
@@ -230,6 +262,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             base: syntax_tree.scratch.len(),
             syntax_tree,
             typescript,
+            allow_in: true,
             end: range.end_offset,
         })
     }
@@ -402,8 +435,11 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 }
 
+mod classes;
+mod control;
 mod expressions;
 mod literals;
+mod lookahead;
 mod members;
 mod patterns;
 mod statements;

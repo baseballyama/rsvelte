@@ -47,7 +47,10 @@ pub(crate) struct Outcome {
     pub(crate) unparseable: usize,
     /// Oracle cases where none of the tasks applies, such as a module rsvelte does not compile.
     pub(crate) not_run: usize,
+    pub(crate) unmeasured: usize,
     pub(crate) messages: Vec<String>,
+    /// `verdict case file` per file of an oracle case, for [`crate::VERDICTS_VARIABLE`].
+    pub(crate) verdicts: Vec<String>,
 }
 
 impl Outcome {
@@ -61,7 +64,9 @@ impl Outcome {
         self.differing += other.differing;
         self.unparseable += other.unparseable;
         self.not_run += other.not_run;
+        self.unmeasured += other.unmeasured;
         self.messages.extend(other.messages);
+        self.verdicts.extend(other.verdicts);
     }
 
     fn problem(&mut self, case: &Case, message: &str) {
@@ -127,8 +132,21 @@ pub(crate) fn check(
             );
         }
         Expected::Oracle if !ran => outcome.not_run += 1,
+        Expected::Oracle if existing.is_empty() => {
+            outcome.unmeasured += 1;
+            outcome
+                .verdicts
+                .push(format!("unmeasured {} oracle", case.name));
+        }
         Expected::Oracle => {
-            match compare_with_oracle(&expected_dir, &existing, &produced, snapshots) {
+            let (verdict, files) =
+                compare_with_oracle(&expected_dir, &existing, &produced, snapshots);
+            outcome.verdicts.extend(
+                files
+                    .into_iter()
+                    .map(|(file, verdict)| format!("{verdict} {} {file}", case.name)),
+            );
+            match verdict {
                 Verdict::Bytes => outcome.matching += 1,
                 Verdict::Tree => outcome.equivalent += 1,
                 Verdict::Differs => outcome.differing += 1,
@@ -139,16 +157,21 @@ pub(crate) fn check(
     outcome
 }
 
-fn compare_with_oracle(
+/// The case's worst verdict, and each file's: `missing` and `unexpected` for a file only one side
+/// has.
+fn compare_with_oracle<'a>(
     expected_dir: &Path,
-    existing: &[String],
-    produced: &[(String, String)],
+    existing: &'a [String],
+    produced: &'a [(String, String)],
     snapshots: &[Snapshot],
-) -> Verdict {
-    if existing.len() != produced.len() {
-        return Verdict::Differs;
-    }
+) -> (Verdict, Vec<(&'a str, &'static str)>) {
+    let mut files = Vec::with_capacity(existing.len().max(produced.len()));
     let mut worst = Verdict::Bytes;
+    for name in existing {
+        if !produced.iter().any(|(n, _)| n == name) {
+            files.push((name.as_str(), "missing"));
+        }
+    }
     for (name, text) in produced {
         let verdict = match existing
             .contains(name)
@@ -162,11 +185,31 @@ fn compare_with_oracle(
                     Err(_) => Verdict::Unparseable,
                 }
             }
-            _ => Verdict::Differs,
+            Some(_) => Verdict::Differs,
+            None => {
+                files.push((name.as_str(), "unexpected"));
+                worst = Verdict::Differs.max(worst);
+                continue;
+            }
         };
+        files.push((name.as_str(), verdict.label()));
         worst = worst.max(verdict);
     }
-    worst
+    if existing.len() != produced.len() {
+        worst = Verdict::Differs;
+    }
+    (worst, files)
+}
+
+impl Verdict {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Bytes => "bytes",
+            Self::Tree => "tree",
+            Self::Differs => "differs",
+            Self::Unparseable => "unparseable",
+        }
+    }
 }
 
 fn is_javascript_tree(file: &str, snapshots: &[Snapshot]) -> bool {

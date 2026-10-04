@@ -110,7 +110,7 @@ fn main() -> ExitCode {
 }
 ```
 
-Type-check tasks need TypeScript 7's native `tsc` and the framework packages.
+Type-check tasks need native TypeScript 7.1 and the framework packages.
 `NodePackages::locate()` finds them in `tools/fixtures/node_modules`; install them with
 `(cd tools/fixtures && pnpm install --frozen-lockfile)`.
 
@@ -121,11 +121,16 @@ Type-check tasks need TypeScript 7's native `tsc` and the framework packages.
 | `languages/svelte/compile` | `svelte.compile/client`, `/server` | `client`, `server` |
 | `languages/svelte/format` | `svelte.format/default` | `formatted` |
 | `languages/svelte/lint` | `svelte.lint/default` | `findings` |
-| `languages/svelte/check` | `svelte.check/default` | `findings` |
-| `languages/svelte/compile_vue` | `vuelte.compile/client`, `/server` | `client`, `server` |
+| `languages/svelte/typecheck` | `svelte.check/default` | `findings` |
+| `languages/svelte/typescript_projection` | `svelte.typescript_projection/default` | `projection` |
+| `languages/svelte/compile_vapor` | `vuelte.compile/client`, `/server` | `client`, `server` |
 | `languages/vue/compile` | `vue.compile/default` | `compiled` |
 | `languages/vue/format` | `vue.format/default` | `formatted` |
 | `languages/vue/lint` | `vue.lint/default` | `findings` |
 | `languages/vue/check` | `vue.check/default` | `findings` |
 | `languages/vue/compile_svelte` | `svue.compile/client`, `/server` | `client`, `server` |
 | `hosts/command_line` | `ts.check/default` (registered by the host) | `ts-check` |
+
+Svelte type checking and TypeScript projection use `Fixtures::inputs_from` to read the compiler's exact input
+population. Each crate keeps its own expectations and actual outputs. Missing external
+oracle snapshots report `UNMEASURED`, not a match.

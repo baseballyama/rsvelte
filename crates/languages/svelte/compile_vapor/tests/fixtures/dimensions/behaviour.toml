@@ -1,0 +1,11 @@
+browser = true
+include_unmount = true
+
+[[steps]]
+click = "button.resize"
+
+[[steps]]
+click = "button.toggle"
+
+[[steps]]
+click = "button.toggle"

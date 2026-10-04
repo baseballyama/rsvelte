@@ -1,30 +1,14 @@
 //! Cached artifacts and plugin registration.
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
-use rsvelte_kernel::computation::pipeline::{Document, Registry};
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::computation::pipeline::Registry;
+use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 
 use crate::compilation::compiler_syntax_tree;
 use crate::semantic::{analyze, input, resolve};
-use crate::syntax::{parse, syntax_tree};
+use crate::syntax::syntax_tree;
 
-#[must_use]
-pub fn matches(document: &Document) -> bool {
-    document.path.ends_with(".svelte")
-}
-
-#[derive(Debug)]
-pub struct Parsed;
-
-impl Artifact for Parsed {
-    type Output = Result<syntax_tree::Component, Diagnostic>;
-
-    const NAME: &'static str = "svelte.parse";
-
-    fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        parse::parse(context.source_text())
-    }
-}
+pub use rsvelte_svelte_parser::{Parsed, matches};
 
 #[derive(Debug)]
 pub struct Resolved;
@@ -38,9 +22,10 @@ impl Artifact for Resolved {
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let c = context.get::<Parsed>().as_ref().ok()?;
         let compiler_syntax_tree = context.get::<Normalized>().as_ref()?;
-        Some(resolve::resolve(
+        Some(resolve::resolve_with_module(
             &c.javascript,
             c.program,
+            c.module.as_ref().map(|s| s.program),
             compiler_syntax_tree,
         ))
     }
@@ -102,6 +87,7 @@ pub fn svelte_input<'a>(
     input::ComponentInput {
         javascript: &c.javascript,
         program: c.program,
+        module: c.module.as_ref().map(|s| s.program),
         compiler_syntax_tree,
         style: c.style.as_ref().map(|s| &s.sheet),
         template_expressions: &c.template_expressions,
@@ -110,9 +96,19 @@ pub fn svelte_input<'a>(
     }
 }
 
+pub static PLUGIN: Plugin = Plugin {
+    identifier: "svelte",
+    version: env!("CARGO_PKG_VERSION"),
+    dependencies: &[Dependency {
+        identifier: "svelte.parser",
+        requirement: concat!("=", env!("CARGO_PKG_VERSION")),
+    }],
+};
+
 pub fn register(reg: &mut Registry) {
-    reg.artifact::<Parsed>()
-        .artifact::<Resolved>()
+    reg.plugin(&PLUGIN);
+    rsvelte_svelte_parser::register(reg);
+    reg.artifact::<Resolved>()
         .artifact::<Normalized>()
         .artifact::<Analyzed>();
 }

@@ -1,0 +1,20 @@
+browser = true
+include_unmount = true
+
+[[steps]]
+wait = 120
+
+[[steps]]
+click = "button.state"
+
+[[steps]]
+wait = 120
+
+[[steps]]
+click = "button.native"
+
+[[steps]]
+wait = 120
+
+[[steps]]
+click = "button.state"

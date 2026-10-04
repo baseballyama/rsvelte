@@ -7,6 +7,48 @@ impl SyntaxTree {
         let mut each =
             |identifiers: &[NodeIdentifier]| Self::visit_present_nodes(identifiers, &mut f);
         match self.kind(identifier) {
+            Kind::ImportExpression { source, options } => {
+                each(&[source, options.unwrap_or(NodeIdentifier::NONE)]);
+            }
+            Kind::Yield { argument, .. } => each(&[argument.unwrap_or(NodeIdentifier::NONE)]),
+            Kind::Class(class) => match class {
+                super::Class::Definition {
+                    name,
+                    superclass,
+                    members,
+                    ..
+                } => {
+                    each(&[
+                        name.unwrap_or(NodeIdentifier::NONE),
+                        superclass.unwrap_or(NodeIdentifier::NONE),
+                    ]);
+                    each(members);
+                }
+                super::Class::Method {
+                    key,
+                    function,
+                    computed,
+                    ..
+                } => {
+                    if computed {
+                        each(&[key]);
+                    }
+                    each(&[function]);
+                }
+                super::Class::Field {
+                    key,
+                    value,
+                    computed,
+                    ..
+                } => {
+                    if computed {
+                        each(&[key]);
+                    }
+                    each(&[value.unwrap_or(NodeIdentifier::NONE)]);
+                }
+                super::Class::StaticBlock(body) => each(&[body]),
+            },
+            Kind::Control(control) => control.for_each_child(&mut f),
             Kind::Program(l)
             | Kind::Block(l)
             | Kind::Array(l)
@@ -57,10 +99,13 @@ impl SyntaxTree {
                 body,
             ]),
             Kind::Import {
-                specifiers, source, ..
+                specifiers,
+                source,
+                attributes,
+                ..
             } => {
                 each(specifiers);
-                each(&[source]);
+                each(&[source, attributes.unwrap_or(NodeIdentifier::NONE)]);
             }
             Kind::ImportNamed { imported, local } => each(&[imported, local]),
             Kind::Template {
@@ -101,12 +146,16 @@ impl SyntaxTree {
                 alternate,
             } => each(&[test, consequent, alternate]),
             // Types are not scope-visible: an interface's names never resolve as values.
-            Kind::TypeScriptDeclaration
+            Kind::MetaProperty { .. }
+            | Kind::BigInt
+            | Kind::Super
+            | Kind::TypeScriptDeclaration
             | Kind::TypeScriptInterface { .. }
             | Kind::TypeScriptPropertySignature { .. }
             | Kind::Identifier(_)
             | Kind::Number(_)
             | Kind::String
+            | Kind::Regex { .. }
             | Kind::Boolean(_)
             | Kind::Null
             | Kind::This

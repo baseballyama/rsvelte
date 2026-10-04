@@ -26,6 +26,9 @@ impl Analyzer<'_> {
             .scopes
             .iter_enumerated()
             .filter_map(|(identifier, s)| {
+                if s.node.is_none() {
+                    return None;
+                }
                 self.syntax_tree
                     .source_location(s.node)
                     .span()
@@ -88,8 +91,9 @@ impl Analyzer<'_> {
             match r {
                 HostRoot::Expression(e) => self.resolve(*e, ReferenceContext::Expression),
                 HostRoot::Bound(e) => self.resolve(*e, ReferenceContext::Target { read: true }),
+                HostRoot::Name(..) => {}
                 HostRoot::Scope(h) => {
-                    let identifier = self.host_scopes[self.next_host_scope];
+                    let identifier = self.s.host_scopes[self.next_host_scope];
                     self.next_host_scope += 1;
                     self.stack.push(identifier);
                     for &p in &h.parameters {
@@ -103,12 +107,10 @@ impl Analyzer<'_> {
     }
 
     pub(super) fn resolve_children(&mut self, identifier: NodeIdentifier) {
-        let mut children = Vec::new();
-        self.syntax_tree
-            .for_each_child(identifier, |c| children.push(c));
-        for c in children {
-            self.resolve(c, ReferenceContext::Expression);
-        }
+        let tree = self.syntax_tree;
+        tree.for_each_child(identifier, |child| {
+            self.resolve(child, ReferenceContext::Expression);
+        });
     }
 
     pub(super) fn enter(&mut self, identifier: NodeIdentifier) -> bool {
@@ -124,6 +126,72 @@ impl Analyzer<'_> {
     #[expect(clippy::too_many_lines, reason = "one arm per node kind and context")]
     pub(super) fn resolve(&mut self, identifier: NodeIdentifier, context: ReferenceContext) {
         match (self.syntax_tree.kind(identifier), context) {
+            (
+                Kind::Class(crate::syntax_tree::Class::Definition {
+                    superclass,
+                    members,
+                    ..
+                }),
+                _,
+            ) => {
+                let entered = self.enter(identifier);
+                if let Some(parent) = superclass {
+                    self.resolve(parent, ReferenceContext::Expression);
+                }
+                for &member in members {
+                    self.resolve(member, ReferenceContext::Expression);
+                }
+                if entered {
+                    self.stack.pop();
+                }
+            }
+            (Kind::Control(crate::syntax_tree::Control::Catch { parameter, body }), _) => {
+                let entered = self.enter(identifier);
+                if let Some(p) = parameter {
+                    self.resolve(p, ReferenceContext::Pattern { initializer: false });
+                }
+                self.resolve_children(body);
+                if entered {
+                    self.stack.pop();
+                }
+            }
+            (
+                Kind::Control(crate::syntax_tree::Control::ForEach {
+                    left, right, body, ..
+                }),
+                _,
+            ) => {
+                let entered = self.enter(identifier);
+                self.resolve(left, ReferenceContext::Target { read: false });
+                self.resolve(right, ReferenceContext::Expression);
+                self.resolve(body, ReferenceContext::Expression);
+                if entered {
+                    self.stack.pop();
+                }
+            }
+            (Kind::Block(_) | Kind::For { .. }, _) => {
+                let entered = self.enter(identifier);
+                self.resolve_children(identifier);
+                if entered {
+                    self.stack.pop();
+                }
+            }
+            (
+                Kind::Control(crate::syntax_tree::Control::Switch {
+                    discriminant,
+                    cases,
+                }),
+                _,
+            ) => {
+                self.resolve(discriminant, ReferenceContext::Expression);
+                let entered = self.enter(identifier);
+                for &case in cases {
+                    self.resolve(case, ReferenceContext::Expression);
+                }
+                if entered {
+                    self.stack.pop();
+                }
+            }
             (Kind::Identifier(_), ReferenceContext::Pattern { initializer }) => {
                 if initializer {
                     self.initializer_reference(identifier);
@@ -220,13 +288,6 @@ impl Analyzer<'_> {
                 } else {
                     self.resolve_children(body);
                 }
-                if entered {
-                    self.stack.pop();
-                }
-            }
-            (Kind::Block(_), _) => {
-                let entered = self.enter(identifier);
-                self.resolve_children(identifier);
                 if entered {
                     self.stack.pop();
                 }

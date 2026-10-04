@@ -1,0 +1,1 @@
+<script>function* values(){yield "a";yield* ["b"];}const value=values().next().value;</script><p class={value}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

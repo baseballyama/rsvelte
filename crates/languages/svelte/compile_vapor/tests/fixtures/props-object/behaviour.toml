@@ -1,0 +1,5 @@
+include_unmount = true
+
+[props]
+count = 3
+label = "whole"

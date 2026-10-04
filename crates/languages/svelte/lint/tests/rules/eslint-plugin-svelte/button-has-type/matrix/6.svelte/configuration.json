@@ -1,0 +1,8 @@
+{
+  "rule": "svelte/button-has-type",
+  "options": {
+    "button": false,
+    "submit": true,
+    "reset": true
+  }
+}

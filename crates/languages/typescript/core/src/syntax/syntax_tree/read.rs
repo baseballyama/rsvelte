@@ -6,6 +6,12 @@ use super::{
 impl SyntaxTree {
     #[inline]
     #[must_use]
+    pub fn is_identifier(&self, identifier: NodeIdentifier) -> bool {
+        self.tag(identifier) == Tag::Identifier
+    }
+
+    #[inline]
+    #[must_use]
     pub fn tag(&self, identifier: NodeIdentifier) -> Tag {
         self.tags[identifier.index()]
     }
@@ -48,6 +54,9 @@ impl SyntaxTree {
         self.extra[at as usize + i]
     }
 
+    /// # Panics
+    ///
+    /// Panics if `identifier` does not refer to a node in this tree.
     #[must_use]
     #[expect(clippy::too_many_lines, reason = "one arm per node tag")]
     pub fn kind(&self, identifier: NodeIdentifier) -> Kind<'_> {
@@ -55,6 +64,22 @@ impl SyntaxTree {
         let f = self.flags(identifier);
         let opt = |v: u32| NodeIdentifier(v).opt();
         match self.tag(identifier) {
+            Tag::ImportExpression => Kind::ImportExpression {
+                source: Self::nid(a),
+                options: opt(b),
+            },
+            Tag::MetaProperty => Kind::MetaProperty {
+                meta: Self::nid(a),
+                property: Self::nid(b),
+            },
+            Tag::BigInt => Kind::BigInt,
+            Tag::Class => Kind::Class(self.class_kind(identifier)),
+            Tag::Super => Kind::Super,
+            Tag::Yield => Kind::Yield {
+                argument: opt(a),
+                delegate: f != 0,
+            },
+            Tag::Control => Kind::Control(self.control_kind(identifier)),
             Tag::Program => Kind::Program(self.list_at(a)),
             Tag::VariableDeclaration => Kind::VariableDeclaration {
                 kind: f,
@@ -87,9 +112,18 @@ impl SyntaxTree {
             Tag::Block => Kind::Block(self.list_at(a)),
             Tag::Empty => Kind::Empty,
             Tag::Import => Kind::Import {
-                specifiers: self.list_at(a),
-                source: Self::nid(b),
+                specifiers: self.list_at(if f & flag::IMPORT_ATTRIBUTES != 0 {
+                    self.rec(a, 0).0
+                } else {
+                    a
+                }),
+                source: if f & flag::IMPORT_ATTRIBUTES != 0 {
+                    self.rec(a, 1)
+                } else {
+                    Self::nid(b)
+                },
                 type_only: f & flag::TYPE_ONLY != 0,
+                attributes: (f & flag::IMPORT_ATTRIBUTES != 0).then(|| self.rec(a, 2)),
             },
             Tag::ImportDefault => Kind::ImportDefault(Self::nid(a)),
             Tag::ImportNamed => Kind::ImportNamed {
@@ -111,6 +145,16 @@ impl SyntaxTree {
             Tag::Identifier => Kind::Identifier(Atom(a)),
             Tag::Number => Kind::Number(f64::from_bits(u64::from(a) | (u64::from(b) << 32))),
             Tag::String => Kind::String,
+            Tag::Regex => Kind::Regex {
+                pattern: super::Span::new(a, b),
+                flags: super::Span::new(
+                    b + 1,
+                    self.source_location(identifier)
+                        .span()
+                        .expect("a source literal")
+                        .end_offset,
+                ),
+            },
             Tag::Boolean => Kind::Boolean(a != 0),
             Tag::Null => Kind::Null,
             Tag::This => Kind::This,
@@ -129,6 +173,8 @@ impl SyntaxTree {
                 shorthand: f & flag::SHORTHAND != 0,
                 computed: f & flag::COMPUTED != 0,
                 method: f & flag::METHOD != 0,
+                getter: f & flag::GETTER != 0,
+                setter: f & flag::SETTER != 0,
             },
             Tag::Spread => Kind::Spread(Self::nid(a)),
             Tag::Member => Kind::Member {

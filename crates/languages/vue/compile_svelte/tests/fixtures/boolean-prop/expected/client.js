@@ -12,13 +12,13 @@ export default function Boolean_prop_vue($$anchor, $$props) {
 	$.push($$props, true);
 	let rest = $.rest_props($$props, rest_excludes);
 	let flag = $.derived(() => {
-		let value = rest.flag;
+		let value = $$props.flag;
 		if (!('flag' in rest)) return false;
 		if (value === '' || value === 'flag') return true;
 		return value;
 	});
 	let shown = $.derived(() => {
-		let value_1 = rest.shown;
+		let value_1 = $$props.shown;
 		if (!('shown' in rest)) return false;
 		if (value_1 === '' || value_1 === 'shown') return true;
 		return value_1;

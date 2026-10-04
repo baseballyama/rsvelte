@@ -76,7 +76,7 @@ fn plans_keep_decoded_text_and_markup_separate_and_own_their_text() {
         ));
         (plan, children)
     };
-    let [Item::Text { data, raw }] = plan.fragment(children).items.as_slice() else {
+    let [Item::Text { data, raw }] = plan.fragment(children).items.as_ref() else {
         panic!("one text item")
     };
     assert_eq!(data, "& A");

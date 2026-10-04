@@ -28,6 +28,8 @@ impl Gen<'_> {
     pub(super) fn statement(&mut self, identifier: NodeIdentifier) {
         self.mark(identifier);
         match self.syntax_tree.kind(identifier) {
+            Kind::Class(class) => self.class(class),
+            Kind::Control(control) => self.control_statement(control),
             Kind::VariableDeclaration { kind, declarations } => {
                 self.var_declaration(kind, declarations);
                 self.e.push(";");
@@ -77,12 +79,8 @@ impl Gen<'_> {
                 body,
             } => {
                 self.e.push("for (");
-                match initializer.map(|i| (i, self.syntax_tree.kind(i))) {
-                    Some((_, Kind::VariableDeclaration { kind, declarations })) => {
-                        self.var_declaration(kind, declarations);
-                    }
-                    Some((i, _)) => self.expression(i, prec::SEQ),
-                    None => {}
+                if let Some(initializer) = initializer {
+                    self.for_initializer(initializer, true);
                 }
                 self.e.push(";");
                 if let Some(t) = test {
@@ -100,7 +98,10 @@ impl Gen<'_> {
             Kind::Block(_) => self.block(identifier),
             Kind::Empty => self.e.push(";"),
             Kind::Import {
-                specifiers, source, ..
+                specifiers,
+                source,
+                attributes,
+                ..
             } => {
                 self.e.push("import ");
                 let live: Vec<NodeIdentifier> = specifiers
@@ -152,6 +153,10 @@ impl Gen<'_> {
                     self.e.push(" from ");
                 }
                 self.expression(source, prec::PRIMARY);
+                if let Some(attributes) = attributes {
+                    self.e.push(" with ");
+                    self.expression(attributes, prec::PRIMARY);
+                }
                 self.e.push(";");
             }
             Kind::ExportNamed(d) => {
@@ -179,6 +184,15 @@ impl Gen<'_> {
     }
 
     pub(super) fn var_declaration(&mut self, kind: u8, declarations: &[NodeIdentifier]) {
+        self.var_declaration_in(kind, declarations, false);
+    }
+
+    pub(super) fn var_declaration_in(
+        &mut self,
+        kind: u8,
+        declarations: &[NodeIdentifier],
+        no_in: bool,
+    ) {
         self.e.push(match kind {
             flag::LET => "let ",
             flag::CONST => "const ",
@@ -196,7 +210,11 @@ impl Gen<'_> {
                 self.expression(identifier, prec::ASSIGN);
                 if let Some(v) = initializer {
                     self.e.push(" = ");
-                    self.expression(v, prec::ASSIGN);
+                    if no_in {
+                        self.expression_no_in(v, prec::ASSIGN);
+                    } else {
+                        self.expression(v, prec::ASSIGN);
+                    }
                 }
             }
         }
@@ -217,7 +235,13 @@ impl Gen<'_> {
         if is_async {
             self.e.push("async ");
         }
-        self.e.push("function ");
+        self.e.push(
+            if self.syntax_tree.flags(identifier) & flag::GENERATOR != 0 {
+                "function* "
+            } else {
+                "function "
+            },
+        );
         if let Some(n) = name {
             self.expression(n, prec::PRIMARY);
         }

@@ -230,16 +230,19 @@ fn vlq(out: &mut String, value: i64) {
 
 /// Insertions and deletions against an original text, applied in one pass.
 #[derive(Default, Debug)]
-pub struct Edits {
-    items: Vec<(u32, u32, String)>,
+pub struct TextEdits<T> {
+    items: Vec<(u32, u32, T)>,
 }
 
-impl Edits {
-    pub fn insert(&mut self, at: u32, text: impl Into<String>) {
+pub type Edits = TextEdits<String>;
+pub type BorrowedEdits<'a> = TextEdits<&'a str>;
+
+impl<T: AsRef<str>> TextEdits<T> {
+    pub fn insert(&mut self, at: u32, text: impl Into<T>) {
         self.items.push((at, at, text.into()));
     }
 
-    pub fn replace(&mut self, span: Span, text: impl Into<String>) {
+    pub fn replace(&mut self, span: Span, text: impl Into<T>) {
         self.items
             .push((span.start_offset, span.end_offset, text.into()));
     }
@@ -279,7 +282,7 @@ impl Edits {
             );
             output_len = output_len
                 .checked_sub((*end_offset - *start_offset) as usize)
-                .and_then(|len| len.checked_add(text.len()))
+                .and_then(|len| len.checked_add(text.as_ref().len()))
                 .expect("edited text length fits usize");
             checked_to = *end_offset;
         }
@@ -287,7 +290,7 @@ impl Edits {
         let mut position = range.start_offset as usize;
         for (start_offset, end_offset, text) in self.items {
             out.push_str(&source_text[position..start_offset as usize]);
-            out.push_str(&text);
+            out.push_str(text.as_ref());
             position = end_offset as usize;
         }
         out.push_str(&source_text[position..range.end_offset as usize]);

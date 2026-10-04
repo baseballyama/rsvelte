@@ -1,0 +1,28 @@
+browser = true
+
+[[steps]]
+click = "button"
+
+[[steps]]
+wait = 600
+
+[[steps]]
+click = "button:nth-of-type(2)"
+
+[[steps]]
+wait = 600
+
+[[steps]]
+click = "button:nth-of-type(2)"
+
+[[steps]]
+wait = 600
+
+[[steps]]
+click = "button"
+
+[[steps]]
+click = "button:nth-of-type(3)"
+
+[[steps]]
+wait = 600

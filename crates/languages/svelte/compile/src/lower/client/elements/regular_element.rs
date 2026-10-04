@@ -18,28 +18,34 @@ impl ClientCompilationContext<'_> {
             unreachable!()
         };
         if el.kind != ElementKind::Regular {
-            return unsupported("a component, `<slot>` or `svelte:` element", el.name);
+            return self.special_element(identifier, node, frag, l);
         }
         let tag = el.name.text(self.source_text).to_ascii_lowercase();
-        if matches!(
-            tag.as_str(),
-            "svg" | "math" | "script" | "textarea" | "template"
-        ) || tag.contains('-')
-        {
+        if matches!(tag.as_str(), "script" | "textarea" | "template") || tag.contains('-') {
             return unsupported(&format!("`<{tag}>`"), el.name);
         }
         if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {
             return unsupported(&format!("rich content in `<{tag}>`"), el.name);
         }
-        check_foreign_element(self.source_text, el.name)?;
-        frag.tpl.push_element(&tag);
+        let namespace = self.plan.namespace(identifier);
+        if namespace == crate::render_plan::Namespace::Html {
+            check_foreign_element(self.source_text, el.name)?;
+        }
+        let tag = if namespace == crate::render_plan::Namespace::Html {
+            tag
+        } else {
+            el.name.text(self.source_text).to_owned()
+        };
+        frag.tpl.push_element(&tag, namespace);
         if tag == "noscript" {
             frag.tpl.pop_element();
             return Ok(());
         }
-        frag.tpl.needs_import_node |= tag == "video";
-
         let attribute_list = compiler_syntax_tree.attributes(el.attributes);
+        frag.tpl.needs_import_node |= tag == "video"
+            || attribute_list.iter().any(|attribute| {
+                !is_directive(&attribute.value) && attribute.name.text(self.source_text) == "is"
+            });
         // Upstream visits directives into their own lists, which follow the children's.
         let mut directives = self.element_directives(attribute_list, &tag, node)?;
         let has_spread = attribute_list

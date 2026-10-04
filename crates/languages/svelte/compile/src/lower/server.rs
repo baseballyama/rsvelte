@@ -2,12 +2,15 @@
 
 mod attributes;
 mod blocks;
+mod boundary;
 mod children;
 mod directives;
+mod dynamic_element;
 mod elements;
 mod events;
 mod expressions;
 mod fragments;
+mod special;
 
 use events::{capture_event, push_captured_events};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
@@ -79,7 +82,7 @@ struct ServerCompilationContext<'a> {
 
 pub(super) fn lower_prepared(
     facts: super::Lowering<'_, '_>,
-    prepared: Prepared,
+    prepared: Prepared<'_>,
 ) -> R<(SyntaxTree, NodeIdentifier)> {
     let super::Lowering {
         input,
@@ -87,6 +90,7 @@ pub(super) fn lower_prepared(
         an,
         plan,
         identity,
+        ..
     } = facts;
     let javascript = input.component.javascript;
     let Prepared {
@@ -95,6 +99,7 @@ pub(super) fn lower_prepared(
         each_index,
         hoisted,
         instance,
+        ..
     } = prepared;
     let mut sx = ServerCompilationContext {
         javascript,

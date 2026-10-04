@@ -1,0 +1,4 @@
+{
+  "rule": "svelte/@typescript-eslint/no-unnecessary-condition",
+  "options": {}
+}

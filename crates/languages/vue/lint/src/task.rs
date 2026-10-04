@@ -1,9 +1,20 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput};
+use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::performance::measurement;
 use rsvelte_vue::{Parsed, Resolved};
 
+pub static PLUGIN: Plugin = Plugin {
+    identifier: "vue.lint",
+    version: env!("CARGO_PKG_VERSION"),
+    dependencies: &[Dependency {
+        identifier: "vue",
+        requirement: concat!("=", env!("CARGO_PKG_VERSION")),
+    }],
+};
+
 pub fn register(registry: &mut Registry) {
+    registry.plugin(&PLUGIN);
     rsvelte_vue::register(registry);
     registry.task(Lint);
 }
@@ -51,11 +62,7 @@ impl Task for Lint {
         let rules: Vec<&str> = crate::lint::rule_identifiers().collect();
         out.file(
             "lint.json",
-            rsvelte_kernel::diagnostics::rules::render_json(
-                context.line_index(),
-                &rules,
-                &findings,
-            ),
+            rsvelte_lint::output::render_json(context.line_index(), &rules, &findings),
         );
     }
 }

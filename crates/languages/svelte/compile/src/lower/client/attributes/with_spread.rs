@@ -20,7 +20,9 @@ impl ClientCompilationContext<'_> {
         let mut class_directives = Vec::new();
         for a in attributes {
             match a.value {
-                AttributeValue::Bind(_) | AttributeValue::Attach(_) => continue,
+                AttributeValue::Bind(_) | AttributeValue::Attach(_) | AttributeValue::On { .. } => {
+                    continue;
+                }
                 AttributeValue::Class(_) => {
                     class_directives.push(a);
                     continue;

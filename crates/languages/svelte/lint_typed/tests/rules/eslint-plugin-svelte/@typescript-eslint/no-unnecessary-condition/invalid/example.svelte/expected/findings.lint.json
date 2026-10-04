@@ -1,0 +1,19 @@
+{
+	"rules": [
+		"svelte/@typescript-eslint/no-unnecessary-condition"
+	],
+	"findings": [
+		{
+			"rule": "svelte/@typescript-eslint/no-unnecessary-condition",
+			"message": "Unnecessary conditional, value is always falsy.",
+			"start": {
+				"line": 4,
+				"column": 11
+			},
+			"end": {
+				"line": 4,
+				"column": 14
+			}
+		}
+	]
+}

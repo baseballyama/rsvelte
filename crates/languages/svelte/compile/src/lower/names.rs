@@ -3,87 +3,33 @@
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
-const RESERVED: &[&str] = &[
-    "arguments",
-    "await",
-    "break",
-    "case",
-    "catch",
-    "class",
-    "const",
-    "continue",
-    "debugger",
-    "default",
-    "delete",
-    "do",
-    "else",
-    "enum",
-    "eval",
-    "export",
-    "extends",
-    "false",
-    "finally",
-    "for",
-    "function",
-    "if",
-    "implements",
-    "import",
-    "in",
-    "instanceof",
-    "interface",
-    "let",
-    "new",
-    "null",
-    "package",
-    "private",
-    "protected",
-    "public",
-    "return",
-    "static",
-    "super",
-    "switch",
-    "this",
-    "throw",
-    "true",
-    "try",
-    "typeof",
-    "var",
-    "void",
-    "while",
-    "with",
-    "yield",
-];
-
 #[derive(Debug)]
 pub(super) struct Names {
-    counters: FxHashMap<String, u32>,
+    counters: FxHashMap<Box<str>, u32>,
     /// Upstream `root.conflicts`: every declared name, plus every generated one.
-    conflicts: FxHashSet<String>,
-    /// Names the component scope references or declares (upstream checks the current scope too).
-    scope: FxHashSet<String>,
+    conflicts: FxHashSet<Box<str>>,
+    /// Source references are separate because hoisted names only check conflicts.
+    references: FxHashSet<Box<str>>,
 }
 
 impl Names {
     pub(super) fn new<'a>(
         declared: impl Iterator<Item = &'a str>,
-        referenced: impl Iterator<Item = &'a str>,
+        source_reads: impl Iterator<Item = &'a str>,
     ) -> Self {
-        let conflicts: FxHashSet<String> = declared.map(str::to_owned).collect();
-        let mut scope: FxHashSet<String> = referenced.map(str::to_owned).collect();
-        scope.extend(conflicts.iter().cloned());
+        let conflicts: FxHashSet<Box<str>> = declared.map(Box::from).collect();
+        let references: FxHashSet<Box<str>> = source_reads.map(Box::from).collect();
         Self {
             counters: FxHashMap::default(),
             conflicts,
-            scope,
+            references,
         }
     }
 
     /// Upstream `Scope.generate`.
     pub(super) fn generate(&mut self, preferred: &str) -> String {
         let preferred = crate::identity::sanitize_identifier(preferred);
-        self.allocate(preferred, |n, name| {
-            n.scope.contains(name) || n.conflicts.contains(name) || RESERVED.contains(&name)
-        })
+        self.allocate(preferred, true)
     }
 
     /// Upstream `ScopeRoot.unique`, used for hoisted names: no leading-digit or keyword check.
@@ -98,25 +44,83 @@ impl Names {
                 }
             })
             .collect();
-        self.allocate(preferred, |n, name| n.conflicts.contains(name))
+        self.allocate(preferred, false)
     }
 
-    fn allocate(&mut self, preferred: String, taken: fn(&Self, &str) -> bool) -> String {
-        let mut n = self.counters.get(&preferred).copied().unwrap_or(0);
+    fn allocate(&mut self, preferred: String, check_references: bool) -> String {
+        let entry = self.counters.entry(preferred.into_boxed_str());
+        let mut n = match &entry {
+            std::collections::hash_map::Entry::Occupied(entry) => *entry.get(),
+            std::collections::hash_map::Entry::Vacant(_) => 0,
+        };
+        let preferred = entry.key();
         let mut name = if n == 0 {
             n = 1;
-            preferred.clone()
+            preferred.to_string()
         } else {
             n += 1;
             format!("{preferred}_{}", n - 1)
         };
-        while taken(self, &name) {
+        while self.conflicts.contains(name.as_str())
+            || (check_references
+                && (self.references.contains(name.as_str())
+                    || matches!(
+                        name.as_str(),
+                        "arguments"
+                            | "await"
+                            | "break"
+                            | "case"
+                            | "catch"
+                            | "class"
+                            | "const"
+                            | "continue"
+                            | "debugger"
+                            | "default"
+                            | "delete"
+                            | "do"
+                            | "else"
+                            | "enum"
+                            | "eval"
+                            | "export"
+                            | "extends"
+                            | "false"
+                            | "finally"
+                            | "for"
+                            | "function"
+                            | "if"
+                            | "implements"
+                            | "import"
+                            | "in"
+                            | "instanceof"
+                            | "interface"
+                            | "let"
+                            | "new"
+                            | "null"
+                            | "package"
+                            | "private"
+                            | "protected"
+                            | "public"
+                            | "return"
+                            | "static"
+                            | "super"
+                            | "switch"
+                            | "this"
+                            | "throw"
+                            | "true"
+                            | "try"
+                            | "typeof"
+                            | "var"
+                            | "void"
+                            | "while"
+                            | "with"
+                            | "yield"
+                    )))
+        {
             name = format!("{preferred}_{n}");
             n += 1;
         }
-        self.counters.insert(preferred, n);
-        self.scope.insert(name.clone());
-        self.conflicts.insert(name.clone());
+        entry.insert_entry(n);
+        self.conflicts.insert(name.as_str().into());
         name
     }
 }

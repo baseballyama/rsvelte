@@ -22,7 +22,7 @@ impl ClientCompilationContext<'_> {
 
     /// Upstream `build_set_class`; `attribute` is `None` for the empty `class` upstream's analysis
     /// adds.
-    pub(super) fn set_class(
+    pub(in crate::lower::client) fn set_class(
         &mut self,
         identifier: CompilerNodeIdentifier,
         node: &str,
@@ -94,7 +94,14 @@ impl ClientCompilationContext<'_> {
             stylesheet_hash = Some(self.out.null(SourceLocation::SYNTHETIC));
         }
         let x = self.out.identifier(node);
-        let is_markup = self.write_number(1);
+        let super::super::NodeKind::Element(element) =
+            &self.compiler_syntax_tree.node(identifier).kind
+        else {
+            unreachable!("classes belong to elements")
+        };
+        let is_html = element.kind == super::super::ElementKind::Regular
+            && self.plan.namespace(identifier) == crate::render_plan::Namespace::Html;
+        let is_markup = self.write_number(u32::from(is_html));
         let mut set_class = self.call(
             "set_class",
             vec![

@@ -10,7 +10,12 @@ use super::{
 impl ServerCompilationContext<'_> {
     /// Upstream `build_attribute_value` (server); a `class`
     /// written as one unquoted expression goes through `$.clsx` when upstream's `needs_clsx`.
-    fn attribute_value(&mut self, a: &Attribute, trim: bool, class: bool) -> NodeIdentifier {
+    pub(super) fn attribute_value(
+        &mut self,
+        a: &Attribute,
+        trim: bool,
+        class: bool,
+    ) -> NodeIdentifier {
         let parts = match &a.value {
             &AttributeValue::Expression { expression, quoted } => {
                 let v = self.expression(expression);
@@ -37,10 +42,7 @@ impl ServerCompilationContext<'_> {
                     .out
                     .write_string(&escape_markup(&attribute_text(v, trim), true));
             }
-            AttributeValue::Bind(_)
-            | AttributeValue::Attach(_)
-            | AttributeValue::Class(_)
-            | AttributeValue::Spread(_) => {
+            _ => {
                 unreachable!("directives are handled by the caller")
             }
         };

@@ -3,8 +3,7 @@
 //! An [`Artifact`] is a pure function of the document (and of other artifacts). A
 //! [`DocumentContext`] holds one lazily-filled slot per registered artifact; `context.get::<A>()`
 //! computes `A` on first use and returns the cached value afterwards. Tasks never call parsers
-//! directly — they ask for artifacts — so running compile, format and lint together parses the
-//! document once.
+//! directly — they ask for artifacts — so tasks can share the same parsed document.
 //!
 //! A [`Facet`] is a question plugins can answer (a TypeScript view, say). Each provider declares
 //! which documents it handles. `context.facet::<F>()` runs the matching provider once and caches

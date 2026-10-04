@@ -1,0 +1,1 @@
+error vuelte_unsupported 4:8-4:61 not supported by vuelte: an await expression in a binding (Svelte rejects it as `bind_invalid_expression`)

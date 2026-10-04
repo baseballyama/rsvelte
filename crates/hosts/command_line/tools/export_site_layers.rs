@@ -16,12 +16,9 @@ use std::process::ExitCode;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::index::TypedIndex;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte::compilation::compiler_syntax_tree;
 use rsvelte_svelte::compilation::compiler_syntax_tree::{
-    AttributeValue, Children, CompilerSyntaxTree, ElementKind, NodeKind,
+    self, AttributeValue, Children, CompilerSyntaxTree, ElementKind, NodeKind,
 };
-use rsvelte_svelte::semantic::resolve;
-use rsvelte_svelte::syntax::parse;
 use rsvelte_svelte::syntax::syntax_tree::{Component, TemplateNode, TemplateNodeIdentifier};
 
 #[expect(
@@ -41,23 +38,44 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let c = match parse::parse(&source_text) {
+    let document =
+        match rsvelte_kernel::computation::pipeline::Document::new(path.clone(), source_text) {
+            Ok(document) => document,
+            Err(error) => {
+                eprintln!("{path}: {error:?}");
+                return ExitCode::FAILURE;
+            }
+        };
+    let source_text = document.text.as_str();
+    let mut registry = rsvelte_kernel::computation::pipeline::Registry::new();
+    rsvelte_svelte_lint::register(&mut registry);
+    let context = rsvelte_kernel::computation::database::DocumentContext::new(
+        &document,
+        registry.artifacts(),
+    );
+    let c = match context.get::<rsvelte_svelte::Parsed>() {
         Ok(c) => c,
         Err(d) => {
             eprintln!("{path}: {}", d.message);
             return ExitCode::FAILURE;
         }
     };
-    let h = compiler_syntax_tree::lower(&c, &source_text);
-    let res = resolve::resolve(&c.javascript, c.program, &h);
+    let h = context
+        .get::<rsvelte_svelte::Normalized>()
+        .as_ref()
+        .expect("parsed component lowers");
+    let res = context
+        .get::<rsvelte_svelte::Resolved>()
+        .as_ref()
+        .expect("parsed component resolves");
 
     let mut w = StructuredDataWriter::new(true);
-    w.begin_object().key("source").write_string(&source_text);
+    w.begin_object().key("source").write_string(source_text);
     w.key("syntax_tree").begin_array();
-    surface(&mut w, &c, &source_text, c.children(c.root), 0);
+    surface(&mut w, c, source_text, c.children(c.root), 0);
     w.end_array();
     w.key("compiler_syntax_tree").begin_array();
-    lowered(&mut w, &c, &h, &source_text, h.root, 0);
+    lowered(&mut w, c, h, source_text, h.root, 0);
     w.end_array();
 
     w.key("bindings").begin_array();
@@ -110,23 +128,10 @@ fn main() -> ExitCode {
     }
     w.end_array();
 
-    let parents = c.javascript.parents();
-    let early = rsvelte_svelte_lint::SyntaxTreeContext {
-        c: &c,
-        source_text: &source_text,
-        javascript: rsvelte_typescript_lint::JavaScriptFacts {
-            syntax_tree: &c.javascript,
-            sem: &res.sem,
-            parents: &parents,
-        },
-    };
-    let late = rsvelte_svelte_lint::CompilerSyntaxTreeContext {
-        compiler_syntax_tree: &h,
-        res: &res,
-        source_text: &source_text,
-    };
     w.key("lint").begin_array();
-    for d in rsvelte_svelte_lint::lint(&early, &late) {
+    for d in rsvelte_svelte_lint::lint(&context, &rsvelte_svelte_lint::Configuration::default())
+        .expect("the component parsed")
+    {
         let layer = if d.code == "svelte/button-has-type" {
             "late"
         } else {
@@ -209,6 +214,14 @@ fn surface(
                 row(w, depth, if elseif { "If (elseif)" } else { "If" }, span);
             }
             TemplateNode::Each { span, .. } => row(w, depth, "Each", span),
+            TemplateNode::Key { span, .. } => row(w, depth, "Key", span),
+            TemplateNode::Await { span, .. } => row(w, depth, "Await", span),
+            TemplateNode::Snippet { span, .. } => row(w, depth, "Snippet", span),
+            TemplateNode::Render { span, .. } => row(w, depth, "Render", span),
+            TemplateNode::Html { span, .. } => row(w, depth, "Html", span),
+            TemplateNode::Const { span, .. } => row(w, depth, "Const", span),
+            TemplateNode::Debug { span, .. } => row(w, depth, "Debug", span),
+            TemplateNode::Declaration { span, .. } => row(w, depth, "Declaration", span),
         }
         w.key("id").write_number(t);
         w.end_object();
@@ -239,6 +252,22 @@ fn surface(
                     row(w, depth + 1, "else", n.span());
                     w.key("id").null().end_object();
                     surface(w, c, source_text, c.children(fallback), depth + 2);
+                }
+            }
+            TemplateNode::Key { body, .. } | TemplateNode::Snippet { body, .. } => {
+                surface(w, c, source_text, c.children(body), depth + 1);
+            }
+            TemplateNode::Await {
+                pending,
+                then,
+                catch,
+                ..
+            } => {
+                for children in [pending, then, catch]
+                    .into_iter()
+                    .filter_map(rsvelte_svelte::syntax::syntax_tree::Range::present)
+                {
+                    surface(w, c, source_text, c.children(children), depth + 1);
                 }
             }
             _ => {}
@@ -273,6 +302,14 @@ fn lowered(
                 format!("If, {} branches", h.branches(*branches).len())
             }
             NodeKind::Each(_) => "Each".to_owned(),
+            NodeKind::Key { .. } => "Key".to_owned(),
+            NodeKind::Await(_) => "Await".to_owned(),
+            NodeKind::Snippet(_) => "Snippet".to_owned(),
+            NodeKind::Render { .. } => "Render".to_owned(),
+            NodeKind::Html { .. } => "Html".to_owned(),
+            NodeKind::Const { .. } => "Const".to_owned(),
+            NodeKind::Debug { .. } => "Debug".to_owned(),
+            NodeKind::Declaration { .. } => "Declaration".to_owned(),
         };
         row(w, depth, &label, node.span);
         w.key("id")
@@ -280,28 +317,7 @@ fn lowered(
             .key("origin")
             .write_number(h.origin[identifier]);
         if let NodeKind::Element(el) = &node.kind {
-            w.key("attributes").begin_array();
-            for attribute in h.attributes(el.attributes) {
-                w.begin_object()
-                    .key("name")
-                    .write_string(attribute.name.text(source_text))
-                    .key("value");
-                match &attribute.value {
-                    AttributeValue::Boolean => w.write_string("Boolean"),
-                    AttributeValue::Static(v) => w.write_string(&format!("Static {v:?}")),
-                    AttributeValue::Expression { .. } => w.write_string("Expression"),
-                    AttributeValue::Shorthand(_) => w.write_string("Shorthand"),
-                    AttributeValue::Interpolated(p) => {
-                        w.write_string(&format!("Interpolated, {} parts", p.len()))
-                    }
-                    AttributeValue::Bind(_) => w.write_string("Bind"),
-                    AttributeValue::Attach(_) => w.write_string("Attach"),
-                    AttributeValue::Class(_) => w.write_string("Class"),
-                    AttributeValue::Spread(_) => w.write_string("Spread"),
-                };
-                w.end_object();
-            }
-            w.end_array();
+            lowered_attributes(w, h.attributes(el.attributes), source_text);
         }
         w.end_object();
         match &node.kind {
@@ -344,9 +360,48 @@ fn lowered(
                     lowered(w, c, h, source_text, f, depth + 2);
                 }
             }
-            _ => {}
+            _ => {
+                for children in h.child_lists(identifier) {
+                    lowered(w, c, h, source_text, children, depth + 1);
+                }
+            }
         }
     }
+}
+
+fn lowered_attributes(
+    w: &mut StructuredDataWriter,
+    attributes: &[compiler_syntax_tree::Attribute],
+    source_text: &str,
+) {
+    w.key("attributes").begin_array();
+    for attribute in attributes {
+        w.begin_object()
+            .key("name")
+            .write_string(attribute.name.text(source_text))
+            .key("value");
+        match &attribute.value {
+            AttributeValue::Boolean => w.write_string("Boolean"),
+            AttributeValue::Static(v) => w.write_string(&format!("Static {v:?}")),
+            AttributeValue::Expression { .. } => w.write_string("Expression"),
+            AttributeValue::Shorthand(_) => w.write_string("Shorthand"),
+            AttributeValue::Interpolated(p) => {
+                w.write_string(&format!("Interpolated, {} parts", p.len()))
+            }
+            AttributeValue::Bind(_) => w.write_string("Bind"),
+            AttributeValue::Attach(_) => w.write_string("Attach"),
+            AttributeValue::Class(_) => w.write_string("Class"),
+            AttributeValue::Spread(_) => w.write_string("Spread"),
+            AttributeValue::On { .. } => w.write_string("On"),
+            AttributeValue::Use { .. } => w.write_string("Use"),
+            AttributeValue::Transition { .. } => w.write_string("Transition"),
+            AttributeValue::Animate { .. } => w.write_string("Animate"),
+            AttributeValue::Style { .. } => w.write_string("Style"),
+            AttributeValue::Let(_) => w.write_string("Let"),
+        };
+        w.end_object();
+    }
+    w.end_array();
 }
 
 fn kind_name(k: ElementKind) -> String {

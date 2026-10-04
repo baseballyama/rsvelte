@@ -28,6 +28,7 @@ impl Translation {
             component: rsvelte_svelte::semantic::input::ComponentInput {
                 javascript: &self.javascript,
                 program: self.program,
+                module: None,
                 compiler_syntax_tree: &self.compiler_syntax_tree,
                 style: None,
                 template_expressions: &self.template_expressions,

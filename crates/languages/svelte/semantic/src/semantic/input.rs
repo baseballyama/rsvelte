@@ -8,6 +8,7 @@ pub struct ComponentInput<'a> {
     pub javascript: &'a SyntaxTree,
     /// The instance script's program, or an empty one.
     pub program: NodeIdentifier,
+    pub module: Option<NodeIdentifier>,
     pub compiler_syntax_tree: &'a CompilerSyntaxTree,
     pub style: Option<&'a rsvelte_stylesheet::StyleSheet>,
     /// Every template expression, in document order.

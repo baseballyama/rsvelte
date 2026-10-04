@@ -1,23 +1,17 @@
 use super::{
-    Children, CompileInput, CompilerNodeIdentifier, CompilerSyntaxTree, Diagnostic, FxHashMap,
-    NodeKind, Prepared, Resolution, SyntaxTree, Target, check_runes, check_stores, names, script,
-    validation,
+    Children, CompilerNodeIdentifier, CompilerSyntaxTree, Diagnostic, FxHashMap, NodeKind,
+    Prepared, SyntaxTree, Target, check_runes, names, script,
 };
 
-pub(super) fn prepare(
-    input: &CompileInput<'_>,
-    res: &Resolution,
+pub(super) fn prepare<'a>(
+    facts: super::Lowering<'a, '_>,
     target: Target,
-) -> Result<Prepared, Diagnostic> {
-    validation::check_typescript(input)?;
+) -> Result<Prepared<'a>, Diagnostic> {
+    let input = facts.input;
+    let res = facts.res;
+    let custom_element = facts.validated.custom_element.as_ref();
     let javascript = input.component.javascript;
-    check_stores(
-        javascript,
-        res,
-        input.component.source_text,
-        input.component.program,
-    )?;
-    check_runes(input, res, target)?;
+    check_runes(input, res, target, custom_element.is_some())?;
     let declared = res
         .sem
         .bindings
@@ -34,17 +28,32 @@ pub(super) fn prepare(
     let mut hoisted = Vec::new();
     let mut rewrite = script::ScriptRewrite {
         target,
+        accessors: custom_element.is_some(),
+        rest_reads: Some(&facts.validated.rest_reads),
         res,
         source_text: input.component.source_text,
-        each: None,
+        template: None,
     };
-    let instance = script::lower_instance(
+    if let Some(module) = input.component.module {
+        let statements = script::lower_script(
+            javascript,
+            &mut out,
+            &mut rewrite,
+            module,
+            &mut hoisted,
+            &mut names,
+            script::ScriptContext::Module,
+        )?;
+        hoisted.extend(statements);
+    }
+    let instance = script::lower_script(
         javascript,
         &mut out,
         &mut rewrite,
         input.component.program,
         &mut hoisted,
         &mut names,
+        script::ScriptContext::Instance,
     )?;
     Ok(Prepared {
         out,
@@ -52,6 +61,7 @@ pub(super) fn prepare(
         each_index,
         hoisted,
         instance,
+        custom_element,
     })
 }
 
@@ -69,27 +79,16 @@ fn each_index_names(
         out: &mut FxHashMap<CompilerNodeIdentifier, String>,
     ) {
         for &identifier in compiler_syntax_tree.children(list) {
-            match &compiler_syntax_tree.node(identifier).kind {
-                NodeKind::Element(el) => walk(compiler_syntax_tree, el.children, names, out),
-                NodeKind::If {
-                    branches,
-                    otherwise,
-                } => {
-                    for b in compiler_syntax_tree.branches(*branches) {
-                        walk(compiler_syntax_tree, b.body, names, out);
-                    }
-                    if let Some(o) = otherwise {
-                        walk(compiler_syntax_tree, *o, names, out);
-                    }
+            if let NodeKind::Each(each) = &compiler_syntax_tree.node(identifier).kind {
+                if let Some(f) = each.fallback {
+                    walk(compiler_syntax_tree, f, names, out);
                 }
-                NodeKind::Each(each) => {
-                    if let Some(f) = each.fallback {
-                        walk(compiler_syntax_tree, f, names, out);
-                    }
-                    walk(compiler_syntax_tree, each.body, names, out);
-                    out.insert(identifier, names.unique("$$index"));
-                }
-                NodeKind::Text { .. } | NodeKind::Comment { .. } | NodeKind::Expression { .. } => {}
+                walk(compiler_syntax_tree, each.body, names, out);
+                out.insert(identifier, names.unique("$$index"));
+                continue;
+            }
+            for c in compiler_syntax_tree.child_lists(identifier) {
+                walk(compiler_syntax_tree, c, names, out);
             }
         }
     }

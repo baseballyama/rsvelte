@@ -4,6 +4,9 @@ use crate::lower::server::{
     init_property, is_directive, is_load_error_element, push_captured_events, runtime_call,
 };
 
+const ELEMENT_IS_NAMESPACED: u32 = 1;
+const ELEMENT_PRESERVE_ATTRIBUTE_CASE: u32 = 1 << 1;
+
 impl<'a> ServerCompilationContext<'a> {
     /// Upstream `build_element_attributes`' spread path: `build_element_spread_attributes` and
     /// `prepare_element_spread`.
@@ -37,6 +40,9 @@ impl<'a> ServerCompilationContext<'a> {
         for a in list {
             let raw_name = a.name.text(self.source_text);
             match a.value {
+                AttributeValue::Bind(_) if tag == "svelte:element" && raw_name == "this" => {
+                    continue;
+                }
                 AttributeValue::Bind(_) => {
                     let e =
                         check_binding(self.javascript, self.res, self.source_text, tag, list, a)?;
@@ -45,7 +51,7 @@ impl<'a> ServerCompilationContext<'a> {
                     props.push(init_property(&mut self.out, &name, value));
                     continue;
                 }
-                AttributeValue::Attach(_) => continue,
+                AttributeValue::Attach(_) | AttributeValue::On { .. } => continue,
                 AttributeValue::Class(e) => {
                     class_directives.push((raw_name, e));
                     continue;
@@ -70,7 +76,12 @@ impl<'a> ServerCompilationContext<'a> {
                 }
                 _ => {}
             }
-            let mut name = raw_name.to_ascii_lowercase();
+            let mut name = if self.plan.namespace(identifier) == crate::render_plan::Namespace::Html
+            {
+                raw_name.to_ascii_lowercase()
+            } else {
+                raw_name.to_owned()
+            };
             if tag == "select" && name == "defaultvalue" {
                 "defaultValue".clone_into(&mut name);
             }
@@ -107,9 +118,16 @@ impl<'a> ServerCompilationContext<'a> {
             None
         };
         let hash = hash.map(|h| self.out.write_string(&h));
-        let flags = (tag == "input").then(|| {
+        let flags = if self.plan.namespace(identifier) != crate::render_plan::Namespace::Html {
+            ELEMENT_IS_NAMESPACED | ELEMENT_PRESERVE_ATTRIBUTE_CASE
+        } else if tag == "input" {
+            ELEMENT_IS_INPUT
+        } else {
+            0
+        };
+        let flags = (flags != 0).then(|| {
             self.out
-                .write_number(f64::from(ELEMENT_IS_INPUT), SourceLocation::SYNTHETIC)
+                .write_number(f64::from(flags), SourceLocation::SYNTHETIC)
         });
         Ok((vec![Some(object), hash, classes, None, flags], events))
     }

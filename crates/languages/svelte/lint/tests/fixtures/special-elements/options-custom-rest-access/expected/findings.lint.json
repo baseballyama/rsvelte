@@ -1,0 +1,44 @@
+{
+	"rules": [
+		"no-unused-vars",
+		"svelte/button-has-type"
+	],
+	"findings": [
+		{
+			"rule": "no-unused-vars",
+			"message": "'value' is assigned a value but never used.",
+			"start": {
+				"line": 3,
+				"column": 6
+			},
+			"end": {
+				"line": 3,
+				"column": 11
+			}
+		},
+		{
+			"rule": "no-unused-vars",
+			"message": "'change' is defined but never used.",
+			"start": {
+				"line": 4,
+				"column": 10
+			},
+			"end": {
+				"line": 4,
+				"column": 16
+			}
+		},
+		{
+			"rule": "no-unused-vars",
+			"message": "'x' is assigned a value but never used.",
+			"start": {
+				"line": 4,
+				"column": 56
+			},
+			"end": {
+				"line": 4,
+				"column": 57
+			}
+		}
+	]
+}

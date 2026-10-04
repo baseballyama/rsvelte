@@ -1,0 +1,15 @@
+include_unmount = true
+[[steps]]
+input = ["#single", "typed"]
+[[steps]]
+click = "button:nth-child(2)"
+[[steps]]
+click = "button:first-child"
+[[steps]]
+click = "button:nth-child(3)"
+[[steps]]
+input = ["#bound", "bound"]
+[[steps]]
+click = "button:nth-child(2)"
+[[steps]]
+click = "button:first-child"

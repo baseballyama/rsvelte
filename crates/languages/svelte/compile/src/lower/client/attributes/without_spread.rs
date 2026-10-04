@@ -20,8 +20,10 @@ impl ClientCompilationContext<'_> {
             .filter(|a| matches!(a.value, AttributeValue::Class(_)))
             .collect();
         for a in attributes {
-            if let AttributeValue::Bind(_) | AttributeValue::Attach(_) | AttributeValue::Class(_) =
-                a.value
+            if let AttributeValue::Bind(_)
+            | AttributeValue::Attach(_)
+            | AttributeValue::On { .. }
+            | AttributeValue::Class(_) = a.value
             {
                 continue;
             }

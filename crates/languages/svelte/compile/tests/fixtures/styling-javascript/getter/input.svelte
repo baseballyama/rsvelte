@@ -1,0 +1,1 @@
+<script>let name="a";const obj={get name(){return name;},set name(value){name=value;}};</script><p class={obj.name}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

@@ -18,6 +18,7 @@ impl ClientCompilationContext<'_> {
         let cleaned = self.plan.fragment(el.children);
         let items = &cleaned.items;
         let mut child = Lists::default();
+        self.hoisted_elements(&cleaned.hoisted, frag, &mut child)?;
         let use_text_content = items.iter().all(|i| match i {
             Item::Text { .. } => true,
             Item::Expression(e) => !self.an.meta(*e).has_state,
@@ -95,9 +96,9 @@ impl ClientCompilationContext<'_> {
             Kind::Member { object, property, computed: false, .. }
                 if self.out.name(object) == "$" && self.out.name(property) == "child"
         );
-        let first_is_node = arguments.first().is_some_and(|&a| {
-            matches!(self.out.kind(a), Kind::Identifier(_)) && self.out.name(a) == node
-        });
+        let first_is_node = arguments
+            .first()
+            .is_some_and(|&a| self.out.is_identifier(a) && self.out.name(a) == node);
         if !is_child || !first_is_node {
             return false;
         }

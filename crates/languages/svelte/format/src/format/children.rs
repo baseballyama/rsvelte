@@ -166,6 +166,10 @@ impl Printer<'_, '_> {
             TemplateNode::Element { .. } => self.element(identifier),
             TemplateNode::If { .. } => self.if_block(identifier),
             TemplateNode::Each { .. } => self.each_block(identifier),
+            _ => Err(Unsupported::at(
+                "blocks and special tags",
+                self.c.node(identifier).span(),
+            )),
         }
     }
 

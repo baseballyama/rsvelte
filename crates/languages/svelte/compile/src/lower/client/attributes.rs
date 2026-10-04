@@ -24,10 +24,7 @@ impl ClientCompilationContext<'_> {
                 let items = self.chunk_items(parts);
                 self.template_chunk(&items, frag)
             }
-            AttributeValue::Bind(_)
-            | AttributeValue::Attach(_)
-            | AttributeValue::Class(_)
-            | AttributeValue::Spread(_) => {
+            _ => {
                 unreachable!("directives are lowered by `element`")
             }
         }

@@ -1,0 +1,27 @@
+[package]
+name = "rsvelte_svelte_lint_typed"
+description = "Svelte lint rules that require type information"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+rsvelte_kernel.workspace = true
+rsvelte_lint.workspace = true
+rsvelte_svelte.workspace = true
+rsvelte_svelte_lint.workspace = true
+rsvelte_typescript.workspace = true
+rsvelte_typescript_check.workspace = true
+
+[dev-dependencies]
+rsvelte_fixture_test.workspace = true
+rsvelte_kernel = { workspace = true, features = ["trace-artifacts"] }
+rsvelte_markup.workspace = true
+
+[[test]]
+name = "rules"
+harness = false
+
+[lints]
+workspace = true

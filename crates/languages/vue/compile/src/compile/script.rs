@@ -316,6 +316,7 @@ pub(super) fn without_macros(
         specifiers,
         source,
         type_only,
+        ..
     } = syntax_tree.kind(s)
     else {
         unreachable!("an import")

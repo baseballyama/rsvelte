@@ -42,7 +42,7 @@ fn visit(
         edits.replace(before, "\n");
     }
     let block = match &rule.kind {
-        RuleKind::Style { block, .. } => Some(*block),
+        RuleKind::Style { block, .. } | RuleKind::Keyframe { block, .. } => Some(*block),
         RuleKind::At { block, .. } => *block,
     };
     if let Some(block) = block {
@@ -106,6 +106,7 @@ fn visit(
                 }
             }
         }
+        RuleKind::Keyframe { .. } => {}
         RuleKind::At { name, .. } => {
             if scope.is_some() && name.text(source_text).ends_with("keyframes") {
                 return Err(Unsupported::at("keyframes in a scoped style", rule.span));

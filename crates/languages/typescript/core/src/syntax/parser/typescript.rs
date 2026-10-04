@@ -22,9 +22,19 @@ impl Parser<'_, '_> {
                 return Ok(i);
             }
             self.in_type += 1;
-            while self.token.t != T::LBrace {
+            let mut angle = 0i32;
+            while self.token.t != T::LBrace || angle != 0 {
                 if self.token.t == T::Eof {
                     return self.fail("unterminated interface");
+                }
+                if self.token.t == T::Op {
+                    angle += match self.text(self.token) {
+                        "<" => 1,
+                        ">" => -1,
+                        ">>" => -2,
+                        ">>>" => -3,
+                        _ => 0,
+                    };
                 }
                 self.bump()?;
             }
@@ -53,6 +63,15 @@ impl Parser<'_, '_> {
                             self.bump()?;
                             break;
                         }
+                    }
+                    T::Op => {
+                        depth += match self.text(self.token) {
+                            "<" => 1,
+                            ">" => -1,
+                            ">>" => -2,
+                            ">>>" => -3,
+                            _ => 0,
+                        };
                     }
                     T::Semi if depth == 0 => break,
                     _ if depth == 0
@@ -185,7 +204,8 @@ impl Parser<'_, '_> {
 
     /// A token at the start of a line that still belongs to a type (`| B`, `& C`, `= …`).
     pub(super) fn continues_type(&self) -> bool {
-        self.token.t == T::Op && matches!(self.text(self.token), "|" | "&" | "=")
+        (self.token.t == T::Op && matches!(self.text(self.token), "|" | "&" | "="))
+            || self.after_type_operator()
     }
 
     pub(super) fn skip_balanced(&mut self) -> R<()> {
@@ -368,11 +388,12 @@ impl Parser<'_, '_> {
                     | T::Semi
                     | T::Eof
                     | T::Question => true,
-                    T::Arrow => stop_at_arrow,
+                    T::Arrow => stop_at_arrow && self.prev.t != T::RParen,
                     T::Op => matches!(self.text(t), "=" | "+=" | "-="),
                     T::LBrace if t.span.start_offset != start && !self.after_type_operator() => {
                         true
                     }
+                    T::Identifier if matches!(self.text(t), "as" | "satisfies") => true,
                     _ => t.newline_before && t.span.start_offset != start && !self.continues_type(),
                 };
                 if stop {
@@ -399,7 +420,10 @@ impl Parser<'_, '_> {
     /// Whether the previous token makes a following `{` part of the type (`: {`, `| {`, `& {`,
     /// `<{`, `,{`).
     pub(super) fn after_type_operator(&self) -> bool {
-        let prev = self.source_text[..self.prev_end as usize].trim_end();
-        prev.ends_with(['|', '&', '<', ',', ':', '(', '[', '='])
+        matches!(
+            self.prev.t,
+            T::Comma | T::Colon | T::LParen | T::LBracket | T::Arrow
+        ) || (self.prev.t == T::Op && matches!(self.text(self.prev), "|" | "&" | "<" | "="))
+            || (self.prev.t == T::Identifier && self.text(self.prev) == "is")
     }
 }

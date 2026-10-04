@@ -52,6 +52,8 @@ fn tokens_comments_and_whitespace_are_the_source() {
     for source_text in [
         "let a = 1; // one\n/* two */ const b = `x${a}y${ `z${b}` }w`;",
         "const r = s.test(t) ? a / 2 : (b);",
+        r"const r = /[{}()\/]+/giu; r.test('a'); const x = a / 2 / b;",
+        "const r = /=foo/; const x = /a/.test(s) ? a / 2 : /b/;",
         "function f(x, ...rest) { return x?.y ?? rest[0]; }\nf(1)",
         "let { a = 1, b: [c] } = $props();",
     ] {

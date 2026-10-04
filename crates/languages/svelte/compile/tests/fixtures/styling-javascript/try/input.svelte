@@ -1,0 +1,1 @@
+<script>let value="a";function run(){try{throw "b";}catch(error){value=error;}finally{console.log(value);}}</script><p class={value}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

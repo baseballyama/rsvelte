@@ -1,6 +1,7 @@
 use super::{NodeIdentifier, Parser, R, RESERVED, Span, T, flag};
 
 impl Parser<'_, '_> {
+    #[expect(clippy::too_many_lines, reason = "one arm per primary expression kind")]
     pub(super) fn primary(&mut self) -> R<NodeIdentifier> {
         let t = self.token;
         let start_offset = t.span.start_offset;
@@ -28,8 +29,30 @@ impl Parser<'_, '_> {
                         self.bump()?;
                         self.function(false, start_offset, true)
                     }
-                    "class" | "super" | "import" | "yield" => {
-                        self.fail(format!("unsupported expression `{text}`"))
+                    "import" => self.import_primary(),
+                    "class" => self.class_definition(false),
+                    "super" => {
+                        self.bump()?;
+                        Ok(self.syntax_tree.super_(t.span))
+                    }
+                    "yield" => {
+                        self.bump()?;
+                        let delegate = self.eat_op("*")?;
+                        let argument = if !delegate
+                            && (self.token.newline_before
+                                || matches!(
+                                    self.token.t,
+                                    T::Semi | T::RBrace | T::RParen | T::Comma | T::Eof
+                                )) {
+                            None
+                        } else {
+                            Some(self.assignment()?)
+                        };
+                        Ok(self.syntax_tree.yield_(
+                            argument,
+                            delegate,
+                            self.span_from(start_offset),
+                        ))
                     }
                     _ if RESERVED.contains(&text) => {
                         self.fail(format!("unexpected keyword `{text}`"))
@@ -39,6 +62,10 @@ impl Parser<'_, '_> {
                         Ok(self.syntax_tree.ident(text, t.span))
                     }
                 }
+            }
+            T::BigInt => {
+                self.bump()?;
+                Ok(self.syntax_tree.bigint(t.span))
             }
             T::Number => {
                 self.bump()?;
@@ -54,7 +81,10 @@ impl Parser<'_, '_> {
             T::Template { .. } => self.template(),
             T::LParen => {
                 self.bump()?;
+                let previous = self.allow_in;
+                self.allow_in = true;
                 let e = self.expression()?;
+                self.allow_in = previous;
                 self.expect(T::RParen, ")")?;
                 Ok(e)
             }
@@ -81,10 +111,23 @@ impl Parser<'_, '_> {
             }
             T::LBrace => self.object(),
             T::Op if matches!(self.text(t), "/" | "/=") => {
-                self.fail("regular expression literals are not supported")
+                let literal = self.lex.regex(t.span)?;
+                self.token = literal.token;
+                self.token.newline_before = t.newline_before;
+                self.bump()?;
+                Ok(self.syntax_tree.regex(literal.pattern, literal.flags))
             }
             T::Op if self.typescript && self.text(t) == "<" => {
-                self.fail("TypeScript type assertions / generic arrows are not supported")
+                let start = self.token.span.start_offset;
+                self.skip_type_parameters()?;
+                let end = self.prev_end;
+                let value = self.unary()?;
+                self.typescript(
+                    value,
+                    super::TypeScriptKind::Assertion,
+                    Span::new(start, end),
+                );
+                Ok(value)
             }
             T::Eof => self.fail("unexpected end of input"),
             _ => self.fail(format!("unexpected token `{}`", self.text(t))),
@@ -141,26 +184,51 @@ impl Parser<'_, '_> {
                 if is_async {
                     self.bump()?;
                 }
-                if (self.is_kw("get") || self.is_kw("set"))
+                let generator = self.eat_op("*")?;
+                let accessor = if (self.is_kw("get") || self.is_kw("set"))
                     && !matches!(self.peek().t, T::Colon | T::Comma | T::RBrace | T::LParen)
                 {
-                    return self.fail("getters and setters are not supported");
-                }
+                    if is_async {
+                        return self.fail("an accessor cannot be async");
+                    }
+                    let flag = if self.is_kw("get") {
+                        flag::GETTER
+                    } else {
+                        flag::SETTER
+                    };
+                    self.bump()?;
+                    flag
+                } else {
+                    0
+                };
                 let (key, computed, key_token) = self.property_key()?;
                 if self.token.t == T::LParen {
                     let parameters = self.parameters()?;
+                    if accessor != 0 {
+                        if generator {
+                            return self.fail("an accessor cannot be a generator");
+                        }
+                        self.accessor_parameters(parameters, accessor == flag::GETTER)?;
+                    }
                     let ret = self.maybe_return_type(false)?;
                     let body = self.block()?;
                     let span = Span::new(key_token.start_offset, self.prev_end);
                     let f = self.close(parameters, |syntax_tree, parameters| {
                         syntax_tree.function(false, None, parameters, body, is_async, span)
                     });
+                    self.syntax_tree.mark_generator(f, generator);
                     self.signature_typescript(f, None, ret);
-                    let flags = flag::METHOD | if computed { flag::COMPUTED } else { 0 };
+                    let flags = if accessor == 0 {
+                        flag::METHOD
+                    } else {
+                        accessor
+                    } | if computed { flag::COMPUTED } else { 0 };
                     let prop = self
                         .syntax_tree
                         .property(key, f, flags, self.span_from(plo));
                     self.item(prop);
+                } else if accessor != 0 {
+                    return self.fail("expected accessor parameters");
                 } else if self.eat(T::Colon)? {
                     let v = self.assignment()?;
                     let flags = if computed { flag::COMPUTED } else { 0 };
@@ -190,7 +258,7 @@ impl Parser<'_, '_> {
     pub(super) fn property_key(&mut self) -> R<(NodeIdentifier, bool, Span)> {
         let t = self.token;
         match t.t {
-            T::Identifier => {
+            T::Identifier | T::PrivateName => {
                 self.bump()?;
                 Ok((self.syntax_tree.ident(self.text(t), t.span), false, t.span))
             }
@@ -211,5 +279,43 @@ impl Parser<'_, '_> {
             }
             _ => self.fail("expected property key"),
         }
+    }
+}
+
+impl Parser<'_, '_> {
+    fn import_primary(&mut self) -> R<NodeIdentifier> {
+        let token = self.bump()?;
+        if self.eat(T::Dot)? {
+            let property = self.expect(T::Identifier, "meta")?;
+            if self.text(property) != "meta" {
+                return self.fail("expected import.meta");
+            }
+            let meta = self.syntax_tree.ident("import", token.span);
+            let property = self.syntax_tree.ident("meta", property.span);
+            return Ok(self.syntax_tree.meta_property(
+                meta,
+                property,
+                self.span_from(token.span.start_offset),
+            ));
+        }
+        self.expect(T::LParen, "(")?;
+        let source = self.assignment()?;
+        let options = if self.eat(T::Comma)? {
+            if self.token.t == T::RParen {
+                None
+            } else {
+                let options = self.assignment()?;
+                self.eat(T::Comma)?;
+                Some(options)
+            }
+        } else {
+            None
+        };
+        self.expect(T::RParen, ")")?;
+        Ok(self.syntax_tree.import_expression(
+            source,
+            options,
+            self.span_from(token.span.start_offset),
+        ))
     }
 }

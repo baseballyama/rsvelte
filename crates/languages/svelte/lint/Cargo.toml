@@ -7,6 +7,8 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+rsvelte_lint.workspace = true
+rsvelte_typescript.workspace = true
 rsvelte_svelte.workspace = true
 rsvelte_markup.workspace = true
 rsvelte_kernel.workspace = true
@@ -14,9 +16,14 @@ rsvelte_typescript_lint.workspace = true
 
 [dev-dependencies]
 rsvelte_fixture_test.workspace = true
+rsvelte_kernel = { workspace = true, features = ["trace-artifacts"] }
 
 [[test]]
 name = "fixtures"
+harness = false
+
+[[test]]
+name = "rules"
 harness = false
 
 [lints]

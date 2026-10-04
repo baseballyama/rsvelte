@@ -1,6 +1,6 @@
 use super::{
     Attribute, AttributeKind, AttributeValue, Cow, ElementKind, LayoutInstructionIdentifier, Part,
-    Printer, R, normalize_class,
+    Printer, R, Unsupported, normalize_class,
 };
 
 impl Printer<'_, '_> {
@@ -10,6 +10,16 @@ impl Printer<'_, '_> {
         element: ElementKind,
     ) -> R<LayoutInstructionIdentifier> {
         let (comp, source_text) = (self.c, self.source_text);
+        if !matches!(
+            a.kind,
+            AttributeKind::Attribute
+                | AttributeKind::Bind
+                | AttributeKind::Attach
+                | AttributeKind::Class
+                | AttributeKind::Spread
+        ) {
+            return Err(Unsupported::at("directives", a.span));
+        }
         let name = a.name.text(source_text);
         let parts = match a.value {
             AttributeValue::True => return Ok(self.d().text(name)),
@@ -28,7 +38,8 @@ impl Printer<'_, '_> {
             let close = self.lit("}");
             return Ok(self.cat(&[open, e, close]));
         }
-        if let (Some(property), [Part::Expression { expression, .. }]) = (a.directive_name(), parts)
+        if let (Some(property), [Part::Expression { expression, .. }]) =
+            (a.directive_name(&comp.modifiers), parts)
             && matches!(
                 comp.javascript.kind(*expression),
                 rsvelte_typescript::Kind::Identifier(_)

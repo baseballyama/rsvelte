@@ -1,0 +1,31 @@
+{
+	"rules": [
+		"svelte/@typescript-eslint/no-unnecessary-condition"
+	],
+	"findings": [
+		{
+			"rule": "svelte/@typescript-eslint/no-unnecessary-condition",
+			"message": "Unnecessary conditional, both sides of the expression are literal values.",
+			"start": {
+				"line": 4,
+				"column": 13
+			},
+			"end": {
+				"line": 4,
+				"column": 24
+			}
+		},
+		{
+			"rule": "svelte/@typescript-eslint/no-unnecessary-condition",
+			"message": "Unnecessary conditional, both sides of the expression are literal values.",
+			"start": {
+				"line": 8,
+				"column": 9
+			},
+			"end": {
+				"line": 8,
+				"column": 20
+			}
+		}
+	]
+}

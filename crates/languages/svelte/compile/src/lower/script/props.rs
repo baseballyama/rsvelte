@@ -2,6 +2,7 @@ use super::{
     BindingKind, Kind, Names, NodeIdentifier, Rewrite, ScriptRewrite, SyntaxTree, copy, flag,
     rune_call, should_proxy,
 };
+use crate::lower::javascript::is_simple_expression;
 
 pub(super) fn server_props_pattern(
     from: &SyntaxTree,
@@ -97,6 +98,9 @@ pub(super) fn lower_client_props(
     let mut seen: Vec<String> = ["$$slots", "$$events", "$$legacy"]
         .map(str::to_owned)
         .to_vec();
+    if rw.accessors {
+        seen.push("$$host".to_owned());
+    }
     let mut rest_props = |target: NodeIdentifier, seen: &[String], to: &mut SyntaxTree| {
         let exclude = names.unique("rest_excludes");
         let items: Vec<NodeIdentifier> = seen.iter().map(|n| to.write_string(n)).collect();
@@ -147,7 +151,7 @@ pub(super) fn lower_client_props(
         let Some((b, info)) = rw.res.binding(local) else {
             continue;
         };
-        if !rw.res.is_prop_source(b) {
+        if !rw.is_prop_source(b) {
             continue;
         }
         let s = &rw.res.sem.bindings[b];
@@ -155,7 +159,7 @@ pub(super) fn lower_client_props(
         if info.kind == BindingKind::BindableProperty {
             flags |= 8;
         }
-        if s.writes > 0 || s.mutations > 0 {
+        if rw.accessors || s.writes > 0 || s.mutations > 0 {
             flags |= 4; // PROPS_IS_UPDATED
         }
         let mut arguments = vec![to.identifier("$$props"), to.write_string(&key_name)];
@@ -175,9 +179,7 @@ pub(super) fn lower_client_props(
                 match to.kind(initializer) {
                     Kind::Call {
                         callee, arguments, ..
-                    } if arguments.is_empty() && matches!(to.kind(callee), Kind::Identifier(_)) => {
-                        callee
-                    }
+                    } if arguments.is_empty() && to.is_identifier(callee) => callee,
                     _ => to.arrow(
                         &[],
                         initializer,
@@ -198,33 +200,5 @@ pub(super) fn lower_client_props(
         let call = to.runtime("$", "prop", &arguments);
         let target = to.ident(from.name(local), from.source_location(local));
         out.push(to.declarator(target, Some(call), from.source_location(p)));
-    }
-}
-
-/// Upstream `is_simple_expression`.
-fn is_simple_expression(syntax_tree: &SyntaxTree, e: NodeIdentifier) -> bool {
-    match syntax_tree.kind(e) {
-        Kind::String
-        | Kind::Number(_)
-        | Kind::Boolean(_)
-        | Kind::Null
-        | Kind::Identifier(_)
-        | Kind::Arrow { .. }
-        | Kind::Function {
-            declaration: false, ..
-        } => true,
-        Kind::Conditional {
-            test,
-            consequent,
-            alternate,
-        } => {
-            is_simple_expression(syntax_tree, test)
-                && is_simple_expression(syntax_tree, consequent)
-                && is_simple_expression(syntax_tree, alternate)
-        }
-        Kind::Binary(_, l, r) | Kind::Logical(_, l, r) => {
-            is_simple_expression(syntax_tree, l) && is_simple_expression(syntax_tree, r)
-        }
-        _ => false,
     }
 }

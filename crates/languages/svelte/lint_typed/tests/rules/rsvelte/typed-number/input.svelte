@@ -1,0 +1,1 @@
+<script lang="ts">function f(value: number) { const result = value ?? 0; console.log(result); }</script>

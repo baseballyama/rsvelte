@@ -96,7 +96,7 @@ fn templates_strings_and_members() {
 
 #[test]
 fn unsupported_syntax_is_an_error_not_a_panic() {
-    for source_text in ["for (;;) {}", "class A {}", "x = /re/g", "a`t`"] {
+    for source_text in ["for () {}", "class {}", "a`t`"] {
         let mut syntax_tree = SyntaxTree::new();
         assert!(
             parse_program(
@@ -107,6 +107,152 @@ fn unsupported_syntax_is_an_error_not_a_panic() {
             )
             .is_err(),
             "{source_text}"
+        );
+    }
+}
+
+#[test]
+fn regex_literals_keep_patterns_flags_and_division() {
+    let source = r"const r = /[{}()\/]+/giu; const x = a / 2 / b; r.test('a');";
+    let out = stable(source, false);
+    assert!(out.contains(r"const r = /[{}()\/]+/giu;"), "{out}");
+    assert!(out.contains("const x = a / 2 / b;"), "{out}");
+}
+
+#[test]
+fn regex_lexical_errors_are_rejected() {
+    for source in [
+        "const r = /abc",
+        "const r = /a\nb/",
+        "const r = /a/gg",
+        "const r = /a/uv",
+        "const r = /a/z",
+    ] {
+        let mut tree = SyntaxTree::new();
+        assert!(
+            parse_program(&mut tree, source, Span::new(0, source.len() as u32), false).is_err(),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn lookahead_preserves_nested_templates_and_regex_delimiters() {
+    for source in [
+        "const f = (x = /[(){}]/, y = `a${x}b`) => y;",
+        "const items = Array.from({length: 2}, (_, i) => ({text: `Item ${i + 1}`}));",
+        "const x = (`a${{value: `b${c}d`}.value}e`);",
+        "const x = (/\\)/.test(s) ? a / 2 : /[(]/);",
+    ] {
+        stable(source, false);
+    }
+}
+
+#[test]
+fn object_accessors_keep_names_parameters_and_bodies() {
+    let out = stable(
+        "const obj = { get value() { return x; }, set value(v) { x = v; }, \
+         get() { return 1; }, set: 2 };",
+        false,
+    );
+    assert!(out.contains("get value() {"), "{out}");
+    assert!(out.contains("set value(v) {"), "{out}");
+    assert!(out.contains("get() {"), "{out}");
+    assert!(out.contains("set: 2"), "{out}");
+    for source in [
+        "({get value(x) {}});",
+        "({set value() {}});",
+        "({set value(...x) {}});",
+        "({async get value() {}});",
+    ] {
+        let mut tree = SyntaxTree::new();
+        assert!(
+            parse_program(&mut tree, source, Span::new(0, source.len() as u32), false).is_err(),
+            "{source}"
+        );
+    }
+}
+
+#[test]
+#[expect(
+    clippy::literal_string_with_formatting_args,
+    reason = "JavaScript braces are literal test inputs"
+)]
+fn control_flow_classes_and_module_expressions() {
+    for source in [
+        "function f(x) { try { if (x) throw x; } catch ({message}) { return \
+            message; } finally { cleanup(); } }",
+        "outer: for (let i=0; i<3; i++) { if (i) continue outer; else break; } \
+            while (x) x--; do { x++; } while (x<3);",
+        "for (const [key,value] of entries) log(key,value); for (key in \
+            object) log(key); for await (const item of stream) log(item);",
+        "switch (x) { case 1: x++; break; case 2: {let y=x;} default: debugger; }",
+        "class A extends B { #value=1; static count=0; constructor(x) \
+            {super(x);} get value() {return this.#value;} set value(x) \
+            {this.#value=x;} static { init(); } async *values() {yield \
+            this.#value;yield* items;} }",
+        "const C=class Named {method() {return Named;}}; function* g() {yield \
+            1;yield* [2,3];} const o={async method() {}, *values() {yield 1;}};",
+        "const p=import('./x',{with:{type:'json'}}); const url=import.meta.url; const n=123n;",
+        "export {a as b}; export {c as d} from './c'; export * from './x'; \
+            export * as ns from './y'; import data from './data.json' with \
+            {type:'json'};",
+        "let a,b; ({a,b} = obj); [a,...b] = items;",
+    ] {
+        stable(source, false);
+    }
+    for source in [
+        "const f = <T,>(x:T):T=>x; const x=<number>value;",
+        "type P<T extends A = A> =
+  A &
+  B<T, {x?: string}>; let x:P<A>;",
+        "const p=value as unknown as {method?:()=>string}; const f = value as (x:number)=>number;",
+        "interface P extends Item<{reason:string}> {value?: string} export \
+            type {P as Q} from './p';",
+        "const f=(item):item is {article:Article;number:number}=>!!item.article;",
+    ] {
+        stable(source, true);
+    }
+}
+
+#[test]
+fn bigint_errors_are_rejected_before_lowering() {
+    for source in [
+        "1.2n;", "1e2n;", "00n;", "0xn;", "0b2n;", "1__2n;", "12nfoo;",
+    ] {
+        let mut tree = SyntaxTree::new();
+        assert!(
+            parse_program(&mut tree, source, Span::new(0, source.len() as u32), false).is_err(),
+            "{source}"
+        );
+    }
+    for source in [
+        "0n;",
+        "123456789012345678901234567890n;",
+        "0xFF_FFn;",
+        "0o7_7n;",
+        "0b10_10n;",
+    ] {
+        stable(source, false);
+    }
+}
+
+#[test]
+fn classic_loop_initializers_keep_parenthesized_in_expressions() {
+    let out = stable(
+        "for(let exists=(key in object);exists;exists=false) {}",
+        false,
+    );
+    assert!(out.contains("exists = (key in object)"), "{out}");
+    for source in [
+        "class A { get value(x) {} }",
+        "class A { set value() {} }",
+        "class A {async get value() {}}",
+    ] {
+        let mut tree = SyntaxTree::new();
+        assert!(
+            parse_program(&mut tree, source, Span::new(0, source.len() as u32), false).is_err(),
+            "{source}"
         );
     }
 }

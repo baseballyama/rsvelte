@@ -15,20 +15,25 @@ impl ServerCompilationContext<'_> {
             unreachable!()
         };
         if el.kind != ElementKind::Regular {
-            return unsupported("a component, `<slot>` or `svelte:` element", el.name);
+            return self.special_element(identifier, template);
         }
         let tag = el.name.text(self.source_text).to_ascii_lowercase();
-        if matches!(
-            tag.as_str(),
-            "svg" | "math" | "script" | "style" | "textarea" | "template"
-        ) || tag.contains('-')
+        if matches!(tag.as_str(), "script" | "style" | "textarea" | "template") || tag.contains('-')
         {
             return unsupported(&format!("`<{tag}>`"), el.name);
         }
         if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {
             return unsupported(&format!("rich content in `<{tag}>`"), el.name);
         }
-        check_foreign_element(self.source_text, el.name)?;
+        let namespace = self.plan.namespace(identifier);
+        if namespace == crate::render_plan::Namespace::Html {
+            check_foreign_element(self.source_text, el.name)?;
+        }
+        let tag = if namespace == crate::render_plan::Namespace::Html {
+            tag
+        } else {
+            el.name.text(self.source_text).to_owned()
+        };
         let select_special = tag == "select"
             && compiler_syntax_tree
                 .attributes(el.attributes)
@@ -54,6 +59,7 @@ impl ServerCompilationContext<'_> {
         let void = is_void(&tag);
         template.push(Piece::Text(if void { "/>".into() } else { ">".into() }));
         let cleaned = self.plan.fragment(el.children);
+        self.hoisted_elements(&cleaned.hoisted, template)?;
         self.process_children(&cleaned.items, template)?;
         if !void {
             template.push(Piece::Text(format!("</{tag}>")));

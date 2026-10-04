@@ -1,0 +1,1 @@
+<script lang="ts">if (!true as boolean) console.log(1); if ((Math.random() && true) as boolean) console.log(2); if (true as true) console.log(3); if (false as false) console.log(4);</script>

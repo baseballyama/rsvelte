@@ -1,0 +1,22 @@
+include_unmount = true
+
+[[steps]]
+click = "section:first-of-type input:first-of-type"
+
+[[steps]]
+click = "section:last-of-type input:last-of-type"
+
+[[steps]]
+click = "input.global[value='2']"
+
+[[steps]]
+click = "input.radio[value='2']"
+
+[[steps]]
+click = "button"
+
+[[steps]]
+click = "section:first-of-type input:last-of-type"
+
+[[steps]]
+click = "input.global[value='3']"

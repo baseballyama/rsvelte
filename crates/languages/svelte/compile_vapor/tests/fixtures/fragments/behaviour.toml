@@ -1,0 +1,8 @@
+[[steps]]
+click = "button.toggle"
+
+[[steps]]
+click = "button.clear"
+
+[[steps]]
+click = "button.toggle"

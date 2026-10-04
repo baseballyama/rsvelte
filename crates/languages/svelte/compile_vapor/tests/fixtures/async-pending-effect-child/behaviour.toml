@@ -1,0 +1,4 @@
+experimental_async = true
+include_unmount = true
+[props]
+value = 1

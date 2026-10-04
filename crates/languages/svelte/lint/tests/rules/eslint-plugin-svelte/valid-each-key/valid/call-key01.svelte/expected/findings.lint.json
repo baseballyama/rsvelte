@@ -1,0 +1,6 @@
+{
+	"rules": [
+		"svelte/valid-each-key"
+	],
+	"findings": []
+}

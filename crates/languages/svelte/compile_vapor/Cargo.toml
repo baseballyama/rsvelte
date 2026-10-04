@@ -1,0 +1,25 @@
+[package]
+name = "rsvelte_svelte_compile_vapor"
+description = "Svelte components with Svelte's meaning, compiled for the Vue Vapor runtime"
+version = "0.0.0"
+edition.workspace = true
+publish = false
+
+[dependencies]
+rsvelte_typescript_compile.workspace = true
+rsvelte_svelte_compile.workspace = true
+rsvelte_kernel.workspace = true
+rsvelte_typescript.workspace = true
+rsvelte_svelte.workspace = true
+rsvelte_vue.workspace = true
+rustc-hash.workspace = true
+
+[dev-dependencies]
+rsvelte_fixture_test.workspace = true
+
+[[test]]
+name = "fixtures"
+harness = false
+
+[lints]
+workspace = true

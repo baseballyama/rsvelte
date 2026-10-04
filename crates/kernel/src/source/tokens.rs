@@ -127,8 +127,7 @@ impl<K: TokenKind> Tokens<K> {
         (i < raw.len() && raw[i].span.start_offset <= offset).then(|| TokenIdentifier::new(i))
     }
 
-    /// The last non-trivia token that ends at or before `offset` (typescript-eslint's
-    /// `getTokenBefore` for a node starting at `offset`).
+    /// The last non-trivia token that ends at or before `offset`.
     pub fn before(&self, offset: u32) -> Option<TokenIdentifier> {
         let raw = self.tokens.raw();
         let end = raw.partition_point(|t| t.span.end_offset <= offset);

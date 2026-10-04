@@ -1,0 +1,31 @@
+browser = true
+
+[[steps]]
+click = "button"
+
+[[steps]]
+wait = 1200
+
+[[steps]]
+click = "button"
+
+[[steps]]
+wait = 250
+
+[[steps]]
+click = "button"
+
+[[steps]]
+wait = 1200
+
+[[steps]]
+click = "button"
+
+[[steps]]
+wait = 1200
+
+[[steps]]
+click = "button"
+
+[[steps]]
+wait = 1200

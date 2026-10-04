@@ -1,11 +1,28 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput};
-use rsvelte_kernel::performance::measurement;
-use rsvelte_svelte::{Normalized, Parsed, Resolved};
+use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
+
+use crate::Configuration;
+use crate::computation::{LintConfiguration, Parents};
+
+pub static PLUGIN: Plugin = Plugin {
+    identifier: "svelte.lint",
+    version: env!("CARGO_PKG_VERSION"),
+    dependencies: &[Dependency {
+        identifier: "svelte",
+        requirement: concat!("=", env!("CARGO_PKG_VERSION")),
+    }],
+};
 
 pub fn register(registry: &mut Registry) {
-    rsvelte_svelte::register(registry);
+    register_artifacts(registry);
     registry.task(Lint);
+}
+
+pub fn register_artifacts(registry: &mut Registry) {
+    registry.plugin(&PLUGIN);
+    rsvelte_svelte::register(registry);
+    registry.artifact::<Parents>();
 }
 
 #[derive(Debug)]
@@ -21,48 +38,33 @@ impl Task for Lint {
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
-        let c = match context.get::<Parsed>() {
-            Ok(c) => c,
-            Err(e) => {
-                out.diagnostics.push(e.clone());
+        let default = Configuration::default();
+        let configuration = context
+            .facet::<LintConfiguration>()
+            .map_or(&default, |configuration| configuration.as_ref());
+        let findings = match crate::lint::lint(context, configuration) {
+            Ok(findings) => findings,
+            Err(error) => {
+                out.diagnostics.push(error);
                 return;
             }
         };
-        let res = context
-            .get::<Resolved>()
-            .as_ref()
-            .expect("a parsed component is resolved");
-        let parents = {
-            let _p = measurement::phase("js.parents");
-            c.javascript.parents()
-        };
-        let compiler_syntax_tree = context
-            .get::<Normalized>()
-            .as_ref()
-            .expect("a parsed component is lowered");
-        let early = crate::lint::SyntaxTreeContext {
-            c,
-            source_text: context.source_text(),
-            javascript: rsvelte_typescript_lint::JavaScriptFacts {
-                syntax_tree: &c.javascript,
-                sem: &res.sem,
-                parents: &parents,
-            },
-        };
-        let late = crate::lint::CompilerSyntaxTreeContext {
-            compiler_syntax_tree,
-            res,
-            source_text: context.source_text(),
-        };
-        let findings = crate::lint::lint(&early, &late);
-        let rules: Vec<&str> = crate::lint::rule_identifiers().collect();
+        let rules = configuration.rules();
         out.file(
             "lint.json",
-            rsvelte_kernel::diagnostics::rules::render_json(
+            rsvelte_lint::output::render_json_with_rules(
                 context.line_index(),
-                &rules,
+                rules.iter().map(|rule| rule.name()),
                 &findings,
             ),
         );
     }
+}
+
+pub fn register_with_configuration(registry: &mut Registry, configuration: Configuration) {
+    register(registry);
+    let configuration = std::sync::Arc::new(configuration);
+    registry.provide::<LintConfiguration>("svelte", rsvelte_svelte::matches, move |_| {
+        std::sync::Arc::clone(&configuration)
+    });
 }

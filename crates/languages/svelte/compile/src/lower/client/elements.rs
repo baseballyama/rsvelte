@@ -12,7 +12,7 @@ impl ClientCompilationContext<'_> {
         let NodeKind::Element(el) = &self.compiler_syntax_tree.node(identifier).kind else {
             return false;
         };
-        if self.an.dynamic[identifier] {
+        if el.kind != super::ElementKind::Regular || self.an.dynamic[identifier] {
             return false;
         }
         let tag = el.name.text(self.source_text);

@@ -1,0 +1,8 @@
+browser = true
+custom_element = "vapor-light-slots"
+custom_element_html = '<span slot="named">named content</span>'
+include_unmount = true
+[[steps]]
+click = "button"
+[[steps]]
+click = "button"

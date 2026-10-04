@@ -83,6 +83,7 @@ pub enum Tag {
     Identifier,
     Number,
     String,
+    Regex,
     Boolean,
     Null,
     This,
@@ -110,17 +111,28 @@ pub enum Tag {
     AssignPattern,
     Rest,
     Hole,
+    Control,
+    ImportExpression,
+    MetaProperty,
+    BigInt,
+    Class,
+    Super,
+    Yield,
 }
 
 pub mod flag {
+    pub const GROUPED: u8 = 0x40;
     pub const VAR: u8 = 0;
     pub const LET: u8 = 1;
     pub const CONST: u8 = 2;
     pub const ASYNC: u8 = 1;
+    pub const GENERATOR: u8 = 4;
     pub const EXPRESSION_BODY: u8 = 2;
     pub const SHORTHAND: u8 = 1;
     pub const COMPUTED: u8 = 2;
     pub const METHOD: u8 = 4;
+    pub const GETTER: u8 = 8;
+    pub const SETTER: u8 = 16;
     pub const OPTIONAL: u8 = 1;
     pub const PREFIX: u8 = 0x80;
     /// String: value lives in `strings`, not in the source.
@@ -130,11 +142,28 @@ pub mod flag {
     pub const PURE: u8 = 4;
     /// Import/Export: `import type` / `export type` (erased).
     pub const TYPE_ONLY: u8 = 8;
+    pub const IMPORT_ATTRIBUTES: u8 = 16;
 }
 
 /// A decoded view of one node. Lists borrow the `extra` column directly.
 #[derive(Clone, Copy, Debug)]
 pub enum Kind<'a> {
+    Control(Control<'a>),
+    Class(Class<'a>),
+    Super,
+    Yield {
+        argument: Option<NodeIdentifier>,
+        delegate: bool,
+    },
+    ImportExpression {
+        source: NodeIdentifier,
+        options: Option<NodeIdentifier>,
+    },
+    MetaProperty {
+        meta: NodeIdentifier,
+        property: NodeIdentifier,
+    },
+    BigInt,
     Program(&'a [NodeIdentifier]),
     VariableDeclaration {
         kind: u8,
@@ -171,6 +200,7 @@ pub enum Kind<'a> {
         specifiers: &'a [NodeIdentifier],
         source: NodeIdentifier,
         type_only: bool,
+        attributes: Option<NodeIdentifier>,
     },
     ImportDefault(NodeIdentifier),
     ImportNamed {
@@ -192,6 +222,10 @@ pub enum Kind<'a> {
     Identifier(Atom),
     Number(f64),
     String,
+    Regex {
+        pattern: Span,
+        flags: Span,
+    },
     Boolean(bool),
     Null,
     This,
@@ -210,6 +244,8 @@ pub enum Kind<'a> {
         shorthand: bool,
         computed: bool,
         method: bool,
+        getter: bool,
+        setter: bool,
     },
     Spread(NodeIdentifier),
     Member {
@@ -297,57 +333,6 @@ pub struct Mark {
     typescript: usize,
     typescript_runtime: usize,
     type_references: usize,
-}
-
-/// One piece of erased TypeScript syntax, attached to the node it belongs to.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct TypeScriptSyntax {
-    pub node: NodeIdentifier,
-    pub kind: TypeScriptKind,
-    /// The type (after `:` / `as` / `satisfies`), the `<…>` list, or the `!` / `?` token.
-    pub span: Span,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TypeScriptKind {
-    /// `x: T` on a binding or parameter.
-    Annotation,
-    /// `(…): T` on a function or arrow.
-    ReturnType,
-    /// `<T>` on a function or arrow.
-    TypeParameters,
-    /// `e as T`, on `e`.
-    As,
-    /// `e satisfies T`, on `e`.
-    Satisfies,
-    /// `e!`, on `e`.
-    NonNull,
-    /// `p?` on a parameter.
-    Optional,
-    /// `<T>` after a callee (`f<T>(…)`, `new C<T>(…)`), on the callee.
-    TypeArgs,
-}
-
-/// An identifier in type syntax: a candidate reference whose binding scope analysis looks up.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct TypeRef {
-    pub name: Atom,
-    pub span: Span,
-}
-
-/// A TypeScript construct that has a runtime value, so it is not type syntax to erase.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct TypeScriptRuntime {
-    pub feature: TypeScriptFeature,
-    pub span: Span,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TypeScriptFeature {
-    /// `enum`, `declare enum`: an enum declares an object even under `declare`'s spelling.
-    Enum,
-    /// `namespace N { … }` whose body holds a statement other than type declarations.
-    NamespaceWithValues,
 }
 
 impl Default for SyntaxTree {
@@ -527,6 +512,15 @@ impl SyntaxTree {
         identifier
     }
 
+    pub fn grouped(&mut self, identifier: NodeIdentifier) -> NodeIdentifier {
+        self.push(
+            self.tag(identifier),
+            self.flags(identifier) | flag::GROUPED,
+            self.d(identifier),
+            self.source_location(identifier),
+        )
+    }
+
     fn list(&mut self, items: &[NodeIdentifier]) -> u32 {
         let at = self.extra.len() as u32;
         self.extra.push(NodeIdentifier(items.len() as u32));
@@ -554,7 +548,16 @@ const _: () = assert!(
 );
 const _: () = assert!(size_of::<NodeIdentifier>() == 4, "NodeIdentifier is a u32");
 
+mod classes;
+mod control;
 mod expressions;
 mod read;
 mod statements;
+pub use classes::Class;
+pub use control::Control;
 mod traverse;
+
+mod typescript;
+pub use typescript::{
+    TypeRef, TypeScriptFeature, TypeScriptKind, TypeScriptRuntime, TypeScriptSyntax,
+};

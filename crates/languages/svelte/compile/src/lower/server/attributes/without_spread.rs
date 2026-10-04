@@ -38,12 +38,17 @@ impl<'a> ServerCompilationContext<'a> {
         for a in list {
             let raw_name = a.name.text(self.source_text);
             match a.value {
+                AttributeValue::Bind(_) if tag == "svelte:element" && raw_name == "this" => {
+                    continue;
+                }
                 AttributeValue::Bind(_) => {
                     let call = self.binding(a, tag, list)?;
                     template.push(Piece::Expression(call));
                     continue;
                 }
-                AttributeValue::Attach(_) | AttributeValue::Class(_) => continue,
+                AttributeValue::Attach(_)
+                | AttributeValue::On { .. }
+                | AttributeValue::Class(_) => continue,
                 AttributeValue::Spread(_) => unreachable!("spreads take the spread path"),
                 _ if event_attribute(self.source_text, a).is_some() => {
                     capture_event(&mut events, tag, raw_name);
@@ -52,7 +57,11 @@ impl<'a> ServerCompilationContext<'a> {
                 _ if matches!(raw_name, "defaultValue" | "defaultChecked") => continue,
                 _ => {}
             }
-            let name = raw_name.to_ascii_lowercase();
+            let name = if self.plan.namespace(identifier) == crate::render_plan::Namespace::Html {
+                raw_name.to_ascii_lowercase()
+            } else {
+                raw_name.to_owned()
+            };
             let trim = matches!(name.as_str(), "class" | "style");
             let can_use_literal = name != "class" || class_directives.is_empty();
             let literal = match &a.value {

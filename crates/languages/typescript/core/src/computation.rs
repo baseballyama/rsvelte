@@ -2,6 +2,7 @@ use std::path::Path;
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::computation::pipeline::{Document, Registry};
+use rsvelte_kernel::computation::plugins::Plugin;
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
@@ -64,6 +65,13 @@ impl Artifact for Resolved {
     }
 }
 
+pub static PLUGIN: Plugin = Plugin {
+    identifier: "typescript",
+    version: env!("CARGO_PKG_VERSION"),
+    dependencies: &[],
+};
+
 pub fn register(registry: &mut Registry) {
+    registry.plugin(&PLUGIN);
     registry.artifact::<Parsed>().artifact::<Resolved>();
 }

@@ -1,0 +1,116 @@
+import { defineComponent as $$v_defineComponent, normalizeStyle as $$v_normalizeStyle, unref as $$v_unref, withAsyncContext as $$v_withAsyncContext } from 'vue';
+
+import { shallowRef as $$ref, useId as $$props_id } from 'vue';
+
+const $$boolean_names = ['allowfullscreen', 'async', 'autofocus', 'autoplay', 'checked', 'controls', 'default', 'disabled', 'formnovalidate', 'indeterminate', 'inert', 'ismap', 'loop', 'multiple', 'muted', 'nomodule', 'novalidate', 'open', 'playsinline', 'readonly', 'required', 'reversed', 'seamless', 'selected', 'webkitdirectory', 'defer', 'disablepictureinpicture', 'disableremoteplayback'];
+
+const $$escape = (value) => String(value == null ? '' : value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
+
+const $$boolean_attributes = new Set($$boolean_names);
+
+const $$attribute = (name, value, html = true) => {
+	if (value == null) return '';
+	if (html && ($$boolean_attributes.has(name) || name === 'hidden' && value !== 'until-found')) return value || value === '' ? ' ' + name : '';
+	return ' ' + name + '="' + $$escape(value) + '"';
+};
+
+const $$attributes_text = (object, html = true) => Object.keys(object).map((key) => $$attribute(key[0] === '^' ? key.slice(1) : key, object[key], html)).join('');
+
+const $$styles_text = (values) => {
+	const declarations = $$v_normalizeStyle(values);
+	const text = Object.keys(declarations).filter((key) => declarations[key] != null).map((key) => key + ':' + declarations[key]).join(';');
+	return $$attribute('style', text);
+};
+
+const $$update_head = (context) => {
+	context.head = (context.__vaporHead || '') + (context.__vaporTitle || '') + (context.__vaporStyles || '');
+};
+
+const $$render_css = (context, hash, code) => {
+	if (context) {
+		const styles = context.__vaporCss ??= new Set();
+		if (!styles.has(hash)) {
+			styles.add(hash);
+			context.__vaporStyles = (context.__vaporStyles || '') + '<style id="' + hash + '">' + code + '</style>';
+			$$update_head(context);
+		}
+	}
+	return '';
+};
+
+const $$render_head = (context, content) => {
+	if (content && (content.hasAsync || typeof content.then === 'function')) {
+		return $$resolve_html(content).then((value) => $$render_head(context, value));
+	}
+	if (Array.isArray(content)) content = content.flat(Infinity).join('');
+	if (context) {
+		context.__vaporHead = (context.__vaporHead || '') + content;
+		$$update_head(context);
+	}
+	return '';
+};
+
+const $$await_server = (value) => {
+	if (value != null && typeof value.then === 'function') {
+		value.then(null, () => {});
+		return { status: 0 };
+	}
+	return { status: 1, value };
+};
+
+const $$is_void = (tag) => ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'].includes(tag);
+
+const $$render_title = (context, value) => {
+	if (context) {
+		context.__vaporTitle = '<title>' + $$escape(value) + '</title>';
+		$$update_head(context);
+	}
+	return '';
+};
+
+const $$render_destroy = (render, callbacks) => {
+	try {
+		return render();
+	} finally {
+		callbacks.forEach((callback) => callback());
+		callbacks.length = 0;
+	}
+};
+
+const $$content_server = (value, fallback, raw) => (raw ? value : $$escape(value)) || fallback();
+
+const $$join = (parts) => {
+	if (parts.some((part) => Array.isArray(part) || part && typeof part.then === 'function')) {
+		parts.hasAsync = parts.some((part) => part && (part.hasAsync || typeof part.then === 'function'));
+		return parts;
+	}
+	return parts.join('');
+};
+
+const $$resolve_html = async (value) => {
+	value = await value;
+	if (Array.isArray(value)) return (await Promise.all(value.map($$resolve_html))).join('');
+	return value == null ? '' : String(value);
+};
+
+const $$server_async_context = () => {
+	let restore;
+	return { suspend(value) {
+		const context = $$v_withAsyncContext(() => value);
+		restore = context[1];
+		return context[0];
+	}, resume(value) {
+		restore();
+		return value;
+	} };
+};
+
+export default $$v_defineComponent({ inheritAttrs: false, ssrRender(_ctx, _push, _parent) {
+	_push(_ctx.renderContent(_parent));
+}, async setup(__props) {
+	const $$async_context = $$server_async_context();
+	const initial = $$async_context.resume(await $$async_context.suspend(Promise.resolve(2)));
+	const uid = $$props_id();
+	const count = $$ref(initial);
+	return { renderContent: ($$ssr_parent) => $$join([$$join(['<button', '>', $$join(['change']), '</button>']), ' ', $$join(['<p', '>', $$join([$$escape(`${String($$v_unref(uid).length > 0 ?? '')}:${String(count.value ?? '')}`)]), '</p>'])]) };
+} });

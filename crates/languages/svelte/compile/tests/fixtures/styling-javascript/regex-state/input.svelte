@@ -1,0 +1,1 @@
+<script>let pattern=$state(/a/g);</script><p class={pattern.test("a") ? "a" : "b"}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

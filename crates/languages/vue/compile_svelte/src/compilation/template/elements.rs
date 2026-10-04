@@ -335,6 +335,7 @@ impl T<'_, '_> {
                 attributes,
                 children: svelte::Children::default(),
                 start_tag,
+                this: None,
             }),
         );
         let outer = self.select_model;

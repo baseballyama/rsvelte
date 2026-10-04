@@ -2,12 +2,16 @@
 
 use rsvelte_kernel::newtype_index;
 use rsvelte_kernel::source::index::IndexVector;
-use rsvelte_svelte::compilation::compiler_syntax_tree::{Children, NodeKind};
+use rsvelte_svelte::compilation::compiler_syntax_tree::{
+    AttributeValue, Children, ElementKind, MetadataTag, NodeKind,
+};
 use rustc_hash::FxHashMap;
 
 use crate::input::CompileInput;
 
+mod namespace;
 mod normalize;
+pub use namespace::Namespace;
 pub use normalize::{Cleaned, Item, Parent, clean_nodes};
 
 newtype_index!(
@@ -15,8 +19,66 @@ newtype_index!(
 );
 
 #[derive(Debug)]
+pub struct Region {
+    pub hoisted: Box<[rsvelte_svelte::compilation::compiler_syntax_tree::CompilerNodeIdentifier]>,
+    pub items: Box<[Item<'static>]>,
+    pub text_first: bool,
+}
+
+#[derive(Debug)]
+pub struct NamespacePlan(namespace::Namespaces);
+
+impl NamespacePlan {
+    #[must_use]
+    pub fn build(input: &CompileInput<'_>) -> Self {
+        Self(namespace::build(input))
+    }
+
+    #[must_use]
+    pub fn get(
+        &self,
+        node: rsvelte_svelte::compilation::compiler_syntax_tree::CompilerNodeIdentifier,
+    ) -> Namespace {
+        self.0.get(node)
+    }
+
+    pub fn clean_foreign_whitespace(
+        &self,
+        cleaned: &mut Cleaned<'_>,
+        tree: &rsvelte_svelte::compilation::compiler_syntax_tree::CompilerSyntaxTree,
+        preserve: bool,
+    ) {
+        if matches!(self.0, namespace::Namespaces::Html) {
+            return;
+        }
+        let mut namespaces = cleaned
+            .items
+            .iter()
+            .filter_map(|item| {
+                if let Item::Node(node) = item
+                    && matches!(tree.node(*node).kind, NodeKind::Element(_))
+                {
+                    Some(self.get(*node))
+                } else {
+                    None
+                }
+            })
+            .peekable();
+        let foreign =
+            namespaces.peek().is_some() && namespaces.all(|namespace| namespace != Namespace::Html);
+        if foreign && !preserve {
+            cleaned.items.retain(|item| match item {
+                Item::Text { data, .. } => !data.chars().all(char::is_whitespace),
+                _ => true,
+            });
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct RenderPlan {
-    regions: IndexVector<RegionIdentifier, Cleaned<'static>>,
+    namespaces: NamespacePlan,
+    regions: IndexVector<RegionIdentifier, Region>,
     source_regions: FxHashMap<Children, RegionIdentifier>,
 }
 
@@ -24,6 +86,7 @@ impl RenderPlan {
     #[must_use]
     pub fn build(input: &CompileInput<'_>) -> Self {
         let mut plan = Self {
+            namespaces: NamespacePlan::build(input),
             regions: IndexVector::new(),
             source_regions: FxHashMap::default(),
         };
@@ -31,15 +94,48 @@ impl RenderPlan {
             input,
             input.component.compiler_syntax_tree.root,
             Parent::Root,
-            input.preserve_whitespace,
+            input.preserve_whitespace
+                || input
+                    .component
+                    .compiler_syntax_tree
+                    .elements()
+                    .any(|(_, element)| {
+                        element.kind == ElementKind::Metadata(Some(MetadataTag::Options))
+                            && input
+                                .component
+                                .compiler_syntax_tree
+                                .attributes(element.attributes)
+                                .iter()
+                                .any(|attribute| {
+                                    attribute.name.text(input.component.source_text)
+                                        == "preserveWhitespace"
+                                        && match attribute.value {
+                                            AttributeValue::Boolean => true,
+                                            AttributeValue::Expression { expression, .. }
+                                            | AttributeValue::Shorthand(expression) => matches!(
+                                                input.component.javascript.kind(expression),
+                                                rsvelte_typescript::Kind::Boolean(true)
+                                            ),
+                                            _ => false,
+                                        }
+                                })
+                    }),
         );
         plan
+    }
+
+    #[must_use]
+    pub fn namespace(
+        &self,
+        node: rsvelte_svelte::compilation::compiler_syntax_tree::CompilerNodeIdentifier,
+    ) -> Namespace {
+        self.namespaces.get(node)
     }
 
     /// # Panics
     /// If the plan has no region for this child-list key.
     #[must_use]
-    pub fn fragment(&self, children: Children) -> &Cleaned<'static> {
+    pub fn fragment(&self, children: Children) -> &Region {
         let identifier = self
             .source_regions
             .get(&children)
@@ -59,14 +155,17 @@ impl RenderPlan {
             return;
         }
         let tree = input.component.compiler_syntax_tree;
-        let cleaned = clean_nodes(
+        let mut cleaned = clean_nodes(
             tree,
             input.component.source_text,
             parent,
             tree.children(children),
             preserve,
         );
-        let region = Cleaned {
+        self.namespaces
+            .clean_foreign_whitespace(&mut cleaned, tree, preserve);
+        let region = Region {
+            hoisted: cleaned.hoisted,
             items: cleaned
                 .items
                 .into_iter()
@@ -86,15 +185,19 @@ impl RenderPlan {
         for &node in tree.children(children) {
             match &tree.node(node).kind {
                 NodeKind::Element(element) => {
-                    let tag = element
-                        .name
-                        .text(input.component.source_text)
-                        .to_ascii_lowercase();
+                    let tag = element.name.text(input.component.source_text);
+                    let tag = if tag.bytes().any(|byte| byte.is_ascii_uppercase()) {
+                        std::borrow::Cow::Owned(tag.to_ascii_lowercase())
+                    } else {
+                        std::borrow::Cow::Borrowed(tag)
+                    };
                     self.region(
                         input,
                         element.children,
                         Parent::Element(&tag),
-                        preserve || matches!(tag.as_str(), "pre" | "textarea"),
+                        preserve
+                            || matches!(tag.as_ref(), "pre" | "textarea")
+                            || element.kind == ElementKind::Title,
                     );
                 }
                 NodeKind::If {
@@ -114,7 +217,22 @@ impl RenderPlan {
                         self.region(input, fallback, Parent::Each, preserve);
                     }
                 }
-                NodeKind::Text { .. } | NodeKind::Comment { .. } | NodeKind::Expression { .. } => {}
+                NodeKind::Key { .. } | NodeKind::Await(_) => {
+                    for c in tree.child_lists(node) {
+                        self.region(input, c, Parent::Block, preserve);
+                    }
+                }
+                NodeKind::Snippet(snippet) => {
+                    self.region(input, snippet.body, Parent::Snippet, preserve);
+                }
+                NodeKind::Text { .. }
+                | NodeKind::Comment { .. }
+                | NodeKind::Expression { .. }
+                | NodeKind::Render { .. }
+                | NodeKind::Html { .. }
+                | NodeKind::Const { .. }
+                | NodeKind::Debug { .. }
+                | NodeKind::Declaration { .. } => {}
             }
         }
     }

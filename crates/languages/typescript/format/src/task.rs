@@ -1,5 +1,6 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput};
+use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::output::document::{LayoutInstructions, PrintOptions};
 use rsvelte_kernel::source::positions::Span;
@@ -7,7 +8,17 @@ use rsvelte_typescript::Parsed;
 
 use crate::format;
 
+pub static PLUGIN: Plugin = Plugin {
+    identifier: "typescript.format",
+    version: env!("CARGO_PKG_VERSION"),
+    dependencies: &[Dependency {
+        identifier: "typescript",
+        requirement: concat!("=", env!("CARGO_PKG_VERSION")),
+    }],
+};
+
 pub fn register(registry: &mut Registry) {
+    registry.plugin(&PLUGIN);
     rsvelte_typescript::register(registry);
     registry.task(Format);
 }

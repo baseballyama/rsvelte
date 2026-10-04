@@ -1,0 +1,1 @@
+<script lang="ts">let a = false; a = Math.random() > 0.5; if (a) console.log(a);</script>

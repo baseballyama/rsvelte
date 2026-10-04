@@ -15,16 +15,12 @@ pub fn format(
     indent: &str,
     unit: &str,
 ) -> Result<String, Unsupported> {
-    if has_comment(sheet.content.text(source_text)) {
+    if !sheet.comments.is_empty() {
         return Err(Unsupported::at("comments in CSS", sheet.content));
     }
     let mut out = String::new();
     rules(source_text, &sheet.rules, indent, unit, &mut out);
     Ok(out)
-}
-
-fn has_comment(text: &str) -> bool {
-    text.contains("/*")
 }
 
 fn rules(source_text: &str, list: &[Rule], indent: &str, unit: &str, out: &mut String) {
@@ -39,6 +35,10 @@ fn rules(source_text: &str, list: &[Rule], indent: &str, unit: &str, out: &mut S
         prev_end = Some(rule.span.end_offset);
         out.push_str(indent);
         match &rule.kind {
+            RuleKind::Keyframe { prelude, .. } => {
+                collapse(prelude.text(source_text).trim(), out);
+                block(source_text, rule, indent, unit, out);
+            }
             RuleKind::Style { selectors, .. } => {
                 for (i, sel) in selectors.iter().enumerate() {
                     if i > 0 {

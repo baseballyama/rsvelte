@@ -1,0 +1,13 @@
+include_unmount = true
+[[steps]]
+click = "#show"
+[[steps]]
+click = "#enable"
+[[steps]]
+click = "#show"
+[[steps]]
+click = "#show"
+[[steps]]
+click = "#enable"
+[[steps]]
+click = "#show"

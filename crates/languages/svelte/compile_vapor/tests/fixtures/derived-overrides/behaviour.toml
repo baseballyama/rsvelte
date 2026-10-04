@@ -1,0 +1,19 @@
+include_unmount = true
+
+[[steps]]
+click = "button.override"
+
+[[steps]]
+click = "button.compound"
+
+[[steps]]
+click = "button.update"
+
+[[steps]]
+click = "button.null"
+
+[[steps]]
+click = "button.undefined"
+
+[[steps]]
+click = "button.update"

@@ -1,0 +1,6 @@
+{
+  "rule": "svelte/button-has-type",
+  "options": {
+    "button": false
+  }
+}

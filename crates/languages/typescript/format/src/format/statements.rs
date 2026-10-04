@@ -53,7 +53,17 @@ impl Formatter<'_> {
                 specifiers,
                 source,
                 type_only,
-            } => Ok(self.import(specifiers, source, type_only)),
+                attributes,
+            } => {
+                if attributes.is_some() {
+                    Err(Unsupported::at(
+                        "import attributes",
+                        self.syntax_tree.source_location(identifier),
+                    ))
+                } else {
+                    Ok(self.import(specifiers, source, type_only))
+                }
+            }
             Kind::TypeScriptInterface { name, members } => self.interface(name, members),
             Kind::ExportNamed(d) => {
                 let d = self.statement(d)?;

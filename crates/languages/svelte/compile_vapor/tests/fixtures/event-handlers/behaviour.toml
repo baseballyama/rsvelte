@@ -1,0 +1,17 @@
+[[steps]]
+click = "div button"
+
+[[steps]]
+input = ["input", "second"]
+
+[[steps]]
+click = "button.toggle"
+
+[[steps]]
+click = "button.dynamic"
+
+[[steps]]
+click = "button.toggle"
+
+[[steps]]
+click = "button.dynamic"

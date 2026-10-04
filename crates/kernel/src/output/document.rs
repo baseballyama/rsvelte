@@ -1,4 +1,4 @@
-//! A Prettier-compatible document IR and printer, shared by every formatter.
+//! Language-independent layout instructions and a printer.
 //!
 //! Documents live in an arena ([`LayoutInstructions`]) and are addressed by
 //! [`LayoutInstructionIdentifier`], so building a document allocates growing vectors instead of one
@@ -7,12 +7,10 @@
 //! The printer is a port of Prettier's `printDocToString` (prettier 3.x): the same modes, the same
 //! `fits` with its rest commands and `mustBeFlat`, the same `fill`, group identifiers for `ifBreak`
 //! and `indentIfBreak`, re-measuring after a hard line in flat mode, and trailing-whitespace
-//! trimming at hard lines only. A formatter that builds the same document as Prettier gets the same
-//! text.
+//! trimming at hard lines only.
 //!
-//! One addition: [`LayoutInstructions::flat_only`] marks a layout whose broken form a formatter has
-//! not ported. If it does not fit flat, [`LayoutInstructions::print`] refuses instead of printing a
-//! layout Prettier would not.
+//! [`LayoutInstructions::flat_only`] refuses a layout that needs line breaks when its caller
+//! supports only the flat form.
 
 use std::num::NonZeroU32;
 
@@ -86,7 +84,7 @@ enum Node {
 }
 
 /// The document arena. Its buffers come from and go back to [`crate::performance::buffer_pool`], so
-/// a worker formatting one file after another reuses their capacity.
+/// a worker processing one file after another reuses their capacity.
 #[derive(Debug)]
 pub struct LayoutInstructions {
     nodes: Vec<Node>,
@@ -378,8 +376,7 @@ impl LayoutInstructions {
         self.push(Node::IndentIfBreak { document, group })
     }
 
-    /// A layout whose broken form the formatter does not implement: printing refuses when it does
-    /// not fit flat. Its lines print flat (spaces or nothing); hard lines still break.
+    /// Refuses a layout that does not fit flat. Hard lines still break.
     pub fn flat_only(&mut self, d: LayoutInstructionIdentifier) -> LayoutInstructionIdentifier {
         self.push(Node::FlatOnly(d))
     }

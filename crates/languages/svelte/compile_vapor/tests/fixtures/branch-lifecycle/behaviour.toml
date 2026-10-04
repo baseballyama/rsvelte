@@ -1,0 +1,14 @@
+[[steps]]
+input = ["input", "changed"]
+
+[[steps]]
+click = "button.next"
+
+[[steps]]
+click = "button.next"
+
+[[steps]]
+click = "button.next"
+
+[[steps]]
+input = ["input", "again"]

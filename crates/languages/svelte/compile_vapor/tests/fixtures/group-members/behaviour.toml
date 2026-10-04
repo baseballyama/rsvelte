@@ -1,0 +1,28 @@
+include_unmount = true
+
+[[steps]]
+click = "input.a1"
+
+[[steps]]
+click = "input.b2"
+
+[[steps]]
+click = "input.dynamic-a"
+
+[[steps]]
+click = "button.switch"
+
+[[steps]]
+click = "input.dynamic-b"
+
+[[steps]]
+click = "button.switch"
+
+[[steps]]
+click = "button.replace"
+
+[[steps]]
+click = "input.a1"
+
+[[steps]]
+click = "input.a2"

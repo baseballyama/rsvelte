@@ -45,7 +45,7 @@ pub(crate) fn init_property(
         return out.property(key, value, 0, SourceLocation::SYNTHETIC);
     }
     let key = out.identifier(name);
-    let shorthand = matches!(out.kind(value), Kind::Identifier(_)) && out.name(value) == name;
+    let shorthand = out.is_identifier(value) && out.name(value) == name;
     out.property(
         key,
         value,
@@ -61,4 +61,32 @@ fn is_valid_identifier(name: &str) -> bool {
         .next()
         .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$')
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+}
+
+pub(crate) fn is_simple_expression(syntax_tree: &SyntaxTree, e: NodeIdentifier) -> bool {
+    match syntax_tree.kind(e) {
+        Kind::String
+        | Kind::Regex { .. }
+        | Kind::Number(_)
+        | Kind::Boolean(_)
+        | Kind::Null
+        | Kind::Identifier(_)
+        | Kind::Arrow { .. }
+        | Kind::Function {
+            declaration: false, ..
+        } => true,
+        Kind::Conditional {
+            test,
+            consequent,
+            alternate,
+        } => {
+            is_simple_expression(syntax_tree, test)
+                && is_simple_expression(syntax_tree, consequent)
+                && is_simple_expression(syntax_tree, alternate)
+        }
+        Kind::Binary(_, l, r) | Kind::Logical(_, l, r) => {
+            is_simple_expression(syntax_tree, l) && is_simple_expression(syntax_tree, r)
+        }
+        _ => false,
+    }
 }

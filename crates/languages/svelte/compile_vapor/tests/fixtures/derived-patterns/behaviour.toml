@@ -1,0 +1,12 @@
+[[steps]]
+click = "button:nth-child(3)"
+
+[[steps]]
+click = "button:nth-child(2)"
+
+[[steps]]
+click = "button"
+
+[[steps]]
+click = "button:nth-child(4)"
+

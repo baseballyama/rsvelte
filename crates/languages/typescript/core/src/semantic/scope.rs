@@ -69,7 +69,7 @@ impl Binding {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Scope {
-    /// `None` for [`ScopeIdentifier::ROOT`].
+    /// `None` for the outermost program scope.
     pub parent: Option<ScopeIdentifier>,
     pub function: bool,
     /// The node that opens the scope (program, function, arrow or block).
@@ -97,6 +97,9 @@ pub enum HostRoot {
     Expression(NodeIdentifier),
     /// An expression the host's syntax reads and also assigns (Svelte's `bind:value={x}`).
     Bound(NodeIdentifier),
+    /// An identifier the host's syntax declares in the enclosing scope (Svelte's
+    /// `{#snippet name()}`), visible throughout that scope.
+    Name(NodeIdentifier, DeclarationKind),
     Scope(HostScope),
 }
 
@@ -104,8 +107,10 @@ pub enum HostRoot {
 /// `body` is evaluated inside it.
 #[derive(Clone, Debug)]
 pub struct HostScope {
-    /// The node that stands for the scope in [`Scope::node`]; must not open a JavaScript scope.
-    pub node: NodeIdentifier,
+    /// The node that stands for the scope in [`Scope::node`] and [`Semantic::scope_of`]; must not
+    /// open a JavaScript scope. Without one, the scope is found through
+    /// [`Semantic::host_scopes`].
+    pub node: Option<NodeIdentifier>,
     pub parameters: Vec<NodeIdentifier>,
     pub body: Vec<HostRoot>,
 }
@@ -115,6 +120,9 @@ pub struct Semantic {
     pub scopes: IndexVector<ScopeIdentifier, Scope>,
     pub bindings: IndexVector<BindingIdentifier, Binding>,
     pub references: Vec<Reference>,
+    /// The scopes of [`HostScope`]s, in the order a depth-first walk of the host roots meets
+    /// them (a scope before the scopes in its body).
+    pub host_scopes: Vec<ScopeIdentifier>,
     /// Per node: the binding an identifier declares or refers to (`NO_BINDING` otherwise). Raw
     /// `u32`s rather than `Option<BindingIdentifier>` because it has one slot per node of the
     /// whole tree.
@@ -150,7 +158,7 @@ impl Semantic {
     /// The top-level binding named `name`, if any.
     #[must_use]
     pub fn root_binding(&self, name: Atom) -> Option<BindingIdentifier> {
-        self.names.get(&(ScopeIdentifier::ROOT, name)).copied()
+        self.lookup(ScopeIdentifier::ROOT, name)
     }
 
     /// The scope `node` opens (a function, a block, a [`HostScope`]'s node).
@@ -240,13 +248,22 @@ struct Analyzer<'a> {
     stack: Vec<ScopeIdentifier>,
     /// The declarator/specifier being declared in pass 1.
     current_declaration: Option<NodeIdentifier>,
-    /// Host scopes in the order pass 1 created them; pass 2 walks the roots in the same order.
-    host_scopes: Vec<ScopeIdentifier>,
+    /// The next of [`Semantic::host_scopes`] pass 2 enters; it walks the roots in pass 1's order.
     next_host_scope: usize,
 }
 
 #[must_use]
 pub fn analyze(syntax_tree: &SyntaxTree, program: NodeIdentifier, host: &[HostRoot]) -> Semantic {
+    analyze_enclosed(syntax_tree, None, program, host)
+}
+
+#[must_use]
+pub fn analyze_enclosed(
+    syntax_tree: &SyntaxTree,
+    enclosing: Option<NodeIdentifier>,
+    program: NodeIdentifier,
+    host: &[HostRoot],
+) -> Semantic {
     let mut a = Analyzer {
         syntax_tree,
         s: Semantic {
@@ -257,6 +274,7 @@ pub fn analyze(syntax_tree: &SyntaxTree, program: NodeIdentifier, host: &[HostRo
             }]),
             bindings: IndexVector::new(),
             references: Vec::new(),
+            host_scopes: Vec::new(),
             node_binding: vec![NO_BINDING; syntax_tree.len()],
             node_scope: FxHashMap::default(),
             names: FxHashMap::default(),
@@ -266,12 +284,28 @@ pub fn analyze(syntax_tree: &SyntaxTree, program: NodeIdentifier, host: &[HostRo
         },
         stack: vec![ScopeIdentifier::ROOT],
         current_declaration: None,
-        host_scopes: Vec::new(),
         next_host_scope: 0,
     };
     a.s.node_scope.insert(program, ScopeIdentifier::ROOT);
+    if let Some(module) = enclosing {
+        let scope = a.s.scopes.push(Scope {
+            parent: None,
+            function: true,
+            node: module,
+        });
+        a.s.scopes[ScopeIdentifier::ROOT].parent = Some(scope);
+        a.s.node_scope.insert(module, scope);
+        a.stack.push(scope);
+        a.declare_children(module);
+        a.stack.pop();
+    }
     a.declare_children(program);
     a.declare_host(host);
+    if let Some(module) = enclosing {
+        a.stack.push(a.s.node_scope[&module]);
+        a.resolve_children(module);
+        a.stack.pop();
+    }
     a.resolve_children(program);
     a.resolve_host(host);
     a.resolve_type_references();

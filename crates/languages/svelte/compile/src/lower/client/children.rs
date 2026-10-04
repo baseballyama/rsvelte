@@ -44,7 +44,9 @@ impl ClientCompilationContext<'_> {
                 self.each_block(identifier, &st.prev_name(), true, frag, l)?;
             } else {
                 let name = match &self.compiler_syntax_tree.node(identifier).kind {
-                    NodeKind::Element(el) => el.name.text(self.source_text).to_owned(),
+                    NodeKind::Element(el) if el.kind == super::ElementKind::Regular => {
+                        el.name.text(self.source_text).to_owned()
+                    }
                     _ => "node".to_owned(),
                 };
                 let node = self.flush_node(&mut st, false, &name, l);

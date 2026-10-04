@@ -1,6 +1,5 @@
 use super::{
-    AssignmentOperator, Attribute, AttributeValue, ClientCompilationContext, Kind, Lists,
-    NodeIdentifier, R, SourceLocation, check_binding,
+    Attribute, AttributeValue, ClientCompilationContext, Lists, NodeIdentifier, R, check_binding,
 };
 
 impl ClientCompilationContext<'_> {
@@ -14,6 +13,15 @@ impl ClientCompilationContext<'_> {
         let mut directives = Lists::default();
         for a in attributes {
             match a.value {
+                AttributeValue::On { .. } => self.event_directive(a, node, false, &mut directives),
+                AttributeValue::Bind(expression)
+                    if tag == "svelte:element" && a.name.text(self.source_text) == "this" =>
+                {
+                    let (get, set) = self.binding_accessors(expression, false);
+                    let element = self.out.identifier(node);
+                    let call = self.call("bind_this", vec![Some(element), Some(set), Some(get)]);
+                    directives.initializer.push(self.statement(call));
+                }
                 AttributeValue::Bind(_) => {
                     let call = self.binding(a, tag, attributes, node)?;
                     directives.after.push(self.statement(call));
@@ -44,29 +52,7 @@ impl ClientCompilationContext<'_> {
             attributes,
             a,
         )?;
-        let get = self.expression(e);
-        let get = self.thunk(get);
-        let value = self.out.identifier("$$value");
-        let assignment = if let Kind::Identifier(_) = self.javascript.kind(e) {
-            // An element binding's value is a primitive: upstream never proxies it.
-            let x = self
-                .out
-                .ident(self.javascript.name(e), self.javascript.source_location(e));
-            self.out.runtime("$", "set", &[x, value])
-        } else {
-            let target = self.expression(e);
-            self.out.assign(
-                AssignmentOperator::Assign,
-                target,
-                value,
-                SourceLocation::SYNTHETIC,
-            )
-        };
-        let param = self.out.identifier("$$value");
-        let set = self
-            .out
-            .arrow(&[param], assignment, true, false, SourceLocation::SYNTHETIC);
-        let set = self.unthunk(set);
+        let (get, set) = self.binding_accessors(e, true);
         let x = self.out.identifier(node);
         let method = match a.name.text(self.source_text) {
             "value" if tag == "select" => "bind_select_value",

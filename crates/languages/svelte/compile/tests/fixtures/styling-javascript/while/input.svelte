@@ -1,0 +1,1 @@
+<script>const value="a";function run(x){while(x>2)x--;do{x++;}while(x<2);return x;}</script><p class={value}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

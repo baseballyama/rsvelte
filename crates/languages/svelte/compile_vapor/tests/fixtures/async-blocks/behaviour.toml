@@ -1,0 +1,10 @@
+experimental_async = true
+include_unmount = true
+[[steps]]
+input = ["input", "changed"]
+[[steps]]
+click = "button"
+[[steps]]
+click = "button"
+[[steps]]
+click = "button"

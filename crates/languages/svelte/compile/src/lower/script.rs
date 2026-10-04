@@ -7,7 +7,7 @@ use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution, rune_call};
 use rsvelte_typescript::copy::{Rewrite, copy, copy_node};
 use rsvelte_typescript::operators::{
-    AssignmentOperator, BinaryOperator, LogicalOperator, UpdateOperator,
+    AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
 };
 use rsvelte_typescript::scope::BindingIdentifier;
 use rsvelte_typescript::syntax_tree::flag;
@@ -20,15 +20,45 @@ use super::{Target, unsupported};
 #[derive(Debug)]
 pub(super) struct ScriptRewrite<'a> {
     pub target: Target,
+    pub accessors: bool,
+    pub rest_reads: Option<&'a rustc_hash::FxHashSet<NodeIdentifier>>,
     pub res: &'a Resolution,
     /// The document the source tree's spans index.
     pub source_text: &'a str,
-    /// The `{#each}` names in scope on the client, and whether a read goes through `$.get`
-    /// (upstream's per-block `transform`).
-    pub each: Option<&'a FxHashMap<BindingIdentifier, bool>>,
+    /// How the client reads the names the template declares, for those in scope (upstream's
+    /// per-block `transform`, keyed by binding instead of by name).
+    pub template: Option<&'a FxHashMap<BindingIdentifier, Read>>,
+}
+
+/// How a name the template declares is read on the client.
+#[derive(Clone, Debug)]
+pub(super) enum Read {
+    Plain,
+    /// `$.get(name)`
+    Get,
+    /// `name()`
+    Call,
+    /// `$.get(object).name`: a name that a destructuring `{@const}` declares.
+    #[expect(dead_code, reason = "template const destructuring is not lowered yet")]
+    Member(String),
+}
+
+impl Read {
+    pub(super) const fn get_if(through_get: bool) -> Self {
+        if through_get { Self::Get } else { Self::Plain }
+    }
 }
 
 impl ScriptRewrite<'_> {
+    pub(super) fn is_prop_source(&self, binding: BindingIdentifier) -> bool {
+        self.res.is_prop_source(binding)
+            || (self.accessors
+                && matches!(
+                    self.res.bindings[binding].kind,
+                    BindingKind::Property | BindingKind::BindableProperty
+                ))
+    }
+
     /// Upstream `build_getter` / the `read` transforms, by binding kind and target.
     fn read(
         &mut self,
@@ -36,6 +66,13 @@ impl ScriptRewrite<'_> {
         to: &mut SyntaxTree,
         identifier: NodeIdentifier,
     ) -> Option<NodeIdentifier> {
+        if self.target == Target::Client
+            && self
+                .rest_reads
+                .is_some_and(|reads| reads.contains(&identifier))
+        {
+            return Some(to.identifier("$$props"));
+        }
         let (b, info) = self.res.binding(identifier)?;
         if self.res.sem.bindings[b].node == identifier {
             return None;
@@ -55,12 +92,12 @@ impl ScriptRewrite<'_> {
             }
             (Target::Client, BindingKind::Property | BindingKind::BindableProperty) => {
                 let x = to.ident(name, source_location);
-                if self.res.is_prop_source(b) {
+                if self.is_prop_source(b) {
                     return Some(to.call0(x, &[]));
                 }
                 let key = info.prop_key?;
                 let props = to.identifier("$$props");
-                let computed = !matches!(from.kind(key), Kind::Identifier(_));
+                let computed = !from.is_identifier(key);
                 let k = if computed {
                     copy_node(from, to, self, key)
                 } else {
@@ -76,16 +113,32 @@ impl ScriptRewrite<'_> {
             }
             (
                 Target::Client,
-                BindingKind::Each | BindingKind::StaticIndex | BindingKind::KeyedIndex,
+                BindingKind::Each
+                | BindingKind::StaticIndex
+                | BindingKind::KeyedIndex
+                | BindingKind::Snippet
+                | BindingKind::Template,
             ) => {
-                let Some(&through_get) = self.each.and_then(|m| m.get(&b)) else {
-                    unreachable!("an `{{#each}}` name is read only inside its block")
+                let Some(read) = self.template.and_then(|m| m.get(&b)) else {
+                    unreachable!("a template name is read only inside its block")
                 };
-                if !through_get {
-                    return None;
-                }
                 let x = to.ident(name, source_location);
-                Some(to.runtime("$", "get", &[x]))
+                match read {
+                    Read::Plain => None,
+                    Read::Get => Some(to.runtime("$", "get", &[x])),
+                    Read::Call => Some(to.call0(x, &[])),
+                    Read::Member(object) => {
+                        let o = to.identifier(object);
+                        let get = to.runtime("$", "get", &[o]);
+                        Some(to.member(
+                            get,
+                            x,
+                            false,
+                            false,
+                            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
+                        ))
+                    }
+                }
             }
             (Target::Server, BindingKind::Derived | BindingKind::DerivedBy) => {
                 let x = to.ident(name, source_location);
@@ -104,13 +157,13 @@ impl ScriptRewrite<'_> {
         target: NodeIdentifier,
         value: NodeIdentifier,
     ) -> Option<NodeIdentifier> {
-        if self.target != Target::Client || !matches!(from.kind(target), Kind::Identifier(_)) {
+        if self.target != Target::Client || !from.is_identifier(target) {
             return None;
         }
         let (b, info) = self.res.binding(target)?;
         let state = self.res.is_state_source(b)
             || matches!(info.kind, BindingKind::Derived | BindingKind::DerivedBy);
-        let prop = self.res.is_prop_source(b);
+        let prop = self.is_prop_source(b);
         if !state && !prop {
             return None;
         }
@@ -161,7 +214,7 @@ impl ScriptRewrite<'_> {
         prefix: bool,
         arg: NodeIdentifier,
     ) -> Option<NodeIdentifier> {
-        if self.target != Target::Client || !matches!(from.kind(arg), Kind::Identifier(_)) {
+        if self.target != Target::Client || !from.is_identifier(arg) {
             return None;
         }
         let (b, info) = self.res.binding(arg)?;
@@ -177,7 +230,7 @@ impl ScriptRewrite<'_> {
             || matches!(info.kind, BindingKind::Derived | BindingKind::DerivedBy)
         {
             if prefix { "update_pre" } else { "update" }
-        } else if self.res.is_prop_source(b) {
+        } else if self.is_prop_source(b) {
             if prefix {
                 "update_pre_prop"
             } else {
@@ -211,10 +264,45 @@ impl Rewrite for ScriptRewrite<'_> {
                     .collect();
                 Some(to.block(&kept, from.source_location(identifier)))
             }
-            Kind::Call { arguments, .. } if self.target == Target::Client => {
-                let name = match rune_call(from, identifier)?.0 {
-                    "$effect" => "user_effect",
-                    "$effect.pre" => "user_pre_effect",
+            Kind::Call { arguments, .. } => {
+                let name = match (self.target, rune_call(from, identifier)?.0) {
+                    (Target::Client, "$host") => {
+                        let props = to.identifier("$$props");
+                        return Some(to.dot(props, "$$host"));
+                    }
+                    (Target::Server, "$host") => {
+                        let zero = to.write_number(
+                            0.0,
+                            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
+                        );
+                        return Some(to.unary(
+                            UnaryOperator::Void,
+                            zero,
+                            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
+                        ));
+                    }
+                    (Target::Client, "$effect.pending") => {
+                        let namespace = to.identifier("$");
+                        let pending = to.dot(namespace, "pending");
+                        return Some(to.runtime("$", "eager", &[pending]));
+                    }
+                    (Target::Server, "$effect.pending") => {
+                        return Some(to.write_number(
+                            0.0,
+                            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
+                        ));
+                    }
+                    (Target::Client, "$effect.tracking") => {
+                        return Some(to.runtime("$", "effect_tracking", &[]));
+                    }
+                    (Target::Server, "$effect.tracking") => {
+                        return Some(to.write_boolean(
+                            false,
+                            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
+                        ));
+                    }
+                    (Target::Client, "$effect") => "user_effect",
+                    (Target::Client, "$effect.pre") => "user_pre_effect",
                     _ => return None,
                 };
                 let arguments: Vec<NodeIdentifier> =
@@ -268,6 +356,8 @@ pub(super) fn should_proxy(syntax_tree: &SyntaxTree, res: &Resolution, e: NodeId
 fn proxyable(syntax_tree: &SyntaxTree, res: Option<&Resolution>, e: NodeIdentifier) -> bool {
     match syntax_tree.kind(e) {
         Kind::String
+        | Kind::Regex { .. }
+        | Kind::BigInt
         | Kind::Number(_)
         | Kind::Boolean(_)
         | Kind::Null
@@ -303,7 +393,13 @@ fn proxyable(syntax_tree: &SyntaxTree, res: Option<&Resolution>, e: NodeIdentifi
     }
 }
 
-/// The instance script's statements, lowered; imports go to `hoisted`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum ScriptContext {
+    Instance,
+    Module,
+}
+
+/// Script statements share rune lowering; imports go to `hoisted`.
 ///
 /// # Errors
 ///
@@ -313,13 +409,14 @@ fn proxyable(syntax_tree: &SyntaxTree, res: Option<&Resolution>, e: NodeIdentifi
 /// # Panics
 ///
 /// If a top-level statement of the parsed script has no source range.
-pub(super) fn lower_instance(
+pub(super) fn lower_script(
     from: &SyntaxTree,
     to: &mut SyntaxTree,
     rw: &mut ScriptRewrite<'_>,
     program: NodeIdentifier,
     hoisted: &mut Vec<NodeIdentifier>,
     names: &mut Names,
+    context: ScriptContext,
 ) -> Result<Vec<NodeIdentifier>, Diagnostic> {
     let Kind::Program(body) = from.kind(program) else {
         unreachable!("scripts parse to programs")
@@ -332,7 +429,12 @@ pub(super) fn lower_instance(
             Kind::Import { .. } => hoisted.push(copy(from, to, rw, statement)),
             // Upstream turns these into the component's exports; copying them would put an
             // `export` inside the component function.
-            Kind::ExportNamed(_) | Kind::ExportDefault(_) => {
+            Kind::ExportNamed(_)
+            | Kind::ExportDefault(_)
+            | Kind::Control(
+                rsvelte_typescript::syntax_tree::Control::ExportList { .. }
+                | rsvelte_typescript::syntax_tree::Control::ExportAll { .. },
+            ) if context == ScriptContext::Instance => {
                 return unsupported(
                     "an export from the instance script",
                     from.source_location(statement)
@@ -372,7 +474,7 @@ fn check_destructured_rune(
     else {
         return Ok(());
     };
-    if matches!(from.kind(identifier), Kind::Identifier(_)) {
+    if from.is_identifier(identifier) {
         return Ok(());
     }
     let Some((rune, _)) = rune_call(from, initializer) else {
@@ -425,7 +527,7 @@ fn lower_declarator(
                 rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
             );
             to.unary(
-                rsvelte_typescript::operators::UnaryOperator::Void,
+                UnaryOperator::Void,
                 zero,
                 rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
             )

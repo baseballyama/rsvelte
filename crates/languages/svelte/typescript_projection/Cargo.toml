@@ -1,0 +1,27 @@
+[package]
+name = "rsvelte_svelte_typescript_projection"
+description = "Svelte to TypeScript AST projection"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+rsvelte_svelte_parser.workspace = true
+rsvelte_svelte_syntax.workspace = true
+rsvelte_kernel.workspace = true
+rsvelte_typescript.workspace = true
+rsvelte_typescript_content_mapper.workspace = true
+
+[dev-dependencies]
+oxc_allocator.workspace = true
+oxc_parser.workspace = true
+oxc_span.workspace = true
+rsvelte_fixture_test.workspace = true
+
+[[test]]
+name = "fixtures"
+harness = false
+
+[lints]
+workspace = true

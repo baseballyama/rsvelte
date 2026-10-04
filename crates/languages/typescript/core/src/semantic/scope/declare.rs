@@ -21,7 +21,9 @@ impl Analyzer<'_> {
             function,
             node,
         });
-        self.s.node_scope.insert(node, identifier);
+        if !node.is_none() {
+            self.s.node_scope.insert(node, identifier);
+        }
         self.stack.push(identifier);
         identifier
     }
@@ -56,9 +58,13 @@ impl Analyzer<'_> {
         for r in roots {
             match r {
                 HostRoot::Expression(e) | HostRoot::Bound(e) => self.declare(*e),
+                &HostRoot::Name(node, kind) => {
+                    let s = self.cur();
+                    self.add_binding(node, kind, s);
+                }
                 HostRoot::Scope(h) => {
-                    let identifier = self.push_scope(h.node, false);
-                    self.host_scopes.push(identifier);
+                    let identifier = self.push_scope(h.node.unwrap_or(NodeIdentifier::NONE), false);
+                    self.s.host_scopes.push(identifier);
                     for &p in &h.parameters {
                         self.declare_pattern(p, DeclarationKind::Host);
                     }
@@ -70,16 +76,60 @@ impl Analyzer<'_> {
     }
 
     pub(super) fn declare_children(&mut self, identifier: NodeIdentifier) {
-        let mut children = Vec::new();
-        self.syntax_tree
-            .for_each_child(identifier, |c| children.push(c));
-        for c in children {
-            self.declare(c);
-        }
+        let tree = self.syntax_tree;
+        tree.for_each_child(identifier, |child| self.declare(child));
     }
 
+    #[expect(clippy::too_many_lines, reason = "one arm per declaration kind")]
     pub(super) fn declare(&mut self, identifier: NodeIdentifier) {
         match self.syntax_tree.kind(identifier) {
+            Kind::Class(crate::syntax_tree::Class::Definition {
+                name,
+                superclass,
+                members,
+                declaration,
+            }) => {
+                if let (Some(name), true) = (name, declaration) {
+                    self.add_binding(name, DeclarationKind::Let, self.cur());
+                }
+                self.push_scope(identifier, false);
+                if let (Some(name), false) = (name, declaration) {
+                    self.add_binding(name, DeclarationKind::Let, self.cur());
+                }
+                if let Some(parent) = superclass {
+                    self.declare(parent);
+                }
+                for &member in members {
+                    self.declare(member);
+                }
+                self.stack.pop();
+            }
+            Kind::Control(crate::syntax_tree::Control::Catch { parameter, body }) => {
+                self.push_scope(identifier, false);
+                if let Some(p) = parameter {
+                    self.declare_pattern(p, DeclarationKind::Let);
+                }
+                self.declare_body(body);
+                self.stack.pop();
+            }
+            Kind::Block(_)
+            | Kind::For { .. }
+            | Kind::Control(crate::syntax_tree::Control::ForEach { .. }) => {
+                self.push_scope(identifier, false);
+                self.declare_children(identifier);
+                self.stack.pop();
+            }
+            Kind::Control(crate::syntax_tree::Control::Switch {
+                discriminant,
+                cases,
+            }) => {
+                self.declare(discriminant);
+                self.push_scope(identifier, false);
+                for &case in cases {
+                    self.declare(case);
+                }
+                self.stack.pop();
+            }
             Kind::VariableDeclaration { kind, declarations } => {
                 let dk = match kind {
                     flag::LET => DeclarationKind::Let,
@@ -140,11 +190,6 @@ impl Analyzer<'_> {
                 }
                 self.stack.pop();
             }
-            Kind::Block(_) => {
-                self.push_scope(identifier, false);
-                self.declare_children(identifier);
-                self.stack.pop();
-            }
             Kind::Import { specifiers, .. } => {
                 for &sp in specifiers {
                     self.current_declaration = Some(sp);
@@ -153,7 +198,7 @@ impl Analyzer<'_> {
                         Kind::ImportNamed { local, .. } => local,
                         _ => continue,
                     };
-                    self.add_binding(local, DeclarationKind::Import, ScopeIdentifier::ROOT);
+                    self.add_binding(local, DeclarationKind::Import, self.cur());
                 }
                 self.current_declaration = None;
             }

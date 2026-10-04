@@ -1,0 +1,1 @@
+<script>const text=(`a${{value:`b${1}`}.value}`);</script><p class={text}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

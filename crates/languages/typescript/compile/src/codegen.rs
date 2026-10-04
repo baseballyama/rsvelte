@@ -126,5 +126,8 @@ pub fn quote(out: &mut String, v: &str) {
 #[cfg(test)]
 mod tests;
 
+mod control;
 mod expressions;
 mod statements;
+
+mod classes;

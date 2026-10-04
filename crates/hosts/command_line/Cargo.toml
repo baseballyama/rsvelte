@@ -19,17 +19,24 @@ name = "export_site_source_maps"
 path = "tools/export_site_source_maps.rs"
 
 [features]
+lint-typed = ["dep:rsvelte_svelte_lint_typed"]
 metrics = ["rsvelte_kernel/metrics"]
 
 [dependencies]
+rsvelte_config.workspace = true
+rsvelte_markup.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 rsvelte_vue_lint.workspace = true
 rsvelte_vue_format.workspace = true
 rsvelte_vue_compile.workspace = true
 rsvelte_vue_check.workspace = true
 rsvelte_svelte_lint.workspace = true
+rsvelte_svelte_lint_typed = { workspace = true, optional = true }
 rsvelte_svelte_format.workspace = true
 rsvelte_svelte_compile.workspace = true
-rsvelte_svelte_check.workspace = true
+rsvelte_svelte_typescript_projection.workspace = true
+rsvelte_svelte_typecheck.workspace = true
 rsvelte_typescript_lint.workspace = true
 rsvelte_typescript_format.workspace = true
 rsvelte_typescript_compile.workspace = true
@@ -39,12 +46,13 @@ rsvelte_typescript.workspace = true
 rsvelte_svelte.workspace = true
 rsvelte_vue.workspace = true
 rsvelte_svue.workspace = true
-rsvelte_vuelte.workspace = true
+rsvelte_svelte_compile_vapor.workspace = true
 rayon.workspace = true
 libc.workspace = true
 
 [dev-dependencies]
 rsvelte_fixture_test.workspace = true
+rsvelte_stylesheet.workspace = true
 
 [[test]]
 name = "fixtures"

@@ -1,0 +1,1 @@
+<svelte:options customElement={{tag:"my-element",props:{enabled:{reflect:true},count:{type:"Number",attribute:"data-count"}}}}/><script>let {enabled=false,count}= $props();</script><p>{enabled}: {count}</p>

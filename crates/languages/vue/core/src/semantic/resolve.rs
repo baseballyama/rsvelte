@@ -70,8 +70,19 @@ pub fn resolve(
     compiler_syntax_tree: Option<&CompilerSyntaxTree>,
     source_text: &str,
 ) -> Resolution {
+    resolve_with_module(javascript, program, None, compiler_syntax_tree, source_text)
+}
+
+#[must_use]
+pub fn resolve_with_module(
+    javascript: &SyntaxTree,
+    program: NodeIdentifier,
+    module: Option<NodeIdentifier>,
+    compiler_syntax_tree: Option<&CompilerSyntaxTree>,
+    source_text: &str,
+) -> Resolution {
     let host = compiler_syntax_tree.map_or_else(Vec::new, template_roots);
-    let sem = scope::analyze(javascript, program, &host);
+    let sem = scope::analyze_enclosed(javascript, module, program, &host);
     let (bindings, define_props) = binding_metadata(javascript, source_text, program);
     Resolution {
         sem,
@@ -119,7 +130,7 @@ fn node_roots(
                 Some(f) => {
                     out.push(HostRoot::Expression(f.source));
                     out.push(HostRoot::Scope(HostScope {
-                        node: f.parameters[0],
+                        node: f.parameters.first().copied(),
                         parameters: f.parameters.clone(),
                         body: inner,
                     }));
@@ -224,6 +235,7 @@ fn user_imports<'a>(
             specifiers,
             source,
             type_only: false,
+            ..
         } = syntax_tree.kind(statement)
         else {
             continue;

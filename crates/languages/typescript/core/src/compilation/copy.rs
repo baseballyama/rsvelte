@@ -73,7 +73,28 @@ pub fn copy_node<R: Rewrite + ?Sized>(
 ) -> NodeIdentifier {
     let span = f.source_location(identifier);
     let fl = f.flags(identifier);
-    match f.kind(identifier) {
+    let copied = match f.kind(identifier) {
+        Kind::ImportExpression { source, options } => {
+            let s = copy(f, to, rw, source);
+            let o = copy_opt(f, to, rw, options);
+            to.import_expression(s, o, span)
+        }
+        Kind::MetaProperty { meta, property } => {
+            let m = copy(f, to, rw, meta);
+            let p = copy(f, to, rw, property);
+            to.meta_property(m, p, span)
+        }
+        Kind::BigInt => {
+            let [lo, hi] = f.raw_data(identifier);
+            to.bigint(Span::new(lo, hi))
+        }
+        Kind::Super => to.super_(span),
+        Kind::Yield { argument, delegate } => {
+            let a = copy_opt(f, to, rw, argument);
+            to.yield_(a, delegate, span)
+        }
+        Kind::Class(class) => copy_class(f, to, rw, class, span),
+        Kind::Control(control) => copy_control(f, to, rw, control, span),
         Kind::Program(body) => {
             let b = copy_all(f, to, rw, body);
             to.program(&b, span)
@@ -104,7 +125,9 @@ pub fn copy_node<R: Rewrite + ?Sized>(
             let n = copy_opt(f, to, rw, name);
             let p = copy_all(f, to, rw, parameters);
             let b = copy(f, to, rw, body);
-            to.function(declaration, n, &p, b, is_async, span)
+            let function = to.function(declaration, n, &p, b, is_async, span);
+            to.mark_generator(function, fl & flag::GENERATOR != 0);
+            function
         }
         Kind::Return(a) => {
             let a = copy_opt(f, to, rw, a);
@@ -141,10 +164,12 @@ pub fn copy_node<R: Rewrite + ?Sized>(
             specifiers,
             source,
             type_only,
+            attributes,
         } => {
             let s = copy_all(f, to, rw, specifiers);
             let source_text = copy(f, to, rw, source);
-            to.import(&s, source_text, type_only, span)
+            let attributes = attributes.map(|a| copy(f, to, rw, a));
+            to.import_with_attributes(&s, source_text, type_only, attributes, span)
         }
         Kind::ImportDefault(l) => {
             let l = copy(f, to, rw, l);
@@ -190,6 +215,7 @@ pub fn copy_node<R: Rewrite + ?Sized>(
                 to.str_in_source(Span::new(start_offset, end_offset), span)
             }
         }
+        Kind::Regex { pattern, flags } => to.regex(pattern, flags),
         Kind::Boolean(b) => to.write_boolean(b, span),
         Kind::Null => to.null(span),
         Kind::This => to.this(span),
@@ -324,6 +350,11 @@ pub fn copy_node<R: Rewrite + ?Sized>(
             to.rest(a, span)
         }
         Kind::Hole => to.hole(span),
+    };
+    if fl & flag::GROUPED != 0 {
+        to.grouped(copied)
+    } else {
+        copied
     }
 }
 
@@ -340,3 +371,9 @@ fn copy_template_element(f: &SyntaxTree, to: &mut SyntaxTree, q: NodeIdentifier)
         )
     }
 }
+
+mod control;
+use control::copy_control;
+
+mod classes;
+use classes::copy_class;

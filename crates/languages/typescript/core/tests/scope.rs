@@ -122,7 +122,7 @@ fn a_host_scope_declares_names_its_body_sees() {
     let host = [
         HostRoot::Expression(list),
         HostRoot::Scope(HostScope {
-            node: parameters[0],
+            node: Some(parameters[0]),
             parameters: parameters.clone(),
             body: vec![HostRoot::Expression(key), HostRoot::Expression(body)],
         }),
@@ -147,4 +147,106 @@ fn a_host_scope_declares_names_its_body_sees() {
         sem.root_binding(syntax_tree.atoms.lookup("list").unwrap()),
         "the list is outside the scope"
     );
+}
+
+#[test]
+fn catch_loop_and_class_scopes_keep_bindings_and_writes() {
+    let source = "let error=0; let key; try {throw error;} catch(error) {let \
+        local=error;} for(key of values) {let item=key;var hoisted=item;} \
+        class C {method() {return C;}}";
+    let mut tree = SyntaxTree::new();
+    let program =
+        parse_program(&mut tree, source, Span::new(0, source.len() as u32), false).unwrap();
+    let sem = analyze(&tree, program, &[]);
+    let binding = |name: &str| sem.root_binding(tree.atoms.lookup(name).unwrap()).unwrap();
+    assert_eq!(sem.bindings[binding("error")].reads, 1);
+    assert_eq!(
+        sem.bindings
+            .iter()
+            .filter(|b| tree.atoms.get(b.name) == "error")
+            .count(),
+        2
+    );
+    assert_eq!(
+        (
+            sem.bindings[binding("key")].reads,
+            sem.bindings[binding("key")].writes
+        ),
+        (1, 1)
+    );
+    assert_eq!(
+        sem.bindings[binding("hoisted")].kind,
+        DeclarationKind::Variable
+    );
+    assert_eq!(sem.bindings[binding("C")].reads, 1);
+    for name in ["local", "item"] {
+        assert!(sem.root_binding(tree.atoms.lookup(name).unwrap()).is_none());
+    }
+}
+
+#[test]
+fn module_scope_encloses_instance_and_template_without_reverse_visibility() {
+    use rsvelte_typescript::scope::analyze_enclosed;
+    let module = "const value=1; const shared=2; function read(){return value+instanceOnly;}";
+    let instance = "const value=3; const instanceOnly=4; shared;";
+    let source = format!("{module}\n{instance}\nvalue+shared");
+    let mut tree = SyntaxTree::new();
+    let outer =
+        parse_program(&mut tree, &source, Span::new(0, module.len() as u32), false).unwrap();
+    let instance_start = module.len() as u32 + 1;
+    let instance_end = instance_start + instance.len() as u32;
+    let program = parse_program(
+        &mut tree,
+        &source,
+        Span::new(instance_start, instance_end),
+        false,
+    )
+    .unwrap();
+    let expression = parse_expression(
+        &mut tree,
+        &source,
+        Span::new(instance_end + 1, source.len() as u32),
+        false,
+    )
+    .unwrap();
+    let sem = analyze_enclosed(
+        &tree,
+        Some(outer),
+        program,
+        &[HostRoot::Expression(expression)],
+    );
+    let values: Vec<_> = sem
+        .bindings
+        .iter()
+        .filter(|b| tree.atoms.get(b.name) == "value")
+        .collect();
+    assert_eq!(values.len(), 2);
+    assert_eq!(values[0].reads, 1);
+    assert_eq!(values[1].reads, 1);
+    assert!(
+        sem.references
+            .iter()
+            .any(|r| tree.name(r.node) == "instanceOnly" && r.binding.is_none())
+    );
+    let shared = sem
+        .root_binding(tree.atoms.lookup("shared").unwrap())
+        .unwrap();
+    assert_eq!(sem.bindings[shared].reads, 2);
+}
+
+#[test]
+fn switch_discriminant_is_outside_the_case_scope() {
+    let source = "let value=1; switch(value) {case 1: let value=2; use(value);}";
+    let mut tree = SyntaxTree::new();
+    let program =
+        parse_program(&mut tree, source, Span::new(0, source.len() as u32), false).unwrap();
+    let sem = analyze(&tree, program, &[]);
+    let values: Vec<_> = sem
+        .bindings
+        .iter()
+        .filter(|b| tree.atoms.get(b.name) == "value")
+        .collect();
+    assert_eq!(values.len(), 2);
+    assert_eq!(values[0].reads, 1);
+    assert_eq!(values[1].reads, 1);
 }

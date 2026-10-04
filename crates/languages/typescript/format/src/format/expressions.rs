@@ -18,7 +18,11 @@ impl Formatter<'_> {
         self.at = saved;
         let document = document?;
         let leftmost = self.paren_leftmost == Some(identifier);
-        if leftmost || parent.is_some_and(|p| self.needs_parens(identifier, p, slot)) {
+        if leftmost
+            || self.syntax_tree.flags(identifier) & rsvelte_typescript::syntax_tree::flag::GROUPED
+                != 0
+            || parent.is_some_and(|p| self.needs_parens(identifier, p, slot))
+        {
             if leftmost {
                 self.paren_leftmost = None;
             }
@@ -45,7 +49,10 @@ impl Formatter<'_> {
                 .filter(|t| {
                     matches!(
                         t.kind,
-                        TypeScriptKind::NonNull | TypeScriptKind::As | TypeScriptKind::Satisfies
+                        TypeScriptKind::NonNull
+                            | TypeScriptKind::As
+                            | TypeScriptKind::Satisfies
+                            | TypeScriptKind::Assertion
                     )
                 })
                 .copied()
@@ -79,6 +86,9 @@ impl Formatter<'_> {
                     self.typescript_printed += 1;
                     self.lit("!")
                 }
+                TypeScriptKind::Assertion => {
+                    return Err(Unsupported::at("TypeScript type assertion", t.span));
+                }
                 TypeScriptKind::As => self.type_suffix(Some(t.span), " as ")?,
                 _ => self.type_suffix(Some(t.span), " satisfies ")?,
             });
@@ -98,6 +108,7 @@ impl Formatter<'_> {
                 Ok(self.docs.text(&print_number(raw)))
             }
             Kind::String => Ok(self.string(identifier)),
+            Kind::Regex { .. } => Ok(self.docs.text(self.span(identifier).text(self.source_text))),
             Kind::Boolean(b) => Ok(self.lit(if b { "true" } else { "false" })),
             Kind::Null => Ok(self.lit("null")),
             Kind::This => Ok(self.lit("this")),

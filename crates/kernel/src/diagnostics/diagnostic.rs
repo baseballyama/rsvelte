@@ -14,12 +14,11 @@ pub enum Severity {
 #[derive(Clone, Debug)]
 pub struct Diagnostic {
     pub severity: Severity,
-    /// Stable machine-readable code (`state_invalid_placement`, `no-unused-variables`, …).
+    /// Stable machine-readable code, independent of the task identifier.
     pub code: Cow<'static, str>,
     pub message: String,
     pub span: Span,
-    /// `false` when the tool being ported reports only a start (an `ESLint` report with a
-    /// `source_location` of one position): `span` is then empty and renderers print no end.
+    /// `false` for a point report: `span` is empty and renderers print no end.
     pub has_end: bool,
 }
 

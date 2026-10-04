@@ -1,0 +1,13 @@
+include_unmount = true
+
+[[steps]]
+click = "button.write"
+
+[[steps]]
+click = "button.inspect"
+
+[[steps]]
+click = "button.event"
+
+[[steps]]
+click = "button.inspect"

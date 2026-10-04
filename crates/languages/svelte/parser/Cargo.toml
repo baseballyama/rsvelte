@@ -10,6 +10,7 @@ rsvelte_typescript.workspace = true
 rsvelte_stylesheet.workspace = true
 rsvelte_svelte_syntax.workspace = true
 unicode-id-start.workspace = true
+memchr = "2.8"
 
 [lints]
 workspace = true

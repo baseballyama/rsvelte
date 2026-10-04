@@ -1,6 +1,6 @@
 //! Lint rules over JavaScript facts alone, for every language that embeds JavaScript.
 //!
-//! A host language wraps them in its own [`rsvelte_kernel::diagnostics::rules::Rule`]. Its template
+//! A host language wraps them in its own [`rsvelte_lint::rules::Rule`]. Its template
 //! expressions are scope-analysis roots ([`rsvelte_typescript::scope::HostRoot`]), so their reads
 //! are already here; which bindings a rule reports on is the host's decision (`considered`),
 //! because the upstream plugins differ: svelte-eslint-parser puts `{#each}` names in the scope core

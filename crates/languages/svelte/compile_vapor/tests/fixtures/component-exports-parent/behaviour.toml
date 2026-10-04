@@ -1,0 +1,21 @@
+include_unmount = true
+[[steps]]
+click = "#increase"
+[[steps]]
+click = "#construct"
+[[steps]]
+click = "#counter-increase"
+[[steps]]
+click = "#replace"
+[[steps]]
+click = "#increase"
+[[steps]]
+click = "#construct"
+[[steps]]
+click = "#toggle"
+[[steps]]
+click = "#increase"
+[[steps]]
+click = "#toggle"
+[[steps]]
+click = "#increase"

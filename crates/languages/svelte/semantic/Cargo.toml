@@ -10,6 +10,8 @@ rsvelte_typescript.workspace = true
 rsvelte_stylesheet.workspace = true
 rsvelte_svelte_hir.workspace = true
 rustc-hash.workspace = true
+num-bigint.workspace = true
+num-traits.workspace = true
 
 [lints]
 workspace = true

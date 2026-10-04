@@ -16,8 +16,30 @@ impl Parser<'_, '_> {
             _ => return self.expression_statement(),
         }
         let kw = self.text(self.token);
+        if self.peek().t == T::Colon {
+            let t = self.bump()?;
+            let label = self.syntax_tree.ident(self.text(t), t.span);
+            self.bump()?;
+            let body = self.statement()?;
+            return Ok(self.syntax_tree.control(
+                crate::syntax_tree::Control::Labeled { label, body },
+                self.span_from(start_offset),
+            ));
+        }
         match kw {
-            "import" if !matches!(self.peek().t, T::LParen | T::Dot) => self.import(),
+            "try" | "throw" | "while" | "do" | "switch" | "break" | "continue" | "debugger" => {
+                self.control_statement(kw)
+            }
+            "for" => self.for_statement(),
+            "class" => self.class_definition(true),
+            "import" => {
+                if matches!(self.peek().t, T::LParen | T::Dot) {
+                    self.expression_statement()
+                } else {
+                    self.import()
+                }
+            }
+            "yield" | "super" => self.expression_statement(),
             "export" => self.export(),
             "let" | "const" | "var" => {
                 let d = self.var_declaration()?;
@@ -85,6 +107,8 @@ impl Parser<'_, '_> {
     pub(super) fn block(&mut self) -> R<NodeIdentifier> {
         let start_offset = self.token.span.start_offset;
         self.expect(T::LBrace, "{")?;
+        let previous = self.allow_in;
+        self.allow_in = true;
         let body = self.open();
         while self.token.t != T::RBrace {
             if self.token.t == T::Eof {
@@ -94,6 +118,7 @@ impl Parser<'_, '_> {
             self.item(s);
         }
         self.bump()?;
+        self.allow_in = previous;
         let span = self.span_from(start_offset);
         Ok(self.close(body, |syntax_tree, body| syntax_tree.block(body, span)))
     }
@@ -137,9 +162,7 @@ impl Parser<'_, '_> {
         is_async: bool,
     ) -> R<NodeIdentifier> {
         self.bump()?; // `function`
-        if self.is_op("*") {
-            return self.fail("generator functions are not supported");
-        }
+        let generator = self.eat_op("*")?;
         let name = if self.token.t == T::Identifier {
             let t = self.bump()?;
             Some(self.syntax_tree.ident(self.text(t), t.span))
@@ -156,6 +179,7 @@ impl Parser<'_, '_> {
         let f = self.close(parameters, |syntax_tree, parameters| {
             syntax_tree.function(declaration, name, parameters, body, is_async, span)
         });
+        self.syntax_tree.mark_generator(f, generator);
         self.signature_typescript(f, type_parameters, ret);
         Ok(f)
     }
@@ -280,10 +304,16 @@ impl Parser<'_, '_> {
         }
         let s = self.expect(T::String, "module specifier")?;
         let source = self.string_node(s);
+        let attributes = if self.is_kw("assert") || self.is_kw("with") {
+            self.bump()?;
+            Some(self.object()?)
+        } else {
+            None
+        };
         self.semicolon()?;
         let span = self.span_from(start_offset);
         Ok(self.close(specs, |syntax_tree, specs| {
-            syntax_tree.import(specs, source, type_only, span)
+            syntax_tree.import_with_attributes(specs, source, type_only, attributes, span)
         }))
     }
 
@@ -313,6 +343,27 @@ impl Parser<'_, '_> {
                 .syntax_tree
                 .export_named(d, self.span_from(start_offset)));
         }
+        if self.typescript && self.is_kw("type") && matches!(self.peek().t, T::LBrace | T::Op) {
+            self.bump()?;
+            let declaration = self.export_list(start_offset)?;
+            return Ok(self
+                .syntax_tree
+                .typescript_declaration(self.syntax_tree.source_location(declaration)));
+        }
+        if self.token.t == T::LBrace || self.is_op("*") {
+            return self.export_list(start_offset);
+        }
+        if self.is_kw("async")
+            && self.peek().t == T::Identifier
+            && self.text(self.peek()) == "function"
+        {
+            let lo = self.token.span.start_offset;
+            self.bump()?;
+            let function = self.function(true, lo, true)?;
+            return Ok(self
+                .syntax_tree
+                .export_named(function, self.span_from(start_offset)));
+        }
         let declaration = match self.token.t {
             T::Identifier if matches!(self.text(self.token), "let" | "const" | "var") => {
                 let d = self.var_declaration()?;
@@ -323,6 +374,7 @@ impl Parser<'_, '_> {
                 let flo = self.token.span.start_offset;
                 self.function(true, flo, false)?
             }
+            T::Identifier if self.is_kw("class") => self.class_definition(true)?,
             _ => return self.fail("unsupported export form"),
         };
         Ok(self

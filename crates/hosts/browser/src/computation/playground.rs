@@ -101,7 +101,10 @@ fn snapshot(context: &DocumentContext<'_>, name: &str) -> Option<String> {
                 context.get::<rsvelte_svue::Analyzed<rsvelte_svue::Server>>()
             )
         }
-        "vuelte.check" => format!("{:#?}", context.get::<rsvelte_vuelte::Checked>()),
+        "vuelte.check" => format!(
+            "{:#?}",
+            context.get::<rsvelte_svelte_compile_vapor::Checked>()
+        ),
         _ => return None,
     };
     if let Some((at, _)) = text.char_indices().nth(MAX_SNAPSHOT_CHARS) {
@@ -119,9 +122,9 @@ fn registry(plugins: &[&str]) -> Registry {
                 rsvelte_svelte_compile::register(&mut reg);
                 rsvelte_svelte_format::register(&mut reg);
                 rsvelte_svelte_lint::register(&mut reg);
-                rsvelte_svelte_check::register(
+                rsvelte_svelte_typecheck::register(
                     &mut reg,
-                    &rsvelte_svelte_check::Configuration::default(),
+                    &rsvelte_svelte_typecheck::Configuration::default(),
                 );
             }
             "vue" => {
@@ -131,7 +134,7 @@ fn registry(plugins: &[&str]) -> Registry {
                 rsvelte_vue_check::register(&mut reg, &rsvelte_vue_check::Configuration::default());
             }
             "svue" => rsvelte_svue::register(&mut reg),
-            "vuelte" => rsvelte_vuelte::register(&mut reg),
+            "vuelte" => rsvelte_svelte_compile_vapor::register(&mut reg),
             _ => unreachable!("plugin names were validated at the boundary"),
         }
     }

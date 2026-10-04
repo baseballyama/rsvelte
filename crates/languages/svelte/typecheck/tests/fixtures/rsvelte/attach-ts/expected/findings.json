@@ -1,0 +1,26 @@
+[
+	{
+		"code": 2345,
+		"message": "Argument of type '{ [x: symbol]: Attachment<HTMLButtonElement>; }' is not assignable to parameter of type 'HTMLProps<\"span\", HTMLAttributes<any>>'.\n  Type '{ [x: symbol]: Attachment<HTMLButtonElement>; }' is not assignable to type 'Omit<HTMLAttributes<HTMLSpanElement>, never>'.\n    'symbol' index signatures are incompatible.\n      Type 'Attachment<HTMLButtonElement>' is not assignable to type 'false | Attachment<HTMLSpanElement> | null | undefined'.\n        Type 'Attachment<HTMLButtonElement>' is not assignable to type 'Attachment<HTMLSpanElement>'.\n          Type 'HTMLSpanElement' is missing the following properties from type 'HTMLButtonElement': command, commandForElement, disabled, form, and 17 more.",
+		"start": {
+			"line": 19,
+			"character": 5
+		},
+		"end": {
+			"line": 19,
+			"character": 26
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'number' is not assignable to parameter of type 'string'.",
+		"start": {
+			"line": 19,
+			"character": 21
+		},
+		"end": {
+			"line": 19,
+			"character": 25
+		}
+	}
+]

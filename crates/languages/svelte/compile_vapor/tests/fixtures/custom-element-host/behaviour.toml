@@ -1,0 +1,10 @@
+browser = true
+custom_element = "rsvelte-counter"
+computed_styles = [["button", "color"], ["button", "font-size"]]
+include_unmount = true
+
+[[steps]]
+click = "button"
+
+[[steps]]
+click = "button"

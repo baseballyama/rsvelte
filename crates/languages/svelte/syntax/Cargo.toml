@@ -9,6 +9,7 @@ rsvelte_kernel.workspace = true
 rsvelte_typescript.workspace = true
 rsvelte_stylesheet.workspace = true
 rsvelte_markup.workspace = true
+unicode-id-start.workspace = true
 
 [lints]
 workspace = true

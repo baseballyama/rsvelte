@@ -1,0 +1,7 @@
+browser = true
+custom_element = "vapor-empty-slot"
+include_unmount = true
+[[steps]]
+click = "button"
+[[steps]]
+click = "button"

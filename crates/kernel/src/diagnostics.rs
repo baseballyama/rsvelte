@@ -1,4 +1,3 @@
-//! Problem reports and code inspection rules.
+//! Problem reports shared by every task.
 
 pub mod diagnostic;
-pub mod rules;

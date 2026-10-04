@@ -1,5 +1,6 @@
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::computation::pipeline::{Document, Registry};
+use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 
 use crate::{compiler_syntax_tree, parse, resolve, syntax_tree};
@@ -60,7 +61,18 @@ impl Artifact for Resolved {
     }
 }
 
+pub static PLUGIN: Plugin = Plugin {
+    identifier: "vue",
+    version: env!("CARGO_PKG_VERSION"),
+    dependencies: &[Dependency {
+        identifier: "typescript",
+        requirement: concat!("=", env!("CARGO_PKG_VERSION")),
+    }],
+};
+
 pub fn register(reg: &mut Registry) {
+    reg.plugin(&PLUGIN);
+    rsvelte_typescript::register(reg);
     reg.artifact::<Parsed>()
         .artifact::<Lowered>()
         .artifact::<Resolved>();

@@ -1,3 +1,4 @@
+use rsvelte_svelte::semantic::resolve::RUNES;
 use rsvelte_typescript::scope::{DeclarationKind, ScopeIdentifier};
 use rsvelte_typescript::syntax_tree::{TypeScriptFeature, TypeScriptRuntime};
 
@@ -5,128 +6,6 @@ use super::{
     CompileInput, Diagnostic, Kind, NodeIdentifier, Resolution, Span, SyntaxTree, Target,
     unsupported,
 };
-
-const SVG_ELEMENTS: &[&str] = &[
-    "altGlyph",
-    "altGlyphDef",
-    "altGlyphItem",
-    "animate",
-    "animateColor",
-    "animateMotion",
-    "animateTransform",
-    "circle",
-    "clipPath",
-    "color-profile",
-    "cursor",
-    "defs",
-    "desc",
-    "discard",
-    "ellipse",
-    "feBlend",
-    "feColorMatrix",
-    "feComponentTransfer",
-    "feComposite",
-    "feConvolveMatrix",
-    "feDiffuseLighting",
-    "feDisplacementMap",
-    "feDistantLight",
-    "feDropShadow",
-    "feFlood",
-    "feFuncA",
-    "feFuncB",
-    "feFuncG",
-    "feFuncR",
-    "feGaussianBlur",
-    "feImage",
-    "feMerge",
-    "feMergeNode",
-    "feMorphology",
-    "feOffset",
-    "fePointLight",
-    "feSpecularLighting",
-    "feSpotLight",
-    "feTile",
-    "feTurbulence",
-    "filter",
-    "font",
-    "font-face",
-    "font-face-format",
-    "font-face-name",
-    "font-face-src",
-    "font-face-uri",
-    "foreignObject",
-    "g",
-    "glyph",
-    "glyphRef",
-    "hatch",
-    "hatchpath",
-    "hkern",
-    "image",
-    "line",
-    "linearGradient",
-    "marker",
-    "mask",
-    "mesh",
-    "meshgradient",
-    "meshpatch",
-    "meshrow",
-    "metadata",
-    "missing-glyph",
-    "mpath",
-    "path",
-    "pattern",
-    "polygon",
-    "polyline",
-    "radialGradient",
-    "rect",
-    "set",
-    "solidcolor",
-    "stop",
-    "svg",
-    "switch",
-    "symbol",
-    "text",
-    "textPath",
-    "tref",
-    "tspan",
-    "unknown",
-    "use",
-    "view",
-    "vkern",
-];
-
-const MATHML_ELEMENTS: &[&str] = &[
-    "annotation",
-    "annotation-xml",
-    "maction",
-    "math",
-    "merror",
-    "mfrac",
-    "mi",
-    "mmultiscripts",
-    "mn",
-    "mo",
-    "mover",
-    "mpadded",
-    "mphantom",
-    "mprescripts",
-    "mroot",
-    "mrow",
-    "ms",
-    "mspace",
-    "msqrt",
-    "mstyle",
-    "msub",
-    "msubsup",
-    "msup",
-    "mtable",
-    "mtd",
-    "mtext",
-    "mtr",
-    "munder",
-    "munderover",
-    "semantics",
-];
 
 /// Refuses an element upstream's `is_svg` or `is_mathml` names (case-sensitively).
 ///
@@ -136,34 +15,132 @@ const MATHML_ELEMENTS: &[&str] = &[
 /// # Errors
 ///
 /// An `unsupported` [`Diagnostic`] at the element's name.
+#[expect(clippy::too_many_lines, reason = "one case per foreign element name")]
 pub fn check_foreign_element(source_text: &str, name: Span) -> Result<(), Diagnostic> {
     let text = name.text(source_text);
-    if SVG_ELEMENTS.contains(&text) || MATHML_ELEMENTS.contains(&text) {
+    if matches!(
+        text,
+        "altGlyph"
+            | "altGlyphDef"
+            | "altGlyphItem"
+            | "animate"
+            | "animateColor"
+            | "animateMotion"
+            | "animateTransform"
+            | "circle"
+            | "clipPath"
+            | "color-profile"
+            | "cursor"
+            | "defs"
+            | "desc"
+            | "discard"
+            | "ellipse"
+            | "feBlend"
+            | "feColorMatrix"
+            | "feComponentTransfer"
+            | "feComposite"
+            | "feConvolveMatrix"
+            | "feDiffuseLighting"
+            | "feDisplacementMap"
+            | "feDistantLight"
+            | "feDropShadow"
+            | "feFlood"
+            | "feFuncA"
+            | "feFuncB"
+            | "feFuncG"
+            | "feFuncR"
+            | "feGaussianBlur"
+            | "feImage"
+            | "feMerge"
+            | "feMergeNode"
+            | "feMorphology"
+            | "feOffset"
+            | "fePointLight"
+            | "feSpecularLighting"
+            | "feSpotLight"
+            | "feTile"
+            | "feTurbulence"
+            | "filter"
+            | "font"
+            | "font-face"
+            | "font-face-format"
+            | "font-face-name"
+            | "font-face-src"
+            | "font-face-uri"
+            | "foreignObject"
+            | "g"
+            | "glyph"
+            | "glyphRef"
+            | "hatch"
+            | "hatchpath"
+            | "hkern"
+            | "image"
+            | "line"
+            | "linearGradient"
+            | "marker"
+            | "mask"
+            | "mesh"
+            | "meshgradient"
+            | "meshpatch"
+            | "meshrow"
+            | "metadata"
+            | "missing-glyph"
+            | "mpath"
+            | "path"
+            | "pattern"
+            | "polygon"
+            | "polyline"
+            | "radialGradient"
+            | "rect"
+            | "set"
+            | "solidcolor"
+            | "stop"
+            | "svg"
+            | "switch"
+            | "symbol"
+            | "text"
+            | "textPath"
+            | "tref"
+            | "tspan"
+            | "unknown"
+            | "use"
+            | "view"
+            | "vkern"
+            | "annotation"
+            | "annotation-xml"
+            | "maction"
+            | "math"
+            | "merror"
+            | "mfrac"
+            | "mi"
+            | "mmultiscripts"
+            | "mn"
+            | "mo"
+            | "mover"
+            | "mpadded"
+            | "mphantom"
+            | "mprescripts"
+            | "mroot"
+            | "mrow"
+            | "ms"
+            | "mspace"
+            | "msqrt"
+            | "mstyle"
+            | "msub"
+            | "msubsup"
+            | "msup"
+            | "mtable"
+            | "mtd"
+            | "mtext"
+            | "mtr"
+            | "munder"
+            | "munderover"
+            | "semantics"
+    ) {
         return unsupported(&format!("`<{text}>` outside `<svg>` or `<math>`"), name);
     }
     Ok(())
 }
-
-const RUNES: &[&str] = &[
-    "$state",
-    "$state.raw",
-    "$derived",
-    "$derived.by",
-    "$state.eager",
-    "$state.snapshot",
-    "$props",
-    "$props.id",
-    "$bindable",
-    "$effect",
-    "$effect.pre",
-    "$effect.tracking",
-    "$effect.root",
-    "$effect.pending",
-    "$inspect",
-    "$inspect().with",
-    "$inspect.trace",
-    "$host",
-];
 
 /// Refuses a `$name` reference that upstream's analysis turns into a store subscription (its
 /// synthetic `store_sub` bindings); this port has no store support.
@@ -231,19 +208,21 @@ pub(super) fn check_runes(
     input: &CompileInput<'_>,
     res: &Resolution,
     target: Target,
+    custom_element: bool,
 ) -> Result<(), Diagnostic> {
     fn walk(
         javascript: &SyntaxTree,
         res: &Resolution,
         target: Target,
+        custom_element: bool,
         e: NodeIdentifier,
         statement: bool,
     ) -> Result<(), Diagnostic> {
         if let Some(rune) = get_rune(javascript, res, e) {
             let supported = match rune.as_str() {
-                "$state" | "$state.raw" | "$derived" | "$derived.by" | "$props" | "$bindable" => {
-                    true
-                }
+                "$state" | "$state.raw" | "$derived" | "$derived.by" | "$props" | "$bindable"
+                | "$effect.pending" | "$effect.tracking" => true,
+                "$host" => custom_element,
                 "$effect" | "$effect.pre" => statement || target == Target::Client,
                 _ => false,
             };
@@ -258,7 +237,7 @@ pub(super) fn check_runes(
         javascript.for_each_child(e, |c| children.push(c));
         let statement = matches!(javascript.kind(e), Kind::ExpressionStatement(_));
         for c in children {
-            walk(javascript, res, target, c, statement)?;
+            walk(javascript, res, target, custom_element, c, statement)?;
         }
         Ok(())
     }
@@ -266,11 +245,19 @@ pub(super) fn check_runes(
         input.component.javascript,
         res,
         target,
+        custom_element,
         input.component.program,
         false,
     )?;
     for &e in input.component.template_expressions {
-        walk(input.component.javascript, res, target, e, false)?;
+        walk(
+            input.component.javascript,
+            res,
+            target,
+            custom_element,
+            e,
+            false,
+        )?;
     }
     Ok(())
 }

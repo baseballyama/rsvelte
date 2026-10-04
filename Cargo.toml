@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/kernel", "crates/fixture_test", "crates/hosts/*", "crates/languages/*/*"]
+members = ["crates/kernel", "crates/fixture_test", "crates/hosts/*", "crates/tooling/*", "crates/languages/*/*"]
 
 [workspace.package]
 edition = "2024"
@@ -9,6 +9,11 @@ license = "MIT"
 publish = false
 
 [workspace.dependencies]
+rsvelte_config = { path = "crates/hosts/config" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["raw_value"] }
+libloading = "0.9"
+rsvelte_lint = { path = "crates/tooling/lint" }
 rsvelte_kernel = { path = "crates/kernel" }
 rsvelte_fixture_test = { path = "crates/fixture_test" }
 rsvelte_typescript = { path = "crates/languages/typescript/core" }
@@ -21,13 +26,16 @@ rsvelte_svelte_semantic = { path = "crates/languages/svelte/semantic" }
 rsvelte_markup = { path = "crates/languages/html/core" }
 rsvelte_vue = { path = "crates/languages/vue/core" }
 rsvelte_svue = { path = "crates/languages/vue/compile_svelte" }
-rsvelte_vuelte = { path = "crates/languages/svelte/compile_vue" }
+rsvelte_svelte_compile_vapor = { path = "crates/languages/svelte/compile_vapor" }
 rsvelte_typescript_format = { path = "crates/languages/typescript/format" }
 rsvelte_typescript_lint = { path = "crates/languages/typescript/lint" }
+rsvelte_typescript_content_mapper = { path = "crates/languages/typescript/content_mapper" }
 rsvelte_typescript_check = { path = "crates/languages/typescript/check" }
 rsvelte_svelte_format = { path = "crates/languages/svelte/format" }
 rsvelte_svelte_lint = { path = "crates/languages/svelte/lint" }
-rsvelte_svelte_check = { path = "crates/languages/svelte/check" }
+rsvelte_svelte_lint_typed = { path = "crates/languages/svelte/lint_typed" }
+rsvelte_svelte_typescript_projection = { path = "crates/languages/svelte/typescript_projection" }
+rsvelte_svelte_typecheck = { path = "crates/languages/svelte/typecheck" }
 rsvelte_vue_format = { path = "crates/languages/vue/format" }
 rsvelte_vue_lint = { path = "crates/languages/vue/lint" }
 rsvelte_vue_check = { path = "crates/languages/vue/check" }
@@ -42,7 +50,10 @@ oxc_parser = "0.152"
 oxc_span = "0.152"
 oxc_syntax = "0.152"
 rayon = "1.12"
+semver = "1.0"
 rustc-hash = "2.1"
+num-bigint = "0.5.1"
+num-traits = "0.2.19"
 sha2 = { version = "0.11", default-features = false }
 libc = "0.2"
 unicode-id-start = "1.4"

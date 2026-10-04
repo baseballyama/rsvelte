@@ -116,11 +116,10 @@ impl Parser<'_, '_> {
 
     pub(super) fn property_name_ident(&mut self) -> R<NodeIdentifier> {
         match self.token.t {
-            T::Identifier => {
+            T::Identifier | T::PrivateName => {
                 let t = self.bump()?;
                 Ok(self.syntax_tree.ident(self.text(t), t.span))
             }
-            T::PrivateName => self.fail("private names are not supported"),
             _ => self.fail("expected property name"),
         }
     }

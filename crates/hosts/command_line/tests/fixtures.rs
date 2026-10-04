@@ -10,9 +10,16 @@ fn main() -> ExitCode {
     let tsc = packages.tsc();
     let tsconfig: std::path::PathBuf =
         concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into();
-    let svelte = rsvelte_svelte_check::Configuration {
-        check: Some(rsvelte_svelte_check::TypeCheckConfiguration {
+    let svelte = rsvelte_svelte_typecheck::Configuration {
+        check: Some(rsvelte_svelte_typecheck::TypeCheckConfiguration {
             tsc: tsc.clone(),
+            content_mapper: std::env::current_exe()
+                .expect("fixture executable")
+                .parent()
+                .expect("deps directory")
+                .parent()
+                .expect("target directory")
+                .join("rsvelte-svelte-typecheck-content-mapper"),
             tsconfig: Some(tsconfig.clone()),
             svelte: packages.package("svelte"),
         }),
@@ -25,7 +32,7 @@ fn main() -> ExitCode {
         }),
     };
     let mut registry = Registry::new();
-    rsvelte_svelte_check::register(&mut registry, &svelte);
+    rsvelte_svelte_typecheck::register(&mut registry, &svelte);
     rsvelte_vue_check::register(&mut registry, &vue);
     registry.finish_task(rsvelte_typescript_check::Check {
         identifier: "ts.check/default",

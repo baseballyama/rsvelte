@@ -18,6 +18,7 @@
 )]
 
 mod commands;
+mod configuration;
 mod input;
 mod output;
 use std::path::Path;
@@ -36,7 +37,7 @@ static ALLOC: rsvelte_kernel::performance::measurement::CountingAllocator =
 
 /// Every language plugin, each with its own configuration.
 fn registry(
-    svelte: &rsvelte_svelte_check::Configuration,
+    svelte: &rsvelte_svelte_typecheck::Configuration,
     vue: &rsvelte_vue_check::Configuration,
 ) -> Registry {
     let mut reg = Registry::new();
@@ -47,23 +48,34 @@ fn registry(
     rsvelte_svelte_compile::register(&mut reg);
     rsvelte_svelte_format::register(&mut reg);
     rsvelte_svelte_lint::register(&mut reg);
-    rsvelte_svelte_check::register(&mut reg, svelte);
+    #[cfg(feature = "lint-typed")]
+    rsvelte_svelte_lint_typed::register(&mut reg);
+    rsvelte_svelte_typescript_projection::register(&mut reg);
+    rsvelte_svelte_typecheck::register(&mut reg, svelte);
     rsvelte_vue_compile::register(&mut reg);
     rsvelte_vue_format::register(&mut reg);
     rsvelte_vue_lint::register(&mut reg);
     rsvelte_vue_check::register(&mut reg, vue);
     rsvelte_svue::register(&mut reg);
-    rsvelte_vuelte::register(&mut reg);
+    rsvelte_svelte_compile_vapor::register(&mut reg);
     reg
 }
 
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     let mut tasks = Vec::new();
+    let mut config = configuration::Options::default();
     let mut positional = Vec::new();
     let (mut tsc, mut svelte, mut vue, mut tsconfig) = (None, None, None, None);
     let mut it = arguments.iter();
     while let Some(a) = it.next() {
+        if configuration::Options::accepts(a) {
+            let Some(value) = it.next() else {
+                return usage(&format!("{a} needs a value"));
+            };
+            config.argument(a, value);
+            continue;
+        }
         let slot = match a.as_str() {
             "--task" => None,
             "--tsc" => Some(&mut tsc),
@@ -95,10 +107,14 @@ fn main() -> ExitCode {
     if tsc.is_none() && (svelte.is_some() || vue.is_some()) {
         return usage("--svelte and --vue need --tsc");
     }
-    let svelte = rsvelte_svelte_check::Configuration {
+    let svelte = rsvelte_svelte_typecheck::Configuration {
         check: tsc.clone().zip(svelte).map(|(tsc, svelte)| {
-            rsvelte_svelte_check::TypeCheckConfiguration {
+            rsvelte_svelte_typecheck::TypeCheckConfiguration {
                 tsc,
+                content_mapper: std::env::var_os("RSVELTE_TYPESCRIPT_CONTENT_MAPPER").map_or_else(
+                    || "rsvelte-typescript-content-mapper".into(),
+                    std::path::PathBuf::from,
+                ),
                 tsconfig: tsconfig.clone(),
                 svelte,
             }
@@ -113,17 +129,10 @@ fn main() -> ExitCode {
             .zip(vue)
             .map(|(tsc, vue)| rsvelte_vue_check::TypeCheckConfiguration { tsc, tsconfig, vue }),
     };
-    let mut reg = registry(&svelte, &vue);
-    // Owned by no plugin: one tsc over every language that provides a TypeScript view.
-    reg.finish_task(rsvelte_typescript_check::Check {
-        identifier: "ts.check/default",
-        matches: |document| {
-            rsvelte_typescript::matches(document)
-                || rsvelte_svelte::matches(document)
-                || rsvelte_vue::matches(document)
-        },
-        tsc: polyglot,
-    });
+    let reg = match configured_registry(&svelte, &vue, polyglot, &config) {
+        Ok(registry) => registry,
+        Err(error) => return usage(&error),
+    };
     if let Err(e) = reg.check_task_identifiers(&tasks) {
         return usage(&e.to_string());
     }
@@ -153,6 +162,31 @@ fn usage(msg: &str) -> ExitCode {
     ExitCode::from(2)
 }
 
+fn configured_registry(
+    svelte: &rsvelte_svelte_typecheck::Configuration,
+    vue: &rsvelte_vue_check::Configuration,
+    polyglot: Option<rsvelte_typescript_check::Tsc>,
+    config: &configuration::Options,
+) -> Result<Registry, String> {
+    let mut registry = registry(svelte, vue);
+    registry
+        .validate_plugins()
+        .map_err(|error| error.to_string())?;
+    config
+        .apply(&mut registry)
+        .map_err(|error| error.to_string())?;
+    registry.finish_task(rsvelte_typescript_check::Check {
+        identifier: "ts.check/default",
+        matches: |document| {
+            rsvelte_typescript::matches(document)
+                || rsvelte_svelte::matches(document)
+                || rsvelte_vue::matches(document)
+        },
+        tsc: polyglot,
+    });
+    Ok(registry)
+}
+
 #[cfg(test)]
 mod tests {
     use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing};
@@ -160,9 +194,45 @@ mod tests {
     use super::*;
 
     #[test]
+    fn plugin_declarations_cover_the_registered_languages_and_tasks() {
+        let reg = registry(
+            &rsvelte_svelte_typecheck::Configuration::default(),
+            &rsvelte_vue_check::Configuration::default(),
+        );
+        assert_eq!(reg.validate_plugins(), Ok(()));
+        let plugins: Vec<_> = reg.plugins().map(|plugin| plugin.identifier).collect();
+        let mut expected = vec![
+            "svelte",
+            "svelte.compile",
+            "svelte.format",
+            "svelte.lint",
+            "svelte.parser",
+            "svelte.typecheck",
+            "svelte.typescript_projection",
+            "svue",
+            "typescript",
+            "typescript.check",
+            "typescript.compile",
+            "typescript.format",
+            "typescript.lint",
+            "vue",
+            "vue.check",
+            "vue.compile",
+            "vue.format",
+            "vue.lint",
+            "vuelte",
+        ];
+        if cfg!(feature = "lint-typed") {
+            expected.push("svelte.lint.typed");
+        }
+        expected.sort_unstable();
+        assert_eq!(plugins, expected);
+    }
+
+    #[test]
     fn plugin_tasks_and_type_views_select_their_own_documents() {
         let reg = registry(
-            &rsvelte_svelte_check::Configuration::default(),
+            &rsvelte_svelte_typecheck::Configuration::default(),
             &rsvelte_vue_check::Configuration::default(),
         );
         for (path, task_identifiers, has_typescript_view) in [
@@ -173,6 +243,7 @@ mod tests {
                     "svelte.compile/server",
                     "svelte.format/default",
                     "svelte.lint/default",
+                    "svelte.typescript_projection/default",
                     "vuelte.compile/client",
                     "vuelte.compile/server",
                 ],
@@ -229,7 +300,11 @@ mod tests {
                 .iter()
                 .map(|(identifier, _)| *identifier)
                 .collect();
-            assert_eq!(identifiers, task_identifiers, "{path}");
+            let mut expected = task_identifiers;
+            if cfg!(feature = "lint-typed") && path.ends_with(".svelte") {
+                expected.insert(4, "svelte.lint.typed/default");
+            }
+            assert_eq!(identifiers, expected, "{path}");
         }
     }
 

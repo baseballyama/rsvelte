@@ -1,0 +1,1 @@
+<script lang="ts">let a: true = true;</script>{a ? 1 : 0}

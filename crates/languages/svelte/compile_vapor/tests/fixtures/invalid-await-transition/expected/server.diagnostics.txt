@@ -1,0 +1,1 @@
+error vuelte_unsupported 4:4-4:53 not supported by vuelte: an await expression in an action, attachment, transition or animation (Svelte rejects it as `illegal_await_expression`)

@@ -20,7 +20,7 @@ pub fn sanitize_template_string(s: &str) -> Cow<'_, str> {
     Cow::Owned(out)
 }
 
-const DOM_BOOLEAN_ATTRIBUTES: &[&str] = &[
+pub const DOM_BOOLEAN_ATTRIBUTES: &[&str] = &[
     "allowfullscreen",
     "async",
     "autofocus",
@@ -52,7 +52,7 @@ const DOM_BOOLEAN_ATTRIBUTES: &[&str] = &[
 ];
 
 #[must_use]
-pub(super) fn is_boolean_attribute(name: &str) -> bool {
+pub fn is_boolean_attribute(name: &str) -> bool {
     DOM_BOOLEAN_ATTRIBUTES.contains(&name)
 }
 
@@ -132,7 +132,8 @@ pub(super) fn check_binding(
     while let Kind::Member { object, .. } = javascript.kind(root) {
         root = object;
     }
-    let kind = matches!(javascript.kind(root), Kind::Identifier(_))
+    let kind = javascript
+        .is_identifier(root)
         .then(|| res.binding(root).map(|(_, info)| info.kind))
         .flatten();
     let member = root != e;
@@ -200,12 +201,13 @@ pub(super) fn event_attribute(source_text: &str, a: &Attribute) -> Option<NodeId
 /// A directive, a spread or an `{@attach}`: not an attribute with a name of its own.
 #[must_use]
 pub(super) const fn is_directive(v: &AttributeValue) -> bool {
-    matches!(
+    !matches!(
         v,
-        AttributeValue::Bind(_)
-            | AttributeValue::Attach(_)
-            | AttributeValue::Class(_)
-            | AttributeValue::Spread(_)
+        AttributeValue::Boolean
+            | AttributeValue::Static(_)
+            | AttributeValue::Expression { .. }
+            | AttributeValue::Shorthand(_)
+            | AttributeValue::Interpolated(_)
     )
 }
 
@@ -252,31 +254,29 @@ pub fn is_customizable_select(
     ) {
         for &identifier in compiler_syntax_tree.children(list) {
             match &compiler_syntax_tree.node(identifier).kind {
-                NodeKind::Comment { .. } | NodeKind::Expression { .. } => {}
+                NodeKind::Comment { .. }
+                | NodeKind::Expression { .. }
+                | NodeKind::Snippet(_)
+                | NodeKind::Debug { .. }
+                | NodeKind::Const { .. }
+                | NodeKind::Declaration { .. } => {}
                 NodeKind::Text { raw, decoded, .. } => {
                     let data = decoded.as_deref().unwrap_or_else(|| raw.text(source_text));
                     if !data.trim().is_empty() {
                         out.push(identifier);
                     }
                 }
-                NodeKind::If {
-                    branches,
-                    otherwise,
-                } => {
-                    for b in compiler_syntax_tree.branches(*branches) {
-                        descendants(compiler_syntax_tree, source_text, b.body, out);
-                    }
-                    if let Some(o) = otherwise {
-                        descendants(compiler_syntax_tree, source_text, *o, out);
+                NodeKind::If { .. }
+                | NodeKind::Each(_)
+                | NodeKind::Key { .. }
+                | NodeKind::Await(_) => {
+                    for c in compiler_syntax_tree.child_lists(identifier) {
+                        descendants(compiler_syntax_tree, source_text, c, out);
                     }
                 }
-                NodeKind::Each(each) => {
-                    descendants(compiler_syntax_tree, source_text, each.body, out);
-                    if let Some(f) = each.fallback {
-                        descendants(compiler_syntax_tree, source_text, f, out);
-                    }
+                NodeKind::Element(_) | NodeKind::Render { .. } | NodeKind::Html { .. } => {
+                    out.push(identifier);
                 }
-                NodeKind::Element(_) => out.push(identifier),
             }
         }
     }
@@ -295,7 +295,8 @@ pub fn is_customizable_select(
                     _ => true,
                 }
             }
-            _ => tag != "option",
+            NodeKind::Text { .. } => tag != "option",
+            _ => true,
         },
     )
 }

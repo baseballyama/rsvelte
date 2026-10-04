@@ -1,0 +1,22 @@
+include_unmount = true
+
+[[steps]]
+click = "button.increment"
+
+[[steps]]
+click = "button.step"
+
+[[steps]]
+click = "button.increment"
+
+[[steps]]
+input = ["input", "8"]
+
+[[steps]]
+click = "button.reset"
+
+[[steps]]
+click = "button.replace"
+
+[[steps]]
+click = "button.increment"

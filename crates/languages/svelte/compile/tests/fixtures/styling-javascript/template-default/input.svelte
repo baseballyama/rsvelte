@@ -1,0 +1,1 @@
+<script>const f=(x=`a${1}`)=>x;</script><p class={f()}/><style>.a{color:red}.b{color:blue}.unused{color:green}</style>

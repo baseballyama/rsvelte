@@ -1,0 +1,7 @@
+browser = true
+computed_styles = [["button", "color"], ["button", "font-size"]]
+include_unmount = true
+include_head = true
+
+[[steps]]
+click = "button"

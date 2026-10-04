@@ -6,8 +6,8 @@
 //! the script's bindings; the `v-for` aliases are `vue/no-unused-variables`' to report.
 
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
-use rsvelte_kernel::diagnostics::rules::{Findings, Rule};
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_lint::rules::{Findings, Rule};
 use rsvelte_markup::button_type::{Allowed, Problem, check_static};
 use rsvelte_typescript::scope::{DeclarationKind, HostRoot};
 use rsvelte_typescript_lint::JavaScriptFacts;

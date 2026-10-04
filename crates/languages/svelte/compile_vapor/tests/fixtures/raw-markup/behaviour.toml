@@ -1,0 +1,5 @@
+[[steps]]
+click = "button.change"
+
+[[steps]]
+click = "button.clear"

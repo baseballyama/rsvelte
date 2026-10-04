@@ -1,0 +1,1 @@
+error check_unsupported 6:9-6:28 not supported by the type-check projection yet: bind: directives

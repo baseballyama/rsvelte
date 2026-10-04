@@ -1,0 +1,1 @@
+<script>let onerror = $state(() => {});</script><svelte:boundary {onerror}><p>Hello</p></svelte:boundary><button onclick={() => onerror = () => {}}>change</button>

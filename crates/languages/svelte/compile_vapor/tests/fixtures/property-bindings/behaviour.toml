@@ -1,0 +1,22 @@
+include_unmount = true
+
+[[steps]]
+click = "button.read"
+
+[[steps]]
+click = "input[type=checkbox]"
+
+[[steps]]
+click = "button.read"
+
+[[steps]]
+click = "summary"
+
+[[steps]]
+click = "button:not([class])"
+
+[[steps]]
+click = "button.read"
+
+[[steps]]
+click = "button.focus"

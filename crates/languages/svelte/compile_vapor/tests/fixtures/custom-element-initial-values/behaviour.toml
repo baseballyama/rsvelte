@@ -1,0 +1,24 @@
+browser = true
+custom_element = "vapor-initial-values"
+include_unmount = true
+[props]
+count = 9
+enabled = ""
+object = { initial = true }
+name = "initial"
+[[steps]]
+click = "button:first-of-type"
+[[steps]]
+click = "button:nth-of-type(2)"
+[[steps]]
+click = "button:first-of-type"
+[[steps]]
+click = "button:nth-of-type(3)"
+[[steps]]
+click = "button:first-of-type"
+[[steps]]
+click = "button:nth-of-type(4)"
+[[steps]]
+wait = 20
+[[steps]]
+click = "button:first-of-type"

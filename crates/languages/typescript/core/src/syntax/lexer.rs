@@ -19,6 +19,7 @@ pub enum T {
         tail: bool,
     },
     Regex,
+    BigInt,
     LParen,
     RParen,
     LBrace,
@@ -55,6 +56,13 @@ pub struct LexedToken {
 }
 
 #[derive(Clone, Copy, Debug)]
+pub struct LexedRegex {
+    pub token: LexedToken,
+    pub pattern: Span,
+    pub flags: Span,
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct Lexer<'a> {
     source_text: &'a [u8],
     pub position: usize,
@@ -85,6 +93,11 @@ impl<'a> Lexer<'a> {
             position: start,
             end,
         }
+    }
+
+    pub(crate) fn text(&self, span: Span) -> &str {
+        std::str::from_utf8(&self.source_text[span.start_offset as usize..span.end_offset as usize])
+            .expect("a token is UTF-8 source")
     }
 
     fn err<X>(&self, message: impl Into<String>, start_offset: usize) -> R<X> {
@@ -176,7 +189,14 @@ impl<'a> Lexer<'a> {
         }
         if b.is_ascii_digit() || (b == b'.' && self.peek(1).is_ascii_digit()) {
             self.number()?;
-            return Ok(mk(T::Number, self.position));
+            return Ok(mk(
+                if self.source_text[self.position - 1] == b'n' {
+                    T::BigInt
+                } else {
+                    T::Number
+                },
+                self.position,
+            ));
         }
         if b == b'"' || b == b'\'' {
             self.string(b)?;
@@ -312,8 +332,10 @@ impl<'a> Lexer<'a> {
             }
         }
         if self.peek(0) == b'n' {
+            if !valid_bigint(&self.source_text[start_offset..self.position]) {
+                return self.err("invalid bigint", start_offset);
+            }
             self.position += 1;
-            return self.err("bigint literals are not supported", start_offset);
         }
         if self.position < self.end && is_identifier_start(self.source_text[self.position]) {
             return self.err("identifier directly after number", start_offset);
@@ -380,16 +402,33 @@ impl<'a> Lexer<'a> {
     /// # Errors
     ///
     /// [`LexicalError`] if the literal is not terminated before the end of its line.
-    pub fn regex(&mut self, slash: Span) -> R<LexedToken> {
+    pub fn regex(&mut self, slash: Span) -> R<LexedRegex> {
+        const UNICODE_MODES: u8 = (1 << 5) | (1 << 6);
         let start_offset = slash.start_offset as usize;
         self.position = start_offset + 1;
         let mut in_class = false;
         loop {
-            if self.position >= self.end || self.source_text[self.position] == b'\n' {
+            if self.position >= self.end
+                || matches!(self.source_text[self.position], b'\n' | b'\r')
+                || (self.peek(0) == 0xE2
+                    && self.peek(1) == 0x80
+                    && matches!(self.peek(2), 0xA8 | 0xA9))
+            {
                 return self.err("unterminated regular expression", start_offset);
             }
             match self.source_text[self.position] {
-                b'\\' => self.position += 2,
+                b'\\' => {
+                    self.position += 1;
+                    if self.position >= self.end
+                        || matches!(self.peek(0), b'\n' | b'\r')
+                        || (self.peek(0) == 0xE2
+                            && self.peek(1) == 0x80
+                            && matches!(self.peek(2), 0xA8 | 0xA9))
+                    {
+                        return self.err("unterminated regular expression", start_offset);
+                    }
+                    self.position += 1;
+                }
                 b'[' => {
                     in_class = true;
                     self.position += 1;
@@ -405,13 +444,34 @@ impl<'a> Lexer<'a> {
                 _ => self.position += 1,
             }
         }
+        let flags_start = self.position;
+        let mut seen = 0u8;
         while self.position < self.end && is_identifier_continue(self.source_text[self.position]) {
+            let bit = match self.source_text[self.position] {
+                b'd' => 1,
+                b'g' => 2,
+                b'i' => 4,
+                b'm' => 8,
+                b's' => 16,
+                b'u' => 32,
+                b'v' => 64,
+                b'y' => 128,
+                _ => return self.err("invalid regular expression flag", self.position),
+            };
+            if seen & bit != 0 || (seen | bit) & UNICODE_MODES == UNICODE_MODES {
+                return self.err("invalid regular expression flags", flags_start);
+            }
+            seen |= bit;
             self.position += 1;
         }
-        Ok(LexedToken {
-            t: T::Regex,
-            span: Span::new(start_offset as u32, self.position as u32),
-            newline_before: false,
+        Ok(LexedRegex {
+            token: LexedToken {
+                t: T::Regex,
+                span: Span::new(start_offset as u32, self.position as u32),
+                newline_before: false,
+            },
+            pattern: Span::new(start_offset as u32 + 1, flags_start as u32 - 1),
+            flags: Span::new(flags_start as u32, self.position as u32),
         })
     }
 }
@@ -471,3 +531,33 @@ pub fn decode_string(raw_body: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests;
+
+fn valid_bigint(text: &[u8]) -> bool {
+    let (radix, digits) = if text.first() == Some(&b'0') && text.len() > 1 {
+        match text[1] | 0x20 {
+            b'x' => (16, &text[2..]),
+            b'o' => (8, &text[2..]),
+            b'b' => (2, &text[2..]),
+            _ => return false,
+        }
+    } else {
+        (10, text)
+    };
+    let digit = |byte: u8| match byte {
+        b'0'..=b'9' => byte - b'0',
+        b'a'..=b'f' => byte - b'a' + 10,
+        b'A'..=b'F' => byte - b'A' + 10,
+        _ => u8::MAX,
+    };
+    !digits.is_empty()
+        && digits.iter().enumerate().all(|(index, &byte)| {
+            if byte == b'_' {
+                index > 0
+                    && index + 1 < digits.len()
+                    && digit(digits[index - 1]) < radix
+                    && digit(digits[index + 1]) < radix
+            } else {
+                digit(byte) < radix
+            }
+        })
+}

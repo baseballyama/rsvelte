@@ -5,11 +5,15 @@
 //! the client, string pushing on the server) live in `client` and `server`.
 
 mod client;
+mod coverage;
+mod custom_element;
 mod javascript;
 mod names;
 mod prepare;
+mod rest_reads;
 mod script;
 mod server;
+mod special;
 mod template;
 
 use std::borrow::Cow;
@@ -53,32 +57,37 @@ pub fn lower_with_plan<'a>(
     target: Target,
     plan: &RenderPlan,
 ) -> Result<crate::LoweredModule<'a>, Diagnostic> {
+    let validated = validate(input, res)?;
+    let identity = crate::OutputIdentity::build(&input.component);
+    let stylesheet = if validated.is_custom_element() && target == Target::Client {
+        crate::stylesheet::scoped_stylesheet_with_mode(
+            &input.component,
+            an,
+            &identity,
+            rsvelte_stylesheet::scope::RenderMode::Minify,
+        )
+    } else {
+        None
+    };
     lower_with_facts(
-        input,
-        res,
-        an,
+        Lowering {
+            input,
+            res,
+            an,
+            plan,
+            identity: &identity,
+            validated: &validated,
+            stylesheet: stylesheet.as_deref(),
+        },
         target,
-        plan,
-        &crate::OutputIdentity::build(&input.component),
     )
 }
 
 pub(crate) fn lower_with_facts<'a>(
-    input: &CompileInput<'a>,
-    res: &Resolution,
-    an: &Analysis,
+    facts: Lowering<'_, 'a>,
     target: Target,
-    plan: &RenderPlan,
-    identity: &crate::OutputIdentity,
 ) -> Result<crate::LoweredModule<'a>, Diagnostic> {
-    let prepared = prepare::prepare(input, res, target)?;
-    let facts = Lowering {
-        input,
-        res,
-        an,
-        plan,
-        identity,
-    };
+    let prepared = prepare::prepare(facts, target)?;
     let (tree, program) = match target {
         Target::Client => client::lower_prepared(facts, prepared),
         Target::Server => server::lower_prepared(facts, prepared),
@@ -86,26 +95,61 @@ pub(crate) fn lower_with_facts<'a>(
     Ok(crate::LoweredModule::new(
         tree,
         program,
-        input.component.source_text,
+        facts.input.component.source_text,
     ))
 }
 
 #[derive(Clone, Copy)]
-struct Lowering<'ctx, 'src> {
-    input: &'ctx CompileInput<'src>,
-    res: &'ctx Resolution,
-    an: &'ctx Analysis,
-    plan: &'ctx RenderPlan,
-    identity: &'ctx crate::OutputIdentity,
+pub(crate) struct Lowering<'ctx, 'src> {
+    pub input: &'ctx CompileInput<'src>,
+    pub res: &'ctx Resolution,
+    pub an: &'ctx Analysis,
+    pub plan: &'ctx RenderPlan,
+    pub identity: &'ctx crate::OutputIdentity,
+    pub validated: &'ctx ValidatedOptions,
+    pub stylesheet: Option<&'ctx str>,
 }
 
 #[derive(Debug)]
-pub(crate) struct Prepared {
+pub struct ValidatedOptions {
+    custom_element: Option<custom_element::CustomElement>,
+    rest_reads: rustc_hash::FxHashSet<NodeIdentifier>,
+}
+
+impl ValidatedOptions {
+    pub(crate) const fn is_custom_element(&self) -> bool {
+        self.custom_element.is_some()
+    }
+}
+
+pub(crate) fn validate(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+) -> Result<ValidatedOptions, Diagnostic> {
+    let custom_element = special::validate(input)?;
+    coverage::check(input)?;
+    validation::check_typescript(input)?;
+    check_stores(
+        input.component.javascript,
+        res,
+        input.component.source_text,
+        input.component.program,
+    )?;
+    let rest_reads = rest_reads::build(input, res, custom_element.is_some());
+    Ok(ValidatedOptions {
+        custom_element,
+        rest_reads,
+    })
+}
+
+#[derive(Debug)]
+pub(crate) struct Prepared<'a> {
     out: SyntaxTree,
     names: names::Names,
     each_index: FxHashMap<CompilerNodeIdentifier, String>,
     hoisted: Vec<NodeIdentifier>,
     instance: Vec<NodeIdentifier>,
+    custom_element: Option<&'a custom_element::CustomElement>,
 }
 
 /// The diagnostic for input this compiler does not lower yet. `what` is a singular subject.
@@ -118,10 +162,12 @@ fn unsupported<T>(what: &str, span: Span) -> Result<T, Diagnostic> {
 }
 
 mod validation;
-use template::{
-    check_binding, event_attribute, has_dependency, is_boolean_attribute, is_directive,
-    is_dom_property, is_load_error_element, synthetic_value,
+pub use template::{
+    DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select, sanitize_template_string,
 };
-pub use template::{is_customizable_select, sanitize_template_string};
+use template::{
+    check_binding, event_attribute, has_dependency, is_directive, is_dom_property,
+    is_load_error_element, synthetic_value,
+};
 pub use validation::check_foreign_element;
 use validation::{check_runes, check_stores};

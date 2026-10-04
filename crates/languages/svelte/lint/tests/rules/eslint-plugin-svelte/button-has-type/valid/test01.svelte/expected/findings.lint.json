@@ -1,0 +1,6 @@
+{
+	"rules": [
+		"svelte/button-has-type"
+	],
+	"findings": []
+}

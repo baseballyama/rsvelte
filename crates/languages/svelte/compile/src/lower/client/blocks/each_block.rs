@@ -2,8 +2,8 @@ use rsvelte_svelte::compilation::compiler_syntax_tree::Each;
 
 use crate::lower::client::{
     BindingIdentifier, ClientCompilationContext, CompilerNodeIdentifier, EACH_INDEX_REACTIVE,
-    EACH_IS_CONTROLLED, EACH_ITEM_IMMUTABLE, EACH_ITEM_REACTIVE, Frag, Kind, Lists, NodeIdentifier,
-    NodeKind, R, SourceLocation, has_dependency, unsupported,
+    EACH_IS_CONTROLLED, EACH_ITEM_IMMUTABLE, EACH_ITEM_REACTIVE, Frag, Lists, NodeIdentifier,
+    NodeKind, R, Read, SourceLocation, has_dependency, unsupported,
 };
 
 /// The bindings an `{#each}` block declares: its item and its index.
@@ -41,7 +41,7 @@ impl ClientCompilationContext<'_> {
             unreachable!()
         };
         let context = each.context().expect("the parser requires `as`");
-        if !matches!(javascript.kind(context), Kind::Identifier(_)) {
+        if !javascript.is_identifier(context) {
             let span = javascript
                 .source_location(context)
                 .span()
@@ -75,7 +75,7 @@ impl ClientCompilationContext<'_> {
             self.out.dot(ns, "index")
         };
         for b in bindings.iter() {
-            self.each.remove(&b);
+            self.reads.remove(&b);
         }
 
         let thunk = self.thunk(collection);
@@ -127,8 +127,7 @@ impl ClientCompilationContext<'_> {
             flags |= EACH_INDEX_REACTIVE;
         }
         let key_is_item = each.key().is_some_and(|k| {
-            matches!(javascript.kind(k), Kind::Identifier(_))
-                && javascript.atom(k) == javascript.atom(context)
+            javascript.is_identifier(k) && javascript.atom(k) == javascript.atom(context)
         });
         if !key_is_item && has_dependency(javascript, self.res, each.collection) {
             flags |= EACH_ITEM_REACTIVE;
@@ -194,10 +193,12 @@ impl ClientCompilationContext<'_> {
         flags: u32,
     ) -> R<Vec<NodeIdentifier>> {
         if let Some(b) = bindings.item {
-            self.each.insert(b, flags & EACH_ITEM_REACTIVE != 0);
+            self.reads
+                .insert(b, Read::get_if(flags & EACH_ITEM_REACTIVE != 0));
         }
         if let Some(b) = bindings.index {
-            self.each.insert(b, flags & EACH_INDEX_REACTIVE != 0);
+            self.reads
+                .insert(b, Read::get_if(flags & EACH_INDEX_REACTIVE != 0));
         }
         let outer = self.scope;
         self.scope = self
@@ -221,7 +222,7 @@ impl ClientCompilationContext<'_> {
     ) -> NodeIdentifier {
         let javascript = self.javascript;
         for b in bindings.iter() {
-            self.each.insert(b, false);
+            self.reads.insert(b, Read::Plain);
         }
         let pattern = self.out.ident(
             javascript.name(context),

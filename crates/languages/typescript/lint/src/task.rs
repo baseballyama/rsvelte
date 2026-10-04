@@ -1,11 +1,22 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput};
+use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_typescript::{Parsed, Resolved};
 
 use crate::lint;
 const UNUSED_VARIABLES_RULE: &str = "@typescript-eslint/no-unused-vars";
 
+pub static PLUGIN: Plugin = Plugin {
+    identifier: "typescript.lint",
+    version: env!("CARGO_PKG_VERSION"),
+    dependencies: &[Dependency {
+        identifier: "typescript",
+        requirement: concat!("=", env!("CARGO_PKG_VERSION")),
+    }],
+};
+
 pub fn register(registry: &mut Registry) {
+    registry.plugin(&PLUGIN);
     rsvelte_typescript::register(registry);
     registry.task(Lint);
 }
@@ -44,7 +55,7 @@ impl Task for Lint {
         lint::no_unused_variables(&facts, UNUSED_VARIABLES_RULE, |_| true, &mut findings);
         out.file(
             "lint.json",
-            rsvelte_kernel::diagnostics::rules::render_json(
+            rsvelte_lint::output::render_json(
                 context.line_index(),
                 &[UNUSED_VARIABLES_RULE],
                 &findings,

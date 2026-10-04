@@ -9,6 +9,7 @@ publish.workspace = true
 [dependencies]
 rsvelte_kernel.workspace = true
 rsvelte_typescript.workspace = true
+rsvelte_typescript_content_mapper.workspace = true
 
 [lints]
 workspace = true

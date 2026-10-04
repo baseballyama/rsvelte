@@ -147,11 +147,30 @@ impl SyntaxTree {
         type_only: bool,
         source_location: impl Into<SourceLocation>,
     ) -> NodeIdentifier {
-        let l = self.list(specifiers);
+        self.import_with_attributes(specifiers, source, type_only, None, source_location)
+    }
+
+    pub fn import_with_attributes(
+        &mut self,
+        specifiers: &[NodeIdentifier],
+        source: NodeIdentifier,
+        type_only: bool,
+        attributes: Option<NodeIdentifier>,
+        source_location: impl Into<SourceLocation>,
+    ) -> NodeIdentifier {
+        let list = self.list(specifiers);
+        let data = attributes.map_or([list, source.0], |attributes| {
+            [self.record(&[NodeIdentifier(list), source, attributes]), 0]
+        });
         self.push(
             Tag::Import,
-            if type_only { flag::TYPE_ONLY } else { 0 },
-            [l, source.0],
+            if type_only { flag::TYPE_ONLY } else { 0 }
+                | if attributes.is_some() {
+                    flag::IMPORT_ATTRIBUTES
+                } else {
+                    0
+                },
+            data,
             source_location,
         )
     }
