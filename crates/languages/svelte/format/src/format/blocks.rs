@@ -45,10 +45,14 @@ impl Printer<'_, '_> {
             unreachable!("an each block")
         };
         let javascript = &self.c.javascript;
-        if !matches!(
-            javascript.kind(context),
-            rsvelte_typescript::Kind::Identifier(_)
-        ) {
+        // `{#each items}` and `{#each items, i}` have no context.
+        let has_context = context != rsvelte_typescript::NodeIdentifier::NONE;
+        if has_context
+            && !matches!(
+                javascript.kind(context),
+                rsvelte_typescript::Kind::Identifier(_)
+            )
+        {
             let span = javascript
                 .source_location(context)
                 .span()
@@ -58,8 +62,10 @@ impl Printer<'_, '_> {
         let open = self.lit("{#each ");
         let e = self.expression(expression, true, false)?;
         let mut def = vec![open, e];
-        let context = format!(" as {}", self.c.javascript.name(context));
-        def.push(self.d().text(&context));
+        if has_context {
+            let context = format!(" as {}", self.c.javascript.name(context));
+            def.push(self.d().text(&context));
+        }
         if index != rsvelte_typescript::NodeIdentifier::NONE {
             let index = format!(", {}", self.c.javascript.name(index));
             def.push(self.d().text(&index));
