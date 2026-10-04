@@ -99,6 +99,7 @@ pub(super) fn lower_prepared(
         each_index,
         hoisted,
         instance,
+        component_name,
         ..
     } = prepared;
     let mut sx = ServerCompilationContext {
@@ -162,7 +163,7 @@ pub(super) fn lower_prepared(
         parameters.push(o.identifier("$$props"));
     }
     let block = o.block(&body, SourceLocation::SYNTHETIC);
-    let name = o.identifier(&identity.name);
+    let name = o.identifier(&component_name);
     let func = o.function(
         true,
         Some(name),

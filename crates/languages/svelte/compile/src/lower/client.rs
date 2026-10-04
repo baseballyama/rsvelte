@@ -143,6 +143,7 @@ struct ClientCompilationContext<'a> {
     scope: ScopeIdentifier,
     plan: &'a RenderPlan,
     identity: &'a crate::OutputIdentity,
+    component_name: String,
     custom_element: Option<&'a super::custom_element::CustomElement>,
     rest_reads: &'a rustc_hash::FxHashSet<NodeIdentifier>,
     needs_props: bool,
@@ -168,6 +169,7 @@ pub(super) fn lower_prepared(
         hoisted,
         instance,
         custom_element,
+        component_name,
     } = prepared;
     let mut context = ClientCompilationContext {
         javascript,
@@ -185,6 +187,7 @@ pub(super) fn lower_prepared(
         scope: ScopeIdentifier::ROOT,
         plan,
         identity,
+        component_name,
         custom_element,
         rest_reads: &facts.validated.rest_reads,
         needs_props: res.sem.references.iter().any(|reference| {
@@ -282,7 +285,7 @@ impl ClientCompilationContext<'_> {
             parameters.push(o.identifier("$$props"));
         }
         let block = o.block(&body, SourceLocation::SYNTHETIC);
-        let name = o.identifier(&self.identity.name);
+        let name = o.identifier(&self.component_name);
         o.function(
             true,
             Some(name),

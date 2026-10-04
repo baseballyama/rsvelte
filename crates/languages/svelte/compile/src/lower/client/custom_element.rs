@@ -137,7 +137,7 @@ impl ClientCompilationContext<'_> {
         let extend = ce
             .extend
             .map(|e| copy(self.javascript, &mut self.out, &mut Verbatim, e));
-        let name = self.out.identifier(&self.identity.name);
+        let name = self.out.identifier(&self.component_name);
         let create = runtime_call(
             &mut self.out,
             "create_custom_element",

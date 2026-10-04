@@ -150,6 +150,8 @@ pub(crate) struct Prepared<'a> {
     hoisted: Vec<NodeIdentifier>,
     instance: Vec<NodeIdentifier>,
     custom_element: Option<&'a custom_element::CustomElement>,
+    /// Upstream `analysis.name`: the component name, renamed if the source declares it.
+    component_name: String,
 }
 
 /// The diagnostic for input this compiler does not lower yet. `what` is a singular subject.

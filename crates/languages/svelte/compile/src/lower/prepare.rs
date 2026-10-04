@@ -24,6 +24,7 @@ pub(super) fn prepare<'a>(
         .map(|reference| javascript.name(reference.node));
     let mut names = names::Names::new(declared, referenced);
     let each_index = each_index_names(input.component.compiler_syntax_tree, &mut names);
+    let component_name = names.generate(&facts.identity.name);
     let mut out = SyntaxTree::new();
     let mut hoisted = Vec::new();
     let mut rewrite = script::ScriptRewrite {
@@ -62,6 +63,7 @@ pub(super) fn prepare<'a>(
         hoisted,
         instance,
         custom_element,
+        component_name,
     })
 }
 
