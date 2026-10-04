@@ -158,7 +158,6 @@
 							onmouseenter={() => (focus = { kind: 'lint', index: i })}
 							onfocus={() => (focus = { kind: 'lint', index: i })}
 						>
-							<span class={f.layer === 'early' ? 'text-c-src' : 'text-c-gen'}>{f.layer}</span>
 							{f.rule} — {f.message}
 						</button>
 					</li>

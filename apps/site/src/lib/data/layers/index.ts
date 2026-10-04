@@ -40,7 +40,7 @@ export interface Layers {
 	compiler_syntax_tree: CompilerSyntaxTreeRow[];
 	bindings: Binding[];
 	refs: { span: Range; binding: number | null }[];
-	lint: { rule: string; layer: 'early' | 'late'; message: string; span: Range }[];
+	lint: { rule: string; message: string; span: Range }[];
 }
 
 export const TOOLBAR = toolbar as Layers;

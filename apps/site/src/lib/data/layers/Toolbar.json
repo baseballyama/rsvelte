@@ -381,6 +381,13 @@
 		},
 		{
 			"span": [
+				243,
+				250
+			],
+			"binding": null
+		},
+		{
+			"span": [
 				252,
 				257
 			],
@@ -418,7 +425,6 @@
 	"lint": [
 		{
 			"rule": "no-unused-vars",
-			"layer": "early",
 			"message": "'size' is assigned a value but never used.",
 			"span": [
 				38,
@@ -427,7 +433,6 @@
 		},
 		{
 			"rule": "svelte/button-has-type",
-			"layer": "late",
 			"message": "Missing an explicit type attribute for button.",
 			"span": [
 				271,

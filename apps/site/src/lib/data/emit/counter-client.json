@@ -34,8 +34,8 @@
 		]
 	],
 	"source_map": "{\"version\":3,\"sources\":[\"App.svelte\"],\"names\":[],\"mappings\":\";;;;;;;CACC,IAAI,gBAAe;;;2DAGqB;8BAAxB,eAAM\"}",
-	"fixture": "fixtures/svelte/rsvelte/minimal/counter.svelte/input.svelte",
+	"fixture": "crates/languages/svelte/compile/tests/fixtures/rsvelte/counter/input.svelte",
 	"file": "Counter.svelte",
 	"target": "client",
-	"rev": "201b86fd6b2350391f7bd4a750bb4867c6f19d98"
+	"rev": "dbe55a06833657e8c2b672f136a6f23041aff3d2"
 }

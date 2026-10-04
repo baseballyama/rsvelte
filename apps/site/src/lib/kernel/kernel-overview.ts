@@ -73,7 +73,7 @@ export const overviewNodes: OverviewNode[] = [
 	{
 		id: 'run', group: 'kernel', label: '文書ごとの並列実行', code: 'run, run_each',
 		what: '文書を一つずつワーカーに渡して並列に処理します。', href: '/learn/kernel/pipeline#run',
-		source: { path: 'crates/kernel/src/computation/pipeline.rs', line: 491, text: 'pub fn run(' },
+		source: { path: 'crates/kernel/src/computation/pipeline.rs', line: 492, text: 'pub fn run(' },
 		box: { x: right, y: 162, w: width, h: height }
 	},
 	{
@@ -91,7 +91,7 @@ export const overviewNodes: OverviewNode[] = [
 	{
 		id: 'project', group: 'kernel', label: '全文書をまとめる処理', code: 'run_finish_tasks',
 		what: '各文書で準備した部分を集め、まとめる処理を一度だけ呼びます。', href: '/learn/kernel/pipeline#project',
-		source: { path: 'crates/kernel/src/computation/pipeline.rs', line: 386, text: 'fn run_finish_tasks(' },
+		source: { path: 'crates/kernel/src/computation/pipeline.rs', line: 387, text: 'fn run_finish_tasks(' },
 		box: { x: left, y: 362, w: width, h: height }
 	},
 	{
@@ -143,7 +143,7 @@ export const overviewEdges: OverviewEdge[] = [
 		from: 'registry', to: 'plugin-check', label: '実行前に検査',
 		sentence: '実行を始める前に、登録したプラグインの依存関係を確かめます。',
 		path: 'M486 90 H534', at: [480, 52],
-		source: { path: pipeline, line: 496, text: 'reg.validate_plugins().map_err(RunError::Plugins)?;' }
+		source: { path: pipeline, line: 497, text: 'reg.validate_plugins().map_err(RunError::Plugins)?;' }
 	},
 	{
 		from: 'host', to: 'run', label: '文書とタスク',
@@ -155,7 +155,7 @@ export const overviewEdges: OverviewEdge[] = [
 		from: 'run', to: 'run-document', label: '並列',
 		sentence: '文書ごとに、別々のワーカーで一つの文書の処理を呼びます。',
 		path: 'M534 192 H486', at: [498, 184],
-		source: { path: pipeline, line: 509, text: 'docs.par_iter().map(compile).collect()' }
+		source: { path: pipeline, line: 510, text: 'docs.par_iter().map(compile).collect()' }
 	},
 	{
 		from: 'run-document', to: 'lang-tools', label: 'タスクを呼ぶ',
@@ -197,7 +197,7 @@ export const overviewEdges: OverviewEdge[] = [
 		from: 'project', to: 'typecheck', label: '最後に一度',
 		sentence: '全文書の処理が終わってから、型検査のようなまとめる処理を一度だけ呼びます。',
 		path: 'M306 392 H220', at: [232, 384],
-		source: { path: pipeline, line: 516, text: 'run_finish_tasks(&finish_tasks, &mut results);' }
+		source: { path: pipeline, line: 517, text: 'run_finish_tasks(&finish_tasks, &mut results);' }
 	},
 	{
 		from: 'output', to: 'host', label: '結果を返す',
