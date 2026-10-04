@@ -85,7 +85,7 @@ fn plans_keep_decoded_text_and_markup_separate_and_own_their_text() {
 }
 
 #[test]
-fn whitespace_options_produce_separate_plans_without_changing_the_hir() {
+fn whitespace_options_produce_separate_plans_without_changing_the_compiler_syntax_tree() {
     let source = "<p>  text  </p>";
     let component = rsvelte_svelte::syntax::parse::parse(source).expect("parses");
     let tree = rsvelte_svelte::compilation::compiler_syntax_tree::lower(&component, source);

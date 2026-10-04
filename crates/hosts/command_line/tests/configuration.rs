@@ -86,7 +86,7 @@ fn discovers_json_and_applies_lint_configuration_without_node() {
 }
 
 #[test]
-fn node_config_callbacks_reach_client_server_and_css_output() {
+fn node_config_callbacks_reach_client_server_and_stylesheet_output() {
     let project = Project::new();
     project.write(
         "config.mjs",
