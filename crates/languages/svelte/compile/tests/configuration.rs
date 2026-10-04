@@ -28,7 +28,7 @@ fn run_with(
 }
 
 #[test]
-fn client_server_and_stylesheet_share_one_css_hash_call() {
+fn client_server_and_stylesheet_share_one_stylesheet_hash_call() {
     let calls = Arc::new(AtomicUsize::new(0));
     let called = Arc::clone(&calls);
     let configuration = Configuration {

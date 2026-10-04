@@ -200,7 +200,7 @@ fn local_and_global_keyframes() {
 }
 
 #[test]
-fn comments_in_pruned_rules_remain_valid_css() {
+fn comments_in_pruned_rules_remain_valid_stylesheets() {
     assert_eq!(
         scope_rules("<p></p>", "q{/* note */color:red}"),
         "/* (unused) q{/* note *\\/color:red}*/"

@@ -65,7 +65,7 @@ impl Builder<'_> {
                 .unwrap_or(Namespace::Html);
             let node = if namespace == Namespace::Html {
                 let create = self.to.dot(document, "createElement");
-                let html = self.to.call0(create, &[tag]);
+                let markup_element = self.to.call0(create, &[tag]);
                 let create = self.to.dot(document, "createElementNS");
                 let uri = self.to.write_string("http://www.w3.org/2000/svg");
                 let svg = self.to.call0(create, &[uri, tag]);
@@ -76,7 +76,7 @@ impl Builder<'_> {
                     name,
                     SYNTHETIC,
                 );
-                self.to.cond(test, svg, html, SYNTHETIC)
+                self.to.cond(test, svg, markup_element, SYNTHETIC)
             } else {
                 let uri = self.to.write_string(if namespace == Namespace::Svg {
                     "http://www.w3.org/2000/svg"

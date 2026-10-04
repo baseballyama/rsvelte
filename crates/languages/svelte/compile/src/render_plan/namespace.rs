@@ -25,14 +25,14 @@ impl Namespace {
 
 #[derive(Debug)]
 pub(super) enum Namespaces {
-    Html,
+    AllDefault,
     Foreign(IndexVector<CompilerNodeIdentifier, Namespace>),
 }
 
 impl Namespaces {
     pub(super) fn get(&self, node: CompilerNodeIdentifier) -> Namespace {
         match self {
-            Self::Html => Namespace::Html,
+            Self::AllDefault => Namespace::Html,
             Self::Foreign(namespaces) => namespaces[node],
         }
     }
@@ -75,7 +75,7 @@ pub(super) fn build(input: &CompileInput<'_>) -> Namespaces {
             })
         });
     if !has_foreign {
-        return Namespaces::Html;
+        return Namespaces::AllDefault;
     }
     let mut namespaces = IndexVector::from_element_n(Namespace::Html, tree.nodes.len());
     walk(input, tree.root, configured, configured, &mut namespaces);

@@ -55,7 +55,7 @@ fn disabled_and_syntax_rules_do_not_build_semantic_facts() {
 }
 
 #[test]
-fn a_scope_rule_shares_resolution_and_does_not_request_js_parents() {
+fn a_scope_rule_shares_resolution_and_does_not_request_javascript_parents() {
     let mut registry = Registry::new();
     rsvelte_svelte_lint::register(&mut registry);
     let document = Document::new(

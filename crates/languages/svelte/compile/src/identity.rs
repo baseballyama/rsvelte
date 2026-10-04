@@ -24,7 +24,7 @@ impl OutputIdentity {
                 filename: input.filename,
                 css: style.content.text(input.source_text),
             })?;
-            if !valid_css_identifier(&hash) {
+            if !is_valid_class_name(&hash) {
                 return Err(rsvelte_kernel::computation::functions::CallError(
                     "CSS hash must be a nonempty ASCII CSS identifier".into(),
                 ));
@@ -50,7 +50,7 @@ impl OutputIdentity {
     }
 }
 
-fn valid_css_identifier(value: &str) -> bool {
+fn is_valid_class_name(value: &str) -> bool {
     let mut bytes = value.bytes();
     match bytes.next() {
         Some(b'-') => {

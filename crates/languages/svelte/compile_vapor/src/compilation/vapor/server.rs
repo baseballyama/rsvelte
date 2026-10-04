@@ -198,7 +198,7 @@ impl Builder<'_> {
             unreachable!()
         };
         let tag = element.tag.text(self.source_text);
-        let html = self
+        let default_namespace = self
             .input
             .namespaces
             .get(&identifier)
@@ -311,13 +311,13 @@ impl Builder<'_> {
                         let name = if name == "CLASS" { "class" } else { name };
                         let name = self.to.write_string(name);
                         let mut arguments = vec![name, value];
-                        if !html {
+                        if !default_namespace {
                             arguments.push(self.to.write_boolean(false, SYNTHETIC));
                         }
                         output.push(self.server_call("$$attribute", &arguments));
                     } else {
                         let mut arguments = vec![value];
-                        if !html {
+                        if !default_namespace {
                             arguments.push(self.to.write_boolean(false, SYNTHETIC));
                         }
                         output.push(self.server_call("$$attributes_text", &arguments));

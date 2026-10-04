@@ -1,7 +1,7 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
 
-use super::html::closing_tag_omitted;
+use super::element_rules::closing_tag_omitted;
 use super::{End, ParseResult, Parser, element};
 
 impl Parser<'_> {

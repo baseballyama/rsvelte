@@ -48,7 +48,7 @@ impl NamespacePlan {
         tree: &rsvelte_svelte::compilation::compiler_syntax_tree::CompilerSyntaxTree,
         preserve: bool,
     ) {
-        if matches!(self.0, namespace::Namespaces::Html) {
+        if matches!(self.0, namespace::Namespaces::AllDefault) {
             return;
         }
         let mut namespaces = cleaned

@@ -8,8 +8,8 @@ mod attribute;
 mod block;
 mod directive;
 mod element;
+mod element_rules;
 mod fragment;
-mod html;
 mod identifier;
 mod javascript;
 mod pattern;
@@ -20,7 +20,7 @@ mod tag;
 mod token;
 mod whitespace;
 
-pub use html::is_void;
+pub use element_rules::is_void;
 use identifier::is_identifier_continue;
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;

@@ -30,7 +30,7 @@ pub struct Plan {
     /// `$props()`'s keys and literal defaults, in order; `None` without a `$props()`.
     props: Option<Vec<(String, Option<NodeIdentifier>)>>,
     pub(crate) preserve_whitespace: bool,
-    pub(crate) css_mode: super::template::CssMode,
+    pub(crate) stylesheet_mode: super::template::CssMode,
     pub(crate) custom_element: Option<super::template::CustomElement>,
     pub(crate) namespaces: Option<rsvelte_svelte_compile::render_plan::NamespacePlan>,
     pub(super) props_id: Option<NodeIdentifier>,

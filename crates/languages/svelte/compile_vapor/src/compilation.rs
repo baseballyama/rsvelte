@@ -80,7 +80,7 @@ pub fn check(
     plan.namespaces = Some(namespaces);
     plan.preserve_whitespace = options.preserve_whitespace;
     plan.custom_element = options.custom_element;
-    plan.css_mode = options.css_mode;
+    plan.stylesheet_mode = options.css_mode;
     if let Some(&span) = plan.auxiliary.get("$host")
         && plan.custom_element.is_none()
     {
@@ -170,7 +170,7 @@ pub fn translate(
         server,
         stylesheet,
         stylesheet_hash: identity.stylesheet_hash,
-        css_mode: plan.css_mode,
+        css_mode: plan.stylesheet_mode,
         custom_element,
         memoized: t.memoized,
         helpers: t.helpers,
