@@ -7,7 +7,7 @@
 //! The printer is a port of Prettier's `printDocToString` (prettier 3.x): the same modes, the same
 //! `fits` with its rest commands and `mustBeFlat`, the same `fill`, group identifiers for `ifBreak`
 //! and `indentIfBreak`, re-measuring after a hard line in flat mode, and trailing-whitespace
-//! trimming at hard lines only.
+//! trimming at every line break except a literal line.
 //!
 //! [`LayoutInstructions::flat_only`] refuses a layout that needs line breaks when its caller
 //! supports only the flat form.

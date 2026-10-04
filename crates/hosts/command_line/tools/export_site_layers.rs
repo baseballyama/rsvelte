@@ -3,7 +3,7 @@
 //! figure is generated from this, so it shows what the pipeline built rather than a drawing of it.
 //! Text nodes that are only whitespace are left out of both trees.
 //!
-//! `cargo run -p rsvelte_svelte --example export_site_layers -- <file.svelte>`
+//! `cargo run -p rsvelte_command_line --example export_site_layers -- <file.svelte>`
 
 #![expect(
     clippy::print_stdout,
@@ -132,16 +132,9 @@ fn main() -> ExitCode {
     for d in rsvelte_svelte_lint::lint(&context, &rsvelte_svelte_lint::Configuration::default())
         .expect("the component parsed")
     {
-        let layer = if d.code == "svelte/button-has-type" {
-            "late"
-        } else {
-            "early"
-        };
         w.begin_object()
             .key("rule")
             .write_string(&d.code)
-            .key("layer")
-            .write_string(layer)
             .key("message")
             .write_string(&d.message);
         span_key(&mut w, "span", d.span);

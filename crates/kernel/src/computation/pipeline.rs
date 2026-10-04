@@ -382,7 +382,8 @@ fn run_document(
 }
 
 /// Runs every finish task over the documents that prepared a part for it. Parts are grouped by
-/// task in one pass, so the cost is the number of parts, not tasks × documents.
+/// task in one pass, but each finish task that has parts rebuilds the table of all outputs, so the
+/// cost is the number of parts plus (finish tasks with parts) × (all outputs).
 fn run_finish_tasks(finish_tasks: &[&dyn FinishTask], results: &mut [DocumentResult]) {
     let mut by_task: Vec<Vec<(usize, usize, Part)>> =
         finish_tasks.iter().map(|_| Vec::new()).collect();
