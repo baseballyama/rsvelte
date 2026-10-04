@@ -11,7 +11,7 @@ use serde_json::value::RawValue;
 
 use super::{Level, decode};
 
-static CSS_HASH: TextContract = TextContract {
+static STYLESHEET_HASH: TextContract = TextContract {
     identifier: rsvelte_svelte_compile::CssHash::IDENTIFIER,
     version: rsvelte_svelte_compile::CssHash::VERSION,
     arguments: &["name", "filename", "css"],
@@ -21,7 +21,7 @@ static CSS_HASH: TextContract = TextContract {
 #[serde(deny_unknown_fields)]
 struct CompileOptions {
     #[serde(default, rename = "cssHash")]
-    css_hash: Option<FunctionReference>,
+    stylesheet_hash: Option<FunctionReference>,
 }
 
 pub(super) fn compile(
@@ -30,17 +30,19 @@ pub(super) fn compile(
     raw: &RawValue,
 ) -> Result<(), CallError> {
     let options: CompileOptions = decode(raw)?;
-    let css_hash = options
-        .css_hash
+    let stylesheet_hash = options
+        .stylesheet_hash
         .as_ref()
         .map(|reference| {
-            let function = loaded.functions.resolve(reference, &CSS_HASH)?;
+            let function = loaded.functions.resolve(reference, &STYLESHEET_HASH)?;
             Ok(Function::<rsvelte_svelte_compile::CssHash>::new(
                 move |input| function.call(&[input.name, input.filename, input.css]),
             ))
         })
         .transpose()?;
-    let configuration = Arc::new(rsvelte_svelte_compile::Configuration { css_hash });
+    let configuration = Arc::new(rsvelte_svelte_compile::Configuration {
+        css_hash: stylesheet_hash,
+    });
     registry.provide::<rsvelte_svelte_compile::computation::CompileConfiguration>(
         "config",
         rsvelte_svelte::matches,

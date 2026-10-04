@@ -99,9 +99,9 @@ impl ClientCompilationContext<'_> {
         else {
             unreachable!("classes belong to elements")
         };
-        let is_html = element.kind == super::super::ElementKind::Regular
+        let markup_namespace = element.kind == super::super::ElementKind::Regular
             && self.plan.namespace(identifier) == crate::render_plan::Namespace::Html;
-        let is_markup = self.write_number(u32::from(is_html));
+        let is_markup = self.write_number(u32::from(markup_namespace));
         let mut set_class = self.call(
             "set_class",
             vec![

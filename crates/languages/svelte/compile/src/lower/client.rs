@@ -197,9 +197,9 @@ pub(super) fn lower_prepared(
     };
     let template = context.fragment(input.component.compiler_syntax_tree.root)?;
 
-    let css = context.custom_element_stylesheet(facts.stylesheet);
+    let stylesheet = context.custom_element_stylesheet(facts.stylesheet);
     let exports = context.custom_element_exports();
-    let func = context.component_function(instance, template, &exports, css.is_some());
+    let func = context.component_function(instance, template, &exports, stylesheet.is_some());
     let registration = context.custom_element_registration();
     let o = &mut context.out;
 
@@ -211,7 +211,7 @@ pub(super) fn lower_prepared(
     let src2 = o.write_string("svelte/internal/client");
     program.push(o.import(&[spec], src2, false, SourceLocation::SYNTHETIC));
     program.extend(context.hoisted.iter().copied());
-    program.extend(css);
+    program.extend(stylesheet);
     let o = &mut context.out;
     program.push(o.export_default(func, SourceLocation::SYNTHETIC));
     if !context.events.is_empty() {

@@ -100,14 +100,14 @@ pub(crate) fn lower_with_facts<'a>(
 }
 
 #[derive(Clone, Copy)]
-pub(crate) struct Lowering<'ctx, 'src> {
-    pub input: &'ctx CompileInput<'src>,
-    pub res: &'ctx Resolution,
-    pub an: &'ctx Analysis,
-    pub plan: &'ctx RenderPlan,
-    pub identity: &'ctx crate::OutputIdentity,
-    pub validated: &'ctx ValidatedOptions,
-    pub stylesheet: Option<&'ctx str>,
+pub(crate) struct Lowering<'context, 'source> {
+    pub input: &'context CompileInput<'source>,
+    pub res: &'context Resolution,
+    pub an: &'context Analysis,
+    pub plan: &'context RenderPlan,
+    pub identity: &'context crate::OutputIdentity,
+    pub validated: &'context ValidatedOptions,
+    pub stylesheet: Option<&'context str>,
 }
 
 #[derive(Debug)]
