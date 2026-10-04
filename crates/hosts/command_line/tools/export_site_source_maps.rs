@@ -2,7 +2,8 @@
 //! which the compile task does not write out. The site's source-map figures are generated from
 //! this, so they show what the pipeline produced rather than a hand-made example.
 //!
-//! `cargo run -p rsvelte_command_line --example export_site_source_maps -- <file.svelte> <client|server>`
+//! `cargo run -p rsvelte_command_line --example export_site_source_maps -- <file> <target>`, where
+//! `<target>` is `client` or `server`.
 
 #![expect(
     clippy::print_stdout,
