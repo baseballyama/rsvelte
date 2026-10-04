@@ -214,10 +214,14 @@ impl ScriptRewrite<'_> {
         prefix: bool,
         arg: NodeIdentifier,
     ) -> Option<NodeIdentifier> {
-        if self.target != Target::Client || !from.is_identifier(arg) {
+        if !from.is_identifier(arg) {
             return None;
         }
         let (b, info) = self.res.binding(arg)?;
+        let derived = matches!(info.kind, BindingKind::Derived | BindingKind::DerivedBy);
+        if self.target == Target::Server && !derived {
+            return None;
+        }
         let x = to.ident(from.name(arg), from.source_location(arg));
         let mut arguments = vec![x];
         if op == UpdateOperator::Dec {
@@ -226,9 +230,13 @@ impl ScriptRewrite<'_> {
                 rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
             ));
         }
-        let name = if self.res.is_state_source(b)
-            || matches!(info.kind, BindingKind::Derived | BindingKind::DerivedBy)
-        {
+        let name = if self.target == Target::Server {
+            if prefix {
+                "update_derived_pre"
+            } else {
+                "update_derived"
+            }
+        } else if self.res.is_state_source(b) || derived {
             if prefix { "update_pre" } else { "update" }
         } else if self.is_prop_source(b) {
             if prefix {
