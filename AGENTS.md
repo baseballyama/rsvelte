@@ -47,6 +47,7 @@ why each debt above cannot happen.
 
 Other fixed choices:
 
+- Tools expose library APIs that run alone or compose with other tools. Task registration is an adapter.
 - Parallelism is **per file**. Tasks for one file run in order on one worker.
 - Memory: one arena per file, `u32` spans, interned atoms.
 - Tasks declare which derived facts they need. A scheduler builds the smallest plan.
@@ -124,6 +125,9 @@ UPDATE_EXPECT=1 cargo test -p rsvelte_svelte_compile --test fixtures   # accept 
 | L2 | whole corpus time, Vite cold build, HMR p50/p99 | reports; run A/B as ABBA |
 
 Always compare three arms: the official JS tools, old rsvelte (`main`), and this rewrite.
+
+For layout changes, compare cache profiles and actual CPU cycles. Cache simulation is a
+model, not a hardware measurement. See [tools/performance/README.md](tools/performance/README.md).
 
 ## Measurement discipline
 
