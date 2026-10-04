@@ -1,0 +1,8 @@
+{
+  "name": "@rsvelte-experimental/type-information",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "engines": { "node": ">=26" },
+  "dependencies": { "typescript-7": "npm:typescript@7.1.0-dev.20261003.1" }
+}
