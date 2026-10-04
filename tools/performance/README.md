@@ -6,7 +6,7 @@
 | `tools/performance/linux.sh` | Allocation and instruction ratchets in Linux |
 | `mise run performance:cache <config.json> <report.json>` | Cachegrind cache simulation and an optional baseline gate |
 | `mise run performance:hardware <config.json> <report.json>` | Linux `perf` CPU and cache hardware events |
-| `node tools/performance/bin/macos-cycles.ts <config.json> <report.json>` | macOS hardware CPU cycles and instructions |
+| `node tools/performance/bin/macos-cycles.ts <config.json> <report.json> [--max-load <n>] [--allow-busy]` | macOS hardware CPU cycles and instructions, P-core share, peak footprint |
 | `mise run performance:layout` | Kernel, JS/TS, Svelte, Vue and CSS type sizes, alignment and field offsets |
 | `mise run performance:test` | Measurement tests and defect controls |
 
@@ -53,6 +53,37 @@ Cachegrind is a basic model. It does not reproduce modern prefetching, out-of-or
 execution, all cache levels or contention between cores. A model miss is not a measured
 hardware miss. See the [Valgrind manual](https://valgrind.org/docs/manual/cg-manual.html).
 Use models with different capacities and line sizes, then check actual CPU cycles.
+
+## macOS counters
+
+`macos-cycles.ts` injects `macos-counters.c` and reads `proc_pid_rusage` for the process it
+starts. Its limits:
+
+- Only that process is measured. A child that the arm waits for is rejected (`child_time_ns`
+  above zero). A process that replaces itself with `exec` (a shim, for example) has no report.
+  A child that is not waited for is not counted and never writes a report. Pass the real
+  executable.
+- The arm is found on `PATH` and hashed before the first sample, and again after the last. A
+  different hash fails the run. The report keeps the path, its real path and the hash. A
+  symbolic link to a multi-call tool hashes that tool. An empty `PATH` entry is skipped; it
+  does not mean the current directory.
+- A start load above a quarter of the logical CPUs is refused, as in `tools/buildtime`. The
+  report keeps the start load, the limit and the load before each sample. `--allow-busy`
+  records the override; it does not make busy samples comparable.
+- `cycles` and `instructions` cover every core type. `p_cycles` and `p_instructions` come from
+  `RUSAGE_INFO_V6`, and only on a host with more than one core type. An older kernel falls
+  back to V4, and both values are `null` (UNMEASURED), never zero. One `null` sample makes the
+  arm's P-core summary `null`. The share of P-core cycles is a property of scheduling, not of
+  the code.
+- `lifetime_max_phys_footprint_bytes` is the process peak, including start-up. It is not the
+  heap growth of the workload; use the `metrics` build for that.
+- There are no hardware cache-miss counters here. Cache claims need the Cachegrind model above
+  and a cycle measurement.
+
+`mise run performance` copies the built binary and writes the report into its own temporary
+directory, so a later build or run in the same tree cannot change what it measures. A build
+that finishes between another run's build and its copy can still be copied; run one ratchet
+per tree. Cargo reads `CARGO_BUILD_JOBS` from the environment.
 
 ## Hardware and layout
 

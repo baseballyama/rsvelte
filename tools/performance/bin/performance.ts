@@ -19,6 +19,7 @@
 // writes what was measured into the baseline (instruction counts of other platforms are kept).
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 
@@ -73,17 +74,27 @@ function run(cmd: string, args: string[], env: NodeJS.ProcessEnv = process.env) 
 	return r;
 }
 
-function build(flavour: 'metrics' | 'plain'): string {
+/** A private copy, so a build that finishes after the copy cannot swap the binary while it is measured. */
+function build(flavour: 'metrics' | 'plain', directory: string): string {
 	const dir = path.join(ROOT, 'target', 'performance', flavour);
 	const features = flavour === 'metrics' ? ['--features', 'metrics'] : [];
 	run('cargo', ['build', '--release', '--offline', '-p', 'rsvelte_command_line', ...features], { ...process.env, CARGO_TARGET_DIR: dir });
-	return path.join(dir, 'release', 'rsvelte');
+	const copy = path.join(directory, 'rsvelte');
+	fs.copyFileSync(path.join(dir, 'release', 'rsvelte'), copy);
+	return copy;
 }
 
 function allocations(): Report {
-	const out = path.join(ROOT, 'target', 'performance', 'report.json');
-	run(build('metrics'), ['performance', ...POPULATION, `json=${out}`]);
-	const r = JSON.parse(fs.readFileSync(out, 'utf8')) as Report;
+	// A fixed path lets two runs in one worktree read each other's report.
+	const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-performance-'));
+	const out = path.join(directory, 'report.json');
+	let r: Report;
+	try {
+		run(build('metrics', directory), ['performance', ...POPULATION, `json=${out}`]);
+		r = JSON.parse(fs.readFileSync(out, 'utf8')) as Report;
+	} finally {
+		fs.rmSync(directory, { recursive: true, force: true });
+	}
 	if (!r.metrics || typeof r.allocs !== 'number') throw new Error('rsvelte performance reported no allocation counts: not a metrics build');
 	if (r.documents < 1000) throw new Error(`rsvelte performance saw ${r.documents} documents: the corpus is missing or partial`);
 	return r;
@@ -98,8 +109,14 @@ function irefs(rsvelte: string, rounds: number): number {
 }
 
 function instructions(): { warm: number; load: number } {
-	const rsvelte = build('plain');
-	const [load, one, two] = [irefs(rsvelte, 0), irefs(rsvelte, 1), irefs(rsvelte, 2)];
+	const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-performance-'));
+	let load: number, one: number, two: number;
+	try {
+		const rsvelte = build('plain', directory);
+		[load, one, two] = [irefs(rsvelte, 0), irefs(rsvelte, 1), irefs(rsvelte, 2)];
+	} finally {
+		fs.rmSync(directory, { recursive: true, force: true });
+	}
 	const warm = two - one;
 	if (!(load > 0 && one > load && two > one)) throw new Error(`counts that do not grow with the rounds: rounds=0 ${load}, rounds=1 ${one}, rounds=2 ${two}`);
 	return { warm, load };
