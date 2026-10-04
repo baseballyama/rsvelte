@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { scan } from '../src/lib/build/rust-items.ts';
+import { rustDeclarations } from './rust-declarations.mjs';
 import typescript from 'typescript';
 import { parse } from 'svelte/compiler';
 
@@ -23,20 +23,22 @@ export function nameFindings(name) {
 		.split(/[^a-z\d]+/).filter(part => abbreviations.has(part));
 }
 
+// Only declarations are checked, so names that std or a dependency declares are never reported.
 export function sourceFindings(source) {
-	const visibility = scan(source);
 	const findings = [];
-	let line = 1;
-	let offset = 0;
-	for (const match of source.matchAll(/\b[A-Za-z_][A-Za-z_\d]*\b/g)) {
-		while (offset < match.index) if (source[offset++] === '\n') line++;
-		if (visibility[match.index] === -1) continue;
-		// These names are imposed by the Rust standard library and wasm-bindgen.
-		if (['PathBuf', 'to_path_buf', 'js_name'].includes(match[0])
-			&& !/\b(?:fn|struct|enum|type|trait|const|static|let|as)\s*$/.test(source.slice(Math.max(0, match.index - 32), match.index))) continue;
-		for (const abbreviation of nameFindings(match[0])) {
-			findings.push({ name: match[0], abbreviation, line });
-		}
+	for (const { name, line } of rustDeclarations(source)) {
+		for (const abbreviation of nameFindings(name)) findings.push({ name, abbreviation, line });
+	}
+	return findings;
+}
+
+// Crate names are declared in the manifest; Rust files only use them.
+export function manifestFindings(manifest) {
+	const findings = [];
+	for (const match of manifest.matchAll(/^\[(?:package|lib)\][^[]*?^name\s*=\s*"([^"]+)"/gms)) {
+		const name = match[1].replaceAll('-', '_');
+		const line = manifest.slice(0, match.index + match[0].length).split('\n').length;
+		for (const abbreviation of nameFindings(name)) findings.push({ name, abbreviation, line });
 	}
 	return findings;
 }
@@ -48,9 +50,9 @@ export function checkCodeNames(root) {
 		if (!file.endsWith('.rs') && !file.endsWith('Cargo.toml')) continue;
 		// Cargo's conventional source directory is not a project-defined module name.
 		for (const abbreviation of nameFindings(file.replaceAll('/src/', '/source/'))) errors.push(`${file}: abbreviated path component ${abbreviation}`);
-		if (!file.endsWith('.rs')) continue;
-		files++;
-		for (const finding of sourceFindings(readFileSync(path.join(root, 'crates', file), 'utf8'))) {
+		const findings = file.endsWith('.rs') ? sourceFindings : manifestFindings;
+		if (file.endsWith('.rs')) files++;
+		for (const finding of findings(readFileSync(path.join(root, 'crates', file), 'utf8'))) {
 			errors.push(`${file}:${finding.line}: ${finding.name}: use ${abbreviations.get(finding.abbreviation)}`);
 		}
 	}
