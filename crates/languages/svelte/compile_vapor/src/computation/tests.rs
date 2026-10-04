@@ -287,7 +287,8 @@ fn vapor_boolean_bindings_use_dom_property_names() {
 fn refusals_name_their_reason() {
     let cases: &[(&str, &str)] = &[
         (
-            "<svelte:options customElement='invalid-slot' /><script>let slot = $state();</script><slot bind:this={slot} />",
+            "<svelte:options customElement='invalid-slot' /><script>let slot = \
+             $state();</script><slot bind:this={slot} />",
             "slot_element_invalid_attribute",
         ),
         (

@@ -78,7 +78,8 @@ impl Helper {
     const fn source(self) -> &'static str {
         match self {
             Self::Pending => {
-                "const $$effect_pending = () => $$v_inject(Symbol.for('rsvelte.async.boundary'), null)?.count.value ?? 0;"
+                "const $$effect_pending = () => $$v_inject(Symbol.for('rsvelte.async.boundary'), \
+                 null)?.count.value ?? 0;"
             }
             Self::Async => include_str!("helpers/async.js"),
             Self::Boundary => include_str!("helpers/boundary.js"),
@@ -86,7 +87,8 @@ impl Helper {
             Self::Transition => include_str!("helpers/transitions.js"),
             Self::ComponentProps => include_str!("helpers/component_props.js"),
             Self::ClassSpread => {
-                "const $$class_spread = (properties, directives) => ({ ...properties, class: $$to_class($$sclsx(properties.class), directives) });"
+                "const $$class_spread = (properties, directives) => ({ ...properties, class: \
+                 $$to_class($$sclsx(properties.class), directives) });"
             }
             Self::FormReset => include_str!("helpers/form_reset.js"),
             Self::WindowScroll => include_str!("helpers/window_scroll.js"),
@@ -97,13 +99,9 @@ impl Helper {
             Self::NumberBinding => include_str!("helpers/number_binding.js"),
             Self::Await => include_str!("helpers/await.js"),
             Self::Lifecycle => include_str!("helpers/lifecycle.js"),
-            Self::RawMarkup => {
-                "const $$raw_markup = (value, namespace) => { const template = namespace ? document.createElementNS(namespace, namespace.endsWith('svg') ? 'svg' : 'math') : document.createElement('template'); template.innerHTML = value == null ? '' : value; return Array.from((namespace ? template : template.content).childNodes); };"
-            }
+            Self::RawMarkup => RAW_MARKUP,
             Self::Style => include_str!("helpers/style.js"),
-            Self::ScopedClass => {
-                "const $$scoped_class = (value, hash) => { const name = $$sclsx(value); return name == null || name === '' ? hash : name + ' ' + hash; }; const $$scoped_spread = (value, hash) => ({ ...value, class: $$scoped_class(value.class, hash) });"
-            }
+            Self::ScopedClass => SCOPED_CLASS,
             Self::Each => "const $$each = (c) => c == null ? [] : Array.from(c);",
             Self::EachServer => {
                 "const $$each = (c) => !c ? [] : c.length === undefined ? Array.from(c) : \
@@ -335,7 +333,8 @@ const ATTRIBUTES: &str = "const $$setters_cache = new Map();\n\
          el.value = el.__value = value;\n\
        } else {\n\
          const lower = key.toLowerCase();\n\
-         const name = el.namespaceURI === 'http://www.w3.org/1999/xhtml' ? ($$aliases[lower] ?? lower) : key;\n\
+         const name = el.namespaceURI === 'http://www.w3.org/1999/xhtml' ? ($$aliases[lower] ?? \
+         lower) : key;\n\
          const is_default = name === 'defaultValue' || name === 'defaultChecked';\n\
          if (value == null && !custom && !is_default) {\n\
            cache[key] = null;\n\
@@ -382,7 +381,8 @@ const ATTRIBUTES: &str = "const $$setters_cache = new Map();\n\
 // `true` as a present boolean attribute. The HTML parser keeps the first of two attributes of one
 // name. Vue prints `itemscope` and `scoped` as boolean attributes, which Svelte does not.
 // `events`: the load and error events Svelte's server marks on an element that fires them.
-const SPREAD: &str = "     const $$invalid_name = (name) => name === '' || Array.from(name).some((ch) => {\n\
+const SPREAD: &str = "     const $$invalid_name = (name) => name === '' || \
+       Array.from(name).some((ch) => {\n\
        const c = ch.codePointAt(0);\n\
        return ch.trim() === '' || [\"'\", '\"', '>', '/', '='].includes(ch)\n\
          || (c >= 64976 && c <= 65007) || (c & 65534) === 65534;\n\
@@ -529,3 +529,12 @@ impl Rewrite for Synthetic<'_> {
         })
     }
 }
+
+const RAW_MARKUP: &str = "const $$raw_markup = (value, namespace) => { const template = namespace \
+    ? document.createElementNS(namespace, namespace.endsWith('svg') ? 'svg' : 'math') : \
+    document.createElement('template'); template.innerHTML = value == null ? '' : value; return \
+    Array.from((namespace ? template : template.content).childNodes); };";
+
+const SCOPED_CLASS: &str = "const $$scoped_class = (value, hash) => { const name = $$sclsx(value); \
+    return name == null || name === '' ? hash : name + ' ' + hash; }; const $$scoped_spread = \
+    (value, hash) => ({ ...value, class: $$scoped_class(value.class, hash) });";

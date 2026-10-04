@@ -77,11 +77,22 @@ impl Builder<'_, '_> {
         let value = match name {
             "checked" => self.to.dot(element, "defaultChecked"),
             "files" => self.to.dot(element, "files"),
-            "group" => if static_type(self.i.source_text, attributes) == Some("checkbox") {
-                self.to.array(&[], SourceLocation::SYNTHETIC)
-            } else { self.to.null(SourceLocation::SYNTHETIC) },
+            "group" => {
+                if static_type(self.i.source_text, attributes) == Some("checkbox") {
+                    self.to.array(&[], SourceLocation::SYNTHETIC)
+                } else {
+                    self.to.null(SourceLocation::SYNTHETIC)
+                }
+            }
             "value" => {
-                if attributes.iter().any(|attribute| attribute.name.text(self.i.source_text) == "type" && matches!(&attribute.value, AttributeValue::Static(value) if value.as_ref() == "number" || value.as_ref() == "range")) {
+                let numeric = |attribute: &Attribute| match &attribute.value {
+                    AttributeValue::Static(value) => {
+                        attribute.name.text(self.i.source_text) == "type"
+                            && matches!(value.as_ref(), "number" | "range")
+                    }
+                    _ => false,
+                };
+                if attributes.iter().any(numeric) {
                     let value = self.to.dot(element, "defaultValue");
                     self.call("$$number", &[value])
                 } else {

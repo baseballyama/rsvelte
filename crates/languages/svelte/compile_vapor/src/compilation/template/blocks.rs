@@ -95,7 +95,8 @@ impl Builder<'_, '_> {
         }
         let mut out = Vec::with_capacity(items.len());
         for identifier in cleaned.hoisted {
-            if matches!(&compiler_syntax_tree.node(identifier).kind, NodeKind::Element(element) if element.name.text(source_text) == "svelte:options")
+            if let NodeKind::Element(element) = &compiler_syntax_tree.node(identifier).kind
+                && element.name.text(source_text) == "svelte:options"
             {
                 continue;
             }

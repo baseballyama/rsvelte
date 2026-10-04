@@ -207,7 +207,8 @@ fn check_await_directive(javascript: &SyntaxTree, attribute: &Attribute) -> R<()
             ));
         }
         return Err(unsupported(
-            "an await expression in an action, attachment, transition or animation (Svelte rejects it as `illegal_await_expression`)",
+            "an await expression in an action, attachment, transition or animation (Svelte \
+             rejects it as `illegal_await_expression`)",
             attribute.span,
         ));
     }

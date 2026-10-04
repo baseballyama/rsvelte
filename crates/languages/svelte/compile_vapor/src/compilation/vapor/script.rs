@@ -125,14 +125,12 @@ impl Builder<'_> {
             {
                 continue;
             }
-            if let Kind::VariableDeclaration { declarations, .. } = from.kind(s)
-                && declarations.iter().any(|&node| matches!(from.kind(node), Kind::Declarator { identifier, .. } if matches!(from.kind(identifier), Kind::Identifier(_)) && from.name(identifier) == "$$on_mount"))
-                && !self.input.server
-            { self.helpers.insert("currentInstance"); }
-            if let Kind::VariableDeclaration { declarations, .. } = from.kind(s)
-                && declarations.iter().any(|&node| matches!(from.kind(node), Kind::Declarator { identifier, .. } if matches!(from.kind(identifier), Kind::Identifier(_)) && from.name(identifier) == "$$effect_watch"))
-                && !self.input.server
-            { self.helpers.extend(["currentInstance", "getCurrentScope", "setCurrentInstance", "restoreCurrentInstance"]); }
+            if !self.input.server && declares(from, s, "$$on_mount") {
+                self.helpers.insert("currentInstance");
+            }
+            if !self.input.server && declares(from, s, "$$effect_watch") {
+                self.helpers.extend(EFFECT_WATCH);
+            }
             if let Kind::Import { .. } = from.kind(s) {
                 module.push(copy(from, &mut self.to, &mut Verbatim, s));
                 continue;
@@ -251,4 +249,24 @@ impl Rewrite for PropsRewrite {
             _ => None,
         }
     }
+}
+
+const EFFECT_WATCH: [&str; 4] = [
+    "currentInstance",
+    "getCurrentScope",
+    "setCurrentInstance",
+    "restoreCurrentInstance",
+];
+
+/// Whether `statement` declares a variable named `wanted`.
+fn declares(from: &SyntaxTree, statement: NodeIdentifier, wanted: &str) -> bool {
+    let Kind::VariableDeclaration { declarations, .. } = from.kind(statement) else {
+        return false;
+    };
+    declarations.iter().any(|&node| {
+        let Kind::Declarator { identifier, .. } = from.kind(node) else {
+            return false;
+        };
+        matches!(from.kind(identifier), Kind::Identifier(_)) && from.name(identifier) == wanted
+    })
 }

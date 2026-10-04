@@ -118,8 +118,13 @@ impl<'a> Builder<'a> {
         identifier: CompilerNodeIdentifier,
         body: &mut Vec<NodeIdentifier>,
     ) -> NodeIdentifier {
-        let special = matches!(&self.input.compiler_syntax_tree.node(identifier).kind,
-            NodeKind::Element(element) if matches!(element.tag.text(self.source_text), "$$Await" | "$$Snippet" | "$$Scope"));
+        let special = match &self.input.compiler_syntax_tree.node(identifier).kind {
+            NodeKind::Element(element) => matches!(
+                element.tag.text(self.source_text),
+                "$$Await" | "$$Snippet" | "$$Scope"
+            ),
+            _ => false,
+        };
         if special || self.structural(identifier, DirectiveName::For).is_none() {
             return self.node(identifier, body);
         }
