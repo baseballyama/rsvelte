@@ -328,6 +328,8 @@ impl Rewrite for ScriptRewrite<'_> {
                     from.source_location(identifier),
                 ))
             }
+            // Upstream lowers a state or derived declaration in a nested function the same way.
+            Kind::Declarator { .. } => lower_value_declarator(from, to, self, identifier),
             _ => None,
         }
     }
@@ -470,7 +472,7 @@ pub(super) fn lower_script(
 
 /// Upstream splits a destructured `$derived` (both targets) and a destructured `$state` (client)
 /// into one declaration per path; this port has no `extract_paths` yet.
-fn check_destructured_rune(
+pub(super) fn check_destructured_rune(
     from: &SyntaxTree,
     target: Target,
     d: NodeIdentifier,
@@ -513,6 +515,10 @@ fn lower_declarator(
     hoisted: &mut Vec<NodeIdentifier>,
     names: &mut Names,
 ) {
+    if let Some(lowered) = lower_value_declarator(from, to, rw, d) {
+        out.push(lowered);
+        return;
+    }
     let Kind::Declarator {
         identifier,
         initializer: Some(initializer),
@@ -521,10 +527,38 @@ fn lower_declarator(
         out.push(copy(from, to, rw, d));
         return;
     };
-    let Some((rune, arg)) = rune_call(from, initializer) else {
-        out.push(copy(from, to, rw, d));
-        return;
+    let source_location = from.source_location(d);
+    match (
+        rw.target,
+        rune_call(from, initializer).map(|(rune, _)| rune),
+    ) {
+        (Target::Server, Some("$props")) => {
+            let target = server_props_pattern(from, to, rw, identifier);
+            let props = to.identifier("$$props");
+            out.push(to.declarator(target, Some(props), source_location));
+        }
+        (Target::Client, Some("$props")) => {
+            lower_client_props(from, to, rw, identifier, out, hoisted, names);
+        }
+        _ => out.push(copy(from, to, rw, d)),
+    }
+}
+
+/// A `$state`, `$state.raw`, `$derived` or `$derived.by` declarator, at any depth.
+fn lower_value_declarator(
+    from: &SyntaxTree,
+    to: &mut SyntaxTree,
+    rw: &mut ScriptRewrite<'_>,
+    d: NodeIdentifier,
+) -> Option<NodeIdentifier> {
+    let Kind::Declarator {
+        identifier,
+        initializer: Some(initializer),
+    } = from.kind(d)
+    else {
+        return None;
     };
+    let (rune, arg) = rune_call(from, initializer)?;
     let source_location = from.source_location(d);
     let value = |to: &mut SyntaxTree, rw: &mut ScriptRewrite<'_>| {
         if let Some(a) = arg {
@@ -541,8 +575,8 @@ fn lower_declarator(
             )
         }
     };
-    match (rw.target, rune) {
-        (_, "$state" | "$state.raw") => {
+    match rune {
+        "$state" | "$state.raw" => {
             let mut v = value(to, rw);
             if rw.target == Target::Client {
                 let b = rw.res.sem.binding_of(identifier);
@@ -554,9 +588,9 @@ fn lower_declarator(
                 }
             }
             let target = copy(from, to, rw, identifier);
-            out.push(to.declarator(target, Some(v), source_location));
+            Some(to.declarator(target, Some(v), source_location))
         }
-        (_, "$derived" | "$derived.by") => {
+        "$derived" | "$derived.by" => {
             let v = value(to, rw);
             let f = if rune == "$derived" {
                 to.arrow(
@@ -571,16 +605,8 @@ fn lower_declarator(
             };
             let call = to.runtime("$", "derived", &[f]);
             let target = copy(from, to, rw, identifier);
-            out.push(to.declarator(target, Some(call), source_location));
+            Some(to.declarator(target, Some(call), source_location))
         }
-        (Target::Server, "$props") => {
-            let target = server_props_pattern(from, to, rw, identifier);
-            let props = to.identifier("$$props");
-            out.push(to.declarator(target, Some(props), source_location));
-        }
-        (Target::Client, "$props") => {
-            lower_client_props(from, to, rw, identifier, out, hoisted, names);
-        }
-        _ => out.push(copy(from, to, rw, d)),
+        _ => None,
     }
 }

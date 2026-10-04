@@ -239,6 +239,9 @@ pub(super) fn check_runes(
                 };
             }
         }
+        if matches!(javascript.kind(e), Kind::Declarator { .. }) {
+            super::script::check_destructured_rune(javascript, target, e)?;
+        }
         let mut children = Vec::new();
         javascript.for_each_child(e, |c| children.push(c));
         let statement = matches!(javascript.kind(e), Kind::ExpressionStatement(_));
