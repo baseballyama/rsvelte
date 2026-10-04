@@ -47,32 +47,45 @@ impl<'a> Printer<'a, '_> {
     }
 
     pub(super) fn trim_left(&mut self, identifier: TemplateNodeIdentifier) {
-        let t = self.raw_cow(identifier);
-        let t = match t {
+        let t = match self.take_raw(identifier) {
             Cow::Borrowed(b) => Cow::Borrowed(b.trim_start_matches(is_collapse_ws)),
-            Cow::Owned(o) => Cow::Owned(o.trim_start_matches(is_collapse_ws).to_owned()),
+            Cow::Owned(mut o) => {
+                o.drain(..o.len() - o.trim_start_matches(is_collapse_ws).len());
+                Cow::Owned(o)
+            }
         };
         self.set_raw(identifier, t);
     }
 
     pub(super) fn trim_right(&mut self, identifier: TemplateNodeIdentifier) {
-        let t = self.raw_cow(identifier);
-        let t = match t {
+        let t = match self.take_raw(identifier) {
             Cow::Borrowed(b) => Cow::Borrowed(b.trim_end_matches(is_collapse_ws)),
-            Cow::Owned(o) => Cow::Owned(o.trim_end_matches(is_collapse_ws).to_owned()),
+            Cow::Owned(mut o) => {
+                o.truncate(o.trim_end_matches(is_collapse_ws).len());
+                Cow::Owned(o)
+            }
         };
         self.set_raw(identifier, t);
     }
 
-    pub(super) fn raw_cow(&self, identifier: TemplateNodeIdentifier) -> Cow<'a, str> {
-        match &self.text[identifier as usize] {
-            Some(Cow::Borrowed(b)) => Cow::Borrowed(b),
-            Some(Cow::Owned(o)) => Cow::Owned(o.clone()),
+    // The caller stores the result back, so an owned string moves instead of being copied.
+    fn take_raw(&mut self, identifier: TemplateNodeIdentifier) -> Cow<'a, str> {
+        match self.text[identifier as usize].take() {
+            Some(t) => t,
             None => match self.c.node(identifier) {
                 TemplateNode::Text { span } => Cow::Borrowed(span.text(self.source_text)),
                 _ => unreachable!("only text nodes have text"),
             },
         }
+    }
+
+    pub(super) fn take_buffer(&mut self) -> Vec<LayoutInstructionIdentifier> {
+        self.buffers.pop().unwrap_or_default()
+    }
+
+    pub(super) fn give_buffer(&mut self, mut buffer: Vec<LayoutInstructionIdentifier>) {
+        buffer.clear();
+        self.buffers.push(buffer);
     }
 
     pub(super) fn is_empty_text(&self, identifier: TemplateNodeIdentifier) -> bool {

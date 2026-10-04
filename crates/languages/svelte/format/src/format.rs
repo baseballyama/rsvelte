@@ -94,6 +94,7 @@ pub fn format(c: &Component, source_text: &str, lines: &LineIndex) -> R<String> 
         javascript,
         text: vec![None; c.nodes.len()],
         in_pre: false,
+        buffers: Vec::new(),
     };
     let root = f.top_level()?;
     let options = PrintOptions {
@@ -113,6 +114,8 @@ struct Printer<'a, 'd> {
     text: Vec<Option<Cow<'a, str>>>,
     /// The plugin's `isPreTagContent(path)`.
     in_pre: bool,
+    /// Emptied lists of child layouts, kept so each text node and child list does not allocate.
+    buffers: Vec<Vec<LayoutInstructionIdentifier>>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

@@ -16,6 +16,7 @@ impl Printer<'_, '_> {
         self.trim_children(children);
         let printed = self.print_children(children)?;
         let inner = self.cat(&printed);
+        self.give_buffer(printed);
         let mut output = vec![inner];
         self.d().trim(&mut output, |d, x| {
             d.is_line(x) || d.as_str(x).is_some_and(only_ws) || d.is_break_parent(x)
@@ -56,15 +57,23 @@ impl Printer<'_, '_> {
     ) -> R<Vec<LayoutInstructionIdentifier>> {
         let in_pre = self.in_pre;
         // `prepareChildren`: text emptied by earlier trims is gone.
-        let prepared: Vec<TemplateNodeIdentifier> = children
-            .iter()
-            .copied()
-            .filter(|&c| !(self.is_text(c) && self.raw(c).is_empty()))
-            .collect();
+        let is_gone = |p: &Self, c: TemplateNodeIdentifier| p.is_text(c) && p.raw(c).is_empty();
+        let prepared: Cow<'_, [TemplateNodeIdentifier]> =
+            if children.iter().any(|&c| is_gone(self, c)) {
+                Cow::Owned(
+                    children
+                        .iter()
+                        .copied()
+                        .filter(|&c| !is_gone(self, c))
+                        .collect(),
+                )
+            } else {
+                Cow::Borrowed(children)
+            };
         if prepared.is_empty() {
             return Ok(Vec::new());
         }
-        let mut docs: Vec<LayoutInstructionIdentifier> = Vec::new();
+        let mut docs = self.take_buffer();
         let mut ws_of_prev_text = false;
         let n = prepared.len();
         for i in 0..n {
@@ -198,21 +207,27 @@ impl Printer<'_, '_> {
         &mut self,
         identifier: TemplateNodeIdentifier,
     ) -> LayoutInstructionIdentifier {
-        // The source's text, borrowed; a copy only of text the printer has rewritten.
+        // Rewritten text is moved out and back, so printing it never copies it.
         let (c, source_text) = (self.c, self.source_text);
-        let raw = match (&self.text[identifier as usize], c.node(identifier)) {
-            (Some(t), _) => t.clone(),
-            (None, TemplateNode::Text { span }) => Cow::Borrowed(span.text(source_text)),
+        let stored = self.text[identifier as usize].take();
+        let raw: &str = match (&stored, c.node(identifier)) {
+            (Some(t), _) => t,
+            (None, TemplateNode::Text { span }) => span.text(source_text),
             (None, _) => unreachable!("only text nodes have text"),
         };
-        if self.in_pre {
-            return self.d().text(&raw);
-        }
-        if only_ws(&raw) {
-            return self.whitespace(&raw);
-        }
-        let docs = self.split_text(&raw);
-        self.d().fill(&docs)
+        let doc = if self.in_pre {
+            self.d().text(raw)
+        } else if only_ws(raw) {
+            self.whitespace(raw)
+        } else {
+            let mut docs = self.take_buffer();
+            self.split_text(raw, &mut docs);
+            let doc = self.d().fill(&docs);
+            self.give_buffer(docs);
+            doc
+        };
+        self.text[identifier as usize] = stored;
+        doc
     }
 
     /// `printWhitespace`.
@@ -232,11 +247,9 @@ impl Printer<'_, '_> {
     }
 
     /// `splitTextToDocs`.
-    pub(super) fn split_text(&mut self, text: &str) -> Vec<LayoutInstructionIdentifier> {
-        let words: Vec<&str> = text.split(is_collapse_ws).collect();
-        let mut docs: Vec<LayoutInstructionIdentifier> = Vec::new();
+    pub(super) fn split_text(&mut self, text: &str, docs: &mut Vec<LayoutInstructionIdentifier>) {
         let mut pending_line = false;
-        for (i, w) in words.iter().enumerate() {
+        for (i, w) in text.split(is_collapse_ws).enumerate() {
             if i > 0 {
                 pending_line = true;
             }
@@ -269,6 +282,5 @@ impl Printer<'_, '_> {
             let h = self.d().hardline();
             docs.push(h);
         }
-        docs
     }
 }

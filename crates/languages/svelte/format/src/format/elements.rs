@@ -191,7 +191,9 @@ impl Printer<'_, '_> {
         let docs = self.print_children(children);
         self.in_pre = saved;
         let docs = docs?;
-        Ok(self.cat(&docs))
+        let d = self.cat(&docs);
+        self.give_buffer(docs);
+        Ok(d)
     }
 
     /// `printPre`: text verbatim, line breaks as literal lines.

@@ -162,6 +162,7 @@ impl Printer<'_, '_> {
         }
         let docs = self.print_children(children)?;
         let g = self.group(&docs);
+        self.give_buffer(docs);
         let inner = self.cat(&[startline, g]);
         let inner = self.d().indent(inner);
         Ok(self.cat(&[inner, endline]))
