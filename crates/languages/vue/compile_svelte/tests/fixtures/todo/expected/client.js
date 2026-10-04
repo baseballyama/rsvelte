@@ -18,10 +18,10 @@ export default function Todo_vue($$anchor, $$props) {
 	function vmodel(dir, value_2, modifiers, props) {
 		if (dir.deep) traverse(value_2);
 		return (el) => untrack(() => {
-			const vnode = { props: props };
+			const vnode = { props };
 			let binding = vmodelBindings.get(el);
 			if (binding === undefined) {
-				binding = { value: value_2, oldValue: undefined, modifiers: modifiers };
+				binding = { value: value_2, oldValue: undefined, modifiers };
 				vmodelBindings.set(el, binding);
 				dir.created?.(el, binding, vnode);
 				dir.mounted?.(el, binding, vnode);

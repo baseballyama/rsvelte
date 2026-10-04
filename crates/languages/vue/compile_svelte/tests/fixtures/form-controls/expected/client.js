@@ -14,10 +14,10 @@ export default function Form_controls_vue($$anchor, $$props) {
 	function vmodel(dir, value_1, modifiers, props) {
 		if (dir.deep) traverse(value_1);
 		return (el) => untrack(() => {
-			const vnode = { props: props };
+			const vnode = { props };
 			let binding = vmodelBindings.get(el);
 			if (binding === undefined) {
-				binding = { value: value_1, oldValue: undefined, modifiers: modifiers };
+				binding = { value: value_1, oldValue: undefined, modifiers };
 				vmodelBindings.set(el, binding);
 				dir.created?.(el, binding, vnode);
 				dir.mounted?.(el, binding, vnode);
