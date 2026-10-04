@@ -1,0 +1,11 @@
+[package]
+name = "conditional-ir-prototype"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+rsvelte_kernel = { path = "../../../../crates/kernel" }
+rsvelte_typescript = { path = "../../../../crates/languages/typescript/core" }
+rsvelte_typescript_compile = { path = "../../../../crates/languages/typescript/compile" }
+
+[workspace]

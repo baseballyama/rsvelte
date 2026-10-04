@@ -1,20 +1,8 @@
 {
   "maxLines": 600,
   "exceptions": {
-    "crates/kernel/src/computation/pipeline.rs": {
-      "maxLines": 928,
-      "reason": "Existing source; keep its size until its responsibility can be split."
-    },
     "crates/kernel/src/output/document.rs": {
       "maxLines": 1309,
-      "reason": "Existing source; keep its size until its responsibility can be split."
-    },
-    "crates/languages/svelte/semantic/src/semantic/evaluate.rs": {
-      "maxLines": 791,
-      "reason": "Existing source; keep its size until its responsibility can be split."
-    },
-    "crates/languages/svelte/parser/src/syntax/parse.rs": {
-      "maxLines": 1094,
       "reason": "Existing source; keep its size until its responsibility can be split."
     }
   }

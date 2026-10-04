@@ -53,6 +53,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
         working-directory: tools/fixtures
       - run: cargo test --offline --workspace
+      - run: cargo run --offline -p rsvelte_command_line --example repo_layout > type-layout.json
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: type-layout
+          path: type-layout.json
+          if-no-files-found: ignore
 
   fixtures:
     runs-on: ubuntu-24.04
@@ -127,6 +134,7 @@ jobs:
         with:
           node-version: 26.7.0
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends valgrind
+      - run: node --test tools/performance/test/*.test.ts
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: cargo fetch
       - run: node tools/performance/bin/performance.ts --instructions --json performance-report.json

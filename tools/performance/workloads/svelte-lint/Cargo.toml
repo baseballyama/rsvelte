@@ -1,0 +1,18 @@
+[package]
+name = "lint-architecture-benchmark"
+version = "0.0.0"
+edition = "2024"
+[workspace]
+[features]
+allocations = []
+[dependencies]
+rsvelte_svelte_lint = { path = "../../../../crates/languages/svelte/lint" }
+rsvelte_svelte = { path = "../../../../crates/languages/svelte/core" }
+rsvelte_kernel = { path = "../../../../crates/kernel" }
+rsvelte_lint = { path = "../../../../crates/tooling/lint" }
+rsvelte_markup = { path = "../../../../crates/languages/html/core" }
+rsvelte_typescript_lint = { path = "../../../../crates/languages/typescript/lint" }
+[profile.release]
+debug = "line-tables-only"
+lto = "thin"
+codegen-units = 1

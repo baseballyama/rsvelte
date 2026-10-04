@@ -20,7 +20,8 @@ function toolDependencies(packages: Package[]): string[] {
 			!pkg.manifest_path.includes('/core/') &&
 			!/^rsvelte_svelte_(syntax|parser|hir|semantic)$/.test(pkg.name)) continue;
 		for (const dependency of pkg.dependencies) {
-			if (/_(compile|format|lint|check)$/.test(dependency.name)) {
+			if (/_(compile|format|lint|check)$/.test(dependency.name) ||
+				(pkg.name === 'rsvelte_kernel' && dependency.name.startsWith('rsvelte_'))) {
 				failures.push(`${pkg.name} depends on ${dependency.name}`);
 			}
 		}
@@ -84,5 +85,18 @@ test('Svelte boundaries reject injected dependencies on parsing, normalization, 
 		assert.ok(pkg);
 		const injected = { ...pkg, dependencies: [...pkg.dependencies, { name: 'rsvelte_svelte_format' }] };
 		assert.deepEqual(toolDependencies([injected]), [`${name} depends on rsvelte_svelte_format`]);
+	}
+});
+
+test('the kernel rejects language data and shared task contracts', () => {
+	const kernel = metadata.packages.find(pkg => pkg.name === 'rsvelte_kernel');
+	assert.ok(kernel);
+	for (const name of ['rsvelte_svelte', 'rsvelte_typescript', 'rsvelte_lint']) {
+		const injected = { ...kernel, dependencies: [...kernel.dependencies, { name }] };
+		assert.deepEqual(toolDependencies([injected]), [`rsvelte_kernel depends on ${name}`]);
+	}
+	for (const pkg of metadata.packages.filter(pkg => pkg.manifest_path.includes('/core/'))) {
+		const injected = { ...pkg, dependencies: [...pkg.dependencies, { name: 'rsvelte_lint' }] };
+		assert.deepEqual(toolDependencies([injected]), [`${pkg.name} depends on rsvelte_lint`]);
 	}
 });

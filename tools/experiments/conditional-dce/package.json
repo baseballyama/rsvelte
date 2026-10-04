@@ -1,0 +1,19 @@
+{
+  "name": "rsvelte-conditional-dce-prototype",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node run-tests.mjs",
+    "test:guards": "node guards.test.mjs",
+    "test:native": "cargo run --manifest-path native/Cargo.toml --locked"
+  },
+  "dependencies": {
+    "vite": "8.3.1",
+    "svelte": "5.57.1",
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "magic-string": "0.30.21",
+    "playwright": "1.63.0",
+    "rolldown": "1.2.12",
+    "@jridgewell/trace-mapping": "0.3.31"
+  }
+}

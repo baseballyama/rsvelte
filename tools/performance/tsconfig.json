@@ -13,5 +13,5 @@
 		"erasableSyntaxOnly": true,
 		"skipLibCheck": true
 	},
-	"include": ["bin"]
+	"include": ["bin", "test", "*.ts"]
 }
