@@ -47,6 +47,8 @@ export const load = () => ({
 		tokensDefault: 'kernel/source/tokens/impl Default for Tokens',
 		findings: 'lint/rules/impl Findings',
 		lint: 'svelte/lint/lint/lint',
-		button: 'svelte/lint/rules/button_has_type/check'
+		ruleImpl: 'svelte/lint/rules/impl Rule for RuleConfiguration',
+		button: 'svelte/lint/rules/button_has_type/check',
+		staticProblem: 'svelte/lint/rules/button_has_type/static_problem'
 	})
 });

@@ -411,36 +411,32 @@
 
 	<H2 id="lint" />
 	<p>
-		ルールは、自分の問いに答える層の上で書きます。rustc と同じく、構文木を読むルールを <dfn>early</dfn>、下げた層を読むルールを
-		<dfn>late</dfn> と呼びます。
+		ルールは、自分の問いに答える層を文書のコンテキストから求めます。どの層を読むかは、ルールごとに違います。
 	</p>
 	<ul>
 		<li>
-			<code>no-unused-variables</code> は early のままです。ESLint の移植で、親の要素の種類や宣言の書き方を見て判断するので、書かれたとおりの木が要ります。
+			<code>no-unused-variables</code> は元の構文木と名前解決を読みます。ESLint の移植で、親の要素の種類や宣言の書き方を見て判断するので、書かれたとおりの木が要ります。
 		</li>
 		<li>
-			<code>svelte/button-has-type</code> は late です。知りたいのは属性の値が静的な文字列かどうかで、コンパイル用に整理した構文木ではそれがすでに分類されています。
+			<code>svelte/button-has-type</code> は元の構文木だけを読みます。属性の値の部品がすべて文字列なら静的な値として判定し、式を含む値は判定しません。
+		</li>
+		<li>
+			<code>svelte/valid-each-key</code> は、コンパイル用に整理した構文木の <code>{'{#each}'}</code> と名前解決を読みます。
 		</li>
 	</ul>
 	<p>
-		<code>rsvelte_lint</code> の <code>Findings</code> は、層ごとのルールの組を順に走らせて、一つの並びにまとめます。同じ位置の指摘は、先に走った層、同じ層の中ではルールの順になります。
+		Svelte プラグインでは、設定の中の各ルール（<code>RuleConfiguration</code>）が <code>Rule</code> を実装し、必要な層をその場で求めます。<code>rsvelte_lint</code>
+		の <code>Findings</code> は、ルールを設定の順に走らせて、一つの並びにまとめます。同じ位置の指摘は、ルールの順になります。
 	</p>
 </div>
 
 <Code item={data.code.findings} />
 <Code item={data.code.lint} />
-<Code item={data.code.button} mark={['AttributeValue::Boolean', 'AttributeValue::Static(v) => check_static(v, Allowed::default())', 'AttributeValue::Shorthand(_)']} />
+<Code item={data.code.ruleImpl} mark={['.get::<Parsed>()', 'no_unused_variables::check(context, self.identifier(), out)', 'valid_each_key::check(context, out)']} />
+<Code item={data.code.button} mark={['static_problem(component, source, attribute, allowed)', 'AttributeValue::True', 'None if !shorthand && !spread']} />
+<Code item={data.code.staticProblem} mark={['let Part::Text(span) = part else', 'check_static(&value, allowed)']} />
 
 <div class="prose-learn">
-	<p>
-		移したあとも出力は変わっていません。移す前（<code>dcf796e11a</code>）と移したあと（<code>1789210b8e</code>）のバイナリで全検証用のソースファイル集を走らせ、出力
-		88,094 ファイルのハッシュを比べると、変わったものは 0 でした。lint の出力は 17,488 ファイルで、そのうち
-		<code>button-has-type</code> の指摘は「type がない」が 580 件、「値が空」が 2 件、「値が不正」が 1 件あります。
-	</p>
-	<p>
-		0 という結果は、変化を見分けられる測り方でなければ意味を持ちません。そこで「値が不正」の分岐だけを潰したバイナリを作って同じ比較をすると、変わったのは
-		1 ファイルで、その指摘を持つ唯一のファイルと一致しました。
-	</p>
 
 	<H2 id="shared-lint" />
 	<p>
@@ -470,7 +466,7 @@
 
 <div class="prose-learn">
 	<p>
-		Vue のルールは late の層を持たないので、元の構文木の上で書かれています。Svelte のルールは コンパイル用に整理した構文木の上です。層が違っても、判断を共有するのに困ることはありません。共有しているのは層ではなく、値についての判断だからです。
+		Vue と Svelte のルールは、どちらもそれぞれの言語の元の構文木の上で書かれています。木の形が違っても、判断を共有するのに困ることはありません。共有しているのは木ではなく、値についての判断だからです。
 	</p>
 	<p>
 		<code>vue/markup-button-has-type</code> はこのとき新しく足したルールで、<code>vue.lint</code> は 19 検証例中 19 で比較元の公式ツールと一致しました。報告の範囲を引用符の分だけずらすと

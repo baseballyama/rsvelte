@@ -11,7 +11,7 @@
 	import ArtifactCacheSim from '$lib/widgets/ArtifactCacheSim.svelte';
 
 	let { data } = $props();
-	const c = chapter('database');
+	const c = chapter('db');
 	const ms = (v: number) => v.toFixed(1);
 	const m = (v: number) => (v / 1e6).toFixed(2);
 </script>
@@ -158,16 +158,24 @@
 		この規則がないと、パースのコストは「たまたま最初に頼んだタスク」に付いてしまいます。タスクの順番を入れ替えるだけで、どのタスクが遅いかの答えが変わることになります。
 	</p>
 	<p>
-		Svelte の lint タスクを実装例として見ると、タスクの側は計算結果を求めているだけだと分かります。求めているのは構文木、名前解決、コンパイル用に整理した構文木
+		Svelte の lint のルール <code>svelte/valid-each-key</code> を実装例として見ると、ルールの側は計算結果を求めているだけだと分かります。求めているのは構文木、コンパイル用に整理した構文木、名前解決
 		の三つで、どれも別の層です（<a href="/learn/kernel/layers">05</a>）。
 	</p>
 </div>
 
-<Code item={data.code.lint} mark={['context.get::<Parsed>()', '.get::<Resolved>()', '.get::<Normalized>()', 'context.line_index()']} />
+<Code item={data.code.eachKey} mark={['.get::<Parsed>()', '.get::<Normalized>()', '.get::<Resolved>()']} />
 
 <div class="prose-learn">
 	<p>
-		最後の <code>context.line_index()</code> は計算結果ではなく、<Term name="DocumentContext" /> が別に持つ
+		lint のタスクの本体 <code>Lint::run</code> は、指摘を構造化データ形式にするときに <code>context.line_index()</code> を使います。
+	</p>
+</div>
+
+<Code item={data.code.lint} mark={['context.line_index()']} />
+
+<div class="prose-learn">
+	<p>
+		<code>context.line_index()</code> は計算結果ではなく、<Term name="DocumentContext" /> が別に持つ
 		<code>OnceCell&lt;LineIndex&gt;</code> です。行と列への変換はどの言語でも同じなので、カーネルが直接持っています。lint
 		だけでなく、Svelte と Vue の整形器も同じ索引を受け取ります。以前は二つの整形器が自分で索引を作り直していて、共有に変えたときの 1
 		ラウンドの命令数は 2,853,755,764 から 2,810,876,017（−1.5%）でした（42b6e550e1）。

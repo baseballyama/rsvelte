@@ -33,7 +33,7 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 		['svelte/semantic', 'languages/svelte/semantic/src/semantic', ['resolve']],
 		['svelte/compilation', 'languages/svelte/hir/src/compilation', ['compiler_syntax_tree', 'compiler_syntax_tree/builder']],
 		['svelte/format', 'languages/svelte/format/src', ['task']],
-		['svelte/lint', 'languages/svelte/lint/src', ['task', 'lint']],
+		['svelte/lint', 'languages/svelte/lint/src', ['task', 'lint', 'rules', 'rules/button_has_type', 'rules/no_unused_variables', 'rules/valid_each_key']],
 		['svelte/compile', 'languages/svelte/compile/src', ['task', 'computation']],
 		['svelte/typecheck', 'languages/svelte/typecheck/src', ['registration']],
 		['svelte/typescript_projection', 'languages/svelte/typescript_projection/src', ['computation', 'syntax_tree', 'lower', 'emit']],

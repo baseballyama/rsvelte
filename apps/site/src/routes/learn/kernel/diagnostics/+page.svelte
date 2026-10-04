@@ -91,14 +91,15 @@
 
 <div class="prose-learn">
 	<p>
-		Svelte プラグインはコンテキストを二つ持ちます。<code>SyntaxTreeContext</code> は元の構文木と JavaScript のスコープ解析を持ちます。
-		<code>CompilerSyntaxTreeContext</code> はコンパイル用に整理した構文木と名前解決を持ちます。ルールは自分の問いに答える層を選び、上流の設定と同じ順に並べます（層については
+		Svelte プラグインのコンテキストは、文書の計算結果を持つ <code>DocumentContext</code> 一つです。設定の中の各ルール（<code>RuleConfiguration</code>）が
+		<code>Rule&lt;DocumentContext&gt;</code> を実装します。各ルールは、自分の問いに答える層（元の構文木、名前解決、コンパイル用に整理した構文木）をその場で求めます。ルールは設定の順に走ります（層については
 		<a href="/learn/kernel/layers#lint">05</a>）。
 	</p>
 </div>
 
 <Code item={data.code.rules} />
-<Code item={data.code.noUnused} />
+<Code item={data.code.ruleImpl} />
+<Code item={data.code.noUnused} mark={['rsvelte_typescript_lint::no_unused_variables(&facts, identifier, |_| true, out)']} />
 
 <div class="prose-learn">
 	<p>
@@ -136,7 +137,7 @@
 
 	<H2 id="render" />
 	<p>
-		<code>render_json</code> は指摘を ESLint と同じ形の 構造化データ形式にします。行は 1 から、列も 1 から、単位は ユニコードの16ビット符号化方式 です。<code
+		<code>render_json_with_rules</code> は指摘を ESLint と同じ形の 構造化データ形式にします（<code>render_json</code> もこれを呼びます）。行は 1 から、列も 1 から、単位は ユニコードの16ビット符号化方式 です。<code
 			>LineColumn::column</code
 		>
 		は 0 から数えるので、ここで 1 を足します。終端を持たない指摘では、<code>end</code> を <code>null</code> と書きます。
