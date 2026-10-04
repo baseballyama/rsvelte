@@ -9,11 +9,13 @@
 
 ;
 
-{
-  svelteHTML.createElement("button", {
-    onclick: increment,
-  });
-  (count);
-  (double);
-}
+() => {
+  {
+    svelteHTML.createElement("button", {
+      onclick: increment,
+    });
+    (count);
+    (double);
+  }
+};
 export default __rsvelte_export_component<Record<string, never>, {}, "">();

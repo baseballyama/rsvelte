@@ -5,15 +5,17 @@
 
 ;
 
-{
-  svelteHTML.createElement("a", {
-    href,
-    ...(rest),
-  });
-}
-{
-  svelteHTML.createElement("a", {
-    ...(wrong),
-  });
-}
+() => {
+  {
+    svelteHTML.createElement("a", {
+      href,
+      ...(rest),
+    });
+  }
+  {
+    svelteHTML.createElement("a", {
+      ...(wrong),
+    });
+  }
+};
 export default __rsvelte_export_component<{ href?: string; tabindex?: number }, {}, "">();

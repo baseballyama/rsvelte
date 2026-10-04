@@ -16,25 +16,27 @@
 
 ;
 
-{
-  svelteHTML.createElement("p", {
-    [Symbol("@attach")]: grow,
-  });
-}
-{
-  svelteHTML.createElement("button", {
-    [Symbol("@attach")]: label('grow'),
-    onclick: () => (size += 1),
-  });
-}
-{
-  svelteHTML.createElement("div", {
-    [Symbol("@attach")]: (node: HTMLDivElement) => node.scrollTo(0, size),
-  });
-}
-{
-  svelteHTML.createElement("span", {
-    [Symbol("@attach")]: label(size),
-  });
-}
+() => {
+  {
+    svelteHTML.createElement("p", {
+      [Symbol("@attach")]: grow,
+    });
+  }
+  {
+    svelteHTML.createElement("button", {
+      [Symbol("@attach")]: label('grow'),
+      onclick: () => (size += 1),
+    });
+  }
+  {
+    svelteHTML.createElement("div", {
+      [Symbol("@attach")]: (node: HTMLDivElement) => node.scrollTo(0, size),
+    });
+  }
+  {
+    svelteHTML.createElement("span", {
+      [Symbol("@attach")]: label(size),
+    });
+  }
+};
 export default __rsvelte_export_component<Record<string, never>, {}, "">();

@@ -19,39 +19,41 @@
 const __rsvelte_public_props0 = __rsvelte_props({
   label: __rsvelte_untyped_prop(),
 }, {}, false);
-{
-  svelteHTML.createElement("button", {
-    type: "",
-  });
-}
-{
-  svelteHTML.createElement("button", {
-    type: true,
-  });
-}
-{
-  svelteHTML.createElement("button", {
-    type: "&#98;utton",
-  });
-}
-{
-  svelteHTML.createElement("button", {
-    type: "foo",
-  });
-}
-{
-  svelteHTML.createElement("button", {
-    type: label,
-  });
-}
-{
-  svelteHTML.createElement("button", {
-    type: `a${label}`,
-  });
-}
-{
-  svelteHTML.createElement("button", {
-    type,
-  });
-}
+() => {
+  {
+    svelteHTML.createElement("button", {
+      type: "",
+    });
+  }
+  {
+    svelteHTML.createElement("button", {
+      type: true,
+    });
+  }
+  {
+    svelteHTML.createElement("button", {
+      type: "&#98;utton",
+    });
+  }
+  {
+    svelteHTML.createElement("button", {
+      type: "foo",
+    });
+  }
+  {
+    svelteHTML.createElement("button", {
+      type: label,
+    });
+  }
+  {
+    svelteHTML.createElement("button", {
+      type: `a${label}`,
+    });
+  }
+  {
+    svelteHTML.createElement("button", {
+      type,
+    });
+  }
+};
 export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();

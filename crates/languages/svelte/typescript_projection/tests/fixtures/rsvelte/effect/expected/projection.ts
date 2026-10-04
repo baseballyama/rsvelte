@@ -15,11 +15,13 @@
 
 ;
 
-{
-  svelteHTML.createElement("button", {
-    onclick: () => n++,
-  });
-  (n);
-  (f());
-}
+() => {
+  {
+    svelteHTML.createElement("button", {
+      onclick: () => n++,
+    });
+    (n);
+    (f());
+  }
+};
 export default __rsvelte_export_component<Record<string, never>, {}, "">();

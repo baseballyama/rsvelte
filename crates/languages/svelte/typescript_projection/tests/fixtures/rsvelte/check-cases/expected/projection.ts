@@ -7,28 +7,30 @@
 
 ;
 
-{
-  svelteHTML.createElement("button", {
-    type: "button",
-    onclick: () => count.toUpperCase(),
-  });
-  (label.foo);
-}
-if (maybe) {
+() => {
   {
-    svelteHTML.createElement("p", {});
-    (maybe.length);
+    svelteHTML.createElement("button", {
+      type: "button",
+      onclick: () => count.toUpperCase(),
+    });
+    (label.foo);
   }
-} else {
+  if (maybe) {
+    {
+      svelteHTML.createElement("p", {});
+      (maybe.length);
+    }
+  } else {
+    {
+      svelteHTML.createElement("p", {});
+      (maybe.length);
+    }
+  }
   {
-    svelteHTML.createElement("p", {});
-    (maybe.length);
+    svelteHTML.createElement("p", {
+      title: `a${count.bar}b`,
+    });
+    (label.baz);
   }
-}
-{
-  svelteHTML.createElement("p", {
-    title: `a${count.bar}b`,
-  });
-  (label.baz);
-}
+};
 export default __rsvelte_export_component<{ label: string }, {}, "">();

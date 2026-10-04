@@ -10,9 +10,11 @@
 
 ;
 
-{
-  svelteHTML.createElement("p", {});
-  (shout(name));
-  (count);
-}
+() => {
+  {
+    svelteHTML.createElement("p", {});
+    (shout(name));
+    (count);
+  }
+};
 export default __rsvelte_export_component<Props, {}, "">();

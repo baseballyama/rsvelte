@@ -9,25 +9,27 @@
 
 ;
 
-{
-  for (let [i, item] of __rsvelte_each(items)) {
-    (item);
-    {
-      svelteHTML.createElement("button", {
-        onclick: () => (picked = item),
-      });
+() => {
+  {
+    for (let [i, item] of __rsvelte_each(items)) {
       (item);
-    }
-    {
-      svelteHTML.createElement("button", {
-        onclick: () => remove(item),
-      });
-      (i);
+      {
+        svelteHTML.createElement("button", {
+          onclick: () => (picked = item),
+        });
+        (item);
+      }
+      {
+        svelteHTML.createElement("button", {
+          onclick: () => remove(item),
+        });
+        (i);
+      }
     }
   }
-}
-{
-  svelteHTML.createElement("p", {});
-  (picked);
-}
+  {
+    svelteHTML.createElement("p", {});
+    (picked);
+  }
+};
 export default __rsvelte_export_component<Record<string, never>, {}, "">();

@@ -6,20 +6,22 @@
 
 ;
 
-{
-  svelteHTML.createElement("div", {
-    class: { active, [tone]: level > 1 },
-  });
-  (level > 2);
-}
-{
-  svelteHTML.createElement("div", {});
-  (active.length);
-}
-{
-  svelteHTML.createElement("button", {
-    onclick: () => level++,
-  });
-  (level);
-}
+() => {
+  {
+    svelteHTML.createElement("div", {
+      class: { active, [tone]: level > 1 },
+    });
+    (level > 2);
+  }
+  {
+    svelteHTML.createElement("div", {});
+    (active.length);
+  }
+  {
+    svelteHTML.createElement("button", {
+      onclick: () => level++,
+    });
+    (level);
+  }
+};
 export default __rsvelte_export_component<Record<string, never>, {}, "">();
