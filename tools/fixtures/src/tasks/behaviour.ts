@@ -5,42 +5,105 @@
 // on the target runtime, under the same props and steps (docs/fixtures.md §12).
 import { svelteModule, vueModule } from '../behaviour/official.ts';
 import type { Target } from '../behaviour/modules.ts';
-import { moduleFile, trace, traceDiff, traceErrors, type Runtime, type Trace } from '../behaviour/runtime.ts';
+import {
+	moduleFile,
+	trace,
+	traceDiff,
+	traceErrors,
+	type Runtime,
+	type Trace,
+} from '../behaviour/runtime.ts';
+import { inputFile } from '../paths.ts';
 import { stableStringify } from '../fsutil.ts';
 import type { Task, Unit, Variant } from '../types.ts';
 
 const traceText = (t: Trace): string => stableStringify(t) + '\n';
 
-function behaviourTask(id: string, lang: string, source: Runtime, target: Runtime): Task {
+function behaviourTask(
+	id: string,
+	lang: string,
+	source: Runtime,
+	target: Runtime,
+): Task {
 	const official = source === 'svelte' ? svelteModule : vueModule;
 	return {
 		id,
 		storage: 'committed',
-		oracles: source === 'svelte' ? ['svelte', 'jsdom'] : ['@vue/compiler-sfc', 'vue', 'typescript', 'jsdom'],
+		oracles:
+			source === 'svelte'
+				? ['svelte', 'jsdom']
+				: ['@vue/compiler-sfc', 'vue', 'typescript', 'jsdom'],
 		variants: [
 			{ id: 'client', options: {} },
-			{ id: 'server', options: {} }
+			{ id: 'server', options: {} },
 		],
 		appliesTo: (unit) => unit.lang === lang,
 		async run(unit: Unit, src: string, variant: Variant) {
 			const t = variant.id as Target;
-			const result = await trace(source, t, moduleFile(official(src, unit.path, t), t), unit.fixture.behaviour ?? {});
+			const sourceFile = unit.sourceFile ?? inputFile(unit, unit.ext);
+			const result = await trace(
+				source,
+				t,
+				moduleFile(
+					source === 'svelte'
+						? svelteModule(
+								src,
+								unit.path,
+								t,
+								!!unit.fixture.behaviour?.custom_element,
+								unit.fixture.behaviour?.experimental_async,
+							)
+						: official(src, unit.path, t),
+					t,
+					sourceFile,
+				),
+				unit.fixture.behaviour ?? {},
+				sourceFile,
+			);
 			const errors = traceErrors(result);
-			if (errors.length > 0) throw new Error(`${unit.path}: the official ${source} build fails its own steps: ${errors.join('; ')}`);
-			return { trace: { text: traceText(result), ext: 'trace.json', compare: 'json' } };
+			if (errors.length > 0)
+				throw new Error(
+					`${unit.path}: the official ${source} build fails its own steps: ${errors.join('; ')}`,
+				);
+			return {
+				trace: { text: traceText(result), ext: 'trace.json', compare: 'json' },
+			};
 		},
 		observe: {
 			ext: 'trace.json',
 			async derive(unit: Unit, variant: Variant, file: string) {
-				const result = await trace(target, variant.id as Target, file, unit.fixture.behaviour ?? {});
+				const runtime =
+					target === 'vapor' && variant.id === 'server' ? 'vue' : target;
+				const result = await trace(
+					runtime,
+					variant.id as Target,
+					file,
+					unit.fixture.behaviour ?? {},
+					unit.sourceFile ?? inputFile(unit, unit.ext),
+					target === 'vapor',
+				);
 				const text = traceText(result);
-				return { text, diff: (expected: string) => traceDiff(JSON.parse(expected), JSON.parse(text)) };
-			}
-		}
+				return {
+					text,
+					diff: (expected: string) =>
+						traceDiff(JSON.parse(expected), JSON.parse(text)),
+				};
+			},
+		},
 	};
 }
 
 /** A `.vue` component compiled for the Svelte runtime. */
-export const svueCompile = behaviourTask('svue.compile', 'cross-vue', 'vue', 'svelte');
+export const svueCompile = behaviourTask(
+	'svue.compile',
+	'cross-vue',
+	'vue',
+	'svelte',
+);
 /** A `.svelte` component compiled for the Vue runtime. */
-export const vuelteCompile = behaviourTask('vuelte.compile', 'cross-svelte', 'svelte', 'vue');
+export const vuelteCompile = behaviourTask(
+	'vuelte.compile',
+	'cross-svelte',
+	'svelte',
+	'vapor',
+);

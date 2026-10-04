@@ -45,6 +45,7 @@ export interface FixtureToml {
 }
 
 export interface Unit extends UnitKey, UnitMeta {
+	sourceFile?: string;
 	ext: string;
 	fixture: FixtureToml;
 }

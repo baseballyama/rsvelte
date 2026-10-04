@@ -11,7 +11,7 @@ import { rpc } from './worker.ts';
 
 export { moduleFile } from './modules.ts';
 
-export type Runtime = 'svelte' | 'vue';
+export type Runtime = 'svelte' | 'vue' | 'vapor';
 
 export type Step =
 	| { click: string }
@@ -22,44 +22,82 @@ export type Step =
 	| { submit: string };
 
 export interface Behaviour {
+	browser?: boolean;
+	node?: boolean;
+	custom_element?: string;
+	custom_element_html?: string;
+	experimental_async?: boolean;
+	computed_styles?: [string, string][];
+	animated_styles?: [string, string, number, number][];
 	props?: Record<string, unknown>;
 	steps?: Step[];
+	include_head?: boolean;
+	include_unmount?: boolean;
 }
 
 export interface ClientStep {
-	do: 'mount' | Step;
+	do: 'mount' | 'unmount' | Step;
 	dom?: string[];
+	head?: string[];
 	error?: string;
 	errors?: string[];
 }
-export type Trace = { steps: ClientStep[] } | { html: string[] } | { error: string };
+export type Trace =
+	| { steps: ClientStep[] }
+	| { html: string[]; head?: string[] }
+	| { error: string };
 
 export interface TraceRequest {
 	runtime: Runtime;
 	target: Target;
 	file: string;
 	behaviour: Behaviour;
+	sourceFile?: string;
+	translated?: boolean;
 }
 
-const call = rpc<TraceRequest, Trace>(new URL('./client.ts', import.meta.url), (m) => ({ error: `worker: ${m}` }));
+const call = rpc<TraceRequest, Trace>(
+	new URL('./client.ts', import.meta.url),
+	(m) => ({ error: `worker: ${m}` }),
+);
 
 /** The behaviour trace of the component module `file` exports, on `runtime`, for one build target. */
-export const trace = (runtime: Runtime, target: Target, file: string, behaviour: Behaviour): Promise<Trace> => call({ runtime, target, file, behaviour });
+export const trace = (
+	runtime: Runtime,
+	target: Target,
+	file: string,
+	behaviour: Behaviour,
+	sourceFile?: string,
+	translated = false,
+): Promise<Trace> =>
+	call({ runtime, target, file, behaviour, sourceFile, translated });
 
 /** Errors a trace carries; the official toolchain's trace must have none. */
 export function traceErrors(t: Trace): string[] {
 	if ('error' in t) return [t.error];
 	if ('html' in t) return [];
-	return t.steps.flatMap((s) => [...(s.error ? [s.error] : []), ...(s.errors ?? [])]);
+	return t.steps.flatMap((s) => [
+		...(s.error ? [s.error] : []),
+		...(s.errors ?? []),
+	]);
 }
 
 /** Where two traces first differ, in words, or null when they are equal. */
 export function traceDiff(expected: Trace, actual: Trace): string | null {
 	if (JSON.stringify(expected) === JSON.stringify(actual)) return null;
 	if ('error' in actual) return actual.error;
-	if ('html' in expected && 'html' in actual) return `server html: ${linesDiff(expected.html, actual.html)}`;
-	if (!('steps' in expected) || !('steps' in actual)) return 'different trace kinds';
-	for (let i = 0; i < Math.max(expected.steps.length, actual.steps.length); i++) {
+	if ('html' in expected && 'html' in actual) {
+		if (JSON.stringify(expected.html) !== JSON.stringify(actual.html))
+			return `server html: ${linesDiff(expected.html, actual.html)}`;
+		return `server head: ${linesDiff(expected.head ?? [], actual.head ?? [])}`;
+	}
+	if (!('steps' in expected) || !('steps' in actual))
+		return 'different trace kinds';
+	for (
+		let i = 0;
+		i < Math.max(expected.steps.length, actual.steps.length);
+		i++
+	) {
 		const e = expected.steps[i];
 		const a = actual.steps[i];
 		if (JSON.stringify(e) === JSON.stringify(a)) continue;
@@ -67,7 +105,10 @@ export function traceDiff(expected: Trace, actual: Trace): string | null {
 		if (!a) return `${at}: the actual trace ends before it`;
 		if (!e) return `${at}: the actual trace has an extra step`;
 		if (a.error) return `${at}: ${a.error}`;
-		if (JSON.stringify(e.errors) !== JSON.stringify(a.errors)) return `${at}: listener errors ${JSON.stringify(a.errors ?? [])}, expected ${JSON.stringify(e.errors ?? [])}`;
+		if (JSON.stringify(e.errors) !== JSON.stringify(a.errors))
+			return `${at}: listener errors ${JSON.stringify(a.errors ?? [])}, expected ${JSON.stringify(e.errors ?? [])}`;
+		if (JSON.stringify(e.head) !== JSON.stringify(a.head))
+			return `${at}: head ${linesDiff(e.head ?? [], a.head ?? [])}`;
 		return `${at}: ${linesDiff(e.dom ?? [], a.dom ?? [])}`;
 	}
 	return 'traces differ';
@@ -76,6 +117,7 @@ export function traceDiff(expected: Trace, actual: Trace): string | null {
 function linesDiff(expected: string[], actual: string[]): string {
 	let i = 0;
 	while (i < expected.length && expected[i] === actual[i]) i++;
-	const show = (l: string | undefined) => (l === undefined ? '<end>' : l.trim());
+	const show = (l: string | undefined) =>
+		l === undefined ? '<end>' : l.trim();
 	return `line ${i + 1}: expected ${show(expected[i])}, actual ${show(actual[i])}`;
 }

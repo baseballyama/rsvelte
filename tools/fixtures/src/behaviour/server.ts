@@ -7,31 +7,55 @@ export interface Request {
 	runtime: 'svelte' | 'vue';
 	file: string;
 	props: Record<string, unknown>;
+	include_head?: boolean;
+	sourceFile?: string;
+	translated?: boolean;
+	experimental_async?: boolean;
 }
-export type Response = { html: string } | { error: string };
+export type Response = { html: string; head?: string } | { error: string };
 
 provideRuntimes('server');
 
-async function render({ runtime, file, props }: Request): Promise<Response> {
+async function render({
+	runtime,
+	file,
+	props,
+	include_head,
+	sourceFile,
+	translated,
+	experimental_async,
+}: Request): Promise<Response> {
 	let component: unknown;
 	try {
-		component = await loadComponent(file);
+		component = await loadComponent(
+			file,
+			false,
+			sourceFile,
+			translated,
+			experimental_async,
+		);
 	} catch (e) {
 		return { error: `load: ${message(e)}` };
 	}
 	try {
 		if (runtime === 'svelte') {
 			const { render } = await import('svelte/server');
-			return { html: render(component as never, { props } as never).body };
+			const output = render(component as never, { props } as never);
+			const result = experimental_async ? await output : output;
+			return { html: result.body, ...(include_head && { head: result.head }) };
 		}
 		const vue = await import('vue');
 		const { renderToString } = await import('vue/server-renderer');
 		const app = vue.createSSRApp(component as never, props);
 		app.config.warnHandler = () => {};
-		return { html: await renderToString(app) };
+		const context: { head?: string } = {};
+		const html = await renderToString(app, context);
+		return { html, ...(include_head && { head: context.head ?? '' }) };
 	} catch (e) {
 		return { error: `render: ${message(e)}` };
 	}
 }
 
-parentPort!.on('message', async (req: Request) => parentPort!.postMessage(await render(req)));
+parentPort!.on('message', async (req: Request) =>
+	parentPort!.postMessage(await render(req)),
+);
