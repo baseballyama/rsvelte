@@ -12,10 +12,19 @@ pub(super) fn prepare<'a>(
     let custom_element = facts.validated.custom_element.as_ref();
     let javascript = input.component.javascript;
     check_runes(input, res, target, custom_element.is_some())?;
+    let erased = erased_imports(
+        javascript,
+        input
+            .component
+            .module
+            .into_iter()
+            .chain([input.component.program]),
+    );
     let declared = res
         .sem
         .bindings
         .iter()
+        .filter(|binding| !binding.declaration.is_some_and(|d| erased.contains(&d)))
         .map(|binding| javascript.atoms.get(binding.name));
     let referenced = res
         .sem
@@ -102,4 +111,33 @@ fn each_index_names(
         &mut out,
     );
     out
+}
+
+/// Upstream removes TypeScript-only imports before it builds scopes, so their names are free.
+fn erased_imports(
+    javascript: &SyntaxTree,
+    programs: impl Iterator<Item = rsvelte_typescript::NodeIdentifier>,
+) -> rustc_hash::FxHashSet<rsvelte_typescript::NodeIdentifier> {
+    let mut erased = rustc_hash::FxHashSet::default();
+    for program in programs {
+        let rsvelte_typescript::Kind::Program(statements) = javascript.kind(program) else {
+            continue;
+        };
+        for &statement in statements {
+            if let rsvelte_typescript::Kind::Import {
+                specifiers,
+                type_only,
+                ..
+            } = javascript.kind(statement)
+            {
+                erased.extend(specifiers.iter().copied().filter(|&specifier| {
+                    type_only
+                        || javascript.flags(specifier)
+                            & rsvelte_typescript::syntax_tree::flag::TYPE_ONLY
+                            != 0
+                }));
+            }
+        }
+    }
+    erased
 }
