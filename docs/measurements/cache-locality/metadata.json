@@ -1,0 +1,102 @@
+{
+  "date": "2026-10-03",
+  "base_revision": "d3fe0394b0b11ab70829fad9a544b2b03ac81618",
+  "working_tree_was_dirty": true,
+  "source_manifests": {
+    "before": {
+      "file": "before-source.json",
+      "sha256": "2d3ebd0e8962a8a185e7cddb9c82caec8f7e88965fe0128eba87a04fe936058e"
+    },
+    "after": {
+      "file": "after-source.json",
+      "sha256": "d264389142ec98891804fc8a4b7c3d4080179176c41ca29a480e1e4b359fca59"
+    }
+  },
+  "source_note": "Measurements use frozen trees. The two lookup implementations change. The candidate formatter also reorders one import list in compile_vapor/src/compilation/vapor/script.rs; its executable code is unchanged. All three changed source files are archived. Concurrent work is excluded. Promotion adds a Clippy line-count expectation to validation.rs. The layout example and its CSS dev dependency are measurement tools added after the compiler snapshots. The archived as-used profiler predates the final guard for undefined zero-access miss rates; populated measured rates are unchanged.",
+  "environment": {
+    "cpu": "Apple M1 Pro",
+    "memory_bytes": 34359738368,
+    "rust": "1.98.1",
+    "node": "26.7.0",
+    "svelte": "5.57.1",
+    "cpu_build": "release, metrics disabled",
+    "allocation_build": "release with metrics, separate target directories",
+    "linux_image": "sha256:b7d723500c05a84a4ac8077b69d52d91b41e6fb6cab56e5b6752dfaf4a08b443"
+  },
+  "models": {
+    "64": "32 KiB I1, 32 KiB D1, 8 MiB LL; 8/8/16 ways; 64-byte lines",
+    "128": "192 KiB I1, 128 KiB D1, 12 MiB LL; assumed 3/8/12 ways; 128-byte lines",
+    "capacity_note": "128-byte model capacities and line size match sysctl values for performance cores. Associativities are assumptions. This is not a model of the full M1 microarchitecture."
+  },
+  "cpu_note": "Process hardware cycles and instructions, 2000 rounds per process, 24 samples per population in ABBA order. All process threads are included. Core placement is not pinned. Shared-host cycle ranges overlap; these are observed medians.",
+  "cache_note": "Three rounds per process, twelve samples per population and model. Process totals include loader, cold first round and warm later rounds. Cachegrind miss counts are simulation, not measured hardware misses.",
+  "hardware_cache": {
+    "status": "UNMEASURED",
+    "reason": "Linux VM has no supported PMU events, including with CAP_PERFMON. perf reports all six hardware events as not supported. macOS proc_pid_rusage reports hardware cycles and instructions, not cache misses.",
+    "probe": "hardware-probe.json"
+  },
+  "old_rsvelte": {
+    "revision": "5ed8ea3a3401b9fbbe780d3b18d6f90073291d6b",
+    "source_harness": "../special-elements-old.rs"
+  },
+  "three_arm_note": "Twenty shared inputs, three rounds per process and four samples per arm. Official Svelte uses Node --jitless for Valgrind profiling. These cache totals are not a comparison of normal JIT throughput.",
+  "checks": {
+    "workspace_tests": "PASS",
+    "clippy_all_targets": "PASS",
+    "clippy_all_targets_all_features": "PASS",
+    "fmt": "PASS",
+    "structure": "PASS",
+    "typecheck": "PASS",
+    "host_tool_tests": {
+      "passed": 4,
+      "skipped": 2,
+      "failed": 0
+    },
+    "linux_tool_tests": {
+      "passed": 5,
+      "skipped": 1,
+      "failed": 0
+    },
+    "workflow_yaml_and_pins": "PASS",
+    "remote_ci": "UNMEASURED",
+    "output_parity": {
+      "files": 82,
+      "outputs": 164,
+      "native_byte_differences": 0,
+      "official_ast_matches": 164
+    },
+    "layout_records": 21
+  },
+  "controls": {
+    "cache_locality": "Strided access raises simulated D1 read misses by more than 4x and the real baseline gate rejects it.",
+    "unchanged_baseline": "PASS",
+    "empty_workload": "Rejected before a complete report is written.",
+    "missing_raw_report": "Old raw data is removed and a failed process is rejected.",
+    "hardware_unavailable": "Real Linux collector returns nonzero and UNMEASURED rather than reuse stale success.",
+    "discarded_trial": "Initial directories lacked .svelte suffixes and produced zero bytes. Its counters are excluded."
+  },
+  "peak_rss": "UNMEASURED",
+  "artifacts": {
+    "README.md": "3267b12a9edfe88a59085d84da9733fd41a17b63b8bfe51996af29ce4cad833f",
+    "after-source.json": "d264389142ec98891804fc8a4b7c3d4080179176c41ca29a480e1e4b359fca59",
+    "allocations-after.json": "4a45d67e90170c6d6a8ab437ebad7bd22c98206ac20623423763c5f077ccf8cd",
+    "allocations-before.json": "4a45d67e90170c6d6a8ab437ebad7bd22c98206ac20623423763c5f077ccf8cd",
+    "allocations-large-after.json": "7c17d618afa3bea972f8f8ebb990d9267d9745d4cb68a2422d6da8577bee4291",
+    "allocations-large-before.json": "7c17d618afa3bea972f8f8ebb990d9267d9745d4cb68a2422d6da8577bee4291",
+    "before-source.json": "2d3ebd0e8962a8a185e7cddb9c82caec8f7e88965fe0128eba87a04fe936058e",
+    "cache-large-128.json": "d9ab86b8e182aa80d88713297cfad9ff8a2ee6ce280b6a4d30fc7128d6adfe37",
+    "cache-large-64.json": "a9bd853a8078c4f4a255b6ab515c9d4cd285bc43644b99c01da1c448769b871f",
+    "cache-main-128.json": "8d4aca58a8f95bdfce7ccdfbe4e79aa929ccb260e0faaddfdb426e01e3f72f6b",
+    "cache-main-64.json": "2e37b7a2b688b1e2d376ad79b369bd4a6743da1e6905608ef56eb1920076aa5c",
+    "cycles-large.json": "e7bdddb8e8c679579d0d2bf32079880fec9a4eea75f90e416a18b0e6e892ac3f",
+    "cycles-main.json": "17946b3e9d9e610f935e0549c4b50567e9c1aaf5369acf1c5a29da64c360389a",
+    "hardware-probe.json": "388c1c6cff73ed3f0cf3971d10cf6d280370b1b8635467f83801b6fd43957f99",
+    "layout.json": "1501c90f699faf1aa203eac72b92d798383dbc7902d73656b7c5dc5e44d23604",
+    "output-parity.json": "957a97cee8fdd76c5e958797e3fd327fead4c8b4d1fb5322bd9b44360d766d7f",
+    "population-large.json": "f2399681ca880e8c671cb72c95f65684245b955633c7132c0aeb371b00c2668f",
+    "population-main.json": "9b39b84383077e1c463b1f388a4a612326614bcfdb390473941f39dae16fa94a",
+    "profiles.zip": "8403a0774e3a8757f719374127ace6520ddc45f634cd988b557473999b90a19a",
+    "sources.zip": "dbb3d85842ca507388ede82c34e1a41a20d2d6104bd721bada042819b01a4296",
+    "three-arms.json": "ec5cabd24073abfc546d42ed036ce59121309f2bf1b879b3825d4e919dcdc82f"
+  }
+}

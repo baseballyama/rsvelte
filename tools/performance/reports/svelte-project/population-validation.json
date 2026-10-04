@@ -1,0 +1,380 @@
+[
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 0,
+    "arm": "official-js",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 6174000,
+    "stdout_sha256": "ddaa342651987099593301108e143d2160cb4cbb3a09af3b783b20101b32227d"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 1,
+    "arm": "old-main",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 6174000,
+    "stdout_sha256": "3cf0239e48730b391a1f7e01f18c978b9cf2dc7336da84130b2fef0701e8ffe8"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 2,
+    "arm": "rewrite-ast",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 2553000,
+    "stdout_sha256": "44bac46045ef724e5ed1abcdc7e2c799f5503c93326b08a2e44bf5611bb5bf75"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 3,
+    "arm": "rewrite-ast",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 2553000,
+    "stdout_sha256": "44bac46045ef724e5ed1abcdc7e2c799f5503c93326b08a2e44bf5611bb5bf75"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 4,
+    "arm": "old-main",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 6174000,
+    "stdout_sha256": "3cf0239e48730b391a1f7e01f18c978b9cf2dc7336da84130b2fef0701e8ffe8"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 5,
+    "arm": "official-js",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 6174000,
+    "stdout_sha256": "ddaa342651987099593301108e143d2160cb4cbb3a09af3b783b20101b32227d"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 6,
+    "arm": "official-js",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 6174000,
+    "stdout_sha256": "ddaa342651987099593301108e143d2160cb4cbb3a09af3b783b20101b32227d"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 7,
+    "arm": "old-main",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 6174000,
+    "stdout_sha256": "3cf0239e48730b391a1f7e01f18c978b9cf2dc7336da84130b2fef0701e8ffe8"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 8,
+    "arm": "rewrite-ast",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 2553000,
+    "stdout_sha256": "44bac46045ef724e5ed1abcdc7e2c799f5503c93326b08a2e44bf5611bb5bf75"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 9,
+    "arm": "rewrite-ast",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 2553000,
+    "stdout_sha256": "44bac46045ef724e5ed1abcdc7e2c799f5503c93326b08a2e44bf5611bb5bf75"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 10,
+    "arm": "old-main",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 6174000,
+    "stdout_sha256": "3cf0239e48730b391a1f7e01f18c978b9cf2dc7336da84130b2fef0701e8ffe8"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 11,
+    "arm": "official-js",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 6174000,
+    "stdout_sha256": "ddaa342651987099593301108e143d2160cb4cbb3a09af3b783b20101b32227d"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 12,
+    "arm": "official-js",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 6174000,
+    "stdout_sha256": "ddaa342651987099593301108e143d2160cb4cbb3a09af3b783b20101b32227d"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 13,
+    "arm": "old-main",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 6174000,
+    "stdout_sha256": "3cf0239e48730b391a1f7e01f18c978b9cf2dc7336da84130b2fef0701e8ffe8"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 14,
+    "arm": "rewrite-ast",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 2553000,
+    "stdout_sha256": "44bac46045ef724e5ed1abcdc7e2c799f5503c93326b08a2e44bf5611bb5bf75"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 15,
+    "arm": "rewrite-ast",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 2553000,
+    "stdout_sha256": "44bac46045ef724e5ed1abcdc7e2c799f5503c93326b08a2e44bf5611bb5bf75"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 16,
+    "arm": "old-main",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 6174000,
+    "stdout_sha256": "3cf0239e48730b391a1f7e01f18c978b9cf2dc7336da84130b2fef0701e8ffe8"
+  },
+  {
+    "report": "hardware-final-three-report.json",
+    "sample": 17,
+    "arm": "official-js",
+    "population": 8,
+    "rounds": 1000,
+    "output_bytes": 6174000,
+    "stdout_sha256": "ddaa342651987099593301108e143d2160cb4cbb3a09af3b783b20101b32227d"
+  },
+  {
+    "report": "hardware-class-dense-report.json",
+    "sample": 0,
+    "arm": "rewrite-before",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 5327200,
+    "stdout_sha256": "ab0d2f3df08fbc1f87d125b295350692c1dc96eb2c2a5bc712f1911554908e2c"
+  },
+  {
+    "report": "hardware-class-dense-report.json",
+    "sample": 1,
+    "arm": "rewrite-ast",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 5531800,
+    "stdout_sha256": "2886f2576f271db1a5548f14b8169ca555a68c976eac93a177ecc8b0144dc6e1"
+  },
+  {
+    "report": "hardware-class-dense-report.json",
+    "sample": 2,
+    "arm": "rewrite-ast",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 5531800,
+    "stdout_sha256": "86975f6746ddbc38c3a84e1ddfcf327de1c228c9104d0df0c0b6fc0e52e2f4d0"
+  },
+  {
+    "report": "hardware-class-dense-report.json",
+    "sample": 3,
+    "arm": "rewrite-before",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 5327200,
+    "stdout_sha256": "5de986efd977c09323fed05e8f7251ede40e27d4264958384752ddeedea15d7e"
+  },
+  {
+    "report": "hardware-class-dense-report.json",
+    "sample": 4,
+    "arm": "rewrite-before",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 5327200,
+    "stdout_sha256": "eb5fa4b39fd9d6f40f33665af3f56e300fa5691d6bdb76721c9b923d853b81e6"
+  },
+  {
+    "report": "hardware-class-dense-report.json",
+    "sample": 5,
+    "arm": "rewrite-ast",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 5531800,
+    "stdout_sha256": "8e3a7bad25490c3fa9735c53d417fd6a9bad52a5b3c1d84bef42e41f69615113"
+  },
+  {
+    "report": "hardware-class-dense-report.json",
+    "sample": 6,
+    "arm": "rewrite-ast",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 5531800,
+    "stdout_sha256": "a15c7de9dc3d952d30c393cccbce85f20ba6c0f71407c9fe3bfb7b20a2f1c37d"
+  },
+  {
+    "report": "hardware-class-dense-report.json",
+    "sample": 7,
+    "arm": "rewrite-before",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 5327200,
+    "stdout_sha256": "1c8abc331b5c86072d299c34280dc95e56a5802597424b1a7d65f088214fcd0d"
+  },
+  {
+    "report": "hardware-class-dense-report.json",
+    "sample": 8,
+    "arm": "rewrite-before",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 5327200,
+    "stdout_sha256": "1146557d431d53fb79ccc56a007f841c9ee1c2e97e15a4b9db719b175dc673b4"
+  },
+  {
+    "report": "hardware-class-dense-report.json",
+    "sample": 9,
+    "arm": "rewrite-ast",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 5531800,
+    "stdout_sha256": "1cc618f7e57fa8945179af3455f1e5eb057b329f5f2c6e19a2304a73235b4cf8"
+  },
+  {
+    "report": "hardware-class-dense-report.json",
+    "sample": 10,
+    "arm": "rewrite-ast",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 5531800,
+    "stdout_sha256": "ce5270d332badaf4676b50d2e9cc3bcfc8ccb738b5c859f114fab8e4ba3b9a31"
+  },
+  {
+    "report": "hardware-class-dense-report.json",
+    "sample": 11,
+    "arm": "rewrite-before",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 5327200,
+    "stdout_sha256": "c0584dd4c71eadb60205b6ee067523fbfc5865dbd404243a9423398fe5005341"
+  },
+  {
+    "report": "hardware-dense-final-report.json",
+    "sample": 0,
+    "arm": "rewrite-before",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 1337500,
+    "stdout_sha256": "5a0a8b7a7831a594b1ee18041236d5b362b54debda4e12a19a1d5577c83fab41"
+  },
+  {
+    "report": "hardware-dense-final-report.json",
+    "sample": 1,
+    "arm": "rewrite-ast",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 1542100,
+    "stdout_sha256": "c51f3ccadc759eaacfe35e5ad174f2ce7aee97a44eeddfa2594775227bb8ecfc"
+  },
+  {
+    "report": "hardware-dense-final-report.json",
+    "sample": 2,
+    "arm": "rewrite-ast",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 1542100,
+    "stdout_sha256": "d5b67973fcf46dbd2ef57279f7a2409a84472a2388cdfeee1b2db1197e7a12a6"
+  },
+  {
+    "report": "hardware-dense-final-report.json",
+    "sample": 3,
+    "arm": "rewrite-before",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 1337500,
+    "stdout_sha256": "850a505891a02e85df569e8f7b4980fad6dfccaf75ac1dcb407ffc725e33e0a1"
+  },
+  {
+    "report": "hardware-dense-final-report.json",
+    "sample": 4,
+    "arm": "rewrite-before",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 1337500,
+    "stdout_sha256": "caefaf0896d5f259e95580aecb4c84a601d00e4ed2e7ce74e95139c41e106838"
+  },
+  {
+    "report": "hardware-dense-final-report.json",
+    "sample": 5,
+    "arm": "rewrite-ast",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 1542100,
+    "stdout_sha256": "271525a58898090e24d171a965ea8a10b6cc4499ae0ac75d3a1a8b0b034e355c"
+  },
+  {
+    "report": "hardware-dense-final-report.json",
+    "sample": 6,
+    "arm": "rewrite-ast",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 1542100,
+    "stdout_sha256": "12c551a0f7b0314aae3999cbb789aa05532f1003e1354564e5bacc9f10ff495e"
+  },
+  {
+    "report": "hardware-dense-final-report.json",
+    "sample": 7,
+    "arm": "rewrite-before",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 1337500,
+    "stdout_sha256": "4d285e9874bdf6ebdcbf3c389611eaedd4ed8abc982a17c3a90f9691bd459abb"
+  },
+  {
+    "report": "hardware-dense-final-report.json",
+    "sample": 8,
+    "arm": "rewrite-before",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 1337500,
+    "stdout_sha256": "b4cd22ff56af35d0437cd3ac807082bea97e53aba2cd2376d681e8bd963b7a79"
+  },
+  {
+    "report": "hardware-dense-final-report.json",
+    "sample": 9,
+    "arm": "rewrite-ast",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 1542100,
+    "stdout_sha256": "ca95908ee851567804176941bdd5b119c56e9e4204fbbb1f7d8c486a8815ce91"
+  },
+  {
+    "report": "hardware-dense-final-report.json",
+    "sample": 10,
+    "arm": "rewrite-ast",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 1542100,
+    "stdout_sha256": "60f4d2079a8caad76a4370e688579e3f2ce17db90c469968045bde695bb360e3"
+  },
+  {
+    "report": "hardware-dense-final-report.json",
+    "sample": 11,
+    "arm": "rewrite-before",
+    "population": 1,
+    "rounds": 100,
+    "output_bytes": 1337500,
+    "stdout_sha256": "4e8296506d8a8bdc6c2d077597d7436e35ad17415dcd03a64bc4d2b3ccbc923a"
+  }
+]

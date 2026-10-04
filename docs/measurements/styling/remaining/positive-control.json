@@ -1,0 +1,30 @@
+[
+  {
+    "step": "clean",
+    "exit_code": 0,
+    "js_matched": 32,
+    "css_matched": 32,
+    "artifacts": 32
+  },
+  {
+    "step": "changed-js",
+    "exit_code": 1,
+    "js_matched": 31,
+    "css_matched": 32,
+    "artifacts": 32
+  },
+  {
+    "step": "changed-css",
+    "exit_code": 1,
+    "js_matched": 32,
+    "css_matched": 31,
+    "artifacts": 32
+  },
+  {
+    "step": "restored",
+    "exit_code": 0,
+    "js_matched": 32,
+    "css_matched": 32,
+    "artifacts": 32
+  }
+]

@@ -1,0 +1,995 @@
+{
+  "oracle": "5.57.1",
+  "documents": 82,
+  "population": 164,
+  "nativeDifferences": 0,
+  "counts": {
+    "match": 164
+  },
+  "rows": [
+    {
+      "file": "target/cache-locality/population/boundary-attrs.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-attrs.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-array-fixed.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-array-fixed.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-array.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-array.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-attribute.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-attribute.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-default-call.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-default-call.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-default.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-default.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-nested.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-nested.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-object.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-object.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-rest.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-rest.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-snippet.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-snippet.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-whole-default.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-failed-whole-default.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-inline-error.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-inline-error.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-nested.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-nested.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-pending-attribute.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-pending-attribute.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-pending-count.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-pending-count.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-pending-snippet.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-pending-snippet.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-reactive.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-reactive.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-snippets.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-snippets.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-static.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-static.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-text.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/boundary-text.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-bind-this.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-bind-this.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-call.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-call.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-children.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-children.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-class-directive.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-class-directive.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-class-memo.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-class-memo.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-class-only-static.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-class-only-static.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-class-only.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-class-only.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-class.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-class.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-empty.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-empty.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-on-directive.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-on-directive.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-spread.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-spread.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-static-xmlns.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-static-xmlns.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-svg.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-svg.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-xmlns.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/element-xmlns.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/global-on-forward.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/global-on-forward.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/global-on-modifiers.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/global-on-modifiers.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/globals-bind-this-mixed.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/globals-bind-this-mixed.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/globals-bind-this.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/globals-bind-this.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/globals-bindings.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/globals-bindings.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/globals-events.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/globals-events.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/globals-function-binding.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/globals-function-binding.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/globals-props-binding.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/globals-props-binding.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/head-memo.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/head-memo.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/head-nested.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/head-nested.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/head-only.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/head-only.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/head-state.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/head-state.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/head-static.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/head-static.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/head-template-title.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/head-template-title.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/head-text-sibling.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/head-text-sibling.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/head-whitespace.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/head-whitespace.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-css-global.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-css-global.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-css-keyframes.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-css-keyframes.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-css-prune.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-css-prune.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-css.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-css.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-extend.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-extend.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-extended-builtin.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-extended-builtin.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-host.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-host.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-null.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-null.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-props-alias.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-props-alias.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-props-config.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-props-config.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-props-identifier.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-props-identifier.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-props-rest.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-props-rest.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-props.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-props.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-rest-access.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-rest-access.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-shadow-object.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-shadow-object.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-shadow.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-shadow.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-tag.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-custom-tag.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-ignored.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-ignored.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-mathml.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-mathml.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-namespace-expression.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-namespace-expression.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-namespace-uri.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-namespace-uri.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-runes.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-runes.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-svg.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-svg.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-whitespace.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/population/options-whitespace.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/large/00-+page.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/large/00-+page.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/large/01-Introduction.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/large/01-Introduction.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/large/02-Resize.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/large/02-Resize.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/large/03-Hotkeys.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/large/03-Hotkeys.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/large/04-Settings.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/large/04-Settings.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/large/05-+page.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/large/05-+page.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/large/06-+page.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/large/06-+page.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/large/07-+page.svelte/input.svelte",
+      "generate": "client",
+      "result": "match",
+      "diff": null
+    },
+    {
+      "file": "target/cache-locality/large/07-+page.svelte/input.svelte",
+      "generate": "server",
+      "result": "match",
+      "diff": null
+    }
+  ]
+}

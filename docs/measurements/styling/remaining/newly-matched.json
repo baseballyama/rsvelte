@@ -1,0 +1,4083 @@
+{
+  "population": 453,
+  "matched": 453,
+  "rows": [
+    {
+      "unit": "animotion/src/lib/components/embed.svelte",
+      "before_error": "unsupported expression `import`",
+      "after": "matched",
+      "sha256": {
+        "source": "21063f2b4c3c2b4f989c63a46ee18566e276d0d89b4dda317a7c00c1e9c9e7f6",
+        "css": "c269aafd11981b44b61601610ff0262c6b8fa59e71dc1e05a472c5277f2cb8b3"
+      }
+    },
+    {
+      "unit": "animotion/src/lib/components/recorder.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "202035d6b9f3c60f6062a8819c15d23a8dcddf29c046d69ab760d7f4eb2b595f",
+        "css": "794f2c28960768ae45d5d8fed475b6ba3cb0e6ae16d9dad423ae85204d786180"
+      }
+    },
+    {
+      "unit": "animotion/src/lib/components/transition.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "a71aed6db869f2cc378bffd2e649694dd62ed22a9d0f7a5766e7174b3503f20f",
+        "css": "88d37088c43e52f8509031c79c149c8b0290c95ac5e5b92f44aed00bdd9d557a"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/lib/components/account/sendVerificationEmailModal.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "66f1412478dec77d9a7c362f65eaa2076b7c4ffae1860f15a51467a5c5f96ae5",
+        "css": "f34d00089276933159ae6bdacf2fa964bb61bb737b96f40d2b5071a16a25bd6f"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/lib/components/bottomModalAlert.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "61faa77fa0665b6a45fcb259dfaa6909c7043cc441f261c27de0bb8e871c4804",
+        "css": "4f1fba326e3f15326b2afbc67ce479af62382a8095cf51e1b0f0114bb09c895c"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/lib/components/code.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "a04c85876c4233f003f5f8285ecf8fbe6422bf37926cd9685466c6e9d5dbbb08",
+        "css": "9cb765cb9cefbba440df41f123d2a356c8ef8e9b2798d5091cfe55b0857e2236"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/lib/components/csvExportBox.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "8c8c68d7789a8ac3bfffdbdd2e937bdc0eccda9e436aca695395ebca55048752",
+        "css": "02e60955354d5fe6d84c0885ccfaeaac9d423a785b7e515dfc638a89daeda4d6"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/lib/components/csvImportBox.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "a1cc64b9830cdf73696a8a80739a72fe89fb7bbda60dc4bb9cb2ef1fd6399809",
+        "css": "43a41a8d8f13506f458571b3daca071aaac6227f55caf83b3dee7e8a3dbfdbfc"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/lib/components/git/DirectoryPicker.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "0465025337703265f5a484da66108fff6c33336323ed7e35add314bbbe13b548",
+        "css": "84bc8160e31d83c6b3107cca7a3906152f8924c49c820ef7b65af93568b0b982"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/lib/components/loadingDots.svelte",
+      "before_error": "unsupported export form",
+      "after": "matched",
+      "sha256": {
+        "source": "177e308e378493a8b153230160ab6f29b0bda51a2840b5a1d19e359a9fc0de91",
+        "css": "8167158c8bb6afc3ff80a6d9187b640b441281c987f22a01ecfb52b1dea606fe"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/lib/components/organizationUsageLimits.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "1f3248fcbad2ea0d308f63314afc07bc90f3ba48969ee6965d67d91df82566d8",
+        "css": "20501b37e1d36e45eb193b9cdbb9be825030efd4b04cd9668c2a06a114ddf4d1"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/lib/components/permissions/row.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "514f6e33dbcbbc2eda9faa3619b04295c3648e617441bf11daf85fe2e9128b57",
+        "css": "16eb9bdebe9f8cbb2fbb33ed51d595ed80dfc1a6809b9dc2414e9f8eda7e0ebe"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/lib/components/sortButton.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "b0da04376644c55988facc21e46741858ccc19113ec5bd163d2cbf3d23100b39",
+        "css": "97106f3f3c42699edd6f2c1a9fc4d26afe6120cafd42a8e88fcce79367af7b0f"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/lib/elements/forms/Seekbar.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "55a1d70409ca9f9cec31d87543b88649665b13091fa27d65f1047912ea4b7603",
+        "css": "8e45bbbd365e22f86256b189c041a58af16516a746877a38381706b86d565a8a"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/lib/layout/footer.svelte",
+      "before_error": "expected a property name",
+      "after": "matched",
+      "sha256": {
+        "source": "59b13cf2f10eeae040eddd24a21e50582df2a3a8cbcd30489e8b39afbbea59d4",
+        "css": "42eba01251aa725f07b14bca2ea0a83c7f0baa543cef6e7db38b44105b03db49"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/organization-[organization]/settings/BAAEnableModal.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "82b45aabc724f9a79ecc2d1a64842cc57cf14125d67a467d99c84ea9177fb35d",
+        "css": "012d50ed950cf8b968fa8beeca26bd7a91e53b2052d3bdb9a8c15429927e14f5"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/passwordStrengthPolicy.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "4f53037010903c9758f8d9ab4b07453882941ce937ee526d524dc41e9b9b38c0",
+        "css": "bdd161de9de519afe4c36e014c8f64eb2ebedf9b6fc147843abc90cdc2cf4722"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/auth/settings/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "2ecf29a9d13f54263509589b29f64a1d02df587ec2734b05e6f239e84a76c5f6",
+        "css": "adf30474998cee6731a062d00f12bb8017beb85fc653305daf075fedde4518a4"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/create/+page.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "ae60cfdc0cfb2bfff764b89178417d9d7b842ed9563158e024548007dfeaaf04",
+        "css": "2dddd53d5f7306027b250da007ffead4c461da096bf34ac3582196bc61a9653f"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/indexes/create.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "28f762cefa41d21bc67f35113494ef21cd9dea168706affa36d835ba2e0b83be",
+        "css": "189909a34560db09d62b602a2c79ef0f0e2553a2d05d42835257cf75a2e29a70"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/indexes/view.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "671aa4635b7e82e65e5750416844feb54fe1d785c86dbe0275f642dd80fe3751",
+        "css": "68e01dc5cf5024bbd49da8e321669bab583e5091595caef1cdf85348c8858e9c"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/sheetOptions.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "2f70e32c1d53b4e54c27d388fceece5fee843924998da231eae29e4c7de572c4",
+        "css": "6fdca5d6cce8c155dcde793c911c43306d012c1ae8b9040f107b8f049bb6b443"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/sidesheet.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "9ec4e3e287ab137ccac103f49863fc62a08515c6716f85321538666117ffdbf7",
+        "css": "1091dd068e6684e4dc8b85f1010f336114241353fc689f1751e9caab4212bd6c"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/~input.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "65f141a7b717ec05670bd90e3c02585d0e3d7822695cc47ba46b2d13ded0c944",
+        "css": "0826639f9c0bab74304462b76cb90cc02021ce3b7708c1b3f31c740f0a00bea0"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/+page.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "1a17e7fcefaa129c438d83e036d05d418b6d93eccaea5131a2ffdfa1ad274f23",
+        "css": "bc3541cd81f7d7feb4238005d4173f7302074aca1b1cec4f3ba0c8415bbb75d7"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/backups/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "2b1abdb5a619be8e7f8d4bf8c9d02d7501eb56b3bb5f82cd1d84686932d51296",
+        "css": "b85aa08dea3d39f9c025152b3bbdde01390f74d3997bd27374f9106a27b8db76"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "bae4fb7133ed403a158d562e98c7e912f0b0ca3712ab56cc6951dcbc77b7d315",
+        "css": "4dc02c665a7e507de7be5ef51fecb9cb020b5b7fb2cd72df9b910ccc7423738a"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "6df614fd4131db822d36d1f6772ceb2f6c4403dd570646486b76e7cc5b78fd8b",
+        "css": "6a28904f879ea6fe8c779380074f004ccb0bbd33bffb093637aa74c8c3b5c243"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/indexes/createIndex.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "b8e5cc5f111c212e6115b5c1e87d19d4c040c6b6b391d4508b14cdf0a1121ee8",
+        "css": "692705d70fda964c082937c4cd4d1ccd68a383aa2d74f1d037ac795c5bf2aafa"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/+page.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "63aa3907d38ac9dd28f4db370c43b5992aac4fe2b0a5288e15a5a41781e82792",
+        "css": "69222697cc0c59adeda688a808f769f36375171a510f39083ec620c81e60e020"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/createColumn.svelte",
+      "before_error": "unsupported export form",
+      "after": "matched",
+      "sha256": {
+        "source": "2df2935d7ba6cda1eb2b341987e7565eb1f598fe83f0c6be9f5c3a93c997af0f",
+        "css": "084d8f4ed11a9182b0b47f7261c022a85f18303c95a986a6485dd755ba283057"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/export/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "518be43953017df71dd3147cc48ed9ca2952bd8643ea4c7336cda10d872033bc",
+        "css": "ccea904902586a077aec3d3557f68cc04527407dd6ec510806581f4d552dfeb6"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/editRelated.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "76b8461b8be70d51297d5e97c31326db4ecb50f7c68161a3d9702d386fa20252",
+        "css": "7f6394fcfe89604297cea42e0a431793a4101aa7543a07974375575feb9640a2"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/sheetOptions.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "a8d43ee66323a63505e22451cacd712e74ca95adb7adbf73a0311232277626e4",
+        "css": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/overview/+layout.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "c10cfe529aadfc651c0219adfeb8d2fcffe44609ad8196cd0670b86959f586f8",
+        "css": "b92430ab8a7cad89fdb5b60432478ee7ef87d206caa198470cc3a0210c67edea"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/overview/api-keys/scopes.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "ee37349d6eaba7f541e94bc0c0a5f26afa0c03ebe8b36b381f92cf6958327bc5",
+        "css": "2189568a9591070459f994d3df3cfd6eb642039626c0f25d7e79368c25b874d6"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createAndroid.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "c416a496358521cf03ce867aaf7fa23f78766e2d81d9fcbcd4a620c5d733b065",
+        "css": "6828f9c971f749c5c5aab6e4332f0901ffb3e92ad2cd5c9bf44ceb9a50b393ab"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createApple.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "62b0df73a52512c677d18eb23acbf49218b94863ae71c75daee7ae81a6ee8b4e",
+        "css": "6828f9c971f749c5c5aab6e4332f0901ffb3e92ad2cd5c9bf44ceb9a50b393ab"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createFlutter.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "cbf20fd09a3545b8f256f6680160bbee8c798a3aa5d2735c6228e6b7a4e2fed6",
+        "css": "6828f9c971f749c5c5aab6e4332f0901ffb3e92ad2cd5c9bf44ceb9a50b393ab"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createReactNative.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "47a62f917efb3471bf63793fa7ae6f81b078a5105265299f4fa7dc33f64bed5a",
+        "css": "6828f9c971f749c5c5aab6e4332f0901ffb3e92ad2cd5c9bf44ceb9a50b393ab"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createWeb.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "018bd66a66012b2c14f79cba2a83b8e5d608df240ded1cdfa8fc955aab3419af",
+        "css": "9f4101ddb44eb54ead95f8ec8b4b1da0e6157427c4d57d749173d359d0e063c5"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/settings/premiumGeoDBEnableModal.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "859c738baea130028ad8d0ae4cfc4cd6f566a115db0a74c5864b3692c6816794",
+        "css": "c1675f83f9da8f14204a97e9c0fa7ddcb576b03c78666d4986f9af06f99dabb7"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/settings/updateOAuth2Server.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "43984b368e755648852495a29ce494056ee8b0fbdb8c3e1b0dbbc6ca50cf0f58",
+        "css": "6ea6b0577526f8a2826f0e208f18003453afa198443353083d8acd070941a0a1"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/settings/updateProtocols.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "deada08670321acdfbf8e3d15c51bdf5880f6ff933aa74af32b8dcfeab72ec86",
+        "css": "7a1024609e954adf50bde279bce8edfa7a48a8f0d63f36f052ca957b560f3d16"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/sites/(components)/siteCard.svelte",
+      "before_error": "expected a property name",
+      "after": "matched",
+      "sha256": {
+        "source": "687f899fda2fbdb529e88206a101f11a8c00748f80d26109c924092258de541f",
+        "css": "a146ebf8756bbdfdbc14ce7d6008f90d65446391fef584bde2367bb8a3fe6404"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(console)/project-[region]-[project]/storage/bucket-[bucket]/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "f947a3544ccf09faedd24eb34202caaea7e4e8666c1b0191f6cb1095d5706b48",
+        "css": "5b54e0b2951da8f73bbe9d293be3c00de013787541d7454bba5ecf1b17636c0a"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(public)/functions/deploy/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "aaea7023c7277103d259367958a281b01e89d9386b92229c5b4ecedd6a991cef",
+        "css": "67ccc9efb6e5b42ed6938e27f76e45a25dcd42279d1f3f58d9704f167fa7a115"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(public)/oauth2/consent/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "b5217e943b62532102addbbdb0db6485c0a336817167141686b5d73e6cd94e52",
+        "css": "4e0812fe37549b76860d990239d6d36a3aa5aa5d1a1219df11c53ebd0d4e0f56"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(public)/oauth2/consent-card.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "ffafdc3fd2a4efb7fdcb5c70fcc74af7595a8ebcf73c815949d30000da7dd1b3",
+        "css": "57d82b280ab8ec742744f7a70d084143c2c86a2b9a56cc124dbadcf1615f2eb1"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(public)/oauth2/device/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "9f74b26eb9e7624b39d22c864f95ef59060a62777bb718cf32ca328bfcb4e5ae",
+        "css": "ddbbee87f3e7608232fe9a291de5afbf1010b97703aeb6f8610262daae39499f"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(public)/oauth2/resource-selector.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "543fe4e5673d906609ff6270b04d9cacd2f4c7869e71fc0eeb866b972d363c7b",
+        "css": "a51338d92394bf7c7d9e475d970c9475a2dd83ffe5593a2f474c858f6dc51fa5"
+      }
+    },
+    {
+      "unit": "appwrite-console/src/routes/(public)/sites/deploy/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "8e6a9b141ae3d8e3b22980c6beda234d8ae260a6ded2f4fa6673506abe7de61e",
+        "css": "a5ba5cb57ea223179767fc5088a200ec2da01fd0c7dd0b0a463a99d758cf0bc1"
+      }
+    },
+    {
+      "unit": "attractions/attractions/loading/loading.svelte",
+      "before_error": "unsupported export form",
+      "after": "matched",
+      "sha256": {
+        "source": "9011d7132375e9c9fa9c9cb276ce7c188da0cb5517b031f6c302e791c15a8cba",
+        "css": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "unit": "carbon-components-svelte/e2e/fixtures/DataTableOverflowMenuFixture.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "187a9a8f3d2b1425e9c5239ad48243227c15b67f93e8f2c7d1aebf49d9559aec",
+        "css": "4656fb72c680d36803727095f86fc0203577921db176273a816d5a66bbb34f06"
+      }
+    },
+    {
+      "unit": "cnblocks/src/lib/components/ui/pm-command/pm-command.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "df4169d87a0ddc36983fcbaea44e05c9ec177c4b0554a5fb66befba31ee4c1a3",
+        "css": "80c06f19989b27375c176303f22c322a255d3c03beff01db271b7b1b075edd0e"
+      }
+    },
+    {
+      "unit": "edra/src/lib/edra/headless/components/MediaPlaceHolder.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "d79f2b0337cff356df3c3f37727d443a5f76d8cf9e9a35ecf7d6d0894c6c8b24",
+        "css": "db7a6d2661f5e2de7b9f0f99f9a316098348ba6e79913265437bef60ba84dea7"
+      }
+    },
+    {
+      "unit": "edra/src/lib/edra/headless/components/Mermaid.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "b2a8facc813562a4321506dcb93df98b3fd1eb22d069060cba9518a7bf7acbb6",
+        "css": "cdec8946d149dd14cce2f6c655b03b1899de63ca47f96133bd1d83afbe8d481b"
+      }
+    },
+    {
+      "unit": "edra/src/lib/edra/headless/components/SlashCommand.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "4731f5b0953c243ff2df9c3b08cd8d39a3fbf844f33bc0cbc0dd5e5e4a0255cb",
+        "css": "ecf208b7ff6df56f786a27fe2571da3c7a4eaf4868c947929dc897290460ebd6"
+      }
+    },
+    {
+      "unit": "edra/src/lib/edra/headless/components/menu/AI.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "4dc280f5ec2571291773dc96b8a6dd8f47fcc8c161addcc30a09ed647706bfa7",
+        "css": "4c78ed5d33729b100bc62a2ac81d1ce4f13decd253dae806f053c2bf3a3226a4"
+      }
+    },
+    {
+      "unit": "edra/src/lib/edra/headless/components/menu/BubbleMenu.svelte",
+      "before_error": "unsupported statement `while`",
+      "after": "matched",
+      "sha256": {
+        "source": "fd2456c6efa6ff9c4950bba1b9a63b2c515b9064da1c081ce9c5a426dbd034d9",
+        "css": "5928e2b2df9426c0559751a4ca8ff1ad2541cb4e6d5b0a78d44c3163f8b598d8"
+      }
+    },
+    {
+      "unit": "edra/src/lib/edra/shadcn/components/menu/AI.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "9aae7e73d821829d97f1ceef31d199f3ddfd30a2c072034936326ae9f5865756",
+        "css": "c9eab040680283d564935998244571dcc77326c2ed21f374f7a72dbe0301daab"
+      }
+    },
+    {
+      "unit": "edra/src/routes/headless/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "b90a667a964db2bbc2aa19d718a06e37e3ede307e844ab3bf207fbcabd10bb3f",
+        "css": "f5681adab1a2bdcf6ff7247beace2e4c58bb0af0b09ce6f2b3413e7abebdccb5"
+      }
+    },
+    {
+      "unit": "eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/scss-class-name01-input.svelte",
+      "before_error": "expected a property name",
+      "after": "matched",
+      "sha256": {
+        "source": "cc576866c44ffd68e1f786f27dd22e30a0c6940009ee900e72c1cd0cb59e5cad",
+        "css": "242671be69eaa76ced02dfb37e0e0ce87114dd7fc838e50450e02bae189287e3"
+      }
+    },
+    {
+      "unit": "ha-fusion/src/lib/Drawer/CodeButton.svelte",
+      "before_error": "unsupported expression `import`",
+      "after": "matched",
+      "sha256": {
+        "source": "049e269834c13c1c6df65ee8dd92357aee0d3d028bdf654ee1937d156350b408",
+        "css": "28b2ea192921709aa99cae52628db55b233c6bf49467c98a13ce3bfffdd042e0"
+      }
+    },
+    {
+      "unit": "ha-fusion/src/lib/Drawer/SayButton.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "5f37a177f6602d079f9bdb33517b4dcd188a58106774717a170dcc7a2d60e925",
+        "css": "7db9ef793327edfa40034b4ea4228ae3a95acddd8340c877c3516f832adfcc2c"
+      }
+    },
+    {
+      "unit": "ha-fusion/src/lib/Settings/Logout.svelte",
+      "before_error": "unsupported expression `import`",
+      "after": "matched",
+      "sha256": {
+        "source": "b31e8a52b2f74270dfd366d50efd3d5c10bee22ef8ff54a05c5bb164253415eb",
+        "css": "b3b26e9ef7583dfba4d14719891524d67f26e4ac484662632e485ccb18fc4e3e"
+      }
+    },
+    {
+      "unit": "ha-fusion/src/lib/Settings/Version.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "7e3230eb13096ef3663b482adbe6dd1037abfc86b7adb0f98e076cadda5b10ca",
+        "css": "a5d7b518379fdffa4c500bd6a21cbaab9013f02cbe657fe204394ffb20969014"
+      }
+    },
+    {
+      "unit": "joy-of-code/posts/learn-svelte/examples/derived-by.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "325f43f51823b449d7b8b020930abab415a212eac6755dae78ddfa5a93254055",
+        "css": "89a6c55a271b32c5ca599017f39044042c5800b8ef941bb811104bccd3980d7c"
+      }
+    },
+    {
+      "unit": "joy-of-code/posts/learn-svelte/examples/example-loader.svelte",
+      "before_error": "unsupported expression `import`",
+      "after": "matched",
+      "sha256": {
+        "source": "348920b2ede8d713f527a052c045c042287d5d0590770ff702c04fdd9a020d54",
+        "css": "55b72f82ddc0f49476ec2a62204f2dae0ad744b260af8432f935a0f9cbf5a0a6"
+      }
+    },
+    {
+      "unit": "joy-of-code/posts/learn-svelte/examples/pokemon-search.svelte",
+      "before_error": "unsupported statement `throw`",
+      "after": "matched",
+      "sha256": {
+        "source": "f010aadb7b7304d9fbcc2a976160877f9c368a468ccefb78c9c08bd25f3b307c",
+        "css": "5dadf6a1dd0946520394aac76f82af254191bf955d8d4ae495cbfef15fc4ec16"
+      }
+    },
+    {
+      "unit": "joy-of-code/posts/learn-svelte/examples/reactive-events.svelte",
+      "before_error": "unsupported statement `class`",
+      "after": "matched",
+      "sha256": {
+        "source": "1e4ef7b34786c59b3631ced94b53d192cc23eed6de955c8304a763d15ed8caaa",
+        "css": "ab2ed6096e0d00b44ff35f2db4d60cc8a10bf7eb18af569bd1de785365d820d3"
+      }
+    },
+    {
+      "unit": "joy-of-code/posts/learn-svelte/examples/reactive-map.svelte",
+      "before_error": "unsupported statement `throw`",
+      "after": "matched",
+      "sha256": {
+        "source": "b179c91f300100960eb6f29b543e92fe7936e3b691535e37135ae29f9c1346fd",
+        "css": "986842a683cf56c2795f319e737998979010ebeb5eba872ff63d5e667ec03130"
+      }
+    },
+    {
+      "unit": "joy-of-code/posts/learn-svelte/examples/scramble-text.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "6ac6fb6750797547e28efb09462e7ea12530bfa34e9d1048f973ecd466550135",
+        "css": "4cbf864327e8a691f60028dad7f374b9f8b9e725cf195c81406711dd1cd57bf7"
+      }
+    },
+    {
+      "unit": "joy-of-code/posts/learn-svelte/examples/todo-list.svelte",
+      "before_error": "expected `}`",
+      "after": "matched",
+      "sha256": {
+        "source": "2c17c9a61b5ff12fe289a8049bf36fcd9db9b4d1ced5f50d683b760546016281",
+        "css": "aa2bb1b44f875a7d4a2c3ad8383a680294963db34fc8e1f85cfc571112e4f91e"
+      }
+    },
+    {
+      "unit": "kener/src/lib/components/MinuteGrid.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "3bd90090514d49d5a0d99368707a5796906c1a105da6476a88b80968ed86cd04",
+        "css": "5244dcc5cdb93cb0c5aa9f9769c49c91285a252633ce5be3404d56cd64b330f4"
+      }
+    },
+    {
+      "unit": "kener/src/lib/components/StatusBarCalendar.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "e0aff409eeb1ff9a9381f3df99e294c57aad4671bbd56c8c9c17ccd57c0f4452",
+        "css": "5dbad0c428fe26300aab857cd5db01b30b36fbf6c0e43a3120c241e44940af5c"
+      }
+    },
+    {
+      "unit": "kener/src/routes/(docs)/docs/(with-sidebar)/[...slug]/+page.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "0f834d2ec37780c1b606f7287ac686f9a7cfab549f5d83365a921c4724e4fe9c",
+        "css": "517da3ed349043fcb6085c8e9c2b78fc16d4642b4f449f26bedb8fb227ea4eff"
+      }
+    },
+    {
+      "unit": "kener/src/routes/(docs)/docs/DocsSidebar.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "a2c2a4b96143f01800bbe70349f006133178d74b5f9fecc984ed039d5d8158a7",
+        "css": "02dbe5997274e5db174827e1bae9bfd70e61383447dba30a3ed72a6ef109f50b"
+      }
+    },
+    {
+      "unit": "kener/src/routes/(docs)/docs/DocsTableOfContents.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "f2f4c5b7b7d60987a90be03b9e4a9ad0811df1299a1a1d31d32fe4282d880a98",
+        "css": "530907908a21786359400178439b023d92064ba1c543447f8bf72d8ff23a8256"
+      }
+    },
+    {
+      "unit": "kite-public/src/lib/components/CategoryNavigation.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "7967d73f6ce763bdcb4b25028fe501a9b3631fee131ee5c2a6637c140ae8ac92",
+        "css": "87f649726a96007c44858fcbf7cd68b9bcd5b70a787dea4a5c36972bb3cb10f1"
+      }
+    },
+    {
+      "unit": "kite-public/src/lib/components/Header.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "8c9b4233e474e80f42bd16ce422d6cc7d34eef62bb7da967a3fc57ea7adba413",
+        "css": "9e8f062fd166a8c5578475c7416215c0013413721a12472fa7d9a2e5d6cc5306"
+      }
+    },
+    {
+      "unit": "kite-public/src/lib/components/ReportButton.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "de9576300051d666c8d542f79ed346b50d5ceb93f9b5259adc75abedc4708db5",
+        "css": "515cc70191bcdd1364de7dd641012f1ba000bbba9e058de86970d85b08380627"
+      }
+    },
+    {
+      "unit": "kite-public/src/lib/components/Select.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "d37bd48b3c38b596380e3c7158819a98b83a47fd76238dbb11ce66210d9cf08b",
+        "css": "812d3ffff629c1200b279c347a02194f4a7d7ba1e958897954edb4d7b22f70a5"
+      }
+    },
+    {
+      "unit": "kite-public/src/lib/components/ShareButton.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "dae0a2fca71d59bcd08a38a5635f48116aa7bb55a82ca6d650d3e2a00616243b",
+        "css": "618bfcf90276ab78f0561477a6ba46689ec687cdb3eafd1bfdc2addc80375949"
+      }
+    },
+    {
+      "unit": "kite-public/src/lib/components/Toast.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "d61ab826c17b4bc4d7d2e9d04b1fc0ecf84f2b9b31fe14c2d2fdd23428910c92",
+        "css": "9fe7ace10d45ac91b3d81d37db41ffa86359b9cfefe245797ca33a701072226e"
+      }
+    },
+    {
+      "unit": "kite-public/src/lib/components/Tooltip.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "c50b3dc29748c35d7ac398688695ca79de65bbaf1d7e21084fef48a8b40083dd",
+        "css": "5a86097615e05a696dda24de84e95cad73cb94d81b1d20b7daecc4f8450d63de"
+      }
+    },
+    {
+      "unit": "kite-public/src/lib/components/common/FaviconImage.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "fa371c0d140b2f3bf3628c8f9958a52c3063caa479f999922968e902e4bdae2b",
+        "css": "805a13e4cd1945c65d82a7e79a3ab49ff6358b3e2e7848f2f99e94b34c0b8f21"
+      }
+    },
+    {
+      "unit": "kite-public/src/lib/components/contribute/ContributeOnboarding.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "8b58fd90d5e90c2ac18b0bf4fc860f1a9720f132ecb304175a2b61270587fc6f",
+        "css": "bd616e6290e78267655adabf90693eab21e10eae8a659c0f536c37e4be91e72e"
+      }
+    },
+    {
+      "unit": "kite-public/src/lib/components/search/SearchResults.svelte",
+      "before_error": "unsupported statement `while`",
+      "after": "matched",
+      "sha256": {
+        "source": "9f9eb78176dad3155859e1176b20928e5f9d3ce398cc05a85a95bfcb8bcb4ed3",
+        "css": "107747b5acc9af43123c5440f96ebd6ee78b15dba7d1d986a223c69e5c041ff5"
+      }
+    },
+    {
+      "unit": "kite-public/src/lib/components/story/CitationText.svelte",
+      "before_error": "unsupported statement `while`",
+      "after": "matched",
+      "sha256": {
+        "source": "4bb19bb65baf4c84db1391f36de5797cf98d426fd68c93f7f49b86dea7dde586",
+        "css": "3d54d7ffe689687232362b5cb46e2b488941613ba54bfa5035c8101d36fb42bd"
+      }
+    },
+    {
+      "unit": "kite-public/src/lib/components/story/SelectableText.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "a7581d99998f261e3576372d94b858c840e6fa7f813a84f301f0807955ffc758",
+        "css": "f10b514a6bddf0118fced096d5e20ac754700fd76542a204549f1e6f45ea82b4"
+      }
+    },
+    {
+      "unit": "kite-public/src/lib/components/story/StoryHeader.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "26d0bd2a568faa36db39fcf0fdb8c37dd3519dd22fb7b5c0e6ae8f89cc77c221",
+        "css": "39df8442e341481c591bdb1aead2433839d5744602706b5c101fb8e7f981e884"
+      }
+    },
+    {
+      "unit": "kite-public/src/lib/components/story/StoryQuote.svelte",
+      "before_error": "unsupported statement `while`",
+      "after": "matched",
+      "sha256": {
+        "source": "6f2d3e822eaec79a18006d63052c3a3bd399e790cd6fb3e7d782924529a6fae6",
+        "css": "aab24554533abc4e1bc705b524b0765d66d70438355db19f092265dd304a2c39"
+      }
+    },
+    {
+      "unit": "layercake/src/_components/Beeswarm.html.svelte",
+      "before_error": "unsupported statement `while`",
+      "after": "matched",
+      "sha256": {
+        "source": "4d4fcec5376d4dfe9d35f86661a40ac890ffb9d761b456a6b4f958964dbb90d3",
+        "css": "929f76e6ae21a84eaeb89ccc74060e69002a28421bf3980aef66c401293f3386"
+      }
+    },
+    {
+      "unit": "layercake/src/_components/BeeswarmForce.html.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "59641af4b3fa32f792398d3afbef72f9831b6cabbc097ee33402c6aaf9181dc8",
+        "css": "258fbca84505b87eec2d37ab9aa48b7d44d32a27ebe3a7c621e1989595fd8273"
+      }
+    },
+    {
+      "unit": "layercake/src/routes/_site-components/CopyBtn.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "3117dd51589f16ff36031c81bef9f6bd8c14725d9881ca785dbee8fc6bb8755f",
+        "css": "84207554d401903581e994b7b54fa925f219639ce273a5a519e322c791b7b9aa"
+      }
+    },
+    {
+      "unit": "layercake/src/routes/components/+page.svelte",
+      "before_error": "unsupported statement `while`",
+      "after": "matched",
+      "sha256": {
+        "source": "baccf1f2d82b645ed8963675822dca3fef65b8eb877910db50fab50c18baf8d4",
+        "css": "cf5dda5710191e35c17fd907b0403f6103902c9ced58d2ad42dc11533d82cc88"
+      }
+    },
+    {
+      "unit": "layercake/src/routes/guide/+page.svelte",
+      "before_error": "unsupported statement `while`",
+      "after": "matched",
+      "sha256": {
+        "source": "b5600bbfc6bb7c736c9d82f39bc5ca163ee5f270367aa29189a20a2b0af72469",
+        "css": "24a6b4851e9f5685ee1a11df3a05f2ae3f4043aa6fa932d2213f0138833914a6"
+      }
+    },
+    {
+      "unit": "layerchart/docs/src/examples/components/BrushContext/striped-background.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "7be8e36fcf819a879bba73421242da3b30a3405d0d0c23cc9957f81c30e6c453",
+        "css": "25c7c206d59bd8cf4516747efc3dec00f8bf1dd6e8829f44bbaeda9254ec8be4"
+      }
+    },
+    {
+      "unit": "layerchart/docs/src/lib/components/controls/TransformContextControls.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "f59397012944d5ed38428001764d4754fb8905499560d84c241b968e813c3ea0",
+        "css": "84bb516eb8631a81ad662560e024315b03dd1f63b1c0f56e3a4d42ef5b79b00d"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/AnnotationLine/AnnotationLine.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "367cd444cab20f201a4b52c7eae5516caf131032eadbee28dabfa9528b7d2e50",
+        "css": "aeb6af6bc094d43a641d156309055a341ea868136e21a79919c378799be1ccd4"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/AnnotationPoint/AnnotationPoint.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "0a772a7d7d0b8ab9c8d35200857edd3effb66e4294ff5e8b5ba8f1f7ab64eb18",
+        "css": "831af7e303c075181a25e94447a2fb1071e502d76dd39aa178ce8c8832d7d1fe"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/AnnotationRange/AnnotationRange.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "0c24f7dde46f0f2b427ce4631e65a364a4eed85863be2f6059aedddf47b41913",
+        "css": "0ba958ccf1edf722b7dae1e900a1870288afe48e12a560e8e74d4a7d1bdce69a"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Axis/Axis.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "8eb2ef27cc2588471576ea46305740a85af16b4b928fc14914e0c6e5ffe72c67",
+        "css": "c9fce8e484dd6b2a1866f1ace552a3aa8a2964b8439674522c449a8c6d678236"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/BoxPlot/BoxPlot.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "8cf3934ac477d0927f3738a45724736cf842617520876b4797129e7299e79530",
+        "css": "857eb605a8b8175f1256115f4590774e258eca29b2ac648d534a42d8a5306c75"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Brush/Brush.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "ac40ab22d6a2a69407f115ce096c159aeeb6cb8404306e9aeaa306ce87f8f125",
+        "css": "c7eaecc967c3ab5770c503d91d0eeeb1edb71b579f16c655bff3d77dbc679f21"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/BrushContext.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "dce1d416fca0fb793729f0a647c058af9623c47795424646b60f3e43e54b63cd",
+        "css": "a9d07c5529b5c432f66264588813de2b16f5afde5897a7701fbfafcc2207f480"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Calendar/Calendar.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "40ccb970b534fbb0ac35a2d89a798f88af159eb4d797932d63e6be047bed147d",
+        "css": "5a4950f1fec7bf498a32eebf402a17514478e84bfff0ff74b70adc778ae6555d"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Chart/Chart.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "bf203c24de9ca8ca240a6e0ccf93294931173c654f0f72f08d62d6120037ca15",
+        "css": "caba680411816adbd1e55c84f51e43fc9bd21d84a855bf1727e700d8d26571b5"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Circle/Circle.html.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "a064e6402793c373f1e0450364e5f66115133ca547410e2ef1716c81ee5c40f9",
+        "css": "6c20e25ef2c0469ff4922d21aac47e89d983ae0480872ef3758cea772d6eae5e"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Circle/Circle.svg.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "d4d37722ce4b1c531f4df3d6e8b69e33d95c49d8a330e1e6cc925d84f73a137a",
+        "css": "ab525b7e8e8be76b104c603e09b445bd59d453f33bd11b797bcce6917f172237"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/CircleLegend.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "cec1ab2ebdfe4ceb2a752be31b375c17528f8e1936d2a2cb29ae20ec2a559f9e",
+        "css": "6cc3f3c6fdeabead3fcf80ab394a3c1686a6441546b8cc470733d370d3c68953"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/ComputedStyles.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "0437a5a6523bfb8a56d548161071b14db2f6d6cc3d438db5e722de05acd3d8fd",
+        "css": "df52c8d9fa6a71bd48c44e8ba6729a0741466cb4e26978310f23a630ec17b071"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Contour/Contour.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "f797d295b3cf5ccbb723385a99bc5d5e1d8175bc4991281ed3ebe8e41ebb7228",
+        "css": "4502336543c6bf599e64764eb07043c1eb634fbb4870edd9c70820e05b433165"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Density/Density.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "fb15a7fa14e5f5dd4b0ef78771812f621f46f209e105362d735100b0f352bb2d",
+        "css": "ca5d738b229d7710a2cd89d83c7c4573822b972d512d24ab8315af737b3184e0"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Ellipse/Ellipse.html.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "d682696117534641c3bc246ceb4620b94922da40cf0bb4a6a153346e5e0cd63e",
+        "css": "69afa5acf1be2ffe99978fdc1e28e274e2c70e19cc409a592b5c3184a578366a"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Ellipse/Ellipse.svg.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "585cc5f242f18e0513e71aec46efb420979395f2df0311e609be995c27f589dc",
+        "css": "d9c121a307024fee784d69354bad01cecc84bc2c53672a398da2d5944d6bb65e"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Grid/Grid.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "b92e5aa942a5655d9441f755f195888f5df8b0b0a89fec2e919a335c90014e4c",
+        "css": "1056b146edaebc6ee31eee3a476fff761241dadb2ecc4db128b564b547669ba7"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Group/Group.html.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "02a631e1b0b6307369656f2a5c4626a0f7207e5c41fdb04ba26660ad62d84702",
+        "css": "3c25da209540308cd2a2c02d08713174d0dbd7f15db3316f768451adba5682fb"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Highlight/Highlight.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "ed5f3cd583b8ce9af44bf26cf512d214208d6f0b0d31ea2bcb231a2d26be7539",
+        "css": "9c7235d45b882591e5387871d3a0d3a11f6627dcb402845a7fb07bbe152fdf2c"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Hull/Hull.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "428cce8741e9797c6069f826f787b98e5454032c741115af27b6c88234a135d4",
+        "css": "236d5b0eb653461e5238d938839144a448f8af1fd4d24feaeecaa85c0df5c5fb"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Labels/Labels.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "1cc0da3487bb92234a4173ffc870d61f0c01cae087d3787937e656647afd235a",
+        "css": "7bef9366ef6a1d8ed4473edfa563ce1452c6906c8fb1bed99f9030cd615f6c76"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Legend.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "110c21a05a6bd011582614dd83c2892cef83e44f7603619eb257f44f10d6f8ef",
+        "css": "4979d04aa9cc4d7aa354e100aaa7113bf68345f2282315b5f604f1813b8b415f"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Line/Line.html.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "87c6d12ea5980df506e14197f0d7cd3abf9c01e0543ea1e49f56d815fbb3d4cb",
+        "css": "72a747c421e58c47e78eaa6ff04fb16f57faef46f4c6ecb2a70b6c965b560518"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Line/Line.svg.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "82189329ab2686dcb2922f572314be96d34c696f07e4ae2e4b3723ec0fd752ba",
+        "css": "a22313d0206ed8f7387c3e4128a70541beb30dc6c31f0beb84e5b2c2e565b248"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Marker.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "083ab4379921065175fbe9c003ada69d52de5a015a7cdd6707f17864e4e00302",
+        "css": "1b8db36b3b2c2c758e989d673e460f477a7f526a0ac152297c75ca2b037f2e97"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Month/Month.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "dadb75f65089b0e2f1f4ac56d93ab0125c04dd3aada55bdfde082e2f58db2670",
+        "css": "ec7b28a7eb17a9db5db1d5dbb59d66525b87b1b14107444209d71f8b35206bbd"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/MonthPath.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "b6b2133ca94203d4d7e2eda5388b54f54b5ab5cf3c3dd7c5a771f80c41d31261",
+        "css": "d62f49cfa8cfa6448e5fe7ad564a7f5f60671042384eb8de3c9a1324cda00354"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Path/Path.svg.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "4a93410eeaedb93bceb5356197b116e6a2b1a9ecd9f182d909da76277a52ef82",
+        "css": "396a54369f1beb5454037044f03adebae25fc52b901a0e16caa5557f2ecb3ebf"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Polygon/Polygon.svg.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "240b92482fd599dc241d88f900e9f6f463dbf3071d9cfd3989f6355b4af8d6bc",
+        "css": "69112f0bf45a0f41c223337fd40652bc73a0ed71a55ed5a91cc0c249720c9a89"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Rect/Rect.html.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "d376f481c4fc131b6a395991b8928302ea6aab7935b30915b9272a294530a77f",
+        "css": "4647d2cf9be8531a93778df04f72d625db5f8810c62018a860596859edd51fb5"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Rect/Rect.svg.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "58ca644242ef44977c33216c9b62da74afaad69081bb9e75c4f3ffcab81b8a84",
+        "css": "150a747ef505a56b4ecad8f0a1eb4105202b7608275d34127caf500f0d42bc6a"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Rule/Rule.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "6ac5722ca252e85c78211dbd124ed21070e1e26ce7ee0a1206ae178f696da3fc",
+        "css": "159c93414125a9ac96236a1f41903acf70dac2b3456e54b18228ec2d5c89818d"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Text/Text.html.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "088706eeaf7f0951b4dc6c7c382db25d3ce1debe2f97158c90f3d8410583c56d",
+        "css": "5b0e72b20ee6ebf773e42032936c77ec8793bdd634c7fb4628db7af0a4a9a244"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Text/Text.svg.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "a969eae31505075b68bbc4d47fe7edfcdeadc402d7cc118953bb13e62f0e75df",
+        "css": "17965a127bed7f22859f0f427f6a05f9c2c13bdfc8334e184fcbd16e9a77c688"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Trail/Trail.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "93dee6c9821ab59c2061abe35c6ed06dd5e31d96b69916412caf35df639eed04",
+        "css": "ea6b722ab86f3cfd07d9c854e0b85c7b3474deb6ff844144e20c78c7b04051b9"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/TransformContext.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "70a6bddf8be666dbc08ad1ffcf92262617201b30ebca6c5b3ce1afa5bab729ba",
+        "css": "de4e2b922a6eb9a83819c9ed2d675b2b9e498e6837959081209b60b4ec4f168e"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Vector/Vector.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "106a49dc9e0cb649b1ef27dd8301006c6f5be149f21be99237f9dc7b8bf61351",
+        "css": "9890324b19ad8400d59a9482ad69797ee1f54d085c1d92be31f16539853518b3"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Violin/Violin.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "d77f559b1d6c74ca5fadeea85213d7dd069ceff017846a83ed45e6d42728977d",
+        "css": "bf63d9313255f277d6a0f304f514b4384f2507a0e849710b8d2591a8f8ca2d2f"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Voronoi/Voronoi.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "10be00a3e46acc8876944c04d5aa80317b3233b058c6775a827c8201ef7149e5",
+        "css": "571abab1dc0f7b5c537beaa6192859138b4eebd26b8a526387b5074c2ad5a246"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/Waffle/Waffle.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "b14dfb648332ccbae509e81e86f3befb0cd6d8553acf03a0c330e2dacd68884e",
+        "css": "6ee297cc610791ad6376595b1a41e81e7da897205f6c539c5fb0f54ea112d4e3"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/geo/GeoLegend/GeoLegend.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "135de1eb4e38bb7ee035a5c4591c92f5eaa7c4a9acdaaafe7a5ea4ff126161c3",
+        "css": "ace6f1a8b89b4a7e38fc654f6e35a890ef0afd633495df2c5bf491c07cfaa5d7"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/geo/TileImage/TileImage.base.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "db1707ae5c6774bdb1294ce27c069acfd35479211129f874bc4a95caf5662fbb",
+        "css": "0e7d025ccb568381c0d0ee8d793869c2063024eab314efe4aebdf7bc681a7fd9"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/layers/Canvas.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "e2a77e3f5b97062ecf75311563262e128d684d1220f4802ac08cf66f49887a63",
+        "css": "fd7cd7f0e75bf7225f55c2d02fec1c7547ae9e45f2b4f49577fcb99e187b237a"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/layers/Html.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "3f7ae47afd057bac38619636c77eebc38cb4741361c87fcc972364780c572d39",
+        "css": "400f6c102703dca2ec1fd65235f7e482eb9ed98ec35fc5398e480a2d65e0f109"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/layers/Layer.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "f6b817716d7372adf2f43d350814bf1ca7aaa695e96a89962dba0410abaf64ab",
+        "css": "b87d08263ff344fe7f89ab5ccca96ff3105fef6ab4239fd76d63c5287d9837a8"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/layers/Svg.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "a4c44baef62da2d41c1cc0d05135c1f7ddc935cdee3b2812d032b0eb88d21ac8",
+        "css": "3c852d010c9a2d129e86337caf35984fa02029761818fca6014f82f0c647c355"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/layers/WebGL.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "adc825a0927bf52241a36a5768eca5cc6ec8f29f39e29b79bc7195cdae6d07ed",
+        "css": "610c8ae5cb24bf9c9949207cd16daf202d651ecfdf0a145c986ab947040dc168"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/tooltip/Tooltip.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "6e366632f8798e2d532c2639913f30008c417588919bce48ff76c6aafef21f87",
+        "css": "60bfcad8c665506e7a95a59180c66daddc23657c75393bdb04a1f379e43eba96"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/tooltip/TooltipContext.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "d8f8c150ba4c7636ef5d9724afe1c2de04142bbb36ef055e11451043e001a938",
+        "css": "0947d93dc8481d15d10de68c9286f78d7fa445a59d381f0ffe07872a1c4dbaab"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/tooltip/TooltipHeader.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "66e7df107cd07e62a948bef2160677192212eae8d1c2a1fad1f357ca6f6a51e7",
+        "css": "8286f2e871b4aba6e8ce2680d044c7d1cf7e0415fe7cae30a8a68e43a716859c"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/tooltip/TooltipItem.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "044e9c96aff86dc74814c620e1f6389476387b6fe6242b17537f959106894b98",
+        "css": "2d646562c1ee88229df7d4ba0461bc7666d6b16e814edbd533710c44832d7c45"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/tooltip/TooltipList.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "c839b78651a196f47b9103d91cb4fbc7533598f2667d53154b47b48f3fb7fac3",
+        "css": "89d449585351f192397d7f23649391fb35e8ed8c20db7d067bc815c33b380937"
+      }
+    },
+    {
+      "unit": "layerchart/packages/layerchart/src/lib/components/tooltip/TooltipSeparator.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "1394b828b82f6befdf5a5358135646447b3ff03eca1039821941602950a06460",
+        "css": "bfeb2495a68d91958637701e6c27d86ffc9d2a8b2fabfb11b1b379f23eaf5f44"
+      }
+    },
+    {
+      "unit": "neohtop/src/lib/components/AppInfo.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "7c10bdbafe1ed9bdd3bbbce9e5e7bf2ec874682a923cdce1356a796b050fbbc6",
+        "css": "538432eb54a4ebc443ba1a76338916b74a4b99c50f48aacfe05cb86b52cd0060"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/furniture/QuickTips.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "c847ddd6745bd94fb9a28c7c04738914301e974822756e0aa1aa284f597a4426",
+        "css": "5ee8bf77707bf50c71b08f2c4b30912a649ebe724220caaaffe09fc0326653f0"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/furniture/SearchFilter.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "9e720cf07e122789fc8deb54b2fc1932141cdb681a930d98794e6d85c6c181aa",
+        "css": "e4b3583e3ee234d757bfb69de46350f0702e4f6749276efbd2963aea9e574df8"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/furniture/SettingsPanel.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "2b37a8a7fe840c26ea80691b19c4a5b767df133b40c24ec8d891ba69f3daa315",
+        "css": "0aaba227800144bdfe07a14f61dac4d11618dbf997888e94e36050e5a4c40ee2"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/furniture/ShortcutsDialog.svelte",
+      "before_error": "unsupported expression `import`",
+      "after": "matched",
+      "sha256": {
+        "source": "9ec1b7f734cf07923a36b4e981d068d15241ecffc030b25cb373434899553fa1",
+        "css": "8d2ac2f1670637a55dd083bd7a7b4e67d4b5b55dff374b3015de1294c9796b88"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/page-specific/about/AttributionsSection.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "a81723251871a3b1e86fe898559d5772d207ed0e3aaa9d41bb0a91e4ce775177",
+        "css": "b7637e5711f558164aae766fbb859bf9de7bfe4084e2ac8c1b189c355fa35bb7"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/CAABuilder.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "54da048e21e896af6aeddd5bda0318f3f8af3e364bb4a1bdfd87ebdadaf9977e",
+        "css": "5b90eafc2930bb0d9fa3e4d3a9ba0923dcc2194520018c1ea9b35e80c4c97b1b"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/CDSCDNSKEYBuilder.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "c0fca75278f19c7e90ae42e6af642b491c689d093ed4cb338bbcb2557d819913",
+        "css": "77971e84e06b4e07ffda6f533bbac01f45c3f4cb7b4b3f65f1afafda50989d73"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/CIDRAlignment.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "5180b54bf2fe863fa0132bdf5d5e140ccc6b1f83596a6d974666aabbfc788baa",
+        "css": "86bd7763c4b1cd3a727fa5c90528cbb4b7c362eaacea2325186342988181ef86"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/CIDRAllocator.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "d95e9315e626c454e4a6f2ff55394ca597d6e9a0f46322342abe283f0a6a0774",
+        "css": "5ece5f9d056e7329c59979387bac218112fcddebf5c8089b9329fd49004c66c2"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/CIDRCompare.svelte",
+      "before_error": "unsupported statement `throw`",
+      "after": "matched",
+      "sha256": {
+        "source": "b8eacc9107f614728e7540532b11c621f9e00b92780dc63b78e90cb50fa9af70",
+        "css": "80f642d46178ba2096c026ad9f22188287a77bc237e002b664413968bb22b8a5"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/CIDRSplitter.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "428358a1fc5066a2f4d0b4f9b7251dd15b00ae8531853f12c487860ddb52babb",
+        "css": "7c603b192f131d97dbc12e0850874e117774fdbb7a77bfb5c6ab3c11c4c7f343"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/ClientIDOption61.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "6ae3ac41a1225ced2d0d8076ba440f6072b3eb2e6ba7145dc506f99662910a6b",
+        "css": "e1b1f86dbe95da18e8681ef38ab7b527d41398c6d950b35810d1784e85eb36ba"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DHCPFingerprinting.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "0498bbb15cdbd64a39c33fb471934467a131800479ce86cfc760348f01524b2b",
+        "css": "0a125a280a5b6470f1dd4b7f23ac98bd6e993d82b8daa00c75cc3d77e7a14a0b"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DHCPOption119Builder.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "f5db4012fa77a8fa39c3d87722adfeba87ba79242eabce3d06c513b76bafbe5b",
+        "css": "322026a639e099c9af96c8fba4ad93b34e547f8adc7e1caca9488e1205d89199"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DHCPOption121Builder.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "61e046fe9e58a254a1d6e3c141163842113b1c8c77a1e7828ffe9e2b13bcc6a7",
+        "css": "47da66e1a24d16278fc44b0d55c5f7a632e83ecd05fa60d102aec4092256d082"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DHCPOption150Builder.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "ca703dae49f363c55e9c7c86f92e78642711a6f98455fe892e4b2610850dc83a",
+        "css": "0c97135ff7be848d73b1b0d9aa51f0082eb77c13e45e70ff9f9240eaf4623cbe"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DHCPOption43Generator.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "1795bdb2d0f0f1f045667e40596a2bbe0b3aec9f9ed3f9af3a547354819a3672",
+        "css": "d84f315c5ebe33c59166026630f3b146a3f2d41fb2071238909eb16577c57419"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DHCPOption60Builder.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "38f545384f63ae9a3c344a5a74915a62049718ec5b4b67204d5c27ce8fa5ce33",
+        "css": "63ef6b7397bfd304591776505dc8ef7f8c7b2c6391a59eb2e657cd9b55bd3391"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DHCPOption82Builder.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "30d50c52d77d34e6c6554d0793f613910a5af8807be7e33390c37979dc5d5e6f",
+        "css": "5fb3aac6fb22b3c14520230434cfc755d5ac261d1a622534f854d380b8a264c5"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DHCPv6DNSBuilder.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "ccdaa45c99d4ef165ab067a51fe62edd466c64b7edf20ad15987800869d6b1ba",
+        "css": "92100a94eef363d40260a2303bf81a55cf99b118af4fb9eeb34be44b0dbd745d"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DHCPv6FQDN.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "7ac99908266a9742d09ed08b8d4e910ea4340606f7fbb18eef47ac4ec06905ed",
+        "css": "218524a67f1c64ce4ad0ae1bd902d8706949296166007bfcc9d6408cadbad0a1"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DKIMKeyGenerator.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "827302736e0dfd9bc4ffd3e6450cde69207aced2109a0c9577c34602a3688574",
+        "css": "8938257a774c253001f14f061cac6d3fdf7f17b50091fa6725de5293907cf47a"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DNSAAAAABulk.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "94d05b8fbfdf97b26ef422f073a97abaefc48aa13c60d67a3b1df32791894f3a",
+        "css": "721bed8204aefe35f49b83ce308bcb84c3ab30f17304aa57276bed970044caf2"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DNSCNAMEBuilder.svelte",
+      "before_error": "unsupported statement `while`",
+      "after": "matched",
+      "sha256": {
+        "source": "31da12c4deb932fbfa794290cb0a5b210202ed07aecb25cd8d8cf8234d9b411b",
+        "css": "a534ee533f9ea0abffd76a0e92cf3abed3e5601ca6a5221a6439761192fadaae"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DNSKEYKeyTag.svelte",
+      "before_error": "expected a property name",
+      "after": "matched",
+      "sha256": {
+        "source": "37953723a965195b497d116ff3343b8252b1860ffbf34dc793ca3d9d34f20e36",
+        "css": "36f48c0eb186ebc85a96314ef2584b9ded2880fa6f3dfdfdd32c1e8bc71fc9e6"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DNSOptions6And15.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "4defacc71cd3838c32b16092d9780121b4632bf1b3529ea168cf1516dd0cbdd8",
+        "css": "d1407c4f1fa92515025f62ae1b5babec2ac726ec60b7fdf5db31364c5802f337"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DNSRecordValidator.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "b434fc2c4f8e599e6b9be72025ca7abf85fe4e35f2827dc8f5dc4ecb2ba015ca",
+        "css": "29ff09de724c64839c9f94b94407b859a0e3ee90454d610f6bf9b4ba7bff2a34"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DNSSPFBuilder.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "065bfdfcde1bee187c2d5ae7ece80f7edbc20c82f5da7e279ce7ec44ace4eed7",
+        "css": "1a06d0580e51aec20ecaa998d55602964ec62c5fcbb723824f1809a2a5815116"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DNSTXTEscape.svelte",
+      "before_error": "unsupported statement `while`",
+      "after": "matched",
+      "sha256": {
+        "source": "c9a20b3bbb50d7a7d3028df94e09a8d63cb571c370b66d350d781cbcf0cf6d8b",
+        "css": "60ddb6cfe57d9220fd71d6487e09c0aca290c1525b95ee36ed435f61464e4ae3"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DSGenerator.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "32d8b46d541a47d4208da326b13dbfa4b2b7108caeb3a7690d6d8f60bac9989a",
+        "css": "64ce0ebb0cf7f30752420a7ca5e60682ff744d579759d25f394bcea295fc964d"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/DUIDGenerator.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "9b30ca890c0bfa9d5f9fab54eee4a27b7062571b4a0af09c530d286b98ee9c8e",
+        "css": "3acb344d05f39b1bb8672a3264a0f182da6c4e18dfc4f782d4abce75d61be056"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/EUI64.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "494574b40450ce075a657caa625292e0efe8561c208098fb38ecb91aede1063c",
+        "css": "c3ede4db1db70c52ee9b70713a85acd8c9285596df071948b267ffcf5f9e7b70"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/FreeSpaceFinder.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "a020758df325a3755816d4609035f9e5108bb3456936e1358e42108fd1c100e8",
+        "css": "f2115afd9119f4ecaf8838940fb4b77d71be7e57acfe2f7668f8a380186629e7"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/FreeformTLVBuilder.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "e1b6e3d1d3c0f5214e1f6c2645fc9726a8cb4cc47ada1fa4aea99deecb475711",
+        "css": "89e78308dd6d88cf667eb539cf49eeb222503f3b79c6c76c21221f8a16a01526"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/GatewayOption3.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "f4bda0893d280a56c32992914c6cb92ba3f17fbbaf44aa457dda105fc110afff",
+        "css": "2e5bd614e51ed58fc45651c7cea946275bd8b5339f12ddce8e154459f88d0c80"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/IAIDCalculator.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "c4c9d71d86811668f5fde2836c4c69d20d127c0620f1486f6274830181f0eb64",
+        "css": "f325fda88df91bfdf7dfb0476f99e0ac0c2ed49e8924a93f6bda605bfc838d1a"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/IDNPunycodeConverter.svelte",
+      "before_error": "unsupported statement `while`",
+      "after": "matched",
+      "sha256": {
+        "source": "1b1d375888c7ce33bbc353fc5e8278e271af08cd15753d6ff244261015ff2034",
+        "css": "9a478dc1a48a3b478e67e55bfcd9db59fa32d6d0365f233ef82092b700984c04"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/IPConverter.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "d886de39091086120a613335c536be8153a2d73a8e6932bac6536a292d673cbd",
+        "css": "2315a3d3ad28f9d2a6035e2f3e03291d5ba2f16caab5383f3eb21830cbf88e92"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/IPDistance.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "5cd6ddb9a8b090d3b906e798ed0d5720432fd0a400c549228b69cb4b3928c49e",
+        "css": "1b86425c75b220f08a89122ddfa76c570389a9c2ee9c232ae9a9efeaa7951b61"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/IPEnumerate.svelte",
+      "before_error": "bigint literals are not supported",
+      "after": "matched",
+      "sha256": {
+        "source": "fbd5ef35131bc10e1fe009d7c1c98438ff53f4284576696abeef96d6887eceac",
+        "css": "9fdfa64547376d7e336dc878fe1cf9d61b254ad5ea081971e23e4c53294e472e"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/IPValidator.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "7ec372bdc63a7835173bcf3ef656ca20a241518497ca26db8b17244567931263",
+        "css": "5ce35089b7f926c0dde7dcd8815689667bcf1eb4fe1c90dba06227b3d8198786"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/IPv6NAT64.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "41f314cf7396c6764756651816c4d5d203d9b4447712a59743cb99371ccd54a0",
+        "css": "1d7261eb9cb8b97de06bba614de9c7e84e76d9e1e6f1706505f203830fb6ad4f"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/IPv6Normalize.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "fc2b5e3ad8fecaf91ae850a67b1f74f6373a1df043d6e083e2d8e9330cd37e82",
+        "css": "c46478ce755c430aa91a86d2c228b15297be6e5df0c35568de81ee5f253190cc"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/IPv6NotationConverter.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "137cb7fa0f724a2e2fda26ee8e0acc9375fad8a3b9fd236fede8bed8f1e958f5",
+        "css": "6d4877e772a6ace7855fc28131bfaff5a2245cbdfd82d2a165a18c643662bdeb"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/IPv6SolicitedNode.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "bbd7bdfe76a08e2179c3add12dc867cd1409cfc2a9fe24a60f0c353b2ca53847",
+        "css": "27ea4174e3eb2252beaef5c8a8b81ecc29963abd091351bd204f7dbc37f43025"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/IPv6SubnetCalculator.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "eef79305dcfde016ebe87302b297b07bb8d9552babec5e439c3311bedac5df74",
+        "css": "bf7fe5b14d4c1f969d785382daf79bf741253410f37513c6b1bd4afde4ff66af"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/IPv6Teredo.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "ae6a9609ea763c238087410cd42bf6752e7b2710f0f0fcdc68f00b88102984ab",
+        "css": "9c80c07790b0a190a33f5a65f710fe3ae4ef3df3821478286bafab5d50f151bc"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/IPv6ZoneID.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "f56e468dd9d5b49bd4fd2c38b4d753bfe215a80cb69186d35d119209c018d397",
+        "css": "0fe372430fab2c7abbee469b890b5e4f061ae8b5b16c8b38b47b0164ed90fc91"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/LOCBuilder.svelte",
+      "before_error": "unsupported statement `while`",
+      "after": "matched",
+      "sha256": {
+        "source": "ad73b1ff4755d6c5f6f1e39495c8a5514d9fb89b1a0e5f6f828acfc69c3bf21a",
+        "css": "2e6ebbe5b1982cf1e45fd419a67310fc0813f5b4ac99fee18f990b5a92368de0"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/LeaseTimeCalculator.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "7892a4d1bb80f315ed480ee92d3ff0f7aa555e18f651de5dcd1361960ba9456e",
+        "css": "1b197ce3e389305a6439f05adf85a7dac89ee08165cbe77f0d79c6b29d81a142"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/LeaseTimeOption51.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "744cef430523d0e2b647a65b65d14c9cc1422830c0ee51cdf44bb5dea56bb1ee",
+        "css": "2fb48ca4b8eebe77304d32a0d97ec53ee4c2d0aef670efe270980769e4953bb7"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/NAPTRBuilder.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "ff51bf3f4fca5cdd323b68d2aaa8ad418cfb3c3922facc849f68c5df07280ece",
+        "css": "d142b3cf132373dc5bda36c8ab85e97615e0df1ab190021dc925dd811775cb67"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/NSEC3Hash.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "4e7b1f0a527eac0488543b64379b91bbc8ebbd3ac8dec2c552cf134247d3405b",
+        "css": "4a937c24ba1931edf94a10368dbac033120391ae73326e9a8427c89a1b5053f0"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/NameLengthChecker.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "f454527b4977f99762e839dc06ace5f1f176df25a1dfcc795b55f6dc9ddce414",
+        "css": "de4ff883129ff8b46fb6bc4490615611e4f5fdc6b46cf242516e5939e3334d20"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/NthIP.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "3f76d6913f396a92284e466f276d815483e3dcdb076c90f5f37294185d8112fc",
+        "css": "58ac79f27bb55135399be359104568dd6cc084759929fe6bd300176a3538c80f"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/PTRSweepPlanner.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "c8b417b108d5562068b0a6fa0f4dc4ff5c4154584fbf0a1c020800927ab242ed",
+        "css": "ed456c28d5f88168b8f2dfba160d7fa75923fd9969ff02c79ec53169dac4982f"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/PXEProfileBuilder.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "cc926f2f751c06f6d5c528fe098df1c07e2396e17b2dc9b2641c355d537e86ac",
+        "css": "07a74429df972fa98e2c54c3b0e2483c6f657427b4c238bbfaf52aa53e9d376d"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/PrefixDelegation.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "e16670670963589b55b266db77c6aa319f70efcde7fe2cad9f7ec87d4cc99503",
+        "css": "6f94b9cc7adb9b2fe1fb69b7c3d5fc348971742dd81b9eccf4f99947f7876c62"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/RandomIP.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "8d2b901383035e02053a753151a39cfb82746ada4881ed5000d00053e2a466ba",
+        "css": "4204fd9fca27a90a5ba207fd345677e2fc26c7c68c9a4cfb7e43e33ab2b023f3"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/ReversePTRGenerator.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "79ebce54752bd915048758b2b43c08780f92767ecfaa7091be51fb0d7c3d5eb8",
+        "css": "61c3117d4a268d5713a4ffbb6ec2dc4546ffa60cc7a7fe0a1bb0209af0d26fa2"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/ReverseZoneGenerator.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "24e09be1273cac635fb6d0d982355823e677ca903a171cdced3772a90c34988b",
+        "css": "12a0548d3b9f83fe9613c25e40dcde8eb4fcdfad491353723ba02469ad2319f3"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/ReverseZonesCalculator.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "ec2d92c84fa70ba707e4cb04aaf59a7feac0146f05108a2c9ddd29b0149b23b5",
+        "css": "cc10adb2337e9ffb765658f2d76ece3868caac2ec248bfc8a8102ecd0445fd75"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/SVCBHTTPSBuilder.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "34f9084aea99a63e27449f49f819513e705dc6c22a3ab84b4811a012764e24a6",
+        "css": "987954a13133d94bc8a69ccf2c5ddabc95b6e1cccec96634ff5b8c96df55b9ee"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/SubnetCalculator.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "66cb3415e53e813ebe117857686c44c024378684ce65a42d37974061fb682e67",
+        "css": "47fbf185a5e43f4c25a4bcfb62bcb48e144e6f23f6e152158776f7fd65f94c94"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/ULAGenerator.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "769e16362c73d0637fc3f933965b672a22f3dd544b3cc449cb492447fe5f99e0",
+        "css": "712502d6229411a1dec74cad85358c779ae5559a6acc1862c4b585f694557149"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/VLSMCalculator.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "e0defde546a64d836c687fdbbbe6f937ab5ae4254ec03b0edba485e74c114791",
+        "css": "0c3198a9824ae6e2bf7b9eb2a16d728fc080acfe9a9cf4f35d0e995dcefd0b63"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/WildcardMask.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "0af70db5a4c7bb4e628a4469e5d482fe86e60370e50f7711379baf55b10b5cab",
+        "css": "c540b7d073ceb8c4b964804d725341d4e32286685fdae794078b5b10f873f769"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/ZoneDiff.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "92fd518c3280dbe20bca7a38b8f0edacaf8d401b5f8ba892ce88e600aa0b45c8",
+        "css": "2eab7c6acf091344f06e8e8035fdbce081b4f01f9686309e8bd0dcb7e83541ad"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/ZoneLinter.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "2f9716304455d31a6ab8ba15f3fade345cedfce0047668cf005db6995d69add1",
+        "css": "e5544311c953cdd63a678b1175499496beba0df816775929913e1282096b2be2"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/lib/components/tools/ZoneStats.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "c87cba3e1666badc26d02f480caacfdf689fea2b3bb9520085b9447a8f659ced",
+        "css": "442cbb63b777c0d7712feae542633db3c04458392aed2eed7ae6fe94f814af0c"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/+error.svelte",
+      "before_error": "TypeScript type assertions / generic arrows are not supported",
+      "after": "matched",
+      "sha256": {
+        "source": "f314163b05cd75613e930b51b145cf43034fd2065d87042bd4589bac631a871a",
+        "css": "cff35476846fd3bb7616cb8fe76ffe03470a4d43fe14311ccfb81c6650af0f38"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/+page.svelte",
+      "before_error": "unsupported expression `import`",
+      "after": "matched",
+      "sha256": {
+        "source": "d0625a42a308bac07d8b105103a0b9c3104871ec8180c082c150fd3fb4267b1b",
+        "css": "a5dd8d1922ea198f1c0488b5ad8297030fec3feafa0d22195b68a116b44d4a46"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/cidr/+page.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "7a45abd8def41358a0ebd530b7b633f6d0153d9d997d928a48f7310d3699c0a7",
+        "css": "59df7f92e2bae1cf3e21533b9eda8dcb85f01dde3c7a72d6568d752a90e032f3"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/+page.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "ab1a7ac6dd7e73d1acb114e7427b3d2c9466daef72226cae8380e6d12e66f8a8",
+        "css": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/dns/+page.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "3780689ca2d9ff28e210a3034899421a7568ed8e3ccfc85ed6e3f3bc6677738d",
+        "css": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/dns/axfr-tester/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "f82d14e92ae3d7ca304ba1fc9892686e4cc6b4f67f8c53aa46b1ef42a1ad621d",
+        "css": "c0ea43c3c51825960d68d790598394c4880577d8a4f22893e925978116de4ffa"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/dns/dnssec-adflag/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "f7a23e624a5c264466fa66e4b0e661b8dae86e85b136840f013bb541ca791737",
+        "css": "bd6b07a8a9273dffc9d9bc04e32516e21cedd7f2fc9cbf1b8aab9c40ca8cf4e0"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/dns/glue-check/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "92b0295eb988f3eb59e617be7ab8af4b43c9153065e03ffb730913c8eb4222e0",
+        "css": "5aa94c54780885163051792618c1d94a2fbfef472de578d5b2183a4fa062be39"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/dns/query-performance/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "089a933bb12bd28e15c37994aaebeb7c90227e4d1f82ce8f865941334fd18308",
+        "css": "4d1bb77ebf8117c186f95f9e8c17ea17ec9d884ad1af0a784dbbf69d93f65787"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/dns/soa-serial/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "7e19824323f41508a8a537d49a15314163a52c18c52ff7a63ddca0594ec2d998",
+        "css": "4a9a7ff2936927bcfa29858a45f9bde93c2d2cbbabcb6ef5f8d96f5744c92f12"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/dns/spf-flatten/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "4b3a9d2d09ebe56d3ab93fa214feb3b0269d8e783a23db764788a5d55589208a",
+        "css": "ba292f518bc974f3235ddbae47ce86aa7ac665f0d4330925c841fe663808688f"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/dns/trace/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "113e43587fbe9bdfeebbddd80f24dfa631ca50ac25bd7c23811d7606fff9b837",
+        "css": "3a4feeb3c2c84d0c0019dcf5c803538dda00e1df3d2727843c67a81a8103a875"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/email/dmarc-check/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "e1d5e041239334fa5259513692ad8c0af06c87ae5e25365120c7d74b8e151eb8",
+        "css": "05022338705cd62263e43cda3cd7763a067999c4bb38b070249e799be3c67923"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/email/mail-tls-check/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "4eba20111e7ebcc0a5e1e6e5813e53955a540281f0d911c1040f50c63cfab13b",
+        "css": "72eafa00e1a13e8824b0be2144fa855451ab9409c5de654f184b45a763707c90"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/email/mx-health/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "e699e414e68c04064a9bd60890ab3bfdb9df7d9018e054a1e9e06861c16236ac",
+        "css": "d1db81a99513cf7d673054669ef8fc7d487dbf967011ca79df7cd0e02959f6bc"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/email/spf-check/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "3b0f043fdeb9b0ce786126b22f43bfc150d4ae6b6651e279bd5d63d3771eaa51",
+        "css": "38542fa4498c06f7d47732fda8c37ec4bf062ec20cbef2254ba3b6966743149b"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/http/compression/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "49f12f10360f29cb3ff7382012b86fc2b96765722f70655d8c411d2a1842b2ad",
+        "css": "45cdd2c9f01a0149fc3630c992933d8039b4323d20213c1c5ef53494efeba156"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/http/cookie-security/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "cca73c3496a24504e0283a832ae0cc493e84fbe286136d7ef456e5ae6505db7d",
+        "css": "a272e23864e7b8a8dc56e1033ab9c57d690c695fef784de62504bc34cd83e47a"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/network/asn-geo-lookup/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "9be013fa53431a5c8fabcd17fe923647d193cfd991a1ba2884dae904757caeed",
+        "css": "cfe5840ebc7873c69d7af3e49739eda8c9fb8c68060a3088ad141b47e41e4549"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/network/bgp-route-lookup/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "971037d64bee83b2debb01d91b9c7f0103d3239c4f0e0a5c626e19ffb990f0b6",
+        "css": "3c6c238fe9a161e8c4de7f217eedad48ec27cf3f4a4ab2a67b44de5c82bdeee4"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/network/http-ping/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "36fd3d9895d81ba7f7684ecac6345e30a5829476c7d049170b755feca94ae051",
+        "css": "64e35ddb34c6cf74ce757b54c24d3c213db828bacb2c5827ec368340c4a581b7"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/network/ipv6-connectivity-checker/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "685cdd42b0fa260d2a24405b9f6a22f5d75845c99ea54f75aade93935820a2cc",
+        "css": "58dec71552fd6be8c54c79df63d3465d3f7cb7ac271c64ea0f5f2d8d454d4d4e"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/network/tcp-port-check/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "dfaac415a826e0da1b62251bd2d73534a03cac9ec9845e0ea1f59c7819ee4193",
+        "css": "8fd4060e025424d0666acc5fc0beb007a860249e898dcc83b99910b2d56ea9e7"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/rdap/asn/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "53dfc3c0547af276f3bf8430c3b1feade5a3659db2546f2467eda1aa3384fec2",
+        "css": "9ebab066818ed781f7e86e82e2af8918089a2f4d10e783a8d854a16fda172a38"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/rdap/domain/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "87bb42273439ef9a4cf6bb887a345bc3002bcd1b8df59c75899824f26033075e",
+        "css": "318f99adfbc408ff721197c4c965f65729f6d2d47c98ff4ba0ad0190687ab2ab"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/rdap/ip/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "f4452eac016d379ca6a114e520be694652ec46c4449fe6b9858573a2c761d614",
+        "css": "5d93aad30868afd42f1a6a0bd0419f678f7d14b5809cf82b18646e40e192d441"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/tls/alpn/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "bd46baf5f0c7e3dcfb95f80c1edde20fa3749390f2abbdfb1f0800ecfca76505",
+        "css": "f4b498dff6df2ac203b1491a1070f5216ef42964ed745b101eaa5ec9c4689b83"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/tls/banner/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "0046836175c4825136b1853b4541bf8a6a17da98694ce53f8c48e3e0bf9612ac",
+        "css": "d9d5230a11b71d371504c04ed5857f04d3a53015d11bf260303e06cfb4972953"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/tls/certificate/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "cdcbd11dab92ef57ea819a8298b79c771c778480379cbc5d2b8ced8876dd1aff",
+        "css": "8e72e983bfa236addcf1b80f646c72ccfb76ad13919c2db7a791bde6d57ee1bb"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/tls/cipher-presets/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "1ba5256137fb3f00125e8369939db1d00c1a90a958ca255ef03495ca972b2c02",
+        "css": "d4bd3cb5dcdf80ae20de1226a9a4fc08603a5f21c1d7e7e6f59fb19acaacedbd"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/tls/ct-log-search/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "500d5a325105a8f717b8e2cd8ae3f58380982849d233b1c5a450ae3c38f7d5aa",
+        "css": "bcf84c421711717e4e342e3e21c2c412d4ce72c4a9a29efa60c92cb808849e25"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/tls/handshake-analyzer/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "32ff4bd4725f5a644b915ba01b47aefb0b358747704b2aa381dcf2cd081e4374",
+        "css": "cf27e60b8f27b992dbc49c6ba207b6e00dfa950f93ad9f9ff22b9b3425331ad7"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/tls/ocsp-stapling/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "0bc69bf66e6b94f93710c7677516257cd5867bb7eeea5b848fb56f6acb2126c1",
+        "css": "fe0d33c48744529517a97deaf11cf02fe66d78fe8e3cf2f9d5bfd213526d64af"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/diagnostics/tls/versions/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "1b2a0acdfb99514c9a4ba7e83901d0bceca8e280c0349e98ec100989ca06df7a",
+        "css": "c627d19f0418c0519ceabdebaac8f72dd8e08a38a4244ea57dd079d2053f3168"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/dns/+page.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "c0048df2ad1c1e4eb15c8130a4a715d9407e5b9c1564560984a0088616567b90",
+        "css": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/ip-address-convertor/+page.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "1b6d1879fc6044562a428dda1c6fa15783d6a35ad4e14f781a08386aef22abcc",
+        "css": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/ip-address-convertor/mac-address/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "d2c29532ad09f0d4aae16c8ad1406723698bc30a063bd69e119a780de7162ee9",
+        "css": "dd1452235a49453c0b7681628e472d577c73c76647e6bd48996202754faa064c"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/ip-address-convertor/regex/+page.svelte",
+      "before_error": "expected a property name",
+      "after": "matched",
+      "sha256": {
+        "source": "80619d4518a5634a937bafdc416fe784b1ea45dd9b19809af65a27d32b2ada91",
+        "css": "7c4d282d2756368acb358811e758f449415685e92f9fe23c9550451f53050a74"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/reference/+page.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "e5208dd4f8596d87ed7a4fedab9e870c29e451303b1a85f4ddedfda964809196",
+        "css": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "unit": "networking-toolbox/src/routes/subnetting/+page.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "aceed1b9cb689bba816abf5ad794ae253c27d3d56ed36c4cc890abe773a4ad66",
+        "css": "1559832b48833d5b69d3e7eb87e308c7fe86508e252a0ad8fdbd8d56443a91ee"
+      }
+    },
+    {
+      "unit": "originui-svelte/src/lib/demo/component-card.svelte",
+      "before_error": "unexpected token `&`",
+      "after": "matched",
+      "sha256": {
+        "source": "c04cb58d611025c82fcb2a3c490d20749b598397169fdc57a34845b62190d896",
+        "css": "cc3460d2e50af0831f4b95a80be9165a55de238afc6d51442801c6c03e2d710d"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/Primo.svelte",
+      "before_error": "unsupported statement `throw`",
+      "after": "matched",
+      "sha256": {
+        "source": "ccd8ab1e00ad03edba1f106f45bb6161e2fdfedab8fdbc8e544081133772faa9",
+        "css": "eebbdf439b432387d4d961cddea59d968c32f16fe2b7df7a2c2ad4e09abb88f8"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/components/CodeEditor/CodeMirror.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "422b4f1f1f32e25e202db4411dacc2bdf958fb202a435e0f52d8b9ad6fc80e38",
+        "css": "2892d423bb52e6b0df46193d8fef8dcea3b8c31af826b8c77087e9c1be7132a1"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/components/ComponentPreview.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "9823bc9649ae0c0908e24e9891c5319481d81e2d4cd34c0216b52addac1cc4cd",
+        "css": "bee23556015c650896f08c1e3cdb24c0fe48fbe4df2d9c6b7942e2a5ee23f28c"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/components/Content.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "87c9c7ec4f4be89f2ea4767e4d66a8c5d96353c59535eee51b209656b257e6d6",
+        "css": "6940405b44774a4a1a96c4dd2ba557b06b24201532bc131354d526b01ff22123"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/components/Fields/FieldItem.svelte",
+      "before_error": "unsupported statement `while`",
+      "after": "matched",
+      "sha256": {
+        "source": "bafe1e1937019d4e8cd9c28f25feef5bbe9bf9e34b3cfa1dc46a164913349b3e",
+        "css": "f13e4a0a453a27447a0c15e2cfd9fcacc44cfaea549ff322f38eb1ae6a33393d"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/components/Fields/FieldsContent.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "a798f1ec37541b52cba382087382e06251b3aa6d1f9836f42c3e35393d71b1a3",
+        "css": "42dfcfa0f1a78bb81f542a660d5f667556d8d12e36ed43f7792923248a9c60c9"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/components/Fields/SelectField.svelte",
+      "before_error": "destructuring assignment is not supported",
+      "after": "matched",
+      "sha256": {
+        "source": "f91535d1864bcef29307e51f55ae047c9e7531edd774474af392f032c2b7e4d2",
+        "css": "a7aeb38255d57b90b96904b66961d3ce23a21ea9692ada727b3d197f8cc2e5d7"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/components/Sidebar/PageType_Sidebar.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "bb9bc780ae4eb9a517563b95fa3a6c907647096dbb06c45bb987f9a0e266bcd6",
+        "css": "c8c811d85b06596c95dec4a7ae6721b901699ddb55de3db60cfdb49a79f63ccd"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/components/Sidebar/Page_Sidebar.svelte",
+      "before_error": "unsupported statement `throw`",
+      "after": "matched",
+      "sha256": {
+        "source": "21e74e996951453f6b8e20a94f98175af11a094e1463ec2cdbcd3f80d81dc2f8",
+        "css": "80c99baf9ab507ce6f77c19c3de9ce702a0a2cb8428ab1d332ebbe3f22d5ae1a"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/components/Sidebar/Sidebar_Symbol.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "b11443ab6f2303fa2fe0e9d9bdc06f0fcd8deba4e6baf4f2570aea31dd97962b",
+        "css": "2a815ac5db490d955c73201b8d57c76f936136b73fef9eeb62d690d7e5a309dd"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/field-types/ImageField.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "ab13a92608ffd3a23a3e0af795accc2f75877ce326743f9c4662922ae982e919",
+        "css": "c35150b9178fbd4b250a6bd2d125dd830f4e80cd7945b93bf1ab9098338c6487"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/field-types/Link.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "3844e1e39ce16c558a8de89d6ab2800d541790b4478323d8f23dc906a8d548fd",
+        "css": "8b1a166f5dc2829cdaee91418909f1b29416a43a01ee7ecc441014d32f4915b3"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/field-types/RepeaterField.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "fc3a0e7ab0706ca7783192fa1499ea8a690866c5d2d3a7e45250c37edc537fe1",
+        "css": "ec24f5003b6e2cf47e51c01dc3eb4d85e25dae6a1c6d16cc6d2342ce393d62d5"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/field-types/RichText.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "7c0df5c0c69c77d4b2cae308d3dd4405c8d3cfb34dbec75e1cf979b2c46827c2",
+        "css": "c8ff5d6cf2451183ac8095836f330d7e50f00d1d515478570ee903073161828e"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/field-types/SiteField.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "75e44b506f6f0645ed5fa23a7885bb73d73cfd03351fe9eff499617c24fad4fb",
+        "css": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/ui/Select.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "6df2df0dbb4d3fffa9c9d91cff5c179dd48ab51a4ca710a62a2b6d18d27143a2",
+        "css": "53f4ff2c6150b929e91965697eba77debf530f06468d349f4d640ae84ed2ff20"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/views/editor/Layout/ComponentNode.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "f28dde3ed566cfe51940091f05b56b433330271fd9f50d0748eed630a07b323d",
+        "css": "6264504792460b6a9625b3159c03da69a0f15cb03eb2b12cd2706c943637bedc"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/views/editor/LocaleSelector.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "14b6ffe1a84c5b26b2df4d074ba68349a45baf7b04481eac64fa195f5e9f82f8",
+        "css": "f178b272225888e083927376c9e883a0bffa10ef7c7e073ecb5d2bab2de96fde"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/views/editor/Page.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "67f4c3a20d95dbc07c4ba63ed2a18e8c4edb28a729dcdd9dc9fe7f6460cbd9ad",
+        "css": "7c0aa6a712e1e96da477ccb558f37e257eeb9a8a806bf084cb4d4b4ec5d216c9"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/views/editor/PageType.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "a80846585803ffa5ce9bef1dffc5dac7b60c1adcb8595ce0622006bf7b698002",
+        "css": "2231b3273f2634b609a93a460ac38affeeb8290eb3ebc1de5cd8f68e3b4a3168"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/views/editor/Toolbar.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "d2615c3959411236ed5bac4c6b906e16b488db3331dd6ff61c6472c7074a4ddc",
+        "css": "23997af930cce4b8c9cfffac552d2dacaa80f35b53896d6b1279e8f218ab8fe6"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/views/modal/BlockEditor.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "dec396caceb18ed18a4ded1ee9af0098c14ceb0af457a1d7877191d9f858cee1",
+        "css": "21c9bbbcae1c80cd000e57cbab75b7242ee6967d57f3ff32d907be76bb0075a0"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/views/modal/Collaboration.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "e877a1d75944457e8c177d4ea37686d83f1dcc69a214ec91a4575db11bcacb39",
+        "css": "a317bad8cb44ecb71387fd980c29f873413f63f5174385d3c83e9243c8951d9f"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/views/modal/PageTypeModal/Item.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "0e1128bf34c3fa7b7c3c61e6ce53ce4d33ce3441bf7af7e345a8456e3371e9ff",
+        "css": "8df208646b608f17f47b7d73675b9ddefdd0fcdb0fbda4024e2774eb5dc6c719"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/views/modal/SectionEditor/SectionEditor.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "34d2608984204446c16eebd879c85d337d9d3ed213f4698757967c898e150a04",
+        "css": "72685efad33256a5bfdfba39339ae8755ab8e24be2bebdf389f8da241da39cf3"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/views/modal/SiteEditor/SiteEditor.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "cf5bbe062ffb2ca01f9350bba758146ffcc9ce429fe0a067fa7cf65194e1b4dd",
+        "css": "edabd204d64f79f097750e18e2c0b29b78da1923f5fe66320b2bd5a56b1d561f"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/views/modal/SitePages/Item.svelte",
+      "before_error": "unsupported statement `while`",
+      "after": "matched",
+      "sha256": {
+        "source": "84c6ec5bedbad170f74687ac40cf8cac5b584540932ff646c5f00389433710ca",
+        "css": "2a0d052785030feee0ef62fc8c170ad2d2912f0f7f551a231fbc7310335a5ae9"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/views/modal/SitePages/SitePages.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "ad55e7145fca053c70e8106cec78716270c6e00647b33f4b4dff5d64096b739d",
+        "css": "1c2efa3348f28bd5eb8a14c85b5da49acad554c4db2000395f2d98d06159ff96"
+      }
+    },
+    {
+      "unit": "primo/src/lib/builder/views/modal/VideoModal.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "f36ba8be0afda21d3f9ce38ffa3b74d03960a55948af5e29700c26bf24103826",
+        "css": "eec77ef11d1bd6b5868833722f54d4050f153151c25a963a461373dd1d0c1dac"
+      }
+    },
+    {
+      "unit": "primo/src/lib/components/Modals/Deploy/Deploy.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "8138d234db3f8b59d0892cf5f5c1c71698c4d1e8cb8a72094445adb794c78161",
+        "css": "d0151da237f46f3e2d2bb40f7ca1c944747f6dc879770f1ba07c5301bcd7793b"
+      }
+    },
+    {
+      "unit": "primo/src/routes/+layout.svelte",
+      "before_error": "unsupported statement `import`",
+      "after": "matched",
+      "sha256": {
+        "source": "a9b8f5fdd46cf0f665723ed47c6c934036198f441037e595ac60089d39716bcb",
+        "css": "d18acf600b72cc8e4efaec194668f065451f34dcce6532b4824e5c3b19787425"
+      }
+    },
+    {
+      "unit": "primo/src/routes/auth/+layout.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "7e257e82703fb4c0b9e06094b387711d487a4b50f17198537425f8973fa80e58",
+        "css": "64d629d9cd99f7f786ebe80b35518f76160dcb4c905a034d09a1b2393c8a1b6b"
+      }
+    },
+    {
+      "unit": "primo/src/routes/auth/AuthForm.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "e323f014152bd69015e6eb47d8397aadf316102b509e7ff3279bbce90798d538",
+        "css": "c22828da89d1700ec827ad5ebe30c40ae972414531ab58f8fccedafecf43b20e"
+      }
+    },
+    {
+      "unit": "primo/src/routes/setup/+page.svelte",
+      "before_error": "unsupported statement `throw`",
+      "after": "matched",
+      "sha256": {
+        "source": "5a9a76020c0c6b264c431dcacdef0dfdde8f6b5f87046b85bee65999d12fac7c",
+        "css": "4098e7d02ac108e8286126c838b7c1a9952a8de0a24965913b7043726664acb0"
+      }
+    },
+    {
+      "unit": "primo/src/routes/site/+layout.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "9ce6e4a8e44090be98336244d103e42236d54839a85425deaa83182345725978",
+        "css": "ab4486c2ffffb7e679fb8ea3225c4a87c22a57b50d18ac8e56a849b5dbff00ac"
+      }
+    },
+    {
+      "unit": "runed/sites/docs/src/lib/components/demos/finite-state-machine.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "e11190d1e5d31b523e43eda7a33846bb14cea3c5e8dd8d44e8121a949f9f5175",
+        "css": "b0b46e6a81928d62b898ece0e0e2c1878e898138d82349f10891564337baabf3"
+      }
+    },
+    {
+      "unit": "shadcn-svelte-extras/src/lib/components/docs/jsrepo-command.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "ba88b722e25abab072d15594b9ab3491b9358dda773f8eeb94153df8d93b1c11",
+        "css": "f17d229aa58ec5935271c099216f53f982b8b8a81c0f6759377d85ec6fd3c412"
+      }
+    },
+    {
+      "unit": "shadcn-svelte-extras/src/lib/components/ui/pm-command/pm-command.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "386e8ed5f2d08a47b5b757b2acb0c905ba8656c5ccfa15c8a7f5ca22eff5fc3a",
+        "css": "80c06f19989b27375c176303f22c322a255d3c03beff01db271b7b1b075edd0e"
+      }
+    },
+    {
+      "unit": "skeleton/sites/plus.skeleton.dev/src/lib/components/markdown/overrides/code.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "d2914a8d75fd9740bdc2796f7b7f00054614591dbc113ff1520730c35c4fd6d7",
+        "css": "9308ba03607d02db97e60cf317f49a3b8b6fbd79ecaf43830d97f24b5b018f38"
+      }
+    },
+    {
+      "unit": "skeleton/sites/plus.skeleton.dev/src/lib/components/markdown/overrides/pre.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "4f078e9c7cdcc80ff511b0466944881f2c4b0b4a4f23cf69594955afd297bf58",
+        "css": "d34e28f6284cca8234a194a07916c3ca0a497b5d7e1563d7b16fbe1e059e332c"
+      }
+    },
+    {
+      "unit": "svar-core/svelte/src/components/ColorBoard.svelte",
+      "before_error": "destructuring assignment is not supported",
+      "after": "matched",
+      "sha256": {
+        "source": "a16510aa42e7295a81752d0ecb52bd6f9f7d648194657c62dea135fb65d4a1de",
+        "css": "eb9de49ff3fd51e67e44afb7b75fc2e286cee3752ad82845b99d2dedb6a2b927"
+      }
+    },
+    {
+      "unit": "svar-core/svelte/src/components/Modal.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "7d7023dcc77f5423ce064923d9a3ab92c95f00a1745a457cabeea00b0792a983",
+        "css": "3ebfb74c274b6c94f5254ac27405ba94c333724c8d2ed02f67d62abff03a40d5"
+      }
+    },
+    {
+      "unit": "svar-core/svelte/src/components/Pager.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "1382c3e79ec5351d2790b5c9a665772e0c96a2ff9329f66af421aa7ea40059d9",
+        "css": "b64c7f1aad276a4c7fef89f898057c9ab1ba19e66ea40bb73e1002465ce83883"
+      }
+    },
+    {
+      "unit": "svar-core/svelte/src/components/Portal.svelte",
+      "before_error": "unsupported statement `while`",
+      "after": "matched",
+      "sha256": {
+        "source": "f440e914827b46a3c8c703ad03f94374d3e5b7a1797934f86a41a527d9c86eb1",
+        "css": "a670ced678ac0288c7038f0e06afdf035b5485482e7605c545ea85410e2c96cf"
+      }
+    },
+    {
+      "unit": "svar-core/svelte/src/components/Tooltip.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "5fcbfe5189303ff351b74e1242ed38cc6f85a6253c1a5fe4773dc86f428e54af",
+        "css": "830e3c41bfaf19a7334c6659b0e5a3aea6e7897aa00f46c313bed0243da55826"
+      }
+    },
+    {
+      "unit": "svar-core/svelte/src/components/calendar/Duodecade.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "56e35fbfd93dbfe1983e67ed4472da4ec8d563f7c2b8fc6a15f1eac95dc9742a",
+        "css": "ed8b5bf74905f64361e70576c999b404b222250ddaadd35f9102cfad6b15fbe7"
+      }
+    },
+    {
+      "unit": "svar-core/svelte/src/components/calendar/Header.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "752bff583c3815a2336bdd7c9a33cddd52d24c812efe462580cab5042b507821",
+        "css": "dd4b58c240b9de03bea14ee6577f902bf633df4d7fc926f656fa9efbc737de6b"
+      }
+    },
+    {
+      "unit": "svar-core/svelte/src/components/calendar/Month.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "0912265dd33d301a7e6b2dd7a68501a5b6b1239a22d01995a34e0a70d3bbbf5d",
+        "css": "3fb08cbb8a7295d4678d32609830b818272ef278cc782313377432ccac81b61b"
+      }
+    },
+    {
+      "unit": "svar-core/svelte/src/components/colorboard/Layout.svelte",
+      "before_error": "destructuring assignment is not supported",
+      "after": "matched",
+      "sha256": {
+        "source": "489fdecea0763d190a4c5caee07507b06fbc7dfbcda8717c444205d70942bafe",
+        "css": "95f6f766058f2be1b83e68553e8e920c57272b83bce99948e4228cdc7164bb78"
+      }
+    },
+    {
+      "unit": "svar-core/svelte/src/components/modal/Layout.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "de4fd014f4d11736e20dd2b072bff8e6a4be733090470a689ef0672e03dfab97",
+        "css": "d2ecd91593e255b88f2789c665cb19d53c11a478f04088020eb879a11b78b1e1"
+      }
+    },
+    {
+      "unit": "svar-core/svelte/src/components/pager/Layout.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "c854868e4e25ac97455571c02f040f060758b9bba6e205cce9f15b7f42071ca3",
+        "css": "e9392e772b733d1473288b9c31d01dfaab68dd2ffa086faad69d3a4a9c3f552f"
+      }
+    },
+    {
+      "unit": "svar-grid/site/src/components/AssignCell.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "3266bf855c73569b7c2beffb98d5515a3a485827abc05f3da7ef9c0f4354b26e",
+        "css": "59b51d12397c8e0ab3455f239d9b3c370eac4f6ecf5df3741b607d46e4ca83f7"
+      }
+    },
+    {
+      "unit": "svar-grid/site/src/components/TagsCell.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "c3d64fe7642103bdd530d1d20e0e4deb2128ea87b4de3c6548fcc31e8953ce17",
+        "css": "0c452a68c9aa1299caadf99afe733d6cf3702f4217d76b9c5308ebe34adddb0b"
+      }
+    },
+    {
+      "unit": "svar-grid/svelte/demos/cases/CustomEmbedingActions.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "db8d72acd06cc08b59286197806361f336bc89e1675ea9f170c068107da7f45d",
+        "css": "7d626cc225b9e8f2a26f8f53815073fdc19b3dcd1c221eb61f476decfc7038cb"
+      }
+    },
+    {
+      "unit": "svar-grid/svelte/demos/cases/ExternalFilters.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "913ae22725d2cb61507c223a5e98571c5f6f3e46e3608139368b825c0899531a",
+        "css": "0ab794b2c222d45fe7caa256c3dcafd149daf29635761d14ebd451632d5f68a5"
+      }
+    },
+    {
+      "unit": "svar-grid/svelte/demos/cases/FilterQuery.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "7682c5d51380edec5e94235ac33552dbcc6fa240e9bc18db4dd4bff99f7f36ab",
+        "css": "4e1424bf1f05eb529f97930c1c695d6c6f1c7354ce7eaf4747f80c34ca112ec2"
+      }
+    },
+    {
+      "unit": "svar-grid/svelte/demos/cases/Sort.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "e87918e6e987d76316bc27e7c7573f7724522a1def93b4978962081c2ec29491",
+        "css": "a97fb1e1dae74a09f80e34c93f9aa7b3b357946290715cd372c8809c4616fded"
+      }
+    },
+    {
+      "unit": "svar-grid/svelte/demos/custom/CustomTooltip.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "e6af8d2fcd8a1273dc7313d0c97ef72f734c09d9ce08a8f6882820f91efff007",
+        "css": "d7742bd23e6d4d70f5d0a446c25eb2611b93c8e547413170f819a47f3072336f"
+      }
+    },
+    {
+      "unit": "svar-grid/svelte/src/components/HeaderFooter.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "73f0b4c009f1161b213b12e06f9be462351dd4f59c0452cf8ab0dc44d62e45fe",
+        "css": "d9a43b1165fbf17e3d34c21e32cd29899dab17f1e5d78e8a6917e05f66f694ec"
+      }
+    },
+    {
+      "unit": "svar-grid/svelte/src/components/Layout.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "208a5b7a2a72dd1307909ce058820f3014a807a0a928c47cb993f30cf368e2f8",
+        "css": "a9d221df7d8b545b659a93c54782db18acaaa45c5185ca630a29087cb2f331f2"
+      }
+    },
+    {
+      "unit": "svar-grid/svelte/src/components/menus/ContextMenu.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "1847b50481a388021ffd29b50173fcfbb8ff2e64f60a32cfa9b79d5b5e8963ea",
+        "css": "b62c485f5cb0a43eba4eb06d1a7799ee88bae4f6ddc06515fdc4a06eebe7bf06"
+      }
+    },
+    {
+      "unit": "svar-grid/svelte/tests/cases/FilterSimpleQuery.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "12fc164a3014df130b32ccb815a4ac9217c3570b6a1cdfedccbffdc7a1a1f6d9",
+        "css": "501cbefd213b86d74481f1f2419b47ff2d575ff89e8fd538eb5429846200beb6"
+      }
+    },
+    {
+      "unit": "svelte/packages/svelte/tests/css/samples/snippet-exported/~input.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "692b4669edfccf9ad1a2d427260bc8526328db0ba6d82961e5709f92bef341f5",
+        "css": "d027cfd08323a480264d28eac4ac1f39a70907d14c9c43ca465121a18ba2fcf5"
+      }
+    },
+    {
+      "unit": "svelte/packages/svelte/tests/manual/each-stress-test/main.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "cd116911203f932758565f6ebf9f3e70a0881335b113c49a8689683417785ac7",
+        "css": "cf8c8e84528e99c8eb8a99f03a2cbef30ebda3a40ec32e7f19fe4315fdbd3903"
+      }
+    },
+    {
+      "unit": "svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-style-tag/~input.svelte",
+      "before_error": "`<style>` was left open",
+      "after": "matched",
+      "sha256": {
+        "source": "e4c311114aa99d0353847837d33c4acd9155a160076b233712c0c027c7220e17",
+        "css": "263092edc379c2316226a41aa12bcf8de4b69599611fc35787f699d05f42615e"
+      }
+    },
+    {
+      "unit": "svelte/packages/svelte/tests/runtime-runes/samples/class-directive-mutations/main.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "0ef22614a895401d3db0688549d7685cd103b075c811cbf02e66a4332292549c",
+        "css": "a1f6a4c8f75c94deaa38eb82f889cb29576e0720e12fc361ba60d5dcad39c8df"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/docs/ComponentList.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "6e9f961c25b7552b520907eb40a6fcdf44126e362fbec4d1b9e62725d61dcb3d",
+        "css": "a4bb94181d899edfd3c8450f35baeb6c549eed0892e01bdbb5f64c2c9514f1bd"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/landing/LiveDemo/DemoPlaceholder.svelte",
+      "before_error": "unsupported expression `import`",
+      "after": "matched",
+      "sha256": {
+        "source": "a41ea50bc292725efbc84b9aa40a45670d7668d68a6e3b9ee54919808c821321",
+        "css": "810ce9cd2cc799249d1c73ccba48ef01f5ca9624e92863742af799588ecac078"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/library/Components/AnimatedList/AnimatedList.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "85a715995dd7d17e476b1414af5633a5f6e9c0002ab1557615a36d656bcd3892",
+        "css": "d1c8bc8fa738885d033cc47ae685fdda8ec1478af34460fba745767983a2547b"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/library/Components/BubbleMenu/BubbleMenu.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "4473adb8232670e8ed0c0523e0cb4664cdd0f4a72f2913f102636e619651f170",
+        "css": "6ec6fd40fbc4b018a74d59cb32114f73ec9dafda0c686fa087458714b517c013"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/library/Components/ChromaGrid/ChromaGrid.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "bc3e775a5af9538f6217a746f74732d94a1db26e025e2180a4369f645331e7dc",
+        "css": "7c504f6ee4ed820aef32c0d5c9be5cc8a47186b9e5680e60e95fb1660ad3f25e"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/library/Components/DomeGallery/DomeGallery.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "eec133d8a06d30654cb865a87220df3e4f0df39a0425d305cc636891e0a001b6",
+        "css": "b26939e1a89a209bcfd1d72ddf6a196d202e00f292977def0cb07af408b40901"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/library/Components/GooeyNav/GooeyNav.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "4dc2387a9c6425ede89938b8632815f293bb69381cfbc339a29e65a3e2ec27cf",
+        "css": "a0fb9c1a812030eb48a006dbd305c23d67efa2f5ea8681fed6f76d02a3fee5fc"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/library/Components/MagicBento/MagicBento.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "3bd63b08a4d4dfd9832520b26dfa933d0c1586a5dfabf1388a28dee6cfa65b9c",
+        "css": "a8a53fb005e0c8134e4ab75461781740f4f3dbdeb9d24b3274730ec8cd0a0797"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/library/Components/PillNav/PillNav.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "bef52077f8746b1db89aad3314de084c2def602496d8da762f0c597b92331d01",
+        "css": "2a0d5cce69d3cab77a0c02310a623357ef417128d93d960ff2631db0ac635fbf"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/library/Components/ProfileCard/ProfileCard.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "8e02d6918ff65f3f3ebae93a7bd9f3dc5c580d6d6c68fb6e5cd64b808544dcfb",
+        "css": "9238428df9980e0e3c4bbd5dd6ed0ea43ae9d9696d2a9820e7ef99cf3cb6c17c"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/library/Components/StaggeredMenu/StaggeredMenu.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "d4427712ec40cfdf4d70e1177fbd940e2db9845aa004439b0b4e2867e42d66d4",
+        "css": "324b27601128e680457ae0e64aefbacd60e8742293507051ad4271ff901999f9"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/library/TextAnimations/ASCIIText/ASCIIText.svelte",
+      "before_error": "unsupported statement `class`",
+      "after": "matched",
+      "sha256": {
+        "source": "5e6fe3e67eb75dd05da124c012639d9c236aed81069ea4e48cdd3bc885f7800a",
+        "css": "af2070a011a25d8dbfb44f817cca20da0bddb232dee13e3fc908902e2980959d"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/library/TextAnimations/ScrollReveal/ScrollReveal.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "683156ce387e67b87fe042de52f93a87e023c72e48facc8c6ab624bc7450a8e6",
+        "css": "9d44b24c2b8c6c5142404c1eae8872eddf8beeae783b67ee950a5f363fc70f4f"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/library/TextAnimations/ScrollVelocity/ScrollVelocity.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "a00ab6072f4644857e741287451cb3ddbb4ed8c9c4265ae5af99d8de1dd0339b",
+        "css": "616d0b12366851624e39821f5c129b6f1bd59da76dbe91127df7bd5688b6c8b7"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/library/TextAnimations/Shuffle/Shuffle.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "3d1a51f2bbe59af9be2b2b88f0a894987f895251a628e34c025485156eb99233",
+        "css": "06069a70ea8b0061a3ab7152683b9ddf58da58a5bd39a03eff607081df2e3028"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/library/TextAnimations/TextPressure/TextPressure.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "43346ebcdf6b3f5af7a5dce2e5de37b9e705ffd92e2c25bedff623482394f13c",
+        "css": "6c988310047eba97ad6f4c604b55abd1d3f8d44c9024e6612e3f322bd54f1b70"
+      }
+    },
+    {
+      "unit": "svelte-bits/src/lib/components/library/TextAnimations/VariableProximity/VariableProximity.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "79572ba8d29c619e17659469d06feee84124e5c5cdd8412a1d969dd73370df59",
+        "css": "af44cfd81e3c3a961a89c799e3d440d94e81c171cc67cdbdeaa120fd58843b6e"
+      }
+    },
+    {
+      "unit": "svelte-calendar/src/routes/docs/props.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "266fe02cdb765246320de25d8936256d63ff18b2823068e34afc6cbc33ff0a5d",
+        "css": "9c651f8d8b9d5d4ce3fe5978102033e7ed97a0561c16985b037c733a7211a663"
+      }
+    },
+    {
+      "unit": "svelte-calendar/src/routes/docs/quick-start.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "798ea281bb82f88e2a704e6667e60f0abe3df20841391c9e8984f2474f0cbde7",
+        "css": "cd64b1834912219696b060722a0fb7c13e32363bf4577aff7376fa86f873f022"
+      }
+    },
+    {
+      "unit": "svelte-canvas/src/routes/_components/Code.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "c8e1f76360a047f36c12a79686bafc9bde20264f87f8ff7837e599eb82d8a2cb",
+        "css": "a5c1c852d5d56f37c2195daded74bb16839977332e727b7f59aabb565444a278"
+      }
+    },
+    {
+      "unit": "svelte-canvas/src/routes/_components/NavMenu.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "25870e1755a088fa08544f854f7af305551b5e6e9a02dfe894331e43a378a4f3",
+        "css": "59133972e09084c1a71c33c7ad3212e723141439f20e19d5ce853f449ef309d1"
+      }
+    },
+    {
+      "unit": "svelte-chartjs/sites/docs/src/lib/components/TableOfContents.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "2f96f4c4ce1fcdd04c4d0c9741d002f2ae082b8060496e25480778365b828018",
+        "css": "de0a1039f49b6b663cbf0e1c2813f66ff5d94af6f2fb789e61252014eafe5069"
+      }
+    },
+    {
+      "unit": "svelte-codemirror-editor/src/lib/CodeMirror.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "7f2631988e15e8ef582daec8ebaafda8a4ec37abb2b8adb15ebb78538491d2a2",
+        "css": "475986194fdccbeb9949517a8591dffb3fcf0fe4f8c055a7a27cf6cbac0a853d"
+      }
+    },
+    {
+      "unit": "svelte-codemirror-editor/src/routes/+page.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "100183c282e942ba06740061a9b2cabfbc39a36895acef61a496fa4966c9fbcc",
+        "css": "1b1fb49afe1151eb6f61ef6bf6253091aec2526177e8870c88bd735154ce44aa"
+      }
+    },
+    {
+      "unit": "svelte-command-palette/src/lib/components/CommandPalette.svelte",
+      "before_error": "unsupported expression `import`",
+      "after": "matched",
+      "sha256": {
+        "source": "ddec0b11b2a492d10e8e811149d1a62e2aabaca7b2cdfb967bd45bfb6e9f4618",
+        "css": "0d8dc4b6ac47b9a5c5652c0336bd8f468bf30872ae9e903d1fbcc6e912455087"
+      }
+    },
+    {
+      "unit": "svelte-command-palette/src/lib/components/Result.svelte",
+      "before_error": "unsupported expression `import`",
+      "after": "matched",
+      "sha256": {
+        "source": "ed3a36c5e1a33159189a51e125ecba031f090b186887000ef2d5be90dd16732c",
+        "css": "2a5ad300d84769bd53142a9f07fd305956ec57fbde5e6fb4436d1d31973213a6"
+      }
+    },
+    {
+      "unit": "svelte-commerce/src/lib/components/common/newsletter.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "0cedfa9dc945a4cbeca9af7cccdcb2cb6a5aed9048f3a15a373ee0672174f2e1",
+        "css": "577c7c7ae4f219ec61911a78b919d9da3bb1e37f3394c278afccb8355838b2b4"
+      }
+    },
+    {
+      "unit": "svelte-commerce/src/lib/components/product-catalogue/listing-grid.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "4b79f9748c3ba6334242993f6a69e195c5286d0d5125bd08996b41e60465729a",
+        "css": "cb8420f00d468a8d677a14c987e6f82112062ddbf19a56ad9ee871cd42351894"
+      }
+    },
+    {
+      "unit": "svelte-commerce/src/lib/core/components/image/lazy-img-with-zoom.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "8cd5fc9319df725f10c325918adf710d2e0c9d920252bfdb1712ae78f60a7fe0",
+        "css": "0b3bbffacc00bd4dd54932c1ab4579c50df1c120551f55477682eb159c5d8f33"
+      }
+    },
+    {
+      "unit": "svelte-commerce/src/lib/core/components/image/lazy-img.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "2638e7458c262e4a0e909aaab333cc7872e82b7e8ba13816cfd638c4da96c8a6",
+        "css": "728578821ec4b37f2624dc088485675b99653bc9d7e80e9a81c9cf62525dd084"
+      }
+    },
+    {
+      "unit": "svelte-commerce/src/lib/theme/default/DefaultHomepage.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "df5abae12dbf9081463b286588045f2484da593fbe6945aca7c90553ccaa7824",
+        "css": "949ea79583442ee4c3a510fbb36faf6393329dbc758d2c9117f38cf131fe16d7"
+      }
+    },
+    {
+      "unit": "svelte-commerce/src/routes/(my)/my/orders/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "d0161ba79b915d84a1218fa64beeb96858f7186f3ebd299bc55bbc2c2209fe0d",
+        "css": "f4c7f4e8b2d868e63c6e826c8673908c05060378b7948e792b632bcefab73cc6"
+      }
+    },
+    {
+      "unit": "svelte-commerce/src/routes/(www)/products/[slug]/components/product-details.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "d4df1d5705939ca37601d6e308ab7f92df56cb90fe86bb55c97846ad586eac6a",
+        "css": "25ddb17fb9ca024371c33a9f0db21f90c7883029792a8f9960170c19ca77a4b8"
+      }
+    },
+    {
+      "unit": "svelte-commerce/src/routes/(www)/products/[slug]/components/product-reviews-section.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "a5e9d815c96fb9cc4b78974341f20a9b465e9cf9706651cf31f243c57993105f",
+        "css": "af1d9d46c065455cf7a3668f740c37e5f68168d71d1fb9fbdb7edf82d2e52675"
+      }
+    },
+    {
+      "unit": "svelte-commerce/src/routes/(www)/reels/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "10bef0b3fd58644c4c54f0af96c15838887ed738c39eab6a519c87596198fe12",
+        "css": "67b853d2d085dcb57571cdfb0b67f1f164060ad030952a2b0d0d16ca430f9f44"
+      }
+    },
+    {
+      "unit": "svelte-eslint-parser/tests/fixtures/parser/ast/kit-demo-home-input.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "3711ef1a5b8ea8b713ba7603461b69ac6a59b64f63f27130c5d5c0affd26658c",
+        "css": "ac75204ee51978046134897c9417e9f4b36bff010b76a3ca2ef85c29004acb3b"
+      }
+    },
+    {
+      "unit": "svelte-eslint-parser/tests/fixtures/parser/ast/tutorial/bind-this-input.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "90637c0740efcdba2bed2eb76f1fc943351c19f96615acf19069e142771bc10a",
+        "css": "d229dc98bf42e49d979887f95bc6456c734603c9f9b4d195fd401175cd7c9e72"
+      }
+    },
+    {
+      "unit": "svelte-eslint-parser/tests/fixtures/parser/selector-parsing/simple-scss-input.svelte",
+      "before_error": "expected a property name",
+      "after": "matched",
+      "sha256": {
+        "source": "046567a21c7d22ce0707c11c19498fd7e5c7048932cb07b6e66d68d5be1ea49b",
+        "css": "5330103389d9116386b5683a0dc8f3c6fd4b22d67ebc08da37dc7577e8888ac0"
+      }
+    },
+    {
+      "unit": "svelte-eslint-parser/tests/fixtures/parser/style-context/simple-scss-input.svelte",
+      "before_error": "expected a property name",
+      "after": "matched",
+      "sha256": {
+        "source": "77c4a1d16d32c68023b795757b6ef3e5100ad4ef57d3a7975d9cc7b74c33f126",
+        "css": "50ca7ed3b5186ed10821a95fae3f739d24795ea7b54dab1d1f28626ca13a073b"
+      }
+    },
+    {
+      "unit": "svelte-gantt/examples/example-svelte/src/routes/LargeDataset.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "e24f079a41c6bb980b2577cb55e686c8b45501ada4e3c17f8217c004c7eef025",
+        "css": "dbdee359abfc8040b56ca2bec57bb4e6601cb9ddc36f57ed874308ef4649ce87"
+      }
+    },
+    {
+      "unit": "svelte-gantt/packages/docs-mdsvex/src/routes/docs/options/zoom/ZoomExample.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "99f2c6cc95356727e6f7590509b7508166924cb2600065d448f9baf79755a600",
+        "css": "418f7910f27b6505f654fd3cf1a769c1182d3fedb736dded5821d9b4f1a804a9"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/apps/docs/src/components/editor/CodeEditor.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "09ffe8d776e4d4298bb847f47f9b6cc980c898e07e6f8c5d06721c32e952cc67",
+        "css": "b1a8271919d147453f82eb6b51fad98de6d4fca5eba17fc34df7fc9f7bb331c4"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/apps/docs/src/components/global-opts/GlobalOptionsList.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "ccf9b5e1f0c598e148c5fcb3a6114b539654f5b7417f85901235a438d6125c26",
+        "css": "1ab8c20ffddbb1091251a58f0b3a65174c21fec745ce6a3cf2e76143d89ad82a"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/apps/docs/src/components/theming/HexString.svelte",
+      "before_error": "expected `}`",
+      "after": "matched",
+      "sha256": {
+        "source": "3396a8d23f570d7d08f9a11800773ed2103c4ec0d3fd25735c79d9c1ad968056",
+        "css": "5adf43a6b2290aeec671149e7b1e19c4e93be1627a036106ecf8df82f028d5ec"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/apps/docs/src/components/theming/Theming.svelte",
+      "before_error": "expected `}`",
+      "after": "matched",
+      "sha256": {
+        "source": "7858d652b02f7a4ef63656dd9dfca31dfe9e6f397beb14421edd0a0164706d71",
+        "css": "dcbbcc7398c28be1f876dce0eba32a64b10de49894c5a27d1d781635d8a637de"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/apps/docs/src/examples/BasicEditable.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "0eae0161f7783cabec3bc1235497156ba993a82cf64f6282721db1507807f745",
+        "css": "ffeee711f7c06729663d0b018a11fa148ff29e66620a81bb8f852cc9df1c83c1"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/apps/docs/src/examples/Generic.svelte",
+      "before_error": "unsupported statement `throw`",
+      "after": "matched",
+      "sha256": {
+        "source": "620481d681a6789f5513b6a536534b8c2692ffef7afea2a366496eab80f216c0",
+        "css": "d41a2a5fe227b6af3882c819d51dbe025a298e200f56cc6ec303282dde27fb99"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/apps/docs/src/examples/custom/HexString.svelte",
+      "before_error": "expected `}`",
+      "after": "matched",
+      "sha256": {
+        "source": "5099e735b0522b066d6686246537ea097656a11f6821d385777f47b46c38b834",
+        "css": "e1cc9fe92ad3fe2f92ae66e24004b487d56ccdd68432948b5a854a4b7371ef3e"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/apps/docs/src/examples/panel/PanelExample.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "2c6b87a5099d5715b1db6cb337c3fcb6584b70df42fd5817e5f0afea39c9eb9a",
+        "css": "47c79751fcf306337cb5cd438994ac1ca4e29bd149cf03b59a64b1cfd4ba5d4e"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/apps/docs/src/examples/search/Narrowing.svelte",
+      "before_error": "unsupported statement `throw`",
+      "after": "matched",
+      "sha256": {
+        "source": "f2afbf2ef36ccb153a62be1008fe4477476a46ad4d6279b6dc5f8356e5f32096",
+        "css": "3ec53cf4a52938a87760ce98c8edbd1be5a02a140369019d6f814ef741ea8848"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/doclib/Ace.svelte",
+      "before_error": "unsupported expression `import`",
+      "after": "matched",
+      "sha256": {
+        "source": "65974ced5558eed1be7557cc79a7e36794ff4163fbd7cb48ae2f79b506846baa",
+        "css": "09fe352d91974ac69737728d1c5be9f3f2d18cfbda85f0fa374d08af2d55e76c"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/doclib/Code.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "3649b1df7c56f47851a00f899c11351063d1a3b6213d3b7fbb8d64b50ce46d64",
+        "css": "1f516877c5473d95ed4b63a7aaedb370ca3be7ff586df3f805ea5bd084b1e2fe"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/doclib/examples/AllTypes.svelte",
+      "before_error": "unsupported statement `class`",
+      "after": "matched",
+      "sha256": {
+        "source": "f9753009e2c90b8edc2c30eec24453e8149d13f5de37721b0fbeb7de1624e14b",
+        "css": "a0e1bfd7fef434e139f52698fcd07afeff35e30da5b66893700fb15be8c57a57"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/doclib/examples/BasicEditable.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "09dbe4402d2b0f57c449cb9140d8515b21442e384eaa8af1e67ccf8fee607f0b",
+        "css": "d8838fcfb3d545fd6eab1815d09be50267c5f6e677021c408035bf6d8afc4529"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/lib/Panel.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "5ee92ea9e2625a4f755789e3a740779b76562887d0d1125e82c4eac1d64f1e39",
+        "css": "aa6cc697d0cb14555e4cd5df13e7e35894cdba41778c39db27a58f986d1d2b0b"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/lib/Wrapper.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "8888ba8c6034dfe0df559e85798666533965401611b088371d4e565de6ca6740",
+        "css": "f7f2b16883941e6f0523fc26d488b0324dbb91c5ca9de34e42ea44e946d361fa"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/lib/components/Count.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "24bb8b38940b328cd26467d87a6eead493c5a6327631d8821d258c8d5c76d76b",
+        "css": "323ec013ef695a12f9e2d2baf904334d362b088bf327cb5ec775beb754b69f6c"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/lib/components/FunctionBody.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "7a14df0f6b436e11606fa62de4162d5efaf774683cd10fe47705d2e2f5db2fc3",
+        "css": "96297111f8e94a33974b2e70e09fff0154fae0d972f76ddee3c5ae3ea42edaf3"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/lib/components/FunctionView.svelte",
+      "before_error": "expected `;`",
+      "after": "matched",
+      "sha256": {
+        "source": "a17b58efc09248052b05a17db3fd23d5498499f5fe70d5928ce7f2492e256339",
+        "css": "8c7ad8791921d03db96f4d9bd7425b71803d7eca20c955eecc03f79207c0e5f2"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/lib/components/HTMLValue.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "a76c3bb8c8b806b8eb90461bda3658b3df6f29fedf461d20b445c867a7bb01f3",
+        "css": "1cdee00173a5fa7d7c082ee3ea34804cebfcc5c00fd91a413140231b13f7a123"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/lib/components/Highlight.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "15f738ae30ec07ef8380410a072aa7ebd73d8a2663ad9d81ab85df46762fbeb1",
+        "css": "b9cc690ce6c7d428707d26ead4598067c34dfec734fae8cb2bff597c38c77ae9"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/lib/components/Key.svelte",
+      "before_error": "unsupported statement `throw`",
+      "after": "matched",
+      "sha256": {
+        "source": "6e11b0ebf4b67587dc02a1d51ed061ac8fa964d9be89b80b2dd556a9d14ebf96",
+        "css": "82321fbc3f45de0878291b7fa87004d0aa984f72a0fcffded4c89ce3dca663c9"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/lib/components/PromiseView.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "8a122888f77b79fbc4df4b6dc5cb4ae27140ca3da463c0dafd3a1c1206c33319",
+        "css": "51cff8a72bdb05f48ea2bd2ea10bb35bead98ceae3fbbcc42303a8eecb49fd33"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/lib/components/Row.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "4636a9191751b04676ab9a7578ece781614c1384b74d84734277a9fa14ff6113",
+        "css": "19bd19b30452c4140a544e85e35dc3f77472eb0286e9d2ea76499f66be6d76bb"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/lib/components/StringView.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "8d8f611ede7883697731037ccb6316e0dd5a9a0265b437fe067ce9cd168ab110",
+        "css": "c5c12ff66a299d7da8ea032951418c4e90023d5021ebeb76f55903b1eaf172b1"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/lib/components/Tools.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "09d3ff2f3cd5ae5716a76983dd7de75605e45335e45863edaf94f354ab4bcdda",
+        "css": "57718c218cb87f69b4d8f40d6e51d1dbcb51a3d5082a11434622ba7d881ac2f7"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/routes/(app)/playground/[...example]/+page.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "d636ab1eb07036772324ae6fd934f5986a5a346ed51217fad885aa9a6e65f206",
+        "css": "ffe1e928455e174bf317cd754da8d212e802d53853673b5e5999c2aa71d2669b"
+      }
+    },
+    {
+      "unit": "svelte-inspect-value/packages/svelte/src/routes/(app)/reference/custom/HexString.svelte",
+      "before_error": "expected `}`",
+      "after": "matched",
+      "sha256": {
+        "source": "2d116dfb9b8bf78fa0d2f1399a7825339bace7254a93d509f9a9029654fbf4db",
+        "css": "158a365b7e3427c5dcb8b6d7cfa8b39da92c21040d10250987e83c476bc2da8f"
+      }
+    },
+    {
+      "unit": "svelte-lexical/demos/qalam/src/lib/InsertImageDialog.svelte",
+      "before_error": "unsupported statement `throw`",
+      "after": "matched",
+      "sha256": {
+        "source": "c676d89eb489d6e60344057bdf837d805e9cbb00f32b170ee4af1052b1e8ee9f",
+        "css": "1e2c991a2d9499f00df0e8b886fe97638d7c46980fa6b66edf8e820261ea88b3"
+      }
+    },
+    {
+      "unit": "svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertBlueskyDialog.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "1285672ff5281be506572b64c99fd729d8c3b2d42f1eaee607de363f2f1472fe",
+        "css": "90019fcaa15cc244ceee5c488152526ea1e42ad8095a543f72dc98fa3adc4010"
+      }
+    },
+    {
+      "unit": "svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/CodeActionMenuPlugin.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "15829b7ee3f176229b7722c939942bdd0a91a2f441249541fc757de6cd71041d",
+        "css": "4cced132055e62e621b0fcbc13ae65f318350822d8a466458bf29380d33c0d05"
+      }
+    },
+    {
+      "unit": "svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/components/PrettierButton.svelte",
+      "before_error": "unsupported statement `throw`",
+      "after": "matched",
+      "sha256": {
+        "source": "0e60cc349084dd694068a27dcdc03c663f4c0ab92398d7196b085455cb905b92",
+        "css": "09e927a85ccfd779e347cee09baedc66c4a66ef5e27b4102c0cd9eb56fc32b62"
+      }
+    },
+    {
+      "unit": "svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableCellResizerPlugin.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "1b6bf0874209123b7f5a126adc9e9d07cf00a2d125c2a8691b726c35007a0a78",
+        "css": "216282c6c26c512f5727a969754037d26a005cc02b57a3b93bfe86d9f18012cb"
+      }
+    },
+    {
+      "unit": "svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/TreeView/TreeView.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "def1f7c1707dcb16747be946db8fa654e5bbd73f92d280efc6d07e05500e39e6",
+        "css": "db0abb9ef8e801a675e4769dbe482e0aaa90ef270838d00704edd07006633efc"
+      }
+    },
+    {
+      "unit": "svelte-maplibre/src/lib/MapLibre.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "461a204a2544ec28d717dbde1b5d0481db84c0885c703af4110660566a0aa6c5",
+        "css": "82ba02e5e19775d0a39ce2d764155358313d1894fb954763ecb2de7f69e60221"
+      }
+    },
+    {
+      "unit": "svelte-maplibre/src/routes/examples/geojson_polygon/+page.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "4849f89cfedbb83843366ea4370d58b23de7016de4b43e587e1f7d2028b47f42",
+        "css": "ad8271e23e4e43c4885c857c438123cd4b11472f966d7545637215759abc097c"
+      }
+    },
+    {
+      "unit": "svelte-material-ui/packages/site/src/lib/Demo.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "322593b0c28a32502ceff1caad7a629107a207402f229dda8aa25f1a2200fffb",
+        "css": "c0463dc7ee2027ca40a681f4b44d9396208a07a023c79fab7634e0699babbd9a"
+      }
+    },
+    {
+      "unit": "svelte-put/packages/preprocess-markdown/src/enhance-code-block/ButtonCollapse.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "68a4aa33971f2ba8c9f56197d6cd4b1a292ac9b713044bc9dd0642da3cbf7fbd",
+        "css": "8d3293f6e032c2e6e212f9259f503525ea0176ecedd391620d27a2e895ba705e"
+      }
+    },
+    {
+      "unit": "svelte-put/packages/preprocess-markdown/src/enhance-code-block/ButtonCopy.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "6f82a51bf9f0a8d0b0d45e43ae70ed385baf201879e6b7b0a792db8f073f7b25",
+        "css": "3a65d906de643694e94d0abb62eb1788deffe20e2213e3c62e6c6a375f950e45"
+      }
+    },
+    {
+      "unit": "svelte-put/packages/preprocess-markdown/src/enhance-code-block/ButtonFullScreen.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "98ac80a5b2c3837f8e453e9bb4eefa84cd61e601f09a0e88c3d6b70ab34e798d",
+        "css": "2d707b6f946578474d57a3f6bfc2a59169f0bca348e652eafbe83e3dcdca8eac"
+      }
+    },
+    {
+      "unit": "svelte-put/packages/preprocess-markdown/src/enhance-code-block/CodeBlock.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "d9e9ce0d64727a4c773075769533f38e77d7583cf3ad32239f3bfeaa4f73b2d5",
+        "css": "057aeff78c8eede03051b0237a2df184dc12863cfa5ab56230d244a9ceee5b05"
+      }
+    },
+    {
+      "unit": "svelte-put/packages/preprocess-markdown/src/enhance-code-block/CodeBlockGroup.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "f1d98f37a64227b967480b0e1daef46c65ac04ad30d59d309671a02fcfd4dd2c",
+        "css": "f8312bc23123921a1d4940ef38406c900b13273f5f61d13d685b9723e3311a66"
+      }
+    },
+    {
+      "unit": "svelte-put/packages/preprocess-markdown/src/enhance-code-block/FileIcon.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "5c93ebbdab004dda87d2a97ae9b4cb04bc4f9dcc9e4f1e3094a297922041c197",
+        "css": "5abad8b9ef0d70b846e2d2dc64f8153f2a358786d96f653107379185a374b9e6"
+      }
+    },
+    {
+      "unit": "svelte-put/sites/docs/src/lib/notifications/components/BaseNotification.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "c262a24eca26475c2cd66b58c3b11502516e8b4339f35491f4fd01dfa4cddfd8",
+        "css": "2128272486cbdca71d62ff44580e0ec4d48e42d585c9fde2b88cad792a2ea59d"
+      }
+    },
+    {
+      "unit": "svelte-put/sites/docs/src/lib/notifications/components/NotificationPortal.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "86ac4e31d7a2d8d120cb3828faac58386d77b0a3ad6d5d74e62745b255c34ee6",
+        "css": "d3a781e364bd81888bc48bc264c91d813b4078ce1e43c08ab7035e5fe2ad15b5"
+      }
+    },
+    {
+      "unit": "svelte-put/sites/docs/src/packages/async-stack/_page/examples/comprehensive/Notification.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "bd2cd86dad3c95ab39926a7cb22c97caf39b7d403a85f2bc967ae7d87780534d",
+        "css": "99cbba6504d4771e8fa3c10cc78116c4e027385f6351a4a588558ae7cb8851bb"
+      }
+    },
+    {
+      "unit": "svelte-put/sites/docs/src/packages/async-stack/_page/examples/toast/Toast.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "eef9c2c0203d3959e456aed9fc89ad8c5ac05eb8f3103a8db385702e5e1f6998",
+        "css": "8433f0a987187042e78ee608e323d2d0ec78d413e8e4a58eb5666eaed168d4db"
+      }
+    },
+    {
+      "unit": "svelte-put/sites/docs/src/packages/async-stack/_page/examples/toast/ToastPortal.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "c0087859856ce9bc3a59422677d6982fe97ded01a076acdd6eb494dafb373143",
+        "css": "ab2bab9b34ee29555b359d44d33ad6d61eb9c6353180c5edddddf4dbd8309c9f"
+      }
+    },
+    {
+      "unit": "svelte-render-scan/src/routes/+page.svelte",
+      "before_error": "expected `;`",
+      "after": "matched",
+      "sha256": {
+        "source": "f2ff528524a86e54e776e7e01337fd7f89923360314df4e2db78aedda184e60a",
+        "css": "9a8b184e0722e60c9ba49f0ff1822b62917a5b07556742e13b617fd1cde011df"
+      }
+    },
+    {
+      "unit": "svelte-sites/sites/hn.svelte.dev/src/lib/ThemeToggler.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "3be3baa66a47e6793c64b9e361b909d07a4c50223d5d157db33f1dc5c2c7418e",
+        "css": "3b51a7de66760419053b06cae95db938d7549af496e056f05dc2bf2bca80fac9"
+      }
+    },
+    {
+      "unit": "svelte-sonner/src/lib/Toaster.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "83c94ce549a475a82c818c26b43a05e6b6a26f3d372a438e54896fb7ac678297",
+        "css": "a22a4b19a476273dc71ddc4984765bfa829738cd48406dcf0613048cb8f00285"
+      }
+    },
+    {
+      "unit": "svelte-tiny-virtual-list/src/lib/VirtualList.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "c3adfb513634bae066b995356d61fa7f327227957c8dcccdc8615c20ed9a3396",
+        "css": "feb0477ae4c0180244cbc70d71eb1da51b58276dc1662c9b03a6bebc01f31fb4"
+      }
+    },
+    {
+      "unit": "svelte-tiny-virtual-list/src/routes/+layout.svelte",
+      "before_error": "unsupported statement `import`",
+      "after": "matched",
+      "sha256": {
+        "source": "9a1fd851467ec75518fe7e39eef7fb07d12e2eb4aae8320b9c6df1c7f345f09a",
+        "css": "c0452cf237e6fdea37e9d8756c1df9b0d2306df9f80dd89b5cc1071e12082fab"
+      }
+    },
+    {
+      "unit": "svelte-virtuallists/src/comp/Contents.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "62b059f66028cd35c31885381b4a4c988d323442755f69c1a6d19b14ea6ab2c9",
+        "css": "f70b80bcbd1a166381b640cd3be990934030a6a91e6056d0c71365633d3cb45b"
+      }
+    },
+    {
+      "unit": "svelte-virtuallists/src/routes/examples/events/code.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "368751ceafbace9ce2cb107d5de9831bc127f76cad8279b2a074911b9be0041e",
+        "css": "bd03c5f254411274b5589c142dfef25b4112b2702efa0f5ffeabffc47b464d52"
+      }
+    },
+    {
+      "unit": "svelte-virtuallists/src/routes/examples/positioning/code.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "56794597a1f261212141bd167c9bfeff4cb31ae24294fa0bebd0bfbdfd0c5c4a",
+        "css": "73156292773ecc3c7a152998ff1f9532b9b858f35e9c891f3733e6a967119f27"
+      }
+    },
+    {
+      "unit": "sveltepress/packages/meilisearch/src/Search.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "76f59bf3e65f28ec6f0c64838b7c4c1b70d5440afa7e7eedd20df0201110b25c",
+        "css": "f781435c76985a4137e2cebc7040060f54322f06c020fdf4a186ba38679177d5"
+      }
+    },
+    {
+      "unit": "sveltepress/packages/theme-blog/src/components/AuthorProfile.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "459b42314e546eeb60e857efe02fff6d74700cd1fb2f5b446577eba9750c01dc",
+        "css": "5821ff06e55a1d26fffde46caa50fb2396b080544a68e27b4dcd7e6191f33871"
+      }
+    },
+    {
+      "unit": "sveltepress/packages/theme-blog/src/components/PostCardLarge.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "e0644d8f4f000c2d87ce4b126f6636fea83fcf21a976e6c2cf4999115dcf8f18",
+        "css": "37361316d5acfbbbc770059e5805b6f64fe6511c913cfeb700bdd0e0db653a3f"
+      }
+    },
+    {
+      "unit": "sveltepress/packages/theme-blog/src/components/SearchModal.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "54c4c85fc5ce5c3cb42789d4a45e8173070e0214c9932b31f45138f7afb7c747",
+        "css": "d20eb650128b78e21ac1d4535bc5f0ad8c38af61b24fae5d2bd052df22903964"
+      }
+    },
+    {
+      "unit": "sveltepress/packages/theme-blog/src/components/Sidebar.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "8ab8d93a059eccec35a826476a721d67c33633131800d76b5e96cd1d35879136",
+        "css": "fc59624fdf1c8e28dc21e9014b25232cf428f24a96e4b677059531b435c09ae0"
+      }
+    },
+    {
+      "unit": "sveltepress/packages/theme-blog/src/components/TableOfContents.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "bf21e3451b812e05478517fd970b7771870cec8f01796278fb9c03305d0f4f05",
+        "css": "393290f0bbf71631ac569f0b8f8fc0710a315d393ad87374cb5cb29909322f73"
+      }
+    },
+    {
+      "unit": "sveltepress/packages/theme-blog/src/components/Timeline.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "33b886b86c8ee10df60dc3fc185c9091f08cdff1da460e936245324564b0b52f",
+        "css": "c30808219b5384ea59bd64612a40f8065a0cb91d2c0c63a2815980bef61e7586"
+      }
+    },
+    {
+      "unit": "sveltepress/packages/theme-default/src/components/GlobalLayout.svelte",
+      "before_error": "unsupported expression `import`",
+      "after": "matched",
+      "sha256": {
+        "source": "9eb2fce8606e3383ec56a37b3111ce57fea291f82fde19bfe4dcf3a2edbd37a2",
+        "css": "02bcfbdc49b467d52ba6696c31165d5b2c64da6003d9f90f124dbed5f8ce8d1e"
+      }
+    },
+    {
+      "unit": "sveltepress/packages/theme-default/src/components/Navbar.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "b37096f4090adcbfccd65a0116a1d05cdad3141ad37a091b7decb7097bbf036c",
+        "css": "7f1e5e884b2219c4f0ff8605f6b23b5ee14ae73177e4b4f8488b33819d427c37"
+      }
+    },
+    {
+      "unit": "sveltepress/packages/theme-default/src/components/Tabs.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "e70d0dd6ef85be1029e11deb139d46eabd0b27147228dc7a073a0877a9687978",
+        "css": "be52bcafb26c09307ce6eadc55adbc101f143cb75f28ebc2bc45b30194b71798"
+      }
+    },
+    {
+      "unit": "sveltepress/packages/theme-default/src/components/Toc.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "e09d889fc09b315cdb8151de6d026048d7ec9a22eb6f873b307cdcc137615502",
+        "css": "31406f66de59403ed150a9aef24bea3321a3dbcbbffe75ee2575b05a3c5b40d9"
+      }
+    },
+    {
+      "unit": "syntaxfm-website/src/lib/Icon.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "072b543a038df03565227d281043d1c28373ab9c474ef5ec91092c1fdfb77da5",
+        "css": "531de4fe38e6076c2d3cc6842649debda34560f5767e6e9f7c12c5e9a698a292"
+      }
+    },
+    {
+      "unit": "syntaxfm-website/src/lib/ShowCard.svelte",
+      "before_error": "unsupported statement `switch`",
+      "after": "matched",
+      "sha256": {
+        "source": "0b41f37b5d04cc58268d6ab779cda4e3eca389ecadca2c7e75fde4a90af448d1",
+        "css": "a1404e9e514b688bb8e4695b86f346260a565b0cf117fc9c8a0f4d7439acb466"
+      }
+    },
+    {
+      "unit": "syntaxfm-website/src/lib/player/Visualizer.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "6c5da87f1ef00fa5d482e10d24281435fa5514576cd858f8d5e61c57ae4e541a",
+        "css": "bbfde86deb9961d275568097255fd586892826d6af455b08d8f02d0a4e7e68e1"
+      }
+    },
+    {
+      "unit": "syntaxfm-website/src/lib/share/HairButton.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "468090a0e0af4ebe47adbc33f7fcfe939da4bac8731b5bee87f7ee31f36096fb",
+        "css": "1a73ccfe7b86275fe6e2e71e11f12e786e9206de4b17e977b33a674742457e5b"
+      }
+    },
+    {
+      "unit": "syntaxfm-website/src/params/ThemeMaker.svelte",
+      "before_error": "unsupported expression `import`",
+      "after": "matched",
+      "sha256": {
+        "source": "4611f035bfe882602196a41aaaf8a05272ed8d5a4c945b037845765e4208bad4",
+        "css": "cc8c08a02d4e262042753e727f578d7997462ab109859ff87ed246d702f8eb46"
+      }
+    },
+    {
+      "unit": "syntaxfm-website/src/routes/(site)/guests/+page.svelte",
+      "before_error": "destructuring assignment is not supported",
+      "after": "matched",
+      "sha256": {
+        "source": "c013728856b2ccd05519e09977fc63dc35d9239a68a17b8c2e90e03309742f91",
+        "css": "f3d707a6aa71fc3c5950f2e9efef0d0b6a77fde7647ccd1266defceb50bb3c21"
+      }
+    },
+    {
+      "unit": "threlte/apps/docs/src/components/ContactForm/ContactForm.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "5b8e50869911dbae7b048de4cb949d4a666d6c32c496b253df98f462d9edc15b",
+        "css": "ab9c9231b91849b3f19d84ee6b5241eec927984c78211352f7675fd7849e68b0"
+      }
+    },
+    {
+      "unit": "threlte/apps/docs/src/components/Hero/Intro/Intro.svelte",
+      "before_error": "unsupported expression `import`",
+      "after": "matched",
+      "sha256": {
+        "source": "d465b02fda92fa5aca2d38931a9f1423de35da4bec37e688a80494b85146ac57",
+        "css": "14115fd9d50094db8a5d096f55342c1d841814a38732b55aaa085de2285e9b9e"
+      }
+    },
+    {
+      "unit": "threlte/apps/docs/src/examples/extras/grid/App.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "6fee2f4be883b6e22dbd4d445a9a468d42743a7e3614a4cd1572746a9010ba06",
+        "css": "289f923b6282dafffd04d45cd65bda472c5e6d6b0ae35efad18e5d840ed9c8f1"
+      }
+    },
+    {
+      "unit": "threlte/apps/docs/src/examples/extras/view/multiple-scenes/App.svelte",
+      "before_error": "unsupported statement `for`",
+      "after": "matched",
+      "sha256": {
+        "source": "c90dc54881b97708305c46018330af7cb01cda57d2ab9af36a31348e6e6c5fad",
+        "css": "4c0721b8dc15065fe317c4eba6d3d4e5bfd104882745ddb2ae6001a8e15aa49e"
+      }
+    },
+    {
+      "unit": "threlte/apps/docs/src/examples/flex/examples/App.svelte",
+      "before_error": "unsupported expression `import`",
+      "after": "matched",
+      "sha256": {
+        "source": "c2bfc00054f746389f60a8bb6c6dbfdbe5c3df3990f0d4dedfa8092b61ea924e",
+        "css": "313f061cc959e869e5ce01546cc44a0003bb61c49a2f738db30158e9445b7f2c"
+      }
+    },
+    {
+      "unit": "threlte/packages/studio/src/lib/components/Icon.svelte",
+      "before_error": "module scripts are not supported yet",
+      "after": "matched",
+      "sha256": {
+        "source": "e52fa6ffbd3f701245706e9b89d1ea92f64bea16a65d825d9ba7bafaf0fff027",
+        "css": "9a9d12be8040966860e17c3672319c64495bdb09e4018b3d599880f4a407d066"
+      }
+    },
+    {
+      "unit": "threlte/packages/studio/src/lib/extensions/object-selection/SelectRect.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "38141690e78a2716680d35543f012f9989c8a21685a45fbf488417697065a953",
+        "css": "b67da1d5d16acb780f682c8c6e1f5c6c27c5c99d22b1927a8f988ec0687acb35"
+      }
+    },
+    {
+      "unit": "threlte/packages/studio/src/lib/extensions/static-state/StaticState.svelte",
+      "before_error": "unsupported statement `try`",
+      "after": "matched",
+      "sha256": {
+        "source": "c48cc10f56f67aaa118bc05eb5f21d8213d6085d25a06f61e6be582ebc694ddf",
+        "css": "5926e78cfb6dcbc33b8d92a369b4df944af62e9e3ab2f222a13246dd2aea5f90"
+      }
+    }
+  ]
+}

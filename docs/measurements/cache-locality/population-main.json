@@ -1,0 +1,372 @@
+[
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-attrs/input.svelte",
+    "path": "target/cache-locality/population/boundary-attrs.svelte/input.svelte",
+    "sha256": "6f5b2db6915e54c2680f4ae950bd45d1a335a395b942b79c24bc170d50a879e2"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-failed-array/input.svelte",
+    "path": "target/cache-locality/population/boundary-failed-array.svelte/input.svelte",
+    "sha256": "397e27417fe9df5ee1bad3245d3bcb5ebb2cb5bf13c2da6117270113b838d474"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-failed-array-fixed/input.svelte",
+    "path": "target/cache-locality/population/boundary-failed-array-fixed.svelte/input.svelte",
+    "sha256": "269c7a4629ddd7231d54ef129edc9aa09e2f6ea24556a1b35a63302597ff3fa2"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-failed-attribute/input.svelte",
+    "path": "target/cache-locality/population/boundary-failed-attribute.svelte/input.svelte",
+    "sha256": "f88838037956cf496107e56e21f6c397ae9c254a678278a7bfb5ccc659944992"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-failed-default/input.svelte",
+    "path": "target/cache-locality/population/boundary-failed-default.svelte/input.svelte",
+    "sha256": "96858504b83cd1549b41498901da97fbb0dc91f8018ae7a14951b5a0e693360f"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-failed-default-call/input.svelte",
+    "path": "target/cache-locality/population/boundary-failed-default-call.svelte/input.svelte",
+    "sha256": "c2a3b3c262be23a7a44e9ed4c3a52f8180bc1560b46781acb51cf10c70b21015"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-failed-nested/input.svelte",
+    "path": "target/cache-locality/population/boundary-failed-nested.svelte/input.svelte",
+    "sha256": "e8a5dfd5b35af7a89d2faeb7dc8ac2edeed098121b3f2ebc0ab13431fdc3ecfa"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-failed-object/input.svelte",
+    "path": "target/cache-locality/population/boundary-failed-object.svelte/input.svelte",
+    "sha256": "1c5dcaf1fca8b1fcfec25b319013f454fb082d3856c7279ddca5fbc730bb5761"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-failed-rest/input.svelte",
+    "path": "target/cache-locality/population/boundary-failed-rest.svelte/input.svelte",
+    "sha256": "8807f238ea8225bbf9497f2b02edc02a30569f778980307cd46e9b1daa24a107"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-failed-snippet/input.svelte",
+    "path": "target/cache-locality/population/boundary-failed-snippet.svelte/input.svelte",
+    "sha256": "1199a27c029a4e0c0ed4017a20e610fc8823542f0069815d7de9a539d0280b5e"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-failed-whole-default/input.svelte",
+    "path": "target/cache-locality/population/boundary-failed-whole-default.svelte/input.svelte",
+    "sha256": "8ad998626604cfd0d7d316214d6b34baa91e7a1f38bd2f466d326c17e01ee736"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-inline-error/input.svelte",
+    "path": "target/cache-locality/population/boundary-inline-error.svelte/input.svelte",
+    "sha256": "b812183efad0dedd3ccccc71e8fdaefc7c6584d7e387786dfd0ca0af7b1d7b98"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-nested/input.svelte",
+    "path": "target/cache-locality/population/boundary-nested.svelte/input.svelte",
+    "sha256": "9e34b37a015c0899d5f709ff13e4362369f33d944e618d66a41a327a401f9384"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-pending-attribute/input.svelte",
+    "path": "target/cache-locality/population/boundary-pending-attribute.svelte/input.svelte",
+    "sha256": "f4a8bca58cde290169015d237767e4cc0711f17fc23e5e8919a92b398904d529"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-pending-count/input.svelte",
+    "path": "target/cache-locality/population/boundary-pending-count.svelte/input.svelte",
+    "sha256": "3c292c226e7f84f7ccc95f7b86ce88942a3e9ccd178940a75507fe7b414c5f95"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-pending-snippet/input.svelte",
+    "path": "target/cache-locality/population/boundary-pending-snippet.svelte/input.svelte",
+    "sha256": "510896d2b357f320f4bd86e97613a6b68664c9a81a35b0284b59f359bb9a7d28"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-reactive/input.svelte",
+    "path": "target/cache-locality/population/boundary-reactive.svelte/input.svelte",
+    "sha256": "b7c6e7d50f2912809130cfb5d4d661ce35450dc5ac227e350d456fd22047e5ff"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-snippets/input.svelte",
+    "path": "target/cache-locality/population/boundary-snippets.svelte/input.svelte",
+    "sha256": "b97cab34ff3c7be5e8f299b1037d33e73c46d9770e455647039b3b86b9d19003"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-static/input.svelte",
+    "path": "target/cache-locality/population/boundary-static.svelte/input.svelte",
+    "sha256": "1861b781b6968462a4b82ade3b47f42a80401303089879b98b9c49b87daa05a2"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/boundary-text/input.svelte",
+    "path": "target/cache-locality/population/boundary-text.svelte/input.svelte",
+    "sha256": "2b211c8d67ff08d5b28344d1aaa758d43df5f67bd9264c34c0312371399fa5b0"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/element-bind-this/input.svelte",
+    "path": "target/cache-locality/population/element-bind-this.svelte/input.svelte",
+    "sha256": "c16cedf830b318cf4b0751bf48080c4dba45efc08986e4f3f38ee50820f0c461"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/element-call/input.svelte",
+    "path": "target/cache-locality/population/element-call.svelte/input.svelte",
+    "sha256": "0544f5dbd36b4b434662fc13b0d7672ca55c48cc5fb368c14fa6744681e9407a"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/element-children/input.svelte",
+    "path": "target/cache-locality/population/element-children.svelte/input.svelte",
+    "sha256": "cbf35e6b304eebed300358069f696ebce6068314dcc946a245e12fef27021076"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/element-class/input.svelte",
+    "path": "target/cache-locality/population/element-class.svelte/input.svelte",
+    "sha256": "64cf1bb6d8a4baaf61c10c15d40cafa2d3c757d9919bbfd6e7f24496ccf37181"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/element-class-directive/input.svelte",
+    "path": "target/cache-locality/population/element-class-directive.svelte/input.svelte",
+    "sha256": "7b87701f84d5ca183278b072ea8878b83958c7854501861611c4799240d51e1f"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/element-class-memo/input.svelte",
+    "path": "target/cache-locality/population/element-class-memo.svelte/input.svelte",
+    "sha256": "72bde71a2a223ee31a8d78627d5641bd4f03d305a5e2307b8bf125ceee422ade"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/element-class-only/input.svelte",
+    "path": "target/cache-locality/population/element-class-only.svelte/input.svelte",
+    "sha256": "1346761aa1ff5ea142c64714c1a664638acaed64e06757499a8b0b86d8669a32"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/element-class-only-static/input.svelte",
+    "path": "target/cache-locality/population/element-class-only-static.svelte/input.svelte",
+    "sha256": "e312166b1e56e57de1678118b27d42aea5ad53ecce004f039beeaf4727bd1b09"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/element-empty/input.svelte",
+    "path": "target/cache-locality/population/element-empty.svelte/input.svelte",
+    "sha256": "cad3489134b9a3c244b2770bf10aede8dbb0aac506f311ac0198831f417761d3"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/element-on-directive/input.svelte",
+    "path": "target/cache-locality/population/element-on-directive.svelte/input.svelte",
+    "sha256": "ef88f3f4afd661afa38e568b31da891bad62800f95e1f8791297f70657f1863f"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/element-spread/input.svelte",
+    "path": "target/cache-locality/population/element-spread.svelte/input.svelte",
+    "sha256": "7eea7ac581be9dfdf14bef4947f6571cec7901d619a88c7759356a1d294ae79c"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/element-static-xmlns/input.svelte",
+    "path": "target/cache-locality/population/element-static-xmlns.svelte/input.svelte",
+    "sha256": "6111a2eacf6d54129e477507e0b4b7fe4ec63bd5133615fc0aba29a76292a947"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/element-svg/input.svelte",
+    "path": "target/cache-locality/population/element-svg.svelte/input.svelte",
+    "sha256": "2358a00b4e69255daacd88fe97cc30ba6d6bcbe353c185dac9262c0acff6d78b"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/element-xmlns/input.svelte",
+    "path": "target/cache-locality/population/element-xmlns.svelte/input.svelte",
+    "sha256": "cd60b863a30477da3ef747d001344216c13fa98bddd86122574750cbd75a7fe3"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/global-on-forward/input.svelte",
+    "path": "target/cache-locality/population/global-on-forward.svelte/input.svelte",
+    "sha256": "c52e1e5a90918d853d4c15f3303a13cec1434f29c11df9d1698e7efa7732bc71"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/global-on-modifiers/input.svelte",
+    "path": "target/cache-locality/population/global-on-modifiers.svelte/input.svelte",
+    "sha256": "2ca8b533d6db16a3b6d7e2ee19da19b41520f9456bf52c6dd22fafca546f45fa"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/globals-bind-this/input.svelte",
+    "path": "target/cache-locality/population/globals-bind-this.svelte/input.svelte",
+    "sha256": "a390072957661b5fb425d3ec1078c52a8bfc68d8937f147099d8116e340d4eaa"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/globals-bind-this-mixed/input.svelte",
+    "path": "target/cache-locality/population/globals-bind-this-mixed.svelte/input.svelte",
+    "sha256": "3bd919d33f26dfc13e1f97bcf3c93d972e38f09809d514c724424124999d447e"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/globals-bindings/input.svelte",
+    "path": "target/cache-locality/population/globals-bindings.svelte/input.svelte",
+    "sha256": "6d688c450a9e95ccb2bc8376f0f46546697f36fab9682f3586fef66cc6bf1d1e"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/globals-events/input.svelte",
+    "path": "target/cache-locality/population/globals-events.svelte/input.svelte",
+    "sha256": "1bf3d2a13bd0626cbecea56c80283173ec8fca9b4b81770db988e89e821ed1e9"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/globals-function-binding/input.svelte",
+    "path": "target/cache-locality/population/globals-function-binding.svelte/input.svelte",
+    "sha256": "26ee965e27f241833e3eb9fa500fe13331291e09c2906a8e890bf5cc57827688"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/globals-props-binding/input.svelte",
+    "path": "target/cache-locality/population/globals-props-binding.svelte/input.svelte",
+    "sha256": "ef4a48bfac6cf4cfeba7cd27deb4a418d940e2774b0b5a4af5efb8af334d3c55"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/head-memo/input.svelte",
+    "path": "target/cache-locality/population/head-memo.svelte/input.svelte",
+    "sha256": "51ddba2e4475aa8731f5b93384b854a1aeae079985b68e900c035dc2fb289efe"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/head-nested/input.svelte",
+    "path": "target/cache-locality/population/head-nested.svelte/input.svelte",
+    "sha256": "b27ed7f8e987e79be7b616debe2339f361fe97dff13d26a7cbf6459107fd6d14"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/head-only/input.svelte",
+    "path": "target/cache-locality/population/head-only.svelte/input.svelte",
+    "sha256": "02170c9e1b7b89456a18be45b2def10dfb4e1c32c5751cecf314a964cfb09236"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/head-state/input.svelte",
+    "path": "target/cache-locality/population/head-state.svelte/input.svelte",
+    "sha256": "bfbefe2055714a6f638680915a6948d1454317cdf60c3b0dc07f52af150bd2af"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/head-static/input.svelte",
+    "path": "target/cache-locality/population/head-static.svelte/input.svelte",
+    "sha256": "ee1f93ec317c1e630a66bc37429f4850e2df5442c27404b1222a4c3ad359a254"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/head-template-title/input.svelte",
+    "path": "target/cache-locality/population/head-template-title.svelte/input.svelte",
+    "sha256": "106c1e4c48dc5f135393ad1a9d835b071249268c907916a27e52419fd85cc878"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/head-text-sibling/input.svelte",
+    "path": "target/cache-locality/population/head-text-sibling.svelte/input.svelte",
+    "sha256": "5fc9f09a30b7c2e0a6af0ec0ecb134d0163ec8454fa9e525091d9098338d4fa5"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/head-whitespace/input.svelte",
+    "path": "target/cache-locality/population/head-whitespace.svelte/input.svelte",
+    "sha256": "a1b473d2d4ebef774269fc36e73f666a6854d9b00b26fef162e9b80e1774bfb2"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-css/input.svelte",
+    "path": "target/cache-locality/population/options-custom-css.svelte/input.svelte",
+    "sha256": "4245defefa2d3f585338dba7be729a8d75e37504ab4f3ad57b0c3564780d0e2a"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-css-global/input.svelte",
+    "path": "target/cache-locality/population/options-custom-css-global.svelte/input.svelte",
+    "sha256": "f5ffefec1391724fd303bf61a3a27fae7e7ccd1a6229c1b7aa91459fd789c10a"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-css-keyframes/input.svelte",
+    "path": "target/cache-locality/population/options-custom-css-keyframes.svelte/input.svelte",
+    "sha256": "8115424e9760d79d1e7803964c4a0f9c0f20a196b139227c0856ae2093a9cfa3"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-css-prune/input.svelte",
+    "path": "target/cache-locality/population/options-custom-css-prune.svelte/input.svelte",
+    "sha256": "d497f51ded22b94e25f23bc541d6045cfcab1cf5118abdd15edc14dab9c6f88c"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-extend/input.svelte",
+    "path": "target/cache-locality/population/options-custom-extend.svelte/input.svelte",
+    "sha256": "5a7375a8fe26aec933dc816862d3ed2ab4c466fb2b3f538ebef6c3304df5f45b"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-extended-builtin/input.svelte",
+    "path": "target/cache-locality/population/options-custom-extended-builtin.svelte/input.svelte",
+    "sha256": "fab6ba27738976a21639910a1b409a8b5348a82a02d8be2463d211bf99dc325b"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-host/input.svelte",
+    "path": "target/cache-locality/population/options-custom-host.svelte/input.svelte",
+    "sha256": "9f5a9c93aa23711e9dd196ccba9e56c30c629b837d56bc5c3b715fe40e112b58"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-null/input.svelte",
+    "path": "target/cache-locality/population/options-custom-null.svelte/input.svelte",
+    "sha256": "d7947b88676dba8ebe20ca51ab242e266e14188f19f071e33aca03074061c1f6"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-props/input.svelte",
+    "path": "target/cache-locality/population/options-custom-props.svelte/input.svelte",
+    "sha256": "134e462da000e9c7f0ca7a04b06c628e0d592022238c3f9f1956433e5742ea76"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-props-alias/input.svelte",
+    "path": "target/cache-locality/population/options-custom-props-alias.svelte/input.svelte",
+    "sha256": "cbd834d1e83f618f242691bc366ff475e6045829623ec2a60d80db5c41fc60c6"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-props-config/input.svelte",
+    "path": "target/cache-locality/population/options-custom-props-config.svelte/input.svelte",
+    "sha256": "d2a95dd5d19536fe27cb8637a913b236349b71ee50dd48be2f0d1ece1055fa41"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-props-identifier/input.svelte",
+    "path": "target/cache-locality/population/options-custom-props-identifier.svelte/input.svelte",
+    "sha256": "9dcdf66f7463d02db6257b8c87c558607b2455159dc280605eb4b86d10373788"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-props-rest/input.svelte",
+    "path": "target/cache-locality/population/options-custom-props-rest.svelte/input.svelte",
+    "sha256": "c4491f1ef73f4a67dc59d089949e3ef8022caa5ce24a38f1728fb0554a74b001"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-rest-access/input.svelte",
+    "path": "target/cache-locality/population/options-custom-rest-access.svelte/input.svelte",
+    "sha256": "8c6cd12d1eca88df006ca181b8c0febd2f7435e02dff67c4dfed197f0273baef"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-shadow/input.svelte",
+    "path": "target/cache-locality/population/options-custom-shadow.svelte/input.svelte",
+    "sha256": "fe22650811fc6e2717fca391a010704b2c40f21ffb56db508b40452cb224bdcf"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-shadow-object/input.svelte",
+    "path": "target/cache-locality/population/options-custom-shadow-object.svelte/input.svelte",
+    "sha256": "5d268114d8fb0da5e502986b4ac45bf6c7d2af3c4d7c2576f200d96e71df3ce6"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-custom-tag/input.svelte",
+    "path": "target/cache-locality/population/options-custom-tag.svelte/input.svelte",
+    "sha256": "3f77b3015c0dd50fbd5f86ce74d32905da38441ef5ad277bb20ed2add40a1760"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-ignored/input.svelte",
+    "path": "target/cache-locality/population/options-ignored.svelte/input.svelte",
+    "sha256": "905d8f0f67eca094843e70edb19a3e73aead1ba5c8cf5f5e9046fcef7dd4948a"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-mathml/input.svelte",
+    "path": "target/cache-locality/population/options-mathml.svelte/input.svelte",
+    "sha256": "cc7a0ada948d984b35114ae2588d843e9c0e976eb6f957edbf7be5443a4cfd53"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-namespace-expression/input.svelte",
+    "path": "target/cache-locality/population/options-namespace-expression.svelte/input.svelte",
+    "sha256": "cab8ec11808a11456ddf9c08df544d6c51fe772d473fedb3348fb88cd8a04880"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-namespace-uri/input.svelte",
+    "path": "target/cache-locality/population/options-namespace-uri.svelte/input.svelte",
+    "sha256": "4de3609898ddadc4c43e231ec5432ad706d1138dcf45f1bf1a2b9316f975e226"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-runes/input.svelte",
+    "path": "target/cache-locality/population/options-runes.svelte/input.svelte",
+    "sha256": "9ee942d488305ef0ce01ccb3f19c19959ff43c68eb4bcfe6d2834d94ae7d4def"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-svg/input.svelte",
+    "path": "target/cache-locality/population/options-svg.svelte/input.svelte",
+    "sha256": "238d8e7dd7305de16eb77b14c9bb0b51b7bf70e9c66354ac3b05b7448b5cef65"
+  },
+  {
+    "source": "crates/languages/svelte/compile/tests/fixtures/special-elements/options-whitespace/input.svelte",
+    "path": "target/cache-locality/population/options-whitespace.svelte/input.svelte",
+    "sha256": "f6cfd7bcaa5be102f32ca0b552da69426b33676bc06f48a9c42b6890d05676b7"
+  }
+]

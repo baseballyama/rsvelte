@@ -1,0 +1,20 @@
+[
+  {
+    "case": "clean",
+    "exit_code": 0,
+    "log": "",
+    "report": "population\t1\nmatched\t1\nunparsed\t0\nmismatched\t0\n"
+  },
+  {
+    "case": "defect",
+    "exit_code": 1,
+    "log": "Error: \"the parsed corpus has CSS differences\"\n",
+    "report": "mismatch\tpackages/svelte/tests/css/samples/basic/~input.svelte\npopulation\t1\nmatched\t0\nunparsed\t0\nmismatched\t1\n"
+  },
+  {
+    "case": "restored",
+    "exit_code": 0,
+    "log": "",
+    "report": "population\t1\nmatched\t1\nunparsed\t0\nmismatched\t0\n"
+  }
+]

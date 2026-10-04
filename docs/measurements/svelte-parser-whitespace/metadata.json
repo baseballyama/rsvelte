@@ -1,0 +1,66 @@
+{
+  "base_revision": "d3fe0394b0b11ab70829fad9a544b2b03ac81618",
+  "workspace_head_at_recording": "d3fe0394b0b11ab70829fad9a544b2b03ac81618",
+  "recorded_at_utc": "2026-10-03T07:48:55.783059+00:00",
+  "source_state": "dirty frozen workspaces; source files and exact hashes are archived",
+  "cpu": "Apple M1 Pro",
+  "rust": "1.98.1",
+  "node": "26.7.0",
+  "official_svelte": "5.57.1",
+  "old_revision": "5ed8ea3a3401b9fbbe780d3b18d6f90073291d6b",
+  "layout_bytes": {
+    "before": [
+      984,
+      928
+    ],
+    "after": [
+      984,
+      928
+    ]
+  },
+  "synthetic_bytes": 1239168,
+  "notes": [
+    "Both arms freeze the same dependencies. Current syntax parsing sources match the after snapshot, apart from a measurement-only layout probe.",
+    "Counts include startup, source loading, and one extra warmup, divided by declared measured traversals.",
+    "The host is shared, without CPU pinning. Real input cycle ranges overlap; the result is neutral.",
+    "Cache results are simulations, not actual cache misses. Hardware cache misses and RSS are UNMEASURED in this pass.",
+    "Old rsvelte uses fat LTO and no explicit warmup. The rewrite uses thin LTO. Official Svelte uses normal JIT. Their AST shapes differ.",
+    "The snapshots contain a metrics runner feature that does not change parser library behavior.",
+    "Concurrent plugin registration additions in lib.rs and computation.rs are preserved. The runner calls syntax::parse::parse directly and does not measure registration."
+  ],
+  "checks": {
+    "parser_tests": "PASS: 11 tests",
+    "parity": "PASS: 19498 documents, zero differences",
+    "parser_formatting": "PASS",
+    "structure": "PASS: 769 source files",
+    "local_clippy": "PASS: --no-deps, only clippy::multiple_crate_versions disabled",
+    "full_clippy": "FAIL: unrelated kernel computation/plugins.rs lint errors",
+    "diff_check": "PASS"
+  },
+  "binaries": {
+    "before-native": {
+      "path": "followup/target/release/examples/measure",
+      "sha256": "ac579cd075ace4ada31aa246ac7c2df464090bec1520f9a730ea2e55e439038f"
+    },
+    "after-native": {
+      "path": "candidate/target/release/examples/measure",
+      "sha256": "49cc0e10e3ca00229bbb1d8a650be7a5fb03f4bb0465f8f894b5cfa497753868"
+    },
+    "before-linux": {
+      "path": "linux-followup/release/examples/measure",
+      "sha256": "b440240d52b7260ed2035dea22ebfe92edf3eef2afd8c2d8c4dda03ca3dc1a61"
+    },
+    "after-linux": {
+      "path": "round3-cold-linux/release/examples/measure",
+      "sha256": "1c765e75df415ec3ace37d6a78b5aa2c3fca18bb2c6feffe03c2ba747b571e4b"
+    },
+    "before-metrics": {
+      "path": "linux-followup-metrics/release/examples/measure",
+      "sha256": "6b747c009cd2ef36522696e53731a551e62f3a2599fb018ae110c7ca693ddc19"
+    },
+    "after-metrics": {
+      "path": "round3-final-metrics/release/examples/measure",
+      "sha256": "8b2d4c8a36f0bc113dde11c3ecbb5c0d55ba936ae8f0489466aa8f0a74cc1f2f"
+    }
+  }
+}

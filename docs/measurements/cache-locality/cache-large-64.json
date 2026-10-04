@@ -1,0 +1,2852 @@
+{
+  "backend": "cachegrind-simulation",
+  "model": {
+    "i1": {
+      "bytes": 32768,
+      "ways": 8,
+      "line_bytes": 64
+    },
+    "d1": {
+      "bytes": 32768,
+      "ways": 8,
+      "line_bytes": 64
+    },
+    "ll": {
+      "bytes": 8388608,
+      "ways": 16,
+      "line_bytes": 64
+    }
+  },
+  "model_key": "i1:32768,8,64/d1:32768,8,64/ll:8388608,16,64",
+  "platform": "arm64-linux",
+  "kernel": "6.12.72-linuxkit",
+  "valgrind": "valgrind-3.22.0",
+  "revision": "d3fe0394b0b11ab70829fad9a544b2b03ac81618",
+  "inputs": [
+    {
+      "path": "target/cache-locality/large/00-+page.svelte/input.svelte",
+      "bytes": 5932,
+      "sha256": "14feb61a39e1c132a970408464ec7a3c63a41b50b9c1dec75f7cbe50b8d13d19"
+    },
+    {
+      "path": "target/cache-locality/large/01-Introduction.svelte/input.svelte",
+      "bytes": 4214,
+      "sha256": "3611c4286a7a3485f419d53aa731db9b2629133ce5afbdc95533472a27ec3633"
+    },
+    {
+      "path": "target/cache-locality/large/02-Resize.svelte/input.svelte",
+      "bytes": 3748,
+      "sha256": "922abacc3bac29484bfeb01be929e01d62cff9927f1ddeefd173704e79990564"
+    },
+    {
+      "path": "target/cache-locality/large/03-Hotkeys.svelte/input.svelte",
+      "bytes": 3120,
+      "sha256": "7f56202efb45b3e2fae67c791dbe5d89bdcbe37d6c756070780d22527a188b4e"
+    },
+    {
+      "path": "target/cache-locality/large/04-Settings.svelte/input.svelte",
+      "bytes": 3107,
+      "sha256": "517885fc7bddade23684098089f4232f241a97f7b8aee30ec8e00bb354ee391a"
+    },
+    {
+      "path": "target/cache-locality/large/05-+page.svelte/input.svelte",
+      "bytes": 2923,
+      "sha256": "b5d238ff854a8a2a4d8823dfcdad9c5767481cd3f557696abe27fb7020f8887e"
+    },
+    {
+      "path": "target/cache-locality/large/06-+page.svelte/input.svelte",
+      "bytes": 2838,
+      "sha256": "c3fae3f592026f4f62844cc5ce5840a2c50cbbaf130586e3685ad4870bf0eade"
+    },
+    {
+      "path": "target/cache-locality/large/07-+page.svelte/input.svelte",
+      "bytes": 2757,
+      "sha256": "d205252febe9456dc7df60e62255b301854fa25e096080ee6ac05b0baf5ed983"
+    }
+  ],
+  "sources": [
+    {
+      "path": "target/cache-locality/before/Cargo.lock",
+      "bytes": 29582,
+      "sha256": "d91a071167a08ea20488a8370921e2a8b82afff68a473ae0348d80f93d8f6907"
+    },
+    {
+      "path": "target/cache-locality/before/Cargo.toml",
+      "bytes": 7150,
+      "sha256": "0c76ada4ffdef8c98bdec7ad3e79df19ad276ace1218cc366e091e51aff1249a"
+    },
+    {
+      "path": "target/cache-locality/before/crates/README.md",
+      "bytes": 2829,
+      "sha256": "2ef15c690a86de5c52257bcd0eb58059fd36ccbace4c0fc2aac94413056ed1d7"
+    },
+    {
+      "path": "target/cache-locality/before/crates/fixture_test/Cargo.toml",
+      "bytes": 482,
+      "sha256": "f19d6a7e1ca2326bbdd91629e02a744a492efb82ea8fa4dabfca4f275757d5c3"
+    },
+    {
+      "path": "target/cache-locality/before/crates/fixture_test/README.md",
+      "bytes": 6268,
+      "sha256": "94745319d6b94d7682b0da2ab68af97d67b58df7056715223621a0f7cec93e6e"
+    },
+    {
+      "path": "target/cache-locality/before/crates/fixture_test/src/cases.rs",
+      "bytes": 4280,
+      "sha256": "003cebbc08afbc654eb3009a64d54f3394547c1a82c60696dd9510a085a4bb39"
+    },
+    {
+      "path": "target/cache-locality/before/crates/fixture_test/src/javascript.rs",
+      "bytes": 3705,
+      "sha256": "f78bd13d562812c7539b838fce9bf69c6b14f09563283d58f2d33c3fba99aea2"
+    },
+    {
+      "path": "target/cache-locality/before/crates/fixture_test/src/lib.rs",
+      "bytes": 9779,
+      "sha256": "dea38437e9df47207ee60f26aa9757f6ad8231d13a60aaaff6556eb333912972"
+    },
+    {
+      "path": "target/cache-locality/before/crates/fixture_test/src/node.rs",
+      "bytes": 2237,
+      "sha256": "a56bdc18e5e049bd301b7104d7b8f0625c0a7dd0a5a0ec4fca07e7aa980b1a47"
+    },
+    {
+      "path": "target/cache-locality/before/crates/fixture_test/src/snapshots.rs",
+      "bytes": 16105,
+      "sha256": "31e092eac3657956026f4ce2575844a5223a1c9d78c4b12b503e004ad33574a2"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/README.md",
+      "bytes": 3686,
+      "sha256": "0e3354e579863f63fd4ceec9a2a60bfab1e488a08ee8194342fbe713a97c3d3c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/browser/Cargo.toml",
+      "bytes": 821,
+      "sha256": "584a3ffdaba82edf18bce9c36567be3b381be6c412eaeb5c12b92d146088df02"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/browser/src/computation.rs",
+      "bytes": 331,
+      "sha256": "e84bb99beaaab3b0925a36a0a4d88eaa51070f26fae93ea8143604a0159d54ad"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/browser/src/computation/playground.rs",
+      "bytes": 12463,
+      "sha256": "019ba1b44617681a1e06648d97588504692296b5c949af8f8cc3ac9b8cba8231"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/browser/src/document.rs",
+      "bytes": 5635,
+      "sha256": "3311784eed652ac63e08c791a16f98fd4c590d5b39591a0c9d4f56516e28b69c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/browser/src/document/layout_expression.rs",
+      "bytes": 16485,
+      "sha256": "fea752e8416cbf88368d515abb1e6d74f814dfdd2c51c24fbfed165c8e93a23c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/browser/src/lib.rs",
+      "bytes": 195,
+      "sha256": "47bf96da71e4c01173cfe6aeaf016912c5fbff3b33020241996853624f48857e"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/Cargo.toml",
+      "bytes": 1350,
+      "sha256": "387fa10ea34522142255ccb4e9ef528d7ff17385323b65cf7e7f08dfc30a6daa"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/build.rs",
+      "bytes": 1096,
+      "sha256": "50fea6aa6f076f078a0623e7df70c7b656182dc56e497865747a389ccbc042d9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/examples/plugin.rs",
+      "bytes": 4015,
+      "sha256": "02a320a1dc03b306e2df0988060433d2d974fddad7c592afe9172882ec50324d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/src/commands.rs",
+      "bytes": 123,
+      "sha256": "420b687797c4ce5a017ed96ebae375b6b6012fa1eb467cf1c8677f3d65d98c80"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/src/commands/benchmark.rs",
+      "bytes": 12718,
+      "sha256": "93d221fc2993de279f4bc5e0274ea3c4af3a872ec4d5ea04f41a85abb0eacfa9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/src/commands/fixtures.rs",
+      "bytes": 2005,
+      "sha256": "93dba76df24a0a5994eb2e0aa48c36e9f48df43043ba28ecd6ed5d56c239180f"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/src/commands/performance.rs",
+      "bytes": 6153,
+      "sha256": "cd88e753c3022b2f7fa15c0a73c32b5093a9540df6c8a35004dae7997ab57906"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/src/commands/run.rs",
+      "bytes": 1402,
+      "sha256": "587816df842acb559887aff3197ba2d22355e85b950ac1ee378b5e28f8ee64b0"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/src/input.rs",
+      "bytes": 5522,
+      "sha256": "161efeeed0a8374ad55cbb525692208d413eb3d1615a824c069b10353b25795b"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/src/main.rs",
+      "bytes": 10319,
+      "sha256": "cb31d45748af0af57f072b7ad5f0e519488bc2fe8239a62e3f84db4953b9f544"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/src/output.rs",
+      "bytes": 2324,
+      "sha256": "c8dc33592b7f400ad01341ba0f84bb50a9ca5d9e157137413fb36a407b555f6d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/tests/documents.rs",
+      "bytes": 11414,
+      "sha256": "cf974e106e7791882d5e3a2d313b0bab87ca7683d30f0f0e7b4fed582ef4a197"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/tests/fixtures.rs",
+      "bytes": 1682,
+      "sha256": "28a74b188518a7c3ef844aad270580a228171ca3ae5d4187a5ac55e2cd397710"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/tests/lowering.rs",
+      "bytes": 1539,
+      "sha256": "b0b0bcc50eb920a1edfbc768193d1b66c231ff93f447eba509fe46c26e5864da"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/tests/preserve_whitespace.rs",
+      "bytes": 1683,
+      "sha256": "17ac084ffaeb1f846b59014a92b233a6469811077dfb051611f7825d0fe59796"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/tests/preserve_whitespace/App.svelte",
+      "bytes": 126,
+      "sha256": "2b8b91f88e4ba403776fefccdfd4cdca0fe28d86bf8fd6b59623b85868d150c4"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/tests/preserve_whitespace/client.js",
+      "bytes": 560,
+      "sha256": "83229b2925a6a65bc8541ead02e67d071d24b5a52487f2af88c5bc22611fdeb9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/tests/preserve_whitespace/server.js",
+      "bytes": 209,
+      "sha256": "144da63a869e7db2f0e16648d0cd11ee6d3a4e0ef03971a4acd0bd6246aad3a3"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/tests/render_plan.rs",
+      "bytes": 7598,
+      "sha256": "0f53b901b377087d6470100b2c32ac41386c4698957f6b27cc2b0c12e786ea14"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/tests/tool_plugins.rs",
+      "bytes": 2537,
+      "sha256": "1f394d630e41284eb565bf113e514931a87a8db852d6491aeb118356cfc3572d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/tools/export_site_layers.rs",
+      "bytes": 14810,
+      "sha256": "52bc326a90c1b942b4e9af2c7156e3ef63bf5df4bbc1f8a86587a1f14190f26b"
+    },
+    {
+      "path": "target/cache-locality/before/crates/hosts/command_line/tools/export_site_source_maps.rs",
+      "bytes": 2961,
+      "sha256": "666e0cb39d1cc04cea10c148c7189d5bbc6ff78e1ffb6a2a7edb762324b5f946"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/Cargo.toml",
+      "bytes": 629,
+      "sha256": "2c8eda4efceb24085a65a3a8ad054b18da43a5c9c85bbbbcfe0a35919ead8cbc"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/computation.rs",
+      "bytes": 95,
+      "sha256": "ecf790f77bf15ce817fef8c5854b5544f1cf0001d15ca9a36a17b1eb3e7c0af4"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/computation/database.rs",
+      "bytes": 10571,
+      "sha256": "4b8d3f77f1295041f1e450c16361a8dde224f60f591236602ff74e2ee5fc9a1a"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/computation/pipeline.rs",
+      "bytes": 17068,
+      "sha256": "71d605a199ebcee12c38efa64e2e73bdf02e03b1c2781599ada61f1e80b012e9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/computation/pipeline/tests.rs",
+      "bytes": 12049,
+      "sha256": "83f1a3913048ec7d2ca6e8130fa3847deae2d4120a091df1311b35e46d639e3b"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/diagnostics.rs",
+      "bytes": 63,
+      "sha256": "d945485a52764fc21f7b6ad5b453dfcc5547846cb0013b8ab97f80c651f59b76"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/diagnostics/diagnostic.rs",
+      "bytes": 2587,
+      "sha256": "40637215eca60898550dc6146f308aa6ed6b5023ca18835d451b9922f24a102d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/lib.rs",
+      "bytes": 460,
+      "sha256": "4c15a4b1552ac8572ce9749789ba8a36865f2a18a992c19252ed8d2df63365d6"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/output.rs",
+      "bytes": 138,
+      "sha256": "22c288dacd607ee0e899302ab2c3a70cd951c2b87905df3bc979ff4bdfded01f"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/output/document.rs",
+      "bytes": 44935,
+      "sha256": "d5dad638a8b1b1f78d2fcedc2aa4e558459c6ee8811a897cc3ba1b9d008693a8"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/output/emitter.rs",
+      "bytes": 18170,
+      "sha256": "a557891a78511ebd7afaf354b0f95975e799175bce7535651d70bc48c0b98462"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/output/structured_data.rs",
+      "bytes": 7741,
+      "sha256": "004fd8cd6d7fe1c2d09948e9dd58641e0a0ab0be9e21dc69b87b2d7480b2e049"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/output/width.rs",
+      "bytes": 1061,
+      "sha256": "0df926af88aa2ffd0f68ae76739a72168f8275483964728c11b9cfc56d4908a7"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/performance.rs",
+      "bytes": 98,
+      "sha256": "202d7b52d69313c57714cc7d7cc4ee2ec4fbf916860e1dc0bdcbf0095cdf994c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/performance/buffer_pool.rs",
+      "bytes": 7400,
+      "sha256": "af737ae5b02b143ae0dd6ceef02225734b13de14c7e5aabad3f416b6655ed722"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/performance/measurement.rs",
+      "bytes": 13735,
+      "sha256": "2f0e8351c63edd47f30f08d3c6d76581b9598cfef0a0650b2a96836a0a92d691"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/source.rs",
+      "bytes": 151,
+      "sha256": "b6c52960182c1795e82b31efe3e26ff89416e5da12bd6406ea7e8c0e96b4da0d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/source/hashing.rs",
+      "bytes": 4691,
+      "sha256": "84af7286acef99314aba7328ddefe1d8f949d67e40cbc539f466febc994aecbe"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/source/index.rs",
+      "bytes": 8843,
+      "sha256": "364cd084a72ae0ac5688192bf10bf93172ef4709f9fff35eec07b72c302eab5d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/source/interning.rs",
+      "bytes": 4987,
+      "sha256": "d12544df83c0f87cc198466aa686ccbfece3724450d37b2fb0d9a20b4ab3b1f9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/source/positions.rs",
+      "bytes": 11006,
+      "sha256": "6ca74a06f501bd4d6fe9de513ed5c6d9ef7d85d78ebf4abc5e7ed93fe7a11a0c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/src/source/tokens.rs",
+      "bytes": 7727,
+      "sha256": "0615ed4d249f6d26583cae79b90f320dd60c934ee3bdd171fa32ae8be6892cc9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/kernel/tests/task_contract.rs",
+      "bytes": 3400,
+      "sha256": "85b358447f7dff64f8b9ca1d5614dd5d784201809ea5877b9150e3a6e71667ea"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/css/core/Cargo.toml",
+      "bytes": 199,
+      "sha256": "7e31764c7f7f893068f6148afabaccec38b1e664b27f09309f9db60baa84afe9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/css/core/examples/layout.rs",
+      "bytes": 1397,
+      "sha256": "9da8ab568c10065757fd3f85a75880c793da8edf3eac07568b9dcb0505eb2613"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/css/core/src/compilation.rs",
+      "bytes": 15,
+      "sha256": "7d7e418e6533e8efee7f66e82de76e9e1180b32636ab79c8b458e0d2bbfd2a22"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/css/core/src/compilation/scope.rs",
+      "bytes": 16544,
+      "sha256": "e3972b3e7a52f1674c4d9533d240b5ad0032b603c8bfc3ad1231e727d6c1e4a8"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/css/core/src/compilation/scope/keyframes.rs",
+      "bytes": 3001,
+      "sha256": "8d6f66cb6662f7f79c9cde033e784c63b7480b678d5e511c94666a44908cec8c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/css/core/src/lib.rs",
+      "bytes": 533,
+      "sha256": "eb929f861d500d4b71d7c3e5235e6e0769469246a02d6d0d7b61ff82d8a1dbb9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/css/core/src/semantic.rs",
+      "bytes": 17,
+      "sha256": "d7c19d09b2be94e9eba33a1beb8925ab1730092f7e3a579dfa1fbcc6413e5591"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/css/core/src/semantic/matcher.rs",
+      "bytes": 15890,
+      "sha256": "41f27c316deec1c546d7dc235646b662376dcce319d13198b64e8b3527d087b3"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/css/core/src/syntax.rs",
+      "bytes": 37,
+      "sha256": "25a5013f25a1c80814a6be7403d76702fa6e8b5b2bb143e9912c8a113a27077d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/css/core/src/syntax/parser.rs",
+      "bytes": 19838,
+      "sha256": "4d37390dc16fc8a165855bb86efa6d78592988f856eaaea4d1b26b4cfbbf8ea7"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/css/core/src/syntax/parser/selectors.rs",
+      "bytes": 9727,
+      "sha256": "43f4b806a3eec8b478ee30005df3e4835036205a5e1fb26d01a7402ca5030d4e"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/css/core/src/syntax/syntax_tree.rs",
+      "bytes": 6108,
+      "sha256": "e120ea45b3a8223bf276d340b438294876be115ce5eec0091e8eeab77f5a5a09"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/css/core/src/syntax/syntax_tree/simple_list.rs",
+      "bytes": 1780,
+      "sha256": "de1c90ecd09c730e62574a8ca7b1cd16a1ae0efe5a8ca25a226056210b0f5dc4"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/css/format/Cargo.toml",
+      "bytes": 289,
+      "sha256": "3ba71e263d6b838986ce387172c94bb2896756747cb8f9f7d9d9359b56ea4a91"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/css/format/src/format.rs",
+      "bytes": 4046,
+      "sha256": "798cf1fc2e3d105e5a27169f0c510ea2874a3c63c0f2df2efe73188c82b79175"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/css/format/src/lib.rs",
+      "bytes": 52,
+      "sha256": "60517afa3fb694869d357a4c7d8aabe17bebaa628b0a69c677d2428782f353bf"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/html/core/Cargo.toml",
+      "bytes": 229,
+      "sha256": "f3b92e6be2d8acfc3aaf84202c99b367f060efc05045190c0dbf5c1a1321869b"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/html/core/src/button_type.rs",
+      "bytes": 2723,
+      "sha256": "8201126b90b8c04a856b8ac0167c7320de4283b05d09ed149f417e4e4bddac41"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/html/core/src/lib.rs",
+      "bytes": 1623,
+      "sha256": "c13a83f6e8477c7b534045608a0c09b30f8341282d18c078ee432ba5ff1e08a9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/check/Cargo.toml",
+      "bytes": 455,
+      "sha256": "a4ac168cf851877773d3d3993049a69b5ae6604745ea79f68470765afd7723ae"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/check/src/configuration.rs",
+      "bytes": 584,
+      "sha256": "e492f9925435bc9fb06be0284524a34596627d1471441007cb11ba029d8fcec9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/check/src/lib.rs",
+      "bytes": 190,
+      "sha256": "edf5eea3af28707967bc423dc4d442260d1dea29dcaf6c6b4c5bf24478fc364c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/check/src/project.rs",
+      "bytes": 11767,
+      "sha256": "59ad061a8badb9cde93e38994c76cd633f3cdcdfe7097272ea79c9364e82ee9d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/check/src/registration.rs",
+      "bytes": 2780,
+      "sha256": "eca913b14ee020852df670da4d743cb57c2bbf87bae06cb9d2aa467bed443ef7"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/check/tests/fixtures.rs",
+      "bytes": 834,
+      "sha256": "acdc387d10ec67239154d0ac6461d149af84b92047f04f559fa3d05670c114ca"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/check/vendor/LICENSE.language-tools",
+      "bytes": 1131,
+      "sha256": "ada595bb2ec8d71616dde1b956edb8fbad63eadab32b8d9ab9310a1aef08e5c5"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/check/vendor/README.md",
+      "bytes": 402,
+      "sha256": "a3c4b8a73eab84b6e23a8693a293681aef9885301eabea0112755c91cb6d99fe"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/check/vendor/svelte-jsx-v4.d.ts",
+      "bytes": 10684,
+      "sha256": "70eb01776fb447b10ab93e40f379482c1b6d4c9fa59b5023138d595055b78d68"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/Cargo.toml",
+      "bytes": 557,
+      "sha256": "79d5a3c08db268dcdde8d07f2c894dd5ceb0e1c28590a2ecbb4314e4346667b6"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/examples/layout.rs",
+      "bytes": 1140,
+      "sha256": "10951c1754001b5e4b875c92bbc9eee7fa779c2fbe8dca6af6eab1e563c68e6f"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/examples/style_corpus.rs",
+      "bytes": 4639,
+      "sha256": "ce8a9907cc3d5d9cba27316ce20b7d97cdfdd3fe974fecd439a4864e49b83dae"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/examples/styling_bench.rs",
+      "bytes": 2385,
+      "sha256": "57bf1b93d595dd8fc60af3b84c561789731a19c0f5aaa930bbed206fb5f580da"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/computation.rs",
+      "bytes": 2239,
+      "sha256": "b7acdc5b0638515f036d38d13f295a330ee28269e3efbc0590a2ce9770220507"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/emit.rs",
+      "bytes": 698,
+      "sha256": "875fc3b0e32764d218fa13e766709d5508286dfee4ecb8e24e80a1b895a53c2b"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/identity.rs",
+      "bytes": 3994,
+      "sha256": "f3d07b0d40fe304c465605b645ad403d704366f70cfb97d2a9f39ebe7c08f073"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/input.rs",
+      "bytes": 1288,
+      "sha256": "b3aad8bfcba33c013fea0e5db1128499f9afc4bd59dbe8db05980b0b86679849"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lib.rs",
+      "bytes": 412,
+      "sha256": "04ec4a375e141d668b83a7567087b3386dd63c427381a8fcb06ec7ac51071def"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower.rs",
+      "bytes": 5195,
+      "sha256": "91ddfa29c4f0349e2a0710ee8619dd5275cb813294e0ff710877bdd9ad288fd4"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client.rs",
+      "bytes": 9466,
+      "sha256": "a36c8568ff8ad4f014836b5b9c6757fa79ec20545134499c31b01f20b421bf24"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/attributes.rs",
+      "bytes": 1119,
+      "sha256": "790f6fab6664b73458c7e2d46e6f097f7d433a0dbdec9e6247c806cf9e57daed"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/attributes/class.rs",
+      "bytes": 5131,
+      "sha256": "9bd4ba8c3298bffc69f2e4930d02ba3820b762dd46618c06222efdf0fb243e46"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/attributes/with_spread.rs",
+      "bytes": 4783,
+      "sha256": "df65eb6770262403fc456fb45b04a921e0f63414a3241399b8b11c43520a90ab"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/attributes/without_spread.rs",
+      "bytes": 5663,
+      "sha256": "2fd749c9b2f051512335a3491cc32f89e4324bcd167ee2fdb7c2512313c3a9cb"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/binding_accessors.rs",
+      "bytes": 2467,
+      "sha256": "82dbe95c410223b23204c60cf1a60e4c053f549c1711e364bd14d831ae74e694"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/blocks.rs",
+      "bytes": 441,
+      "sha256": "b0aed1ab3ea2ffe7aef9de6c4552a5906a5f0157c6f7846efb48800d13fadb39"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/blocks/each_block.rs",
+      "bytes": 8267,
+      "sha256": "eae44a1d7042fa4b32af708be110f372f797113df0135704a3313882f3b5332b"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/blocks/if_block.rs",
+      "bytes": 3795,
+      "sha256": "c2e49614922ccc7a9499c45c79bc1786a9bc82c54fbbdaf85206925b252b80d1"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/boundary.rs",
+      "bytes": 4048,
+      "sha256": "87504883f96927be1041de86fece2888ee30512dc1114faa7f0dd703a5af8c34"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/boundary/parameters.rs",
+      "bytes": 10660,
+      "sha256": "2daa79f069a4f05a788a014ab9e5633a33a655c896551aa8adfb73168ee6af75"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/children.rs",
+      "bytes": 5712,
+      "sha256": "c7ebbcb18611ffb82e86effe4fa9326bcffddbf5dbe8dd05b9382821eaa28cda"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/custom_element.rs",
+      "bytes": 10421,
+      "sha256": "9734d0dabe457e6a2be6427474e804a7fbf088aac684d17349eee4c79331f57d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/directives.rs",
+      "bytes": 2747,
+      "sha256": "dc8f68f5992e1cc73564129733f7b960f9eb785d48ba8e48a83e4d19bca270fb"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/dynamic_element.rs",
+      "bytes": 4840,
+      "sha256": "efe0dbe2a5b4b46cc9c303036d2194e3831812abd874517c956a241dd4f1f6d7"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/elements.rs",
+      "bytes": 1420,
+      "sha256": "8b6846c905f8885706bf858d9effb9255bccf20b1ad2e9dc2c691c1a503fb14a"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/elements/element_children.rs",
+      "bytes": 4347,
+      "sha256": "3b3aacf410766c8b3956adba5547d4c76d5de985c2c5acb8fd372c3af2f42d3b"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/elements/input_defaults.rs",
+      "bytes": 1445,
+      "sha256": "a6e890979f3b732c3b4dd429940ce0a5b421859f6de0a1fa317cbe14cad58db0"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/elements/regular_element.rs",
+      "bytes": 3751,
+      "sha256": "a95c4b37bb81aadfd87116841ea28a42ce52d08bd10a8b0fdf591afb6511a978"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/elements/select_value.rs",
+      "bytes": 6256,
+      "sha256": "9c2b0caa73b03bdc29d7955d7466cab645c8fd1092b1ce4861d2ad17e40693e9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/events.rs",
+      "bytes": 7375,
+      "sha256": "93792a6187a99e0a4f3bd00ca08c1f6f4a604b7813ae3dae003145c61f9a8f76"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/expressions.rs",
+      "bytes": 3299,
+      "sha256": "7d890d9855bd0ed0139a7947ea976d9f919056daca7d199508d23fe20f4cd694"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/fragments.rs",
+      "bytes": 8676,
+      "sha256": "3cd386c30388faa5abac9b8138cc401c5bff007f034ae0a8de894b4316fd337f"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/global_bindings.rs",
+      "bytes": 3436,
+      "sha256": "96cab58cf8deea2a54b5a7818f26a23320e96fa01b6ae2871980f29b019bd1d5"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/special.rs",
+      "bytes": 3529,
+      "sha256": "5feae7c54bcb7d3237f3955c2d509614ba488c9f7ba49ecd06da006fd826f93d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/template.rs",
+      "bytes": 4248,
+      "sha256": "2ce21e31cfc59284d79dc08b8dccbace77ede07809229fffd24b95c3b5e7fcc8"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/template_chunk.rs",
+      "bytes": 5113,
+      "sha256": "2aba71d432c2971a48645ec2941ad9b0bdf1497f1152b4f2201df98930da7587"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/title.rs",
+      "bytes": 2362,
+      "sha256": "fb49e45b7c860a2517f26b72b7c3357014b9c957be4ae4b149f64c6a370a8360"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/coverage.rs",
+      "bytes": 2895,
+      "sha256": "4d912beb1e1a0e2b1c14bf1902e1741b714c1b4aa21e27db105e4c4ff7581b27"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/custom_element.rs",
+      "bytes": 7204,
+      "sha256": "b85161722744fdf53dccf79aed1c30bca4fcd1ba8a0acbe1d5d6451623810034"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/javascript.rs",
+      "bytes": 3007,
+      "sha256": "8fc591facbf6473d5043ac90995dd4c0813577cb2adaf9e7415f6949f7806b50"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/names.rs",
+      "bytes": 3267,
+      "sha256": "b55896e6f311c8fa445e0ac8712f7c5c8ef19e8c19b966595c7b1187795589bd"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/prepare.rs",
+      "bytes": 3291,
+      "sha256": "801538ba8db874ac16a95019a18d68cbb731a52553243c0d0dfb852f1a37370b"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/rest_reads.rs",
+      "bytes": 2474,
+      "sha256": "190fc4d0d1d33b8db14c881901be81aae24f65f8f966136f5129a2fff8a49123"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/script.rs",
+      "bytes": 21449,
+      "sha256": "32e49480a742b74bcc3f52831f8f17ffa7b54cbb3a49daf301d162505b72d1d6"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/script/props.rs",
+      "bytes": 7563,
+      "sha256": "3873c5b4b6638475cfe8a1253f6b3c3c92e7a7c642fcde8f06a7ffa9bab92f22"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server.rs",
+      "bytes": 6096,
+      "sha256": "22c42782d9c9d92df3503a361c21900dc18e9e04d89f5409e82bb8c06c4733ff"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/attributes.rs",
+      "bytes": 4330,
+      "sha256": "06b81f36fd9f52bcd22bde001425ce94a3b2f8b9254825db13ad0fb3667ef0a1"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/attributes/class.rs",
+      "bytes": 1607,
+      "sha256": "aa1dd6136cabf7d71662fa26ec55bdb2ccaef63ded80ec61f0fed68c22fcbadb"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/attributes/with_spread.rs",
+      "bytes": 5871,
+      "sha256": "8a86d646bb73946af221e21dc5882afbcca925582e5f595493ea2542e513380a"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/attributes/without_spread.rs",
+      "bytes": 6029,
+      "sha256": "4333f5652cd81f1be5ca5683cc7c896d99f35c4f4439921c113e8e720c3f4c9a"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/blocks.rs",
+      "bytes": 2711,
+      "sha256": "2480bf3bdd8a2f881e38b6cffdab1e77b48d2792b6c4fc106a32a359f6a4f80c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/blocks/each_block.rs",
+      "bytes": 5289,
+      "sha256": "cdd1d912504da2e204b8a1ec1cb916b0e6801dc5061ae4541ae714c73d690941"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/blocks/if_block.rs",
+      "bytes": 1504,
+      "sha256": "186d358a9d6667efe6a1aed5dcb2582f839a5d3bd3fa2292a40f7aceb426a159"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/boundary.rs",
+      "bytes": 6112,
+      "sha256": "be23a97a5aa469e01e61c88ddd7f29154881ecc99519271ea0e9b8efddf59729"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/children.rs",
+      "bytes": 2516,
+      "sha256": "4c4c8833f4e717d50c998a66d3a3d1e6e6421c6e1c18732a6b3c4eeec826b6a1"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/directives.rs",
+      "bytes": 881,
+      "sha256": "daa009e4e51b573352cf673e81d995154449c34956cf4e8f7d72db99d3a668d3"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/dynamic_element.rs",
+      "bytes": 1927,
+      "sha256": "d03fa1d4479882635b5a96fe797b7a163d668212ff281bc51d5aa125125db862"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/elements.rs",
+      "bytes": 39,
+      "sha256": "386b58fe4f2027eb6ecb3c96bd2247d8f8e3a7b641624f24903926cb0b265532"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/elements/regular_element.rs",
+      "bytes": 2888,
+      "sha256": "548b237e77d048c365245b5229ce6e13451614d9451cf551db1c84ccfffb2163"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/elements/select_value.rs",
+      "bytes": 1840,
+      "sha256": "90b44ec238c9937b398fdd06ba5aa993a6ba0dceb8e7b8d5a0ae312ca81f0e71"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/events.rs",
+      "bytes": 457,
+      "sha256": "95c165435c39df2bf7b9ca0f34d49f3ec107a2005d29fb7a629788f556e04709"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/expressions.rs",
+      "bytes": 507,
+      "sha256": "ed89f456a887552812cb363785f1a8d003d6a8985202ecd5f9376e0e86e1b441"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/fragments.rs",
+      "bytes": 3747,
+      "sha256": "fb0ccb8d1655371b758f222549e3c7756ed495886fee343cdfbda1d3a4dcfa98"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/special.rs",
+      "bytes": 3140,
+      "sha256": "ec1047815e7789b13e24b2e44ca29cd1e84e1505e098b0eb09b193f7c4039fa9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/special.rs",
+      "bytes": 10562,
+      "sha256": "a11e9022d3691411739d82b63e8dfceeaa973a9e690a44b35397961fa7903713"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/template.rs",
+      "bytes": 10378,
+      "sha256": "a1eb08747f6f4c393ae73ea6b7fdc41defb627842429558d2b9b49624f40b048"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/lower/validation.rs",
+      "bytes": 10084,
+      "sha256": "460f30b8a033586f939bdda358a5ae742e77d488ba9536850c5b3aa7d082923e"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/markup.rs",
+      "bytes": 586,
+      "sha256": "7f2b56d221a92b829b09ef2e2bff9600822a1aa9506a5709dd401499254e22d1"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/render_plan.rs",
+      "bytes": 8127,
+      "sha256": "6a8fb32fc789dbea05fe66d72b03f55758eed4eedae0aa94f6a1bcb11d39dd1b"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/render_plan/namespace.rs",
+      "bytes": 4595,
+      "sha256": "f916f8002828fa96b6c344cddbd39fb646d7a54eaea2fda6fc4e75551c95d470"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/render_plan/normalize.rs",
+      "bytes": 7987,
+      "sha256": "d77fa6c1fe8f271895c79ea4e1ee2925caedc4ef7f073f77f5504909a3770e60"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/stylesheet.rs",
+      "bytes": 1165,
+      "sha256": "2ca3c2f8ae5027e8fe2e4e187d1ca4df61244eb3c0af09de1b634617e1f266ed"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/src/task.rs",
+      "bytes": 4616,
+      "sha256": "4f337d9ea4e7994325bbd19976b18236f74af79b356625e03156d404725644d1"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/tests/fixtures.rs",
+      "bytes": 423,
+      "sha256": "5908b668363d0f10115a7109b6d5cdedf13877b0e1a23b604ae6a8b71c6e0202"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/tests/special_validation.rs",
+      "bytes": 2266,
+      "sha256": "ea9ef1b96f84242289c68b6f8c593a08a5f9af28b159838e9152d95bf45018bb"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile/tests/styling.rs",
+      "bytes": 12104,
+      "sha256": "05366011fd731fe1edc9ed3d73c5d2b58138bbaf0a3a1737a60b577585ce8cbc"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/Cargo.toml",
+      "bytes": 621,
+      "sha256": "bb92a5c30c96eb42729e10463ec4a571ecd38611f6bb2ffc2a8a074980329943"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/README.md",
+      "bytes": 1752,
+      "sha256": "9cd20ccd30ca7e0bd236df2cca708da69a42d1b60fbd561537cf1815da231b56"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation.rs",
+      "bytes": 3719,
+      "sha256": "be63c3c4102dfb5f8f3e6bf2cba7bd424e9d3370650d25ded4ec15a8aed8bc14"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/helpers.rs",
+      "bytes": 21769,
+      "sha256": "aae2589717c5e9fed04b2fafe3a5e779016c4755ea6c220ccf4d129ee9b4f375"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/script.rs",
+      "bytes": 18360,
+      "sha256": "f52c29fa19a0dca9dd653aba0ff12ba761f5f50aec863719b6887da539982941"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/script/emit.rs",
+      "bytes": 10014,
+      "sha256": "823bebd870af289d2d7f8921aeb683e5ba41d2ff4a7b59b81c5bb75070d33ef4"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/template.rs",
+      "bytes": 10202,
+      "sha256": "48c8fa35b27909890cba0898ea732e39bd1bb731e3c00c1af6f76c0862ae462a"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/template/attributes.rs",
+      "bytes": 8160,
+      "sha256": "e6841c1f5f66fe27304ec88abbec693adc043404cd681f7a16850e8921e74f21"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/template/bindings.rs",
+      "bytes": 11453,
+      "sha256": "f815252e285025ceb73fafd0577fd7bd42db324f5b9051132835e5d356a4e5d5"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/template/blocks.rs",
+      "bytes": 12508,
+      "sha256": "1a9e8baea2ef448d0b9db1e55b2e6422af19521074bb7c380ff969d2c8c12553"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/template/check.rs",
+      "bytes": 14266,
+      "sha256": "fe0b4d32b8682a384f6015886606b736a49b6294c2a0671c1dc6f51b12f809cc"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/template/elements.rs",
+      "bytes": 11579,
+      "sha256": "00b65288e23ccb228ff63e403a68fc336b862d5f420950a759de95e4d7d647a6"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/template/expressions.rs",
+      "bytes": 8508,
+      "sha256": "d69a5ec746ef159d6dbaf1859af7a5799e2e1ebb6f478e97b06d6f1164667a38"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/template/properties.rs",
+      "bytes": 5429,
+      "sha256": "7c6e05d68a989f4b1d2acaa49ce3eea9458b85050c0dbe00544e0d089d17bce8"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/vapor.rs",
+      "bytes": 5223,
+      "sha256": "0848bab4dc3417a3a58a7da8f28dbfd7ba39c648eb4def2b4c8186043b2c6bf3"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/vapor/blocks.rs",
+      "bytes": 6025,
+      "sha256": "97a542a0da24af82a5f93039d18b02299e5f6b7ceaa085e8fcffeb81f41f8b17"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/vapor/elements.rs",
+      "bytes": 4335,
+      "sha256": "1deba59cb30d9531e2580e977ecdae767d35dc18b5e88be463f4201a468155e0"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/vapor/expressions.rs",
+      "bytes": 3179,
+      "sha256": "cb62d1f0c529ae1579530d07eb74ba1fdda55f1d2e928ea9c3e2765f87b2ee83"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/vapor/script.rs",
+      "bytes": 2218,
+      "sha256": "48af26c8110c57c4a94ab872c145dd8ff538cf6fdae11b17f8a9126e6b9e1e8c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/computation.rs",
+      "bytes": 3686,
+      "sha256": "c387c0fa42b49353006ec692a74cba52ec6abced5b9707f8dc03e3522febcdbd"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/computation/tests.rs",
+      "bytes": 13290,
+      "sha256": "4dcc6c6e3c9b87b77e28594577169d9e6bae8ea2e7a18ae06401c5d52f00f868"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/src/lib.rs",
+      "bytes": 1382,
+      "sha256": "7f061af08848bd23021e03db43cfc3e63cb10405d5a2b2232a50e3d3a8578737"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/compile_vapor/tests/fixtures.rs",
+      "bytes": 545,
+      "sha256": "b5ec04cbbbcf14521fcddfd2787e8240ea397224d200357712a16883f2c27f74"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/core/Cargo.toml",
+      "bytes": 358,
+      "sha256": "4b5e6a6e4af0b561283fb0af2a67bf9ab6b9cb5a1d90c988c0814c48fca15a32"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/core/src/compilation.rs",
+      "bytes": 144,
+      "sha256": "099cf8036fb658dbcbc2f64f21a010bea717430fb858341baddef857744b9bc7"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/core/src/compilation/normalize.rs",
+      "bytes": 20764,
+      "sha256": "760601ca17f526b4c4c149f1ce3d3cc5e33b46aba03ac88692490dc7099ceb3f"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/core/src/computation.rs",
+      "bytes": 3629,
+      "sha256": "dda1a44598671b802fa2e13a6a7c7bf07913cb0f3e4c9aa3acb7d5ffd6f68437"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/core/src/lib.rs",
+      "bytes": 284,
+      "sha256": "ea7691916a61535772b53a667a3eef96262925833a075a42f702372c8dde7e7c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/core/src/syntax.rs",
+      "bytes": 82,
+      "sha256": "04753fb6426b0104e0eee4751dd0653166b83074d6dc387d5f00b34198d05055"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/core/tests/lossless.rs",
+      "bytes": 2975,
+      "sha256": "1de384e86b8bdc298e8be73a08e0c2cf2563662247d6a3da78477ca53eab627d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/format/Cargo.toml",
+      "bytes": 501,
+      "sha256": "639336f3f1f3056dffefe4e1f2af20dce0bd29b11c0a9367a53807dea831afe6"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/format/src/format.rs",
+      "bytes": 6212,
+      "sha256": "9da9142f8c1389b23931c4386514d1d5301209cca40f7a59892ecbc0602c4150"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/format/src/format/attributes.rs",
+      "bytes": 3748,
+      "sha256": "fd1554cd07a7197d87f16bd9eb3083398052ea8edd3e7d73f63a416f592879b9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/format/src/format/blocks.rs",
+      "bytes": 7788,
+      "sha256": "1a52976960cf3f8ab575845187a76a91b9490aaf7baf3fc053c5190d19d1e4f9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/format/src/format/children.rs",
+      "bytes": 10349,
+      "sha256": "893cf26693fac0b7843f1b4208be594a3f6f714c805f643e62c0057081e254e1"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/format/src/format/elements.rs",
+      "bytes": 9184,
+      "sha256": "46aaa358d817f538f1158e34f1a315e6976a577d2e383e3c3b00ab7d7e598b8e"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/format/src/format/embed.rs",
+      "bytes": 7698,
+      "sha256": "5fb634c32f4b00aec39f733e3cae60e0025161b55437ee87665d8fdc055d9dc7"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/format/src/format/tests.rs",
+      "bytes": 879,
+      "sha256": "b213bbd3b428b06602aa3283b62733917ab57d45010095de0387d2727ca926be"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/format/src/format/tree.rs",
+      "bytes": 5257,
+      "sha256": "1f5d9b2e3364f8e0278b9779fb01f8a26a0779d29884b5a352380c79419c59e7"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/format/src/lib.rs",
+      "bytes": 100,
+      "sha256": "383abd0dace6a34bdec77c74f2afbc758fa9b1bf804e38e44a48ea674f30e518"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/format/src/task.rs",
+      "bytes": 1224,
+      "sha256": "28884e0026e4c7d7f8951de13e78f4905d831b663a6137d9451e95671147cc58"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/format/tests/fixtures.rs",
+      "bytes": 350,
+      "sha256": "511ed5e47596369f8aed23bef39b37c238e60a15f1c5e0e791fc949562c5747e"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/hir/Cargo.toml",
+      "bytes": 296,
+      "sha256": "65c4f4a3c4ca6d15278c6e19f0c0a33276bc494cb0e9401472b202b5be95fb3f"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/hir/src/compilation.rs",
+      "bytes": 30,
+      "sha256": "99e2a3396a7fc29e7404be9900e75ad042dbb616b67b4330777c1197591a1c30"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/hir/src/compilation/compiler_syntax_tree.rs",
+      "bytes": 17587,
+      "sha256": "5802fa8947abb662e9a083746fadad4f3e1bdde073d51f85867c79a4e24b0aec"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/hir/src/compilation/compiler_syntax_tree/builder.rs",
+      "bytes": 8084,
+      "sha256": "bba7d33cd599253929d616f6612a301bf0fba3f2b4fc93ac2fa7cca5e659ec69"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/hir/src/lib.rs",
+      "bytes": 88,
+      "sha256": "e6ea42ce9bbbe40905a49b593018eaadcfcc2ea1b2718d382dcba022057844c0"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/lint/Cargo.toml",
+      "bytes": 478,
+      "sha256": "9cdefa4eb01644ac019ee266e95d4887f96111e7327f7848d25d45bacea2b756"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/lint/src/lib.rs",
+      "bytes": 92,
+      "sha256": "dcdb2305b425d6c6a6b8b6ea2c9d7ad347290c098973dd1e4e4d782b114abc72"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/lint/src/lint.rs",
+      "bytes": 8644,
+      "sha256": "504091d53fff813e693a3f3c6bdfa2ef8260aadfe3cef0339741331d34885254"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/lint/src/task.rs",
+      "bytes": 2039,
+      "sha256": "e7b82d677b4bb90990513ef912c99813dfdd409dbe6dc623fd0359d24d0d79e5"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/lint/tests/fixtures.rs",
+      "bytes": 345,
+      "sha256": "cfcdf8ef9e0458dd478fe288470c7b479c37816bfcea94c79c6a5cc315727d6a"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/parser/Cargo.toml",
+      "bytes": 335,
+      "sha256": "e361419345aacf599e624d388e8d58fe22e67ad498d39fa95d8a831235d77e20"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/parser/src/lib.rs",
+      "bytes": 60,
+      "sha256": "7b7e036d69f655497382f4d402d016bb4d5848e199d2e12ad698c16356ae309b"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/parser/src/syntax.rs",
+      "bytes": 15,
+      "sha256": "1c7fe1aee3e1c37fa78b0b120b2a125ffd9a84a39afd8f7982bc9138343981e7"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/parser/src/syntax/parse.rs",
+      "bytes": 18668,
+      "sha256": "668a5f64a62a6332b1833c06d611d9156e37600b8231b6e71579eba44a09a629"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/parser/src/syntax/parse/attribute.rs",
+      "bytes": 14775,
+      "sha256": "324fa4858a10bc4d7a7d0a142358132ccabb8b9c466774e97027c4c9a2231fe7"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/parser/src/syntax/parse/block.rs",
+      "bytes": 15030,
+      "sha256": "1c6d7f8e153da284b09bcc577612b5602a24514c0ac8f0cf9fbd76edfe24d69f"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/parser/src/syntax/parse/element.rs",
+      "bytes": 9318,
+      "sha256": "7ff822b1d1dc53ef2c3d93d53c20ffc9428cfb61088f3ca3f2d17ec993932162"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/parser/src/syntax/parse/script.rs",
+      "bytes": 8501,
+      "sha256": "6ac246561371818c44e73ac5a936fb6fbeaf4252faeca9bdd616712c10c36b19"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/parser/src/syntax/parse/tag.rs",
+      "bytes": 7943,
+      "sha256": "eeb1aa8c3cef1d01bcf27d983164f1f058c4ee3674ee61318b966968dc4bf15f"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/Cargo.toml",
+      "bytes": 384,
+      "sha256": "8e207860ca83b2784ef1bb91ed39d5662124854203d3e7fa596f54d25cefd9f8"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/lib.rs",
+      "bytes": 131,
+      "sha256": "b6121947f8fac7b79911d6cfae2a33441eea49e51f276d88623bd079581b5f21"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/semantic.rs",
+      "bytes": 151,
+      "sha256": "f9587ebdbca5546e13d5bc4b6a8deedfb7c6f5a43bb7adc48fc93549b731bf57"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/analyze.rs",
+      "bytes": 14938,
+      "sha256": "bbf8b6b9fa4631dcf386ba992fcacd8ef6e7ca1931cd31a85c0bec68afd6a221"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/analyze/stylesheet.rs",
+      "bytes": 16292,
+      "sha256": "529445ae162d1f7ee1e891d643ba43242060f63f7221676ffb8b6e76ae62f493"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/analyze/stylesheet/attributes.rs",
+      "bytes": 6445,
+      "sha256": "dc350f85cc250d71897e2f494892355e322d81d133f439efa6568af0ae9108f4"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/analyze/stylesheet/relations.rs",
+      "bytes": 2282,
+      "sha256": "d34de5744b27e870f4d381edb0585859999858fe41d1a67021a6729bac2097d0"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/analyze/stylesheet/topology.rs",
+      "bytes": 18561,
+      "sha256": "d7b632758b4f57a65aa21f9ff2b1210fdc106d0ed3666466b8028081afd08b01"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/evaluate.rs",
+      "bytes": 20818,
+      "sha256": "72b960ff7cba39f7517a0df12f44e43a5f2ac1d37f3f17ea683e6df395cee7a8"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/evaluate/bigint.rs",
+      "bytes": 6482,
+      "sha256": "0c7392d641fb094a64514a7f1d984e350bea05c59fd057ad9f9ec70355eb3d72"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/evaluate/globals.rs",
+      "bytes": 5504,
+      "sha256": "0d7efc773690fd298436759f207f2fb8125da57c4ba868a2a8b65bd509e9b2f5"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/evaluate/template.rs",
+      "bytes": 434,
+      "sha256": "c6496da9d41c067b1d0fed0350d3c88829545107704814c869289e76b073ad58"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/evaluate/value.rs",
+      "bytes": 3428,
+      "sha256": "7c021b770c13d6aff65869ee47746f22a2583cf13cf4929045c3d5650c0b9225"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/input.rs",
+      "bytes": 821,
+      "sha256": "2d7ffca92b4ed00301ff6e2716046af71c496efbbc9612b5ce14807b62c7bf97"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/resolve.rs",
+      "bytes": 7839,
+      "sha256": "221376aca51ae0ae8dc5698c9c3718f3a0aa255cba26d33876d0a7e16fab1582"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/resolve/classify.rs",
+      "bytes": 8463,
+      "sha256": "1b9e891714218c44accd6266969cf6fa6acc6b6781c23e0fd9a370b39a9222b0"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/resolve/roots.rs",
+      "bytes": 7539,
+      "sha256": "1a7772512c4f380898713c74954a72e65b823b61bceefd2e085251122f1da98c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/template.rs",
+      "bytes": 539,
+      "sha256": "1cd4c1adc3a711acfde2175d79bfad3e894b3ec120c651ea4638be03cdca0225"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/syntax/Cargo.toml",
+      "bytes": 328,
+      "sha256": "e25f1fb8ea3a24ec3c107ba13738af338145658b353d04a797afe893b9141285"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/syntax/src/lib.rs",
+      "bytes": 80,
+      "sha256": "e52743c3a8bf805555de213a4d69742b5303cead88bcba07d9fb9b783b0ea263"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/syntax/src/syntax.rs",
+      "bytes": 36,
+      "sha256": "bb5a4716fe1795df31baba88fab6eacc397a97b22cd2005baa73d673c089e707"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/syntax/src/syntax/names.rs",
+      "bytes": 4017,
+      "sha256": "fa6b6602497ea928c8875f490bc0aef050e3415902ea4c4f01200d41d87414fd"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/svelte/syntax/src/syntax/syntax_tree.rs",
+      "bytes": 14047,
+      "sha256": "99f33697cfa60a7bdf184d0022dc7e91808c09bf40edd64e97ceda6e52851803"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/check/Cargo.toml",
+      "bytes": 287,
+      "sha256": "286092654bd968aa5e2f4e3afb8be3b21fecfb1113545d1d716d571ae3f33b9d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/check/src/check.rs",
+      "bytes": 13903,
+      "sha256": "49f749a50a4f478f3e97d1372984bb9744096e2a9e699b0653440f290d347570"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/check/src/check/report.rs",
+      "bytes": 5423,
+      "sha256": "6b3768780be208a3f5e170c973729b8c0e5d93430a62889bb1af28c76eded2b5"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/check/src/check/tests.rs",
+      "bytes": 2783,
+      "sha256": "e728654b60fe2a07c98f166999211167d2b851b2efc0ed4f94d7637cff1f76e6"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/check/src/lib.rs",
+      "bytes": 107,
+      "sha256": "08998dea1172759ad0a7afbfcf27e94591224fe3577d8b1ce8ddf2b33edee1d0"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/check/src/registration.rs",
+      "bytes": 956,
+      "sha256": "f1f7beeb4d9feb2b3c334de77909699697b7653ead08b4437492eaedf386afb4"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/compile/Cargo.toml",
+      "bytes": 291,
+      "sha256": "e0da41e36f77910cbade804164e980a196d41a02145e475db27e003f1e276b6d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/compile/src/codegen.rs",
+      "bytes": 3678,
+      "sha256": "f3750499b093242544df05e2593d111d664f56712547a5bf3728ccd61d540fd1"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/compile/src/codegen/classes.rs",
+      "bytes": 3146,
+      "sha256": "a01690d698f75bb2c2295cbc49e2ce8c7cb7ae9b6e8811a59c2e09b7670b0147"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/compile/src/codegen/control.rs",
+      "bytes": 5729,
+      "sha256": "e0ec84a2d5ff557c624cc323ce42a13869c3d0a873a3019c85581cde6dd4c591"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/compile/src/codegen/expressions.rs",
+      "bytes": 16489,
+      "sha256": "e8009bbd9691703660e19234a948bd2a05a3e5feeae1f51824e072906ef3572b"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/compile/src/codegen/statements.rs",
+      "bytes": 9105,
+      "sha256": "916db5f4ae7daa51eed9305d4cedd728267da9b7dd6e869e08062fe9f340e9f3"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/compile/src/codegen/tests.rs",
+      "bytes": 541,
+      "sha256": "bb12147adcb0a37ccb5c07b26b4b9ec945bc07c6164c035afc16e20ee6752155"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/compile/src/lib.rs",
+      "bytes": 80,
+      "sha256": "f82b2c75ac892a0d6cb49de7dcb69dc0dc12a3a911e104a43003a7ce483bcca0"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/compile/src/task.rs",
+      "bytes": 1643,
+      "sha256": "6a5564a094ba332667889e42714e7456bb54b0a6ef0638ba68aeacfd35987e9c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/compile/tests/roundtrip.rs",
+      "bytes": 8391,
+      "sha256": "02d51d00779442be07b87108c91e4feada2daea2d64fbc388a7b206f59596e72"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/compile/tests/typescript.rs",
+      "bytes": 3938,
+      "sha256": "8a2d2815bc3fe8fd87e70cb9ae503a93524810905a454496710328b499d68d51"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/Cargo.toml",
+      "bytes": 332,
+      "sha256": "efc5199af083dd99433c43f055244d868d27885ffb00f89aa2290b4eb2af7edb"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/README.md",
+      "bytes": 1968,
+      "sha256": "c2a63885452569b374a968f70d2c4d6aa36d7f2f0acdead1346caae22a42aafe"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/compilation.rs",
+      "bytes": 14,
+      "sha256": "ffcc28f4aebb597f95316360e3c7f809e2bea1c5af2fc85a0f8e1635f2a89624"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/compilation/copy.rs",
+      "bytes": 12251,
+      "sha256": "610fa73f8a70fbc8a0c9bddaed3864a175641f2b919da8e7687aa81661fc710f"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/compilation/copy/classes.rs",
+      "bytes": 1708,
+      "sha256": "12f1f9404f3a34a1a4230e89734854d41645d60cb91ad0d4fc8cd8eda88bba4d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/compilation/copy/control.rs",
+      "bytes": 3328,
+      "sha256": "780bf31108505b7ce2a585160bf4d020e63a5a603bcb26f57c93e91c6d66409e"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/computation.rs",
+      "bytes": 1990,
+      "sha256": "18bdb287ecdaa24282e3103bf8565212a1aa97731cdd21596667929f18ab47f9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/lib.rs",
+      "bytes": 653,
+      "sha256": "30233b04d1aeff54ffa4cdd616895307406148cc01df3840bbffa8ff119188df"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/semantic.rs",
+      "bytes": 31,
+      "sha256": "e9f3b68c53b3f7cc7336de26ae928fce4ce943f7f54cec6e8f8937a36a38d69e"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/semantic/number.rs",
+      "bytes": 1541,
+      "sha256": "deaa6e50b3fbeded72a43c3090ba3fcedfc4d3960b7016f1ee72dec31986d0ae"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/semantic/scope.rs",
+      "bytes": 10970,
+      "sha256": "6cb3d363689833610334644bb95ecab8977bccc6d0ca3ef30a1374fe4c834843"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/semantic/scope/declare.rs",
+      "bytes": 9337,
+      "sha256": "f875332176a7deab07ad3c381cc3a277cc4eeff71692fb2382f2f5351217f3ef"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/semantic/scope/resolve.rs",
+      "bytes": 12575,
+      "sha256": "da8bf8b524de9183665d113e7568a5fb73de59578d95d9339e57f630fb6ef8d9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax.rs",
+      "bytes": 71,
+      "sha256": "bcf25c81068597ceba6728e5ec3b08485ca85d303bd6eac0c039d2fd5cc97949"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/lexer.rs",
+      "bytes": 19768,
+      "sha256": "6a4015a5d854cfe44d4cfe447a89bb8361f1400fac73f325ec422025bd5a610c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/lexer/tests.rs",
+      "bytes": 2475,
+      "sha256": "ab07130dab51ae34d26c07a02ff9627a05ff0bd5a4285faa44ddbaa1f5d34586"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/operators.rs",
+      "bytes": 2432,
+      "sha256": "9ba03504eed505bf92c41e0274aa700fb7996ccfcb605444d0aa52fb9709838e"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser.rs",
+      "bytes": 12924,
+      "sha256": "5bce9b3595f4a3619ce313c2d59bb6a4b02e7494c5d1081bf299592fdd739699"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/classes.rs",
+      "bytes": 5338,
+      "sha256": "c43ddd342e800a83f7879ed82db605b079c26c48e3c3cdae3aabfb64cb00af70"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/control.rs",
+      "bytes": 10252,
+      "sha256": "79444ddcf8b07c590b01992f82ac8a5b8268036e9b0f6c1e0831f6765a3aba9d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/expressions.rs",
+      "bytes": 10990,
+      "sha256": "ed2d7484b2b320286b12f6469f835d06c8b0ce5c7da006a5ff2cc4f593d1e596"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/literals.rs",
+      "bytes": 12894,
+      "sha256": "9bbdcf9cc25bcb3486b10d16c614b2b0902b2ff942c0398a9ec84519219aa7e3"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/lookahead.rs",
+      "bytes": 2333,
+      "sha256": "e044cafb1f78fd9de61b0efacafa917ade6f3c9a5b7c63829ff0cf88af8cd46b"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/members.rs",
+      "bytes": 6244,
+      "sha256": "b4ba035fa286e11706d33d9a0f17d820ca8d155f92a9282f1fe00ea0db9fd047"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/patterns.rs",
+      "bytes": 6673,
+      "sha256": "fbf2ce50e36daca111706c7cec84f15ba136a722ea649a452dc5045993cdf19c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/statements.rs",
+      "bytes": 14603,
+      "sha256": "e3418fb9104cf397fda65902a98bae4913123932d5a8026239bb460d0095a38c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/typescript.rs",
+      "bytes": 16470,
+      "sha256": "f516471cfe5d409bb6c0dda4e7d090b4f409bbe2f9e6a49c005ddbb5a5701a3d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/syntax_tree.rs",
+      "bytes": 17980,
+      "sha256": "6c2512ff79b286d03f833888d4b8b1308a8a07ddfa8377a2ea297f3cc10ab92b"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/syntax_tree/classes.rs",
+      "bytes": 3783,
+      "sha256": "7c5db5220006b15a3477b4e56163a8cffae2c0bc17abf26bcd90fa60c5fd2741"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/syntax_tree/control.rs",
+      "bytes": 9245,
+      "sha256": "e3cd12778406b9b21b7927802f6adf516a5f89ef288c64d0b63a0911f238fdb4"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/syntax_tree/expressions.rs",
+      "bytes": 12510,
+      "sha256": "5fc830bea6d8c95cb8b7ae55fa6e459bc7557e9823a364a342bcf1b44105082d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/syntax_tree/read.rs",
+      "bytes": 8929,
+      "sha256": "d2ed7a3a14c15e618823c442465572e6f958f06036421f4fc9d56a820038399f"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/syntax_tree/statements.rs",
+      "bytes": 7625,
+      "sha256": "aab8ead25664384f6edd0103d85ffef0d0fe021c3f313e241ca55567970ee74d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/syntax_tree/traverse.rs",
+      "bytes": 6894,
+      "sha256": "5462cf843f739ae4ef5f2f9a1e1ef2fe95136bf07769dd7889cbd2eed3192e85"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/src/syntax/syntax_tree/typescript.rs",
+      "bytes": 1659,
+      "sha256": "69d35dcac6239401afc6d4136ea19703c9a6fc55603d25f9b1bc68fd69b1d212"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/tests/scope.rs",
+      "bytes": 8826,
+      "sha256": "41b8eaf5173d53a8566c6c082f3ce988b274d64b74808a1cdcb6db8fe8195fb8"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/core/tests/tokens.rs",
+      "bytes": 2323,
+      "sha256": "748429216e6a20229462791fbe43fd23a8933788928c546815e803ce50bede3a"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/format/Cargo.toml",
+      "bytes": 289,
+      "sha256": "c21a8f0cdf23691c16a39c7ea24a50ca6dd8854f64c5a38e23474a44b42db68d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/format/src/format.rs",
+      "bytes": 16268,
+      "sha256": "0bfd715048c6008ce6829f483b551c85f08e9373a838b87643d45a9f66ad1682"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/format/src/format/assignment.rs",
+      "bytes": 4738,
+      "sha256": "0ab98f87b5bc3e2095cbdafa6a55e9debb1d4489674f288adbf189fa344aed5f"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/format/src/format/calls.rs",
+      "bytes": 11519,
+      "sha256": "4316bf84819e8019e4e56b94d4a53a1451c0e1b2e12b09ad8dea6bbcec384c45"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/format/src/format/expressions.rs",
+      "bytes": 10360,
+      "sha256": "b439779222e6e3ad783307d7e81fc7d47a8de4bb918f24ea5df6354acb046be6"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/format/src/format/functions.rs",
+      "bytes": 12798,
+      "sha256": "0502effbc62b79445a4d014c7130404066caca6acc363f1203252a7fee412120"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/format/src/format/literals.rs",
+      "bytes": 1875,
+      "sha256": "8e432180cddbc649a8cdabe6d9fff81ae8c76890bab85a7f01f28f98d54640c4"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/format/src/format/parentheses.rs",
+      "bytes": 5550,
+      "sha256": "3b81c6a2c38da858761ba9215ed6e4a64f6217c2f524a2b5f2f5edcba3616b77"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/format/src/format/patterns.rs",
+      "bytes": 12245,
+      "sha256": "2f83c0cadc13d47abf5a026cd928a4abc5523d543ff4bc4ada382c030ed5ecb1"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/format/src/format/statements.rs",
+      "bytes": 5107,
+      "sha256": "698b7169dd76aff8558e117f52743fa2041e06c1370f8216dd47ec1911d8b5b5"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/format/src/format/strings.rs",
+      "bytes": 1816,
+      "sha256": "5872294e8fbb47df2efe24acae6471c6c121c2abffdbf1c94c7e89a182dabd87"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/format/src/format/tests.rs",
+      "bytes": 776,
+      "sha256": "550449f13366ac9943748f55eb8a627d98c82d0cd3f05c3f765634281163b471"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/format/src/lib.rs",
+      "bytes": 104,
+      "sha256": "67710f349076c84ea85ffe6e4c026a8dae62f0da5e4ddbc29315a262923d5dd8"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/format/src/task.rs",
+      "bytes": 2252,
+      "sha256": "bc1c78dc7990edbd6b5e8f9e1b574476876f4a59e24d34759a4d603f097d7cbc"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/lint/Cargo.toml",
+      "bytes": 315,
+      "sha256": "a6477b3422aa7f7497b9ff04d6f17f8f9d66bece3cfe7d6744e6e221ac41ee73"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/lint/src/lib.rs",
+      "bytes": 96,
+      "sha256": "930b4e7f3726f32add54c43e286eee70f49f53f9672947386b6ade806f64d192"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/lint/src/lint.rs",
+      "bytes": 10407,
+      "sha256": "e0b9ef0c43889ab7bc52c231622e2cde6d082f868dfe1a3e00afe6d877c87878"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/typescript/lint/src/task.rs",
+      "bytes": 1621,
+      "sha256": "2df954be75d9549517cf2889d2986d0dbd98eff538910fad9e6fb340ee42898d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/check/Cargo.toml",
+      "bytes": 474,
+      "sha256": "1dab9cc8e9274e5a09b9dd1dd4a49c8e412f96760456e98fbdc7bd5a67159259"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/check/src/configuration.rs",
+      "bytes": 574,
+      "sha256": "73236c82b526602f9119297334dc7ba85563ef670bc5272f5928072126e637de"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/check/src/lib.rs",
+      "bytes": 187,
+      "sha256": "495c6b0c9e2e6fa03db72df0f852f3d8967f9e905121cdd4118f335a6fb99195"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/check/src/project.rs",
+      "bytes": 16385,
+      "sha256": "56d72deec7214ffb98bb240cd84b04be30723e1b4b52af33fe939163ca158ea4"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/check/src/registration.rs",
+      "bytes": 2896,
+      "sha256": "2b3bdb484651b0cb9e6cda1587deab30468d24989ee2840551a69fd80211fc1f"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/check/tests/fixtures.rs",
+      "bytes": 819,
+      "sha256": "01ce5e7d8809ab7c66c150a6477e6b4d96b5f3b8d262c8b2b69c1b89012d92d7"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/check/vendor/LICENSE.language-tools",
+      "bytes": 1076,
+      "sha256": "a56351045b45475385a9479d7310208ff0be9489babdb4e635fcea5d7dc1fb02"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/check/vendor/README.md",
+      "bytes": 202,
+      "sha256": "b68ff9ea350847ee7411a5e6cb09e78f924051ba8e756509d7bbf78afe694b0a"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/check/vendor/template-helpers.d.ts",
+      "bytes": 6419,
+      "sha256": "efad34cd2c39139da5bb56469e8ba2459324bf3a556e94e8c3f8fbb3cccf5ba7"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/Cargo.toml",
+      "bytes": 516,
+      "sha256": "8af45dc5a543d605d017f2408867c89d39314ca1de9988a830a88cbb0a97070a"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/compile.rs",
+      "bytes": 6967,
+      "sha256": "fe90013993aacb8230f6ab0a1d0c36fc6c62573aec76de0a8b19d4633393302e"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/compile/script.rs",
+      "bytes": 13426,
+      "sha256": "5e535187b886020ed4f40a109d17b68a572a216897bf6d6e9fbec2b02a06769d"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/compile/style.rs",
+      "bytes": 5292,
+      "sha256": "bd838a9e90b2819127261f76642af78af240c4b07a0fd6f3652e4a74b940d1f7"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/compile/template.rs",
+      "bytes": 12654,
+      "sha256": "3c0323a2b955aa1921ec418006929e290d7a9432d3fa7cb28b95023dbe4fd0be"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/compile/template/branches.rs",
+      "bytes": 7331,
+      "sha256": "5e66b470dadeaf47bc80c38bbbd8b345f4725509046318e54f64f0273fcc540a"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/compile/template/directives.rs",
+      "bytes": 10864,
+      "sha256": "c2d51eaca1a5dc13bdc7449228182666f49313eda8ab0c1526ffe5aef631acbd"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/compile/template/elements.rs",
+      "bytes": 9976,
+      "sha256": "bc69cadae84dc6d4c2e163a94404a717fcf9e90ba4032758ecacf8b1a81e47c0"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/compile/template/events.rs",
+      "bytes": 1528,
+      "sha256": "daaac4c05c6d74e4a0975510604300ff4fd8642c9848aa61239437d4a6c5a3e8"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/compile/template/expressions.rs",
+      "bytes": 5573,
+      "sha256": "d6d9ed9d5a02fcd31555b5c75518b5884d4312a9db0f742ac56d3a7607a4c491"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/compile/template/generate.rs",
+      "bytes": 13463,
+      "sha256": "03c1261410b8843ad7e6b7e821e5ca5d51a46806de4a277f0ffd78a009457d84"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/compile/template/hoist.rs",
+      "bytes": 11955,
+      "sha256": "adc849cd8c7b5cdf110ba0282309ae7cf865a77f57a4b5d3831e92c8ed57a9d7"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/compile/template/loops.rs",
+      "bytes": 4834,
+      "sha256": "1b9486f38fb38cd58218d82bbba8b23dc94430a492e8677c539efde406464568"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/compile/template/rewrite.rs",
+      "bytes": 3312,
+      "sha256": "6c5233448e17b6dcdf3ab488105e8649d0e56a550164974c2f68dfc25442c3bd"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/compile/template/traverse.rs",
+      "bytes": 9531,
+      "sha256": "2b916cb89942a83792981e5b18714ad895f9ce10619bf77ab6b3bc2846b63ac6"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/compile/tests.rs",
+      "bytes": 6399,
+      "sha256": "db1aded51b02aaa56ecca89bd5001e0fb206461eea8e72ea691abdaa3e6767c8"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/lib.rs",
+      "bytes": 73,
+      "sha256": "1878e071ca7777cc1f3292f8d7dc7852f5c992b11ec062afea6e0dd34263a777"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/src/task.rs",
+      "bytes": 1929,
+      "sha256": "ba914a00c16329e3fadd805fb6f126f3108c6ae248e6dd7b133fe068ac26c344"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile/tests/fixtures.rs",
+      "bytes": 345,
+      "sha256": "7ef31f7c287739579a040e143fb98a580b108cb615b5b2590c0fa697c4a7e689"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/Cargo.toml",
+      "bytes": 518,
+      "sha256": "0166dcb254f53879a14cdad53b2e23b3adca0c9b0f79994454ddf9607e1b5d18"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation.rs",
+      "bytes": 2047,
+      "sha256": "9f47bb8e317aa060eae6a02953fd60352a56833a1ac570f6451627ea5fbb64fd"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/context.rs",
+      "bytes": 9640,
+      "sha256": "682f08ea996a5139d5724676c998fec2d36f05b5b24c067ab6997d3b493666cb"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/context/rewrite.rs",
+      "bytes": 12302,
+      "sha256": "4896680475af87d6d85fe77230b3bb50ddc72e280c1388be63da3e6c244b0f03"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/context/translate.rs",
+      "bytes": 1962,
+      "sha256": "f414d6a7c0ff3a4f49fdd6c77dda897a3325dc1593d0f0378f868dc6b0d22115"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/script.rs",
+      "bytes": 16100,
+      "sha256": "f93c6d818b296d4e691ce1929934292cb569efbdc8afed3c2a25b6c883d09717"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/script/emit.rs",
+      "bytes": 14320,
+      "sha256": "c0dbefee75595526b38f1d55fd32c08629a94607f0401398e198de689fa42fe1"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/template.rs",
+      "bytes": 9540,
+      "sha256": "db35952537f753c55ac01555983749ed3ec5addc524cf4711e3964efe1161f44"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/template/attributes.rs",
+      "bytes": 10209,
+      "sha256": "b3fb42652f3bf9a5903b12e071216887bed3bd2f7c4129361a82a43748c7eb22"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/template/blocks.rs",
+      "bytes": 13807,
+      "sha256": "167e2aabbf7aec4be77cd9053b02dddcbf1069085b46c1a8af22b6ff25e971e5"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/template/elements.rs",
+      "bytes": 15529,
+      "sha256": "a5cef9e40e71703db9751fa875bbc905a5ecdab53827423ef3da5b5baa6e2709"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/template/model.rs",
+      "bytes": 10315,
+      "sha256": "5ec5a3c9e0097199032fc3b7d121b7aaf7531b2ebbfa30e9d1af82bd27867496"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/template/runtime.rs",
+      "bytes": 15689,
+      "sha256": "1f2257dd7bcd4e07c5e39bc1f0deeb09d43a6d5221b26b8811e219eae50a131e"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/src/computation.rs",
+      "bytes": 5458,
+      "sha256": "fb81c51f13a465a8d9dd8a8bdc1d680b074c81b28b5727b3ccfff06819895d86"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/src/lib.rs",
+      "bytes": 7342,
+      "sha256": "54a7f580c079e53e547844d9be6901dadea1ba2f9009d5247a23ceaf58c72781"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/tests/fixtures.rs",
+      "bytes": 522,
+      "sha256": "5b6ca491ded61f12a8aeba8b9df25ba35b11c046d31bb9ad167e56fde8451cbc"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/compile_svelte/tests/translate.rs",
+      "bytes": 9969,
+      "sha256": "18ed1477fb5f451006d2cd213de36083de60cd3d6c7a46c370765196452c2144"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/Cargo.toml",
+      "bytes": 360,
+      "sha256": "03a7e4fdbc966a6c7a6713aaf4a6fa5f79cbb65087f8dadc25b55cd84b99703c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/src/compilation.rs",
+      "bytes": 30,
+      "sha256": "99e2a3396a7fc29e7404be9900e75ad042dbb616b67b4330777c1197591a1c30"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/src/compilation/compiler_syntax_tree.rs",
+      "bytes": 13278,
+      "sha256": "62bafa7f936f1a5fcbffab2b1c05d0db10163ee0d36f15133dafc621622d7b91"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/src/compilation/compiler_syntax_tree/lower.rs",
+      "bytes": 9189,
+      "sha256": "efa540554c1561e38f0cba6e7a791361f344ae06a0529919b87a0958e8528250"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/src/compilation/compiler_syntax_tree/tests.rs",
+      "bytes": 2551,
+      "sha256": "a77eca399471c7723329555b9fb3200af3f95dab3c251a185a2a8a436d2e860f"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/src/computation.rs",
+      "bytes": 19,
+      "sha256": "71a46f4c89807c3bf6b491afd8006abb7d647e5d23af3a7bf3161eb983edf532"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/src/computation/artifacts.rs",
+      "bytes": 1914,
+      "sha256": "7b9ba78c5f44af4bd96bdc766e9d66f7dde1b5aca302ca49a03d2f90b07a6503"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/src/lib.rs",
+      "bytes": 658,
+      "sha256": "41d015b9af8b7752828ba204ec53d48bd831335ba590b2668d920a2af5c2b151"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/src/semantic.rs",
+      "bytes": 38,
+      "sha256": "f2113c668f94cac710d37eafc857036a1133a209bc74b3c7e7460e4c08ef2293"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/src/semantic/expressions.rs",
+      "bytes": 2911,
+      "sha256": "00c88217fcbef7ae7f24d3f6bcbbd25d18065ec9de28c725bfbce99b28f007f3"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/src/semantic/resolve.rs",
+      "bytes": 16150,
+      "sha256": "b0d45fbd3946eb2fbd2846648d99727bb7a051a25021da79055ca593875b8780"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/src/syntax.rs",
+      "bytes": 36,
+      "sha256": "11cddbec000d2113abf343345a29a865a939f8183d5f5ea530c77798b94d2797"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/src/syntax/parse.rs",
+      "bytes": 7355,
+      "sha256": "f6a3b13c226841201609e1b08ca8a260aa94711f975cb06bf13f1c01c57cc5b1"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/src/syntax/parse/blocks.rs",
+      "bytes": 8623,
+      "sha256": "10d8c4ddd649a49782348ba8bc91ac86b6ffc71faaf78853d6d65dc7699ea438"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/src/syntax/parse/template.rs",
+      "bytes": 14577,
+      "sha256": "607632b7d86196b967b9e9e9259b56e547f171664a832833bce7c03bfcb7c3be"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/src/syntax/syntax_tree.rs",
+      "bytes": 7293,
+      "sha256": "2f1980d125e53e929bf23f60718d6197c2cf67296470af2a6935b573e4f40dc1"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/core/tests/lossless.rs",
+      "bytes": 2573,
+      "sha256": "0b984c67145a0708b86fa35eb11ab1ef69eed07183bdf6b0c6820d87fe9f78f3"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/format/Cargo.toml",
+      "bytes": 492,
+      "sha256": "5a967a19090e219e1cf35abd06419732cc846284c6cebb772b21325ae0169f4c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/format/src/format.rs",
+      "bytes": 8420,
+      "sha256": "f4798af1482c483688fcdb30cde506c2af86c2f61c0946cc49079196475584b7"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/format/src/format/attributes.rs",
+      "bytes": 8582,
+      "sha256": "6ab860c1a93c4f87b929faa257068a3f83804af90cd78cc03b0db39bfb19c997"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/format/src/format/children.rs",
+      "bytes": 9249,
+      "sha256": "e8d80f5f0884bb303f11beb8d7376cb2a7b2ffe75d758e8c417577c99b217164"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/format/src/format/print.rs",
+      "bytes": 6653,
+      "sha256": "3ac14f697b1c1a919332b975b9d5c2de37d4d5dd39f06d341e4452845cd34d54"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/format/src/format/tags.rs",
+      "bytes": 6467,
+      "sha256": "ef850b707cbdcbb3d62a64a17007b79830227aa9c420dd3c685024840daf0eec"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/format/src/format/tree.rs",
+      "bytes": 8522,
+      "sha256": "9b627ea338e0548806e7c84cf3a5259e81f9dc9419d36c313db00274bcfa7f11"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/format/src/format/whitespace.rs",
+      "bytes": 9228,
+      "sha256": "a820226f45270ee2683be6bf60648564993e49df58c539cf78a2132c9f77648c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/format/src/lib.rs",
+      "bytes": 97,
+      "sha256": "d107a0f6659be14ba7edbcf685546fb216a2ed40b07fda5f816f26e92b292e3a"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/format/src/task.rs",
+      "bytes": 1369,
+      "sha256": "ab3560598b044a727068a9ea4d5115558a03998cd5a4836c284fdc2d8b6d90df"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/format/tests/fixtures.rs",
+      "bytes": 344,
+      "sha256": "53eeb33fd664a5e16c528fa4ed1727e1864080d78d697e529fb2895ea2185d49"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/lint/Cargo.toml",
+      "bytes": 505,
+      "sha256": "ad253ac6daae488834494a5f993ebc323f23fe30e95e6a2a33e5d60bd1c2e3bd"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/lint/src/lib.rs",
+      "bytes": 89,
+      "sha256": "6c0702616b11a07d13e24d3c96a0cac7af6a1263834a432ca1d393280387182b"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/lint/src/lint.rs",
+      "bytes": 10285,
+      "sha256": "72fac51994a86f42eb51834867a8fa058bdbfd1152749826fc57e1b9b5e79b63"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/lint/src/task.rs",
+      "bytes": 1753,
+      "sha256": "0ebcbf31102c531f4db8eb0c178e121d3ef317cacf74a7e1feeeaa4996eab83c"
+    },
+    {
+      "path": "target/cache-locality/before/crates/languages/vue/lint/tests/fixtures.rs",
+      "bytes": 339,
+      "sha256": "a3caeaaa3102d55c8f35af34ed28966431189c03c748db1674cdbea4cab1668a"
+    },
+    {
+      "path": "target/cache-locality/before/crates/tooling/lint/Cargo.toml",
+      "bytes": 267,
+      "sha256": "56dc802940353547dbb80c286dfd50d86b84464bbcc768f5e6569b9e50244975"
+    },
+    {
+      "path": "target/cache-locality/before/crates/tooling/lint/src/lib.rs",
+      "bytes": 118,
+      "sha256": "5e198e24afafe89e7706976a885aa8c206a4c5a2646386ccd1a91f1eddfad962"
+    },
+    {
+      "path": "target/cache-locality/before/crates/tooling/lint/src/output.rs",
+      "bytes": 2706,
+      "sha256": "a657ccc4a9990bf6a3a816cec8d607f97e9f9748d80ebbee39d42b12758b90b9"
+    },
+    {
+      "path": "target/cache-locality/before/crates/tooling/lint/src/rules.rs",
+      "bytes": 4109,
+      "sha256": "ffafb3ac47b27a5c9941b933536443e36b22a602c03725700125207ddaab3641"
+    },
+    {
+      "path": "target/cache-locality/before/rust-toolchain.toml",
+      "bytes": 240,
+      "sha256": "3b4a740fbf9f94f38ea30643b2fdea81f220da6deb819992d39c50d0fad0ab44"
+    },
+    {
+      "path": "target/cache-locality/candidate/crates/languages/svelte/compile/src/lower/names.rs",
+      "bytes": 4485,
+      "sha256": "46e7f1d44cde98c1301f05735b314b0d097b65f724322b6cb391509ad28d1039"
+    },
+    {
+      "path": "target/cache-locality/candidate/crates/languages/svelte/compile/src/lower/validation.rs",
+      "bytes": 11011,
+      "sha256": "cecf1becd195b2a77f41a3e64907fd922407e0879166d4223a0f6504b256db86"
+    }
+  ],
+  "harnesses": [
+    {
+      "path": "tools/performance/bin/cache-profile.ts",
+      "bytes": 6429,
+      "sha256": "e97d6cd146b5efe40ea120f999a2e379da19cf9013dbddbe73e4903347132f74"
+    },
+    {
+      "path": "tools/performance/cachegrind.ts",
+      "bytes": 4023,
+      "sha256": "b640e4b29ca138b004bd5d85cd04fbb04ff98610a48ebbd4aa9a481758875c7a"
+    },
+    {
+      "path": "tools/performance/workload.ts",
+      "bytes": 967,
+      "sha256": "038bc799977f07253ef3c4c2f69c3912be85210cb5bf42487517a97ccaa13654"
+    }
+  ],
+  "binaries": [
+    {
+      "name": "before",
+      "sha256": "abc18e72696acccc44c3a7020a70267a80b61df84168bcb79217f736a4de5480"
+    },
+    {
+      "name": "after",
+      "sha256": "cfcb03cd418faca9a7592dfde5befd138a0a6c3d8194d72231ebcae06dbe9962"
+    }
+  ],
+  "config": {
+    "rounds": 3,
+    "repetitions": 3,
+    "arms": [
+      {
+        "name": "before",
+        "command": [
+          "/repo/target/cache-locality/linux-before/release/rsvelte",
+          "performance",
+          "/repo/target/cache-locality/large",
+          "--task",
+          "svelte.compile/client",
+          "--task",
+          "svelte.compile/server",
+          "rounds=3"
+        ]
+      },
+      {
+        "name": "after",
+        "command": [
+          "/repo/target/cache-locality/linux-candidate/release/rsvelte",
+          "performance",
+          "/repo/target/cache-locality/large",
+          "--task",
+          "svelte.compile/client",
+          "--task",
+          "svelte.compile/server",
+          "rounds=3"
+        ]
+      }
+    ],
+    "inputs": [
+      "/repo/target/cache-locality/large/00-+page.svelte/input.svelte",
+      "/repo/target/cache-locality/large/01-Introduction.svelte/input.svelte",
+      "/repo/target/cache-locality/large/02-Resize.svelte/input.svelte",
+      "/repo/target/cache-locality/large/03-Hotkeys.svelte/input.svelte",
+      "/repo/target/cache-locality/large/04-Settings.svelte/input.svelte",
+      "/repo/target/cache-locality/large/05-+page.svelte/input.svelte",
+      "/repo/target/cache-locality/large/06-+page.svelte/input.svelte",
+      "/repo/target/cache-locality/large/07-+page.svelte/input.svelte"
+    ],
+    "sources": [
+      "/repo/target/cache-locality/before/Cargo.lock",
+      "/repo/target/cache-locality/before/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/README.md",
+      "/repo/target/cache-locality/before/crates/fixture_test/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/fixture_test/README.md",
+      "/repo/target/cache-locality/before/crates/fixture_test/src/cases.rs",
+      "/repo/target/cache-locality/before/crates/fixture_test/src/javascript.rs",
+      "/repo/target/cache-locality/before/crates/fixture_test/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/fixture_test/src/node.rs",
+      "/repo/target/cache-locality/before/crates/fixture_test/src/snapshots.rs",
+      "/repo/target/cache-locality/before/crates/hosts/README.md",
+      "/repo/target/cache-locality/before/crates/hosts/browser/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/hosts/browser/src/computation.rs",
+      "/repo/target/cache-locality/before/crates/hosts/browser/src/computation/playground.rs",
+      "/repo/target/cache-locality/before/crates/hosts/browser/src/document.rs",
+      "/repo/target/cache-locality/before/crates/hosts/browser/src/document/layout_expression.rs",
+      "/repo/target/cache-locality/before/crates/hosts/browser/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/build.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/examples/plugin.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/src/commands.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/src/commands/benchmark.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/src/commands/fixtures.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/src/commands/performance.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/src/commands/run.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/src/input.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/src/main.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/src/output.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/tests/documents.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/tests/fixtures.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/tests/lowering.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/tests/preserve_whitespace.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/tests/preserve_whitespace/App.svelte",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/tests/preserve_whitespace/client.js",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/tests/preserve_whitespace/server.js",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/tests/render_plan.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/tests/tool_plugins.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/tools/export_site_layers.rs",
+      "/repo/target/cache-locality/before/crates/hosts/command_line/tools/export_site_source_maps.rs",
+      "/repo/target/cache-locality/before/crates/kernel/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/kernel/src/computation.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/computation/database.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/computation/pipeline.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/computation/pipeline/tests.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/diagnostics.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/diagnostics/diagnostic.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/output.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/output/document.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/output/emitter.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/output/structured_data.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/output/width.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/performance.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/performance/buffer_pool.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/performance/measurement.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/source.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/source/hashing.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/source/index.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/source/interning.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/source/positions.rs",
+      "/repo/target/cache-locality/before/crates/kernel/src/source/tokens.rs",
+      "/repo/target/cache-locality/before/crates/kernel/tests/task_contract.rs",
+      "/repo/target/cache-locality/before/crates/languages/css/core/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/css/core/examples/layout.rs",
+      "/repo/target/cache-locality/before/crates/languages/css/core/src/compilation.rs",
+      "/repo/target/cache-locality/before/crates/languages/css/core/src/compilation/scope.rs",
+      "/repo/target/cache-locality/before/crates/languages/css/core/src/compilation/scope/keyframes.rs",
+      "/repo/target/cache-locality/before/crates/languages/css/core/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/css/core/src/semantic.rs",
+      "/repo/target/cache-locality/before/crates/languages/css/core/src/semantic/matcher.rs",
+      "/repo/target/cache-locality/before/crates/languages/css/core/src/syntax.rs",
+      "/repo/target/cache-locality/before/crates/languages/css/core/src/syntax/parser.rs",
+      "/repo/target/cache-locality/before/crates/languages/css/core/src/syntax/parser/selectors.rs",
+      "/repo/target/cache-locality/before/crates/languages/css/core/src/syntax/syntax_tree.rs",
+      "/repo/target/cache-locality/before/crates/languages/css/core/src/syntax/syntax_tree/simple_list.rs",
+      "/repo/target/cache-locality/before/crates/languages/css/format/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/css/format/src/format.rs",
+      "/repo/target/cache-locality/before/crates/languages/css/format/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/html/core/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/html/core/src/button_type.rs",
+      "/repo/target/cache-locality/before/crates/languages/html/core/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/check/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/svelte/check/src/configuration.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/check/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/check/src/project.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/check/src/registration.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/check/tests/fixtures.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/check/vendor/LICENSE.language-tools",
+      "/repo/target/cache-locality/before/crates/languages/svelte/check/vendor/README.md",
+      "/repo/target/cache-locality/before/crates/languages/svelte/check/vendor/svelte-jsx-v4.d.ts",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/examples/layout.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/examples/style_corpus.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/examples/styling_bench.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/computation.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/emit.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/identity.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/input.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/attributes.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/attributes/class.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/attributes/with_spread.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/attributes/without_spread.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/binding_accessors.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/blocks.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/blocks/each_block.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/blocks/if_block.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/boundary.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/boundary/parameters.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/children.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/custom_element.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/directives.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/dynamic_element.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/elements.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/elements/element_children.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/elements/input_defaults.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/elements/regular_element.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/elements/select_value.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/events.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/expressions.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/fragments.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/global_bindings.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/special.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/template.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/template_chunk.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/client/title.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/coverage.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/custom_element.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/javascript.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/names.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/prepare.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/rest_reads.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/script.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/script/props.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/attributes.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/attributes/class.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/attributes/with_spread.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/attributes/without_spread.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/blocks.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/blocks/each_block.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/blocks/if_block.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/boundary.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/children.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/directives.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/dynamic_element.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/elements.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/elements/regular_element.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/elements/select_value.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/events.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/expressions.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/fragments.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/server/special.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/special.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/template.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/lower/validation.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/markup.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/render_plan.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/render_plan/namespace.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/render_plan/normalize.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/stylesheet.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/src/task.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/tests/fixtures.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/tests/special_validation.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile/tests/styling.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/README.md",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/helpers.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/script.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/script/emit.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/template.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/template/attributes.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/template/bindings.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/template/blocks.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/template/check.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/template/elements.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/template/expressions.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/template/properties.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/vapor.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/vapor/blocks.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/vapor/elements.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/vapor/expressions.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/compilation/vapor/script.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/computation.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/computation/tests.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/compile_vapor/tests/fixtures.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/core/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/svelte/core/src/compilation.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/core/src/compilation/normalize.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/core/src/computation.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/core/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/core/src/syntax.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/core/tests/lossless.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/format/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/svelte/format/src/format.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/format/src/format/attributes.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/format/src/format/blocks.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/format/src/format/children.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/format/src/format/elements.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/format/src/format/embed.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/format/src/format/tests.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/format/src/format/tree.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/format/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/format/src/task.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/format/tests/fixtures.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/hir/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/svelte/hir/src/compilation.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/hir/src/compilation/compiler_syntax_tree.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/hir/src/compilation/compiler_syntax_tree/builder.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/hir/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/lint/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/svelte/lint/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/lint/src/lint.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/lint/src/task.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/lint/tests/fixtures.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/parser/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/svelte/parser/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/parser/src/syntax.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/parser/src/syntax/parse.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/parser/src/syntax/parse/attribute.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/parser/src/syntax/parse/block.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/parser/src/syntax/parse/element.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/parser/src/syntax/parse/script.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/parser/src/syntax/parse/tag.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/semantic.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/analyze.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/analyze/stylesheet.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/analyze/stylesheet/attributes.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/analyze/stylesheet/relations.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/analyze/stylesheet/topology.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/evaluate.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/evaluate/bigint.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/evaluate/globals.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/evaluate/template.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/evaluate/value.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/input.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/resolve.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/resolve/classify.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/resolve/roots.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/semantic/src/semantic/template.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/syntax/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/svelte/syntax/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/syntax/src/syntax.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/syntax/src/syntax/names.rs",
+      "/repo/target/cache-locality/before/crates/languages/svelte/syntax/src/syntax/syntax_tree.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/check/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/typescript/check/src/check.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/check/src/check/report.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/check/src/check/tests.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/check/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/check/src/registration.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/compile/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/typescript/compile/src/codegen.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/compile/src/codegen/classes.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/compile/src/codegen/control.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/compile/src/codegen/expressions.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/compile/src/codegen/statements.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/compile/src/codegen/tests.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/compile/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/compile/src/task.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/compile/tests/roundtrip.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/compile/tests/typescript.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/README.md",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/compilation.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/compilation/copy.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/compilation/copy/classes.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/compilation/copy/control.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/computation.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/semantic.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/semantic/number.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/semantic/scope.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/semantic/scope/declare.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/semantic/scope/resolve.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/lexer.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/lexer/tests.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/operators.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/classes.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/control.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/expressions.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/literals.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/lookahead.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/members.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/patterns.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/statements.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/parser/typescript.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/syntax_tree.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/syntax_tree/classes.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/syntax_tree/control.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/syntax_tree/expressions.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/syntax_tree/read.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/syntax_tree/statements.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/syntax_tree/traverse.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/src/syntax/syntax_tree/typescript.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/tests/scope.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/core/tests/tokens.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/format/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/typescript/format/src/format.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/format/src/format/assignment.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/format/src/format/calls.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/format/src/format/expressions.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/format/src/format/functions.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/format/src/format/literals.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/format/src/format/parentheses.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/format/src/format/patterns.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/format/src/format/statements.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/format/src/format/strings.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/format/src/format/tests.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/format/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/format/src/task.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/lint/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/typescript/lint/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/lint/src/lint.rs",
+      "/repo/target/cache-locality/before/crates/languages/typescript/lint/src/task.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/check/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/vue/check/src/configuration.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/check/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/check/src/project.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/check/src/registration.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/check/tests/fixtures.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/check/vendor/LICENSE.language-tools",
+      "/repo/target/cache-locality/before/crates/languages/vue/check/vendor/README.md",
+      "/repo/target/cache-locality/before/crates/languages/vue/check/vendor/template-helpers.d.ts",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/compile.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/compile/script.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/compile/style.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/compile/template.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/compile/template/branches.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/compile/template/directives.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/compile/template/elements.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/compile/template/events.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/compile/template/expressions.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/compile/template/generate.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/compile/template/hoist.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/compile/template/loops.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/compile/template/rewrite.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/compile/template/traverse.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/compile/tests.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/src/task.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile/tests/fixtures.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/context.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/context/rewrite.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/context/translate.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/script.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/script/emit.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/template.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/template/attributes.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/template/blocks.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/template/elements.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/template/model.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/src/compilation/template/runtime.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/src/computation.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/tests/fixtures.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/compile_svelte/tests/translate.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/src/compilation.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/src/compilation/compiler_syntax_tree.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/src/compilation/compiler_syntax_tree/lower.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/src/compilation/compiler_syntax_tree/tests.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/src/computation.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/src/computation/artifacts.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/src/semantic.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/src/semantic/expressions.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/src/semantic/resolve.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/src/syntax.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/src/syntax/parse.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/src/syntax/parse/blocks.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/src/syntax/parse/template.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/src/syntax/syntax_tree.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/core/tests/lossless.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/format/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/vue/format/src/format.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/format/src/format/attributes.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/format/src/format/children.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/format/src/format/print.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/format/src/format/tags.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/format/src/format/tree.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/format/src/format/whitespace.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/format/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/format/src/task.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/format/tests/fixtures.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/lint/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/languages/vue/lint/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/lint/src/lint.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/lint/src/task.rs",
+      "/repo/target/cache-locality/before/crates/languages/vue/lint/tests/fixtures.rs",
+      "/repo/target/cache-locality/before/crates/tooling/lint/Cargo.toml",
+      "/repo/target/cache-locality/before/crates/tooling/lint/src/lib.rs",
+      "/repo/target/cache-locality/before/crates/tooling/lint/src/output.rs",
+      "/repo/target/cache-locality/before/crates/tooling/lint/src/rules.rs",
+      "/repo/target/cache-locality/before/rust-toolchain.toml",
+      "/repo/target/cache-locality/candidate/crates/languages/svelte/compile/src/lower/validation.rs",
+      "/repo/target/cache-locality/candidate/crates/languages/svelte/compile/src/lower/names.rs"
+    ],
+    "revision": "d3fe0394b0b11ab70829fad9a544b2b03ac81618",
+    "expect_stdout": {
+      "documents": 8,
+      "skipped": 0,
+      "metrics": false,
+      "rounds": 3
+    },
+    "minimum_output_bytes": 1
+  },
+  "samples": [
+    {
+      "arm": "before",
+      "counts": {
+        "Ir": 35994994,
+        "I1mr": 178108,
+        "ILmr": 8147,
+        "Dr": 9809210,
+        "D1mr": 103145,
+        "DLmr": 3723,
+        "Dw": 6184007,
+        "D1mw": 57954,
+        "DLmw": 7138
+      },
+      "raw": "/repo/target/cache-locality/large-final.json.samples/0.cg",
+      "stdout_sha256": "c53614f3bf36327f6829b7c034a90f946cdd2501e8bfd7371805ab85f0677c7d"
+    },
+    {
+      "arm": "after",
+      "counts": {
+        "Ir": 35035744,
+        "I1mr": 180775,
+        "ILmr": 8179,
+        "Dr": 9642130,
+        "D1mr": 100421,
+        "DLmr": 3658,
+        "Dw": 6183614,
+        "D1mw": 57635,
+        "DLmw": 7143
+      },
+      "raw": "/repo/target/cache-locality/large-final.json.samples/1.cg",
+      "stdout_sha256": "c53614f3bf36327f6829b7c034a90f946cdd2501e8bfd7371805ab85f0677c7d"
+    },
+    {
+      "arm": "after",
+      "counts": {
+        "Ir": 35035744,
+        "I1mr": 180775,
+        "ILmr": 8179,
+        "Dr": 9642130,
+        "D1mr": 100421,
+        "DLmr": 3658,
+        "Dw": 6183614,
+        "D1mw": 57635,
+        "DLmw": 7143
+      },
+      "raw": "/repo/target/cache-locality/large-final.json.samples/2.cg",
+      "stdout_sha256": "c53614f3bf36327f6829b7c034a90f946cdd2501e8bfd7371805ab85f0677c7d"
+    },
+    {
+      "arm": "before",
+      "counts": {
+        "Ir": 35994994,
+        "I1mr": 178108,
+        "ILmr": 8147,
+        "Dr": 9809210,
+        "D1mr": 103145,
+        "DLmr": 3723,
+        "Dw": 6184007,
+        "D1mw": 57954,
+        "DLmw": 7138
+      },
+      "raw": "/repo/target/cache-locality/large-final.json.samples/3.cg",
+      "stdout_sha256": "c53614f3bf36327f6829b7c034a90f946cdd2501e8bfd7371805ab85f0677c7d"
+    },
+    {
+      "arm": "before",
+      "counts": {
+        "Ir": 35994994,
+        "I1mr": 178108,
+        "ILmr": 8147,
+        "Dr": 9809210,
+        "D1mr": 103145,
+        "DLmr": 3723,
+        "Dw": 6184007,
+        "D1mw": 57954,
+        "DLmw": 7138
+      },
+      "raw": "/repo/target/cache-locality/large-final.json.samples/4.cg",
+      "stdout_sha256": "c53614f3bf36327f6829b7c034a90f946cdd2501e8bfd7371805ab85f0677c7d"
+    },
+    {
+      "arm": "after",
+      "counts": {
+        "Ir": 35035744,
+        "I1mr": 180775,
+        "ILmr": 8179,
+        "Dr": 9642130,
+        "D1mr": 100421,
+        "DLmr": 3658,
+        "Dw": 6183614,
+        "D1mw": 57635,
+        "DLmw": 7143
+      },
+      "raw": "/repo/target/cache-locality/large-final.json.samples/5.cg",
+      "stdout_sha256": "c53614f3bf36327f6829b7c034a90f946cdd2501e8bfd7371805ab85f0677c7d"
+    },
+    {
+      "arm": "after",
+      "counts": {
+        "Ir": 35035744,
+        "I1mr": 180775,
+        "ILmr": 8179,
+        "Dr": 9642130,
+        "D1mr": 100421,
+        "DLmr": 3658,
+        "Dw": 6183614,
+        "D1mw": 57635,
+        "DLmw": 7143
+      },
+      "raw": "/repo/target/cache-locality/large-final.json.samples/6.cg",
+      "stdout_sha256": "c53614f3bf36327f6829b7c034a90f946cdd2501e8bfd7371805ab85f0677c7d"
+    },
+    {
+      "arm": "before",
+      "counts": {
+        "Ir": 35994994,
+        "I1mr": 178108,
+        "ILmr": 8147,
+        "Dr": 9809210,
+        "D1mr": 103145,
+        "DLmr": 3723,
+        "Dw": 6184007,
+        "D1mw": 57954,
+        "DLmw": 7138
+      },
+      "raw": "/repo/target/cache-locality/large-final.json.samples/7.cg",
+      "stdout_sha256": "c53614f3bf36327f6829b7c034a90f946cdd2501e8bfd7371805ab85f0677c7d"
+    },
+    {
+      "arm": "before",
+      "counts": {
+        "Ir": 35994994,
+        "I1mr": 178108,
+        "ILmr": 8147,
+        "Dr": 9809210,
+        "D1mr": 103145,
+        "DLmr": 3723,
+        "Dw": 6184007,
+        "D1mw": 57954,
+        "DLmw": 7138
+      },
+      "raw": "/repo/target/cache-locality/large-final.json.samples/8.cg",
+      "stdout_sha256": "c53614f3bf36327f6829b7c034a90f946cdd2501e8bfd7371805ab85f0677c7d"
+    },
+    {
+      "arm": "after",
+      "counts": {
+        "Ir": 35035744,
+        "I1mr": 180775,
+        "ILmr": 8179,
+        "Dr": 9642130,
+        "D1mr": 100421,
+        "DLmr": 3658,
+        "Dw": 6183614,
+        "D1mw": 57635,
+        "DLmw": 7143
+      },
+      "raw": "/repo/target/cache-locality/large-final.json.samples/9.cg",
+      "stdout_sha256": "c53614f3bf36327f6829b7c034a90f946cdd2501e8bfd7371805ab85f0677c7d"
+    },
+    {
+      "arm": "after",
+      "counts": {
+        "Ir": 35035744,
+        "I1mr": 180775,
+        "ILmr": 8179,
+        "Dr": 9642130,
+        "D1mr": 100421,
+        "DLmr": 3658,
+        "Dw": 6183614,
+        "D1mw": 57635,
+        "DLmw": 7143
+      },
+      "raw": "/repo/target/cache-locality/large-final.json.samples/10.cg",
+      "stdout_sha256": "c53614f3bf36327f6829b7c034a90f946cdd2501e8bfd7371805ab85f0677c7d"
+    },
+    {
+      "arm": "before",
+      "counts": {
+        "Ir": 35994994,
+        "I1mr": 178108,
+        "ILmr": 8147,
+        "Dr": 9809210,
+        "D1mr": 103145,
+        "DLmr": 3723,
+        "Dw": 6184007,
+        "D1mw": 57954,
+        "DLmw": 7138
+      },
+      "raw": "/repo/target/cache-locality/large-final.json.samples/11.cg",
+      "stdout_sha256": "c53614f3bf36327f6829b7c034a90f946cdd2501e8bfd7371805ab85f0677c7d"
+    }
+  ],
+  "status": "complete",
+  "summary": [
+    {
+      "arm": "before",
+      "samples": 6,
+      "counts": {
+        "Ir": 35994994,
+        "I1mr": 178108,
+        "ILmr": 8147,
+        "Dr": 9809210,
+        "D1mr": 103145,
+        "DLmr": 3723,
+        "Dw": 6184007,
+        "D1mw": 57954,
+        "DLmw": 7138
+      },
+      "per_round": {
+        "Ir": 11998331.333333334,
+        "I1mr": 59369.333333333336,
+        "ILmr": 2715.6666666666665,
+        "Dr": 3269736.6666666665,
+        "D1mr": 34381.666666666664,
+        "DLmr": 1241,
+        "Dw": 2061335.6666666667,
+        "D1mw": 19318,
+        "DLmw": 2379.3333333333335
+      },
+      "d1_read_miss_rate": 0.010515117935083458,
+      "d1_write_miss_rate": 0.009371593531507969
+    },
+    {
+      "arm": "after",
+      "samples": 6,
+      "counts": {
+        "Ir": 35035744,
+        "I1mr": 180775,
+        "ILmr": 8179,
+        "Dr": 9642130,
+        "D1mr": 100421,
+        "DLmr": 3658,
+        "Dw": 6183614,
+        "D1mw": 57635,
+        "DLmw": 7143
+      },
+      "per_round": {
+        "Ir": 11678581.333333334,
+        "I1mr": 60258.333333333336,
+        "ILmr": 2726.3333333333335,
+        "Dr": 3214043.3333333335,
+        "D1mr": 33473.666666666664,
+        "DLmr": 1219.3333333333333,
+        "Dw": 2061204.6666666667,
+        "D1mw": 19211.666666666668,
+        "DLmw": 2381
+      },
+      "d1_read_miss_rate": 0.010414814983826189,
+      "d1_write_miss_rate": 0.009320601188884042
+    }
+  ],
+  "gate": {
+    "status": "UNMEASURED"
+  }
+}

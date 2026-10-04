@@ -1,0 +1,18 @@
+{
+  "arm": "rewrite",
+  "trial": 5,
+  "documents": 18,
+  "rounds": 1000,
+  "elapsed_ns": 4723774208,
+  "output_bytes": 15314000,
+  "before": {
+    "cycles": 49917943,
+    "instructions": 129776037
+  },
+  "after": {
+    "cycles": 1672888952,
+    "instructions": 4598948288
+  },
+  "cycles": 1622971009,
+  "instructions": 4469172251
+}

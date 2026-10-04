@@ -1,0 +1,16 @@
+{
+	"rev": "UNMEASURED",
+	"metrics": false,
+	"rounds": 1,
+	"documents": 18,
+	"skipped": 0,
+	"source_bytes": 8382,
+	"output_bytes": 15314,
+	"tasks": [
+		"svelte.compile/client"
+	],
+	"allocs": "UNMEASURED",
+	"alloc_bytes": "UNMEASURED",
+	"peak_live_growth_bytes": "UNMEASURED",
+	"phases": "UNMEASURED"
+}

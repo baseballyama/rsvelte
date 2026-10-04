@@ -1,0 +1,215 @@
+{
+  "status": "complete",
+  "config": {
+    "rounds": 64,
+    "repetitions": 4,
+    "arms": [
+      {
+        "name": "before",
+        "command": [
+          "/private/tmp/rsvelte-parser-tuning/followup/target/release/examples/measure",
+          "/private/tmp/rsvelte-parser-tuning/round3-synthetic.txt",
+          "64"
+        ]
+      },
+      {
+        "name": "after",
+        "command": [
+          "/private/tmp/rsvelte-parser-tuning/candidate/target/release/examples/measure",
+          "/private/tmp/rsvelte-parser-tuning/round3-synthetic.txt",
+          "64"
+        ]
+      }
+    ],
+    "expect_stdout": {
+      "documents": 8,
+      "accepted": 8,
+      "rejected": 0,
+      "rounds": 64,
+      "errors": 0
+    }
+  },
+  "source_sha256": "d0b791a3d1a6f0ce3e8818ac7ef98021609b1255c33b1be30f8f86001d6dee70",
+  "samples": [
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 267071805,
+        "instructions": 1468310230,
+        "user_time_ns": 106953500,
+        "system_time_ns": 3645791
+      },
+      "stdout_sha256": "aa0bdc57cac96dfcd1e5721ca01f14c9c92bb08f0ee82adf165d0542b23fd249"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 142678753,
+        "instructions": 773244198,
+        "user_time_ns": 46932625,
+        "system_time_ns": 2427375
+      },
+      "stdout_sha256": "efaf2393524719c65556347b095ee6f5299aa5b7de81cec25f271dd6ca6e5432"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 146110571,
+        "instructions": 768964172,
+        "user_time_ns": 71862500,
+        "system_time_ns": 1523708
+      },
+      "stdout_sha256": "87173dbb0eeb67633f55195ee1492d2add8de3070c1321b79813d77246b8a04c"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 257533437,
+        "instructions": 1460582601,
+        "user_time_ns": 92774750,
+        "system_time_ns": 1327208
+      },
+      "stdout_sha256": "309b02da7870e8e47acc534b4bdb8e69ea8631a2370244fb0d4a7a57b6ea89b7"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 265617225,
+        "instructions": 1465103001,
+        "user_time_ns": 102458583,
+        "system_time_ns": 2497458
+      },
+      "stdout_sha256": "366fa29f970d874e1cf89eeee289a9c4c4fd84d62c6e07ea70223359d9f849a0"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 142278174,
+        "instructions": 773965522,
+        "user_time_ns": 45146958,
+        "system_time_ns": 2827583
+      },
+      "stdout_sha256": "52ae66d7e1bd5acafd1164aada9b5e149d582840f26d175a1c36f7ac6b0e67e9"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 136980188,
+        "instructions": 771053330,
+        "user_time_ns": 44039708,
+        "system_time_ns": 1646833
+      },
+      "stdout_sha256": "579488ba3ab10195d1fdbda854572ff67d1fabc22de192efc74776b86ef14517"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 265545978,
+        "instructions": 1465553417,
+        "user_time_ns": 92348333,
+        "system_time_ns": 4079375
+      },
+      "stdout_sha256": "355213ac37f423d522525b59306dea42457e8d850f4d7677cb78f0d9810a1c6c"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 265451393,
+        "instructions": 1465769632,
+        "user_time_ns": 89839875,
+        "system_time_ns": 2871000
+      },
+      "stdout_sha256": "eb6a1592fc271a0c3fee4a2d5e0768a597061bce3da3459cc3bc6dab68d85f21"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 157417670,
+        "instructions": 775436167,
+        "user_time_ns": 52600750,
+        "system_time_ns": 4054583
+      },
+      "stdout_sha256": "ea829f4d15927c81131e72e067799fd58d0aea089b1b7c095eaeb212f4288fbd"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 145349241,
+        "instructions": 772843740,
+        "user_time_ns": 47786708,
+        "system_time_ns": 2673875
+      },
+      "stdout_sha256": "f4ca213414e43cdc608f34142e034f452dcef400e9f28c65c708af36d2f6a58c"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 285732918,
+        "instructions": 1467800210,
+        "user_time_ns": 98196250,
+        "system_time_ns": 4432125
+      },
+      "stdout_sha256": "3f7e1e95297d53dab0e9f6e2a68814b044f30d642f2b7d2c606102f8ab337703"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 277511857,
+        "instructions": 1467037204,
+        "user_time_ns": 94095583,
+        "system_time_ns": 3865750
+      },
+      "stdout_sha256": "b6d06f9c1c3e9f1c4073ef44b41f5d76f6c11dfe5e328cf6e7894a475cd5c7f7"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 136904086,
+        "instructions": 772514059,
+        "user_time_ns": 42666458,
+        "system_time_ns": 2427000
+      },
+      "stdout_sha256": "b9413d97c273d57b07bbc81aa1f54d23bc24667160b8d8a55bd72f2c55cb91e9"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 130279013,
+        "instructions": 769226907,
+        "user_time_ns": 42342625,
+        "system_time_ns": 568583
+      },
+      "stdout_sha256": "1983553322094d2b1775670aff536238e0489dc7a244cc27b8234d234e9af6b4"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 249333690,
+        "instructions": 1459318789,
+        "user_time_ns": 82381208,
+        "system_time_ns": 717541
+      },
+      "stdout_sha256": "5318d4d986b2619c157391ccc474ec06b6c828a56c4d52f53e6b24d03747a22c"
+    }
+  ],
+  "summary": [
+    {
+      "name": "before",
+      "samples": 8,
+      "executable_sha256": "ac579cd075ace4ada31aa246ac7c2df464090bec1520f9a730ea2e55e439038f",
+      "median_cycles_per_round": 4149712.5234375,
+      "min_cycles_per_round": 3895838.90625,
+      "max_cycles_per_round": 4464576.84375,
+      "median_instructions_per_round": 22900961.3203125
+    },
+    {
+      "name": "after",
+      "samples": 8,
+      "executable_sha256": "49cc0e10e3ca00229bbb1d8a650be7a5fb03f4bb0465f8f894b5cfa497753868",
+      "median_cycles_per_round": 2226225.9921875,
+      "min_cycles_per_round": 2035609.578125,
+      "max_cycles_per_round": 2459651.09375,
+      "median_instructions_per_round": 12073107.8046875
+    }
+  ]
+}

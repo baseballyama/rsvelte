@@ -1,0 +1,295 @@
+{
+  "status": "complete",
+  "config": {
+    "rounds": 256,
+    "repetitions": 6,
+    "arms": [
+      {
+        "name": "before",
+        "command": [
+          "/private/tmp/rsvelte-parser-tuning/followup/target/release/examples/measure",
+          "/private/tmp/rsvelte-parser-tuning/common.txt",
+          "256"
+        ]
+      },
+      {
+        "name": "after",
+        "command": [
+          "/private/tmp/rsvelte-parser-tuning/candidate/target/release/examples/measure",
+          "/private/tmp/rsvelte-parser-tuning/common.txt",
+          "256"
+        ]
+      }
+    ],
+    "expect_stdout": {
+      "documents": 256,
+      "accepted": 256,
+      "rejected": 0,
+      "rounds": 256,
+      "errors": 0
+    }
+  },
+  "source_sha256": "d0b791a3d1a6f0ce3e8818ac7ef98021609b1255c33b1be30f8f86001d6dee70",
+  "samples": [
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 3164472651,
+        "instructions": 10928241475,
+        "user_time_ns": 1377139250,
+        "system_time_ns": 35077416
+      },
+      "stdout_sha256": "e79f2bf9bff6e34a18324b09b2d8240066c2f8990a4274dd4979a3af5c9258fa"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 3062269530,
+        "instructions": 10850690702,
+        "user_time_ns": 1384295625,
+        "system_time_ns": 31887125
+      },
+      "stdout_sha256": "e1e347464f0087dc114a73d840d905c8e3f4bd8574d60da2021a2ec8597e4ccf"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 3198067554,
+        "instructions": 10880622977,
+        "user_time_ns": 1056847791,
+        "system_time_ns": 44380458
+      },
+      "stdout_sha256": "765a6e1cf4efcb8bb9a0188c6949b0da07fe0afcb6ba23dae1d362e78077b637"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 3562348057,
+        "instructions": 10962693491,
+        "user_time_ns": 1172224000,
+        "system_time_ns": 72011166
+      },
+      "stdout_sha256": "d9b4b0b480d2cb7bfa951c67355691585aaaaeaa037b95bb159f420116d5c9d9"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 3404080367,
+        "instructions": 10878331666,
+        "user_time_ns": 1154723125,
+        "system_time_ns": 57926666
+      },
+      "stdout_sha256": "26f9294e88ebc1a6d27be510da418b15a2fd0eebbc3fcf5b1993b0353034d7d9"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 3344802956,
+        "instructions": 10888826330,
+        "user_time_ns": 1112478625,
+        "system_time_ns": 55245666
+      },
+      "stdout_sha256": "d068de5bc40458c8aaf8cbbfd4b0a84f8c6ca14a6f1aa8045b1271ac11423475"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 3304135958,
+        "instructions": 10871534200,
+        "user_time_ns": 1098825041,
+        "system_time_ns": 58265708
+      },
+      "stdout_sha256": "f70052a971eb6feda2838865ea71c71f2b8654294a6e990802d3e8d11eaf26c6"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 3537612723,
+        "instructions": 10899685251,
+        "user_time_ns": 1222262375,
+        "system_time_ns": 66506875
+      },
+      "stdout_sha256": "3cc7317f500d9428e637742ee0a2df6865eae5f3514b1f0c55578765e23af2b1"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 3461088497,
+        "instructions": 10918732533,
+        "user_time_ns": 1159229750,
+        "system_time_ns": 73866250
+      },
+      "stdout_sha256": "550a5c8623649e8552190df4a906aa9bbacbb6ac7a748feaf2a11f6380378dcc"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 3549433435,
+        "instructions": 10911531783,
+        "user_time_ns": 1186311750,
+        "system_time_ns": 82138958
+      },
+      "stdout_sha256": "2d7614b6bba5a548043f9065836476fac0c776adf480386f8666e91840c89f29"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 3400680428,
+        "instructions": 10919961891,
+        "user_time_ns": 1255816375,
+        "system_time_ns": 65171666
+      },
+      "stdout_sha256": "c601eaf74553d25f8db62db85899788c811c55953dc00be38b69603fa05393c5"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 3104043140,
+        "instructions": 10886299762,
+        "user_time_ns": 1391918875,
+        "system_time_ns": 56578625
+      },
+      "stdout_sha256": "1a414538ffee28e21fe16951db2c61adbe709f9021c77aefef15753b5b2673d1"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 3054703791,
+        "instructions": 10871885370,
+        "user_time_ns": 1536531625,
+        "system_time_ns": 47925416
+      },
+      "stdout_sha256": "4ffabd8c5a4e8b707e998209473ac1a096f6343b3e10ec0d1a7c13d5d1495979"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 2974578002,
+        "instructions": 10832529499,
+        "user_time_ns": 1586537583,
+        "system_time_ns": 35513166
+      },
+      "stdout_sha256": "ee49a701ffa56224b0f1780a9f3e6a4128bbde81d5dc891788bd3d5ab504f4b0"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 3055953708,
+        "instructions": 10848128263,
+        "user_time_ns": 1421790708,
+        "system_time_ns": 34227625
+      },
+      "stdout_sha256": "8999ac78db1c6ec72bc28b9a7876174c02db177d15509fd279287eb0d4819451"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 3024124148,
+        "instructions": 10868307153,
+        "user_time_ns": 1495137000,
+        "system_time_ns": 34365291
+      },
+      "stdout_sha256": "38229ed12a20dc3f211ee2a4f124576115eafa89520bb25f1c61c4a4aba9c446"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 3063537622,
+        "instructions": 10865495508,
+        "user_time_ns": 1391712166,
+        "system_time_ns": 32120416
+      },
+      "stdout_sha256": "d20908b3fa8c6e0c2cdebda5933716f847e2df04ffeea0924cb216b1e3bcf9e7"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 3094143280,
+        "instructions": 10862737690,
+        "user_time_ns": 1280381333,
+        "system_time_ns": 41913125
+      },
+      "stdout_sha256": "187685636ad94280e974a92028b945bfc9aa139b1f2abade7fdfacb0af4cc0ba"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 3071597202,
+        "instructions": 10879367457,
+        "user_time_ns": 1579204833,
+        "system_time_ns": 37135541
+      },
+      "stdout_sha256": "e96bba60c8ce69560c6a50c96e0aaae88667dfcb157be0a483236286bc9f49a0"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 2883002797,
+        "instructions": 10862550906,
+        "user_time_ns": 1514280750,
+        "system_time_ns": 25834666
+      },
+      "stdout_sha256": "e1ba34ab0e66a2ebc41b759e820112e005b837f14c063911e4c07e7f4c22bbdc"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 3005100048,
+        "instructions": 10845479919,
+        "user_time_ns": 1113249541,
+        "system_time_ns": 30762041
+      },
+      "stdout_sha256": "0173552ead1fd95c4695dfd9feba18284e845e360fca3f4ab605b100df2d03a7"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 2955524048,
+        "instructions": 10817687070,
+        "user_time_ns": 1077951083,
+        "system_time_ns": 29716708
+      },
+      "stdout_sha256": "e92c8859ed81c9d6cd6d3a6c71e6ad90c9ee99457baab088ee203d0177dba8de"
+    },
+    {
+      "arm": "after",
+      "counters": {
+        "cycles": 2899258788,
+        "instructions": 10794823198,
+        "user_time_ns": 1095062083,
+        "system_time_ns": 19356125
+      },
+      "stdout_sha256": "8c964d3409eba85299114da0d940c0fb5016ef74894a125a2ce27df70d8fd385"
+    },
+    {
+      "arm": "before",
+      "counters": {
+        "cycles": 2887003431,
+        "instructions": 10807463538,
+        "user_time_ns": 1025283916,
+        "system_time_ns": 25918625
+      },
+      "stdout_sha256": "ba0d8f0422cdae8adb04d9e9651f6325290898fa969acd4e378ee4cb7b39479f"
+    }
+  ],
+  "summary": [
+    {
+      "name": "before",
+      "samples": 12,
+      "executable_sha256": "ac579cd075ace4ada31aa246ac7c2df464090bec1520f9a730ea2e55e439038f",
+      "median_cycles_per_round": 12046056.17578125,
+      "min_cycles_per_round": 11261729.67578125,
+      "max_cycles_per_round": 13915422.09765625,
+      "median_instructions_per_round": 42480892.6484375
+    },
+    {
+      "name": "after",
+      "samples": 12,
+      "executable_sha256": "49cc0e10e3ca00229bbb1d8a650be7a5fb03f4bb0465f8f894b5cfa497753868",
+      "median_cycles_per_round": 12042461.87890625,
+      "min_cycles_per_round": 11325229.640625,
+      "max_cycles_per_round": 13864974.35546875,
+      "median_instructions_per_round": 42449749.78515625
+    }
+  ]
+}

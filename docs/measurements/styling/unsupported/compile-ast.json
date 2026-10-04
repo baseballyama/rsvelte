@@ -1,0 +1,104 @@
+{
+  "population": 8,
+  "artifacts": 16,
+  "js_matched": 16,
+  "css_matched": 16,
+  "rows": [
+    {
+      "name": "getter.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "getter.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "regex-conditional.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "regex-conditional.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "regex-default.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "regex-default.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "regex-state.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "regex-state.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "regex.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "regex.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "template-default.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "template-default.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "template-nested.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "template-nested.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "template-object.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "template-object.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    }
+  ]
+}

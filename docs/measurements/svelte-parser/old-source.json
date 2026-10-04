@@ -1,0 +1,1692 @@
+[
+  {
+    "path": "Cargo.toml",
+    "bytes": 7927,
+    "sha256": "6d0eb43caf72eed27b3d92043135d763aebdc23a9abc81b1a22031dd5cb558eb"
+  },
+  {
+    "path": "Cargo.lock",
+    "bytes": 35604,
+    "sha256": "ff36602c422d207c461f709e5f5cff83f72d5378cae50ad852fe8204f3b47ef0"
+  },
+  {
+    "path": "crates/rsvelte_core/src/ast/arena.rs",
+    "bytes": 28444,
+    "sha256": "260126b5f83c068569c93ec6c453a643083343a1dda1a3218632f4113e736d5c"
+  },
+  {
+    "path": "crates/rsvelte_core/src/ast/css.rs",
+    "bytes": 1008,
+    "sha256": "343979ce162ebe655d803ae8e08eb4ec3eea650c34d2bc1003598fded7995160"
+  },
+  {
+    "path": "crates/rsvelte_core/src/ast/js.rs",
+    "bytes": 22691,
+    "sha256": "394560757b7eb5851ca61dbffe75372ad312474c5fdd82441a73aa1bf9069ccf"
+  },
+  {
+    "path": "crates/rsvelte_core/src/ast/mod.rs",
+    "bytes": 511,
+    "sha256": "97e75884163d899e8b894f6c7912ee6197e520bf14c2c727f8606c4b1aa556ef"
+  },
+  {
+    "path": "crates/rsvelte_core/src/ast/oxc_program.rs",
+    "bytes": 8489,
+    "sha256": "040a50b87146ae15b70bdef8cde660a49616897f23f792ae79b01a7baf28dc90"
+  },
+  {
+    "path": "crates/rsvelte_core/src/ast/span.rs",
+    "bytes": 2260,
+    "sha256": "d4ee311b48843b506b633d682402d64cd897512d5c40f95f7d6af0b2e012c230"
+  },
+  {
+    "path": "crates/rsvelte_core/src/ast/template.rs",
+    "bytes": 63623,
+    "sha256": "b1ccb07da5f0881b0ddccdc293edd5ea82758c00815d7f97ac5249dbbb6aa2c4"
+  },
+  {
+    "path": "crates/rsvelte_core/src/ast/typed_expr.rs",
+    "bytes": 200137,
+    "sha256": "155b7f03dba851231aee930427f8460eeee6dc427847731aa6f624d1ad3e71df"
+  },
+  {
+    "path": "crates/rsvelte_core/src/bin/corpus_profile.rs",
+    "bytes": 13434,
+    "sha256": "ea3c882a4bf91f9491f569eabd170c189b7a77292fb17bb44d19cd8ecb4738ba"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/acorn_lines.rs",
+    "bytes": 13362,
+    "sha256": "7e4738b62823be6d9468667b9936d51767c53bc6eaeb85360ceb84e64d789683"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/constants.rs",
+    "bytes": 2686,
+    "sha256": "5b5ae7203ea3bd5592152b04bc747ac127f8955ece25131938c1737131d4a271"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/identifier_escapes.rs",
+    "bytes": 10006,
+    "sha256": "b40524210b98d609ecb8b044c3cccd5707a751e12ac8b5625fcae62aa08e76f8"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/legacy.rs",
+    "bytes": 72435,
+    "sha256": "5305e02f2c07c5fecd14c3b4d5ab675803c822e3b27dc77f506a6d0cb4171873"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/mod.rs",
+    "bytes": 100796,
+    "sha256": "b663548e32b44613c907d7c6e2fff06abfcff1b9319c57a63422c687fcfa94f3"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/mod.rs",
+    "bytes": 24502,
+    "sha256": "78c01a06071a38ad452210b15bdbd1e1f63b379f0b62aa503668cb1715a7742d"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/parser.rs",
+    "bytes": 47938,
+    "sha256": "dc3d12f81133965a9c6c10afbc304cebd441974db95c4c38aa7446cf982a005f"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/read/early_errors.rs",
+    "bytes": 20380,
+    "sha256": "8d858cbf17d5a925aac6c77ad5113c13b7674054b338493b5380c1caff8cc1eb"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/read/expression.rs",
+    "bytes": 653936,
+    "sha256": "809a130b7bbf162d76faab70b6c010874b99fa59237b11e7106f9d4d64cb4294"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/read/mod.rs",
+    "bytes": 461,
+    "sha256": "f2393a8634ab531bfa3548cc5bc0ab78767c5192786a1fb8b5eab79caa3e4384"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/read/options.rs",
+    "bytes": 21076,
+    "sha256": "d383c0fcaf27a13eb55f16cfffafb5b291ae7e0a59440616ed32ecacfb6fbcbb"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/read/script.rs",
+    "bytes": 16462,
+    "sha256": "262892292aeb7cdcdb566275e83926d17a605882121113d98b36fd187f179bd3"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/read/strict_mode.rs",
+    "bytes": 21889,
+    "sha256": "50c433bda8dff733982fdc675bb8edc4d6bc9e21e4a13345930598b37cd3c816"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/read/style.rs",
+    "bytes": 145625,
+    "sha256": "82947080259821f4ed22f9d52b21c9b371ba0cef3d6de810d000952de627843f"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/remove_typescript_nodes.rs",
+    "bytes": 27944,
+    "sha256": "2882895e8dd17827d7d7b319a6be4f98c2d818432c3e6936a2be949514d8e372"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/resolve_lazy.rs",
+    "bytes": 19214,
+    "sha256": "928272dbcbff07f4c396618575459276ee4b5fc53013956ca8436d1dcd8f4977"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/state/element.rs",
+    "bytes": 121264,
+    "sha256": "497fe63659ee3060cb9b5052b6e39a86d334720bc00a5dc99fb2789d9b243697"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/state/fragment.rs",
+    "bytes": 23474,
+    "sha256": "c29be16f77595009292b9e6fccc30838ccff5f0e28de9cdb7d2e9f3c3d11ed6c"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/state/mod.rs",
+    "bytes": 242,
+    "sha256": "68e792267740f27c7de2aaa10394d36e4e597778bde865f40cc4f0ffeaa74faf"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/state/tag.rs",
+    "bytes": 143723,
+    "sha256": "2304ff169936d09c1eca3e99b8993042d0e5fcd9edc70f50449c9a56f69d8479"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/state/text.rs",
+    "bytes": 3699,
+    "sha256": "731439141907ed74e181839437d6c36108723c93fe873941f37675c213c07756"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/utils/bracket.rs",
+    "bytes": 15185,
+    "sha256": "88c4a9e727497520bd481b9a295522718141f8120604e2cf6756f6c670c3fcf9"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/utils/entities.rs",
+    "bytes": 18758,
+    "sha256": "65347663b1b3ce2999a3a5c4de7b0cb0a7c153cf388752b78e4beaea709df70b"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/utils/entities_data.rs",
+    "bytes": 61277,
+    "sha256": "eb89f122383dc43a0b91f8acd72c909b666505014a3f6fc3f2c9578026eea22a"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/utils/fuzzymatch.rs",
+    "bytes": 13164,
+    "sha256": "cd360b72bd72b764864fe4bf84d07618c94761e3c2637864d32ec1477d7758ae"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/utils/html.rs",
+    "bytes": 5953,
+    "sha256": "5930a61e4e886d700728aaa1f6e9283c52bc028a7775321e406e3107342cbb6e"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/1_parse/utils/mod.rs",
+    "bytes": 3936,
+    "sha256": "3c5c3f43ab1e98236ccad9f029bbdab2942c541b7a8cad5c4f7c3ccee00af371"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/binding_properties.rs",
+    "bytes": 11399,
+    "sha256": "e067b3605faa5a8c11b5350a98828ca9f900baf82a75e78571857c88674ebf98"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/control_flow.rs",
+    "bytes": 36405,
+    "sha256": "b107038593f677b5a60b12fa9da3effe887816645b3b9d42f75cea2f3a05c02e"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/css/analyze.rs",
+    "bytes": 51606,
+    "sha256": "78828bef7adb10ea04cb79e6946830f9b3182586ee820ec2249414e447afc2a0"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/css/mod.rs",
+    "bytes": 679,
+    "sha256": "24df1d11d680b04f41fc4b046f9b30f426cc1053bca54c3ca957d8daaf8b9ec9"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/css/utils.rs",
+    "bytes": 18268,
+    "sha256": "d0bc5ae2f2d5e166eb62c2f772d58b80bcb1b237ba9845875783f06854d0d833"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/css/warn.rs",
+    "bytes": 2596,
+    "sha256": "b977a0be3e966a34bec36a4276dcd9d6d7e2e71cda4be4cdb5e546a71cc53a5d"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/css_scoping.rs",
+    "bytes": 159332,
+    "sha256": "4d76368f3bd1cbcb7919d22aa431e22392824c9b7aa8724f25551ffc499c7253"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/diagnostic.rs",
+    "bytes": 2912,
+    "sha256": "e979d8b6ecf56fd1a61e0b53d6152d69d0092531160af3f74eb30dee832ec897"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/diagnostics_test.rs",
+    "bytes": 5129,
+    "sha256": "f7fbba172b856543ee424b3dfb575b7f195779be1502aec40ffdf730bd642860"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/errors.rs",
+    "bytes": 30976,
+    "sha256": "7b577db951a1c60556b0ed1c5b870a6d7759de7c73dcf1112ee1c4d3c56590ca"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/mod.rs",
+    "bytes": 278276,
+    "sha256": "0109e500aafb4dd4723bea7ca630781b9241047b4c3d997dc90525ccda214bf9"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/pattern_ids.rs",
+    "bytes": 4685,
+    "sha256": "67d3e1f51b3c915d8c49e80a279fef5ceaf7e5b28d96b16d01bc606f372deffa"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/profile.rs",
+    "bytes": 4657,
+    "sha256": "22e00508fcaebfe53c59d0d97dff7fccd5daf93d464b4e603266494abd7a5ef7"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/scope.rs",
+    "bytes": 36536,
+    "sha256": "3c23f72509759aa4bd0e39c1d1bcfb645a5944abb1ae9a85a604607dfe1dbcc0"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/scope_builder.rs",
+    "bytes": 224300,
+    "sha256": "011a21614dbdd0b547b43fec6df59bb1fc6ae6956a29488c27837226f1b16c41"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/store_subscriptions.rs",
+    "bytes": 103298,
+    "sha256": "eb2a0f334337c685452eae94bd57dc990d2c832a25f063679a6035d56af3322d"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/types.rs",
+    "bytes": 130740,
+    "sha256": "fadf9f189387ea3216af1a113e1550412f76de3e20d99929c6f27b6efcc600f2"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/utils/check_graph_for_cycles.rs",
+    "bytes": 4524,
+    "sha256": "6367b8d57e57b37c3f27c3b61be2703f1792097176c23eb99bda08853c29379d"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/utils/mod.rs",
+    "bytes": 9702,
+    "sha256": "5095ae2ad0457784409218fad244b164a6f1a5ea7c8b7587c0473828302e9553"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/animate_directive.rs",
+    "bytes": 2136,
+    "sha256": "24389ace06c53fe53d24302004bac5b57d87aa996ff7e9aca7ff232c9b8ca275"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/assignment_expression.rs",
+    "bytes": 5247,
+    "sha256": "7581d87e9061afae57032a4838b8627152ccd8344c38146ca4e625fc8434bbd8"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/attach_tag.rs",
+    "bytes": 1203,
+    "sha256": "32a3b71f617b3ca771bbb7960b52ad23c55fe62d2de0c998178cf42048318c13"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/attribute.rs",
+    "bytes": 8450,
+    "sha256": "76abd7603324727af3fcc7a17262b1f39438f204d849a51ab4964fe804ab0d8f"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/await_block.rs",
+    "bytes": 20426,
+    "sha256": "768ead4d2b9c2f95f3c6c8e7c54e411a06a852b089cfc7344a94a71386750e72"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/await_expression.rs",
+    "bytes": 8030,
+    "sha256": "67249739cc062b5c16175b8b0371ec14bf259268d7d90799552a1e534a91e8a3"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/bind_directive.rs",
+    "bytes": 34118,
+    "sha256": "09cc909b7a592aeb77db393ff04768c3a45cfe45d5a3b7eb4cc935c7cd307c6a"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/call_expression.rs",
+    "bytes": 31236,
+    "sha256": "259a65787cd488273a76ee5d6a71ecbce75ae39a5b2e565c63d09e78c4b23781"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/class_body.rs",
+    "bytes": 15116,
+    "sha256": "1b93e1d9bdb6168a5832ff6717e3ad594c7ef83da88f6cf94eaf9c50355b0b49"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/class_declaration.rs",
+    "bytes": 7633,
+    "sha256": "24f8f482033d1aae6675628bb1062357278254b23936d4847e5e2e7d10dd36a4"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/class_directive.rs",
+    "bytes": 1604,
+    "sha256": "4b8c1651ae9591fffe89df4a3f94571e50211a79d72a8b48e9b4f7103c4b93e4"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/component.rs",
+    "bytes": 4241,
+    "sha256": "d1b020a436921d45f7e852634a6be21ef21d09728b72d9aa851e43a30cba4882"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/const_tag.rs",
+    "bytes": 3941,
+    "sha256": "8d3f5c1074872d321f0a0baa43c62d27c18c603a2b8a244fc46ac2e8143a7df4"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/debug_tag.rs",
+    "bytes": 1549,
+    "sha256": "ccaab0206bea61870418c22228f031e08ac7924a93694a5f06714ff3b07c6b6b"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/declaration_tag.rs",
+    "bytes": 10904,
+    "sha256": "f2678b5383ba6a1b94216ec60e43e0d7101b7cc505156d1ebcf42a13c5683fe4"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/each_block.rs",
+    "bytes": 16108,
+    "sha256": "4c93169b8a8509b30a98e0301f255c8ee518064063904a98ca801ae5d31ce5b3"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/export_default_declaration.rs",
+    "bytes": 2001,
+    "sha256": "5804868424eaaf5d1a643b4fd46ac96da10fd2b5ca8547535a48c170a9c66708"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/export_named_declaration.rs",
+    "bytes": 13533,
+    "sha256": "f78ceffe57cd4a7b6c94987e13e8c16f70205de8a9396d0c536c19d39fb513aa"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/expression_statement.rs",
+    "bytes": 4899,
+    "sha256": "a81f5a2b142a55224817cb1cc61ce2986551be664bd01ec3ed9c84c14206f9e6"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/expression_tag.rs",
+    "bytes": 1961,
+    "sha256": "05974232a67a8cd5fe4b2b9d3c38971241311cf3da2774363c849b9b7716b2da"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/fragment.rs",
+    "bytes": 917,
+    "sha256": "9d9276e61d9e923b2485c0b6e8a0a215732378aa813a832cdb35b253eec27523"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/function_declaration.rs",
+    "bytes": 2186,
+    "sha256": "3c5e9b0dc03eaf7a573092e5b748f91d2464625a6f38e1d808f064fc7096e4cf"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/function_expression.rs",
+    "bytes": 1631,
+    "sha256": "10d20136f3c38cde155dd53eab9bdbdbe3907077f62d3dac3e4a663645e94708"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/html_tag.rs",
+    "bytes": 1583,
+    "sha256": "aaebad2d2ed49b443f6abd845d45f579ef9a53bf3be1e9f348ef5e52f08af230"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/identifier.rs",
+    "bytes": 27976,
+    "sha256": "b42c79603afdd708d3146c78e71cd97cba452166bf48a8356b2951620e22688b"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/if_block.rs",
+    "bytes": 6067,
+    "sha256": "bd57a4e25a07371a280fa53a124400abb7b6c7ffb98563707a0b574163adfdd9"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/import_declaration.rs",
+    "bytes": 3038,
+    "sha256": "9ea0c5bcddf00fd6c5c0134ab02e1306bcdd3cc3d1829612c8697f0ea611dca4"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/key_block.rs",
+    "bytes": 3481,
+    "sha256": "80635567de22c34a593843a5a23ad9a5b442047a1b285e7f7ea2147fac6696f1"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/labeled_statement.rs",
+    "bytes": 2427,
+    "sha256": "ae90280603e084a77c709e84b75a54449f0fc868e79168ee782232ef4460f80f"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/literal.rs",
+    "bytes": 1850,
+    "sha256": "8697c8b877509cb506d28badf120627a8cdb0a06cb472da8a0b4e6d4da041844"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/member_expression.rs",
+    "bytes": 2730,
+    "sha256": "50d1045a2edf0eaeedc67627646cb609862d1bb6725e19620c4b1a3d7b87c8ea"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/mod.rs",
+    "bytes": 37447,
+    "sha256": "dda4f1eb82bd15e78abc012c577f299b8c856ba5a5f09daa210d382805d51799"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/new_expression.rs",
+    "bytes": 1313,
+    "sha256": "fbfd1423e6bdbd59e43b106afeda6a4492c483e42f402d06c115642c55fa142b"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/on_directive.rs",
+    "bytes": 3198,
+    "sha256": "0cdcd5c30d2796b4ff4c68524608d69fb07f85d37f6c639ff0fbac08f4f5f49a"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/property_definition.rs",
+    "bytes": 1019,
+    "sha256": "263faf8f9498a6cb2e34234e0d49b59e03eb67b95e98ca47591a36ba5c711f95"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/regular_element.rs",
+    "bytes": 50815,
+    "sha256": "d029f836e1c41d14baacc3c7026154e1843eb3214c4e9395836c670e6784e4e4"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/render_tag.rs",
+    "bytes": 8689,
+    "sha256": "6d3f75a6fc8cb85390881f9f3813230e5e1f398a0f53856bac42fc3c35836732"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/script.rs",
+    "bytes": 24500,
+    "sha256": "7262665deec8179c24c905edec535f702ed7da517ac598a22e9a3bfb633b22c4"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/shared/a11y/constants.rs",
+    "bytes": 39177,
+    "sha256": "b9a7e0417b2b5d20c81a07d469648df0ced077997756c63b6940a555e6379886"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/shared/a11y/constants_test.rs",
+    "bytes": 10629,
+    "sha256": "f686f6e1d76aeb495144271adb91f958331c95bd7b1c5798919ecb9d3536cf62"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/shared/a11y/mod.rs",
+    "bytes": 55052,
+    "sha256": "83b6a6165bb0ca8c1a8a48349dd4fefb66dcf30a421c939480d9e950ac811dfc"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/shared/attribute.rs",
+    "bytes": 17077,
+    "sha256": "73536fce5adc8c2a7b06b43312eb6dc3380cd7217b016d2c643f7fe5c93ac282"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/shared/component.rs",
+    "bytes": 22664,
+    "sha256": "157ef68e5ce58ee3675766e093cd215ae86e4e618f3a90636f4535270e14dc2b"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/shared/element.rs",
+    "bytes": 21006,
+    "sha256": "2422a895690f0ad0ab422bf2f50ab88790e669d7515fdbe00fd63b70e073ef63"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/shared/fragment.rs",
+    "bytes": 19220,
+    "sha256": "89da994a13acab589ebb1a520ad49eb62db9b3b9fece0dc366b3eacfa7e5faf6"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/shared/function.rs",
+    "bytes": 4596,
+    "sha256": "e20d5d609cf4ffb3f60659ed29854479aff35bfccea02fdf01b2f5fd9bcebb51"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/shared/mod.rs",
+    "bytes": 494,
+    "sha256": "e11440b8fe1be6b50c77dd006d53cf0e486d9d0da78c97eb5b1bf758d6b00faa"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/shared/snippets.rs",
+    "bytes": 2858,
+    "sha256": "8c2fe9615e44e691273c777545dd221c13f791f62d5567bf17b0fa37833f38bd"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/shared/special_element.rs",
+    "bytes": 3440,
+    "sha256": "fd7180d672f2aba2dc5a73052beb49634cd40183fdaee521425709cfc9fe5ae0"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/shared/utils.rs",
+    "bytes": 81404,
+    "sha256": "fc6840494e3837a730465f53902bea9652929306ab9d49222ede8e3eccfa74e0"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/slot_element.rs",
+    "bytes": 4156,
+    "sha256": "2944c7663694f362290940f013b00dd37c387bfde8e7d341089a5d0c0c422d63"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/snippet_block.rs",
+    "bytes": 66742,
+    "sha256": "96cd6d9312b61b26e9c0b7861c39c7501bd878a565b473fbfe9965b9a407c682"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/spread_attribute.rs",
+    "bytes": 2324,
+    "sha256": "f11d7fe18f7582ea0b82b63f657671e7fe178b7867e1d047de2e245589b5b2e5"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/style_directive.rs",
+    "bytes": 4406,
+    "sha256": "072c8688e845bf2275525b62c03d150c24ad3f9a48589ada1466dd6f9e7bc38f"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/svelte_body.rs",
+    "bytes": 3515,
+    "sha256": "99d090c356d653fa0fbc086333c0488d8046fdec0e33ca56b219e7f0d8b6f251"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/svelte_boundary.rs",
+    "bytes": 2722,
+    "sha256": "ff3b04f21e32f1630e396210810bbeca10177806e7312b1f89faccf6bd36f706"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/svelte_component.rs",
+    "bytes": 8139,
+    "sha256": "15e64ef1d5dfb4a9ef904b90f814417e2740d8aa6d58fd4330889a67de68f567"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/svelte_document.rs",
+    "bytes": 3624,
+    "sha256": "633c4a97e3e808ec80c793e1bafe6d867d3c279a4c9d2b4b95a462ad851e4568"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/svelte_element.rs",
+    "bytes": 14819,
+    "sha256": "39356a014796580c04df19c6f0abbb7c2df7bee54b4b451f2f7960c707c043f6"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/svelte_fragment.rs",
+    "bytes": 2650,
+    "sha256": "2135bc0b7a47153cab4c0757eb7b590823a954d17c82b72157d9ed362a2319b3"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/svelte_head.rs",
+    "bytes": 1602,
+    "sha256": "fa8c9854ff0b9a121dae5dba9157f197f59a8871404a997e058b83f931ac7618"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/svelte_options.rs",
+    "bytes": 1185,
+    "sha256": "096411861e6786f6e9295cf2e6c66a30384871f1a21b069a6d6bcfe3149d8a12"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/svelte_self.rs",
+    "bytes": 7978,
+    "sha256": "3c9989565fa570952582399ca421e38e27e6a4d65e3c7dc205062352f7ce09e7"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/svelte_window.rs",
+    "bytes": 3850,
+    "sha256": "1549ed1f3a8ad05c244a3a3dd6c9ce72f1716f92ca4ee4d3706c3978d6846548"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/template_element.rs",
+    "bytes": 1874,
+    "sha256": "c826af3f4a2acd4b3dd7b3f8d7278c2a7a7380fe2b3f5b154b59be97481cc1c5"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/text.rs",
+    "bytes": 2391,
+    "sha256": "7c9d7a5c75e2f7f827f98985e0ce56687e16f07b0bf98d41fbdabf3700fa7276"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/title_element.rs",
+    "bytes": 1287,
+    "sha256": "f03ce44d8b9b4191c2ac560e013289d0f19fbd8a19dba01dc9292f0ca004ecce"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/transition_directive.rs",
+    "bytes": 1641,
+    "sha256": "02683b0bae75d4bbab4f26ced7b4fe57d56b24cafa61a8382f530f5dfa9b55a9"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/update_expression.rs",
+    "bytes": 2291,
+    "sha256": "e8fde3434cefbdb2203f3cc750b4220dbaeb2a81564b669e909fe33b1b1f0cfa"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/use_directive.rs",
+    "bytes": 978,
+    "sha256": "219db7024387f805a6cb6eac606d733de8f8914df5226db830757de204be0a4a"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/visitors/variable_declarator.rs",
+    "bytes": 47189,
+    "sha256": "08fd1254c1feeebe12285db52c9b89ef2f34ebd605975633e96fe524086023bc"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/2_analyze/warnings.rs",
+    "bytes": 24589,
+    "sha256": "c1b0a9d6df4dfe5639e208cfded9931ff8b876bdce050c623022e2d3a384686d"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/builders.rs",
+    "bytes": 54279,
+    "sha256": "647f62f82b046dbad1fc5a59a8175992b242675d2d376c758eb7070d59dbc6a7"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/assign_dev_ast.rs",
+    "bytes": 26512,
+    "sha256": "853c961eec23a09341f6c40ea217efe85301eb82544e1586ac3d3d4a63333723"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/ast_state_transform.rs",
+    "bytes": 278322,
+    "sha256": "035c37fbe66cb0eb90429d306f453a4dbc26d532ee9601404da4b645b60f6e9c"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/async_derived_dev.rs",
+    "bytes": 9926,
+    "sha256": "ab6e948ea7ec5ca5de71396b9e8cca446333517f3cc2d567358ba7efa0de7d83"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/await_reactivity_loss_ast.rs",
+    "bytes": 19168,
+    "sha256": "e0a76b3b860531a9384f576f88d2267acc4ecef63fa432081aff572af4352783"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/class_transforms.rs",
+    "bytes": 127081,
+    "sha256": "c5306693070df706ec87c5169f7ffc2d0c206cc4865cc61ac63663ca97bba12b"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/console_dev_ast.rs",
+    "bytes": 18267,
+    "sha256": "ba403b74c5bae2bf2a6f89415d135a8034ff3275582ea76f6aaf8a920d15fc7c"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/console_wrap.rs",
+    "bytes": 22683,
+    "sha256": "ff9b3895eb0d205163ab0c9b6ee2f527bd6f0f8f0495119314d7d46cb309c75a"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/dead_comments.rs",
+    "bytes": 29817,
+    "sha256": "a7cea06152bde889bbc8ebbe31252b6b032d116a60743d67245c027d79ea84af"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/declaration_split.rs",
+    "bytes": 16050,
+    "sha256": "5ba63fa155511839906a564fb7645fb982600456acd1f433c96d63162ec5417d"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/derived_by_ast.rs",
+    "bytes": 5807,
+    "sha256": "2869d6cac610540166a9007016fe6e5136f66e84518f4a585939a47ae06b171d"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/destructure_transforms.rs",
+    "bytes": 82001,
+    "sha256": "086d8424363799de617789dd15e380237b3631b54c2e07e30d7035d02bed54c4"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/effect_rune_ast.rs",
+    "bytes": 8715,
+    "sha256": "637d525cfc739c489fa4eb63b72eb18d87f723aaad73773847532096cb4c218d"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/expression_utils.rs",
+    "bytes": 134779,
+    "sha256": "e9f1eb03313a89f44309f3fb8498ac4aafe0339881db1c0f65cc7b4e0becbb97"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/formatting.rs",
+    "bytes": 77311,
+    "sha256": "baf787a5e6f3454014046e220473c7fa223e052945b7b3f5dba0fb206b113ccf"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/inspect_rune_ast.rs",
+    "bytes": 16668,
+    "sha256": "bad0598c6bbaee84b65088828af3a41e80f48935d7f7d5102fe494350cbdc5f9"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/inspect_trace_ast.rs",
+    "bytes": 15225,
+    "sha256": "dae3e19080866d1432cd2cdec7295de4b89615f1f55964778e768cf152ceec14"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/instance_dev_tail_ast.rs",
+    "bytes": 8785,
+    "sha256": "0c6c943c4370e06ea7e9d525c8e9fce44a204060738022c7ae0511fd5bdb4e3a"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/legacy_state_member_mutate_ast.rs",
+    "bytes": 31453,
+    "sha256": "88aeebab01a768e8bfabe3d2c58dac485d35aefe6240a6b5f02d36ce6f6aa393"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/local_assign_ast.rs",
+    "bytes": 6705,
+    "sha256": "133321a67556f3ab300cc061a517d696a00b876295219bdb4461a7184320b755"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/mod.rs",
+    "bytes": 428566,
+    "sha256": "e718e2087cdc6d66ac52bea6a8f6b16987185ee0807e69f3ddd09cdeddf09bf9"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/module_derived_ast.rs",
+    "bytes": 7494,
+    "sha256": "46fa321cbb5fd0eb0e3a4281102c10e8ce146ccaea34615f309d8f3df2cc92a1"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/module_destructure_ast.rs",
+    "bytes": 15141,
+    "sha256": "3a78e53001a395337b30adcb6556a9d583b0980e47ce3088659bbabf761ebab1"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/module_dev_tail_ast.rs",
+    "bytes": 14414,
+    "sha256": "3ed7fd22b5a458ca585ff7f340521d2948f641ba24f38bdec3648f8c06ffad1c"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/module_state_runes_ast.rs",
+    "bytes": 4662,
+    "sha256": "ca16ee933f53c967e5295313c6e1a92b572791e69f32463a110aa9dcd15f9524"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/private_class_assign_ast.rs",
+    "bytes": 52376,
+    "sha256": "5348dc16844ab0a400ea89eeda3711145b8d16def0bcafb87a1ebae877f044fa"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/private_field_assign_ast.rs",
+    "bytes": 14581,
+    "sha256": "c44688e24ed4cdfb496dc51a1ed460cf10e64f8ba3534f03803556b98883ac10"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/private_member_mutate_root_ast.rs",
+    "bytes": 9718,
+    "sha256": "5cb746219c53589cbc28e9ad3fc9d15c0b829b48c26eb39679f1a234e159a0f4"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/private_member_read_wrap_ast.rs",
+    "bytes": 13152,
+    "sha256": "53cfc4e7ba2c7e4658466098459798adcc119b50b59ad009337c8a22b00b1811"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/private_read_wrap_ast.rs",
+    "bytes": 19183,
+    "sha256": "321b2555e4d7936c84b1d00b5cb7019258f19b62869ce7155d19710a68eec949"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/private_v_suffix_ast.rs",
+    "bytes": 13877,
+    "sha256": "00414dc7ae3c05b754a892a081376e3cfbfa1b2fdbaae1b369c7617d0ae7140c"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/prop_assign_ast.rs",
+    "bytes": 18911,
+    "sha256": "f7ddbd16fd25c610732e5fe36634959fb6c9cd8ac6432c5ac3529d71f71f9e55"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/prop_member_mutate_ast.rs",
+    "bytes": 33388,
+    "sha256": "a62e620766836bf40c25d051f33c06d18709cb0ee847e41fad638b2479db3e55"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/prop_mutation_validation_ast.rs",
+    "bytes": 29986,
+    "sha256": "1a5402195883fe91510ed4ec358e18deea771da54115feda068068ffc6d2ebbd"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/prop_source_reads_ast.rs",
+    "bytes": 31357,
+    "sha256": "36ddc12ecede381b62d456c86952a811a32a69ecf350a177b79282f91a6c8b76"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/props_transforms.rs",
+    "bytes": 237081,
+    "sha256": "f0d6c2aabb5713b2359411d500cba3b2e0a1004943ea2039af4451a7695c1199"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/reactive_transforms.rs",
+    "bytes": 51568,
+    "sha256": "4ef29b84f5db20e5f40b4a233a4b7f65da906d3501a6c8f9cda6ea7962117896"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/reactive_update_ast.rs",
+    "bytes": 16081,
+    "sha256": "07bb1b523ffd65af62370a6d559cc6a54b7caca1b98772112b198c1cbf431f88"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/read_only_props_ast.rs",
+    "bytes": 17027,
+    "sha256": "6483577297b3709b0134498cdad1948cd8ebe6c2ae3b051191379499e7b27e0c"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/rest_prop_member_access_ast.rs",
+    "bytes": 10045,
+    "sha256": "139f3a2e9c4f85bf8503d271ff811abadeb780308f99c53c807ba6f62aa9d223"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/rune_transforms.rs",
+    "bytes": 72799,
+    "sha256": "9b2525b72452563bcf94f0479254bbe8e526d507896f40b984abdbc2f0679520"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/sanitized_props.rs",
+    "bytes": 6001,
+    "sha256": "ff4afcda6997d949cb9d389edd80206bb8e0babb1216bab78f4dd8508cbd0750"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/scan_index.rs",
+    "bytes": 9839,
+    "sha256": "2957b25c34fb1494f3d3fc7d12df13b6d8c369654d2f20d0aee90a7e3fdd5cb1"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/scope_analysis.rs",
+    "bytes": 15926,
+    "sha256": "76b279d4e7bc99480ed27019df14b4dced0d63ad396a69826cda324de404581f"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/signal_discipline.rs",
+    "bytes": 13374,
+    "sha256": "34f93becc6d7dd99b2cc1b59cf93192f8226bdccb0cd219cfec84026ec54073a"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/source_anchor.rs",
+    "bytes": 9351,
+    "sha256": "8e1f249740788eb57406cf955bcb5f0df1903f60ed6948ef513432f2a0a1c8ca"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/state_assigns_combined_ast.rs",
+    "bytes": 34625,
+    "sha256": "94105043e607ee9c13f9e799a4f8565ed579ae21f27b3f93a5247659493908b8"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/state_call_ast.rs",
+    "bytes": 14635,
+    "sha256": "73e1cea5db65bd046df500529e5ebf678cad769628fc40c9a725a94894928371"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/state_eager_ast.rs",
+    "bytes": 2901,
+    "sha256": "cb1ce65827eb6440381e1e909aeee91c494eb6e2caacec83e5c6d638874458e9"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/state_member_mutate_ast.rs",
+    "bytes": 16058,
+    "sha256": "a62cd56aaece86f2f3d00c459899d5af903db3e222bd224f0a9b7cd6b3ad628b"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/state_pipeline_ast.rs",
+    "bytes": 39189,
+    "sha256": "d1427ff8b7cda49b8e9d6c366b486128c8f307707be7d67f2bad3d7b949a931a"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/state_raw_frozen_ast.rs",
+    "bytes": 10540,
+    "sha256": "d88084e060eff059ae8292948ee606e1fd341d6a34e3752d04ef2e60d78c8ca2"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/state_reads_ast.rs",
+    "bytes": 28222,
+    "sha256": "78777281124ea6d649e620fe2776e0fa78e3493c76d1736503557a76a030dccd"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/state_set_reactive_ast.rs",
+    "bytes": 16270,
+    "sha256": "371e69e291b5ad8a08252ddb5ae288dd8b9d2504bfa87fbf8084fcff3a621a33"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/state_snapshot_ast.rs",
+    "bytes": 5962,
+    "sha256": "3fa798edbaf01f0c2d33f8fafa95443499f11c3ab29ef7aa60f8164332e2a795"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/state_transforms.rs",
+    "bytes": 93774,
+    "sha256": "0baadd027d66e2e398a25e6ba8d3e30c5fbe662bc0a97eae14411d0ed07c4094"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/store_assign_ast.rs",
+    "bytes": 21152,
+    "sha256": "ac832d59e4a876919ba6c961fcddafbd79050736fe3ccd211004e31de5725a97"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/store_member_mutate_ast.rs",
+    "bytes": 24944,
+    "sha256": "459c0b082285fa26252927a86e9ffb1d328b1e8ecadc6d116e97c3b99ef4da66"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/store_transforms.rs",
+    "bytes": 36400,
+    "sha256": "784fe0d597ddddcc3828a0d17dd6f2a376669e72bc59aa176cc401102eb360be"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/store_unsub_wrap_ast.rs",
+    "bytes": 14164,
+    "sha256": "0c17d8687797331c12df84f323cc7655cb0265365d0470196a4329f431279eff"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/store_update_ast.rs",
+    "bytes": 14116,
+    "sha256": "33c630c97ef860617ddcaf34f81527220d73734bcb68b4e6aeeda87fadd44631"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/strict_equals_ast.rs",
+    "bytes": 12267,
+    "sha256": "823f2bc9cf9ea50f7c12d46267741599c5640e36be3288e7d62876b51a3aa02a"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/strip_rune_generics_ast.rs",
+    "bytes": 6784,
+    "sha256": "27ebaa6f44a2c9461778a7fc095062e65982e09e0e8ffa007e14d5b3cd186573"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/tag_class_field_ast.rs",
+    "bytes": 33449,
+    "sha256": "972364950127f98df38e4d692f3d6e61121f83e02f581ca84441d6f10665e780"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/tag_declarator_ast.rs",
+    "bytes": 14489,
+    "sha256": "50937dd098d5f04cf3f83f22b446fe73654db8496a0fdcc61af29a99af5a711c"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/tests.rs",
+    "bytes": 136517,
+    "sha256": "df7958f94b6b25dcb266c249b0aec332cbfaf53a6efc7db5ef5af8446677e794"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/transform_template/fix_attribute_casing.rs",
+    "bytes": 5531,
+    "sha256": "00170816142ec48f0c19ed644165aff2302c753acc3b1778ba19afbbbe7adcaa"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/transform_template/index.rs",
+    "bytes": 8401,
+    "sha256": "02b679eef2ab415fb897fd0a7463db70eec309e024b65161de59b30d945e5d64"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/transform_template/mod.rs",
+    "bytes": 610,
+    "sha256": "72915b717774a44b704db567abc298d521188a188d2a659512fad19c7c85de5c"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/transform_template/template.rs",
+    "bytes": 12782,
+    "sha256": "c3a7804628d2c1652c09b36ac74e4aa24eda9cc455b6be7e7fb5403fed4d0ae9"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/transform_template/types.rs",
+    "bytes": 1222,
+    "sha256": "87617b2319f1ac52b2869b8a23a7f67904c12076060b50b96da33fdf412e0ee1"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/types.rs",
+    "bytes": 155377,
+    "sha256": "6db2896d0d4dd1f5beb359faaec2a5507939c83cbeb39e5cf2f054845d95ceca"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/utils.rs",
+    "bytes": 12063,
+    "sha256": "869d8abcc6af038cd3080b33d889aa50ddf17752006f7cdb397d39ff08412c7e"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/animate_directive.rs",
+    "bytes": 4764,
+    "sha256": "7291dc0973d21e2a4c6edb81f40844371b0b8b8aac6ab90645262c48b5aa644a"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/attach_tag.rs",
+    "bytes": 2845,
+    "sha256": "b65b0181075459d0e405da1aecb6478431c4b12a84b7d604ddcdd607fc5a2d41"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/attribute.rs",
+    "bytes": 24299,
+    "sha256": "baa1f1b2a4941239eb8c8be411aff3750c498603fa348aaf38f4ccae5c08d6cc"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/await_block.rs",
+    "bytes": 67787,
+    "sha256": "b2a896bf53f3c516e94476337eeec02d1510d739219aefaeaf08e2475241fb96"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/bind_directive.rs",
+    "bytes": 128070,
+    "sha256": "e70645efa7fdb0a945dcdfdab59822e4507ebf52970cb978cd4407d067bf58c2"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/component.rs",
+    "bytes": 1853,
+    "sha256": "afa7b822adb5a3342a6bc053c248ec73693804909d6baef96f7a1ffe5c7e194e"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/const_tag.rs",
+    "bytes": 46524,
+    "sha256": "0b668d0d29f61638b28f4e835b541785a5fc7d3b34df60523aa70cc52385d826"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/debug_tag.rs",
+    "bytes": 5816,
+    "sha256": "cdeeb0f4cc840344b940ba989f61ece7b0689aa2bf8598414f13ccfd9c244011"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/declaration_tag.rs",
+    "bytes": 22154,
+    "sha256": "8cd1602f39b6d52b2b72b3da2363a6f3872292057282e2caa4da2a7f01aa48bd"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/each_block.rs",
+    "bytes": 110991,
+    "sha256": "0f6f453ec86b65037a74932e1fdef70e25c18b1f9ce29725b5d47ad4f5ccea9e"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/expression_converter.rs",
+    "bytes": 318162,
+    "sha256": "a5b6652ff088323a376c909cfd434e59bc656d4e4efa90cc8bdfd0ac6399297a"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/fragment.rs",
+    "bytes": 58696,
+    "sha256": "b6d42b2c9aecfe73d3fa35d35324354b894bb979c0866f2f67bdaec6d2f4cc03"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/html_tag.rs",
+    "bytes": 7406,
+    "sha256": "42fa7a1af97a710df9422a01dd4c4d6afbbc4254266d0f22ca5319cc8670054d"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/if_block.rs",
+    "bytes": 15792,
+    "sha256": "872bc57836ec0850f65114e0b373556c95bab616bd7fcc4d214015942e082aef"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/key_block.rs",
+    "bytes": 5911,
+    "sha256": "cae3ec8c37f6c5520546341a18e41c5066f8a11c3234ecda12fa1a3da36aca72"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/mod.rs",
+    "bytes": 2743,
+    "sha256": "2dd93bfc86cc21667575cb42b94b5fddf998320e7ece63f04bec5ac9e15b9635"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/on_directive.rs",
+    "bytes": 4089,
+    "sha256": "ac82e35bd48ce7f7646e287266b3fe352093f91183babac49d2ce88a4aec13b2"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/program.rs",
+    "bytes": 28691,
+    "sha256": "f0cd6d94de09bd2ad5fba4a41f27eb53290e287e882425f173d83ca036a1b23f"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/regular_element.rs",
+    "bytes": 114309,
+    "sha256": "9caabbaaf5d8c6c344f828a0e26f65a04dfda296aac5d3488ec7b3a205b60379"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/render_tag.rs",
+    "bytes": 15810,
+    "sha256": "7251448586ccd4486d48c2a1afd96aa4ea977cc95f57851c7159ab1c42bfb8d0"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/shared/assignment_helpers.rs",
+    "bytes": 6627,
+    "sha256": "dc45cf4f7230b108c9f9b654f5ca2e5f4fbcb91ef36678dfe68deeed7689ddba"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/shared/component.rs",
+    "bytes": 156317,
+    "sha256": "9f58d87226e752b56dcba3925e3d439893321d45cb05e34a50276493a848a263"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/shared/declarations.rs",
+    "bytes": 36057,
+    "sha256": "a91ec3bddca1149fcb340c76d37702ecdc084030816fe41b56b3edbc59a09c22"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/shared/element.rs",
+    "bytes": 57627,
+    "sha256": "3c8b8de6220b42fe4d77a4a2853077850b92b19a441371d4d46209caae46195a"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/shared/events.rs",
+    "bytes": 18181,
+    "sha256": "4d9a757d7d7303cb86584469261704c287ef2766ad74f8db9aaa100516dc9a3e"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/shared/fragment.rs",
+    "bytes": 47054,
+    "sha256": "02413e5a81d84d30a621cc25fe79b47eabe980f058ad0a39a441ed17f97d29cc"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/shared/mod.rs",
+    "bytes": 1199,
+    "sha256": "ec7cceab96e53997849220bcef31c47a911c18fd9a8a07b10b10bf1901d0ccaf"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/shared/utils.rs",
+    "bytes": 288690,
+    "sha256": "d34a99003678b11d0380066c7d3e1061f75d3fa4cf0c1b6f4d47ec6ada0a02d6"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/snippet_block.rs",
+    "bytes": 54549,
+    "sha256": "cc28f0707341ab163f05872cc913a19d3e48074dfe3145c5225095ba1346d336"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/svelte_boundary.rs",
+    "bytes": 12608,
+    "sha256": "baeaa0ade8261e757e3ea797c0017f343db6e2d9598c7885b44257dc6c88c5c6"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/svelte_head.rs",
+    "bytes": 2793,
+    "sha256": "6a478df9e9de1d160fc12715c4dac6695fb303d058a99a5cf35e8f093c9f1aba"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/text.rs",
+    "bytes": 2403,
+    "sha256": "032ad425451b8fc34e31746e6dbb31a7102026d23ee8dae77842a12b8d184823"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/title_element.rs",
+    "bytes": 20448,
+    "sha256": "325e633a9af65b470f58a43397b202e8f24ca03e8b4839e2705639dcccd86d85"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/transition_directive.rs",
+    "bytes": 10304,
+    "sha256": "eeb59111cf31cfe81f366ffb7ca2e34e7e7af312f145058b54fda7ee84ca9ce8"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/use_directive.rs",
+    "bytes": 6958,
+    "sha256": "3c8b64022e459807c6912b07204e7813a555973709c7c1815eff40d593b96b16"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/css.rs",
+    "bytes": 392528,
+    "sha256": "577509986f784d7e87beacff0ad0bab27999bce9ffa74711a1ff431351493cac"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/js_ast/arena.rs",
+    "bytes": 17215,
+    "sha256": "612c8424101796de85badc8e7e2ee6d6e7fe702aea47858259c5b2d723343c06"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/js_ast/builders.rs",
+    "bytes": 72587,
+    "sha256": "6366641cd77352b3faeb23c20f79bcb805d3cb4515f018a9b1bc82a27fb75a66"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/js_ast/codegen.rs",
+    "bytes": 151777,
+    "sha256": "9d143e20ae299baefed13ffd6aa8a9b331a64479e52299e6759f1d9c0427b150"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/js_ast/mod.rs",
+    "bytes": 409,
+    "sha256": "a0d42d1e6935d357b9b69a0ab70ca95c22c2275975016827bd5868b0e815ef64"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/js_ast/nodes.rs",
+    "bytes": 28680,
+    "sha256": "183d19438dbd59bf887b55486bf6ca4b79cef4b84d65e3373e912ec892a2e026"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/js_ast/to_oxc.rs",
+    "bytes": 156548,
+    "sha256": "20219fa64f11d502180fa105b0637e61f6b9cb90a3eb67d9b466dd8b6033eca7"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/jsnode_to_oxc.rs",
+    "bytes": 76034,
+    "sha256": "6af170468d352bd7cc23fc091519d965329599b598d9a1fde465766b8a0900f8"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/mod.rs",
+    "bytes": 92405,
+    "sha256": "024df6854e6b6a2c28b56a0719c6812ba9ccffbdec607e15d9a42f0d0fea1983"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/profile.rs",
+    "bytes": 48856,
+    "sha256": "1071c7bd91ffb9983fb75d7bb7183e55d2a36cd349f3ce2e3881e4da119986c9"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/comment_stats.rs",
+    "bytes": 2125,
+    "sha256": "9385d400fbe36251efc656afa6235fddc515713fc2c990b8bf66bf53c7038d83"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/comments.rs",
+    "bytes": 18253,
+    "sha256": "7bef8c657b86935b69e34d0a9ca45fe4f50f402cddf41328d6ef96cd393e7060"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/mod.rs",
+    "bytes": 98917,
+    "sha256": "54806859f4bfbe0009eef9b0df73f74dbd38b371c1cd76e65a6692dc6848629f"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/read_wrap.rs",
+    "bytes": 55539,
+    "sha256": "eb2b3c7c5f728a0f69c648ac0c45f1fe12de223538478b33d0a9e33ccbcdab3d"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/script.rs",
+    "bytes": 242350,
+    "sha256": "ad2b6f9661411b46d176f40faccbe27a495b8018293601f055d3864773ea04c9"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/tests.rs",
+    "bytes": 247613,
+    "sha256": "deecae49b59637138a4fd5f5637cec41247f143fb1c7907661bc29ed85d30597"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/await_block.rs",
+    "bytes": 9390,
+    "sha256": "2b0fc1d6c7f4e5b49efec7d51c33dc20b3c1f88a37419405983de6269ab0d5c8"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/component.rs",
+    "bytes": 49513,
+    "sha256": "2f2ccdd405c918e95e1a3a5aed8ae397fc84eb5d2c9e38655983d748c7799202"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/const_tag.rs",
+    "bytes": 17633,
+    "sha256": "8c09d84fa4ecb5c0d30839c46b0b0eeb6019ff0206bf45ffada55442f8532359"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/debug_tag.rs",
+    "bytes": 3912,
+    "sha256": "ba82e1a804919aa7fec52799e4dd50bb9046e2a035ac3ac623c5e818979de1d1"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/declaration_tag.rs",
+    "bytes": 24970,
+    "sha256": "2049b1fa260fe314173738f2f5c023aa7714dd7d82a919f21b76da8e298866c2"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/each_block.rs",
+    "bytes": 19740,
+    "sha256": "a6ef4be7d72c050dc36eec109889d4bf1cc75a0439e77ceca9fffd533f5d49f2"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/element.rs",
+    "bytes": 112767,
+    "sha256": "41de34adc5b5f8ca693c939d53be6326dcf86303e01074e3198b69f8c29b99c6"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/html_tag.rs",
+    "bytes": 3644,
+    "sha256": "ab2e3f33e9b0346790466a98c51758bd08d64cbc48179ed2298be424a6d4f36b"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/if_block.rs",
+    "bytes": 12706,
+    "sha256": "a6170938c26321b99e23a83b78de6b01c9f25f8e96215c6fb906cc857b94744c"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/key_block.rs",
+    "bytes": 2133,
+    "sha256": "ddb75e9de0ad6ef6631c8e488ebc9f9cb050e7e96b051f07eff0fdfdcab8ca5c"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/mod.rs",
+    "bytes": 6493,
+    "sha256": "03ccbe21abbc6d0d397a583361080b4d0ea765bbb3aa7adfbd29abf29f291fab"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/render_tag.rs",
+    "bytes": 7145,
+    "sha256": "da1dc6ba6816c6a2ad1d36e21f2aa9cdcc789d033f105b89608e8788c5abc37a"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/shared.rs",
+    "bytes": 91932,
+    "sha256": "5f782b531ca4a7d9e3ec368d766c0971285139fb12bcbb9fba511c8ba0849b88"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/slot_element.rs",
+    "bytes": 9825,
+    "sha256": "71697c478f936e5e4915dc63329d60d8551db0bc0adf6441f32b2898dd9522bb"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/snippet_block.rs",
+    "bytes": 17949,
+    "sha256": "b65451a2482650e3ccfefbef9d24090407c31b65a3cb12377d2f0b9fb5b91930"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/svelte_boundary.rs",
+    "bytes": 16301,
+    "sha256": "bc9daf0a3d87eb7f1c2cc51da63c5c6f1164f98fc0ec183efac9666bcf610ad2"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/svelte_element.rs",
+    "bytes": 9172,
+    "sha256": "e43e700eb5ee3e65e5d0a043cc08d162129b18f2fe0a527a89078c7a6e0a84cc"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/svelte_head.rs",
+    "bytes": 2030,
+    "sha256": "8a35507b67aecbc7511ad35087b2c1267fd186a60e9dee337162611c13be18e5"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/svelte_special.rs",
+    "bytes": 3887,
+    "sha256": "5b04c5b847b365a30da1f765c499f10a8b7d2ee93054ef34d8036770b53deb02"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/ast/visitors/title_element.rs",
+    "bytes": 2820,
+    "sha256": "9137b247e4c6bfff909f9552cb9a61b7ca0e05fef2c1c427eff523e64ba5ac3e"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/await_save_ast.rs",
+    "bytes": 11465,
+    "sha256": "1a7ce4f418c121023fb226dd9e77a9b39d000c38fab9e43c8eb3d0893b2d3ef1"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/derived_reads_ast.rs",
+    "bytes": 25576,
+    "sha256": "d264baac27ad105ba981c150b96c0ad3a177ba54484fd276717efcb370116936"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/effect_pending_ast.rs",
+    "bytes": 3608,
+    "sha256": "40a80a7bc90975bdd012a92e67af5920eabe688c5dd142a7547d241670bbea7e"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/evaluate.rs",
+    "bytes": 96762,
+    "sha256": "c8ce38400f6f093caf31158f448ddcd8c112e09da29e1765782fc239e1d9d8f5"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/helpers.rs",
+    "bytes": 71179,
+    "sha256": "17921484b65be7760c61c52016408d1a19c812ca8b6f20e119a2948d517374dd"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/mod.rs",
+    "bytes": 54736,
+    "sha256": "f2c40983386a438fd7d963179f2ce9f358047ce24eeb5669dfcbe0d333a22240"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/rune_call_ast.rs",
+    "bytes": 11960,
+    "sha256": "f9c481df1a29d982e33515cacb6b9798613db6bf5263d05faeb0386549551898"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/snapshot_declarator_ast.rs",
+    "bytes": 4288,
+    "sha256": "a9dabdb8146097dc58e7f2c8effb7d406fc2efe3c48aa7b77aec6dfa595390ec"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/strip_export_ast.rs",
+    "bytes": 6633,
+    "sha256": "7d183b29428f05380fee5977376a74974ecc1bb5f7b45611de479b936d11fad6"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/transform_legacy.rs",
+    "bytes": 40475,
+    "sha256": "a97238f03f316d1d4068a24d78e04c97119eda97aff1f8225176eebf0dc75e3d"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/transform_script.rs",
+    "bytes": 285903,
+    "sha256": "79ff36880c8b74c659a5965dff69169491d8821ebf9792f2f9154a66ac5928fd"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/transform_store.rs",
+    "bytes": 49445,
+    "sha256": "c9629c0ccbbf54980e3569c381a90d1a8c51c4b92d75d37ff187d3c3a5a9e97d"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/server/unthunk_derived_ast.rs",
+    "bytes": 5289,
+    "sha256": "8d7424559769d616163c5cc9a46bb6030ad0c7ad12747b8f0a0c5b45d2a54e3c"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/shared/ast_rewrite.rs",
+    "bytes": 49923,
+    "sha256": "33c8e2391ef9a49280fbbac93ab5f2df5d67426850f80b4ac512db3e88cfd7d5"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/shared/async_body.rs",
+    "bytes": 143871,
+    "sha256": "403d7768ed409975b394607dd0ef8d8897537d684b4f6ce07ac6688144726b41"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/shared/class_body.rs",
+    "bytes": 30736,
+    "sha256": "37078dca22450522cbef7244c016da5d4bc995c334dcf8113744a00263e9fa07"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/shared/hoisted_vars.rs",
+    "bytes": 3431,
+    "sha256": "a998db182cb5fab6f1383602fba7328ce0b500382a9f275999a7dacee48c9cef"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/shared/js_scan.rs",
+    "bytes": 48840,
+    "sha256": "e3486d9ef74f6707de3f89996376bde3abb9c55e51bd53581d3bae559746c200"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/shared/json_field.rs",
+    "bytes": 2361,
+    "sha256": "3188be581c9b0f4ba94c76f2a75639181e8952373c018acbe2d23ef1082ffefd"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/shared/mod.rs",
+    "bytes": 438,
+    "sha256": "31d046cedd63d8ea0a0899eacc748ef6156187570d5e0ef46d118dd9d68c8a27"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/shared/module_tail_comment.rs",
+    "bytes": 5527,
+    "sha256": "ac44117f606a8e8f9bac924cae7c94f319377203600f9433cf6c3a21cfd5c5df"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/shared/offsets.rs",
+    "bytes": 6268,
+    "sha256": "4a1cfb6cb81cea521d6d8b34e3047f3df76b63744696e75d9dff405c8084df66"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/shared/rune_parens.rs",
+    "bytes": 10046,
+    "sha256": "a54861c3353873d0446885c885718506bdf57bb27cc4b77c071d0eb232af9ee3"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/shared/rune_shadow.rs",
+    "bytes": 5346,
+    "sha256": "6d1badd603e2304d1acf7824e7be8eb8af7f2b2d1ae3011f2284eb2753daaf05"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/shared/snippet_parens.rs",
+    "bytes": 3856,
+    "sha256": "cd6a7a0f2eb7d1f48ccdc0b46645009a8247f701fb11b34fa7d47df852bbdb37"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/shared/substring.rs",
+    "bytes": 2234,
+    "sha256": "d3af18de78ade4dc2af11402912017236df742e104bf89df7ee2f84bd97c2b1a"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/shared/template.rs",
+    "bytes": 6105,
+    "sha256": "cf564c13f104cf3b2c48668a8d9376dc12eb6a77c2535540701ad7bac4614483"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/3_transform/utils.rs",
+    "bytes": 58023,
+    "sha256": "138507a9d9fa33eb8376c443440e1010f58ea6e07445635635da884ff7724813"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/phases/mod.rs",
+    "bytes": 713,
+    "sha256": "bc4c351263a72ec738cf3313225135a7b05c12a11c04f41a4ea033a487091219"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/preprocess/combine_sourcemaps.rs",
+    "bytes": 13193,
+    "sha256": "0abba3b75e69f6fe8d525b12cd60e0b4b48a97faa922265646df2732bb144308"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/preprocess/decode_sourcemap.rs",
+    "bytes": 7703,
+    "sha256": "62127296192dae58d5f97ef47d0efac3865ae23b3c48130684c2b0932e380274"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/preprocess/encode_sourcemap.rs",
+    "bytes": 6719,
+    "sha256": "a60e206bd3b721c5a27da3fa8a4a8b9f387d9b0c5b153f83d1fe285dbbee0ae5"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/preprocess/mod.rs",
+    "bytes": 21992,
+    "sha256": "a7e8e3c50c0611e39178de6e87ee21510671c97daf6d3392abb7578aef0e2d79"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/preprocess/parse_attached_sourcemap.rs",
+    "bytes": 8074,
+    "sha256": "8e2ba5450d67353541e2af1ebbbd244d767990538adbfcafa89d8b45cf3dfd15"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/preprocess/replace_in_code.rs",
+    "bytes": 15714,
+    "sha256": "be70b43e981d9406fd902a0831e2f1414ee2e7853d23fe01ac46fe7a8e93f888"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/preprocess/types.rs",
+    "bytes": 8821,
+    "sha256": "812716b0beb9a028ba3c2cfc0e4d62733c60cea20607103da3380009cb404a4f"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/print/context.rs",
+    "bytes": 15894,
+    "sha256": "4f95ee83c765e20272d306e431a7adba718fb268fd928f03bc1a0a28c8ea93e4"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/print/css_test.rs",
+    "bytes": 5348,
+    "sha256": "c530efe4127cc24ff65f66c0122b609958c123fa5d1b9d09ad5b522ef816d943"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/print/css_visitors.rs",
+    "bytes": 27194,
+    "sha256": "3882a7a98bcbd148332691ddb0ff9bdb326b34a11dc5eeeddf9f3bd0c1ef402b"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/print/helpers.rs",
+    "bytes": 85910,
+    "sha256": "3ec82e7f77be526a26710efb0cfcd4106eee4caba9f408752ae81d43b96e3930"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/print/mod.rs",
+    "bytes": 9735,
+    "sha256": "226237d20ef8373a8ff118003f5ac742d4d344954f428dae923c90454c1ae6ed"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/print/visitors.rs",
+    "bytes": 50391,
+    "sha256": "fc822889b6b7c0b5407bab3d6e2e542aed51cff0579bee22fce8eccb0b966ba1"
+  },
+  {
+    "path": "crates/rsvelte_core/src/compiler/utils.rs",
+    "bytes": 14211,
+    "sha256": "8ce9010a6fb02a1aff94b94652d057b8752f97464d03a6b70d01d92111b87ce1"
+  },
+  {
+    "path": "crates/rsvelte_core/src/error/mod.rs",
+    "bytes": 5109,
+    "sha256": "1ef3b7255ca24481deadd773f0deecd08c0be79f0f375f686c5e2230b6bdaf75"
+  },
+  {
+    "path": "crates/rsvelte_core/src/lib.rs",
+    "bytes": 5706,
+    "sha256": "f099e278a3a7f4884dc5ec54fb987e457f5d46442c3beec8a9c730275a57ae13"
+  },
+  {
+    "path": "crates/rsvelte_core/src/measure_await.rs",
+    "bytes": 7025,
+    "sha256": "4181b20bf029ab1f7f6d5015636a483f88652791e66380879498a65a828a4dd7"
+  },
+  {
+    "path": "crates/rsvelte_core/src/measure_destructure_scanner.rs",
+    "bytes": 3151,
+    "sha256": "9b139ac9ecb11c4a18a9b260e936e7805425b69bdfeaf0bd6182466072b3ee59"
+  },
+  {
+    "path": "crates/rsvelte_core/src/measure_hoisted.rs",
+    "bytes": 2937,
+    "sha256": "a244bc057d07cbab341765980f21ce5db7fe6dd3fd85ff0ad95888d46a3e25dd"
+  },
+  {
+    "path": "crates/rsvelte_core/src/measure_module_source.rs",
+    "bytes": 979,
+    "sha256": "b0114587e15d41ea0987fe731699642b18cf4d19baf9a4e483dbe1985398a09b"
+  },
+  {
+    "path": "crates/rsvelte_core/src/measure_prop_reads.rs",
+    "bytes": 2652,
+    "sha256": "8972eaebeb1537d7a66419e8c92b5f66d3d033dbe67f37eb6fe1ed3629cd5bcd"
+  },
+  {
+    "path": "crates/rsvelte_core/src/measure_slot_key.rs",
+    "bytes": 1721,
+    "sha256": "326e43b4c9941ce107bff9eaa4acd71525a909e4c8184760172076757f74226b"
+  },
+  {
+    "path": "crates/rsvelte_core/src/measure_stmt_chain.rs",
+    "bytes": 12065,
+    "sha256": "4bf155e8a6bdecd85494eeb77ee93657546ce36a08ac480ce67093b7426ee4a6"
+  },
+  {
+    "path": "crates/rsvelte_core/src/toolchain.rs",
+    "bytes": 22477,
+    "sha256": "31a9326b204bc4698ac4a927b204f6170d0479fc6eaabf89672b56624c35817b"
+  },
+  {
+    "path": "crates/rsvelte_esrap/src/command.rs",
+    "bytes": 17955,
+    "sha256": "fce8c61869c8d99789345b5dbbc5abd0464412c227796b3b34d436ed401d938f"
+  },
+  {
+    "path": "crates/rsvelte_esrap/src/context.rs",
+    "bytes": 30615,
+    "sha256": "8a1dcf10f94d123149441925b17303c7c8ea055072993496d9964b6fdaaec022"
+  },
+  {
+    "path": "crates/rsvelte_esrap/src/internal_tests/golden.rs",
+    "bytes": 7489,
+    "sha256": "c2d1db1d92abf3f5ee37ed2b819beda3d52679a3355d6ecbe2be320b3d8dd4b8"
+  },
+  {
+    "path": "crates/rsvelte_esrap/src/internal_tests/mod.rs",
+    "bytes": 30,
+    "sha256": "e2f3289b0055d2373ac353d019985e877e1bc30ff845135c5dae7b2a0fa3e59c"
+  },
+  {
+    "path": "crates/rsvelte_esrap/src/internal_tests/pluggability.rs",
+    "bytes": 1204,
+    "sha256": "f3906291f892446dbf165c3764e702d204bf89e5921956a4ef822169fcbcc751"
+  },
+  {
+    "path": "crates/rsvelte_esrap/src/lib.rs",
+    "bytes": 15566,
+    "sha256": "c8537c9c52e47d8ac43098c071a6a7f670d95c0d0f1167455d9c7e95600e22b6"
+  },
+  {
+    "path": "crates/rsvelte_esrap/src/pool.rs",
+    "bytes": 1349,
+    "sha256": "752a6c990c64e80a22ab34e2ae37b145534da2a74be26a6291168d477833f96f"
+  },
+  {
+    "path": "crates/rsvelte_esrap/src/printer.rs",
+    "bytes": 257321,
+    "sha256": "7586c4b045b53d0f8afd6f13dac4ee94572c5f7b73fcc6dad71cf5f479f789be"
+  },
+  {
+    "path": "crates/rsvelte_core/Cargo.toml",
+    "bytes": 5437,
+    "sha256": "99a622cfdc6629b67545bb99eee1d414344a5234ce69f6a1dd52468cef56f1f3"
+  },
+  {
+    "path": "crates/rsvelte_esrap/Cargo.toml",
+    "bytes": 901,
+    "sha256": "e3821febafdf51b6ca0c76c34adea22a9c0482a4fc92efbd331cab9765aca69c"
+  },
+  {
+    "path": "harness/src/main.rs",
+    "bytes": 971,
+    "sha256": "d90a0b9eb93cf0233b98c363406674c389670ae5cf67a261d806b95a042dcc7d"
+  },
+  {
+    "path": "harness/Cargo.toml",
+    "bytes": 163,
+    "sha256": "c5aa09593c2ebab47ed707709a0ca49191497762faf8fa81ec420d0bfc0f7ab8"
+  }
+]

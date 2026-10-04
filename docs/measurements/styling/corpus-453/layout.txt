@@ -1,0 +1,28 @@
+print-type-size type: `semantic::analyze::Analysis`: 136 bytes, alignment: 8 bytes
+print-type-size     field `.scoped`: 24 bytes
+print-type-size     field `.dynamic`: 24 bytes
+print-type-size     field `.stylesheet_used`: 24 bytes
+print-type-size     field `.stylesheet_scoped`: 24 bytes
+print-type-size     field `.expressions`: 32 bytes
+print-type-size     field `.needs_context`: 1 bytes
+print-type-size     field `.root_dynamic`: 1 bytes
+print-type-size     end padding: 6 bytes
+print-type-size type: `semantic::analyze::stylesheet::candidates::Candidates<'_>`: 88 bytes, alignment: 8 bytes
+print-type-size     field `.unknown`: 24 bytes
+print-type-size     field `.entries`: 24 bytes
+print-type-size     field `.tree`: 8 bytes
+print-type-size     field `.classes`: 32 bytes
+print-type-size type: `semantic::analyze::stylesheet::El<'_>`: 56 bytes, alignment: 8 bytes
+print-type-size     field `.sheet`: 8 bytes
+print-type-size     field `.compiler_syntax_tree`: 8 bytes
+print-type-size     field `.source_text`: 16 bytes
+print-type-size     field `.facts`: 8 bytes
+print-type-size     field `.nesting`: 8 bytes
+print-type-size     field `.identifier`: 4 bytes
+print-type-size     end padding: 4 bytes
+print-type-size type: `semantic::analyze::stylesheet::candidates::Bucket`: 8 bytes, alignment: 4 bytes
+print-type-size     field `.start`: 4 bytes
+print-type-size     field `.end`: 4 bytes
+print-type-size type: `rsvelte_svelte_hir::compiler_syntax_tree::CompilerNodeIdentifier`: 4 bytes, alignment: 4 bytes
+print-type-size     field `.0`: 4 bytes
+

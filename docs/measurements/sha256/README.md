@@ -41,6 +41,9 @@ corresponding SHA-256 or Vue task: **UNMEASURED**, not zero.
 
 ## Other comparisons
 
+[Further experiments](followup/README.md) compare eleven more variations with
+actual CPU counters. They did not justify another production change.
+
 Eight candidates were explored: scalar, digest API, unbatched compression,
 a separate short-input return, combined padding below 120 bytes, batching only
 64–119 bytes, the selected shared padding path, and ring. The selected version

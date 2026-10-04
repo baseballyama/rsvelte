@@ -1,0 +1,20 @@
+[
+  {
+    "kind": "scope",
+    "arm": "baseline",
+    "cycles": 187.83305337078653,
+    "instructions": 666.3970533707866
+  },
+  {
+    "kind": "scope",
+    "arm": "arithmetic",
+    "cycles": 225.02705898876405,
+    "instructions": 691.5069438202247
+  },
+  {
+    "kind": "scope",
+    "arm": "text",
+    "cycles": 213.30555758426965,
+    "instructions": 662.3846348314606
+  }
+]

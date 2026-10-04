@@ -1,0 +1,121 @@
+[
+  {
+    "kind": "digest",
+    "arm": "baseline",
+    "cycles": 163.28393258426968,
+    "instructions": 343.7601516853932,
+    "cpu_ns": 73.53060674157302
+  },
+  {
+    "kind": "digest",
+    "arm": "inline",
+    "cycles": 153.62268960674157,
+    "instructions": 343.5669676966292,
+    "cpu_ns": 73.00509129213484
+  },
+  {
+    "kind": "digest",
+    "arm": "fixed",
+    "cycles": 154.9494606741573,
+    "instructions": 342.6961713483146,
+    "cpu_ns": 51.7217345505618
+  },
+  {
+    "kind": "digest",
+    "arm": "small",
+    "cycles": 156.65477668539324,
+    "instructions": 345.598297752809,
+    "cpu_ns": 53.85650702247191
+  },
+  {
+    "kind": "digest",
+    "arm": "always",
+    "cycles": 160.25258005617977,
+    "instructions": 344.12346910112365,
+    "cpu_ns": 64.40982022471911
+  },
+  {
+    "kind": "scope",
+    "arm": "baseline",
+    "cycles": 203.85316853932585,
+    "instructions": 667.6103483146067,
+    "cpu_ns": 88.7988047752809
+  },
+  {
+    "kind": "scope",
+    "arm": "inline",
+    "cycles": 216.62423455056182,
+    "instructions": 671.5982612359551,
+    "cpu_ns": 72.00374438202248
+  },
+  {
+    "kind": "scope",
+    "arm": "fixed",
+    "cycles": 235.2138047752809,
+    "instructions": 683.157672752809,
+    "cpu_ns": 99.10949297752809
+  },
+  {
+    "kind": "scope",
+    "arm": "small",
+    "cycles": 227.0394676966292,
+    "instructions": 684.0655702247191,
+    "cpu_ns": 101.18188202247191
+  },
+  {
+    "kind": "scope",
+    "arm": "bytes",
+    "cycles": 249.2544157303371,
+    "instructions": 748.0486573033709,
+    "cpu_ns": 127.3189367977528
+  },
+  {
+    "kind": "scope",
+    "arm": "pairs",
+    "cycles": 219.1798426966292,
+    "instructions": 731.6754002808989,
+    "cpu_ns": 78.62851123595505
+  },
+  {
+    "kind": "scope",
+    "arm": "always",
+    "cycles": 201.34999438202246,
+    "instructions": 666.5465955056179,
+    "cpu_ns": 81.73039466292136
+  },
+  {
+    "kind": "scope",
+    "arm": "text",
+    "cycles": 202.99821769662924,
+    "instructions": 661.3147654494383,
+    "cpu_ns": 68.04921488764046
+  },
+  {
+    "kind": "scope",
+    "arm": "extend",
+    "cycles": 220.06207303370786,
+    "instructions": 723.4334424157303,
+    "cpu_ns": 108.53546348314606
+  },
+  {
+    "kind": "scope",
+    "arm": "nibble",
+    "cycles": 220.6743441011236,
+    "instructions": 679.8046292134832,
+    "cpu_ns": 84.7532176966292
+  },
+  {
+    "kind": "scope",
+    "arm": "stack",
+    "cycles": 236.59188764044944,
+    "instructions": 764.3152823033709,
+    "cpu_ns": 94.28745224719101
+  },
+  {
+    "kind": "scope",
+    "arm": "arithmetic",
+    "cycles": 195.00123735955054,
+    "instructions": 688.8177471910112,
+    "cpu_ns": 105.15899999999999
+  }
+]

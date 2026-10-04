@@ -1,0 +1,15 @@
+{
+  "documents": 19498,
+  "accepted": 19410,
+  "rejected": 88,
+  "unreadable": 0,
+  "differences": 0,
+  "before_sha256": "15d900e8f2c5875127d01006bd00b93f8c4df4191da3d3c2724e904c353715c8",
+  "after_sha256": "15d900e8f2c5875127d01006bd00b93f8c4df4191da3d3c2724e904c353715c8",
+  "comparison": "SHA-256 of the complete Debug result, including Component tokens and JavaScript nodes or the complete diagnostic",
+  "positive_control": {
+    "defect": "change the quoted-value expression delimiter from { to } in a temporary copy",
+    "failed_tests": 2,
+    "passed_after_restore": 6
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "rounds": 256,
+  "repetitions": 6,
+  "arms": [
+    {
+      "name": "before",
+      "command": [
+        "/private/tmp/rsvelte-parser-tuning/round3-baseline-measure",
+        "/private/tmp/rsvelte-parser-tuning/common.txt",
+        "256"
+      ]
+    },
+    {
+      "name": "after",
+      "command": [
+        "/private/tmp/rsvelte-parser-tuning/candidate/target/release/examples/measure",
+        "/private/tmp/rsvelte-parser-tuning/common.txt",
+        "256"
+      ]
+    }
+  ],
+  "expect_stdout": {
+    "documents": 256,
+    "accepted": 256,
+    "rejected": 0,
+    "rounds": 256,
+    "errors": 0
+  }
+}

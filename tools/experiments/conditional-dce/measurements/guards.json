@@ -1,0 +1,34 @@
+[
+  {
+    "case": "source-revision",
+    "status": "rejected before output publication"
+  },
+  {
+    "case": "caller-revision",
+    "status": "rejected before output publication"
+  },
+  {
+    "case": "css-revision",
+    "status": "rejected before output publication"
+  },
+  {
+    "case": "compiler-output-revision",
+    "status": "rejected before output publication"
+  },
+  {
+    "case": "partial",
+    "status": "one component removed; one component kept"
+  },
+  {
+    "case": "custom-element",
+    "status": "public custom element retained"
+  },
+  {
+    "case": "config-hook",
+    "status": "uncontracted configuration hook retained"
+  },
+  {
+    "case": "emitted-style",
+    "status": "uncontracted emitted style retained"
+  }
+]

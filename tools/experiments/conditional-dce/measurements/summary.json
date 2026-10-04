@@ -1,0 +1,53 @@
+{
+  "status": "PASS within the documented closed-world contract",
+  "head": "d3fe0394b0b11ab70829fad9a544b2b03ac81618",
+  "sourceHashes": {
+    "ast.mjs": "0d443c2db02ad27a82a853263c851490b1cfd55c30cedb68c953e3eb983c23db",
+    "graph.mjs": "fdcbb9956103ce9d8e9bd826fc20d5213865b7b67d2ccb20cba4fdc66235c5a8",
+    "build.mjs": "ed4f50527315f8be9275f9e31bd73aa3b0836b90ec2c561729b1ff1e665e388f",
+    "plugins.mjs": "6dd741e4dcbe1d346189e033b9d3155baee3e530e754f3861b342503ad7b10ff",
+    "native/src/main.rs": "c3b4ce7955b235015a733a4afc2c175cb69bef8624878bb2e166f579c0695aa1"
+  },
+  "versions": {
+    "vite": "8.3.1",
+    "rolldown": "1.2.12",
+    "svelte": "5.57.1",
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "playwright": "1.63.0"
+  },
+  "node": "v25.7.0",
+  "chrome": "154.0.8037.95",
+  "browser": {
+    "cases": 33,
+    "removed": 12,
+    "kept": 21,
+    "builds": 78,
+    "runtimeExecutions": 70
+  },
+  "hydration": {
+    "cases": 3,
+    "comparisons": 4
+  },
+  "guards": {
+    "cases": 8,
+    "revisionRejections": 4
+  },
+  "primary": {
+    "baseline": {
+      "js": 28516,
+      "css": 232
+    },
+    "optimized": {
+      "js": 28398,
+      "css": 116
+    }
+  },
+  "limitations": {
+    "nativeSvelteOptimization": "UNIMPLEMENTED; native executable checks the immutable IR contract only",
+    "latency": "UNMEASURED",
+    "corpus": "UNMEASURED",
+    "finalCssMaps": "UNMEASURED; compiler CSS maps are checked",
+    "keyframes": "Retained",
+    "dev": "Build adapter only; no optimizer runs in serve mode"
+  }
+}

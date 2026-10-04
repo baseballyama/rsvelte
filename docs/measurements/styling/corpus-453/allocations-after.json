@@ -1,0 +1,86 @@
+[
+  {
+    "documents": 453,
+    "rounds": 1,
+    "phase": "total",
+    "elapsed_ns": 1242140375,
+    "checksum": 1287034,
+    "allocation": {
+      "allocations": 288477,
+      "bytes": 45465926,
+      "peak_live_growth": 357209
+    }
+  },
+  {
+    "documents": 453,
+    "rounds": 1,
+    "phase": "parse",
+    "elapsed_ns": 732990125,
+    "checksum": 453,
+    "allocation": {
+      "allocations": 76786,
+      "bytes": 9503706,
+      "peak_live_growth": 73928
+    }
+  },
+  {
+    "documents": 453,
+    "rounds": 1,
+    "phase": "hir",
+    "elapsed_ns": 98261084,
+    "checksum": 453,
+    "allocation": {
+      "allocations": 40499,
+      "bytes": 6162589,
+      "peak_live_growth": 60047
+    }
+  },
+  {
+    "documents": 453,
+    "rounds": 1,
+    "phase": "resolve",
+    "elapsed_ns": 213885208,
+    "checksum": 453,
+    "allocation": {
+      "allocations": 20366,
+      "bytes": 11587136,
+      "peak_live_growth": 106021
+    }
+  },
+  {
+    "documents": 453,
+    "rounds": 1,
+    "phase": "analyze",
+    "elapsed_ns": 311763416,
+    "checksum": 453,
+    "allocation": {
+      "allocations": 147260,
+      "bytes": 16302858,
+      "peak_live_growth": 202435
+    }
+  },
+  {
+    "documents": 453,
+    "rounds": 1,
+    "phase": "identity",
+    "elapsed_ns": 542208,
+    "checksum": 453,
+    "allocation": {
+      "allocations": 1376,
+      "bytes": 14049,
+      "peak_live_growth": 48
+    }
+  },
+  {
+    "documents": 453,
+    "rounds": 1,
+    "phase": "emit",
+    "elapsed_ns": 100084792,
+    "checksum": 1287034,
+    "allocation": {
+      "allocations": 2190,
+      "bytes": 1895588,
+      "peak_live_growth": 30206
+    }
+  }
+]

@@ -1,0 +1,11 @@
+{
+  "later_workspace_change": "element methods and external-rule body moved to child modules; two doc comments removed",
+  "element_methods_identical_except_doc_comments": true,
+  "external_body_identical": true,
+  "performance_after_module_split": "UNMEASURED",
+  "source_sha256": {
+    "crates/languages/svelte/semantic/src/semantic/analyze/stylesheet.rs": "f37d969b9c13247fc8cd57ca032b109c88e7e8aac3cd6513e7b7b04129c4edd7",
+    "crates/languages/svelte/semantic/src/semantic/analyze/stylesheet/element.rs": "6b4b06d9ebed07924d34a00fe7426a82354b3cfe0a791f6f971b6e131376720e",
+    "crates/languages/svelte/semantic/src/semantic/analyze/stylesheet/external.rs": "5a8096f92c4950c8d0081b531989815acfae56e0ab7b2783c29d4cdf97f5e29e"
+  }
+}

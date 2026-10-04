@@ -1,0 +1,1282 @@
+[
+  {
+    "path": "fixtures/svelte/cnblocks/src/lib/components/veil/pricing/pricing-three.svelte/input.svelte",
+    "bytes": 2334,
+    "sha256": "d5425153c67e0f2695bd22f17758ee3d39e05dfc42a8739a1ea8365fdb3959c5"
+  },
+  {
+    "path": "fixtures/svelte/svar-core/svelte/src/components/Globals.svelte/input.svelte",
+    "bytes": 1013,
+    "sha256": "b74a856f973ec94daf7bd5bc94618ca9a42bf69c8c0e4e4c511c808a943791dc"
+  },
+  {
+    "path": "fixtures/svelte/carbon-components-svelte/docs/src/pages/framed/SelectableTile/SelectableTileReactive.svelte/input.svelte",
+    "bytes": 743,
+    "sha256": "a2a03680215ad995cdf19fc1b0203e09a31b4fea7411bce1b542884b0ddb3f5f"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/hydration/samples/raw-with-empty-line-at-top/main.svelte/input.svelte",
+    "bytes": 139,
+    "sha256": "9a1c0471030a2f9a394cc507750665d3148928403daa80aac295c7f96ccd4a50"
+  },
+  {
+    "path": "fixtures/svelte/svelte-commerce/src/lib/components/common/back-button.svelte/input.svelte",
+    "bytes": 954,
+    "sha256": "2429404472ad5b04ecd4135031c26c835b3f4d4dcc456995b574ddd5c193229d"
+  },
+  {
+    "path": "fixtures/svelte/sveltekit/packages/kit/test/apps/options-3/src/routes/app-manifest/+page.svelte/input.svelte",
+    "bytes": 103,
+    "sha256": "5d9388890f3815c3e9f9760df2f8947052ba5d1f69f8b0484eb6bf52cf363d00"
+  },
+  {
+    "path": "fixtures/svelte/layercake/src/routes/_examples/Bar.svelte/input.svelte",
+    "bytes": 1096,
+    "sha256": "0565b1eeb18928c33fb66d7005a2c934962e97d8801e62348ae7d695c6063c27"
+  },
+  {
+    "path": "fixtures/svelte/bits-ui/docs/src/lib/components/demos/navigation-menu-submenu-demo.svelte/input.svelte",
+    "bytes": 9431,
+    "sha256": "425c5496c3414af25d288a908604c99f520822118c2bb88dd5baaa37cc04a613"
+  },
+  {
+    "path": "fixtures/svelte/carbon-components-svelte/tests/Accordion/Accordion.single.test.svelte/input.svelte",
+    "bytes": 968,
+    "sha256": "238ca47f9680e8f106e34dbb58b31d667d4b7f4f0449859d8c1c6d2b589504fa"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/blocks/chart-bar-interactive.svelte/input.svelte",
+    "bytes": 8700,
+    "sha256": "841083f169ed7d2ca8d70908974e8a52ad11ddd06128014d24bef75547cb5d69"
+  },
+  {
+    "path": "fixtures/svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore03-input.svelte/input.svelte",
+    "bytes": 396,
+    "sha256": "8d9bb6ba7a3d10cc2653f61eabc7f8db5063649987afd7787505b45a3b6bc8a2"
+  },
+  {
+    "path": "fixtures/svelte/bits-ui/packages/bits-ui/src/lib/bits/command/components/_command-label.svelte/input.svelte",
+    "bytes": 836,
+    "sha256": "ed0bda6e16ade7d7b3737929c4653f9441c09e380ed8cc37eeec781ac3fe487e"
+  },
+  {
+    "path": "fixtures/svelte/kener/src/lib/components/ui/sidebar/sidebar-menu.svelte/input.svelte",
+    "bytes": 502,
+    "sha256": "5f5161e273bde3570a6d8e629f8ce46dc3197706801f74db77a24fe284a4fde7"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/server-side-rendering/samples/head-with-multiple-binding-components/main.svelte/input.svelte",
+    "bytes": 210,
+    "sha256": "b8da51274f4036c4314f602a733aca3819b62682005e2b20e95c202d43c9e0d2"
+  },
+  {
+    "path": "fixtures/svelte/svelte-lexical/demos/qalam/src/lib/InsertImageDialog.svelte/input.svelte",
+    "bytes": 6334,
+    "sha256": "c676d89eb489d6e60344057bdf837d805e9cbb00f32b170ee4af1052b1e8ee9f"
+  },
+  {
+    "path": "fixtures/svelte/sveltekit/packages/kit/test/apps/basics/src/routes/errors/endpoint-shadow-not-ok/+page.svelte/input.svelte",
+    "bytes": 37,
+    "sha256": "b6eae975eea780c6ad58495f3a6b51f205977031aad57ac99097ffeaded1e884"
+  },
+  {
+    "path": "fixtures/svelte/flowbite-svelte/src/routes/admin-dashboard/(sidebar)/playground/sidebar/+page.svelte/input.svelte",
+    "bytes": 675,
+    "sha256": "4a0b4d33e7f6bdaa054e9aff242c68b266c2ce36b14497abc938582a9961398d"
+  },
+  {
+    "path": "fixtures/svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/button-has-type/valid/test01-input.svelte/input.svelte",
+    "bytes": 287,
+    "sha256": "1846692b80aba897ab0b5b4e14fc1fa57b614d6e36712fd209e2b73497b58ece"
+  },
+  {
+    "path": "fixtures/svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/messaging/message-[message]/header.svelte/input.svelte",
+    "bytes": 641,
+    "sha256": "97758295aff0efb8303a28ea5dd6bb101ef3b2d76b934fcf1a0a79843e506c25"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/packages/layerchart/src/lib/components/Arc/Arc.svelte/input.svelte",
+    "bytes": 541,
+    "sha256": "c9c389ce4e735b24eddf08cde8fb8f267414d5ae637ba986775d35473c2eaef8"
+  },
+  {
+    "path": "fixtures/svelte/cnblocks/src/routes/(app)/veil/contact/+page.svelte/input.svelte",
+    "bytes": 388,
+    "sha256": "ba0a2ca23fa0d330bc3f7c0070f190f0a79ec0c37b4399a73d66e79a22930886"
+  },
+  {
+    "path": "fixtures/svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/props-untyped/~input.svelte/input.svelte",
+    "bytes": 632,
+    "sha256": "3c5e246354ac83af4197192fab343e96c524ad0ad545cbbcf35689f5bbeae2cb"
+  },
+  {
+    "path": "fixtures/svelte/language-tools/packages/svelte2tsx/test/emitDts/samples/javascript-runes.v5/src/TestRunes.svelte/input.svelte",
+    "bytes": 137,
+    "sha256": "49bdde4d3cce99c7069d134bb4f0382e4803c7fbc5a26242afb13544c567b9e1"
+  },
+  {
+    "path": "fixtures/svelte/sveltekit/packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/slow-navigation/+page.svelte/input.svelte",
+    "bytes": 23,
+    "sha256": "0e11779cfe0e911696ad5ecfd3e4296ff776abb8547850f97dcd37b934e473ea"
+  },
+  {
+    "path": "fixtures/svelte/cnblocks/src/routes/preview/signup/two/+page.svelte/input.svelte",
+    "bytes": 287,
+    "sha256": "b89a089328d9f37ad9bafcdb0b2b9ef04af5ee2bc4f9d7584b1a011a8c693c9a"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/packages/layerchart/src/lib/components/Path/Path.svg.svelte/input.svelte",
+    "bytes": 6343,
+    "sha256": "4a93410eeaedb93bceb5356197b116e6a2b1a9ecd9f182d909da76277a52ef82"
+  },
+  {
+    "path": "fixtures/svelte/kite-public/src/lib/components/Settings.svelte/input.svelte",
+    "bytes": 18655,
+    "sha256": "4ccf5f64d86cce19365fed389c0119d19ecd9dccb5cddae4536b23fc96777a42"
+  },
+  {
+    "path": "fixtures/svelte/flare/src/lib/components/ui/command/command-separator.svelte/input.svelte",
+    "bytes": 374,
+    "sha256": "5248e7603d45478de3219585b3fd4865bcf6837b48bda1fa8a26a876db0acbb1"
+  },
+  {
+    "path": "fixtures/svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/imports-module-instance/~input.svelte/input.svelte",
+    "bytes": 123,
+    "sha256": "2103a878702624eceb71efa2c3be86ebb305d947aadf115d8933c563ea2ca708"
+  },
+  {
+    "path": "fixtures/svelte/kite-public/src/lib/components/story/StoryCard.svelte/input.svelte",
+    "bytes": 11422,
+    "sha256": "1bf2af78c5c2d9f89b26e4182f3d5bcab1182e03f5bbf2ebf8b4d6bdf84ea338"
+  },
+  {
+    "path": "fixtures/svelte/svelte-material-ui/packages/site/src/routes/demo/list/_GraphicsDense.svelte/input.svelte",
+    "bytes": 903,
+    "sha256": "6a0d99ddfab36759fcd921971c9ca4b47ea2ac06c62587a0b1929395ba4b648e"
+  },
+  {
+    "path": "fixtures/svelte/carbon-components-svelte/tests/ContentSwitcher/ContentSwitcher.custom.test.svelte/input.svelte",
+    "bytes": 352,
+    "sha256": "3e9891773ac568ed939f207905402a57c6d85f25b0216ddcf70583774e860aed"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/docs/src/examples/components/Treemap/stacked-zoom.svelte/input.svelte",
+    "bytes": 4775,
+    "sha256": "c78000c33c7d6ec96327c1d20d3632a5a5ebad0ebbcbf9df7e787bf734fe8019"
+  },
+  {
+    "path": "fixtures/svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/component-props-ts/~input.svelte/input.svelte",
+    "bytes": 785,
+    "sha256": "20e86222232e2327af24ad8f39d566e74ebcc192245487f4cd9077ab513e0645"
+  },
+  {
+    "path": "fixtures/svelte/svelte-commerce/src/lib/components/ui/sidebar/sidebar-menu-button.svelte/input.svelte",
+    "bytes": 3602,
+    "sha256": "6db99d736a8920656fdd5f69e54cb19960dedd1449cfe15cc2ac982e1e130395"
+  },
+  {
+    "path": "fixtures/svelte/svelte-gantt/packages/docs-mdsvex/src/lib/icons/CloseIcon.svelte/input.svelte",
+    "bytes": 218,
+    "sha256": "f744fbdf77dd3af4dfc5a0e7ada215bfa001fd0a8b886f75eba766a8a32416e8"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte-extras/src/lib/components/ui/navigation-menu/navigation-menu-content.svelte/input.svelte",
+    "bytes": 1843,
+    "sha256": "fc20201bde7be5efa1aac0be617a7b0eb101adb453f04fae06f401a6e9e0aaf2"
+  },
+  {
+    "path": "fixtures/svelte/svelte-material-ui/packages/site/src/routes/demo/chip-input/_Disabled.svelte/input.svelte",
+    "bytes": 625,
+    "sha256": "0dab90304d831e68cb4a3e815668f440ef9807dcd13f84c18d6a9224115eb0b0"
+  },
+  {
+    "path": "fixtures/svelte/svelte-tiny-virtual-list/src/routes/examples/scroll-to-index/+page.svelte/input.svelte",
+    "bytes": 1998,
+    "sha256": "1e8c8b413b5194ad4404f078b440671a33c1342fed2197f1e02c7cf49f1fddae"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/packages/layerchart/src/lib/components/Line/Line.svg.svelte/input.svelte",
+    "bytes": 3860,
+    "sha256": "82189329ab2686dcb2922f572314be96d34c696f07e4ae2e4b3723ec0fd752ba"
+  },
+  {
+    "path": "fixtures/svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-nullish-resolved-pathname-input.svelte/input.svelte",
+    "bytes": 398,
+    "sha256": "1688af722b06bb92bbed625ef19d55a4216d84f1e06d0d4eed133685a279e8f9"
+  },
+  {
+    "path": "fixtures/svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/BindSelected.svelte/input.svelte",
+    "bytes": 1378,
+    "sha256": "8d60dac9e3f23beba03b432f7297513d1b6d2cc85921b0f6cc6215821959fb16"
+  },
+  {
+    "path": "fixtures/svelte/bits-ui/docs/src/lib/components/demos/popover-demo.svelte/input.svelte",
+    "bytes": 2925,
+    "sha256": "a77a382a06a062e74c3c8284b1962f0b4f10f8f2dd09f39fdcbe8ef04460acda"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte-extras/src/lib/components/ui/demo/demo-control-group.svelte/input.svelte",
+    "bytes": 932,
+    "sha256": "6804413cd45b1d7ab549b78674da31d64ec66f4cbbb10a10c29dbe1bcdbfbd3f"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/css/samples/directive-special-character/~input.svelte/input.svelte",
+    "bytes": 138,
+    "sha256": "1e37966be0d40558d0583201fae59b77e872bfd55faa273a4cec4354c572596a"
+  },
+  {
+    "path": "fixtures/svelte/svelte-french-toast/src/lib/components/ToastBar.svelte/input.svelte",
+    "bytes": 2903,
+    "sha256": "64e4aa28414fb47fa06ff74d6441861131234dab81d619f856db81ac4eb7f96b"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/ui/progress/progress.svelte/input.svelte",
+    "bytes": 707,
+    "sha256": "0709b4bdd66e3eed5c5991798da720cf66f2de8b927cb8367bed6d869ecaa79f"
+  },
+  {
+    "path": "fixtures/svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/codelens/importing.svelte/input.svelte",
+    "bytes": 95,
+    "sha256": "79e81187ff311e4fe0379d76b1d001b5cf7a8a06f522146b19f78345be97f5b8"
+  },
+  {
+    "path": "fixtures/svelte/svelte-tweakpane-ui/src/examples/docs/VanillaTweakpaneRange.svelte/input.svelte",
+    "bytes": 484,
+    "sha256": "e242c4ac24cf1a590d0fbc7a87d86db1c715b0a38a212187436bbc468b1a60f4"
+  },
+  {
+    "path": "fixtures/svelte/kener/src/lib/components/ui/command/command-separator.svelte/input.svelte",
+    "bytes": 374,
+    "sha256": "cdf522fb9b7c514c9ca05163caefc415c9a28b78ba77ffcff3bb53a7212deef2"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte-extras/src/lib/components/ui/stepper/stepper-item.svelte/input.svelte",
+    "bytes": 550,
+    "sha256": "48a24979c998f8d05b2d13bf76ad6c929ba69a5237aa007172f1ff7f4c807d03"
+  },
+  {
+    "path": "fixtures/svelte/threlte/apps/docs/src/examples/extras/align/Scene.svelte/input.svelte",
+    "bytes": 1879,
+    "sha256": "2835ae717a7cc20c9867619c0fdb76ed3de821958b06389bc0e1b575c94d4cf0"
+  },
+  {
+    "path": "fixtures/svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-test01-output.svelte/input.svelte",
+    "bytes": 529,
+    "sha256": "d7aaec230d9efdcdb813657f8ef1a31b0d280668da5daec81d24befdcf8eb179"
+  },
+  {
+    "path": "fixtures/svelte/appwrite-console/src/lib/components/filters/quickFilters.svelte/input.svelte",
+    "bytes": 3009,
+    "sha256": "2157a7254efed02742891cf62895d4467f6f357b727d4b5db7d82c9b23eaaf02"
+  },
+  {
+    "path": "fixtures/svelte/svelte-virtuallists/src/routes/+layout.svelte/input.svelte",
+    "bytes": 4640,
+    "sha256": "918a798245c4bfb83fc8bdbd0d32ada53af703e2e10f00a8db8cf3fbababb69d"
+  },
+  {
+    "path": "fixtures/svelte/flowbite-svelte/src/routes/blocks/+page.svelte/input.svelte",
+    "bytes": 1729,
+    "sha256": "39fd48aea47158b11359e20859eda7e4e99953038a3c8331289df6ca8906b09a"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte-extras/src/lib/components/ui/accordion/accordion-trigger.svelte/input.svelte",
+    "bytes": 1596,
+    "sha256": "74e6b1d3e0725b5b4d8e3f859de7963c104cc5a694b323c337febce470b2b21a"
+  },
+  {
+    "path": "fixtures/svelte/svar-grid/svelte/demos/custom/SelectionCheckboxCell.svelte/input.svelte",
+    "bytes": 310,
+    "sha256": "a2b5efc982e85c6fd82bf5dd17b1e4aa1d0c5b44094f4e72f189a68a36b282d5"
+  },
+  {
+    "path": "fixtures/svelte/flowbite-svelte/src/lib/tabs/TabItem.svelte/input.svelte",
+    "bytes": 2510,
+    "sha256": "7e22ea26e2f863316e340c05198de61657da194eb90abf43e49f9a3be2b4d1d8"
+  },
+  {
+    "path": "fixtures/svelte/joy-of-code/src/lib/ui/header/preferences/dyslexic.svelte/input.svelte",
+    "bytes": 1752,
+    "sha256": "f9d5f8ed21e85ae760aaf93e883f3b8479c5acdf5c981e50aa1baa07a406cfdd"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/docs/src/examples/components/BrushContext/constant-labels.svelte/input.svelte",
+    "bytes": 906,
+    "sha256": "368a50a04b22ea8fcf27bf8f3617c6b8961e48689b26ebb0ade93ebdb04118ad"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-runes/samples/form-default-checked-radio-spread/main.svelte/input.svelte",
+    "bytes": 236,
+    "sha256": "41fec952d47cc5a42ba0afd3a8e89578374cda1e5ff7c96ba03fe7e18326b3e1"
+  },
+  {
+    "path": "fixtures/svelte/flare/src/lib/components/ui/command/command.svelte/input.svelte",
+    "bytes": 467,
+    "sha256": "487137e79df218d0c4467ecac36e64cd2f0f68cd86ff6cf4d833fafc1dc87c1a"
+  },
+  {
+    "path": "fixtures/svelte/bits-ui/docs/src/lib/components/examples/command/raycast/sub-item.svelte/input.svelte",
+    "bytes": 374,
+    "sha256": "54d3b90f0af7e246fbb1dd874903bd3629895f0ce805c042021d93d451ccc958"
+  },
+  {
+    "path": "fixtures/svelte/originui-svelte/src/lib/components/alerts/alert-01.svelte/input.svelte",
+    "bytes": 322,
+    "sha256": "d54bf981c4cfa5f0bcdb176bceed50a05fa3967f7f3e27d815ac8d41cb3d571f"
+  },
+  {
+    "path": "fixtures/svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/binding-this/~input.svelte/input.svelte",
+    "bytes": 55,
+    "sha256": "05b0d6cd7a65b51d52fd6c0b09fc92512b701344770ac70940eccd0469240a3b"
+  },
+  {
+    "path": "fixtures/svelte/threlte/apps/docs/src/examples/extras/suspense/Scene.svelte/input.svelte",
+    "bytes": 1780,
+    "sha256": "7fa1d31dc948bc8bf927bc36e5888dda2b642e7f34f0098c23d6d44adccd5391"
+  },
+  {
+    "path": "fixtures/svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-each-block/~input.svelte/input.svelte",
+    "bytes": 430,
+    "sha256": "9d7a76302ca875810ef0857b972c00b2cbcb205e18b0582550b1589743dac503"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-runes/samples/dynamic-component/main.svelte/input.svelte",
+    "bytes": 318,
+    "sha256": "d5fab105cf92e0b1573663cab96d4a860ac8a11913ae1720e69603a44beee211"
+  },
+  {
+    "path": "fixtures/svelte/sveltekit/packages/kit/test/apps/basics/src/routes/encoded/@[username]/+page.svelte/input.svelte",
+    "bytes": 89,
+    "sha256": "c7c988d168a91f44d3c3e14ab940281e1f97bfa0c7f13697afc256f48bb59dfb"
+  },
+  {
+    "path": "fixtures/svelte/cnblocks/src/lib/components/blocks/logos/GooglePaLM.svelte/input.svelte",
+    "bytes": 1373,
+    "sha256": "af1abea5c4d54611219ee07d30f29ae1a2c3c765ba2189f4ed70322b5784befc"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/docs/src/examples/components/AnnotationLine/playground.svelte/input.svelte",
+    "bytes": 3215,
+    "sha256": "b983643dafd7e1960e0e8814141fbf89da26c8aa8ce9d1e997d770d8033710a2"
+  },
+  {
+    "path": "fixtures/svelte/svelte-eslint-parser/tests/fixtures/parser/ast/let-directive03-input.svelte/input.svelte",
+    "bytes": 176,
+    "sha256": "bff5383a1901a3cf3d4a3bc49f14b1f82f3ec9006bd5e6699736bb6b98795076"
+  },
+  {
+    "path": "fixtures/svelte/edra/src/lib/components/ui/sidebar/sidebar-inset.svelte/input.svelte",
+    "bytes": 676,
+    "sha256": "a921a1e31bbc4ead76e16eaecfc5ee779aaee8ff076358970526319ae5ec789e"
+  },
+  {
+    "path": "fixtures/svelte/carbon-components-svelte/tests/CodeSnippet/CodeSnippetWithWrapText.test.svelte/input.svelte",
+    "bytes": 276,
+    "sha256": "d41e3ea85ddfaa13f867563e566495526aa9934d8190fee697d102e687b3a66a"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/blocks/sidebar-05/+page.svelte/input.svelte",
+    "bytes": 1353,
+    "sha256": "dae0c9af8628895427e46415a82036bccae299e54c02b436c4d342222212752a"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-legacy/samples/inline-style-directive-string/main.svelte/input.svelte",
+    "bytes": 26,
+    "sha256": "7e06d974e7ed8c3350cdae4438aca7081bc441ff6d2946a31f207376d9741d17"
+  },
+  {
+    "path": "fixtures/svelte/skeleton/packages/skeleton-svelte/src/components/segmented-control/anatomy/item-hidden-input.svelte/input.svelte",
+    "bytes": 980,
+    "sha256": "095c70feebe864de9662e0b57b65e74f3bb773fe4d1f303ac122d53fb377fd1f"
+  },
+  {
+    "path": "fixtures/svelte/svelte-commerce/src/lib/components/ui/input-otp/input-otp-slot.svelte/input.svelte",
+    "bytes": 873,
+    "sha256": "719021482e8b1c3d6265146211f4dcb5e801fd50464702778be943cbc987c1aa"
+  },
+  {
+    "path": "fixtures/svelte/cnblocks/src/lib/components/veil/signup/signup-two.svelte/input.svelte",
+    "bytes": 3806,
+    "sha256": "b9706ae9790535565a4e41b28b2cea6e1c39b1efe42f8631075131992c02660a"
+  },
+  {
+    "path": "fixtures/svelte/layercake/src/lib/layouts/Html.svelte/input.svelte",
+    "bytes": 2208,
+    "sha256": "3a2a9fe7676d78e6bc3351ab989d305939bc8a9de8ead87a78ca74797590d9fd"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/ui/collapsible/collapsible.svelte/input.svelte",
+    "bytes": 304,
+    "sha256": "1d48e117ac1b8fef1af070c56237a04e5ad1d4bafd4372852a0e9d10e9f4afc2"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-top-level-in-if/main.svelte/input.svelte",
+    "bytes": 454,
+    "sha256": "9ff46e78f5f1d7d3ccb3661273e69054df8bc9d15f7a95c8f475c4a0ac07e294"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/docs/src/routes/docs/releases/ReleaseContent.svelte/input.svelte",
+    "bytes": 1069,
+    "sha256": "9d2e4a22f43c55785a90bf97428c5fed81db0144ceb66bafc986e5933f73b5ac"
+  },
+  {
+    "path": "fixtures/svelte/cnblocks/src/lib/web/docs/DocsCodeBlock.svelte/input.svelte",
+    "bytes": 2366,
+    "sha256": "e2fbdea64df5d2ee7ff54c781f8287c153b3c66e500a947840e0b53dbc29773c"
+  },
+  {
+    "path": "fixtures/svelte/cnblocks/src/lib/components/mist/mcontent/three.svelte/input.svelte",
+    "bytes": 1279,
+    "sha256": "7ced5775e278de922307e5042014707c261e2c6877a9f53bd2b5e741def49351"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/packages/layerchart/src/lib/components/Voronoi/Voronoi.svelte/input.svelte",
+    "bytes": 589,
+    "sha256": "8bd446220bf85a57c523866ae47d8544a460b5a5d5ec1587fd9b4255bf20a410"
+  },
+  {
+    "path": "fixtures/svelte/kener/src/lib/components/ui/drawer/drawer-header.svelte/input.svelte",
+    "bytes": 437,
+    "sha256": "8c01772411f608eef825912b4473a80ffc45099199b8f000081109d8378abd56"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/print/samples/snippet-block/~input.svelte/input.svelte",
+    "bytes": 59,
+    "sha256": "0104f62e98493423eb825c8bac67c83fdaf2cd4ba3e9a90a0a49a4bf0fb86829"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/packages/layerchart/src/lib/components/ArcLabel/ArcLabel.canvas.svelte/input.svelte",
+    "bytes": 487,
+    "sha256": "69e23bd2ea3c34f8514d38d059b4fca7ae8c958d1d9db13ff9b034d7e40124a0"
+  },
+  {
+    "path": "fixtures/svelte/kite-public/src/routes/about/+page.svelte/input.svelte",
+    "bytes": 155,
+    "sha256": "407876d723edeba377ffb363f4df3b092c23bea9eb2369ba92478f069287d81f"
+  },
+  {
+    "path": "fixtures/svelte/flowbite-svelte/src/routes/docs-examples/components/stepper/Vertical.svelte/input.svelte",
+    "bytes": 511,
+    "sha256": "b4b2db191b4804022a0edb95820906c385335168cc2b0db8b89ddf676e14ef28"
+  },
+  {
+    "path": "fixtures/svelte/networking-toolbox/src/routes/+error.svelte/input.svelte",
+    "bytes": 11880,
+    "sha256": "f314163b05cd75613e930b51b145cf43034fd2065d87042bd4589bac631a871a"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/examples/toggle-group-demo.svelte/input.svelte",
+    "bytes": 701,
+    "sha256": "955c651e194a474fe5379f4c6a196cfc66c011bc295ad1cf06eeb010372a5957"
+  },
+  {
+    "path": "fixtures/svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore-note-input.svelte/input.svelte",
+    "bytes": 214,
+    "sha256": "9ea2004fbc9096e7843600463bea86e69e56a307e77b8a9dccfacf3397b1f736"
+  },
+  {
+    "path": "fixtures/svelte/carbon-components-svelte/tests/UIShell/ProfileMenuItem.test.svelte/input.svelte",
+    "bytes": 363,
+    "sha256": "9104d05d7b52414cec675d727eef7a2df9671404e83d978757c2b8fb435a4d37"
+  },
+  {
+    "path": "fixtures/svelte/ha-fusion/src/lib/Settings/Logout.svelte/input.svelte",
+    "bytes": 1013,
+    "sha256": "b31e8a52b2f74270dfd366d50efd3d5c10bee22ef8ff54a05c5bb164253415eb"
+  },
+  {
+    "path": "fixtures/svelte/svelte-chartjs/sites/docs/src/lib/demos/RadarDemo.svelte/input.svelte",
+    "bytes": 949,
+    "sha256": "460574610856c2010b3915ed8cab8bafd171ba6efc17e4fa7aa2ad5d4ef57d18"
+  },
+  {
+    "path": "fixtures/svelte/sveltekit/packages/kit/test/apps/basics/src/routes/get-request-event/with-message/+page.svelte/input.svelte",
+    "bytes": 174,
+    "sha256": "915dcf1ae192ec44ef3cf131bd7d2bcf4b43771278d81cf433b515ab5d31a3e4"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/docs/src/examples/components/BarChart/duration-labels.svelte/input.svelte",
+    "bytes": 2419,
+    "sha256": "897df580de65c34eb4a542c405411c6b8de7e6da33593a821b4407513d16bb3d"
+  },
+  {
+    "path": "fixtures/svelte/threlte/apps/docs/src/examples/extras/html/basic/Scene.svelte/input.svelte",
+    "bytes": 2114,
+    "sha256": "412c045d8d39ddd2fd0dd5e1567acd5f01d2bd59822e5c98adcdd16dd5b1e389"
+  },
+  {
+    "path": "fixtures/svelte/kener/src/routes/(kener)/events/[MMMM]-[YYYY]/+page.svelte/input.svelte",
+    "bytes": 10391,
+    "sha256": "2876180824e8a5b14afe88711f9563c86eadfd7aed10070a22208fb127b48511"
+  },
+  {
+    "path": "fixtures/svelte/cnblocks/src/routes/preview/integration/three/+page.svelte/input.svelte",
+    "bytes": 311,
+    "sha256": "1607dc34f737e0c4ee8c4c70a661050f9041623ef8869c5639112423fb937f28"
+  },
+  {
+    "path": "fixtures/svelte/flowbite-svelte/src/routes/docs-examples/typography/list/Description.svelte/input.svelte",
+    "bytes": 799,
+    "sha256": "5b33d6ab14663b01e0408975a29371c20a8212967ebaf3123634a8fcbd46e4de"
+  },
+  {
+    "path": "fixtures/svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/class-id-type/class01-input.svelte/input.svelte",
+    "bytes": 330,
+    "sha256": "3b1bc1c671dc8c30826489f431d9cedf46c331e901f2ac40f149426df2e9b30a"
+  },
+  {
+    "path": "fixtures/svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/url-search-params/sort01-input.svelte/input.svelte",
+    "bytes": 106,
+    "sha256": "a49d570f6e1a7e24800fd08ed2bf93e3cf65b2acfc35ceedd0ed5b1be994ca45"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/validator/samples/a11y-interactive-supports-focus/~input.svelte/input.svelte",
+    "bytes": 1586,
+    "sha256": "1a7f838dc4e7b3df29a06ca7cc58ec3e75901f524bdef879ebb078f9fe45fcf2"
+  },
+  {
+    "path": "fixtures/svelte/svelte-bits/src/lib/components/library/Backgrounds/Galaxy/Galaxy.svelte/input.svelte",
+    "bytes": 10235,
+    "sha256": "48c5c893f5537ca758bc1fe2f1ca63b6c64fc912c9a85f012218a309dfead53c"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/examples/create/sheet/sheet-with-form.svelte/input.svelte",
+    "bytes": 1544,
+    "sha256": "ab6c45eff2cd0b62086bdc556458c2e6f49f78953b28e065208ded6d1577b4bc"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/examples/item-icon-demo.svelte/input.svelte",
+    "bytes": 632,
+    "sha256": "e073f9ff0d28c3401915ebd1859f0e39ce24ce42bd9fdcbcab8ee7fffd2c884c"
+  },
+  {
+    "path": "fixtures/svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/complex-test01-input.svelte/input.svelte",
+    "bytes": 38,
+    "sha256": "ec64c54f2e365cae8e1f3c738ca017adcd57e4bf09342a35a6c7b78213b0fb09"
+  },
+  {
+    "path": "fixtures/svelte/flowbite-svelte/src/routes/docs-examples/components/list-group/Advanced.svelte/input.svelte",
+    "bytes": 1006,
+    "sha256": "e15761828c56526a5ff3c312eed856be53a3f2df5c485bffe9a697c731fdc3da"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-browser/samples/bind-volume/main.svelte/input.svelte",
+    "bytes": 134,
+    "sha256": "aec24d0452e940329a93494ef2c1cc8cc222405637bf59c631327d109d317de2"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/examples/create/tooltip/tooltip-sides.svelte/input.svelte",
+    "bytes": 701,
+    "sha256": "1655d11a4f7a236b0269f329455a2326871f459faa38418068f7a195d2ea8341"
+  },
+  {
+    "path": "fixtures/svelte/svelte-bits/src/lib/components/docs/pages/TargetCursorDemo.svelte/input.svelte",
+    "bytes": 3985,
+    "sha256": "1c521ad9c9ea083259f2f37527abbd0fa476d3ffe52f2adc1d3232cba521fe9d"
+  },
+  {
+    "path": "fixtures/svelte/sveltekit/packages/kit/test/apps/basics/src/routes/errors/page-endpoint/+error.svelte/input.svelte",
+    "bytes": 153,
+    "sha256": "0e946d6640f2631db7d5ed5cfcd6fbfc1cea97a337616b6a31e5beb3440b0e1a"
+  },
+  {
+    "path": "fixtures/svelte/flowbite-svelte/src/routes/docs-examples/components/dropdown/User.svelte/input.svelte",
+    "bytes": 661,
+    "sha256": "abafaa1813193a7271199a32ab78cca541ad762d08c785ac45f9fb34bc874e43"
+  },
+  {
+    "path": "fixtures/svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/Input/+page.svelte/input.svelte",
+    "bytes": 2208,
+    "sha256": "7be9dbbb3a2b12d56e4ef8106a1e501234382c9387fe8cc0dd686ac91e082d07"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-runes/samples/error-boundary-28/main.svelte/input.svelte",
+    "bytes": 636,
+    "sha256": "0bbc65f577dc833746c08faca802b5c947550e2cb08992d30c2a4ac9bcec0496"
+  },
+  {
+    "path": "fixtures/svelte/kener/src/lib/components/ui/sidebar/sidebar.svelte/input.svelte",
+    "bytes": 3652,
+    "sha256": "926aa16110d1fb69274e2ba7b8ac6a6a33bf50666ac42a827eab6fe689daf237"
+  },
+  {
+    "path": "fixtures/svelte/networking-toolbox/src/routes/dns/+page.svelte/input.svelte",
+    "bytes": 1272,
+    "sha256": "c0048df2ad1c1e4eb15c8130a4a715d9407e5b9c1564560984a0088616567b90"
+  },
+  {
+    "path": "fixtures/svelte/flowbite-svelte/src/routes/docs-examples/components/buttons/Loader.svelte/input.svelte",
+    "bytes": 367,
+    "sha256": "b7cdad0d9a40ebfe1f784544578b8735d132fc02a736fb57bd7dc19ce4b81278"
+  },
+  {
+    "path": "fixtures/svelte/flowbite-svelte/src/tests/clipboard/basic-clipboard.test.svelte/input.svelte",
+    "bytes": 127,
+    "sha256": "5b154bfdc12eebd410dbb1ff18ab0b65e5be1d7c5198ba8456afe6bd1bcbe887"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/docs/src/examples/components/Axis/linechart-tickspacing.svelte/input.svelte",
+    "bytes": 594,
+    "sha256": "04baed72ca6dca0d50a6dea880446a6232f195d70a57a265c637fc0e5e5ccaa6"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-runes/samples/error-boundary-9/main.svelte/input.svelte",
+    "bytes": 475,
+    "sha256": "d38d66c284f378d71a63a36d0e40359c9b92b1a9a68734ca97a35cb4e6725474"
+  },
+  {
+    "path": "fixtures/svelte/flowbite-svelte/src/routes/docs-examples/components/modal/Events.svelte/input.svelte",
+    "bytes": 1174,
+    "sha256": "450c0f6f48c1dee38c0f6b6671ec450f1c5af62d89db8666274decd8bed6e11d"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-legacy/samples/component-events-data/main.svelte/input.svelte",
+    "bytes": 241,
+    "sha256": "e985b21862b843d765d63a9ee09096d67260caa6704bac4aed1bc809871ee416"
+  },
+  {
+    "path": "fixtures/svelte/sveltepress/packages/theme-default/src/components/icons/Menu.svelte/input.svelte",
+    "bytes": 505,
+    "sha256": "63df58997defc1930e3c4df8afb485ddc629bf41c4e80af9aa42dd95bc6f734b"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/examples/item-demo.svelte/input.svelte",
+    "bytes": 1016,
+    "sha256": "37371cf94bf861875b993dca6c82945160c66b953e68f2e036514a785ac84077"
+  },
+  {
+    "path": "fixtures/svelte/carbon-components-svelte/docs/src/pages/framed/TreeView/TreeViewMultiselectShallow.svelte/input.svelte",
+    "bytes": 1075,
+    "sha256": "f21f5a4a23731fa28d231b3cbe56cf97354b22a07032cb2c73f90fcc2695dd56"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/docs/src/examples/components/Raster/with-contour-overlay.svelte/input.svelte",
+    "bytes": 787,
+    "sha256": "ee9108d3393e0618e6e99e57083983fbedd3895f13d18ad0fe0febe313ba157e"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-legacy/samples/component-slot-let-static/Nested.svelte/input.svelte",
+    "bytes": 19,
+    "sha256": "2b3005df98540b68341f6da84e9f0eeb445a1ccfdbbeed0050b9282a2bd444e9"
+  },
+  {
+    "path": "fixtures/svelte/kener/src/routes/(manage)/manage/app-sidebar.svelte/input.svelte",
+    "bytes": 1620,
+    "sha256": "61e224f8d373af2118275f486e66fdd17d340035b38b66b522ae5dc19caeab87"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/css/samples/special-characters/~input.svelte/input.svelte",
+    "bytes": 108,
+    "sha256": "4a92a8e3f4427fac7de89c64c6196da3222fe8289817000e362c65baf1782860"
+  },
+  {
+    "path": "fixtures/svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/+page.svelte/input.svelte",
+    "bytes": 2279,
+    "sha256": "8b48fcae93f4727e84806dc9aa6d7d0740fe08f795d1484cfb0b13ae5598337d"
+  },
+  {
+    "path": "fixtures/svelte/svelte-tweakpane-ui/src/examples/tests/TestOrder.svelte/input.svelte",
+    "bytes": 1267,
+    "sha256": "a532a9f14c03a5089ef31326f3752059abdeee63e35fd2b1b8421c048943a2d7"
+  },
+  {
+    "path": "fixtures/svelte/svelteui/packages/svelteui-demos/src/demos/core/Tooltip/Tooltip.demo.delay.svelte/input.svelte",
+    "bytes": 973,
+    "sha256": "553198ecccdaeb72a788ad5960256b6ff353ad825e0c445a266b17600e5b68e9"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/hydration/samples/raw-mismatch-static/main.client.svelte/input.svelte",
+    "bytes": 129,
+    "sha256": "760e9d5945c1347ab0093530cffe94ea051337533d82e20bd6e61427ee23291e"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-runes/samples/attribute-if-string/main.svelte/input.svelte",
+    "bytes": 506,
+    "sha256": "8844ce17ea8e7741162fef4eb937f1f7a57e2175958b9457ffd96f360515df12"
+  },
+  {
+    "path": "fixtures/svelte/svelte-gantt/packages/docs-mdsvex/src/routes/docs/data/tasks/TasksExample.svelte/input.svelte",
+    "bytes": 1468,
+    "sha256": "0a9d39c586371152dafe3cd4184ed3621c219df3fec33ccfc0e447b44fcb8bb3"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/packages/layerchart/src/lib/components/AnnotationPoint/AnnotationPoint.base.svelte/input.svelte",
+    "bytes": 5498,
+    "sha256": "0a772a7d7d0b8ab9c8d35200857edd3effb66e4294ff5e8b5ba8f1f7ab64eb18"
+  },
+  {
+    "path": "fixtures/svelte/svelte-bits/src/lib/components/library/TextAnimations/ASCIIText/ASCIIText.svelte/input.svelte",
+    "bytes": 16525,
+    "sha256": "5e6fe3e67eb75dd05da124c012639d9c236aed81069ea4e48cdd3bc885f7800a"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-runes/samples/snippet-prop-implicit/main.svelte/input.svelte",
+    "bytes": 134,
+    "sha256": "c121b5a25f3f1d6afea6c08246e0fe52acbdcb1c3a9ad3790bd0e46c11c80298"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/ui/pagination/pagination.svelte/input.svelte",
+    "bytes": 560,
+    "sha256": "60419786d14dcee971e65a4b7c8c8e4f61bbfdb1980c742c5ee52fab2187f76a"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-legacy/samples/reactive-assignment-in-complex-declaration-with-store-3/main.svelte/input.svelte",
+    "bytes": 72,
+    "sha256": "7c3ed3ed77527863d541df6699ffc4f0a5d5e1d61efff3fe3f4ffba08142c4b5"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/parser-legacy/samples/if-block-else/~input.svelte/input.svelte",
+    "bytes": 52,
+    "sha256": "e4eadf0198cebeafca95d8dc661d76709b4dca7d388aa9bc76abfa22e62b3a14"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/css/samples/general-siblings-combinator-each-else-nested/~input.svelte/input.svelte",
+    "bytes": 1454,
+    "sha256": "8e5898c1857064ced197f4d074ad7139dc16df488b3a91f68459914eb672a560"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/hydration/samples/head-css-no-class/main.svelte/input.svelte",
+    "bytes": 225,
+    "sha256": "7c2671920a6cdcf21273f3be1fb5137fe049ba5da7e519504a12e078ffafd7a1"
+  },
+  {
+    "path": "fixtures/svelte/networking-toolbox/src/routes/diagnostics/dns/query-performance/+page.svelte/input.svelte",
+    "bytes": 33594,
+    "sha256": "089a933bb12bd28e15c37994aaebeb7c90227e4d1f82ce8f865941334fd18308"
+  },
+  {
+    "path": "fixtures/svelte/svelte-put/sites/docs/src/routes/(site)/+layout.svelte/input.svelte",
+    "bytes": 9861,
+    "sha256": "8031b48a7a8db8efa234cae66247d50d503b9f83d756679ff928979ddc1aad80"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/examples/create/scroll-area/scroll-area-horizontal.svelte/input.svelte",
+    "bytes": 1382,
+    "sha256": "bb4fd2c183726f1295f7e1c820d9eeaab8eabba516e89011840eb8cba37adf8e"
+  },
+  {
+    "path": "fixtures/svelte/svelte-commerce/src/lib/components/ui/sidebar/sidebar-header.svelte/input.svelte",
+    "bytes": 450,
+    "sha256": "4dd56889560352163e229dbb65500f49363fedefb4a9aac8a9250acbef4fff6f"
+  },
+  {
+    "path": "fixtures/svelte/bits-ui/docs/src/routes/(examples)/examples/command/+page.svelte/input.svelte",
+    "bytes": 1227,
+    "sha256": "32bec11e682ce75d2422a23921221cec3a51076a4efd7b81b86cd809940744f1"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/docs/src/examples/components/BarChart/series-stack-separate-data.svelte/input.svelte",
+    "bytes": 950,
+    "sha256": "985b5b13f8ecfe6bf2d2a9ec47e33ee78d5276378d7a7b193e75770cd4edd575"
+  },
+  {
+    "path": "fixtures/svelte/bits-ui/packages/bits-ui/src/lib/bits/calendar/components/calendar-day.svelte/input.svelte",
+    "bytes": 861,
+    "sha256": "b5f597230c0e4fde3312f91607606a3330c1d1ee0089a5d63603fe77ab378806"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/examples/slider-demo.svelte/input.svelte",
+    "bytes": 191,
+    "sha256": "6861a9f90e103428c758a3b9f1257633e7085e7c0f22ccd14ae84692c34da253"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/docs/src/examples/components/AreaChart/line-annotation.svelte/input.svelte",
+    "bytes": 575,
+    "sha256": "dfb38f945c2daa4f0c5da75116834e4deb834e372d9dbe73ca773f1f24ae157e"
+  },
+  {
+    "path": "fixtures/svelte/threlte/apps/docs/src/examples/rapier/auto-colliders/App.svelte/input.svelte",
+    "bytes": 960,
+    "sha256": "fdc9345fc2f9710cefe757156787ee2ae13de1e06a23bce59bb212bc44154165"
+  },
+  {
+    "path": "fixtures/svelte/threlte/apps/docs/src/examples/extras/portals/helper/Scene.svelte/input.svelte",
+    "bytes": 1344,
+    "sha256": "9dd4f77e286000a326499e4d77fd13efa8c4fa7ceead70d31d71b82c536b9127"
+  },
+  {
+    "path": "fixtures/svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/reference/+layout.svelte/input.svelte",
+    "bytes": 112,
+    "sha256": "e07759f475f9189843acec6cca2c390134e33f2865983113c91ffac37bfd8186"
+  },
+  {
+    "path": "fixtures/svelte/kener/src/lib/components/ui/sidebar/sidebar-group-label.svelte/input.svelte",
+    "bytes": 1057,
+    "sha256": "981e7fd9fe1d40a2d7ff59d43c51c1a4efb9b843b035a62056a4a3a63044d7c5"
+  },
+  {
+    "path": "fixtures/svelte/threlte/apps/docs/src/examples/postprocessing/screen-quad/Scene.svelte/input.svelte",
+    "bytes": 2005,
+    "sha256": "3ed4a8f03632407d2fc8494ff3bf5163b30a8cbe3d39f7b814ee5181c7c33176"
+  },
+  {
+    "path": "fixtures/svelte/edra/src/lib/vitest-examples/Welcome.svelte/input.svelte",
+    "bytes": 161,
+    "sha256": "4953e6d3571fb0d3f14abd9ea3626f63a256443d7a2badddbfc6dd1c82819652"
+  },
+  {
+    "path": "fixtures/svelte/threlte/apps/docs/src/examples/extras/bvh/simple/Scene.svelte/input.svelte",
+    "bytes": 2507,
+    "sha256": "17998a7ec1156db742f20ca64d774dd0632df15bb869e0b3c416ddaac4f48e3c"
+  },
+  {
+    "path": "fixtures/svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/docs/[...file]/+page.svelte/input.svelte",
+    "bytes": 140,
+    "sha256": "47c207696af79fd34000cc21c10e8c347503b38ff163cba694e948f030a712b1"
+  },
+  {
+    "path": "fixtures/svelte/kampsy-ui/src/lib/icons/warning.svelte/input.svelte",
+    "bytes": 736,
+    "sha256": "d0d19737e19fe8ce49ad969b561b596409405f6885f44a596e27a8e424791f3a"
+  },
+  {
+    "path": "fixtures/svelte/edra/src/lib/edra/headless/components/ImageExtended.svelte/input.svelte",
+    "bytes": 558,
+    "sha256": "2ad482cdb1437e5f0748ef900930450c8af8cc37825de188d048b1dd5a031ee0"
+  },
+  {
+    "path": "fixtures/svelte/svelte-material-ui/packages/site/src/routes/demo/dialog/_Sheet.svelte/input.svelte",
+    "bytes": 1121,
+    "sha256": "5a485b031558673b842a4feede6f78edb38c5124fb08972be165100ba1644c46"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/docs/src/examples/components/LineChart/radar-rounded.svelte/input.svelte",
+    "bytes": 781,
+    "sha256": "b206d9c6e4cd54478855343b1a8e9105e0b81a1e018d0a578d897e8bdaeef7a1"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte-extras/src/lib/components/ui/add/add-group.svelte/input.svelte",
+    "bytes": 382,
+    "sha256": "da8d12c8f06bdf574afb484034f7cbd8225e83c60090a9e4b4f57df404873ebe"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/docs/src/examples/components/ScatterChart/brush.svelte/input.svelte",
+    "bytes": 494,
+    "sha256": "07cda484f0e45a22dd9f8c1ce1e1bdc098a2935d67b475daad78dfe0b63b0857"
+  },
+  {
+    "path": "fixtures/svelte/joy-of-code/src/lib/ui/header/preferences/reading.svelte/input.svelte",
+    "bytes": 1684,
+    "sha256": "cf85b5757fa2aef7501146211bc8a46065258b3dd7032d81630af61765246f71"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/packages/layerchart/src/lib/components/Path/Path.svelte/input.svelte",
+    "bytes": 681,
+    "sha256": "e788f8b2c768109d8ced80d9932df522df6d248cc1fdb532ae5e3b3a4cb8903b"
+  },
+  {
+    "path": "fixtures/svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/updateMembershipPrivacy.svelte/input.svelte",
+    "bytes": 3944,
+    "sha256": "01427e6dd585a0279d8a5418c96eef4440d557d68c9567bb6a656cf87fd485e3"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/blocks/calendar-09.svelte/input.svelte",
+    "bytes": 666,
+    "sha256": "5b061233c53a56178e29c66c0dda1ca61f7edb76e59abd8f7b54127a0befa850"
+  },
+  {
+    "path": "fixtures/svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/invalid/svelte5/+page.svelte/input.svelte",
+    "bytes": 63,
+    "sha256": "7e0c7fb0f4bc700c3041cc40f5c271b001da3cc1f6d321c1dfaebb3517c53bc0"
+  },
+  {
+    "path": "fixtures/svelte/cnblocks/src/lib/components/ui/dropdown-menu/dropdown-menu-separator.svelte/input.svelte",
+    "bytes": 405,
+    "sha256": "2a9cd571c694054251aea069e7f1b1b783b21750b5ed66d0c73f9d0c04f2a055"
+  },
+  {
+    "path": "fixtures/svelte/runed/sites/docs/src/lib/components/demos/is-idle.svelte/input.svelte",
+    "bytes": 826,
+    "sha256": "8df58ab03f5a3af39ed4db4ef3bbd3f627a1e100c60da14701149a38e703a33f"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-legacy/samples/single-text-node/main.svelte/input.svelte",
+    "bytes": 5,
+    "sha256": "b9e68e1bea3e5b19ca6b2f98b73a54b73daafaa250484902e09982e07a12e733"
+  },
+  {
+    "path": "fixtures/svelte/svelte-commerce/src/routes/(www)/auth/change-password/+page.svelte/input.svelte",
+    "bytes": 5203,
+    "sha256": "ab899a73243a1f3a1dd48aa7a7955ad63cca9eba54cb7d5813af2461375f57f9"
+  },
+  {
+    "path": "fixtures/svelte/bits-ui/docs/src/lib/components/examples/command/raycast/raycast-command.svelte/input.svelte",
+    "bytes": 2975,
+    "sha256": "11819f3e3ba5cb2f8883465ce7f52634ab4763db19edea87ebc6b46481203646"
+  },
+  {
+    "path": "fixtures/svelte/sveltekit/packages/kit/test/prerendering/basics/src/routes/\u521d\u3081\u307e\u3057\u3066/+page.svelte/input.svelte",
+    "bytes": 74,
+    "sha256": "033cf4bdd54b8fac93f4700bf4056934d9e5d9311b2bb70792557a91e334ef1c"
+  },
+  {
+    "path": "fixtures/svelte/networking-toolbox/src/lib/components/common/ActionButton.svelte/input.svelte",
+    "bytes": 956,
+    "sha256": "bdad868bde2b20545015f3675f1b619252e336b6feef0ff67782d5b86eccb646"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte-extras/src/routes/demos/[...path]/+page.svelte/input.svelte",
+    "bytes": 958,
+    "sha256": "e0cb4afdb9427adf491c1426a06dcbc6e7dc486a0cf875ced31197e3773f6c00"
+  },
+  {
+    "path": "fixtures/svelte/flowbite-svelte/src/routes/docs-examples/components/badge/Icon.svelte/input.svelte",
+    "bytes": 344,
+    "sha256": "7c9c8df80d2b7a17af3c91647bea249213cc1cdea31c4be270c1932be42fc997"
+  },
+  {
+    "path": "fixtures/svelte/svelte-lexical/demos/playground-lite/src/settings/Settings.svelte/input.svelte",
+    "bytes": 4494,
+    "sha256": "172559aa7e472644149e758afdaf57492d67b13242fb092b64ca61106c2e6c38"
+  },
+  {
+    "path": "fixtures/svelte/syntaxfm-website/src/lib/ListenLinks.svelte/input.svelte",
+    "bytes": 1030,
+    "sha256": "478e598821d5dbbbb91956a61cba09ad96f4878ec32b679d3a255b64c5505935"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/hydration/samples/claim-text/Component.svelte/input.svelte",
+    "bytes": 85,
+    "sha256": "0a639b7d4282b33ea7465072fa8da396c4c42840becdf60fe4b65869d0f73d72"
+  },
+  {
+    "path": "fixtures/svelte/networking-toolbox/src/routes/subnetting/ipv4-subnet-calculator/+page.svelte/input.svelte",
+    "bytes": 171,
+    "sha256": "982ef7b0c9f08b51f61ba646277d20dbecc884f073106477746459e2f2d54cee"
+  },
+  {
+    "path": "fixtures/svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/ThemeInit/+page.svelte/input.svelte",
+    "bytes": 126,
+    "sha256": "9afd529be39e4ddd3d45c41a69e3c442367d9b9aeef1ee883a3e05bbf01a2947"
+  },
+  {
+    "path": "fixtures/svelte/primo/src/lib/components/ui/dropdown-menu/dropdown-menu-group-heading.svelte/input.svelte",
+    "bytes": 427,
+    "sha256": "100ecdfeb9d7962ebc47c30d21a97e55d9d98ed5fa1fa175712e57ed1ee2a1ab"
+  },
+  {
+    "path": "fixtures/svelte/svelteui/packages/svelteui-core/src/components/Radio/Radio.stories.svelte/input.svelte",
+    "bytes": 2376,
+    "sha256": "7ee30925e27e2a8f57793455f6165a76dc39ffd5b2f236fc1bf88566f0bd20d9"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/ui/toggle/toggle.svelte/input.svelte",
+    "bytes": 1402,
+    "sha256": "324c0a7c77844c729b16add969a4725524170e93380c0f427d63eb4387f36ab8"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-legacy/samples/assignment-to-const2/main.svelte/input.svelte",
+    "bytes": 129,
+    "sha256": "978ac2742da348f922e538f0d0a2a2cba72a9c5c3a8feb552ae9253e5903f3d3"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/css/samples/general-siblings-combinator-slots-between/~input.svelte/input.svelte",
+    "bytes": 225,
+    "sha256": "bf759ba25be489c04444de7c2fef1cebe85eae96e5c5efcda7ffc5299a7ba493"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-runes/samples/ownership-with-proxy/main.svelte/input.svelte",
+    "bytes": 152,
+    "sha256": "fe8a4b0f0920c18b89b9d6458d3512360b9165ae35b7494ba35cec83e445b264"
+  },
+  {
+    "path": "fixtures/svelte/threlte/packages/extras/src/lib/components/AnimatedSpriteMaterial/AnimatedSpriteMaterial.svelte/input.svelte",
+    "bytes": 8414,
+    "sha256": "981c3bbae951ecd382dafa1397cb70a88217e5248084f02c6c2c2c51ad190288"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/docs/src/examples/components/Brush/html.svelte/input.svelte",
+    "bytes": 1108,
+    "sha256": "ac55cc99849b718d14444d15c34f62c74929f18ea73e2c0da3fdd40e9131bea7"
+  },
+  {
+    "path": "fixtures/svelte/svelte-bits/src/lib/components/library/Components/Masonry/Masonry.svelte/input.svelte",
+    "bytes": 6076,
+    "sha256": "b284028cb572338740d0defe470e54d161336578b9771ad083c2c7bf0adf9aa3"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/docs/src/examples/components/Bars/vertical-with-grid-on-top-mix-blend.svelte/input.svelte",
+    "bytes": 594,
+    "sha256": "37364dc436974b03a0214c1a7b8876c3c1d27c47d10ad1703752abd2aa3f8068"
+  },
+  {
+    "path": "fixtures/svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-each-key/valid/destructure-key01-input.svelte/input.svelte",
+    "bytes": 234,
+    "sha256": "f1b854910ef6304cca1b821b6ef84d63517c8ea71372b8138de32b2573fdb2b3"
+  },
+  {
+    "path": "fixtures/svelte/svelte-material-ui/packages/site/src/routes/demo/fab/_Link.svelte/input.svelte",
+    "bytes": 964,
+    "sha256": "2c0565a66c5e368c0ebaf6d68f7b527022e0b730422132c7252b3ade613a53f8"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte-extras/src/lib/components/playground.svelte/input.svelte",
+    "bytes": 1529,
+    "sha256": "4595b9ce591b91c9134aefd1c85b92012eabb2ac84bc8ccd2a6863c21ba5f7f8"
+  },
+  {
+    "path": "fixtures/svelte/joy-of-code/posts/learn-svelte/examples/mouse-position.svelte/input.svelte",
+    "bytes": 389,
+    "sha256": "35c4b6c1d0ae4072620ad986ca7b98deb386a3045329f57d202ee5171854026c"
+  },
+  {
+    "path": "fixtures/svelte/layerchart/docs/src/examples/components/LineChart/bump-state-population-ranks.svelte/input.svelte",
+    "bytes": 6949,
+    "sha256": "d53d396b83b635f247485fb7c104ac21968b2da7fc487831cbbd87e793fabd79"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte-extras/src/lib/components/ui/image-cropper/image-cropper-preview.svelte/input.svelte",
+    "bytes": 799,
+    "sha256": "009bdcbb6f2302f7c5b2c517c994d547e79bac9a09e170f1c26211e489a3a7c2"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte-extras/src/lib/components/ui/form/form-element-field.svelte/input.svelte",
+    "bytes": 891,
+    "sha256": "c0a35ec21e783a0874b5e8b99ca98d514531cabf63d19485475fd5f57ef91020"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/examples/create/input/input-invalid.svelte/input.svelte",
+    "bytes": 290,
+    "sha256": "93dc4864eb545e62173b7ce5c807c48358d8260278916d8281f22e27a187d0f0"
+  },
+  {
+    "path": "fixtures/svelte/layercake/src/_components/GroupLabels.html.svelte/input.svelte",
+    "bytes": 1288,
+    "sha256": "3d754084f00ebab89b58ae3e0cd195857474349ac9dd6e0cd7ebfe1ddbbea3df"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte/input.svelte",
+    "bytes": 1065,
+    "sha256": "33f19de3997da1c78542c4a49fff22916dbd2d94404a886eedb78917b2913768"
+  },
+  {
+    "path": "fixtures/svelte/carbon-components-svelte/e2e/fixtures/TreeViewVirtualizeFixture.svelte/input.svelte",
+    "bytes": 1287,
+    "sha256": "70d062b08eea4e67f67db045a4c3dba28b1b80c0953546902a427ea9dcfa0456"
+  },
+  {
+    "path": "fixtures/svelte/skeleton/sites/skeleton.dev/src/components/examples/tailwind-components/buttons/svelte/group.svelte/input.svelte",
+    "bytes": 397,
+    "sha256": "a31707dff6ac9b769782393c21c6f86f391e4849749229fc659e3f7637af9a57"
+  },
+  {
+    "path": "fixtures/svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/qr-code/svelte/overlay.svelte/input.svelte",
+    "bytes": 399,
+    "sha256": "991563a150df0502412b024c38df61893108a7eb9bb9f223a2f5c2548be3df7a"
+  },
+  {
+    "path": "fixtures/svelte/flowbite-svelte/src/lib/virtual-masonry/VirtualMasonry.svelte/input.svelte",
+    "bytes": 5266,
+    "sha256": "5a49caa47d277e488677dac829f9bdee77a55a6794b32c8cf4e173470763abb7"
+  },
+  {
+    "path": "fixtures/svelte/cnblocks/src/lib/components/veil/stats/stats-three.svelte/input.svelte",
+    "bytes": 1499,
+    "sha256": "06f258ddd34fef048727032c184ef77e9b3c03a0329bdb68f3d2746f3cb941b6"
+  },
+  {
+    "path": "fixtures/svelte/edra/src/lib/edra/headless/components/menu/MathInline.svelte/input.svelte",
+    "bytes": 1804,
+    "sha256": "604d5b5d5a85694ed850f61187befd466c64031708e2df0f385ed65aa40f0ac0"
+  },
+  {
+    "path": "fixtures/svelte/svelte-tweakpane-ui/src/examples/tests/TestColor.svelte/input.svelte",
+    "bytes": 2041,
+    "sha256": "39be04d4462082dbc862a4b4c229160274951ce7a89dbb6f1901de56cc094b3c"
+  },
+  {
+    "path": "fixtures/svelte/sveltekit/packages/kit/test/apps/async/src/routes/remote/private-query/+page.svelte/input.svelte",
+    "bytes": 207,
+    "sha256": "62d1a5cc948f060c86680990b1616bf060eb2a4c975883a6a0c8c18398887ee5"
+  },
+  {
+    "path": "fixtures/svelte/flowbite-svelte/src/routes/docs-examples/components/button-group/Default.svelte/input.svelte",
+    "bytes": 227,
+    "sha256": "4c672ce0daa5d4564ad290180a91b7d4b262cc1f0dc93ba1c3508e6913db9326"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-runes/samples/component-css-props-falsy/main.svelte/input.svelte",
+    "bytes": 130,
+    "sha256": "1c236173cb41125198a9e77c684966c6e2b412a2ca228bd3dbc30cccbf1adf7e"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/examples/create/spinner/spinner-basic.svelte/input.svelte",
+    "bytes": 313,
+    "sha256": "8b91f5f29ccdd348876fde482453290cf9d2f99856a5d094aa4de880503205cf"
+  },
+  {
+    "path": "fixtures/svelte/flowbite-svelte/src/routes/docs-examples/typography/link/Cta.svelte/input.svelte",
+    "bytes": 544,
+    "sha256": "b16af0d4dfb6bbf36872a33c814903176c4c3c0351ceaee1d40be64cb1c973ce"
+  },
+  {
+    "path": "fixtures/svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/max-lines-per-block/valid/empty-block/empty01-input.svelte/input.svelte",
+    "bytes": 55,
+    "sha256": "02ef0205900f045a04aeafaf07cbf2e9ded5dbf4ef1d999af47b3d58d76b89f3"
+  },
+  {
+    "path": "fixtures/svelte/svelte-splitpanes/src/routes/examples/snap/middle/+page.svelte/input.svelte",
+    "bytes": 180,
+    "sha256": "e97c7fd2ea632b0f6cad509426753a9ef336510c0c44b2faecdc0e4b2a74cd95"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/ui/select/select-label.svelte/input.svelte",
+    "bytes": 431,
+    "sha256": "0373cac1769c0f061598571a84f749395e6ac2d01be9fc5d3f57d481e2f750eb"
+  },
+  {
+    "path": "fixtures/svelte/flowbite-svelte/src/routes/docs-examples/components/progress/CustomStyle.svelte/input.svelte",
+    "bytes": 637,
+    "sha256": "16e46a495f07d82f4e91c2426f27524af6672ba71f6801e9c6ce8cb2d8c42798"
+  },
+  {
+    "path": "fixtures/svelte/svelte-inspect-value/packages/svelte/src/lib/components/Count.svelte/input.svelte",
+    "bytes": 1679,
+    "sha256": "24bb8b38940b328cd26467d87a6eead493c5a6327631d8821d258c8d5c76d76b"
+  },
+  {
+    "path": "fixtures/svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/tabs/svelte/fluid.svelte/input.svelte",
+    "bytes": 989,
+    "sha256": "8fb1ff2a23fd30af074131540dee50f39f361e00b57e6a21cf3a2857fb9299de"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-runes/samples/class-state-constructor-derived-unowned/main.svelte/input.svelte",
+    "bytes": 637,
+    "sha256": "3c705190cf3d8a2def93881012a6627f3317cdf8e0d85d0937c19a89a0eac2ea"
+  },
+  {
+    "path": "fixtures/svelte/kener/src/routes/(docs)/docs/+layout.svelte/input.svelte",
+    "bytes": 627,
+    "sha256": "aaee26af44da35b4a555ac94c8b2666ad1e9b976a8dad92e2d570b1866be169e"
+  },
+  {
+    "path": "fixtures/svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-1.v5/~input.svelte/input.svelte",
+    "bytes": 328,
+    "sha256": "93937e3bff9828cd7458d412efeac2cd30eacec087258740e9f808c23fe0aaa2"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-legacy/samples/component-slot-nested-if/Display.svelte/input.svelte",
+    "bytes": 22,
+    "sha256": "69c98fe4b737e65e66bf90818ba03b0200fa1159a55b40992ed3eea17000ca23"
+  },
+  {
+    "path": "fixtures/svelte/sveltepress/packages/theme-default/src/components/icons/logos/YarnWithColor.svelte/input.svelte",
+    "bytes": 2442,
+    "sha256": "06962d4221f629cc7f8a96a39c3c27df14d60f8750cef1af04e0cc6e2ed24607"
+  },
+  {
+    "path": "fixtures/svelte/svelte-commerce/src/lib/components/ui/table/table-row.svelte/input.svelte",
+    "bytes": 486,
+    "sha256": "40fc64cbea4eab30a4367dc5fb8bc4971887ac3abe1b115b445182af28d8c721"
+  },
+  {
+    "path": "fixtures/svelte/svar-core/svelte/demos/cases/ModalArea.svelte/input.svelte",
+    "bytes": 651,
+    "sha256": "be26d9ceb903e7dcec74c02267ea821f8222e4aed5553d17682ab7117e7e3710"
+  },
+  {
+    "path": "fixtures/svelte/sveltekit/packages/kit/test/apps/basics/src/routes/prerendering/env/+layout.svelte/input.svelte",
+    "bytes": 114,
+    "sha256": "22104ab0a673bf7cba85d879926dbfa5a876abfb2643836627adb420c1442e5f"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/components/mdsx/pre.svelte/input.svelte",
+    "bytes": 875,
+    "sha256": "8601bfb3cbf8635103ef0503dfc6aed4004a4f527fea289308023d6a9ee81473"
+  },
+  {
+    "path": "fixtures/svelte/svelte-commerce/src/lib/components/ui/sidebar/sidebar-inset.svelte/input.svelte",
+    "bytes": 753,
+    "sha256": "4764b98d7e44359dc2a2d53e985c0709ba9ccf300bd2af7361de0eaaac6cc95d"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/examples/create/button-group/button-group.svelte/input.svelte",
+    "bytes": 1884,
+    "sha256": "fd2f3595e85cf4399ddc366c736289ed88c1aa5f2429d265f8772d2b6a2864d5"
+  },
+  {
+    "path": "fixtures/svelte/carbon-components-svelte/tests/Snippets/Snippets.test.svelte/input.svelte",
+    "bytes": 5803,
+    "sha256": "2bcfd7be36ab7c04544628ddf26b6d581f6668291dfed5b43dc01f70fde2f51d"
+  },
+  {
+    "path": "fixtures/svelte/carbon-components-svelte/docs/src/pages/framed/SearchMenu/SizeExtraSmall.svelte/input.svelte",
+    "bytes": 1613,
+    "sha256": "5f021c0ad2e99ae4aeee2e692176ee94196cafd7cab1acf5c445999e6fa43aa8"
+  },
+  {
+    "path": "fixtures/svelte/svelte-put/sites/docs/src/packages/avatar/_page/examples/uiAvatar.helper.svelte/input.svelte",
+    "bytes": 447,
+    "sha256": "6a2196e13fe2962260efee12f24675f8449781b78190fa6e9431106b1efae3b0"
+  },
+  {
+    "path": "fixtures/svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/passwordStrengthPolicy.svelte/input.svelte",
+    "bytes": 5092,
+    "sha256": "4f53037010903c9758f8d9ab4b07453882941ce937ee526d524dc41e9b9b38c0"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte-extras/src/lib/components/ui/command/command-input.svelte/input.svelte",
+    "bytes": 917,
+    "sha256": "3d33fd9bbe15cb8ec6e28272c1bee17f2d229141e675b84e8586f6357e5b387d"
+  },
+  {
+    "path": "fixtures/svelte/carbon-components-svelte/docs/src/pages/framed/Breakpoint/BreakpointObserver.svelte/input.svelte",
+    "bytes": 390,
+    "sha256": "8781a1398b5c7218da9e2dde21ac0da037f2cc14e934528a90fc721615b1287f"
+  },
+  {
+    "path": "fixtures/svelte/svelte/packages/svelte/tests/runtime-runes/samples/bound-store-sub/main.svelte/input.svelte",
+    "bytes": 191,
+    "sha256": "b3365a694ac1aa48d52dc47a0a742069adc746d800072ce44fa1bdd335f9c5d7"
+  },
+  {
+    "path": "fixtures/svelte/sveltekit/packages/kit/test/apps/basics/src/routes/routing/hashes/focus/+page.svelte/input.svelte",
+    "bytes": 52,
+    "sha256": "987ee1f19e4ee4c285d832dc5682921bc815227848f4b93045299fa5f5484feb"
+  },
+  {
+    "path": "fixtures/svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/normal-always/component-never-output.svelte/input.svelte",
+    "bytes": 47,
+    "sha256": "9f19718a75f4613cfee10abff6f59ad9ea51efacea5b8dae17f4f24660b445e8"
+  },
+  {
+    "path": "fixtures/svelte/svelte-eslint-parser/tests/fixtures/parser/ast/tutorial/svelte-window-input.svelte/input.svelte",
+    "bytes": 781,
+    "sha256": "5ba08221e063a64fa4bc4de6d4f0653199b928bb8ec0221c2e8c8bae7bffe6cc"
+  },
+  {
+    "path": "fixtures/svelte/edra/src/lib/edra/shadcn/components/MediaExtended.svelte/input.svelte",
+    "bytes": 8771,
+    "sha256": "05521117ebc80d7da10d10cae07e6ffa5faccb44960be8cb5e03790c88893d54"
+  },
+  {
+    "path": "fixtures/svelte/svelte-eslint-parser/tests/fixtures/parser/ast/docs/template-syntax/15_1-svelte-component/02-input.svelte/input.svelte",
+    "bytes": 64,
+    "sha256": "1b6b4b554f8c5d7adf303b7e508bd413bb3cefaf5a3c0dc8bed02685d0b5d9cd"
+  },
+  {
+    "path": "fixtures/svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/NestedComposer.svelte/input.svelte",
+    "bytes": 2179,
+    "sha256": "2dd71188ca11f2cfc412bee629dd075e20dee3eb1e4312506f592f93acc42c10"
+  },
+  {
+    "path": "fixtures/svelte/shadcn-svelte/docs/src/lib/registry/ui/hover-card/hover-card.svelte/input.svelte",
+    "bytes": 235,
+    "sha256": "39946ce6ee8ed12a62f3e9cd2ae86408ae2843afb0546ee1313af7998a53a046"
+  },
+  {
+    "path": "fixtures/svelte/skeleton/packages/skeleton-svelte/src/components/menu/anatomy/root.svelte/input.svelte",
+    "bytes": 1292,
+    "sha256": "0efd3c732a88cbd3ce6ed1dedd342a8f6c6343cfc9135dfcc5a0ac607f3a1411"
+  },
+  {
+    "path": "fixtures/svelte/neohtop/src/routes/+layout.svelte/input.svelte",
+    "bytes": 52,
+    "sha256": "22c84a74a43003310ea4c13cc567da2636e0e0f82532bffef6aae7412aef48c4"
+  },
+  {
+    "path": "fixtures/svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/settings/status.svelte/input.svelte",
+    "bytes": 2008,
+    "sha256": "6ad5f190c9168576b7b259caa2e040e878af83a58656e0aee276ac637febd710"
+  }
+]

@@ -1,0 +1,41 @@
+[
+  {
+    "arm": "before-common",
+    "binary_sha256": "15a6c787a581c7ef06e3348d598b1d8edb9f8aec2f5a88ae85d8d6587ffd2753",
+    "documents": 18,
+    "rounds": 1,
+    "elapsed_ns": 383542,
+    "output_bytes": 15314,
+    "allocation": {
+      "allocations": 3863,
+      "bytes": 330127,
+      "peak_live_growth": 47183
+    }
+  },
+  {
+    "arm": "after-common",
+    "binary_sha256": "999288de0cf3bd9fd71b904e79965e9f72335679757f865546a86423b2e9d86f",
+    "documents": 18,
+    "rounds": 1,
+    "elapsed_ns": 6848750,
+    "output_bytes": 15314,
+    "allocation": {
+      "allocations": 3863,
+      "bytes": 330019,
+      "peak_live_growth": 47183
+    }
+  },
+  {
+    "arm": "after-new",
+    "binary_sha256": "999288de0cf3bd9fd71b904e79965e9f72335679757f865546a86423b2e9d86f",
+    "documents": 16,
+    "rounds": 1,
+    "elapsed_ns": 1041375,
+    "output_bytes": 7996,
+    "allocation": {
+      "allocations": 2593,
+      "bytes": 152646,
+      "peak_live_growth": 22365
+    }
+  }
+]

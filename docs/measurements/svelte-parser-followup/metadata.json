@@ -1,0 +1,56 @@
+{
+  "base_revision": "d3fe0394b0b11ab70829fad9a544b2b03ac81618",
+  "source_state": "dirty snapshots; exact sources and their hashes are archived",
+  "cpu": "Apple M1 Pro",
+  "rust": "1.98.1",
+  "node": "26.7.0",
+  "official_svelte": "5.57.1",
+  "old_revision": "5ed8ea3a3401b9fbbe780d3b18d6f90073291d6b",
+  "notes": [
+    "Both arms include component-reference parsing from concurrent work. Dependencies are frozen.",
+    "The runner calls syntax::parse::parse; it does not run artifact registration.",
+    "A layout probe and metrics runner feature exist only in snapshots.",
+    "CPU counts include startup, source loading, and one extra warmup; counts are divided by declared measured rounds.",
+    "Shared host, no CPU pinning; cache models are simulations. Actual cache misses and RSS are UNMEASURED in this pass.",
+    "Old rsvelte uses fat LTO; the rewrite uses thin LTO. The official compiler uses normal JIT. All three build their own AST shapes.",
+    "Local Clippy passes with --no-deps and only clippy::multiple_crate_versions disabled. Full Clippy stops at unrelated syntax lint errors and duplicate syn versions."
+  ],
+  "binaries": {
+    "before-native": {
+      "path": "candidate/target/release/examples/measure",
+      "sha256": "1d8c09ab01fcc5d9fe8a84cffd84bac7df1a9ba589783703b0e448a7f24743ed"
+    },
+    "after-native": {
+      "path": "followup/target/release/examples/measure",
+      "sha256": "ac579cd075ace4ada31aa246ac7c2df464090bec1520f9a730ea2e55e439038f"
+    },
+    "before-linux": {
+      "path": "linux-followup-before/release/examples/measure",
+      "sha256": "d35c92fbfe0cf00eac8a93c065267ebfe473e97f8e06df9be08f80ea18507e3c"
+    },
+    "after-linux": {
+      "path": "linux-followup/release/examples/measure",
+      "sha256": "b440240d52b7260ed2035dea22ebfe92edf3eef2afd8c2d8c4dda03ca3dc1a61"
+    },
+    "before-metrics": {
+      "path": "linux-followup-before-metrics/release/examples/measure",
+      "sha256": "4880ca0160ba1bca8bc4a849c903edc49b9f9bf4095c652d7d6b24fd1f0f6403"
+    },
+    "after-metrics": {
+      "path": "linux-followup-metrics/release/examples/measure",
+      "sha256": "6b747c009cd2ef36522696e53731a551e62f3a2599fb018ae110c7ca693ddc19"
+    }
+  },
+  "synthetic_bytes": 11440208,
+  "recorded_at_utc": "2026-10-03T07:15:21.713995+00:00",
+  "checks": {
+    "parser_tests": "PASS: 9 tests",
+    "full_corpus_parity": "PASS: 19,498 files, zero differences",
+    "parser_formatting": "PASS",
+    "local_clippy": "PASS: --no-deps and -A clippy::multiple_crate_versions",
+    "full_clippy": "FAIL: unrelated syntax lint errors and duplicate syn versions",
+    "structure": "FAIL: unrelated compile_vapor template blocks, 631 lines",
+    "diff_check": "PASS"
+  },
+  "three_arms_sources": "Old snapshot and oracle details are archived under ../svelte-parser/."
+}

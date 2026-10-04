@@ -1,0 +1,9 @@
+{
+  "defect": "changed CSS expectation in an isolated one-unit manifest",
+  "population": 1,
+  "returncode": 1,
+  "stderr": "Error: \"src/lib/components/embed.svelte: CSS differs\"\n",
+  "original_manifest_sha256": "6d9eea41e74cf97a73a5e16917ed8da1a2dfcf8530b0342144be2b6a3eea62d2",
+  "restoration": "the unchanged 453-unit manifest is checked before every measured worker",
+  "binary": "final-cycles"
+}

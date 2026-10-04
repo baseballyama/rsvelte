@@ -1,0 +1,181 @@
+{
+  "population": 18,
+  "a_b_rounds": 4000,
+  "trials_per_arm": 6,
+  "native_per_population": {
+    "before": {
+      "cycles": 1190571.997875,
+      "instructions": 4378386.694,
+      "elapsed_ns": 882676.41675
+    },
+    "after": {
+      "cycles": 936834.05425,
+      "instructions": 4086144.42025,
+      "elapsed_ns": 429441.59375
+    }
+  },
+  "linux_instructions_per_population": {
+    "before": 3859631,
+    "after": 3588245
+  },
+  "allocation_population": 18,
+  "allocations": {
+    "before": {
+      "rev": "UNMEASURED",
+      "metrics": true,
+      "rounds": 2,
+      "documents": 18,
+      "skipped": 0,
+      "source_bytes": 8382,
+      "output_bytes": 15314,
+      "tasks": [
+        "svelte.compile/client"
+      ],
+      "allocs": 4295,
+      "alloc_bytes": 383129,
+      "peak_live_growth_bytes": 59869,
+      "phases": {
+        "js.print": {
+          "calls": 18,
+          "allocs": 276,
+          "alloc_bytes": 24065
+        },
+        "svelte.analyze": {
+          "calls": 18,
+          "allocs": 310,
+          "alloc_bytes": 20278
+        },
+        "svelte.compile/client": {
+          "calls": 18,
+          "allocs": 72,
+          "alloc_bytes": 11879
+        },
+        "svelte.compiler_syntax_tree": {
+          "calls": 18,
+          "allocs": 189,
+          "alloc_bytes": 18815
+        },
+        "svelte.css": {
+          "calls": 18,
+          "allocs": 186,
+          "alloc_bytes": 22803
+        },
+        "svelte.lower.client": {
+          "calls": 18,
+          "allocs": 1549,
+          "alloc_bytes": 83529
+        },
+        "svelte.output_identity": {
+          "calls": 18,
+          "allocs": 170,
+          "alloc_bytes": 4718
+        },
+        "svelte.parse": {
+          "calls": 18,
+          "allocs": 889,
+          "alloc_bytes": 155116
+        },
+        "svelte.render_plan": {
+          "calls": 18,
+          "allocs": 488,
+          "alloc_bytes": 28106
+        },
+        "svelte.resolve": {
+          "calls": 18,
+          "allocs": 145,
+          "alloc_bytes": 7580
+        }
+      }
+    },
+    "after": {
+      "rev": "UNMEASURED",
+      "metrics": true,
+      "rounds": 2,
+      "documents": 18,
+      "skipped": 0,
+      "source_bytes": 8382,
+      "output_bytes": 15314,
+      "tasks": [
+        "svelte.compile/client"
+      ],
+      "allocs": 3956,
+      "alloc_bytes": 313106,
+      "peak_live_growth_bytes": 43101,
+      "phases": {
+        "js.print": {
+          "calls": 18,
+          "allocs": 276,
+          "alloc_bytes": 24065
+        },
+        "svelte.analyze": {
+          "calls": 18,
+          "allocs": 237,
+          "alloc_bytes": 17130
+        },
+        "svelte.compile/client": {
+          "calls": 18,
+          "allocs": 72,
+          "alloc_bytes": 11879
+        },
+        "svelte.compiler_syntax_tree": {
+          "calls": 18,
+          "allocs": 189,
+          "alloc_bytes": 18815
+        },
+        "svelte.css": {
+          "calls": 18,
+          "allocs": 96,
+          "alloc_bytes": 21736
+        },
+        "svelte.lower.client": {
+          "calls": 18,
+          "allocs": 1549,
+          "alloc_bytes": 83529
+        },
+        "svelte.output_identity": {
+          "calls": 18,
+          "allocs": 170,
+          "alloc_bytes": 4718
+        },
+        "svelte.parse": {
+          "calls": 18,
+          "allocs": 713,
+          "alloc_bytes": 89308
+        },
+        "svelte.render_plan": {
+          "calls": 18,
+          "allocs": 488,
+          "alloc_bytes": 28106
+        },
+        "svelte.resolve": {
+          "calls": 18,
+          "allocs": 145,
+          "alloc_bytes": 7580
+        }
+      }
+    }
+  },
+  "three_arm": {
+    "official": {
+      "median_cycles_per_population": 20386564.023000002,
+      "min_cycles_per_population": 19204218.57,
+      "max_cycles_per_population": 21039527.004,
+      "median_cycles_per_input": 1132586.8901666668,
+      "zero_round_gate_cycles": 336753
+    },
+    "old": {
+      "median_cycles_per_population": 9204885.9285,
+      "min_cycles_per_population": 9022195.142,
+      "max_cycles_per_population": 9676730.94,
+      "median_cycles_per_input": 511382.55158333335,
+      "zero_round_gate_cycles": 52207
+    },
+    "rewrite": {
+      "median_cycles_per_population": 981926.647,
+      "min_cycles_per_population": 951654.637,
+      "max_cycles_per_population": 1045078.231,
+      "median_cycles_per_input": 54551.480388888885,
+      "zero_round_gate_cycles": 25707
+    }
+  }
+}

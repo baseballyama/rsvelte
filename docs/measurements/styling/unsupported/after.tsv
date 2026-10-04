@@ -1,0 +1,457 @@
+unparsed	animotion/src/lib/components/embed.svelte	unsupported expression `import`
+unparsed	animotion/src/lib/components/recorder.svelte	unsupported statement `try`
+unparsed	animotion/src/lib/components/transition.svelte	module scripts are not supported yet
+unparsed	appwrite-console/src/lib/components/account/sendVerificationEmailModal.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/lib/components/bottomModalAlert.svelte	unsupported statement `switch`
+unparsed	appwrite-console/src/lib/components/code.svelte	module scripts are not supported yet
+unparsed	appwrite-console/src/lib/components/csvExportBox.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/lib/components/csvImportBox.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/lib/components/git/DirectoryPicker.svelte	unsupported statement `for`
+unparsed	appwrite-console/src/lib/components/loadingDots.svelte	unsupported export form
+unparsed	appwrite-console/src/lib/components/organizationUsageLimits.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/lib/components/permissions/row.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/lib/components/sortButton.svelte	module scripts are not supported yet
+unparsed	appwrite-console/src/lib/elements/forms/Seekbar.svelte	unsupported statement `for`
+unparsed	appwrite-console/src/lib/layout/footer.svelte	expected a property name
+unparsed	appwrite-console/src/routes/(console)/organization-[organization]/settings/BAAEnableModal.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/passwordStrengthPolicy.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/auth/settings/+page.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/databases/create/+page.svelte	unsupported statement `switch`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/indexes/create.svelte	module scripts are not supported yet
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/indexes/view.svelte	unsupported statement `switch`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/sheetOptions.svelte	module scripts are not supported yet
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/sidesheet.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/~input.svelte	unsupported statement `switch`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/+page.svelte	unsupported statement `switch`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/backups/+page.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/+page.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/indexes/createIndex.svelte	module scripts are not supported yet
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/+page.svelte	unsupported statement `switch`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/createColumn.svelte	unsupported export form
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/export/+page.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/editRelated.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/sheetOptions.svelte	module scripts are not supported yet
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/overview/+layout.svelte	module scripts are not supported yet
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/overview/api-keys/scopes.svelte	unsupported statement `for`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createAndroid.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createApple.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createFlutter.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createReactNative.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createWeb.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/settings/premiumGeoDBEnableModal.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/settings/updateOAuth2Server.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/settings/updateProtocols.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/sites/(components)/siteCard.svelte	expected a property name
+unparsed	appwrite-console/src/routes/(console)/project-[region]-[project]/storage/bucket-[bucket]/+page.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(public)/functions/deploy/+page.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(public)/oauth2/consent/+page.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(public)/oauth2/consent-card.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(public)/oauth2/device/+page.svelte	unsupported statement `try`
+unparsed	appwrite-console/src/routes/(public)/oauth2/resource-selector.svelte	unsupported statement `for`
+unparsed	appwrite-console/src/routes/(public)/sites/deploy/+page.svelte	unsupported statement `try`
+unparsed	attractions/attractions/loading/loading.svelte	unsupported export form
+unparsed	carbon-components-svelte/e2e/fixtures/DataTableOverflowMenuFixture.svelte	unsupported statement `for`
+unparsed	cnblocks/src/lib/components/ui/pm-command/pm-command.svelte	module scripts are not supported yet
+unparsed	edra/src/lib/edra/headless/components/MediaPlaceHolder.svelte	unsupported statement `switch`
+unparsed	edra/src/lib/edra/headless/components/Mermaid.svelte	unsupported statement `try`
+unparsed	edra/src/lib/edra/headless/components/SlashCommand.svelte	unsupported statement `for`
+unparsed	edra/src/lib/edra/headless/components/menu/AI.svelte	unsupported statement `try`
+unparsed	edra/src/lib/edra/headless/components/menu/BubbleMenu.svelte	unsupported statement `while`
+unparsed	edra/src/lib/edra/shadcn/components/menu/AI.svelte	unsupported statement `try`
+unparsed	edra/src/routes/headless/+page.svelte	unsupported statement `try`
+unparsed	eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/scss-class-name01-input.svelte	expected a property name
+unparsed	ha-fusion/src/lib/Drawer/CodeButton.svelte	unsupported expression `import`
+unparsed	ha-fusion/src/lib/Drawer/SayButton.svelte	unsupported statement `try`
+unparsed	ha-fusion/src/lib/Settings/Logout.svelte	unsupported expression `import`
+unparsed	ha-fusion/src/lib/Settings/Version.svelte	unsupported statement `try`
+unparsed	joy-of-code/posts/learn-svelte/examples/derived-by.svelte	unsupported statement `for`
+unparsed	joy-of-code/posts/learn-svelte/examples/example-loader.svelte	unsupported expression `import`
+unparsed	joy-of-code/posts/learn-svelte/examples/pokemon-search.svelte	unsupported statement `throw`
+unparsed	joy-of-code/posts/learn-svelte/examples/reactive-events.svelte	unsupported statement `class`
+unparsed	joy-of-code/posts/learn-svelte/examples/reactive-map.svelte	unsupported statement `throw`
+unparsed	joy-of-code/posts/learn-svelte/examples/scramble-text.svelte	unsupported statement `for`
+unparsed	joy-of-code/posts/learn-svelte/examples/todo-list.svelte	expected `}`
+unparsed	kener/src/lib/components/MinuteGrid.svelte	unsupported statement `for`
+unparsed	kener/src/lib/components/StatusBarCalendar.svelte	unsupported statement `for`
+unparsed	kener/src/routes/(docs)/docs/(with-sidebar)/[...slug]/+page.svelte	unsupported statement `switch`
+unparsed	kener/src/routes/(docs)/docs/DocsSidebar.svelte	unsupported statement `for`
+unparsed	kener/src/routes/(docs)/docs/DocsTableOfContents.svelte	unsupported statement `for`
+unparsed	kite-public/src/lib/components/CategoryNavigation.svelte	unsupported statement `switch`
+unparsed	kite-public/src/lib/components/Header.svelte	unsupported statement `try`
+unparsed	kite-public/src/lib/components/ReportButton.svelte	unsupported statement `for`
+unparsed	kite-public/src/lib/components/Select.svelte	unsupported statement `try`
+unparsed	kite-public/src/lib/components/ShareButton.svelte	unsupported statement `try`
+unparsed	kite-public/src/lib/components/Toast.svelte	unsupported statement `switch`
+unparsed	kite-public/src/lib/components/Tooltip.svelte	unsupported statement `switch`
+unparsed	kite-public/src/lib/components/common/FaviconImage.svelte	unsupported statement `try`
+unparsed	kite-public/src/lib/components/contribute/ContributeOnboarding.svelte	unsupported statement `for`
+unparsed	kite-public/src/lib/components/search/SearchResults.svelte	unsupported statement `while`
+unparsed	kite-public/src/lib/components/story/CitationText.svelte	unsupported statement `while`
+unparsed	kite-public/src/lib/components/story/SelectableText.svelte	unsupported statement `for`
+unparsed	kite-public/src/lib/components/story/StoryHeader.svelte	unsupported statement `try`
+unparsed	kite-public/src/lib/components/story/StoryQuote.svelte	unsupported statement `while`
+unparsed	layercake/src/_components/Beeswarm.html.svelte	unsupported statement `while`
+unparsed	layercake/src/_components/BeeswarmForce.html.svelte	unsupported statement `for`
+unparsed	layercake/src/routes/_site-components/CopyBtn.svelte	unsupported statement `try`
+unparsed	layercake/src/routes/components/+page.svelte	unsupported statement `while`
+unparsed	layercake/src/routes/guide/+page.svelte	unsupported statement `while`
+unparsed	layerchart/docs/src/examples/components/BrushContext/striped-background.svelte	module scripts are not supported yet
+unparsed	layerchart/docs/src/lib/components/controls/TransformContextControls.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/AnnotationLine/AnnotationLine.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/AnnotationPoint/AnnotationPoint.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/AnnotationRange/AnnotationRange.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Axis/Axis.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/BoxPlot/BoxPlot.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Brush/Brush.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/BrushContext.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Calendar/Calendar.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Chart/Chart.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Circle/Circle.html.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Circle/Circle.svg.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/CircleLegend.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/ComputedStyles.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Contour/Contour.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Density/Density.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Ellipse/Ellipse.html.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Ellipse/Ellipse.svg.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Grid/Grid.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Group/Group.html.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Highlight/Highlight.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Hull/Hull.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Labels/Labels.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Legend.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Line/Line.html.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Line/Line.svg.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Marker.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Month/Month.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/MonthPath.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Path/Path.svg.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Polygon/Polygon.svg.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Rect/Rect.html.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Rect/Rect.svg.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Rule/Rule.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Text/Text.html.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Text/Text.svg.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Trail/Trail.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/TransformContext.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Vector/Vector.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Violin/Violin.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Voronoi/Voronoi.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/Waffle/Waffle.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/geo/GeoLegend/GeoLegend.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/geo/TileImage/TileImage.base.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/layers/Canvas.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/layers/Html.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/layers/Layer.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/layers/Svg.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/layers/WebGL.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/tooltip/Tooltip.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/tooltip/TooltipContext.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/tooltip/TooltipHeader.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/tooltip/TooltipItem.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/tooltip/TooltipList.svelte	module scripts are not supported yet
+unparsed	layerchart/packages/layerchart/src/lib/components/tooltip/TooltipSeparator.svelte	module scripts are not supported yet
+unparsed	neohtop/src/lib/components/AppInfo.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/furniture/QuickTips.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/furniture/SearchFilter.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/lib/components/furniture/SettingsPanel.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/furniture/ShortcutsDialog.svelte	unsupported expression `import`
+unparsed	networking-toolbox/src/lib/components/page-specific/about/AttributionsSection.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/CAABuilder.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/lib/components/tools/CDSCDNSKEYBuilder.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/CIDRAlignment.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/lib/components/tools/CIDRAllocator.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/lib/components/tools/CIDRCompare.svelte	unsupported statement `throw`
+unparsed	networking-toolbox/src/lib/components/tools/CIDRSplitter.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/ClientIDOption61.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/DHCPFingerprinting.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/DHCPOption119Builder.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/lib/components/tools/DHCPOption121Builder.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/lib/components/tools/DHCPOption150Builder.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/lib/components/tools/DHCPOption43Generator.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/DHCPOption60Builder.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/DHCPOption82Builder.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/lib/components/tools/DHCPv6DNSBuilder.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/DHCPv6FQDN.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/DKIMKeyGenerator.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/DNSAAAAABulk.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/lib/components/tools/DNSCNAMEBuilder.svelte	unsupported statement `while`
+unparsed	networking-toolbox/src/lib/components/tools/DNSKEYKeyTag.svelte	expected a property name
+unparsed	networking-toolbox/src/lib/components/tools/DNSOptions6And15.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/DNSRecordValidator.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/DNSSPFBuilder.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/lib/components/tools/DNSTXTEscape.svelte	unsupported statement `while`
+unparsed	networking-toolbox/src/lib/components/tools/DSGenerator.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/DUIDGenerator.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/EUI64.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/FreeSpaceFinder.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/FreeformTLVBuilder.svelte	unsupported statement `switch`
+unparsed	networking-toolbox/src/lib/components/tools/GatewayOption3.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/IAIDCalculator.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/IDNPunycodeConverter.svelte	unsupported statement `while`
+unparsed	networking-toolbox/src/lib/components/tools/IPConverter.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/IPDistance.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/IPEnumerate.svelte	bigint literals are not supported
+unparsed	networking-toolbox/src/lib/components/tools/IPValidator.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/lib/components/tools/IPv6NAT64.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/lib/components/tools/IPv6Normalize.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/IPv6NotationConverter.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/IPv6SolicitedNode.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/IPv6SubnetCalculator.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/lib/components/tools/IPv6Teredo.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/IPv6ZoneID.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/LOCBuilder.svelte	unsupported statement `while`
+unparsed	networking-toolbox/src/lib/components/tools/LeaseTimeCalculator.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/LeaseTimeOption51.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/NAPTRBuilder.svelte	unsupported statement `switch`
+unparsed	networking-toolbox/src/lib/components/tools/NSEC3Hash.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/NameLengthChecker.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/NthIP.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/PTRSweepPlanner.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/PXEProfileBuilder.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/PrefixDelegation.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/RandomIP.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/ReversePTRGenerator.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/ReverseZoneGenerator.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/ReverseZonesCalculator.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/SVCBHTTPSBuilder.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/lib/components/tools/SubnetCalculator.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/ULAGenerator.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/VLSMCalculator.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/lib/components/tools/WildcardMask.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/ZoneDiff.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/ZoneLinter.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/lib/components/tools/ZoneStats.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/+error.svelte	TypeScript type assertions / generic arrows are not supported
+unparsed	networking-toolbox/src/routes/+page.svelte	unsupported expression `import`
+unparsed	networking-toolbox/src/routes/cidr/+page.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/routes/diagnostics/+page.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/routes/diagnostics/dns/+page.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/routes/diagnostics/dns/axfr-tester/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/dns/dnssec-adflag/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/dns/glue-check/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/dns/query-performance/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/dns/soa-serial/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/dns/spf-flatten/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/dns/trace/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/email/dmarc-check/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/email/mail-tls-check/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/email/mx-health/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/email/spf-check/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/http/compression/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/http/cookie-security/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/network/asn-geo-lookup/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/network/bgp-route-lookup/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/network/http-ping/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/network/ipv6-connectivity-checker/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/network/tcp-port-check/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/rdap/asn/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/rdap/domain/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/rdap/ip/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/tls/alpn/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/tls/banner/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/tls/certificate/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/tls/cipher-presets/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/tls/ct-log-search/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/tls/handshake-analyzer/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/tls/ocsp-stapling/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/diagnostics/tls/versions/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/dns/+page.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/routes/ip-address-convertor/+page.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/routes/ip-address-convertor/mac-address/+page.svelte	unsupported statement `try`
+unparsed	networking-toolbox/src/routes/ip-address-convertor/regex/+page.svelte	expected a property name
+unparsed	networking-toolbox/src/routes/reference/+page.svelte	unsupported statement `for`
+unparsed	networking-toolbox/src/routes/subnetting/+page.svelte	unsupported statement `for`
+unparsed	originui-svelte/src/lib/demo/component-card.svelte	unexpected token `&`
+unparsed	primo/src/lib/builder/Primo.svelte	unsupported statement `throw`
+unparsed	primo/src/lib/builder/components/CodeEditor/CodeMirror.svelte	module scripts are not supported yet
+unparsed	primo/src/lib/builder/components/ComponentPreview.svelte	module scripts are not supported yet
+unparsed	primo/src/lib/builder/components/Content.svelte	unsupported statement `for`
+unparsed	primo/src/lib/builder/components/Fields/FieldItem.svelte	unsupported statement `while`
+unparsed	primo/src/lib/builder/components/Fields/FieldsContent.svelte	module scripts are not supported yet
+unparsed	primo/src/lib/builder/components/Fields/SelectField.svelte	destructuring assignment is not supported
+unparsed	primo/src/lib/builder/components/Sidebar/PageType_Sidebar.svelte	unsupported statement `try`
+unparsed	primo/src/lib/builder/components/Sidebar/Page_Sidebar.svelte	unsupported statement `throw`
+unparsed	primo/src/lib/builder/components/Sidebar/Sidebar_Symbol.svelte	unsupported statement `try`
+unparsed	primo/src/lib/builder/field-types/ImageField.svelte	unsupported statement `try`
+unparsed	primo/src/lib/builder/field-types/Link.svelte	unsupported statement `for`
+unparsed	primo/src/lib/builder/field-types/RepeaterField.svelte	unsupported statement `for`
+unparsed	primo/src/lib/builder/field-types/RichText.svelte	unsupported statement `try`
+unparsed	primo/src/lib/builder/field-types/SiteField.svelte	unsupported statement `for`
+unparsed	primo/src/lib/builder/ui/Select.svelte	unsupported statement `for`
+unparsed	primo/src/lib/builder/views/editor/Layout/ComponentNode.svelte	unsupported statement `for`
+unparsed	primo/src/lib/builder/views/editor/LocaleSelector.svelte	unsupported statement `try`
+unparsed	primo/src/lib/builder/views/editor/Page.svelte	unsupported statement `for`
+unparsed	primo/src/lib/builder/views/editor/PageType.svelte	unsupported statement `try`
+unparsed	primo/src/lib/builder/views/editor/Toolbar.svelte	unsupported statement `try`
+unparsed	primo/src/lib/builder/views/modal/BlockEditor.svelte	module scripts are not supported yet
+unparsed	primo/src/lib/builder/views/modal/Collaboration.svelte	unsupported statement `try`
+unparsed	primo/src/lib/builder/views/modal/PageTypeModal/Item.svelte	unsupported statement `try`
+unparsed	primo/src/lib/builder/views/modal/SectionEditor/SectionEditor.svelte	module scripts are not supported yet
+unparsed	primo/src/lib/builder/views/modal/SiteEditor/SiteEditor.svelte	unsupported statement `try`
+unparsed	primo/src/lib/builder/views/modal/SitePages/Item.svelte	unsupported statement `while`
+unparsed	primo/src/lib/builder/views/modal/SitePages/SitePages.svelte	unsupported statement `for`
+unparsed	primo/src/lib/builder/views/modal/VideoModal.svelte	unsupported statement `try`
+unparsed	primo/src/lib/components/Modals/Deploy/Deploy.svelte	unsupported statement `try`
+unparsed	primo/src/routes/+layout.svelte	unsupported statement `import`
+unparsed	primo/src/routes/auth/+layout.svelte	unsupported statement `try`
+unparsed	primo/src/routes/auth/AuthForm.svelte	unsupported statement `try`
+unparsed	primo/src/routes/setup/+page.svelte	unsupported statement `throw`
+unparsed	primo/src/routes/site/+layout.svelte	unsupported statement `try`
+unparsed	runed/sites/docs/src/lib/components/demos/finite-state-machine.svelte	unsupported statement `switch`
+unparsed	shadcn-svelte-extras/src/lib/components/docs/jsrepo-command.svelte	module scripts are not supported yet
+unparsed	shadcn-svelte-extras/src/lib/components/ui/pm-command/pm-command.svelte	module scripts are not supported yet
+unparsed	skeleton/sites/plus.skeleton.dev/src/lib/components/markdown/overrides/code.svelte	module scripts are not supported yet
+unparsed	skeleton/sites/plus.skeleton.dev/src/lib/components/markdown/overrides/pre.svelte	module scripts are not supported yet
+unparsed	svar-core/svelte/src/components/ColorBoard.svelte	destructuring assignment is not supported
+unparsed	svar-core/svelte/src/components/Modal.svelte	unsupported statement `switch`
+unparsed	svar-core/svelte/src/components/Pager.svelte	unsupported statement `switch`
+unparsed	svar-core/svelte/src/components/Portal.svelte	unsupported statement `while`
+unparsed	svar-core/svelte/src/components/Tooltip.svelte	unsupported statement `for`
+unparsed	svar-core/svelte/src/components/calendar/Duodecade.svelte	unsupported statement `for`
+unparsed	svar-core/svelte/src/components/calendar/Header.svelte	unsupported statement `switch`
+unparsed	svar-core/svelte/src/components/calendar/Month.svelte	unsupported statement `for`
+unparsed	svar-core/svelte/src/components/colorboard/Layout.svelte	destructuring assignment is not supported
+unparsed	svar-core/svelte/src/components/modal/Layout.svelte	unsupported statement `switch`
+unparsed	svar-core/svelte/src/components/pager/Layout.svelte	unsupported statement `switch`
+unparsed	svar-grid/site/src/components/AssignCell.svelte	unsupported statement `for`
+unparsed	svar-grid/site/src/components/TagsCell.svelte	unsupported statement `for`
+unparsed	svar-grid/svelte/demos/cases/CustomEmbedingActions.svelte	unsupported statement `switch`
+unparsed	svar-grid/svelte/demos/cases/ExternalFilters.svelte	unsupported statement `switch`
+unparsed	svar-grid/svelte/demos/cases/FilterQuery.svelte	unsupported statement `try`
+unparsed	svar-grid/svelte/demos/cases/Sort.svelte	unsupported statement `for`
+unparsed	svar-grid/svelte/demos/custom/CustomTooltip.svelte	unsupported statement `for`
+unparsed	svar-grid/svelte/src/components/HeaderFooter.svelte	unsupported statement `for`
+unparsed	svar-grid/svelte/src/components/Layout.svelte	unsupported statement `for`
+unparsed	svar-grid/svelte/src/components/menus/ContextMenu.svelte	unsupported statement `switch`
+unparsed	svar-grid/svelte/tests/cases/FilterSimpleQuery.svelte	unsupported statement `for`
+unparsed	svelte/packages/svelte/tests/css/samples/snippet-exported/~input.svelte	module scripts are not supported yet
+unparsed	svelte/packages/svelte/tests/manual/each-stress-test/main.svelte	unsupported statement `for`
+unparsed	svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-style-tag/~input.svelte	`<style>` was left open
+unparsed	svelte/packages/svelte/tests/runtime-runes/samples/class-directive-mutations/main.svelte	unsupported statement `for`
+unparsed	svelte-bits/src/lib/components/docs/ComponentList.svelte	unsupported statement `for`
+unparsed	svelte-bits/src/lib/components/landing/LiveDemo/DemoPlaceholder.svelte	unsupported expression `import`
+unparsed	svelte-bits/src/lib/components/library/Components/AnimatedList/AnimatedList.svelte	unsupported statement `for`
+unparsed	svelte-bits/src/lib/components/library/Components/BubbleMenu/BubbleMenu.svelte	module scripts are not supported yet
+unparsed	svelte-bits/src/lib/components/library/Components/ChromaGrid/ChromaGrid.svelte	module scripts are not supported yet
+unparsed	svelte-bits/src/lib/components/library/Components/DomeGallery/DomeGallery.svelte	module scripts are not supported yet
+unparsed	svelte-bits/src/lib/components/library/Components/GooeyNav/GooeyNav.svelte	module scripts are not supported yet
+unparsed	svelte-bits/src/lib/components/library/Components/MagicBento/MagicBento.svelte	module scripts are not supported yet
+unparsed	svelte-bits/src/lib/components/library/Components/PillNav/PillNav.svelte	module scripts are not supported yet
+unparsed	svelte-bits/src/lib/components/library/Components/ProfileCard/ProfileCard.svelte	unsupported statement `for`
+unparsed	svelte-bits/src/lib/components/library/Components/StaggeredMenu/StaggeredMenu.svelte	module scripts are not supported yet
+unparsed	svelte-bits/src/lib/components/library/TextAnimations/ASCIIText/ASCIIText.svelte	unsupported statement `class`
+unparsed	svelte-bits/src/lib/components/library/TextAnimations/ScrollReveal/ScrollReveal.svelte	module scripts are not supported yet
+unparsed	svelte-bits/src/lib/components/library/TextAnimations/ScrollVelocity/ScrollVelocity.svelte	unsupported statement `for`
+unparsed	svelte-bits/src/lib/components/library/TextAnimations/Shuffle/Shuffle.svelte	module scripts are not supported yet
+unparsed	svelte-bits/src/lib/components/library/TextAnimations/TextPressure/TextPressure.svelte	unsupported statement `try`
+unparsed	svelte-bits/src/lib/components/library/TextAnimations/VariableProximity/VariableProximity.svelte	unsupported statement `for`
+unparsed	svelte-calendar/src/routes/docs/props.svelte	module scripts are not supported yet
+unparsed	svelte-calendar/src/routes/docs/quick-start.svelte	module scripts are not supported yet
+unparsed	svelte-canvas/src/routes/_components/Code.svelte	module scripts are not supported yet
+unparsed	svelte-canvas/src/routes/_components/NavMenu.svelte	module scripts are not supported yet
+unparsed	svelte-chartjs/sites/docs/src/lib/components/TableOfContents.svelte	unsupported statement `for`
+unparsed	svelte-codemirror-editor/src/lib/CodeMirror.svelte	module scripts are not supported yet
+unparsed	svelte-codemirror-editor/src/routes/+page.svelte	unsupported statement `switch`
+unparsed	svelte-command-palette/src/lib/components/CommandPalette.svelte	unsupported expression `import`
+unparsed	svelte-command-palette/src/lib/components/Result.svelte	unsupported expression `import`
+unparsed	svelte-commerce/src/lib/components/common/newsletter.svelte	unsupported statement `try`
+unparsed	svelte-commerce/src/lib/components/product-catalogue/listing-grid.svelte	unsupported statement `try`
+unparsed	svelte-commerce/src/lib/core/components/image/lazy-img-with-zoom.svelte	unsupported statement `for`
+unparsed	svelte-commerce/src/lib/core/components/image/lazy-img.svelte	unsupported statement `for`
+unparsed	svelte-commerce/src/lib/theme/default/DefaultHomepage.svelte	unsupported statement `try`
+unparsed	svelte-commerce/src/routes/(my)/my/orders/+page.svelte	unsupported statement `try`
+unparsed	svelte-commerce/src/routes/(www)/products/[slug]/components/product-details.svelte	unsupported statement `try`
+unparsed	svelte-commerce/src/routes/(www)/products/[slug]/components/product-reviews-section.svelte	unsupported statement `try`
+unparsed	svelte-commerce/src/routes/(www)/reels/+page.svelte	unsupported statement `try`
+unparsed	svelte-eslint-parser/tests/fixtures/parser/ast/kit-demo-home-input.svelte	module scripts are not supported yet
+unparsed	svelte-eslint-parser/tests/fixtures/parser/ast/tutorial/bind-this-input.svelte	unsupported statement `for`
+unparsed	svelte-eslint-parser/tests/fixtures/parser/selector-parsing/simple-scss-input.svelte	expected a property name
+unparsed	svelte-eslint-parser/tests/fixtures/parser/style-context/simple-scss-input.svelte	expected a property name
+unparsed	svelte-gantt/examples/example-svelte/src/routes/LargeDataset.svelte	unsupported statement `for`
+unparsed	svelte-gantt/packages/docs-mdsvex/src/routes/docs/options/zoom/ZoomExample.svelte	module scripts are not supported yet
+unparsed	svelte-inspect-value/apps/docs/src/components/editor/CodeEditor.svelte	module scripts are not supported yet
+unparsed	svelte-inspect-value/apps/docs/src/components/global-opts/GlobalOptionsList.svelte	module scripts are not supported yet
+unparsed	svelte-inspect-value/apps/docs/src/components/theming/HexString.svelte	expected `}`
+unparsed	svelte-inspect-value/apps/docs/src/components/theming/Theming.svelte	expected `}`
+unparsed	svelte-inspect-value/apps/docs/src/examples/BasicEditable.svelte	unsupported statement `try`
+unparsed	svelte-inspect-value/apps/docs/src/examples/Generic.svelte	unsupported statement `throw`
+unparsed	svelte-inspect-value/apps/docs/src/examples/custom/HexString.svelte	expected `}`
+unparsed	svelte-inspect-value/apps/docs/src/examples/panel/PanelExample.svelte	unsupported statement `try`
+unparsed	svelte-inspect-value/apps/docs/src/examples/search/Narrowing.svelte	unsupported statement `throw`
+unparsed	svelte-inspect-value/packages/svelte/src/doclib/Ace.svelte	unsupported expression `import`
+unparsed	svelte-inspect-value/packages/svelte/src/doclib/Code.svelte	unsupported statement `try`
+unparsed	svelte-inspect-value/packages/svelte/src/doclib/examples/AllTypes.svelte	unsupported statement `class`
+unparsed	svelte-inspect-value/packages/svelte/src/doclib/examples/BasicEditable.svelte	unsupported statement `try`
+unparsed	svelte-inspect-value/packages/svelte/src/lib/Panel.svelte	module scripts are not supported yet
+unparsed	svelte-inspect-value/packages/svelte/src/lib/Wrapper.svelte	unsupported statement `for`
+unparsed	svelte-inspect-value/packages/svelte/src/lib/components/Count.svelte	unsupported statement `switch`
+unparsed	svelte-inspect-value/packages/svelte/src/lib/components/FunctionBody.svelte	module scripts are not supported yet
+unparsed	svelte-inspect-value/packages/svelte/src/lib/components/FunctionView.svelte	expected `;`
+unparsed	svelte-inspect-value/packages/svelte/src/lib/components/HTMLValue.svelte	module scripts are not supported yet
+unparsed	svelte-inspect-value/packages/svelte/src/lib/components/Highlight.svelte	module scripts are not supported yet
+unparsed	svelte-inspect-value/packages/svelte/src/lib/components/Key.svelte	unsupported statement `throw`
+unparsed	svelte-inspect-value/packages/svelte/src/lib/components/PromiseView.svelte	unsupported statement `try`
+unparsed	svelte-inspect-value/packages/svelte/src/lib/components/Row.svelte	unsupported statement `switch`
+unparsed	svelte-inspect-value/packages/svelte/src/lib/components/StringView.svelte	unsupported statement `try`
+unparsed	svelte-inspect-value/packages/svelte/src/lib/components/Tools.svelte	unsupported statement `try`
+unparsed	svelte-inspect-value/packages/svelte/src/routes/(app)/playground/[...example]/+page.svelte	unsupported statement `try`
+unparsed	svelte-inspect-value/packages/svelte/src/routes/(app)/reference/custom/HexString.svelte	expected `}`
+unparsed	svelte-lexical/demos/qalam/src/lib/InsertImageDialog.svelte	unsupported statement `throw`
+unparsed	svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertBlueskyDialog.svelte	unsupported statement `try`
+unparsed	svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/CodeActionMenuPlugin.svelte	unsupported statement `for`
+unparsed	svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/components/PrettierButton.svelte	unsupported statement `throw`
+unparsed	svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableCellResizerPlugin.svelte	unsupported statement `for`
+unparsed	svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/TreeView/TreeView.svelte	unsupported statement `for`
+unparsed	svelte-maplibre/src/lib/MapLibre.svelte	unsupported statement `try`
+unparsed	svelte-maplibre/src/routes/examples/geojson_polygon/+page.svelte	unsupported statement `for`
+unparsed	svelte-material-ui/packages/site/src/lib/Demo.svelte	unsupported statement `for`
+unparsed	svelte-put/packages/preprocess-markdown/src/enhance-code-block/ButtonCollapse.svelte	module scripts are not supported yet
+unparsed	svelte-put/packages/preprocess-markdown/src/enhance-code-block/ButtonCopy.svelte	module scripts are not supported yet
+unparsed	svelte-put/packages/preprocess-markdown/src/enhance-code-block/ButtonFullScreen.svelte	module scripts are not supported yet
+unparsed	svelte-put/packages/preprocess-markdown/src/enhance-code-block/CodeBlock.svelte	module scripts are not supported yet
+unparsed	svelte-put/packages/preprocess-markdown/src/enhance-code-block/CodeBlockGroup.svelte	module scripts are not supported yet
+unparsed	svelte-put/packages/preprocess-markdown/src/enhance-code-block/FileIcon.svelte	module scripts are not supported yet
+unparsed	svelte-put/sites/docs/src/lib/notifications/components/BaseNotification.svelte	module scripts are not supported yet
+unparsed	svelte-put/sites/docs/src/lib/notifications/components/NotificationPortal.svelte	unsupported statement `for`
+unparsed	svelte-put/sites/docs/src/packages/async-stack/_page/examples/comprehensive/Notification.svelte	module scripts are not supported yet
+unparsed	svelte-put/sites/docs/src/packages/async-stack/_page/examples/toast/Toast.svelte	module scripts are not supported yet
+unparsed	svelte-put/sites/docs/src/packages/async-stack/_page/examples/toast/ToastPortal.svelte	unsupported statement `for`
+unparsed	svelte-render-scan/src/routes/+page.svelte	expected `;`
+unparsed	svelte-sites/sites/hn.svelte.dev/src/lib/ThemeToggler.svelte	unsupported statement `try`
+unparsed	svelte-sonner/src/lib/Toaster.svelte	module scripts are not supported yet
+unparsed	svelte-tiny-virtual-list/src/lib/VirtualList.svelte	unsupported statement `for`
+unparsed	svelte-tiny-virtual-list/src/routes/+layout.svelte	unsupported statement `import`
+unparsed	svelte-virtuallists/src/comp/Contents.svelte	module scripts are not supported yet
+unparsed	svelte-virtuallists/src/routes/examples/events/code.svelte	unsupported statement `for`
+unparsed	svelte-virtuallists/src/routes/examples/positioning/code.svelte	unsupported statement `for`
+unparsed	sveltepress/packages/meilisearch/src/Search.svelte	unsupported statement `try`
+unparsed	sveltepress/packages/theme-blog/src/components/AuthorProfile.svelte	unsupported statement `for`
+unparsed	sveltepress/packages/theme-blog/src/components/PostCardLarge.svelte	unsupported statement `for`
+unparsed	sveltepress/packages/theme-blog/src/components/SearchModal.svelte	unsupported statement `try`
+unparsed	sveltepress/packages/theme-blog/src/components/Sidebar.svelte	unsupported statement `for`
+unparsed	sveltepress/packages/theme-blog/src/components/TableOfContents.svelte	unsupported statement `for`
+unparsed	sveltepress/packages/theme-blog/src/components/Timeline.svelte	unsupported statement `for`
+unparsed	sveltepress/packages/theme-default/src/components/GlobalLayout.svelte	unsupported expression `import`
+unparsed	sveltepress/packages/theme-default/src/components/Navbar.svelte	unsupported statement `try`
+unparsed	sveltepress/packages/theme-default/src/components/Tabs.svelte	module scripts are not supported yet
+unparsed	sveltepress/packages/theme-default/src/components/Toc.svelte	module scripts are not supported yet
+unparsed	syntaxfm-website/src/lib/Icon.svelte	module scripts are not supported yet
+unparsed	syntaxfm-website/src/lib/ShowCard.svelte	unsupported statement `switch`
+unparsed	syntaxfm-website/src/lib/player/Visualizer.svelte	unsupported statement `for`
+unparsed	syntaxfm-website/src/lib/share/HairButton.svelte	unsupported statement `try`
+unparsed	syntaxfm-website/src/params/ThemeMaker.svelte	unsupported expression `import`
+unparsed	syntaxfm-website/src/routes/(site)/guests/+page.svelte	destructuring assignment is not supported
+unparsed	threlte/apps/docs/src/components/ContactForm/ContactForm.svelte	unsupported statement `try`
+unparsed	threlte/apps/docs/src/components/Hero/Intro/Intro.svelte	unsupported expression `import`
+unparsed	threlte/apps/docs/src/examples/extras/grid/App.svelte	unsupported statement `for`
+unparsed	threlte/apps/docs/src/examples/extras/view/multiple-scenes/App.svelte	unsupported statement `for`
+unparsed	threlte/apps/docs/src/examples/flex/examples/App.svelte	unsupported expression `import`
+unparsed	threlte/packages/studio/src/lib/components/Icon.svelte	module scripts are not supported yet
+unparsed	threlte/packages/studio/src/lib/extensions/object-selection/SelectRect.svelte	unsupported statement `try`
+unparsed	threlte/packages/studio/src/lib/extensions/static-state/StaticState.svelte	unsupported statement `try`
+population	2161
+matched	1708
+unparsed	453
+mismatched	0

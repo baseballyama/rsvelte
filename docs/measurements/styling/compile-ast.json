@@ -1,0 +1,221 @@
+{
+  "population": 18,
+  "rows": [
+    {
+      "filename": "animations.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "animations.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "attribute-selector-case-sensitive.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "attribute-selector-case-sensitive.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "attribute-selector-html-case-insensitive.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "attribute-selector-html-case-insensitive.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "basic.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "basic.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "child-combinator.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "child-combinator.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "class-directive.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "class-directive.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "css-prune-edge-cases.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "css-prune-edge-cases.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "global-keyframes.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "global-keyframes.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "global.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "global.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "is.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "is.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "keyframes.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "keyframes.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "namespaced-type-selector.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "namespaced-type-selector.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "nested-css.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "nested-css.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "not-selector.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "not-selector.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "selector-list.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "selector-list.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "unicode-identifier.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "unicode-identifier.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "universal-selector.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "universal-selector.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "unused-selector.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "filename": "unused-selector.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    }
+  ]
+}

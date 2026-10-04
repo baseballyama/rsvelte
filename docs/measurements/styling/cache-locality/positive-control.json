@@ -1,0 +1,7 @@
+{
+  "defect": "append a deliberate comment to a copied CSS expectation",
+  "returncode": 1,
+  "stdout": "",
+  "stderr": "Error: \"src/lib/components/embed.svelte: CSS differs\"\n",
+  "repository_expectations_modified": false
+}

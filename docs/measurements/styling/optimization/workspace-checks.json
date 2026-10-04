@@ -1,0 +1,44 @@
+[
+  {
+    "check": "workspace-tests",
+    "command": [
+      "cargo",
+      "+1.98.1",
+      "test",
+      "--offline"
+    ],
+    "exit_code": 101
+  },
+  {
+    "check": "workspace-clippy",
+    "command": [
+      "cargo",
+      "+1.98.1",
+      "clippy",
+      "--offline",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 101
+  },
+  {
+    "check": "workspace-format",
+    "command": [
+      "mise",
+      "run",
+      "fmt:check"
+    ],
+    "exit_code": 0
+  },
+  {
+    "check": "workspace-structure",
+    "command": [
+      "mise",
+      "run",
+      "structure"
+    ],
+    "exit_code": 0
+  }
+]

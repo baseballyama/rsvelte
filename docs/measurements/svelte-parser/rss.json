@@ -1,0 +1,18 @@
+[
+  {
+    "arm": "before",
+    "peak_rss_bytes": 4030464
+  },
+  {
+    "arm": "after",
+    "peak_rss_bytes": 3817472
+  },
+  {
+    "arm": "after",
+    "peak_rss_bytes": 3915776
+  },
+  {
+    "arm": "before",
+    "peak_rss_bytes": 3981312
+  }
+]

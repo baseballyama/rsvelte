@@ -1,0 +1,58 @@
+{
+  "revision": "d3fe0394b0b11ab70829fad9a544b2b03ac81618",
+  "decision": "HOLD",
+  "candidate": "Read node tags and operator flags for expression precedence instead of decoding the full node.",
+  "reason": "Cycles rose for special elements and fell for larger files. Shared-host ranges overlap. No common CPU-cycle improvement was established.",
+  "populations": [
+    {
+      "name": "main",
+      "documents": 74,
+      "source_bytes": 8487,
+      "outputs": 148
+    },
+    {
+      "name": "large",
+      "documents": 8,
+      "source_bytes": 28639,
+      "outputs": 16
+    }
+  ],
+  "base_source_manifest": "../cache-locality/after-source.json",
+  "base_source_archive": "../cache-locality/sources.zip",
+  "source_manifest": "source.json",
+  "cache_backend": "cachegrind-simulation",
+  "hardware_cache_misses": "UNMEASURED",
+  "heap_allocations": "UNMEASURED",
+  "peak_rss": "UNMEASURED",
+  "payload_layout_change": false,
+  "cycles_backend": "macos-proc_pid_rusage-RUSAGE_INFO_V4",
+  "cycles_rounds": 200,
+  "cycles_samples_per_population": 24,
+  "cache_rounds": 3,
+  "cache_samples_per_population_and_model": 12,
+  "oracle": "Svelte 5.57.1",
+  "discarded_runs": "The initial 2,000-round cycle run was interrupted. Early samples of the first 200-round special-element run overlapped its child process. That run was discarded and replaced by a complete 24-sample run. The larger-file run did not overlap this process.",
+  "machine": "Apple M1 Pro; shared host; no core pinning",
+  "docker_image": "sha256:b7d723500c05a84a4ac8077b69d52d91b41e6fb6cab56e5b6752dfaf4a08b443",
+  "artifacts": {
+    "README.md": "06a75ed4e95d7ab81321e6020366d21bced8419b2988e5ecbb91e38504cde976",
+    "cache-large-128.json": "8ccda5f69c65db58e8b6721c06eacabfd6e128fc4c2329d62045daf247c75eb6",
+    "cache-large.json": "92418a56c4329fec840b19f37fdac60da1db62d06f7dadc47cfaaeceaa98bb8c",
+    "cache-main-128.json": "8cc4edd34c7a756739d683d6a182d92307f592029ad68a3939ad73b303b9f887",
+    "cache-main.json": "f16de07bb92145070763f1c894a3a4d7e263853a4c383d55dd51cbc054f55ad0",
+    "cycles-large-200.json": "a0ff53ea3ee0b4817581e5636f5d0d8600c36e775a5d080be33e3b589851ef2a",
+    "cycles-main-clean.json": "5953b2ad662376482d728178c144132655c0f7141e091608a44d19ae3bf1d896",
+    "defect-control.json": "2f1b7361d2c4bb46e4720d449c25a42559315e5ad75f32606387e660060bcfbb",
+    "layout-validation.json": "1501c90f699faf1aa203eac72b92d798383dbc7902d73656b7c5dc5e44d23604",
+    "output-parity.json": "957a97cee8fdd76c5e958797e3fd327fead4c8b4d1fb5322bd9b44360d766d7f",
+    "profiles.zip": "4b974aad83d80e6de06e6e06c7bc57ed65578294a1bc485c20560befdf015616",
+    "source.json": "2a86eb63e006158a0de2b6e96b936c4b96b4122855b34b48ebc83413112558d0",
+    "sources.zip": "1afd030f5db6651f935b6c6cf448c353f935a7b247d4fd04c8749757228afa44",
+    "three-arms.json": "bbdef461f38033b58f30b9a5064c7fb7c010ffb9ce639d1995337f6b8beb2f85",
+    "verification.json": "2cf555efc33e7216976b2c74c3caa9bfbc6f71ba921cddf057b11ce883a348c6",
+    "verification.zip": "7d4ef4af911fac2e874662c4686c3fadb0274ce0bb06d48e2a34a52cd1f3eddd"
+  },
+  "three_arm_old_revision": "5ed8ea3a3401b9fbbe780d3b18d6f90073291d6b",
+  "three_arm_official_mode": "Node --jitless; this is a cache experiment, not normal JIT speed",
+  "layout_validation": "21 records from repo_layout on the frozen baseline with the added example and stylesheet dev dependency."
+}

@@ -1,0 +1,200 @@
+{
+  "population": 16,
+  "artifacts": 32,
+  "js_matched": 32,
+  "css_matched": 32,
+  "rows": [
+    {
+      "name": "assertions.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "assertions.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "bigint.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "bigint.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "class.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "class.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "dynamic-import.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "dynamic-import.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "each-assertion.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "each-assertion.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "generator.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "generator.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "generic-arrow.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "generic-arrow.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "import-attributes.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "import-attributes.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "loop.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "loop.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "module-export.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "module-export.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "module-shadow.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "module-shadow.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "module-state.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "module-state.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "module.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "module.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "switch.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "switch.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "try.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "try.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "while.svelte",
+      "variant": "client",
+      "js_diff": null,
+      "css_match": true
+    },
+    {
+      "name": "while.svelte",
+      "variant": "server",
+      "js_diff": null,
+      "css_match": true
+    }
+  ]
+}

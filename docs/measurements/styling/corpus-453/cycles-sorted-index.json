@@ -1,0 +1,231 @@
+{
+  "method": "proc_pid_rusage RUSAGE_INFO_V4 between stdin gates; destruction included",
+  "warmup_rounds": 20,
+  "measured_rounds": 5,
+  "population": 453,
+  "manifest_sha256": "6d9eea41e74cf97a73a5e16917ed8da1a2dfcf8530b0342144be2b6a3eea62d2",
+  "binary_sha256": {
+    "before": "f2c6b576c15470a136836193a0db318d67453b0ef6eec788f4bfeef1b81eedfe",
+    "after": "61a22275020c309dae78402308cf61a8b75cd09fa72a38b618f129cb54ae24bf"
+  },
+  "rows": [
+    {
+      "arm": "before",
+      "trial": 0,
+      "documents": 453,
+      "rounds": 0,
+      "phase": "analyze",
+      "elapsed_ns": 125,
+      "checksum": 0,
+      "before": {
+        "cycles": 2523368926,
+        "instructions": 9218547970
+      },
+      "after": {
+        "cycles": 2523388053,
+        "instructions": 9218565016
+      },
+      "cycles": 19127,
+      "instructions": 17046
+    },
+    {
+      "arm": "after",
+      "trial": 1,
+      "documents": 453,
+      "rounds": 0,
+      "phase": "analyze",
+      "elapsed_ns": 41,
+      "checksum": 0,
+      "before": {
+        "cycles": 2762993921,
+        "instructions": 9394234931
+      },
+      "after": {
+        "cycles": 2763031786,
+        "instructions": 9394253008
+      },
+      "cycles": 37865,
+      "instructions": 18077
+    },
+    {
+      "arm": "before",
+      "trial": 2,
+      "documents": 453,
+      "rounds": 5,
+      "phase": "analyze",
+      "elapsed_ns": 576108416,
+      "checksum": 2265,
+      "before": {
+        "cycles": 2389142387,
+        "instructions": 9257684019
+      },
+      "after": {
+        "cycles": 2823479141,
+        "instructions": 11057161635
+      },
+      "cycles": 434336754,
+      "instructions": 1799477616
+    },
+    {
+      "arm": "after",
+      "trial": 3,
+      "documents": 453,
+      "rounds": 5,
+      "phase": "analyze",
+      "elapsed_ns": 603478542,
+      "checksum": 2265,
+      "before": {
+        "cycles": 2505014624,
+        "instructions": 9335013185
+      },
+      "after": {
+        "cycles": 2978957414,
+        "instructions": 11156665301
+      },
+      "cycles": 473942790,
+      "instructions": 1821652116
+    },
+    {
+      "arm": "after",
+      "trial": 4,
+      "documents": 453,
+      "rounds": 5,
+      "phase": "analyze",
+      "elapsed_ns": 268655791,
+      "checksum": 2265,
+      "before": {
+        "cycles": 2615583625,
+        "instructions": 9351345332
+      },
+      "after": {
+        "cycles": 3068135376,
+        "instructions": 11171430651
+      },
+      "cycles": 452551751,
+      "instructions": 1820085319
+    },
+    {
+      "arm": "before",
+      "trial": 5,
+      "documents": 453,
+      "rounds": 5,
+      "phase": "analyze",
+      "elapsed_ns": 237855292,
+      "checksum": 2265,
+      "before": {
+        "cycles": 2326894801,
+        "instructions": 9245476066
+      },
+      "after": {
+        "cycles": 2737747372,
+        "instructions": 11039316761
+      },
+      "cycles": 410852571,
+      "instructions": 1793840695
+    },
+    {
+      "arm": "before",
+      "trial": 6,
+      "documents": 453,
+      "rounds": 5,
+      "phase": "analyze",
+      "elapsed_ns": 139461875,
+      "checksum": 2265,
+      "before": {
+        "cycles": 2182409068,
+        "instructions": 9120962516
+      },
+      "after": {
+        "cycles": 2591925741,
+        "instructions": 10911443443
+      },
+      "cycles": 409516673,
+      "instructions": 1790480927
+    },
+    {
+      "arm": "after",
+      "trial": 7,
+      "documents": 453,
+      "rounds": 5,
+      "phase": "analyze",
+      "elapsed_ns": 241029708,
+      "checksum": 2265,
+      "before": {
+        "cycles": 2280400085,
+        "instructions": 9122071806
+      },
+      "after": {
+        "cycles": 2715157019,
+        "instructions": 10936457899
+      },
+      "cycles": 434756934,
+      "instructions": 1814386093
+    },
+    {
+      "arm": "after",
+      "trial": 8,
+      "documents": 453,
+      "rounds": 5,
+      "phase": "analyze",
+      "elapsed_ns": 163696291,
+      "checksum": 2265,
+      "before": {
+        "cycles": 2279669807,
+        "instructions": 9119333496
+      },
+      "after": {
+        "cycles": 2716647546,
+        "instructions": 10932198605
+      },
+      "cycles": 436977739,
+      "instructions": 1812865109
+    },
+    {
+      "arm": "before",
+      "trial": 9,
+      "documents": 453,
+      "rounds": 5,
+      "phase": "analyze",
+      "elapsed_ns": 168945500,
+      "checksum": 2265,
+      "before": {
+        "cycles": 2465734637,
+        "instructions": 9233083571
+      },
+      "after": {
+        "cycles": 2876152684,
+        "instructions": 11026379317
+      },
+      "cycles": 410418047,
+      "instructions": 1793295746
+    }
+  ],
+  "summary": {
+    "analyze": {
+      "before": {
+        "cycles": {
+          "median_per_input": 181295.94216335542,
+          "min_per_input": 180802.06313465783,
+          "max_per_input": 191760.1562913907
+        },
+        "instructions": {
+          "median_per_input": 791862.3490066226,
+          "min_per_input": 790499.3055187637,
+          "max_per_input": 794471.353642384
+        }
+      },
+      "after": {
+        "cycles": {
+          "median_per_input": 196364.12582781457,
+          "min_per_input": 191945.66622516557,
+          "max_per_input": 209246.26490066224
+        },
+        "instructions": {
+          "median_per_input": 802311.5699779249,
+          "min_per_input": 800381.9465783664,
+          "max_per_input": 804261.4198675497
+        }
+      }
+    }
+  }
+}

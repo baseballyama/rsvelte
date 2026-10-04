@@ -1,0 +1,44 @@
+{
+  "typescript_crate": {
+    "tests": 19,
+    "root": "PASS",
+    "isolated_clippy": "PASS"
+  },
+  "binary_tree_shapes": {
+    "population": 968,
+    "result": "PASS",
+    "defect_control": "FAILS_THEN_PASSES"
+  },
+  "measurement_tools": {
+    "macos": {
+      "passed": 5,
+      "skipped": 2
+    },
+    "linux": {
+      "passed": 6,
+      "skipped": 1
+    }
+  },
+  "performance_typecheck": "PASS",
+  "own_rust_format": "PASS",
+  "structure": "PASS",
+  "workflow_checks": "PASS",
+  "layout_records": 21,
+  "whole_workspace": {
+    "test": "FAIL: CLI expected task list omits svelte.project/typescript",
+    "clippy": "FAIL: parser and semantic source errors outside this change",
+    "format": "FAIL: Vapor, project and typecheck files outside this change"
+  },
+  "files": {
+    "tools/performance/workload.ts": "78ca71ef84211756ff70205952190a46062643b94bd5c2c0c07902a3df4857e2",
+    "tools/performance/bin/cache-profile.ts": "ee6ce454274a371fbc399aeaa6dffbe571e5741fe9e244a63c170f63226067fe",
+    "tools/performance/bin/macos-cycles.ts": "61b7362e4e43b010e45534ac69a2738cd426ce094d24edc2bb6c71f0dd5538de",
+    "tools/performance/bin/linux-counters.ts": "5cc1e1822baffa55614e3b352426055f2aa067d6d7992b71087f5f73f575eac9",
+    "tools/performance/test/workload.test.ts": "29f223df90bb0f88744c805cfc6019e2e41f5ad755beb50c6462a6f740a684ad",
+    "tools/performance/test/macos-cycles.test.ts": "8cd9bcd9cc947db042235c199733d9b8fa4c87bc06601893264669687207c431",
+    "crates/languages/typescript/compile/tests/precedence.rs": "3bdac3d31a722416200b2b21566bd159bb780766b390fb9ac17d92196ec15a5b",
+    "crates/hosts/command_line/examples/repo_layout.rs": "06829957e50acfddc074ebe638b77922606134c83ae8f610bb021c784b76de83",
+    ".github/workflows/ci.yml": "a7066cc764a8dd4ffdee81d76f8b82df092f739dea74c37d491cb7b113a4aec9",
+    "mise.toml": "213fcaf4a6d09174a767b0a12e9c0a000d70890789e7a1c1b3533aca8c6839e2"
+  }
+}

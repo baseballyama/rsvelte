@@ -1,0 +1,402 @@
+{
+  "rev": "UNMEASURED",
+  "metrics": true,
+  "rounds": 2,
+  "documents": 20,
+  "skipped": 0,
+  "source_bytes": 2477,
+  "output_bytes": 13860,
+  "tasks": [
+    "svelte.compile/client",
+    "svelte.compile/server"
+  ],
+  "allocs": 4241,
+  "alloc_bytes": 224071,
+  "peak_live_growth_bytes": 36960,
+  "phases": {
+    "js.print": {
+      "calls": 40,
+      "allocs": 577,
+      "alloc_bytes": 49957
+    },
+    "svelte.analyze": {
+      "calls": 20,
+      "allocs": 246,
+      "alloc_bytes": 9054
+    },
+    "svelte.compile/client": {
+      "calls": 20,
+      "allocs": 40,
+      "alloc_bytes": 3880
+    },
+    "svelte.compile/server": {
+      "calls": 20,
+      "allocs": 40,
+      "alloc_bytes": 3880
+    },
+    "svelte.compiler_syntax_tree": {
+      "calls": 20,
+      "allocs": 159,
+      "alloc_bytes": 10344
+    },
+    "svelte.css": {
+      "calls": 20,
+      "allocs": 20,
+      "alloc_bytes": 480
+    },
+    "svelte.lower.client": {
+      "calls": 20,
+      "allocs": 1348,
+      "alloc_bytes": 47013
+    },
+    "svelte.lower.server": {
+      "calls": 20,
+      "allocs": 878,
+      "alloc_bytes": 29437
+    },
+    "svelte.output_identity": {
+      "calls": 20,
+      "allocs": 152,
+      "alloc_bytes": 4552
+    },
+    "svelte.parse": {
+      "calls": 20,
+      "allocs": 56,
+      "alloc_bytes": 19010
+    },
+    "svelte.render_plan": {
+      "calls": 20,
+      "allocs": 274,
+      "alloc_bytes": 14836
+    },
+    "svelte.resolve": {
+      "calls": 20,
+      "allocs": 408,
+      "alloc_bytes": 23132
+    },
+    "svelte.validate": {
+      "calls": 20,
+      "allocs": 20,
+      "alloc_bytes": 1600
+    }
+  },
+  "base_revision": "a25573c64087dd1f417321f19139b3edd709bf03",
+  "source_manifest_sha256": "c4d51df1f1289339d5e9ec9e863eb70350b9e6a2029f5cfb36e828d13a608bf6",
+  "instruction_binary_sha256": "bd916802892659af990d18a7f5d3f3724ff9523d53d03b6db5069f41a8bdefc5",
+  "cpu_cycles": "UNMEASURED",
+  "warm_instructions": 3479527,
+  "oracle": "5.57.1",
+  "cases": [
+    {
+      "name": "boundary-attrs.svelte",
+      "sha256": "6f5b2db6915e54c2680f4ae950bd45d1a335a395b942b79c24bc170d50a879e2"
+    },
+    {
+      "name": "boundary-reactive.svelte",
+      "sha256": "b7c6e7d50f2912809130cfb5d4d661ce35450dc5ac227e350d456fd22047e5ff"
+    },
+    {
+      "name": "boundary-static.svelte",
+      "sha256": "1861b781b6968462a4b82ade3b47f42a80401303089879b98b9c49b87daa05a2"
+    },
+    {
+      "name": "boundary-text.svelte",
+      "sha256": "2b211c8d67ff08d5b28344d1aaa758d43df5f67bd9264c34c0312371399fa5b0"
+    },
+    {
+      "name": "element-call.svelte",
+      "sha256": "0544f5dbd36b4b434662fc13b0d7672ca55c48cc5fb368c14fa6744681e9407a"
+    },
+    {
+      "name": "element-children.svelte",
+      "sha256": "cbf35e6b304eebed300358069f696ebce6068314dcc946a245e12fef27021076"
+    },
+    {
+      "name": "element-class.svelte",
+      "sha256": "64cf1bb6d8a4baaf61c10c15d40cafa2d3c757d9919bbfd6e7f24496ccf37181"
+    },
+    {
+      "name": "element-empty.svelte",
+      "sha256": "cad3489134b9a3c244b2770bf10aede8dbb0aac506f311ac0198831f417761d3"
+    },
+    {
+      "name": "element-spread.svelte",
+      "sha256": "7eea7ac581be9dfdf14bef4947f6571cec7901d619a88c7759356a1d294ae79c"
+    },
+    {
+      "name": "globals-bindings.svelte",
+      "sha256": "6d688c450a9e95ccb2bc8376f0f46546697f36fab9682f3586fef66cc6bf1d1e"
+    },
+    {
+      "name": "globals-events.svelte",
+      "sha256": "1bf3d2a13bd0626cbecea56c80283173ec8fca9b4b81770db988e89e821ed1e9"
+    },
+    {
+      "name": "globals-function-binding.svelte",
+      "sha256": "26ee965e27f241833e3eb9fa500fe13331291e09c2906a8e890bf5cc57827688"
+    },
+    {
+      "name": "head-memo.svelte",
+      "sha256": "51ddba2e4475aa8731f5b93384b854a1aeae079985b68e900c035dc2fb289efe"
+    },
+    {
+      "name": "head-nested.svelte",
+      "sha256": "b27ed7f8e987e79be7b616debe2339f361fe97dff13d26a7cbf6459107fd6d14"
+    },
+    {
+      "name": "head-only.svelte",
+      "sha256": "02170c9e1b7b89456a18be45b2def10dfb4e1c32c5751cecf314a964cfb09236"
+    },
+    {
+      "name": "head-state.svelte",
+      "sha256": "bfbefe2055714a6f638680915a6948d1454317cdf60c3b0dc07f52af150bd2af"
+    },
+    {
+      "name": "head-static.svelte",
+      "sha256": "ee1f93ec317c1e630a66bc37429f4850e2df5442c27404b1222a4c3ad359a254"
+    },
+    {
+      "name": "head-whitespace.svelte",
+      "sha256": "a1b473d2d4ebef774269fc36e73f666a6854d9b00b26fef162e9b80e1774bfb2"
+    },
+    {
+      "name": "options-runes.svelte",
+      "sha256": "9ee942d488305ef0ce01ccb3f19c19959ff43c68eb4bcfe6d2834d94ae7d4def"
+    },
+    {
+      "name": "options-whitespace.svelte",
+      "sha256": "f6cfd7bcaa5be102f32ca0b552da69426b33676bc06f48a9c42b6890d05676b7"
+    }
+  ],
+  "method": {
+    "architecture": "aarch64 Linux",
+    "profiler": "Cachegrind 3.22.0",
+    "cache_simulation": false,
+    "branch_simulation": false,
+    "warm_round": "round2 instructions minus round1 instructions",
+    "allocation_round": "separate metrics build; warm second round; both targets share a file database",
+    "hardware_cycles": "UNMEASURED; virtual machine has no PMU",
+    "tree": "frozen dirty source; includes concurrent work; base revision alone does not identify the measured source"
+  },
+  "arms": {
+    "rewrite": {
+      "round1_instructions": 4141670,
+      "round2_instructions": 7621197,
+      "warm_instructions": 3479527,
+      "outputs_per_round": 40,
+      "cpu_cycles": "UNMEASURED"
+    },
+    "official": {
+      "oracle": "Svelte 5.57.1",
+      "runtime": "Node 26.7.0 --jitless",
+      "round1_instructions": 800854404,
+      "round2_instructions": 958823781,
+      "warm_instructions": 157969377,
+      "outputs_per_round": 40,
+      "harness_sha256": "76ba340b84f44e77cef8a607ff9d99440cbf55373fdfbf88cc304f5d2f3b4a98",
+      "allocations": "UNMEASURED",
+      "cpu_cycles": "UNMEASURED",
+      "limitation": "Observed startup subtraction with JIT disabled; does not predict production V8 performance."
+    },
+    "old": {
+      "revision": "5ed8ea3a3401b9fbbe780d3b18d6f90073291d6b",
+      "round1_instructions": 18903077,
+      "round2_instructions": 29339641,
+      "warm_instructions": 10436564,
+      "outputs_per_round": 40,
+      "harness_sha256": "dccb2994ebc3f7d3f9e9e75fb94dc61ba6be9dc8358a4da3bb3a1cec25261607",
+      "allocations": "UNMEASURED",
+      "cpu_cycles": "UNMEASURED",
+      "instruction_binary_sha256": "ebef61376dad185270d075508979d80db4b88fa8aa48b614e63625e1abfbd591"
+    }
+  },
+  "corpus": {
+    "oracle": "5.57.1",
+    "documents": 1149,
+    "population": 2298,
+    "counts": {
+      "unsupported": 1994,
+      "match": 304
+    },
+    "selection": "Source spelling of the seven special tags; selected files may fail on other language features."
+  },
+  "verification": {
+    "handwritten_documents": 74,
+    "handwritten_outputs": 148,
+    "oracle_ast_matches": 148,
+    "positive_control": "changed boundary runtime call rejected",
+    "invalid_cases": 10,
+    "invalid_targets_per_case": 2,
+    "crate_cases": 20235,
+    "workspace_tests": "PASS",
+    "format": "PASS",
+    "structure": {
+      "status": "PASS",
+      "source_files": 530
+    },
+    "clippy_all_targets": "PASS",
+    "clippy_libraries_and_binaries": "PASS",
+    "crate_snapshots_same": 264,
+    "whole_crate_oracle": {
+      "population": 20108,
+      "ast_matches": 2703,
+      "differences": 16800,
+      "not_run": 605
+    }
+  },
+  "layout": {
+    "architecture": "aarch64",
+    "hir_node": {
+      "size": 56,
+      "alignment": 8,
+      "field_offsets": {
+        "span": 0,
+        "kind": 8,
+        "parent": 48
+      }
+    },
+    "attribute": {
+      "size": 64,
+      "alignment": 8
+    },
+    "render_item": {
+      "size": 48,
+      "alignment": 8
+    },
+    "cleaned_region": {
+      "size": 48,
+      "alignment": 8
+    }
+  },
+  "extended_population": {
+    "rev": "UNMEASURED",
+    "metrics": true,
+    "rounds": 2,
+    "documents": 8,
+    "skipped": 0,
+    "source_bytes": 1153,
+    "output_bytes": 8379,
+    "tasks": [
+      "svelte.compile/client",
+      "svelte.compile/server"
+    ],
+    "allocs": 2192,
+    "alloc_bytes": 117069,
+    "peak_live_growth_bytes": 19590,
+    "phases": {
+      "js.print": {
+        "calls": 16,
+        "allocs": 281,
+        "alloc_bytes": 25034
+      },
+      "svelte.analyze": {
+        "calls": 8,
+        "allocs": 91,
+        "alloc_bytes": 3520
+      },
+      "svelte.compile/client": {
+        "calls": 8,
+        "allocs": 16,
+        "alloc_bytes": 1552
+      },
+      "svelte.compile/server": {
+        "calls": 8,
+        "allocs": 16,
+        "alloc_bytes": 1552
+      },
+      "svelte.compiler_syntax_tree": {
+        "calls": 8,
+        "allocs": 71,
+        "alloc_bytes": 5420
+      },
+      "svelte.css": {
+        "calls": 8,
+        "allocs": 16,
+        "alloc_bytes": 424
+      },
+      "svelte.lower.client": {
+        "calls": 8,
+        "allocs": 840,
+        "alloc_bytes": 30076
+      },
+      "svelte.lower.server": {
+        "calls": 8,
+        "allocs": 421,
+        "alloc_bytes": 14276
+      },
+      "svelte.output_identity": {
+        "calls": 8,
+        "allocs": 74,
+        "alloc_bytes": 2260
+      },
+      "svelte.parse": {
+        "calls": 8,
+        "allocs": 26,
+        "alloc_bytes": 8632
+      },
+      "svelte.render_plan": {
+        "calls": 8,
+        "allocs": 139,
+        "alloc_bytes": 9300
+      },
+      "svelte.resolve": {
+        "calls": 8,
+        "allocs": 175,
+        "alloc_bytes": 10923
+      },
+      "svelte.validate": {
+        "calls": 8,
+        "allocs": 15,
+        "alloc_bytes": 1140
+      }
+    },
+    "cases": [
+      {
+        "name": "boundary-failed-array.svelte",
+        "sha256": "397e27417fe9df5ee1bad3245d3bcb5ebb2cb5bf13c2da6117270113b838d474"
+      },
+      {
+        "name": "boundary-failed-default-call.svelte",
+        "sha256": "c2a3b3c262be23a7a44e9ed4c3a52f8180bc1560b46781acb51cf10c70b21015"
+      },
+      {
+        "name": "boundary-failed-object.svelte",
+        "sha256": "1c5dcaf1fca8b1fcfec25b319013f454fb082d3856c7279ddca5fbc730bb5761"
+      },
+      {
+        "name": "boundary-failed-rest.svelte",
+        "sha256": "8807f238ea8225bbf9497f2b02edc02a30569f778980307cd46e9b1daa24a107"
+      },
+      {
+        "name": "global-on-modifiers.svelte",
+        "sha256": "2ca8b533d6db16a3b6d7e2ee19da19b41520f9456bf52c6dd22fafca546f45fa"
+      },
+      {
+        "name": "options-custom-css.svelte",
+        "sha256": "4245defefa2d3f585338dba7be729a8d75e37504ab4f3ad57b0c3564780d0e2a"
+      },
+      {
+        "name": "options-custom-props-config.svelte",
+        "sha256": "d2a95dd5d19536fe27cb8637a913b236349b71ee50dd48be2f0d1ece1055fa41"
+      },
+      {
+        "name": "options-custom-props-rest.svelte",
+        "sha256": "c4491f1ef73f4a67dc59d089949e3ef8022caa5ce24a38f1728fb0554a74b001"
+      }
+    ],
+    "round1_instructions": 2417559,
+    "round2_instructions": 4266074,
+    "cpu_cycles": "UNMEASURED",
+    "oracle_ast_matches": 16,
+    "warm_instructions": 1848515
+  },
+  "post_measurement_changes": {
+    "compiler_sources_changed": false,
+    "files": [
+      "crates/hosts/command_line/tools/export_site_layers.rs",
+      "crates/languages/svelte/compile/examples/style_corpus.rs",
+      "crates/languages/svelte/compile/tests/styling.rs"
+    ],
+    "reason": "Lint and layout fixes after the measured source was frozen."
+  }
+}

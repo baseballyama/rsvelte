@@ -1,0 +1,448 @@
+{
+  "method": "proc_pid_rusage RUSAGE_INFO_V4 between stdin gates; destruction included",
+  "process_policy": "taskpolicy -B requested for each worker before warmup",
+  "warmup_rounds": 20,
+  "measured_rounds": 20,
+  "population": 453,
+  "manifest_sha256": "6d9eea41e74cf97a73a5e16917ed8da1a2dfcf8530b0342144be2b6a3eea62d2",
+  "binary_sha256": {
+    "before": "5e7a2f43bfa487da779ad88ff8f11d73098c32e65066ee9852971273d61f129c",
+    "after": "db741475e7e45f59274796b1d9076bab34bb8b6606d80f3c4be3cef91238b084"
+  },
+  "rows": [
+    {
+      "arm": "before",
+      "trial": 0,
+      "documents": 453,
+      "rounds": 0,
+      "phase": "total",
+      "elapsed_ns": 166,
+      "checksum": 0,
+      "before": {
+        "cycles": 6910273447,
+        "instructions": 21537067122
+      },
+      "after": {
+        "cycles": 6910310649,
+        "instructions": 21537085338
+      },
+      "cycles": 37202,
+      "instructions": 18216
+    },
+    {
+      "arm": "after",
+      "trial": 1,
+      "documents": 453,
+      "rounds": 0,
+      "phase": "total",
+      "elapsed_ns": 209,
+      "checksum": 0,
+      "before": {
+        "cycles": 7206654492,
+        "instructions": 21609463732
+      },
+      "after": {
+        "cycles": 7206705323,
+        "instructions": 21609481000
+      },
+      "cycles": 50831,
+      "instructions": 17268
+    },
+    {
+      "arm": "before",
+      "trial": 2,
+      "documents": 453,
+      "rounds": 20,
+      "phase": "total",
+      "elapsed_ns": 15645477208,
+      "checksum": 25740680,
+      "before": {
+        "cycles": 6933245659,
+        "instructions": 21490849626
+      },
+      "after": {
+        "cycles": 12851243447,
+        "instructions": 41440789248
+      },
+      "cycles": 5917997788,
+      "instructions": 19949939622
+    },
+    {
+      "arm": "after",
+      "trial": 3,
+      "documents": 453,
+      "rounds": 20,
+      "phase": "total",
+      "elapsed_ns": 10710665583,
+      "checksum": 25740680,
+      "before": {
+        "cycles": 6611434803,
+        "instructions": 21396345239
+      },
+      "after": {
+        "cycles": 12537370465,
+        "instructions": 41349969711
+      },
+      "cycles": 5925935662,
+      "instructions": 19953624472
+    },
+    {
+      "arm": "after",
+      "trial": 4,
+      "documents": 453,
+      "rounds": 20,
+      "phase": "total",
+      "elapsed_ns": 7933205666,
+      "checksum": 25740680,
+      "before": {
+        "cycles": 6665437968,
+        "instructions": 21389168030
+      },
+      "after": {
+        "cycles": 12384086190,
+        "instructions": 41331310772
+      },
+      "cycles": 5718648222,
+      "instructions": 19942142742
+    },
+    {
+      "arm": "before",
+      "trial": 5,
+      "documents": 453,
+      "rounds": 20,
+      "phase": "total",
+      "elapsed_ns": 12805559583,
+      "checksum": 25740680,
+      "before": {
+        "cycles": 6651648044,
+        "instructions": 21422383886
+      },
+      "after": {
+        "cycles": 12559293325,
+        "instructions": 41362891121
+      },
+      "cycles": 5907645281,
+      "instructions": 19940507235
+    },
+    {
+      "arm": "before",
+      "trial": 6,
+      "documents": 453,
+      "rounds": 20,
+      "phase": "total",
+      "elapsed_ns": 22633708958,
+      "checksum": 25740680,
+      "before": {
+        "cycles": 6995877545,
+        "instructions": 21415297847
+      },
+      "after": {
+        "cycles": 13027751034,
+        "instructions": 41383539749
+      },
+      "cycles": 6031873489,
+      "instructions": 19968241902
+    },
+    {
+      "arm": "after",
+      "trial": 7,
+      "documents": 453,
+      "rounds": 20,
+      "phase": "total",
+      "elapsed_ns": 6695008167,
+      "checksum": 25740680,
+      "before": {
+        "cycles": 6883938233,
+        "instructions": 21488622409
+      },
+      "after": {
+        "cycles": 12911976251,
+        "instructions": 41459024814
+      },
+      "cycles": 6028038018,
+      "instructions": 19970402405
+    },
+    {
+      "arm": "after",
+      "trial": 8,
+      "documents": 453,
+      "rounds": 20,
+      "phase": "total",
+      "elapsed_ns": 21148828916,
+      "checksum": 25740680,
+      "before": {
+        "cycles": 8083197720,
+        "instructions": 21648253435
+      },
+      "after": {
+        "cycles": 14226712291,
+        "instructions": 41699586556
+      },
+      "cycles": 6143514571,
+      "instructions": 20051333121
+    },
+    {
+      "arm": "before",
+      "trial": 9,
+      "documents": 453,
+      "rounds": 20,
+      "phase": "total",
+      "elapsed_ns": 7016366791,
+      "checksum": 25740680,
+      "before": {
+        "cycles": 6225680414,
+        "instructions": 21363952596
+      },
+      "after": {
+        "cycles": 11863123913,
+        "instructions": 41269050793
+      },
+      "cycles": 5637443499,
+      "instructions": 19905098197
+    },
+    {
+      "arm": "before",
+      "trial": 10,
+      "documents": 453,
+      "rounds": 0,
+      "phase": "analyze",
+      "elapsed_ns": 42,
+      "checksum": 0,
+      "before": {
+        "cycles": 2630721582,
+        "instructions": 9338932762
+      },
+      "after": {
+        "cycles": 2630740239,
+        "instructions": 9338950670
+      },
+      "cycles": 18657,
+      "instructions": 17908
+    },
+    {
+      "arm": "after",
+      "trial": 11,
+      "documents": 453,
+      "rounds": 0,
+      "phase": "analyze",
+      "elapsed_ns": 42,
+      "checksum": 0,
+      "before": {
+        "cycles": 2739014690,
+        "instructions": 9406126825
+      },
+      "after": {
+        "cycles": 2739031961,
+        "instructions": 9406143706
+      },
+      "cycles": 17271,
+      "instructions": 16881
+    },
+    {
+      "arm": "before",
+      "trial": 12,
+      "documents": 453,
+      "rounds": 20,
+      "phase": "analyze",
+      "elapsed_ns": 1242415833,
+      "checksum": 9060,
+      "before": {
+        "cycles": 2643702059,
+        "instructions": 9273329146
+      },
+      "after": {
+        "cycles": 4572458174,
+        "instructions": 16494615825
+      },
+      "cycles": 1928756115,
+      "instructions": 7221286679
+    },
+    {
+      "arm": "after",
+      "trial": 13,
+      "documents": 453,
+      "rounds": 20,
+      "phase": "analyze",
+      "elapsed_ns": 2635340084,
+      "checksum": 9060,
+      "before": {
+        "cycles": 2541930172,
+        "instructions": 9249084495
+      },
+      "after": {
+        "cycles": 4408442158,
+        "instructions": 16507980831
+      },
+      "cycles": 1866511986,
+      "instructions": 7258896336
+    },
+    {
+      "arm": "after",
+      "trial": 14,
+      "documents": 453,
+      "rounds": 20,
+      "phase": "analyze",
+      "elapsed_ns": 2688024000,
+      "checksum": 9060,
+      "before": {
+        "cycles": 2694692009,
+        "instructions": 9344556753
+      },
+      "after": {
+        "cycles": 4473689837,
+        "instructions": 16590779869
+      },
+      "cycles": 1778997828,
+      "instructions": 7246223116
+    },
+    {
+      "arm": "before",
+      "trial": 15,
+      "documents": 453,
+      "rounds": 20,
+      "phase": "analyze",
+      "elapsed_ns": 1280411375,
+      "checksum": 9060,
+      "before": {
+        "cycles": 2570543482,
+        "instructions": 9322270395
+      },
+      "after": {
+        "cycles": 4225733233,
+        "instructions": 16497837326
+      },
+      "cycles": 1655189751,
+      "instructions": 7175566931
+    },
+    {
+      "arm": "before",
+      "trial": 16,
+      "documents": 453,
+      "rounds": 20,
+      "phase": "analyze",
+      "elapsed_ns": 1366975667,
+      "checksum": 9060,
+      "before": {
+        "cycles": 2351146632,
+        "instructions": 9162563724
+      },
+      "after": {
+        "cycles": 4101561147,
+        "instructions": 16345074192
+      },
+      "cycles": 1750414515,
+      "instructions": 7182510468
+    },
+    {
+      "arm": "after",
+      "trial": 17,
+      "documents": 453,
+      "rounds": 20,
+      "phase": "analyze",
+      "elapsed_ns": 2162987417,
+      "checksum": 9060,
+      "before": {
+        "cycles": 2418192578,
+        "instructions": 9296028917
+      },
+      "after": {
+        "cycles": 4106591700,
+        "instructions": 16532624570
+      },
+      "cycles": 1688399122,
+      "instructions": 7236595653
+    },
+    {
+      "arm": "after",
+      "trial": 18,
+      "documents": 453,
+      "rounds": 20,
+      "phase": "analyze",
+      "elapsed_ns": 4375817334,
+      "checksum": 9060,
+      "before": {
+        "cycles": 2615745833,
+        "instructions": 9348769666
+      },
+      "after": {
+        "cycles": 4391478006,
+        "instructions": 16601222419
+      },
+      "cycles": 1775732173,
+      "instructions": 7252452753
+    },
+    {
+      "arm": "before",
+      "trial": 19,
+      "documents": 453,
+      "rounds": 20,
+      "phase": "analyze",
+      "elapsed_ns": 2460130625,
+      "checksum": 9060,
+      "before": {
+        "cycles": 2831445634,
+        "instructions": 9330617314
+      },
+      "after": {
+        "cycles": 4835953725,
+        "instructions": 16580441735
+      },
+      "cycles": 2004508091,
+      "instructions": 7249824421
+    }
+  ],
+  "summary": {
+    "total": {
+      "before": {
+        "cycles": {
+          "median_per_input": 652629.3084437086,
+          "min_per_input": 622234.3817880794,
+          "max_per_input": 665769.7007726269
+        },
+        "instructions": {
+          "median_per_input": 2201459.539569536,
+          "min_per_input": 2197030.70607064,
+          "max_per_input": 2204000.209933775
+        }
+      },
+      "after": {
+        "cycles": {
+          "median_per_input": 659711.5717439294,
+          "min_per_input": 631197.3754966888,
+          "max_per_input": 678092.1160044151
+        },
+        "instructions": {
+          "median_per_input": 2203312.7415562915,
+          "min_per_input": 2201119.5079470198,
+          "max_per_input": 2213171.4261589404
+        }
+      }
+    },
+    "analyze": {
+      "before": {
+        "cycles": {
+          "median_per_input": 203044.7367549669,
+          "min_per_input": 182692.02549668873,
+          "max_per_input": 221248.13366445916
+        },
+        "instructions": {
+          "median_per_input": 794911.5423289182,
+          "min_per_input": 792005.1800220751,
+          "max_per_input": 800201.3709713025
+        }
+      },
+      "after": {
+        "cycles": {
+          "median_per_input": 196177.15237306844,
+          "min_per_input": 186357.51898454744,
+          "max_per_input": 206016.77549668873
+        },
+        "instructions": {
+          "median_per_input": 800147.6748896248,
+          "min_per_input": 798741.2420529801,
+          "max_per_input": 801202.6860927152
+        }
+      }
+    }
+  }
+}

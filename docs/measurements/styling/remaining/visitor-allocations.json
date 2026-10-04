@@ -1,0 +1,28 @@
+[
+  {
+    "arm": "buffered",
+    "binary_sha256": "07757be4126a70cf81b1a8fc26c6e17b82f62238d11665d3fb8379635521231f",
+    "documents": 16,
+    "rounds": 1,
+    "elapsed_ns": 314083,
+    "output_bytes": 7996,
+    "allocation": {
+      "allocations": 2996,
+      "bytes": 159094,
+      "peak_live_growth": 22365
+    }
+  },
+  {
+    "arm": "direct",
+    "binary_sha256": "999288de0cf3bd9fd71b904e79965e9f72335679757f865546a86423b2e9d86f",
+    "documents": 16,
+    "rounds": 1,
+    "elapsed_ns": 281541,
+    "output_bytes": 7996,
+    "allocation": {
+      "allocations": 2593,
+      "bytes": 152646,
+      "peak_live_growth": 22365
+    }
+  }
+]

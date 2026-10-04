@@ -1,0 +1,32 @@
+{
+  "workspace_check": {
+    "status": "passed",
+    "log": "rsvelte-unsupported-workspace-check.log",
+    "sha256": "7bf065ca51e35a15eb40d6ef4aa854333c97f5ce7e96ed8f47145deff9e09fb9"
+  },
+  "workspace_clippy": {
+    "status": "passed",
+    "log": "rsvelte-unsupported-workspace-clippy.log",
+    "sha256": "bd77808cfb127c84912521e313a1901c1b6b9f338d6334e49247c62f06e3f634"
+  },
+  "workspace_tests": {
+    "status": "passed",
+    "log": "rsvelte-unsupported-workspace-tests.log",
+    "sha256": "4722a564833c0a4362a578c26c419a9b77d1f5f81e17e6066ff60bcb69d3285d"
+  },
+  "format": {
+    "status": "passed",
+    "log": "rsvelte-unsupported-format.log",
+    "sha256": "7d8268179679a70069d7fefa83f622ce6e4575640fe67523543512eb52347be9"
+  },
+  "structure": {
+    "status": "passed",
+    "log": "rsvelte-unsupported-structure.log",
+    "sha256": "9315c8d2cdcffa5b3cd509b31c0c5e14c4a017fa6c3f82191b09ec425f00f8e2"
+  },
+  "new_snapshots": {
+    "status": "passed",
+    "log": "rsvelte-unsupported-fixtures-check.log",
+    "sha256": "4bd9d63c7c919b78395ac03eb7ae4f9cf2f05601e8fde632176fbd42ee4fed39"
+  }
+}

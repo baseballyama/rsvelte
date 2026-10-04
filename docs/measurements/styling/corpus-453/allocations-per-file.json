@@ -1,0 +1,5891 @@
+[
+  {
+    "unit": "src/lib/components/embed.svelte",
+    "before": {
+      "allocations": 221,
+      "bytes": 27057,
+      "peak_live_growth": 10958
+    },
+    "after": {
+      "allocations": 223,
+      "bytes": 27175,
+      "peak_live_growth": 11086
+    }
+  },
+  {
+    "unit": "src/lib/components/recorder.svelte",
+    "before": {
+      "allocations": 303,
+      "bytes": 38872,
+      "peak_live_growth": 17981
+    },
+    "after": {
+      "allocations": 307,
+      "bytes": 39226,
+      "peak_live_growth": 18253
+    }
+  },
+  {
+    "unit": "src/lib/components/transition.svelte",
+    "before": {
+      "allocations": 272,
+      "bytes": 28834,
+      "peak_live_growth": 11452
+    },
+    "after": {
+      "allocations": 273,
+      "bytes": 28939,
+      "peak_live_growth": 11452
+    }
+  },
+  {
+    "unit": "src/lib/components/account/sendVerificationEmailModal.svelte",
+    "before": {
+      "allocations": 510,
+      "bytes": 59565,
+      "peak_live_growth": 24260
+    },
+    "after": {
+      "allocations": 512,
+      "bytes": 59625,
+      "peak_live_growth": 24260
+    }
+  },
+  {
+    "unit": "src/lib/components/bottomModalAlert.svelte",
+    "before": {
+      "allocations": 970,
+      "bytes": 159713,
+      "peak_live_growth": 68859
+    },
+    "after": {
+      "allocations": 978,
+      "bytes": 160798,
+      "peak_live_growth": 69627
+    }
+  },
+  {
+    "unit": "src/lib/components/code.svelte",
+    "before": {
+      "allocations": 137,
+      "bytes": 16707,
+      "peak_live_growth": 9435
+    },
+    "after": {
+      "allocations": 138,
+      "bytes": 16798,
+      "peak_live_growth": 9435
+    }
+  },
+  {
+    "unit": "src/lib/components/csvExportBox.svelte",
+    "before": {
+      "allocations": 569,
+      "bytes": 65346,
+      "peak_live_growth": 25258
+    },
+    "after": {
+      "allocations": 575,
+      "bytes": 66143,
+      "peak_live_growth": 25492
+    }
+  },
+  {
+    "unit": "src/lib/components/csvImportBox.svelte",
+    "before": {
+      "allocations": 663,
+      "bytes": 79531,
+      "peak_live_growth": 31480
+    },
+    "after": {
+      "allocations": 669,
+      "bytes": 80317,
+      "peak_live_growth": 31480
+    }
+  },
+  {
+    "unit": "src/lib/components/git/DirectoryPicker.svelte",
+    "before": {
+      "allocations": 204,
+      "bytes": 27272,
+      "peak_live_growth": 11797
+    },
+    "after": {
+      "allocations": 206,
+      "bytes": 27380,
+      "peak_live_growth": 11797
+    }
+  },
+  {
+    "unit": "src/lib/components/loadingDots.svelte",
+    "before": {
+      "allocations": 101,
+      "bytes": 11630,
+      "peak_live_growth": 5584
+    },
+    "after": {
+      "allocations": 103,
+      "bytes": 11753,
+      "peak_live_growth": 5584
+    }
+  },
+  {
+    "unit": "src/lib/components/organizationUsageLimits.svelte",
+    "before": {
+      "allocations": 782,
+      "bytes": 108884,
+      "peak_live_growth": 55036
+    },
+    "after": {
+      "allocations": 784,
+      "bytes": 108728,
+      "peak_live_growth": 55036
+    }
+  },
+  {
+    "unit": "src/lib/components/permissions/row.svelte",
+    "before": {
+      "allocations": 543,
+      "bytes": 74557,
+      "peak_live_growth": 37496
+    },
+    "after": {
+      "allocations": 546,
+      "bytes": 74544,
+      "peak_live_growth": 37496
+    }
+  },
+  {
+    "unit": "src/lib/components/sortButton.svelte",
+    "before": {
+      "allocations": 368,
+      "bytes": 27466,
+      "peak_live_growth": 10228
+    },
+    "after": {
+      "allocations": 367,
+      "bytes": 27458,
+      "peak_live_growth": 10228
+    }
+  },
+  {
+    "unit": "src/lib/elements/forms/Seekbar.svelte",
+    "before": {
+      "allocations": 833,
+      "bytes": 95736,
+      "peak_live_growth": 29785
+    },
+    "after": {
+      "allocations": 837,
+      "bytes": 96247,
+      "peak_live_growth": 29785
+    }
+  },
+  {
+    "unit": "src/lib/layout/footer.svelte",
+    "before": {
+      "allocations": 326,
+      "bytes": 49832,
+      "peak_live_growth": 29440
+    },
+    "after": {
+      "allocations": 329,
+      "bytes": 49900,
+      "peak_live_growth": 29768
+    }
+  },
+  {
+    "unit": "src/routes/(console)/organization-[organization]/settings/BAAEnableModal.svelte",
+    "before": {
+      "allocations": 274,
+      "bytes": 32368,
+      "peak_live_growth": 15265
+    },
+    "after": {
+      "allocations": 279,
+      "bytes": 32753,
+      "peak_live_growth": 15265
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/auth/security/passwordStrengthPolicy.svelte",
+    "before": {
+      "allocations": 222,
+      "bytes": 26842,
+      "peak_live_growth": 13325
+    },
+    "after": {
+      "allocations": 224,
+      "bytes": 26920,
+      "peak_live_growth": 13325
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/auth/settings/+page.svelte",
+    "before": {
+      "allocations": 578,
+      "bytes": 82956,
+      "peak_live_growth": 37920
+    },
+    "after": {
+      "allocations": 583,
+      "bytes": 83262,
+      "peak_live_growth": 37920
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/databases/create/+page.svelte",
+    "before": {
+      "allocations": 416,
+      "bytes": 65954,
+      "peak_live_growth": 35121
+    },
+    "after": {
+      "allocations": 416,
+      "bytes": 65854,
+      "peak_live_growth": 35121
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/indexes/create.svelte",
+    "before": {
+      "allocations": 622,
+      "bytes": 77275,
+      "peak_live_growth": 29813
+    },
+    "after": {
+      "allocations": 624,
+      "bytes": 77344,
+      "peak_live_growth": 29813
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/indexes/view.svelte",
+    "before": {
+      "allocations": 587,
+      "bytes": 89242,
+      "peak_live_growth": 44549
+    },
+    "after": {
+      "allocations": 590,
+      "bytes": 89206,
+      "peak_live_growth": 44549
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/sheetOptions.svelte",
+    "before": {
+      "allocations": 260,
+      "bytes": 32475,
+      "peak_live_growth": 15667
+    },
+    "after": {
+      "allocations": 262,
+      "bytes": 32560,
+      "peak_live_growth": 15667
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/sidesheet.svelte",
+    "before": {
+      "allocations": 347,
+      "bytes": 54134,
+      "peak_live_growth": 26383
+    },
+    "after": {
+      "allocations": 350,
+      "bytes": 54380,
+      "peak_live_growth": 26667
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/input.svelte",
+    "before": {
+      "allocations": 299,
+      "bytes": 36045,
+      "peak_live_growth": 18517
+    },
+    "after": {
+      "allocations": 301,
+      "bytes": 36098,
+      "peak_live_growth": 18517
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/databases/database-[database]/+page.svelte",
+    "before": {
+      "allocations": 225,
+      "bytes": 29310,
+      "peak_live_growth": 16228
+    },
+    "after": {
+      "allocations": 227,
+      "bytes": 29363,
+      "peak_live_growth": 16228
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/databases/database-[database]/backups/+page.svelte",
+    "before": {
+      "allocations": 462,
+      "bytes": 60521,
+      "peak_live_growth": 26884
+    },
+    "after": {
+      "allocations": 465,
+      "bytes": 60598,
+      "peak_live_growth": 26884
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/+page.svelte",
+    "before": {
+      "allocations": 539,
+      "bytes": 87028,
+      "peak_live_growth": 48229
+    },
+    "after": {
+      "allocations": 539,
+      "bytes": 86839,
+      "peak_live_growth": 48229
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte",
+    "before": {
+      "allocations": 238,
+      "bytes": 30544,
+      "peak_live_growth": 15396
+    },
+    "after": {
+      "allocations": 240,
+      "bytes": 30627,
+      "peak_live_growth": 15396
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/indexes/createIndex.svelte",
+    "before": {
+      "allocations": 654,
+      "bytes": 79764,
+      "peak_live_growth": 31304
+    },
+    "after": {
+      "allocations": 656,
+      "bytes": 79818,
+      "peak_live_growth": 31304
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/+page.svelte",
+    "before": {
+      "allocations": 1403,
+      "bytes": 186061,
+      "peak_live_growth": 77966
+    },
+    "after": {
+      "allocations": 1406,
+      "bytes": 185917,
+      "peak_live_growth": 77966
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/createColumn.svelte",
+    "before": {
+      "allocations": 443,
+      "bytes": 54365,
+      "peak_live_growth": 21012
+    },
+    "after": {
+      "allocations": 445,
+      "bytes": 54459,
+      "peak_live_growth": 21012
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/export/+page.svelte",
+    "before": {
+      "allocations": 393,
+      "bytes": 55322,
+      "peak_live_growth": 28238
+    },
+    "after": {
+      "allocations": 396,
+      "bytes": 55379,
+      "peak_live_growth": 28238
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/editRelated.svelte",
+    "before": {
+      "allocations": 766,
+      "bytes": 109982,
+      "peak_live_growth": 41730
+    },
+    "after": {
+      "allocations": 766,
+      "bytes": 109946,
+      "peak_live_growth": 41730
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/sheetOptions.svelte",
+    "before": {
+      "allocations": 252,
+      "bytes": 32265,
+      "peak_live_growth": 15092
+    },
+    "after": {
+      "allocations": 252,
+      "bytes": 32238,
+      "peak_live_growth": 15092
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/overview/+layout.svelte",
+    "before": {
+      "allocations": 296,
+      "bytes": 38491,
+      "peak_live_growth": 21080
+    },
+    "after": {
+      "allocations": 300,
+      "bytes": 38612,
+      "peak_live_growth": 21080
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/overview/api-keys/scopes.svelte",
+    "before": {
+      "allocations": 444,
+      "bytes": 63333,
+      "peak_live_growth": 28309
+    },
+    "after": {
+      "allocations": 444,
+      "bytes": 63271,
+      "peak_live_growth": 28309
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/overview/platforms/createAndroid.svelte",
+    "before": {
+      "allocations": 397,
+      "bytes": 54661,
+      "peak_live_growth": 30720
+    },
+    "after": {
+      "allocations": 397,
+      "bytes": 54521,
+      "peak_live_growth": 30720
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/overview/platforms/createApple.svelte",
+    "before": {
+      "allocations": 394,
+      "bytes": 57314,
+      "peak_live_growth": 33092
+    },
+    "after": {
+      "allocations": 394,
+      "bytes": 57161,
+      "peak_live_growth": 33092
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/overview/platforms/createFlutter.svelte",
+    "before": {
+      "allocations": 512,
+      "bytes": 79280,
+      "peak_live_growth": 43130
+    },
+    "after": {
+      "allocations": 512,
+      "bytes": 79106,
+      "peak_live_growth": 43130
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/overview/platforms/createReactNative.svelte",
+    "before": {
+      "allocations": 433,
+      "bytes": 63353,
+      "peak_live_growth": 35241
+    },
+    "after": {
+      "allocations": 433,
+      "bytes": 63192,
+      "peak_live_growth": 35241
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/overview/platforms/createWeb.svelte",
+    "before": {
+      "allocations": 617,
+      "bytes": 85720,
+      "peak_live_growth": 45284
+    },
+    "after": {
+      "allocations": 620,
+      "bytes": 85666,
+      "peak_live_growth": 45284
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/settings/premiumGeoDBEnableModal.svelte",
+    "before": {
+      "allocations": 275,
+      "bytes": 33210,
+      "peak_live_growth": 15660
+    },
+    "after": {
+      "allocations": 280,
+      "bytes": 33588,
+      "peak_live_growth": 15660
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/settings/updateOAuth2Server.svelte",
+    "before": {
+      "allocations": 366,
+      "bytes": 54761,
+      "peak_live_growth": 29300
+    },
+    "after": {
+      "allocations": 369,
+      "bytes": 54834,
+      "peak_live_growth": 29300
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/settings/updateProtocols.svelte",
+    "before": {
+      "allocations": 392,
+      "bytes": 50867,
+      "peak_live_growth": 22964
+    },
+    "after": {
+      "allocations": 397,
+      "bytes": 51233,
+      "peak_live_growth": 22964
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/sites/(components)/siteCard.svelte",
+    "before": {
+      "allocations": 355,
+      "bytes": 49144,
+      "peak_live_growth": 30546
+    },
+    "after": {
+      "allocations": 357,
+      "bytes": 49099,
+      "peak_live_growth": 30546
+    }
+  },
+  {
+    "unit": "src/routes/(console)/project-[region]-[project]/storage/bucket-[bucket]/+page.svelte",
+    "before": {
+      "allocations": 653,
+      "bytes": 95572,
+      "peak_live_growth": 46248
+    },
+    "after": {
+      "allocations": 657,
+      "bytes": 95616,
+      "peak_live_growth": 46248
+    }
+  },
+  {
+    "unit": "src/routes/(public)/functions/deploy/+page.svelte",
+    "before": {
+      "allocations": 577,
+      "bytes": 84881,
+      "peak_live_growth": 39817
+    },
+    "after": {
+      "allocations": 581,
+      "bytes": 84968,
+      "peak_live_growth": 39993
+    }
+  },
+  {
+    "unit": "src/routes/(public)/oauth2/consent/+page.svelte",
+    "before": {
+      "allocations": 588,
+      "bytes": 82363,
+      "peak_live_growth": 32924
+    },
+    "after": {
+      "allocations": 592,
+      "bytes": 82692,
+      "peak_live_growth": 32924
+    }
+  },
+  {
+    "unit": "src/routes/(public)/oauth2/consent-card.svelte",
+    "before": {
+      "allocations": 2692,
+      "bytes": 476018,
+      "peak_live_growth": 175799
+    },
+    "after": {
+      "allocations": 2704,
+      "bytes": 483215,
+      "peak_live_growth": 179919
+    }
+  },
+  {
+    "unit": "src/routes/(public)/oauth2/device/+page.svelte",
+    "before": {
+      "allocations": 394,
+      "bytes": 56820,
+      "peak_live_growth": 27701
+    },
+    "after": {
+      "allocations": 398,
+      "bytes": 57119,
+      "peak_live_growth": 27701
+    }
+  },
+  {
+    "unit": "src/routes/(public)/oauth2/resource-selector.svelte",
+    "before": {
+      "allocations": 852,
+      "bytes": 138026,
+      "peak_live_growth": 54028
+    },
+    "after": {
+      "allocations": 860,
+      "bytes": 139756,
+      "peak_live_growth": 55048
+    }
+  },
+  {
+    "unit": "src/routes/(public)/sites/deploy/+page.svelte",
+    "before": {
+      "allocations": 892,
+      "bytes": 137782,
+      "peak_live_growth": 65476
+    },
+    "after": {
+      "allocations": 896,
+      "bytes": 137740,
+      "peak_live_growth": 65652
+    }
+  },
+  {
+    "unit": "attractions/loading/loading.svelte",
+    "before": {
+      "allocations": 45,
+      "bytes": 2600,
+      "peak_live_growth": 1883
+    },
+    "after": {
+      "allocations": 45,
+      "bytes": 2603,
+      "peak_live_growth": 1883
+    }
+  },
+  {
+    "unit": "e2e/fixtures/DataTableOverflowMenuFixture.svelte",
+    "before": {
+      "allocations": 133,
+      "bytes": 12741,
+      "peak_live_growth": 7117
+    },
+    "after": {
+      "allocations": 135,
+      "bytes": 12836,
+      "peak_live_growth": 7117
+    }
+  },
+  {
+    "unit": "src/lib/components/ui/pm-command/pm-command.svelte",
+    "before": {
+      "allocations": 150,
+      "bytes": 17563,
+      "peak_live_growth": 10853
+    },
+    "after": {
+      "allocations": 153,
+      "bytes": 17661,
+      "peak_live_growth": 10853
+    }
+  },
+  {
+    "unit": "src/lib/edra/headless/components/MediaPlaceHolder.svelte",
+    "before": {
+      "allocations": 278,
+      "bytes": 36944,
+      "peak_live_growth": 18715
+    },
+    "after": {
+      "allocations": 282,
+      "bytes": 37267,
+      "peak_live_growth": 18715
+    }
+  },
+  {
+    "unit": "src/lib/edra/headless/components/Mermaid.svelte",
+    "before": {
+      "allocations": 1164,
+      "bytes": 189233,
+      "peak_live_growth": 75615
+    },
+    "after": {
+      "allocations": 1174,
+      "bytes": 192776,
+      "peak_live_growth": 77591
+    }
+  },
+  {
+    "unit": "src/lib/edra/headless/components/SlashCommand.svelte",
+    "before": {
+      "allocations": 362,
+      "bytes": 42066,
+      "peak_live_growth": 15870
+    },
+    "after": {
+      "allocations": 365,
+      "bytes": 42382,
+      "peak_live_growth": 15870
+    }
+  },
+  {
+    "unit": "src/lib/edra/headless/components/menu/AI.svelte",
+    "before": {
+      "allocations": 977,
+      "bytes": 145468,
+      "peak_live_growth": 57258
+    },
+    "after": {
+      "allocations": 985,
+      "bytes": 147221,
+      "peak_live_growth": 57258
+    }
+  },
+  {
+    "unit": "src/lib/edra/headless/components/menu/BubbleMenu.svelte",
+    "before": {
+      "allocations": 349,
+      "bytes": 43121,
+      "peak_live_growth": 18394
+    },
+    "after": {
+      "allocations": 351,
+      "bytes": 43217,
+      "peak_live_growth": 18394
+    }
+  },
+  {
+    "unit": "src/lib/edra/shadcn/components/menu/AI.svelte",
+    "before": {
+      "allocations": 881,
+      "bytes": 121100,
+      "peak_live_growth": 47496
+    },
+    "after": {
+      "allocations": 885,
+      "bytes": 121214,
+      "peak_live_growth": 47676
+    }
+  },
+  {
+    "unit": "src/routes/headless/+page.svelte",
+    "before": {
+      "allocations": 187,
+      "bytes": 25057,
+      "peak_live_growth": 10796
+    },
+    "after": {
+      "allocations": 189,
+      "bytes": 25161,
+      "peak_live_growth": 10796
+    }
+  },
+  {
+    "unit": "packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/scss-class-name01-input.svelte",
+    "before": {
+      "allocations": 60,
+      "bytes": 3598,
+      "peak_live_growth": 2450
+    },
+    "after": {
+      "allocations": 62,
+      "bytes": 3724,
+      "peak_live_growth": 2586
+    }
+  },
+  {
+    "unit": "src/lib/Drawer/CodeButton.svelte",
+    "before": {
+      "allocations": 62,
+      "bytes": 4809,
+      "peak_live_growth": 3285
+    },
+    "after": {
+      "allocations": 62,
+      "bytes": 4810,
+      "peak_live_growth": 3285
+    }
+  },
+  {
+    "unit": "src/lib/Drawer/SayButton.svelte",
+    "before": {
+      "allocations": 251,
+      "bytes": 27433,
+      "peak_live_growth": 11414
+    },
+    "after": {
+      "allocations": 254,
+      "bytes": 27561,
+      "peak_live_growth": 11414
+    }
+  },
+  {
+    "unit": "src/lib/Settings/Logout.svelte",
+    "before": {
+      "allocations": 89,
+      "bytes": 8591,
+      "peak_live_growth": 4978
+    },
+    "after": {
+      "allocations": 90,
+      "bytes": 8620,
+      "peak_live_growth": 4978
+    }
+  },
+  {
+    "unit": "src/lib/Settings/Version.svelte",
+    "before": {
+      "allocations": 247,
+      "bytes": 31085,
+      "peak_live_growth": 13485
+    },
+    "after": {
+      "allocations": 248,
+      "bytes": 31086,
+      "peak_live_growth": 13485
+    }
+  },
+  {
+    "unit": "posts/learn-svelte/examples/derived-by.svelte",
+    "before": {
+      "allocations": 124,
+      "bytes": 10779,
+      "peak_live_growth": 6166
+    },
+    "after": {
+      "allocations": 127,
+      "bytes": 10913,
+      "peak_live_growth": 6310
+    }
+  },
+  {
+    "unit": "posts/learn-svelte/examples/example-loader.svelte",
+    "before": {
+      "allocations": 146,
+      "bytes": 14450,
+      "peak_live_growth": 8151
+    },
+    "after": {
+      "allocations": 149,
+      "bytes": 14591,
+      "peak_live_growth": 8415
+    }
+  },
+  {
+    "unit": "posts/learn-svelte/examples/pokemon-search.svelte",
+    "before": {
+      "allocations": 102,
+      "bytes": 9124,
+      "peak_live_growth": 4696
+    },
+    "after": {
+      "allocations": 102,
+      "bytes": 9128,
+      "peak_live_growth": 4696
+    }
+  },
+  {
+    "unit": "posts/learn-svelte/examples/reactive-events.svelte",
+    "before": {
+      "allocations": 115,
+      "bytes": 10242,
+      "peak_live_growth": 5553
+    },
+    "after": {
+      "allocations": 118,
+      "bytes": 10389,
+      "peak_live_growth": 5553
+    }
+  },
+  {
+    "unit": "posts/learn-svelte/examples/reactive-map.svelte",
+    "before": {
+      "allocations": 164,
+      "bytes": 17075,
+      "peak_live_growth": 8779
+    },
+    "after": {
+      "allocations": 168,
+      "bytes": 17272,
+      "peak_live_growth": 8959
+    }
+  },
+  {
+    "unit": "posts/learn-svelte/examples/scramble-text.svelte",
+    "before": {
+      "allocations": 127,
+      "bytes": 11443,
+      "peak_live_growth": 5329
+    },
+    "after": {
+      "allocations": 127,
+      "bytes": 11445,
+      "peak_live_growth": 5329
+    }
+  },
+  {
+    "unit": "posts/learn-svelte/examples/todo-list.svelte",
+    "before": {
+      "allocations": 194,
+      "bytes": 25227,
+      "peak_live_growth": 12199
+    },
+    "after": {
+      "allocations": 198,
+      "bytes": 25407,
+      "peak_live_growth": 12375
+    }
+  },
+  {
+    "unit": "src/lib/components/MinuteGrid.svelte",
+    "before": {
+      "allocations": 840,
+      "bytes": 94260,
+      "peak_live_growth": 30309
+    },
+    "after": {
+      "allocations": 842,
+      "bytes": 94318,
+      "peak_live_growth": 30309
+    }
+  },
+  {
+    "unit": "src/lib/components/StatusBarCalendar.svelte",
+    "before": {
+      "allocations": 1691,
+      "bytes": 174719,
+      "peak_live_growth": 42308
+    },
+    "after": {
+      "allocations": 1692,
+      "bytes": 174730,
+      "peak_live_growth": 42308
+    }
+  },
+  {
+    "unit": "src/routes/(docs)/docs/(with-sidebar)/[...slug]/+page.svelte",
+    "before": {
+      "allocations": 466,
+      "bytes": 62855,
+      "peak_live_growth": 33125
+    },
+    "after": {
+      "allocations": 469,
+      "bytes": 62961,
+      "peak_live_growth": 33125
+    }
+  },
+  {
+    "unit": "src/routes/(docs)/docs/DocsSidebar.svelte",
+    "before": {
+      "allocations": 360,
+      "bytes": 50357,
+      "peak_live_growth": 23971
+    },
+    "after": {
+      "allocations": 364,
+      "bytes": 50493,
+      "peak_live_growth": 23971
+    }
+  },
+  {
+    "unit": "src/routes/(docs)/docs/DocsTableOfContents.svelte",
+    "before": {
+      "allocations": 184,
+      "bytes": 17946,
+      "peak_live_growth": 8508
+    },
+    "after": {
+      "allocations": 187,
+      "bytes": 18078,
+      "peak_live_growth": 8508
+    }
+  },
+  {
+    "unit": "src/lib/components/CategoryNavigation.svelte",
+    "before": {
+      "allocations": 833,
+      "bytes": 117359,
+      "peak_live_growth": 46132
+    },
+    "after": {
+      "allocations": 838,
+      "bytes": 117746,
+      "peak_live_growth": 46099
+    }
+  },
+  {
+    "unit": "src/lib/components/Header.svelte",
+    "before": {
+      "allocations": 1535,
+      "bytes": 173088,
+      "peak_live_growth": 73359
+    },
+    "after": {
+      "allocations": 1540,
+      "bytes": 173390,
+      "peak_live_growth": 73359
+    }
+  },
+  {
+    "unit": "src/lib/components/ReportButton.svelte",
+    "before": {
+      "allocations": 513,
+      "bytes": 75591,
+      "peak_live_growth": 40245
+    },
+    "after": {
+      "allocations": 517,
+      "bytes": 75882,
+      "peak_live_growth": 40245
+    }
+  },
+  {
+    "unit": "src/lib/components/Select.svelte",
+    "before": {
+      "allocations": 1437,
+      "bytes": 183605,
+      "peak_live_growth": 68019
+    },
+    "after": {
+      "allocations": 1440,
+      "bytes": 183662,
+      "peak_live_growth": 68019
+    }
+  },
+  {
+    "unit": "src/lib/components/ShareButton.svelte",
+    "before": {
+      "allocations": 316,
+      "bytes": 43484,
+      "peak_live_growth": 18830
+    },
+    "after": {
+      "allocations": 316,
+      "bytes": 43465,
+      "peak_live_growth": 18830
+    }
+  },
+  {
+    "unit": "src/lib/components/Toast.svelte",
+    "before": {
+      "allocations": 159,
+      "bytes": 16779,
+      "peak_live_growth": 9322
+    },
+    "after": {
+      "allocations": 161,
+      "bytes": 16892,
+      "peak_live_growth": 9322
+    }
+  },
+  {
+    "unit": "src/lib/components/Tooltip.svelte",
+    "before": {
+      "allocations": 491,
+      "bytes": 54460,
+      "peak_live_growth": 19035
+    },
+    "after": {
+      "allocations": 491,
+      "bytes": 54451,
+      "peak_live_growth": 19035
+    }
+  },
+  {
+    "unit": "src/lib/components/common/FaviconImage.svelte",
+    "before": {
+      "allocations": 297,
+      "bytes": 30699,
+      "peak_live_growth": 11619
+    },
+    "after": {
+      "allocations": 298,
+      "bytes": 30819,
+      "peak_live_growth": 11619
+    }
+  },
+  {
+    "unit": "src/lib/components/contribute/ContributeOnboarding.svelte",
+    "before": {
+      "allocations": 1621,
+      "bytes": 263956,
+      "peak_live_growth": 122505
+    },
+    "after": {
+      "allocations": 1631,
+      "bytes": 266253,
+      "peak_live_growth": 123763
+    }
+  },
+  {
+    "unit": "src/lib/components/search/SearchResults.svelte",
+    "before": {
+      "allocations": 1012,
+      "bytes": 135119,
+      "peak_live_growth": 64721
+    },
+    "after": {
+      "allocations": 1018,
+      "bytes": 135382,
+      "peak_live_growth": 64721
+    }
+  },
+  {
+    "unit": "src/lib/components/story/CitationText.svelte",
+    "before": {
+      "allocations": 1281,
+      "bytes": 173740,
+      "peak_live_growth": 65377
+    },
+    "after": {
+      "allocations": 1287,
+      "bytes": 174164,
+      "peak_live_growth": 65757
+    }
+  },
+  {
+    "unit": "src/lib/components/story/SelectableText.svelte",
+    "before": {
+      "allocations": 731,
+      "bytes": 77303,
+      "peak_live_growth": 20428
+    },
+    "after": {
+      "allocations": 732,
+      "bytes": 77390,
+      "peak_live_growth": 20428
+    }
+  },
+  {
+    "unit": "src/lib/components/story/StoryHeader.svelte",
+    "before": {
+      "allocations": 940,
+      "bytes": 133657,
+      "peak_live_growth": 67399
+    },
+    "after": {
+      "allocations": 944,
+      "bytes": 133880,
+      "peak_live_growth": 67399
+    }
+  },
+  {
+    "unit": "src/lib/components/story/StoryQuote.svelte",
+    "before": {
+      "allocations": 280,
+      "bytes": 34523,
+      "peak_live_growth": 16689
+    },
+    "after": {
+      "allocations": 282,
+      "bytes": 34579,
+      "peak_live_growth": 16689
+    }
+  },
+  {
+    "unit": "src/_components/Beeswarm.html.svelte",
+    "before": {
+      "allocations": 351,
+      "bytes": 38854,
+      "peak_live_growth": 12883
+    },
+    "after": {
+      "allocations": 353,
+      "bytes": 38967,
+      "peak_live_growth": 13015
+    }
+  },
+  {
+    "unit": "src/_components/BeeswarmForce.html.svelte",
+    "before": {
+      "allocations": 220,
+      "bytes": 24000,
+      "peak_live_growth": 9379
+    },
+    "after": {
+      "allocations": 222,
+      "bytes": 24113,
+      "peak_live_growth": 9511
+    }
+  },
+  {
+    "unit": "src/routes/_site-components/CopyBtn.svelte",
+    "before": {
+      "allocations": 133,
+      "bytes": 14585,
+      "peak_live_growth": 7206
+    },
+    "after": {
+      "allocations": 135,
+      "bytes": 14708,
+      "peak_live_growth": 7206
+    }
+  },
+  {
+    "unit": "src/routes/components/+page.svelte",
+    "before": {
+      "allocations": 571,
+      "bytes": 93574,
+      "peak_live_growth": 42058
+    },
+    "after": {
+      "allocations": 577,
+      "bytes": 94034,
+      "peak_live_growth": 42418
+    }
+  },
+  {
+    "unit": "src/routes/guide/+page.svelte",
+    "before": {
+      "allocations": 628,
+      "bytes": 121900,
+      "peak_live_growth": 54028
+    },
+    "after": {
+      "allocations": 630,
+      "bytes": 121952,
+      "peak_live_growth": 54028
+    }
+  },
+  {
+    "unit": "docs/src/examples/components/BrushContext/striped-background.svelte",
+    "before": {
+      "allocations": 70,
+      "bytes": 5038,
+      "peak_live_growth": 3426
+    },
+    "after": {
+      "allocations": 69,
+      "bytes": 5027,
+      "peak_live_growth": 3426
+    }
+  },
+  {
+    "unit": "docs/src/lib/components/controls/TransformContextControls.svelte",
+    "before": {
+      "allocations": 260,
+      "bytes": 37150,
+      "peak_live_growth": 18739
+    },
+    "after": {
+      "allocations": 260,
+      "bytes": 37109,
+      "peak_live_growth": 18739
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/AnnotationLine/AnnotationLine.base.svelte",
+    "before": {
+      "allocations": 859,
+      "bytes": 74217,
+      "peak_live_growth": 16641
+    },
+    "after": {
+      "allocations": 858,
+      "bytes": 74207,
+      "peak_live_growth": 16641
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/AnnotationPoint/AnnotationPoint.base.svelte",
+    "before": {
+      "allocations": 493,
+      "bytes": 53798,
+      "peak_live_growth": 18316
+    },
+    "after": {
+      "allocations": 492,
+      "bytes": 53783,
+      "peak_live_growth": 18316
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/AnnotationRange/AnnotationRange.base.svelte",
+    "before": {
+      "allocations": 684,
+      "bytes": 68845,
+      "peak_live_growth": 16955
+    },
+    "after": {
+      "allocations": 683,
+      "bytes": 68810,
+      "peak_live_growth": 16955
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Axis/Axis.base.svelte",
+    "before": {
+      "allocations": 354,
+      "bytes": 51167,
+      "peak_live_growth": 23756
+    },
+    "after": {
+      "allocations": 353,
+      "bytes": 51110,
+      "peak_live_growth": 23756
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/BoxPlot/BoxPlot.base.svelte",
+    "before": {
+      "allocations": 1486,
+      "bytes": 167841,
+      "peak_live_growth": 42440
+    },
+    "after": {
+      "allocations": 1485,
+      "bytes": 167794,
+      "peak_live_growth": 42440
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Brush/Brush.base.svelte",
+    "before": {
+      "allocations": 372,
+      "bytes": 43003,
+      "peak_live_growth": 17708
+    },
+    "after": {
+      "allocations": 371,
+      "bytes": 42984,
+      "peak_live_growth": 17708
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/BrushContext.svelte",
+    "before": {
+      "allocations": 571,
+      "bytes": 72801,
+      "peak_live_growth": 31133
+    },
+    "after": {
+      "allocations": 572,
+      "bytes": 72803,
+      "peak_live_growth": 31133
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Calendar/Calendar.base.svelte",
+    "before": {
+      "allocations": 446,
+      "bytes": 46500,
+      "peak_live_growth": 15235
+    },
+    "after": {
+      "allocations": 445,
+      "bytes": 46470,
+      "peak_live_growth": 15235
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Chart/Chart.base.svelte",
+    "before": {
+      "allocations": 2376,
+      "bytes": 258731,
+      "peak_live_growth": 60003
+    },
+    "after": {
+      "allocations": 2377,
+      "bytes": 258789,
+      "peak_live_growth": 60003
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Circle/Circle.html.svelte",
+    "before": {
+      "allocations": 342,
+      "bytes": 36527,
+      "peak_live_growth": 16469
+    },
+    "after": {
+      "allocations": 342,
+      "bytes": 36514,
+      "peak_live_growth": 16469
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Circle/Circle.svg.svelte",
+    "before": {
+      "allocations": 242,
+      "bytes": 31255,
+      "peak_live_growth": 14473
+    },
+    "after": {
+      "allocations": 242,
+      "bytes": 31245,
+      "peak_live_growth": 14473
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/CircleLegend.svelte",
+    "before": {
+      "allocations": 1775,
+      "bytes": 167549,
+      "peak_live_growth": 30135
+    },
+    "after": {
+      "allocations": 1776,
+      "bytes": 167554,
+      "peak_live_growth": 30135
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/ComputedStyles.svelte",
+    "before": {
+      "allocations": 75,
+      "bytes": 5201,
+      "peak_live_growth": 3080
+    },
+    "after": {
+      "allocations": 75,
+      "bytes": 5210,
+      "peak_live_growth": 3080
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Contour/Contour.base.svelte",
+    "before": {
+      "allocations": 1375,
+      "bytes": 134032,
+      "peak_live_growth": 27005
+    },
+    "after": {
+      "allocations": 1374,
+      "bytes": 134018,
+      "peak_live_growth": 27005
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Density/Density.base.svelte",
+    "before": {
+      "allocations": 354,
+      "bytes": 40353,
+      "peak_live_growth": 14475
+    },
+    "after": {
+      "allocations": 353,
+      "bytes": 40339,
+      "peak_live_growth": 14475
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Ellipse/Ellipse.html.svelte",
+    "before": {
+      "allocations": 299,
+      "bytes": 28075,
+      "peak_live_growth": 13493
+    },
+    "after": {
+      "allocations": 299,
+      "bytes": 28065,
+      "peak_live_growth": 13493
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Ellipse/Ellipse.svg.svelte",
+    "before": {
+      "allocations": 258,
+      "bytes": 32609,
+      "peak_live_growth": 14781
+    },
+    "after": {
+      "allocations": 258,
+      "bytes": 32599,
+      "peak_live_growth": 14781
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Grid/Grid.base.svelte",
+    "before": {
+      "allocations": 510,
+      "bytes": 70163,
+      "peak_live_growth": 30530
+    },
+    "after": {
+      "allocations": 509,
+      "bytes": 70084,
+      "peak_live_growth": 30530
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Group/Group.html.svelte",
+    "before": {
+      "allocations": 181,
+      "bytes": 21928,
+      "peak_live_growth": 9997
+    },
+    "after": {
+      "allocations": 181,
+      "bytes": 21924,
+      "peak_live_growth": 9997
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Highlight/Highlight.base.svelte",
+    "before": {
+      "allocations": 409,
+      "bytes": 55069,
+      "peak_live_growth": 24922
+    },
+    "after": {
+      "allocations": 408,
+      "bytes": 55005,
+      "peak_live_growth": 24922
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Hull/Hull.base.svelte",
+    "before": {
+      "allocations": 284,
+      "bytes": 36188,
+      "peak_live_growth": 15028
+    },
+    "after": {
+      "allocations": 283,
+      "bytes": 36168,
+      "peak_live_growth": 15028
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Labels/Labels.base.svelte",
+    "before": {
+      "allocations": 368,
+      "bytes": 43447,
+      "peak_live_growth": 19111
+    },
+    "after": {
+      "allocations": 367,
+      "bytes": 43391,
+      "peak_live_growth": 19111
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Legend.svelte",
+    "before": {
+      "allocations": 1508,
+      "bytes": 173302,
+      "peak_live_growth": 49568
+    },
+    "after": {
+      "allocations": 1510,
+      "bytes": 173334,
+      "peak_live_growth": 49568
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Line/Line.html.svelte",
+    "before": {
+      "allocations": 268,
+      "bytes": 29549,
+      "peak_live_growth": 13885
+    },
+    "after": {
+      "allocations": 268,
+      "bytes": 29537,
+      "peak_live_growth": 13885
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Line/Line.svg.svelte",
+    "before": {
+      "allocations": 453,
+      "bytes": 56225,
+      "peak_live_growth": 20141
+    },
+    "after": {
+      "allocations": 453,
+      "bytes": 56201,
+      "peak_live_growth": 20141
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Marker.svelte",
+    "before": {
+      "allocations": 216,
+      "bytes": 25174,
+      "peak_live_growth": 13390
+    },
+    "after": {
+      "allocations": 217,
+      "bytes": 25193,
+      "peak_live_growth": 13390
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Month/Month.base.svelte",
+    "before": {
+      "allocations": 700,
+      "bytes": 75339,
+      "peak_live_growth": 20500
+    },
+    "after": {
+      "allocations": 699,
+      "bytes": 75309,
+      "peak_live_growth": 20500
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/MonthPath.svelte",
+    "before": {
+      "allocations": 228,
+      "bytes": 18578,
+      "peak_live_growth": 6288
+    },
+    "after": {
+      "allocations": 227,
+      "bytes": 18573,
+      "peak_live_growth": 6288
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Path/Path.svg.svelte",
+    "before": {
+      "allocations": 438,
+      "bytes": 57941,
+      "peak_live_growth": 22289
+    },
+    "after": {
+      "allocations": 438,
+      "bytes": 57918,
+      "peak_live_growth": 22289
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Polygon/Polygon.svg.svelte",
+    "before": {
+      "allocations": 244,
+      "bytes": 28805,
+      "peak_live_growth": 13375
+    },
+    "after": {
+      "allocations": 244,
+      "bytes": 28793,
+      "peak_live_growth": 13375
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Rect/Rect.html.svelte",
+    "before": {
+      "allocations": 318,
+      "bytes": 37446,
+      "peak_live_growth": 17932
+    },
+    "after": {
+      "allocations": 318,
+      "bytes": 37425,
+      "peak_live_growth": 17932
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Rect/Rect.svg.svelte",
+    "before": {
+      "allocations": 360,
+      "bytes": 53296,
+      "peak_live_growth": 23575
+    },
+    "after": {
+      "allocations": 360,
+      "bytes": 53265,
+      "peak_live_growth": 23575
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Rule/Rule.base.svelte",
+    "before": {
+      "allocations": 208,
+      "bytes": 24187,
+      "peak_live_growth": 12037
+    },
+    "after": {
+      "allocations": 207,
+      "bytes": 24158,
+      "peak_live_growth": 12037
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Text/Text.html.svelte",
+    "before": {
+      "allocations": 625,
+      "bytes": 53576,
+      "peak_live_growth": 20087
+    },
+    "after": {
+      "allocations": 625,
+      "bytes": 53536,
+      "peak_live_growth": 20087
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Text/Text.svg.svelte",
+    "before": {
+      "allocations": 448,
+      "bytes": 64507,
+      "peak_live_growth": 30387
+    },
+    "after": {
+      "allocations": 450,
+      "bytes": 64534,
+      "peak_live_growth": 30387
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Trail/Trail.base.svelte",
+    "before": {
+      "allocations": 464,
+      "bytes": 50973,
+      "peak_live_growth": 16510
+    },
+    "after": {
+      "allocations": 463,
+      "bytes": 50968,
+      "peak_live_growth": 16510
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/TransformContext.svelte",
+    "before": {
+      "allocations": 336,
+      "bytes": 45776,
+      "peak_live_growth": 17723
+    },
+    "after": {
+      "allocations": 336,
+      "bytes": 45784,
+      "peak_live_growth": 17723
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Vector/Vector.base.svelte",
+    "before": {
+      "allocations": 943,
+      "bytes": 106097,
+      "peak_live_growth": 36157
+    },
+    "after": {
+      "allocations": 943,
+      "bytes": 106057,
+      "peak_live_growth": 36157
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Violin/Violin.base.svelte",
+    "before": {
+      "allocations": 1024,
+      "bytes": 109125,
+      "peak_live_growth": 32664
+    },
+    "after": {
+      "allocations": 1023,
+      "bytes": 109092,
+      "peak_live_growth": 32664
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Voronoi/Voronoi.base.svelte",
+    "before": {
+      "allocations": 889,
+      "bytes": 96855,
+      "peak_live_growth": 25845
+    },
+    "after": {
+      "allocations": 888,
+      "bytes": 96817,
+      "peak_live_growth": 25845
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/Waffle/Waffle.svelte",
+    "before": {
+      "allocations": 368,
+      "bytes": 48552,
+      "peak_live_growth": 19718
+    },
+    "after": {
+      "allocations": 368,
+      "bytes": 48527,
+      "peak_live_growth": 19718
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/geo/GeoLegend/GeoLegend.svelte",
+    "before": {
+      "allocations": 1844,
+      "bytes": 189219,
+      "peak_live_growth": 37948
+    },
+    "after": {
+      "allocations": 1845,
+      "bytes": 189212,
+      "peak_live_growth": 37948
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/geo/TileImage/TileImage.base.svelte",
+    "before": {
+      "allocations": 279,
+      "bytes": 30935,
+      "peak_live_growth": 12609
+    },
+    "after": {
+      "allocations": 279,
+      "bytes": 30934,
+      "peak_live_growth": 12609
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/layers/Canvas.svelte",
+    "before": {
+      "allocations": 647,
+      "bytes": 90826,
+      "peak_live_growth": 34716
+    },
+    "after": {
+      "allocations": 648,
+      "bytes": 90811,
+      "peak_live_growth": 34716
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/layers/Html.svelte",
+    "before": {
+      "allocations": 214,
+      "bytes": 21363,
+      "peak_live_growth": 9782
+    },
+    "after": {
+      "allocations": 215,
+      "bytes": 21473,
+      "peak_live_growth": 9782
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/layers/Layer.svelte",
+    "before": {
+      "allocations": 158,
+      "bytes": 18275,
+      "peak_live_growth": 10953
+    },
+    "after": {
+      "allocations": 157,
+      "bytes": 18222,
+      "peak_live_growth": 10953
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/layers/Svg.svelte",
+    "before": {
+      "allocations": 231,
+      "bytes": 28566,
+      "peak_live_growth": 14533
+    },
+    "after": {
+      "allocations": 232,
+      "bytes": 28564,
+      "peak_live_growth": 14533
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/layers/WebGL.svelte",
+    "before": {
+      "allocations": 183,
+      "bytes": 19724,
+      "peak_live_growth": 8846
+    },
+    "after": {
+      "allocations": 184,
+      "bytes": 19832,
+      "peak_live_growth": 8846
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/tooltip/Tooltip.svelte",
+    "before": {
+      "allocations": 1720,
+      "bytes": 175543,
+      "peak_live_growth": 38878
+    },
+    "after": {
+      "allocations": 1721,
+      "bytes": 175632,
+      "peak_live_growth": 38878
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/tooltip/TooltipContext.svelte",
+    "before": {
+      "allocations": 2346,
+      "bytes": 261945,
+      "peak_live_growth": 73022
+    },
+    "after": {
+      "allocations": 2348,
+      "bytes": 261607,
+      "peak_live_growth": 73022
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/tooltip/TooltipHeader.svelte",
+    "before": {
+      "allocations": 141,
+      "bytes": 17991,
+      "peak_live_growth": 8591
+    },
+    "after": {
+      "allocations": 141,
+      "bytes": 17986,
+      "peak_live_growth": 8591
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/tooltip/TooltipItem.svelte",
+    "before": {
+      "allocations": 259,
+      "bytes": 35736,
+      "peak_live_growth": 15866
+    },
+    "after": {
+      "allocations": 259,
+      "bytes": 35717,
+      "peak_live_growth": 15882
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/tooltip/TooltipList.svelte",
+    "before": {
+      "allocations": 79,
+      "bytes": 6129,
+      "peak_live_growth": 3403
+    },
+    "after": {
+      "allocations": 79,
+      "bytes": 6137,
+      "peak_live_growth": 3403
+    }
+  },
+  {
+    "unit": "packages/layerchart/src/lib/components/tooltip/TooltipSeparator.svelte",
+    "before": {
+      "allocations": 82,
+      "bytes": 6888,
+      "peak_live_growth": 3778
+    },
+    "after": {
+      "allocations": 82,
+      "bytes": 6896,
+      "peak_live_growth": 3778
+    }
+  },
+  {
+    "unit": "src/lib/components/AppInfo.svelte",
+    "before": {
+      "allocations": 345,
+      "bytes": 56630,
+      "peak_live_growth": 26181
+    },
+    "after": {
+      "allocations": 352,
+      "bytes": 57593,
+      "peak_live_growth": 26801
+    }
+  },
+  {
+    "unit": "src/lib/components/furniture/QuickTips.svelte",
+    "before": {
+      "allocations": 406,
+      "bytes": 65142,
+      "peak_live_growth": 28157
+    },
+    "after": {
+      "allocations": 412,
+      "bytes": 65969,
+      "peak_live_growth": 28650
+    }
+  },
+  {
+    "unit": "src/lib/components/furniture/SearchFilter.svelte",
+    "before": {
+      "allocations": 439,
+      "bytes": 57350,
+      "peak_live_growth": 24147
+    },
+    "after": {
+      "allocations": 443,
+      "bytes": 57701,
+      "peak_live_growth": 24147
+    }
+  },
+  {
+    "unit": "src/lib/components/furniture/SettingsPanel.svelte",
+    "before": {
+      "allocations": 3018,
+      "bytes": 648629,
+      "peak_live_growth": 355401
+    },
+    "after": {
+      "allocations": 3023,
+      "bytes": 656669,
+      "peak_live_growth": 360281
+    }
+  },
+  {
+    "unit": "src/lib/components/furniture/ShortcutsDialog.svelte",
+    "before": {
+      "allocations": 686,
+      "bytes": 140970,
+      "peak_live_growth": 64187
+    },
+    "after": {
+      "allocations": 694,
+      "bytes": 142057,
+      "peak_live_growth": 64903
+    }
+  },
+  {
+    "unit": "src/lib/components/page-specific/about/AttributionsSection.svelte",
+    "before": {
+      "allocations": 528,
+      "bytes": 58927,
+      "peak_live_growth": 27080
+    },
+    "after": {
+      "allocations": 533,
+      "bytes": 57378,
+      "peak_live_growth": 25820
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/CAABuilder.svelte",
+    "before": {
+      "allocations": 1453,
+      "bytes": 301216,
+      "peak_live_growth": 153603
+    },
+    "after": {
+      "allocations": 1464,
+      "bytes": 305285,
+      "peak_live_growth": 155983
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/CDSCDNSKEYBuilder.svelte",
+    "before": {
+      "allocations": 1009,
+      "bytes": 212625,
+      "peak_live_growth": 108149
+    },
+    "after": {
+      "allocations": 1020,
+      "bytes": 216700,
+      "peak_live_growth": 111179
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/CIDRAlignment.svelte",
+    "before": {
+      "allocations": 1323,
+      "bytes": 245637,
+      "peak_live_growth": 107945
+    },
+    "after": {
+      "allocations": 1334,
+      "bytes": 249681,
+      "peak_live_growth": 110423
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/CIDRAllocator.svelte",
+    "before": {
+      "allocations": 2040,
+      "bytes": 366210,
+      "peak_live_growth": 178909
+    },
+    "after": {
+      "allocations": 2051,
+      "bytes": 346865,
+      "peak_live_growth": 163167
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/CIDRCompare.svelte",
+    "before": {
+      "allocations": 1346,
+      "bytes": 243818,
+      "peak_live_growth": 117726
+    },
+    "after": {
+      "allocations": 1355,
+      "bytes": 232903,
+      "peak_live_growth": 109550
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/CIDRSplitter.svelte",
+    "before": {
+      "allocations": 961,
+      "bytes": 172130,
+      "peak_live_growth": 84936
+    },
+    "after": {
+      "allocations": 972,
+      "bytes": 176220,
+      "peak_live_growth": 87280
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/ClientIDOption61.svelte",
+    "before": {
+      "allocations": 1217,
+      "bytes": 250047,
+      "peak_live_growth": 120278
+    },
+    "after": {
+      "allocations": 1227,
+      "bytes": 252410,
+      "peak_live_growth": 121830
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DHCPFingerprinting.svelte",
+    "before": {
+      "allocations": 1148,
+      "bytes": 229507,
+      "peak_live_growth": 117091
+    },
+    "after": {
+      "allocations": 1159,
+      "bytes": 233612,
+      "peak_live_growth": 119571
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DHCPOption119Builder.svelte",
+    "before": {
+      "allocations": 1194,
+      "bytes": 241350,
+      "peak_live_growth": 120796
+    },
+    "after": {
+      "allocations": 1204,
+      "bytes": 243789,
+      "peak_live_growth": 122388
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DHCPOption121Builder.svelte",
+    "before": {
+      "allocations": 1323,
+      "bytes": 300252,
+      "peak_live_growth": 154592
+    },
+    "after": {
+      "allocations": 1333,
+      "bytes": 277668,
+      "peak_live_growth": 137072
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DHCPOption150Builder.svelte",
+    "before": {
+      "allocations": 1641,
+      "bytes": 355857,
+      "peak_live_growth": 188301
+    },
+    "after": {
+      "allocations": 1653,
+      "bytes": 360898,
+      "peak_live_growth": 191453
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DHCPOption43Generator.svelte",
+    "before": {
+      "allocations": 844,
+      "bytes": 174695,
+      "peak_live_growth": 84555
+    },
+    "after": {
+      "allocations": 854,
+      "bytes": 177164,
+      "peak_live_growth": 86095
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DHCPOption60Builder.svelte",
+    "before": {
+      "allocations": 1052,
+      "bytes": 204448,
+      "peak_live_growth": 96143
+    },
+    "after": {
+      "allocations": 1062,
+      "bytes": 206859,
+      "peak_live_growth": 97647
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DHCPOption82Builder.svelte",
+    "before": {
+      "allocations": 1123,
+      "bytes": 224782,
+      "peak_live_growth": 112678
+    },
+    "after": {
+      "allocations": 1133,
+      "bytes": 227208,
+      "peak_live_growth": 114258
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DHCPv6DNSBuilder.svelte",
+    "before": {
+      "allocations": 1079,
+      "bytes": 246277,
+      "peak_live_growth": 131153
+    },
+    "after": {
+      "allocations": 1089,
+      "bytes": 223744,
+      "peak_live_growth": 113617
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DHCPv6FQDN.svelte",
+    "before": {
+      "allocations": 958,
+      "bytes": 229563,
+      "peak_live_growth": 125814
+    },
+    "after": {
+      "allocations": 968,
+      "bytes": 207030,
+      "peak_live_growth": 108274
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DKIMKeyGenerator.svelte",
+    "before": {
+      "allocations": 1014,
+      "bytes": 236367,
+      "peak_live_growth": 127947
+    },
+    "after": {
+      "allocations": 1024,
+      "bytes": 238751,
+      "peak_live_growth": 129447
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DNSAAAAABulk.svelte",
+    "before": {
+      "allocations": 937,
+      "bytes": 176495,
+      "peak_live_growth": 84042
+    },
+    "after": {
+      "allocations": 946,
+      "bytes": 178442,
+      "peak_live_growth": 85214
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DNSCNAMEBuilder.svelte",
+    "before": {
+      "allocations": 1025,
+      "bytes": 190155,
+      "peak_live_growth": 93464
+    },
+    "after": {
+      "allocations": 1036,
+      "bytes": 194154,
+      "peak_live_growth": 95884
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DNSKEYKeyTag.svelte",
+    "before": {
+      "allocations": 753,
+      "bytes": 160456,
+      "peak_live_growth": 74639
+    },
+    "after": {
+      "allocations": 763,
+      "bytes": 164028,
+      "peak_live_growth": 76863
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DNSOptions6And15.svelte",
+    "before": {
+      "allocations": 1006,
+      "bytes": 219193,
+      "peak_live_growth": 111769
+    },
+    "after": {
+      "allocations": 1017,
+      "bytes": 223366,
+      "peak_live_growth": 114305
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DNSRecordValidator.svelte",
+    "before": {
+      "allocations": 1217,
+      "bytes": 273902,
+      "peak_live_growth": 149166
+    },
+    "after": {
+      "allocations": 1228,
+      "bytes": 277850,
+      "peak_live_growth": 151498
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DNSSPFBuilder.svelte",
+    "before": {
+      "allocations": 1328,
+      "bytes": 282046,
+      "peak_live_growth": 142716
+    },
+    "after": {
+      "allocations": 1339,
+      "bytes": 286166,
+      "peak_live_growth": 145112
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DNSTXTEscape.svelte",
+    "before": {
+      "allocations": 918,
+      "bytes": 188332,
+      "peak_live_growth": 93150
+    },
+    "after": {
+      "allocations": 928,
+      "bytes": 179064,
+      "peak_live_growth": 85434
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DSGenerator.svelte",
+    "before": {
+      "allocations": 1021,
+      "bytes": 212909,
+      "peak_live_growth": 105873
+    },
+    "after": {
+      "allocations": 1032,
+      "bytes": 217014,
+      "peak_live_growth": 108241
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/DUIDGenerator.svelte",
+    "before": {
+      "allocations": 1078,
+      "bytes": 212390,
+      "peak_live_growth": 104264
+    },
+    "after": {
+      "allocations": 1088,
+      "bytes": 214799,
+      "peak_live_growth": 105796
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/EUI64.svelte",
+    "before": {
+      "allocations": 1126,
+      "bytes": 222536,
+      "peak_live_growth": 102246
+    },
+    "after": {
+      "allocations": 1137,
+      "bytes": 226611,
+      "peak_live_growth": 104666
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/FreeSpaceFinder.svelte",
+    "before": {
+      "allocations": 1198,
+      "bytes": 198114,
+      "peak_live_growth": 89724
+    },
+    "after": {
+      "allocations": 1209,
+      "bytes": 202151,
+      "peak_live_growth": 92350
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/FreeformTLVBuilder.svelte",
+    "before": {
+      "allocations": 1027,
+      "bytes": 215737,
+      "peak_live_growth": 107813
+    },
+    "after": {
+      "allocations": 1038,
+      "bytes": 219808,
+      "peak_live_growth": 110193
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/GatewayOption3.svelte",
+    "before": {
+      "allocations": 864,
+      "bytes": 180511,
+      "peak_live_growth": 100343
+    },
+    "after": {
+      "allocations": 874,
+      "bytes": 183056,
+      "peak_live_growth": 102007
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/IAIDCalculator.svelte",
+    "before": {
+      "allocations": 1036,
+      "bytes": 198611,
+      "peak_live_growth": 92680
+    },
+    "after": {
+      "allocations": 1047,
+      "bytes": 202678,
+      "peak_live_growth": 95036
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/IDNPunycodeConverter.svelte",
+    "before": {
+      "allocations": 1742,
+      "bytes": 310413,
+      "peak_live_growth": 145072
+    },
+    "after": {
+      "allocations": 1753,
+      "bytes": 314448,
+      "peak_live_growth": 147408
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/IPConverter.svelte",
+    "before": {
+      "allocations": 1151,
+      "bytes": 213039,
+      "peak_live_growth": 112527
+    },
+    "after": {
+      "allocations": 1159,
+      "bytes": 210416,
+      "peak_live_growth": 110187
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/IPDistance.svelte",
+    "before": {
+      "allocations": 1160,
+      "bytes": 238307,
+      "peak_live_growth": 121429
+    },
+    "after": {
+      "allocations": 1171,
+      "bytes": 242259,
+      "peak_live_growth": 123773
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/IPEnumerate.svelte",
+    "before": {
+      "allocations": 1541,
+      "bytes": 251010,
+      "peak_live_growth": 113573
+    },
+    "after": {
+      "allocations": 1552,
+      "bytes": 255102,
+      "peak_live_growth": 116053
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/IPValidator.svelte",
+    "before": {
+      "allocations": 1895,
+      "bytes": 282928,
+      "peak_live_growth": 122871
+    },
+    "after": {
+      "allocations": 1905,
+      "bytes": 273623,
+      "peak_live_growth": 115191
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/IPv6NAT64.svelte",
+    "before": {
+      "allocations": 1793,
+      "bytes": 315528,
+      "peak_live_growth": 148106
+    },
+    "after": {
+      "allocations": 1805,
+      "bytes": 322745,
+      "peak_live_growth": 152432
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/IPv6Normalize.svelte",
+    "before": {
+      "allocations": 1101,
+      "bytes": 228839,
+      "peak_live_growth": 105117
+    },
+    "after": {
+      "allocations": 1112,
+      "bytes": 232898,
+      "peak_live_growth": 107477
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/IPv6NotationConverter.svelte",
+    "before": {
+      "allocations": 709,
+      "bytes": 136968,
+      "peak_live_growth": 66368
+    },
+    "after": {
+      "allocations": 718,
+      "bytes": 133927,
+      "peak_live_growth": 63760
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/IPv6SolicitedNode.svelte",
+    "before": {
+      "allocations": 1214,
+      "bytes": 263500,
+      "peak_live_growth": 136567
+    },
+    "after": {
+      "allocations": 1224,
+      "bytes": 240911,
+      "peak_live_growth": 118947
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/IPv6SubnetCalculator.svelte",
+    "before": {
+      "allocations": 1279,
+      "bytes": 286294,
+      "peak_live_growth": 153906
+    },
+    "after": {
+      "allocations": 1289,
+      "bytes": 263816,
+      "peak_live_growth": 136490
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/IPv6Teredo.svelte",
+    "before": {
+      "allocations": 1677,
+      "bytes": 324990,
+      "peak_live_growth": 169525
+    },
+    "after": {
+      "allocations": 1690,
+      "bytes": 333299,
+      "peak_live_growth": 174165
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/IPv6ZoneID.svelte",
+    "before": {
+      "allocations": 1244,
+      "bytes": 292831,
+      "peak_live_growth": 138209
+    },
+    "after": {
+      "allocations": 1255,
+      "bytes": 296914,
+      "peak_live_growth": 140669
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/LOCBuilder.svelte",
+    "before": {
+      "allocations": 1104,
+      "bytes": 184181,
+      "peak_live_growth": 78687
+    },
+    "after": {
+      "allocations": 1114,
+      "bytes": 186634,
+      "peak_live_growth": 79339
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/LeaseTimeCalculator.svelte",
+    "before": {
+      "allocations": 905,
+      "bytes": 172982,
+      "peak_live_growth": 77643
+    },
+    "after": {
+      "allocations": 914,
+      "bytes": 174900,
+      "peak_live_growth": 78843
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/LeaseTimeOption51.svelte",
+    "before": {
+      "allocations": 921,
+      "bytes": 197384,
+      "peak_live_growth": 105656
+    },
+    "after": {
+      "allocations": 931,
+      "bytes": 199936,
+      "peak_live_growth": 107368
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/NAPTRBuilder.svelte",
+    "before": {
+      "allocations": 923,
+      "bytes": 178443,
+      "peak_live_growth": 83427
+    },
+    "after": {
+      "allocations": 934,
+      "bytes": 182493,
+      "peak_live_growth": 85767
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/NSEC3Hash.svelte",
+    "before": {
+      "allocations": 1151,
+      "bytes": 256383,
+      "peak_live_growth": 135699
+    },
+    "after": {
+      "allocations": 1161,
+      "bytes": 233823,
+      "peak_live_growth": 118115
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/NameLengthChecker.svelte",
+    "before": {
+      "allocations": 1249,
+      "bytes": 265679,
+      "peak_live_growth": 145227
+    },
+    "after": {
+      "allocations": 1259,
+      "bytes": 243086,
+      "peak_live_growth": 127671
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/NthIP.svelte",
+    "before": {
+      "allocations": 1291,
+      "bytes": 260442,
+      "peak_live_growth": 128958
+    },
+    "after": {
+      "allocations": 1302,
+      "bytes": 264404,
+      "peak_live_growth": 131346
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/PTRSweepPlanner.svelte",
+    "before": {
+      "allocations": 1427,
+      "bytes": 307538,
+      "peak_live_growth": 167396
+    },
+    "after": {
+      "allocations": 1440,
+      "bytes": 315735,
+      "peak_live_growth": 172240
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/PXEProfileBuilder.svelte",
+    "before": {
+      "allocations": 1037,
+      "bytes": 214741,
+      "peak_live_growth": 119552
+    },
+    "after": {
+      "allocations": 1047,
+      "bytes": 217078,
+      "peak_live_growth": 121136
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/PrefixDelegation.svelte",
+    "before": {
+      "allocations": 865,
+      "bytes": 187058,
+      "peak_live_growth": 95514
+    },
+    "after": {
+      "allocations": 875,
+      "bytes": 177905,
+      "peak_live_growth": 87946
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/RandomIP.svelte",
+    "before": {
+      "allocations": 1204,
+      "bytes": 272241,
+      "peak_live_growth": 144135
+    },
+    "after": {
+      "allocations": 1214,
+      "bytes": 274478,
+      "peak_live_growth": 145599
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/ReversePTRGenerator.svelte",
+    "before": {
+      "allocations": 1495,
+      "bytes": 273805,
+      "peak_live_growth": 143430
+    },
+    "after": {
+      "allocations": 1506,
+      "bytes": 277766,
+      "peak_live_growth": 145810
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/ReverseZoneGenerator.svelte",
+    "before": {
+      "allocations": 1152,
+      "bytes": 265557,
+      "peak_live_growth": 140982
+    },
+    "after": {
+      "allocations": 1162,
+      "bytes": 242938,
+      "peak_live_growth": 123354
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/ReverseZonesCalculator.svelte",
+    "before": {
+      "allocations": 1116,
+      "bytes": 224031,
+      "peak_live_growth": 112721
+    },
+    "after": {
+      "allocations": 1127,
+      "bytes": 228020,
+      "peak_live_growth": 115309
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/SVCBHTTPSBuilder.svelte",
+    "before": {
+      "allocations": 1336,
+      "bytes": 283436,
+      "peak_live_growth": 146104
+    },
+    "after": {
+      "allocations": 1347,
+      "bytes": 287476,
+      "peak_live_growth": 148460
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/SubnetCalculator.svelte",
+    "before": {
+      "allocations": 505,
+      "bytes": 98841,
+      "peak_live_growth": 58076
+    },
+    "after": {
+      "allocations": 513,
+      "bytes": 99919,
+      "peak_live_growth": 58844
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/ULAGenerator.svelte",
+    "before": {
+      "allocations": 773,
+      "bytes": 153324,
+      "peak_live_growth": 72726
+    },
+    "after": {
+      "allocations": 784,
+      "bytes": 157399,
+      "peak_live_growth": 75098
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/VLSMCalculator.svelte",
+    "before": {
+      "allocations": 1203,
+      "bytes": 266088,
+      "peak_live_growth": 142259
+    },
+    "after": {
+      "allocations": 1213,
+      "bytes": 243530,
+      "peak_live_growth": 118303
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/WildcardMask.svelte",
+    "before": {
+      "allocations": 1444,
+      "bytes": 295712,
+      "peak_live_growth": 143652
+    },
+    "after": {
+      "allocations": 1455,
+      "bytes": 299720,
+      "peak_live_growth": 146676
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/ZoneDiff.svelte",
+    "before": {
+      "allocations": 1164,
+      "bytes": 265753,
+      "peak_live_growth": 140556
+    },
+    "after": {
+      "allocations": 1174,
+      "bytes": 243174,
+      "peak_live_growth": 122976
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/ZoneLinter.svelte",
+    "before": {
+      "allocations": 871,
+      "bytes": 185236,
+      "peak_live_growth": 99162
+    },
+    "after": {
+      "allocations": 882,
+      "bytes": 189257,
+      "peak_live_growth": 101750
+    }
+  },
+  {
+    "unit": "src/lib/components/tools/ZoneStats.svelte",
+    "before": {
+      "allocations": 1340,
+      "bytes": 292960,
+      "peak_live_growth": 155735
+    },
+    "after": {
+      "allocations": 1351,
+      "bytes": 273564,
+      "peak_live_growth": 139811
+    }
+  },
+  {
+    "unit": "src/routes/+error.svelte",
+    "before": {
+      "allocations": 698,
+      "bytes": 118004,
+      "peak_live_growth": 57025
+    },
+    "after": {
+      "allocations": 706,
+      "bytes": 119717,
+      "peak_live_growth": 58037
+    }
+  },
+  {
+    "unit": "src/routes/+page.svelte",
+    "before": {
+      "allocations": 134,
+      "bytes": 13670,
+      "peak_live_growth": 6967
+    },
+    "after": {
+      "allocations": 136,
+      "bytes": 13767,
+      "peak_live_growth": 6967
+    }
+  },
+  {
+    "unit": "src/routes/cidr/+page.svelte",
+    "before": {
+      "allocations": 765,
+      "bytes": 156285,
+      "peak_live_growth": 77743
+    },
+    "after": {
+      "allocations": 776,
+      "bytes": 160283,
+      "peak_live_growth": 79991
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/+page.svelte",
+    "before": {
+      "allocations": 76,
+      "bytes": 6278,
+      "peak_live_growth": 3446
+    },
+    "after": {
+      "allocations": 76,
+      "bytes": 6278,
+      "peak_live_growth": 3446
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/dns/+page.svelte",
+    "before": {
+      "allocations": 79,
+      "bytes": 6594,
+      "peak_live_growth": 3550
+    },
+    "after": {
+      "allocations": 79,
+      "bytes": 6594,
+      "peak_live_growth": 3550
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/dns/axfr-tester/+page.svelte",
+    "before": {
+      "allocations": 1578,
+      "bytes": 401594,
+      "peak_live_growth": 215764
+    },
+    "after": {
+      "allocations": 1589,
+      "bytes": 355445,
+      "peak_live_growth": 180208
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/dns/dnssec-adflag/+page.svelte",
+    "before": {
+      "allocations": 710,
+      "bytes": 147065,
+      "peak_live_growth": 84199
+    },
+    "after": {
+      "allocations": 718,
+      "bytes": 145064,
+      "peak_live_growth": 82651
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/dns/glue-check/+page.svelte",
+    "before": {
+      "allocations": 921,
+      "bytes": 195482,
+      "peak_live_growth": 110815
+    },
+    "after": {
+      "allocations": 929,
+      "bytes": 176061,
+      "peak_live_growth": 95639
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/dns/query-performance/+page.svelte",
+    "before": {
+      "allocations": 1738,
+      "bytes": 433912,
+      "peak_live_growth": 236972
+    },
+    "after": {
+      "allocations": 1750,
+      "bytes": 388841,
+      "peak_live_growth": 201700
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/dns/soa-serial/+page.svelte",
+    "before": {
+      "allocations": 973,
+      "bytes": 214019,
+      "peak_live_growth": 121183
+    },
+    "after": {
+      "allocations": 982,
+      "bytes": 197155,
+      "peak_live_growth": 108147
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/dns/spf-flatten/+page.svelte",
+    "before": {
+      "allocations": 794,
+      "bytes": 170012,
+      "peak_live_growth": 95568
+    },
+    "after": {
+      "allocations": 803,
+      "bytes": 158999,
+      "peak_live_growth": 87044
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/dns/trace/+page.svelte",
+    "before": {
+      "allocations": 853,
+      "bytes": 180832,
+      "peak_live_growth": 101062
+    },
+    "after": {
+      "allocations": 863,
+      "bytes": 171463,
+      "peak_live_growth": 93414
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/email/dmarc-check/+page.svelte",
+    "before": {
+      "allocations": 1083,
+      "bytes": 224088,
+      "peak_live_growth": 130418
+    },
+    "after": {
+      "allocations": 1094,
+      "bytes": 215642,
+      "peak_live_growth": 123318
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/email/mail-tls-check/+page.svelte",
+    "before": {
+      "allocations": 931,
+      "bytes": 198002,
+      "peak_live_growth": 111644
+    },
+    "after": {
+      "allocations": 940,
+      "bytes": 187037,
+      "peak_live_growth": 103220
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/email/mx-health/+page.svelte",
+    "before": {
+      "allocations": 1061,
+      "bytes": 216597,
+      "peak_live_growth": 120534
+    },
+    "after": {
+      "allocations": 1071,
+      "bytes": 207150,
+      "peak_live_growth": 112862
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/email/spf-check/+page.svelte",
+    "before": {
+      "allocations": 1158,
+      "bytes": 242893,
+      "peak_live_growth": 131804
+    },
+    "after": {
+      "allocations": 1170,
+      "bytes": 247685,
+      "peak_live_growth": 134608
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/http/compression/+page.svelte",
+    "before": {
+      "allocations": 684,
+      "bytes": 128927,
+      "peak_live_growth": 68013
+    },
+    "after": {
+      "allocations": 692,
+      "bytes": 127119,
+      "peak_live_growth": 65941
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/http/cookie-security/+page.svelte",
+    "before": {
+      "allocations": 988,
+      "bytes": 207058,
+      "peak_live_growth": 110300
+    },
+    "after": {
+      "allocations": 997,
+      "bytes": 191090,
+      "peak_live_growth": 97696
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/network/asn-geo-lookup/+page.svelte",
+    "before": {
+      "allocations": 957,
+      "bytes": 183469,
+      "peak_live_growth": 100804
+    },
+    "after": {
+      "allocations": 966,
+      "bytes": 179136,
+      "peak_live_growth": 97372
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/network/bgp-route-lookup/+page.svelte",
+    "before": {
+      "allocations": 1066,
+      "bytes": 198872,
+      "peak_live_growth": 106773
+    },
+    "after": {
+      "allocations": 1077,
+      "bytes": 202730,
+      "peak_live_growth": 109069
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/network/http-ping/+page.svelte",
+    "before": {
+      "allocations": 1063,
+      "bytes": 196161,
+      "peak_live_growth": 106277
+    },
+    "after": {
+      "allocations": 1073,
+      "bytes": 193405,
+      "peak_live_growth": 101949
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/network/ipv6-connectivity-checker/+page.svelte",
+    "before": {
+      "allocations": 698,
+      "bytes": 125952,
+      "peak_live_growth": 70182
+    },
+    "after": {
+      "allocations": 704,
+      "bytes": 121636,
+      "peak_live_growth": 68590
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/network/tcp-port-check/+page.svelte",
+    "before": {
+      "allocations": 817,
+      "bytes": 143808,
+      "peak_live_growth": 73185
+    },
+    "after": {
+      "allocations": 826,
+      "bytes": 142770,
+      "peak_live_growth": 71253
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/rdap/asn/+page.svelte",
+    "before": {
+      "allocations": 614,
+      "bytes": 123437,
+      "peak_live_growth": 71413
+    },
+    "after": {
+      "allocations": 621,
+      "bytes": 124147,
+      "peak_live_growth": 72037
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/rdap/domain/+page.svelte",
+    "before": {
+      "allocations": 598,
+      "bytes": 109019,
+      "peak_live_growth": 64270
+    },
+    "after": {
+      "allocations": 605,
+      "bytes": 109748,
+      "peak_live_growth": 64894
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/rdap/ip/+page.svelte",
+    "before": {
+      "allocations": 620,
+      "bytes": 125704,
+      "peak_live_growth": 72950
+    },
+    "after": {
+      "allocations": 627,
+      "bytes": 126404,
+      "peak_live_growth": 73574
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/tls/alpn/+page.svelte",
+    "before": {
+      "allocations": 847,
+      "bytes": 167432,
+      "peak_live_growth": 89693
+    },
+    "after": {
+      "allocations": 856,
+      "bytes": 163099,
+      "peak_live_growth": 86181
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/tls/banner/+page.svelte",
+    "before": {
+      "allocations": 848,
+      "bytes": 160520,
+      "peak_live_growth": 86467
+    },
+    "after": {
+      "allocations": 857,
+      "bytes": 156254,
+      "peak_live_growth": 83015
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/tls/certificate/+page.svelte",
+    "before": {
+      "allocations": 834,
+      "bytes": 150244,
+      "peak_live_growth": 77732
+    },
+    "after": {
+      "allocations": 842,
+      "bytes": 147662,
+      "peak_live_growth": 75540
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/tls/cipher-presets/+page.svelte",
+    "before": {
+      "allocations": 898,
+      "bytes": 184517,
+      "peak_live_growth": 96205
+    },
+    "after": {
+      "allocations": 908,
+      "bytes": 175204,
+      "peak_live_growth": 88489
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/tls/ct-log-search/+page.svelte",
+    "before": {
+      "allocations": 1277,
+      "bytes": 261724,
+      "peak_live_growth": 139864
+    },
+    "after": {
+      "allocations": 1287,
+      "bytes": 239000,
+      "peak_live_growth": 122196
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/tls/handshake-analyzer/+page.svelte",
+    "before": {
+      "allocations": 891,
+      "bytes": 171729,
+      "peak_live_growth": 93414
+    },
+    "after": {
+      "allocations": 900,
+      "bytes": 167436,
+      "peak_live_growth": 89974
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/tls/ocsp-stapling/+page.svelte",
+    "before": {
+      "allocations": 847,
+      "bytes": 186056,
+      "peak_live_growth": 110478
+    },
+    "after": {
+      "allocations": 856,
+      "bytes": 169980,
+      "peak_live_growth": 97850
+    }
+  },
+  {
+    "unit": "src/routes/diagnostics/tls/versions/+page.svelte",
+    "before": {
+      "allocations": 798,
+      "bytes": 144931,
+      "peak_live_growth": 73607
+    },
+    "after": {
+      "allocations": 807,
+      "bytes": 143926,
+      "peak_live_growth": 72543
+    }
+  },
+  {
+    "unit": "src/routes/dns/+page.svelte",
+    "before": {
+      "allocations": 79,
+      "bytes": 6475,
+      "peak_live_growth": 3511
+    },
+    "after": {
+      "allocations": 79,
+      "bytes": 6475,
+      "peak_live_growth": 3511
+    }
+  },
+  {
+    "unit": "src/routes/ip-address-convertor/+page.svelte",
+    "before": {
+      "allocations": 77,
+      "bytes": 6311,
+      "peak_live_growth": 3475
+    },
+    "after": {
+      "allocations": 77,
+      "bytes": 6311,
+      "peak_live_growth": 3475
+    }
+  },
+  {
+    "unit": "src/routes/ip-address-convertor/mac-address/+page.svelte",
+    "before": {
+      "allocations": 1879,
+      "bytes": 574733,
+      "peak_live_growth": 327155
+    },
+    "after": {
+      "allocations": 1891,
+      "bytes": 476351,
+      "peak_live_growth": 251883
+    }
+  },
+  {
+    "unit": "src/routes/ip-address-convertor/regex/+page.svelte",
+    "before": {
+      "allocations": 356,
+      "bytes": 62971,
+      "peak_live_growth": 34304
+    },
+    "after": {
+      "allocations": 365,
+      "bytes": 64920,
+      "peak_live_growth": 35452
+    }
+  },
+  {
+    "unit": "src/routes/reference/+page.svelte",
+    "before": {
+      "allocations": 73,
+      "bytes": 5902,
+      "peak_live_growth": 3087
+    },
+    "after": {
+      "allocations": 73,
+      "bytes": 5905,
+      "peak_live_growth": 3087
+    }
+  },
+  {
+    "unit": "src/routes/subnetting/+page.svelte",
+    "before": {
+      "allocations": 642,
+      "bytes": 134515,
+      "peak_live_growth": 65048
+    },
+    "after": {
+      "allocations": 651,
+      "bytes": 136434,
+      "peak_live_growth": 66204
+    }
+  },
+  {
+    "unit": "src/lib/demo/component-card.svelte",
+    "before": {
+      "allocations": 96,
+      "bytes": 9124,
+      "peak_live_growth": 4791
+    },
+    "after": {
+      "allocations": 96,
+      "bytes": 9133,
+      "peak_live_growth": 4791
+    }
+  },
+  {
+    "unit": "src/lib/builder/Primo.svelte",
+    "before": {
+      "allocations": 333,
+      "bytes": 49235,
+      "peak_live_growth": 22306
+    },
+    "after": {
+      "allocations": 336,
+      "bytes": 49334,
+      "peak_live_growth": 22458
+    }
+  },
+  {
+    "unit": "src/lib/builder/components/CodeEditor/CodeMirror.svelte",
+    "before": {
+      "allocations": 1495,
+      "bytes": 215997,
+      "peak_live_growth": 78101
+    },
+    "after": {
+      "allocations": 1501,
+      "bytes": 216809,
+      "peak_live_growth": 78101
+    }
+  },
+  {
+    "unit": "src/lib/builder/components/ComponentPreview.svelte",
+    "before": {
+      "allocations": 1153,
+      "bytes": 189524,
+      "peak_live_growth": 79042
+    },
+    "after": {
+      "allocations": 1161,
+      "bytes": 191235,
+      "peak_live_growth": 80062
+    }
+  },
+  {
+    "unit": "src/lib/builder/components/Content.svelte",
+    "before": {
+      "allocations": 161,
+      "bytes": 18033,
+      "peak_live_growth": 8304
+    },
+    "after": {
+      "allocations": 163,
+      "bytes": 18147,
+      "peak_live_growth": 8436
+    }
+  },
+  {
+    "unit": "src/lib/builder/components/Fields/FieldItem.svelte",
+    "before": {
+      "allocations": 1317,
+      "bytes": 194516,
+      "peak_live_growth": 75762
+    },
+    "after": {
+      "allocations": 1324,
+      "bytes": 195382,
+      "peak_live_growth": 76390
+    }
+  },
+  {
+    "unit": "src/lib/builder/components/Fields/FieldsContent.svelte",
+    "before": {
+      "allocations": 734,
+      "bytes": 107292,
+      "peak_live_growth": 43658
+    },
+    "after": {
+      "allocations": 741,
+      "bytes": 108204,
+      "peak_live_growth": 44238
+    }
+  },
+  {
+    "unit": "src/lib/builder/components/Fields/SelectField.svelte",
+    "before": {
+      "allocations": 444,
+      "bytes": 64030,
+      "peak_live_growth": 26642
+    },
+    "after": {
+      "allocations": 449,
+      "bytes": 64424,
+      "peak_live_growth": 26934
+    }
+  },
+  {
+    "unit": "src/lib/builder/components/Sidebar/PageType_Sidebar.svelte",
+    "before": {
+      "allocations": 935,
+      "bytes": 158672,
+      "peak_live_growth": 70174
+    },
+    "after": {
+      "allocations": 941,
+      "bytes": 159052,
+      "peak_live_growth": 70566
+    }
+  },
+  {
+    "unit": "src/lib/builder/components/Sidebar/Page_Sidebar.svelte",
+    "before": {
+      "allocations": 502,
+      "bytes": 60245,
+      "peak_live_growth": 24818
+    },
+    "after": {
+      "allocations": 506,
+      "bytes": 60371,
+      "peak_live_growth": 24818
+    }
+  },
+  {
+    "unit": "src/lib/builder/components/Sidebar/Sidebar_Symbol.svelte",
+    "before": {
+      "allocations": 732,
+      "bytes": 120535,
+      "peak_live_growth": 53790
+    },
+    "after": {
+      "allocations": 739,
+      "bytes": 121379,
+      "peak_live_growth": 54366
+    }
+  },
+  {
+    "unit": "src/lib/builder/field-types/ImageField.svelte",
+    "before": {
+      "allocations": 763,
+      "bytes": 97273,
+      "peak_live_growth": 31669
+    },
+    "after": {
+      "allocations": 769,
+      "bytes": 98075,
+      "peak_live_growth": 32173
+    }
+  },
+  {
+    "unit": "src/lib/builder/field-types/Link.svelte",
+    "before": {
+      "allocations": 487,
+      "bytes": 61222,
+      "peak_live_growth": 23100
+    },
+    "after": {
+      "allocations": 491,
+      "bytes": 61570,
+      "peak_live_growth": 23364
+    }
+  },
+  {
+    "unit": "src/lib/builder/field-types/RepeaterField.svelte",
+    "before": {
+      "allocations": 389,
+      "bytes": 52292,
+      "peak_live_growth": 20211
+    },
+    "after": {
+      "allocations": 394,
+      "bytes": 53033,
+      "peak_live_growth": 20211
+    }
+  },
+  {
+    "unit": "src/lib/builder/field-types/RichText.svelte",
+    "before": {
+      "allocations": 974,
+      "bytes": 135544,
+      "peak_live_growth": 53864
+    },
+    "after": {
+      "allocations": 979,
+      "bytes": 135884,
+      "peak_live_growth": 53864
+    }
+  },
+  {
+    "unit": "src/lib/builder/field-types/SiteField.svelte",
+    "before": {
+      "allocations": 170,
+      "bytes": 20304,
+      "peak_live_growth": 8865
+    },
+    "after": {
+      "allocations": 170,
+      "bytes": 20299,
+      "peak_live_growth": 8865
+    }
+  },
+  {
+    "unit": "src/lib/builder/ui/Select.svelte",
+    "before": {
+      "allocations": 586,
+      "bytes": 102423,
+      "peak_live_growth": 48005
+    },
+    "after": {
+      "allocations": 592,
+      "bytes": 99965,
+      "peak_live_growth": 46093
+    }
+  },
+  {
+    "unit": "src/lib/builder/views/editor/Layout/ComponentNode.svelte",
+    "before": {
+      "allocations": 3011,
+      "bytes": 390607,
+      "peak_live_growth": 128392
+    },
+    "after": {
+      "allocations": 3016,
+      "bytes": 390896,
+      "peak_live_growth": 128392
+    }
+  },
+  {
+    "unit": "src/lib/builder/views/editor/LocaleSelector.svelte",
+    "before": {
+      "allocations": 415,
+      "bytes": 62148,
+      "peak_live_growth": 33054
+    },
+    "after": {
+      "allocations": 422,
+      "bytes": 63082,
+      "peak_live_growth": 33646
+    }
+  },
+  {
+    "unit": "src/lib/builder/views/editor/Page.svelte",
+    "before": {
+      "allocations": 1674,
+      "bytes": 237542,
+      "peak_live_growth": 80829
+    },
+    "after": {
+      "allocations": 1679,
+      "bytes": 237855,
+      "peak_live_growth": 81125
+    }
+  },
+  {
+    "unit": "src/lib/builder/views/editor/PageType.svelte",
+    "before": {
+      "allocations": 1876,
+      "bytes": 292352,
+      "peak_live_growth": 106793
+    },
+    "after": {
+      "allocations": 1883,
+      "bytes": 293205,
+      "peak_live_growth": 107421
+    }
+  },
+  {
+    "unit": "src/lib/builder/views/editor/Toolbar.svelte",
+    "before": {
+      "allocations": 1296,
+      "bytes": 195452,
+      "peak_live_growth": 79761
+    },
+    "after": {
+      "allocations": 1304,
+      "bytes": 196433,
+      "peak_live_growth": 80481
+    }
+  },
+  {
+    "unit": "src/lib/builder/views/modal/BlockEditor.svelte",
+    "before": {
+      "allocations": 665,
+      "bytes": 80553,
+      "peak_live_growth": 24957
+    },
+    "after": {
+      "allocations": 665,
+      "bytes": 80535,
+      "peak_live_growth": 24957
+    }
+  },
+  {
+    "unit": "src/lib/builder/views/modal/Collaboration.svelte",
+    "before": {
+      "allocations": 897,
+      "bytes": 146477,
+      "peak_live_growth": 62650
+    },
+    "after": {
+      "allocations": 904,
+      "bytes": 145815,
+      "peak_live_growth": 62098
+    }
+  },
+  {
+    "unit": "src/lib/builder/views/modal/PageTypeModal/Item.svelte",
+    "before": {
+      "allocations": 518,
+      "bytes": 74104,
+      "peak_live_growth": 34143
+    },
+    "after": {
+      "allocations": 524,
+      "bytes": 74546,
+      "peak_live_growth": 34319
+    }
+  },
+  {
+    "unit": "src/lib/builder/views/modal/SectionEditor/SectionEditor.svelte",
+    "before": {
+      "allocations": 766,
+      "bytes": 91341,
+      "peak_live_growth": 29261
+    },
+    "after": {
+      "allocations": 766,
+      "bytes": 91320,
+      "peak_live_growth": 29261
+    }
+  },
+  {
+    "unit": "src/lib/builder/views/modal/SiteEditor/SiteEditor.svelte",
+    "before": {
+      "allocations": 423,
+      "bytes": 55472,
+      "peak_live_growth": 23376
+    },
+    "after": {
+      "allocations": 426,
+      "bytes": 55684,
+      "peak_live_growth": 23376
+    }
+  },
+  {
+    "unit": "src/lib/builder/views/modal/SitePages/Item.svelte",
+    "before": {
+      "allocations": 1410,
+      "bytes": 223188,
+      "peak_live_growth": 92173
+    },
+    "after": {
+      "allocations": 1418,
+      "bytes": 218482,
+      "peak_live_growth": 88353
+    }
+  },
+  {
+    "unit": "src/lib/builder/views/modal/SitePages/SitePages.svelte",
+    "before": {
+      "allocations": 565,
+      "bytes": 84154,
+      "peak_live_growth": 32538
+    },
+    "after": {
+      "allocations": 570,
+      "bytes": 84543,
+      "peak_live_growth": 32830
+    }
+  },
+  {
+    "unit": "src/lib/builder/views/modal/VideoModal.svelte",
+    "before": {
+      "allocations": 148,
+      "bytes": 16707,
+      "peak_live_growth": 9157
+    },
+    "after": {
+      "allocations": 151,
+      "bytes": 16843,
+      "peak_live_growth": 9157
+    }
+  },
+  {
+    "unit": "src/lib/components/Modals/Deploy/Deploy.svelte",
+    "before": {
+      "allocations": 404,
+      "bytes": 66753,
+      "peak_live_growth": 32393
+    },
+    "after": {
+      "allocations": 411,
+      "bytes": 67679,
+      "peak_live_growth": 33021
+    }
+  },
+  {
+    "unit": "src/routes/+layout.svelte",
+    "before": {
+      "allocations": 218,
+      "bytes": 42220,
+      "peak_live_growth": 19072
+    },
+    "after": {
+      "allocations": 218,
+      "bytes": 42223,
+      "peak_live_growth": 19072
+    }
+  },
+  {
+    "unit": "src/routes/auth/+layout.svelte",
+    "before": {
+      "allocations": 118,
+      "bytes": 11136,
+      "peak_live_growth": 4963
+    },
+    "after": {
+      "allocations": 120,
+      "bytes": 11253,
+      "peak_live_growth": 4963
+    }
+  },
+  {
+    "unit": "src/routes/auth/AuthForm.svelte",
+    "before": {
+      "allocations": 554,
+      "bytes": 85758,
+      "peak_live_growth": 38487
+    },
+    "after": {
+      "allocations": 560,
+      "bytes": 86221,
+      "peak_live_growth": 38847
+    }
+  },
+  {
+    "unit": "src/routes/setup/+page.svelte",
+    "before": {
+      "allocations": 573,
+      "bytes": 93444,
+      "peak_live_growth": 43070
+    },
+    "after": {
+      "allocations": 581,
+      "bytes": 95168,
+      "peak_live_growth": 44050
+    }
+  },
+  {
+    "unit": "src/routes/site/+layout.svelte",
+    "before": {
+      "allocations": 270,
+      "bytes": 27358,
+      "peak_live_growth": 9457
+    },
+    "after": {
+      "allocations": 272,
+      "bytes": 27467,
+      "peak_live_growth": 9457
+    }
+  },
+  {
+    "unit": "sites/docs/src/lib/components/demos/finite-state-machine.svelte",
+    "before": {
+      "allocations": 127,
+      "bytes": 12410,
+      "peak_live_growth": 7412
+    },
+    "after": {
+      "allocations": 130,
+      "bytes": 12532,
+      "peak_live_growth": 7412
+    }
+  },
+  {
+    "unit": "src/lib/components/docs/jsrepo-command.svelte",
+    "before": {
+      "allocations": 168,
+      "bytes": 19566,
+      "peak_live_growth": 11812
+    },
+    "after": {
+      "allocations": 169,
+      "bytes": 19555,
+      "peak_live_growth": 11812
+    }
+  },
+  {
+    "unit": "src/lib/components/ui/pm-command/pm-command.svelte",
+    "before": {
+      "allocations": 153,
+      "bytes": 17718,
+      "peak_live_growth": 10999
+    },
+    "after": {
+      "allocations": 156,
+      "bytes": 17816,
+      "peak_live_growth": 10999
+    }
+  },
+  {
+    "unit": "sites/plus.skeleton.dev/src/lib/components/markdown/overrides/code.svelte",
+    "before": {
+      "allocations": 79,
+      "bytes": 5988,
+      "peak_live_growth": 3770
+    },
+    "after": {
+      "allocations": 79,
+      "bytes": 5996,
+      "peak_live_growth": 3770
+    }
+  },
+  {
+    "unit": "sites/plus.skeleton.dev/src/lib/components/markdown/overrides/pre.svelte",
+    "before": {
+      "allocations": 127,
+      "bytes": 12282,
+      "peak_live_growth": 6525
+    },
+    "after": {
+      "allocations": 128,
+      "bytes": 12301,
+      "peak_live_growth": 6525
+    }
+  },
+  {
+    "unit": "svelte/src/components/ColorBoard.svelte",
+    "before": {
+      "allocations": 616,
+      "bytes": 76742,
+      "peak_live_growth": 29047
+    },
+    "after": {
+      "allocations": 621,
+      "bytes": 77514,
+      "peak_live_growth": 29047
+    }
+  },
+  {
+    "unit": "svelte/src/components/Modal.svelte",
+    "before": {
+      "allocations": 230,
+      "bytes": 30488,
+      "peak_live_growth": 13083
+    },
+    "after": {
+      "allocations": 234,
+      "bytes": 30822,
+      "peak_live_growth": 13083
+    }
+  },
+  {
+    "unit": "svelte/src/components/Pager.svelte",
+    "before": {
+      "allocations": 338,
+      "bytes": 42850,
+      "peak_live_growth": 17257
+    },
+    "after": {
+      "allocations": 343,
+      "bytes": 43258,
+      "peak_live_growth": 17257
+    }
+  },
+  {
+    "unit": "svelte/src/components/Portal.svelte",
+    "before": {
+      "allocations": 132,
+      "bytes": 12113,
+      "peak_live_growth": 5174
+    },
+    "after": {
+      "allocations": 134,
+      "bytes": 12231,
+      "peak_live_growth": 5302
+    }
+  },
+  {
+    "unit": "svelte/src/components/Tooltip.svelte",
+    "before": {
+      "allocations": 719,
+      "bytes": 100451,
+      "peak_live_growth": 36762
+    },
+    "after": {
+      "allocations": 723,
+      "bytes": 100786,
+      "peak_live_growth": 36762
+    }
+  },
+  {
+    "unit": "svelte/src/components/calendar/Duodecade.svelte",
+    "before": {
+      "allocations": 213,
+      "bytes": 28668,
+      "peak_live_growth": 12339
+    },
+    "after": {
+      "allocations": 216,
+      "bytes": 29001,
+      "peak_live_growth": 12339
+    }
+  },
+  {
+    "unit": "svelte/src/components/calendar/Header.svelte",
+    "before": {
+      "allocations": 208,
+      "bytes": 24217,
+      "peak_live_growth": 11070
+    },
+    "after": {
+      "allocations": 212,
+      "bytes": 24573,
+      "peak_live_growth": 11070
+    }
+  },
+  {
+    "unit": "svelte/src/components/calendar/Month.svelte",
+    "before": {
+      "allocations": 523,
+      "bytes": 64086,
+      "peak_live_growth": 25733
+    },
+    "after": {
+      "allocations": 527,
+      "bytes": 64437,
+      "peak_live_growth": 25733
+    }
+  },
+  {
+    "unit": "svelte/src/components/colorboard/Layout.svelte",
+    "before": {
+      "allocations": 591,
+      "bytes": 74805,
+      "peak_live_growth": 28761
+    },
+    "after": {
+      "allocations": 596,
+      "bytes": 75581,
+      "peak_live_growth": 28761
+    }
+  },
+  {
+    "unit": "svelte/src/components/modal/Layout.svelte",
+    "before": {
+      "allocations": 216,
+      "bytes": 29377,
+      "peak_live_growth": 12870
+    },
+    "after": {
+      "allocations": 220,
+      "bytes": 29715,
+      "peak_live_growth": 12870
+    }
+  },
+  {
+    "unit": "svelte/src/components/pager/Layout.svelte",
+    "before": {
+      "allocations": 325,
+      "bytes": 41520,
+      "peak_live_growth": 17049
+    },
+    "after": {
+      "allocations": 330,
+      "bytes": 41932,
+      "peak_live_growth": 17049
+    }
+  },
+  {
+    "unit": "site/src/components/AssignCell.svelte",
+    "before": {
+      "allocations": 164,
+      "bytes": 16624,
+      "peak_live_growth": 7437
+    },
+    "after": {
+      "allocations": 167,
+      "bytes": 16770,
+      "peak_live_growth": 7589
+    }
+  },
+  {
+    "unit": "site/src/components/TagsCell.svelte",
+    "before": {
+      "allocations": 155,
+      "bytes": 14714,
+      "peak_live_growth": 6525
+    },
+    "after": {
+      "allocations": 157,
+      "bytes": 14831,
+      "peak_live_growth": 6661
+    }
+  },
+  {
+    "unit": "svelte/demos/cases/CustomEmbedingActions.svelte",
+    "before": {
+      "allocations": 218,
+      "bytes": 27749,
+      "peak_live_growth": 12410
+    },
+    "after": {
+      "allocations": 220,
+      "bytes": 27867,
+      "peak_live_growth": 12410
+    }
+  },
+  {
+    "unit": "svelte/demos/cases/ExternalFilters.svelte",
+    "before": {
+      "allocations": 181,
+      "bytes": 23730,
+      "peak_live_growth": 11203
+    },
+    "after": {
+      "allocations": 184,
+      "bytes": 23861,
+      "peak_live_growth": 11203
+    }
+  },
+  {
+    "unit": "svelte/demos/cases/FilterQuery.svelte",
+    "before": {
+      "allocations": 212,
+      "bytes": 27675,
+      "peak_live_growth": 13295
+    },
+    "after": {
+      "allocations": 216,
+      "bytes": 27867,
+      "peak_live_growth": 13475
+    }
+  },
+  {
+    "unit": "svelte/demos/cases/Sort.svelte",
+    "before": {
+      "allocations": 115,
+      "bytes": 10561,
+      "peak_live_growth": 5592
+    },
+    "after": {
+      "allocations": 118,
+      "bytes": 10700,
+      "peak_live_growth": 5592
+    }
+  },
+  {
+    "unit": "svelte/demos/custom/CustomTooltip.svelte",
+    "before": {
+      "allocations": 162,
+      "bytes": 16759,
+      "peak_live_growth": 8604
+    },
+    "after": {
+      "allocations": 166,
+      "bytes": 16958,
+      "peak_live_growth": 8604
+    }
+  },
+  {
+    "unit": "svelte/src/components/HeaderFooter.svelte",
+    "before": {
+      "allocations": 316,
+      "bytes": 36599,
+      "peak_live_growth": 15038
+    },
+    "after": {
+      "allocations": 317,
+      "bytes": 36699,
+      "peak_live_growth": 15038
+    }
+  },
+  {
+    "unit": "svelte/src/components/Layout.svelte",
+    "before": {
+      "allocations": 3153,
+      "bytes": 331791,
+      "peak_live_growth": 80654
+    },
+    "after": {
+      "allocations": 3158,
+      "bytes": 332519,
+      "peak_live_growth": 80654
+    }
+  },
+  {
+    "unit": "svelte/src/components/menus/ContextMenu.svelte",
+    "before": {
+      "allocations": 229,
+      "bytes": 29204,
+      "peak_live_growth": 11750
+    },
+    "after": {
+      "allocations": 228,
+      "bytes": 29197,
+      "peak_live_growth": 11750
+    }
+  },
+  {
+    "unit": "svelte/tests/cases/FilterSimpleQuery.svelte",
+    "before": {
+      "allocations": 168,
+      "bytes": 17654,
+      "peak_live_growth": 7580
+    },
+    "after": {
+      "allocations": 170,
+      "bytes": 17761,
+      "peak_live_growth": 7580
+    }
+  },
+  {
+    "unit": "packages/svelte/tests/css/samples/snippet-exported/input.svelte",
+    "before": {
+      "allocations": 48,
+      "bytes": 2271,
+      "peak_live_growth": 1798
+    },
+    "after": {
+      "allocations": 50,
+      "bytes": 2392,
+      "peak_live_growth": 1798
+    }
+  },
+  {
+    "unit": "packages/svelte/tests/manual/each-stress-test/main.svelte",
+    "before": {
+      "allocations": 354,
+      "bytes": 41051,
+      "peak_live_growth": 17811
+    },
+    "after": {
+      "allocations": 359,
+      "bytes": 41330,
+      "peak_live_growth": 17811
+    }
+  },
+  {
+    "unit": "packages/svelte/tests/parser-legacy/samples/whitespace-after-style-tag/input.svelte",
+    "before": {
+      "allocations": 33,
+      "bytes": 973,
+      "peak_live_growth": 756
+    },
+    "after": {
+      "allocations": 33,
+      "bytes": 986,
+      "peak_live_growth": 756
+    }
+  },
+  {
+    "unit": "packages/svelte/tests/runtime-runes/samples/class-directive-mutations/main.svelte",
+    "before": {
+      "allocations": 132,
+      "bytes": 17013,
+      "peak_live_growth": 8238
+    },
+    "after": {
+      "allocations": 134,
+      "bytes": 17104,
+      "peak_live_growth": 8238
+    }
+  },
+  {
+    "unit": "src/lib/components/docs/ComponentList.svelte",
+    "before": {
+      "allocations": 802,
+      "bytes": 145229,
+      "peak_live_growth": 58809
+    },
+    "after": {
+      "allocations": 811,
+      "bytes": 147198,
+      "peak_live_growth": 59440
+    }
+  },
+  {
+    "unit": "src/lib/components/landing/LiveDemo/DemoPlaceholder.svelte",
+    "before": {
+      "allocations": 287,
+      "bytes": 34959,
+      "peak_live_growth": 22020
+    },
+    "after": {
+      "allocations": 293,
+      "bytes": 35461,
+      "peak_live_growth": 22020
+    }
+  },
+  {
+    "unit": "src/lib/components/library/Components/AnimatedList/AnimatedList.svelte",
+    "before": {
+      "allocations": 438,
+      "bytes": 50482,
+      "peak_live_growth": 19752
+    },
+    "after": {
+      "allocations": 440,
+      "bytes": 50609,
+      "peak_live_growth": 19752
+    }
+  },
+  {
+    "unit": "src/lib/components/library/Components/BubbleMenu/BubbleMenu.svelte",
+    "before": {
+      "allocations": 775,
+      "bytes": 126917,
+      "peak_live_growth": 52942
+    },
+    "after": {
+      "allocations": 777,
+      "bytes": 126979,
+      "peak_live_growth": 52942
+    }
+  },
+  {
+    "unit": "src/lib/components/library/Components/ChromaGrid/ChromaGrid.svelte",
+    "before": {
+      "allocations": 428,
+      "bytes": 67457,
+      "peak_live_growth": 29216
+    },
+    "after": {
+      "allocations": 430,
+      "bytes": 67529,
+      "peak_live_growth": 29216
+    }
+  },
+  {
+    "unit": "src/lib/components/library/Components/DomeGallery/DomeGallery.svelte",
+    "before": {
+      "allocations": 2086,
+      "bytes": 232547,
+      "peak_live_growth": 69898
+    },
+    "after": {
+      "allocations": 2088,
+      "bytes": 232616,
+      "peak_live_growth": 69898
+    }
+  },
+  {
+    "unit": "src/lib/components/library/Components/GooeyNav/GooeyNav.svelte",
+    "before": {
+      "allocations": 725,
+      "bytes": 89367,
+      "peak_live_growth": 32691
+    },
+    "after": {
+      "allocations": 728,
+      "bytes": 89504,
+      "peak_live_growth": 32691
+    }
+  },
+  {
+    "unit": "src/lib/components/library/Components/MagicBento/MagicBento.svelte",
+    "before": {
+      "allocations": 1444,
+      "bytes": 166143,
+      "peak_live_growth": 55458
+    },
+    "after": {
+      "allocations": 1447,
+      "bytes": 166271,
+      "peak_live_growth": 55458
+    }
+  },
+  {
+    "unit": "src/lib/components/library/Components/PillNav/PillNav.svelte",
+    "before": {
+      "allocations": 1374,
+      "bytes": 158661,
+      "peak_live_growth": 48366
+    },
+    "after": {
+      "allocations": 1379,
+      "bytes": 158949,
+      "peak_live_growth": 48366
+    }
+  },
+  {
+    "unit": "src/lib/components/library/Components/ProfileCard/ProfileCard.svelte",
+    "before": {
+      "allocations": 1234,
+      "bytes": 220236,
+      "peak_live_growth": 84792
+    },
+    "after": {
+      "allocations": 1242,
+      "bytes": 222013,
+      "peak_live_growth": 84792
+    }
+  },
+  {
+    "unit": "src/lib/components/library/Components/StaggeredMenu/StaggeredMenu.svelte",
+    "before": {
+      "allocations": 1624,
+      "bytes": 205458,
+      "peak_live_growth": 77266
+    },
+    "after": {
+      "allocations": 1627,
+      "bytes": 205594,
+      "peak_live_growth": 77266
+    }
+  },
+  {
+    "unit": "src/lib/components/library/TextAnimations/ASCIIText/ASCIIText.svelte",
+    "before": {
+      "allocations": 869,
+      "bytes": 103305,
+      "peak_live_growth": 36518
+    },
+    "after": {
+      "allocations": 869,
+      "bytes": 103306,
+      "peak_live_growth": 36518
+    }
+  },
+  {
+    "unit": "src/lib/components/library/TextAnimations/ScrollReveal/ScrollReveal.svelte",
+    "before": {
+      "allocations": 248,
+      "bytes": 24595,
+      "peak_live_growth": 9566
+    },
+    "after": {
+      "allocations": 250,
+      "bytes": 24704,
+      "peak_live_growth": 9693
+    }
+  },
+  {
+    "unit": "src/lib/components/library/TextAnimations/ScrollVelocity/ScrollVelocity.svelte",
+    "before": {
+      "allocations": 666,
+      "bytes": 67579,
+      "peak_live_growth": 18561
+    },
+    "after": {
+      "allocations": 667,
+      "bytes": 67596,
+      "peak_live_growth": 18561
+    }
+  },
+  {
+    "unit": "src/lib/components/library/TextAnimations/Shuffle/Shuffle.svelte",
+    "before": {
+      "allocations": 1085,
+      "bytes": 111316,
+      "peak_live_growth": 31740
+    },
+    "after": {
+      "allocations": 1085,
+      "bytes": 111322,
+      "peak_live_growth": 31740
+    }
+  },
+  {
+    "unit": "src/lib/components/library/TextAnimations/TextPressure/TextPressure.svelte",
+    "before": {
+      "allocations": 608,
+      "bytes": 70008,
+      "peak_live_growth": 23501
+    },
+    "after": {
+      "allocations": 610,
+      "bytes": 70118,
+      "peak_live_growth": 23591
+    }
+  },
+  {
+    "unit": "src/lib/components/library/TextAnimations/VariableProximity/VariableProximity.svelte",
+    "before": {
+      "allocations": 625,
+      "bytes": 69205,
+      "peak_live_growth": 20443
+    },
+    "after": {
+      "allocations": 629,
+      "bytes": 69549,
+      "peak_live_growth": 20443
+    }
+  },
+  {
+    "unit": "src/routes/docs/props.svelte",
+    "before": {
+      "allocations": 147,
+      "bytes": 18359,
+      "peak_live_growth": 9288
+    },
+    "after": {
+      "allocations": 150,
+      "bytes": 18496,
+      "peak_live_growth": 9444
+    }
+  },
+  {
+    "unit": "src/routes/docs/quick-start.svelte",
+    "before": {
+      "allocations": 92,
+      "bytes": 8316,
+      "peak_live_growth": 5684
+    },
+    "after": {
+      "allocations": 94,
+      "bytes": 8388,
+      "peak_live_growth": 5684
+    }
+  },
+  {
+    "unit": "src/routes/_components/Code.svelte",
+    "before": {
+      "allocations": 223,
+      "bytes": 32971,
+      "peak_live_growth": 17082
+    },
+    "after": {
+      "allocations": 227,
+      "bytes": 33323,
+      "peak_live_growth": 17082
+    }
+  },
+  {
+    "unit": "src/routes/_components/NavMenu.svelte",
+    "before": {
+      "allocations": 113,
+      "bytes": 9569,
+      "peak_live_growth": 5162
+    },
+    "after": {
+      "allocations": 115,
+      "bytes": 9675,
+      "peak_live_growth": 5162
+    }
+  },
+  {
+    "unit": "sites/docs/src/lib/components/TableOfContents.svelte",
+    "before": {
+      "allocations": 197,
+      "bytes": 23971,
+      "peak_live_growth": 11278
+    },
+    "after": {
+      "allocations": 201,
+      "bytes": 24326,
+      "peak_live_growth": 11278
+    }
+  },
+  {
+    "unit": "src/lib/CodeMirror.svelte",
+    "before": {
+      "allocations": 527,
+      "bytes": 78489,
+      "peak_live_growth": 31133
+    },
+    "after": {
+      "allocations": 531,
+      "bytes": 78850,
+      "peak_live_growth": 31133
+    }
+  },
+  {
+    "unit": "src/routes/+page.svelte",
+    "before": {
+      "allocations": 432,
+      "bytes": 76812,
+      "peak_live_growth": 45965
+    },
+    "after": {
+      "allocations": 440,
+      "bytes": 78031,
+      "peak_live_growth": 46805
+    }
+  },
+  {
+    "unit": "src/lib/components/CommandPalette.svelte",
+    "before": {
+      "allocations": 959,
+      "bytes": 144387,
+      "peak_live_growth": 57447
+    },
+    "after": {
+      "allocations": 964,
+      "bytes": 144779,
+      "peak_live_growth": 57447
+    }
+  },
+  {
+    "unit": "src/lib/components/Result.svelte",
+    "before": {
+      "allocations": 618,
+      "bytes": 84425,
+      "peak_live_growth": 36020
+    },
+    "after": {
+      "allocations": 624,
+      "bytes": 85206,
+      "peak_live_growth": 36020
+    }
+  },
+  {
+    "unit": "src/lib/components/common/newsletter.svelte",
+    "before": {
+      "allocations": 190,
+      "bytes": 22749,
+      "peak_live_growth": 11811
+    },
+    "after": {
+      "allocations": 192,
+      "bytes": 22870,
+      "peak_live_growth": 11811
+    }
+  },
+  {
+    "unit": "src/lib/components/product-catalogue/listing-grid.svelte",
+    "before": {
+      "allocations": 536,
+      "bytes": 77616,
+      "peak_live_growth": 30848
+    },
+    "after": {
+      "allocations": 541,
+      "bytes": 78010,
+      "peak_live_growth": 30848
+    }
+  },
+  {
+    "unit": "src/lib/core/components/image/lazy-img-with-zoom.svelte",
+    "before": {
+      "allocations": 1010,
+      "bytes": 120817,
+      "peak_live_growth": 37560
+    },
+    "after": {
+      "allocations": 1013,
+      "bytes": 120977,
+      "peak_live_growth": 37560
+    }
+  },
+  {
+    "unit": "src/lib/core/components/image/lazy-img.svelte",
+    "before": {
+      "allocations": 574,
+      "bytes": 65169,
+      "peak_live_growth": 22063
+    },
+    "after": {
+      "allocations": 576,
+      "bytes": 65284,
+      "peak_live_growth": 22063
+    }
+  },
+  {
+    "unit": "src/lib/theme/default/DefaultHomepage.svelte",
+    "before": {
+      "allocations": 1951,
+      "bytes": 375665,
+      "peak_live_growth": 154966
+    },
+    "after": {
+      "allocations": 1963,
+      "bytes": 382953,
+      "peak_live_growth": 154966
+    }
+  },
+  {
+    "unit": "src/routes/(my)/my/orders/+page.svelte",
+    "before": {
+      "allocations": 369,
+      "bytes": 55986,
+      "peak_live_growth": 35354
+    },
+    "after": {
+      "allocations": 373,
+      "bytes": 56250,
+      "peak_live_growth": 35354
+    }
+  },
+  {
+    "unit": "src/routes/(www)/products/[slug]/components/product-details.svelte",
+    "before": {
+      "allocations": 754,
+      "bytes": 91345,
+      "peak_live_growth": 36529
+    },
+    "after": {
+      "allocations": 757,
+      "bytes": 91418,
+      "peak_live_growth": 36529
+    }
+  },
+  {
+    "unit": "src/routes/(www)/products/[slug]/components/product-reviews-section.svelte",
+    "before": {
+      "allocations": 893,
+      "bytes": 119782,
+      "peak_live_growth": 67208
+    },
+    "after": {
+      "allocations": 898,
+      "bytes": 120430,
+      "peak_live_growth": 67208
+    }
+  },
+  {
+    "unit": "src/routes/(www)/reels/+page.svelte",
+    "before": {
+      "allocations": 312,
+      "bytes": 38871,
+      "peak_live_growth": 21957
+    },
+    "after": {
+      "allocations": 315,
+      "bytes": 39008,
+      "peak_live_growth": 21957
+    }
+  },
+  {
+    "unit": "tests/fixtures/parser/ast/kit-demo-home-input.svelte",
+    "before": {
+      "allocations": 101,
+      "bytes": 10917,
+      "peak_live_growth": 6678
+    },
+    "after": {
+      "allocations": 105,
+      "bytes": 11106,
+      "peak_live_growth": 6854
+    }
+  },
+  {
+    "unit": "tests/fixtures/parser/ast/tutorial/bind-this-input.svelte",
+    "before": {
+      "allocations": 252,
+      "bytes": 18877,
+      "peak_live_growth": 5058
+    },
+    "after": {
+      "allocations": 252,
+      "bytes": 18889,
+      "peak_live_growth": 5058
+    }
+  },
+  {
+    "unit": "tests/fixtures/parser/selector-parsing/simple-scss-input.svelte",
+    "before": {
+      "allocations": 81,
+      "bytes": 6962,
+      "peak_live_growth": 3678
+    },
+    "after": {
+      "allocations": 84,
+      "bytes": 7296,
+      "peak_live_growth": 3914
+    }
+  },
+  {
+    "unit": "tests/fixtures/parser/style-context/simple-scss-input.svelte",
+    "before": {
+      "allocations": 60,
+      "bytes": 3611,
+      "peak_live_growth": 2450
+    },
+    "after": {
+      "allocations": 62,
+      "bytes": 3737,
+      "peak_live_growth": 2586
+    }
+  },
+  {
+    "unit": "examples/example-svelte/src/routes/LargeDataset.svelte",
+    "before": {
+      "allocations": 311,
+      "bytes": 27070,
+      "peak_live_growth": 9548
+    },
+    "after": {
+      "allocations": 313,
+      "bytes": 27190,
+      "peak_live_growth": 9548
+    }
+  },
+  {
+    "unit": "packages/docs-mdsvex/src/routes/docs/options/zoom/ZoomExample.svelte",
+    "before": {
+      "allocations": 205,
+      "bytes": 20702,
+      "peak_live_growth": 10608
+    },
+    "after": {
+      "allocations": 208,
+      "bytes": 20836,
+      "peak_live_growth": 10608
+    }
+  },
+  {
+    "unit": "apps/docs/src/components/editor/CodeEditor.svelte",
+    "before": {
+      "allocations": 209,
+      "bytes": 23130,
+      "peak_live_growth": 9935
+    },
+    "after": {
+      "allocations": 210,
+      "bytes": 23129,
+      "peak_live_growth": 9935
+    }
+  },
+  {
+    "unit": "apps/docs/src/components/global-opts/GlobalOptionsList.svelte",
+    "before": {
+      "allocations": 569,
+      "bytes": 101584,
+      "peak_live_growth": 49169
+    },
+    "after": {
+      "allocations": 575,
+      "bytes": 98920,
+      "peak_live_growth": 47153
+    }
+  },
+  {
+    "unit": "apps/docs/src/components/theming/HexString.svelte",
+    "before": {
+      "allocations": 119,
+      "bytes": 12228,
+      "peak_live_growth": 5845
+    },
+    "after": {
+      "allocations": 121,
+      "bytes": 12337,
+      "peak_live_growth": 5977
+    }
+  },
+  {
+    "unit": "apps/docs/src/components/theming/Theming.svelte",
+    "before": {
+      "allocations": 210,
+      "bytes": 29582,
+      "peak_live_growth": 13398
+    },
+    "after": {
+      "allocations": 212,
+      "bytes": 29695,
+      "peak_live_growth": 13398
+    }
+  },
+  {
+    "unit": "apps/docs/src/examples/BasicEditable.svelte",
+    "before": {
+      "allocations": 138,
+      "bytes": 17953,
+      "peak_live_growth": 6586
+    },
+    "after": {
+      "allocations": 140,
+      "bytes": 18073,
+      "peak_live_growth": 6586
+    }
+  },
+  {
+    "unit": "apps/docs/src/examples/Generic.svelte",
+    "before": {
+      "allocations": 115,
+      "bytes": 11650,
+      "peak_live_growth": 6325
+    },
+    "after": {
+      "allocations": 115,
+      "bytes": 11646,
+      "peak_live_growth": 6325
+    }
+  },
+  {
+    "unit": "apps/docs/src/examples/custom/HexString.svelte",
+    "before": {
+      "allocations": 99,
+      "bytes": 8936,
+      "peak_live_growth": 4494
+    },
+    "after": {
+      "allocations": 101,
+      "bytes": 9054,
+      "peak_live_growth": 4626
+    }
+  },
+  {
+    "unit": "apps/docs/src/examples/panel/PanelExample.svelte",
+    "before": {
+      "allocations": 399,
+      "bytes": 64001,
+      "peak_live_growth": 26692
+    },
+    "after": {
+      "allocations": 405,
+      "bytes": 64510,
+      "peak_live_growth": 27048
+    }
+  },
+  {
+    "unit": "apps/docs/src/examples/search/Narrowing.svelte",
+    "before": {
+      "allocations": 109,
+      "bytes": 10912,
+      "peak_live_growth": 6499
+    },
+    "after": {
+      "allocations": 113,
+      "bytes": 11110,
+      "peak_live_growth": 6499
+    }
+  },
+  {
+    "unit": "packages/svelte/src/doclib/Ace.svelte",
+    "before": {
+      "allocations": 181,
+      "bytes": 18022,
+      "peak_live_growth": 8018
+    },
+    "after": {
+      "allocations": 183,
+      "bytes": 18147,
+      "peak_live_growth": 8018
+    }
+  },
+  {
+    "unit": "packages/svelte/src/doclib/Code.svelte",
+    "before": {
+      "allocations": 234,
+      "bytes": 32336,
+      "peak_live_growth": 14919
+    },
+    "after": {
+      "allocations": 238,
+      "bytes": 32667,
+      "peak_live_growth": 15171
+    }
+  },
+  {
+    "unit": "packages/svelte/src/doclib/examples/AllTypes.svelte",
+    "before": {
+      "allocations": 511,
+      "bytes": 47069,
+      "peak_live_growth": 21366
+    },
+    "after": {
+      "allocations": 511,
+      "bytes": 47066,
+      "peak_live_growth": 21366
+    }
+  },
+  {
+    "unit": "packages/svelte/src/doclib/examples/BasicEditable.svelte",
+    "before": {
+      "allocations": 158,
+      "bytes": 22392,
+      "peak_live_growth": 9065
+    },
+    "after": {
+      "allocations": 162,
+      "bytes": 22578,
+      "peak_live_growth": 9065
+    }
+  },
+  {
+    "unit": "packages/svelte/src/lib/Panel.svelte",
+    "before": {
+      "allocations": 1477,
+      "bytes": 221407,
+      "peak_live_growth": 86605
+    },
+    "after": {
+      "allocations": 1483,
+      "bytes": 222918,
+      "peak_live_growth": 86605
+    }
+  },
+  {
+    "unit": "packages/svelte/src/lib/Wrapper.svelte",
+    "before": {
+      "allocations": 1018,
+      "bytes": 188940,
+      "peak_live_growth": 77314
+    },
+    "after": {
+      "allocations": 1025,
+      "bytes": 188795,
+      "peak_live_growth": 77314
+    }
+  },
+  {
+    "unit": "packages/svelte/src/lib/components/Count.svelte",
+    "before": {
+      "allocations": 112,
+      "bytes": 11122,
+      "peak_live_growth": 6357
+    },
+    "after": {
+      "allocations": 114,
+      "bytes": 11220,
+      "peak_live_growth": 6357
+    }
+  },
+  {
+    "unit": "packages/svelte/src/lib/components/FunctionBody.svelte",
+    "before": {
+      "allocations": 173,
+      "bytes": 21878,
+      "peak_live_growth": 11208
+    },
+    "after": {
+      "allocations": 177,
+      "bytes": 22612,
+      "peak_live_growth": 11208
+    }
+  },
+  {
+    "unit": "packages/svelte/src/lib/components/FunctionView.svelte",
+    "before": {
+      "allocations": 143,
+      "bytes": 14952,
+      "peak_live_growth": 7709
+    },
+    "after": {
+      "allocations": 145,
+      "bytes": 15055,
+      "peak_live_growth": 7709
+    }
+  },
+  {
+    "unit": "packages/svelte/src/lib/components/HTMLValue.svelte",
+    "before": {
+      "allocations": 171,
+      "bytes": 17501,
+      "peak_live_growth": 7966
+    },
+    "after": {
+      "allocations": 173,
+      "bytes": 17822,
+      "peak_live_growth": 7966
+    }
+  },
+  {
+    "unit": "packages/svelte/src/lib/components/Highlight.svelte",
+    "before": {
+      "allocations": 266,
+      "bytes": 32761,
+      "peak_live_growth": 13649
+    },
+    "after": {
+      "allocations": 268,
+      "bytes": 33070,
+      "peak_live_growth": 13649
+    }
+  },
+  {
+    "unit": "packages/svelte/src/lib/components/Key.svelte",
+    "before": {
+      "allocations": 327,
+      "bytes": 44474,
+      "peak_live_growth": 20772
+    },
+    "after": {
+      "allocations": 331,
+      "bytes": 44782,
+      "peak_live_growth": 20916
+    }
+  },
+  {
+    "unit": "packages/svelte/src/lib/components/PromiseView.svelte",
+    "before": {
+      "allocations": 264,
+      "bytes": 34374,
+      "peak_live_growth": 15842
+    },
+    "after": {
+      "allocations": 267,
+      "bytes": 34679,
+      "peak_live_growth": 15842
+    }
+  },
+  {
+    "unit": "packages/svelte/src/lib/components/Row.svelte",
+    "before": {
+      "allocations": 257,
+      "bytes": 30638,
+      "peak_live_growth": 12777
+    },
+    "after": {
+      "allocations": 258,
+      "bytes": 30753,
+      "peak_live_growth": 12777
+    }
+  },
+  {
+    "unit": "packages/svelte/src/lib/components/StringView.svelte",
+    "before": {
+      "allocations": 304,
+      "bytes": 38136,
+      "peak_live_growth": 16163
+    },
+    "after": {
+      "allocations": 307,
+      "bytes": 38256,
+      "peak_live_growth": 16163
+    }
+  },
+  {
+    "unit": "packages/svelte/src/lib/components/Tools.svelte",
+    "before": {
+      "allocations": 423,
+      "bytes": 63867,
+      "peak_live_growth": 24689
+    },
+    "after": {
+      "allocations": 425,
+      "bytes": 63952,
+      "peak_live_growth": 24817
+    }
+  },
+  {
+    "unit": "packages/svelte/src/routes/(app)/playground/[...example]/+page.svelte",
+    "before": {
+      "allocations": 196,
+      "bytes": 24447,
+      "peak_live_growth": 11521
+    },
+    "after": {
+      "allocations": 199,
+      "bytes": 24578,
+      "peak_live_growth": 11521
+    }
+  },
+  {
+    "unit": "packages/svelte/src/routes/(app)/reference/custom/HexString.svelte",
+    "before": {
+      "allocations": 119,
+      "bytes": 12228,
+      "peak_live_growth": 5845
+    },
+    "after": {
+      "allocations": 121,
+      "bytes": 12337,
+      "peak_live_growth": 5977
+    }
+  },
+  {
+    "unit": "demos/qalam/src/lib/InsertImageDialog.svelte",
+    "before": {
+      "allocations": 343,
+      "bytes": 46824,
+      "peak_live_growth": 21665
+    },
+    "after": {
+      "allocations": 349,
+      "bytes": 47338,
+      "peak_live_growth": 21665
+    }
+  },
+  {
+    "unit": "packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertBlueskyDialog.svelte",
+    "before": {
+      "allocations": 208,
+      "bytes": 26784,
+      "peak_live_growth": 12400
+    },
+    "after": {
+      "allocations": 211,
+      "bytes": 26918,
+      "peak_live_growth": 12400
+    }
+  },
+  {
+    "unit": "packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/CodeActionMenuPlugin.svelte",
+    "before": {
+      "allocations": 311,
+      "bytes": 41003,
+      "peak_live_growth": 17358
+    },
+    "after": {
+      "allocations": 311,
+      "bytes": 41001,
+      "peak_live_growth": 17358
+    }
+  },
+  {
+    "unit": "packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/components/PrettierButton.svelte",
+    "before": {
+      "allocations": 202,
+      "bytes": 24871,
+      "peak_live_growth": 11141
+    },
+    "after": {
+      "allocations": 203,
+      "bytes": 24897,
+      "peak_live_growth": 11141
+    }
+  },
+  {
+    "unit": "packages/svelte-lexical/src/lib/core/plugins/Table/TableCellResizerPlugin.svelte",
+    "before": {
+      "allocations": 746,
+      "bytes": 92207,
+      "peak_live_growth": 30381
+    },
+    "after": {
+      "allocations": 748,
+      "bytes": 92322,
+      "peak_live_growth": 30381
+    }
+  },
+  {
+    "unit": "packages/svelte-lexical/src/lib/core/plugins/TreeView/TreeView.svelte",
+    "before": {
+      "allocations": 1398,
+      "bytes": 179721,
+      "peak_live_growth": 63432
+    },
+    "after": {
+      "allocations": 1400,
+      "bytes": 179778,
+      "peak_live_growth": 63432
+    }
+  },
+  {
+    "unit": "src/lib/MapLibre.svelte",
+    "before": {
+      "allocations": 751,
+      "bytes": 98755,
+      "peak_live_growth": 34078
+    },
+    "after": {
+      "allocations": 752,
+      "bytes": 98856,
+      "peak_live_growth": 34078
+    }
+  },
+  {
+    "unit": "src/routes/examples/geojson_polygon/+page.svelte",
+    "before": {
+      "allocations": 183,
+      "bytes": 22509,
+      "peak_live_growth": 11565
+    },
+    "after": {
+      "allocations": 187,
+      "bytes": 22690,
+      "peak_live_growth": 11565
+    }
+  },
+  {
+    "unit": "packages/site/src/lib/Demo.svelte",
+    "before": {
+      "allocations": 404,
+      "bytes": 66660,
+      "peak_live_growth": 32841
+    },
+    "after": {
+      "allocations": 408,
+      "bytes": 66747,
+      "peak_live_growth": 33025
+    }
+  },
+  {
+    "unit": "packages/preprocess-markdown/src/enhance-code-block/ButtonCollapse.svelte",
+    "before": {
+      "allocations": 111,
+      "bytes": 11185,
+      "peak_live_growth": 5985
+    },
+    "after": {
+      "allocations": 112,
+      "bytes": 11216,
+      "peak_live_growth": 6017
+    }
+  },
+  {
+    "unit": "packages/preprocess-markdown/src/enhance-code-block/ButtonCopy.svelte",
+    "before": {
+      "allocations": 152,
+      "bytes": 17301,
+      "peak_live_growth": 9511
+    },
+    "after": {
+      "allocations": 153,
+      "bytes": 17324,
+      "peak_live_growth": 9511
+    }
+  },
+  {
+    "unit": "packages/preprocess-markdown/src/enhance-code-block/ButtonFullScreen.svelte",
+    "before": {
+      "allocations": 176,
+      "bytes": 20891,
+      "peak_live_growth": 10874
+    },
+    "after": {
+      "allocations": 179,
+      "bytes": 21032,
+      "peak_live_growth": 10981
+    }
+  },
+  {
+    "unit": "packages/preprocess-markdown/src/enhance-code-block/CodeBlock.svelte",
+    "before": {
+      "allocations": 602,
+      "bytes": 92356,
+      "peak_live_growth": 39103
+    },
+    "after": {
+      "allocations": 608,
+      "bytes": 93150,
+      "peak_live_growth": 39603
+    }
+  },
+  {
+    "unit": "packages/preprocess-markdown/src/enhance-code-block/CodeBlockGroup.svelte",
+    "before": {
+      "allocations": 191,
+      "bytes": 22514,
+      "peak_live_growth": 10059
+    },
+    "after": {
+      "allocations": 193,
+      "bytes": 22627,
+      "peak_live_growth": 10187
+    }
+  },
+  {
+    "unit": "packages/preprocess-markdown/src/enhance-code-block/FileIcon.svelte",
+    "before": {
+      "allocations": 142,
+      "bytes": 15937,
+      "peak_live_growth": 13140
+    },
+    "after": {
+      "allocations": 145,
+      "bytes": 16130,
+      "peak_live_growth": 13140
+    }
+  },
+  {
+    "unit": "sites/docs/src/lib/notifications/components/BaseNotification.svelte",
+    "before": {
+      "allocations": 221,
+      "bytes": 24410,
+      "peak_live_growth": 12221
+    },
+    "after": {
+      "allocations": 225,
+      "bytes": 24600,
+      "peak_live_growth": 12221
+    }
+  },
+  {
+    "unit": "sites/docs/src/lib/notifications/components/NotificationPortal.svelte",
+    "before": {
+      "allocations": 565,
+      "bytes": 56237,
+      "peak_live_growth": 16705
+    },
+    "after": {
+      "allocations": 565,
+      "bytes": 56241,
+      "peak_live_growth": 16705
+    }
+  },
+  {
+    "unit": "sites/docs/src/packages/async-stack/_page/examples/comprehensive/Notification.svelte",
+    "before": {
+      "allocations": 129,
+      "bytes": 13132,
+      "peak_live_growth": 6762
+    },
+    "after": {
+      "allocations": 131,
+      "bytes": 13259,
+      "peak_live_growth": 6847
+    }
+  },
+  {
+    "unit": "sites/docs/src/packages/async-stack/_page/examples/toast/Toast.svelte",
+    "before": {
+      "allocations": 181,
+      "bytes": 21147,
+      "peak_live_growth": 11565
+    },
+    "after": {
+      "allocations": 185,
+      "bytes": 21339,
+      "peak_live_growth": 11565
+    }
+  },
+  {
+    "unit": "sites/docs/src/packages/async-stack/_page/examples/toast/ToastPortal.svelte",
+    "before": {
+      "allocations": 557,
+      "bytes": 55952,
+      "peak_live_growth": 16769
+    },
+    "after": {
+      "allocations": 557,
+      "bytes": 55954,
+      "peak_live_growth": 16769
+    }
+  },
+  {
+    "unit": "src/routes/+page.svelte",
+    "before": {
+      "allocations": 527,
+      "bytes": 84841,
+      "peak_live_growth": 51186
+    },
+    "after": {
+      "allocations": 534,
+      "bytes": 85738,
+      "peak_live_growth": 51846
+    }
+  },
+  {
+    "unit": "sites/hn.svelte.dev/src/lib/ThemeToggler.svelte",
+    "before": {
+      "allocations": 149,
+      "bytes": 15793,
+      "peak_live_growth": 7357
+    },
+    "after": {
+      "allocations": 151,
+      "bytes": 15913,
+      "peak_live_growth": 7394
+    }
+  },
+  {
+    "unit": "src/lib/Toaster.svelte",
+    "before": {
+      "allocations": 1737,
+      "bytes": 306916,
+      "peak_live_growth": 121683
+    },
+    "after": {
+      "allocations": 1739,
+      "bytes": 307158,
+      "peak_live_growth": 121683
+    }
+  },
+  {
+    "unit": "src/lib/VirtualList.svelte",
+    "before": {
+      "allocations": 1124,
+      "bytes": 114433,
+      "peak_live_growth": 28011
+    },
+    "after": {
+      "allocations": 1126,
+      "bytes": 114539,
+      "peak_live_growth": 28011
+    }
+  },
+  {
+    "unit": "src/routes/+layout.svelte",
+    "before": {
+      "allocations": 344,
+      "bytes": 55495,
+      "peak_live_growth": 38589
+    },
+    "after": {
+      "allocations": 349,
+      "bytes": 56208,
+      "peak_live_growth": 38589
+    }
+  },
+  {
+    "unit": "src/comp/Contents.svelte",
+    "before": {
+      "allocations": 206,
+      "bytes": 29706,
+      "peak_live_growth": 13854
+    },
+    "after": {
+      "allocations": 209,
+      "bytes": 29840,
+      "peak_live_growth": 13854
+    }
+  },
+  {
+    "unit": "src/routes/examples/events/code.svelte",
+    "before": {
+      "allocations": 252,
+      "bytes": 36065,
+      "peak_live_growth": 19947
+    },
+    "after": {
+      "allocations": 257,
+      "bytes": 36326,
+      "peak_live_growth": 19947
+    }
+  },
+  {
+    "unit": "src/routes/examples/positioning/code.svelte",
+    "before": {
+      "allocations": 265,
+      "bytes": 37237,
+      "peak_live_growth": 20756
+    },
+    "after": {
+      "allocations": 270,
+      "bytes": 37486,
+      "peak_live_growth": 20756
+    }
+  },
+  {
+    "unit": "packages/meilisearch/src/Search.svelte",
+    "before": {
+      "allocations": 482,
+      "bytes": 85291,
+      "peak_live_growth": 37928
+    },
+    "after": {
+      "allocations": 489,
+      "bytes": 86212,
+      "peak_live_growth": 37928
+    }
+  },
+  {
+    "unit": "packages/theme-blog/src/components/AuthorProfile.svelte",
+    "before": {
+      "allocations": 243,
+      "bytes": 30263,
+      "peak_live_growth": 12740
+    },
+    "after": {
+      "allocations": 247,
+      "bytes": 30610,
+      "peak_live_growth": 13000
+    }
+  },
+  {
+    "unit": "packages/theme-blog/src/components/PostCardLarge.svelte",
+    "before": {
+      "allocations": 295,
+      "bytes": 36610,
+      "peak_live_growth": 16573
+    },
+    "after": {
+      "allocations": 301,
+      "bytes": 37436,
+      "peak_live_growth": 16573
+    }
+  },
+  {
+    "unit": "packages/theme-blog/src/components/SearchModal.svelte",
+    "before": {
+      "allocations": 430,
+      "bytes": 60267,
+      "peak_live_growth": 24997
+    },
+    "after": {
+      "allocations": 435,
+      "bytes": 60676,
+      "peak_live_growth": 24997
+    }
+  },
+  {
+    "unit": "packages/theme-blog/src/components/Sidebar.svelte",
+    "before": {
+      "allocations": 493,
+      "bytes": 85125,
+      "peak_live_growth": 36886
+    },
+    "after": {
+      "allocations": 500,
+      "bytes": 86049,
+      "peak_live_growth": 36886
+    }
+  },
+  {
+    "unit": "packages/theme-blog/src/components/TableOfContents.svelte",
+    "before": {
+      "allocations": 248,
+      "bytes": 33830,
+      "peak_live_growth": 14737
+    },
+    "after": {
+      "allocations": 252,
+      "bytes": 34188,
+      "peak_live_growth": 14759
+    }
+  },
+  {
+    "unit": "packages/theme-blog/src/components/Timeline.svelte",
+    "before": {
+      "allocations": 607,
+      "bytes": 111886,
+      "peak_live_growth": 45609
+    },
+    "after": {
+      "allocations": 615,
+      "bytes": 113650,
+      "peak_live_growth": 45609
+    }
+  },
+  {
+    "unit": "packages/theme-default/src/components/GlobalLayout.svelte",
+    "before": {
+      "allocations": 501,
+      "bytes": 87871,
+      "peak_live_growth": 46751
+    },
+    "after": {
+      "allocations": 503,
+      "bytes": 87956,
+      "peak_live_growth": 46751
+    }
+  },
+  {
+    "unit": "packages/theme-default/src/components/Navbar.svelte",
+    "before": {
+      "allocations": 297,
+      "bytes": 39658,
+      "peak_live_growth": 19498
+    },
+    "after": {
+      "allocations": 303,
+      "bytes": 40461,
+      "peak_live_growth": 19498
+    }
+  },
+  {
+    "unit": "packages/theme-default/src/components/Tabs.svelte",
+    "before": {
+      "allocations": 323,
+      "bytes": 46118,
+      "peak_live_growth": 19733
+    },
+    "after": {
+      "allocations": 327,
+      "bytes": 46458,
+      "peak_live_growth": 20001
+    }
+  },
+  {
+    "unit": "packages/theme-default/src/components/Toc.svelte",
+    "before": {
+      "allocations": 367,
+      "bytes": 41681,
+      "peak_live_growth": 16292
+    },
+    "after": {
+      "allocations": 371,
+      "bytes": 42040,
+      "peak_live_growth": 16292
+    }
+  },
+  {
+    "unit": "src/lib/Icon.svelte",
+    "before": {
+      "allocations": 627,
+      "bytes": 110713,
+      "peak_live_growth": 79914
+    },
+    "after": {
+      "allocations": 632,
+      "bytes": 111429,
+      "peak_live_growth": 80426
+    }
+  },
+  {
+    "unit": "src/lib/ShowCard.svelte",
+    "before": {
+      "allocations": 594,
+      "bytes": 84728,
+      "peak_live_growth": 32135
+    },
+    "after": {
+      "allocations": 601,
+      "bytes": 85642,
+      "peak_live_growth": 32707
+    }
+  },
+  {
+    "unit": "src/lib/player/Visualizer.svelte",
+    "before": {
+      "allocations": 207,
+      "bytes": 20601,
+      "peak_live_growth": 8173
+    },
+    "after": {
+      "allocations": 209,
+      "bytes": 20716,
+      "peak_live_growth": 8173
+    }
+  },
+  {
+    "unit": "src/lib/share/HairButton.svelte",
+    "before": {
+      "allocations": 74,
+      "bytes": 5070,
+      "peak_live_growth": 2927
+    },
+    "after": {
+      "allocations": 74,
+      "bytes": 5081,
+      "peak_live_growth": 2927
+    }
+  },
+  {
+    "unit": "src/params/ThemeMaker.svelte",
+    "before": {
+      "allocations": 221,
+      "bytes": 31889,
+      "peak_live_growth": 15218
+    },
+    "after": {
+      "allocations": 227,
+      "bytes": 32725,
+      "peak_live_growth": 15734
+    }
+  },
+  {
+    "unit": "src/routes/(site)/guests/+page.svelte",
+    "before": {
+      "allocations": 330,
+      "bytes": 48496,
+      "peak_live_growth": 22563
+    },
+    "after": {
+      "allocations": 336,
+      "bytes": 48987,
+      "peak_live_growth": 22919
+    }
+  },
+  {
+    "unit": "apps/docs/src/components/ContactForm/ContactForm.svelte",
+    "before": {
+      "allocations": 139,
+      "bytes": 15267,
+      "peak_live_growth": 9135
+    },
+    "after": {
+      "allocations": 142,
+      "bytes": 15378,
+      "peak_live_growth": 9135
+    }
+  },
+  {
+    "unit": "apps/docs/src/components/Hero/Intro/Intro.svelte",
+    "before": {
+      "allocations": 168,
+      "bytes": 18498,
+      "peak_live_growth": 12699
+    },
+    "after": {
+      "allocations": 172,
+      "bytes": 18665,
+      "peak_live_growth": 12699
+    }
+  },
+  {
+    "unit": "apps/docs/src/examples/extras/grid/App.svelte",
+    "before": {
+      "allocations": 457,
+      "bytes": 64997,
+      "peak_live_growth": 32373
+    },
+    "after": {
+      "allocations": 457,
+      "bytes": 64930,
+      "peak_live_growth": 32373
+    }
+  },
+  {
+    "unit": "apps/docs/src/examples/extras/view/multiple-scenes/App.svelte",
+    "before": {
+      "allocations": 221,
+      "bytes": 21905,
+      "peak_live_growth": 10826
+    },
+    "after": {
+      "allocations": 222,
+      "bytes": 21919,
+      "peak_live_growth": 10858
+    }
+  },
+  {
+    "unit": "apps/docs/src/examples/flex/examples/App.svelte",
+    "before": {
+      "allocations": 277,
+      "bytes": 32600,
+      "peak_live_growth": 14608
+    },
+    "after": {
+      "allocations": 281,
+      "bytes": 32940,
+      "peak_live_growth": 14864
+    }
+  },
+  {
+    "unit": "packages/studio/src/lib/components/Icon.svelte",
+    "before": {
+      "allocations": 150,
+      "bytes": 13970,
+      "peak_live_growth": 6171
+    },
+    "after": {
+      "allocations": 151,
+      "bytes": 14083,
+      "peak_live_growth": 6171
+    }
+  },
+  {
+    "unit": "packages/studio/src/lib/extensions/object-selection/SelectRect.svelte",
+    "before": {
+      "allocations": 283,
+      "bytes": 34190,
+      "peak_live_growth": 13146
+    },
+    "after": {
+      "allocations": 282,
+      "bytes": 34188,
+      "peak_live_growth": 13146
+    }
+  },
+  {
+    "unit": "packages/studio/src/lib/extensions/static-state/StaticState.svelte",
+    "before": {
+      "allocations": 323,
+      "bytes": 44669,
+      "peak_live_growth": 19965
+    },
+    "after": {
+      "allocations": 323,
+      "bytes": 44638,
+      "peak_live_growth": 19965
+    }
+  }
+]

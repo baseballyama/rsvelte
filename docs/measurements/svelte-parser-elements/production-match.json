@@ -1,0 +1,4 @@
+{
+  "matched_syntax_files": 17,
+  "excluded": "measurement-only measure_layout probe; plugin registration wrappers are outside the measured direct parse path"
+}

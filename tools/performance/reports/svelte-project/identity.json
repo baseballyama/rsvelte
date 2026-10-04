@@ -1,0 +1,213 @@
+{
+  "base_revision": "d3fe0394b0b11ab70829fad9a544b2b03ac81618",
+  "source_state": "dirty frozen snapshot; source-manifest.json identifies the measured tree",
+  "main_revision": "5ed8ea3a3401b9fbbe780d3b18d6f90073291d6b",
+  "cpu": "Apple M1 Pro",
+  "memory_bytes": 34359738368,
+  "oracle": {
+    "svelte": "5.57.1",
+    "typescript": "6.0.3",
+    "svelte-check": "4.7.6",
+    "bundle_sha256": "dc660e28bc246946ef1ce71a4e4d36483082edaf916470938889ab0518d18a79",
+    "extracted_bundle_sha256": "a3d6e34c8450059bdef10bd0cc92d783d25355117d0e240b3fb0d4961ffc07ce"
+  },
+  "node": "v26.7.0",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "compiler_input_population": 20259,
+  "compiler_input_manifest_sha256": "6b63d8efc317f5671721ad5a68a3ac238ddec7d60218943f4de5cd09eb95e7de",
+  "layout": {
+    "node_bytes": 28,
+    "node_alignment": 4,
+    "node_identifier_bytes": 4,
+    "syntax_tree_bytes": 56,
+    "syntax_tree_alignment": 8
+  },
+  "unmeasured": {
+    "hardware_cache_events": "Docker perf cycles permission denied; macOS helper provides cycles and instructions only",
+    "three_arm_jit_cache": "normal-JIT Cachegrind run exited 137; no complete result",
+    "old_main_allocations": "wrapper emits placeholder zero fields; these are not measurements",
+    "typecheck_external_oracles": 19503
+  },
+  "artifacts": [
+    {
+      "path": "after-initial.json",
+      "bytes": 221,
+      "sha256": "34e94d93a41ecf2239d1329915f8e31882f350f130f74325b40345f9d90bb25a"
+    },
+    {
+      "path": "after-pooled.json",
+      "bytes": 219,
+      "sha256": "f39c9a952d7f0e5ee5abc4d2fdf6fbec26e7573519c71f235308f1c9aa048a37"
+    },
+    {
+      "path": "before.json",
+      "bytes": 216,
+      "sha256": "0faadbeea70ff1d3599e027a8a61706cc9f663cb9f84361b86913eb5b2162002"
+    },
+    {
+      "path": "cache-class-dense-64-config.json",
+      "bytes": 7452,
+      "sha256": "49b757bde7e9e5aaba574be525caf3c6822a583b0ef5a0f86cffc15229ea6055"
+    },
+    {
+      "path": "cache-class-dense-64-report.json",
+      "bytes": 32016,
+      "sha256": "aabc9045b03b0114d6021fc0097b8b9c9cbc25fc597b7c1790484e16e7b65ff8"
+    },
+    {
+      "path": "cache-class-dense-config.json",
+      "bytes": 7186,
+      "sha256": "7332aa7ffc8d7abe0f6eacc3a935e82e9d48b353ff943fc301036c11f527b183"
+    },
+    {
+      "path": "cache-class-dense-report.json",
+      "bytes": 31698,
+      "sha256": "6bf871b9915820e584f990026bf2af8784ba421b777d568f491acf5c49a38c0b"
+    },
+    {
+      "path": "cache-dense-config.json",
+      "bytes": 7168,
+      "sha256": "9810b84cc37fe6df07b538b9b97561f19d1ad263b880e4ef9a95df8dc3501a03"
+    },
+    {
+      "path": "cache-dense-final-report.json",
+      "bytes": 31671,
+      "sha256": "c339a985ea065a55f17c26895d6bbec9fdc6a6bcf5325024f03ccb6802f8531d"
+    },
+    {
+      "path": "cache-three-jitless-config.json",
+      "bytes": 8075,
+      "sha256": "9063de13c72217d0e29459cf54118ba74b30cd4076733f3ad352d367af11706d"
+    },
+    {
+      "path": "cache-three-jitless-report.json",
+      "bytes": 35879,
+      "sha256": "3f3e43a51aff6682fcd988a98d4b2dcf82100add4be2b181c9c7e32bf1a8b0b3"
+    },
+    {
+      "path": "corpus-final.json",
+      "bytes": 219,
+      "sha256": "a24e5b94ebfc3e02881fff7bddab0bd7d82e3adda1d54d3cab0321b0fa2d092b"
+    },
+    {
+      "path": "corpus-verify-final.log",
+      "bytes": 76,
+      "sha256": "0991a01d1eb118e9dbbd3e5151db26e0358c49049458f5fdead547bff294f1b7"
+    },
+    {
+      "path": "hardware-class-dense-config.json",
+      "bytes": 502,
+      "sha256": "16dc3724500e5d27b8c92fde82deff0762e268e8d98820572fd72b52226bf4f7"
+    },
+    {
+      "path": "hardware-class-dense-report.json",
+      "bytes": 4894,
+      "sha256": "ec82c8e6714da13428d8063a834d933e940066a7cde8b3bd43051bafcee682ea"
+    },
+    {
+      "path": "hardware-config.json",
+      "bytes": 793,
+      "sha256": "d2f5708e52cc2903d8375bcc729d15279ed0fe41f89d4be5ef24273e587ef883"
+    },
+    {
+      "path": "hardware-dense-config.json",
+      "bytes": 490,
+      "sha256": "80166f7074e52a7615050fd3eeca95e1e75e537b6370faebf6b5e9c1a432f23a"
+    },
+    {
+      "path": "hardware-dense-final-report.json",
+      "bytes": 4834,
+      "sha256": "7aefccafa11020ab3384e0a9be83315534c365a34586cd99580a325a118ceaff"
+    },
+    {
+      "path": "hardware-final-three-report.json",
+      "bytes": 7315,
+      "sha256": "45c11a10f002e716b40742eda889ebf58ef052899b623d00f6e3202e3321f2d6"
+    },
+    {
+      "path": "input-manifest.json",
+      "bytes": 4317658,
+      "sha256": "6b63d8efc317f5671721ad5a68a3ac238ddec7d60218943f4de5cd09eb95e7de"
+    },
+    {
+      "path": "oracle-benchmark.cjs",
+      "bytes": 1228,
+      "sha256": "7756789b2275def3671ef0191f9fffa0352a0af23f72f2d6840ad0fef1494dfd"
+    },
+    {
+      "path": "oracle-generator.cjs",
+      "bytes": 920,
+      "sha256": "f606cc61b79b4fab0c93e59f3df1cfe70c5fa210f18250ef8441f8e96a97626a"
+    },
+    {
+      "path": "oracle-location.json",
+      "bytes": 461,
+      "sha256": "f09b1d5917671ff7b3223feaac21feba46909dbec7a3c31abc8297c037be13e2"
+    },
+    {
+      "path": "population-validation.json",
+      "bytes": 10929,
+      "sha256": "e92403cfb0510057ad0970af160abb1b7cf5dc66029be858c1f9458d0900dc6a"
+    },
+    {
+      "path": "rss-main.json",
+      "bytes": 105,
+      "sha256": "3cf0239e48730b391a1f7e01f18c978b9cf2dc7336da84130b2fef0701e8ffe8"
+    },
+    {
+      "path": "rss-main.log",
+      "bytes": 777,
+      "sha256": "ab6f60450f28b1a56e83e2377be9189998547214c753d4b671263ef8ed2043c6"
+    },
+    {
+      "path": "rss-new-final.json",
+      "bytes": 117,
+      "sha256": "44bac46045ef724e5ed1abcdc7e2c799f5503c93326b08a2e44bf5611bb5bf75"
+    },
+    {
+      "path": "rss-new-final.log",
+      "bytes": 777,
+      "sha256": "5cd13e6e0d3cb188bec715efa760fb37567bd0d59e1b5eaa1efb1041b0907089"
+    },
+    {
+      "path": "rss-official.json",
+      "bytes": 68,
+      "sha256": "ddaa342651987099593301108e143d2160cb4cbb3a09af3b783b20101b32227d"
+    },
+    {
+      "path": "rss-official.log",
+      "bytes": 777,
+      "sha256": "5d74e70f4cbb22123af95185e97416496ec296662fe2ec709abe519ff46bd3e8"
+    },
+    {
+      "path": "samples.tar.gz",
+      "bytes": 4954921,
+      "sha256": "ae23dd5df839cb1b91465ff1f2a62df35a1679672caf0b6e9fab004364ef3426"
+    },
+    {
+      "path": "source-manifest.json",
+      "bytes": 20054,
+      "sha256": "c8320e75e3829b4940793f3d2c3b65ecc593c194d554d134d8f24ce19b22fae3"
+    },
+    {
+      "path": "sources-and-inputs.tar.gz",
+      "bytes": 171468,
+      "sha256": "e9ff1d3271f5f1fc695260b9e19de1083b8cc4a62403136704bd621ffb2c8443"
+    },
+    {
+      "path": "rsvelte-projection-clippy-final.log",
+      "bytes": 2492,
+      "sha256": "2740af22b5a35eb0c0c131c816a101f5294cd7288c4521c410118adc3cd9bd52"
+    },
+    {
+      "path": "rsvelte-projection-structure.log",
+      "bytes": 1209,
+      "sha256": "b20d40a5855cf0a39600eec5b6be49ac07824672c33231090ce18d228531bc96"
+    },
+    {
+      "path": "rsvelte-projection-workspace-tests.log",
+      "bytes": 22233,
+      "sha256": "3326fc10958308203fddf75f21b8b36cc775e2df122af191cbb4ae11fc3c4978"
+    }
+  ]
+}

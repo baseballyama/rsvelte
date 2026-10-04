@@ -1,0 +1,259 @@
+[
+  {
+    "case": "primary",
+    "baseline": {
+      "targets": {
+        "server": {
+          "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-hydration-phROxX/hydration-cases/primary/baseline/server",
+          "decision": {
+            "calls": 1,
+            "values": [
+              "primary"
+            ],
+            "reasons": [],
+            "unknown": false
+          },
+          "removed": 0
+        },
+        "client": {
+          "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-hydration-phROxX/hydration-cases/primary/baseline/client",
+          "decision": {
+            "calls": 1,
+            "values": [
+              "primary"
+            ],
+            "reasons": [],
+            "unknown": false
+          },
+          "removed": 0
+        }
+      },
+      "bodies": [
+        "<!--[--><!--[-1--><p class=\"primary svelte-n97u0m\">Primary</p><!--]--><!--]-->"
+      ],
+      "hydrated": [
+        {
+          "html": "<!--[--><!--[-1--><p class=\"primary svelte-n97u0m\">Primary</p><!--]--><!--]-->",
+          "color": "rgb(0, 0, 255)"
+        }
+      ],
+      "errors": [],
+      "warnings": []
+    },
+    "optimized": {
+      "targets": {
+        "server": {
+          "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-hydration-phROxX/hydration-cases/primary/optimized/server",
+          "decision": {
+            "calls": 1,
+            "values": [
+              "primary"
+            ],
+            "reasons": [],
+            "unknown": false
+          },
+          "removed": 1
+        },
+        "client": {
+          "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-hydration-phROxX/hydration-cases/primary/optimized/client",
+          "decision": {
+            "calls": 1,
+            "values": [
+              "primary"
+            ],
+            "reasons": [],
+            "unknown": false
+          },
+          "removed": 1
+        }
+      },
+      "bodies": [
+        "<!--[--><!--[-1--><p class=\"primary svelte-n97u0m\">Primary</p><!--]--><!--]-->"
+      ],
+      "hydrated": [
+        {
+          "html": "<!--[--><!--[-1--><p class=\"primary svelte-n97u0m\">Primary</p><!--]--><!--]-->",
+          "color": "rgb(0, 0, 255)"
+        }
+      ],
+      "errors": [],
+      "warnings": []
+    }
+  },
+  {
+    "case": "danger",
+    "baseline": {
+      "targets": {
+        "server": {
+          "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-hydration-phROxX/hydration-cases/danger/baseline/server",
+          "decision": {
+            "calls": 1,
+            "values": [
+              "danger"
+            ],
+            "reasons": [],
+            "unknown": false
+          },
+          "removed": 0
+        },
+        "client": {
+          "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-hydration-phROxX/hydration-cases/danger/baseline/client",
+          "decision": {
+            "calls": 1,
+            "values": [
+              "danger"
+            ],
+            "reasons": [],
+            "unknown": false
+          },
+          "removed": 0
+        }
+      },
+      "bodies": [
+        "<!--[--><!--[0--><p class=\"danger svelte-102y4z1\">Danger</p><!--]--><!--]-->"
+      ],
+      "hydrated": [
+        {
+          "html": "<!--[--><!--[0--><p class=\"danger svelte-102y4z1\">Danger</p><!--]--><!--]-->",
+          "color": "rgb(255, 0, 0)"
+        }
+      ],
+      "errors": [],
+      "warnings": []
+    },
+    "optimized": {
+      "targets": {
+        "server": {
+          "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-hydration-phROxX/hydration-cases/danger/optimized/server",
+          "decision": {
+            "calls": 1,
+            "values": [
+              "danger"
+            ],
+            "reasons": [],
+            "unknown": false
+          },
+          "removed": 0
+        },
+        "client": {
+          "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-hydration-phROxX/hydration-cases/danger/optimized/client",
+          "decision": {
+            "calls": 1,
+            "values": [
+              "danger"
+            ],
+            "reasons": [],
+            "unknown": false
+          },
+          "removed": 0
+        }
+      },
+      "bodies": [
+        "<!--[--><!--[0--><p class=\"danger svelte-102y4z1\">Danger</p><!--]--><!--]-->"
+      ],
+      "hydrated": [
+        {
+          "html": "<!--[--><!--[0--><p class=\"danger svelte-102y4z1\">Danger</p><!--]--><!--]-->",
+          "color": "rgb(255, 0, 0)"
+        }
+      ],
+      "errors": [],
+      "warnings": []
+    }
+  },
+  {
+    "case": "runtime",
+    "baseline": {
+      "targets": {
+        "server": {
+          "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-hydration-phROxX/hydration-cases/runtime/baseline/server",
+          "decision": {
+            "calls": 0,
+            "values": [],
+            "reasons": [
+              "Unknown or duplicate variant: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-hydration-phROxX/hydration-cases/runtime/App.svelte",
+              "No proven callers."
+            ],
+            "unknown": true
+          },
+          "removed": 0
+        },
+        "client": {
+          "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-hydration-phROxX/hydration-cases/runtime/baseline/client",
+          "decision": {
+            "calls": 0,
+            "values": [],
+            "reasons": [
+              "Unknown props: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-hydration-phROxX/hydration-cases/runtime/App.svelte",
+              "No proven callers."
+            ],
+            "unknown": true
+          },
+          "removed": 0
+        }
+      },
+      "bodies": [
+        "<!--[--><!--[-1--><p class=\"primary svelte-16i4q8o\">Primary</p><!--]--><!--]-->",
+        "<!--[--><!--[0--><p class=\"danger svelte-16i4q8o\">Danger</p><!--]--><!--]-->"
+      ],
+      "hydrated": [
+        {
+          "html": "<!--[--><!--[-1--><p class=\"primary svelte-16i4q8o\">Primary</p><!--]--><!--]-->",
+          "color": "rgb(0, 0, 255)"
+        },
+        {
+          "html": "<!--[--><!--[0--><p class=\"danger svelte-16i4q8o\">Danger</p><!--]--><!--]-->",
+          "color": "rgb(255, 0, 0)"
+        }
+      ],
+      "errors": [],
+      "warnings": []
+    },
+    "optimized": {
+      "targets": {
+        "server": {
+          "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-hydration-phROxX/hydration-cases/runtime/optimized/server",
+          "decision": {
+            "calls": 0,
+            "values": [],
+            "reasons": [
+              "Unknown or duplicate variant: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-hydration-phROxX/hydration-cases/runtime/App.svelte",
+              "No proven callers."
+            ],
+            "unknown": true
+          },
+          "removed": 0
+        },
+        "client": {
+          "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-hydration-phROxX/hydration-cases/runtime/optimized/client",
+          "decision": {
+            "calls": 0,
+            "values": [],
+            "reasons": [
+              "Unknown props: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-hydration-phROxX/hydration-cases/runtime/App.svelte",
+              "No proven callers."
+            ],
+            "unknown": true
+          },
+          "removed": 0
+        }
+      },
+      "bodies": [
+        "<!--[--><!--[-1--><p class=\"primary svelte-16i4q8o\">Primary</p><!--]--><!--]-->",
+        "<!--[--><!--[0--><p class=\"danger svelte-16i4q8o\">Danger</p><!--]--><!--]-->"
+      ],
+      "hydrated": [
+        {
+          "html": "<!--[--><!--[-1--><p class=\"primary svelte-16i4q8o\">Primary</p><!--]--><!--]-->",
+          "color": "rgb(0, 0, 255)"
+        },
+        {
+          "html": "<!--[--><!--[0--><p class=\"danger svelte-16i4q8o\">Danger</p><!--]--><!--]-->",
+          "color": "rgb(255, 0, 0)"
+        }
+      ],
+      "errors": [],
+      "warnings": []
+    }
+  }
+]

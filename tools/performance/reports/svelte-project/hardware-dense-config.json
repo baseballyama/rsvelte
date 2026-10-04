@@ -1,0 +1,22 @@
+{
+  "rounds": 100,
+  "repetitions": 3,
+  "arms": [
+    {
+      "name": "rewrite-before",
+      "command": [
+        "/private/tmp/rsvelte-projection-release/benchmark/examples/benchmark_before",
+        "/private/tmp/rsvelte-projection-before/dense",
+        "100"
+      ]
+    },
+    {
+      "name": "rewrite-ast",
+      "command": [
+        "/private/tmp/rsvelte-projection-before/benchmark-final",
+        "/private/tmp/rsvelte-projection-before/dense",
+        "100"
+      ]
+    }
+  ]
+}

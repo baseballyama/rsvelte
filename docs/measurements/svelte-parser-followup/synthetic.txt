@@ -1,0 +1,8 @@
+/private/tmp/rsvelte-parser-tuning/followup-synthetic/0.svelte
+/private/tmp/rsvelte-parser-tuning/followup-synthetic/1.svelte
+/private/tmp/rsvelte-parser-tuning/followup-synthetic/2.svelte
+/private/tmp/rsvelte-parser-tuning/followup-synthetic/3.svelte
+/private/tmp/rsvelte-parser-tuning/followup-synthetic/4.svelte
+/private/tmp/rsvelte-parser-tuning/followup-synthetic/5.svelte
+/private/tmp/rsvelte-parser-tuning/followup-synthetic/6.svelte
+/private/tmp/rsvelte-parser-tuning/followup-synthetic/7.svelte

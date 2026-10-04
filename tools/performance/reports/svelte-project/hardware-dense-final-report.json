@@ -1,0 +1,168 @@
+{
+  "status": "complete",
+  "config": {
+    "rounds": 100,
+    "repetitions": 3,
+    "arms": [
+      {
+        "name": "rewrite-before",
+        "command": [
+          "/private/tmp/rsvelte-projection-release/benchmark/examples/benchmark_before",
+          "/private/tmp/rsvelte-projection-before/dense",
+          "100"
+        ]
+      },
+      {
+        "name": "rewrite-ast",
+        "command": [
+          "/private/tmp/rsvelte-projection-before/benchmark-final",
+          "/private/tmp/rsvelte-projection-before/dense",
+          "100"
+        ]
+      }
+    ]
+  },
+  "source_sha256": "d0b791a3d1a6f0ce3e8818ac7ef98021609b1255c33b1be30f8f86001d6dee70",
+  "samples": [
+    {
+      "arm": "rewrite-before",
+      "counters": {
+        "cycles": 8654377,
+        "instructions": 25382398,
+        "user_time_ns": 1360750,
+        "system_time_ns": 1884208
+      },
+      "stdout_sha256": "5a0a8b7a7831a594b1ee18041236d5b362b54debda4e12a19a1d5577c83fab41"
+    },
+    {
+      "arm": "rewrite-ast",
+      "counters": {
+        "cycles": 9885070,
+        "instructions": 39997279,
+        "user_time_ns": 2150916,
+        "system_time_ns": 1105041
+      },
+      "stdout_sha256": "c51f3ccadc759eaacfe35e5ad174f2ce7aee97a44eeddfa2594775227bb8ecfc"
+    },
+    {
+      "arm": "rewrite-ast",
+      "counters": {
+        "cycles": 7364405,
+        "instructions": 37387761,
+        "user_time_ns": 2135375,
+        "system_time_ns": 290291
+      },
+      "stdout_sha256": "d5b67973fcf46dbd2ef57279f7a2409a84472a2388cdfeee1b2db1197e7a12a6"
+    },
+    {
+      "arm": "rewrite-before",
+      "counters": {
+        "cycles": 4466902,
+        "instructions": 21843718,
+        "user_time_ns": 1265166,
+        "system_time_ns": 206125
+      },
+      "stdout_sha256": "850a505891a02e85df569e8f7b4980fad6dfccaf75ac1dcb407ffc725e33e0a1"
+    },
+    {
+      "arm": "rewrite-before",
+      "counters": {
+        "cycles": 4435570,
+        "instructions": 21827853,
+        "user_time_ns": 1253083,
+        "system_time_ns": 207875
+      },
+      "stdout_sha256": "caefaf0896d5f259e95580aecb4c84a601d00e4ed2e7ce74e95139c41e106838"
+    },
+    {
+      "arm": "rewrite-ast",
+      "counters": {
+        "cycles": 14191237,
+        "instructions": 37415342,
+        "user_time_ns": 6098125,
+        "system_time_ns": 773041
+      },
+      "stdout_sha256": "271525a58898090e24d171a965ea8a10b6cc4499ae0ac75d3a1a8b0b034e355c"
+    },
+    {
+      "arm": "rewrite-ast",
+      "counters": {
+        "cycles": 7235533,
+        "instructions": 37192852,
+        "user_time_ns": 3507541,
+        "system_time_ns": 584708
+      },
+      "stdout_sha256": "12c551a0f7b0314aae3999cbb789aa05532f1003e1354564e5bacc9f10ff495e"
+    },
+    {
+      "arm": "rewrite-before",
+      "counters": {
+        "cycles": 4448519,
+        "instructions": 21818313,
+        "user_time_ns": 1268708,
+        "system_time_ns": 196541
+      },
+      "stdout_sha256": "4d285e9874bdf6ebdcbf3c389611eaedd4ed8abc982a17c3a90f9691bd459abb"
+    },
+    {
+      "arm": "rewrite-before",
+      "counters": {
+        "cycles": 5601097,
+        "instructions": 22236947,
+        "user_time_ns": 3019208,
+        "system_time_ns": 316416
+      },
+      "stdout_sha256": "b4cd22ff56af35d0437cd3ac807082bea97e53aba2cd2376d681e8bd963b7a79"
+    },
+    {
+      "arm": "rewrite-ast",
+      "counters": {
+        "cycles": 7359084,
+        "instructions": 37209977,
+        "user_time_ns": 2195625,
+        "system_time_ns": 228291
+      },
+      "stdout_sha256": "ca95908ee851567804176941bdd5b119c56e9e4204fbbb1f7d8c486a8815ce91"
+    },
+    {
+      "arm": "rewrite-ast",
+      "counters": {
+        "cycles": 7210066,
+        "instructions": 36967575,
+        "user_time_ns": 2162625,
+        "system_time_ns": 212250
+      },
+      "stdout_sha256": "60f4d2079a8caad76a4370e688579e3f2ce17db90c469968045bde695bb360e3"
+    },
+    {
+      "arm": "rewrite-before",
+      "counters": {
+        "cycles": 5058034,
+        "instructions": 22221161,
+        "user_time_ns": 1310083,
+        "system_time_ns": 355916
+      },
+      "stdout_sha256": "4e8296506d8a8bdc6c2d077597d7436e35ad17415dcd03a64bc4d2b3ccbc923a"
+    }
+  ],
+  "summary": [
+    {
+      "name": "rewrite-before",
+      "samples": 6,
+      "executable_sha256": "adef3513a5600e43a356846249a5166ee290d9ada191550468ee78c84246402c",
+      "median_cycles_per_round": 47624.67999999999,
+      "min_cycles_per_round": 44355.7,
+      "max_cycles_per_round": 86543.77,
+      "median_instructions_per_round": 220324.395
+    },
+    {
+      "name": "rewrite-ast",
+      "samples": 6,
+      "executable_sha256": "4b6c8e84d0bf267d0450476f66099f94618fe3da5f11f86986d29f1bc385271d",
+      "median_cycles_per_round": 73617.445,
+      "min_cycles_per_round": 72100.66,
+      "max_cycles_per_round": 141912.37,
+      "median_instructions_per_round": 372988.69
+    }
+  ]
+}

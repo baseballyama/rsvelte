@@ -1,0 +1,855 @@
+{
+  "backend": "cachegrind-simulation",
+  "model": {
+    "i1": {
+      "bytes": 32768,
+      "ways": 8,
+      "line_bytes": 64
+    },
+    "d1": {
+      "bytes": 32768,
+      "ways": 8,
+      "line_bytes": 64
+    },
+    "ll": {
+      "bytes": 8388608,
+      "ways": 16,
+      "line_bytes": 64
+    }
+  },
+  "model_key": "i1:32768,8,64/d1:32768,8,64/ll:8388608,16,64",
+  "platform": "arm64-linux",
+  "kernel": "6.12.72-linuxkit",
+  "valgrind": "valgrind-3.22.0",
+  "revision": "d3fe0394b0b11ab70829fad9a544b2b03ac81618",
+  "inputs": [
+    {
+      "path": "../private/tmp/rsvelte-projection-before/class-dense/expressions.svelte/input.svelte",
+      "bytes": 29742,
+      "sha256": "99c2b667984cecee715fd31dad6b844cd47a2264f82b85265113b012ec7f86b8"
+    }
+  ],
+  "sources": [
+    {
+      "path": "crates/fixture_test/src/cases.rs",
+      "bytes": 4280,
+      "sha256": "003cebbc08afbc654eb3009a64d54f3394547c1a82c60696dd9510a085a4bb39"
+    },
+    {
+      "path": "crates/fixture_test/src/javascript.rs",
+      "bytes": 3705,
+      "sha256": "f78bd13d562812c7539b838fce9bf69c6b14f09563283d58f2d33c3fba99aea2"
+    },
+    {
+      "path": "crates/fixture_test/src/lib.rs",
+      "bytes": 14114,
+      "sha256": "1575cbe0f01be5830e5bea940aaaffc86509710082f496b6a9a6c66461fc9948"
+    },
+    {
+      "path": "crates/fixture_test/src/node.rs",
+      "bytes": 2237,
+      "sha256": "a56bdc18e5e049bd301b7104d7b8f0625c0a7dd0a5a0ec4fca07e7aa980b1a47"
+    },
+    {
+      "path": "crates/fixture_test/src/snapshots.rs",
+      "bytes": 16397,
+      "sha256": "aa01a59aad8a1eadb7f5b9b460187dbf3ccd366c3f67caaf37491b46aa94b796"
+    },
+    {
+      "path": "crates/kernel/src/computation.rs",
+      "bytes": 95,
+      "sha256": "ecf790f77bf15ce817fef8c5854b5544f1cf0001d15ca9a36a17b1eb3e7c0af4"
+    },
+    {
+      "path": "crates/kernel/src/computation/database.rs",
+      "bytes": 10571,
+      "sha256": "4b8d3f77f1295041f1e450c16361a8dde224f60f591236602ff74e2ee5fc9a1a"
+    },
+    {
+      "path": "crates/kernel/src/computation/pipeline.rs",
+      "bytes": 17068,
+      "sha256": "71d605a199ebcee12c38efa64e2e73bdf02e03b1c2781599ada61f1e80b012e9"
+    },
+    {
+      "path": "crates/kernel/src/computation/pipeline/tests.rs",
+      "bytes": 12049,
+      "sha256": "83f1a3913048ec7d2ca6e8130fa3847deae2d4120a091df1311b35e46d639e3b"
+    },
+    {
+      "path": "crates/kernel/src/diagnostics.rs",
+      "bytes": 63,
+      "sha256": "d945485a52764fc21f7b6ad5b453dfcc5547846cb0013b8ab97f80c651f59b76"
+    },
+    {
+      "path": "crates/kernel/src/diagnostics/diagnostic.rs",
+      "bytes": 2587,
+      "sha256": "40637215eca60898550dc6146f308aa6ed6b5023ca18835d451b9922f24a102d"
+    },
+    {
+      "path": "crates/kernel/src/lib.rs",
+      "bytes": 460,
+      "sha256": "4c15a4b1552ac8572ce9749789ba8a36865f2a18a992c19252ed8d2df63365d6"
+    },
+    {
+      "path": "crates/kernel/src/output.rs",
+      "bytes": 138,
+      "sha256": "22c288dacd607ee0e899302ab2c3a70cd951c2b87905df3bc979ff4bdfded01f"
+    },
+    {
+      "path": "crates/kernel/src/output/document.rs",
+      "bytes": 44935,
+      "sha256": "d5dad638a8b1b1f78d2fcedc2aa4e558459c6ee8811a897cc3ba1b9d008693a8"
+    },
+    {
+      "path": "crates/kernel/src/output/emitter.rs",
+      "bytes": 18170,
+      "sha256": "a557891a78511ebd7afaf354b0f95975e799175bce7535651d70bc48c0b98462"
+    },
+    {
+      "path": "crates/kernel/src/output/structured_data.rs",
+      "bytes": 7741,
+      "sha256": "004fd8cd6d7fe1c2d09948e9dd58641e0a0ab0be9e21dc69b87b2d7480b2e049"
+    },
+    {
+      "path": "crates/kernel/src/output/width.rs",
+      "bytes": 1061,
+      "sha256": "0df926af88aa2ffd0f68ae76739a72168f8275483964728c11b9cfc56d4908a7"
+    },
+    {
+      "path": "crates/kernel/src/performance.rs",
+      "bytes": 98,
+      "sha256": "202d7b52d69313c57714cc7d7cc4ee2ec4fbf916860e1dc0bdcbf0095cdf994c"
+    },
+    {
+      "path": "crates/kernel/src/performance/buffer_pool.rs",
+      "bytes": 7400,
+      "sha256": "af737ae5b02b143ae0dd6ceef02225734b13de14c7e5aabad3f416b6655ed722"
+    },
+    {
+      "path": "crates/kernel/src/performance/measurement.rs",
+      "bytes": 13735,
+      "sha256": "2f0e8351c63edd47f30f08d3c6d76581b9598cfef0a0650b2a96836a0a92d691"
+    },
+    {
+      "path": "crates/kernel/src/source.rs",
+      "bytes": 151,
+      "sha256": "b6c52960182c1795e82b31efe3e26ff89416e5da12bd6406ea7e8c0e96b4da0d"
+    },
+    {
+      "path": "crates/kernel/src/source/hashing.rs",
+      "bytes": 4691,
+      "sha256": "84af7286acef99314aba7328ddefe1d8f949d67e40cbc539f466febc994aecbe"
+    },
+    {
+      "path": "crates/kernel/src/source/index.rs",
+      "bytes": 8843,
+      "sha256": "364cd084a72ae0ac5688192bf10bf93172ef4709f9fff35eec07b72c302eab5d"
+    },
+    {
+      "path": "crates/kernel/src/source/interning.rs",
+      "bytes": 4987,
+      "sha256": "d12544df83c0f87cc198466aa686ccbfece3724450d37b2fb0d9a20b4ab3b1f9"
+    },
+    {
+      "path": "crates/kernel/src/source/positions.rs",
+      "bytes": 11006,
+      "sha256": "6ca74a06f501bd4d6fe9de513ed5c6d9ef7d85d78ebf4abc5e7ed93fe7a11a0c"
+    },
+    {
+      "path": "crates/kernel/src/source/tokens.rs",
+      "bytes": 7727,
+      "sha256": "0615ed4d249f6d26583cae79b90f320dd60c934ee3bdd171fa32ae8be6892cc9"
+    },
+    {
+      "path": "crates/languages/css/core/src/compilation.rs",
+      "bytes": 15,
+      "sha256": "7d7e418e6533e8efee7f66e82de76e9e1180b32636ab79c8b458e0d2bbfd2a22"
+    },
+    {
+      "path": "crates/languages/css/core/src/compilation/scope.rs",
+      "bytes": 16600,
+      "sha256": "e310930815eb34f7b01ff58bf473d7ca2eac84a86ed52aef66867c9bdafc72e3"
+    },
+    {
+      "path": "crates/languages/css/core/src/compilation/scope/keyframes.rs",
+      "bytes": 3001,
+      "sha256": "8d6f66cb6662f7f79c9cde033e784c63b7480b678d5e511c94666a44908cec8c"
+    },
+    {
+      "path": "crates/languages/css/core/src/lib.rs",
+      "bytes": 533,
+      "sha256": "eb929f861d500d4b71d7c3e5235e6e0769469246a02d6d0d7b61ff82d8a1dbb9"
+    },
+    {
+      "path": "crates/languages/css/core/src/semantic.rs",
+      "bytes": 17,
+      "sha256": "d7c19d09b2be94e9eba33a1beb8925ab1730092f7e3a579dfa1fbcc6413e5591"
+    },
+    {
+      "path": "crates/languages/css/core/src/semantic/matcher.rs",
+      "bytes": 16399,
+      "sha256": "5bacb13a3e8fa0d0929fc0aa7c967c3dad48cdb2ca84c9193fcb6102931b762d"
+    },
+    {
+      "path": "crates/languages/css/core/src/syntax.rs",
+      "bytes": 37,
+      "sha256": "25a5013f25a1c80814a6be7403d76702fa6e8b5b2bb143e9912c8a113a27077d"
+    },
+    {
+      "path": "crates/languages/css/core/src/syntax/parser.rs",
+      "bytes": 19838,
+      "sha256": "4d37390dc16fc8a165855bb86efa6d78592988f856eaaea4d1b26b4cfbbf8ea7"
+    },
+    {
+      "path": "crates/languages/css/core/src/syntax/parser/selectors.rs",
+      "bytes": 9727,
+      "sha256": "43f4b806a3eec8b478ee30005df3e4835036205a5e1fb26d01a7402ca5030d4e"
+    },
+    {
+      "path": "crates/languages/css/core/src/syntax/syntax_tree.rs",
+      "bytes": 6108,
+      "sha256": "e120ea45b3a8223bf276d340b438294876be115ce5eec0091e8eeab77f5a5a09"
+    },
+    {
+      "path": "crates/languages/css/core/src/syntax/syntax_tree/simple_list.rs",
+      "bytes": 1780,
+      "sha256": "de1c90ecd09c730e62574a8ca7b1cd16a1ae0efe5a8ca25a226056210b0f5dc4"
+    },
+    {
+      "path": "crates/languages/html/core/src/button_type.rs",
+      "bytes": 2723,
+      "sha256": "8201126b90b8c04a856b8ac0167c7320de4283b05d09ed149f417e4e4bddac41"
+    },
+    {
+      "path": "crates/languages/html/core/src/lib.rs",
+      "bytes": 1623,
+      "sha256": "c13a83f6e8477c7b534045608a0c09b30f8341282d18c078ee432ba5ff1e08a9"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/computation.rs",
+      "bytes": 712,
+      "sha256": "050eac825b1ae9d156b3ef7b8bb586d744ebc7ad3e77bff84a163421b91d9eeb"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/lib.rs",
+      "bytes": 128,
+      "sha256": "2d3fcd62b606a19ce50b11873b7b4fc254f6f61f60b0af0490edcffa19fb91fd"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/syntax.rs",
+      "bytes": 15,
+      "sha256": "1c7fe1aee3e1c37fa78b0b120b2a125ffd9a84a39afd8f7982bc9138343981e7"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/syntax/parse.rs",
+      "bytes": 6755,
+      "sha256": "02c2c482a559fa90ea83d48be3dff62992297d5cafbf9a4ac1911e78cd976959"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/syntax/parse/attribute.rs",
+      "bytes": 9033,
+      "sha256": "93ac6cefe5b7a676cd0d14a610187705142ae5d3529e4e7d2e1470f9809a263e"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/syntax/parse/block.rs",
+      "bytes": 11937,
+      "sha256": "ef0a82d44f9be7b08b9cef7d6a513871abbb84c6b22a5631c72a31f0b3917f46"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/syntax/parse/directive.rs",
+      "bytes": 4945,
+      "sha256": "490116b1e5043b87d2300bf35f5252b1eeb659a5d8e745e69dee39ee13ada12a"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/syntax/parse/element.rs",
+      "bytes": 7394,
+      "sha256": "2b4e4db84eabede0414f3a3d516a245e8afeeb3012a7c9c9b17b6752953691ec"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/syntax/parse/fragment.rs",
+      "bytes": 3543,
+      "sha256": "c12d51d0b8856ad54dce204f14b70aeddb0d665429a6083f804008b603f93559"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/syntax/parse/html.rs",
+      "bytes": 1819,
+      "sha256": "af2c35c4d4d93a13eb0ddf60a6617f15e7f3b340fa0838c9444a39910bd7d56c"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/syntax/parse/identifier.rs",
+      "bytes": 1627,
+      "sha256": "db4ab80b534ab9457c5a9e185a02f24f57f46bcf0f49b6d2ea0f2d7d4e9d4ea7"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/syntax/parse/javascript.rs",
+      "bytes": 2488,
+      "sha256": "a0237b1fe065f87b170ab848b1d32032dd0c202f2730c04b77bb87d667bba0b8"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/syntax/parse/pattern.rs",
+      "bytes": 3052,
+      "sha256": "d9ebd8e8863426b1d051280151e31b5dea57cd16656ca290cdc2cf87c7ec29ec"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/syntax/parse/script.rs",
+      "bytes": 8265,
+      "sha256": "eb2f7727cb30f0563fe09050861cc90d3961be4d8a965130592868cd7862bf53"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/syntax/parse/sequence.rs",
+      "bytes": 2377,
+      "sha256": "ab411c646598d2a6b08d6beaed716e107a9f7d3ac174e7669f18d9d5a5d9074a"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/syntax/parse/snippet.rs",
+      "bytes": 2762,
+      "sha256": "ee20097f3e4714ffc6e78dcbf8c1259baf18bcab6875cdb65da238f3586f2317"
+    },
+    {
+      "path": "crates/languages/svelte/parser/src/syntax/parse/tag.rs",
+      "bytes": 7982,
+      "sha256": "021301207d4e10490d1da3ecd70091a345217b614db76b851d9a1f900db39a44"
+    },
+    {
+      "path": "crates/languages/svelte/project/examples/benchmark.rs",
+      "bytes": 3310,
+      "sha256": "cdb053c79c3e2bf13ed638b159960f6d6214a4a7a04c1dd66d8c81f413a6f8e2"
+    },
+    {
+      "path": "crates/languages/svelte/project/examples/benchmark_before.rs",
+      "bytes": 3345,
+      "sha256": "f2dc96196c8365e1da3ee668a0d345557f7fc910483375559537bee2b82a5a05"
+    },
+    {
+      "path": "crates/languages/svelte/project/examples/layout.rs",
+      "bytes": 488,
+      "sha256": "25be9aebd13522ef7b121310def10c9ada4f79d177c71167287a76267f457dcb"
+    },
+    {
+      "path": "crates/languages/svelte/project/examples/pipeline.rs",
+      "bytes": 1931,
+      "sha256": "2b5628b1aea3917439a0a59e0f250472f31241d2d15a2ccd463d5e236c2077b4"
+    },
+    {
+      "path": "crates/languages/svelte/project/examples/support/inputs.rs",
+      "bytes": 603,
+      "sha256": "35203401a276a22a93c98865fd70c095b7745de3dfaabb862ce5dff80989e828"
+    },
+    {
+      "path": "crates/languages/svelte/project/examples/verify.rs",
+      "bytes": 1635,
+      "sha256": "75cfbe5a12de56a9cea2d80f5ec9b56eb30eac68629fee199c2cbdcaec88915e"
+    },
+    {
+      "path": "crates/languages/svelte/project/src/buffers.rs",
+      "bytes": 729,
+      "sha256": "aa6229955d4680292a5214b582ec9f22a145dbe3c4dc98b2c8aa7631c210a7d9"
+    },
+    {
+      "path": "crates/languages/svelte/project/src/computation.rs",
+      "bytes": 2393,
+      "sha256": "712797166a298666b3e8c29aebbad12a60d5da5069fd4d1f9aa5099bce85ae2f"
+    },
+    {
+      "path": "crates/languages/svelte/project/src/emit.rs",
+      "bytes": 5504,
+      "sha256": "690133868d0c4eab3428ad4f9d2e9c4f55bfddb10c205ab03d5d3772c7651786"
+    },
+    {
+      "path": "crates/languages/svelte/project/src/lib.rs",
+      "bytes": 234,
+      "sha256": "8f9ca84756167b7353fd69651ff65dab901868bb7107cfa5f5f58aaec623a14f"
+    },
+    {
+      "path": "crates/languages/svelte/project/src/lower.rs",
+      "bytes": 9981,
+      "sha256": "f279ae518c832aec89a50575739c1b8eb756601a66961cef5f44b4cf3055227d"
+    },
+    {
+      "path": "crates/languages/svelte/project/src/syntax_tree.rs",
+      "bytes": 2684,
+      "sha256": "ba984201d4a3301d0aa5dd611710386fb56d905d00fa3326c73b9b915642984e"
+    },
+    {
+      "path": "crates/languages/svelte/syntax/src/lib.rs",
+      "bytes": 80,
+      "sha256": "e52743c3a8bf805555de213a4d69742b5303cead88bcba07d9fb9b783b0ea263"
+    },
+    {
+      "path": "crates/languages/svelte/syntax/src/syntax.rs",
+      "bytes": 36,
+      "sha256": "bb5a4716fe1795df31baba88fab6eacc397a97b22cd2005baa73d673c089e707"
+    },
+    {
+      "path": "crates/languages/svelte/syntax/src/syntax/names.rs",
+      "bytes": 4017,
+      "sha256": "fa6b6602497ea928c8875f490bc0aef050e3415902ea4c4f01200d41d87414fd"
+    },
+    {
+      "path": "crates/languages/svelte/syntax/src/syntax/syntax_tree.rs",
+      "bytes": 14047,
+      "sha256": "99f33697cfa60a7bdf184d0022dc7e91808c09bf40edd64e97ceda6e52851803"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/compilation.rs",
+      "bytes": 14,
+      "sha256": "ffcc28f4aebb597f95316360e3c7f809e2bea1c5af2fc85a0f8e1635f2a89624"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/compilation/copy.rs",
+      "bytes": 12251,
+      "sha256": "610fa73f8a70fbc8a0c9bddaed3864a175641f2b919da8e7687aa81661fc710f"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/compilation/copy/classes.rs",
+      "bytes": 1708,
+      "sha256": "12f1f9404f3a34a1a4230e89734854d41645d60cb91ad0d4fc8cd8eda88bba4d"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/compilation/copy/control.rs",
+      "bytes": 3328,
+      "sha256": "780bf31108505b7ce2a585160bf4d020e63a5a603bcb26f57c93e91c6d66409e"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/computation.rs",
+      "bytes": 1990,
+      "sha256": "18bdb287ecdaa24282e3103bf8565212a1aa97731cdd21596667929f18ab47f9"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/lib.rs",
+      "bytes": 653,
+      "sha256": "30233b04d1aeff54ffa4cdd616895307406148cc01df3840bbffa8ff119188df"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/semantic.rs",
+      "bytes": 31,
+      "sha256": "e9f3b68c53b3f7cc7336de26ae928fce4ce943f7f54cec6e8f8937a36a38d69e"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/semantic/number.rs",
+      "bytes": 1541,
+      "sha256": "deaa6e50b3fbeded72a43c3090ba3fcedfc4d3960b7016f1ee72dec31986d0ae"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/semantic/scope.rs",
+      "bytes": 10970,
+      "sha256": "6cb3d363689833610334644bb95ecab8977bccc6d0ca3ef30a1374fe4c834843"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/semantic/scope/declare.rs",
+      "bytes": 9337,
+      "sha256": "f875332176a7deab07ad3c381cc3a277cc4eeff71692fb2382f2f5351217f3ef"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/semantic/scope/resolve.rs",
+      "bytes": 12575,
+      "sha256": "da8bf8b524de9183665d113e7568a5fb73de59578d95d9339e57f630fb6ef8d9"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax.rs",
+      "bytes": 71,
+      "sha256": "bcf25c81068597ceba6728e5ec3b08485ca85d303bd6eac0c039d2fd5cc97949"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/lexer.rs",
+      "bytes": 19768,
+      "sha256": "6a4015a5d854cfe44d4cfe447a89bb8361f1400fac73f325ec422025bd5a610c"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/lexer/tests.rs",
+      "bytes": 2475,
+      "sha256": "ab07130dab51ae34d26c07a02ff9627a05ff0bd5a4285faa44ddbaa1f5d34586"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/operators.rs",
+      "bytes": 2432,
+      "sha256": "9ba03504eed505bf92c41e0274aa700fb7996ccfcb605444d0aa52fb9709838e"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/parser.rs",
+      "bytes": 12924,
+      "sha256": "5bce9b3595f4a3619ce313c2d59bb6a4b02e7494c5d1081bf299592fdd739699"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/parser/classes.rs",
+      "bytes": 5338,
+      "sha256": "c43ddd342e800a83f7879ed82db605b079c26c48e3c3cdae3aabfb64cb00af70"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/parser/control.rs",
+      "bytes": 10252,
+      "sha256": "79444ddcf8b07c590b01992f82ac8a5b8268036e9b0f6c1e0831f6765a3aba9d"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/parser/expressions.rs",
+      "bytes": 10990,
+      "sha256": "ed2d7484b2b320286b12f6469f835d06c8b0ce5c7da006a5ff2cc4f593d1e596"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/parser/literals.rs",
+      "bytes": 12894,
+      "sha256": "9bbdcf9cc25bcb3486b10d16c614b2b0902b2ff942c0398a9ec84519219aa7e3"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/parser/lookahead.rs",
+      "bytes": 2333,
+      "sha256": "e044cafb1f78fd9de61b0efacafa917ade6f3c9a5b7c63829ff0cf88af8cd46b"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/parser/members.rs",
+      "bytes": 6244,
+      "sha256": "b4ba035fa286e11706d33d9a0f17d820ca8d155f92a9282f1fe00ea0db9fd047"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/parser/patterns.rs",
+      "bytes": 6673,
+      "sha256": "fbf2ce50e36daca111706c7cec84f15ba136a722ea649a452dc5045993cdf19c"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/parser/statements.rs",
+      "bytes": 14603,
+      "sha256": "e3418fb9104cf397fda65902a98bae4913123932d5a8026239bb460d0095a38c"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/parser/typescript.rs",
+      "bytes": 16470,
+      "sha256": "f516471cfe5d409bb6c0dda4e7d090b4f409bbe2f9e6a49c005ddbb5a5701a3d"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/syntax_tree.rs",
+      "bytes": 17980,
+      "sha256": "6c2512ff79b286d03f833888d4b8b1308a8a07ddfa8377a2ea297f3cc10ab92b"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/syntax_tree/classes.rs",
+      "bytes": 3783,
+      "sha256": "7c5db5220006b15a3477b4e56163a8cffae2c0bc17abf26bcd90fa60c5fd2741"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/syntax_tree/control.rs",
+      "bytes": 9245,
+      "sha256": "e3cd12778406b9b21b7927802f6adf516a5f89ef288c64d0b63a0911f238fdb4"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/syntax_tree/expressions.rs",
+      "bytes": 12510,
+      "sha256": "5fc830bea6d8c95cb8b7ae55fa6e459bc7557e9823a364a342bcf1b44105082d"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/syntax_tree/read.rs",
+      "bytes": 8929,
+      "sha256": "d2ed7a3a14c15e618823c442465572e6f958f06036421f4fc9d56a820038399f"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/syntax_tree/statements.rs",
+      "bytes": 7625,
+      "sha256": "aab8ead25664384f6edd0103d85ffef0d0fe021c3f313e241ca55567970ee74d"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/syntax_tree/traverse.rs",
+      "bytes": 6894,
+      "sha256": "5462cf843f739ae4ef5f2f9a1e1ef2fe95136bf07769dd7889cbd2eed3192e85"
+    },
+    {
+      "path": "crates/languages/typescript/core/src/syntax/syntax_tree/typescript.rs",
+      "bytes": 1659,
+      "sha256": "69d35dcac6239401afc6d4136ea19703c9a6fc55603d25f9b1bc68fd69b1d212"
+    }
+  ],
+  "harnesses": [
+    {
+      "path": "../performance/bin/cache-profile.ts",
+      "bytes": 5715,
+      "sha256": "ee6ce454274a371fbc399aeaa6dffbe571e5741fe9e244a63c170f63226067fe"
+    },
+    {
+      "path": "../performance/cachegrind.ts",
+      "bytes": 4023,
+      "sha256": "b640e4b29ca138b004bd5d85cd04fbb04ff98610a48ebbd4aa9a481758875c7a"
+    },
+    {
+      "path": "../performance/workload.ts",
+      "bytes": 2570,
+      "sha256": "78ca71ef84211756ff70205952190a46062643b94bd5c2c0c07902a3df4857e2"
+    }
+  ],
+  "binaries": [
+    {
+      "name": "rewrite-before",
+      "sha256": "8dbb82acdc4eb4f37e27b16131a8b97683c09f9d72dfc7f4eed4edb0eb21c29c"
+    },
+    {
+      "name": "rewrite-ast",
+      "sha256": "0ac3b13c45df7e8aac5e9ccf6a76048925c9a7c68ebebbc0cc2768598e4fc1fe"
+    }
+  ],
+  "config": {
+    "revision": "d3fe0394b0b11ab70829fad9a544b2b03ac81618",
+    "arms": [
+      {
+        "name": "rewrite-before",
+        "command": [
+          "/w/target/benchmark/examples/benchmark_before",
+          "/private/tmp/rsvelte-projection-before/class-dense",
+          "20"
+        ]
+      },
+      {
+        "name": "rewrite-ast",
+        "command": [
+          "/w/target/benchmark/examples/benchmark",
+          "/private/tmp/rsvelte-projection-before/class-dense",
+          "20"
+        ]
+      }
+    ],
+    "rounds": 20,
+    "repetitions": 1,
+    "inputs": [
+      "/private/tmp/rsvelte-projection-before/class-dense/expressions.svelte/input.svelte"
+    ],
+    "sources": [
+      "/w/crates/fixture_test/src/cases.rs",
+      "/w/crates/fixture_test/src/javascript.rs",
+      "/w/crates/fixture_test/src/lib.rs",
+      "/w/crates/fixture_test/src/node.rs",
+      "/w/crates/fixture_test/src/snapshots.rs",
+      "/w/crates/kernel/src/computation.rs",
+      "/w/crates/kernel/src/computation/database.rs",
+      "/w/crates/kernel/src/computation/pipeline.rs",
+      "/w/crates/kernel/src/computation/pipeline/tests.rs",
+      "/w/crates/kernel/src/diagnostics.rs",
+      "/w/crates/kernel/src/diagnostics/diagnostic.rs",
+      "/w/crates/kernel/src/lib.rs",
+      "/w/crates/kernel/src/output.rs",
+      "/w/crates/kernel/src/output/document.rs",
+      "/w/crates/kernel/src/output/emitter.rs",
+      "/w/crates/kernel/src/output/structured_data.rs",
+      "/w/crates/kernel/src/output/width.rs",
+      "/w/crates/kernel/src/performance.rs",
+      "/w/crates/kernel/src/performance/buffer_pool.rs",
+      "/w/crates/kernel/src/performance/measurement.rs",
+      "/w/crates/kernel/src/source.rs",
+      "/w/crates/kernel/src/source/hashing.rs",
+      "/w/crates/kernel/src/source/index.rs",
+      "/w/crates/kernel/src/source/interning.rs",
+      "/w/crates/kernel/src/source/positions.rs",
+      "/w/crates/kernel/src/source/tokens.rs",
+      "/w/crates/languages/css/core/src/compilation.rs",
+      "/w/crates/languages/css/core/src/compilation/scope.rs",
+      "/w/crates/languages/css/core/src/compilation/scope/keyframes.rs",
+      "/w/crates/languages/css/core/src/lib.rs",
+      "/w/crates/languages/css/core/src/semantic.rs",
+      "/w/crates/languages/css/core/src/semantic/matcher.rs",
+      "/w/crates/languages/css/core/src/syntax.rs",
+      "/w/crates/languages/css/core/src/syntax/parser.rs",
+      "/w/crates/languages/css/core/src/syntax/parser/selectors.rs",
+      "/w/crates/languages/css/core/src/syntax/syntax_tree.rs",
+      "/w/crates/languages/css/core/src/syntax/syntax_tree/simple_list.rs",
+      "/w/crates/languages/html/core/src/button_type.rs",
+      "/w/crates/languages/html/core/src/lib.rs",
+      "/w/crates/languages/svelte/parser/src/computation.rs",
+      "/w/crates/languages/svelte/parser/src/lib.rs",
+      "/w/crates/languages/svelte/parser/src/syntax.rs",
+      "/w/crates/languages/svelte/parser/src/syntax/parse.rs",
+      "/w/crates/languages/svelte/parser/src/syntax/parse/attribute.rs",
+      "/w/crates/languages/svelte/parser/src/syntax/parse/block.rs",
+      "/w/crates/languages/svelte/parser/src/syntax/parse/directive.rs",
+      "/w/crates/languages/svelte/parser/src/syntax/parse/element.rs",
+      "/w/crates/languages/svelte/parser/src/syntax/parse/fragment.rs",
+      "/w/crates/languages/svelte/parser/src/syntax/parse/html.rs",
+      "/w/crates/languages/svelte/parser/src/syntax/parse/identifier.rs",
+      "/w/crates/languages/svelte/parser/src/syntax/parse/javascript.rs",
+      "/w/crates/languages/svelte/parser/src/syntax/parse/pattern.rs",
+      "/w/crates/languages/svelte/parser/src/syntax/parse/script.rs",
+      "/w/crates/languages/svelte/parser/src/syntax/parse/sequence.rs",
+      "/w/crates/languages/svelte/parser/src/syntax/parse/snippet.rs",
+      "/w/crates/languages/svelte/parser/src/syntax/parse/tag.rs",
+      "/w/crates/languages/svelte/project/examples/benchmark.rs",
+      "/w/crates/languages/svelte/project/examples/benchmark_before.rs",
+      "/w/crates/languages/svelte/project/examples/layout.rs",
+      "/w/crates/languages/svelte/project/examples/pipeline.rs",
+      "/w/crates/languages/svelte/project/examples/support/inputs.rs",
+      "/w/crates/languages/svelte/project/examples/verify.rs",
+      "/w/crates/languages/svelte/project/src/buffers.rs",
+      "/w/crates/languages/svelte/project/src/computation.rs",
+      "/w/crates/languages/svelte/project/src/emit.rs",
+      "/w/crates/languages/svelte/project/src/lib.rs",
+      "/w/crates/languages/svelte/project/src/lower.rs",
+      "/w/crates/languages/svelte/project/src/syntax_tree.rs",
+      "/w/crates/languages/svelte/syntax/src/lib.rs",
+      "/w/crates/languages/svelte/syntax/src/syntax.rs",
+      "/w/crates/languages/svelte/syntax/src/syntax/names.rs",
+      "/w/crates/languages/svelte/syntax/src/syntax/syntax_tree.rs",
+      "/w/crates/languages/typescript/core/src/compilation.rs",
+      "/w/crates/languages/typescript/core/src/compilation/copy.rs",
+      "/w/crates/languages/typescript/core/src/compilation/copy/classes.rs",
+      "/w/crates/languages/typescript/core/src/compilation/copy/control.rs",
+      "/w/crates/languages/typescript/core/src/computation.rs",
+      "/w/crates/languages/typescript/core/src/lib.rs",
+      "/w/crates/languages/typescript/core/src/semantic.rs",
+      "/w/crates/languages/typescript/core/src/semantic/number.rs",
+      "/w/crates/languages/typescript/core/src/semantic/scope.rs",
+      "/w/crates/languages/typescript/core/src/semantic/scope/declare.rs",
+      "/w/crates/languages/typescript/core/src/semantic/scope/resolve.rs",
+      "/w/crates/languages/typescript/core/src/syntax.rs",
+      "/w/crates/languages/typescript/core/src/syntax/lexer.rs",
+      "/w/crates/languages/typescript/core/src/syntax/lexer/tests.rs",
+      "/w/crates/languages/typescript/core/src/syntax/operators.rs",
+      "/w/crates/languages/typescript/core/src/syntax/parser.rs",
+      "/w/crates/languages/typescript/core/src/syntax/parser/classes.rs",
+      "/w/crates/languages/typescript/core/src/syntax/parser/control.rs",
+      "/w/crates/languages/typescript/core/src/syntax/parser/expressions.rs",
+      "/w/crates/languages/typescript/core/src/syntax/parser/literals.rs",
+      "/w/crates/languages/typescript/core/src/syntax/parser/lookahead.rs",
+      "/w/crates/languages/typescript/core/src/syntax/parser/members.rs",
+      "/w/crates/languages/typescript/core/src/syntax/parser/patterns.rs",
+      "/w/crates/languages/typescript/core/src/syntax/parser/statements.rs",
+      "/w/crates/languages/typescript/core/src/syntax/parser/typescript.rs",
+      "/w/crates/languages/typescript/core/src/syntax/syntax_tree.rs",
+      "/w/crates/languages/typescript/core/src/syntax/syntax_tree/classes.rs",
+      "/w/crates/languages/typescript/core/src/syntax/syntax_tree/control.rs",
+      "/w/crates/languages/typescript/core/src/syntax/syntax_tree/expressions.rs",
+      "/w/crates/languages/typescript/core/src/syntax/syntax_tree/read.rs",
+      "/w/crates/languages/typescript/core/src/syntax/syntax_tree/statements.rs",
+      "/w/crates/languages/typescript/core/src/syntax/syntax_tree/traverse.rs",
+      "/w/crates/languages/typescript/core/src/syntax/syntax_tree/typescript.rs"
+    ],
+    "expect_stdout": {
+      "documents": 1,
+      "population": 1,
+      "parse_errors": 0,
+      "rounds": 20,
+      "unsupported": 0
+    },
+    "minimum_output_bytes": 1
+  },
+  "samples": [
+    {
+      "arm": "rewrite-before",
+      "counts": {
+        "Ir": 140603807,
+        "I1mr": 33628,
+        "ILmr": 2748,
+        "Dr": 25464039,
+        "D1mr": 122197,
+        "DLmr": 2261,
+        "Dw": 2755233,
+        "D1mw": 78213,
+        "DLmw": 11601
+      },
+      "raw": "/private/tmp/rsvelte-projection-before/cache-class-dense-report.json.samples/0.cg",
+      "stdout_sha256": "5993c7d51795f518bd23d7106534e11d8bebe5f2095d0924756f7b961d1a558e"
+    },
+    {
+      "arm": "rewrite-ast",
+      "counts": {
+        "Ir": 20196700,
+        "I1mr": 56856,
+        "ILmr": 2837,
+        "Dr": 6524450,
+        "D1mr": 117187,
+        "DLmr": 2265,
+        "Dw": 4088956,
+        "D1mw": 91212,
+        "DLmw": 12601
+      },
+      "raw": "/private/tmp/rsvelte-projection-before/cache-class-dense-report.json.samples/1.cg",
+      "stdout_sha256": "4494435d184b4062341d5eb34fbff54840ee4db47d13cc8d329cd14b85324f47"
+    },
+    {
+      "arm": "rewrite-ast",
+      "counts": {
+        "Ir": 20196700,
+        "I1mr": 56856,
+        "ILmr": 2837,
+        "Dr": 6524450,
+        "D1mr": 117187,
+        "DLmr": 2265,
+        "Dw": 4088956,
+        "D1mw": 91212,
+        "DLmw": 12601
+      },
+      "raw": "/private/tmp/rsvelte-projection-before/cache-class-dense-report.json.samples/2.cg",
+      "stdout_sha256": "e7f12eefa89428ee68d23c5fe10d1f83a953d75b9296322a3bed9e6cbc267514"
+    },
+    {
+      "arm": "rewrite-before",
+      "counts": {
+        "Ir": 140603807,
+        "I1mr": 33628,
+        "ILmr": 2748,
+        "Dr": 25464039,
+        "D1mr": 122196,
+        "DLmr": 2260,
+        "Dw": 2755233,
+        "D1mw": 78213,
+        "DLmw": 11601
+      },
+      "raw": "/private/tmp/rsvelte-projection-before/cache-class-dense-report.json.samples/3.cg",
+      "stdout_sha256": "1626c5c31e121cc8c7916e543905ba874330013983d9f9d5aab1cb10860bfaa1"
+    }
+  ],
+  "status": "complete",
+  "summary": [
+    {
+      "arm": "rewrite-before",
+      "samples": 2,
+      "counts": {
+        "Ir": 140603807,
+        "I1mr": 33628,
+        "ILmr": 2748,
+        "Dr": 25464039,
+        "D1mr": 122196.5,
+        "DLmr": 2260.5,
+        "Dw": 2755233,
+        "D1mw": 78213,
+        "DLmw": 11601
+      },
+      "per_round": {
+        "Ir": 7030190.35,
+        "I1mr": 1681.4,
+        "ILmr": 137.4,
+        "Dr": 1273201.95,
+        "D1mr": 6109.825,
+        "DLmr": 113.025,
+        "Dw": 137761.65,
+        "D1mw": 3910.65,
+        "DLmw": 580.05
+      },
+      "d1_read_miss_rate": 0.004798787026677112,
+      "d1_write_miss_rate": 0.028387072890024182
+    },
+    {
+      "arm": "rewrite-ast",
+      "samples": 2,
+      "counts": {
+        "Ir": 20196700,
+        "I1mr": 56856,
+        "ILmr": 2837,
+        "Dr": 6524450,
+        "D1mr": 117187,
+        "DLmr": 2265,
+        "Dw": 4088956,
+        "D1mw": 91212,
+        "DLmw": 12601
+      },
+      "per_round": {
+        "Ir": 1009835,
+        "I1mr": 2842.8,
+        "ILmr": 141.85,
+        "Dr": 326222.5,
+        "D1mr": 5859.35,
+        "DLmr": 113.25,
+        "Dw": 204447.8,
+        "D1mw": 4560.6,
+        "DLmw": 630.05
+      },
+      "d1_read_miss_rate": 0.017961207458099916,
+      "d1_write_miss_rate": 0.02230691648430553
+    }
+  ],
+  "gate": {
+    "status": "UNMEASURED"
+  }
+}

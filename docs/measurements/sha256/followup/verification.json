@@ -1,0 +1,24 @@
+{
+  "arms": {
+    "baseline": 4099,
+    "inline": 4099,
+    "fixed": 4099,
+    "small": 4099,
+    "always": 4099,
+    "scope-baseline": 4099,
+    "scope-inline": 4099,
+    "scope-fixed": 4099,
+    "scope-small": 4099,
+    "scope-bytes": 4099,
+    "scope-pairs": 4099,
+    "scope-always": 4099,
+    "scope-text": 4099,
+    "scope-extend": 4099,
+    "scope-nibble": 4099,
+    "scope-stack": 4099,
+    "scope-arithmetic": 4099
+  },
+  "positiveControl": true,
+  "node": "v26.7.0",
+  "openssl": "3.5.7"
+}

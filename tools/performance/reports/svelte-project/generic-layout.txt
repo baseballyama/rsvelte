@@ -1,0 +1,3 @@
+Node: 24 bytes, alignment 8
+NodeIdentifier: 4 bytes
+SyntaxTree: 56 bytes, alignment 8

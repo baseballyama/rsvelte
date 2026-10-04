@@ -1,0 +1,14 @@
+print-type-size type: `semantic::analyze::stylesheet::MatchContext<'_>`: 48 bytes, alignment: 8 bytes
+print-type-size     field `.sheet`: 8 bytes
+print-type-size     field `.compiler_syntax_tree`: 8 bytes
+print-type-size     field `.source_text`: 16 bytes
+print-type-size     field `.facts`: 8 bytes
+print-type-size     field `.nesting`: 8 bytes
+print-type-size type: `semantic::analyze::stylesheet::El<'_>`: 16 bytes, alignment: 8 bytes
+print-type-size     field `.context`: 8 bytes
+print-type-size     field `.identifier`: 4 bytes
+print-type-size     end padding: 4 bytes
+print-type-size type: `std::option::Option<semantic::analyze::stylesheet::El<'_>>`: 16 bytes, alignment: 8 bytes
+print-type-size     variant `Some`: 16 bytes
+print-type-size         field `.0`: 16 bytes
+print-type-size     variant `None`: 0 bytes

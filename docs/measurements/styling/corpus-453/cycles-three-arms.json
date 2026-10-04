@@ -1,0 +1,340 @@
+{
+  "method": "proc_pid_rusage RUSAGE_INFO_V4 between stdin gates; destruction included",
+  "warmup_rounds": 20,
+  "official_process": "one persistent worker; one warmup before the zero control and four measured trials",
+  "measured_rounds": 5,
+  "population": 453,
+  "manifest_sha256": "6d9eea41e74cf97a73a5e16917ed8da1a2dfcf8530b0342144be2b6a3eea62d2",
+  "binary_sha256": {
+    "official": "6e470925e9e41df43493718bc1df941868df7a9e8948288e35dc44480d6c8078",
+    "old": "42be945437081d387f402221eb29e044bf247b791daf4770acc78810c0d8cad2",
+    "rewrite": "f84989bc9016072dff692f63f9dd12fc35ffc9d0983cdababb5005a4724b4262"
+  },
+  "rows": [
+    {
+      "arm": "official",
+      "trial": 0,
+      "documents": 453,
+      "rounds": 0,
+      "phase": "total",
+      "elapsed_ns": 2167,
+      "checksum": 0,
+      "before": {
+        "cycles": 143256657441,
+        "instructions": 436099728961
+      },
+      "after": {
+        "cycles": 143256951491,
+        "instructions": 436099839533
+      },
+      "cycles": 294050,
+      "instructions": 110572
+    },
+    {
+      "arm": "old",
+      "trial": 1,
+      "documents": 453,
+      "phase": "total",
+      "rounds": 0,
+      "elapsed_ns": 42,
+      "checksum": 0,
+      "before": {
+        "cycles": 35784768325,
+        "instructions": 117747410628
+      },
+      "after": {
+        "cycles": 35784784533,
+        "instructions": 117747428379
+      },
+      "cycles": 16208,
+      "instructions": 17751
+    },
+    {
+      "arm": "rewrite",
+      "trial": 2,
+      "documents": 453,
+      "rounds": 0,
+      "phase": "total",
+      "elapsed_ns": 0,
+      "checksum": 0,
+      "before": {
+        "cycles": 5886763741,
+        "instructions": 21253896677
+      },
+      "after": {
+        "cycles": 5886793510,
+        "instructions": 21253912865
+      },
+      "cycles": 29769,
+      "instructions": 16188
+    },
+    {
+      "arm": "official",
+      "trial": 3,
+      "documents": 453,
+      "rounds": 5,
+      "phase": "total",
+      "elapsed_ns": 7976002625,
+      "checksum": 6435170,
+      "before": {
+        "cycles": 143259529605,
+        "instructions": 436101978777
+      },
+      "after": {
+        "cycles": 170791827476,
+        "instructions": 533479876383
+      },
+      "cycles": 27532297871,
+      "instructions": 97377897606
+    },
+    {
+      "arm": "old",
+      "trial": 4,
+      "documents": 453,
+      "phase": "total",
+      "rounds": 5,
+      "elapsed_ns": 7229448416,
+      "checksum": 6435170,
+      "before": {
+        "cycles": 34782646969,
+        "instructions": 117764523038
+      },
+      "after": {
+        "cycles": 42879927962,
+        "instructions": 145683378830
+      },
+      "cycles": 8097280993,
+      "instructions": 27918855792
+    },
+    {
+      "arm": "rewrite",
+      "trial": 5,
+      "documents": 453,
+      "rounds": 5,
+      "phase": "total",
+      "elapsed_ns": 4655566917,
+      "checksum": 6435170,
+      "before": {
+        "cycles": 5825162526,
+        "instructions": 21271926200
+      },
+      "after": {
+        "cycles": 7221381907,
+        "instructions": 26251617770
+      },
+      "cycles": 1396219381,
+      "instructions": 4979691570
+    },
+    {
+      "arm": "rewrite",
+      "trial": 6,
+      "documents": 453,
+      "rounds": 5,
+      "phase": "total",
+      "elapsed_ns": 2952307291,
+      "checksum": 6435170,
+      "before": {
+        "cycles": 5854039857,
+        "instructions": 21306646212
+      },
+      "after": {
+        "cycles": 7188048629,
+        "instructions": 26283116657
+      },
+      "cycles": 1334008772,
+      "instructions": 4976470445
+    },
+    {
+      "arm": "old",
+      "trial": 7,
+      "documents": 453,
+      "phase": "total",
+      "rounds": 5,
+      "elapsed_ns": 42194761958,
+      "checksum": 6435170,
+      "before": {
+        "cycles": 36225080498,
+        "instructions": 118176122761
+      },
+      "after": {
+        "cycles": 46645587700,
+        "instructions": 146531026484
+      },
+      "cycles": 10420507202,
+      "instructions": 28354903723
+    },
+    {
+      "arm": "official",
+      "trial": 8,
+      "documents": 453,
+      "rounds": 5,
+      "phase": "total",
+      "elapsed_ns": 42649699833,
+      "checksum": 6435170,
+      "before": {
+        "cycles": 170791936785,
+        "instructions": 533479968078
+      },
+      "after": {
+        "cycles": 199964322654,
+        "instructions": 631946432247
+      },
+      "cycles": 29172385869,
+      "instructions": 98466464169
+    },
+    {
+      "arm": "official",
+      "trial": 9,
+      "documents": 453,
+      "rounds": 5,
+      "phase": "total",
+      "elapsed_ns": 18156184541,
+      "checksum": 6435170,
+      "before": {
+        "cycles": 199964435056,
+        "instructions": 631946511087
+      },
+      "after": {
+        "cycles": 228404829375,
+        "instructions": 730448867747
+      },
+      "cycles": 28440394319,
+      "instructions": 98502356660
+    },
+    {
+      "arm": "old",
+      "trial": 10,
+      "documents": 453,
+      "phase": "total",
+      "rounds": 5,
+      "elapsed_ns": 2761040333,
+      "checksum": 6435170,
+      "before": {
+        "cycles": 32508834650,
+        "instructions": 117655724462
+      },
+      "after": {
+        "cycles": 40318342198,
+        "instructions": 145572563390
+      },
+      "cycles": 7809507548,
+      "instructions": 27916838928
+    },
+    {
+      "arm": "rewrite",
+      "trial": 11,
+      "documents": 453,
+      "rounds": 5,
+      "phase": "total",
+      "elapsed_ns": 496727333,
+      "checksum": 6435170,
+      "before": {
+        "cycles": 5871920278,
+        "instructions": 21255231499
+      },
+      "after": {
+        "cycles": 7200831781,
+        "instructions": 26214416734
+      },
+      "cycles": 1328911503,
+      "instructions": 4959185235
+    },
+    {
+      "arm": "rewrite",
+      "trial": 12,
+      "documents": 453,
+      "rounds": 5,
+      "phase": "total",
+      "elapsed_ns": 429638125,
+      "checksum": 6435170,
+      "before": {
+        "cycles": 5697230289,
+        "instructions": 21187919542
+      },
+      "after": {
+        "cycles": 6997331970,
+        "instructions": 26142792267
+      },
+      "cycles": 1300101681,
+      "instructions": 4954872725
+    },
+    {
+      "arm": "old",
+      "trial": 13,
+      "documents": 453,
+      "phase": "total",
+      "rounds": 5,
+      "elapsed_ns": 2747637875,
+      "checksum": 6435170,
+      "before": {
+        "cycles": 32535333475,
+        "instructions": 117389241173
+      },
+      "after": {
+        "cycles": 40177209474,
+        "instructions": 145252879972
+      },
+      "cycles": 7641875999,
+      "instructions": 27863638799
+    },
+    {
+      "arm": "official",
+      "trial": 14,
+      "documents": 453,
+      "rounds": 5,
+      "phase": "total",
+      "elapsed_ns": 6992665666,
+      "checksum": 6435170,
+      "before": {
+        "cycles": 228408744647,
+        "instructions": 730452830432
+      },
+      "after": {
+        "cycles": 255563894573,
+        "instructions": 828576710884
+      },
+      "cycles": 27155149926,
+      "instructions": 98123880452
+    }
+  ],
+  "summary": {
+    "total": {
+      "official": {
+        "cycles": {
+          "median_per_input": 12356002.690949228,
+          "min_per_input": 11989028.664900662,
+          "max_per_input": 12879640.5602649
+        },
+        "instructions": {
+          "median_per_input": 43397427.06865342,
+          "min_per_input": 42992449.27417219,
+          "max_per_input": 43488899.18763797
+        }
+      },
+      "old": {
+        "cycles": {
+          "median_per_input": 3511432.349006622,
+          "min_per_input": 3373896.6883002208,
+          "max_per_input": 4600665.4313465785
+        },
+        "instructions": {
+          "median_per_input": 12325760.42384106,
+          "min_per_input": 12301827.284326712,
+          "max_per_input": 12518721.290507726
+        }
+      },
+      "rewrite": {
+        "cycles": {
+          "median_per_input": 587841.1203090508,
+          "min_per_input": 573996.3271523179,
+          "max_per_input": 616432.3977924945
+        },
+        "instructions": {
+          "median_per_input": 2193301.4746136866,
+          "min_per_input": 2187581.777041943,
+          "max_per_input": 2198539.3245033114
+        }
+      }
+    }
+  }
+}

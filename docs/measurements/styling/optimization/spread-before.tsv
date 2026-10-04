@@ -1,0 +1,8 @@
+mismatch	~case0.svelte
+mismatch	~case1.svelte
+mismatch	~case2.svelte
+mismatch	~case3.svelte
+population	4
+matched	0
+unparsed	0
+mismatched	4

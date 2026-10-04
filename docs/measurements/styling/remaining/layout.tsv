@@ -1,0 +1,13 @@
+Tag	1	1
+Flags	1	1
+Data	8	4
+SourceLocation	8	4
+Span	8	4
+NodeIdentifier	4	4
+Kind	40	8
+Lexer	32	8
+LexedToken	12	4
+LexedRegex	28	4
+Value	24	8
+Control	32	8
+Class	40	8

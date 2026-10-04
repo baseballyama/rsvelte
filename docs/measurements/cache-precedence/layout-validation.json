@@ -1,0 +1,139 @@
+{
+	"architecture": "aarch64",
+	"records": [
+		{
+			"name": "kernel.span",
+			"bytes": 8,
+			"alignment": 4,
+			"fields": {}
+		},
+		{
+			"name": "kernel.source_location",
+			"bytes": 8,
+			"alignment": 4,
+			"fields": {}
+		},
+		{
+			"name": "javascript.tag_column",
+			"bytes": 1,
+			"alignment": 1,
+			"fields": {}
+		},
+		{
+			"name": "javascript.flags_column",
+			"bytes": 1,
+			"alignment": 1,
+			"fields": {}
+		},
+		{
+			"name": "javascript.data_column",
+			"bytes": 8,
+			"alignment": 4,
+			"fields": {}
+		},
+		{
+			"name": "javascript.child_identifier",
+			"bytes": 4,
+			"alignment": 4,
+			"fields": {}
+		},
+		{
+			"name": "javascript.token",
+			"bytes": 12,
+			"alignment": 4,
+			"fields": {
+				"kind": 8,
+				"span": 0
+			}
+		},
+		{
+			"name": "javascript.lexer_token",
+			"bytes": 12,
+			"alignment": 4,
+			"fields": {}
+		},
+		{
+			"name": "javascript.binding",
+			"bytes": 36,
+			"alignment": 4,
+			"fields": {}
+		},
+		{
+			"name": "javascript.reference",
+			"bytes": 16,
+			"alignment": 4,
+			"fields": {}
+		},
+		{
+			"name": "svelte.hir_node",
+			"bytes": 56,
+			"alignment": 8,
+			"fields": {
+				"kind": 8,
+				"span": 0,
+				"parent": 48
+			}
+		},
+		{
+			"name": "svelte.hir_attribute",
+			"bytes": 64,
+			"alignment": 8,
+			"fields": {}
+		},
+		{
+			"name": "svelte.render_item",
+			"bytes": 48,
+			"alignment": 8,
+			"fields": {}
+		},
+		{
+			"name": "svelte.render_region",
+			"bytes": 40,
+			"alignment": 8,
+			"fields": {}
+		},
+		{
+			"name": "css.rule",
+			"bytes": 80,
+			"alignment": 8,
+			"fields": {}
+		},
+		{
+			"name": "css.declaration",
+			"bytes": 32,
+			"alignment": 4,
+			"fields": {}
+		},
+		{
+			"name": "css.complex_selector",
+			"bytes": 40,
+			"alignment": 8,
+			"fields": {}
+		},
+		{
+			"name": "css.relative_selector",
+			"bytes": 88,
+			"alignment": 8,
+			"fields": {}
+		},
+		{
+			"name": "css.simple_selector",
+			"bytes": 48,
+			"alignment": 8,
+			"fields": {}
+		},
+		{
+			"name": "vue.template_node",
+			"bytes": 44,
+			"alignment": 4,
+			"fields": {}
+		},
+		{
+			"name": "vue.attribute",
+			"bytes": 96,
+			"alignment": 8,
+			"fields": {}
+		}
+	]
+}
+

@@ -1,0 +1,50 @@
+[
+  {
+    "source": "fixtures/svelte/networking-toolbox/src/routes/about/legal/privacy/+page.svelte/input.svelte",
+    "path": "target/cache-locality/large/00-+page.svelte/input.svelte",
+    "sha256": "14feb61a39e1c132a970408464ec7a3c63a41b50b9c1dec75f7cbe50b8d13d19",
+    "bytes": 5932
+  },
+  {
+    "source": "fixtures/svelte/svelte-bits/src/lib/components/docs/pages/Introduction.svelte/input.svelte",
+    "path": "target/cache-locality/large/01-Introduction.svelte/input.svelte",
+    "sha256": "3611c4286a7a3485f419d53aa731db9b2629133ce5afbdc95533472a27ec3633",
+    "bytes": 4214
+  },
+  {
+    "source": "fixtures/svelte/svelte-inspect-value/packages/svelte/src/lib/Resize.svelte/input.svelte",
+    "path": "target/cache-locality/large/02-Resize.svelte/input.svelte",
+    "sha256": "922abacc3bac29484bfeb01be929e01d62cff9927f1ddeefd173704e79990564",
+    "bytes": 3748
+  },
+  {
+    "source": "fixtures/svelte/syntaxfm-website/src/lib/hotkeys/Hotkeys.svelte/input.svelte",
+    "path": "target/cache-locality/large/03-Hotkeys.svelte/input.svelte",
+    "sha256": "7f56202efb45b3e2fae67c791dbe5d89bdcbe37d6c756070780d22527a188b4e",
+    "bytes": 3120
+  },
+  {
+    "source": "fixtures/svelte/svelte-lexical/demos/qalam/src/lib/Settings.svelte/input.svelte",
+    "path": "target/cache-locality/large/04-Settings.svelte/input.svelte",
+    "sha256": "517885fc7bddade23684098089f4232f241a97f7b8aee30ec8e00bb354ee391a",
+    "bytes": 3107
+  },
+  {
+    "source": "fixtures/svelte/svelte-commerce/src/routes/(www)/auth/signup/success/+page.svelte/input.svelte",
+    "path": "target/cache-locality/large/05-+page.svelte/input.svelte",
+    "sha256": "b5d238ff854a8a2a4d8823dfcdad9c5767481cd3f557696abe27fb7020f8887e",
+    "bytes": 2923
+  },
+  {
+    "source": "fixtures/svelte/cmsaasstarter/src/routes/(admin)/account/(menu)/+page.svelte/input.svelte",
+    "path": "target/cache-locality/large/06-+page.svelte/input.svelte",
+    "sha256": "c3fae3f592026f4f62844cc5ce5840a2c50cbbaf130586e3685ad4870bf0eade",
+    "bytes": 2838
+  },
+  {
+    "source": "fixtures/svelte/networking-toolbox/src/routes/about/legal/accessibility/+page.svelte/input.svelte",
+    "path": "target/cache-locality/large/07-+page.svelte/input.svelte",
+    "sha256": "d205252febe9456dc7df60e62255b301854fa25e096080ee6ac05b0baf5ed983",
+    "bytes": 2757
+  }
+]

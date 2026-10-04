@@ -1,0 +1,29 @@
+{
+  "rounds": 64,
+  "repetitions": 4,
+  "arms": [
+    {
+      "name": "before",
+      "command": [
+        "/private/tmp/rsvelte-parser-tuning/followup/target/release/examples/measure",
+        "/private/tmp/rsvelte-parser-tuning/round3-synthetic.txt",
+        "64"
+      ]
+    },
+    {
+      "name": "after",
+      "command": [
+        "/private/tmp/rsvelte-parser-tuning/candidate/target/release/examples/measure",
+        "/private/tmp/rsvelte-parser-tuning/round3-synthetic.txt",
+        "64"
+      ]
+    }
+  ],
+  "expect_stdout": {
+    "documents": 8,
+    "accepted": 8,
+    "rejected": 0,
+    "rounds": 64,
+    "errors": 0
+  }
+}

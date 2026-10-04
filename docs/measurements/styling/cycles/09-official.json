@@ -1,0 +1,18 @@
+{
+  "arm": "official",
+  "trial": 9,
+  "documents": 18,
+  "rounds": 1000,
+  "elapsed_ns": 9055036958,
+  "output_bytes": 15302000,
+  "before": {
+    "cycles": 1246992119,
+    "instructions": 3373506704
+  },
+  "after": {
+    "cycles": 21163275713,
+    "instructions": 72738396401
+  },
+  "cycles": 19916283594,
+  "instructions": 69364889697
+}

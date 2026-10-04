@@ -1,0 +1,3168 @@
+[
+  {
+    "case": "animation-variable-default",
+    "expected": "remove",
+    "status": "removed-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/animation-variable-default/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-DCPSD5PO.js",
+        "index-DCPSD5PO.js.map",
+        "assets/index-DyNOgcTd.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28883,
+      "css": [
+        {
+          "name": "assets/index-DyNOgcTd.css",
+          "bytes": 362,
+          "code": ".danger.svelte-ebgi7j{color:red;animation:1s svelte-ebgi7j-dangerPulse}.primary.svelte-ebgi7j{color:#00f;animation:var(--shared-animation) 30s infinite}.danger.svelte-ebgi7j,.primary.svelte-ebgi7j{font-weight:700}@keyframes svelte-ebgi7j-dangerPulse{0%{opacity:.1}to{opacity:1}}.aux.svelte-1eog1k5{color:green}:root{--shared-animation:svelte-ebgi7j-dangerPulse}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-ebgi7j\">Primary</span><!----><p class=\"aux svelte-1eog1k5\">Aux</p><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(0, 128, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1,
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/animation-variable-default/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 1,
+      "builds": 2,
+      "external": null,
+      "files": [
+        "index-C_iA4Pnf.js",
+        "index-C_iA4Pnf.js.map",
+        "assets/index-uvEhy4PI.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28765,
+      "css": [
+        {
+          "name": "assets/index-uvEhy4PI.css",
+          "bytes": 246,
+          "code": ".primary.svelte-ebgi7j{color:#00f;animation:var(--shared-animation) 30s infinite;font-weight:700}@keyframes svelte-ebgi7j-dangerPulse{0%{opacity:.1}to{opacity:1}}.aux.svelte-1eog1k5{color:green}:root{--shared-animation:svelte-ebgi7j-dangerPulse}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-ebgi7j\">Primary</span><!----><p class=\"aux svelte-1eog1k5\">Aux</p><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(0, 128, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1,
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "css-plugin",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/css-plugin/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [
+          "An external CSS pipeline has no deletion contract."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-F-m7QFIy.js",
+        "index-F-m7QFIy.js.map",
+        "assets/index-DDkYRFlL.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28516,
+      "css": [
+        {
+          "name": "assets/index-DDkYRFlL.css",
+          "bytes": 263,
+          "code": ".danger.svelte-sjwogv{color:red;animation:1s svelte-sjwogv-dangerPulse}.primary.svelte-sjwogv{color:#00f}.danger.svelte-sjwogv,.primary.svelte-sjwogv{font-weight:700}@keyframes svelte-sjwogv-dangerPulse{0%{opacity:.1}to{opacity:1}}.primary{color:green!important}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-sjwogv\">Primary</span>",
+          "colors": [
+            "rgb(0, 128, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/css-plugin/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [
+          "An external CSS pipeline has no deletion contract."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-F-m7QFIy.js",
+        "index-F-m7QFIy.js.map",
+        "assets/index-DDkYRFlL.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28516,
+      "css": [
+        {
+          "name": "assets/index-DDkYRFlL.css",
+          "bytes": 263,
+          "code": ".danger.svelte-sjwogv{color:red;animation:1s svelte-sjwogv-dangerPulse}.primary.svelte-sjwogv{color:#00f}.danger.svelte-sjwogv,.primary.svelte-sjwogv{font-weight:700}@keyframes svelte-sjwogv-dangerPulse{0%{opacity:.1}to{opacity:1}}.primary{color:green!important}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-sjwogv\">Primary</span>",
+          "colors": [
+            "rgb(0, 128, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "shared-css-scope",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/shared-css-scope/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [
+          "Unsupported compiler mode."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-p2wIIa5A.js",
+        "index-p2wIIa5A.js.map",
+        "assets/index-DbXW5UYY.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28886,
+      "css": [
+        {
+          "name": "assets/index-DbXW5UYY.css",
+          "bytes": 260,
+          "code": ".danger.svelte-audit{color:red;animation:1s svelte-audit-dangerPulse}.primary.svelte-audit{color:#00f}.danger.svelte-audit,.primary.svelte-audit{font-weight:700}@keyframes svelte-audit-dangerPulse{0%{opacity:.1}to{opacity:1}}.aux.svelte-audit{font-weight:700}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-audit\">Primary</span><!----><p class=\"danger aux svelte-audit\">Aux</p><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0,
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/shared-css-scope/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [
+          "Unsupported compiler mode."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-p2wIIa5A.js",
+        "index-p2wIIa5A.js.map",
+        "assets/index-DbXW5UYY.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28886,
+      "css": [
+        {
+          "name": "assets/index-DbXW5UYY.css",
+          "bytes": 260,
+          "code": ".danger.svelte-audit{color:red;animation:1s svelte-audit-dangerPulse}.primary.svelte-audit{color:#00f}.danger.svelte-audit,.primary.svelte-audit{font-weight:700}@keyframes svelte-audit-dangerPulse{0%{opacity:.1}to{opacity:1}}.aux.svelte-audit{font-weight:700}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-audit\">Primary</span><!----><p class=\"danger aux svelte-audit\">Aux</p><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0,
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "dynamic-template-effect",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/dynamic-template-effect/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [
+          "The compiler cannot certify this source shape."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-B83wIdSF.js",
+        "index-B83wIdSF.js.map",
+        "assets/index-CgknA0XE.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 126743,
+      "css": [
+        {
+          "name": "assets/index-CgknA0XE.css",
+          "bytes": 232,
+          "code": ".danger.svelte-on4xxo{color:red;animation:1s svelte-on4xxo-dangerPulse}.primary.svelte-on4xxo{color:#00f}.danger.svelte-on4xxo,.primary.svelte-on4xxo{font-weight:700}@keyframes svelte-on4xxo-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-on4xxo\">Primary1</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/dynamic-template-effect/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [
+          "The compiler cannot certify this source shape."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-B83wIdSF.js",
+        "index-B83wIdSF.js.map",
+        "assets/index-CgknA0XE.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 126743,
+      "css": [
+        {
+          "name": "assets/index-CgknA0XE.css",
+          "bytes": 232,
+          "code": ".danger.svelte-on4xxo{color:red;animation:1s svelte-on4xxo-dangerPulse}.primary.svelte-on4xxo{color:#00f}.danger.svelte-on4xxo,.primary.svelte-on4xxo{font-weight:700}@keyframes svelte-on4xxo-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-on4xxo\">Primary1</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "primary",
+    "expected": "remove",
+    "status": "removed-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/primary/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-g5Vr4XAF.js",
+        "index-g5Vr4XAF.js.map",
+        "assets/index-CF5_atrm.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28516,
+      "css": [
+        {
+          "name": "assets/index-CF5_atrm.css",
+          "bytes": 232,
+          "code": ".danger.svelte-lk1i02{color:red;animation:1s svelte-lk1i02-dangerPulse}.primary.svelte-lk1i02{color:#00f}.danger.svelte-lk1i02,.primary.svelte-lk1i02{font-weight:700}@keyframes svelte-lk1i02-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-lk1i02\">Primary</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/primary/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 1,
+      "builds": 2,
+      "external": null,
+      "files": [
+        "index-BBfu0Eos.js",
+        "index-BBfu0Eos.js.map",
+        "assets/index-JbHQ80OA.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28398,
+      "css": [
+        {
+          "name": "assets/index-JbHQ80OA.css",
+          "bytes": 116,
+          "code": ".primary.svelte-lk1i02{color:#00f;font-weight:700}@keyframes svelte-lk1i02-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-lk1i02\">Primary</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "multiline-unicode",
+    "expected": "remove",
+    "status": "removed-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/multiline-unicode/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-D1LmWgpM.js",
+        "index-D1LmWgpM.js.map",
+        "assets/index-DL2DM0wm.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28525,
+      "css": [
+        {
+          "name": "assets/index-DL2DM0wm.css",
+          "bytes": 238,
+          "code": ".danger.svelte-1l1cct7{color:red;animation:1s svelte-1l1cct7-dangerPulse}.primary.svelte-1l1cct7{color:#00f}.danger.svelte-1l1cct7,.primary.svelte-1l1cct7{font-weight:700}@keyframes svelte-1l1cct7-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-1l1cct7\">Primary</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/multiline-unicode/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 1,
+      "builds": 2,
+      "external": null,
+      "files": [
+        "index-zyRt2ZVm.js",
+        "index-zyRt2ZVm.js.map",
+        "assets/index-CWHulkm0.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28399,
+      "css": [
+        {
+          "name": "assets/index-CWHulkm0.css",
+          "bytes": 118,
+          "code": ".primary.svelte-1l1cct7{color:#00f;font-weight:700}@keyframes svelte-1l1cct7-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-1l1cct7\">Primary</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "single-css-asset",
+    "expected": "remove",
+    "status": "removed-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/single-css-asset/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-BAx1qU3m.js",
+        "index-BAx1qU3m.js.map",
+        "assets/style-I_HK1RP7.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28883,
+      "css": [
+        {
+          "name": "assets/style-I_HK1RP7.css",
+          "bytes": 276,
+          "code": ".danger.svelte-di8etx{color:red;animation:1s svelte-di8etx-dangerPulse}.primary.svelte-di8etx{color:#00f}.danger.svelte-di8etx,.primary.svelte-di8etx{font-weight:700}@keyframes svelte-di8etx-dangerPulse{0%{opacity:.1}to{opacity:1}}.aux.svelte-16mt8r3{color:green}\n/*$vite$:1*/"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-di8etx\">Primary</span><!----><p class=\"aux svelte-16mt8r3\">Aux</p><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(0, 128, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0,
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/single-css-asset/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 1,
+      "builds": 2,
+      "external": null,
+      "files": [
+        "index-CbWZBCJL.js",
+        "index-CbWZBCJL.js.map",
+        "assets/style-CovIYHtj.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28765,
+      "css": [
+        {
+          "name": "assets/style-CovIYHtj.css",
+          "bytes": 160,
+          "code": ".primary.svelte-di8etx{color:#00f;font-weight:700}@keyframes svelte-di8etx-dangerPulse{0%{opacity:.1}to{opacity:1}}.aux.svelte-16mt8r3{color:green}\n/*$vite$:1*/"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-di8etx\">Primary</span><!----><p class=\"aux svelte-16mt8r3\">Aux</p><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(0, 128, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0,
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "condition-side-effect",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/condition-side-effect/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [
+          "The compiler cannot certify this source shape."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-DuqFjkcD.js",
+        "index-DuqFjkcD.js.map",
+        "assets/index-B-Mgces-.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 31217,
+      "css": [
+        {
+          "name": "assets/index-B-Mgces-.css",
+          "bytes": 232,
+          "code": ".danger.svelte-wssjzl{color:red;animation:1s svelte-wssjzl-dangerPulse}.primary.svelte-wssjzl{color:#00f}.danger.svelte-wssjzl,.primary.svelte-wssjzl{font-weight:700}@keyframes svelte-wssjzl-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-wssjzl\">Primary 1</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/condition-side-effect/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [
+          "The compiler cannot certify this source shape."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-DuqFjkcD.js",
+        "index-DuqFjkcD.js.map",
+        "assets/index-B-Mgces-.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 31217,
+      "css": [
+        {
+          "name": "assets/index-B-Mgces-.css",
+          "bytes": 232,
+          "code": ".danger.svelte-wssjzl{color:red;animation:1s svelte-wssjzl-dangerPulse}.primary.svelte-wssjzl{color:#00f}.danger.svelte-wssjzl,.primary.svelte-wssjzl{font-weight:700}@keyframes svelte-wssjzl-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-wssjzl\">Primary 1</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "danger",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/danger/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "danger"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-D0UtuWqq.js",
+        "index-D0UtuWqq.js.map",
+        "assets/index-DPdnRbtJ.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28515,
+      "css": [
+        {
+          "name": "assets/index-DPdnRbtJ.css",
+          "bytes": 232,
+          "code": ".danger.svelte-ommj2l{color:red;animation:1s svelte-ommj2l-dangerPulse}.primary.svelte-ommj2l{color:#00f}.danger.svelte-ommj2l,.primary.svelte-ommj2l{font-weight:700}@keyframes svelte-ommj2l-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-ommj2l\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/danger/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "danger"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-D0UtuWqq.js",
+        "index-D0UtuWqq.js.map",
+        "assets/index-DPdnRbtJ.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28515,
+      "css": [
+        {
+          "name": "assets/index-DPdnRbtJ.css",
+          "bytes": 232,
+          "code": ".danger.svelte-ommj2l{color:red;animation:1s svelte-ommj2l-dangerPulse}.primary.svelte-ommj2l{color:#00f}.danger.svelte-ommj2l,.primary.svelte-ommj2l{font-weight:700}@keyframes svelte-ommj2l-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-ommj2l\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "runtime-props",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/runtime-props/baseline",
+      "decision": {
+        "calls": 0,
+        "values": [],
+        "reasons": [
+          "Unknown props: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/runtime-props/App.svelte",
+          "No proven callers."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-D14L6pMB.js",
+        "index-D14L6pMB.js.map",
+        "assets/index-DGcKTkfR.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28448,
+      "css": [
+        {
+          "name": "assets/index-DGcKTkfR.css",
+          "bytes": 238,
+          "code": ".danger.svelte-1b813bl{color:red;animation:1s svelte-1b813bl-dangerPulse}.primary.svelte-1b813bl{color:#00f}.danger.svelte-1b813bl,.primary.svelte-1b813bl{font-weight:700}@keyframes svelte-1b813bl-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-1b813bl\">Primary</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        },
+        {
+          "html": "<!----><span class=\"danger svelte-1b813bl\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/runtime-props/optimized",
+      "decision": {
+        "calls": 0,
+        "values": [],
+        "reasons": [
+          "Unknown props: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/runtime-props/App.svelte",
+          "No proven callers."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-D14L6pMB.js",
+        "index-D14L6pMB.js.map",
+        "assets/index-DGcKTkfR.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28448,
+      "css": [
+        {
+          "name": "assets/index-DGcKTkfR.css",
+          "bytes": 238,
+          "code": ".danger.svelte-1b813bl{color:red;animation:1s svelte-1b813bl-dangerPulse}.primary.svelte-1b813bl{color:#00f}.danger.svelte-1b813bl,.primary.svelte-1b813bl{font-weight:700}@keyframes svelte-1b813bl-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-1b813bl\">Primary</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        },
+        {
+          "html": "<!----><span class=\"danger svelte-1b813bl\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "spread",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/spread/baseline",
+      "decision": {
+        "calls": 0,
+        "values": [],
+        "reasons": [
+          "Unknown props: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/spread/App.svelte",
+          "No proven callers."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-DiKZ8Mho.js",
+        "index-DiKZ8Mho.js.map",
+        "assets/index-B0Ysbozj.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 29391,
+      "css": [
+        {
+          "name": "assets/index-B0Ysbozj.css",
+          "bytes": 232,
+          "code": ".danger.svelte-ap64p1{color:red;animation:1s svelte-ap64p1-dangerPulse}.primary.svelte-ap64p1{color:#00f}.danger.svelte-ap64p1,.primary.svelte-ap64p1{font-weight:700}@keyframes svelte-ap64p1-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-ap64p1\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/spread/optimized",
+      "decision": {
+        "calls": 0,
+        "values": [],
+        "reasons": [
+          "Unknown props: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/spread/App.svelte",
+          "No proven callers."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-DiKZ8Mho.js",
+        "index-DiKZ8Mho.js.map",
+        "assets/index-B0Ysbozj.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 29391,
+      "css": [
+        {
+          "name": "assets/index-B0Ysbozj.css",
+          "bytes": 232,
+          "code": ".danger.svelte-ap64p1{color:red;animation:1s svelte-ap64p1-dangerPulse}.primary.svelte-ap64p1{color:#00f}.danger.svelte-ap64p1,.primary.svelte-ap64p1{font-weight:700}@keyframes svelte-ap64p1-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-ap64p1\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "getter",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/getter/baseline",
+      "decision": {
+        "calls": 0,
+        "values": [],
+        "reasons": [
+          "Unknown props: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/getter/App.svelte",
+          "No proven callers."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-BZkDYmbK.js",
+        "index-BZkDYmbK.js.map",
+        "assets/index-CpeVsE6s.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 29406,
+      "css": [
+        {
+          "name": "assets/index-CpeVsE6s.css",
+          "bytes": 238,
+          "code": ".danger.svelte-1cgbtit{color:red;animation:1s svelte-1cgbtit-dangerPulse}.primary.svelte-1cgbtit{color:#00f}.danger.svelte-1cgbtit,.primary.svelte-1cgbtit{font-weight:700}@keyframes svelte-1cgbtit-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-1cgbtit\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/getter/optimized",
+      "decision": {
+        "calls": 0,
+        "values": [],
+        "reasons": [
+          "Unknown props: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/getter/App.svelte",
+          "No proven callers."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-BZkDYmbK.js",
+        "index-BZkDYmbK.js.map",
+        "assets/index-CpeVsE6s.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 29406,
+      "css": [
+        {
+          "name": "assets/index-CpeVsE6s.css",
+          "bytes": 238,
+          "code": ".danger.svelte-1cgbtit{color:red;animation:1s svelte-1cgbtit-dangerPulse}.primary.svelte-1cgbtit{color:#00f}.danger.svelte-1cgbtit,.primary.svelte-1cgbtit{font-weight:700}@keyframes svelte-1cgbtit-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-1cgbtit\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "alias",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/alias/baseline",
+      "decision": {
+        "calls": 0,
+        "values": [],
+        "reasons": [
+          "Escaped component reference: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/alias/App.svelte",
+          "No proven callers."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-C8leewL2.js",
+        "index-C8leewL2.js.map",
+        "assets/index-MCEhCXd9.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28515,
+      "css": [
+        {
+          "name": "assets/index-MCEhCXd9.css",
+          "bytes": 232,
+          "code": ".danger.svelte-zxcbuo{color:red;animation:1s svelte-zxcbuo-dangerPulse}.primary.svelte-zxcbuo{color:#00f}.danger.svelte-zxcbuo,.primary.svelte-zxcbuo{font-weight:700}@keyframes svelte-zxcbuo-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-zxcbuo\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/alias/optimized",
+      "decision": {
+        "calls": 0,
+        "values": [],
+        "reasons": [
+          "Escaped component reference: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/alias/App.svelte",
+          "No proven callers."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-C8leewL2.js",
+        "index-C8leewL2.js.map",
+        "assets/index-MCEhCXd9.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28515,
+      "css": [
+        {
+          "name": "assets/index-MCEhCXd9.css",
+          "bytes": 232,
+          "code": ".danger.svelte-zxcbuo{color:red;animation:1s svelte-zxcbuo-dangerPulse}.primary.svelte-zxcbuo{color:#00f}.danger.svelte-zxcbuo,.primary.svelte-zxcbuo{font-weight:700}@keyframes svelte-zxcbuo-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-zxcbuo\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "reexport",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/reexport/baseline",
+      "decision": {
+        "calls": 0,
+        "values": [],
+        "reasons": [
+          "Re-export or unknown import: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/reexport/barrel.js",
+          "No proven callers."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-BIkfDfMe.js",
+        "index-BIkfDfMe.js.map",
+        "assets/index-DE3PcbnZ.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28513,
+      "css": [
+        {
+          "name": "assets/index-DE3PcbnZ.css",
+          "bytes": 226,
+          "code": ".danger.svelte-ig1c9{color:red;animation:1s svelte-ig1c9-dangerPulse}.primary.svelte-ig1c9{color:#00f}.danger.svelte-ig1c9,.primary.svelte-ig1c9{font-weight:700}@keyframes svelte-ig1c9-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-ig1c9\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/reexport/optimized",
+      "decision": {
+        "calls": 0,
+        "values": [],
+        "reasons": [
+          "Re-export or unknown import: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/reexport/barrel.js",
+          "No proven callers."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-BIkfDfMe.js",
+        "index-BIkfDfMe.js.map",
+        "assets/index-DE3PcbnZ.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28513,
+      "css": [
+        {
+          "name": "assets/index-DE3PcbnZ.css",
+          "bytes": 226,
+          "code": ".danger.svelte-ig1c9{color:red;animation:1s svelte-ig1c9-dangerPulse}.primary.svelte-ig1c9{color:#00f}.danger.svelte-ig1c9,.primary.svelte-ig1c9{font-weight:700}@keyframes svelte-ig1c9-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-ig1c9\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "namespace",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/namespace/baseline",
+      "decision": {
+        "calls": 0,
+        "values": [],
+        "reasons": [
+          "Re-export or unknown import: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/namespace/barrel.js",
+          "No proven callers."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-C17VRjdX.js",
+        "index-C17VRjdX.js.map",
+        "assets/index-Bkh8_Q-F.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28515,
+      "css": [
+        {
+          "name": "assets/index-Bkh8_Q-F.css",
+          "bytes": 232,
+          "code": ".danger.svelte-hdx8dd{color:red;animation:1s svelte-hdx8dd-dangerPulse}.primary.svelte-hdx8dd{color:#00f}.danger.svelte-hdx8dd,.primary.svelte-hdx8dd{font-weight:700}@keyframes svelte-hdx8dd-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-hdx8dd\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/namespace/optimized",
+      "decision": {
+        "calls": 0,
+        "values": [],
+        "reasons": [
+          "Re-export or unknown import: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/namespace/barrel.js",
+          "No proven callers."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-C17VRjdX.js",
+        "index-C17VRjdX.js.map",
+        "assets/index-Bkh8_Q-F.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28515,
+      "css": [
+        {
+          "name": "assets/index-Bkh8_Q-F.css",
+          "bytes": 232,
+          "code": ".danger.svelte-hdx8dd{color:red;animation:1s svelte-hdx8dd-dangerPulse}.primary.svelte-hdx8dd{color:#00f}.danger.svelte-hdx8dd,.primary.svelte-hdx8dd{font-weight:700}@keyframes svelte-hdx8dd-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-hdx8dd\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "duplicate-property",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/duplicate-property/baseline",
+      "decision": {
+        "calls": 0,
+        "values": [],
+        "reasons": [
+          "Unknown or duplicate variant: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/duplicate-property/App.svelte",
+          "No proven callers."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-BDOaeTBv.js",
+        "index-BDOaeTBv.js.map",
+        "assets/index-eS-xfFph.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28535,
+      "css": [
+        {
+          "name": "assets/index-eS-xfFph.css",
+          "bytes": 238,
+          "code": ".danger.svelte-11ne9i3{color:red;animation:1s svelte-11ne9i3-dangerPulse}.primary.svelte-11ne9i3{color:#00f}.danger.svelte-11ne9i3,.primary.svelte-11ne9i3{font-weight:700}@keyframes svelte-11ne9i3-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-11ne9i3\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/duplicate-property/optimized",
+      "decision": {
+        "calls": 0,
+        "values": [],
+        "reasons": [
+          "Unknown or duplicate variant: /private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/duplicate-property/App.svelte",
+          "No proven callers."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-BDOaeTBv.js",
+        "index-BDOaeTBv.js.map",
+        "assets/index-eS-xfFph.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28535,
+      "css": [
+        {
+          "name": "assets/index-eS-xfFph.css",
+          "bytes": 238,
+          "code": ".danger.svelte-11ne9i3{color:red;animation:1s svelte-11ne9i3-dangerPulse}.primary.svelte-11ne9i3{color:#00f}.danger.svelte-11ne9i3,.primary.svelte-11ne9i3{font-weight:700}@keyframes svelte-11ne9i3-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-11ne9i3\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "local-prop-write",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/local-prop-write/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [
+          "The compiler cannot certify this source shape."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-DbRMCi8s.js",
+        "index-DbRMCi8s.js.map",
+        "assets/index-_9pyd6qM.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 29873,
+      "css": [
+        {
+          "name": "assets/index-_9pyd6qM.css",
+          "bytes": 238,
+          "code": ".danger.svelte-10dl90j{color:red;animation:1s svelte-10dl90j-dangerPulse}.primary.svelte-10dl90j{color:#00f}.danger.svelte-10dl90j,.primary.svelte-10dl90j{font-weight:700}@keyframes svelte-10dl90j-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-10dl90j\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/local-prop-write/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [
+          "The compiler cannot certify this source shape."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-DbRMCi8s.js",
+        "index-DbRMCi8s.js.map",
+        "assets/index-_9pyd6qM.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 29873,
+      "css": [
+        {
+          "name": "assets/index-_9pyd6qM.css",
+          "bytes": 238,
+          "code": ".danger.svelte-10dl90j{color:red;animation:1s svelte-10dl90j-dangerPulse}.primary.svelte-10dl90j{color:#00f}.danger.svelte-10dl90j,.primary.svelte-10dl90j{font-weight:700}@keyframes svelte-10dl90j-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-10dl90j\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "public-entry",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/public-entry/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [
+          "The component is a public entry."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": "button-2Ma4_yx9.js",
+      "files": [
+        "button-2Ma4_yx9.js",
+        "page-BqCmWZIJ.js",
+        "assets/Button-BB-nwnql.js",
+        "assets/Button-BB-nwnql.js.map",
+        "page-BqCmWZIJ.js.map",
+        "assets/Button-ek3X1cFH.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 30289,
+      "css": [
+        {
+          "name": "assets/Button-ek3X1cFH.css",
+          "bytes": 238,
+          "code": ".danger.svelte-1miqjau{color:red;animation:1s svelte-1miqjau-dangerPulse}.primary.svelte-1miqjau{color:#00f}.danger.svelte-1miqjau,.primary.svelte-1miqjau{font-weight:700}@keyframes svelte-1miqjau-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-1miqjau\">Primary</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        },
+        {
+          "html": "<!----><span class=\"danger svelte-1miqjau\">Danger</span>",
+          "color": "rgb(255, 0, 0)"
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/public-entry/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [
+          "The component is a public entry."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": "button-2Ma4_yx9.js",
+      "files": [
+        "button-2Ma4_yx9.js",
+        "page-BqCmWZIJ.js",
+        "assets/Button-BB-nwnql.js",
+        "assets/Button-BB-nwnql.js.map",
+        "page-BqCmWZIJ.js.map",
+        "assets/Button-ek3X1cFH.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 30289,
+      "css": [
+        {
+          "name": "assets/Button-ek3X1cFH.css",
+          "bytes": 238,
+          "code": ".danger.svelte-1miqjau{color:red;animation:1s svelte-1miqjau-dangerPulse}.primary.svelte-1miqjau{color:#00f}.danger.svelte-1miqjau,.primary.svelte-1miqjau{font-weight:700}@keyframes svelte-1miqjau-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-1miqjau\">Primary</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        },
+        {
+          "html": "<!----><span class=\"danger svelte-1miqjau\">Danger</span>",
+          "color": "rgb(255, 0, 0)"
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "annotation-drift",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/annotation-drift/baseline",
+      "decision": {
+        "unknown": true,
+        "reasons": [
+          "A transform changed the compiler output."
+        ]
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-Dk-zxI-t.js",
+        "index-Dk-zxI-t.js.map",
+        "assets/index-B_L-5D5n.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28626,
+      "css": [
+        {
+          "name": "assets/index-B_L-5D5n.css",
+          "bytes": 238,
+          "code": ".danger.svelte-1nwsxk5{color:red;animation:1s svelte-1nwsxk5-dangerPulse}.primary.svelte-1nwsxk5{color:#00f}.danger.svelte-1nwsxk5,.primary.svelte-1nwsxk5{font-weight:700}@keyframes svelte-1nwsxk5-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-1nwsxk5\">Primary</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 1,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/annotation-drift/optimized",
+      "decision": {
+        "unknown": true,
+        "reasons": [
+          "A transform changed the compiler output."
+        ]
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-Dk-zxI-t.js",
+        "index-Dk-zxI-t.js.map",
+        "assets/index-B_L-5D5n.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28626,
+      "css": [
+        {
+          "name": "assets/index-B_L-5D5n.css",
+          "bytes": 238,
+          "code": ".danger.svelte-1nwsxk5{color:red;animation:1s svelte-1nwsxk5-dangerPulse}.primary.svelte-1nwsxk5{color:#00f}.danger.svelte-1nwsxk5,.primary.svelte-1nwsxk5{font-weight:700}@keyframes svelte-1nwsxk5-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-1nwsxk5\">Primary</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 1,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "later-render-transform",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/later-render-transform/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [
+          "An external output hook has no preservation contract."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-D6RCJSiC.js",
+        "index-D6RCJSiC.js.map",
+        "assets/index-D5bT8wa1.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28515,
+      "css": [
+        {
+          "name": "assets/index-D5bT8wa1.css",
+          "bytes": 232,
+          "code": ".danger.svelte-rcjq1m{color:red;animation:1s svelte-rcjq1m-dangerPulse}.primary.svelte-rcjq1m{color:#00f}.danger.svelte-rcjq1m,.primary.svelte-rcjq1m{font-weight:700}@keyframes svelte-rcjq1m-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-rcjq1m\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/later-render-transform/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [
+          "An external output hook has no preservation contract."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-D6RCJSiC.js",
+        "index-D6RCJSiC.js.map",
+        "assets/index-D5bT8wa1.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28515,
+      "css": [
+        {
+          "name": "assets/index-D5bT8wa1.css",
+          "bytes": 232,
+          "code": ".danger.svelte-rcjq1m{color:red;animation:1s svelte-rcjq1m-dangerPulse}.primary.svelte-rcjq1m{color:#00f}.danger.svelte-rcjq1m,.primary.svelte-rcjq1m{font-weight:700}@keyframes svelte-rcjq1m-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-rcjq1m\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "removed-markers",
+    "expected": "remove",
+    "status": "removed-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/removed-markers/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-Dtx88SuR.js",
+        "index-Dtx88SuR.js.map",
+        "assets/index-BGrjlgNV.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28518,
+      "css": [
+        {
+          "name": "assets/index-BGrjlgNV.css",
+          "bytes": 238,
+          "code": ".danger.svelte-110aww2{color:red;animation:1s svelte-110aww2-dangerPulse}.primary.svelte-110aww2{color:#00f}.danger.svelte-110aww2,.primary.svelte-110aww2{font-weight:700}@keyframes svelte-110aww2-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-110aww2\">Primary</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/removed-markers/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 1,
+      "builds": 2,
+      "external": null,
+      "files": [
+        "index-DZo2UZ0t.js",
+        "index-DZo2UZ0t.js.map",
+        "assets/index-MfZsy3IR.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28399,
+      "css": [
+        {
+          "name": "assets/index-MfZsy3IR.css",
+          "bytes": 118,
+          "code": ".primary.svelte-110aww2{color:#00f;font-weight:700}@keyframes svelte-110aww2-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-110aww2\">Primary</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "preprocessor-injection",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/preprocessor-injection/baseline",
+      "decision": {
+        "calls": 2,
+        "values": [
+          "danger",
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-BmvaJ1NQ.js",
+        "index-BmvaJ1NQ.js.map",
+        "assets/index-mdq1imCv.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28808,
+      "css": [
+        {
+          "name": "assets/index-mdq1imCv.css",
+          "bytes": 238,
+          "code": ".danger.svelte-1atpkul{color:red;animation:1s svelte-1atpkul-dangerPulse}.primary.svelte-1atpkul{color:#00f}.danger.svelte-1atpkul,.primary.svelte-1atpkul{font-weight:700}@keyframes svelte-1atpkul-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-1atpkul\">Primary</span><!----><!----><span class=\"danger svelte-1atpkul\">Danger</span><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0,
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/preprocessor-injection/optimized",
+      "decision": {
+        "calls": 2,
+        "values": [
+          "danger",
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-BmvaJ1NQ.js",
+        "index-BmvaJ1NQ.js.map",
+        "assets/index-mdq1imCv.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28808,
+      "css": [
+        {
+          "name": "assets/index-mdq1imCv.css",
+          "bytes": 238,
+          "code": ".danger.svelte-1atpkul{color:red;animation:1s svelte-1atpkul-dangerPulse}.primary.svelte-1atpkul{color:#00f}.danger.svelte-1atpkul,.primary.svelte-1atpkul{font-weight:700}@keyframes svelte-1atpkul-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-1atpkul\">Primary</span><!----><!----><span class=\"danger svelte-1atpkul\">Danger</span><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0,
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "virtual-caller",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/virtual-caller/baseline",
+      "decision": {
+        "calls": 2,
+        "values": [
+          "danger",
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-MU5tiCIm.js",
+        "index-MU5tiCIm.js.map",
+        "assets/index-CYQtWI2r.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28839,
+      "css": [
+        {
+          "name": "assets/index-CYQtWI2r.css",
+          "bytes": 238,
+          "code": ".danger.svelte-1xmk1bj{color:red;animation:1s svelte-1xmk1bj-dangerPulse}.primary.svelte-1xmk1bj{color:#00f}.danger.svelte-1xmk1bj,.primary.svelte-1xmk1bj{font-weight:700}@keyframes svelte-1xmk1bj-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-1xmk1bj\">Primary</span><!----><!----><span class=\"danger svelte-1xmk1bj\">Danger</span><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0,
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/virtual-caller/optimized",
+      "decision": {
+        "calls": 2,
+        "values": [
+          "danger",
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-MU5tiCIm.js",
+        "index-MU5tiCIm.js.map",
+        "assets/index-CYQtWI2r.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28839,
+      "css": [
+        {
+          "name": "assets/index-CYQtWI2r.css",
+          "bytes": 238,
+          "code": ".danger.svelte-1xmk1bj{color:red;animation:1s svelte-1xmk1bj-dangerPulse}.primary.svelte-1xmk1bj{color:#00f}.danger.svelte-1xmk1bj,.primary.svelte-1xmk1bj{font-weight:700}@keyframes svelte-1xmk1bj-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-1xmk1bj\">Primary</span><!----><!----><span class=\"danger svelte-1xmk1bj\">Danger</span><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0,
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "lazy-danger",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/lazy-danger/baseline",
+      "decision": {
+        "calls": 2,
+        "values": [
+          "danger",
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-Cnwg7EIZ.js",
+        "assets/Button-Bs6pi6d-.js",
+        "assets/Lazy-BwAOkMQM.js",
+        "assets/Button-Bs6pi6d-.js.map",
+        "assets/Lazy-BwAOkMQM.js.map",
+        "index-Cnwg7EIZ.js.map",
+        "assets/Button-D_mY-i4H.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 30320,
+      "css": [
+        {
+          "name": "assets/Button-D_mY-i4H.css",
+          "bytes": 232,
+          "code": ".danger.svelte-hzf3mm{color:red;animation:1s svelte-hzf3mm-dangerPulse}.primary.svelte-hzf3mm{color:#00f}.danger.svelte-hzf3mm,.primary.svelte-hzf3mm{font-weight:700}@keyframes svelte-hzf3mm-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-hzf3mm\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/lazy-danger/optimized",
+      "decision": {
+        "calls": 2,
+        "values": [
+          "danger",
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-Cnwg7EIZ.js",
+        "assets/Button-Bs6pi6d-.js",
+        "assets/Lazy-BwAOkMQM.js",
+        "assets/Button-Bs6pi6d-.js.map",
+        "assets/Lazy-BwAOkMQM.js.map",
+        "index-Cnwg7EIZ.js.map",
+        "assets/Button-D_mY-i4H.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 30320,
+      "css": [
+        {
+          "name": "assets/Button-D_mY-i4H.css",
+          "bytes": 232,
+          "code": ".danger.svelte-hzf3mm{color:red;animation:1s svelte-hzf3mm-dangerPulse}.primary.svelte-hzf3mm{color:#00f}.danger.svelte-hzf3mm,.primary.svelte-hzf3mm{font-weight:700}@keyframes svelte-hzf3mm-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-hzf3mm\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "lazy-primary",
+    "expected": "remove",
+    "status": "removed-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/lazy-primary/baseline",
+      "decision": {
+        "calls": 2,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-Ct05ZZLm.js",
+        "assets/Button-Dtive5I_.js",
+        "assets/Lazy-Dl-bSOHa.js",
+        "assets/Button-Dtive5I_.js.map",
+        "assets/Lazy-Dl-bSOHa.js.map",
+        "index-Ct05ZZLm.js.map",
+        "assets/Button-De-btWau.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 30321,
+      "css": [
+        {
+          "name": "assets/Button-De-btWau.css",
+          "bytes": 232,
+          "code": ".danger.svelte-fa1oj3{color:red;animation:1s svelte-fa1oj3-dangerPulse}.primary.svelte-fa1oj3{color:#00f}.danger.svelte-fa1oj3,.primary.svelte-fa1oj3{font-weight:700}@keyframes svelte-fa1oj3-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-fa1oj3\">Primary</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/lazy-primary/optimized",
+      "decision": {
+        "calls": 2,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 1,
+      "builds": 2,
+      "external": null,
+      "files": [
+        "index-Cb5cIiKO.js",
+        "assets/Button-Bfp6WIVg.js",
+        "assets/Lazy-DKmoV8z6.js",
+        "assets/Button-Bfp6WIVg.js.map",
+        "assets/Lazy-DKmoV8z6.js.map",
+        "index-Cb5cIiKO.js.map",
+        "assets/Button-D8eI7jAF.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 30203,
+      "css": [
+        {
+          "name": "assets/Button-D8eI7jAF.css",
+          "bytes": 116,
+          "code": ".primary.svelte-fa1oj3{color:#00f;font-weight:700}@keyframes svelte-fa1oj3-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-fa1oj3\">Primary</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "multi-component-css",
+    "expected": "remove",
+    "status": "removed-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/multi-component-css/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-DGguePGC.js",
+        "index-DGguePGC.js.map",
+        "assets/index-8ni9TgRZ.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28884,
+      "css": [
+        {
+          "name": "assets/index-8ni9TgRZ.css",
+          "bytes": 269,
+          "code": ".danger.svelte-1r8hmsv{color:red;animation:1s svelte-1r8hmsv-dangerPulse}.primary.svelte-1r8hmsv{color:#00f}.danger.svelte-1r8hmsv,.primary.svelte-1r8hmsv{font-weight:700}@keyframes svelte-1r8hmsv-dangerPulse{0%{opacity:.1}to{opacity:1}}.aux.svelte-9d60c5{color:green}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-1r8hmsv\">Primary</span><!----><p class=\"aux svelte-9d60c5\">Aux</p><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(0, 128, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0,
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/multi-component-css/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 1,
+      "builds": 2,
+      "external": null,
+      "files": [
+        "index-COjR6t0g.js",
+        "index-COjR6t0g.js.map",
+        "assets/index-DK8x5_FU.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28765,
+      "css": [
+        {
+          "name": "assets/index-DK8x5_FU.css",
+          "bytes": 149,
+          "code": ".primary.svelte-1r8hmsv{color:#00f;font-weight:700}@keyframes svelte-1r8hmsv-dangerPulse{0%{opacity:.1}to{opacity:1}}.aux.svelte-9d60c5{color:green}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-1r8hmsv\">Primary</span><!----><p class=\"aux svelte-9d60c5\">Aux</p><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(0, 128, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0,
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "shared-module",
+    "expected": "remove",
+    "status": "removed-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/shared-module/baseline",
+      "decision": {
+        "calls": 2,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-Oe4eHAjj.js",
+        "assets/Lazy-Bpw1LlZJ.js",
+        "assets/shared-D2d_AVyU.js",
+        "assets/Lazy-Bpw1LlZJ.js.map",
+        "assets/shared-D2d_AVyU.js.map",
+        "index-Oe4eHAjj.js.map",
+        "assets/shared-CyRxgcLu.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 33115,
+      "css": [
+        {
+          "name": "assets/shared-CyRxgcLu.css",
+          "bytes": 238,
+          "code": ".danger.svelte-1grwidc{color:red;animation:1s svelte-1grwidc-dangerPulse}.primary.svelte-1grwidc{color:#00f}.danger.svelte-1grwidc,.primary.svelte-1grwidc{font-weight:700}@keyframes svelte-1grwidc-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-1grwidc\">Primary</span><!---->shared",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/shared-module/optimized",
+      "decision": {
+        "calls": 2,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 1,
+      "builds": 2,
+      "external": null,
+      "files": [
+        "index-6iF9_z5y.js",
+        "assets/Lazy-w9xDfu1I.js",
+        "assets/shared-iEatp9mc.js",
+        "assets/Lazy-w9xDfu1I.js.map",
+        "assets/shared-iEatp9mc.js.map",
+        "index-6iF9_z5y.js.map",
+        "assets/shared-Ev-4HMLN.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 32996,
+      "css": [
+        {
+          "name": "assets/shared-Ev-4HMLN.css",
+          "bytes": 118,
+          "code": ".primary.svelte-1grwidc{color:#00f;font-weight:700}@keyframes svelte-1grwidc-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-1grwidc\">Primary</span><!---->shared",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "lazy-new-css",
+    "expected": "remove",
+    "status": "removed-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/lazy-new-css/baseline",
+      "decision": {
+        "calls": 2,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-CKC3QlbN.js",
+        "assets/Button-Cdzj6Vzb.js",
+        "assets/Lazy-DOvfvZwQ.js",
+        "assets/Button-Cdzj6Vzb.js.map",
+        "assets/Lazy-DOvfvZwQ.js.map",
+        "index-CKC3QlbN.js.map",
+        "assets/Button-Cd12FVrA.css",
+        "assets/Lazy-BDqy0lNE.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 30743,
+      "css": [
+        {
+          "name": "assets/Button-Cd12FVrA.css",
+          "bytes": 232,
+          "code": ".danger.svelte-7jqsvd{color:red;animation:1s svelte-7jqsvd-dangerPulse}.primary.svelte-7jqsvd{color:#00f}.danger.svelte-7jqsvd,.primary.svelte-7jqsvd{font-weight:700}@keyframes svelte-7jqsvd-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        },
+        {
+          "name": "assets/Lazy-BDqy0lNE.css",
+          "bytes": 33,
+          "code": ".aux.svelte-12dhor7{color:green}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-7jqsvd\">Primary</span><!----><p class=\"aux svelte-12dhor7\">Aux</p><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(0, 128, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0,
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/lazy-new-css/optimized",
+      "decision": {
+        "calls": 2,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 1,
+      "builds": 2,
+      "external": null,
+      "files": [
+        "index-DR2ekLAx.js",
+        "assets/Button-d4KG5rgV.js",
+        "assets/Lazy-CAfK9yIz.js",
+        "assets/Button-d4KG5rgV.js.map",
+        "assets/Lazy-CAfK9yIz.js.map",
+        "index-DR2ekLAx.js.map",
+        "assets/Button-_NiiPECX.css",
+        "assets/Lazy-BDqy0lNE.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 30625,
+      "css": [
+        {
+          "name": "assets/Button-_NiiPECX.css",
+          "bytes": 116,
+          "code": ".primary.svelte-7jqsvd{color:#00f;font-weight:700}@keyframes svelte-7jqsvd-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        },
+        {
+          "name": "assets/Lazy-BDqy0lNE.css",
+          "bytes": 33,
+          "code": ".aux.svelte-12dhor7{color:green}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-7jqsvd\">Primary</span><!----><p class=\"aux svelte-12dhor7\">Aux</p><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(0, 128, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0,
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "asset-url",
+    "expected": "remove",
+    "status": "removed-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/asset-url/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-FEa8IKlG.js",
+        "index-FEa8IKlG.js.map",
+        "assets/danger-BD0Q-huN.svg",
+        "assets/index-BRXvj0BA.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28518,
+      "css": [
+        {
+          "name": "assets/index-BRXvj0BA.css",
+          "bytes": 282,
+          "code": ".danger.svelte-1iwwnek{color:red;background-image:url(./danger-BD0Q-huN.svg);animation:1s svelte-1iwwnek-dangerPulse}.primary.svelte-1iwwnek{color:#00f}.danger.svelte-1iwwnek,.primary.svelte-1iwwnek{font-weight:700}@keyframes svelte-1iwwnek-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-1iwwnek\">Primary</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/asset-url/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 1,
+      "builds": 2,
+      "external": null,
+      "files": [
+        "index-C30mVGTW.js",
+        "index-C30mVGTW.js.map",
+        "assets/index-CVs5WWj8.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28399,
+      "css": [
+        {
+          "name": "assets/index-CVs5WWj8.css",
+          "bytes": 118,
+          "code": ".primary.svelte-1iwwnek{color:#00f;font-weight:700}@keyframes svelte-1iwwnek-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-1iwwnek\">Primary</span>",
+          "colors": [
+            "rgb(0, 0, 255)"
+          ],
+          "probe": 0,
+          "animations": [
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "shared-class",
+    "expected": "remove",
+    "status": "removed-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/shared-class/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-BlwzHP12.js",
+        "index-BlwzHP12.js.map",
+        "assets/index-CPCrUplv.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28450,
+      "css": [
+        {
+          "name": "assets/index-CPCrUplv.css",
+          "bytes": 232,
+          "code": ".danger.svelte-9772vm{color:red;animation:1s svelte-9772vm-dangerPulse}.primary.svelte-9772vm{color:#00f}.danger.svelte-9772vm,.primary.svelte-9772vm{font-weight:700}@keyframes svelte-9772vm-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-9772vm\">Primary</span><!----><p class=\"danger svelte-9772vm\">Always</p>",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0,
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/shared-class/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 1,
+      "builds": 2,
+      "external": null,
+      "files": [
+        "index-C8JQt08t.js",
+        "index-C8JQt08t.js.map",
+        "assets/index-CPCrUplv.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28332,
+      "css": [
+        {
+          "name": "assets/index-CPCrUplv.css",
+          "bytes": 232,
+          "code": ".danger.svelte-9772vm{color:red;animation:1s svelte-9772vm-dangerPulse}.primary.svelte-9772vm{color:#00f}.danger.svelte-9772vm,.primary.svelte-9772vm{font-weight:700}@keyframes svelte-9772vm-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"primary svelte-9772vm\">Primary</span><!----><p class=\"danger svelte-9772vm\">Always</p>",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0,
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "animation-variable",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/animation-variable/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [
+          "Unsupported compiler mode."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-9pcDPEso.js",
+        "index-9pcDPEso.js.map",
+        "assets/index-C8oAM_j2.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28879,
+      "css": [
+        {
+          "name": "assets/index-C8oAM_j2.css",
+          "bytes": 353,
+          "code": ".danger.svelte-audit{color:red;animation:1s svelte-audit-dangerPulse}.primary.svelte-audit{color:#00f;animation:var(--shared-animation) 30s infinite}.danger.svelte-audit,.primary.svelte-audit{font-weight:700}@keyframes svelte-audit-dangerPulse{0%{opacity:.1}to{opacity:1}}.aux.svelte-audit{color:green}:root{--shared-animation:svelte-audit-dangerPulse}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-audit\">Primary</span><!----><p class=\"aux svelte-audit\">Aux</p><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(0, 128, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1,
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/animation-variable/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [
+          "Unsupported compiler mode."
+        ],
+        "unknown": true
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-9pcDPEso.js",
+        "index-9pcDPEso.js.map",
+        "assets/index-C8oAM_j2.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28879,
+      "css": [
+        {
+          "name": "assets/index-C8oAM_j2.css",
+          "bytes": 353,
+          "code": ".danger.svelte-audit{color:red;animation:1s svelte-audit-dangerPulse}.primary.svelte-audit{color:#00f;animation:var(--shared-animation) 30s infinite}.danger.svelte-audit,.primary.svelte-audit{font-weight:700}@keyframes svelte-audit-dangerPulse{0%{opacity:.1}to{opacity:1}}.aux.svelte-audit{color:green}:root{--shared-animation:svelte-audit-dangerPulse}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-audit\">Primary</span><!----><p class=\"aux svelte-audit\">Aux</p><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(0, 128, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1,
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "two-components",
+    "expected": "remove",
+    "status": "removed-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/two-components/baseline",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-L89_P3Pk.js",
+        "index-L89_P3Pk.js.map",
+        "assets/index-Aw2sHCWg.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 29005,
+      "css": [
+        {
+          "name": "assets/index-Aw2sHCWg.css",
+          "bytes": 232,
+          "code": ".danger.svelte-7x6rbz{color:red;animation:1s svelte-7x6rbz-dangerPulse}.primary.svelte-7x6rbz{color:#00f}.danger.svelte-7x6rbz,.primary.svelte-7x6rbz{font-weight:700}@keyframes svelte-7x6rbz-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-7x6rbz\">Primary</span><!----><!----><p>Other Primary</p><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(0, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0,
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/two-components/optimized",
+      "decision": {
+        "calls": 1,
+        "values": [
+          "primary"
+        ],
+        "reasons": [],
+        "unknown": false
+      },
+      "removed": 1,
+      "builds": 2,
+      "external": null,
+      "files": [
+        "index-DcP_b5cV.js",
+        "index-DcP_b5cV.js.map",
+        "assets/index-CL2_l8oS.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28888,
+      "css": [
+        {
+          "name": "assets/index-CL2_l8oS.css",
+          "bytes": 116,
+          "code": ".primary.svelte-7x6rbz{color:#00f;font-weight:700}@keyframes svelte-7x6rbz-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><!----><span class=\"primary svelte-7x6rbz\">Primary</span><!----><!----><p>Other Primary</p><!---->",
+          "colors": [
+            "rgb(0, 0, 255)",
+            "rgb(0, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            0,
+            0
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  },
+  {
+    "case": "component-transform",
+    "expected": "keep",
+    "status": "kept-and-equal",
+    "baseline": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/component-transform/baseline",
+      "decision": {
+        "unknown": true,
+        "reasons": [
+          "A transform changed the compiler output."
+        ]
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-DjlZ9xvO.js",
+        "index-DjlZ9xvO.js.map",
+        "assets/index-eGdBnKmL.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28529,
+      "css": [
+        {
+          "name": "assets/index-eGdBnKmL.css",
+          "bytes": 232,
+          "code": ".danger.svelte-j2ndxu{color:red;animation:1s svelte-j2ndxu-dangerPulse}.primary.svelte-j2ndxu{color:#00f}.danger.svelte-j2ndxu,.primary.svelte-j2ndxu{font-weight:700}@keyframes svelte-j2ndxu-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-j2ndxu\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    },
+    "optimized": {
+      "out": "/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/rsvelte-certified-dce-HDNUUb/cases/component-transform/optimized",
+      "decision": {
+        "unknown": true,
+        "reasons": [
+          "A transform changed the compiler output."
+        ]
+      },
+      "removed": 0,
+      "builds": 1,
+      "external": null,
+      "files": [
+        "index-DjlZ9xvO.js",
+        "index-DjlZ9xvO.js.map",
+        "assets/index-eGdBnKmL.css",
+        "index.html",
+        ".vite/manifest.json"
+      ],
+      "jsBytes": 28529,
+      "css": [
+        {
+          "name": "assets/index-eGdBnKmL.css",
+          "bytes": 232,
+          "code": ".danger.svelte-j2ndxu{color:red;animation:1s svelte-j2ndxu-dangerPulse}.primary.svelte-j2ndxu{color:#00f}.danger.svelte-j2ndxu,.primary.svelte-j2ndxu{font-weight:700}@keyframes svelte-j2ndxu-dangerPulse{0%{opacity:.1}to{opacity:1}}\n"
+        }
+      ],
+      "runtime": [
+        {
+          "html": "<!----><span class=\"danger svelte-j2ndxu\">Danger</span>",
+          "colors": [
+            "rgb(255, 0, 0)"
+          ],
+          "probe": 0,
+          "animations": [
+            1
+          ]
+        }
+      ],
+      "errors": [],
+      "failedRequests": []
+    }
+  }
+]

@@ -1,0 +1,64 @@
+{
+  "restored_css_unit_tests": {
+    "scope": "frozen restored tree",
+    "exit_code": 0,
+    "passed": 2
+  },
+  "restored_styling_fixtures": {
+    "scope": "shared workspace",
+    "exit_code": 0,
+    "cases": 50,
+    "snapshots_same": 96,
+    "problems": 0,
+    "official_js_cases": 26,
+    "official_js_ast_matched": 3,
+    "official_js_differed": 23,
+    "note": "Official differences are counted, not failed."
+  },
+  "restored_local_clippy": {
+    "scope": "frozen restored CSS and semantic libraries",
+    "exit_code": 0,
+    "flags": "-D warnings"
+  },
+  "restored_local_format": {
+    "scope": "restored matcher and stylesheet modules",
+    "exit_code": 0
+  },
+  "workspace_clippy": {
+    "exit_code": 101,
+    "failure": "crates/fixture_test/src/lib.rs:331 renamed_function_params in concurrent changes"
+  },
+  "workspace_format": {
+    "exit_code": 1,
+    "failure": "Formatting errors and differences in concurrent files; see raw log"
+  },
+  "workspace_structure": {
+    "exit_code": 0,
+    "checker_tests": 10,
+    "source_files": 637
+  },
+  "workspace_tests": {
+    "exit_code": 101,
+    "failure": "Shared target test executable rsvelte_svelte_check-2fc9a25a7c803985 was missing after other test groups passed; see raw log"
+  },
+  "restored_css_corpus": {
+    "scope": "all CSS oracle units, frozen restored tree",
+    "exit_code": 0,
+    "population": 2161,
+    "matched": 2161,
+    "unparsed": 0,
+    "mismatched": 0
+  },
+  "restored_js_probes": {
+    "scope": "34 authored components, frozen restored tree, client and server",
+    "generated_outputs": 68,
+    "javascript_ast_matched": 68,
+    "css_matched": 68,
+    "exit_codes": [
+      0,
+      0,
+      0
+    ]
+  },
+  "cache_and_tlb_misses": "UNMEASURED: read-only PMU probe returned EPERM"
+}

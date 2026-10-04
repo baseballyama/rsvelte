@@ -1,0 +1,3538 @@
+[
+  {
+    "round": 0,
+    "kind": "digest",
+    "arm": "baseline",
+    "samples": [
+      {
+        "cycles": 56976310,
+        "instructions": 124806132,
+        "user_time_ns": 18942125,
+        "system_time_ns": 989458
+      },
+      {
+        "cycles": 117203958,
+        "instructions": 245860522,
+        "user_time_ns": 82796875,
+        "system_time_ns": 556916
+      }
+    ],
+    "delta": {
+      "cycles": 60227648,
+      "instructions": 121054390,
+      "user_time_ns": 63854750,
+      "system_time_ns": -432542
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 0,
+    "kind": "digest",
+    "arm": "inline",
+    "samples": [
+      {
+        "cycles": 55757350,
+        "instructions": 123398066,
+        "user_time_ns": 20515041,
+        "system_time_ns": 317250
+      },
+      {
+        "cycles": 110955119,
+        "instructions": 245510357,
+        "user_time_ns": 76313333,
+        "system_time_ns": 320666
+      }
+    ],
+    "delta": {
+      "cycles": 55197769,
+      "instructions": 122112291,
+      "user_time_ns": 55798292,
+      "system_time_ns": 3416
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 0,
+    "kind": "digest",
+    "arm": "fixed",
+    "samples": [
+      {
+        "cycles": 64206429,
+        "instructions": 123465954,
+        "user_time_ns": 28873708,
+        "system_time_ns": 574666
+      },
+      {
+        "cycles": 110560307,
+        "instructions": 244970937,
+        "user_time_ns": 74258541,
+        "system_time_ns": 343583
+      }
+    ],
+    "delta": {
+      "cycles": 46353878,
+      "instructions": 121504983,
+      "user_time_ns": 45384833,
+      "system_time_ns": -231083
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 0,
+    "kind": "digest",
+    "arm": "small",
+    "samples": [
+      {
+        "cycles": 55700956,
+        "instructions": 123806253,
+        "user_time_ns": 25860583,
+        "system_time_ns": 111416
+      },
+      {
+        "cycles": 111364132,
+        "instructions": 246944064,
+        "user_time_ns": 72566125,
+        "system_time_ns": 405041
+      }
+    ],
+    "delta": {
+      "cycles": 55663176,
+      "instructions": 123137811,
+      "user_time_ns": 46705542,
+      "system_time_ns": 293625
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 0,
+    "kind": "digest",
+    "arm": "always",
+    "samples": [
+      {
+        "cycles": 55354392,
+        "instructions": 123185090,
+        "user_time_ns": 26491416,
+        "system_time_ns": 152708
+      },
+      {
+        "cycles": 113224249,
+        "instructions": 245703392,
+        "user_time_ns": 71331416,
+        "system_time_ns": 389291
+      }
+    ],
+    "delta": {
+      "cycles": 57869857,
+      "instructions": 122518302,
+      "user_time_ns": 44840000,
+      "system_time_ns": 236583
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 0,
+    "kind": "scope",
+    "arm": "baseline",
+    "samples": [
+      {
+        "cycles": 75619719,
+        "instructions": 242267101,
+        "user_time_ns": 43784708,
+        "system_time_ns": 467125
+      },
+      {
+        "cycles": 152561396,
+        "instructions": 480560570,
+        "user_time_ns": 84459208,
+        "system_time_ns": 877875
+      }
+    ],
+    "delta": {
+      "cycles": 76941677,
+      "instructions": 238293469,
+      "user_time_ns": 40674500,
+      "system_time_ns": 410750
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 0,
+    "kind": "scope",
+    "arm": "inline",
+    "samples": [
+      {
+        "cycles": 80927876,
+        "instructions": 245286382,
+        "user_time_ns": 34113125,
+        "system_time_ns": 2110416
+      },
+      {
+        "cycles": 162611274,
+        "instructions": 484375558,
+        "user_time_ns": 59930791,
+        "system_time_ns": 2847625
+      }
+    ],
+    "delta": {
+      "cycles": 81683398,
+      "instructions": 239089176,
+      "user_time_ns": 25817666,
+      "system_time_ns": 737209
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 0,
+    "kind": "scope",
+    "arm": "fixed",
+    "samples": [
+      {
+        "cycles": 81352155,
+        "instructions": 246750885,
+        "user_time_ns": 40094000,
+        "system_time_ns": 422375
+      },
+      {
+        "cycles": 165063509,
+        "instructions": 489675218,
+        "user_time_ns": 62190208,
+        "system_time_ns": 870291
+      }
+    ],
+    "delta": {
+      "cycles": 83711354,
+      "instructions": 242924333,
+      "user_time_ns": 22096208,
+      "system_time_ns": 447916
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 0,
+    "kind": "scope",
+    "arm": "small",
+    "samples": [
+      {
+        "cycles": 81151717,
+        "instructions": 247856189,
+        "user_time_ns": 34051333,
+        "system_time_ns": 436791
+      },
+      {
+        "cycles": 161930467,
+        "instructions": 490864318,
+        "user_time_ns": 78638208,
+        "system_time_ns": 507500
+      }
+    ],
+    "delta": {
+      "cycles": 80778750,
+      "instructions": 243008129,
+      "user_time_ns": 44586875,
+      "system_time_ns": 70709
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 0,
+    "kind": "scope",
+    "arm": "bytes",
+    "samples": [
+      {
+        "cycles": 83530858,
+        "instructions": 269526913,
+        "user_time_ns": 47619000,
+        "system_time_ns": 193250
+      },
+      {
+        "cycles": 183803709,
+        "instructions": 536030074,
+        "user_time_ns": 111779166,
+        "system_time_ns": 944791
+      }
+    ],
+    "delta": {
+      "cycles": 100272851,
+      "instructions": 266503161,
+      "user_time_ns": 64160166,
+      "system_time_ns": 751541
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 0,
+    "kind": "scope",
+    "arm": "pairs",
+    "samples": [
+      {
+        "cycles": 79681898,
+        "instructions": 264324680,
+        "user_time_ns": 26897458,
+        "system_time_ns": 232625
+      },
+      {
+        "cycles": 156399239,
+        "instructions": 524828677,
+        "user_time_ns": 122789958,
+        "system_time_ns": 666875
+      }
+    ],
+    "delta": {
+      "cycles": 76717341,
+      "instructions": 260503997,
+      "user_time_ns": 95892500,
+      "system_time_ns": 434250
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 0,
+    "kind": "scope",
+    "arm": "always",
+    "samples": [
+      {
+        "cycles": 74191676,
+        "instructions": 241653986,
+        "user_time_ns": 41416083,
+        "system_time_ns": 136750
+      },
+      {
+        "cycles": 150354918,
+        "instructions": 479907853,
+        "user_time_ns": 77310416,
+        "system_time_ns": 617916
+      }
+    ],
+    "delta": {
+      "cycles": 76163242,
+      "instructions": 238253867,
+      "user_time_ns": 35894333,
+      "system_time_ns": 481166
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 0,
+    "kind": "scope",
+    "arm": "text",
+    "samples": [
+      {
+        "cycles": 71669501,
+        "instructions": 239186711,
+        "user_time_ns": 47391333,
+        "system_time_ns": 176500
+      },
+      {
+        "cycles": 143772388,
+        "instructions": 474511118,
+        "user_time_ns": 89910416,
+        "system_time_ns": 456458
+      }
+    ],
+    "delta": {
+      "cycles": 72102887,
+      "instructions": 235324407,
+      "user_time_ns": 42519083,
+      "system_time_ns": 279958
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 0,
+    "kind": "scope",
+    "arm": "extend",
+    "samples": [
+      {
+        "cycles": 77167370,
+        "instructions": 261258792,
+        "user_time_ns": 25823458,
+        "system_time_ns": 87375
+      },
+      {
+        "cycles": 166632850,
+        "instructions": 520093103,
+        "user_time_ns": 68369833,
+        "system_time_ns": 1085375
+      }
+    ],
+    "delta": {
+      "cycles": 89465480,
+      "instructions": 258834311,
+      "user_time_ns": 42546375,
+      "system_time_ns": 998000
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 0,
+    "kind": "scope",
+    "arm": "nibble",
+    "samples": [
+      {
+        "cycles": 84318434,
+        "instructions": 246480748,
+        "user_time_ns": 35856458,
+        "system_time_ns": 549875
+      },
+      {
+        "cycles": 162772077,
+        "instructions": 488570187,
+        "user_time_ns": 78685291,
+        "system_time_ns": 659291
+      }
+    ],
+    "delta": {
+      "cycles": 78453643,
+      "instructions": 242089439,
+      "user_time_ns": 42828833,
+      "system_time_ns": 109416
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 0,
+    "kind": "scope",
+    "arm": "stack",
+    "samples": [
+      {
+        "cycles": 84518364,
+        "instructions": 276093958,
+        "user_time_ns": 33102916,
+        "system_time_ns": 260583
+      },
+      {
+        "cycles": 173232037,
+        "instructions": 548832905,
+        "user_time_ns": 82421416,
+        "system_time_ns": 1058458
+      }
+    ],
+    "delta": {
+      "cycles": 88713673,
+      "instructions": 272738947,
+      "user_time_ns": 49318500,
+      "system_time_ns": 797875
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 0,
+    "kind": "scope",
+    "arm": "arithmetic",
+    "samples": [
+      {
+        "cycles": 78035273,
+        "instructions": 250254519,
+        "user_time_ns": 29934916,
+        "system_time_ns": 681041
+      },
+      {
+        "cycles": 146859102,
+        "instructions": 495225118,
+        "user_time_ns": 77076625,
+        "system_time_ns": 297666
+      }
+    ],
+    "delta": {
+      "cycles": 68823829,
+      "instructions": 244970599,
+      "user_time_ns": 47141709,
+      "system_time_ns": -383375
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "scope",
+    "arm": "arithmetic",
+    "samples": [
+      {
+        "cycles": 74479076,
+        "instructions": 250275460,
+        "user_time_ns": 24867958,
+        "system_time_ns": 493166
+      },
+      {
+        "cycles": 144496128,
+        "instructions": 495443105,
+        "user_time_ns": 73591000,
+        "system_time_ns": 435791
+      }
+    ],
+    "delta": {
+      "cycles": 70017052,
+      "instructions": 245167645,
+      "user_time_ns": 48723042,
+      "system_time_ns": -57375
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "scope",
+    "arm": "stack",
+    "samples": [
+      {
+        "cycles": 83376890,
+        "instructions": 275991266,
+        "user_time_ns": 31159291,
+        "system_time_ns": 184708
+      },
+      {
+        "cycles": 167585717,
+        "instructions": 547916333,
+        "user_time_ns": 69447291,
+        "system_time_ns": 410166
+      }
+    ],
+    "delta": {
+      "cycles": 84208827,
+      "instructions": 271925067,
+      "user_time_ns": 38288000,
+      "system_time_ns": 225458
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "scope",
+    "arm": "nibble",
+    "samples": [
+      {
+        "cycles": 79403226,
+        "instructions": 246177135,
+        "user_time_ns": 33476375,
+        "system_time_ns": 293375
+      },
+      {
+        "cycles": 156515402,
+        "instructions": 487928974,
+        "user_time_ns": 51484833,
+        "system_time_ns": 196291
+      }
+    ],
+    "delta": {
+      "cycles": 77112176,
+      "instructions": 241751839,
+      "user_time_ns": 18008458,
+      "system_time_ns": -97084
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "scope",
+    "arm": "extend",
+    "samples": [
+      {
+        "cycles": 93689659,
+        "instructions": 262252178,
+        "user_time_ns": 38953750,
+        "system_time_ns": 1289291
+      },
+      {
+        "cycles": 165098182,
+        "instructions": 519790554,
+        "user_time_ns": 99513416,
+        "system_time_ns": 1027375
+      }
+    ],
+    "delta": {
+      "cycles": 71408523,
+      "instructions": 257538376,
+      "user_time_ns": 60559666,
+      "system_time_ns": -261916
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "scope",
+    "arm": "text",
+    "samples": [
+      {
+        "cycles": 82160852,
+        "instructions": 239810710,
+        "user_time_ns": 43115916,
+        "system_time_ns": 623375
+      },
+      {
+        "cycles": 157070599,
+        "instructions": 475856462,
+        "user_time_ns": 56434125,
+        "system_time_ns": 1406041
+      }
+    ],
+    "delta": {
+      "cycles": 74909747,
+      "instructions": 236045752,
+      "user_time_ns": 13318209,
+      "system_time_ns": 782666
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "scope",
+    "arm": "always",
+    "samples": [
+      {
+        "cycles": 81139728,
+        "instructions": 242432405,
+        "user_time_ns": 28787791,
+        "system_time_ns": 587333
+      },
+      {
+        "cycles": 149139087,
+        "instructions": 479557572,
+        "user_time_ns": 64170958,
+        "system_time_ns": 339125
+      }
+    ],
+    "delta": {
+      "cycles": 67999359,
+      "instructions": 237125167,
+      "user_time_ns": 35383167,
+      "system_time_ns": -248208
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "scope",
+    "arm": "pairs",
+    "samples": [
+      {
+        "cycles": 77484778,
+        "instructions": 264261932,
+        "user_time_ns": 51773875,
+        "system_time_ns": 295375
+      },
+      {
+        "cycles": 153723218,
+        "instructions": 524200138,
+        "user_time_ns": 80232500,
+        "system_time_ns": 230125
+      }
+    ],
+    "delta": {
+      "cycles": 76238440,
+      "instructions": 259938206,
+      "user_time_ns": 28458625,
+      "system_time_ns": -65250
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "scope",
+    "arm": "bytes",
+    "samples": [
+      {
+        "cycles": 82776379,
+        "instructions": 269448957,
+        "user_time_ns": 27187416,
+        "system_time_ns": 77416
+      },
+      {
+        "cycles": 174859723,
+        "instructions": 535814691,
+        "user_time_ns": 75669416,
+        "system_time_ns": 843458
+      }
+    ],
+    "delta": {
+      "cycles": 92083344,
+      "instructions": 266365734,
+      "user_time_ns": 48482000,
+      "system_time_ns": 766042
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "scope",
+    "arm": "small",
+    "samples": [
+      {
+        "cycles": 80014362,
+        "instructions": 247470438,
+        "user_time_ns": 26206750,
+        "system_time_ns": 148416
+      },
+      {
+        "cycles": 160679332,
+        "instructions": 490981048,
+        "user_time_ns": 82050000,
+        "system_time_ns": 481708
+      }
+    ],
+    "delta": {
+      "cycles": 80664970,
+      "instructions": 243510610,
+      "user_time_ns": 55843250,
+      "system_time_ns": 333292
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "scope",
+    "arm": "fixed",
+    "samples": [
+      {
+        "cycles": 79939625,
+        "instructions": 246444261,
+        "user_time_ns": 27519625,
+        "system_time_ns": 130958
+      },
+      {
+        "cycles": 158725050,
+        "instructions": 488974888,
+        "user_time_ns": 75774500,
+        "system_time_ns": 385708
+      }
+    ],
+    "delta": {
+      "cycles": 78785425,
+      "instructions": 242530627,
+      "user_time_ns": 48254875,
+      "system_time_ns": 254750
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "scope",
+    "arm": "inline",
+    "samples": [
+      {
+        "cycles": 76121612,
+        "instructions": 242332993,
+        "user_time_ns": 58877333,
+        "system_time_ns": 545125
+      },
+      {
+        "cycles": 146456755,
+        "instructions": 479232566,
+        "user_time_ns": 50443500,
+        "system_time_ns": 113541
+      }
+    ],
+    "delta": {
+      "cycles": 70335143,
+      "instructions": 236899573,
+      "user_time_ns": -8433833,
+      "system_time_ns": -431584
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "scope",
+    "arm": "baseline",
+    "samples": [
+      {
+        "cycles": 80193599,
+        "instructions": 242219254,
+        "user_time_ns": 39753958,
+        "system_time_ns": 492708
+      },
+      {
+        "cycles": 150796353,
+        "instructions": 479961241,
+        "user_time_ns": 81764791,
+        "system_time_ns": 656291
+      }
+    ],
+    "delta": {
+      "cycles": 70602754,
+      "instructions": 237741987,
+      "user_time_ns": 42010833,
+      "system_time_ns": 163583
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "digest",
+    "arm": "always",
+    "samples": [
+      {
+        "cycles": 55929560,
+        "instructions": 123299210,
+        "user_time_ns": 18265166,
+        "system_time_ns": 179208
+      },
+      {
+        "cycles": 123414951,
+        "instructions": 246600745,
+        "user_time_ns": 61480125,
+        "system_time_ns": 833791
+      }
+    ],
+    "delta": {
+      "cycles": 67485391,
+      "instructions": 123301535,
+      "user_time_ns": 43214959,
+      "system_time_ns": 654583
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "digest",
+    "arm": "small",
+    "samples": [
+      {
+        "cycles": 55862145,
+        "instructions": 124028717,
+        "user_time_ns": 27675916,
+        "system_time_ns": 326375
+      },
+      {
+        "cycles": 117159034,
+        "instructions": 249054463,
+        "user_time_ns": 43848125,
+        "system_time_ns": 1741750
+      }
+    ],
+    "delta": {
+      "cycles": 61296889,
+      "instructions": 125025746,
+      "user_time_ns": 16172209,
+      "system_time_ns": 1415375
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "digest",
+    "arm": "fixed",
+    "samples": [
+      {
+        "cycles": 58346694,
+        "instructions": 123704719,
+        "user_time_ns": 21985625,
+        "system_time_ns": 637000
+      },
+      {
+        "cycles": 111699053,
+        "instructions": 245663335,
+        "user_time_ns": 39321666,
+        "system_time_ns": 641958
+      }
+    ],
+    "delta": {
+      "cycles": 53352359,
+      "instructions": 121958616,
+      "user_time_ns": 17336041,
+      "system_time_ns": 4958
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "digest",
+    "arm": "inline",
+    "samples": [
+      {
+        "cycles": 61502999,
+        "instructions": 124641845,
+        "user_time_ns": 22219416,
+        "system_time_ns": 1186500
+      },
+      {
+        "cycles": 111306845,
+        "instructions": 245603798,
+        "user_time_ns": 37294958,
+        "system_time_ns": 231166
+      }
+    ],
+    "delta": {
+      "cycles": 49803846,
+      "instructions": 120961953,
+      "user_time_ns": 15075542,
+      "system_time_ns": -955334
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 1,
+    "kind": "digest",
+    "arm": "baseline",
+    "samples": [
+      {
+        "cycles": 56544095,
+        "instructions": 123478110,
+        "user_time_ns": 24024958,
+        "system_time_ns": 252541
+      },
+      {
+        "cycles": 116378421,
+        "instructions": 245513979,
+        "user_time_ns": 38454541,
+        "system_time_ns": 210000
+      }
+    ],
+    "delta": {
+      "cycles": 59834326,
+      "instructions": 122035869,
+      "user_time_ns": 14429583,
+      "system_time_ns": -42541
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "scope",
+    "arm": "arithmetic",
+    "samples": [
+      {
+        "cycles": 75263365,
+        "instructions": 250082234,
+        "user_time_ns": 36596208,
+        "system_time_ns": 425666
+      },
+      {
+        "cycles": 150362245,
+        "instructions": 495303181,
+        "user_time_ns": 58138458,
+        "system_time_ns": 378333
+      }
+    ],
+    "delta": {
+      "cycles": 75098880,
+      "instructions": 245220947,
+      "user_time_ns": 21542250,
+      "system_time_ns": -47333
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "scope",
+    "arm": "stack",
+    "samples": [
+      {
+        "cycles": 108197040,
+        "instructions": 277463031,
+        "user_time_ns": 43890875,
+        "system_time_ns": 1233875
+      },
+      {
+        "cycles": 168573031,
+        "instructions": 547958599,
+        "user_time_ns": 61973916,
+        "system_time_ns": 392541
+      }
+    ],
+    "delta": {
+      "cycles": 60375991,
+      "instructions": 270495568,
+      "user_time_ns": 18083041,
+      "system_time_ns": -841334
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "scope",
+    "arm": "nibble",
+    "samples": [
+      {
+        "cycles": 99434135,
+        "instructions": 247279156,
+        "user_time_ns": 43324916,
+        "system_time_ns": 975000
+      },
+      {
+        "cycles": 162484599,
+        "instructions": 488728738,
+        "user_time_ns": 57972708,
+        "system_time_ns": 684708
+      }
+    ],
+    "delta": {
+      "cycles": 63050464,
+      "instructions": 241449582,
+      "user_time_ns": 14647792,
+      "system_time_ns": -290292
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "scope",
+    "arm": "extend",
+    "samples": [
+      {
+        "cycles": 77069065,
+        "instructions": 261271210,
+        "user_time_ns": 25403416,
+        "system_time_ns": 102958
+      },
+      {
+        "cycles": 155539297,
+        "instructions": 518942029,
+        "user_time_ns": 70253583,
+        "system_time_ns": 538875
+      }
+    ],
+    "delta": {
+      "cycles": 78470232,
+      "instructions": 257670819,
+      "user_time_ns": 44850167,
+      "system_time_ns": 435917
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "scope",
+    "arm": "text",
+    "samples": [
+      {
+        "cycles": 84305136,
+        "instructions": 240697949,
+        "user_time_ns": 37973375,
+        "system_time_ns": 1154166
+      },
+      {
+        "cycles": 146498705,
+        "instructions": 475287763,
+        "user_time_ns": 61327125,
+        "system_time_ns": 785041
+      }
+    ],
+    "delta": {
+      "cycles": 62193569,
+      "instructions": 234589814,
+      "user_time_ns": 23353750,
+      "system_time_ns": -369125
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "scope",
+    "arm": "always",
+    "samples": [
+      {
+        "cycles": 80544961,
+        "instructions": 242985951,
+        "user_time_ns": 29619500,
+        "system_time_ns": 1147083
+      },
+      {
+        "cycles": 150140979,
+        "instructions": 480303503,
+        "user_time_ns": 61752166,
+        "system_time_ns": 914625
+      }
+    ],
+    "delta": {
+      "cycles": 69596018,
+      "instructions": 237317552,
+      "user_time_ns": 32132666,
+      "system_time_ns": -232458
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "scope",
+    "arm": "pairs",
+    "samples": [
+      {
+        "cycles": 77706259,
+        "instructions": 264218417,
+        "user_time_ns": 25433208,
+        "system_time_ns": 176666
+      },
+      {
+        "cycles": 155026201,
+        "instructions": 524481612,
+        "user_time_ns": 63944500,
+        "system_time_ns": 320666
+      }
+    ],
+    "delta": {
+      "cycles": 77319942,
+      "instructions": 260263195,
+      "user_time_ns": 38511292,
+      "system_time_ns": 144000
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "scope",
+    "arm": "bytes",
+    "samples": [
+      {
+        "cycles": 83478397,
+        "instructions": 269548222,
+        "user_time_ns": 27348666,
+        "system_time_ns": 232416
+      },
+      {
+        "cycles": 172478209,
+        "instructions": 535931527,
+        "user_time_ns": 72418416,
+        "system_time_ns": 785083
+      }
+    ],
+    "delta": {
+      "cycles": 88999812,
+      "instructions": 266383305,
+      "user_time_ns": 45069750,
+      "system_time_ns": 552667
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "scope",
+    "arm": "small",
+    "samples": [
+      {
+        "cycles": 88279443,
+        "instructions": 247862179,
+        "user_time_ns": 32114041,
+        "system_time_ns": 466541
+      },
+      {
+        "cycles": 159902192,
+        "instructions": 491024262,
+        "user_time_ns": 53370625,
+        "system_time_ns": 396583
+      }
+    ],
+    "delta": {
+      "cycles": 71622749,
+      "instructions": 243162083,
+      "user_time_ns": 21256584,
+      "system_time_ns": -69958
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "scope",
+    "arm": "fixed",
+    "samples": [
+      {
+        "cycles": 83371770,
+        "instructions": 246928398,
+        "user_time_ns": 37352791,
+        "system_time_ns": 471458
+      },
+      {
+        "cycles": 162665611,
+        "instructions": 489843174,
+        "user_time_ns": 67042458,
+        "system_time_ns": 806583
+      }
+    ],
+    "delta": {
+      "cycles": 79293841,
+      "instructions": 242914776,
+      "user_time_ns": 29689667,
+      "system_time_ns": 335125
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "scope",
+    "arm": "inline",
+    "samples": [
+      {
+        "cycles": 79717084,
+        "instructions": 243703951,
+        "user_time_ns": 29287875,
+        "system_time_ns": 1195875
+      },
+      {
+        "cycles": 152902868,
+        "instructions": 482594536,
+        "user_time_ns": 54736875,
+        "system_time_ns": 1719958
+      }
+    ],
+    "delta": {
+      "cycles": 73185784,
+      "instructions": 238890585,
+      "user_time_ns": 25449000,
+      "system_time_ns": 524083
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "scope",
+    "arm": "baseline",
+    "samples": [
+      {
+        "cycles": 78665326,
+        "instructions": 242208496,
+        "user_time_ns": 28178958,
+        "system_time_ns": 461333
+      },
+      {
+        "cycles": 148784409,
+        "instructions": 479533615,
+        "user_time_ns": 66431166,
+        "system_time_ns": 308833
+      }
+    ],
+    "delta": {
+      "cycles": 70119083,
+      "instructions": 237325119,
+      "user_time_ns": 38252208,
+      "system_time_ns": -152500
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "digest",
+    "arm": "always",
+    "samples": [
+      {
+        "cycles": 55514883,
+        "instructions": 123301146,
+        "user_time_ns": 18430208,
+        "system_time_ns": 163041
+      },
+      {
+        "cycles": 110038405,
+        "instructions": 245327064,
+        "user_time_ns": 36128000,
+        "system_time_ns": 116375
+      }
+    ],
+    "delta": {
+      "cycles": 54523522,
+      "instructions": 122025918,
+      "user_time_ns": 17697792,
+      "system_time_ns": -46666
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "digest",
+    "arm": "small",
+    "samples": [
+      {
+        "cycles": 57341544,
+        "instructions": 124329681,
+        "user_time_ns": 32905458,
+        "system_time_ns": 477041
+      },
+      {
+        "cycles": 111365477,
+        "instructions": 246754833,
+        "user_time_ns": 45581125,
+        "system_time_ns": 187416
+      }
+    ],
+    "delta": {
+      "cycles": 54023933,
+      "instructions": 122425152,
+      "user_time_ns": 12675667,
+      "system_time_ns": -289625
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "digest",
+    "arm": "fixed",
+    "samples": [
+      {
+        "cycles": 57356180,
+        "instructions": 123285269,
+        "user_time_ns": 19246416,
+        "system_time_ns": 332708
+      },
+      {
+        "cycles": 117011083,
+        "instructions": 245554903,
+        "user_time_ns": 70180250,
+        "system_time_ns": 726291
+      }
+    ],
+    "delta": {
+      "cycles": 59654903,
+      "instructions": 122269634,
+      "user_time_ns": 50933834,
+      "system_time_ns": 393583
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "digest",
+    "arm": "inline",
+    "samples": [
+      {
+        "cycles": 64101521,
+        "instructions": 123389093,
+        "user_time_ns": 20934333,
+        "system_time_ns": 184625
+      },
+      {
+        "cycles": 114416823,
+        "instructions": 245856818,
+        "user_time_ns": 50107416,
+        "system_time_ns": 442458
+      }
+    ],
+    "delta": {
+      "cycles": 50315302,
+      "instructions": 122467725,
+      "user_time_ns": 29173083,
+      "system_time_ns": 257833
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 2,
+    "kind": "digest",
+    "arm": "baseline",
+    "samples": [
+      {
+        "cycles": 55592062,
+        "instructions": 123219224,
+        "user_time_ns": 18133666,
+        "system_time_ns": 109375
+      },
+      {
+        "cycles": 112202678,
+        "instructions": 245944689,
+        "user_time_ns": 43057666,
+        "system_time_ns": 388625
+      }
+    ],
+    "delta": {
+      "cycles": 56610616,
+      "instructions": 122725465,
+      "user_time_ns": 24924000,
+      "system_time_ns": 279250
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "digest",
+    "arm": "baseline",
+    "samples": [
+      {
+        "cycles": 55239413,
+        "instructions": 123164343,
+        "user_time_ns": 21454291,
+        "system_time_ns": 133416
+      },
+      {
+        "cycles": 113665424,
+        "instructions": 246114988,
+        "user_time_ns": 49096291,
+        "system_time_ns": 475750
+      }
+    ],
+    "delta": {
+      "cycles": 58426011,
+      "instructions": 122950645,
+      "user_time_ns": 27642000,
+      "system_time_ns": 342334
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "digest",
+    "arm": "inline",
+    "samples": [
+      {
+        "cycles": 56235880,
+        "instructions": 123437003,
+        "user_time_ns": 18935375,
+        "system_time_ns": 284500
+      },
+      {
+        "cycles": 120316042,
+        "instructions": 246324618,
+        "user_time_ns": 66958875,
+        "system_time_ns": 980958
+      }
+    ],
+    "delta": {
+      "cycles": 64080162,
+      "instructions": 122887615,
+      "user_time_ns": 48023500,
+      "system_time_ns": 696458
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "digest",
+    "arm": "fixed",
+    "samples": [
+      {
+        "cycles": 56739964,
+        "instructions": 122942373,
+        "user_time_ns": 26295625,
+        "system_time_ns": 234541
+      },
+      {
+        "cycles": 113239596,
+        "instructions": 245749862,
+        "user_time_ns": 38029583,
+        "system_time_ns": 580250
+      }
+    ],
+    "delta": {
+      "cycles": 56499632,
+      "instructions": 122807489,
+      "user_time_ns": 11733958,
+      "system_time_ns": 345709
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "digest",
+    "arm": "small",
+    "samples": [
+      {
+        "cycles": 57170909,
+        "instructions": 124775994,
+        "user_time_ns": 18409416,
+        "system_time_ns": 432250
+      },
+      {
+        "cycles": 123184238,
+        "instructions": 248742351,
+        "user_time_ns": 46032500,
+        "system_time_ns": 1287583
+      }
+    ],
+    "delta": {
+      "cycles": 66013329,
+      "instructions": 123966357,
+      "user_time_ns": 27623084,
+      "system_time_ns": 855333
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "digest",
+    "arm": "always",
+    "samples": [
+      {
+        "cycles": 56195001,
+        "instructions": 123375974,
+        "user_time_ns": 21000458,
+        "system_time_ns": 173541
+      },
+      {
+        "cycles": 116184556,
+        "instructions": 245873582,
+        "user_time_ns": 46137250,
+        "system_time_ns": 410833
+      }
+    ],
+    "delta": {
+      "cycles": 59989555,
+      "instructions": 122497608,
+      "user_time_ns": 25136792,
+      "system_time_ns": 237292
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "scope",
+    "arm": "baseline",
+    "samples": [
+      {
+        "cycles": 75506113,
+        "instructions": 241948097,
+        "user_time_ns": 35694250,
+        "system_time_ns": 301166
+      },
+      {
+        "cycles": 151835482,
+        "instructions": 480114106,
+        "user_time_ns": 75306708,
+        "system_time_ns": 619875
+      }
+    ],
+    "delta": {
+      "cycles": 76329369,
+      "instructions": 238166009,
+      "user_time_ns": 39612458,
+      "system_time_ns": 318709
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "scope",
+    "arm": "inline",
+    "samples": [
+      {
+        "cycles": 74024619,
+        "instructions": 241840796,
+        "user_time_ns": 24228791,
+        "system_time_ns": 153375
+      },
+      {
+        "cycles": 151585925,
+        "instructions": 480929582,
+        "user_time_ns": 76572625,
+        "system_time_ns": 725458
+      }
+    ],
+    "delta": {
+      "cycles": 77561306,
+      "instructions": 239088786,
+      "user_time_ns": 52343834,
+      "system_time_ns": 572083
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "scope",
+    "arm": "fixed",
+    "samples": [
+      {
+        "cycles": 80026299,
+        "instructions": 246749878,
+        "user_time_ns": 27923583,
+        "system_time_ns": 243500
+      },
+      {
+        "cycles": 163787174,
+        "instructions": 490312485,
+        "user_time_ns": 78262083,
+        "system_time_ns": 867583
+      }
+    ],
+    "delta": {
+      "cycles": 83760875,
+      "instructions": 243562607,
+      "user_time_ns": 50338500,
+      "system_time_ns": 624083
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "scope",
+    "arm": "small",
+    "samples": [
+      {
+        "cycles": 79699071,
+        "instructions": 247403786,
+        "user_time_ns": 26145916,
+        "system_time_ns": 129833
+      },
+      {
+        "cycles": 163139386,
+        "instructions": 491628230,
+        "user_time_ns": 92701500,
+        "system_time_ns": 789541
+      }
+    ],
+    "delta": {
+      "cycles": 83440315,
+      "instructions": 244224444,
+      "user_time_ns": 66555584,
+      "system_time_ns": 659708
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "scope",
+    "arm": "bytes",
+    "samples": [
+      {
+        "cycles": 85710772,
+        "instructions": 270293530,
+        "user_time_ns": 31601666,
+        "system_time_ns": 537125
+      },
+      {
+        "cycles": 170429151,
+        "instructions": 536639763,
+        "user_time_ns": 62975916,
+        "system_time_ns": 1080291
+      }
+    ],
+    "delta": {
+      "cycles": 84718379,
+      "instructions": 266346233,
+      "user_time_ns": 31374250,
+      "system_time_ns": 543166
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "scope",
+    "arm": "pairs",
+    "samples": [
+      {
+        "cycles": 80892020,
+        "instructions": 265372406,
+        "user_time_ns": 43728041,
+        "system_time_ns": 822916
+      },
+      {
+        "cycles": 160367711,
+        "instructions": 526992986,
+        "user_time_ns": 59716625,
+        "system_time_ns": 1582333
+      }
+    ],
+    "delta": {
+      "cycles": 79475691,
+      "instructions": 261620580,
+      "user_time_ns": 15988584,
+      "system_time_ns": 759417
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "scope",
+    "arm": "always",
+    "samples": [
+      {
+        "cycles": 79496703,
+        "instructions": 242302100,
+        "user_time_ns": 36796500,
+        "system_time_ns": 612291
+      },
+      {
+        "cycles": 150186396,
+        "instructions": 479565724,
+        "user_time_ns": 79275375,
+        "system_time_ns": 459625
+      }
+    ],
+    "delta": {
+      "cycles": 70689693,
+      "instructions": 237263624,
+      "user_time_ns": 42478875,
+      "system_time_ns": -152666
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "scope",
+    "arm": "text",
+    "samples": [
+      {
+        "cycles": 74422952,
+        "instructions": 239693361,
+        "user_time_ns": 50059416,
+        "system_time_ns": 450625
+      },
+      {
+        "cycles": 142946611,
+        "instructions": 474209896,
+        "user_time_ns": 46959041,
+        "system_time_ns": 158333
+      }
+    ],
+    "delta": {
+      "cycles": 68523659,
+      "instructions": 234516535,
+      "user_time_ns": -3100375,
+      "system_time_ns": -292292
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "scope",
+    "arm": "extend",
+    "samples": [
+      {
+        "cycles": 89804566,
+        "instructions": 263299435,
+        "user_time_ns": 45031333,
+        "system_time_ns": 1210583
+      },
+      {
+        "cycles": 158264528,
+        "instructions": 519729149,
+        "user_time_ns": 61503791,
+        "system_time_ns": 629000
+      }
+    ],
+    "delta": {
+      "cycles": 68459962,
+      "instructions": 256429714,
+      "user_time_ns": 16472458,
+      "system_time_ns": -581583
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "scope",
+    "arm": "nibble",
+    "samples": [
+      {
+        "cycles": 79255753,
+        "instructions": 245977240,
+        "user_time_ns": 34511583,
+        "system_time_ns": 132916
+      },
+      {
+        "cycles": 159829418,
+        "instructions": 488699998,
+        "user_time_ns": 94912708,
+        "system_time_ns": 702375
+      }
+    ],
+    "delta": {
+      "cycles": 80573665,
+      "instructions": 242722758,
+      "user_time_ns": 60401125,
+      "system_time_ns": 569459
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "scope",
+    "arm": "stack",
+    "samples": [
+      {
+        "cycles": 82098442,
+        "instructions": 275818227,
+        "user_time_ns": 29208083,
+        "system_time_ns": 101458
+      },
+      {
+        "cycles": 174510763,
+        "instructions": 548460269,
+        "user_time_ns": 119492750,
+        "system_time_ns": 752625
+      }
+    ],
+    "delta": {
+      "cycles": 92412321,
+      "instructions": 272642042,
+      "user_time_ns": 90284667,
+      "system_time_ns": 651167
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 3,
+    "kind": "scope",
+    "arm": "arithmetic",
+    "samples": [
+      {
+        "cycles": 75696810,
+        "instructions": 249802658,
+        "user_time_ns": 24924916,
+        "system_time_ns": 238166
+      },
+      {
+        "cycles": 144288924,
+        "instructions": 495019947,
+        "user_time_ns": 54173291,
+        "system_time_ns": 180583
+      }
+    ],
+    "delta": {
+      "cycles": 68592114,
+      "instructions": 245217289,
+      "user_time_ns": 29248375,
+      "system_time_ns": -57583
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "digest",
+    "arm": "baseline",
+    "samples": [
+      {
+        "cycles": 55475914,
+        "instructions": 123279500,
+        "user_time_ns": 18481916,
+        "system_time_ns": 146125
+      },
+      {
+        "cycles": 110560701,
+        "instructions": 245601838,
+        "user_time_ns": 49337333,
+        "system_time_ns": 275583
+      }
+    ],
+    "delta": {
+      "cycles": 55084787,
+      "instructions": 122322338,
+      "user_time_ns": 30855417,
+      "system_time_ns": 129458
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "digest",
+    "arm": "inline",
+    "samples": [
+      {
+        "cycles": 59009105,
+        "instructions": 123987687,
+        "user_time_ns": 32191291,
+        "system_time_ns": 511541
+      },
+      {
+        "cycles": 113190691,
+        "instructions": 246139643,
+        "user_time_ns": 81082458,
+        "system_time_ns": 574083
+      }
+    ],
+    "delta": {
+      "cycles": 54181586,
+      "instructions": 122151956,
+      "user_time_ns": 48891167,
+      "system_time_ns": 62542
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "digest",
+    "arm": "fixed",
+    "samples": [
+      {
+        "cycles": 55691121,
+        "instructions": 123037720,
+        "user_time_ns": 32608041,
+        "system_time_ns": 238583
+      },
+      {
+        "cycles": 111160100,
+        "instructions": 245078778,
+        "user_time_ns": 54149875,
+        "system_time_ns": 380958
+      }
+    ],
+    "delta": {
+      "cycles": 55468979,
+      "instructions": 122041058,
+      "user_time_ns": 21541834,
+      "system_time_ns": 142375
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "digest",
+    "arm": "small",
+    "samples": [
+      {
+        "cycles": 56240176,
+        "instructions": 123940593,
+        "user_time_ns": 27175500,
+        "system_time_ns": 183791
+      },
+      {
+        "cycles": 110025127,
+        "instructions": 246586402,
+        "user_time_ns": 44440541,
+        "system_time_ns": 117125
+      }
+    ],
+    "delta": {
+      "cycles": 53784951,
+      "instructions": 122645809,
+      "user_time_ns": 17265041,
+      "system_time_ns": -66666
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "digest",
+    "arm": "always",
+    "samples": [
+      {
+        "cycles": 56931920,
+        "instructions": 123263411,
+        "user_time_ns": 18694958,
+        "system_time_ns": 144000
+      },
+      {
+        "cycles": 110433323,
+        "instructions": 245393105,
+        "user_time_ns": 52633958,
+        "system_time_ns": 143083
+      }
+    ],
+    "delta": {
+      "cycles": 53501403,
+      "instructions": 122129694,
+      "user_time_ns": 33939000,
+      "system_time_ns": -917
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "scope",
+    "arm": "baseline",
+    "samples": [
+      {
+        "cycles": 77533759,
+        "instructions": 242589990,
+        "user_time_ns": 40932916,
+        "system_time_ns": 676458
+      },
+      {
+        "cycles": 149429130,
+        "instructions": 479669964,
+        "user_time_ns": 52960041,
+        "system_time_ns": 454833
+      }
+    ],
+    "delta": {
+      "cycles": 71895371,
+      "instructions": 237079974,
+      "user_time_ns": 12027125,
+      "system_time_ns": -221625
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "scope",
+    "arm": "inline",
+    "samples": [
+      {
+        "cycles": 73536589,
+        "instructions": 241686689,
+        "user_time_ns": 24858583,
+        "system_time_ns": 80041
+      },
+      {
+        "cycles": 152806360,
+        "instructions": 480636826,
+        "user_time_ns": 78112458,
+        "system_time_ns": 1080916
+      }
+    ],
+    "delta": {
+      "cycles": 79269771,
+      "instructions": 238950137,
+      "user_time_ns": 53253875,
+      "system_time_ns": 1000875
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "scope",
+    "arm": "fixed",
+    "samples": [
+      {
+        "cycles": 81046356,
+        "instructions": 246727063,
+        "user_time_ns": 26574000,
+        "system_time_ns": 290875
+      },
+      {
+        "cycles": 167247115,
+        "instructions": 490380593,
+        "user_time_ns": 118390791,
+        "system_time_ns": 1221250
+      }
+    ],
+    "delta": {
+      "cycles": 86200759,
+      "instructions": 243653530,
+      "user_time_ns": 91816791,
+      "system_time_ns": 930375
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "scope",
+    "arm": "small",
+    "samples": [
+      {
+        "cycles": 82325003,
+        "instructions": 248038710,
+        "user_time_ns": 27660333,
+        "system_time_ns": 339000
+      },
+      {
+        "cycles": 163198354,
+        "instructions": 491611221,
+        "user_time_ns": 118725958,
+        "system_time_ns": 716750
+      }
+    ],
+    "delta": {
+      "cycles": 80873351,
+      "instructions": 243572511,
+      "user_time_ns": 91065625,
+      "system_time_ns": 377750
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "scope",
+    "arm": "bytes",
+    "samples": [
+      {
+        "cycles": 100440333,
+        "instructions": 271635052,
+        "user_time_ns": 49566958,
+        "system_time_ns": 1615166
+      },
+      {
+        "cycles": 169014499,
+        "instructions": 536100652,
+        "user_time_ns": 102811000,
+        "system_time_ns": 947625
+      }
+    ],
+    "delta": {
+      "cycles": 68574166,
+      "instructions": 264465600,
+      "user_time_ns": 53244042,
+      "system_time_ns": -667541
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "scope",
+    "arm": "pairs",
+    "samples": [
+      {
+        "cycles": 79894645,
+        "instructions": 264804574,
+        "user_time_ns": 33626875,
+        "system_time_ns": 539583
+      },
+      {
+        "cycles": 158115409,
+        "instructions": 525253462,
+        "user_time_ns": 52207625,
+        "system_time_ns": 777375
+      }
+    ],
+    "delta": {
+      "cycles": 78220764,
+      "instructions": 260448888,
+      "user_time_ns": 18580750,
+      "system_time_ns": 237792
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "scope",
+    "arm": "always",
+    "samples": [
+      {
+        "cycles": 78509876,
+        "instructions": 243086536,
+        "user_time_ns": 33370541,
+        "system_time_ns": 1000125
+      },
+      {
+        "cycles": 153792219,
+        "instructions": 480461071,
+        "user_time_ns": 51481833,
+        "system_time_ns": 1210666
+      }
+    ],
+    "delta": {
+      "cycles": 75282343,
+      "instructions": 237374535,
+      "user_time_ns": 18111292,
+      "system_time_ns": 210541
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "scope",
+    "arm": "text",
+    "samples": [
+      {
+        "cycles": 74436036,
+        "instructions": 240159284,
+        "user_time_ns": 24749833,
+        "system_time_ns": 590916
+      },
+      {
+        "cycles": 148825874,
+        "instructions": 475690990,
+        "user_time_ns": 62250375,
+        "system_time_ns": 1152875
+      }
+    ],
+    "delta": {
+      "cycles": 74389838,
+      "instructions": 235531706,
+      "user_time_ns": 37500542,
+      "system_time_ns": 561959
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "scope",
+    "arm": "extend",
+    "samples": [
+      {
+        "cycles": 79654243,
+        "instructions": 261769384,
+        "user_time_ns": 44530125,
+        "system_time_ns": 388333
+      },
+      {
+        "cycles": 158718574,
+        "instructions": 519315619,
+        "user_time_ns": 112915458,
+        "system_time_ns": 730833
+      }
+    ],
+    "delta": {
+      "cycles": 79064331,
+      "instructions": 257546235,
+      "user_time_ns": 68385333,
+      "system_time_ns": 342500
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "scope",
+    "arm": "nibble",
+    "samples": [
+      {
+        "cycles": 83897747,
+        "instructions": 248503205,
+        "user_time_ns": 27501875,
+        "system_time_ns": 999125
+      },
+      {
+        "cycles": 162564237,
+        "instructions": 490434662,
+        "user_time_ns": 53885750,
+        "system_time_ns": 1150458
+      }
+    ],
+    "delta": {
+      "cycles": 78666490,
+      "instructions": 241931457,
+      "user_time_ns": 26383875,
+      "system_time_ns": 151333
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "scope",
+    "arm": "stack",
+    "samples": [
+      {
+        "cycles": 86711782,
+        "instructions": 278128409,
+        "user_time_ns": 31814458,
+        "system_time_ns": 1003458
+      },
+      {
+        "cycles": 168678693,
+        "instructions": 548548110,
+        "user_time_ns": 106869916,
+        "system_time_ns": 822625
+      }
+    ],
+    "delta": {
+      "cycles": 81966911,
+      "instructions": 270419701,
+      "user_time_ns": 75055458,
+      "system_time_ns": -180833
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 4,
+    "kind": "scope",
+    "arm": "arithmetic",
+    "samples": [
+      {
+        "cycles": 75699236,
+        "instructions": 249565085,
+        "user_time_ns": 55938041,
+        "system_time_ns": 163500
+      },
+      {
+        "cycles": 144327528,
+        "instructions": 495297713,
+        "user_time_ns": 101870666,
+        "system_time_ns": 419833
+      }
+    ],
+    "delta": {
+      "cycles": 68628292,
+      "instructions": 245732628,
+      "user_time_ns": 45932625,
+      "system_time_ns": 256333
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "scope",
+    "arm": "arithmetic",
+    "samples": [
+      {
+        "cycles": 84743872,
+        "instructions": 252365395,
+        "user_time_ns": 46899625,
+        "system_time_ns": 2003041
+      },
+      {
+        "cycles": 148863836,
+        "instructions": 495891491,
+        "user_time_ns": 92524458,
+        "system_time_ns": 810166
+      }
+    ],
+    "delta": {
+      "cycles": 64119964,
+      "instructions": 243526096,
+      "user_time_ns": 45624833,
+      "system_time_ns": -1192875
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "scope",
+    "arm": "stack",
+    "samples": [
+      {
+        "cycles": 91637090,
+        "instructions": 276878270,
+        "user_time_ns": 50216500,
+        "system_time_ns": 853083
+      },
+      {
+        "cycles": 175881687,
+        "instructions": 548607993,
+        "user_time_ns": 79061166,
+        "system_time_ns": 833500
+      }
+    ],
+    "delta": {
+      "cycles": 84244597,
+      "instructions": 271729723,
+      "user_time_ns": 28844666,
+      "system_time_ns": -19583
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "scope",
+    "arm": "nibble",
+    "samples": [
+      {
+        "cycles": 84026247,
+        "instructions": 247313457,
+        "user_time_ns": 39108208,
+        "system_time_ns": 897291
+      },
+      {
+        "cycles": 159004753,
+        "instructions": 488124629,
+        "user_time_ns": 90068875,
+        "system_time_ns": 441500
+      }
+    ],
+    "delta": {
+      "cycles": 74978506,
+      "instructions": 240811172,
+      "user_time_ns": 50960667,
+      "system_time_ns": -455791
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "scope",
+    "arm": "extend",
+    "samples": [
+      {
+        "cycles": 77388845,
+        "instructions": 261344553,
+        "user_time_ns": 50559750,
+        "system_time_ns": 204333
+      },
+      {
+        "cycles": 154187080,
+        "instructions": 518485155,
+        "user_time_ns": 85290625,
+        "system_time_ns": 204666
+      }
+    ],
+    "delta": {
+      "cycles": 76798235,
+      "instructions": 257140602,
+      "user_time_ns": 34730875,
+      "system_time_ns": 333
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "scope",
+    "arm": "text",
+    "samples": [
+      {
+        "cycles": 74575882,
+        "instructions": 239607670,
+        "user_time_ns": 44636750,
+        "system_time_ns": 437250
+      },
+      {
+        "cycles": 142743450,
+        "instructions": 474237829,
+        "user_time_ns": 82971375,
+        "system_time_ns": 191208
+      }
+    ],
+    "delta": {
+      "cycles": 68167568,
+      "instructions": 234630159,
+      "user_time_ns": 38334625,
+      "system_time_ns": -246042
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "scope",
+    "arm": "always",
+    "samples": [
+      {
+        "cycles": 75677961,
+        "instructions": 241930170,
+        "user_time_ns": 44637041,
+        "system_time_ns": 313666
+      },
+      {
+        "cycles": 147345751,
+        "instructions": 479099341,
+        "user_time_ns": 51323291,
+        "system_time_ns": 120833
+      }
+    ],
+    "delta": {
+      "cycles": 71667790,
+      "instructions": 237169171,
+      "user_time_ns": 6686250,
+      "system_time_ns": -192833
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "scope",
+    "arm": "pairs",
+    "samples": [
+      {
+        "cycles": 81181830,
+        "instructions": 264901741,
+        "user_time_ns": 51168041,
+        "system_time_ns": 664958
+      },
+      {
+        "cycles": 159017114,
+        "instructions": 525014482,
+        "user_time_ns": 88701333,
+        "system_time_ns": 774333
+      }
+    ],
+    "delta": {
+      "cycles": 77835284,
+      "instructions": 260112741,
+      "user_time_ns": 37533292,
+      "system_time_ns": 109375
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "scope",
+    "arm": "bytes",
+    "samples": [
+      {
+        "cycles": 84449670,
+        "instructions": 269789951,
+        "user_time_ns": 47459708,
+        "system_time_ns": 329333
+      },
+      {
+        "cycles": 169280044,
+        "instructions": 535756513,
+        "user_time_ns": 93041041,
+        "system_time_ns": 664125
+      }
+    ],
+    "delta": {
+      "cycles": 84830374,
+      "instructions": 265966562,
+      "user_time_ns": 45581333,
+      "system_time_ns": 334792
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "scope",
+    "arm": "small",
+    "samples": [
+      {
+        "cycles": 80198843,
+        "instructions": 247666457,
+        "user_time_ns": 43715541,
+        "system_time_ns": 303291
+      },
+      {
+        "cycles": 162746999,
+        "instructions": 492365242,
+        "user_time_ns": 58397708,
+        "system_time_ns": 896958
+      }
+    ],
+    "delta": {
+      "cycles": 82548156,
+      "instructions": 244698785,
+      "user_time_ns": 14682167,
+      "system_time_ns": 593667
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "scope",
+    "arm": "fixed",
+    "samples": [
+      {
+        "cycles": 103431380,
+        "instructions": 248371908,
+        "user_time_ns": 33413458,
+        "system_time_ns": 935125
+      },
+      {
+        "cycles": 164696544,
+        "instructions": 491530295,
+        "user_time_ns": 53451458,
+        "system_time_ns": 1381333
+      }
+    ],
+    "delta": {
+      "cycles": 61265164,
+      "instructions": 243158387,
+      "user_time_ns": 20038000,
+      "system_time_ns": 446208
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "scope",
+    "arm": "inline",
+    "samples": [
+      {
+        "cycles": 81187977,
+        "instructions": 245006146,
+        "user_time_ns": 26057291,
+        "system_time_ns": 1664500
+      },
+      {
+        "cycles": 157669689,
+        "instructions": 485171930,
+        "user_time_ns": 49797166,
+        "system_time_ns": 2737375
+      }
+    ],
+    "delta": {
+      "cycles": 76481712,
+      "instructions": 240165784,
+      "user_time_ns": 23739875,
+      "system_time_ns": 1072875
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "scope",
+    "arm": "baseline",
+    "samples": [
+      {
+        "cycles": 76605658,
+        "instructions": 243187355,
+        "user_time_ns": 24551500,
+        "system_time_ns": 782541
+      },
+      {
+        "cycles": 156741105,
+        "instructions": 484706342,
+        "user_time_ns": 49524041,
+        "system_time_ns": 2459708
+      }
+    ],
+    "delta": {
+      "cycles": 80135447,
+      "instructions": 241518987,
+      "user_time_ns": 24972541,
+      "system_time_ns": 1677167
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "digest",
+    "arm": "always",
+    "samples": [
+      {
+        "cycles": 59400791,
+        "instructions": 124600370,
+        "user_time_ns": 19596083,
+        "system_time_ns": 719458
+      },
+      {
+        "cycles": 112762118,
+        "instructions": 246284472,
+        "user_time_ns": 37529833,
+        "system_time_ns": 514708
+      }
+    ],
+    "delta": {
+      "cycles": 53361327,
+      "instructions": 121684102,
+      "user_time_ns": 17933750,
+      "system_time_ns": -204750
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "digest",
+    "arm": "small",
+    "samples": [
+      {
+        "cycles": 57156285,
+        "instructions": 124517740,
+        "user_time_ns": 18611416,
+        "system_time_ns": 434583
+      },
+      {
+        "cycles": 113270406,
+        "instructions": 248196372,
+        "user_time_ns": 36860833,
+        "system_time_ns": 632500
+      }
+    ],
+    "delta": {
+      "cycles": 56114121,
+      "instructions": 123678632,
+      "user_time_ns": 18249417,
+      "system_time_ns": 197917
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "digest",
+    "arm": "fixed",
+    "samples": [
+      {
+        "cycles": 56369450,
+        "instructions": 123676430,
+        "user_time_ns": 34423333,
+        "system_time_ns": 411666
+      },
+      {
+        "cycles": 115697040,
+        "instructions": 247474090,
+        "user_time_ns": 37946083,
+        "system_time_ns": 1183250
+      }
+    ],
+    "delta": {
+      "cycles": 59327590,
+      "instructions": 123797660,
+      "user_time_ns": 3522750,
+      "system_time_ns": 771584
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "digest",
+    "arm": "inline",
+    "samples": [
+      {
+        "cycles": 57944916,
+        "instructions": 123845431,
+        "user_time_ns": 19131791,
+        "system_time_ns": 399625
+      },
+      {
+        "cycles": 119468077,
+        "instructions": 247147530,
+        "user_time_ns": 41938333,
+        "system_time_ns": 874833
+      }
+    ],
+    "delta": {
+      "cycles": 61523161,
+      "instructions": 123302099,
+      "user_time_ns": 22806542,
+      "system_time_ns": 475208
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 5,
+    "kind": "digest",
+    "arm": "baseline",
+    "samples": [
+      {
+        "cycles": 56021189,
+        "instructions": 123737987,
+        "user_time_ns": 45903458,
+        "system_time_ns": 345875
+      },
+      {
+        "cycles": 113853338,
+        "instructions": 246302804,
+        "user_time_ns": 40507458,
+        "system_time_ns": 444625
+      }
+    ],
+    "delta": {
+      "cycles": 57832149,
+      "instructions": 122564817,
+      "user_time_ns": -5396000,
+      "system_time_ns": 98750
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "scope",
+    "arm": "arithmetic",
+    "samples": [
+      {
+        "cycles": 74463245,
+        "instructions": 250318780,
+        "user_time_ns": 24906458,
+        "system_time_ns": 361541
+      },
+      {
+        "cycles": 149524040,
+        "instructions": 497851938,
+        "user_time_ns": 50573291,
+        "system_time_ns": 989916
+      }
+    ],
+    "delta": {
+      "cycles": 75060795,
+      "instructions": 247533158,
+      "user_time_ns": 25666833,
+      "system_time_ns": 628375
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "scope",
+    "arm": "stack",
+    "samples": [
+      {
+        "cycles": 87685137,
+        "instructions": 277757224,
+        "user_time_ns": 28212875,
+        "system_time_ns": 806666
+      },
+      {
+        "cycles": 171990223,
+        "instructions": 550099327,
+        "user_time_ns": 56578166,
+        "system_time_ns": 1498333
+      }
+    ],
+    "delta": {
+      "cycles": 84305086,
+      "instructions": 272342103,
+      "user_time_ns": 28365291,
+      "system_time_ns": 691667
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "scope",
+    "arm": "nibble",
+    "samples": [
+      {
+        "cycles": 83803227,
+        "instructions": 246934021,
+        "user_time_ns": 27836250,
+        "system_time_ns": 656583
+      },
+      {
+        "cycles": 173813886,
+        "instructions": 492913232,
+        "user_time_ns": 59627666,
+        "system_time_ns": 2253333
+      }
+    ],
+    "delta": {
+      "cycles": 90010659,
+      "instructions": 245979211,
+      "user_time_ns": 31791416,
+      "system_time_ns": 1596750
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "scope",
+    "arm": "extend",
+    "samples": [
+      {
+        "cycles": 83914586,
+        "instructions": 262843269,
+        "user_time_ns": 28322000,
+        "system_time_ns": 833958
+      },
+      {
+        "cycles": 165868152,
+        "instructions": 520117601,
+        "user_time_ns": 57092833,
+        "system_time_ns": 1065666
+      }
+    ],
+    "delta": {
+      "cycles": 81953566,
+      "instructions": 257274332,
+      "user_time_ns": 28770833,
+      "system_time_ns": 231708
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "scope",
+    "arm": "text",
+    "samples": [
+      {
+        "cycles": 73655489,
+        "instructions": 239444828,
+        "user_time_ns": 24746750,
+        "system_time_ns": 291291
+      },
+      {
+        "cycles": 146087333,
+        "instructions": 475278275,
+        "user_time_ns": 48425166,
+        "system_time_ns": 623166
+      }
+    ],
+    "delta": {
+      "cycles": 72431844,
+      "instructions": 235833447,
+      "user_time_ns": 23678416,
+      "system_time_ns": 331875
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "scope",
+    "arm": "always",
+    "samples": [
+      {
+        "cycles": 76225659,
+        "instructions": 242346491,
+        "user_time_ns": 25461708,
+        "system_time_ns": 396875
+      },
+      {
+        "cycles": 149286931,
+        "instructions": 479335626,
+        "user_time_ns": 51521083,
+        "system_time_ns": 256958
+      }
+    ],
+    "delta": {
+      "cycles": 73061272,
+      "instructions": 236989135,
+      "user_time_ns": 26059375,
+      "system_time_ns": -139917
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "scope",
+    "arm": "pairs",
+    "samples": [
+      {
+        "cycles": 81873700,
+        "instructions": 265394820,
+        "user_time_ns": 27632875,
+        "system_time_ns": 623166
+      },
+      {
+        "cycles": 169892259,
+        "instructions": 530196244,
+        "user_time_ns": 55157750,
+        "system_time_ns": 3000416
+      }
+    ],
+    "delta": {
+      "cycles": 88018559,
+      "instructions": 264801424,
+      "user_time_ns": 27524875,
+      "system_time_ns": 2377250
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "scope",
+    "arm": "bytes",
+    "samples": [
+      {
+        "cycles": 86609709,
+        "instructions": 270553434,
+        "user_time_ns": 28433708,
+        "system_time_ns": 588666
+      },
+      {
+        "cycles": 175079041,
+        "instructions": 536353132,
+        "user_time_ns": 59572833,
+        "system_time_ns": 1142916
+      }
+    ],
+    "delta": {
+      "cycles": 88469332,
+      "instructions": 265799698,
+      "user_time_ns": 31139125,
+      "system_time_ns": 554250
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "scope",
+    "arm": "small",
+    "samples": [
+      {
+        "cycles": 79884594,
+        "instructions": 247423731,
+        "user_time_ns": 26304375,
+        "system_time_ns": 171250
+      },
+      {
+        "cycles": 161419428,
+        "instructions": 490962018,
+        "user_time_ns": 53759000,
+        "system_time_ns": 383666
+      }
+    ],
+    "delta": {
+      "cycles": 81534834,
+      "instructions": 243538287,
+      "user_time_ns": 27454625,
+      "system_time_ns": 212416
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "scope",
+    "arm": "fixed",
+    "samples": [
+      {
+        "cycles": 80386859,
+        "instructions": 246535695,
+        "user_time_ns": 26541416,
+        "system_time_ns": 196166
+      },
+      {
+        "cycles": 164966725,
+        "instructions": 490652643,
+        "user_time_ns": 54707041,
+        "system_time_ns": 1137750
+      }
+    ],
+    "delta": {
+      "cycles": 84579866,
+      "instructions": 244116948,
+      "user_time_ns": 28165625,
+      "system_time_ns": 941584
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "scope",
+    "arm": "inline",
+    "samples": [
+      {
+        "cycles": 74514171,
+        "instructions": 242138493,
+        "user_time_ns": 24311375,
+        "system_time_ns": 290125
+      },
+      {
+        "cycles": 153433585,
+        "instructions": 481429776,
+        "user_time_ns": 51248791,
+        "system_time_ns": 1136750
+      }
+    ],
+    "delta": {
+      "cycles": 78919414,
+      "instructions": 239291283,
+      "user_time_ns": 26937416,
+      "system_time_ns": 846625
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "scope",
+    "arm": "baseline",
+    "samples": [
+      {
+        "cycles": 77258151,
+        "instructions": 242237947,
+        "user_time_ns": 28674083,
+        "system_time_ns": 418083
+      },
+      {
+        "cycles": 150506236,
+        "instructions": 479834528,
+        "user_time_ns": 52657791,
+        "system_time_ns": 459916
+      }
+    ],
+    "delta": {
+      "cycles": 73248085,
+      "instructions": 237596581,
+      "user_time_ns": 23983708,
+      "system_time_ns": 41833
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "digest",
+    "arm": "always",
+    "samples": [
+      {
+        "cycles": 56102735,
+        "instructions": 123336791,
+        "user_time_ns": 22215833,
+        "system_time_ns": 173625
+      },
+      {
+        "cycles": 113211138,
+        "instructions": 245874295,
+        "user_time_ns": 42938833,
+        "system_time_ns": 395083
+      }
+    ],
+    "delta": {
+      "cycles": 57108403,
+      "instructions": 122537504,
+      "user_time_ns": 20723000,
+      "system_time_ns": 221458
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "digest",
+    "arm": "small",
+    "samples": [
+      {
+        "cycles": 55245716,
+        "instructions": 123774942,
+        "user_time_ns": 19335000,
+        "system_time_ns": 82791
+      },
+      {
+        "cycles": 110963210,
+        "instructions": 246642641,
+        "user_time_ns": 39431416,
+        "system_time_ns": 149750
+      }
+    ],
+    "delta": {
+      "cycles": 55717494,
+      "instructions": 122867699,
+      "user_time_ns": 20096416,
+      "system_time_ns": 66959
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "digest",
+    "arm": "fixed",
+    "samples": [
+      {
+        "cycles": 55438758,
+        "instructions": 122930678,
+        "user_time_ns": 18135416,
+        "system_time_ns": 124833
+      },
+      {
+        "cycles": 110293795,
+        "instructions": 244688059,
+        "user_time_ns": 37625250,
+        "system_time_ns": 102041
+      }
+    ],
+    "delta": {
+      "cycles": 54855037,
+      "instructions": 121757381,
+      "user_time_ns": 19489834,
+      "system_time_ns": -22792
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "digest",
+    "arm": "inline",
+    "samples": [
+      {
+        "cycles": 55347615,
+        "instructions": 123140010,
+        "user_time_ns": 21911166,
+        "system_time_ns": 88208
+      },
+      {
+        "cycles": 113950961,
+        "instructions": 245774528,
+        "user_time_ns": 39574083,
+        "system_time_ns": 318166
+      }
+    ],
+    "delta": {
+      "cycles": 58603346,
+      "instructions": 122634518,
+      "user_time_ns": 17662917,
+      "system_time_ns": 229958
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 6,
+    "kind": "digest",
+    "arm": "baseline",
+    "samples": [
+      {
+        "cycles": 56656035,
+        "instructions": 123398446,
+        "user_time_ns": 23432291,
+        "system_time_ns": 246666
+      },
+      {
+        "cycles": 111553458,
+        "instructions": 245567387,
+        "user_time_ns": 39564791,
+        "system_time_ns": 268958
+      }
+    ],
+    "delta": {
+      "cycles": 54897423,
+      "instructions": 122168941,
+      "user_time_ns": 16132500,
+      "system_time_ns": 22292
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "digest",
+    "arm": "baseline",
+    "samples": [
+      {
+        "cycles": 57613967,
+        "instructions": 123677024,
+        "user_time_ns": 20490916,
+        "system_time_ns": 332791
+      },
+      {
+        "cycles": 121735074,
+        "instructions": 246111914,
+        "user_time_ns": 47920708,
+        "system_time_ns": 495083
+      }
+    ],
+    "delta": {
+      "cycles": 64121107,
+      "instructions": 122434890,
+      "user_time_ns": 27429792,
+      "system_time_ns": 162292
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "digest",
+    "arm": "inline",
+    "samples": [
+      {
+        "cycles": 56427367,
+        "instructions": 123240809,
+        "user_time_ns": 21008291,
+        "system_time_ns": 148000
+      },
+      {
+        "cycles": 110195458,
+        "instructions": 245306478,
+        "user_time_ns": 36196500,
+        "system_time_ns": 99625
+      }
+    ],
+    "delta": {
+      "cycles": 53768091,
+      "instructions": 122065669,
+      "user_time_ns": 15188209,
+      "system_time_ns": -48375
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "digest",
+    "arm": "fixed",
+    "samples": [
+      {
+        "cycles": 56796776,
+        "instructions": 122966444,
+        "user_time_ns": 24228833,
+        "system_time_ns": 171250
+      },
+      {
+        "cycles": 109770523,
+        "instructions": 244680853,
+        "user_time_ns": 36065500,
+        "system_time_ns": 90666
+      }
+    ],
+    "delta": {
+      "cycles": 52973747,
+      "instructions": 121714409,
+      "user_time_ns": 11836667,
+      "system_time_ns": -80584
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "digest",
+    "arm": "small",
+    "samples": [
+      {
+        "cycles": 55270656,
+        "instructions": 123766618,
+        "user_time_ns": 23955250,
+        "system_time_ns": 85708
+      },
+      {
+        "cycles": 111091363,
+        "instructions": 246694795,
+        "user_time_ns": 49924250,
+        "system_time_ns": 138875
+      }
+    ],
+    "delta": {
+      "cycles": 55820707,
+      "instructions": 122928177,
+      "user_time_ns": 25969000,
+      "system_time_ns": 53167
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "digest",
+    "arm": "always",
+    "samples": [
+      {
+        "cycles": 55781884,
+        "instructions": 123349377,
+        "user_time_ns": 22048666,
+        "system_time_ns": 197958
+      },
+      {
+        "cycles": 112773318,
+        "instructions": 246111724,
+        "user_time_ns": 36849541,
+        "system_time_ns": 501791
+      }
+    ],
+    "delta": {
+      "cycles": 56991434,
+      "instructions": 122762347,
+      "user_time_ns": 14800875,
+      "system_time_ns": 303833
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "scope",
+    "arm": "baseline",
+    "samples": [
+      {
+        "cycles": 76575170,
+        "instructions": 242644508,
+        "user_time_ns": 25100083,
+        "system_time_ns": 596291
+      },
+      {
+        "cycles": 147018316,
+        "instructions": 479438681,
+        "user_time_ns": 48890541,
+        "system_time_ns": 251791
+      }
+    ],
+    "delta": {
+      "cycles": 70443146,
+      "instructions": 236794173,
+      "user_time_ns": 23790458,
+      "system_time_ns": -344500
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "scope",
+    "arm": "inline",
+    "samples": [
+      {
+        "cycles": 76367164,
+        "instructions": 242714081,
+        "user_time_ns": 24739250,
+        "system_time_ns": 587083
+      },
+      {
+        "cycles": 153042313,
+        "instructions": 481959273,
+        "user_time_ns": 49697375,
+        "system_time_ns": 1636333
+      }
+    ],
+    "delta": {
+      "cycles": 76675149,
+      "instructions": 239245192,
+      "user_time_ns": 24958125,
+      "system_time_ns": 1049250
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "scope",
+    "arm": "fixed",
+    "samples": [
+      {
+        "cycles": 79564498,
+        "instructions": 246579773,
+        "user_time_ns": 26013916,
+        "system_time_ns": 197708
+      },
+      {
+        "cycles": 200317713,
+        "instructions": 489829649,
+        "user_time_ns": 66890208,
+        "system_time_ns": 715333
+      }
+    ],
+    "delta": {
+      "cycles": 120753215,
+      "instructions": 243249876,
+      "user_time_ns": 40876292,
+      "system_time_ns": 517625
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "scope",
+    "arm": "small",
+    "samples": [
+      {
+        "cycles": 84495081,
+        "instructions": 248225075,
+        "user_time_ns": 30068375,
+        "system_time_ns": 559541
+      },
+      {
+        "cycles": 164176271,
+        "instructions": 491741474,
+        "user_time_ns": 55104291,
+        "system_time_ns": 610416
+      }
+    ],
+    "delta": {
+      "cycles": 79681190,
+      "instructions": 243516399,
+      "user_time_ns": 25035916,
+      "system_time_ns": 50875
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "scope",
+    "arm": "bytes",
+    "samples": [
+      {
+        "cycles": 88070623,
+        "instructions": 270684141,
+        "user_time_ns": 30033000,
+        "system_time_ns": 599250
+      },
+      {
+        "cycles": 190679110,
+        "instructions": 536948552,
+        "user_time_ns": 62227666,
+        "system_time_ns": 1207083
+      }
+    ],
+    "delta": {
+      "cycles": 102608487,
+      "instructions": 266264411,
+      "user_time_ns": 32194666,
+      "system_time_ns": 607833
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "scope",
+    "arm": "pairs",
+    "samples": [
+      {
+        "cycles": 78824644,
+        "instructions": 264733008,
+        "user_time_ns": 25706250,
+        "system_time_ns": 389708
+      },
+      {
+        "cycles": 158456924,
+        "instructions": 525539535,
+        "user_time_ns": 52311291,
+        "system_time_ns": 922625
+      }
+    ],
+    "delta": {
+      "cycles": 79632280,
+      "instructions": 260806527,
+      "user_time_ns": 26605041,
+      "system_time_ns": 532917
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "scope",
+    "arm": "always",
+    "samples": [
+      {
+        "cycles": 76535282,
+        "instructions": 242424007,
+        "user_time_ns": 25360625,
+        "system_time_ns": 413833
+      },
+      {
+        "cycles": 148228688,
+        "instructions": 479866538,
+        "user_time_ns": 48465916,
+        "system_time_ns": 357750
+      }
+    ],
+    "delta": {
+      "cycles": 71693406,
+      "instructions": 237442531,
+      "user_time_ns": 23105291,
+      "system_time_ns": -56083
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "scope",
+    "arm": "text",
+    "samples": [
+      {
+        "cycles": 71980042,
+        "instructions": 239118035,
+        "user_time_ns": 23628750,
+        "system_time_ns": 79958
+      },
+      {
+        "cycles": 146420160,
+        "instructions": 475404615,
+        "user_time_ns": 48401375,
+        "system_time_ns": 685541
+      }
+    ],
+    "delta": {
+      "cycles": 74440118,
+      "instructions": 236286580,
+      "user_time_ns": 24772625,
+      "system_time_ns": 605583
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "scope",
+    "arm": "extend",
+    "samples": [
+      {
+        "cycles": 79764351,
+        "instructions": 262059826,
+        "user_time_ns": 26221500,
+        "system_time_ns": 490291
+      },
+      {
+        "cycles": 157978315,
+        "instructions": 519646829,
+        "user_time_ns": 52875083,
+        "system_time_ns": 747041
+      }
+    ],
+    "delta": {
+      "cycles": 78213964,
+      "instructions": 257587003,
+      "user_time_ns": 26653583,
+      "system_time_ns": 256750
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "scope",
+    "arm": "nibble",
+    "samples": [
+      {
+        "cycles": 79109202,
+        "instructions": 246206319,
+        "user_time_ns": 25821291,
+        "system_time_ns": 237791
+      },
+      {
+        "cycles": 163193589,
+        "instructions": 490361804,
+        "user_time_ns": 54374166,
+        "system_time_ns": 1439750
+      }
+    ],
+    "delta": {
+      "cycles": 84084387,
+      "instructions": 244155485,
+      "user_time_ns": 28552875,
+      "system_time_ns": 1201959
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "scope",
+    "arm": "stack",
+    "samples": [
+      {
+        "cycles": 84737057,
+        "instructions": 275929234,
+        "user_time_ns": 28484083,
+        "system_time_ns": 135125
+      },
+      {
+        "cycles": 168589073,
+        "instructions": 548196648,
+        "user_time_ns": 55722666,
+        "system_time_ns": 437000
+      }
+    ],
+    "delta": {
+      "cycles": 83852016,
+      "instructions": 272267414,
+      "user_time_ns": 27238583,
+      "system_time_ns": 301875
+    },
+    "iterations": 356000
+  },
+  {
+    "round": 7,
+    "kind": "scope",
+    "arm": "arithmetic",
+    "samples": [
+      {
+        "cycles": 76307710,
+        "instructions": 250773370,
+        "user_time_ns": 24899416,
+        "system_time_ns": 621916
+      },
+      {
+        "cycles": 146541066,
+        "instructions": 496404671,
+        "user_time_ns": 47717625,
+        "system_time_ns": 767208
+      }
+    ],
+    "delta": {
+      "cycles": 70233356,
+      "instructions": 245631301,
+      "user_time_ns": 22818209,
+      "system_time_ns": 145292
+    },
+    "iterations": 356000
+  }
+]
