@@ -199,6 +199,29 @@ const choices: string[] | number[] = Math.random() > 0.5 ? ['ok'] : [1];
 	} finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
 
+test('a template value keeps its declared type instead of the narrowed initial value', async () => {
+	const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-template-narrowing-'));
+	const input = `<script lang="ts">
+let open = $state(false);
+</script>
+<button onclick={() => open = !open}>{open ? 'shown' : 'hidden'}</button>`;
+	const start = input.indexOf('{open ?') + 1;
+	try {
+		fs.writeFileSync(path.join(directory, 'input.svelte'), input);
+		let count = 0;
+		for await (const row of projections(binary, directory)) {
+			assert.equal(row.status, 'projected');
+			const result = checker.compare(row, input);
+			const query = result.queries.find((q) => q.start === start && q.end === start + 4 && q.role === 'Identifier');
+			assert.ok(query, JSON.stringify(result.queries));
+			assert.equal(query.verdict, 'match', JSON.stringify(query));
+			assert.equal(query.left, 'boolean', JSON.stringify(query));
+			count++;
+		}
+		assert.equal(count, 1);
+	} finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
 test('native diagnostics compare original positions without mapping twice', async () => {
 	const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-diagnostic-types-'));
 	const input = '<script lang="ts">const café: string[] = ["🚀"];</script>{#each café as name}<p>{name.toFixed()}</p>{/each}';
