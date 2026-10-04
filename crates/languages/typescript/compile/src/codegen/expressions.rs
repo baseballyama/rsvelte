@@ -236,7 +236,17 @@ impl Gen<'_> {
                 if setter {
                     self.e.push("set ");
                 }
-                if shorthand {
+                // esrap prints `{ a: a }` as `{ a }`. Not for `__proto__`: there `{ __proto__: x }`
+                // sets the prototype and `{ __proto__ }` makes an own property (esrap breaks this).
+                let same_name = !computed
+                    && !method
+                    && !getter
+                    && !setter
+                    && matches!(self.syntax_tree.kind(key), Kind::Identifier(_))
+                    && matches!(self.syntax_tree.kind(value), Kind::Identifier(_))
+                    && self.syntax_tree.name(key) != "__proto__"
+                    && self.syntax_tree.name(key) == self.syntax_tree.name(value);
+                if shorthand || same_name {
                     self.expression(value, prec::ASSIGN);
                     return;
                 }

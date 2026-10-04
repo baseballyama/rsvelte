@@ -256,3 +256,40 @@ fn classic_loop_initializers_keep_parenthesized_in_expressions() {
         );
     }
 }
+
+#[test]
+fn same_name_property_prints_shorthand_except_proto() {
+    for (input, printed) in [
+        ("f({ a: a });", "f({ a });\n"),
+        ("f({ a });", "f({ a });\n"),
+        ("f({ a: b });", "f({ a: b });\n"),
+        ("f({ [a]: a });", "f({ [a]: a });\n"),
+        ("f({ a() {} });", "f({ a() {} });\n"),
+        (
+            "f({ get a() { return a; } });",
+            "f({ get a() {\n\treturn a;\n} });\n",
+        ),
+        ("let { a: a } = o;", "let { a } = o;\n"),
+        ("let { a: b } = o;", "let { a: b } = o;\n"),
+        // `{ __proto__: x }` sets the prototype; `{ __proto__ }` makes an own property.
+        (
+            "f({ __proto__: __proto__ });",
+            "f({ __proto__: __proto__ });\n",
+        ),
+        ("f({ __proto__ });", "f({ __proto__ });\n"),
+        (
+            "f({ '__proto__': __proto__ });",
+            "f({ '__proto__': __proto__ });\n",
+        ),
+        (
+            "f({ ['__proto__']: __proto__ });",
+            "f({ ['__proto__']: __proto__ });\n",
+        ),
+        (
+            "let { __proto__: __proto__ } = o;",
+            "let { __proto__: __proto__ } = o;\n",
+        ),
+    ] {
+        assert_eq!(stable(input, false), printed, "{input}");
+    }
+}
