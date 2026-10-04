@@ -17,9 +17,9 @@ impl Builder<'_> {
         {
             self.helpers.insert("useSSRContext");
             let destination = self.to.identifier("$$ssr_context");
-            let (hash, css) = self.stylesheet_values();
+            let (hash, stylesheet) = self.stylesheet_values();
             let callee = self.to.identifier("$$render_css");
-            let style = self.to.call0(callee, &[destination, hash, css]);
+            let style = self.to.call0(callee, &[destination, hash, stylesheet]);
             content = self.join(&[style, content]);
         }
         if self.helpers.contains("useSSRContext") {

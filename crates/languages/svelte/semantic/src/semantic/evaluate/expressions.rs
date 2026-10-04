@@ -15,9 +15,9 @@ impl<'a> Evaluator<'a> {
             ),
             Kind::Number(n) => add(values, Value::Number(n)),
             Kind::BigInt => {
-                let [lo, hi] = syntax_tree.raw_data(e);
-                let raw =
-                    rsvelte_kernel::source::positions::Span::new(lo, hi).text(self.source_text);
+                let [start_offset, end_offset] = syntax_tree.raw_data(e);
+                let raw = rsvelte_kernel::source::positions::Span::new(start_offset, end_offset)
+                    .text(self.source_text);
                 add(values, bigint::literal(raw));
             }
             Kind::Boolean(b) => add(values, Value::Boolean(b)),

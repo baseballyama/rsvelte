@@ -7,8 +7,8 @@ use rsvelte_svelte::compilation::compiler_syntax_tree;
 use rsvelte_svelte::semantic::{analyze, resolve};
 use rsvelte_svelte_compile::{OutputIdentity, stylesheet};
 
-fn css(markup: &str, css: &str) -> String {
-    let source = format!("{markup}<style>{css}</style>");
+fn scope_rules(markup: &str, rules: &str) -> String {
+    let source = format!("{markup}<style>{rules}</style>");
     let component = rsvelte_svelte::syntax::parse::parse(&source).expect("valid component");
     let tree = compiler_syntax_tree::lower(&component, &source);
     let input = rsvelte_svelte::svelte_input(&component, &tree, &source, "test.svelte");
@@ -73,20 +73,23 @@ fn selectors_and_specificity() {
             "p.svelte-h:not(.missing){color:red}",
         ),
     ] {
-        assert_eq!(css(markup, input), expected, "{input}");
+        assert_eq!(scope_rules(markup, input), expected, "{input}");
     }
 }
 
 #[test]
 fn dom_candidates_do_not_leak_between_documents() {
     for _ in 0..2 {
-        assert_eq!(css("<p/><p/>", "p{color:red}"), "p.svelte-h{color:red}");
         assert_eq!(
-            css("<Component/>", "p{color:red}"),
+            scope_rules("<p/><p/>", "p{color:red}"),
+            "p.svelte-h{color:red}"
+        );
+        assert_eq!(
+            scope_rules("<Component/>", "p{color:red}"),
             "/* (unused) p{color:red}*/"
         );
         assert_eq!(
-            css("<Component/><p/>", "p{color:red}"),
+            scope_rules("<Component/><p/>", "p{color:red}"),
             "p.svelte-h{color:red}"
         );
     }
@@ -103,7 +106,7 @@ fn spreads_and_empty_classes_match_the_oracle() {
         r#"<p class="a" {...attrs}/>"#,
     ] {
         assert_eq!(
-            css(markup, input),
+            scope_rules(markup, input),
             concat!(
                 ".missing.svelte-h{color:red}.a.svelte-h{color:blue}",
                 "[class].svelte-h{color:yellow}"
@@ -112,14 +115,14 @@ fn spreads_and_empty_classes_match_the_oracle() {
         );
     }
     assert_eq!(
-        css("<p class={[]}/>", input),
+        scope_rules("<p class={[]}/>", input),
         concat!(
             "/* (unused) .missing{color:red}*//* (unused) .a{color:blue}*/",
             "[class].svelte-h{color:yellow}"
         )
     );
     assert_eq!(
-        css(r#"<p CLASS={["a"]}/>"#, input),
+        scope_rules(r#"<p CLASS={["a"]}/>"#, input),
         concat!(
             "/* (unused) .missing{color:red}*/.a.svelte-h{color:blue}",
             "[class].svelte-h{color:yellow}"
@@ -163,14 +166,14 @@ fn global_and_nested_rules() {
             "/* (unused) p:has(q){color:red}*/",
         ),
     ] {
-        assert_eq!(css(markup, input), expected, "{input}");
+        assert_eq!(scope_rules(markup, input), expected, "{input}");
     }
 }
 
 #[test]
 fn local_and_global_keyframes() {
     assert_eq!(
-        css(
+        scope_rules(
             "<p></p>",
             "@keyframes bounce {from {opacity:0} to {opacity:1}} p{animation:bounce 1s}"
         ),
@@ -181,14 +184,14 @@ fn local_and_global_keyframes() {
         )
     );
     assert_eq!(
-        css(
+        scope_rules(
             "<p></p>",
             "@keyframes -global-spin {to{opacity:1}} p{animation-name:spin}"
         ),
         "@keyframes spin {to{opacity:1}} p.svelte-h{animation-name:spin}"
     );
     assert_eq!(
-        css(
+        scope_rules(
             "<p></p>",
             "@keyframes bounce{to{opacity:1}} q{animation:bounce 1s}"
         ),
@@ -199,11 +202,11 @@ fn local_and_global_keyframes() {
 #[test]
 fn comments_in_pruned_rules_remain_valid_css() {
     assert_eq!(
-        css("<p></p>", "q{/* note */color:red}"),
+        scope_rules("<p></p>", "q{/* note */color:red}"),
         "/* (unused) q{/* note *\\/color:red}*/"
     );
     assert_eq!(
-        css("<p></p>", "p{/* note */}"),
+        scope_rules("<p></p>", "p{/* note */}"),
         "/* (empty) p{/* note *\\/}*/"
     );
 }
@@ -289,18 +292,18 @@ fn attributes_and_template_relations_match_the_oracle() {
             "svg|circle.svelte-h{fill:red}",
         ),
     ] {
-        assert_eq!(css(markup, input), expected, "{markup}: {input}");
+        assert_eq!(scope_rules(markup, input), expected, "{markup}: {input}");
     }
 }
 
 #[test]
 fn escaped_attribute_values_are_decoded_before_matching() {
     assert_eq!(
-        css("<p data-x=\"A\"></p>", r#"[data-x="\41"]{color:red}"#),
+        scope_rules("<p data-x=\"A\"></p>", r#"[data-x="\41"]{color:red}"#),
         r#"[data-x="\41"].svelte-h{color:red}"#,
     );
     assert_eq!(
-        css("<p data-x=\"a:b\"></p>", r#"[data-x="a\:b"]{color:red}"#),
+        scope_rules("<p data-x=\"a:b\"></p>", r#"[data-x="a\:b"]{color:red}"#),
         r#"[data-x="a\:b"].svelte-h{color:red}"#,
     );
 }
@@ -308,7 +311,7 @@ fn escaped_attribute_values_are_decoded_before_matching() {
 #[test]
 fn comment_closers_in_strings_cannot_end_pruning_comments() {
     assert_eq!(
-        css("<p></p>", r#"q{content:"\*/"}"#),
+        scope_rules("<p></p>", r#"q{content:"\*/"}"#),
         r#"/* (unused) q{content:"\*\/"}*/"#,
     );
 }
@@ -358,7 +361,7 @@ fn attribute_directives_and_boolean_values_match_the_oracle() {
             ".x.svelte-h,.y.svelte-h{color:red}",
         ),
     ] {
-        assert_eq!(css(markup, input), expected, "{markup}: {input}");
+        assert_eq!(scope_rules(markup, input), expected, "{markup}: {input}");
     }
 }
 
@@ -401,7 +404,7 @@ fn external_nested_rules_and_where_specificity_match_the_oracle() {
             "p.svelte-h{// retained text\ncolor:red}",
         ),
     ] {
-        assert_eq!(css(markup, input), expected, "{input}");
+        assert_eq!(scope_rules(markup, input), expected, "{input}");
     }
 }
 
@@ -459,7 +462,7 @@ fn class_candidates_preserve_static_dynamic_and_nested_matches() {
             ".a.svelte-h{&.a{color:red}}",
         ),
     ] {
-        assert_eq!(css(markup, input), expected, "{markup}: {input}");
+        assert_eq!(scope_rules(markup, input), expected, "{markup}: {input}");
     }
 }
 
@@ -535,7 +538,11 @@ fn class_candidate_buffers_do_not_leak_between_documents() {
             } else {
                 "/* (unused) .missing{color:red}*/"
             };
-            assert_eq!(css(markup, ".missing{color:red}"), expected, "{markup}");
+            assert_eq!(
+                scope_rules(markup, ".missing{color:red}"),
+                expected,
+                "{markup}"
+            );
         }
     }
 }

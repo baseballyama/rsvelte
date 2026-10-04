@@ -17,7 +17,7 @@ impl Parser<'_, '_> {
             "try" => {
                 let block = self.block()?;
                 let handler = if self.is_kw("catch") {
-                    let lo = self.token.span.start_offset;
+                    let start_offset = self.token.span.start_offset;
                     self.bump()?;
                     let parameter = if self.eat(T::LParen)? {
                         let p = self.binding_target()?;
@@ -28,10 +28,10 @@ impl Parser<'_, '_> {
                         None
                     };
                     let body = self.block()?;
-                    Some(
-                        self.syntax_tree
-                            .control(Control::Catch { parameter, body }, self.span_from(lo)),
-                    )
+                    Some(self.syntax_tree.control(
+                        Control::Catch { parameter, body },
+                        self.span_from(start_offset),
+                    ))
                 } else {
                     None
                 };
@@ -102,7 +102,7 @@ impl Parser<'_, '_> {
         let cases = self.open();
         let mut default = false;
         while self.token.t != T::RBrace {
-            let lo = self.token.span.start_offset;
+            let start_offset = self.token.span.start_offset;
             let test = if self.is_kw("case") {
                 self.bump()?;
                 Some(self.expression()?)
@@ -125,7 +125,7 @@ impl Parser<'_, '_> {
                 let node = self.statement()?;
                 self.item(node);
             }
-            let span = self.span_from(lo);
+            let span = self.span_from(start_offset);
             let case = self.close(body, |tree, consequent| {
                 tree.control(Control::Case { test, consequent }, span)
             });
@@ -256,7 +256,7 @@ impl Parser<'_, '_> {
         self.expect(T::LBrace, "{")?;
         let specs = self.open();
         while self.token.t != T::RBrace {
-            let lo = self.token.span.start_offset;
+            let start_offset = self.token.span.start_offset;
             let local = self.export_name()?;
             let exported = if self.is_kw("as") {
                 self.bump()?;
@@ -266,7 +266,7 @@ impl Parser<'_, '_> {
             };
             let spec = self.syntax_tree.control(
                 Control::ExportSpecifier { local, exported },
-                self.span_from(lo),
+                self.span_from(start_offset),
             );
             self.item(spec);
             if !self.eat(T::Comma)? {

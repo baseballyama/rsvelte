@@ -357,9 +357,9 @@ impl Parser<'_, '_> {
             && self.peek().t == T::Identifier
             && self.text(self.peek()) == "function"
         {
-            let lo = self.token.span.start_offset;
+            let start_offset = self.token.span.start_offset;
             self.bump()?;
-            let function = self.function(true, lo, true)?;
+            let function = self.function(true, start_offset, true)?;
             return Ok(self
                 .syntax_tree
                 .export_named(function, self.span_from(start_offset)));

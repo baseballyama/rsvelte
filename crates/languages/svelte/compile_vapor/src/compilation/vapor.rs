@@ -80,9 +80,9 @@ pub(super) fn compile(t: &Translation, resolution: &Resolution, source_text: &st
             &mut b.to,
         ));
         let instance = b.call("getCurrentInstance", &[]);
-        let (hash, css) = b.stylesheet_values();
+        let (hash, stylesheet) = b.stylesheet_values();
         let callee = b.to.identifier("$$inject_styles");
-        let call = b.to.call0(callee, &[instance, hash, css]);
+        let call = b.to.call0(callee, &[instance, hash, stylesheet]);
         body.push(b.to.expression_statement(call));
     }
     let result = if t.server {

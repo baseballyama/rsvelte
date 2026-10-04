@@ -131,9 +131,10 @@ impl Gen<'_> {
                 self.expression(property, prec::PRIMARY);
             }
             Kind::BigInt => {
-                let [lo, hi] = self.syntax_tree.raw_data(identifier);
+                let [start_offset, end_offset] = self.syntax_tree.raw_data(identifier);
                 self.e.push(
-                    rsvelte_kernel::source::positions::Span::new(lo, hi).text(self.source_text),
+                    rsvelte_kernel::source::positions::Span::new(start_offset, end_offset)
+                        .text(self.source_text),
                 );
             }
             Kind::Identifier(a) => self.e.push(self.syntax_tree.atoms.get(a)),

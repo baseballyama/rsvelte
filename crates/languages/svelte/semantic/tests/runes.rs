@@ -55,8 +55,9 @@ fn destructured_runes_classify_every_leaf_without_classifying_keys() {
     let program =
         parser::parse_program(&mut tree, source, Span::new(0, source.len() as u32), false)
             .expect("valid JavaScript");
-    let hir = CompilerSyntaxTreeBuilder::new(source, 0, 0).finish(Children::default());
-    let resolution = resolve::resolve(&tree, program, &hir);
+    let compiler_syntax_tree =
+        CompilerSyntaxTreeBuilder::new(source, 0, 0).finish(Children::default());
+    let resolution = resolve::resolve(&tree, program, &compiler_syntax_tree);
     for (name, kind) in [
         ("a", BindingKind::Derived),
         ("b", BindingKind::Derived),
@@ -92,8 +93,9 @@ fn nested_runes_classify_bindings_in_their_own_scope() {
     let program =
         parser::parse_program(&mut tree, source, Span::new(0, source.len() as u32), false)
             .expect("valid JavaScript");
-    let hir = CompilerSyntaxTreeBuilder::new(source, 0, 0).finish(Children::default());
-    let resolution = resolve::resolve(&tree, program, &hir);
+    let compiler_syntax_tree =
+        CompilerSyntaxTreeBuilder::new(source, 0, 0).finish(Children::default());
+    let resolution = resolve::resolve(&tree, program, &compiler_syntax_tree);
     let kinds: Vec<_> = resolution
         .sem
         .bindings

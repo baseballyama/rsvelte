@@ -92,9 +92,12 @@ impl Compile {
         };
         let _p = measurement::phase("vuelte.vapor");
         let javascript = compile(&t, context.source_text(), &context.document.path)?;
-        let external_css =
+        let external_stylesheet =
             t.css_mode == crate::template::CssMode::External && t.custom_element.is_none();
-        Ok((javascript, external_css.then_some(t.stylesheet).flatten()))
+        Ok((
+            javascript,
+            external_stylesheet.then_some(t.stylesheet).flatten(),
+        ))
     }
 }
 

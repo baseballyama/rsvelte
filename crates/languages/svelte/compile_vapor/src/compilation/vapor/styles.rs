@@ -8,12 +8,12 @@ impl Builder<'_> {
                 .as_ref()
                 .expect("a stylesheet has an identity"),
         );
-        let css = self.to.write_string(
+        let stylesheet = self.to.write_string(
             self.input
                 .stylesheet
                 .as_ref()
                 .expect("a stylesheet is present"),
         );
-        (hash, css)
+        (hash, stylesheet)
     }
 }

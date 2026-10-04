@@ -85,8 +85,8 @@ pub fn copy_node<R: Rewrite + ?Sized>(
             to.meta_property(m, p, span)
         }
         Kind::BigInt => {
-            let [lo, hi] = f.raw_data(identifier);
-            to.bigint(Span::new(lo, hi))
+            let [start_offset, end_offset] = f.raw_data(identifier);
+            to.bigint(Span::new(start_offset, end_offset))
         }
         Kind::Super => to.super_(span),
         Kind::Yield { argument, delegate } => {

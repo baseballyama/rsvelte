@@ -11,12 +11,12 @@ impl Builder<'_> {
         let name = self.to.identifier("$$component");
         module.push(self.to.let_(flag::CONST, name, Some(component)));
         let mut fields = Vec::new();
-        if let Some(css) = &self.input.stylesheet
+        if let Some(stylesheet) = &self.input.stylesheet
             && options.shadow_root
         {
-            let css = self.to.write_string(css);
+            let stylesheet = self.to.write_string(stylesheet);
             let key = self.to.identifier("styles");
-            fields.push(self.to.property(key, css, 0, SYNTHETIC));
+            fields.push(self.to.property(key, stylesheet, 0, SYNTHETIC));
         }
         if !options.shadow_root {
             let value = self.to.write_boolean(false, SYNTHETIC);
