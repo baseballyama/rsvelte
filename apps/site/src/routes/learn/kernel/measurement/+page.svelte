@@ -55,7 +55,7 @@
 	<H2 id="phases" />
 	<p>
 		<dfn>phase</dfn> は、スコープの間の時間と確保を名前付きで数えるガードです。<code>let _p = measurement::phase("js.print");</code>
-		と書けば、そのブロックを抜けるまでが <code>javascript.print</code> に計上されます。
+		と書けば、そのブロックを抜けるまでが、渡した名前のまま <code>js.print</code> の行に計上されます。
 	</p>
 </div>
 

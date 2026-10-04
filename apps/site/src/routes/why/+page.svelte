@@ -90,7 +90,7 @@
 			<li>参照表：識別子の参照先と読み書き。<code>bind:value</code> のようなテンプレート側の書き込みも解析対象です。</li>
 		</ul>
 		<p>制御フロー解析は、これとは別の処理です。分岐やループを通る実行経路と、識別子が属するスコープは異なる情報です。到達可能性や経路ごとの代入状態を調べる処理では、制御フローの情報が必要になります。現在のrsvelteのスコープ・参照解析は、制御フローグラフを生成していません。型検査は生成したTypeScriptを外部の型検査器に渡すため、その内部の解析も文書コンテキストの共有対象には含まれません。</p>
-		<p class="reading">実装：<a href="{REPO_URL}/blob/experimental/crates/languages/typescript/core/src/semantic/scope.rs">2パスのスコープ・参照解析</a>と<a href="{REPO_URL}/blob/experimental/crates/languages/svelte/core/src/semantic/resolve.rs">Svelteのテンプレートとrunesの解析</a></p>
+		<p class="reading">実装：<a href="{REPO_URL}/blob/experimental/crates/languages/typescript/core/src/semantic/scope.rs">2パスのスコープ・参照解析</a>と<a href="{REPO_URL}/blob/experimental/crates/languages/svelte/semantic/src/semantic/resolve.rs">Svelteのテンプレートとrunesの解析</a></p>
 		<p>タスクは文書の実行コンテキストから、型を指定して解析結果を要求します。最初の要求で計算し、同じ結果への後続の要求にはキャッシュを返します。formatだけを選んだ場合は、コード生成用の計算結果を要求しません。依存関係は、各計算処理が要求する結果によって決まります。</p>
 		<p>共有する構文木は不変です。コンパイルの変換処理は別の構文木を生成し、lintやformatが参照する元の構文木を変更しません。途中のコードを文字列として出力し、再解析して次の変換を続ける設計も採りません。</p>
 		<p>キャッシュの有効期間は、同じ文書のスナップショットを処理する実行コンテキスト内です。別々のコマンドを起動しても共有される永続キャッシュや、編集前後の結果を使う仕組みは未実装です。型検査用に生成したTypeScriptは外部の型検査器が読むため、ツール全体からすべての構文解析をなくすわけでもありません。</p>

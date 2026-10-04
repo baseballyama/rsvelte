@@ -3,7 +3,7 @@ import { performanceHistory } from '$lib/server/performance';
 import { excerpts } from '$lib/server/source';
 
 export const load = () => ({
-	arms: polishArms(),
+	polish: polishArms(),
 	history: performanceHistory(),
 	code: excerpts({
 		replaceParts: 'kernel/output/document/LayoutInstructions::replace_parts',

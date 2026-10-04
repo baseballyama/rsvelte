@@ -86,8 +86,8 @@
 
 			<section id="check">
 				<h2>{guideSections[5].title}</h2>
-				<p>型チェックには、TypeScript 7 のネイティブ版の実行ファイルと、Svelte パッケージの型定義が必要です。Node.js で動く従来の TypeScript コマンドとは別に用意してください。</p>
-				<p>まだ用意していない場合は、Node.js と npm を使って、次の組み合わせを取得できます。リポジトリの検証でも使っている版です。最後のコマンドは、お使いの環境に合うネイティブ実行ファイルの絶対パスを表示します。</p>
+				<p>型チェックには三つのものが必要です。TypeScript 7.1 以上のネイティブ版の実行ファイルと、Svelte パッケージの型定義です。三つ目は rsvelte の位置対応の実行ファイル（<code>rsvelte-typescript-content-mapper</code>）です。TypeScript は、Node.js で動く従来の TypeScript コマンドとは別に用意してください。位置対応の実行ファイルは <code>PATH</code> から探します。別の場所に置く場合は、環境変数 <code>RSVELTE_TYPESCRIPT_CONTENT_MAPPER</code> にパスを指定します。</p>
+				<p>まだ用意していない場合は、rsvelte のディレクトリで次のコマンドを実行します。最初のコマンドが位置対応の実行ファイルを入れ、次のコマンドが TypeScript と Svelte を取得します。TypeScript はリポジトリの検証でも使っている版です。最後のコマンドは、お使いの環境に合うネイティブ実行ファイルの絶対パスを表示します。</p>
 				<GuideCode code={guideExamples.checkSetup} label="型チェックに必要なパッケージを取得" />
 				<p>この手順では、<code>typecheck-tools/node_modules/svelte</code> が型定義のディレクトリになります。既存のプロジェクトを検査する場合は、そのプロジェクトで使っている Svelte パッケージを指定してください。</p>
 				<p><code>Counter.svelte</code> を次の内容に置き換えます。数値の変数に文字列を代入しているため、型の不一致を確認できます。</p>

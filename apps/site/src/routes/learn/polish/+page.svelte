@@ -62,7 +62,7 @@
 		)}）。割り当ては最初の {fmt(data.history[0].allocations)} 回から {fmt(lastRec.allocations)} 回へ（{delta(lastRec.allocations, data.history[0].allocations)}）、割り当てバイトは
 		{fmt(data.history[0].alloc_bytes)} から {fmt(lastRec.alloc_bytes)} へ（{delta(lastRec.alloc_bytes, data.history[0].alloc_bytes)}）。読み込みの命令数は、記録を始めた
 		<code>{firstLoad.sha ?? "作業ツリー"}</code> の {fmt(firstLoad.load_instructions!)} から {fmt(lastRec.load_instructions!)} です。ただし読み込みを記録し始めたのは、読み込みを
-		878,552,187 命令から減らした変更そのもので（コミットのメッセージによる）、最後の行の減少は最適化ではなく測り方の訂正です（<a
+		878,552,187 命令から減らした変更そのもので（コミットのメッセージによる）、<code>{firstLoad.sha ?? "作業ツリー"}</code> の行の読み込みの減少は最適化ではなく測り方の訂正です（<a
 			href="/learn/measure#ci">13</a
 		>）。
 	</p>
@@ -190,7 +190,7 @@
 
 	<H2 id="correctness" />
 
-	{@render item('P1', '書き出す source map と lookup の答えが違った', 'fixed', 'emit.rs · Emitter::source_map、Emitter::lookup')}
+	{@render item('P1', '書き出す source map と lookup の答えが違った', 'fixed', 'output/emitter.rs · Emitter::source_map、Emitter::lookup')}
 	<p>
 		<code>source_map</code> は Mapping 一つにつき一つのセグメントを書いていたので、source map の読み手にはコピーの内側がすべてコピーの先頭に写っていました。今はコピーの文字ごとにセグメントを書き、<code
 			>lookup</code
@@ -215,7 +215,7 @@
 		>。
 	</p>
 
-	{@render item('P2', 'LineIndex::offset が存在しない列を丸めていた', 'fixed', 'source.rs · LineIndex::offset')}
+	{@render item('P2', 'LineIndex::offset が存在しない列を丸めていた', 'fixed', 'source/positions.rs · LineIndex::offset')}
 	<p>
 		行末を越える列とサロゲートペアの内側を指す列は、今は <code>None</code> です。丸めに頼っていた呼び出し側は tsc
 		のレポートの解析だけでした。tsc が行末の幅 0 の範囲を一列先まで下線で描くことを tsc 7.0.2 の実際の出力で確かめ、その一つの場合だけを解析の側で取り戻しています（<a
@@ -223,14 +223,14 @@
 		>）。
 	</p>
 
-	{@render item('P3', '範囲の検査が debug ビルドだけだった', 'fixed', 'emit.rs · Edits::apply_in、lint.rs · run、check.rs · parse_report')}
+	{@render item('P3', '範囲の検査が debug ビルドだけだった', 'fixed', 'output/emitter.rs · Edits::apply_in、lint/rules.rs · run、check/report.rs · parse_report')}
 	<p>
 		<code>Edits</code> の重なりと範囲、lint ルールが自分の識別番号で報告しているかは、release でも確かめます。<code>Span::new</code> は
 		<code>debug_assert!</code> のままです。パーサが読んだテキストから Span を作る、一番よく通る道だからです。その代わり、外から来た位置（tsc
 		のレポート）は、Span を作る前に解析の側で確かめます。
 	</p>
 
-	{@render item('P4', 'LayoutInstruction のアリーナが書き換えられる', 'upstream', 'document.rs · LayoutInstructions::trim_left、trim_right、replace_parts')}
+	{@render item('P4', 'LayoutInstruction のアリーナが書き換えられる', 'upstream', 'output/document.rs · LayoutInstructions::trim_left、trim_right、replace_parts')}
 </div>
 
 <Code item={data.code.trimLeft} mark={['self.replace_parts(d, &inner);']} />
@@ -240,16 +240,16 @@
 		<code>trim</code> は既存のノードの子リストを差し替えるので、同じノードを二か所で使っていると、片方の <code>trim</code>
 		がもう片方も変えます。これは直しませんでした。上流の prettier-plugin-svelte の <code>trimLeft</code> も、<code>getParts</code>
 		が返した配列を <code>splice</code> でその場で書き換えます。同じ整形用データを共有した場合、公式ツールでも同じことが起きます<Note
-			>prettier-plugin-svelte 4.1.1 の <code>plugin.javascript</code> で確かめました。</Note
+			>prettier-plugin-svelte 4.1.1 の <code>plugin.js</code> で確かめました。</Note
 		>。新しいノードを返す形に変えると、その場合の出力が上流と違ってしまいます。
 	</p>
 
-	{@render item('P5', 'panic のメッセージが空になることがあった', 'fixed', 'pipeline.rs · panic_message')}
+	{@render item('P5', 'panic のメッセージが空になることがあった', 'fixed', 'computation/pipeline.rs · panic_message')}
 	<p>
 		渡された値が文字列でないときも、空文字列ではなく決まった文を入れます（<a href="/learn/kernel/pipeline#run-document">06</a>）。
 	</p>
 
-	{@render item('P6', 'LineIndex::utf16 が多バイト文字の途中で桁あふれした', 'fixed', 'source.rs · LineIndex')}
+	{@render item('P6', 'LineIndex::utf16 が多バイト文字の途中で桁あふれした', 'fixed', 'source/positions.rs · LineIndex')}
 	<p>
 		以前の列位置の変換処理は、直前の文字を読み、その長さを引いていました。複数バイトの文字の途中を指定すると、引き算があふれました。
 		開発用ビルドでは異常終了し、最適化したビルドでは巨大な列番号を返していました。たとえば <code>utf16("é", 1)</code> で起きます。
@@ -258,31 +258,31 @@
 		>）。
 	</p>
 
-	{@render item('P7', 'shouldBreak の group が親の group を壊さなかった', 'fixed', 'document.rs · LayoutInstructions::push')}
+	{@render item('P7', 'shouldBreak の group が親の group を壊さなかった', 'fixed', 'output/document.rs · LayoutInstructions::push')}
 	<p>
 		<code>group_broken</code> で作った group が親の group を壊さず、Prettier と違う出力になっていました（708a4403d5、<a href="/learn/kernel/document#printer"
 			>08</a
 		>）。
 	</p>
 
-	{@render item('P8', '文字列の幅が Prettier と違った', 'fixed', 'doc/width.rs · string_width')}
-	<p>絵文字、異体字セレクタ、ゼロ幅の文字の数え方が違っていました。今は Prettier から生成した表です（b58a0a72be、<a href="/learn/kernel/document#flat-only">08</a>）。</p>
+	{@render item('P8', '文字列の幅が Prettier と違った', 'fixed', 'output/width.rs · string_width')}
+	<p>絵文字、異体字セレクタ、ゼロ幅の文字の数え方が違っていました。今は Unicode の幅の規則（unicode-width）で数えます。Prettier の表との一致は目的にしていません（b58a0a72be、<a href="/learn/kernel/document#flat-only">08</a>）。</p>
 
-	{@render item('P9', '構造化データ形式の数値の位置に何でも書けた', 'fixed', 'structured_data.rs · StructuredDataWriter::write_number、fixed')}
+	{@render item('P9', '構造化データ形式の数値の位置に何でも書けた', 'fixed', 'output/structured_data.rs · StructuredDataWriter::write_number、fixed')}
 	<p>整数と小数を別の関数に分け、有限でない小数は <code>null</code> にしました（37a595c11e、<a href="/learn/kernel/structured-data#state">10</a>）。</p>
 
 	<H2 id="contracts" />
 
-	{@render item('C1', 'Task::id のドキュメントの例が実際の識別番号と違った', 'fixed', 'pipeline.rs · Task::id')}
+	{@render item('C1', 'Task::id のドキュメントの例が実際の識別番号と違った', 'fixed', 'computation/pipeline.rs · Task::identifier')}
 	<p>実際の形 <code>&lt;言語&gt;.&lt;タスク&gt;/&lt;変種&gt;</code> と例（<code>svelte.compile/client</code>）に直しました。</p>
 
-	{@render item('C2', '知らないタスク識別番号を黙って無視していた', 'fixed', 'pipeline.rs · Registry::check_task_ids、run_each')}
+	{@render item('C2', '知らないタスク識別番号を黙って無視していた', 'fixed', 'computation/pipeline.rs · Registry::check_task_identifiers、run_each')}
 	<p>
 		<code>run_each</code> と <code>run</code> は、知らない識別番号があれば何も走らせずに <code>Err(UnknownTask)</code> を返します。コマンドラインの実行プログラム
 		も同じ関数で確かめます（<a href="/learn/kernel/pipeline#registry">06</a>）。
 	</p>
 
-	{@render item('C3', 'Unsupported が場所を持たなかった', 'fixed', 'diagnostic.rs · Unsupported')}
+	{@render item('C3', 'Unsupported が場所を持たなかった', 'fixed', 'diagnostics/diagnostic.rs · Unsupported')}
 	<p>
 		<code>Unsupported</code> は拒否した構文の <Term name="SourceLocation" /> を持ち、整形と型検査の型検査用のコードの診断はその構文を指します。位置を持たないのは文書全体についての判断（一行に収まらないレイアウト）だけで、それは
 		<code>nowhere</code> と明示します。スタイルシートの整形も同じ型に揃えました（<a href="/learn/kernel/diagnostics#unsupported">07</a>）。
@@ -297,16 +297,20 @@
 
 	<H2 id="performance" />
 
-	{@render item('F1', 'フェーズの行を名前の線形探索で探す', 'measured', 'metrics.rs · PhaseGuard::drop')}
+	{@render item('F1', 'フェーズの行を名前の線形探索で探す', 'measured', 'performance/measurement.rs · PhaseGuard::drop')}
 	<p>
 		ガード一回の時間をマイクロベンチで測ると、およそ半分は計時のための二回の時計読みでした。表のロックと探索の分を多めに見積もっても、呼び出し回数を掛けると
 		metrics ビルドの時間の 1% に届きません。番号で引く形にすると構造が複雑になるので、今は見送りました。
 	</p>
 
-	{@render item('F2', 'プロジェクト全体の処理の前処理がタスク数 × 文書数だった', 'fixed', 'pipeline.rs · run_finish_tasks')}
-	<p>部品は一度の走査でプロジェクトタスクごとに振り分けます（<a href="/learn/kernel/pipeline#project">06</a>）。</p>
+	{@render item('F2', 'プロジェクト全体の処理の前処理がタスク数 × 文書数だった', 'open', 'computation/pipeline.rs · run_finish_tasks')}
+	<p>
+		部品は一度の走査でプロジェクトタスクごとに振り分けるように直しました。ただし、部品を持つプロジェクトタスクごとに全文書の出力を借りる表を作り直すので、全体の手間は今も「部品を持つプロジェクトタスクの数 × 全文書の出力の数」です。この残りはまだ直していません。関数のコメントも「タスク数 × 文書数にはならない」と書いたままです（<a
+			href="/learn/kernel/pipeline#project">06</a
+		>）。
+	</p>
 
-	{@render item('F3', 'プロジェクト全体の処理を待つ文書が、全タスクの出力を抱える', 'open', 'pipeline.rs · run_each')}
+	{@render item('F3', 'プロジェクト全体の処理を待つ文書が、全タスクの出力を抱える', 'open', 'computation/pipeline.rs · run_each')}
 </div>
 
 <Code item={data.code.runEach} mark={['.push((i, r));']} />
@@ -317,10 +321,10 @@
 		sink に渡すことになり、sink の守るべき条件（一文書一回）が変わります。呼び出し側と相談してから決めます。
 	</p>
 
-	{@render item('F4', 'pool とスレッドの小さな無駄', 'fixed', 'pool.rs · take、pipeline.rs · in_pool、run_document')}
+	{@render item('F4', 'pool とスレッドの小さな無駄', 'fixed', 'performance/buffer_pool.rs · take、computation/pipeline.rs · in_pool、run_document')}
 	<ul>
 		<li>
-			<code>RunOptions::threads</code> を指定した実行は、毎回新しいスレッドプールを作っていました。今はスレッド数ごとのプールをプロセスのあいだ残します。
+			<code>RunOptions::threads</code> を指定した実行は、毎回新しいスレッドプールを作っていました。今は最後に使ったスレッド数のプールを一つ、プロセスのあいだ残します。
 		</li>
 		<li><code>Sharing::Isolated</code> でも使わない <code>shared</code> の <Term name="DocumentContext" /> を作っていました。今は最初に求められたときに作ります。</li>
 		<li>
@@ -333,23 +337,23 @@
 <Code item={data.code.take} />
 
 <div class="prose-learn">
-	{@render item('F5', 'Interner がヒットでもテーブルを拡張した', 'fixed', 'intern.rs · Interner::intern')}
+	{@render item('F5', 'Interner がヒットでもテーブルを拡張した', 'fixed', 'source/interning.rs · Interner::intern')}
 	<p>拡張の判定は、名前が見つからなかったときだけ行います（<a href="/learn/kernel/interning#growth">03</a>）。</p>
 
-	{@render item('F6', 'run が文書ごとにロックを取っていた', 'fixed', 'pipeline.rs · run')}
+	{@render item('F6', 'run が文書ごとにロックを取っていた', 'fixed', 'computation/pipeline.rs · run')}
 	<p>結果は rayon の <code>collect</code> で順に集めます。割り当て回数がプラットフォームに依存しなくなりました（a5f67528cd、<a href="/learn/kernel/pipeline#run">06</a>）。</p>
 
 	<h3 class="mt-12 text-[19px] leading-[1.55] font-semibold">性能への影響</h3>
 	<p>
-		F2、F4、F5 は性能の修正ですが、検証用のソースファイル集全体の時間は動きませんでした。変更前 → 変更後 → 変更後 → 変更前の順に同じ検証用のソースファイル集を走らせた中央値（ms、plain
+		F2、F4、F5 は性能の修正ですが、検証用のソースファイル集全体の時間は動きませんでした。変更前 → 変更後 → 変更後 → 変更前の順に同じ検証用のソースファイル集（{data.polish.documents.toLocaleString('en-US')} 文書）を走らせた中央値（ms、plain
 		ビルド）です。
 	</p>
-	<table class="table">
+	<div class="overflow-x-auto"><table class="table">
 		<thead>
 			<tr><th>比較対象</th><th class="num">変更前（1 回目 / 2 回目）</th><th class="num">変更後（1 回目 / 2 回目）</th></tr>
 		</thead>
 		<tbody>
-			{#each data.arms as a (a.name)}
+			{#each data.polish.arms as a (a.name)}
 				<tr>
 					<td><code>{a.name}</code></td>
 					<td class="num">{ms(a.before[0])} / {ms(a.before[1])}</td>
@@ -357,7 +361,7 @@
 				</tr>
 			{/each}
 		</tbody>
-	</table>
+	</table></div>
 	<p>
 		変更の前後の差は、同じ比較対象を二回測ったときの揺れより小さく、速くなったとも遅くなったとも言えません。スレッドプールを残すようにしても
 		<code>serial</code> が変わらないので、作り直しのコストは無視できる大きさだったことも分かります<Note
@@ -367,19 +371,19 @@
 
 	<H2 id="measurement" />
 
-	{@render item('M1', 'ピークは増分で、負の生存量を 0 に丸める', 'docs', 'metrics.rs · GlobalMeasurements')}
+	{@render item('M1', 'ピークは増分で、負の生存量を 0 に丸める', 'docs', 'performance/measurement.rs · GlobalMeasurements')}
 	<p>
 		追跡を始める前に確保したメモリは入らず、それを解放すると生存量が負になって「増えていない」と読めることを、<code>peak_live_growth</code>
 		のドキュメントに書きました。
 	</p>
 
-	{@render item('M2', 'フェーズの self はスレッド時間の合計', 'docs', 'metrics.rs · PhaseMeasurements、docs/architecture.md')}
+	{@render item('M2', 'フェーズの self はスレッド時間の合計', 'docs', 'performance/measurement.rs · PhaseMeasurements、docs/architecture.md')}
 	<p>
 		<code>PhaseMeasurements</code> の時間は、フェーズを走らせたスレッドの実行時間の時間をスレッドについて足したものです。プロセッサー
 		時間でも経過時間でもないので、割合で読むことをドキュメントに書き、設計文書の表の見出しを「self プロセッサー ms」から「self ms（スレッド時間の合計）」に直しました。
 	</p>
 
-	{@render item('M3', 'フェーズのガードを別のスレッドで落とせた', 'fixed', 'metrics.rs · PhaseGuard')}
+	{@render item('M3', 'フェーズのガードを別のスレッドで落とせた', 'fixed', 'performance/measurement.rs · PhaseGuard')}
 	<p>
 		ガードは <code>Send</code> でない型になり、順番を違えて落とすと debug ビルドで止まります。<Term name="CountingAllocator" /> は <code>alloc_zeroed</code>
 		を転送するようになりました（2f8bef970a、<a href="/learn/kernel/measurement#phases">11</a>）。

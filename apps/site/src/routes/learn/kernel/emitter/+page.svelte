@@ -60,7 +60,7 @@
 <div class="prose-learn">
 	<p>
 		位置の対応はまだ {data.counter.mappings.length} 個しかなく、すべて点です<Note
-			>出力と位置の対応は <code>crates/languages/svelte/core/tools/export_site_source_maps.rs</code> で生成し、サイトのデータとしてコミットしています。コンパイルタスク自体は、今は位置の対応をファイルに書き出していません。</Note
+			>出力と位置の対応は <code>crates/hosts/command_line/tools/export_site_source_maps.rs</code> で生成し、サイトのデータとしてコミットしています。コンパイルタスク自体は、今は位置の対応をファイルに書き出していません。</Note
 		>。同じ入力を上流の Svelte 5.57.1 でコンパイルすると、source map のセグメントは 28 個になります<Note>公式コンパイラの出力で、位置の対応を表す項目を数えました。rsvelte の <code>source_map</code> はコピーの文字ごとと点ごとにセグメントを書きますが、この出力にはコピーがなく点が 6 個なので、6 個です。</Note>。位置の対応のない文字は、同じ行の直前の位置の対応点に引き寄せられます。
 	</p>
 
@@ -115,7 +115,7 @@
 	<p>
 		型検査のタスクは、どちらの規則を使うかを知りません。言語が 型検査用に生成する TypeScript コードを渡すときに、写し方の関数も一緒に渡します（<a
 			href="/learn/kernel/database#facet">04 共通の呼び出し窓口</a
-		>）。Svelte は <code>lookup_span</code>、Vue は <code>lookup_overlap</code> です。
+		>）。Vue は <code>lookup_overlap</code> を渡します。Svelte は <code>lookup_span</code> を渡しますが、TypeScript の content mapper を使うので、tsc が初めから元の位置で報告し、この関数は使いません。
 	</p>
 </div>
 
@@ -123,7 +123,7 @@
 
 <div class="prose-learn">
 	<p>
-		tsc が報告した位置は、この関数で元のソースに戻します。写らない診断（生成したコードの中で起きたもの）は捨てます。svelte-check
+		content mapper を使わない言語では、tsc が報告した位置をこの関数で元のソースに戻します。写らない診断（生成したコードの中で起きたもの）は捨てます。svelte-check
 		も、写した範囲の行が負になった診断を捨てています（<code>hasNoNegativeLines</code>）。
 	</p>
 </div>
@@ -184,7 +184,7 @@
 <div class="prose-learn">
 	<p>
 		編集が重なっていないことと範囲の外にないことは、release ビルドでも確かめます。確かめなければ、重なった編集はずっと先のスライス（<code>&source_text[position..start_offset]</code>）で、原因と離れた場所の
-		panic として表に出ます。コストは編集一つにつき比較二回です。
+		panic として表に出ます。コストは編集一つにつき確認二つ（比較は四回）です。
 	</p>
 	<p>
 		二つの確認の順序にも意味があります。以前は重なりを先に確かめていたので、範囲より前にある編集が「重なっている」と報告されていました。今は範囲を先に確かめ、「範囲の外」と正しく報告します（37a595c11e）。

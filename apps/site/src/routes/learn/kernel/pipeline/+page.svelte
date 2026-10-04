@@ -76,7 +76,7 @@
 	</p>
 	<p>
 		型検査のプロジェクトタスクは、言語プラグインの中ではなく <code>rsvelte_typescript_check</code> に一つだけあります。どの文書を扱うかは
-		<code>matches</code> に渡す判定関数で決めます。Svelte 用、Vue 用、両方をまとめて扱うものを登録します。
+		<code>matches</code> に渡す判定関数で決めます。Svelte 用と Vue 用を登録します。コマンドラインの実行プログラムは、TypeScript・Svelte・Vue をまとめて扱うもの（<code>ts.check/default</code>）も登録します。
 	</p>
 </div>
 
@@ -105,8 +105,8 @@
 <div class="prose-learn">
 	<p>
 		<code>selected</code> は識別番号で絞るだけなので、登録されていない識別番号はどのタスクにも一致しません。放っておくと、識別番号
-		を打ち間違えた実行が何も走らずに成功してしまいます。そこで <code>run_each</code> は、入口で <code>check_task_identifiers</code>
-		を呼び、知らない識別番号があれば何も走らせずに <code>Err(UnknownTask)</code> を返します。コマンドラインの実行プログラム も同じ関数で引数を確かめています。
+		を打ち間違えた実行が何も走らずに成功してしまいます。そこで <code>run_each</code> と <code>run</code> は、入口でまずプラグインの依存関係を確かめ（<code>validate_plugins</code>）、次に <code>check_task_identifiers</code>
+		を呼びます。知らない識別番号があれば、何も走らせずに <code>Err(UnknownTask)</code> を返します。コマンドラインの実行プログラム も同じ関数で引数を確かめています。
 	</p>
 </div>
 
@@ -183,7 +183,7 @@
 		少し込み入っているのは、借用の都合です。<code>finish</code> には、部品と、その部品の持ち主の
 		<code>TaskOutput</code> への可変参照を、同じ順で渡す必要があります。そこで、全文書の出力への参照を
 		<code>Option</code> の表（<code>by_doc</code>）にしてから、持ち主の分だけ <code>take</code>
-		で取り出しています。部品は最初に一度だけ走査して、プロジェクトタスクごとのリストに振り分けます。手間は部品の数に比例し、タスク数 × 文書数にはなりません。
+		で取り出しています。部品は最初に一度だけ走査して、プロジェクトタスクごとのリストに振り分けます。この振り分けの手間は部品の数に比例します。ただし部品を持つプロジェクトタスクごとに、全文書の全出力を借りる表を作り直すので、全体の手間は「部品を持つプロジェクトタスクの数 × 全文書の出力の数」に比例します。
 	</p>
 	<p>
 		<code>finish</code> が panic したときは、部品を出したすべての文書を panic 扱いにします。どの文書のせいかは分からないからです。
@@ -219,7 +219,7 @@
 
 <div class="prose-learn">
 	<p>
-		スレッド数を指定すると、<code>in_pool</code> がその数のスレッドプールで走らせます。プールはプロセスのあいだ残すので、同じスレッド数の実行を繰り返しても、スレッドとそのスレッドのバッファプール（<a
+		2 以上のスレッド数を指定すると、<code>in_pool</code> がその数のスレッドプールで走らせます。1 なら、プールを作らずに呼び出したスレッドで順に処理します。最後に使ったプールを一つプロセスのあいだ残すので、同じスレッド数の実行を繰り返しても、スレッドとそのスレッドのバッファプール（<a
 			href="/learn/kernel/buffer-pool">12</a
 		>）を使い回せます。指定しなければ rayon の既定（コア数）です。1 スレッドのときの中央値は {data.serial.plain[0].toFixed(1)} ms で、既定の
 		{data.shared.plain[0].toFixed(1)} ms の約 {(data.serial.plain[0] / data.shared.plain[0]).toFixed(1)} 倍でした。

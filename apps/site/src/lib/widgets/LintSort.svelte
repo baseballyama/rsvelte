@@ -2,7 +2,7 @@
 	import Figure from '$lib/components/Figure.svelte';
 	import { LineIndex } from '$lib/kernel/source';
 
-	// The kernel test's rule: report every 'x' (optionally shifted), under the rule's own id.
+	// The rsvelte_lint test's rule: report every 'x' (optionally shifted), under the rule's own id.
 	interface Finding {
 		code: string;
 		startOffset: number;
@@ -47,7 +47,7 @@
 				</ol>
 			</div>
 			<div>
-				<div class="text-muted">run の戻り値（lo で安定ソート）→ 行:列</div>
+				<div class="text-muted">run の戻り値（start_offset で安定ソート）→ 行:列</div>
 				<ol class="mt-1.5 space-y-0.5">
 					{#each sorted as f (f.seq)}
 						<li>

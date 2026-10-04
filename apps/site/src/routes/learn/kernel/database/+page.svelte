@@ -90,14 +90,14 @@
 
 <div class="prose-learn">
 	<p>
-		<code>get</code> の中身は三行です。配列の位置を引き、<code>OnceCell::get_or_initializer</code> で初回だけ計算し、<code
+		<code>get</code> の中身は三行です。配列の位置を引き、<code>OnceCell::get_or_init</code> で初回だけ計算し、<code
 			>Box&lt;dyn Any&gt;</code
 		>
 		を出力の型に戻します。戻す操作（<code>downcast_ref</code>）が失敗することはありません。配列の位置は型から決まり、その 配列の位置
 		に入れるのは同じ型の <code>compute</code> の結果だけだからです。
 	</p>
 	<p>
-		計算した順は <code>computed</code> に残ります。テストで「このタスクの組み合わせではパースが一回だった」と確かめるための記録です。
+		<code>trace-artifacts</code> という feature を有効にしたときだけ、計算した順が <code>computed</code> に残ります。テストで「このタスクの組み合わせではパースが一回だった」と確かめるための記録です。
 	</p>
 
 	<H2 id="sharing" />
@@ -139,7 +139,7 @@
 		は初期化の再入を検出して panic します。依存の循環はプラグインのバグなので、黙って無限再帰になるより、ここで止まるほうが安全です。
 	</p>
 	<p>
-		<Term name="DocumentContext" /> は <code>OnceCell</code> と <code>RefCell</code> を持つので <code>Sync</code>
+		<Term name="DocumentContext" /> は <code>OnceCell</code> を持つので <code>Sync</code>
 		ではありません。一つのワーカーが一つの文書を最初から最後まで受け持つので、ロックは要りません。並列化するのは文書の間だけです。
 	</p>
 
@@ -150,7 +150,7 @@
 
 	<H2 id="attribution" />
 	<p>
-		<code>get_or_initializer</code> の中で、計算結果の種類ごとに処理時間を測ります。内側で呼び出した別の処理の時間は差し引きます。
+		<code>get_or_init</code> の中で、計算結果の種類ごとに処理時間を測ります。内側で呼び出した別の処理の時間は差し引きます。
 		たとえば Svelte のブラウザ向けコンパイルが構文解析を呼び出した場合でも、構文解析の時間は <code>svelte.parse</code> として記録します。
 		その時間はコンパイルの時間に含めません。
 	</p>
@@ -219,7 +219,7 @@
 	<p>
 		最初の共通の呼び出し窓口は <Term name="rsvelte_typescript_check::TypeScriptView" /> です。答えは、文書を TypeScript として見たもの、つまり生成した TypeScript（<code
 			>Emitter</code
-		>）、そこから元の文書へ位置を戻す関数、プロジェクトに足す宣言ファイルです。
+		>）、元の文書へ位置を戻す方法、プロジェクトに足す設定と宣言ファイルです。Svelte は位置を戻す仕事を TypeScript の content mapper に任せ、Vue は位置を戻す関数を渡します。
 	</p>
 </div>
 
@@ -228,7 +228,7 @@
 
 <div class="prose-learn">
 	<p>
-		Svelte プラグインは svelte2tsx と同じ形のコードを生成します。Vue プラグインは <code>@vue/language-core</code> と同じ形のコードを生成します。
+		Svelte プラグインは、svelte-check が検査するのと同じ型の情報を持つ TypeScript を生成します。svelte2tsx と同じ文字列は目指していません。Vue プラグインは <code>@vue/language-core</code> と同じ形のコードを生成します。
 		どちらも、生成したコードを共通の呼び出し窓口から返すように登録します。
 	</p>
 </div>
@@ -248,7 +248,7 @@
 <div class="prose-learn">
 	<p>
 		同じ型検査処理を、三つのタスクとして登録できます。Svelte だけを調べる処理と、Vue だけを調べる処理があります。
-		コマンドラインの実行プログラムは、両方をまとめて調べる処理も登録します。
+		コマンドラインの実行プログラムは、TypeScript・Svelte・Vue をまとめて調べる処理も登録します。
 		これにより、Svelte と Vue が混ざったプロジェクトを TypeScript のコンパイラで一度に検査できます。
 		導入時の計測では、30 検証例に対するコンパイラの呼び出しが2回から1回に減りました。実行時間はおよそ100 msから67 msになりました（a15cdcda04）。
 	</p>

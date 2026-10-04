@@ -2,6 +2,8 @@
 	import Figure from '$lib/components/Figure.svelte';
 	import { TOOLBAR as d, type Range } from '$lib/data/layers';
 
+	type Tone = '' | 'node' | 'declaration' | 'ref';
+
 	type Focus =
 		| { kind: 'surface'; id: number }
 		| { kind: 'compiler_syntax_tree'; row: number }
@@ -28,7 +30,7 @@
 		}
 		return new Set<number>();
 	});
-	const spans = $derived.by((): { span: Range; tone: 'node' | 'decl' | 'ref' }[] => {
+	const spans = $derived.by((): { span: Range; tone: Exclude<Tone, ''> }[] => {
 		if (!focus) return [];
 		if (focus.kind === 'surface') {
 			const r = d.syntax_tree.find((x) => x.id === (focus as { id: number }).id);
@@ -38,18 +40,18 @@
 		if (focus.kind === 'lint') return [{ span: d.lint[focus.index].span, tone: 'node' }];
 		const b = d.bindings.find((x) => x.id === (focus as { id: number }).id)!;
 		return [
-			{ span: b.span, tone: 'decl' },
+			{ span: b.span, tone: 'declaration' },
 			...d.refs.filter((r) => r.binding === b.id).map((r) => ({ span: r.span, tone: 'ref' as const }))
 		];
 	});
 
 	// The source as runs of characters that share a highlight, so each run is one element.
 	const runs = $derived.by(() => {
-		const tone = new Array<string>(d.source.length).fill('');
+		const tone = new Array<Tone>(d.source.length).fill('');
 		// Wider spans first, so a nested span (a reference inside a node) wins where they overlap.
 		for (const s of [...spans].sort((a, b) => b.span[1] - b.span[0] - (a.span[1] - a.span[0])))
 			for (let i = s.span[0]; i < s.span[1]; i++) tone[i] = s.tone;
-		const out: { text: string; tone: string }[] = [];
+		const out: { text: string; tone: Tone }[] = [];
 		for (let i = 0; i < d.source.length; i++) {
 			const last = out.at(-1);
 			if (last && last.tone === tone[i]) last.text += d.source[i];
@@ -59,7 +61,8 @@
 	});
 
 	const refCount = (id: number) => d.refs.filter((r) => r.binding === id).length;
-	const toneClass: Record<string, string> = {
+	const toneClass: Record<Tone, string> = {
+		'': '',
 		node: 'bg-accent-wash text-fg',
 		declaration: 'bg-c-map text-bg',
 		ref: 'outline outline-1 outline-c-map'

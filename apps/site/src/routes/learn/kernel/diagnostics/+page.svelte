@@ -103,9 +103,9 @@
 
 <div class="prose-learn">
 	<p>
-		<code>no-unused-variables</code> の本体は <code>rsvelte_typescript_lint</code> にあります。JavaScript の意味に属するルールなので、Vue
+		<code>no-unused-vars</code> の本体は <code>rsvelte_typescript_lint</code> にあります。JavaScript の意味に属するルールなので、Vue
 		プラグインもそのまま使っています。違うのは、どの束縛を判定するかをホストが渡すことだけです。Vue では <code>v-for</code>
-		の変数を中核のルールには判定させず、<code>vue/no-unused-variables</code> が判定します。逆にすると、比較元の公式ツールとの比較で <code>lint-cases</code> が赤になります（73e09d6167）。二つのプラグインで同じ判断を共有する別の例は
+		の変数を中核のルールには判定させず、<code>vue/no-unused-vars</code> が判定します。逆にすると、比較元の公式ツールとの比較で <code>lint-cases</code> が赤になります（73e09d6167）。二つのプラグインで同じ判断を共有する別の例は
 		<a href="/learn/kernel/layers#shared-lint">05</a> にあります。
 	</p>
 
@@ -129,7 +129,7 @@
 
 <div class="prose-learn">
 	<p>
-		<code>assert!</code> は、ルールが自分の識別番号以外のコードで報告していないかを確かめます。release
+		<code>assert!</code> は、ルールが自分の識別名（文字列）以外のコードで報告していないかを確かめます。release
 		ビルドでも確かめるので、守るべき条件を破ったルールはその場で panic し、<code>run_document</code> がその文書の panic として報告します（<a
 			href="/learn/kernel/pipeline#run-document">06</a
 		>）。コストはルールが出した指摘の数だけの比較です。

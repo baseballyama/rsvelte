@@ -15,8 +15,8 @@
 
 	const stack = [
 		{ name: 'svelte.parse', layer: '表層', what: '書かれたとおりの木。整形はこれだけを読む。', readers: 'すべて' },
-		{ name: 'svelte.resolve', layer: '名前解決', what: 'スコープ、名前から束縛への対応、rune の種類。', readers: 'compile, lint' },
 		{ name: 'svelte.compiler_syntax_tree', layer: 'HIR', what: 'コンパイラが理解する形のテンプレート。', readers: 'compile, lint' },
+		{ name: 'svelte.resolve', layer: '名前解決', what: 'スコープ、名前から束縛への対応、rune の種類。コンパイル用に整理した構文木を読む。', readers: 'compile, lint' },
 		{ name: 'svelte.analyze', layer: 'コンパイラの派生', what: '式の依存、動的な断片、スタイルシートが選ぶ要素。コンパイル用に整理した構文木と名前解決を読む。', readers: 'compile' },
 		{ name: 'svelte.css', layer: '出力', what: 'スコープを付けた スタイルシート。', readers: 'compile' },
 		{ name: 'ts.view', layer: '出力（共通の呼び出し窓口）', what: '型検査が読む TypeScript。Svelte の答えは元の構文木から作る。', readers: 'check' }
@@ -27,7 +27,7 @@
 
 <ChapterHeader
 	chapter={c}
-	lead="パースした木は、書かれたとおりの形をしています。lint や型検査が知りたいのは、それが何を意味するかです。この章では、構文木の上に名前解決と コンパイル用に整理した構文木を一枚ずつ重ね、ルールやツールが必要な層だけを読む仕組みを見ます。"
+	lead="パースした木は、書かれたとおりの形をしています。lint や型検査が知りたいのは、それが何を意味するかです。この章では、構文木の上にコンパイル用に整理した構文木を重ね、その上に名前解決を重ねて、ルールやツールが必要な層だけを読む仕組みを見ます。"
 />
 
 <div class="prose-learn">
@@ -230,7 +230,7 @@
 		<li>要素は種類を持ちます。通常の要素、コンポーネント、<code>{'<svelte:head>'}</code> の中の <code>{'<title>'}</code>、<code
 				>{'<slot>'}</code
 			>、<code>svelte:</code> のメタタグです。</li>
-		<li>属性の値は、論理属性、静的な文字列（文字参照は展開済み）、式一つ、省略形、補間に分類されます。</li>
+		<li>普通の属性の値は、論理属性、静的な文字列（文字参照は展開済み）、式一つ、省略形、補間に分類されます。<code>bind:</code> などの指示子とスプレッド構文には、それぞれ別の種類があります。</li>
 		<li>テキストは文字参照を展開します。</li>
 		<li>すべての要素が <code>CompilerNodeIdentifier</code>、親、表層での出所を持ちます。</li>
 	</ul>
@@ -241,7 +241,7 @@
 
 <div class="prose-learn">
 	<p>
-		要素の種類は、Svelte のパーサ（<code>phases/1-parse/state/element.javascript</code>）と同じ順で決めます。<code>meta_tags</code>、<code
+		要素の種類は、Svelte のパーサ（<code>phases/1-parse/state/element.js</code>）と同じ順で決めます。<code>meta_tags</code>、<code
 			>regex_valid_component_name</code
 		>、<code>{'<svelte:head>'}</code> の中の <code>{'<title>'}</code>、<code>{'<slot>'}</code> の順です。親をたどるとき、ブロックと通常の要素・コンポーネント以外の要素は素通りします。これも上流の
 		<code>parent_is_head</code> と同じです。
@@ -284,8 +284,7 @@
 		コンパイラは コンパイル用に整理した構文木だけを読みます。そのため、別の言語からこの構文木を作れれば、同じコンパイラで Svelte
 		のランタイム向けの JavaScript を出力できます。<code>rsvelte_svue</code> はこの仕組みを使い、<code>.vue</code> のコンポーネントを
 		<strong>Vue の意味のまま</strong> Svelte のランタイム向けにコンパイルします。新しい言語は足さず、<code>.vue</code> の文書に適用するタスク
-		<code>svue.compile/client</code> と <code>svue.compile/server</code> を足すだけです。構文解析と名前解決は Vue プラグインの計算結果を使い、解析と出力は Svelte
-		プラグインのコンパイラを使います。<code>rsvelte_svue</code> が持っているのは、Vue の構文木から Svelte の runes を使うスクリプトと
+		<code>svue.compile/client</code> と <code>svue.compile/server</code> を足すだけです。翻訳は Vue プラグインの構文解析と名前解決の結果を読みます。翻訳した結果には、Svelte プラグインの名前解決、解析、出力を使います。<code>rsvelte_svue</code> が持っているのは、Vue の構文木から Svelte の runes を使うスクリプトと
 		コンパイル用に整理した構文木を作る翻訳だけです。
 	</p>
 </div>
@@ -366,9 +365,8 @@
 		の出力を Vue のランタイムで動かした記録と比べます。
 	</p>
 	<p>
-		Svelte element bindings run inside Vapor's <code>renderEffect</code>.
-		The effect tracks the values it reads and updates the element when they change.
-		<code>onScopeDispose</code> clears element bindings when a branch, loop item, or component is removed.
+		Svelte の要素への束縛は、Vapor の <code>renderEffect</code> の中で動きます。effect は読んだ値を追跡し、値が変わると要素を更新します。
+		分岐、繰り返しの一つの要素、コンポーネントが取り除かれると、<code>onScopeDispose</code> が要素への束縛を片付けます。
 	</p>
 </div>
 
@@ -392,11 +390,11 @@
 			> は <code>useAttrs()</code> にします。スプレッド構文を持つ要素では、すべての属性を一つのオブジェクトにまとめます。それを Svelte の
 			<code>set_attributes</code>（クライアント用）と <code>attributes</code>（サーバー用）を移植した補助関数に渡します。
 		</li>
-		<li>数値の入力欄の <code>bind:value</code>: 意味を再現できないので拒否します。</li>
+		<li>数値と範囲の入力欄の <code>bind:value</code>: 文字列ではなく数値として読み書きします。</li>
 	</ul>
 	<p>
-		再現できない構文は、それらしく変換せずに、出力を作る前に拒否します。たとえば <code>{'{@attach}'}</code> は拒否します。Svelte
-		はこれを、読んだ値を追跡する effect として走らせます。一方、Vue の関数 ref は自分では何も追跡しないからです。
+		再現できない構文は、それらしく変換せずに、出力を作る前に拒否します。たとえば、アタッチメント、action、トランジション、アニメーションの式の中の
+		<code>await</code> は拒否します。どこまで対応しているかは <code>crates/languages/svelte/compile_vapor/COVERAGE.md</code> にまとめています。
 	</p>
 	<p>
 		導入したコミット（24c6e6a123）では、手書きの 12 検証例のうち 11 で、クライアント用とサーバー用の両方が一致しました。残りの一つはスプレッド構文の属性で、拒否していました。スプレッド構文に対応した後（6b5621c994）は、12
@@ -415,7 +413,7 @@
 	</p>
 	<ul>
 		<li>
-			<code>no-unused-variables</code> は元の構文木と名前解決を読みます。ESLint の移植で、親の要素の種類や宣言の書き方を見て判断するので、書かれたとおりの木が要ります。
+			<code>no-unused-vars</code> は元の構文木と名前解決を読みます。ESLint の移植で、親の要素の種類や宣言の書き方を見て判断するので、書かれたとおりの木が要ります。
 		</li>
 		<li>
 			<code>svelte/button-has-type</code> は元の構文木だけを読みます。属性の値の部品がすべて文字列なら静的な値として判定し、式を含む値は判定しません。
@@ -441,7 +439,7 @@
 	<H2 id="shared-lint" />
 	<p>
 		Svelte と Vue の公式プラグインには、ボタンの種類を調べるルールが別々に実装されています。
-		それぞれ <code>svelte/button-has-type</code> と <code>vue/markup-button-has-type</code> です。rsvelte
+		それぞれ <code>svelte/button-has-type</code> と <code>vue/html-button-has-type</code> です。rsvelte
 		では判断の部分、つまり <code>type</code> が取れる値、四つのメッセージ、オプションを <code>rsvelte_markup::button_type</code> の一つの関数にしています。
 	</p>
 </div>
@@ -469,16 +467,16 @@
 		Vue と Svelte のルールは、どちらもそれぞれの言語の元の構文木の上で書かれています。木の形が違っても、判断を共有するのに困ることはありません。共有しているのは木ではなく、値についての判断だからです。
 	</p>
 	<p>
-		<code>vue/markup-button-has-type</code> はこのとき新しく足したルールで、<code>vue.lint</code> は 19 検証例中 19 で比較元の公式ツールと一致しました。報告の範囲を引用符の分だけずらすと
+		<code>vue/html-button-has-type</code> はこのとき新しく足したルールで、<code>vue.lint</code> は 19 検証例中 19 で比較元の公式ツールと一致しました。報告の範囲を引用符の分だけずらすと
 		18/19 に落ちることを対照として確かめています。<code>svelte.lint</code> は 12/12 のままでした（5c933023a7）。
 	</p>
 
 	<H2 id="next" />
-	<Caution>ここから先は計画で、まだコードはありません。</Caution>
+	<Caution>ここから先は計画です。型の項だけは試作のコードがあります。</Caution>
 	<ul>
 		<li>
-			型: tsgo から引き、<code>CompilerNodeIdentifier</code> と式の <code>NodeIdentifier</code> で引く表にします。型を持つ層は、コンパイル用に整理した構文木
-			とは別の計算結果です。
+			型: 型を使う lint の試作（<code>rsvelte_svelte_lint_typed</code>）があります。今は構文と名前解決から型を推論し（<code>TypeFacts::infer</code>）、共通の呼び出し窓口から受け取ります。tsgo から引き、<code>CompilerNodeIdentifier</code>
+			と式の <code>NodeIdentifier</code> で引く表にするのは、まだ計画です。型を持つ層は、コンパイル用に整理した構文木とは別の計算結果です。
 		</li>
 		<li>
 			制御フローとデータフロー: コンパイル用に整理した構文木とは別の構造にします。基本ブロックと辺の表、それに <code>$state</code> と

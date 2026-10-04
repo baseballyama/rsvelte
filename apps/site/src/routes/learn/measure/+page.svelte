@@ -34,7 +34,7 @@
 
 <ChapterHeader
 	chapter={c}
-	lead="性能は一度測って終わりではありません。rsvelte は、マシンの混み具合で揺れない量だけを数え、記録した値と比べる検査を、すべての push で走らせています。この章では、その仕組みと、各章で触れた実行時間のベンチマークの出どころを見ます。"
+	lead="性能は一度測って終わりではありません。rsvelte は、マシンの混み具合で揺れない量だけを数えて記録した値と比べる検査を、main と experimental への push とすべての pull request で走らせています。この章では、その仕組みと、各章で触れた実行時間のベンチマークの出どころを見ます。"
 />
 
 <div class="prose-learn">
@@ -149,13 +149,14 @@
 
 	<H2 id="ci" />
 	<p>
-		<code>.github/workflows/ci.yml</code> は、すべての push と pull request で三つのジョブを走らせます。
+		<code>.github/workflows/ci.yml</code> は、main と experimental への push と、すべての pull request で四つのジョブを走らせます。
 	</p>
 	<ul>
 		<li><code>rust</code>: 整形、二つの feature の組み合わせでの clippy、rustdoc、テスト。</li>
 		<li><code>fixtures</code>: 全タスクを全テスト用の入力と期待値に走らせ、比較元の公式ツールの期待値と比べる（次の節の正しさの基準値との比較検査）。</li>
+		<li><code>site</code>: このサイトのテスト、型の検査、ビルド。</li>
 		<li>
-			性能検査では、64ビットの Arm プロセッサーを使う Ubuntu 上で命令数を測ります。計測には Valgrind を使います。
+			<code>performance</code>: 64ビットの Arm プロセッサーを使う Ubuntu 上で命令数を測ります。計測には Valgrind を使います。
 			コマンド:<br />
 			<code>node tools/performance/bin/performance.ts --instructions --json performance-report.json</code>。
 			レポートは成果物として保存します。
@@ -347,7 +348,7 @@
 <div class="prose-learn">
 	<p>
 		<code>svelte.parse</code> は全文書で一回ずつ呼ばれ、下流のフェーズはパースが通った文書でだけ走ります。compile のタスク自体の self
-		はごく小さく、時間はそれが求めた計算結果と、<code>svelte.lower.*</code>・<code>javascript.print</code> に付いています。
+		はごく小さく、時間はそれが求めた計算結果と、<code>svelte.lower.*</code>・<code>js.print</code> に付いています。
 	</p>
 
 	<H2 id="reproduce" />

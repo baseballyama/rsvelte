@@ -57,12 +57,12 @@
 
 <div class="prose-learn">
 	<p>
-		数値は二つの関数に分かれています。<code>num</code> が受け取るのは整数だけです（<code>Integer</code> トレイトを実装した型）。小数は
+		数値は二つの関数に分かれています。<code>write_number</code> が受け取るのは整数だけです（<code>Integer</code> トレイトを実装した型）。小数は
 		<code>fixed</code> で、小数点以下の桁数を指定して書きます。構造化データ形式には <code>NaN</code> も無限大もないので、有限でない値は
 		<code>null</code> になります。
 	</p>
 	<p>
-		以前の <code>num</code> は <code>Display</code> を実装した値なら何でも受け取っていました。そのため文字列も <code>NaN</code>
+		以前の数値の関数は <code>Display</code> を実装した値なら何でも受け取っていました。そのため文字列も <code>NaN</code>
 		も数値の位置に書けてしまい、実際にベンチマークは <code>format!("{'{:.3}'}", …)</code> で丸めた文字列を渡し、母集団が空のときは
 		<code>NaN</code> を書いていました。型で分けたことで、どちらも書けなくなりました（37a595c11e）。
 	</p>

@@ -85,18 +85,22 @@ export interface PolishArm {
  * report the same `build.rev` (the "after" binary was built from that commit plus the uncommitted
  * fixes), so the arms are told apart by file, not by that field.
  */
-export function polishArms(): PolishArm[] {
+export function polishArms(): { documents: number; arms: PolishArm[] } {
 	const runs = { before1, before2, after1, after2 };
 	const docs = Object.entries(runs).map(([k, r]) => num(r.population.documents, `${k}.population.documents`));
-	if (new Set([...docs, documents()]).size !== 1) throw new Error(`populations differ: ${docs.join(', ')}`);
+	// The four runs are compared with each other only, so they must agree with each other, not with the other reports.
+	if (new Set(docs).size !== 1) throw new Error(`populations differ: ${docs.join(', ')}`);
 	const median = (r: { arms: { name: string; median_ms?: unknown }[] }, name: string) => {
 		const a = r.arms.find((x) => x.name === name);
 		if (!a) throw new Error(`arm ${name} missing`);
 		return num(a.median_ms, `${name}.median_ms`);
 	};
-	return before1.arms.map(({ name }) => ({
-		name,
-		before: [median(before1, name), median(before2, name)],
-		after: [median(after1, name), median(after2, name)]
-	}));
+	return {
+		documents: docs[0],
+		arms: before1.arms.map(({ name }) => ({
+			name,
+			before: [median(before1, name), median(before2, name)],
+			after: [median(after1, name), median(after2, name)]
+		}))
+	};
 }
