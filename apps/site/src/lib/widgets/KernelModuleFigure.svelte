@@ -41,7 +41,7 @@
 	</details>
 {/snippet}
 
-<Figure label="図 1.2 · モジュールの役割と関係">
+<Figure label="図 1.4 · モジュールの役割と関係">
 	<div class="module-map">
 		<div class="flow">
 			<p class="endpoint">入力：文書と実行するタスク</p>

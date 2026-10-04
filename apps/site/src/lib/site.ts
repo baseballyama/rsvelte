@@ -42,6 +42,7 @@ export const chapters: Chapter[] = [
 		minutes: 15,
 		sections: [
 			s('why', 'なぜカーネルなのか'),
+			s('overview', '全体の構成 — 役割とデータの流れ'),
 			s('layers', '層と境界'),
 			s('modules', 'モジュールの役割'),
 			s('life', 'ファイルを処理する手順'),
@@ -167,7 +168,7 @@ export const chapters: Chapter[] = [
 			s('ir', '整形用のデータ構造と保存領域'),
 			s('printer', '整形の指示を順に処理する'),
 			s('fits', '一行に収まるかを確かめる'),
-			s('単語を収まるだけ一行に並べる', '単語を収まるだけ一行に並べる'),
+			s('fill', '単語を収まるだけ一行に並べる'),
 			s('group-ids', '改行の判断を共有する'),
 			s('flat-only', '改行なしで出力できる場合だけ返す'),
 			s('mutation', '保存した整形指示を書き換える')
@@ -238,7 +239,7 @@ export const chapters: Chapter[] = [
 		href: '/learn/measure',
 		number: '13',
 		title: '実測 — 性能の基準値との比較検査',
-		abstract: '割り当てと命令数を決定的に数え、すべての push で基準値と比べる。正しさの基準値との比較検査と、実行時間のベンチマーク。',
+		abstract: '割り当てと命令数を決定的に数え、main と experimental への push と pull request で基準値と比べる。正しさの基準値との比較検査と、実行時間のベンチマーク。',
 		minutes: 14,
 		sections: [
 			s('ratchet', '性能の基準値との比較検査'),
@@ -293,6 +294,14 @@ export const appendix = [
 	{ href: '/learn/playground', title: 'パイプラインのプレイグラウンド', abstract: '言語プラグインを付け外しし、ソースの解析と出力を追う。' },
 	{ href: '/learn/playground/doc', title: '整形の判断を試す', abstract: '整形用のデータ構造を書いて、プリンタの判断を追う。' }
 ];
+
+/** The Rust file a chapter's `module` key names, as the source plugin reads it. */
+export function moduleFile(module: string): string {
+	const [crate, ...rest] = module.split('/');
+	const directory = crate === 'kernel' ? 'crates/kernel/src' : crate === 'lint' ? 'crates/tooling/lint/src' : null;
+	if (!directory) throw new Error(`no crate directory for ${module}`);
+	return `${directory}/${rest.join('/')}.rs`;
+}
 
 export function chapterByHref(pathname: string): Chapter | undefined {
 	const p = pathname.replace(/\/$/, '') || '/';

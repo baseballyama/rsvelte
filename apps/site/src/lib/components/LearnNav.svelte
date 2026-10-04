@@ -45,6 +45,9 @@
 			>
 			<span class={here ? 'font-medium' : ''}>{c.title}</span>
 		</a>
+		{#if c.slug === 'kernel' && !here}
+			<a href="/learn/kernel#overview" class="ml-[30px] block rounded-md px-2 py-[3px] text-[13px] text-muted hover:bg-surface hover:text-fg">全体の構成（図）</a>
+		{/if}
 		{#if here && c.sections.length > 0}
 			<ol class={['mt-1 mb-2 ml-[18px] border-l border-line', !outlineAtXl && 'xl:hidden']}>
 				{#each c.sections as s (s.id)}

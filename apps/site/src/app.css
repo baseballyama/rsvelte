@@ -294,6 +294,15 @@
 		border-radius: var(--radius-xs);
 		white-space: nowrap;
 	}
+	.prose-learn pre {
+		overflow-x: auto;
+	}
+	@media (max-width: 640px) {
+		.prose-learn :not(pre) > code {
+			white-space: normal;
+			overflow-wrap: anywhere;
+		}
+	}
 	.prose-learn ul,
 	.prose-learn ol {
 		padding-left: 1.4em;

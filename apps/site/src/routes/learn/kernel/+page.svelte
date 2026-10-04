@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Term from '$lib/components/Term.svelte';
 	import KernelModuleFigure from '$lib/widgets/KernelModuleFigure.svelte';
+	import KernelOverview from '$lib/widgets/KernelOverview.svelte';
 	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
 	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
 	import Code from '$lib/components/Code.svelte';
@@ -53,20 +54,36 @@
 		rsvelte はこれらを一つの Rust ライブラリにまとめました。それがカーネルです。
 	</p>
 	<p>
-		分け方の基準は一つだけです。<strong>扱う言語が変わると、処理の規則も変わるか。</strong>書き直さないもの、つまりスケジューラ、計算結果のキャッシュ、ルールの走らせ方、元のソース位置を求める処理、文書プリンタはカーネルに置きます。
+		分け方の基準は一つだけです。<strong>扱う言語が変わると、処理の規則も変わるか。</strong>書き直さないもの、つまりスケジューラ、計算結果のキャッシュ、元のソース位置を求める処理、文書プリンタはカーネルに置きます。lint ルールの走らせ方と並び順は、カーネルではなく rsvelte_lint に置きます。
 	</p>
 	<p>
 		この基準は、実際に二つ目の言語を足して試されています（<a href="#languages">二つ目の言語</a>）。
+	</p>
+
+	<H2 id="overview" />
+	<p>
+		次の図は、言語プラグインとカーネルとホストが、何を登録し、どの順にデータを渡すかを示します。四角はそれぞれの部分を説明する章へのリンクです。
+		後の章では、冒頭にこの図での位置を示します。
+	</p>
+</div>
+
+<KernelOverview />
+
+<div class="prose-learn">
+	<p>
+		図の左の言語プラグインは、構文木や名前解決などの計算結果の型と、コンパイルや整形などのタスクを登録します。
+		ホストは文書を作り、カーネルの実行を呼びます。カーネルは文書ごとにタスクを呼び、タスクが求めた計算結果を一度だけ計算して保存します。
+		全文書の準備が終わると、型検査のようなまとめる処理を一度だけ呼びます。
 	</p>
 
 	<H2 id="layers" />
 	<p>依存は一方向で、下に行くほど言語から遠くなります。</p>
 </div>
 
-<Figure label="図 1.1 · 層">
+<Figure label="図 1.2 · crate の役割と依存の向き">
 	<div class="overflow-x-auto px-4 py-5">
 		<ol class="flex min-w-[640px] items-stretch gap-2 font-mono text-[12.5px] tracking-normal">
-			{#each [['rsvelte_command_line', 'ホスト: 引数、読み込み、書き出し'], ['rsvelte_svelte · rsvelte_vue · rsvelte_svue', '言語プラグイン'], ['rsvelte_typescript · rsvelte_stylesheet · rsvelte_markup', '埋め込み言語と共有の判断'], ['rsvelte_kernel', '言語を知らない']] as [name, role], i (name)}
+			{#each [['rsvelte_command_line · rsvelte_kernel_browser', 'ホスト：コマンドラインとブラウザ'], ['rsvelte_svelte_compile · rsvelte_vue_lint · rsvelte_svue など', '言語の機能：コンパイル、整形、コード検査、型検査、言語間の変換'], ['rsvelte_svelte · rsvelte_vue · rsvelte_typescript など／rsvelte_lint など', '言語の中核と、共有の部品'], ['rsvelte_kernel', '言語を知らない']] as [name, role], i (name)}
 				<li class="flex flex-1 items-center gap-2">
 					<div class={['flex-1 rounded-sm border px-3 py-2', i === 3 ? 'border-fg bg-surface' : 'border-line-strong']}>
 						<div class="font-medium text-fg">{name}</div>
@@ -77,12 +94,12 @@
 			{/each}
 		</ol>
 	</div>
-	{#snippet caption()}矢印は依存の向き。rsvelte_svue は rsvelte_svelte と rsvelte_vue の両方に依存する。カーネルは rayon と rustc-hash 以外に依存しない。{/snippet}
+	{#snippet caption()}矢印は依存の向き。役割は crate のパスで決まり、<code>tools/structure</code> のテストが依存の向きを確かめる。言語の中核はカーネルと他の言語の中核だけに、共有の部品はカーネルだけに依存する。rsvelte_svue と rsvelte_svelte_compile_vapor は Svelte と Vue の両方の中核に依存する。カーネルが依存する外部の crate は rayon、semver、rustc-hash、sha2、unicode-width の五つ。{/snippet}
 </Figure>
 
 <div class="prose-learn">
 	<p>
-		カーネルの <code>lib.rs</code> は、冒頭のコメントでこの約束を書いています。
+		カーネルの <code>lib.rs</code> の冒頭のコメントは、カーネルが持つものの一覧です。依存の向きの約束は、上の図のとおり <code>tools/structure</code> のテストが確かめています。
 	</p>
 	<blockquote class="border-l-0 font-mono text-[14px] leading-[1.7] text-fg-2">{data.libDocs}</blockquote>
 	<p>
@@ -96,7 +113,7 @@
 <Code item={data.code.register} />
 
 <div class="prose-learn">
-	<p>登録を受け取る <code>Registry</code> は、タスク・プロジェクトタスクと、計算結果・共通の呼び出し窓口の登録を持ちます。</p>
+	<p>登録を受け取る <code>Registry</code> は、タスク・プロジェクトタスク、計算結果・共通の呼び出し窓口、プラグインの宣言の登録を持ちます。</p>
 </div>
 
 <Code item={data.code.registry} />
@@ -109,7 +126,7 @@
 	</p>
 </div>
 
-<Figure label="図 1.2 · 言語に共通する実行の流れ">
+<Figure label="図 1.3 · 言語に共通する実行の流れ">
 	<ol class="grid gap-3 p-5 sm:grid-cols-3">
 		<li><strong>1. 文書を作る</strong><p>ホストがパスとソースを渡す。</p></li>
 		<li><strong>2. タスクを実行する</strong><p>言語プラグインが必要な計算結果を求め、文書ごとに再利用する。</p></li>
@@ -122,7 +139,7 @@
 	<p>
 		カーネルの「処理の登録と実行」が、選んだ処理を文書ごとに順に呼び出します。
 		「計算結果の保存と再利用」は、言語プラグインが作る構文木や名前解決の表を保持します。
-		整形は文書プリンタを使い、コード検査はルールの実行と指摘の書き出しを使います。
+		整形は文書プリンタを使い、コード検査は rsvelte_lint のルールの実行と指摘の書き出しを使い、カーネルからはエラーや警告の型と位置の変換を使います。
 		コンパイルと型検査用コードの生成では、文字列の出力と位置の対応付けを使います。
 	</p>
 	<p>
@@ -249,7 +266,7 @@
 		JavaScript の構文解析や出力処理、スタイルシートの処理は Svelte と共通です。
 	</p>
 	<p>
-		二つ目の言語のためにカーネルに足したものは、次のとおりです（573ac584b6、a15cdcda04）。どれも Vue に固有のものではなく、Svelte も使います。
+		二つ目の言語のために足したものは、次のとおりです（573ac584b6、a15cdcda04）。最初の一つは rsvelte_typescript に、残りはカーネルに足しました。どれも Vue に固有のものではなく、Svelte も使います。
 	</p>
 	<ul>
 		<li>
@@ -257,7 +274,7 @@
 			<code>v-for</code> は、テンプレートが開くスコープです。
 		</li>
 		<li>終端のない診断: ESLint の報告には位置が一つしかないものがあり、lint の書き出しはその終端を <code>null</code> と書きます。</li>
-		<li>256ビットのハッシュ関数: 上の <code>hash</code> です。</li>
+		<li>256ビットのハッシュ関数: カーネルの <code>sha256</code> です。Vue のスタイルの識別子を、公式のプラグインと同じ値にするために使います。</li>
 		<li>
 			共通の呼び出し窓口: 型検査のように、言語ごとに答え方が違う問いを、一つのタスクから尋ねる仕組みです（<a href="/learn/kernel/database#facet">04</a
 			>）。

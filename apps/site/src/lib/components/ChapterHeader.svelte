@@ -1,5 +1,6 @@
 <script lang="ts">
-	import type { Chapter } from '$lib/site';
+	import { moduleFile, type Chapter } from '$lib/site';
+	import ChapterPosition from './ChapterPosition.svelte';
 	import Icon from './Icon.svelte';
 
 	let { chapter, lead }: { chapter: Chapter; lead: string } = $props();
@@ -28,9 +29,10 @@
 				<dt class="sr-only">対象のソース</dt>
 				<dd class="flex min-w-0 items-center gap-1.5">
 					<Icon name="file" size={13} />
-					<span class="truncate">crates/kernel/src/{chapter.module.split('/')[1]}.rs</span>
+					<span class="truncate">{moduleFile(chapter.module)}</span>
 				</dd>
 			</div>
 		{/if}
 	</dl>
+	<ChapterPosition href={chapter.href} />
 </header>
