@@ -192,7 +192,7 @@
 		Before, only the test inputs and expected outputs came from the working tree. So the loading walk also counted the
 		<code>actual/</code> folders that local runs left next to each test case. As a result, loading measured 345,677,577
 		instructions locally and 292,546,145 on the clean checkout of the automatic check. A run of the check from a clean worktree
-		found this (201b86fd6b).
+		found this (201b86fd6b). The two numbers are from the message of that commit.
 	</p>
 	<DeepDive title="How we confirm that the check really checks">
 		<p>
