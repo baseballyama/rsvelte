@@ -11,7 +11,7 @@
 	import LayerView from '$lib/widgets/LayerView.svelte';
 
 	let { data } = $props();
-	const c = chapter('layers');
+	const c = chapter('layers', 'ja');
 
 	const stack = [
 		{ name: 'svelte.parse', layer: '表層', what: '書かれたとおりの木。整形はこれだけを読む。', readers: 'すべて' },

@@ -10,7 +10,7 @@
 	import PipelineTimeline from '$lib/widgets/PipelineTimeline.svelte';
 
 	let { data } = $props();
-	const c = chapter('pipeline');
+	const c = chapter('pipeline', 'ja');
 	const mb = (b: number) => (b / 1e6).toFixed(1);
 </script>
 

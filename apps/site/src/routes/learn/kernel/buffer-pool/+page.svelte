@@ -10,7 +10,7 @@
 	import PoolViz from '$lib/widgets/PoolViz.svelte';
 
 	let { data } = $props();
-	const c = chapter('pool');
+	const c = chapter('pool', 'ja');
 	const pct = (a: number, b: number) => ((1 - a / b) * 100).toFixed(0);
 </script>
 

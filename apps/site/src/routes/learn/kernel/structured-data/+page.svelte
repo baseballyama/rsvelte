@@ -8,7 +8,7 @@
 	import JsonStepper from '$lib/widgets/JsonStepper.svelte';
 
 	let { data } = $props();
-	const c = chapter('json');
+	const c = chapter('json', 'ja');
 </script>
 
 <svelte:head><title>{c.title} — rsvelte Learn</title></svelte:head>

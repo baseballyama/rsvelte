@@ -12,7 +12,7 @@
 	import { chapter } from '$lib/site';
 
 	let { data } = $props();
-	const c = chapter('kernel');
+	const c = chapter('kernel', 'ja');
 
 	const life = [
 		{ functionName: 'Registry::document', label: '元のソースを持つ文書を作る', what: 'Document にパスとソース文字列を保存し、サイズの上限を確かめる。この時点では構文木も解析結果もない。', href: '/learn/kernel/pipeline#document' },

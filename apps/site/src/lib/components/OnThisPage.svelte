@@ -1,8 +1,16 @@
 <script lang="ts">
+	import { bilingual } from '$lib/i18n';
+	import { readerLang } from '$lib/lang.svelte';
 	import { REPO_URL, type Chapter } from '$lib/site';
 	import Icon from './Icon.svelte';
 
 	let { chapter, active, progress }: { chapter: Chapter; active: string | null; progress: number } = $props();
+
+	const text = bilingual(
+		{ label: 'このページの節', heading: 'このページ', top: '先頭へ戻る' },
+		{ label: 'Sections on this page', heading: 'On this page', top: 'Back to top' }
+	);
+	const t = $derived(text[readerLang()]);
 
 	const index = $derived(chapter.sections.findIndex((s) => s.id === active));
 	const sourceHref = $derived(
@@ -10,9 +18,9 @@
 	);
 </script>
 
-<nav aria-label="このページの節" class="text-[13px] leading-[1.55]">
+<nav aria-label={t.label} class="text-[13px] leading-[1.55]">
 	<p class="eyebrow mb-3 flex items-center justify-between">
-		<span>このページ</span>
+		<span>{t.heading}</span>
 		<span class="tnum normal-case">{Math.round(progress * 100)}%</span>
 	</p>
 	<ol class="border-l border-line">
@@ -45,7 +53,7 @@
 		{/if}
 		<a href="#top" class="flex items-center gap-2 hover:text-fg" onclick={(e) => { e.preventDefault(); scrollTo({ top: 0 }); }}>
 			<Icon name="arrow-left" size={14} class="rotate-90" />
-			<span>先頭へ戻る</span>
+			<span>{t.top}</span>
 		</a>
 	</div>
 </nav>

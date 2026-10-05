@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { REPO_URL } from '$lib/site';
+	import { bilingual } from '$lib/i18n';
+	import { readerLang } from '$lib/lang.svelte';
 	import Icon from './Icon.svelte';
 
 	interface Excerpt {
@@ -24,6 +26,23 @@
 		caption?: string;
 	} = $props();
 
+	const text = bilingual(
+		{
+			open: (rev: string) => `GitHub で ${rev} の該当行を開く`,
+			dirty: 'crates/ に未コミットの変更がある状態でビルドされたため、行リンクはありません',
+			copy: 'コードをコピー',
+			copyShort: 'コピー',
+			copied: 'コピーしました'
+		},
+		{
+			open: (rev: string) => `Open these lines at ${rev} on GitHub`,
+			dirty: 'No line link: the site was built with uncommitted changes in crates/',
+			copy: 'Copy the code',
+			copyShort: 'Copy',
+			copied: 'Copied'
+		}
+	);
+	const t = $derived(text[readerLang()]);
 	const rev = $derived(page.data.rev as string);
 	const clean = $derived(page.data.clean as boolean);
 	const markup = $derived.by(() => {
@@ -70,11 +89,11 @@
 					class="flex items-center gap-1 rounded-sm px-1.5 py-0.5 hover:bg-bg hover:text-accent tnum"
 					{href}
 					rel="noopener"
-					title="GitHub で {rev.slice(0, 7)} の該当行を開く"
+					title={t.open(rev.slice(0, 7))}
 					>L{item.startLine}–{item.endLine}<Icon name="external" size={11} class="opacity-70" /></a
 				>
 			{:else}
-				<span class="px-1.5 tnum" title="crates/ に未コミットの変更がある状態でビルドされたため、行リンクはありません"
+				<span class="px-1.5 tnum" title={t.dirty}
 					>L{item.startLine}–{item.endLine}</span
 				>
 			{/if}
@@ -82,8 +101,8 @@
 				type="button"
 				class="flex size-7 items-center justify-center rounded-sm hover:bg-bg hover:text-fg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/code:opacity-100 focus-visible:opacity-100"
 				onclick={copy}
-				aria-label={copied ? 'コピーしました' : 'コードをコピー'}
-				title={copied ? 'コピーしました' : 'コピー'}
+				aria-label={copied ? t.copied : t.copy}
+				title={copied ? t.copied : t.copyShort}
 			>
 				{#if copied}<Icon name="check" size={14} class="text-ok" />{:else}<Icon name="copy" size={14} />{/if}
 			</button>

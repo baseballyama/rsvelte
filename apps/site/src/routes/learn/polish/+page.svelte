@@ -8,7 +8,7 @@
 	import { chapter } from '$lib/site';
 
 	let { data } = $props();
-	const c = chapter('polish');
+	const c = chapter('polish', 'ja');
 
 	type Status = 'fixed' | 'docs' | 'upstream' | 'measured' | 'open';
 	const label: Record<Status, string> = {

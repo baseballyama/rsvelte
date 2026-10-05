@@ -8,7 +8,7 @@
 	import InternerViz from '$lib/widgets/InternerViz.svelte';
 
 	let { data } = $props();
-	const c = chapter('intern');
+	const c = chapter('intern', 'ja');
 </script>
 
 <svelte:head><title>{c.title} — rsvelte Learn</title></svelte:head>

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import CrateDiagram from '$lib/components/CrateDiagram.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { REPO_URL, chapters } from '$lib/site';
+	import { REPO_URL, chaptersIn } from '$lib/site';
 	import SpanFigure from '$lib/widgets/SpanFigure.svelte';
 
 	let { data } = $props();
@@ -60,16 +60,16 @@
 	]);
 
 	const groups = $derived.by(() => {
-		const first = chapters.findIndex((c) => c.module);
-		const last = chapters.findLastIndex((c) => c.module);
-		if (first < 0) return [{ title: '章', items: chapters }];
+		const first = chaptersIn('ja').findIndex((c) => c.module);
+		const last = chaptersIn('ja').findLastIndex((c) => c.module);
+		if (first < 0) return [{ title: '章', items: chaptersIn('ja') }];
 		return [
-			{ title: 'はじめに', items: chapters.slice(0, first) },
-			{ title: 'カーネルのモジュール', items: chapters.slice(first, last + 1) },
-			{ title: '測って磨く', items: chapters.slice(last + 1) }
+			{ title: 'はじめに', items: chaptersIn('ja').slice(0, first) },
+			{ title: 'カーネルのモジュール', items: chaptersIn('ja').slice(first, last + 1) },
+			{ title: '測って磨く', items: chaptersIn('ja').slice(last + 1) }
 		].filter((g) => g.items.length > 0);
 	});
-	const totalMinutes = chapters.reduce((n, c) => n + c.minutes, 0);
+	const totalMinutes = chaptersIn('ja').reduce((n, c) => n + c.minutes, 0);
 
 	const command = 'cargo run --release -p rsvelte_command_line -- run Counter.svelte --task svelte.compile/client';
 	let copied = $state(false);
@@ -178,7 +178,7 @@
 				</div>
 				<p class="text-[16px] leading-[1.9] text-fg-2 lg:col-span-7">
 					<span class="c-gen">出力</span>の上でカーソルを動かすと、その文字がどの<span class="c-src">入力</span
-					>の位置から来たかを、カーネルの <code class="text-[14px]">Emitter::lookup</code> と同じ規則（指定位置以前で最も近い対応点）で引きます。
+					>の位置から来たかを、カーネルの <code class="text-[14px]">Emitter::lookup</code> と同じ規則（指定位置以前で、同じ行にある最も近い対応点）で引きます。
 				</p>
 			</div>
 			<div class="mt-8">
@@ -186,7 +186,7 @@
 			</div>
 			<p class="mt-3 max-w-[52em] text-[13.5px] leading-[1.8] text-muted">
 				出力と位置の対応点は <code class="text-[12.5px]">{data.counter.fixture}</code> を rsvelte で実際にコンパイルしたもので、位置の対応点はまだ
-				{data.counter.mappings.length} 個しかありません。位置の対応点のない文字は、直前の位置の対応点に吸い寄せられます。
+				{data.counter.mappings.length} 個しかありません。位置の対応点のない文字は、同じ行の直前の位置の対応点に吸い寄せられます。
 			</p>
 		</section>
 
@@ -316,7 +316,7 @@
 			<div class="flex flex-wrap items-end justify-between gap-4">
 				<div>
 					<p class="eyebrow">Learn</p>
-					<h2 id="learn" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">カーネルを読む {chapters.length} 章</h2>
+					<h2 id="learn" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">カーネルを読む {chaptersIn('ja').length} 章</h2>
 					<p class="mt-3 max-w-[42em] text-[16px] leading-[1.9] text-fg-2">
 						大枠から細部まで読むための教材です。抜粋はすべてビルド時に実際のソースから切り出していて、行番号はファイルのものです。通して約
 						{totalMinutes} 分。

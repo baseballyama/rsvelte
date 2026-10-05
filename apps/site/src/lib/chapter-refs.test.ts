@@ -1,7 +1,9 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { chapters } from './site.ts';
+import { chaptersIn } from './site.ts';
+
+const chapters = chaptersIn('ja');
 
 // Prose names chapters by number ("（<a href="/learn/kernel/database">04</a>）", "13 実測"); inserting a
 // chapter renumbers the rest, so every such number is checked against the table of contents.

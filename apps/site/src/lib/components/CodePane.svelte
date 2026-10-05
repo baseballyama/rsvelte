@@ -2,11 +2,17 @@
 	import { onMount } from 'svelte';
 	import type { ThemedToken } from 'shiki/core';
 	import type { CodeLanguage } from '$lib/kernel/code-language';
+	import { bilingual } from '$lib/i18n';
+	import { readerLang } from '$lib/lang.svelte';
 	let { value = $bindable(''), language, label, editable = false, hint }: {
 		value: string; language: CodeLanguage; label: string; editable?: boolean;
 		/** The id of an element that explains the editor's keys. */
 		hint?: string;
 	} = $props();
+	const text = bilingual(
+		{ load: '色分けを読み込めませんでした。ソースはそのまま表示します。', paint: '色分けできませんでした。ソースはそのまま表示します。' },
+		{ load: 'Could not load syntax colors. The source is shown without them.', paint: 'Could not color the source. It is shown without colors.' }
+	);
 	let tokenizer = $state<typeof import('$lib/kernel/highlight').highlight>();
 	let tokens = $state<ThemedToken[][]>([]);
 	let paintedSource = $state<string | null>(null);
@@ -21,7 +27,7 @@
 		let disposed = false;
 		import('$lib/kernel/highlight').then((module) => {
 			if (!disposed) tokenizer = module.highlight;
-		}).catch(() => { if (!disposed) error = '色分けを読み込めませんでした。ソースはそのまま表示します。'; });
+		}).catch(() => { if (!disposed) error = text[readerLang()].load; });
 		return () => { disposed = true; };
 	});
 	$effect(() => {
@@ -37,7 +43,7 @@
 				paintedLanguage = lang;
 				error = '';
 			}).catch(() => {
-				if (!disposed) error = '色分けできませんでした。ソースはそのまま表示します。';
+				if (!disposed) error = text[readerLang()].paint;
 			});
 		}
 		return () => { disposed = true; };

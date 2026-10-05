@@ -11,7 +11,7 @@
 	import ArtifactCacheSim from '$lib/widgets/ArtifactCacheSim.svelte';
 
 	let { data } = $props();
-	const c = chapter('db');
+	const c = chapter('db', 'ja');
 	const ms = (v: number) => v.toFixed(1);
 	const m = (v: number) => (v / 1e6).toFixed(2);
 </script>

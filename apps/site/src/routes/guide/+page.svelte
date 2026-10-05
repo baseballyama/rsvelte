@@ -1,6 +1,6 @@
 <script lang="ts">
 	import GuideCode from '$lib/components/GuideCode.svelte';
-	import { guideExamples, guideSections } from '$lib/guide';
+	import { guideExamples, guideSectionsIn } from '$lib/guide';
 	import { REPO_URL } from '$lib/site';
 </script>
 
@@ -14,7 +14,7 @@
 		<nav class="rounded-lg border border-line bg-sunken p-4 lg:sticky lg:top-24" aria-label="ガイドの目次">
 			<p class="mb-3 text-[14px] font-medium">使い方ガイド</p>
 			<ol class="space-y-1">
-				{#each guideSections as section}
+				{#each guideSectionsIn('ja') as section}
 					<li><a class="block rounded px-2 py-1.5 text-[14px] text-fg-2 hover:bg-surface hover:text-fg" href="#{section.id}">{section.title}</a></li>
 				{/each}
 			</ol>
@@ -25,7 +25,7 @@
 		<details class="rounded-lg border border-line bg-sunken px-4 py-3">
 			<summary class="cursor-pointer text-[14px] font-medium">このページの目次</summary>
 			<ol class="mt-3 space-y-1">
-				{#each guideSections as section}
+				{#each guideSectionsIn('ja') as section}
 					<li><a class="block rounded px-2 py-1.5 text-[14px] text-fg-2 hover:bg-surface hover:text-fg" href="#{section.id}">{section.title}</a></li>
 				{/each}
 			</ol>
@@ -42,13 +42,13 @@
 
 		<div class="prose-learn">
 			<section id="try">
-				<h2>{guideSections[0].title}</h2>
+				<h2>{guideSectionsIn('ja')[0].title}</h2>
 				<p><a href="/learn/playground">プレイグラウンド</a>では、インストールせずにコンパイル・整形・検査を試せます。Svelte を選び、ソースを入力して、実行したい処理を選んでください。</p>
 				<p>生成されたファイルと診断が表示されます。診断は、ソース内の問題や対応していない構文を知らせるメッセージです。ブラウザでは型チェックを実行できません。</p>
 			</section>
 
 			<section id="setup">
-				<h2>{guideSections[1].title}</h2>
+				<h2>{guideSectionsIn('ja')[1].title}</h2>
 				<p>Git と Rust の開発環境を用意してください。Rust は、リポジトリ内の <code>rust-toolchain.toml</code> で指定した版を使います。次のコマンドをターミナルで実行します。</p>
 				<GuideCode code={guideExamples.setup} label="ソースの取得とビルド" />
 				<p>以降のコマンドは、取得した <code>rsvelte</code> ディレクトリで実行します。Windows では、実行ファイルのパスを <code>.\target\release\rsvelte.exe</code> に置き換えてください。複数行のコマンドは、行末の <code>\</code> を除いて 1 行にまとめます。</p>
@@ -57,7 +57,7 @@
 			</section>
 
 			<section id="compile">
-				<h2>{guideSections[2].title}</h2>
+				<h2>{guideSectionsIn('ja')[2].title}</h2>
 				<p>ブラウザで動かす JavaScript を生成します。</p>
 				<GuideCode code={guideExamples.compile} label="ブラウザ向けのコンパイル" />
 				<p>出力は <code>// svelte.compile/client js</code> というラベルから始まります。その後に JavaScript が続きます。サーバーでページのマークアップを生成する場合は、次の処理を選びます。</p>
@@ -67,14 +67,14 @@
 			</section>
 
 			<section id="format">
-				<h2>{guideSections[3].title}</h2>
+				<h2>{guideSectionsIn('ja')[3].title}</h2>
 				<p>整形したソースを表示します。</p>
 				<GuideCode code={guideExamples.format} label="ソースの整形" />
 				<p><code>// svelte.format/default svelte</code> の後に整形結果が続きます。内容を確認し、ラベルを除いたソースを入力ファイルに反映してください。ファイルを上書きするオプションはありません。</p>
 			</section>
 
 			<section id="lint">
-				<h2>{guideSections[4].title}</h2>
+				<h2>{guideSectionsIn('ja')[4].title}</h2>
 				<p>ソースに問題がないかを調べます。</p>
 				<GuideCode code={guideExamples.lint} label="ソースの検査" />
 				<p>結果は <code>// svelte.lint/default lint.json</code> の後に表示されます。<code>rules</code> は使用したルール、<code>findings</code> は見つかった問題です。<code>findings</code> が空なら、この検査では問題が見つかっていません。</p>
@@ -85,7 +85,7 @@
 			</section>
 
 			<section id="check">
-				<h2>{guideSections[5].title}</h2>
+				<h2>{guideSectionsIn('ja')[5].title}</h2>
 				<p>型チェックには三つのものが必要です。TypeScript 7.1 以上のネイティブ版の実行ファイルと、Svelte パッケージの型定義です。三つ目は rsvelte の位置対応の実行ファイル（<code>rsvelte-typescript-content-mapper</code>）です。TypeScript は、Node.js で動く従来の TypeScript コマンドとは別に用意してください。位置対応の実行ファイルは <code>PATH</code> から探します。別の場所に置く場合は、環境変数 <code>RSVELTE_TYPESCRIPT_CONTENT_MAPPER</code> にパスを指定します。</p>
 				<p>まだ用意していない場合は、rsvelte のディレクトリで次のコマンドを実行します。最初のコマンドが位置対応の実行ファイルを入れ、次のコマンドが TypeScript と Svelte を取得します。TypeScript はリポジトリの検証でも使っている版です。最後のコマンドは、お使いの環境に合うネイティブ実行ファイルの絶対パスを表示します。</p>
 				<GuideCode code={guideExamples.checkSetup} label="型チェックに必要なパッケージを取得" />
@@ -102,7 +102,7 @@
 			</section>
 
 			<section id="browser">
-				<h2>{guideSections[6].title}</h2>
+				<h2>{guideSectionsIn('ja')[6].title}</h2>
 				<p>ブラウザ内でソースを処理したい場合は、WebAssembly 版を使います。リポジトリのルートで、次のコマンドを実行してください。</p>
 				<GuideCode code={guideExamples.wasmBuild} label="WebAssembly と JavaScript の接続ファイルを生成" />
 				<p>ルートの <code>browser-package/</code> に、JavaScript、型定義、WebAssembly のファイルが生成されます。このディレクトリを Web アプリに配置し、次のように呼び出します。</p>
@@ -127,7 +127,7 @@
 			</section>
 
 			<section id="limits">
-				<h2>{guideSections[7].title}</h2>
+				<h2>{guideSectionsIn('ja')[7].title}</h2>
 				<p>このガイドのコンパイル例は Svelte 5 のルーンを使います。Svelte 4 の旧構文、アプリの一括ビルド、Vite への接続は、この手順では扱いません。</p>
 				<p><code>run</code> は 1 ファイルを処理します。対応していない構文は診断を確認してください。公式ツールと同じ結果になるとは限らないため、既存のプロジェクトに使う前に、処理したいファイルで結果を確認してください。</p>
 				<p>コマンドの終了コードだけでは、ソースに問題がないかを判断できません。現在の <code>run</code> は、診断が出ても正常終了する場合があります。自動検査に組み込むときは、出力内の診断と型チェックの指摘を確認してください。</p>

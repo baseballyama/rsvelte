@@ -12,7 +12,7 @@
 	import { call, fill, flatOnly, groupIds, mustBeFlat, remeasure } from './presets';
 
 	let { data } = $props();
-	const c = chapter('doc');
+	const c = chapter('doc', 'ja');
 </script>
 
 <svelte:head><title>{c.title} — rsvelte Learn</title></svelte:head>

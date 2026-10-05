@@ -9,7 +9,7 @@
 	import { chapter } from '$lib/site';
 
 	let { data } = $props();
-	const c = chapter('measure');
+	const c = chapter('measure', 'ja');
 	const fmt = (n: number) => n.toLocaleString('en-US');
 	const mb = (b: number) => (b / 1e6).toFixed(1);
 	const a = (name: string) => {

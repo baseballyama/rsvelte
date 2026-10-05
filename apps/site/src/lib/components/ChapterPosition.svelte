@@ -1,8 +1,12 @@
 <script lang="ts">
+	import { localizedPath, pathWithoutLang } from '$lib/i18n';
 	import { chapterPositions, overviewNodes, positionLabel, sharedParts } from '$lib/kernel/kernel-overview';
+	import { readerLang } from '$lib/lang.svelte';
 
 	let { href }: { href: string } = $props();
-	const current = $derived(chapterPositions[href] ?? []);
+	const lang = $derived(readerLang());
+	// Positions are keyed by the shared path, so both languages show the same marker.
+	const current = $derived(chapterPositions[pathWithoutLang(href)] ?? []);
 	// The data-flow order of the overview figure, so the strip reads like the figure.
 	const strip = ['host', 'registry', 'plugin-check', 'run', 'run-document', 'lang-tools', 'context', 'lang-core', 'facet', 'output', 'project', 'typecheck'];
 	const nodes = strip.map((id) => overviewNodes.find((node) => node.id === id)!);
@@ -10,12 +14,12 @@
 
 {#if current.length}
 	<nav class="position" aria-label="全体の構成でのこの章の位置">
-		<p><span>全体の構成での位置：</span><strong>{current.map(positionLabel).join('、')}</strong><a href="/learn/kernel#overview">全体の構成の図へ戻る</a></p>
+		<p><span>全体の構成での位置：</span><strong>{current.map(positionLabel).join('、')}</strong><a href={localizedPath('/learn/kernel#overview', lang)}>全体の構成の図へ戻る</a></p>
 		<ol aria-label="カーネルと言語プラグインの部分">
-			{#each nodes as node (node.id)}<li><a href={node.href} class:current={current.includes(node.id)} aria-current={current.includes(node.id) ? 'location' : undefined}>{node.label}</a></li>{/each}
+			{#each nodes as node (node.id)}<li><a href={localizedPath(node.href, lang)} class:current={current.includes(node.id)} aria-current={current.includes(node.id) ? 'location' : undefined}>{node.label}</a></li>{/each}
 		</ol>
 		<ol class="parts" aria-label="どの処理も使う共通部品">
-			{#each sharedParts as part (part.id)}<li><a href={part.href} class:current={current.includes(`part:${part.id}`)} aria-current={current.includes(`part:${part.id}`) ? 'location' : undefined}>{part.label}</a></li>{/each}
+			{#each sharedParts as part (part.id)}<li><a href={localizedPath(part.href, lang)} class:current={current.includes(`part:${part.id}`)} aria-current={current.includes(`part:${part.id}`) ? 'location' : undefined}>{part.label}</a></li>{/each}
 		</ol>
 	</nav>
 {/if}

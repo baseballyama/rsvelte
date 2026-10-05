@@ -10,7 +10,7 @@
 	import LintSort from '$lib/widgets/LintSort.svelte';
 
 	let { data } = $props();
-	const c = chapter('diagnostics');
+	const c = chapter('diagnostics', 'ja');
 </script>
 
 <svelte:head><title>{c.title} — rsvelte Learn</title></svelte:head>

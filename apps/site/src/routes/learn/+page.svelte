@@ -3,10 +3,10 @@
 	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
 	import H2 from '$lib/components/H2.svelte';
 	import Note from '$lib/components/Note.svelte';
-	import { appendix, chapter, chapters } from '$lib/site';
+	import { appendixIn, chapter, chaptersIn } from '$lib/site';
 
 	let { data } = $props();
-	const c = chapter('intro');
+	const c = chapter('intro', 'ja');
 </script>
 
 <svelte:head><title>Learn — rsvelte</title></svelte:head>
@@ -61,7 +61,7 @@
 </div>
 
 <ol class="mt-10 border-t border-line">
-	{#each chapters.slice(1) as ch (ch.slug)}
+	{#each chaptersIn('ja').slice(1) as ch (ch.slug)}
 		<li class="border-b border-line">
 			<a href={ch.href} class="group grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-baseline gap-x-3 py-3">
 				<span class="font-mono text-[13px] tracking-normal text-muted">{ch.number}</span>
@@ -73,7 +73,7 @@
 			</a>
 		</li>
 	{/each}
-	{#each appendix as a (a.href)}
+	{#each appendixIn('ja') as a (a.href)}
 		<li class="border-b border-line">
 			<a href={a.href} class="group grid grid-cols-[2.5rem_minmax(0,1fr)] items-baseline gap-x-3 py-3">
 				<span class="font-mono text-[13px] tracking-normal text-muted">付録</span>

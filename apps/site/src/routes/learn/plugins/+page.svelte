@@ -6,7 +6,7 @@
 	import { chapter } from '$lib/site';
 
 	let { data } = $props();
-	const currentChapter = chapter('plugins');
+	const currentChapter = chapter('plugins', 'ja');
 </script>
 
 <svelte:head><title>{currentChapter.title} — rsvelte Learn</title></svelte:head>

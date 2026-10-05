@@ -16,9 +16,9 @@
 		wide?: boolean;
 	} = $props();
 
-	// "図 2.1 · タイトル": the number is set apart so a reader scanning for 図 2.1 finds it.
+	// "図 2.1 · タイトル" or "Figure 2.1 · Title": the number is set apart so a reader scanning for it finds it.
 	const parts = $derived.by(() => {
-		const m = /^(図\s*[\d.]+)\s*·\s*(.*)$/.exec(label);
+		const m = /^((?:図|Figure)\s*[\d.]+)\s*·\s*(.*)$/.exec(label);
 		return m ? { number: m[1], title: m[2] } : { number: '', title: label };
 	});
 </script>

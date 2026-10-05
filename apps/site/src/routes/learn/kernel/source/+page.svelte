@@ -10,7 +10,7 @@
 	import LineIndexExplorer from '$lib/widgets/LineIndexExplorer.svelte';
 
 	let { data } = $props();
-	const c = chapter('source');
+	const c = chapter('source', 'ja');
 </script>
 
 <svelte:head><title>{c.title} — rsvelte Learn</title></svelte:head>

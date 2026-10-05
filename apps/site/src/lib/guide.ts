@@ -1,13 +1,20 @@
-export const guideSections = [
-	{ id: 'try', title: 'ブラウザで試す' },
-	{ id: 'setup', title: '手元で使う準備' },
-	{ id: 'compile', title: 'コンパイルする' },
-	{ id: 'format', title: 'ソースを整形する' },
-	{ id: 'lint', title: '問題を見つける' },
-	{ id: 'check', title: '型をチェックする' },
-	{ id: 'browser', title: 'Web アプリに組み込む' },
-	{ id: 'limits', title: '現在の制約と困ったとき' }
+import { bilingual, type Lang } from './i18n.ts';
+
+const sections = [
+	{ id: 'try', title: bilingual('ブラウザで試す', 'Try it in the browser') },
+	{ id: 'setup', title: bilingual('手元で使う準備', 'Set up on your computer') },
+	{ id: 'compile', title: bilingual('コンパイルする', 'Compile') },
+	{ id: 'format', title: bilingual('ソースを整形する', 'Format the source') },
+	{ id: 'lint', title: bilingual('問題を見つける', 'Find problems') },
+	{ id: 'check', title: bilingual('型をチェックする', 'Check types') },
+	{ id: 'browser', title: bilingual('Web アプリに組み込む', 'Use it in a web app') },
+	{ id: 'limits', title: bilingual('現在の制約と困ったとき', 'Current limits and getting help') }
 ];
+
+/** Guide sections with titles in `lang`; the ids are the page anchors in both languages. */
+export function guideSectionsIn(lang: Lang): { id: string; title: string }[] {
+	return sections.map((section) => ({ id: section.id, title: section.title[lang] }));
+}
 
 export const guideExamples = {
 	setup: 'git clone --branch experimental https://github.com/baseballyama/rsvelte.git\ncd rsvelte\ncargo build --release -p rsvelte_command_line',

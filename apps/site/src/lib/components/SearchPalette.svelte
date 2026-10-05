@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { appendix, chapters } from '$lib/site';
-	import { guideSections } from '$lib/guide';
+	import { bilingual, localizedPath, type Lang } from '$lib/i18n';
+	import { readerLang } from '$lib/lang.svelte';
+	import { appendixIn, chaptersIn } from '$lib/site';
+	import { guideSectionsIn } from '$lib/guide';
 	import Icon from './Icon.svelte';
 	import { search } from './search.svelte';
 
@@ -15,22 +17,55 @@
 		haystack: string;
 	}
 
-	const entries: Entry[] = [
+	const text = bilingual(
 		{
-			href: '/guide',
-			title: '使い方ガイド',
-			context: '導入、コンパイル、整形、検査、型チェック、Web アプリへの組み込み',
-			kind: 'guide',
-			haystack: '使い方 ガイド 導入 コンパイル 整形 検査 型チェック WebAssembly'.toLowerCase()
+			guide: '使い方ガイド',
+			guideContext: '導入、コンパイル、整形、検査、型チェック、Web アプリへの組み込み',
+			guideKeywords: '使い方 ガイド 導入 コンパイル 整形 検査 型チェック WebAssembly',
+			appendixKeyword: '付録',
+			label: 'ガイド・教材を検索',
+			placeholder: '使い方や教材を探す（例: 整形、型、並列）',
+			none: (q: string) => `「${q}」に一致するページ・節はありません`,
+			choose: '選ぶ',
+			open: '開く',
+			count: (n: number) => `${n} 件`
 		},
-		...guideSections.map((section) => ({
-			href: `/guide#${section.id}`,
+		{
+			guide: 'User guide',
+			guideContext: 'Setup, compiling, formatting, linting, type checking, and use in a web app',
+			guideKeywords: 'user guide setup compile format lint type check WebAssembly',
+			appendixKeyword: 'appendix',
+			label: 'Search the guide and the learning pages',
+			placeholder: 'Search the guide and the learning pages (for example: format, types, parallel)',
+			none: (q: string) => `No page or section matches "${q}"`,
+			choose: 'select',
+			open: 'open',
+			count: (n: number) => `${n} ${n === 1 ? 'result' : 'results'}`
+		}
+	);
+	const lang = $derived(readerLang());
+	const t = $derived(text[lang]);
+
+	// Only pages in the reader's language are listed, with links in that language.
+	function entriesIn(lang: Lang): Entry[] {
+		const t = text[lang];
+		const guide = localizedPath('/guide', lang);
+		return [
+		{
+			href: guide,
+			title: t.guide,
+			context: t.guideContext,
+			kind: 'guide',
+			haystack: t.guideKeywords.toLowerCase()
+		},
+		...guideSectionsIn(lang).map((section) => ({
+			href: `${guide}#${section.id}`,
 			title: section.title,
-			context: '使い方ガイド',
+			context: t.guide,
 			kind: 'section' as const,
-			haystack: `${section.title} 使い方 ガイド`.toLowerCase()
+			haystack: `${section.title} ${t.guide}`.toLowerCase()
 		})),
-		...chapters.flatMap((c) => [
+		...chaptersIn(lang).flatMap((c) => [
 			{
 				href: c.href,
 				title: c.title,
@@ -47,14 +82,16 @@
 				haystack: `${s.title} ${c.title}`.toLowerCase()
 			}))
 		]),
-		...appendix.map((a) => ({
+		...appendixIn(lang).map((a) => ({
 			href: a.href,
 			title: a.title,
 			context: a.abstract,
 			kind: 'appendix' as const,
-			haystack: `${a.title} ${a.abstract} 付録`.toLowerCase()
+			haystack: `${a.title} ${a.abstract} ${t.appendixKeyword}`.toLowerCase()
 		}))
-	];
+		];
+	}
+	const entries = $derived(entriesIn(lang));
 
 	let dialog: HTMLDialogElement | undefined = $state();
 	let input: HTMLInputElement | undefined = $state();
@@ -130,7 +167,7 @@
 	onclick={(e) => {
 		if (e.target === dialog) search.open = false;
 	}}
-	aria-label="ガイド・教材を検索"
+	aria-label={t.label}
 >
 	<div
 		class="flex h-full flex-col overflow-hidden border-line bg-raised text-fg sm:h-auto sm:max-h-[70vh] sm:rounded-[10px] sm:border sm:shadow-[var(--shadow-pop)]"
@@ -142,7 +179,7 @@
 				bind:value={q}
 				{onkeydown}
 				class="h-14 min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted"
-				placeholder="使い方や教材を探す（例: 整形、型、並列）"
+				placeholder={t.placeholder}
 				role="combobox"
 				aria-expanded="true"
 				aria-controls="palette-results"
@@ -186,15 +223,15 @@
 					</a>
 				</li>
 			{:else}
-				<li class="px-3 py-10 text-center text-[14px] text-muted">「{q}」に一致するページ・節はありません</li>
+				<li class="px-3 py-10 text-center text-[14px] text-muted">{t.none(q)}</li>
 			{/each}
 		</ul>
 		<div
 			class="hidden items-center gap-4 border-t border-line px-4 py-2 font-mono text-[11px] tracking-normal text-muted sm:flex"
 		>
-			<span class="flex items-center gap-1.5"><span class="kbd">↑</span><span class="kbd">↓</span> 選ぶ</span>
-			<span class="flex items-center gap-1.5"><span class="kbd">↵</span> 開く</span>
-			<span class="ml-auto">{results.length} 件</span>
+			<span class="flex items-center gap-1.5"><span class="kbd">↑</span><span class="kbd">↓</span> {t.choose}</span>
+			<span class="flex items-center gap-1.5"><span class="kbd">↵</span> {t.open}</span>
+			<span class="ml-auto">{t.count(results.length)}</span>
 		</div>
 	</div>
 </dialog>

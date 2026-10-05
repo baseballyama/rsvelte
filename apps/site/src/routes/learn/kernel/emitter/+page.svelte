@@ -11,7 +11,7 @@
 	import VlqEncoder from '$lib/widgets/VlqEncoder.svelte';
 
 	let { data } = $props();
-	const c = chapter('emit');
+	const c = chapter('emit', 'ja');
 </script>
 
 <svelte:head><title>{c.title} — rsvelte Learn</title></svelte:head>

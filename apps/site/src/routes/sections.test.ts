@@ -3,7 +3,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { chapters, moduleFile } from '$lib/site';
+import { chaptersIn, moduleFile } from '$lib/site';
+
+const chapters = chaptersIn('ja');
 
 const routes = path.resolve(import.meta.dirname);
 

@@ -3,13 +3,24 @@
 	import { page } from '$app/state';
 	import LearnNav from '$lib/components/LearnNav.svelte';
 	import OnThisPage from '$lib/components/OnThisPage.svelte';
-	import { appendix, chapterByHref, chapters } from '$lib/site';
+	import { bilingual, pathWithoutLang } from '$lib/i18n';
+	import { readerLang } from '$lib/lang.svelte';
+	import { appendixIn, chapterByHref, chaptersIn } from '$lib/site';
 
 	let { children } = $props();
 
+	const text = bilingual(
+		{ progress: '進み具合', appendix: '付録', contents: '目次' },
+		{ progress: 'Progress', appendix: 'Appendix', contents: 'Contents' }
+	);
+	const lang = $derived(readerLang());
+	const t = $derived(text[lang]);
+	const chapters = $derived(chaptersIn(lang));
+	// Route checks use the shared path, so they give the same answer in both languages.
+	const route = $derived(pathWithoutLang(page.url.pathname));
 	const chapter = $derived(chapterByHref(page.url.pathname));
-	const playground = $derived(page.url.pathname === '/learn/playground');
-	const wide = $derived(appendix.some((a) => page.url.pathname.startsWith(a.href)));
+	const playground = $derived(route === '/learn/playground');
+	const wide = $derived(appendixIn('ja').some((a) => route.startsWith(a.href)));
 	const outline = $derived(!wide && !!chapter && chapter.sections.length > 0);
 	let active: string | null = $state(null);
 	let progress = $state(0);
@@ -53,7 +64,7 @@
 	$effect(() => () => stop?.());
 
 	const currentTitle = $derived(chapter?.sections.find((s) => s.id === active)?.title);
-	const ordinal = $derived(chapter ? chapters.indexOf(chapter) : -1);
+	const ordinal = $derived(chapter ? chapters.findIndex((c) => c.slug === chapter.slug) : -1);
 </script>
 
 {#if chapter}
@@ -73,7 +84,7 @@
 			{#if ordinal >= 0}
 				<div class="mb-6 px-2">
 					<div class="flex items-baseline justify-between font-mono text-[11.5px] tracking-normal text-muted tnum">
-						<span>進み具合</span><span>{ordinal + 1} / {chapters.length}</span>
+						<span>{t.progress}</span><span>{ordinal + 1} / {chapters.length}</span>
 					</div>
 					<div class="mt-1.5 h-[3px] overflow-hidden rounded-full bg-surface">
 						<div
@@ -93,16 +104,16 @@
 	>
 		<summary class="flex cursor-pointer list-none items-center gap-3 py-2.5 text-[14px] [&::-webkit-details-marker]:hidden">
 			<span class="rounded-sm border border-line px-1.5 font-mono text-[11.5px] tracking-normal text-muted tnum"
-				>{chapter?.number ?? '付録'}</span
+				>{chapter?.number ?? t.appendix}</span
 			>
 			<span class="min-w-0 truncate">
-				<span class={currentTitle ? 'text-muted max-sm:hidden' : ''}>{chapter?.title ?? '目次'}</span>
+				<span class={currentTitle ? 'text-muted max-sm:hidden' : ''}>{chapter?.title ?? t.contents}</span>
 				{#if currentTitle}<span class="mx-1.5 text-line-strong max-sm:hidden">/</span><span>{currentTitle}</span>{/if}
 			</span>
 			<span
 				class="ml-auto flex shrink-0 items-center gap-1 rounded-md border border-line bg-raised px-2 py-0.5 text-[12px] text-fg-2"
 			>
-				目次<span class="inline-block transition-transform group-open/drawer:rotate-180" aria-hidden="true">▾</span>
+				{t.contents}<span class="inline-block transition-transform group-open/drawer:rotate-180" aria-hidden="true">▾</span>
 			</span>
 		</summary>
 		<div class="thin-scrollbar max-h-[70dvh] overflow-y-auto pt-1 pb-5"><LearnNav {active} /></div>
