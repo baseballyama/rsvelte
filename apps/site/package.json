@@ -14,7 +14,7 @@
 		"predev": "pnpm run build:wasm",
 		"dev": "vite dev",
 		"prebuild": "pnpm run build:wasm",
-		"build": "node scripts/lint-code-names.mjs && node scripts/lint-prose.mjs && vite build",
+		"build": "node scripts/lint-code-names.mjs && node scripts/lint-prose.mjs && vite build && node scripts/check-prerender.mjs",
 		"preview": "wrangler dev",
 		"predeploy": "pnpm run build:wasm",
 		"precheck": "pnpm run build:wasm",
