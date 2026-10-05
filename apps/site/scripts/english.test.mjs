@@ -54,6 +54,8 @@ test('finds Japanese reader text in shared files and nothing else', () => {
 	// Not reader text in English: the Japanese half of a pair, text marked as Japanese, and developer comments.
 	assert.deepEqual(leaks("<script>const t = bilingual('見出し', 'Heading'); const x = s('id', '節', 'Section');</script>"), []);
 	assert.deepEqual(leaks('<a lang="ja" hreflang="ja" href="/">日本語</a>'), []);
+	assert.deepEqual(leaks('<figcaption>Figure 2.1 · Title</figcaption>'), []);
+	assert.deepEqual(leaks('<p>A · 図</p>'), ['A · 図']);
 	assert.deepEqual(leaks('<script>// 開発者向けの説明\n/* 説明 */ const a = 1;</script><!-- 注 --><p>Text</p>'), []);
 	assert.deepEqual(japaneseLeaks('<!doctype html><html lang="%lang%"><!-- 注 --><body>%sveltekit.body%</body></html>', 'app.html'), []);
 });

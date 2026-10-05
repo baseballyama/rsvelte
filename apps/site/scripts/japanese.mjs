@@ -5,8 +5,9 @@ import path from 'node:path';
 import { parse } from 'svelte/compiler';
 import ts from 'typescript';
 
-// Japanese letters, plus Japanese punctuation and full-width forms, which have the Common script.
-export const japanese = /[\p{scx=Han}\p{scx=Hiragana}\p{scx=Katakana}　-〿＀-￯]/u;
+// Japanese letters, plus Japanese punctuation and full-width forms, which have the Common script. The middle dot
+// U+00B7 lists Han among its scripts, but English uses it too (`Figure 2.1 · Title`).
+export const japanese = /[[\p{scx=Han}\p{scx=Hiragana}\p{scx=Katakana}　-〿＀-￯]--[·]]/v;
 
 const clean = (text) => text.replace(/\s+/g, ' ').trim();
 
