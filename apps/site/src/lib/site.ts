@@ -190,7 +190,7 @@ const sources: ChapterSource[] = [
 		href: '/learn/kernel/emitter',
 		number: '09',
 		title: bilingual('生成したコードと元のソースの位置を対応させる', 'Mapping generated code back to the source'),
-		abstract: bilingual('出力バッファと位置の対応、指定位置以前で最も近い対応点の逆引き、source map v3 と 可変長の整数表現。', 'The output buffer and its position mappings, finding the nearest mapping at or before a position, source map version 3, and variable-length integers.'),
+		abstract: bilingual('出力バッファと位置の対応、指定位置以前で同じ行にある最も近い対応点の逆引き、source map v3 と 可変長の整数表現。', 'The output buffer and its position mappings, finding the nearest mapping at or before a position on the same line, source map version 3, and variable-length integers.'),
 		module: 'kernel/output/emitter',
 		minutes: 15,
 		sections: [
