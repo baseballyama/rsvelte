@@ -9,6 +9,7 @@
 	"scripts": {
 		"lint:code-names": "node scripts/lint-code-names.mjs",
 		"lint:prose": "node scripts/lint-prose.mjs",
+		"lint:english": "node scripts/lint-english.mjs",
 		"build:wasm": "wasm-pack build ../../crates/hosts/browser --out-dir ../../../apps/site/src/lib/wasm/kernel --out-name rsvelte_kernel_browser --target web --release",
 		"predev": "pnpm run build:wasm",
 		"dev": "vite dev",
@@ -20,7 +21,7 @@
 		"deploy": "pnpm run build && wrangler deploy",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"pretest": "pnpm run build:wasm",
-		"test": "node --test scripts/prose.test.mjs scripts/code-names.test.mjs && node scripts/lint-code-names.mjs && node scripts/lint-prose.mjs && vitest run"
+		"test": "node --test scripts/prose.test.mjs scripts/english.test.mjs scripts/code-names.test.mjs && node scripts/lint-code-names.mjs && node scripts/lint-prose.mjs && vitest run"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-cloudflare": "7.2.9",
