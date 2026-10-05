@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageData } from './$types';
 	import Term from '$lib/components/Term.svelte';
 	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
 	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
@@ -8,7 +9,7 @@
 	import Note from '$lib/components/Note.svelte';
 	import { chapter } from '$lib/site';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 	const c = chapter('measure', 'ja');
 	const workingTree = '作業ツリー（未コミット）';
 	const fmt = (n: number) => n.toLocaleString('en-US');

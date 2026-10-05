@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageData } from './$types';
 	import Term from '$lib/components/Term.svelte';
 	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
 	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
@@ -10,7 +11,7 @@
 	import SpanFigure from '$lib/widgets/SpanFigure.svelte';
 	import VlqEncoder from '$lib/widgets/VlqEncoder.svelte';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 	const c = chapter('emit', 'ja');
 </script>
 

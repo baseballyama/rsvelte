@@ -1,10 +1,15 @@
 <script lang="ts">
-	import { localizedPath, pathWithoutLang } from '$lib/i18n';
+	import { bilingual, localizedPath, pathWithoutLang } from '$lib/i18n';
 	import { chapterPositions, overviewNodes, positionLabel, sharedParts } from '$lib/kernel/kernel-overview';
 	import { readerLang } from '$lib/lang.svelte';
 
 	let { href }: { href: string } = $props();
+	const text = bilingual(
+		{ position: '全体の構成でのこの章の位置', label: '全体の構成での位置：', separator: '、', back: '全体の構成の図へ戻る', nodes: 'カーネルと言語プラグインの部分', parts: 'どの処理も使う共通部品' },
+		{ position: 'Where this chapter sits in the overview', label: 'Position in the overview:', separator: ', ', back: 'Back to the overview figure', nodes: 'Parts of the kernel and the language plugins', parts: 'Shared parts that every task uses' }
+	);
 	const lang = $derived(readerLang());
+	const t = $derived(text[lang]);
 	// Positions are keyed by the shared path, so both languages show the same marker.
 	const current = $derived(chapterPositions[pathWithoutLang(href)] ?? []);
 	// The data-flow order of the overview figure, so the strip reads like the figure.
@@ -13,13 +18,13 @@
 </script>
 
 {#if current.length}
-	<nav class="position" aria-label="全体の構成でのこの章の位置">
-		<p><span>全体の構成での位置：</span><strong>{current.map(positionLabel).join('、')}</strong><a href={localizedPath('/learn/kernel#overview', lang)}>全体の構成の図へ戻る</a></p>
-		<ol aria-label="カーネルと言語プラグインの部分">
-			{#each nodes as node (node.id)}<li><a href={localizedPath(node.href, lang)} class:current={current.includes(node.id)} aria-current={current.includes(node.id) ? 'location' : undefined}>{node.label}</a></li>{/each}
+	<nav class="position" aria-label={t.position}>
+		<p><span>{t.label}</span><strong>{current.map((id) => positionLabel(id, lang)).join(t.separator)}</strong><a href={localizedPath('/learn/kernel#overview', lang)}>{t.back}</a></p>
+		<ol aria-label={t.nodes}>
+			{#each nodes as node (node.id)}<li><a href={localizedPath(node.href, lang)} class:current={current.includes(node.id)} aria-current={current.includes(node.id) ? 'location' : undefined}>{node.label[lang]}</a></li>{/each}
 		</ol>
-		<ol class="parts" aria-label="どの処理も使う共通部品">
-			{#each sharedParts as part (part.id)}<li><a href={localizedPath(part.href, lang)} class:current={current.includes(`part:${part.id}`)} aria-current={current.includes(`part:${part.id}`) ? 'location' : undefined}>{part.label}</a></li>{/each}
+		<ol class="parts" aria-label={t.parts}>
+			{#each sharedParts as part (part.id)}<li><a href={localizedPath(part.href, lang)} class:current={current.includes(`part:${part.id}`)} aria-current={current.includes(`part:${part.id}`) ? 'location' : undefined}>{part.label[lang]}</a></li>{/each}
 		</ol>
 	</nav>
 {/if}

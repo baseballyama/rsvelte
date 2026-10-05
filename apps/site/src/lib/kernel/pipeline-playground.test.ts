@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { langs } from '../i18n';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { initializePipeline, runPipeline } from './pipeline-browser';
 import { accessTable, artifactLabel, decodeState, encodeState, examples, operations, plugins, problems, taskLabel } from './pipeline-playground';
@@ -22,21 +23,25 @@ describe('playground labels follow the real Rust registry', () => {
 	it('gives every registered task its own label', () => {
 		const result = runPipeline({ source: '', filename: 'a.svelte', plugins: plugins.map((plugin) => plugin.id), operations: [], shared: true });
 		if (!result.ok) throw new Error(result.message);
-		const labels = result.registeredTasks.map(taskLabel);
 		expect(result.registeredTasks.length).toBeGreaterThan(0);
-		expect(labels.filter((label, index) => result.registeredTasks[index] === label)).toEqual([]);
-		expect(new Set(labels).size).toBe(labels.length);
+		for (const lang of langs) {
+			const labels = result.registeredTasks.map((id) => taskLabel(id, lang));
+			expect(labels.filter((label, index) => result.registeredTasks[index] === label)).toEqual([]);
+			expect(new Set(labels).size).toBe(labels.length);
+		}
 	});
 
 	it('names every analysis result the tasks read', () => {
 		const names = new Set(everyStep(true).flatMap((step) => step.accesses.map((access) => access.name)));
 		expect(names.size).toBeGreaterThan(0);
-		expect([...names].filter((name) => artifactLabel(name).name === name)).toEqual([]);
+		for (const lang of langs) expect([...names].filter((name) => artifactLabel(name, lang).name === name)).toEqual([]);
 	});
 
 	it('falls back to the identifier for an unknown task or result', () => {
-		expect(taskLabel('rust.compile/client')).toBe('rust.compile/client');
-		expect(artifactLabel('rust.parse').name).toBe('rust.parse');
+		for (const lang of langs) {
+			expect(taskLabel('rust.compile/client', lang)).toBe('rust.compile/client');
+			expect(artifactLabel('rust.parse', lang).name).toBe('rust.parse');
+		}
 	});
 });
 
@@ -70,7 +75,7 @@ describe('the link state', () => {
 		expect(await decodeState('#overview')).toBeNull();
 		await expect(decodeState('#state=not-deflate')).rejects.toThrow();
 		const unknown = await encodeState({ ...state, example: 'rust' });
-		await expect(decodeState(unknown)).rejects.toThrow('リンクの内容が正しくありません');
+		await expect(decodeState(unknown)).rejects.toThrow('invalid playground state in the link');
 	});
 });
 
@@ -82,13 +87,13 @@ describe('problems', () => {
 			return problems(result.steps[0]);
 		};
 		const found = run('<script>\n  let unused = 1;\n</script>\n');
-		expect(found).toEqual([expect.objectContaining({ line: 2, column: 7, code: 'no-unused-vars', kind: 'コード検査の指摘' })]);
+		expect(found).toEqual([expect.objectContaining({ line: 2, column: 7, code: 'no-unused-vars', kind: 'lint' })]);
 		expect(run('<script>\n  let count = $state(0);\n</script>\n\n<p>{count}</p>\n')).toEqual([]);
 	});
 
 	it('lists parse errors as diagnostics', () => {
 		const result = runPipeline({ source: '<script>\n  let x = ;\n</script>\n', filename: 'Counter.svelte', plugins: ['svelte'], operations: ['compile-client'], shared: true });
 		if (!result.ok) throw new Error(result.message);
-		expect(problems(result.steps[0])).toEqual([expect.objectContaining({ line: 2, kind: '診断' })]);
+		expect(problems(result.steps[0])).toEqual([expect.objectContaining({ line: 2, kind: 'diagnostic' })]);
 	});
 });

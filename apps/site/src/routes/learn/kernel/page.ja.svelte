@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageData } from './$types';
 	import Term from '$lib/components/Term.svelte';
 	import KernelModuleFigure from '$lib/widgets/KernelModuleFigure.svelte';
 	import KernelOverview from '$lib/widgets/KernelOverview.svelte';
@@ -11,7 +12,7 @@
 	import Note from '$lib/components/Note.svelte';
 	import { chapter } from '$lib/site';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 	const c = chapter('kernel', 'ja');
 
 	const life = [

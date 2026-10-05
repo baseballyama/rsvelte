@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageData } from './$types';
 	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
 	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
 	import Code from '$lib/components/Code.svelte';
@@ -7,7 +8,7 @@
 	import { chapter } from '$lib/site';
 	import JsonStepper from '$lib/widgets/JsonStepper.svelte';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 	const c = chapter('json', 'ja');
 </script>
 

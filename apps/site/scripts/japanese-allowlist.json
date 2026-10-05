@@ -1,1 +1,22 @@
-[]
+[
+	{
+		"file": "src/lib/components/SiteHeader.svelte",
+		"text": "日本語",
+		"reason": "The language switch names Japanese in Japanese. The link has lang={other}, which is ja when this text shows, but the scanner only reads a literal lang."
+	},
+	{
+		"file": "src/lib/build/performance-history.ts",
+		"text": "作業ツリーの未コミットの基準値",
+		"reason": "Build metadata kept unchanged. Pages show their own label when sha is null and never render this subject."
+	},
+	{
+		"file": "src/lib/widgets/LineIndexExplorer.svelte",
+		"text": "let 名前 = '😀'; x",
+		"reason": "Byte and UTF-16 example: each kanji is 3 UTF-8 bytes and 1 UTF-16 unit, so the input must contain Japanese."
+	},
+	{
+		"file": "src/routes/learn/kernel/document/presets.ts",
+		"text": "fill(join(line, [\"複数言語\", \"の\", \"処理\", \"を\", \"ひとつ\", \"の\", \"カーネル\", \"で\", \"動かす\"]))",
+		"reason": "Fill width example: each Japanese character is 2 columns wide, so the input must contain Japanese."
+	}
+]

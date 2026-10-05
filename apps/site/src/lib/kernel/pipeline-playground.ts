@@ -1,76 +1,193 @@
+import { bilingual, type Lang } from '../i18n';
 import type { PipelineStep } from './pipeline-browser';
 
 export const plugins = [
-	{ id: 'svelte', name: 'Svelte', description: 'Svelte の構文を読み取り、コンパイル・整形・コード検査を提供します。' },
-	{ id: 'vue', name: 'Vue', description: 'Vue の構文を読み取り、コンパイル・整形・コード検査を提供します。' },
-	{ id: 'svue', name: 'Vue から Svelte のランタイムへ', description: 'Vue のコンポーネントを Vue の意味のまま、Svelte のランタイムで動く JavaScript にコンパイルします。' },
-	{ id: 'vuelte', name: 'Svelte から Vue Vapor のランタイムへ', description: 'Svelte のコンポーネントを Svelte の意味のまま、Vue Vapor のランタイムで動く JavaScript にコンパイルします。' }
+	{
+		id: 'svelte',
+		name: bilingual('Svelte', 'Svelte'),
+		description: bilingual('Svelte の構文を読み取り、コンパイル・整形・コード検査を提供します。', 'Reads Svelte syntax and provides compiling, formatting, and lint.')
+	},
+	{
+		id: 'vue',
+		name: bilingual('Vue', 'Vue'),
+		description: bilingual('Vue の構文を読み取り、コンパイル・整形・コード検査を提供します。', 'Reads Vue syntax and provides compiling, formatting, and lint.')
+	},
+	{
+		id: 'svue',
+		name: bilingual('Vue から Svelte のランタイムへ', 'Vue to the Svelte runtime'),
+		description: bilingual(
+			'Vue のコンポーネントを Vue の意味のまま、Svelte のランタイムで動く JavaScript にコンパイルします。',
+			'Compiles a Vue component, with its Vue behavior, into JavaScript that runs on the Svelte runtime.'
+		)
+	},
+	{
+		id: 'vuelte',
+		name: bilingual('Svelte から Vue Vapor のランタイムへ', 'Svelte to the Vue Vapor runtime'),
+		description: bilingual(
+			'Svelte のコンポーネントを Svelte の意味のまま、Vue Vapor のランタイムで動く JavaScript にコンパイルします。',
+			'Compiles a Svelte component, with its Svelte behavior, into JavaScript that runs on the Vue Vapor runtime.'
+		)
+	}
 ];
 
 export const operations = [
-	{ id: 'compile-client', name: 'ブラウザ向けにコンパイル', description: '画面を更新する JavaScript を出力します。' },
-	{ id: 'compile-server', name: 'サーバー向けにコンパイル', description: 'サーバー描画用の JavaScript を出力します。' },
-	{ id: 'format', name: '整形', description: '元のソースの改行と字下げを整えます。' },
-	{ id: 'lint', name: 'コード検査', description: '使っていない変数などを調べます。型検査とは別の処理です。' }
+	{
+		id: 'compile-client',
+		name: bilingual('ブラウザ向けにコンパイル', 'Compile for the browser'),
+		description: bilingual('画面を更新する JavaScript を出力します。', 'Writes JavaScript that updates the page.')
+	},
+	{
+		id: 'compile-server',
+		name: bilingual('サーバー向けにコンパイル', 'Compile for the server'),
+		description: bilingual('サーバー描画用の JavaScript を出力します。', 'Writes JavaScript for server-side rendering.')
+	},
+	{
+		id: 'format',
+		name: bilingual('整形', 'Format'),
+		description: bilingual('元のソースの改行と字下げを整えます。', 'Fixes the line breaks and indentation of the original source.')
+	},
+	{
+		id: 'lint',
+		name: bilingual('コード検査', 'Lint'),
+		description: bilingual('使っていない変数などを調べます。型検査とは別の処理です。', 'Looks for problems such as unused variables. This is separate from type checking.')
+	}
 ];
 
 export const examples = [
 	{
-		id: 'svelte', name: 'Svelte', filename: 'Counter.svelte', plugin: 'svelte',
+		id: 'svelte', name: bilingual('Svelte', 'Svelte'), filename: 'Counter.svelte', plugin: 'svelte',
 		source: '<script>\n  let count = $state(0);\n</script>\n\n<button onclick={() => count++}>\n  Count: {count}\n</button>\n\n<style>\n  button { color: royalblue; }\n</style>\n'
 	},
 	{
-		id: 'vue', name: 'Vue', filename: 'Counter.vue', plugin: 'vue',
+		id: 'vue', name: bilingual('Vue', 'Vue'), filename: 'Counter.vue', plugin: 'vue',
 		source: '<script setup>\nimport { ref } from "vue";\nconst count = ref(0);\n</script>\n\n<template>\n  <button @click="count++">Count: {{ count }}</button>\n</template>\n\n<style scoped>\nbutton { color: royalblue; }\n</style>\n'
 	},
 	{
-		id: 'svue', name: 'Vue を Svelte のランタイムへ', filename: 'Counter.vue', plugin: 'svue',
+		id: 'svue', name: bilingual('Vue を Svelte のランタイムへ', 'Vue on the Svelte runtime'), filename: 'Counter.vue', plugin: 'svue',
 		source: '<script setup>\nimport { ref } from "vue";\nconst count = ref(0);\n</script>\n\n<template>\n  <button @click="count++">Count: {{ count }}</button>\n</template>\n'
 	},
 	{
-		id: 'vuelte', name: 'Svelte を Vue Vapor のランタイムへ', filename: 'Counter.svelte', plugin: 'vuelte',
+		id: 'vuelte', name: bilingual('Svelte を Vue Vapor のランタイムへ', 'Svelte on the Vue Vapor runtime'), filename: 'Counter.svelte', plugin: 'vuelte',
 		source: '<script>\n  let count = $state(0);\n</script>\n\n<button onclick={() => count++}>\n  Count: {count}\n</button>\n'
 	}
 ];
 
-const artifactLabels: Record<string, { name: string; description: string }> = {
-	'svelte.parse': { name: 'Svelte の構文の読み取り', description: 'スクリプト・テンプレート・スタイルを構文木にします。' },
-	'vue.parse': { name: 'Vue の構文の読み取り', description: 'スクリプト・テンプレート・スタイルを構文木にします。' },
-	'svelte.resolve': { name: '変数と参照の対応付け', description: '名前がどの宣言を指すかを調べます。' },
-	'vue.resolve': { name: '変数と参照の対応付け', description: '名前がどの宣言を指すかを調べます。' },
-	'svelte.compiler_syntax_tree': { name: 'テンプレートの中間表現', description: '構文木をコンパイラが扱う表現に変換します。' },
-	'vue.compiler_syntax_tree': { name: 'テンプレートの中間表現', description: 'Vue のテンプレートを、コンパイラが扱う表現に変換します。' },
-	'svue.translate.client': { name: 'Vue から Svelte への翻訳（ブラウザ向け）', description: 'Vue のコンポーネントを、Svelte の runes を使うスクリプトとテンプレートの中間表現に翻訳します。' },
-	'svue.translate.server': { name: 'Vue から Svelte への翻訳（サーバー向け）', description: 'Vue のコンポーネントを、Svelte の runes を使うスクリプトとテンプレートの中間表現に翻訳します。' },
-	'svue.resolve.client': { name: '翻訳したスクリプトの対応付け（ブラウザ向け）', description: '翻訳したスクリプトの名前がどの宣言を指すかを調べます。' },
-	'svue.resolve.server': { name: '翻訳したスクリプトの対応付け（サーバー向け）', description: '翻訳したスクリプトの名前がどの宣言を指すかを調べます。' },
-	'svelte.analyze': { name: '更新とスタイルの解析', description: '動的に更新する部分や使われるスタイルを調べます。' },
-	'svue.analyze.client': { name: '更新とスタイルの解析（ブラウザ向け）', description: 'Svelte のコンパイラで動的な部分を調べます。' },
-	'svue.analyze.server': { name: '更新とスタイルの解析（サーバー向け）', description: 'Svelte のコンパイラで動的な部分を調べます。' },
-	'vuelte.check': { name: 'Vue に写せるかの確認', description: 'Vue のランタイムで同じ意味を再現できない構文を、出力の前に見つけて拒否します。' },
-	'svelte.css': { name: 'スタイルの変換', description: 'コンポーネントに限定したスタイルを出力します。' },
-	'svelte.render_plan': { name: '描画する範囲の計画', description: 'JavaScript を組み立てる前に、出力先によらない描画の範囲と名前空間を決めます。' },
-	'svelte.output_identity': { name: '出力の名前とスタイルのハッシュ', description: 'コンポーネントの名前と、スタイルと head に付けるハッシュを決めます。' },
-	'svelte.validate': { name: 'コンパイル前の確認', description: 'カスタム要素の設定、対応する構文、TypeScript の書き方、ストアの使い方を、JavaScript を組み立てる前に確かめます。' },
-	'svelte.lint.parents': { name: 'JavaScript の親要素の表', description: 'コード検査のために、スクリプトの各要素の親を引ける表を作ります。' }
+type Label = { name: string; description: string };
+
+const artifactLabels: Record<string, Record<Lang, Label>> = {
+	'svelte.parse': bilingual(
+		{ name: 'Svelte の構文の読み取り', description: 'スクリプト・テンプレート・スタイルを構文木にします。' },
+		{ name: 'Svelte parsing', description: 'Turns the script, the template, and the styles into a syntax tree.' }
+	),
+	'vue.parse': bilingual(
+		{ name: 'Vue の構文の読み取り', description: 'スクリプト・テンプレート・スタイルを構文木にします。' },
+		{ name: 'Vue parsing', description: 'Turns the script, the template, and the styles into a syntax tree.' }
+	),
+	'svelte.resolve': bilingual(
+		{ name: '変数と参照の対応付け', description: '名前がどの宣言を指すかを調べます。' },
+		{ name: 'Name resolution', description: 'Finds the declaration that each name refers to.' }
+	),
+	'vue.resolve': bilingual(
+		{ name: '変数と参照の対応付け', description: '名前がどの宣言を指すかを調べます。' },
+		{ name: 'Name resolution', description: 'Finds the declaration that each name refers to.' }
+	),
+	'svelte.compiler_syntax_tree': bilingual(
+		{ name: 'テンプレートの中間表現', description: '構文木をコンパイラが扱う表現に変換します。' },
+		{ name: 'Template intermediate representation', description: 'Converts the syntax tree into the form that the compiler works on.' }
+	),
+	'vue.compiler_syntax_tree': bilingual(
+		{ name: 'テンプレートの中間表現', description: 'Vue のテンプレートを、コンパイラが扱う表現に変換します。' },
+		{ name: 'Template intermediate representation', description: 'Converts the Vue template into the form that the compiler works on.' }
+	),
+	'svue.translate.client': bilingual(
+		{ name: 'Vue から Svelte への翻訳（ブラウザ向け）', description: 'Vue のコンポーネントを、Svelte の runes を使うスクリプトとテンプレートの中間表現に翻訳します。' },
+		{
+			name: 'Vue to Svelte translation (browser)',
+			description: 'Translates the Vue component into a script that uses Svelte runes and the intermediate representation of a template.'
+		}
+	),
+	'svue.translate.server': bilingual(
+		{ name: 'Vue から Svelte への翻訳（サーバー向け）', description: 'Vue のコンポーネントを、Svelte の runes を使うスクリプトとテンプレートの中間表現に翻訳します。' },
+		{
+			name: 'Vue to Svelte translation (server)',
+			description: 'Translates the Vue component into a script that uses Svelte runes and the intermediate representation of a template.'
+		}
+	),
+	'svue.resolve.client': bilingual(
+		{ name: '翻訳したスクリプトの対応付け（ブラウザ向け）', description: '翻訳したスクリプトの名前がどの宣言を指すかを調べます。' },
+		{ name: 'Name resolution of the translated script (browser)', description: 'Finds the declaration that each name in the translated script refers to.' }
+	),
+	'svue.resolve.server': bilingual(
+		{ name: '翻訳したスクリプトの対応付け（サーバー向け）', description: '翻訳したスクリプトの名前がどの宣言を指すかを調べます。' },
+		{ name: 'Name resolution of the translated script (server)', description: 'Finds the declaration that each name in the translated script refers to.' }
+	),
+	'svelte.analyze': bilingual(
+		{ name: '更新とスタイルの解析', description: '動的に更新する部分や使われるスタイルを調べます。' },
+		{ name: 'Update and style analysis', description: 'Finds the parts that update at run time and the styles that are used.' }
+	),
+	'svue.analyze.client': bilingual(
+		{ name: '更新とスタイルの解析（ブラウザ向け）', description: 'Svelte のコンパイラで動的な部分を調べます。' },
+		{ name: 'Update and style analysis (browser)', description: 'Finds the dynamic parts with the Svelte compiler.' }
+	),
+	'svue.analyze.server': bilingual(
+		{ name: '更新とスタイルの解析（サーバー向け）', description: 'Svelte のコンパイラで動的な部分を調べます。' },
+		{ name: 'Update and style analysis (server)', description: 'Finds the dynamic parts with the Svelte compiler.' }
+	),
+	'vuelte.check': bilingual(
+		{ name: 'Vue に写せるかの確認', description: 'Vue のランタイムで同じ意味を再現できない構文を、出力の前に見つけて拒否します。' },
+		{
+			name: 'Check that Vue can express it',
+			description: 'Before any output, finds and rejects syntax whose behavior the Vue runtime cannot reproduce.'
+		}
+	),
+	'svelte.css': bilingual(
+		{ name: 'スタイルの変換', description: 'コンポーネントに限定したスタイルを出力します。' },
+		{ name: 'Style transform', description: 'Writes styles that apply only to the component.' }
+	),
+	'svelte.render_plan': bilingual(
+		{ name: '描画する範囲の計画', description: 'JavaScript を組み立てる前に、出力先によらない描画の範囲と名前空間を決めます。' },
+		{
+			name: 'Rendering plan',
+			description: 'Before building the JavaScript, decides the rendering ranges and namespaces that do not depend on the output target.'
+		}
+	),
+	'svelte.output_identity': bilingual(
+		{ name: '出力の名前とスタイルのハッシュ', description: 'コンポーネントの名前と、スタイルと head に付けるハッシュを決めます。' },
+		{ name: 'Output name and style hash', description: 'Decides the component name and the hash added to the styles and the head.' }
+	),
+	'svelte.validate': bilingual(
+		{ name: 'コンパイル前の確認', description: 'カスタム要素の設定、対応する構文、TypeScript の書き方、ストアの使い方を、JavaScript を組み立てる前に確かめます。' },
+		{
+			name: 'Checks before compiling',
+			description: 'Before building the JavaScript, checks custom element settings, supported syntax, TypeScript usage, and store usage.'
+		}
+	),
+	'svelte.lint.parents': bilingual(
+		{ name: 'JavaScript の親要素の表', description: 'コード検査のために、スクリプトの各要素の親を引ける表を作ります。' },
+		{ name: 'JavaScript parent table', description: 'For lint, builds a table that gives the parent of each node in the script.' }
+	)
 };
 
-export function artifactLabel(id: string) {
-	return artifactLabels[id] ?? { name: id, description: 'プラグインが計算した結果です。' };
+const unknownArtifact = bilingual('プラグインが計算した結果です。', 'A result that a plugin computed.');
+
+export function artifactLabel(id: string, lang: Lang): Label {
+	return artifactLabels[id]?.[lang] ?? { name: id, description: unknownArtifact[lang] };
 }
 
 const pluginLabels: Record<string, string> = { svelte: 'Svelte', vue: 'Vue', svue: 'Vue → Svelte', vuelte: 'Svelte → Vue Vapor' };
-const taskKinds: Record<string, string> = {
-	'compile/client': 'ブラウザ向け', 'compile/default': 'ブラウザ向け', 'compile/server': 'サーバー向け',
-	'format/default': '整形', 'lint/default': 'コード検査'
+const browser = bilingual('ブラウザ向け', 'browser');
+const taskKinds: Record<string, Record<Lang, string>> = {
+	'compile/client': browser, 'compile/default': browser, 'compile/server': bilingual('サーバー向け', 'server'),
+	'format/default': bilingual('整形', 'format'), 'lint/default': bilingual('コード検査', 'lint')
 };
+const joinTaskLabel = bilingual((plugin: string, kind: string) => `${plugin}・${kind}`, (plugin: string, kind: string) => `${plugin} (${kind})`);
 
 /** The plugin and the task, because two plugins can register the same kind of task for one input. */
-export function taskLabel(id: string): string {
+export function taskLabel(id: string, lang: Lang): string {
 	const dot = id.indexOf('.');
 	const plugin = pluginLabels[id.slice(0, dot)];
 	const kind = taskKinds[id.slice(dot + 1)];
-	return plugin && kind ? `${plugin}・${kind}` : id;
+	return plugin && kind ? joinTaskLabel[lang](plugin, kind[lang]) : id;
 }
 
 export function accessSummary(step: PipelineStep) {
@@ -138,20 +255,20 @@ export async function decodeState(hash: string): Promise<PlaygroundState | null>
 	const value = JSON.parse(new TextDecoder().decode(bytes)) as Partial<PlaygroundState>;
 	const strings = (list: unknown) => Array.isArray(list) && list.every((item) => typeof item === 'string');
 	if (!examples.some((item) => item.id === value.example) || typeof value.source !== 'string' || !strings(value.plugins) || !strings(value.operations) || typeof value.shared !== 'boolean') {
-		throw new Error('リンクの内容が正しくありません');
+		throw new Error('invalid playground state in the link');
 	}
 	return value as PlaygroundState;
 }
 
-export type Problem = { line: number; column: number; code: string; message: string; kind: '診断' | 'コード検査の指摘' };
+export type Problem = { line: number; column: number; code: string; message: string; kind: 'diagnostic' | 'lint' };
 
 /** Diagnostics of the task, then the findings the lint task writes into `lint.json`; both point at the source. */
 export function problems(step: PipelineStep): Problem[] {
-	const list: Problem[] = step.diagnostics.map((diagnostic) => ({ ...diagnostic, kind: '診断' }));
+	const list: Problem[] = step.diagnostics.map((diagnostic) => ({ ...diagnostic, kind: 'diagnostic' }));
 	const report = step.files.find((file) => file.name === 'lint.json');
 	if (report) {
 		const parsed = JSON.parse(report.text) as { findings: { rule: string; message: string; start: { line: number; column: number } }[] };
-		for (const finding of parsed.findings) list.push({ line: finding.start.line, column: finding.start.column, code: finding.rule, message: finding.message, kind: 'コード検査の指摘' });
+		for (const finding of parsed.findings) list.push({ line: finding.start.line, column: finding.start.column, code: finding.rule, message: finding.message, kind: 'lint' });
 	}
 	return list;
 }

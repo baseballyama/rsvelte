@@ -1,10 +1,11 @@
 <script lang="ts">
+	import type { PageData } from './$types';
 	import ParseSharingFigure from '$lib/widgets/ParseSharingFigure.svelte';
 	import ProjectFactsFigure from '$lib/widgets/ProjectFactsFigure.svelte';
 	import SvelteSourceFigure from '$lib/widgets/SvelteSourceFigure.svelte';
 	import { REPO_URL } from '$lib/site';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 
 	const sections = [
 		{ id: 'whole-file', label: 'テンプレートの構文解析' },

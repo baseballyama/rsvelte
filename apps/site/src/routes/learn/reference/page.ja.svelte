@@ -1,8 +1,9 @@
 <script lang="ts">
+	import type { PageData } from './$types';
 	import { page } from '$app/state';
 	import { REPO_URL } from '$lib/site';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 
 	interface Viewed {
 		key: string;

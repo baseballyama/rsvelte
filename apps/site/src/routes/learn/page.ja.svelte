@@ -1,11 +1,12 @@
 <script lang="ts">
+	import type { PageData } from './$types';
 	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
 	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
 	import H2 from '$lib/components/H2.svelte';
 	import Note from '$lib/components/Note.svelte';
 	import { appendixIn, chapter, chaptersIn } from '$lib/site';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 	const c = chapter('intro', 'ja');
 </script>
 

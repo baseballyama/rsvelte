@@ -1,9 +1,39 @@
 <script lang="ts">
 	import Figure from '$lib/components/Figure.svelte';
+	import { bilingual } from '$lib/i18n';
 	import { account, type Span } from '$lib/kernel/metrics-sim';
+	import { readerLang } from '$lib/lang.svelte';
 
 	/** Average self microseconds per call of each phase, from a metrics benchmark report. */
 	let { avg, rev }: { avg: Record<string, number>; rev: string } = $props();
+
+	const text = bilingual(
+		{
+			label: '図 11.1 · 1 文書のフェーズ',
+			registration: '登録順',
+			formatFirst: 'format を先に',
+			title: 'フェーズの入れ子。横軸は時間',
+			phase: 'フェーズ',
+			share: 'self の割合',
+			captionBefore: (rev: string) =>
+				`各フェーズの長さは、ベンチマーク（build ${rev}、metrics あり）のフェーズ表の「そのフェーズ 1 回あたりの平均 self 時間」です。並べ方は、同じビルドの `,
+			captionMiddle: ' と各タスクのコードに従ったモデルです。「format を先に」にしても ',
+			captionAfter: ' の self は変わらず、変わるのはどのタスクの total にパースが含まれるかだけです。'
+		},
+		{
+			label: 'Figure 11.1 · Phases of one document',
+			registration: 'Registration order',
+			formatFirst: 'format first',
+			title: 'Nested phases. The horizontal axis is time',
+			phase: 'Phase',
+			share: 'Share of self',
+			captionBefore: (rev: string) =>
+				`The length of each phase is the average self time per call of that phase, from the phase table of the benchmark (build ${rev}, with metrics). The arrangement is a model that follows `,
+			captionMiddle: ' and the code of each task in the same build. With “format first,” the self time of ',
+			captionAfter: ' does not change. Only the task whose total includes the parse changes.'
+		}
+	);
+	const strings = $derived(text[readerLang()]);
 
 	let formatFirst = $state(false);
 	let hovered: string | null = $state(null);
@@ -14,7 +44,7 @@
 		return v;
 	};
 
-	// One parsed document, the four benchmark tasks, in registration order (or format first).
+	// One parsed document and the four benchmark tasks as the report's build ran them, in registration order (or format first).
 	const roots = $derived.by(() => {
 		let t = 0;
 		const span = (name: string, children: () => Span[]): Span => {
@@ -29,6 +59,18 @@
 			if (parsed) return [];
 			parsed = true;
 			return [span('svelte.parse', () => [])];
+		};
+		let normalized = false;
+		const normalize = () => {
+			if (normalized) return [];
+			normalized = true;
+			return [span('svelte.hir', () => [])];
+		};
+		let resolved = false;
+		const resolve = () => {
+			if (resolved) return [];
+			resolved = true;
+			return [span('svelte.resolve', () => [])];
 		};
 		let analyzed = false;
 		const analyze = () => {
@@ -45,17 +87,20 @@
 		const compile = (target: 'client' | 'server') =>
 			span(`svelte.compile/${target}`, () => [
 				...parse(),
+				...normalize(),
+				...resolve(),
 				...analyze(),
-				...scoped(),
 				span(`svelte.lower.${target}`, () => []),
-				span('js.print', () => [])
+				span('js.print', () => []),
+				...scoped()
 			]);
 		const format = () => span('svelte.format/default', () => [...parse()]);
 		const lint = () =>
 			span('svelte.lint/default', () => [
 				...parse(),
-				...analyze(),
+				...resolve(),
 				span('js.parents', () => []),
+				...normalize(),
 				span('no-unused-vars', () => []),
 				span('svelte/button-has-type', () => [])
 			]);
@@ -74,7 +119,7 @@
 		return out;
 	});
 	const tone = (name: string) =>
-		name.startsWith('svelte.parse') || name === 'svelte.analyze' || name === 'svelte.css'
+		['svelte.parse', 'svelte.hir', 'svelte.resolve', 'svelte.analyze', 'svelte.css'].includes(name)
 			? 'var(--c-src)'
 			: name.includes('/') && name.startsWith('svelte.') && !name.startsWith('svelte/')
 				? 'var(--c-idle)'
@@ -83,14 +128,14 @@
 	const x = (v: number) => (v / T) * W;
 </script>
 
-<Figure label="図 11.1 · 1 文書のフェーズ" wide>
+<Figure label={strings.label} wide>
 	{#snippet controls()}
-		<button type="button" class="btn-ghost" aria-pressed={!formatFirst} onclick={() => (formatFirst = false)}>登録順</button>
-		<button type="button" class="btn-ghost" aria-pressed={formatFirst} onclick={() => (formatFirst = true)}>format を先に</button>
+		<button type="button" class="btn-ghost" aria-pressed={!formatFirst} onclick={() => (formatFirst = false)}>{strings.registration}</button>
+		<button type="button" class="btn-ghost" aria-pressed={formatFirst} onclick={() => (formatFirst = true)}>{strings.formatFirst}</button>
 	{/snippet}
 	<div class="overflow-x-auto p-4">
 		<svg viewBox="0 0 {W} {4 * 22}" class="h-auto w-full min-w-[560px]" role="img">
-			<title>フェーズの入れ子。横軸は時間</title>
+			<title>{strings.title}</title>
 			{#each flat as { s, depth }, i (i)}
 				<g
 					role="presentation"
@@ -106,7 +151,7 @@
 			{/each}
 		</svg>
 		<table class="table mt-4 text-[13px]">
-			<thead><tr><th>フェーズ</th><th class="num">total µs</th><th class="num">self µs</th><th class="w-[35%]">self の割合</th></tr></thead>
+			<thead><tr><th>{strings.phase}</th><th class="num">total µs</th><th class="num">self µs</th><th class="w-[35%]">{strings.share}</th></tr></thead>
 			<tbody>
 				{#each [...rows].sort((a, b) => b.selfNs - a.selfNs) as r (r.name)}
 					<tr
@@ -126,8 +171,6 @@
 		</table>
 	</div>
 	{#snippet caption()}
-		各フェーズの長さは、ベンチマーク（build {rev.slice(0, 7)}、metrics あり）のフェーズ表の「そのフェーズ 1 回あたりの平均 self 時間」です。並べ方は <code>run_document</code>
-		と各タスクのコードに従ったモデルです。「format を先に」にしても <code>svelte.parse</code> の self は変わらず、変わるのはどのタスクの
-		total にパースが含まれるかだけです。
+		{strings.captionBefore(rev.slice(0, 7))}<code>run_document</code>{strings.captionMiddle}<code>svelte.parse</code>{strings.captionAfter}
 	{/snippet}
 </Figure>

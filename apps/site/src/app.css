@@ -135,6 +135,10 @@
 		color: var(--fg);
 		font-size: 16px;
 		line-height: 1.7;
+	}
+
+	/* Full-width text reads better with a little tracking; Latin text is set as designed. */
+	html:lang(ja) body {
 		letter-spacing: 0.02em;
 	}
 
@@ -143,8 +147,11 @@
 	h2,
 	h3,
 	h4 {
-		word-break: auto-phrase;
 		text-wrap: balance;
+	}
+
+	:is(h1, h2, h3, h4):lang(ja) {
+		word-break: auto-phrase;
 		letter-spacing: 0.01em;
 		font-feature-settings: 'palt';
 	}
@@ -323,8 +330,8 @@
 	.prose-learn strong {
 		font-weight: 600;
 	}
-	/* Japanese has no italic: emphasis is sesame dots (傍点), as in print. */
-	.prose-learn em {
+	/* Japanese has no italic: emphasis is sesame dots (傍点), as in print. English keeps italic. */
+	.prose-learn em:lang(ja) {
 		font-style: normal;
 		text-emphasis: filled sesame;
 		text-emphasis-color: var(--accent);

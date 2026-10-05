@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import SpanRuler from '$lib/components/SpanRuler.svelte';
+	import { bilingual } from '$lib/i18n';
+	import { readerLang } from '$lib/lang.svelte';
 	import { Emitter } from '$lib/kernel/emit';
 	import { LineIndex } from '$lib/kernel/source';
 
@@ -15,6 +17,32 @@
 	}
 
 	let { data, label }: { data: EmitData; label: string } = $props();
+
+	const text = bilingual(
+		{
+			mappings: (n: number) => `位置の対応点 ${n}`,
+			input: '入力',
+			inputBytes: '入力のバイト位置',
+			output: 'rsvelte の出力 (JavaScript)',
+			outputAt: (line: number, column: number) => `出力 ${line} 行 ${column} 列`,
+			outputLabel: '出力の位置。左右の矢印キーで動かせます',
+			bytesAfter: (n: number) => `から ${n} バイト後`,
+			mapping: '位置の対応',
+			none: '位置の対応なし: 同じ行で、これより前に位置の対応点がない'
+		},
+		{
+			mappings: (n: number) => `${n} ${n === 1 ? 'mapping' : 'mappings'}`,
+			input: 'Input',
+			inputBytes: 'Byte positions in the input',
+			output: 'rsvelte output (JavaScript)',
+			outputAt: (line: number, column: number) => `Output line ${line}, column ${column}`,
+			outputLabel: 'Position in the output. Move it with the left and right arrow keys',
+			bytesAfter: (n: number) => `+ ${n} ${n === 1 ? 'byte' : 'bytes'}`,
+			mapping: 'mapping',
+			none: 'No mapping: no mapping point before this position on the same line'
+		}
+	);
+	const t = $derived(text[readerLang()]);
 
 	const emitter = $derived.by(() => {
 		const e = new Emitter();
@@ -58,7 +86,7 @@
 	<div class="flex items-center justify-between gap-4 border-b border-line bg-surface px-3 py-1.5">
 		<span class="font-mono text-[12px] tracking-normal text-muted">{label}</span>
 		<span class="font-mono text-[12px] tracking-normal text-muted">
-			位置の対応点 {data.mappings.length} · {data.target} · {data.rev.slice(0, 7)}
+			{t.mappings(data.mappings.length)} · {data.target} · {data.rev.slice(0, 7)}
 		</span>
 	</div>
 	<div class="grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
@@ -66,14 +94,14 @@
 			<div class="px-3 pt-2 font-mono text-[11px] tracking-normal text-c-src">{data.file}</div>
 			<pre
 				class="overflow-x-auto px-3 py-2 text-[12.5px] leading-[1.7] [tab-size:2]"
-				aria-label="入力"><code
+				aria-label={t.input}><code
 					>{#each sourceChars as c (c.byte)}&lt;span class={[hit === c.byte && 'bg-accent text-bg', 'rounded-[2px]']}
 							&gt;{c.ch}&lt;/span
 						&gt;{/each}</code
 				></pre>
 			<div class="px-3 pb-3">
 				<SpanRuler
-					title="入力のバイト位置"
+					title={t.inputBytes}
 					length={sourceIndex.bytes.length}
 					marks={[
 						...data.mappings.map((m) => ({ startOffset: m[1], endOffset: m[1] + Math.max(m[2], 1), tone: 'muted' as const })),
@@ -83,7 +111,7 @@
 			</div>
 		</div>
 		<div class="min-w-0">
-			<div class="px-3 pt-2 font-mono text-[11px] tracking-normal text-c-gen">rsvelte の出力 (JavaScript)</div>
+			<div class="px-3 pt-2 font-mono text-[11px] tracking-normal text-c-gen">{t.output}</div>
 			<div
 				class="max-h-[340px] cursor-crosshair overflow-auto px-3 py-2 font-mono text-[12.5px] leading-[1.7] whitespace-pre [tab-size:2] focus-visible:outline-2 focus-visible:outline-accent"
 				tabindex="0"
@@ -91,8 +119,8 @@
 				aria-valuemin={0}
 				aria-valuemax={outIndex.bytes.length - 1}
 				aria-valuenow={position}
-				aria-valuetext="出力 {g.line} 行 {g.column} 列"
-				aria-label="出力の位置。左右の矢印キーで動かせます"
+				aria-valuetext={t.outputAt(g.line, g.column)}
+				aria-label={t.outputLabel}
 				onmousemove={pick}
 				onclick={pick}
 				onkeydown={key}
@@ -116,11 +144,12 @@
 		{#if s}
 			<span><span class="text-c-src">src</span> {s.line}:{s.column}</span>
 			<span class="text-muted">
-				位置の対応 #{which} (generated {mapping?.generated}, src {mapping?.source}, len {mapping?.len}) から {position -
-					(mapping?.generated ?? 0)} バイト後
+				{t.mapping} #{which} (generated {mapping?.generated}, src {mapping?.source}, len {mapping?.len}) {t.bytesAfter(
+					position - (mapping?.generated ?? 0)
+				)}
 			</span>
 		{:else}
-			<span class="text-muted">位置の対応なし: 最初の位置の対応点より前</span>
+			<span class="text-muted">{t.none}</span>
 		{/if}
 	</div>
 </figure>

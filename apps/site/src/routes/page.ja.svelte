@@ -1,10 +1,11 @@
 <script lang="ts">
+	import type { PageData } from './$types';
 	import CrateDiagram from '$lib/components/CrateDiagram.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { REPO_URL, chaptersIn } from '$lib/site';
 	import SpanFigure from '$lib/widgets/SpanFigure.svelte';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 
 	const fmt = (n: number) => n.toLocaleString('en-US');
 	const mb = (b: number) => (b / 1e6).toFixed(1);

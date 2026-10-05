@@ -1,6 +1,47 @@
 <script lang="ts">
 	import Figure from '$lib/components/Figure.svelte';
+	import { bilingual } from '$lib/i18n';
 	import { makeDocs, simulate } from '$lib/kernel/pipeline-sim';
+	import { readerLang } from '$lib/lang.svelte';
+
+	const text = bilingual(
+		{
+			label: '図 6.1 · run_each のモデル',
+			workers: 'ワーカー',
+			noParts: '部品なし',
+			allParts: '全部',
+			stop: '■ 停止',
+			play: '▶ 再生',
+			title: 'ワーカーごとの文書の処理と、保持している結果の量',
+			held: '保持量',
+			timeUnits: '単位時間',
+			sunk: 'すぐ sink に渡る文書',
+			waiting: '部品を持ち、プロジェクト全体の処理を待つ文書',
+			peak: 'ピーク',
+			captionBefore: '模型です。文書は空いたワーカーに順に配ります（rayon の work stealing を単純化したもの）。処理時間と結果の大きさは例示で、実測ではありません。実線は ',
+			captionMiddle: ' が生かしている結果の量、破線は ',
+			captionAfter: ' のように全部を集めた場合の量です。部品を持つ文書が増えるほど、二つの線は近づきます。'
+		},
+		{
+			label: 'Figure 6.1 · A model of run_each',
+			workers: 'Workers',
+			noParts: 'No parts',
+			allParts: 'All',
+			stop: '■ Stop',
+			play: '▶ Play',
+			title: 'Documents processed by each worker, and the amount of results held',
+			held: 'held',
+			timeUnits: 'time units',
+			sunk: 'Document passed to sink at once',
+			waiting: 'Document with a part, waiting for the project-wide work',
+			peak: 'Peak',
+			captionBefore:
+				'This is a model. Each document goes to the next free worker (a simple form of the work stealing in rayon). Processing times and result sizes are examples, not measurements. The solid line is the amount of results that ',
+			captionMiddle: ' keeps alive. The dashed line is the amount when all results are collected, as ',
+			captionAfter: ' does. The more documents have parts, the closer the two lines get.'
+		}
+	);
+	const strings = $derived(text[readerLang()]);
 
 	let workers = $state(4);
 	let partShare = $state(0.15);
@@ -60,20 +101,20 @@
 	$effect(() => () => cancelAnimationFrame(raf));
 </script>
 
-<Figure label="図 6.1 · run_each のモデル" wide>
+<Figure label={strings.label} wide>
 	{#snippet controls()}
 		<label class="flex items-center gap-2 font-mono text-[12px] tracking-normal text-fg-2">
-			ワーカー {workers}
+			{strings.workers} {workers}
 			<input class="range w-24" type="range" min="1" max="8" bind:value={workers} />
 		</label>
-		{#each [[0, '部品なし'], [0.15, '15%'], [1, '全部']] as [v, name] (name)}
+		{#each [[0, strings.noParts], [0.15, '15%'], [1, strings.allParts]] as [v, name] (name)}
 			<button type="button" class="btn-ghost" aria-pressed={partShare === v} onclick={() => (partShare = Number(v))}>{name}</button>
 		{/each}
-		<button type="button" class="btn-ghost" onclick={playing ? stop : play}>{playing ? '■ 停止' : '▶ 再生'}</button>
+		<button type="button" class="btn-ghost" onclick={playing ? stop : play}>{playing ? strings.stop : strings.play}</button>
 	{/snippet}
 	<div class="overflow-x-auto p-4">
 		<svg viewBox="0 0 {W} {lanesH + memH + 24}" class="h-auto w-full min-w-[560px]" role="img">
-			<title>ワーカーごとの文書の処理と、保持している結果の量</title>
+			<title>{strings.title}</title>
 			{#each Array.from({ length: workers }, (_, i) => i) as w (w)}
 				<text x="0" y={w * lane + 15} class="font-mono" font-size="11" fill="var(--muted)">worker {w}</text>
 				<line x1={x(0)} x2={x(T)} y1={w * lane + 11} y2={w * lane + 11} stroke="var(--border)" />
@@ -101,7 +142,7 @@
 				/>
 			{/if}
 			<g transform="translate(0 {lanesH})">
-				<text x="0" y="12" class="font-mono" font-size="11" fill="var(--muted)">保持量</text>
+				<text x="0" y="12" class="font-mono" font-size="11" fill="var(--muted)">{strings.held}</text>
 				<line x1={x(0)} x2={x(T)} y1={y(0)} y2={y(0)} stroke="var(--border-strong)" />
 				<path d={pathOf(sim.collected)} fill="none" stroke="var(--muted)" stroke-dasharray="3 3" />
 				<path d={pathOf(sim.streaming)} fill="none" stroke="var(--fg)" />
@@ -110,17 +151,16 @@
 			</g>
 			<line x1={x(now)} x2={x(now)} y1="0" y2={lanesH + memH} stroke="var(--accent)" opacity={now < T ? 1 : 0} />
 			<text x={x(0)} y={lanesH + memH + 18} class="font-mono" font-size="11" fill="var(--muted)">0</text>
-			<text x={x(T)} y={lanesH + memH + 18} text-anchor="end" class="font-mono" font-size="11" fill="var(--muted)">{T} 単位時間</text>
+			<text x={x(T)} y={lanesH + memH + 18} text-anchor="end" class="font-mono" font-size="11" fill="var(--muted)">{T} {strings.timeUnits}</text>
 		</svg>
 		<div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[11.5px] tracking-normal text-muted">
-			<span><span class="mr-1 inline-block h-2 w-3 bg-c-src align-middle"></span>すぐ sink に渡る文書</span>
-			<span><span class="mr-1 inline-block h-2 w-3 bg-c-map align-middle"></span>部品を持ち、プロジェクト全体の処理を待つ文書</span>
+			<span><span class="mr-1 inline-block h-2 w-3 bg-c-src align-middle"></span>{strings.sunk}</span>
+			<span><span class="mr-1 inline-block h-2 w-3 bg-c-map align-middle"></span>{strings.waiting}</span>
 			<span><span class="mr-1 inline-block h-2 w-3 bg-c-idle align-middle"></span>FinishTask::finish</span>
-			<span>ピーク: run_each {sim.peakStreaming} · run {sim.peakCollected}</span>
+			<span>{strings.peak}: run_each {sim.peakStreaming} · run {sim.peakCollected}</span>
 		</div>
 	</div>
 	{#snippet caption()}
-		模型です。文書は空いたワーカーに順に配ります（rayon の work stealing を単純化したもの）。処理時間と結果の大きさは例示で、実測ではありません。実線は <code>run_each</code>
-		が生かしている結果の量、破線は <code>run</code> のように全部を集めた場合の量です。部品を持つ文書が増えるほど、二つの線は近づきます。
+		{strings.captionBefore}<code>run_each</code>{strings.captionMiddle}<code>run</code>{strings.captionAfter}
 	{/snippet}
 </Figure>

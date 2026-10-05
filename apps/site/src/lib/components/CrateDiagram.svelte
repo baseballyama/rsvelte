@@ -1,7 +1,23 @@
 <script lang="ts">
 	import type { CrateSize } from '$lib/build/source-plugin';
+	import { bilingual } from '$lib/i18n';
+	import { readerLang } from '$lib/lang.svelte';
 
 	let { crates }: { crates: CrateSize[] } = $props();
+
+	const text = bilingual(
+		{
+			title:
+				'主な crate の依存関係の抜粋。コマンドラインの実行プログラムは言語プラグインを使います。言語プラグインは、埋め込み言語の処理とカーネルを使います。破線は、図にない crate を通した間接の依存です。',
+			lines: (n: string) => `${n} 行`
+		},
+		{
+			title:
+				'Some of the main crates and their dependencies. The command line program uses the language plugin. The language plugin uses the crates for embedded languages and the kernel. A dashed line is an indirect dependency through a crate that the figure does not show',
+			lines: (n: string) => `${n} lines`
+		}
+	);
+	const t = $derived(text[readerLang()]);
 
 	const size = (name: string) => {
 		const c = crates.find((c) => c.name === name);
@@ -55,7 +71,7 @@
 </script>
 
 <svg viewBox="0 0 760 390" class="h-auto w-full" role="img">
-	<title>主な crate の依存関係の抜粋。コマンドラインの実行プログラムは言語プラグインを使います。言語プラグインは、埋め込み言語の処理とカーネルを使います。破線は、図にない crate を通した間接の依存です。</title>
+	<title>{t.title}</title>
 	<defs>
 		<marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
 			<path d="M0 0 L8 4 L0 8 z" fill="var(--border-strong)" />
@@ -79,7 +95,7 @@
 			/>
 			<text x={b.x + 12} y={b.y + 23} class="font-mono" font-size="14" font-weight="500" fill="var(--fg)">{b.id}</text>
 			<text x={b.x + b.w - 12} y={b.y + 23} text-anchor="end" class="font-mono" font-size="11" fill="var(--muted)"
-				>{size(b.id)} 行</text
+				>{t.lines(size(b.id))}</text
 			>
 			<text x={b.x + 12} y={b.y + 44} class="font-mono" font-size="11.5" fill="var(--fg-2)">{b.role}</text>
 		</g>

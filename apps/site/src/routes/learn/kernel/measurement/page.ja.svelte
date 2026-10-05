@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageData } from './$types';
 	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
 	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
 	import Code from '$lib/components/Code.svelte';
@@ -8,7 +9,7 @@
 	import { chapter } from '$lib/site';
 	import PhaseTimeline from '$lib/widgets/PhaseTimeline.svelte';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 	const c = chapter('metrics', 'ja');
 	const shared = $derived(data.arms.find((a) => a.name === 'shared')!);
 	const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageData } from './$types';
 	import Term from '$lib/components/Term.svelte';
 	import Caution from '$lib/components/Caution.svelte';
 	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
@@ -10,7 +11,7 @@
 	import { chapter } from '$lib/site';
 	import LayerView from '$lib/widgets/LayerView.svelte';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 	const c = chapter('layers', 'ja');
 
 	const stack = [

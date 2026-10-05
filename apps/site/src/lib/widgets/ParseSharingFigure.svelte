@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { bilingual } from '$lib/i18n';
+	import { readerLang } from '$lib/lang.svelte';
 	import { pipelineTasks, pipelineStages, selectedPipeline } from './svelte-pipeline';
 
 	let { markup }: { markup: Record<string, string> } = $props();
@@ -9,6 +11,61 @@
 	const stages = $derived(selectedPipeline(selected));
 	const current = $derived(stages[position]);
 	const visited = $derived(new Set(stages.slice(0, position).map(stage => stage.identifier)));
+	const text = bilingual({
+		caption: 'Greeting.svelteを、4種類のツールで処理する',
+		intro: '矢印はデータの依存関係です。再生すると実行順に工程が点灯します。オレンジは現在の工程、青い破線はその工程が読む保存済みデータです。',
+		pause: '一時停止',
+		replay: 'もう一度再生',
+		play: '再生',
+		previous: '← 前の工程',
+		next: '次の工程 →',
+		reset: '最初に戻る',
+		boundary: '文書ごとの処理 · 同じソースのスナップショットと実行コンテキスト',
+		sharedNote: 'ソースAST → テンプレートHIR → スコープ・宣言・参照のサイドテーブル',
+		uses: (input: string) => `↓ ${input}を使う`,
+		projectBoundary: 'ここから全ファイルを集約',
+		chooseStage: '工程を選択',
+		stageButton: (number: number, label: string) => `${number}：${label}`,
+		input: '入力：Greeting.svelte',
+		progress: (number: number, total: number) => `工程 ${number} / ${total}`,
+		done: ' · 完了',
+		empty: '実行する処理を選択してください。',
+		note: '現在の実装に沿った説明モデルです。中間データと診断は要点を抜粋しています。アニメーションの長さは実行時間を表しません。型検査器によるTypeScriptの解析は別に行われます。',
+		running: '実行中',
+		current: '現在の工程',
+		reads: '保存済みデータを読む',
+		computed: '計算済み',
+		select: '工程を選択',
+		parsedOnce: 'Svelteソースの解析は1回'
+	}, {
+		caption: 'Processing Greeting.svelte with 4 tools',
+		intro: 'Arrows show data dependencies. Play to light up the stages in run order. Orange marks the current stage, and a dashed blue border marks stored data that the stage reads.',
+		pause: 'Pause',
+		replay: 'Play again',
+		play: 'Play',
+		previous: '← Previous stage',
+		next: 'Next stage →',
+		reset: 'Back to start',
+		boundary: 'Work for each document · the same source snapshot and run context',
+		sharedNote: 'Source AST → template HIR → side tables for scopes, declarations, and references',
+		uses: (input: string) => `↓ Uses ${input}`,
+		projectBoundary: 'From here, all files are combined',
+		chooseStage: 'Choose a stage',
+		stageButton: (number: number, label: string) => `${number}: ${label}`,
+		input: 'Input: Greeting.svelte',
+		progress: (number: number, total: number) => `Stage ${number} of ${total}`,
+		done: ' · Done',
+		empty: 'Select a task to run.',
+		note: 'A model that follows the current implementation. Intermediate data and diagnostics show only the main parts. The animation length does not show run time. The type checker parses the TypeScript separately.',
+		running: 'Running',
+		current: 'Current stage',
+		reads: 'Reads stored data',
+		computed: 'Computed',
+		select: 'Select this stage',
+		parsedOnce: 'Svelte source parsed once'
+	});
+	const lang = $derived(readerLang());
+	const t = $derived(text[lang]);
 	const shared = pipelineStages.filter(stage => ['input', 'parsed', 'normalized', 'resolved'].includes(stage.identifier));
 
 	$effect(() => {
@@ -31,72 +88,72 @@
 </script>
 
 <figure class="pipeline" style:--step-duration="{STEP_DURATION_MS}ms">
-	<figcaption>Greeting.svelteを、4種類のツールで処理する</figcaption>
-	<p class="intro">矢印はデータの依存関係です。再生すると実行順に工程が点灯します。オレンジは現在の工程、青い破線はその工程が読む保存済みデータです。</p>
+	<figcaption>{t.caption}</figcaption>
+	<p class="intro">{t.intro}</p>
 	<div class="controls">
 		<div class="selection">
 			{#each pipelineTasks as task}
-				<label><input type="checkbox" value={task.identifier} bind:group={selected} onchange={reset} />{task.label}</label>
+				<label><input type="checkbox" value={task.identifier} bind:group={selected} onchange={reset} />{task.label[lang]}</label>
 			{/each}
 		</div>
 		<div class="transport">
-			<button type="button" onclick={() => playing ? playing = false : play()} disabled={!stages.length}>{playing ? '一時停止' : position === stages.length - 1 ? 'もう一度再生' : '再生'}</button>
-			<button type="button" onclick={() => move(position - 1)} disabled={!position}>← 前の工程</button>
-			<button type="button" onclick={() => move(position + 1)} disabled={!stages.length || position >= stages.length - 1}>次の工程 →</button>
-			<button type="button" onclick={reset}>最初に戻る</button>
+			<button type="button" onclick={() => playing ? playing = false : play()} disabled={!stages.length}>{playing ? t.pause : position === stages.length - 1 ? t.replay : t.play}</button>
+			<button type="button" onclick={() => move(position - 1)} disabled={!position}>{t.previous}</button>
+			<button type="button" onclick={() => move(position + 1)} disabled={!stages.length || position >= stages.length - 1}>{t.next}</button>
+			<button type="button" onclick={reset}>{t.reset}</button>
 		</div>
 	</div>
 	<div class="diagram">
-		<p class="boundary">文書ごとの処理 · 同じソースのスナップショットと実行コンテキスト</p>
+		<p class="boundary">{t.boundary}</p>
 		<div class="shared">
 			{#each shared as stage, index}
 				{#if index}<span class="arrow" aria-hidden="true">→</span>{/if}
 				{@render node(stage.identifier)}
 			{/each}
 		</div>
-		<p class="shared-note">ソースAST → テンプレートHIR → スコープ・宣言・参照のサイドテーブル</p>
+		<p class="shared-note">{t.sharedNote}</p>
 		<div class="branches">
 			{#each pipelineTasks as task}
 				<div class="branch" class:disabled={!selected.includes(task.identifier)}>
-					<h3>{task.label}</h3>
-					<p class="dependency">↓ {task.input}を使う</p>
+					<h3>{task.label[lang]}</h3>
+					<p class="dependency">{t.uses(task.input[lang])}</p>
 					{#each task.nodes as identifier, index}
 						{#if index}<div class="vertical-arrow" class:flowing={playing && current?.identifier === identifier} aria-hidden="true">↓<i></i></div>{/if}
-						{#if identifier === 'typescript'}<p class="project-boundary">ここから全ファイルを集約</p>{/if}
+						{#if identifier === 'typescript'}<p class="project-boundary">{t.projectBoundary}</p>{/if}
 						{@render node(identifier)}
 					{/each}
-					<p class="output">{task.output}</p>
+					<p class="output">{task.output[lang]}</p>
 				</div>
 			{/each}
 		</div>
 	</div>
 	{#if current}
-		<div class="progress" aria-label="工程を選択">
+		<div class="progress" aria-label={t.chooseStage}>
 			{#each stages as stage, index}
-				<button type="button" onclick={() => move(index)} aria-label="{index + 1}：{stage.label}" aria-current={index === position ? 'step' : undefined} class:visited={index < position}>{index + 1}</button>
+				<button type="button" onclick={() => move(index)} aria-label={t.stageButton(index + 1, stage.label[lang])} aria-current={index === position ? 'step' : undefined} class:visited={index < position}>{index + 1}</button>
 			{/each}
 		</div>
 		<div class="inspection">
-			<div class="source"><h3>入力：Greeting.svelte</h3><div class="code">{@html markup.input}</div></div>
+			<div class="source"><h3>{t.input}</h3><div class="code">{@html markup.input}</div></div>
 			<div class="detail">
 				<div class="description" aria-live="polite" aria-atomic="true">
-					<p class="step">工程 {position + 1} / {stages.length}{position === stages.length - 1 ? ' · 完了' : ''}</p>
-					<h3>{current.label}</h3><p>{current.description}</p>
+					<p class="step">{t.progress(position + 1, stages.length)}{position === stages.length - 1 ? t.done : ''}</p>
+					<h3>{current.label[lang]}</h3><p>{current.description[lang]}</p>
 				</div>
 				<div class="code">{@html markup[current.identifier]}</div>
 			</div>
 		</div>
-	{:else}<p class="empty">実行する処理を選択してください。</p>{/if}
-	<p class="caption">現在の実装に沿った説明モデルです。中間データと診断は要点を抜粋しています。アニメーションの長さは実行時間を表しません。型検査器によるTypeScriptの解析は別に行われます。</p>
+	{:else}<p class="empty">{t.empty}</p>{/if}
+	<p class="caption">{t.note}</p>
 </figure>
 
 {#snippet node(identifier: string)}
 	{@const stage = pipelineStages.find(stage => stage.identifier === identifier)!}
 	<button type="button" class="node" class:active={current?.identifier === identifier} class:read={current?.reads.includes(identifier)} class:complete={visited.has(identifier)} disabled={!stages.some(stage => stage.identifier === identifier)} onclick={() => inspect(identifier)} aria-current={current?.identifier === identifier ? 'step' : undefined}>
-		<span class="node-status">{current?.identifier === identifier ? playing ? '実行中' : '現在の工程' : current?.reads.includes(identifier) ? '保存済みデータを読む' : visited.has(identifier) ? '計算済み' : '工程を選択'}</span>
-		<strong>{stage.label}</strong>
-		<span class="structure">{stage.structure}</span>
-		{#if identifier === 'input'}<code>Greeting.svelte</code>{:else if identifier === 'parsed'}<span>Svelteソースの解析は1回</span>{/if}
+		<span class="node-status">{current?.identifier === identifier ? playing ? t.running : t.current : current?.reads.includes(identifier) ? t.reads : visited.has(identifier) ? t.computed : t.select}</span>
+		<strong>{stage.label[lang]}</strong>
+		<span class="structure">{stage.structure[lang]}</span>
+		{#if identifier === 'input'}<code>Greeting.svelte</code>{:else if identifier === 'parsed'}<span>{t.parsedOnce}</span>{/if}
 	</button>
 {/snippet}
 

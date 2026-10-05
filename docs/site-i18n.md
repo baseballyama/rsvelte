@@ -564,7 +564,8 @@ lemma NoHiddenDefault(s: seq<Source>)
   the same in both languages: `#id`, `/api/source/...`, static files and external URLs.
 - Data hrefs (chapters, appendix, overview figure, guide, position marker) are shared paths and are rendered with
   `localizedPath(href, readerLang())`.
-- Every English site link resolves to a route, and its `#id` exists on that page.
+- Every English site link resolves to a route, and its `#id` exists on that page. `src/routes/links.test.ts` checks
+  every static `href` in each page file: the prefix rule, the route, and the `#id` in the file of the same language.
 - The kernel overview figure follows "Why a kernel" (`why`, then `overview`) in both languages.
 
 #### Formal check: links [INV-07, INV-08, INV-09, TYP-03, STT-01]
@@ -883,8 +884,12 @@ entry whose file is not scanned or whose text is not found fails the check.
 
 - Abbreviations in English: only AST, HIR, CSS, HTML, JSON, UTF-8, UTF-16 and ASCII. The Japanese rule allows only
   AST and HIR, as before.
-- Fact parity: in each pair of page files, the markup has the same numbers, commit ids, `{...}` expressions and
-  `data.code.*` references.
+- Fact parity (`src/routes/facts.ts`, `facts.test.ts`): in each pair of page files, the markup (not `<script>` or
+  `<style>`, not styling attributes) has the same multiset of numbers, commit ids, `{...}` expressions and
+  `data.code.*` references. An expression is compared with its string literals blanked, and the numbers and commit
+  ids inside the literals are counted as facts. Encoding names (`UTF-16`, 「ユニコードの16ビット符号化方式」) are
+  names, not numbers. Any other difference needs an entry with a reason in `src/routes/fact-exceptions.json`, and
+  every entry must match.
 - Gates are never empty. The excerpt test has two domains. Every page whose `+page.server.ts` loads crate excerpts
   (15 at the base tree) must use `data.code.*` in both files, and every use must be loaded. Pages with `mark` checks
   (13 at the base tree, 42 marks per language) must have the same marks in both files, and the total is more than
@@ -1031,14 +1036,14 @@ sequence (PRE-04, PRE-07; POST-01, 02, 03, 05, 06), so there is no PRE-01 or POS
 | INV-04 | `SameRoute` | `i18n.test.ts` reroute test | proved on model + unit test |
 | INV-05 | `DocumentLanguage`, `EveryPageInItsLanguage` | `check-prerender.mjs` (build); browser | proved on model + build check |
 | INV-06 | `AnchorsLanguageNeutral` | `sections.test.ts` (H2 id order and static id set per language) | proved on model + unit test |
-| INV-07 | `LinkLanguage` | link test (pending); review | proved on model; code check pending |
-| INV-08 | `EnglishLinkResolves` | `chapter-refs.test.ts`, `sections.test.ts` | proved on model + unit test |
+| INV-07 | `LinkLanguage` | `links.test.ts` (every static site link in each page file) | proved on model + unit test |
+| INV-08 | `EnglishLinkResolves` | `links.test.ts` (route exists, `#id` exists in that language), `chapter-refs.test.ts` | proved on model + unit test |
 | INV-09 | `OverviewInBothLanguages` | `sections.test.ts` H2 parity | stated (requires `ja == en`) |
 | INV-10 | `PositionsLanguageNeutral` | `i18n.test.ts` position marker parity | proved on model + unit test |
 | INV-11 | `Text` | `bilingual` type (`svelte-check`) | stated; type check |
 | INV-12 | `LeakCheckSound`, `LeakControls` | `lint-english.mjs`; `english.test.mjs` controls | proved on model + unit test |
-| INV-13 | `ParityControl` | fact parity test (pending) | proved on model; code check pending |
-| INV-14 | `ExcerptGateFromPages`, `ExcerptGateControl` | `excerpts.test.ts` (15 code pages, 13 marked) | proved on model + unit test |
+| INV-13 | `ParityControl` | `facts.test.ts` with `fact-exceptions.json` | proved on model + unit test |
+| INV-14 | `ExcerptGateFromPages`, `ExcerptGateControl` | `excerpts.test.ts` (pins 15 code pages, 13 marked, 42 marks per language) | proved on model + unit test |
 | INV-15 | `NoHiddenDefault` | signatures of `chapter`, `term` (`svelte-check`) | stated; type check |
 | INV-16 | none | `vite build` (kit throws on `url.search` while prerendering); review | not provable here |
 | INV-17 | `OriginRejected` | `check-prerender.mjs` | stated; build check |
@@ -1061,7 +1066,7 @@ sequence (PRE-04, PRE-07; POST-01, 02, 03, 05, 06), so there is no PRE-01 or POS
 | ALG-02 | `ChapterByHref`, `IndexBySlug` | `i18n.test.ts` chapter tests | proved on model + unit test |
 | ALG-03 | `ServedLang`, `WithoutEnglishEntries` | `check-prerender.mjs`; `prerender.test.ts` | proved on model + build check |
 | ALG-04 | `LeakCheckPasses` | `english.test.mjs` leak controls | model of the code + unit test |
-| ALG-05 | `ParityPasses` | fact parity test (pending) | model; code check pending |
+| ALG-05 | `ParityPasses` | `facts.ts`, `facts.test.ts` (positive controls) | model of the code + unit test |
 
 Natural English, layout at 320 px and 375 px, keyboard order and focus are checked by review and a browser only.
 

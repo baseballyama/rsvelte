@@ -1,11 +1,12 @@
 <script lang="ts">
+	import type { PageData } from './$types';
 	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
 	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
 	import Code from '$lib/components/Code.svelte';
 	import H2 from '$lib/components/H2.svelte';
 	import { chapter } from '$lib/site';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 	const currentChapter = chapter('plugins', 'ja');
 </script>
 

@@ -1,26 +1,56 @@
 <script lang="ts">
 	import Figure from '$lib/components/Figure.svelte';
-	import { overviewEdges, overviewNodes, positionLabel, sharedParts } from '$lib/kernel/kernel-overview';
+	import { bilingual, localizedPath } from '$lib/i18n';
+	import { nodeCode, overviewEdges, overviewNodes, positionLabel, sharedParts } from '$lib/kernel/kernel-overview';
+	import { readerLang } from '$lib/lang.svelte';
 	import { REPO_URL } from '$lib/site';
 
 	let { current = [] }: { current?: string[] } = $props();
 	const order = ['host', 'registry', 'plugin-check', 'run', 'run-document', 'lang-tools', 'context', 'lang-core', 'facet', 'output', 'project', 'typecheck'];
 	const byId = new Map(overviewNodes.map((node) => [node.id, node]));
-	const groups = [
-		{ label: '言語プラグイン', x: 16, y: 132, w: 220, h: 304 },
-		{ label: 'カーネル（rsvelte_kernel）', x: 290, y: 24, w: 440, h: 586 },
+	const text = bilingual(
+		{
+			label: '図 1.1 · カーネルと言語プラグインの役割とデータの流れ',
+			title: 'カーネルと言語プラグインの全体図。各部分は対応する章へのリンクです。',
+			plugins: '言語プラグイン',
+			kernel: 'カーネル（rsvelte_kernel）',
+			parts: 'どの処理も使う共通部品',
+			list: '全体図の要素（データの流れの順）',
+			separator: '、',
+			relations: '図の矢印を文章で読む（根拠のソース付き）',
+			here: 'この章の位置：',
+			caption: '矢印は登録とデータの向きです。crate の依存関係ではありません。四角を選ぶと、その部分を説明する章へ移動します。'
+		},
+		{
+			label: 'Figure 1.1 · Roles and data flow of the kernel and the language plugins',
+			title: 'Overview of the kernel and the language plugins, with each part linking to its chapter',
+			plugins: 'Language plugins',
+			kernel: 'Kernel (rsvelte_kernel)',
+			parts: 'Shared parts that every task uses',
+			list: 'Parts of the overview, in the order of the data flow',
+			separator: ', ',
+			relations: 'Read the arrows as text, with the source lines behind them',
+			here: 'Position of this chapter: ',
+			caption: 'The arrows show the direction of registration and data. They are not crate dependencies. Select a box to go to the chapter that explains that part.'
+		}
+	);
+	const lang = $derived(readerLang());
+	const t = $derived(text[lang]);
+	const groups = $derived([
+		{ label: t.plugins, x: 16, y: 132, w: 220, h: 304 },
+		{ label: t.kernel, x: 290, y: 24, w: 440, h: 586 },
 		{ label: '', x: 778, y: 140, w: 198, h: 102 }
-	];
+	]);
 	const partWidth = 76;
 	const partGap = 6;
 	const partPosition = (index: number) => ({ x: 306 + (index % 5) * (partWidth + partGap), y: 466 + Math.floor(index / 5) * 34 });
 	const sourceUrl = (source: { path: string; line: number }) => `${REPO_URL}/blob/experimental/${source.path}#L${source.line}`;
 </script>
 
-<Figure label="図 1.1 · カーネルと言語プラグインの役割とデータの流れ" wide>
+<Figure label={t.label} wide>
 	<div class="overview">
 		<svg viewBox="0 -24 980 650" role="group" aria-labelledby="overview-title">
-			<title id="overview-title">カーネルと言語プラグインの全体図。各部分は対応する章へのリンクです。</title>
+			<title id="overview-title">{t.title}</title>
 			<defs>
 				<marker id="overview-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z" class="arrow-head" /></marker>
 			</defs>
@@ -31,43 +61,43 @@
 			<g aria-hidden="true">
 				{#each overviewEdges as edge (edge.from + edge.to)}
 					<path class="edge" d={edge.path} marker-end="url(#overview-arrow)" />
-					<text class="edge-label" x={edge.at[0]} y={edge.at[1]}>{edge.label}</text>
+					<text class="edge-label" x={edge.at[0]} y={edge.at[1]}>{edge.label[lang]}</text>
 				{/each}
 			</g>
 			{#each overviewNodes as node (node.id)}
-				<a href={node.href} class:current={current.includes(node.id)} aria-current={current.includes(node.id) ? 'location' : undefined}>
+				<a href={localizedPath(node.href, lang)} class:current={current.includes(node.id)} aria-current={current.includes(node.id) ? 'location' : undefined}>
 					<rect class="node" x={node.box.x} y={node.box.y} width={node.box.w} height={node.box.h} rx="4" />
-					<text class="node-label" x={node.box.x + 12} y={node.box.y + 25}>{node.label}</text>
-					<text class="node-code" x={node.box.x + 12} y={node.box.y + 45}>{node.code}</text>
+					<text class="node-label" x={node.box.x + 12} y={node.box.y + 25}>{node.label[lang]}</text>
+					<text class="node-code" x={node.box.x + 12} y={node.box.y + 45}>{nodeCode(node, lang)}</text>
 				</a>
 			{/each}
-			<text class="group-label" x="306" y="454">どの処理も使う共通部品</text>
+			<text class="group-label" x="306" y="454">{t.parts}</text>
 			{#each sharedParts as part, index (part.id)}
 				{@const p = partPosition(index)}
-				<a href={part.href} class:current={current.includes(`part:${part.id}`)} aria-current={current.includes(`part:${part.id}`) ? 'location' : undefined}>
+				<a href={localizedPath(part.href, lang)} class:current={current.includes(`part:${part.id}`)} aria-current={current.includes(`part:${part.id}`) ? 'location' : undefined}>
 					<rect class="part" x={p.x} y={p.y} width={partWidth} height="26" rx="3" />
-					<text class="part-label" x={p.x + partWidth / 2} y={p.y + 17} text-anchor="middle">{part.label}</text>
+					<text class="part-label" x={p.x + partWidth / 2} y={p.y + 17} text-anchor="middle">{part.label[lang]}</text>
 				</a>
 			{/each}
 		</svg>
-		<ol class="flow-list" aria-label="全体図の要素（データの流れの順）">
+		<ol class="flow-list" aria-label={t.list}>
 			{#each order as id (id)}
 				{@const node = byId.get(id)!}
-				<li class:current={current.includes(id)}><a href={node.href} aria-current={current.includes(id) ? 'location' : undefined}><strong>{node.label}</strong><code>{node.code}</code></a><p>{node.what}</p></li>
+				<li class:current={current.includes(id)}><a href={localizedPath(node.href, lang)} aria-current={current.includes(id) ? 'location' : undefined}><strong>{node.label[lang]}</strong><code>{nodeCode(node, lang)}</code></a><p>{node.what[lang]}</p></li>
 			{/each}
-			<li><strong>どの処理も使う共通部品</strong><p>{#each sharedParts as part, index (part.id)}{#if index > 0}、{/if}<a href={part.href} class:current-link={current.includes(`part:${part.id}`)} aria-current={current.includes(`part:${part.id}`) ? 'location' : undefined}>{part.label}</a>{/each}</p></li>
+			<li><strong>{t.parts}</strong><p>{#each sharedParts as part, index (part.id)}{#if index > 0}{t.separator}{/if}<a href={localizedPath(part.href, lang)} class:current-link={current.includes(`part:${part.id}`)} aria-current={current.includes(`part:${part.id}`) ? 'location' : undefined}>{part.label[lang]}</a>{/each}</p></li>
 		</ol>
 	</div>
 	<details class="relations">
-		<summary>図の矢印を文章で読む（根拠のソース付き）</summary>
+		<summary>{t.relations}</summary>
 		<ol>
 			{#each overviewEdges as edge (edge.from + edge.to)}
-				<li>{edge.sentence}<a href={sourceUrl(edge.source)} class="source-link"><code>{edge.source.path.replace(/^crates\//, '')}:{edge.source.line}</code></a></li>
+				<li>{edge.sentence[lang]}<a href={sourceUrl(edge.source)} class="source-link"><code>{edge.source.path.replace(/^crates\//, '')}:{edge.source.line}</code></a></li>
 			{/each}
 		</ol>
-		{#if current.length}<p class="here">この章の位置：{current.map(positionLabel).join('、')}</p>{/if}
+		{#if current.length}<p class="here">{t.here}{current.map((id) => positionLabel(id, lang)).join(t.separator)}</p>{/if}
 	</details>
-	{#snippet caption()}矢印は登録とデータの向きです。crate の依存関係ではありません。四角を選ぶと、その部分を説明する章へ移動します。{/snippet}
+	{#snippet caption()}{t.caption}{/snippet}
 </Figure>
 
 <style>

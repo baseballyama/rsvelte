@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageData } from './$types';
 	import Term from '$lib/components/Term.svelte';
 	import Caution from '$lib/components/Caution.svelte';
 	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
@@ -11,7 +12,7 @@
 	import DocumentPrinter from '$lib/widgets/DocumentPrinter.svelte';
 	import { call, fill, flatOnly, groupIds, mustBeFlat, remeasure } from './presets';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 	const c = chapter('doc', 'ja');
 </script>
 
