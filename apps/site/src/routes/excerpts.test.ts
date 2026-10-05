@@ -39,6 +39,9 @@ function marks(svelte: string): { name: string; needles: string[] }[] {
 }
 
 const checked: Partial<Record<Lang, number>> = { ja: 0 };
+// Pages whose server loads crate excerpts (every one is checked for data.code), and the subset with mark checks.
+const codePages: string[] = [];
+const markedPages: string[] = [];
 
 describe('excerpts', () => {
 	for (const dir of pages) {
@@ -53,7 +56,9 @@ describe('excerpts', () => {
 		);
 		if (keys.size === 0) continue;
 		const files = Object.fromEntries(jaOnly.map((lang) => [lang, readFileSync(path.join(routes, dir, `page.${lang}.svelte`), 'utf8')])) as Record<Lang, string>;
+		codePages.push(dir || '/');
 		for (const lang of jaOnly) checked[lang] = (checked[lang] ?? 0) + marks(files[lang]).length;
+		if (marks(files.ja).length > 0) markedPages.push(dir || '/');
 		it(dir || '/', () => {
 			const missing = [...keys].filter(([, key]) => item(key) === undefined).map(([name, key]) => `${name}: ${key}`);
 			expect(missing.join(', ')).toBe('');
@@ -64,7 +69,9 @@ describe('excerpts', () => {
 					const code = item(key!)!.code;
 					for (const needle of needles) expect(code.includes(needle), `${lang} ${key}: mark ${JSON.stringify(needle)}`).toBe(true);
 				}
-				for (const m of files[lang].matchAll(/data\.code\.(\w+)/g)) expect(keys.has(m[1]), `${lang}: data.code.${m[1]}`).toBe(true);
+				const used = [...files[lang].matchAll(/data\.code\.(\w+)/g)];
+				expect(used.length, `${lang}: the page loads excerpts but shows none`).toBeGreaterThan(0);
+				for (const m of used) expect(keys.has(m[1]), `${lang}: data.code.${m[1]}`).toBe(true);
 			}
 		});
 	}
@@ -72,5 +79,8 @@ describe('excerpts', () => {
 	// A page file that is not read checks nothing and passes; this keeps the gate from going empty.
 	it('checks marks in every language', () => {
 		for (const lang of jaOnly) expect(checked[lang], lang).toBeGreaterThan(0);
+		// The mark domain is the pages with marks, not every page with excerpts (some quote code without marks).
+		expect(markedPages.length).toBeGreaterThan(0);
+		expect(codePages.length).toBeGreaterThanOrEqual(markedPages.length);
 	});
 });

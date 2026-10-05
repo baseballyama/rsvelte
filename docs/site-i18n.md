@@ -23,7 +23,8 @@ The URL path is the only source of the reader's language: no cookie, no stored c
 | `reroute` resolves an English path to the shared route | `hooks.ts` |
 | `<html lang>` is `langOf(pathname)` for server rendering, prerendering and the no-SSR shell | `hooks.server.ts` |
 
-A shared path starts with `/`, is Japanese by `langOf`, and has no `#` or `?` (it is a pathname).
+A shared path starts with `/` and then a character that is not `/` or `\` (or is `/` alone), is Japanese by
+`langOf`, and has no `#` or `?` (it is a pathname).
 
 #### Formal check: paths [INV-01, INV-02, INV-03, INV-04, INV-05, PRE-04, ALG-01, TYP-01]
 
@@ -50,9 +51,14 @@ function LocalizedPath(path: string, lang: Lang): string {
   else Prefix + path
 }
 
+// A same-origin absolute path: `/`, or `/` and then a character that is not `/` or `\`.
+predicate OnSite(p: string) {
+  |p| >= 1 && p[0] == '/' && (|p| == 1 || (p[1] != '/' && p[1] != '\\'))
+}
+
 // [PRE-04] What callers pass to localizedPath.
 predicate SharedPath(p: string) {
-  |p| >= 1 && p[0] == '/' && LangOf(p) == Ja && forall i :: 0 <= i < |p| ==> p[i] != '#' && p[i] != '?'
+  OnSite(p) && LangOf(p) == Ja && forall i :: 0 <= i < |p| ==> p[i] != '#' && p[i] != '?'
 }
 
 // A query or a hash that follows a pathname.
@@ -156,14 +162,17 @@ The header has one link to the same page in the other language. Its text is `Eng
 `日本語` (with `lang="ja"`) on English pages. The link has `data-sveltekit-reload`, so a switch is always a full page
 load: every layout, the search index and `<html lang>` come from the server in the new language.
 
-- Server href: `localizedPath(pathWithoutLang(page.url.pathname), other)`. It reads only the pathname, because
-  SvelteKit throws when a prerendered page reads `url.search`.
+- Server href: `switchPath(page.url.pathname, other)`, which is `localizedPath(pathWithoutLang(pathname), other)`.
+  It reads only the pathname, because SvelteKit throws when a prerendered page reads `url.search`.
+- The header renders on every path, including a 404 such as `/en//evil.example/x`. A shared path that does not
+  start with `/` followed by a character other than `/` or `\` would be a link to another host, so `switchPath`
+  uses `/` for it. Both hrefs are always same-origin absolute paths.
 - Browser href: one handler on `pointerenter`, `pointerdown`, `focus` and `click` writes
   `switchHref(location, other)` to the link's `href`: the server href plus `location.search` and `location.hash`.
   This keeps a hash written with `replaceState` (the playground keeps its state there).
 - Below the `sm` width the header hides its GitHub link (the footer has one), so the switch fits at 320 px.
 
-#### Formal check: the switch [POST-01, POST-02, STT-01, STT-02]
+#### Formal check: the switch [POST-01, POST-02, STT-01, STT-02, PRE-04]
 
 ```dafny:LanguageSwitch.dfy
 datatype Lang = Ja | En
@@ -184,8 +193,13 @@ function LocalizedPath(path: string, lang: Lang): string {
   else Prefix + path
 }
 
+// A same-origin absolute path: `/`, or `/` and then a character that is not `/` or `\`.
+predicate OnSite(p: string) {
+  |p| >= 1 && p[0] == '/' && (|p| == 1 || (p[1] != '/' && p[1] != '\\'))
+}
+
 predicate SharedPath(p: string) {
-  |p| >= 1 && p[0] == '/' && LangOf(p) == Ja && forall i :: 0 <= i < |p| ==> p[i] != '#' && p[i] != '?'
+  OnSite(p) && LangOf(p) == Ja && forall i :: 0 <= i < |p| ==> p[i] != '#' && p[i] != '?'
 }
 
 predicate Suffix(s: string) {
@@ -194,14 +208,21 @@ predicate Suffix(s: string) {
 
 function Other(lang: Lang): Lang { if lang == Ja then En else Ja }
 
-// [POST-01] SiteHeader server href: the pathname only.
+// i18n.ts switchPath: a shared path that is not on this site (`//host`, `/\host`) becomes `/`.
+// The code tests the regex /^\/[^/\\]|^\/$/, which is OnSite.
+function SwitchPath(pathname: string, lang: Lang): string {
+  var route := PathWithoutLang(pathname);
+  LocalizedPath(if OnSite(route) then route else "/", lang)
+}
+
+// [POST-01] SiteHeader server href: switchPath(page.url.pathname, other), the pathname only.
 function ServerSwitchHref(pathname: string): string {
-  LocalizedPath(PathWithoutLang(pathname), Other(LangOf(pathname)))
+  SwitchPath(pathname, Other(LangOf(pathname)))
 }
 
 // [POST-02] i18n.ts switchHref, called by the browser handler.
 function SwitchHref(pathname: string, search: string, hash: string, lang: Lang): string {
-  LocalizedPath(PathWithoutLang(pathname), lang) + search + hash
+  SwitchPath(pathname, lang) + search + hash
 }
 
 lemma RoundTrip(p: string, lang: Lang)
@@ -257,6 +278,33 @@ lemma SwitchKeepsQueryAndHash(route: string, lang: Lang, search: string, hash: s
   var href := SwitchHref(LocalizedPath(route, lang), search, hash, Other(lang));
   assert href == server + (search + hash);
 }
+
+// [POST-01, POST-02] Security: for ANY pathname (the header renders on 404 pages too), both hrefs of the
+// switch are same-origin absolute paths. No SharedPath precondition.
+lemma SwitchStaysOnSite(pathname: string, search: string, hash: string, lang: Lang)
+  requires search == "" || search[0] == '?'
+  requires hash == "" || hash[0] == '#'
+  ensures OnSite(SwitchPath(pathname, lang))
+  ensures OnSite(ServerSwitchHref(pathname))
+  ensures OnSite(SwitchHref(pathname, search, hash, lang))
+{
+  var route := PathWithoutLang(pathname);
+  var safe := if OnSite(route) then route else "/";
+  assert OnSite(safe);
+  forall l: Lang ensures OnSite(LocalizedPath(safe, l)) {
+    if l == En {
+      var q := LocalizedPath(safe, l);
+      assert q[0] == '/' && q[1] == 'e';
+    }
+  }
+  var p := SwitchPath(pathname, lang);
+  var href := p + search + hash;
+  if |p| == 1 && |href| >= 2 {
+    assert href[1] == (search + hash)[0];
+  } else if |p| >= 2 {
+    assert href[1] == p[1];
+  }
+}
 ```
 
 ## Chapters and text tables
@@ -294,8 +342,13 @@ function LocalizedPath(path: string, lang: Lang): string {
   else Prefix + path
 }
 
+// A same-origin absolute path: `/`, or `/` and then a character that is not `/` or `\`.
+predicate OnSite(p: string) {
+  |p| >= 1 && p[0] == '/' && (|p| == 1 || (p[1] != '/' && p[1] != '\\'))
+}
+
 predicate SharedPath(p: string) {
-  |p| >= 1 && p[0] == '/' && LangOf(p) == Ja && forall i :: 0 <= i < |p| ==> p[i] != '#' && p[i] != '?'
+  OnSite(p) && LangOf(p) == Ja && forall i :: 0 <= i < |p| ==> p[i] != '#' && p[i] != '?'
 }
 
 lemma RoundTrip(p: string, lang: Lang)
@@ -495,8 +548,13 @@ function LocalizedPath(path: string, lang: Lang): string {
   else Prefix + path
 }
 
+// A same-origin absolute path: `/`, or `/` and then a character that is not `/` or `\`.
+predicate OnSite(p: string) {
+  |p| >= 1 && p[0] == '/' && (|p| == 1 || (p[1] != '/' && p[1] != '\\'))
+}
+
 predicate SharedPath(p: string) {
-  |p| >= 1 && p[0] == '/' && LangOf(p) == Ja && forall i :: 0 <= i < |p| ==> p[i] != '#' && p[i] != '?'
+  OnSite(p) && LangOf(p) == Ja && forall i :: 0 <= i < |p| ==> p[i] != '#' && p[i] != '?'
 }
 
 lemma RoundTrip(p: string, lang: Lang)
@@ -596,6 +654,9 @@ prerendered Japanese `/why` page (SvelteKit `respond.js` fetches the prerendered
 
 - No server code reads `url.search`, `url.searchParams` or the hash.
 - No absolute site URL is written (no alternate links, no origin constant).
+- The proof below assumes the prerendered routes are exactly `/` and `/why`. `src/routes/prerender.test.ts` checks
+  this assumption on the code: it reads every `export const prerender` under `src/routes` (none on a layout), and
+  checks that `/en` + each prerendered route is in `entries`.
 - `scripts/check-prerender.mjs` runs after `vite build`: `en.html` and `en/why.html` have `<html lang="en"`,
   `index.html` and `why.html` have `<html lang="ja"`, and no HTML contains `sveltekit-prerender`.
 
@@ -620,8 +681,13 @@ function LocalizedPath(path: string, lang: Lang): string {
   else Prefix + path
 }
 
+// A same-origin absolute path: `/`, or `/` and then a character that is not `/` or `\`.
+predicate OnSite(p: string) {
+  |p| >= 1 && p[0] == '/' && (|p| == 1 || (p[1] != '/' && p[1] != '\\'))
+}
+
 predicate SharedPath(p: string) {
-  |p| >= 1 && p[0] == '/' && LangOf(p) == Ja && forall i :: 0 <= i < |p| ==> p[i] != '#' && p[i] != '?'
+  OnSite(p) && LangOf(p) == Ja && forall i :: 0 <= i < |p| ==> p[i] != '#' && p[i] != '?'
 }
 
 lemma RoundTrip(p: string, lang: Lang)
@@ -661,6 +727,8 @@ function Written(entries: set<string>, modes: map<string, Mode>): set<string> {
 function ServedLang(request: string, written: set<string>): Lang {
   if request in written then LangOf(request)
   else if Resolved(request) != request && Resolved(request) in written then LangOf(Resolved(request))
+  // For a prerendered route that was not written, kit answers 404 (the route is not in the server manifest).
+  // Under the preconditions of EveryPageInItsLanguage this branch is not reached for such a route.
   else LangOf(request)
 }
 
@@ -757,8 +825,11 @@ entry whose file is not scanned or whose text is not found fails the check.
   AST and HIR, as before.
 - Fact parity: in each pair of page files, the markup has the same numbers, commit ids, `{...}` expressions and
   `data.code.*` references.
-- Gates are never empty: the excerpt test checks the same number of `mark` strings in both languages, more than
-  zero per page with excerpts (42 at the base tree), and the section and chapter-number tests count each language.
+- Gates are never empty. The excerpt test has two domains. Every page whose `+page.server.ts` loads crate excerpts
+  (15 at the base tree) must use `data.code.*` in both files, and every use must be loaded. Pages with `mark` checks
+  (13 at the base tree, 42 marks per language) must have the same marks in both files, and the total is more than
+  zero; `learn/kernel/structured-data` and `learn/measure` quote code without marks. The section and chapter-number
+  tests count each language.
 
 #### Formal check: the gates [INV-12, INV-13, INV-14, PRE-07]
 
@@ -806,39 +877,62 @@ lemma ParityControl()
   assert "14" !in multiset(["42", "13"]);
 }
 
-// [INV-14] The excerpt gate: per page, the same mark count in both files and more than zero; the Japanese
-// total equals the base tree's count.
-function Sum(s: seq<nat>): nat {
-  if |s| == 0 then 0 else s[0] + Sum(s[1..])
+// [INV-14] excerpts.test.ts. The domain is every page whose server loads crate excerpts (15 at the base tree).
+// Each of them must show at least one `data.code.*` in both files. Mark checks are a subset: per page, the same
+// count in both files; at least one page has marks (13 pages, 42 marks per language at the base tree). A page
+// that quotes code without marks (structured-data, measure) is in the first domain only.
+datatype Page = Page(ja: nat, en: nat, jaCode: nat, enCode: nat)
+
+function Marks(pages: seq<Page>, lang: bool): nat {
+  if |pages| == 0 then 0 else (if lang then pages[0].en else pages[0].ja) + Marks(pages[1..], lang)
 }
 
-predicate ExcerptGatePasses(ja: seq<nat>, en: seq<nat>, base: nat) {
-  && |ja| == |en| && |ja| > 0
-  && (forall i :: 0 <= i < |ja| ==> ja[i] == en[i] && ja[i] > 0)
-  && Sum(ja) == base
+predicate ExcerptGatePasses(pages: seq<Page>) {
+  && |pages| > 0
+  && (forall i :: 0 <= i < |pages| ==> pages[i].ja == pages[i].en && pages[i].jaCode > 0 && pages[i].enCode > 0)
+  && Marks(pages, false) > 0
+  && Marks(pages, true) == Marks(pages, false)
 }
 
-lemma SumPositive(s: seq<nat>)
-  requires |s| > 0 && forall i :: 0 <= i < |s| ==> s[i] > 0
-  ensures Sum(s) >= |s|
+lemma MarksEqual(pages: seq<Page>)
+  requires forall i :: 0 <= i < |pages| ==> pages[i].ja == pages[i].en
+  ensures Marks(pages, true) == Marks(pages, false)
 {
-  if |s| > 1 {
-    SumPositive(s[1..]);
+  if |pages| > 0 {
+    MarksEqual(pages[1..]);
   }
 }
 
-lemma ExcerptGateNotEmpty(ja: seq<nat>, en: seq<nat>, base: nat)
-  requires ExcerptGatePasses(ja, en, base)
-  ensures Sum(en) == base && base > 0
+lemma MarksPositive(pages: seq<Page>, k: int)
+  requires 0 <= k < |pages| && pages[k].ja > 0
+  ensures Marks(pages, false) > 0
 {
-  SumPositive(ja);
-  assert ja == en;
+  if k > 0 {
+    MarksPositive(pages[1..], k - 1);
+  }
 }
 
-// Positive control: a page whose file was not read (zero checks) fails the gate.
-lemma ExcerptGateControl()
-  ensures !ExcerptGatePasses([3, 0], [3, 0], 3)
+// Per-page parity and one marked page are enough; the totals follow.
+lemma ExcerptGateFromPages(pages: seq<Page>, k: int)
+  requires 0 <= k < |pages| && pages[k].ja > 0
+  requires forall i :: 0 <= i < |pages| ==> pages[i].ja == pages[i].en && pages[i].jaCode > 0 && pages[i].enCode > 0
+  ensures ExcerptGatePasses(pages)
 {
+  MarksEqual(pages);
+  MarksPositive(pages, k);
+}
+
+// Controls: a page file that was not read (no data.code, no marks) fails; marks in one language only fail;
+// a page with code and no marks passes next to a marked page (the F2 domain).
+lemma ExcerptGateControl()
+  ensures !ExcerptGatePasses([Page(3, 3, 5, 5), Page(0, 0, 0, 0)])
+  ensures !ExcerptGatePasses([Page(3, 0, 5, 5)])
+  ensures !ExcerptGatePasses([Page(0, 0, 10, 10)])
+  ensures ExcerptGatePasses([Page(3, 3, 5, 5), Page(0, 0, 10, 10)])
+{
+  var ok := [Page(3, 3, 5, 5), Page(0, 0, 10, 10)];
+  ExcerptGateFromPages(ok, 0);
+  assert Marks([Page(0, 0, 10, 10)], false) == 0;
 }
 
 // [PRE-07] Abbreviations: the English list is longer than the Japanese list, and nothing else passes.
@@ -863,6 +957,54 @@ lemma AbbreviationControls()
 | Header width at 320 px and 375 px, keyboard order, focus, figures | a browser run; screenshots in the pull request |
 | Hash kept across the switch in a real browser | a browser run |
 
+## Where each requirement is checked
+
+Every Phase 1 ID, with the Dafny lemma that states it and the check that holds the code to it. "Stated" means the
+lemma is true by definition or checks a model only; it is not counted as a check of the code. PRE and POST share one
+sequence (PRE-04, PRE-07; POST-01, 02, 03, 05, 06), so there is no PRE-01 or POST-04.
+
+| ID | Dafny | Code check | Kind |
+|---|---|---|---|
+| INV-01 | `Injective`, `LanguagesDisjoint` | `i18n.test.ts` round trip over shared paths | proved on model + unit test |
+| INV-02 | `Boundary` | `i18n.test.ts` boundary and `/enx` tests | proved on model + unit test |
+| INV-03 | `RoundTrip`, `SuffixKept` | `i18n.test.ts` round trip, suffix kept | proved on model + unit test |
+| INV-04 | `SameRoute` | `i18n.test.ts` reroute test | proved on model + unit test |
+| INV-05 | `DocumentLanguage`, `EveryPageInItsLanguage` | `check-prerender.mjs` (build); browser | proved on model + build check |
+| INV-06 | `AnchorsLanguageNeutral` | `sections.test.ts` (H2 id order and static id set per language) | proved on model + unit test |
+| INV-07 | `LinkLanguage` | link test (pending); review | proved on model; code check pending |
+| INV-08 | `EnglishLinkResolves` | `chapter-refs.test.ts`, `sections.test.ts` | proved on model + unit test |
+| INV-09 | `OverviewInBothLanguages` | `sections.test.ts` H2 parity | stated (requires `ja == en`) |
+| INV-10 | `PositionsLanguageNeutral` | `i18n.test.ts` position marker parity | proved on model + unit test |
+| INV-11 | `Text` | `bilingual` type (`svelte-check`) | stated; type check |
+| INV-12 | `LeakCheckSound`, `LeakControls` | `lint-english.mjs`; `english.test.mjs` controls | proved on model + unit test |
+| INV-13 | `ParityControl` | fact parity test (pending) | proved on model; code check pending |
+| INV-14 | `ExcerptGateFromPages`, `ExcerptGateControl` | `excerpts.test.ts` (15 code pages, 13 marked) | proved on model + unit test |
+| INV-15 | `NoHiddenDefault` | signatures of `chapter`, `term` (`svelte-check`) | stated; type check |
+| INV-16 | none | `vite build` (kit throws on `url.search` while prerendering); review | not provable here |
+| INV-17 | `OriginRejected` | `check-prerender.mjs` | stated; build check |
+| INV-18 | `JapaneseUnchanged` | `git diff` of `page.ja.svelte` against the base `+page.svelte`; review | stated; review |
+| PRE-04 | `SharedPath`, `OnSite` | callers pass literal site paths; review | stated |
+| PRE-07 | `AbbreviationControls` | `english.test.mjs` abbreviation test | stated; unit test |
+| POST-01 | `SwitchTarget`, `SwitchStaysOnSite` | `i18n.test.ts` switch and off-site tests | proved on model + unit test |
+| POST-02 | `SwitchKeepsQueryAndHash`, `SwitchStaysOnSite` | `i18n.test.ts`; browser | proved on model + unit test |
+| POST-03 | none | `data-sveltekit-reload` on the link; browser | not provable here |
+| POST-05 | `PrerenderedFiles` | `check-prerender.mjs`; `prerender.test.ts` | proved on model + build check |
+| POST-06 | none | review of the `/why` example | not provable here |
+| STT-01 | `SwitchTwice`, `NavigationKeepsLanguage` | `i18n.test.ts`; browser | proved on model + unit test |
+| STT-02 | `SwitchKeepsQueryAndHash` | browser (playground hash) | proved on model + browser |
+| STT-03 | none | browser (`/en/missing` is 404) | not provable here |
+| TYP-01 | `Lang` | `Lang` type (`svelte-check`) | stated; type check |
+| TYP-02 | `Mode`, `EveryPageInItsLanguage` | `prerender.test.ts` | proved on model + unit test |
+| TYP-03 | `Kind` | link classifier in the test | stated |
+| TYP-04 | none | `japanese` regex in `scripts/japanese.mjs`; `english.test.mjs` | not provable here |
+| ALG-01 | `LangOf`, `PathWithoutLang`, `LocalizedPath`, `SwitchPath` | `i18n.test.ts` | model of the code |
+| ALG-02 | `ChapterByHref`, `IndexBySlug` | `i18n.test.ts` chapter tests | proved on model + unit test |
+| ALG-03 | `ServedLang`, `WithoutEnglishEntries` | `check-prerender.mjs`; `prerender.test.ts` | proved on model + build check |
+| ALG-04 | `LeakCheckPasses` | `english.test.mjs` leak controls | model of the code + unit test |
+| ALG-05 | `ParityPasses` | fact parity test (pending) | model; code check pending |
+
+Natural English, layout at 320 px and 375 px, keyboard order and focus are checked by review and a browser only.
+
 ## How to run the proofs
 
 Dafny 4.11.0. Each block is written to its own file and checked alone:
@@ -876,3 +1018,8 @@ for (const m of text.matchAll(/```dafny:([A-Za-z.]+)\n([\s\S]*?)```/g)) fs.write
 ' "$TMPDIR/site-i18n-proofs"
 for f in "$TMPDIR"/site-i18n-proofs/*.dfy; do dafny verify "$f" || exit 1; done
 ```
+
+Controls that must fail: change the model of the code, not the claim. For example, in `LanguagePaths.dfy` write
+`LangOf` as `if Prefix <= p then En else Ja` (no `/` boundary): `Boundary` fails on `/enx`. In
+`LanguageSwitch.dfy` write `SwitchPath` without the `OnSite` guard: `SwitchStaysOnSite` fails. In
+`Prerendering.dfy` remove `+ {"/en", "/en/why"}` from `SiteEntries`: `EveryPageInItsLanguage` fails.

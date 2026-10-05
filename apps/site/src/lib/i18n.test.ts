@@ -1,7 +1,7 @@
 // The properties proved in docs/site-i18n.md, checked on the real functions.
 import { describe, expect, it } from 'vitest';
 import { reroute } from '../hooks';
-import { langOf, langs, localizedPath, pathWithoutLang, switchHref } from './i18n';
+import { langOf, langs, localizedPath, pathWithoutLang, switchHref, switchPath } from './i18n';
 import { appendixIn, chapter, chapterByHref, chaptersIn } from './site';
 import { chapterPositions } from './kernel/kernel-overview';
 
@@ -46,6 +46,29 @@ describe('language paths', () => {
 		expect(switchHref({ pathname: '/en/learn/kernel', search: '', hash: '#overview' }, 'ja')).toBe('/learn/kernel#overview');
 		expect(switchHref({ pathname: '/en', search: '', hash: '#state=abc' }, 'ja')).toBe('/#state=abc');
 		expect(switchHref({ pathname: '/', search: '', hash: '' }, 'en')).toBe('/en');
+	});
+
+	it('does not treat /enx as English', () => {
+		expect(pathWithoutLang('/enx')).toBe('/enx');
+		expect(switchPath('/enx', 'en')).toBe('/en/enx');
+		expect(switchPath('/en/enx', 'ja')).toBe('/enx');
+		expect(switchPath('/english', 'ja')).toBe('/english');
+	});
+
+	// The header renders on 404 pages too, so the switch sees any path a visitor types.
+	it('keeps the switch on this site for any path', () => {
+		const offSite = ['/en//evil.example/x', '/en/\\evil.example', '//evil.example/x', '/\\evil.example', '/en//', ''];
+		for (const pathname of offSite) {
+			for (const lang of langs) {
+				const href = switchHref({ pathname, search: '?q=1', hash: '#h' }, lang);
+				expect(href, pathname).toBe(`${localizedPath('/', lang)}?q=1#h`);
+				expect(new URL(href, 'https://site.example/start').origin).toBe('https://site.example');
+			}
+		}
+		// A known route keeps its path, query and hash.
+		expect(switchHref({ pathname: '/en/learn/kernel', search: '?a=1', hash: '#overview' }, 'ja')).toBe('/learn/kernel?a=1#overview');
+		expect(switchPath('/learn/playground', 'en')).toBe('/en/learn/playground');
+		for (const path of shared) for (const lang of langs) expect(switchPath(path, lang)).toBe(localizedPath(path, lang));
 	});
 });
 

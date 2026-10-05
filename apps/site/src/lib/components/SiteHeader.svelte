@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { bilingual, localizedPath, pathWithoutLang, switchHref, type Lang } from '$lib/i18n';
+	import { bilingual, localizedPath, pathWithoutLang, switchHref, switchPath, type Lang } from '$lib/i18n';
 	import { readerLang } from '$lib/lang.svelte';
 	import { REPO_URL } from '$lib/site';
 	import Icon from './Icon.svelte';
@@ -50,7 +50,7 @@
 			: route.startsWith(href);
 	// The server knows only the path: a prerendered page cannot read the query. The browser adds the query and the
 	// hash right before the link is used, because pages such as the playground change the hash after loading.
-	const switchPath = $derived(localizedPath(route, other));
+	const serverHref = $derived(switchPath(page.url.pathname, other));
 	function keepQueryAndHash(event: Event) {
 		(event.currentTarget as HTMLAnchorElement).href = switchHref(location, other);
 	}
@@ -96,7 +96,7 @@
 		</nav>
 		<div class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
 			<a
-				href={switchPath}
+				href={serverHref}
 				hreflang={other}
 				lang={other}
 				data-sveltekit-reload
