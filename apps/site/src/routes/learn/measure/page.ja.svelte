@@ -10,6 +10,7 @@
 
 	let { data } = $props();
 	const c = chapter('measure', 'ja');
+	const workingTree = '作業ツリー（未コミット）';
 	const fmt = (n: number) => n.toLocaleString('en-US');
 	const mb = (b: number) => (b / 1e6).toFixed(1);
 	const a = (name: string) => {
@@ -67,7 +68,9 @@
 		</tbody>
 	</table>
 	<figcaption class="mt-2 text-[13px] leading-[1.7] text-muted">
-		最後にこの基準値を書き換えたコミットは <code>{data.performance.last.sha ?? "作業ツリー（未コミット）"}</code>（{data.performance.last.subject}）。記録の推移は <a class="link" href="/learn/polish#history"
+		最後にこの基準値を書き換えたのは {#if data.performance.last.sha === null}{workingTree}{:else}<code>{data.performance.last.sha}</code>（<span lang="en"
+				>{data.performance.last.subject}</span
+			>）{/if}。記録の推移は <a class="link" href="/learn/polish#history"
 			>14 磨きどころ</a
 		> にあります。
 	</figcaption>

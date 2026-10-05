@@ -18,6 +18,7 @@
 		measured: '測って見送り',
 		open: '未着手'
 	};
+	const workingTree = '作業ツリー（未コミット）';
 	const ms = (v: number) => v.toFixed(1);
 	const fmt = (n: number) => n.toLocaleString('en-US');
 	const delta = (now: number | null, was: number | null | undefined) =>
@@ -56,13 +57,13 @@
 		arm64 Linux の cachegrind で数えた 1 ラウンドの分です。
 	</p>
 	<p>
-		命令数を初めて記録した <code>{firstInstr.sha ?? "作業ツリー"}</code> の {fmt(firstInstr.instructions!)} から、今の {fmt(lastRec.instructions!)} へ（{delta(
+		命令数を初めて記録した <code>{firstInstr.sha ?? workingTree}</code> の {fmt(firstInstr.instructions!)} から、今の {fmt(lastRec.instructions!)} へ（{delta(
 			lastRec.instructions,
 			firstInstr.instructions
 		)}）。割り当ては最初の {fmt(data.history[0].allocations)} 回から {fmt(lastRec.allocations)} 回へ（{delta(lastRec.allocations, data.history[0].allocations)}）、割り当てバイトは
 		{fmt(data.history[0].alloc_bytes)} から {fmt(lastRec.alloc_bytes)} へ（{delta(lastRec.alloc_bytes, data.history[0].alloc_bytes)}）。読み込みの命令数は、記録を始めた
-		<code>{firstLoad.sha ?? "作業ツリー"}</code> の {fmt(firstLoad.load_instructions!)} から {fmt(lastRec.load_instructions!)} です。ただし読み込みを記録し始めたのは、読み込みを
-		878,552,187 命令から減らした変更そのもので（コミットのメッセージによる）、<code>{firstLoad.sha ?? "作業ツリー"}</code> の行の読み込みの減少は最適化ではなく測り方の訂正です（<a
+		<code>{firstLoad.sha ?? workingTree}</code> の {fmt(firstLoad.load_instructions!)} から {fmt(lastRec.load_instructions!)} です。ただし読み込みを記録し始めたのは、読み込みを
+		878,552,187 命令から減らした変更そのもので（コミットのメッセージによる）、<code>{firstLoad.sha ?? workingTree}</code> の行の読み込みの減少は最適化ではなく測り方の訂正です（<a
 			href="/learn/measure#ci">13</a
 		>）。
 	</p>
@@ -84,7 +85,9 @@
 			{#each data.history as r, i (r.sha ?? "working-tree")}
 				{@const prev = data.history[i - 1]}
 				<tr>
-					<td><code>{r.sha ?? "作業ツリー"}</code><div class="text-[13px] text-muted" lang="en">{r.subject}</div></td>
+					<td>
+						{#if r.sha === null}{workingTree}{:else}<code>{r.sha}</code><div class="text-[13px] text-muted" lang="en">{r.subject}</div>{/if}
+					</td>
 					<td class="align-middle">
 						{#if r.instructions !== null}
 							<div class="h-2 bg-surface"><div class="h-2 bg-fg" style:width="{(r.instructions / maxInstr) * 100}%"></div></div>
