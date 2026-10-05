@@ -23,8 +23,8 @@ The URL path is the only source of the reader's language: no cookie, no stored c
 | `reroute` resolves an English path to the shared route | `hooks.ts` |
 | `<html lang>` is `langOf(pathname)` for server rendering, prerendering and the no-SSR shell | `hooks.server.ts` |
 
-A shared path starts with `/` and then a character that is not `/` or `\` (or is `/` alone), is Japanese by
-`langOf`, and has no `#` or `?` (it is a pathname).
+A shared path starts with `/` and then a character that is not `/` or `\` (or is `/` alone), has no tab or
+newline, is Japanese by `langOf`, and has no `#` or `?` (it is a pathname).
 
 #### Formal check: paths [INV-01, INV-02, INV-03, INV-04, INV-05, PRE-04, ALG-01, TYP-01]
 
@@ -51,9 +51,19 @@ function LocalizedPath(path: string, lang: Lang): string {
   else Prefix + path
 }
 
-// A same-origin absolute path: `/`, or `/` and then a character that is not `/` or `\`.
-predicate OnSite(p: string) {
+// A link that starts like a same-origin absolute path: `/`, or `/` and then a character that is not `/` or `\`.
+predicate Leads(p: string) {
   |p| >= 1 && p[0] == '/' && (|p| == 1 || (p[1] != '/' && p[1] != '\\'))
+}
+
+// A browser removes tab and newline from a link before it reads it, so they could join `/` and `/`.
+predicate NoBreaks(p: string) {
+  forall i :: 0 <= i < |p| ==> p[i] != '\t' && p[i] != '\n' && p[i] != '\r'
+}
+
+// The code's regex /^\/(?:[^/\\\t\n\r][^\t\n\r]*)?$/.
+predicate OnSite(p: string) {
+  Leads(p) && NoBreaks(p)
 }
 
 // [PRE-04] What callers pass to localizedPath.
@@ -166,7 +176,9 @@ load: every layout, the search index and `<html lang>` come from the server in t
   It reads only the pathname, because SvelteKit throws when a prerendered page reads `url.search`.
 - The header renders on every path, including a 404 such as `/en//evil.example/x`. A shared path that does not
   start with `/` followed by a character other than `/` or `\` would be a link to another host, so `switchPath`
-  uses `/` for it. Both hrefs are always same-origin absolute paths.
+  uses `/` for it. A browser removes tab and newline from a link (`/<tab>/host` becomes `//host`), so a path with
+  them also becomes `/`. Both hrefs are always same-origin absolute paths. The URL parser already removes these
+  characters from `pathname`; the guard does not rely on that.
 - Browser href: one handler on `pointerenter`, `pointerdown`, `focus` and `click` writes
   `switchHref(location, other)` to the link's `href`: the server href plus `location.search` and `location.hash`.
   This keeps a hash written with `replaceState` (the playground keeps its state there).
@@ -193,9 +205,19 @@ function LocalizedPath(path: string, lang: Lang): string {
   else Prefix + path
 }
 
-// A same-origin absolute path: `/`, or `/` and then a character that is not `/` or `\`.
-predicate OnSite(p: string) {
+// A link that starts like a same-origin absolute path: `/`, or `/` and then a character that is not `/` or `\`.
+predicate Leads(p: string) {
   |p| >= 1 && p[0] == '/' && (|p| == 1 || (p[1] != '/' && p[1] != '\\'))
+}
+
+// A browser removes tab and newline from a link before it reads it, so they could join `/` and `/`.
+predicate NoBreaks(p: string) {
+  forall i :: 0 <= i < |p| ==> p[i] != '\t' && p[i] != '\n' && p[i] != '\r'
+}
+
+// The code's regex /^\/(?:[^/\\\t\n\r][^\t\n\r]*)?$/.
+predicate OnSite(p: string) {
+  Leads(p) && NoBreaks(p)
 }
 
 predicate SharedPath(p: string) {
@@ -208,8 +230,7 @@ predicate Suffix(s: string) {
 
 function Other(lang: Lang): Lang { if lang == Ja then En else Ja }
 
-// i18n.ts switchPath: a shared path that is not on this site (`//host`, `/\host`) becomes `/`.
-// The code tests the regex /^\/[^/\\]|^\/$/, which is OnSite.
+// i18n.ts switchPath: a shared path that is not on this site (`//host`, `/\host`, `/<tab>/host`) becomes `/`.
 function SwitchPath(pathname: string, lang: Lang): string {
   var route := PathWithoutLang(pathname);
   LocalizedPath(if OnSite(route) then route else "/", lang)
@@ -280,13 +301,15 @@ lemma SwitchKeepsQueryAndHash(route: string, lang: Lang, search: string, hash: s
 }
 
 // [POST-01, POST-02] Security: for ANY pathname (the header renders on 404 pages too), both hrefs of the
-// switch are same-origin absolute paths. No SharedPath precondition.
+// switch are same-origin absolute paths. No SharedPath precondition. The path part has no tab or newline, so a
+// browser that removes them cannot turn it into `//host`. The query and hash start with `?` or `#`, so whatever
+// a browser removes after them cannot change the start of the link.
 lemma SwitchStaysOnSite(pathname: string, search: string, hash: string, lang: Lang)
   requires search == "" || search[0] == '?'
   requires hash == "" || hash[0] == '#'
   ensures OnSite(SwitchPath(pathname, lang))
   ensures OnSite(ServerSwitchHref(pathname))
-  ensures OnSite(SwitchHref(pathname, search, hash, lang))
+  ensures Leads(SwitchHref(pathname, search, hash, lang))
 {
   var route := PathWithoutLang(pathname);
   var safe := if OnSite(route) then route else "/";
@@ -295,6 +318,13 @@ lemma SwitchStaysOnSite(pathname: string, search: string, hash: string, lang: La
     if l == En {
       var q := LocalizedPath(safe, l);
       assert q[0] == '/' && q[1] == 'e';
+      if safe == "/" || (|safe| >= 2 && (safe[1] == '#' || safe[1] == '?')) {
+        assert q == Prefix + safe[1..];
+        assert forall i :: 0 <= i < |q| ==> (i < 3 && q[i] == Prefix[i]) || (i >= 3 && q[i] == safe[i - 2]);
+      } else {
+        assert q == Prefix + safe;
+        assert forall i :: 0 <= i < |q| ==> (i < 3 && q[i] == Prefix[i]) || (i >= 3 && q[i] == safe[i - 3]);
+      }
     }
   }
   var p := SwitchPath(pathname, lang);
@@ -342,9 +372,19 @@ function LocalizedPath(path: string, lang: Lang): string {
   else Prefix + path
 }
 
-// A same-origin absolute path: `/`, or `/` and then a character that is not `/` or `\`.
-predicate OnSite(p: string) {
+// A link that starts like a same-origin absolute path: `/`, or `/` and then a character that is not `/` or `\`.
+predicate Leads(p: string) {
   |p| >= 1 && p[0] == '/' && (|p| == 1 || (p[1] != '/' && p[1] != '\\'))
+}
+
+// A browser removes tab and newline from a link before it reads it, so they could join `/` and `/`.
+predicate NoBreaks(p: string) {
+  forall i :: 0 <= i < |p| ==> p[i] != '\t' && p[i] != '\n' && p[i] != '\r'
+}
+
+// The code's regex /^\/(?:[^/\\\t\n\r][^\t\n\r]*)?$/.
+predicate OnSite(p: string) {
+  Leads(p) && NoBreaks(p)
 }
 
 predicate SharedPath(p: string) {
@@ -548,9 +588,19 @@ function LocalizedPath(path: string, lang: Lang): string {
   else Prefix + path
 }
 
-// A same-origin absolute path: `/`, or `/` and then a character that is not `/` or `\`.
-predicate OnSite(p: string) {
+// A link that starts like a same-origin absolute path: `/`, or `/` and then a character that is not `/` or `\`.
+predicate Leads(p: string) {
   |p| >= 1 && p[0] == '/' && (|p| == 1 || (p[1] != '/' && p[1] != '\\'))
+}
+
+// A browser removes tab and newline from a link before it reads it, so they could join `/` and `/`.
+predicate NoBreaks(p: string) {
+  forall i :: 0 <= i < |p| ==> p[i] != '\t' && p[i] != '\n' && p[i] != '\r'
+}
+
+// The code's regex /^\/(?:[^/\\\t\n\r][^\t\n\r]*)?$/.
+predicate OnSite(p: string) {
+  Leads(p) && NoBreaks(p)
 }
 
 predicate SharedPath(p: string) {
@@ -681,9 +731,19 @@ function LocalizedPath(path: string, lang: Lang): string {
   else Prefix + path
 }
 
-// A same-origin absolute path: `/`, or `/` and then a character that is not `/` or `\`.
-predicate OnSite(p: string) {
+// A link that starts like a same-origin absolute path: `/`, or `/` and then a character that is not `/` or `\`.
+predicate Leads(p: string) {
   |p| >= 1 && p[0] == '/' && (|p| == 1 || (p[1] != '/' && p[1] != '\\'))
+}
+
+// A browser removes tab and newline from a link before it reads it, so they could join `/` and `/`.
+predicate NoBreaks(p: string) {
+  forall i :: 0 <= i < |p| ==> p[i] != '\t' && p[i] != '\n' && p[i] != '\r'
+}
+
+// The code's regex /^\/(?:[^/\\\t\n\r][^\t\n\r]*)?$/.
+predicate OnSite(p: string) {
+  Leads(p) && NoBreaks(p)
 }
 
 predicate SharedPath(p: string) {
@@ -831,7 +891,7 @@ entry whose file is not scanned or whose text is not found fails the check.
   zero; `learn/kernel/structured-data` and `learn/measure` quote code without marks. The section and chapter-number
   tests count each language.
 
-#### Formal check: the gates [INV-12, INV-13, INV-14, PRE-07]
+#### Formal check: the gates [INV-12, INV-13, INV-14, PRE-07, ALG-04, ALG-05]
 
 ```dafny:TextGates.dfy
 datatype Finding = Finding(file: string, text: string)
@@ -1021,5 +1081,6 @@ for f in "$TMPDIR"/site-i18n-proofs/*.dfy; do dafny verify "$f" || exit 1; done
 
 Controls that must fail: change the model of the code, not the claim. For example, in `LanguagePaths.dfy` write
 `LangOf` as `if Prefix <= p then En else Ja` (no `/` boundary): `Boundary` fails on `/enx`. In
-`LanguageSwitch.dfy` write `SwitchPath` without the `OnSite` guard: `SwitchStaysOnSite` fails. In
+`LanguageSwitch.dfy` write `SwitchPath` without the `OnSite` guard, or with `Leads` only (tab and newline
+allowed): `SwitchStaysOnSite` fails. In
 `Prerendering.dfy` remove `+ {"/en", "/en/why"}` from `SiteEntries`: `EveryPageInItsLanguage` fails.

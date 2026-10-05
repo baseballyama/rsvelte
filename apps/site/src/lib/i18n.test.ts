@@ -57,13 +57,18 @@ describe('language paths', () => {
 
 	// The header renders on 404 pages too, so the switch sees any path a visitor types.
 	it('keeps the switch on this site for any path', () => {
-		const offSite = ['/en//evil.example/x', '/en/\\evil.example', '//evil.example/x', '/\\evil.example', '/en//', ''];
+		const offSite = ['/en//evil.example/x', '/en/\\evil.example', '//evil.example/x', '/\\evil.example', '/en//', '', '/en/\t/evil.example', '/\n/evil.example', '/en/\r\n/evil.example'];
 		for (const pathname of offSite) {
 			for (const lang of langs) {
 				const href = switchHref({ pathname, search: '?q=1', hash: '#h' }, lang);
 				expect(href, pathname).toBe(`${localizedPath('/', lang)}?q=1#h`);
 				expect(new URL(href, 'https://site.example/start').origin).toBe('https://site.example');
 			}
+		}
+		// What the browser does with each href: it removes tab and newline, then resolves against the page.
+		for (const raw of ['https://site.example/en/\t/evil.example', 'https://site.example/en/%2F%2Fevil.example', 'https://site.example/en/./\\evil.example']) {
+			const url = new URL(raw);
+			for (const lang of langs) expect(new URL(switchHref(url, lang), raw).origin, raw).toBe('https://site.example');
 		}
 		// A known route keeps its path, query and hash.
 		expect(switchHref({ pathname: '/en/learn/kernel', search: '?a=1', hash: '#overview' }, 'ja')).toBe('/learn/kernel?a=1#overview');

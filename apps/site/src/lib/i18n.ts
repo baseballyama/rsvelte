@@ -25,10 +25,11 @@ export function localizedPath(path: string, lang: Lang): string {
 /**
  * The path of the current page in `lang`. The header renders on any path, including a 404 such as
  * `/en//evil.example`; a shared path that starts with `//` or `/\` would be a link to another host, so it becomes `/`.
+ * A browser removes tab and newline from a link, so `/\t/host` would become `//host`; those characters are refused too.
  */
 export function switchPath(pathname: string, lang: Lang): string {
 	const route = pathWithoutLang(pathname);
-	return localizedPath(/^\/[^/\\]|^\/$/.test(route) ? route : '/', lang);
+	return localizedPath(/^\/(?:[^/\\\t\n\r][^\t\n\r]*)?$/.test(route) ? route : '/', lang);
 }
 
 export function switchHref(location: { pathname: string; search: string; hash: string }, lang: Lang): string {
