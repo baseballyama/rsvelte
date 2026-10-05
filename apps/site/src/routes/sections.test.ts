@@ -11,7 +11,7 @@ const routes = path.resolve(import.meta.dirname);
 
 describe('chapter sections', () => {
 	it.each(chapters.map((chapter) => [chapter.slug, chapter] as const))('%s lists every heading of its page, in order', (_, chapter) => {
-		const file = path.join(routes, chapter.href, '+page.svelte');
+		const file = path.join(routes, chapter.href, 'page.ja.svelte');
 		const ids = [...readFileSync(file, 'utf8').matchAll(/<H2 id="([^"]+)"/g)].map((m) => m[1]);
 		expect(ids).toEqual(chapter.sections.map((section) => section.id));
 	});

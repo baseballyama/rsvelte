@@ -5,6 +5,10 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseRustModule, type RustItem } from '$lib/build/rust-items.ts';
 import { CRATES, sources } from '$lib/build/sources.ts';
+import type { Lang } from '$lib/i18n';
+
+// English page files come in the next change.
+const jaOnly: Lang[] = ['ja'];
 
 const crates = path.resolve(import.meta.dirname, '../../../../crates');
 const files = new Map(sources(crates).map((s) => [s.key, s.file]));
@@ -23,14 +27,24 @@ function item(key: string): RustItem | undefined {
 const crateKeys = Object.values(CRATES).join('|');
 
 const routes = path.resolve(import.meta.dirname);
-const pages = readdirSync(routes, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('+page.svelte'));
+// Each route has one page file per language; the wrapper `+page.svelte` only picks one.
+const pages = readdirSync(routes, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('page.ja.svelte')).map((f) => path.dirname(f));
+
+/** Each `data.code.X ... mark={[...]}` in a page file: the excerpt key and the strings it must contain. */
+function marks(svelte: string): { name: string; needles: string[] }[] {
+	return [...svelte.matchAll(/data\.code\.(\w+)\}\s*mark=\{\[([^\]]*)\]\}/g)].map((m) => ({
+		name: m[1],
+		needles: [...m[2].matchAll(/'((?:[^'\\]|\\.)*)'/g)].map((s) => s[1].replace(/\\'/g, "'"))
+	}));
+}
+
+const checked: Partial<Record<Lang, number>> = { ja: 0 };
 
 describe('excerpts', () => {
-	for (const page of pages) {
-		const dir = path.dirname(path.join(routes, page));
+	for (const dir of pages) {
 		let server = '';
 		try {
-			server = readFileSync(path.join(dir, '+page.server.ts'), 'utf8');
+			server = readFileSync(path.join(routes, dir, '+page.server.ts'), 'utf8');
 		} catch {
 			continue;
 		}
@@ -38,20 +52,25 @@ describe('excerpts', () => {
 			[...server.matchAll(new RegExp(`(\\w+): '((?:${crateKeys})\\/[^']+)'`, 'g'))].map((m) => [m[1], m[2]])
 		);
 		if (keys.size === 0) continue;
-		it(page, () => {
+		const files = Object.fromEntries(jaOnly.map((lang) => [lang, readFileSync(path.join(routes, dir, `page.${lang}.svelte`), 'utf8')])) as Record<Lang, string>;
+		for (const lang of jaOnly) checked[lang] = (checked[lang] ?? 0) + marks(files[lang]).length;
+		it(dir || '/', () => {
 			const missing = [...keys].filter(([, key]) => item(key) === undefined).map(([name, key]) => `${name}: ${key}`);
-			expect(missing.join(", ")).toBe("");
-			const svelte = readFileSync(path.join(routes, page), 'utf8');
-			for (const m of svelte.matchAll(/data\.code\.(\w+)\}\s*mark=\{\[([^\]]*)\]\}/g)) {
-				const key = keys.get(m[1]);
-				expect(key, `data.code.${m[1]} is not loaded`).toBeDefined();
-				const code = item(key!)!.code;
-				for (const s of m[2].matchAll(/'((?:[^'\\]|\\.)*)'/g)) {
-					const needle = s[1].replace(/\\'/g, "'");
-					expect(code.includes(needle), `${key}: mark ${JSON.stringify(needle)}`).toBe(true);
+			expect(missing.join(', ')).toBe('');
+			for (const lang of jaOnly) {
+				for (const { name, needles } of marks(files[lang])) {
+					const key = keys.get(name);
+					expect(key, `${lang}: data.code.${name} is not loaded`).toBeDefined();
+					const code = item(key!)!.code;
+					for (const needle of needles) expect(code.includes(needle), `${lang} ${key}: mark ${JSON.stringify(needle)}`).toBe(true);
 				}
+				for (const m of files[lang].matchAll(/data\.code\.(\w+)/g)) expect(keys.has(m[1]), `${lang}: data.code.${m[1]}`).toBe(true);
 			}
-			for (const m of svelte.matchAll(/data\.code\.(\w+)/g)) expect(keys.has(m[1]), `data.code.${m[1]}`).toBe(true);
 		});
 	}
+
+	// A page file that is not read checks nothing and passes; this keeps the gate from going empty.
+	it('checks marks in every language', () => {
+		for (const lang of jaOnly) expect(checked[lang], lang).toBeGreaterThan(0);
+	});
 });
