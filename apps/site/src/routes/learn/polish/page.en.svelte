@@ -350,7 +350,7 @@
 
 	{@render item('C3', 'Unsupported had no location', 'fixed', 'diagnostics/diagnostic.rs: Unsupported')}
 	<p>
-		<code>Unsupported</code> now holds the location of the refused syntax (<Term name="SourceLocation" />). The diagnostics
+		<code>Unsupported</code> now holds the location of the refused syntax (an <Term name="SourceLocation" />). The diagnostics
 		from formatting and from the code generated for type checking point to that syntax. Only a decision about the whole
 		document (a layout that does not fit on one line) has no position, and it says so with <code>nowhere</code>. The style
 		sheet formatter now uses the same type (Chapter <a href="/en/learn/kernel/diagnostics#unsupported">07</a>).

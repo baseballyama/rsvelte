@@ -64,7 +64,7 @@
 
 <div class="prose-learn">
 	<p>
-		The type for <Term name="SourceLocation" /> is also 8 bytes. It marks a node as synthetic by setting both ends to
+		The <Term name="SourceLocation" /> type is also 8 bytes. It marks a node as synthetic by setting both ends to
 		<code>u32::MAX</code>, a value that a real Span cannot have. Because of this, the length of a source needs an upper limit.
 	</p>
 </div>
@@ -83,7 +83,7 @@
 
 <div class="prose-learn">
 	<p>
-		To get a <code>Span</code> from the type for <Term name="SourceLocation" />, the only way is <Term name="SourceLocation::span" />, and
+		To get a <code>Span</code> from an <Term name="SourceLocation" />, the only way is <Term name="SourceLocation::span" />, and
 		it returns an <code>Option</code>. You cannot get a position until you handle the case of a synthetic node.
 	</p>
 </div>

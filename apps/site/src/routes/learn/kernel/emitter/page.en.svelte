@@ -51,7 +51,7 @@
 
 <div class="prose-learn">
 	<p>
-		<code>push_for</code> receives a value that says <Term name="SourceLocation" />. For a node that the compiler made up,
+		<code>push_for</code> receives an <Term name="SourceLocation" />. For a node that the compiler made up,
 		it adds no mark (Chapter <a href="/en/learn/kernel/source#loc">02</a>). This keeps made-up positions out of the
 		position mappings.
 	</p>

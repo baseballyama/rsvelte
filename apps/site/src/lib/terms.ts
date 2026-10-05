@@ -2,7 +2,7 @@ import { bilingual, type Lang } from './i18n.ts';
 
 export const terms: Record<string, Record<Lang, string>> = {
 	DocumentContext: bilingual('文書ごとの保存領域', 'the per-document store'),
-	SourceLocation: bilingual('元のソース上の位置の有無', 'whether a position exists in the source'),
+	SourceLocation: bilingual('元のソース上の位置の有無', 'optional source position'),
 	TypedIndex: bilingual('型付きの識別番号', 'a typed identifier'),
 	SyntaxTree: bilingual('構文木', 'the syntax tree'),
 	database: bilingual('計算結果の保存と再利用', 'storing and reusing computed results'),

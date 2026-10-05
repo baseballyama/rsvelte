@@ -57,7 +57,7 @@
 
 <div class="prose-learn">
 	<p>
-		<code>Unsupported</code> holds what is not supported (<code>what</code>) and where it is (<code>source_location</code>). Its position type tracks
+		<code>Unsupported</code> holds what is not supported (<code>what</code>) and where it is (<code>source_location</code>). Its position type is an
 		<Term name="SourceLocation" />. So a refusal that no single construct causes (for example, when the layout of the whole document does not fit on one line) says “no position” explicitly with
 		<code>nowhere</code> (Chapter <a href="/en/learn/kernel/source#loc">02</a>). In the next example, the Svelte format task gets an <code>Unsupported</code>,
 		writes no file, and keeps only a diagnostic that points at that construct.

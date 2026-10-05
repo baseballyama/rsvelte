@@ -275,7 +275,7 @@ const sources: ChapterSource[] = [
 		sections: [
 			s('history', '最適化の記録', 'Optimization record'),
 			s('correctness', '正しさ', 'Correctness'),
-			s('contracts', '守るべき条件と文書', 'Conditions and documents to keep'),
+			s('contracts', '守るべき条件と文書', 'Contracts and documentation'),
 			s('performance', '性能', 'Performance'),
 			s('measurement', '計測', 'Measurement')
 		]
