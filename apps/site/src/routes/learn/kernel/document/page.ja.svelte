@@ -37,7 +37,7 @@
 <div class="prose-learn">
 	<p>
 		ノードは <code>Copy</code> な enum です。子を並べる <code>Concat</code>、<code>Group</code>、<code>Fill</code> は、子のリストへの範囲（<code>start</code>, <code>len</code>）を持ちます。リストの中身は
-		<code>LayoutInstructions::children</code> という一本のベクタに並びます。子が一つの <code>Indent</code>、<code>Dedent</code>、<code>FlatOnly</code>、<code>IfBreak</code>、<code>IndentIfBreak</code> は、子の識別番号を直接持ちます。
+		<code>LayoutInstructions::children</code> という一本のベクタに並びます。子の数が決まっている <code>Indent</code>、<code>Dedent</code>、<code>FlatOnly</code>、<code>IfBreak</code>、<code>IndentIfBreak</code> は、子の識別番号を直接持ちます。
 	</p>
 </div>
 

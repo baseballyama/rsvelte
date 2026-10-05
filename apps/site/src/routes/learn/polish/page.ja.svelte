@@ -63,7 +63,7 @@
 		)}）。割り当ては最初の {fmt(data.history[0].allocations)} 回から {fmt(lastRec.allocations)} 回へ（{delta(lastRec.allocations, data.history[0].allocations)}）、割り当てバイトは
 		{fmt(data.history[0].alloc_bytes)} から {fmt(lastRec.alloc_bytes)} へ（{delta(lastRec.alloc_bytes, data.history[0].alloc_bytes)}）。読み込みの命令数は、記録を始めた
 		<code>{firstLoad.sha ?? workingTree}</code> の {fmt(firstLoad.load_instructions!)} から {fmt(lastRec.load_instructions!)} です。ただし読み込みを記録し始めたのは、読み込みを
-		878,552,187 命令から減らした変更そのもので（コミットのメッセージによる）、<code>{firstLoad.sha ?? workingTree}</code> の行の読み込みの減少は最適化ではなく測り方の訂正です（<a
+		878,552,187 命令から減らした変更そのものです（コミットのメッセージによる）。<code>201b86fd6b</code> の行の読み込みの減少は最適化ではなく測り方の訂正です（<a
 			href="/learn/measure#ci">13</a
 		>）。
 	</p>
@@ -109,7 +109,9 @@
 	</table>
 	<figcaption class="mt-2 text-[13px] leading-[1.7] text-muted">
 		各行はそのコミットの <code>baseline.json</code>。差は直前の行との比。— はまだ数えていなかった量です（命令数を基準値に記録したのは 2 行目から、読み込みは a5822ee26f から）。母集団は
-		<code>b58a0a72be</code> で 1 文書増えています（<code>minimal/emoji-width.svelte</code>）。
+		<code>b58a0a72be</code> で 1 文書増えています（<code>minimal/emoji-width.svelte</code>）。<code
+			>9226b2278b</code
+		> 以降の行は文書やタスクが増減した母集団を測っているので、差には母集団の変化も含まれます。
 	</figcaption>
 </figure>
 
@@ -269,7 +271,7 @@
 	</p>
 
 	{@render item('P8', '文字列の幅が Prettier と違った', 'fixed', 'output/width.rs · string_width')}
-	<p>絵文字、異体字セレクタ、ゼロ幅の文字の数え方が違っていました。今は Unicode の幅の規則（unicode-width）で数えます。Prettier の表との一致は目的にしていません（b58a0a72be、<a href="/learn/kernel/document#flat-only">08</a>）。</p>
+	<p>絵文字、異体字セレクタ、ゼロ幅の文字の数え方が違っていました。今は Unicode の幅の規則（unicode-width）で数えます。Prettier の表との一致は目的にしていません（5b760bf1fc、<a href="/learn/kernel/document#flat-only">08</a>）。</p>
 
 	{@render item('P9', '構造化データ形式の数値の位置に何でも書けた', 'fixed', 'output/structured_data.rs · StructuredDataWriter::write_number、fixed')}
 	<p>整数と小数を別の関数に分け、有限でない小数は <code>null</code> にしました（37a595c11e、<a href="/learn/kernel/structured-data#state">10</a>）。</p>
