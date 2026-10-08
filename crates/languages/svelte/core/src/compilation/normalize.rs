@@ -1,5 +1,5 @@
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_hir::compiler_syntax_tree::{
+use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
     Attribute, AttributeValue, Await, Branch, Children, CompilerNodeIdentifier, CompilerSyntaxTree,
     CompilerSyntaxTreeBuilder, Each, Element, ElementKind, MetadataTag, Modifiers, Name, NodeKind,
     Part, Snippet, StyleValue, text,
@@ -344,7 +344,7 @@ fn style_value(c: &Component, source_text: &str, a: &syntax_tree::Attribute) -> 
 
 #[cfg(test)]
 mod tests {
-    use rsvelte_svelte_hir::compiler_syntax_tree::{
+    use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
         ElementKind, MetadataTag, Modifiers, StyleValue, is_component_name,
     };
 

@@ -1,5 +1,5 @@
 [package]
-name = "rsvelte_svelte_hir"
+name = "rsvelte_svelte_compiler_syntax_tree"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true

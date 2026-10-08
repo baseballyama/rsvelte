@@ -23,7 +23,7 @@ function role(manifestPath: string): Role | undefined {
 	if (path === 'fixture_test' || path === 'hosts/config' || path.startsWith('tooling/') ||
 		path === 'languages/typescript/content_mapper') return 'support';
 	if (path.startsWith('hosts/')) return 'host';
-	if (/^languages\/[^/]+\/core$/.test(path) || /^languages\/svelte\/(syntax|parser|hir|semantic)$/.test(path)) {
+	if (/^languages\/[^/]+\/core$/.test(path) || /^languages\/svelte\/(syntax|parser|compiler_syntax_tree|semantic)$/.test(path)) {
 		return 'core';
 	}
 	if (/^languages\/[^/]+\/[^/]+$/.test(path)) return 'capability';
@@ -63,7 +63,7 @@ test('every workspace crate has a role from its path', () => {
 	assert.deepEqual([...roles].filter(([, r]) => r === undefined).map(([name]) => name), []);
 	assert.deepEqual(named('kernel'), ['rsvelte_kernel']);
 	assert.deepEqual(named('core'), [
-		'rsvelte_markup', 'rsvelte_stylesheet', 'rsvelte_svelte', 'rsvelte_svelte_hir', 'rsvelte_svelte_parser',
+		'rsvelte_markup', 'rsvelte_stylesheet', 'rsvelte_svelte', 'rsvelte_svelte_compiler_syntax_tree', 'rsvelte_svelte_parser',
 		'rsvelte_svelte_semantic', 'rsvelte_svelte_syntax', 'rsvelte_typescript', 'rsvelte_vue',
 	]);
 	assert.deepEqual(named('support'), [
@@ -89,8 +89,8 @@ test('the dependency check rejects an injected formatter dependency', () => {
 const svelteLayers: Record<string, readonly string[]> = {
 	rsvelte_svelte_syntax: [],
 	rsvelte_svelte_parser: ['rsvelte_svelte_syntax'],
-	rsvelte_svelte_hir: ['rsvelte_svelte_syntax'],
-	rsvelte_svelte_semantic: ['rsvelte_svelte_hir'],
+	rsvelte_svelte_compiler_syntax_tree: ['rsvelte_svelte_syntax'],
+	rsvelte_svelte_semantic: ['rsvelte_svelte_compiler_syntax_tree'],
 };
 
 function svelteDependencies(packages: Package[]): string[] {
@@ -114,9 +114,9 @@ test('Svelte shared crates keep their dependency boundaries', () => {
 test('Svelte boundaries reject injected dependencies on parsing, normalization, and tools', () => {
 	for (const [name, forbidden] of [
 		['rsvelte_svelte_syntax', 'rsvelte_svelte_parser'],
-		['rsvelte_svelte_hir', 'rsvelte_svelte_parser'],
+		['rsvelte_svelte_compiler_syntax_tree', 'rsvelte_svelte_parser'],
 		['rsvelte_svelte_semantic', 'rsvelte_svelte_parser'],
-		['rsvelte_svelte_hir', 'rsvelte_svelte'],
+		['rsvelte_svelte_compiler_syntax_tree', 'rsvelte_svelte'],
 		['rsvelte_svelte_semantic', 'rsvelte_svelte_compile'],
 	] as const) {
 		const pkg = metadata.packages.find(pkg => pkg.name === name);

@@ -42,7 +42,9 @@ fn ordinary_computed_and_nested_calls_are_not_runes() {
 #[test]
 fn destructured_runes_classify_every_leaf_without_classifying_keys() {
     use rsvelte_kernel::source::positions::Span;
-    use rsvelte_svelte_hir::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
+    use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
+        Children, CompilerSyntaxTreeBuilder,
+    };
     use rsvelte_svelte_semantic::semantic::resolve::{self, BindingKind};
     use rsvelte_typescript::parser;
 
@@ -81,7 +83,9 @@ fn destructured_runes_classify_every_leaf_without_classifying_keys() {
 #[test]
 fn nested_runes_classify_bindings_in_their_own_scope() {
     use rsvelte_kernel::source::positions::Span;
-    use rsvelte_svelte_hir::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
+    use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
+        Children, CompilerSyntaxTreeBuilder,
+    };
     use rsvelte_svelte_semantic::semantic::resolve::{self, BindingKind};
     use rsvelte_typescript::parser;
 

@@ -8,5 +8,5 @@
 	{ "file": "languages/svelte/compile_vapor/src/compilation.rs", "name": "Translation::css_mode", "upstream": "css?: 'injected' | 'external'", "reason": "The `css` compile option" },
 	{ "file": "languages/svelte/compile/src/render_plan/namespace.rs", "name": "Namespace::Html", "upstream": "type Namespace = 'html' | 'svg' | 'mathml';", "reason": "The `html` namespace" },
 	{ "file": "languages/svelte/syntax/src/syntax/syntax_tree.rs", "name": "TemplateNode::Html", "upstream": "type: 'HtmlTag';", "reason": "The `{@html}` tag" },
-	{ "file": "languages/svelte/hir/src/compilation/compiler_syntax_tree.rs", "name": "NodeKind::Html", "upstream": "type: 'HtmlTag';", "reason": "The `{@html}` tag" }
+	{ "file": "languages/svelte/compiler_syntax_tree/src/compilation/compiler_syntax_tree.rs", "name": "NodeKind::Html", "upstream": "type: 'HtmlTag';", "reason": "The `{@html}` tag" }
 ]

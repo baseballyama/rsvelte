@@ -1,4 +1,4 @@
-use rsvelte_svelte_hir::compiler_syntax_tree::{
+use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
     AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element, NodeKind, Part,
     StyleValue,
 };

@@ -1,7 +1,7 @@
 //! Binding resolution and classification as side tables over immutable trees.
 
 use rsvelte_kernel::source::index::IndexVector;
-use rsvelte_svelte_hir::compiler_syntax_tree::CompilerSyntaxTree;
+use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::CompilerSyntaxTree;
 use rsvelte_typescript::scope::{self, BindingIdentifier, Semantic};
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 

@@ -21,7 +21,7 @@ rsvelte_stylesheet = { path = "crates/languages/css/core" }
 rsvelte_svelte = { path = "crates/languages/svelte/core" }
 rsvelte_svelte_syntax = { path = "crates/languages/svelte/syntax" }
 rsvelte_svelte_parser = { path = "crates/languages/svelte/parser" }
-rsvelte_svelte_hir = { path = "crates/languages/svelte/hir" }
+rsvelte_svelte_compiler_syntax_tree = { path = "crates/languages/svelte/compiler_syntax_tree" }
 rsvelte_svelte_semantic = { path = "crates/languages/svelte/semantic" }
 rsvelte_markup = { path = "crates/languages/html/core" }
 rsvelte_vue = { path = "crates/languages/vue/core" }

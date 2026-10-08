@@ -1,5 +1,5 @@
 use rsvelte_kernel::source::index::IndexVector;
-use rsvelte_svelte_hir::compiler_syntax_tree::{
+use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
     self, AttributeValue, CompilerNodeIdentifier, NodeKind, Part,
 };
 use rsvelte_typescript::NodeIdentifier;

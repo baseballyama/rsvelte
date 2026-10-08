@@ -1,6 +1,6 @@
 use rsvelte_kernel::newtype_index;
 use rsvelte_kernel::source::index::{IndexVector, TypedIndex};
-use rsvelte_svelte_hir::compiler_syntax_tree::CompilerNodeIdentifier;
+use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::CompilerNodeIdentifier;
 
 use super::worklist::Worklist;
 use crate::semantic::visited::Visited;

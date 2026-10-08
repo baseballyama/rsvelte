@@ -31,7 +31,7 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 		['svelte/syntax', 'languages/svelte/syntax/src/syntax', ['syntax_tree']],
 		['svelte/syntax', 'languages/svelte/parser/src/syntax', ['parse']],
 		['svelte/semantic', 'languages/svelte/semantic/src/semantic', ['resolve']],
-		['svelte/compilation', 'languages/svelte/hir/src/compilation', ['compiler_syntax_tree', 'compiler_syntax_tree/builder']],
+		['svelte/compilation', 'languages/svelte/compiler_syntax_tree/src/compilation', ['compiler_syntax_tree', 'compiler_syntax_tree/builder']],
 		['svelte/format', 'languages/svelte/format/src', ['task']],
 		['svelte/lint', 'languages/svelte/lint/src', ['task', 'lint', 'rules', 'rules/button_has_type', 'rules/no_unused_variables', 'rules/valid_each_key']],
 		['svelte/compile', 'languages/svelte/compile/src', ['task', 'computation']],

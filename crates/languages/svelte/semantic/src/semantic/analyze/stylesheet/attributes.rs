@@ -2,7 +2,9 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 
 use rsvelte_stylesheet::matcher::Match;
-use rsvelte_svelte_hir::compiler_syntax_tree::{AttributeIdentifier, AttributeValue, Part};
+use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
+    AttributeIdentifier, AttributeValue, Part,
+};
 use rsvelte_typescript::operators::LogicalOperator;
 use rsvelte_typescript::semantic::number::number;
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};

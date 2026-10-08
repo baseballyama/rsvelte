@@ -1,5 +1,7 @@
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_hir::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
+use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
+    Children, CompilerSyntaxTreeBuilder,
+};
 use rsvelte_svelte_semantic::semantic::evaluate::{Evaluation, Evaluator, Tree, Value};
 use rsvelte_svelte_semantic::semantic::resolve;
 use rsvelte_typescript::{Kind, SyntaxTree, parser};

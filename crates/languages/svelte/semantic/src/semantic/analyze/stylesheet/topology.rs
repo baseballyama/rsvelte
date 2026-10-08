@@ -1,6 +1,6 @@
 use rsvelte_kernel::newtype_index;
 use rsvelte_kernel::source::index::IndexVector;
-use rsvelte_svelte_hir::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
+use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 use rsvelte_typescript::Kind;
 use rsvelte_typescript::scope::BindingIdentifier;
 use rustc_hash::FxHashMap;

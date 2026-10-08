@@ -751,7 +751,7 @@ name = "rsvelte_svelte"
 version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
- "rsvelte_svelte_hir",
+ "rsvelte_svelte_compiler_syntax_tree",
  "rsvelte_svelte_parser",
  "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
@@ -787,6 +787,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_svelte_compiler_syntax_tree"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_svelte_syntax",
+ "rsvelte_typescript",
+ "unicode-id-start",
+]
+
+[[package]]
 name = "rsvelte_svelte_format"
 version = "0.0.0"
 dependencies = [
@@ -796,16 +806,6 @@ dependencies = [
  "rsvelte_svelte",
  "rsvelte_typescript",
  "rsvelte_typescript_format",
-]
-
-[[package]]
-name = "rsvelte_svelte_hir"
-version = "0.0.0"
-dependencies = [
- "rsvelte_kernel",
- "rsvelte_svelte_syntax",
- "rsvelte_typescript",
- "unicode-id-start",
 ]
 
 [[package]]
@@ -855,7 +855,7 @@ dependencies = [
  "num-traits",
  "rsvelte_kernel",
  "rsvelte_stylesheet",
- "rsvelte_svelte_hir",
+ "rsvelte_svelte_compiler_syntax_tree",
  "rsvelte_typescript",
  "rustc-hash",
 ]

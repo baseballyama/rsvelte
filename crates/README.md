@@ -7,7 +7,7 @@
 | `languages/<language>/core/` | Shared language data and artifact registration; Svelte uses the crates below |
 | `languages/svelte/syntax/` | Source AST and token types |
 | `languages/svelte/parser/` | Source parsing into the AST |
-| `languages/svelte/hir/` | Shared template HIR and frontend builder |
+| `languages/svelte/compiler_syntax_tree/` | Shared template HIR and frontend builder |
 | `languages/svelte/semantic/` | Name resolution, binding facts, and component analysis |
 | `languages/svelte/core/` | AST to HIR normalization, artifact registration, and public re-exports |
 | `languages/<language>/compile/` | Lowering, emission, and compile tasks |

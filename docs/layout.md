@@ -11,7 +11,7 @@ The workspace separates shared data, hosts, languages, and task capabilities.
 | `crates/hosts/config` | Setting loaders and runtime/native function adapters |
 | `crates/hosts/browser` | Browser bindings |
 | `crates/languages/<language>/core` | Shared language data and artifact registration |
-| `crates/languages/svelte/{syntax,parser,hir,semantic}` | Source AST, parsing, shared HIR, and semantic facts |
+| `crates/languages/svelte/{syntax,parser,compiler_syntax_tree,semantic}` | Source AST, parsing, shared HIR, and semantic facts |
 | `crates/languages/<language>/{compile,format,lint,lint_typed,check,typecheck}` | Task implementations and registration |
 | `crates/languages/svelte/typescript_projection` | Svelte to TypeScript projection AST and emission |
 | `crates/languages/vue/compile_svelte` | Vue to Svelte translation |

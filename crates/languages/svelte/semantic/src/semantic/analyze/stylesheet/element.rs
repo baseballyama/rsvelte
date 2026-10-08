@@ -1,6 +1,6 @@
 use rsvelte_stylesheet::matcher::{self, Element, Match};
 use rsvelte_stylesheet::syntax_tree::{RuleIdentifier, RuleKind};
-use rsvelte_svelte_hir::compiler_syntax_tree::{self, AttributeValue, NodeKind};
+use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{self, AttributeValue, NodeKind};
 
 use super::El;
 

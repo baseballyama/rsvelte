@@ -3,7 +3,9 @@ use std::cell::{OnceCell, RefCell};
 use rsvelte_kernel::source::index::IndexVector;
 use rsvelte_stylesheet::matcher::{self, Match};
 use rsvelte_stylesheet::syntax_tree::{Rule, RuleIdentifier};
-use rsvelte_svelte_hir::compiler_syntax_tree::{self, CompilerNodeIdentifier, CompilerSyntaxTree};
+use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
+    self, CompilerNodeIdentifier, CompilerSyntaxTree,
+};
 use rustc_hash::FxHashMap;
 
 mod attributes;

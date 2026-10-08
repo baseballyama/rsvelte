@@ -4,7 +4,7 @@ use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_kernel::source::index::TypedIndex;
 use rsvelte_stylesheet::matcher;
 use rsvelte_stylesheet::syntax_tree::{ComplexSelector, Simple, StyleSheet};
-use rsvelte_svelte_hir::compiler_syntax_tree::{
+use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree,
 };
 use rustc_hash::FxHashMap;
