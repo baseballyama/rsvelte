@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { appendix, chapters, type Chapter } from '$lib/site';
+	import { bilingual, localizedPath } from '$lib/i18n';
+	import { readerLang } from '$lib/lang.svelte';
+	import { appendixIn, chaptersIn, type Chapter } from '$lib/site';
 
 	let {
 		active,
@@ -11,17 +13,42 @@
 		outlineAtXl?: boolean;
 	} = $props();
 
+	const text = bilingual(
+		{
+			chapters: '章',
+			start: 'はじめに',
+			modules: 'カーネルのモジュール',
+			polish: '測って磨く',
+			overview: '全体の構成（図）',
+			label: 'Learn の章',
+			appendix: '付録'
+		},
+		{
+			chapters: 'Chapters',
+			start: 'Start here',
+			modules: 'Kernel modules',
+			polish: 'Measure and improve',
+			overview: 'Overview (figure)',
+			label: 'Learn chapters',
+			appendix: 'Appendix'
+		}
+	);
+	const lang = $derived(readerLang());
+	const t = $derived(text[lang]);
+	const chapters = $derived(chaptersIn(lang));
+	const appendix = $derived(appendixIn(lang));
+	// Rendered hrefs are in the reader's language, so compare with the localized path.
 	const path = $derived(page.url.pathname.replace(/\/$/, '') || '/');
 
 	// Grouped by role rather than by a hand-kept list: the module chapters are the ones naming a module.
 	const groups = $derived.by(() => {
 		const first = chapters.findIndex((c) => c.module);
 		const last = chapters.findLastIndex((c) => c.module);
-		if (first < 0) return [{ title: '章', items: chapters }];
+		if (first < 0) return [{ title: t.chapters, items: chapters }];
 		return [
-			{ title: 'はじめに', items: chapters.slice(0, first) },
-			{ title: 'カーネルのモジュール', items: chapters.slice(first, last + 1) },
-			{ title: '測って磨く', items: chapters.slice(last + 1) }
+			{ title: t.start, items: chapters.slice(0, first) },
+			{ title: t.modules, items: chapters.slice(first, last + 1) },
+			{ title: t.polish, items: chapters.slice(last + 1) }
 		].filter((g) => g.items.length > 0);
 	});
 </script>
@@ -46,7 +73,7 @@
 			<span class={here ? 'font-medium' : ''}>{c.title}</span>
 		</a>
 		{#if c.slug === 'kernel' && !here}
-			<a href="/learn/kernel#overview" class="ml-[30px] block rounded-md px-2 py-[3px] text-[13px] text-muted hover:bg-surface hover:text-fg">全体の構成（図）</a>
+			<a href={localizedPath('/learn/kernel#overview', lang)} class="ml-[30px] block rounded-md px-2 py-[3px] text-[13px] text-muted hover:bg-surface hover:text-fg">{t.overview}</a>
 		{/if}
 		{#if here && c.sections.length > 0}
 			<ol class={['mt-1 mb-2 ml-[18px] border-l border-line', !outlineAtXl && 'xl:hidden']}>
@@ -66,14 +93,14 @@
 	</li>
 {/snippet}
 
-<nav aria-label="Learn の章" class="text-[14px] leading-[1.55]">
+<nav aria-label={t.label} class="text-[14px] leading-[1.55]">
 	{#each groups as g (g.title)}
 		<p class="eyebrow mt-6 mb-1.5 px-2 first:mt-0">{g.title}</p>
 		<ol class="space-y-px">
 			{#each g.items as c (c.slug)}{@render item(c)}{/each}
 		</ol>
 	{/each}
-	<p class="eyebrow mt-6 mb-1.5 px-2">付録</p>
+	<p class="eyebrow mt-6 mb-1.5 px-2">{t.appendix}</p>
 	<ul class="space-y-px">
 		{#each appendix as a (a.href)}
 			{@const here = path === a.href}

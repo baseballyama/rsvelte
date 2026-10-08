@@ -1,4 +1,5 @@
 import { createHighlighter, createCssVariablesTheme as createStylesheetVariablesTheme } from 'shiki';
+import { bilingual, langOf } from '$lib/i18n';
 import { pipelineExamples } from '$lib/widgets/svelte-pipeline';
 
 const highlighter = createHighlighter({
@@ -6,18 +7,25 @@ const highlighter = createHighlighter({
 	langs: ['svelte', 'typescript', 'javascript', 'text']
 });
 
-const examples = {
-	script: '<script>\n  let name = $state("");\n</script>',
+const script = '<script>\n  let name = $state("");\n</script>';
+const stylesheet = '<style>\n  .greeting { color: navy; }\n</style>';
+const examples = bilingual({
+	script,
 	template: '<input bind:value={name} />\n<p class="greeting">\n  こんにちは、{name}\n</p>',
-	stylesheet: '<style>\n  .greeting { color: navy; }\n</style>'
-};
+	stylesheet
+}, {
+	script,
+	template: '<input bind:value={name} />\n<p class="greeting">\n  Hello, {name}\n</p>',
+	stylesheet
+});
 
-export const load = async () => {
+export const load = async ({ url }) => {
 	const syntax = await highlighter;
+	const lang = langOf(url.pathname);
 	return {
-		pipeline: Object.fromEntries(Object.entries(pipelineExamples).map(([identifier, example]) => [identifier,
+		pipeline: Object.fromEntries(Object.entries(pipelineExamples[lang]).map(([identifier, example]) => [identifier,
 			syntax.codeToHtml(example.source, { lang: example.language, theme: 'rsvelte' })])),
-		examples: Object.fromEntries(Object.entries(examples).map(([key, source]) => [key, syntax.codeToHtml(source, {
+		examples: Object.fromEntries(Object.entries(examples[lang]).map(([key, source]) => [key, syntax.codeToHtml(source, {
 			lang: 'svelte',
 			theme: 'rsvelte',
 			transformers: [{

@@ -1,0 +1,26 @@
+[
+	{
+		"route": "learn/polish",
+		"ja": ["number:4000"],
+		"en": ["number:40"],
+		"reason": "Japanese counts in units of 万 (10,000): 4,000 万 is 40 million"
+	},
+	{
+		"route": "learn/polish",
+		"ja": ["number:23.5"],
+		"en": ["number:235000"],
+		"reason": "Japanese counts in units of 万 (10,000): 23.5万 is 235,000"
+	},
+	{
+		"route": "learn/reference",
+		"ja": [],
+		"en": ["expression:count===1?'':''"],
+		"reason": "English chooses between 'item' and 'items'; Japanese has no plural"
+	},
+	{
+		"route": "why",
+		"ja": ["number:10"],
+		"en": [],
+		"reason": "the date names the month: 2026年10月2日 is October 2, 2026"
+	}
+]

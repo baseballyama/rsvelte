@@ -1,34 +1,77 @@
 <script lang="ts">
+	import { bilingual } from '$lib/i18n';
+	import { readerLang } from '$lib/lang.svelte';
+
 	let { markup }: { markup: Record<string, string> } = $props();
+	const text = bilingual({
+		caption: 'テンプレートの変数を、スクリプトの宣言に対応付ける',
+		script: 'スクリプト',
+		scriptPurpose: '変数を宣言する',
+		declaration: ' の宣言。テンプレート内の同名の識別子は、この宣言を参照する。',
+		template: 'テンプレート',
+		templatePurpose: '変数を参照し、入力値を書き戻す',
+		showsBefore: '',
+		showsMiddle: ' を表示し、',
+		showsAfter: ' で入力値を書き戻す。',
+		classNote: ' はスタイルのセレクターに対応するクラス。',
+		style: 'スタイル',
+		stylePurpose: 'クラスに対応する要素を指定する',
+		selectorMiddle: ' はテンプレートの ',
+		selectorAfter: ' に対応する。',
+		variableLegend: '青：変数 name の宣言と参照',
+		selectorLegend: '緑：クラス greeting とセレクター',
+		oxlint: 'スクリプト内のJavaScriptを検査',
+		rsvelte: 'テンプレートの変数参照と、スクリプトの宣言を名前解決で対応付ける'
+	}, {
+		caption: 'Matching template variables to script declarations',
+		script: 'Script',
+		scriptPurpose: 'Declares a variable',
+		declaration: ' is declared here. Identifiers with the same spelling in the template refer to this declaration.',
+		template: 'Template',
+		templatePurpose: 'Reads the variable and writes the input value back',
+		showsBefore: 'Shows ',
+		showsMiddle: ', and ',
+		showsAfter: ' writes the input value back.',
+		classNote: ' is a class that a style selector matches.',
+		style: 'Style',
+		stylePurpose: 'Selects elements by their class',
+		selectorMiddle: ' matches ',
+		selectorAfter: ' in the template.',
+		variableLegend: 'Blue: the declaration and references of the variable name',
+		selectorLegend: 'Green: the class greeting and its selector',
+		oxlint: 'Checks the JavaScript in the script',
+		rsvelte: 'Uses name resolution to match variable references in the template to declarations in the script'
+	});
+	const t = $derived(text[readerLang()]);
 </script>
 
 <figure class="source-figure">
-	<figcaption>テンプレートの変数を、スクリプトの宣言に対応付ける</figcaption>
+	<figcaption>{t.caption}</figcaption>
 	<div class="source-regions">
 		<div>
-			<h3>スクリプト</h3>
-			<p class="purpose">変数を宣言する</p>
+			<h3>{t.script}</h3>
+			<p class="purpose">{t.scriptPurpose}</p>
 			<div class="example">{@html markup.script}</div>
-			<p><code class="variable">name</code> の宣言。テンプレート内の同名の識別子は、この宣言を参照する。</p>
+			<p><code class="variable">name</code>{t.declaration}</p>
 		</div>
 		<div>
-			<h3>テンプレート</h3>
-			<p class="purpose">変数を参照し、入力値を書き戻す</p>
+			<h3>{t.template}</h3>
+			<p class="purpose">{t.templatePurpose}</p>
 			<div class="example">{@html markup.template}</div>
-			<p><code class="variable">name</code> を表示し、<code>bind:value</code> で入力値を書き戻す。</p>
-			<p><code class="selector">greeting</code> はスタイルのセレクターに対応するクラス。</p>
+			<p>{t.showsBefore}<code class="variable">name</code>{t.showsMiddle}<code>bind:value</code>{t.showsAfter}</p>
+			<p><code class="selector">greeting</code>{t.classNote}</p>
 		</div>
 		<div>
-			<h3>スタイル</h3>
-			<p class="purpose">クラスに対応する要素を指定する</p>
+			<h3>{t.style}</h3>
+			<p class="purpose">{t.stylePurpose}</p>
 			<div class="example">{@html markup.stylesheet}</div>
-			<p><code class="selector">.greeting</code> はテンプレートの <code>class="greeting"</code> に対応する。</p>
+			<p><code class="selector">.greeting</code>{t.selectorMiddle}<code>class="greeting"</code>{t.selectorAfter}</p>
 		</div>
 	</div>
-	<div class="legend"><span class="variable">青：変数 name の宣言と参照</span><span class="selector">緑：クラス greeting とセレクター</span></div>
+	<div class="legend"><span class="variable">{t.variableLegend}</span><span class="selector">{t.selectorLegend}</span></div>
 	<div class="scope">
-		<span>Oxlint</span><strong>スクリプト内のJavaScriptを検査</strong>
-		<span>rsvelte</span><strong>テンプレートの変数参照と、スクリプトの宣言を名前解決で対応付ける</strong>
+		<span>Oxlint</span><strong>{t.oxlint}</strong>
+		<span>rsvelte</span><strong>{t.rsvelte}</strong>
 	</div>
 </figure>
 

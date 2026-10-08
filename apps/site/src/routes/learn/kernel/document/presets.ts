@@ -1,5 +1,7 @@
+import { bilingual } from '$lib/i18n';
+
 export const call = {
-	name: '関数呼び出し',
+	name: bilingual('関数呼び出し', 'Function call'),
 	width: 20,
 	source: `group(
   "f(",
@@ -15,13 +17,15 @@ export const fill = {
 	source: `fill(join(line, ["複数言語", "の", "処理", "を", "ひとつ", "の", "カーネル", "で", "動かす"]))`
 };
 
+const groupIdsSource = (broken: string, flat: string) => `[
+  groupId("args", "call(", indent([softline, "argument_one,", line, "argument_two"]), softline, ")"),
+  ifBreakOf("args", " // ${broken}", " // ${flat}")
+]`;
+
 export const groupIds = {
 	name: 'group id',
 	width: 30,
-	source: `[
-  groupId("args", "call(", indent([softline, "argument_one,", line, "argument_two"]), softline, ")"),
-  ifBreakOf("args", " // 改行した", " // 1 行")
-]`
+	source: bilingual(groupIdsSource('改行した', '1 行'), groupIdsSource('broken', 'one line'))
 };
 
 export const flatOnly = {

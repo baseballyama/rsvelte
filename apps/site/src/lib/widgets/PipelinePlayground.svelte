@@ -2,9 +2,134 @@
 	import { onMount } from 'svelte';
 	import { replaceState } from '$app/navigation';
 	import CodePane from '$lib/components/CodePane.svelte';
+	import { bilingual } from '$lib/i18n';
 	import { outputLanguage, type CodeLanguage } from '$lib/kernel/code-language';
 	import { initializePipeline, runPipeline, type PipelineResult } from '$lib/kernel/pipeline-browser';
 	import { accessTable, artifactLabel, computationCount, decodeState, encodeState, examples, operations, plugins, problems, taskLabel } from '$lib/kernel/pipeline-playground';
+	import { readerLang } from '$lib/lang.svelte';
+	const text = bilingual(
+		{
+			files: { stylesheet: 'スタイル', lint: '検査結果', formatted: '整形後のソース' },
+			computed: (n: number) => (n === 1 ? '計算' : `計算 ${n}`),
+			reused: (n: number) => (n === 1 ? '再利用' : `再利用 ${n}`),
+			cellSeparator: ' · ',
+			notices: {
+				copied: '実行した内容のリンクをコピーしました。',
+				copyFailed: 'リンクをコピーできませんでした。ブラウザのアドレス欄の文字列を使ってください。',
+				badLink: 'リンクの内容を読めなかったので、最初のサンプルを表示しています。'
+			},
+			input: '入力',
+			operations: '行う処理',
+			shareTitle: '外すと処理ごとに解析し直します。',
+			share: '解析結果を共有',
+			plugins: (on: number, all: number) => `プラグイン ${on}/${all}`,
+			pluginLegend: '使う言語プラグイン',
+			matchesInput: 'この入力に対応',
+			pluginNote: '対応するプラグインを外すと、その処理は実行されません。Vue のサーバー向け出力と、Vue の入力の Svelte による整形・コード検査には対応していません。型検査と、生成したコードの実行も行いません。',
+			copyLink: 'リンクをコピー',
+			running: '処理中…',
+			run: '実行',
+			loading: '読み込み中…',
+			loadFailed: '実行環境を読み込めませんでした：',
+			stale: (modifier: string) => `未実行の変更があります。表示は前回の結果です。${modifier}+Enter で実行します。`,
+			panes: '表示する欄',
+			paneNames: { source: '入力', result: '結果', record: '処理の記録' },
+			resetSample: 'サンプルに戻す',
+			sourceLabel: '入力するソース',
+			editorKeys: 'Tab は字下げ。Esc の後に Tab でエディタの外へ移動',
+			lines: (n: number) => `${n} 行`,
+			resultLabel: '処理の結果',
+			executedTasks: '実行した処理',
+			resultTabs: '確認する結果',
+			artifacts: '構文木・解析結果',
+			problems: (n: number) => `診断と指摘 (${n})`,
+			artifact: '解析結果',
+			artifactPane: '構文木または解析結果',
+			position: (line: number, column: number, code: string) => `${line} 行 ${column} 列 · ${code}`,
+			kinds: { diagnostic: '診断', lint: 'コード検査の指摘' },
+			jump: (kind: string) => `${kind} · 入力のこの位置へ移動`,
+			noProblems: 'この処理の診断と指摘はありません。',
+			outputPane: '処理の出力',
+			noFiles: (n: number) => `出力ファイルはありません。「診断と指摘 (${n})」を確認してください。`,
+			realStructure: 'Rust が実際に持つ構造',
+			pluginOutput: 'Rust のプラグインによる出力',
+			nothingToRun: '実行する処理がありません',
+			resultsHere: '実行結果をここに表示します',
+			chooseForInput: '入力に対応するプラグインと処理を選び、実行してください。',
+			choose: 'プラグインと処理を選び、実行してください。',
+			record: '処理の記録',
+			sharedNote: '各処理は同じ入力を読み、計算済みの解析結果を共有します。',
+			isolatedNote: '共有を外しているので、処理ごとに解析し直します。',
+			noPassing: '前の処理の出力は次の処理に渡しません。',
+			parses: '構文の読み取り',
+			computations: '解析結果の計算',
+			times: (n: number) => `${n} 回`,
+			tableCaption: '解析結果ごとに、各処理が計算したか再利用したかを示します。空欄は使っていない解析結果です。',
+			recordEmpty: '実行した処理と、解析結果の計算・再利用をここに表示します。'
+		},
+		{
+			files: { stylesheet: 'Styles', lint: 'Lint results', formatted: 'Formatted source' },
+			computed: (n: number) => (n === 1 ? 'computed' : `computed ${n}`),
+			reused: (n: number) => (n === 1 ? 'reused' : `reused ${n}`),
+			cellSeparator: ', ',
+			notices: {
+				copied: 'Copied a link to what you ran.',
+				copyFailed: 'Could not copy the link. Use the address in the browser address bar.',
+				badLink: 'Could not read the state in the link, so the first sample is shown.'
+			},
+			input: 'Input',
+			operations: 'Tasks to run',
+			shareTitle: 'When this is off, each task analyzes the source again.',
+			share: 'Share analysis results',
+			plugins: (on: number, all: number) => `Plugins ${on}/${all}`,
+			pluginLegend: 'Language plugins to use',
+			matchesInput: 'Handles this input',
+			pluginNote: 'When you turn off the matching plugin, its tasks do not run. Server output for Vue is not supported, and neither is formatting or linting Vue input with Svelte. The playground does not type check or run the generated code.',
+			copyLink: 'Copy link',
+			running: 'Running…',
+			run: 'Run',
+			loading: 'Loading…',
+			loadFailed: 'Could not load the runtime: ',
+			stale: (modifier: string) => `You have changes that have not run. The result shown is from the last run. Press ${modifier}+Enter to run.`,
+			panes: 'Panel to show',
+			paneNames: { source: 'Input', result: 'Result', record: 'Work log' },
+			resetSample: 'Reset to sample',
+			sourceLabel: 'Source to process',
+			editorKeys: 'Tab indents. To leave the editor, press Esc and then Tab',
+			lines: (n: number) => (n === 1 ? '1 line' : `${n} lines`),
+			resultLabel: 'Task results',
+			executedTasks: 'Tasks that ran',
+			resultTabs: 'Result to view',
+			artifacts: 'Syntax tree and analysis results',
+			problems: (n: number) => `Diagnostics and findings (${n})`,
+			artifact: 'Analysis result',
+			artifactPane: 'Syntax tree or analysis result',
+			position: (line: number, column: number, code: string) => `Line ${line}, column ${column}: ${code}`,
+			kinds: { diagnostic: 'Diagnostic', lint: 'Lint finding' },
+			jump: (kind: string) => `${kind}. Go to this position in the input.`,
+			noProblems: 'This task has no diagnostics or findings.',
+			outputPane: 'Task output',
+			noFiles: (n: number) => `This task wrote no output files. See "Diagnostics and findings (${n})".`,
+			realStructure: 'The structure that Rust actually holds',
+			pluginOutput: 'Output of the Rust plugin',
+			nothingToRun: 'No task to run',
+			resultsHere: 'Results appear here',
+			chooseForInput: 'Choose a plugin that handles the input and a task, then run.',
+			choose: 'Choose plugins and tasks, then run.',
+			record: 'Work log',
+			sharedNote: 'Each task reads the same input and shares the analysis results that are already computed.',
+			isolatedNote: 'Sharing is off, so each task analyzes the source again.',
+			noPassing: 'The output of one task is not passed to the next task.',
+			parses: 'Parses',
+			computations: 'Analysis results computed',
+			times: (n: number) => `${n}`,
+			tableCaption: 'For each analysis result, this shows whether each task computed it or reused it. An empty cell means the task did not use that result.',
+			recordEmpty: 'The tasks that ran, and the analysis results they computed or reused, appear here.'
+		}
+	);
+	const lang = $derived(readerLang());
+	const paneIds = ['source', 'result', 'record'] as const;
+	const t = $derived(text[lang]);
 	let exampleId = $state('svelte');
 	let drafts = $state(Object.fromEntries(examples.map((example) => [example.id, example.source])));
 	let enabledPlugins = $state(['svelte', 'vue', 'svue', 'vuelte']);
@@ -13,7 +138,7 @@
 	let ready = $state(false);
 	let running = $state(false);
 	let loadError = $state('');
-	let notice = $state('');
+	let notice = $state<'' | 'copied' | 'copyFailed' | 'badLink'>('');
 	let result = $state<PipelineResult | null>(null);
 	let executedInput = $state('');
 	let executedFilename = $state('');
@@ -42,12 +167,12 @@
 	const modifier = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
 	function toggle(values: string[], id: string) { return values.includes(id) ? values.filter((value) => value !== id) : [...values, id]; }
 	function chooseStep(index: number) { selectedStep = index; fileIndex = 0; artifactIndex = 0; if (view === 'diagnostics' && problems(steps[index]).length === 0) view = 'output'; }
-	function fileLabel(name: string) { return name === 'js' ? 'JavaScript' : name === 'css' ? 'スタイル' : name === 'lint.json' ? '検査結果' : '整形後のソース'; }
+	function fileLabel(name: string) { return name === 'js' ? 'JavaScript' : name === 'css' ? t.files.stylesheet : name === 'lint.json' ? t.files.lint : t.files.formatted; }
 	function cellText(cell: { computed: number; reused: number }) {
 		const parts = [];
-		if (cell.computed) parts.push(cell.computed === 1 ? '計算' : `計算 ${cell.computed}`);
-		if (cell.reused) parts.push(cell.reused === 1 ? '再利用' : `再利用 ${cell.reused}`);
-		return parts.join(' · ');
+		if (cell.computed) parts.push(t.computed(cell.computed));
+		if (cell.reused) parts.push(t.reused(cell.reused));
+		return parts.join(t.cellSeparator);
 	}
 	async function execute() {
 		if (!ready || running) return;
@@ -66,8 +191,8 @@
 		replaceState(location.pathname + location.search + await encodeState(state), {});
 	}
 	async function copyLink() {
-		try { await navigator.clipboard.writeText(location.href); notice = '実行した内容のリンクをコピーしました。'; }
-		catch { notice = 'リンクをコピーできませんでした。ブラウザのアドレス欄の文字列を使ってください。'; }
+		try { await navigator.clipboard.writeText(location.href); notice = 'copied'; }
+		catch { notice = 'copyFailed'; }
 	}
 	function keydown(event: KeyboardEvent) {
 		if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); void execute().then(() => { if (pane === 'source') pane = 'result'; }); }
@@ -77,7 +202,7 @@
 		decodeState(location.hash).then((state) => {
 			if (!state || disposed) return;
 			exampleId = state.example; drafts[state.example] = state.source; enabledPlugins = state.plugins; selectedOperations = state.operations; shared = state.shared;
-		}).catch(() => { notice = 'リンクの内容を読めなかったので、最初のサンプルを表示しています。'; })
+		}).catch(() => { notice = 'badLink'; })
 			.then(() => initializePipeline())
 			.then(() => { if (!disposed) { ready = true; void execute(); } })
 			.catch((error: unknown) => { if (!disposed) loadError = error instanceof Error ? error.message : String(error); });
@@ -89,81 +214,81 @@
 
 <div class="playground">
 	<div class="toolbar">
-		<label class="example">入力<select bind:value={exampleId}>{#each examples as item (item.id)}<option value={item.id}>{item.name}</option>{/each}</select></label>
-		<fieldset class="chips"><legend>行う処理</legend>
+		<label class="example">{t.input}<select bind:value={exampleId}>{#each examples as item (item.id)}<option value={item.id}>{item.name[lang]}</option>{/each}</select></label>
+		<fieldset class="chips"><legend>{t.operations}</legend>
 			{#each operations as operation (operation.id)}
-				<label class="chip" title={operation.description}><input type="checkbox" checked={selectedOperations.includes(operation.id)} onchange={() => { selectedOperations = toggle(selectedOperations, operation.id); }} /><span>{operation.name}</span></label>
+				<label class="chip" title={operation.description[lang]}><input type="checkbox" checked={selectedOperations.includes(operation.id)} onchange={() => { selectedOperations = toggle(selectedOperations, operation.id); }} /><span>{operation.name[lang]}</span></label>
 			{/each}
 		</fieldset>
-		<label class="chip share" title="外すと処理ごとに解析し直します。"><input type="checkbox" bind:checked={shared} /><span>解析結果を共有</span></label>
+		<label class="chip share" title={t.shareTitle}><input type="checkbox" bind:checked={shared} /><span>{t.share}</span></label>
 		<details class="plugins">
-			<summary>プラグイン {enabledPlugins.length}/{plugins.length}</summary>
-			<div class="plugin-panel"><fieldset><legend>使う言語プラグイン</legend>
+			<summary>{t.plugins(enabledPlugins.length, plugins.length)}</summary>
+			<div class="plugin-panel"><fieldset><legend>{t.pluginLegend}</legend>
 				{#each plugins as plugin (plugin.id)}
-					<label class="option"><input type="checkbox" checked={enabledPlugins.includes(plugin.id)} onchange={() => { enabledPlugins = toggle(enabledPlugins, plugin.id); }} /><span>{plugin.name}{#if plugin.id === example.plugin}<small>この入力に対応</small>{/if}<small class="description">{plugin.description}</small></span></label>
+					<label class="option"><input type="checkbox" checked={enabledPlugins.includes(plugin.id)} onchange={() => { enabledPlugins = toggle(enabledPlugins, plugin.id); }} /><span>{plugin.name[lang]}{#if plugin.id === example.plugin}<small>{t.matchesInput}</small>{/if}<small class="description">{plugin.description[lang]}</small></span></label>
 				{/each}
 			</fieldset>
-			<p>対応するプラグインを外すと、その処理は実行されません。Vue のサーバー向け出力と、Vue の入力の Svelte による整形・コード検査には対応していません。型検査と、生成したコードの実行も行いません。</p></div>
+			<p>{t.pluginNote}</p></div>
 		</details>
 		<div class="actions">
-			<button class="quiet-button" onclick={copyLink} disabled={!result}>リンクをコピー</button>
-			<button class="run-button" disabled={!ready || running} onclick={execute} aria-keyshortcuts="Control+Enter Meta+Enter"><span aria-hidden="true">▶</span>{running ? '処理中…' : ready ? '実行' : '読み込み中…'}<kbd>{modifier}+Enter</kbd></button>
+			<button class="quiet-button" onclick={copyLink} disabled={!result}>{t.copyLink}</button>
+			<button class="run-button" disabled={!ready || running} onclick={execute} aria-keyshortcuts="Control+Enter Meta+Enter"><span aria-hidden="true">▶</span>{running ? t.running : ready ? t.run : t.loading}<kbd>{modifier}+Enter</kbd></button>
 		</div>
 	</div>
 	<div class="status" role="status" aria-live="polite">
-		{#if loadError}<p class="error">実行環境を読み込めませんでした：{loadError}</p>{:else if stale}<p class="stale">未実行の変更があります。表示は前回の結果です。{modifier}+Enter で実行します。</p>{:else if result && !result.ok}<p class="error">{result.message}</p>{/if}
-		{#if notice}<p class="notice">{notice}</p>{/if}
+		{#if loadError}<p class="error">{t.loadFailed}{loadError}</p>{:else if stale}<p class="stale">{t.stale(modifier)}</p>{:else if result && !result.ok}<p class="error">{result.message}</p>{/if}
+		{#if notice}<p class="notice">{t.notices[notice]}</p>{/if}
 	</div>
-	<div class="pane-switch" role="group" aria-label="表示する欄">
-		{#each [['source', '入力'], ['result', '結果'], ['record', '処理の記録']] as [id, name] (id)}<button aria-pressed={pane === id} onclick={() => { pane = id as typeof pane; }}>{name}</button>{/each}
+	<div class="pane-switch" role="group" aria-label={t.panes}>
+		{#each paneIds as id (id)}<button aria-pressed={pane === id} onclick={() => { pane = id; }}>{t.paneNames[id]}</button>{/each}
 	</div>
 	<div class="workspace">
-		<section class="source-panel" class:shown={pane === 'source'} aria-label="入力">
-			<div class="pane-heading"><h2>入力</h2><code>{example.filename}</code><button class="quiet-button" onclick={() => { drafts[exampleId] = example.source; }}>サンプルに戻す</button></div>
-			<div class="code-area"><CodePane bind:this={source} editable bind:value={drafts[exampleId]} {language} label="入力するソース" hint="editor-keys" /></div>
-			<div class="pane-footer"><span id="editor-keys">Tab は字下げ。Esc の後に Tab でエディタの外へ移動</span><span>{drafts[exampleId].split('\n').length} 行</span></div>
+		<section class="source-panel" class:shown={pane === 'source'} aria-label={t.input}>
+			<div class="pane-heading"><h2>{t.input}</h2><code>{example.filename}</code><button class="quiet-button" onclick={() => { drafts[exampleId] = example.source; }}>{t.resetSample}</button></div>
+			<div class="code-area"><CodePane bind:this={source} editable bind:value={drafts[exampleId]} {language} label={t.sourceLabel} hint="editor-keys" /></div>
+			<div class="pane-footer"><span id="editor-keys">{t.editorKeys}</span><span>{t.lines(drafts[exampleId].split('\n').length)}</span></div>
 		</section>
-		<section class="output-panel" class:shown={pane === 'result'} aria-label="処理の結果" aria-busy={running}>
+		<section class="output-panel" class:shown={pane === 'result'} aria-label={t.resultLabel} aria-busy={running}>
 			{#if step}
-				<div class="task-tabs" role="tablist" aria-label="実行した処理">
-					{#each steps as item, index (item.id)}<button role="tab" aria-selected={selectedStep === index} onclick={() => chooseStep(index)}>{taskLabel(item.id)}{#if problems(item).length}<span class="badge">{problems(item).length}</span>{/if}</button>{/each}
+				<div class="task-tabs" role="tablist" aria-label={t.executedTasks}>
+					{#each steps as item, index (item.id)}<button role="tab" aria-selected={selectedStep === index} onclick={() => chooseStep(index)}>{taskLabel(item.id, lang)}{#if problems(item).length}<span class="badge">{problems(item).length}</span>{/if}</button>{/each}
 				</div>
-				<div class="output-tabs" role="group" aria-label="確認する結果">
+				<div class="output-tabs" role="group" aria-label={t.resultTabs}>
 					{#each step.files as item, index (index)}<button aria-pressed={view === 'output' && fileIndex === index} onclick={() => { view = 'output'; fileIndex = index; }}>{fileLabel(item.name)}</button>{/each}
-					<button aria-pressed={view === 'artifacts'} onclick={() => { view = 'artifacts'; }} disabled={snapshots.length === 0}>構文木・解析結果</button>
-					<button aria-pressed={view === 'diagnostics'} onclick={() => { view = 'diagnostics'; }}>診断と指摘 ({stepProblems.length})</button>
+					<button aria-pressed={view === 'artifacts'} onclick={() => { view = 'artifacts'; }} disabled={snapshots.length === 0}>{t.artifacts}</button>
+					<button aria-pressed={view === 'diagnostics'} onclick={() => { view = 'diagnostics'; }}>{t.problems(stepProblems.length)}</button>
 				</div>
-				{#if view === 'artifacts' && snapshot}<div class="snapshot-picker"><label for="pipeline-artifact">解析結果</label><select id="pipeline-artifact" bind:value={artifactIndex}>{#each snapshots as item, index (index)}<option value={index}>{artifactLabel(item.name).name}</option>{/each}</select></div><div class="code-area"><CodePane value={snapshot.text} language="rust" label="構文木または解析結果" /></div>
+				{#if view === 'artifacts' && snapshot}<div class="snapshot-picker"><label for="pipeline-artifact">{t.artifact}</label><select id="pipeline-artifact" bind:value={artifactIndex}>{#each snapshots as item, index (index)}<option value={index}>{artifactLabel(item.name, lang).name}</option>{/each}</select></div><div class="code-area"><CodePane value={snapshot.text} language="rust" label={t.artifactPane} /></div>
 				{:else if view === 'diagnostics'}
 					<div class="diagnostics">
-						{#each stepProblems as problem, index (index)}<button class="diagnostic" onclick={() => { pane = 'source'; source?.select(problem.line, problem.column); }}><strong>{problem.line} 行 {problem.column} 列 · {problem.code}</strong><span>{problem.message}</span><small>{problem.kind} · 入力のこの位置へ移動</small></button>
-						{:else}<p class="empty-state">この処理の診断と指摘はありません。</p>{/each}
+						{#each stepProblems as problem, index (index)}<button class="diagnostic" onclick={() => { pane = 'source'; source?.select(problem.line, problem.column); }}><strong>{t.position(problem.line, problem.column, problem.code)}</strong><span>{problem.message}</span><small>{t.jump(t.kinds[problem.kind])}</small></button>
+						{:else}<p class="empty-state">{t.noProblems}</p>{/each}
 					</div>
-				{:else if file}<div class="code-area"><CodePane value={file.text} language={outputLanguage(file.name, executedLanguage)} label="処理の出力" /></div>
-				{:else}<p class="empty-state">出力ファイルはありません。「診断と指摘 ({stepProblems.length})」を確認してください。</p>{/if}
-				<div class="pane-footer"><span>{view === 'artifacts' ? 'Rust が実際に持つ構造' : 'Rust のプラグインによる出力'}</span><span>{executedFilename}</span></div>
-			{:else}<div class="empty-state"><h3>{result?.ok ? '実行する処理がありません' : '実行結果をここに表示します'}</h3><p>{result?.ok ? '入力に対応するプラグインと処理を選び、実行してください。' : 'プラグインと処理を選び、実行してください。'}</p></div>{/if}
+				{:else if file}<div class="code-area"><CodePane value={file.text} language={outputLanguage(file.name, executedLanguage)} label={t.outputPane} /></div>
+				{:else}<p class="empty-state">{t.noFiles(stepProblems.length)}</p>{/if}
+				<div class="pane-footer"><span>{view === 'artifacts' ? t.realStructure : t.pluginOutput}</span><span>{executedFilename}</span></div>
+			{:else}<div class="empty-state"><h3>{result?.ok ? t.nothingToRun : t.resultsHere}</h3><p>{result?.ok ? t.chooseForInput : t.choose}</p></div>{/if}
 		</section>
 	</div>
 	<section class="record" class:shown={pane === 'record'} aria-labelledby="record-heading">
 		<div class="record-heading">
-			<h2 id="record-heading">処理の記録</h2>
-			<p>{executedShared ? '各処理は同じ入力を読み、計算済みの解析結果を共有します。' : '共有を外しているので、処理ごとに解析し直します。'}前の処理の出力は次の処理に渡しません。</p>
-			{#if steps.length}<span class="counts">構文の読み取り <strong>{parseCount} 回</strong><span aria-hidden="true">/</span>解析結果の計算 <strong>{computations} 回</strong></span>{/if}
+			<h2 id="record-heading">{t.record}</h2>
+			<p>{executedShared ? t.sharedNote : t.isolatedNote}{lang === 'en' ? ' ' : ''}{t.noPassing}</p>
+			{#if steps.length}<span class="counts">{t.parses} <strong>{t.times(parseCount)}</strong><span aria-hidden="true">/</span>{t.computations} <strong>{t.times(computations)}</strong></span>{/if}
 		</div>
 		{#if steps.length}
 			<div class="table-scroll">
 				<table>
-					<caption>解析結果ごとに、各処理が計算したか再利用したかを示します。空欄は使っていない解析結果です。</caption>
-					<thead><tr><th scope="col">解析結果</th>{#each steps as item, index (item.id)}<th scope="col"><button class:active={selectedStep === index} onclick={() => { chooseStep(index); pane = 'result'; }}>{taskLabel(item.id)}</button></th>{/each}</tr></thead>
+					<caption>{t.tableCaption}</caption>
+					<thead><tr><th scope="col">{t.artifact}</th>{#each steps as item, index (item.id)}<th scope="col"><button class:active={selectedStep === index} onclick={() => { chooseStep(index); pane = 'result'; }}>{taskLabel(item.id, lang)}</button></th>{/each}</tr></thead>
 					<tbody>
 						{#each table as row (row.name)}
-							<tr><th scope="row" title={artifactLabel(row.name).description}>{artifactLabel(row.name).name}<code>{row.name}</code></th>{#each row.cells as cell, index (index)}<td class:computed={cell.computed > 0} class:reused={cell.computed === 0 && cell.reused > 0}>{cellText(cell)}</td>{/each}</tr>
+							<tr><th scope="row" title={artifactLabel(row.name, lang).description}>{artifactLabel(row.name, lang).name}<code>{row.name}</code></th>{#each row.cells as cell, index (index)}<td class:computed={cell.computed > 0} class:reused={cell.computed === 0 && cell.reused > 0}>{cellText(cell)}</td>{/each}</tr>
 						{/each}
 					</tbody>
 				</table>
 			</div>
-		{:else}<p class="empty-state">実行した処理と、解析結果の計算・再利用をここに表示します。</p>{/if}
+		{:else}<p class="empty-state">{t.recordEmpty}</p>{/if}
 	</section>
 </div>
 

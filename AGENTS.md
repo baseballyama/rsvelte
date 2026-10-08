@@ -193,7 +193,7 @@ When you add or remove a skill, update this table in the same change.
 | Skill | Use when |
 |---|---|
 | `coding-principles` | writing any code (always); finding duplicate code |
-| `site-writing` | writing or reviewing substantial Japanese explanations on the site |
+| `site-writing` | writing or reviewing substantial Japanese or English explanations on the site |
 | `github-actions` | writing or reviewing `.github/workflows/` |
 | `review` | reviewing a branch or PR as the code owner |
 | `pr` | creating a PR, fixing its CI, answering its review comments, marking it ready |

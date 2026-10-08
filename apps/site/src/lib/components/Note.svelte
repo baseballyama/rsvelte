@@ -1,15 +1,19 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { bilingual } from '$lib/i18n';
+	import { readerLang } from '$lib/lang.svelte';
 
 	let { children }: { children: Snippet } = $props();
 
 	const id = $props.id();
+	const text = bilingual({ open: '注を開く', label: '注' }, { open: 'Open the note', label: 'Note' });
+	const t = $derived(text[readerLang()]);
 </script>
 
 <!-- The marker and the note share one CSS counter, so numbering needs no bookkeeping. The note is a popover anchored to its marker, so opening it does not reflow the sentence around it. -->
 <sup class="note-ref"
-	><button type="button" popovertarget="note-{id}" style:anchor-name="--note-{id}" aria-label="注を開く"></button></sup
-><span class="note" id="note-{id}" popover="auto" role="note" style:position-anchor="--note-{id}"
+	><button type="button" popovertarget="note-{id}" style:anchor-name="--note-{id}" aria-label={t.open}></button></sup
+><span class="note" data-label={t.label} id="note-{id}" popover="auto" role="note" style:position-anchor="--note-{id}"
 	>{@render children()}</span
 >
 
@@ -69,7 +73,7 @@
 		}
 	}
 	.note::before {
-		content: '注';
+		content: attr(data-label);
 		display: block;
 		font-family: var(--font-mono);
 		font-size: 11px;

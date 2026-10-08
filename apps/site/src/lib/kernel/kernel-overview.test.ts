@@ -1,9 +1,12 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { chapters } from '$lib/site';
+import { chaptersIn } from '$lib/site';
 import { chapterPositions, overviewEdges, overviewNodes, positionLabel, sharedParts } from './kernel-overview';
 import { sources } from '$lib/build/sources';
+import { langs } from '$lib/i18n';
+
+const chapters = chaptersIn('ja');
 
 const root = path.resolve(import.meta.dirname, '../../../../..');
 
@@ -43,7 +46,7 @@ describe('chapter positions', () => {
 	it('name existing nodes and existing chapters', () => {
 		const pages = new Set(chapters.map((chapter) => chapter.href));
 		expect(Object.keys(chapterPositions).filter((href) => !pages.has(href))).toEqual([]);
-		for (const ids of Object.values(chapterPositions)) for (const id of ids) expect(() => positionLabel(id)).not.toThrow();
+		for (const ids of Object.values(chapterPositions)) for (const id of ids) for (const lang of langs) expect(positionLabel(id, lang)).not.toBe('');
 	});
 
 	it('light up in the chapter strip, which lists every node', () => {

@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { bilingual } from '$lib/i18n';
+	import { readerLang } from '$lib/lang.svelte';
 	import { chapterByHref, sectionTitle } from '$lib/site';
 
 	let { id }: { id: string } = $props();
+
+	const linkLabel = bilingual((title: string) => `「${title}」へのリンク`, (title: string) => `Link to "${title}"`);
 
 	const chapter = $derived(chapterByHref(page.url.pathname));
 	const index = $derived(chapter ? chapter.sections.findIndex((s) => s.id === id) + 1 : 0);
@@ -18,6 +22,6 @@
 	>{title}<a
 		href="#{id}"
 		class="ml-2 inline-block align-baseline font-mono text-[0.75em] font-normal text-muted opacity-0 group-hover:opacity-100 hover:text-accent focus-visible:opacity-100 max-md:opacity-40"
-		aria-label="「{title}」へのリンク">#</a
+		aria-label={linkLabel[readerLang()](title)}>#</a
 	>
 </h2>

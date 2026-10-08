@@ -1,6 +1,54 @@
 <script lang="ts">
 	import Figure from '$lib/components/Figure.svelte';
 	import { TOOLBAR as d, type Range } from '$lib/data/layers';
+	import { bilingual } from '$lib/i18n';
+	import { readerLang } from '$lib/lang.svelte';
+
+	const text = bilingual(
+		{
+			label: '図 5.1 · Svelte の構文木と解析結果の例',
+			surface: '元の構文木（syntax_tree）',
+			compiled: 'コンパイル用に整理した構文木',
+			bindings: '名前解決（束縛）',
+			name: '名前',
+			declaration: '宣言',
+			references: '参照',
+			referencesTitle: 'テンプレートからの参照 / 読み取りの合計',
+			lint: 'lint の指摘',
+			hover: '行にポインタを重ねると、対応する位置がつながります。',
+			tree: 'コンパイル用に整理した構文木',
+			of: ' の ',
+			origin: ' は、その要素を作った',
+			surfaceElement: '元の構文木の要素',
+			number: 'の番号です。',
+			elseIf: ' は表層では ',
+			inside: ' の中の ',
+			branch: ' ですが、コンパイル用に整理した構文木では一つの ',
+			rest: ' の枝になります。束縛にポインタを重ねると、宣言（塗り）とテンプレートからの参照（枠）が光ります。空白だけのテキスト要素は省いています。値はすべて Rust のパイプラインが出したもので、lint の二件は ESLint の出力と位置まで一致します。'
+		},
+		{
+			label: 'Figure 5.1 · An example of a Svelte syntax tree and its analysis results',
+			surface: 'Original syntax tree (syntax_tree)',
+			compiled: 'Syntax tree arranged for compiling',
+			bindings: 'Name resolution (bindings)',
+			name: 'name',
+			declaration: 'declaration',
+			references: 'references',
+			referencesTitle: 'References from the template / total reads',
+			lint: 'Lint findings',
+			hover: 'Point at a row to connect the matching positions. In the ',
+			tree: 'syntax tree arranged for compiling',
+			of: ', ',
+			origin: ' is the number of the ',
+			surfaceElement: 'original syntax tree element',
+			number: ' that the element was built from. In the surface layer, ',
+			elseIf: ' sits inside ',
+			inside: ' as an ',
+			branch: ', but in the syntax tree arranged for compiling it becomes a branch of one ',
+			rest: '. Point at a binding to light up its declaration (filled) and its references from the template (outlined). Text elements that hold only whitespace are left out. Every value comes from the Rust pipeline, and the two lint findings match the output of ESLint, positions included.'
+		}
+	);
+	const t = $derived(text[readerLang()]);
 
 	type Tone = '' | 'node' | 'declaration' | 'ref';
 
@@ -69,7 +117,7 @@
 	};
 </script>
 
-<Figure label="図 5.1 · Svelte の構文木と解析結果の例" wide>
+<Figure label={t.label} wide>
 	<div class="border-b border-line p-4">
 		<div class="mb-2 font-mono text-[11.5px] tracking-normal text-muted">Toolbar.svelte</div>
 			<pre class="overflow-x-auto font-mono text-[12px] leading-[1.65] tracking-normal text-fg-2">{#each runs as r, i (i)}<span
@@ -78,7 +126,7 @@
 	</div>
 	<div class="grid border-b border-line md:grid-cols-2">
 		<div class="min-w-0 border-b border-line p-4 md:border-r md:border-b-0">
-			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-c-src">元の構文木（syntax_tree）</div>
+			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-c-src">{t.surface}</div>
 			<ul class="font-mono text-[12px] leading-[1.9] tracking-normal">
 				{#each d.syntax_tree as r, i (i)}
 					<li style:padding-left="{r.depth * 12}px">
@@ -101,7 +149,7 @@
 			</ul>
 		</div>
 		<div class="min-w-0 p-4">
-			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-c-gen">コンパイル用に整理した構文木</div>
+			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-c-gen">{t.compiled}</div>
 			<ul class="font-mono text-[12px] leading-[1.9] tracking-normal">
 				{#each d.compiler_syntax_tree as r, i (i)}
 					<li style:padding-left="{r.depth * 12}px">
@@ -125,10 +173,10 @@
 	</div>
 	<div class="grid md:grid-cols-2">
 		<div class="min-w-0 border-b border-line p-4 md:border-r md:border-b-0">
-			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-c-map">名前解決（束縛）</div>
+			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-c-map">{t.bindings}</div>
 			<table class="w-full font-mono text-[12px] tracking-normal">
 				<thead class="text-left text-muted">
-					<tr><th class="font-normal">名前</th><th class="font-normal">宣言</th><th class="font-normal">rune</th><th class="text-right font-normal">参照</th></tr>
+					<tr><th class="font-normal">{t.name}</th><th class="font-normal">{t.declaration}</th><th class="font-normal">rune</th><th class="text-right font-normal">{t.references}</th></tr>
 				</thead>
 				<tbody>
 					{#each d.bindings as b (b.id)}
@@ -141,14 +189,14 @@
 							</td>
 							<td>{b.declaration}</td>
 							<td>{b.rune}</td>
-							<td class="text-right tnum" title="テンプレートからの参照 / 読み取りの合計">{refCount(b.id)} / {b.reads}</td>
+							<td class="text-right tnum" title={t.referencesTitle}>{refCount(b.id)} / {b.reads}</td>
 						</tr>
 					{/each}
 				</tbody>
 			</table>
 		</div>
 		<div class="min-w-0 p-4">
-			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-muted">lint の指摘</div>
+			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-muted">{t.lint}</div>
 			<ul class="space-y-1 font-mono text-[12px] tracking-normal">
 				{#each d.lint as f, i (i)}
 					<li>
@@ -166,10 +214,10 @@
 		</div>
 	</div>
 	{#snippet caption()}
-		行にポインタを重ねると、対応する位置がつながります。<span class="c-gen">コンパイル用に整理した構文木</span> の <code>← n</code> は、その要素を作った<span
-			class="c-src">元の構文木の要素</span
-		>の番号です。<code>{'{:else if}'}</code> は表層では <code>alternate</code> の中の <code>If</code> ですが、コンパイル用に整理した構文木では一つの
-		<code>If</code> の枝になります。束縛にポインタを重ねると、宣言（塗り）とテンプレートからの参照（枠）が光ります。空白だけのテキスト要素は省いています。値はすべて
-		Rust のパイプラインが出したもので、lint の二件は ESLint の出力と位置まで一致します。
+		{t.hover}<span class="c-gen">{t.tree}</span>{t.of}<code>← n</code>{t.origin}<span class="c-src"
+			>{t.surfaceElement}</span
+		>{t.number}<code>{'{:else if}'}</code>{t.elseIf}<code>alternate</code>{t.inside}<code>If</code>{t.branch}<code
+			>If</code
+		>{t.rest}
 	{/snippet}
 </Figure>

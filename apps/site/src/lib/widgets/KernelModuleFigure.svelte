@@ -1,82 +1,124 @@
 <script lang="ts">
 	import Figure from '$lib/components/Figure.svelte';
+	import { bilingual, localizedPath, type Lang } from '$lib/i18n';
+	import { readerLang } from '$lib/lang.svelte';
 	import { moduleDescription } from '$lib/module-descriptions';
 
 	interface KernelModule {
 		key: string;
 		file: string;
 		lines: number;
-		title: string;
-		summary: string;
+		title: Record<Lang, string>;
+		summary: Record<Lang, string>;
 		chapter?: { href: string; number: string };
 	}
 
 	let { modules }: { modules: KernelModule[] } = $props();
+	const text = bilingual(
+		{
+			label: '図 1.4 · モジュールの役割と関係',
+			files: '実装ファイルと行数',
+			lines: (count: number) => `${count} 行`,
+			input: '入力：文書と実行するタスク',
+			perDocument: '文書ごとに処理を進める',
+			plugin: '言語プラグインの処理を呼び出す',
+			pluginWork: '構文解析・名前解決・コンパイル・整形・コード検査・型検査用コードの生成',
+			shared: '必要な計算結果を求める ↔ 保存した結果を再利用する',
+			common: '各処理で使う共通機能',
+			collect: '生成したファイルと診断をまとめる',
+			result: '結果：呼び出し側へ返す',
+			support: '上の処理を支える共通機能',
+			sourceNote: '木や解析結果から、同じ位置と識別番号を参照します。',
+			performanceNote: '実行する処理を計測し、作業用の保存領域を再利用します。',
+			caption: '矢印は処理と結果の流れを表す概念図です。モジュール間の依存関係や、すべてのタスクが同じ順序で機能を使うことを表すものではありません。',
+			pluginCaption: '破線の枠はカーネルが呼び出す言語プラグインの処理です。'
+		},
+		{
+			label: 'Figure 1.4 · Roles of the modules and how they relate',
+			files: 'Implementation files and line counts',
+			lines: (count: number) => `${count} ${count === 1 ? 'line' : 'lines'}`,
+			input: 'Input: documents and the tasks to run',
+			perDocument: 'Work goes on one document at a time',
+			plugin: 'Call the work of a language plugin',
+			pluginWork: 'Parsing, name resolution, compiling, formatting, linting, and generating code for type checking',
+			shared: 'Ask for needed results ↔ reuse stored results',
+			common: 'Shared features that each step uses',
+			collect: 'Collect the generated files and diagnostics',
+			result: 'Result: returned to the caller',
+			support: 'Shared features that support the work above',
+			sourceNote: 'Trees and analysis results refer to the same positions and identifiers.',
+			performanceNote: 'Measures the work that runs, and reuses working storage.',
+			caption: 'The arrows show a conceptual flow of work and results. They do not show dependencies between modules, and they do not mean that every task uses the features in the same order.',
+			pluginCaption: 'The dashed box is the work of a language plugin that the kernel calls.'
+		}
+	);
+	const lang = $derived(readerLang());
+	const t = $derived(text[lang]);
 </script>
 
 {#snippet group(name: string)}
 	{@const key = `kernel/${name}`}
-	<h3>{moduleDescription(key).title}</h3>
+	<h3>{moduleDescription(key).title[lang]}</h3>
 	<ul class="roles">
 		{#each modules.filter(module => module.key.startsWith(`${key}/`)) as module (module.key)}
 			<li>
 				{#if module.chapter}
-					<a href={module.chapter.href}>{module.title}<span aria-hidden="true"> ↗</span></a>
+					<a href={localizedPath(module.chapter.href, lang)}>{module.title[lang]}<span aria-hidden="true"> ↗</span></a>
 				{:else}
-					<span>{module.title}</span>
+					<span>{module.title[lang]}</span>
 				{/if}
 			</li>
 		{/each}
 	</ul>
 	<details>
-		<summary>実装ファイルと行数</summary>
+		<summary>{t.files}</summary>
 		<dl>
 			{#each modules.filter(module => module.key === key || module.key.startsWith(`${key}/`)) as module (module.key)}
 				<div>
-					<dt><code>{module.file}</code><span class="lines">{module.lines} 行</span></dt>
-					<dd>{module.summary}</dd>
+					<dt><code>{module.file}</code><span class="lines">{t.lines(module.lines)}</span></dt>
+					<dd>{module.summary[lang]}</dd>
 				</div>
 			{/each}
 		</dl>
 	</details>
 {/snippet}
 
-<Figure label="図 1.4 · モジュールの役割と関係">
+<Figure label={t.label}>
 	<div class="module-map">
 		<div class="flow">
-			<p class="endpoint">入力：文書と実行するタスク</p>
-			<p class="connector"><span aria-hidden="true">↓</span> 文書ごとに処理を進める</p>
+			<p class="endpoint">{t.input}</p>
+			<p class="connector"><span aria-hidden="true">↓</span> {t.perDocument}</p>
 			<section class="execution">
 				{@render group('computation')}
 				<div class="plugin">
-					<h4>言語プラグインの処理を呼び出す</h4>
-					<p>構文解析・名前解決・コンパイル・整形・コード検査・型検査用コードの生成</p>
-					<p class="shared">必要な計算結果を求める ↔ 保存した結果を再利用する</p>
+					<h4>{t.plugin}</h4>
+					<p>{t.pluginWork}</p>
+					<p class="shared">{t.shared}</p>
 				</div>
 			</section>
-			<p class="connector"><span aria-hidden="true">↓</span> 各処理で使う共通機能</p>
+			<p class="connector"><span aria-hidden="true">↓</span> {t.common}</p>
 			<div class="results">
 				<section>{@render group('output')}</section>
 				<section>{@render group('diagnostics')}</section>
 			</div>
-			<p class="connector"><span aria-hidden="true">↓</span> 生成したファイルと診断をまとめる</p>
-			<p class="endpoint">結果：呼び出し側へ返す</p>
+			<p class="connector"><span aria-hidden="true">↓</span> {t.collect}</p>
+			<p class="endpoint">{t.result}</p>
 		</div>
 		<div class="support">
-			<p class="support-label">上の処理を支える共通機能 <span aria-hidden="true">↑</span></p>
+			<p class="support-label">{t.support} <span aria-hidden="true">↑</span></p>
 			<section>
 				{@render group('source')}
-				<p class="support-note">木や解析結果から、同じ位置と識別番号を参照します。</p>
+				<p class="support-note">{t.sourceNote}</p>
 			</section>
 			<section>
 				{@render group('performance')}
-				<p class="support-note">実行する処理を計測し、作業用の保存領域を再利用します。</p>
+				<p class="support-note">{t.performanceNote}</p>
 			</section>
 		</div>
 	</div>
 	{#snippet caption()}
-		矢印は処理と結果の流れを表す概念図です。モジュール間の依存関係や、すべてのタスクが同じ順序で機能を使うことを表すものではありません。
-		破線の枠はカーネルが呼び出す言語プラグインの処理です。
+		{t.caption}
+		{t.pluginCaption}
 	{/snippet}
 </Figure>
 
