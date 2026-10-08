@@ -25,11 +25,12 @@ const INVALID_AWAIT_DIRECTIVES = [
 	'animation',
 	'binding',
 ];
-const DIAGNOSTIC_CASES = new Set(
-	INVALID_AWAIT_DIRECTIVES.map(
+const DIAGNOSTIC_CASES = new Set([
+	...INVALID_AWAIT_DIRECTIVES.map(
 		(directive) => `invalid-await-${directive}.svelte`,
 	),
-);
+	'class-literal-key.svelte',
+]);
 const CASES = [
 	{
 		dir: 'crates/languages/vue/compile_svelte/tests/fixtures',
