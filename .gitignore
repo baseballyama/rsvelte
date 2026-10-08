@@ -2,6 +2,8 @@
 !fixtures
 # Anchored: unanchored names would also hide fixture inputs whose original path contains them.
 /target/
+/target-*/
+/tools/performance/workloads/*/target/
 /tools/*/node_modules/
 # Per-unit implementation output and cached snapshots. Original path segments with these names are
 # stored as `~actual` / `~cache` (tools/fixtures/src/paths.ts), so the patterns reach only unit children.
@@ -9,4 +11,5 @@
 /fixtures/**/cache/
 # rsvelte's output in crate fixture tests; `expected/` next to it is committed.
 /crates/**/tests/fixtures/**/actual/
+/crates/**/tests/rules/**/actual/
 .DS_Store
