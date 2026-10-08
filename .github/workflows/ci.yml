@@ -82,6 +82,8 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: node --test tools/structure/test/*.test.ts
       - run: node tools/structure/bin/structure.ts
+      # The semantic tests build other crates with --offline, so fetch the whole lockfile first.
+      - run: cargo fetch
       - run: cargo build --release -p rsvelte_command_line
       - run: node tools/fixtures/bin/run-all.ts
       - run: node bin/fixtures.ts check
