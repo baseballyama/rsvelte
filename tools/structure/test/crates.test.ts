@@ -136,7 +136,7 @@ test('the kernel rejects language data and shared task contracts', () => {
 	const kernel = metadata.packages.find(pkg => pkg.name === 'rsvelte_kernel');
 	assert.ok(kernel);
 	for (const name of ['rsvelte_svelte', 'rsvelte_typescript', 'rsvelte_lint']) {
-		const injected = { ...kernel, dependencies: [...kernel.dependencies, { name }] };
+		const injected: Package = { ...kernel, dependencies: [...kernel.dependencies, { name }] };
 		assert.deepEqual(toolDependencies([injected]), [`rsvelte_kernel depends on ${name}`]);
 	}
 	for (const pkg of metadata.packages.filter(pkg => pkg.manifest_path.includes('/core/'))) {
@@ -153,7 +153,7 @@ test('cores reject tools and hosts whatever their names end with', () => {
 		'rsvelte_svelte_typescript_projection', 'rsvelte_svelte_compile_vapor', 'rsvelte_command_line',
 	]) {
 		assert.ok(metadata.packages.some(pkg => pkg.name === name), `${name} exists`);
-		const injected = { ...core, dependencies: [...core.dependencies, { name }] };
+		const injected: Package = { ...core, dependencies: [...core.dependencies, { name }] };
 		assert.deepEqual(toolDependencies([injected]), [`rsvelte_svelte depends on ${name}`]);
 	}
 });
