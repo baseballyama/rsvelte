@@ -13,7 +13,7 @@ root=$(cd "$(dirname "$0")/../.." && pwd)
 work="$root/target/linux"
 rm -rf "$work/src"
 mkdir -p "$work/src" "$work/target"
-git -C "$root" ls-files -z -- Cargo.toml Cargo.lock rust-toolchain.toml crates tools/performance fixtures \
+git -C "$root" ls-files -z -- Cargo.toml Cargo.lock rust-toolchain.toml crates tools/config tools/performance fixtures \
   | xargs -0 git -C "$root" checkout-index --force --prefix="$work/src/" --
 docker build -q -t rsvelte-performance "$root/tools/performance" >/dev/null
 docker run --rm \
