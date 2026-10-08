@@ -76,6 +76,9 @@ jobs:
           version: 10.33.4
       - run: pnpm install --frozen-lockfile
         working-directory: tools/fixtures
+      # The fixture tools import tools/type-information by path, so its packages are needed too.
+      - run: pnpm install --frozen-lockfile
+        working-directory: tools/type-information
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: node --test tools/structure/test/*.test.ts
       - run: node tools/structure/bin/structure.ts
