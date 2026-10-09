@@ -1330,78 +1330,86 @@ fn emit_external_shadows(
         fs::create_dir_all(&pkg.mirror_dir)?;
         let _ = symlink_dir(&real_nm, &mirror_nm);
     }
+    let emitted: Vec<Result<bool, OverlayError>> = pkg
+        .svelte_files
+        .par_iter()
+        .map(|abs_source| -> Result<bool, OverlayError> {
+            let rel = safe_relative(abs_source, &pkg.real_dir);
+            let source = fs::read_to_string(abs_source)?;
+            let is_ts_file = is_typescript_component(&source);
+            let ext = shadow_extension_for(is_ts_file);
+            let tsx_path = pkg.mirror_dir.join(append_extension(&rel, ext));
+            let dts_path = pkg.mirror_dir.join(append_extension(&rel, ".d.ts"));
+            if let Some(parent) = tsx_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            remove_stale_counterpart(&tsx_path, ext);
+            let opts = Svelte2TsxOptions {
+                filename: abs_source.display().to_string(),
+                is_ts_file,
+                mode: Svelte2TsxMode::Ts,
+                accessors,
+                namespace,
+                version: SvelteVersion::V5,
+                runes: None,
+                emit_jsdoc: true,
+                // Imports that stay within the external package keep resolving via
+                // the package↔mirror `rootDirs` pair; only imports escaping the
+                // package get rebased.
+                rewrite_external_imports: Some(RewriteExternalImportsOptions {
+                    source_path: abs_source.display().to_string(),
+                    generated_path: tsx_path.display().to_string(),
+                    workspace_path: pkg.real_dir.display().to_string(),
+                }),
+                ..Svelte2TsxOptions::default()
+            };
+            // A component the user never asked about must not be able to fail the
+            // whole run: an external package is somebody else's source, and the
+            // consumer can only lose the shadow's extra precision, falling back to
+            // the ambient `*.svelte` wildcard for that one file (issue #2714).
+            let Ok(result) = svelte2tsx(&source, opts) else {
+                return Ok(false);
+            };
+            let mut tsx_code =
+                rewrite_companion_module_imports(&result.code, abs_source, &tsx_path);
+            if blank_svelte_reference {
+                blank_svelte_type_reference(&mut tsx_code);
+            }
+            // An external package commonly imports its OWN components through the
+            // same public alias its consumers use (`$lib/Input.svelte` from
+            // inside `SelectionMenu.svelte`, both living in the same package) —
+            // without this, that self-referential import is left unrewritten,
+            // falls back to the ambient `*.svelte` wildcard, and poisons any
+            // `ComponentProps<typeof Input>` a consumer computes through it (#1887).
+            if let Some(resolver) = pkg_resolver.as_ref().or(resolver) {
+                tsx_code = rewrite_aliased_svelte_imports(
+                    &tsx_code,
+                    abs_source,
+                    &tsx_path,
+                    workspace,
+                    emit_dir,
+                    resolver,
+                    ext_pairs,
+                    Some(&pkg.real_dir),
+                );
+            }
+            fs::write(&tsx_path, &tsx_code)?;
+            let dts_content = shadow_reexport(&tsx_path);
+            // See the twin's comment in `materialize_overlay_with`: next to a
+            // `.jsx` shadow this file IS its declaration counterpart, so writing
+            // it makes the shadow resolve to itself.
+            if ext == ".tsx" {
+                fs::write(&dts_path, &dts_content)?;
+            } else {
+                let _ = fs::remove_file(&dts_path);
+            }
+            write_esm_bridge(&tsx_path, &dts_content, false)?;
+            Ok(ext == ".jsx")
+        })
+        .collect();
     let mut any_js_shadow = false;
-    for abs_source in &pkg.svelte_files {
-        let rel = safe_relative(abs_source, &pkg.real_dir);
-        let source = fs::read_to_string(abs_source)?;
-        let is_ts_file = is_typescript_component(&source);
-        let ext = shadow_extension_for(is_ts_file);
-        any_js_shadow |= ext == ".jsx";
-        let tsx_path = pkg.mirror_dir.join(append_extension(&rel, ext));
-        let dts_path = pkg.mirror_dir.join(append_extension(&rel, ".d.ts"));
-        if let Some(parent) = tsx_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        remove_stale_counterpart(&tsx_path, ext);
-        let opts = Svelte2TsxOptions {
-            filename: abs_source.display().to_string(),
-            is_ts_file,
-            mode: Svelte2TsxMode::Ts,
-            accessors,
-            namespace,
-            version: SvelteVersion::V5,
-            runes: None,
-            emit_jsdoc: true,
-            // Imports that stay within the external package keep resolving via
-            // the package↔mirror `rootDirs` pair; only imports escaping the
-            // package get rebased.
-            rewrite_external_imports: Some(RewriteExternalImportsOptions {
-                source_path: abs_source.display().to_string(),
-                generated_path: tsx_path.display().to_string(),
-                workspace_path: pkg.real_dir.display().to_string(),
-            }),
-            ..Svelte2TsxOptions::default()
-        };
-        // A component the user never asked about must not be able to fail the
-        // whole run: an external package is somebody else's source, and the
-        // consumer can only lose the shadow's extra precision, falling back to
-        // the ambient `*.svelte` wildcard for that one file (issue #2714).
-        let Ok(result) = svelte2tsx(&source, opts) else {
-            continue;
-        };
-        let mut tsx_code = rewrite_companion_module_imports(&result.code, abs_source, &tsx_path);
-        if blank_svelte_reference {
-            blank_svelte_type_reference(&mut tsx_code);
-        }
-        // An external package commonly imports its OWN components through the
-        // same public alias its consumers use (`$lib/Input.svelte` from
-        // inside `SelectionMenu.svelte`, both living in the same package) —
-        // without this, that self-referential import is left unrewritten,
-        // falls back to the ambient `*.svelte` wildcard, and poisons any
-        // `ComponentProps<typeof Input>` a consumer computes through it (#1887).
-        if let Some(resolver) = pkg_resolver.as_ref().or(resolver) {
-            tsx_code = rewrite_aliased_svelte_imports(
-                &tsx_code,
-                abs_source,
-                &tsx_path,
-                workspace,
-                emit_dir,
-                resolver,
-                ext_pairs,
-                Some(&pkg.real_dir),
-            );
-        }
-        fs::write(&tsx_path, &tsx_code)?;
-        let dts_content = shadow_reexport(&tsx_path);
-        // See the twin's comment in `materialize_overlay_with`: next to a
-        // `.jsx` shadow this file IS its declaration counterpart, so writing
-        // it makes the shadow resolve to itself.
-        if ext == ".tsx" {
-            fs::write(&dts_path, &dts_content)?;
-        } else {
-            let _ = fs::remove_file(&dts_path);
-        }
-        write_esm_bridge(&tsx_path, &dts_content, false)?;
+    for shadow in emitted {
+        any_js_shadow |= shadow?;
     }
     Ok(any_js_shadow)
 }
@@ -2940,16 +2948,20 @@ fn compute_alias_path_overrides(
         candidates.push((canonicalized(module).with_extension(""), bridge.clone()));
     }
 
+    let alias_targets: Vec<(&String, PathBuf)> = alias_prefixes
+        .iter()
+        .map(|(prefix, target_dir)| (prefix, canonicalized(target_dir)))
+        .collect();
+
     let mut out = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (real_canon, tsx_path) in &candidates {
         // Longest target-dir prefix wins when aliases nest.
-        let best = alias_prefixes
+        let best = alias_targets
             .iter()
-            .filter_map(|(prefix, target_dir)| {
-                let target_canon = canonicalized(target_dir);
+            .filter_map(|(prefix, target_canon)| {
                 real_canon
-                    .strip_prefix(&target_canon)
+                    .strip_prefix(target_canon)
                     .ok()
                     .map(|rel| (prefix, rel.to_path_buf()))
             })
@@ -5316,6 +5328,61 @@ mod tests {
             consumer_tsx.contains("survey-options.svelte.tsx"),
             "rewrite did not point at the external mirror's shadow:\n{consumer_tsx}"
         );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// Every component of an external package gets its shadow, declaration and
+    /// ESM bridge, a JS component still marks the overlay as needing `allowJs`
+    /// shadows, and a component svelte2tsx cannot handle is skipped on its own.
+    #[test]
+    fn external_package_emits_every_component_shadow() {
+        let tmp = std::env::temp_dir().join(format!("svc_xpkg_all_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("pkg-a/src")).unwrap();
+        fs::write(
+            tmp.join("pkg-a/tsconfig.json"),
+            "{\"compilerOptions\":{\"paths\":{\"$libs/*\":[\"../pkg-libs/*\"]}}}",
+        )
+        .unwrap();
+        let names: Vec<String> = (0..24).map(|i| format!("group-{}/c{i}", i % 4)).collect();
+        for name in &names {
+            let path = tmp.join(format!("pkg-libs/{name}.svelte"));
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(
+                path,
+                "<script lang=\"ts\">let { id }: { id: string } = $props();</script>\n<div>{id}</div>\n",
+            )
+            .unwrap();
+        }
+        fs::write(
+            tmp.join("pkg-libs/plain.svelte"),
+            "<script>let { id } = $props();</script>\n<div>{id}</div>\n",
+        )
+        .unwrap();
+        fs::write(tmp.join("pkg-libs/broken.svelte"), "<div>{</div>\n").unwrap();
+        fs::write(
+            tmp.join("pkg-a/src/consumer.svelte"),
+            "<script lang=\"ts\">import C0 from '$libs/group-0/c0.svelte';</script>\n<C0 id=\"a\" />\n",
+        )
+        .unwrap();
+
+        let workspace = tmp.join("pkg-a");
+        let files = vec![workspace.join("src/consumer.svelte")];
+        let tsconfig = workspace.join("tsconfig.json");
+        materialize_overlay_with(&workspace, &files, Some(&tsconfig), false, &[]).unwrap();
+
+        let mirror = workspace.join(".svelte-check/ext/0");
+        for name in &names {
+            for suffix in [".svelte.tsx", ".svelte.d.ts", ".d.svelte.ts"] {
+                assert!(
+                    mirror.join(format!("{name}{suffix}")).is_file(),
+                    "missing {name}{suffix}"
+                );
+            }
+        }
+        assert!(mirror.join("plain.svelte.jsx").is_file());
+        assert!(!mirror.join("broken.svelte.tsx").exists());
 
         let _ = fs::remove_dir_all(&tmp);
     }
