@@ -541,6 +541,7 @@ pub fn svelte2tsx(
             &mut store_scan,
             &mut str,
             &mut exported_names,
+            options.tsx_generic_arrow_commas,
         )?;
     }
 
@@ -592,6 +593,7 @@ pub fn svelte2tsx(
             matches!(options.mode, Svelte2TsxMode::Dts),
             &script_generic_names,
             has_generics_attr,
+            options.tsx_generic_arrow_commas,
         );
         if let Some(message) = exported_names.dollar_generic_error.take() {
             return Err(super::utils::error::Svelte2TsxError::Script(message));

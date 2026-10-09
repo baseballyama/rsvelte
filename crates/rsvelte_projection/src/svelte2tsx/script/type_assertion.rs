@@ -28,17 +28,21 @@ pub(super) fn rewrite_type_assertions(
     }
 }
 
+/// Append `,` after each collected lone type parameter (`<T>` → `<T,>`).
+pub(super) fn disambiguate_arrow_type_params(insert_at: &[u32], str: &mut MagicString<'_>) {
+    for &pos in insert_at {
+        str.append_left(pos, ",");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::test_support::run_svelte2tsx;
 
     #[test]
     fn test_generic_arrow_is_copied_verbatim() {
-        // Upstream copies a `<T>` arrow into the overlay unchanged. It really is
-        // lexed as JSX there — but reproducing that is what byte parity means,
-        // and inserting a disambiguating comma changes the program the checker
-        // sees: `<string>() => a` becomes a generic arrow whose type parameter
-        // is named `string`.
+        // Upstream copies a `<T>` arrow unchanged; its svelte-check reads the
+        // output as a `.ts` file, where that is a generic arrow, not JSX.
         let source =
             "<script lang=\"ts\">\nconst id = <T>(x: T): T => x;\n</script>\n<p>{id(1)}</p>";
         let result = run_svelte2tsx(source);
@@ -52,6 +56,32 @@ mod tests {
             "No disambiguating comma is inserted.\nGot: {}",
             result.code
         );
+    }
+
+    #[test]
+    fn test_generic_arrow_gets_a_trailing_comma_for_a_tsx_consumer() {
+        let source = "<script module lang=\"ts\">\nexport const m = <K>(k: K) => k;\n</script>\n\
+            <script lang=\"ts\">\n\
+            const id = <T>(x: T): T => x;\n\
+            const pair = <T, U>(a: T, b: U) => [a, b];\n\
+            const bounded = <T extends string>(x: T) => x;\n\
+            const safe = <T,>(x: T) => x;\n\
+            </script>\n<p>{id(1)}{pair(1, 2)}{bounded('a')}{safe(1)}{m(1)}</p>";
+        let result = super::super::test_support::run_svelte2tsx_for_tsx(source);
+        for expected in [
+            "<K,>(k: K)",
+            "<T,>(x: T): T",
+            "<T, U>(a: T, b: U)",
+            "<T extends string>(x: T)",
+            "<T,>(x: T) => x",
+        ] {
+            assert!(
+                result.code.contains(expected),
+                "missing {expected}:\n{}",
+                result.code
+            );
+        }
+        assert_eq!(result.code.matches(",>").count(), 3, "{}", result.code);
     }
 
     #[test]

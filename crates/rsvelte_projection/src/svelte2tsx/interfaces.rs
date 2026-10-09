@@ -89,6 +89,12 @@ pub struct Svelte2TsxOptions {
     /// half-typed template still projects. The language server sets it
     /// (`LSAndTSDocResolver.ts:138`); `svelte-check` deliberately does not.
     pub emit_on_template_error: bool,
+    /// Write a bare single-parameter generic arrow's type parameters as
+    /// `<T,>`. Upstream svelte-check type-checks the output as a `.ts` file,
+    /// where `<T>(x: T) => x` is a generic arrow; a consumer that writes it to
+    /// a `.tsx` file instead would have it lexed as a JSX element. Off by
+    /// default, which keeps the output byte-identical to upstream svelte2tsx.
+    pub tsx_generic_arrow_commas: bool,
 }
 
 /// Inputs for the optional external-import rewrite pass — mirrors the JS
@@ -204,6 +210,7 @@ impl Default for Svelte2TsxOptions {
             no_svelte_component_typed: false,
             rewrite_external_imports: None,
             emit_on_template_error: false,
+            tsx_generic_arrow_commas: false,
         }
     }
 }

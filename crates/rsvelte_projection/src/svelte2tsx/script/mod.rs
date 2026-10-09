@@ -61,7 +61,7 @@ use script_facts::ScriptFacts;
 use stores::{
     inject_store_subscriptions_vars_only_with_program, inject_store_subscriptions_with_program,
 };
-use type_assertion::rewrite_type_assertions;
+use type_assertion::{disambiguate_arrow_type_params, rewrite_type_assertions};
 
 /// Classify a Svelte component basename for `SvelteKit` autotype injection.
 ///
@@ -118,6 +118,7 @@ pub fn process_instance_script(
     is_dts_mode: bool,
     script_generic_names: &HashSet<String>,
     has_generics_attr: bool,
+    tsx_generic_arrow_commas: bool,
 ) -> Vec<LiftedImport> {
     let offset = script.content_offset;
     let mut instance_imports = Vec::new();
@@ -661,6 +662,10 @@ pub fn process_instance_script(
         // so we don't re-parse the instance script content with OXC.
         inject_store_subscriptions_with_program(program, module_program, offset, store_scan, str);
 
+        if tsx_generic_arrow_commas {
+            disambiguate_arrow_type_params(&script_facts.arrow_generic_commas, str);
+        }
+
         // Pass 7: rewrite TS angle-bracket type assertions (`<X>e` → `e as X`).
         // `processInstanceScriptContent` gates this on `mode !== 'ts'` because
         // `<X>e` is still a valid assertion in `ts` mode; the module script
@@ -704,6 +709,7 @@ pub fn process_module_script(
     store_scan: &mut StoreScanContext<'_>,
     str: &mut MagicString<'_>,
     exported_names: &mut ExportedNames,
+    tsx_generic_arrow_commas: bool,
 ) -> Result<(), super::utils::error::Svelte2TsxError> {
     // Module script exports are kept as-is (with the export keyword).
     // They are not component props and do not go into the return statement.
@@ -725,6 +731,10 @@ pub fn process_module_script(
         // required because the generated `.tsx` parses the module-script
         // body at top level, where `<X>e` would be lexed as JSX.
         rewrite_type_assertions(&script_facts.type_assertions, str);
+
+        if tsx_generic_arrow_commas {
+            disambiguate_arrow_type_params(&script_facts.arrow_generic_commas, str);
+        }
 
         collect_module_names(program, exported_names)?;
         Ok(())
