@@ -2115,25 +2115,10 @@ impl<'a> Parser<'a> {
         if opened {
             let params_start = self.index;
 
-            // Find matching closing paren, accounting for nested parens and strings
+            // Upstream counts parentheses only: no string or comment awareness.
             let mut depth = 1;
             while !self.is_eof() && depth > 0 {
                 let c = self.current_char();
-                // Skip string literals
-                if c == '\'' || c == '"' {
-                    let quote = c;
-                    self.advance();
-                    while !self.is_eof() && self.current_char() != quote {
-                        if self.current_char() == '\\' {
-                            self.advance();
-                        }
-                        self.advance();
-                    }
-                    if !self.is_eof() {
-                        self.advance(); // consume closing quote
-                    }
-                    continue;
-                }
                 if c == '(' {
                     depth += 1;
                 } else if c == ')' {
