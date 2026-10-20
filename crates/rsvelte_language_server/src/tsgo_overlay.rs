@@ -1292,6 +1292,9 @@ impl TsgoOverlay {
         }
         if let Some(source) = &self.source_tsconfig {
             config["extends"] = json!(path_for_tsconfig(source));
+            if let Some(root_dir) = self.default_root_dir(source) {
+                config["compilerOptions"]["rootDir"] = json!(path_for_tsconfig(&root_dir));
+            }
         }
         if let Some(exclude) = specs.exclude {
             config["exclude"] = json!(exclude);
@@ -1300,6 +1303,16 @@ impl TsgoOverlay {
         text.push('\n');
         reject_symlink_components(&self.tsconfig_path, &self.cache_dir)?;
         write_if_changed(&self.tsconfig_path, &text)
+    }
+
+    /// TypeScript defaults `rootDir` to the directory of the config it reads, which is the
+    /// overlay's here, so an inherited `outDir` would place every project source outside it.
+    fn default_root_dir(&self, source: &Path) -> Option<PathBuf> {
+        if resolve_config_value(source, "rootDir").is_some() {
+            return None;
+        }
+        let project = absolute_normalized(source.parent()?);
+        Some(common_ancestor(&project, &self.mirror_root))
     }
 
     fn shadow_path_for(&self, source_path: &Path) -> Result<PathBuf, TsgoOverlayError> {
@@ -2343,6 +2356,14 @@ fn absolute_normalized(path: &Path) -> PathBuf {
     normalized
 }
 
+fn common_ancestor(left: &Path, right: &Path) -> PathBuf {
+    left.components()
+        .zip(right.components())
+        .take_while(|(left, right)| left == right)
+        .map(|(component, _)| component.as_os_str())
+        .collect()
+}
+
 fn path_for_tsconfig(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
@@ -2711,6 +2732,57 @@ mod tests {
         assert!(overlay.cache_dir().join(SHIM_SHIMS_V4_NAME).is_file());
         assert!(overlay.cache_dir().join(SHIM_JSX_V4_NAME).is_file());
         assert!(overlay.unresolved_shadow_routes().is_empty());
+    }
+
+    #[test]
+    fn overlay_config_keeps_the_project_root_dir_default() {
+        let workspace = TestWorkspace::new("root-dir-default");
+        let root = fs::canonicalize(&workspace.0).unwrap();
+        write(
+            &root.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "outDir": "./dist" } }"#,
+        );
+        write(&root.join("src/main.ts"), "export const main = 1;");
+        let root_dir = |overlay: &TsgoOverlay| {
+            let config: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(overlay.tsconfig_path()).unwrap())
+                    .unwrap();
+            config["compilerOptions"].get("rootDir").cloned()
+        };
+
+        let overlay = build_overlay(&root).unwrap();
+        assert_eq!(root_dir(&overlay), Some(json!(path_for_tsconfig(&root))));
+
+        write(
+            &root.join("nested/tsconfig.json"),
+            r#"{ "extends": "../tsconfig.json" }"#,
+        );
+        let nested = TsgoOverlay::build_nested(
+            &root.join("nested"),
+            &root.join("nested/tsconfig.json"),
+            &root,
+        )
+        .unwrap();
+        assert_eq!(
+            root_dir(&nested),
+            Some(json!(path_for_tsconfig(&root))),
+            "a nested project's shadows live under the enclosing workspace"
+        );
+
+        write(
+            &root.join("configs/base.json"),
+            r#"{ "compilerOptions": { "rootDir": "../src" } }"#,
+        );
+        write(
+            &root.join("tsconfig.json"),
+            r#"{ "extends": "./configs/base.json", "compilerOptions": { "outDir": "./dist" } }"#,
+        );
+        let overlay = build_overlay(&root).unwrap();
+        assert_eq!(
+            root_dir(&overlay),
+            None,
+            "a declared rootDir is inherited unchanged"
+        );
     }
 
     #[test]
