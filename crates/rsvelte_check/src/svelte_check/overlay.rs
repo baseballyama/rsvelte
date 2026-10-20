@@ -1730,6 +1730,11 @@ fn build_overlay_tsconfig(
     }
     let mut compiler_opts = serde_json::Map::new();
     compiler_opts.insert("noEmit".into(), true.into());
+    // TypeScript defaults `rootDir` to this overlay's directory, so an inherited `outDir`
+    // would place every project source outside it.
+    if let Some(root_dir) = original.and_then(|original| default_root_dir(original, workspace)) {
+        compiler_opts.insert("rootDir".into(), path_relative(cache_dir, &root_dir).into());
+    }
     compiler_opts.insert("allowArbitraryExtensions".into(), true.into());
     // A `.jsx` shadow (see `shadow_extension`) is only admitted to the program
     // when JS files are. `allowJs` defaults to OFF, so without this every
@@ -1977,6 +1982,28 @@ struct InheritedSpecs {
     /// trigger TS6054 since the overlay's `allowArbitraryExtensions`
     /// only applies to module resolution, not to the `files` array).
     files: Vec<String>,
+}
+
+fn default_root_dir(tsconfig: &Path, workspace: &Path) -> Option<PathBuf> {
+    let declared = extends_chain(tsconfig).iter().any(|(_, config)| {
+        config
+            .get("compilerOptions")
+            .and_then(|options| options.get("rootDir"))
+            .is_some()
+    });
+    if declared {
+        return None;
+    }
+    let project = absolutize(tsconfig).parent()?.to_path_buf();
+    let workspace = absolutize(workspace);
+    Some(
+        project
+            .components()
+            .zip(workspace.components())
+            .take_while(|(left, right)| left == right)
+            .map(|(component, _)| component.as_os_str())
+            .collect(),
+    )
 }
 
 /// Resolve the user's effective `include` / `exclude` / `files` and
@@ -4455,6 +4482,40 @@ mod tests {
             "stale ESM bridge should have been pruned"
         );
 
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn overlay_tsconfig_keeps_the_project_root_dir_default() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_root_dir_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div>hi</div>").unwrap();
+        let files = vec![tmp.join("src/App.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let root_dir = |config: &str| {
+            fs::write(&tsconfig, config).unwrap();
+            let layout = materialize_overlay(&tmp, &files, Some(&tsconfig)).unwrap();
+            let cfg: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap())
+                    .unwrap();
+            cfg["compilerOptions"].get("rootDir").cloned()
+        };
+
+        assert_eq!(
+            root_dir(r#"{ "compilerOptions": { "outDir": "./dist" } }"#),
+            Some(serde_json::json!(".."))
+        );
+        fs::write(
+            tmp.join("base.json"),
+            r#"{ "compilerOptions": { "rootDir": "./src" } }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            root_dir(r#"{ "extends": "./base.json", "compilerOptions": { "outDir": "./dist" } }"#),
+            None,
+            "a declared rootDir is inherited unchanged"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
