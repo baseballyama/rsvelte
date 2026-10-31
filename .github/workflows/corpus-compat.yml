@@ -327,7 +327,7 @@ jobs:
 
       - name: Upload mutant artifacts on failure
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: corpus-mutant-artifacts
           path: compatibility/mutant-artifacts
@@ -366,7 +366,7 @@ jobs:
       # is red, which is exactly when nobody is attributing them.
       - name: Upload report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: corpus-report
           path: |
@@ -447,7 +447,7 @@ jobs:
 
       - name: Upload fmt report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: corpus-fmt-report
           path: |
@@ -659,7 +659,7 @@ jobs:
 
       - name: Upload check report on failure
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: corpus-check-report-${{ matrix.backend }}
           path: |
@@ -731,7 +731,7 @@ jobs:
 
       - name: Upload e2e check report on failure
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: corpus-check-e2e-report
           path: compatibility/check-e2e-report.json
@@ -819,7 +819,7 @@ jobs:
 
       - name: Upload matrix artifacts on failure
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: corpus-shape-matrix-artifacts
           path: compatibility/matrix-artifacts
@@ -892,7 +892,7 @@ jobs:
 
       - name: Upload LSP current artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lsp-current-fixtures
           path: compatibility/lsp-current-fixtures.json
@@ -975,7 +975,7 @@ jobs:
 
       - name: Upload LSP current artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lsp-current-corpus-${{ matrix.shard }}
           path: compatibility/lsp-current-corpus-${{ matrix.shard }}.json
