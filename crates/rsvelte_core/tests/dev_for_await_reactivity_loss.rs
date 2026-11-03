@@ -136,3 +136,126 @@ fn an_awaited_iterable_gets_both_wraps() {
         "$.for_await_track_reactivity_loss((await $.track_reactivity_loss(gen()))())",
     );
 }
+
+/// Upstream rebuilds the loop and the call without positions, so esrap prints
+/// the iterable's comments inside `$.for_await_track_reactivity_loss(…)`:
+/// every comment after `left`, then every comment starting on the iterable's
+/// last line. Expected outputs are the official compiler's (5.57.3), minus the
+/// version banner.
+const COMMENT_PLACEMENT: &[(&str, &str, &str)] = &[
+    (
+        "leading_after_of",
+        "export async function f(xs, use) {\n\tfor await (const x of /* it */ xs) {}\n\tafter();\n}\n",
+        "import * as $ from 'svelte/internal/client';\n\nexport async function f(xs, use) {\n\tfor await (const x of $.for_await_track_reactivity_loss(/* it */ xs)) {}\n\n\tafter();\n}",
+    ),
+    (
+        "leading_before_of",
+        "export async function f(xs, use) {\n\tfor await (const x /* c */ of xs) {}\n\tafter();\n}\n",
+        "import * as $ from 'svelte/internal/client';\n\nexport async function f(xs, use) {\n\tfor await (const x of $.for_await_track_reactivity_loss(/* c */ xs)) {}\n\n\tafter();\n}",
+    ),
+    (
+        "leading_on_its_own_line",
+        "export async function f(xs, use) {\n\tfor await (const x of /* it */\n\t\txs) {}\n\tafter();\n}\n",
+        "import * as $ from 'svelte/internal/client';\n\nexport async function f(xs, use) {\n\tfor await (const x of $.for_await_track_reactivity_loss(\n\t\t/* it */\n\t\txs\n\t)) {}\n\n\tafter();\n}",
+    ),
+    (
+        "jsdoc_cast",
+        "export async function f(xs, use) {\n\tfor await (const x of /** @type {any} */ (xs)) {}\n\tafter();\n}\n",
+        "import * as $ from 'svelte/internal/client';\n\nexport async function f(xs, use) {\n\tfor await (const x of $.for_await_track_reactivity_loss(/** @type {any} */ (xs))) {}\n\n\tafter();\n}",
+    ),
+    (
+        "trailing_before_paren",
+        "export async function f(xs, use) {\n\tfor await (const x of xs /* t */) {}\n\tafter();\n}\n",
+        "import * as $ from 'svelte/internal/client';\n\nexport async function f(xs, use) {\n\tfor await (const x of $.for_await_track_reactivity_loss(xs /* t */)) {}\n\n\tafter();\n}",
+    ),
+    (
+        "trailing_line_before_paren",
+        "export async function f(xs, use) {\n\tfor await (const x of xs // t\n\t) {}\n\tafter();\n}\n",
+        "import * as $ from 'svelte/internal/client';\n\nexport async function f(xs, use) {\n\tfor await (const x of $.for_await_track_reactivity_loss(xs // t\n\t)) {}\n\n\tafter();\n}",
+    ),
+    (
+        "trailing_before_body",
+        "export async function f(xs, use) {\n\tfor await (const x of xs) /* b */ {}\n\tafter();\n}\n",
+        "import * as $ from 'svelte/internal/client';\n\nexport async function f(xs, use) {\n\tfor await (const x of $.for_await_track_reactivity_loss(xs /* b */)) {}\n\n\tafter();\n}",
+    ),
+    (
+        "block_body_first_line",
+        "export async function f(xs, use) {\n\tfor await (const x of xs) { // first\n\t\tuse(x);\n\t}\n\tafter();\n}\n",
+        "import * as $ from 'svelte/internal/client';\n\nexport async function f(xs, use) {\n\tfor await (const x of $.for_await_track_reactivity_loss(xs // first\n\t)) {\n\t\t// first\n\t\tuse(x);\n\t}\n\n\tafter();\n}",
+    ),
+    (
+        "statement_body_tail",
+        "export async function f(xs, use) {\n\tfor await (const x of xs) use(x); // tail\n\tafter();\n}\n",
+        "import * as $ from 'svelte/internal/client';\n\nexport async function f(xs, use) {\n\tfor await (const x of $.for_await_track_reactivity_loss(xs // tail\n\t)) use(x);\n\n\tafter();\n}",
+    ),
+    (
+        "nested_blocks",
+        "export async function f(xs, use) {\n\tfor await (const x of /* o */ xs) { for await (const y of /* i */ x) { use(y); } }\n\tafter();\n}\n",
+        "import * as $ from 'svelte/internal/client';\n\nexport async function f(xs, use) {\n\tfor await (const x of $.for_await_track_reactivity_loss(/* o */ xs /* i */)) {\n\t\tfor await (const y of $.for_await_track_reactivity_loss(/* i */ x)) {\n\t\t\tuse(y);\n\t\t}\n\t}\n\n\tafter();\n}",
+    ),
+    (
+        "trailing_on_next_line",
+        "export async function f(xs, use) {\n\tfor await (const x of xs\n\t/* t */) {}\n\tafter();\n}\n",
+        "import * as $ from 'svelte/internal/client';\n\nexport async function f(xs, use) {\n\tfor await (const x of $.for_await_track_reactivity_loss(xs)) /* t */ {}\n\n\tafter();\n}",
+    ),
+];
+
+#[test]
+fn iterable_comments_land_inside_the_wrapper() {
+    let mut failures = Vec::new();
+    for &(name, src, expected) in COMMENT_PLACEMENT {
+        let out = compile_svelte_js(src, true, true);
+        let body = out.split_once('\n').map_or("", |(_, rest)| rest);
+        if body != expected {
+            failures.push(format!(
+                "{name}:\n--- expected\n{expected}\n--- got\n{body}"
+            ));
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+}
+
+#[test]
+fn runes_instance_iterable_comments_land_inside_the_wrapper() {
+    assert_contains(
+        &compile_component(
+            "<script>\n\tlet n = $state(0);\n\tasync function f(xs) {\n\t\tfor await (const x of /* it */ xs) { // first\n\t\t\tn += x;\n\t\t}\n\t}\n</script>\n<button onclick={() => f([])}>{n}</button>\n",
+            true,
+            true,
+        ),
+        "\t\tfor await (const x of $.for_await_track_reactivity_loss(/* it */ xs // first\n\t\t)) {",
+    );
+}
+
+/// The body leaves `n` alone: a legacy body the text pipeline rewrites is
+/// reprinted before this pass runs, which moves `// first` off the iterable's
+/// line first.
+#[test]
+fn legacy_instance_iterable_comments_land_inside_the_wrapper() {
+    assert_contains(
+        &compile_component(
+            "<script>\n\texport let n = 0;\n\tasync function f(xs, use) {\n\t\tfor await (const x of /* it */ xs) { // first\n\t\t\tuse(x);\n\t\t}\n\t}\n</script>\n<button onclick={() => f([], console.log)}>{n}</button>\n",
+            true,
+            true,
+        ),
+        "\t\tfor await (const x of $.for_await_track_reactivity_loss(/* it */ xs // first\n\t\t)) {",
+    );
+}
+
+/// Two statement bodies end on the same byte here, so both loops see the same
+/// trailing comment; it must neither be spliced twice nor dropped.
+#[test]
+fn nested_statement_bodies_sharing_an_end_keep_the_comment() {
+    let out = compile_svelte_js(
+        "export async function f(xs, use) {\n\tfor await (const x of xs) for await (const y of /* i */ x) use(y); // t\n}\n",
+        true,
+        true,
+    );
+    assert_eq!(
+        out.matches("$.for_await_track_reactivity_loss(").count(),
+        2,
+        "{out}"
+    );
+    assert_contains(&out, "// t");
+    assert_contains(&out, "/* i */");
+}

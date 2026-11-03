@@ -2874,13 +2874,12 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         self.visit_expression(&stmt.right);
         let right_span = stmt.right.span();
         let right_text = self.apply_and_drain_inner_replacements(right_span.start, right_span.end);
-        self.add_replacement(
-            right_span.start,
-            right_span.end,
-            super::await_reactivity_loss_ast::for_await_track_reactivity_loss_wrap(
-                right_text.trim(),
-            ),
-        );
+        for (start, end, replacement) in
+            self.await_comment_runs
+                .for_await_wrap_edits(self.source, stmt, right_text.trim(), true)
+        {
+            self.add_replacement(start, end, replacement);
+        }
         self.visit_statement(&stmt.body);
         true
     }
