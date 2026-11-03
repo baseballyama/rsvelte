@@ -2986,9 +2986,9 @@ the matrix gate, which solved the same problem by splitting `output-unparseable`
 `parseable.mjs`-style acceptance on the actual side and emit it as its own verdict. Cost:
 one compile per failing entry, i.e. per ratchet entry, not per corpus component.
 
-**Note on exclusions:** `fmt-oracle-excluded.json` holds 27 entries, each with a written
+**Note on exclusions:** `fmt-oracle-excluded.json` holds 29 entries, each with a written
 justification, partitioned by the JSON's own `class` field (15 oracle-bug, 7 engine-divergence,
-3 invalid-input, 2 migrate). This is a *small, justified* set — noted
+5 invalid-input, 2 migrate). This is a *small, justified* set — noted
 here so it is not mistaken for a blind spot. Its staleness check is `console.warn` only
 (`fmt-verify.mjs:110-126`).
 
@@ -9318,15 +9318,17 @@ that comparison would show the divergence is the oracle's inconsistency and not 
 
 ### The formatter declines an input its own parser rejects
 
-**Ratchet** `compatibility/fmt-oracle-excluded.json`, the three `invalid-input` entries and the
+**Ratchet** `compatibility/fmt-oracle-excluded.json`, the five `invalid-input` entries and the
 two `migrate` entries.
 **Pinned by** `compatibility/pattern-corpus/adversarial/css/rejected-global-keyframes-selector.svelte`
 and `crates/rsvelte_formatter/tests/style_block.rs`.
 
 #### Input
 
-Three inputs no compiler accepts — a snippet parameter written `c?: number = 5` (TS1015),
-snippet rest parameters (`snippet_invalid_rest_parameter`) and `h1:nth-of-type(+12)` — and two
+Five inputs no compiler accepts — a snippet parameter written `c?: number = 5` (TS1015),
+snippet rest parameters (`snippet_invalid_rest_parameter`), `h1:nth-of-type(+12)`, and two
+Svelte `compiler-errors` fixtures that repeat `{:else}` (`block_duplicate_clause`, ported with
+Svelte 5.57.3) — and two
 Svelte 4→5 **migrator outputs**, which use `let:` directives and `slot=` attributes. A fourth,
 `:global(@keyframes shared)` (`css_expected_identifier`, #3120), takes the same path and is no
 longer excluded: reindentation is the only thing the oracle does to that block, and the fallback
@@ -9334,7 +9336,9 @@ reindents too, so the two agree byte-for-byte and the id is scored like any othe
 
 #### Both outputs
 
-`prettier-plugin-svelte` formats all five: it validates nothing beyond its own parse. `rsvelte-fmt`
+`prettier-plugin-svelte` formats all seven: it validates nothing beyond its own parse — on the two
+`{:else}` fixtures (oxfmt 0.67.0) it keeps one `{:else}` branch and deletes the other's body
+(`A` in `each-block-duplicate-else`, `B` in `if-block-else-before-else-if`). `rsvelte-fmt`
 reports the parse error, or — where the CSS parser is the one that refuses — reindents the block
 to its nesting depth without reformatting the CSS inside it, which
 `crates/rsvelte_formatter/tests/style_block.rs` pins two-sidedly

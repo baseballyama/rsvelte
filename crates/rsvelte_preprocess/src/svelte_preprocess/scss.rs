@@ -35,7 +35,7 @@ pub fn transform(
 ) -> Result<ScssOutput, String> {
     // `prepareContent` prepends `prependData` before compiling.
     let content = if indented {
-        crate::sass::remove_indented_base(content)
+        crate::sass::prepare_indented(content)?
     } else {
         content.to_string()
     };

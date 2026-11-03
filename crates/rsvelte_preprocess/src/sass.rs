@@ -19,77 +19,75 @@ use rsvelte_core::compiler::preprocess::types::{
 use crate::filter::{FilterOptions, matches};
 use crate::sass_fs::RecordingFs;
 
-/// Dart Sass treats an indentation prefix shared by every line as the
-/// document's base indentation — the usual shape of a `<style lang="sass">`
-/// block inside a Svelte file — while grass's indented parser asserts the
-/// top-level indentation is zero and aborts. Remove only the shared prefix,
-/// preserving all relative indentation.
-///
-/// The leading blank line is required, not incidental: dart Sass rejects a
-/// document whose very first line is indented (`Indenting at the beginning of
-/// the document is illegal`), and so does grass, so normalizing that shape
-/// would make rsvelte accept what dart Sass refuses.
-pub(crate) fn remove_indented_base(source: &str) -> String {
-    if !source
-        .lines()
-        .next()
-        .is_some_and(|line| line.trim().is_empty())
-    {
-        return source.to_string();
-    }
-    let common = source
-        .lines()
-        .filter(|line| !line.trim().is_empty())
-        .map(|line| line.len() - line.trim_start_matches([' ', '\t']).len())
-        .min()
-        .unwrap_or(0);
-    if common == 0 {
-        return source.to_string();
-    }
+pub(crate) const INDENTED_BASE_ERROR: &str =
+    "Indenting at the beginning of the document is illegal.";
 
+/// Dart Sass (since 1.107) rejects an indented-syntax document whose first
+/// non-blank line is indented, however many blank lines precede it. grass
+/// aborts on that shape instead of erroring, and `catch_unwind` is void under
+/// `panic = "abort"`, so it has to be rejected before grass sees it.
+/// Whitespace-only leading lines are emptied (line count kept) because dart
+/// Sass accepts them and grass does not.
+pub(crate) fn prepare_indented(source: &str) -> Result<String, String> {
     let mut output = String::with_capacity(source.len());
     let mut saw_content = false;
     for chunk in source.split_inclusive('\n') {
-        let (line, newline) = chunk
-            .strip_suffix('\n')
-            .map_or((chunk, ""), |line| (line, "\n"));
-        if !saw_content && line.trim().is_empty() {
+        if saw_content {
+            output.push_str(chunk);
             continue;
         }
-        saw_content = true;
+        let line = chunk.trim_end_matches(['\n', '\r']);
         if line.trim().is_empty() {
-            output.push_str(line);
-        } else {
-            output.push_str(&line[common..]);
+            output.push_str(&chunk[line.len()..]);
+            continue;
         }
-        output.push_str(newline);
+        if line.starts_with([' ', '\t']) {
+            return Err(INDENTED_BASE_ERROR.to_string());
+        }
+        saw_content = true;
+        output.push_str(chunk);
     }
-    output
+    Ok(output)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::remove_indented_base;
+    use super::{INDENTED_BASE_ERROR, prepare_indented};
 
     #[test]
-    fn indented_base_removes_leading_blank_lines_before_tab_indentation() {
+    fn rejects_base_indentation_after_leading_blank_lines() {
+        for source in [
+            "\n\t.card\n\t\tdisplay: block\n",
+            "\n\n  .a\n    color: red\n",
+            "\r\n\t.a\r\n\t\tcolor: red\r\n",
+            "\t.card\n\t\tdisplay: block\n",
+        ] {
+            assert_eq!(
+                prepare_indented(source),
+                Err(INDENTED_BASE_ERROR.to_string())
+            );
+        }
+    }
+
+    #[test]
+    fn empties_whitespace_only_leading_lines() {
         assert_eq!(
-            remove_indented_base("\n\t.card\n\t\tdisplay: block\n"),
-            ".card\n\tdisplay: block\n"
+            prepare_indented("  \n.a\n  color: red\n").as_deref(),
+            Ok("\n.a\n  color: red\n")
         );
     }
 
     #[test]
-    fn indented_base_leaves_a_document_that_starts_indented_alone() {
-        // Dart Sass rejects this shape; dedenting it would make rsvelte accept it.
-        let source = "\t.card\n\t\tdisplay: block\n";
-        assert_eq!(remove_indented_base(source), source);
-    }
-
-    #[test]
-    fn indented_base_leaves_unindented_documents_unchanged() {
-        let source = "\n.card\n  display: block\n";
-        assert_eq!(remove_indented_base(source), source);
+    fn leaves_unindented_documents_unchanged() {
+        for source in [
+            "\n.card\n  display: block\n",
+            "// c\n  .a\n    color: red\n",
+            "",
+            "\n  \n",
+        ] {
+            let expected = source.replace("  \n", "\n");
+            assert_eq!(prepare_indented(source).as_deref(), Ok(expected.as_str()));
+        }
     }
 }
 
@@ -174,12 +172,8 @@ pub fn preprocess_sass(
         options = options.load_path(path);
     }
 
-    // The base indentation has to be removed BEFORE grass sees the document:
-    // grass aborts on that shape, and `catch_unwind` is void under the
-    // `panic = "abort"` release profile every shipped binary but the three with
-    // an explicit `panic = "unwind"` override is built with.
     let source = if indented {
-        remove_indented_base(content)
+        prepare_indented(content)?
     } else {
         content.to_string()
     };

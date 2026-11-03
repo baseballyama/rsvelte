@@ -10,6 +10,7 @@ use crate::expression::{
 use crate::options::FormatOptions;
 
 use super::attribute::minimal_break_extra;
+use super::render_tag::scan_value_newlines;
 use super::util::indent_str;
 use super::value::{expression_tag_inner, is_shallow_value};
 use crate::width::{VisualWidth, tab_width};
@@ -56,7 +57,6 @@ fn render_value_sequence_doc(
     attr_depth: usize,
     name_prefix: usize,
 ) -> Result<Option<String>, FormatError> {
-    let tw = tab_width(options);
     let interp_count = parts
         .iter()
         .filter(|p| matches!(p, AttributeValuePart::ExpressionTag(_)))
@@ -70,6 +70,147 @@ fn render_value_sequence_doc(
     {
         return Ok(None);
     }
+    print_value_sequence_doc(
+        parts,
+        source,
+        options,
+        attr_depth,
+        name_prefix,
+        ValueText::Verbatim,
+    )
+}
+
+/// A `style:` directive's quoted value, which prettier-plugin-svelte prints
+/// outside `isPreTagContent` (that guard names only `Attribute`), so each text
+/// chunk is a `fill` of its words: whitespace runs collapse to one breakable
+/// space and a chunk's leading / trailing line break becomes a `hardline` at
+/// the attribute indent. Without `narrow_value` it renders the one-line pass the
+/// open tag measures. `None` defers to the legacy path for a block-bodied
+/// interpolation.
+pub(super) fn render_directive_value_sequence_doc(
+    parts: &[AttributeValuePart],
+    source: &str,
+    options: &FormatOptions,
+    attr_depth: usize,
+    name_prefix: usize,
+    narrow_value: bool,
+) -> Result<Option<String>, FormatError> {
+    print_value_sequence_doc(
+        parts,
+        source,
+        options,
+        attr_depth,
+        name_prefix,
+        if narrow_value {
+            ValueText::Fill
+        } else {
+            ValueText::FillFlat
+        },
+    )
+}
+
+const UNBOUNDED_WIDTH: usize = 1 << 20;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ValueText {
+    /// A regular attribute's text: one non-breaking chunk.
+    Verbatim,
+    /// A directive's text as a `fill`, printed at the wrapped attribute column.
+    Fill,
+    /// [`ValueText::Fill`] in the open tag's one-line pass.
+    FillFlat,
+}
+
+const fn is_html_collapse_whitespace(c: char) -> bool {
+    matches!(c, '\t' | '\n' | '\x0c' | '\r' | ' ')
+}
+
+/// `startsWithLinebreak(text, n)`: `^([\t\f\r ]*\n){n}`.
+fn starts_with_linebreaks(text: &str, n: usize) -> bool {
+    let mut rest = text;
+    for _ in 0..n {
+        rest = rest.trim_start_matches(['\t', '\x0c', '\r', ' ']);
+        let Some(after) = rest.strip_prefix('\n') else {
+            return false;
+        };
+        rest = after;
+    }
+    true
+}
+
+/// `endsWithLinebreak(text, n)`: `(\n[\t\f\r ]*){n}$`.
+fn ends_with_linebreaks(text: &str, n: usize) -> bool {
+    let mut rest = text;
+    for _ in 0..n {
+        rest = rest.trim_end_matches(['\t', '\x0c', '\r', ' ']);
+        let Some(before) = rest.strip_suffix('\n') else {
+            return false;
+        };
+        rest = before;
+    }
+    true
+}
+
+/// prettier-plugin-svelte's text printing outside `<pre>`: `printWhitespace`
+/// for a whitespace-only chunk, else `fill(splitTextToDocs(node))`.
+fn text_fill_doc(text: &str) -> Doc {
+    if text.chars().all(is_html_collapse_whitespace) {
+        let newlines = text.matches('\n').count();
+        return match newlines {
+            0 if text.is_empty() => Doc::Text(String::new()),
+            0 => Doc::Line,
+            1 => Doc::Hardline,
+            _ => Doc::Concat(vec![Doc::Hardline, Doc::Hardline]),
+        };
+    }
+    // `join(line, text.split(/[\t\n\f\r ]+/)).filter((doc) => doc !== '')`: a
+    // whitespace run is one separator, and the empty words it leaves at either
+    // end are dropped after the join, so their `line` survives.
+    let mut docs: Vec<Doc> = Vec::new();
+    let mut word = String::new();
+    let mut in_run = false;
+    for c in text.chars() {
+        if is_html_collapse_whitespace(c) {
+            if !in_run {
+                if !word.is_empty() {
+                    docs.push(Doc::Text(std::mem::take(&mut word)));
+                }
+                docs.push(Doc::Line);
+                in_run = true;
+            }
+        } else {
+            word.push(c);
+            in_run = false;
+        }
+    }
+    if !word.is_empty() {
+        docs.push(Doc::Text(word));
+    }
+    if starts_with_linebreaks(text, 1) {
+        docs[0] = Doc::Hardline;
+    }
+    if starts_with_linebreaks(text, 2) {
+        docs.insert(0, Doc::Hardline);
+    }
+    if ends_with_linebreaks(text, 1) {
+        let last = docs.len() - 1;
+        docs[last] = Doc::Hardline;
+    }
+    if ends_with_linebreaks(text, 2) {
+        docs.push(Doc::Hardline);
+    }
+    Doc::Fill(docs)
+}
+
+fn print_value_sequence_doc(
+    parts: &[AttributeValuePart],
+    source: &str,
+    options: &FormatOptions,
+    attr_depth: usize,
+    name_prefix: usize,
+    text_mode: ValueText,
+) -> Result<Option<String>, FormatError> {
+    let tw = tab_width(options);
 
     let indent_width = options.js.indent_width.value() as usize;
     let indent_cols = attr_depth * indent_width;
@@ -89,10 +230,27 @@ fn render_value_sequence_doc(
     let mut col = start_col;
     for part in parts {
         match part {
-            AttributeValuePart::Text(t) => {
+            AttributeValuePart::Text(t) if text_mode == ValueText::Verbatim => {
                 let (doc, w) = attr_text_chunk_doc(t.raw.as_ref(), tw);
                 docs.push(doc);
                 col += w;
+            }
+            AttributeValuePart::Text(t) => {
+                let doc = text_fill_doc(t.raw.as_ref());
+                // Flat column after the chunk, so a following interpolation's
+                // fallback `broken` form is shaped at a plausible start column.
+                let flat = crate::doc::print_flat(
+                    &doc,
+                    UNBOUNDED_WIDTH,
+                    crate::width::IndentUnit::new(&indent_str(1, &options.js), tw),
+                    attr_depth,
+                    col,
+                );
+                col = match flat.rsplit_once('\n') {
+                    Some((_, last)) => last.visual_width(tw),
+                    None => col + flat.visual_width(tw),
+                };
+                docs.push(doc);
             }
             AttributeValuePart::ExpressionTag(tag) => {
                 let inner = expression_tag_inner(tag, source).trim();
@@ -174,7 +332,7 @@ fn render_value_sequence_doc(
     // Nothing breakable → the value can only render flat; leave it to the
     // legacy path (whose flat output is authoritative) rather than risk a
     // subtle divergence.
-    if breakable_count == 0 {
+    if breakable_count == 0 && text_mode == ValueText::Verbatim {
         return Ok(None);
     }
 
@@ -195,26 +353,41 @@ fn render_value_sequence_doc(
     // true) VERBATIM but re-indents an INTERPOLATION-led value (`value="{…}"`) by
     // the attribute column, so the interp-led form is handed over RELATIVE: the
     // attribute indent is stripped from its continuation lines again.
-    let text_led = matches!(parts.first(), Some(AttributeValuePart::Text(t)) if !t.raw.is_empty());
-    let out = doc_print(
-        &propagate_breaks(Doc::Concat(docs)),
-        width,
-        crate::width::IndentUnit::new(&unit, crate::width::tab_width(options)),
-        attr_depth,
-        start_col,
-    );
-    let out = out.strip_suffix('"').map_or(out.clone(), str::to_string);
-    let out = if text_led {
-        out
+    let doc = propagate_breaks(Doc::Concat(docs));
+    let indent_unit = crate::width::IndentUnit::new(&unit, crate::width::tab_width(options));
+    let out = if text_mode == ValueText::FillFlat {
+        // A `fill` decides its own breaks even inside a flat group, so the
+        // one-line pass is measured at an unbounded width.
+        crate::doc::print_flat(&doc, UNBOUNDED_WIDTH, indent_unit, attr_depth, start_col)
     } else {
+        doc_print(&doc, width, indent_unit, attr_depth, start_col)
+    };
+    let out = out.strip_suffix('"').map_or(out.clone(), str::to_string);
+    // Only the lines that continue a broken interpolation are handed over
+    // relative; a line break between chunks is literal text the open tag emits
+    // verbatim, so it keeps the attribute indent it was printed with.
+    let out = if out.starts_with('{') {
         let pad = unit.repeat(attr_depth);
-        let mut lines = out.split('\n');
-        let mut relative = lines.next().unwrap_or_default().to_string();
-        for line in lines {
-            relative.push('\n');
-            relative.push_str(line.strip_prefix(pad.as_str()).unwrap_or(line));
+        let literal_breaks = scan_value_newlines(&out).at_depth0;
+        let mut relative = String::with_capacity(out.len());
+        let mut line_start = 0;
+        for (i, line) in out.split('\n').enumerate() {
+            if i > 0 {
+                relative.push('\n');
+                let literal = literal_breaks.contains(&(line_start - 1));
+                relative.push_str(if literal {
+                    line
+                } else {
+                    line.strip_prefix(pad.as_str()).unwrap_or(line)
+                });
+            } else {
+                relative.push_str(line);
+            }
+            line_start += line.len() + 1;
         }
         relative
+    } else {
+        out
     };
     Ok(Some(out))
 }
@@ -278,9 +451,8 @@ pub(super) fn render_attribute_value_sequence(
         attr_depth,
     };
     // Whole-value Doc model, used only once the open tag is known to wrap (the
-    // single-line pass renders flat anyway) and only for REGULAR attributes —
-    // style/other directive values print their text as a prettier `fill` (a
-    // different break structure), so they stay on the legacy path.
+    // single-line pass renders flat anyway). A directive reaches this function
+    // only when `render_directive_value_sequence_doc` declined it.
     if narrow_value
         && regular_attr
         && let Some(body) =

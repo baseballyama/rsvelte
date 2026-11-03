@@ -122,7 +122,7 @@ function baseline(entry) {
 }
 
 const value = (v) =>
-  `Value{name:${string(v.name)},description:${option(v.description)},browsers:${optionalStrings(v.browsers)}}`;
+  `Value{name:${string(v.name)},description:${option(v.description)},browsers:${optionalStrings(v.browsers)},baseline:${baseline(v)}}`;
 
 const entry = (e) =>
   `Entry{name:${string(e.name)},description:${option(e.description)},browsers:${optionalStrings(e.browsers)},references:${references(e)},baseline:${baseline(e)},status:${option(e.status)}}`;
@@ -339,6 +339,7 @@ pub struct Value {
     pub name: &'static str,
     pub description: Option<&'static str>,
     pub browsers: Option<&'static [&'static str]>,
+    pub baseline: Option<Baseline>,
 }
 
 /// An at-directive, pseudo-class or pseudo-element. \`status\` is a plain string

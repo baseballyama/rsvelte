@@ -21,9 +21,10 @@ pub(super) fn source_has_await(source: &str) -> bool {
     memchr::memmem::find(source.as_bytes(), b"await").is_some()
 }
 
-/// The dev wrapper upstream builds in `visitors/AwaitExpression.js`.
-fn track_reactivity_loss_wrap(argument_text: &str) -> String {
-    format!("(await $.track_reactivity_loss({argument_text}))()")
+/// The dev wrapper upstream builds in `visitors/AwaitExpression.js`, with the
+/// comment run esrap flushes at the `await` (see [`AwaitCommentRuns`]).
+pub(super) fn track_reactivity_loss_wrap(leading_comments: &str, argument_text: &str) -> String {
+    format!("({leading_comments}await $.track_reactivity_loss({argument_text}))()")
 }
 
 /// The dev wrapper upstream builds in `visitors/ForOfStatement.js`.
@@ -274,12 +275,13 @@ pub(super) fn collect_await_reactivity_loss_edits(
 /// Where the comments in front of an `await` keyword end up once the wrapper
 /// replaces it.
 ///
-/// Upstream rebuilds the expression from position-less nodes and keeps only the
-/// argument's original span, so esrap — which flushes a pending comment at the
-/// first *located* node it reaches that starts after it — cannot flush the run
-/// before the wrapper and defers it to the argument. Two of esrap's other flush
-/// points still catch a run first: an enclosing node that starts on the `await`
-/// keyword itself, and the same-line trailing flush after a list element.
+/// Upstream builds the outer call position-less but keeps the `await` node's own
+/// span (`{ ...node, argument }`), so esrap — which flushes a pending comment at
+/// the first *located* node it reaches that starts after it — cannot flush the
+/// run before the call and prints it inside the callee's parentheses, ahead of
+/// the `await`. Two of esrap's other flush points still catch a run first: an
+/// enclosing node that starts on the `await` keyword itself, and the same-line
+/// trailing flush after a list element.
 #[derive(Default)]
 pub(super) struct AwaitCommentRuns {
     /// `(start, end, is_line)` per comment, in source order.
@@ -310,8 +312,8 @@ impl AwaitCommentRuns {
     }
 
     /// The run to move, as `(start of the run, the `(` run to re-emit ahead of
-    /// the wrapper, text to re-emit before the argument)`, or `None` when it
-    /// belongs outside the wrapper.
+    /// the wrapper, text to re-emit before the wrapper's `await`)`, or `None`
+    /// when it belongs outside the wrapper.
     pub(super) fn relocatable_run(
         &self,
         source: &str,
@@ -465,7 +467,7 @@ impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
                 format!(
                     ";{}{}",
                     &self.source[prev_end as usize..expr.span.start as usize],
-                    track_reactivity_loss_wrap(arg_text)
+                    track_reactivity_loss_wrap("", arg_text)
                 ),
             ),
             // A statement whose own start is the `await` is exactly the shape
@@ -475,10 +477,10 @@ impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
                     run_start,
                     format!(
                         "{parens}{}",
-                        track_reactivity_loss_wrap(&format!("{comments}{arg_text}"))
+                        track_reactivity_loss_wrap(&comments, arg_text)
                     ),
                 ),
-                None => (expr.span.start, track_reactivity_loss_wrap(arg_text)),
+                None => (expr.span.start, track_reactivity_loss_wrap("", arg_text)),
             },
         };
         self.edits.push((start, expr.span.end, replacement));

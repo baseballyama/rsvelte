@@ -466,6 +466,9 @@ diagnostics! {
     /// `let:` directive at invalid position
     let_directive_invalid_placement() => "`let:` directive at invalid position\nhttps://svelte.dev/e/let_directive_invalid_placement";
 
+    /// Cannot use `let:` directives on a component that has a `children` snippet. Use snippet parameters instead (e.g. `{#snippet children({ %name% })}`)
+    let_directive_snippet_conflict(name: &str) => "Cannot use `let:` directives on a component that has a `children` snippet. Use snippet parameters instead (e.g. `{{#snippet children({{ {} }})}}`)\nhttps://svelte.dev/e/let_directive_snippet_conflict", name;
+
     /// `<%name%>` does not support non-event attributes or spread attributes
     illegal_element_attribute(element: &str) => "`<{}>` does not support non-event attributes or spread attributes\nhttps://svelte.dev/e/illegal_element_attribute", element;
 
