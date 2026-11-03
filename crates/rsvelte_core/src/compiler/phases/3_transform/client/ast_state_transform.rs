@@ -2818,7 +2818,9 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let arg_start = expr.span.start + "await".len() as u32;
         let arg_text = self.apply_and_drain_inner_replacements(arg_start, expr.span.end);
 
-        let wrap = |argument: &str| format!("(await $.track_reactivity_loss({argument}))()");
+        let wrap = |argument: &str| {
+            super::await_reactivity_loss_ast::track_reactivity_loss_wrap("", argument)
+        };
         // The `;` rides inside this replacement rather than being appended to
         // the statement before it, which may have no replacement of its own.
         let (start, replacement) = match self.await_separators.get(&expr.span.start) {
@@ -2840,7 +2842,10 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                     run_start,
                     format!(
                         "{parens}{}",
-                        wrap(&format!("{comments}{}", arg_text.trim()))
+                        super::await_reactivity_loss_ast::track_reactivity_loss_wrap(
+                            &comments,
+                            arg_text.trim()
+                        )
                     ),
                 ),
                 None => (expr.span.start, wrap(arg_text.trim())),
