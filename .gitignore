@@ -2,7 +2,6 @@
 !fixtures
 # Anchored: unanchored names would also hide fixture inputs whose original path contains them.
 /target/
-/target-*/
 /tools/performance/workloads/*/target/
 /node_modules/
 /tools/*/node_modules/

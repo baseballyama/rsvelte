@@ -1,10 +1,6 @@
 # Unstable options: run with the nightly pinned in mise.toml (`mise run fmt`). Stable rustfmt ignores
 # them with only a warning and would produce different output.
 unstable_features = true
-edition = "2024"
-style_edition = "2024"
-max_width = 100
-newline_style = "Unix"
 blank_lines_upper_bound = 1
 use_field_init_shorthand = true
 use_try_shorthand = true

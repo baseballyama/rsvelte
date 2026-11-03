@@ -85,12 +85,9 @@ unnameable_types = "deny"
 unreachable_pub = "deny"
 unused_lifetimes = "deny"
 unused_qualifications = "deny"
-# Not enabled:
-# - missing_docs: 773 public items; documenting them wholesale would write the docs the lint
-#   wants rather than the ones a reader needs. Revisit when the public surface settles.
-# - unused_results: 224 sites, nearly all builder calls (`StructuredDataWriter`) and `insert`s whose
-#   result is deliberately dropped.
-# - unused_crate_dependencies: fires in every test and example target for the crate's own deps.
+# Not enabled: missing_docs (would document wholesale rather than where a reader needs it),
+# unused_results (nearly all are builder calls and deliberate `insert`s), unused_crate_dependencies
+# (fires in every test and example target).
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }
@@ -164,16 +161,10 @@ unused_result_ok = "deny"
 unwrap_in_result = "deny"
 unwrap_used = "deny"
 verbose_file_reads = "deny"
-# Restriction lints considered and left out (counts over the tree at the time):
-# - expect_used (87), panic (10), unreachable (47): an `expect` or `unreachable!` names the
-#   invariant it relies on; `unwrap_used` is on so that every such site says which.
-# - indexing_slicing (249), string_slice (56), arithmetic_side_effects (342), as_conversions
-#   (324): the lexers and parsers index by offsets they have just bounds-checked; checked forms
-#   there cost measured time and say nothing new.
-# - wildcard_enum_match_arm (128): nearly all over the ~150-variant token enum.
-# - shadow_* , min_ident_chars, implicit_return, question_mark_used, absolute_paths,
-#   std_instead_of_core, missing_inline_in_public_items, missing_docs_in_private_items: style
-#   choices, several of which contradict default-on lints.
+# Restriction lints left out: expect_used, panic and unreachable (each names its invariant, and
+# unwrap_used makes every site do so); indexing_slicing, string_slice, arithmetic_side_effects and
+# as_conversions (lexers index by offsets they have just checked); wildcard_enum_match_arm (the
+# token enum); the style-only rest.
 
 [workspace.lints.rustdoc]
 bare_urls = "deny"

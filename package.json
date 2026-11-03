@@ -5,11 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"format": "oxfmt",
-		"format:check": "oxfmt --check",
-		"lint": "oxlint",
-		"knip": "knip",
-		"typecheck": "pnpm --recursive --if-present run typecheck",
-		"check": "pnpm run format:check && pnpm run lint && pnpm run knip && pnpm run typecheck"
+		"check": "oxfmt --check && oxlint && knip && pnpm --recursive --if-present run typecheck"
 	},
 	"devDependencies": {
 		"@types/node": "26.6.6",

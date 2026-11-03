@@ -18,7 +18,5 @@ export default defineConfig({
 		'crates/languages/svelte/compile_vapor/src/compilation/**/*.js',
 		'crates/languages/svelte/typescript_projection/projection.d.ts',
 		'**/vendor/**',
-		'**/generated/**',
-		'pnpm-lock.yaml',
 	],
 });
