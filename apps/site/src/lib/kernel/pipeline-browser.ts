@@ -1,4 +1,4 @@
-import { runPipeline as runPipelineJson } from '$generated/wasm/kernel/rsvelte_kernel_browser.js';
+import { runPipeline as runPipelineJson } from '#generated/wasm/kernel/rsvelte_kernel_browser.js';
 export { initializeDocumentPrinter as initializePipeline } from './document-browser';
 
 export type PipelineRequest = {

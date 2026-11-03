@@ -1,11 +1,11 @@
 <script lang="ts">
-	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
-	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
-	import Code from '$lib/components/Code.svelte';
-	import H2 from '$lib/components/H2.svelte';
-	import Note from '$lib/components/Note.svelte';
-	import { chapter } from '$lib/site';
-	import InternerViz from '$lib/widgets/InternerViz.svelte';
+	import ChapterFooter from '#lib/components/ChapterFooter.svelte';
+	import ChapterHeader from '#lib/components/ChapterHeader.svelte';
+	import Code from '#lib/components/Code.svelte';
+	import H2 from '#lib/components/H2.svelte';
+	import Note from '#lib/components/Note.svelte';
+	import { chapter } from '#lib/site.ts';
+	import InternerViz from '#lib/widgets/InternerViz.svelte';
 
 	let { data } = $props();
 	const c = chapter('intern');

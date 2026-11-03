@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { REPO_URL } from '$lib/site';
+	import { REPO_URL } from '#lib/site.ts';
 
 	let { data } = $props();
 

@@ -1,15 +1,15 @@
 <script lang="ts">
-	import Term from '$lib/components/Term.svelte';
-	import KernelModuleFigure from '$lib/widgets/KernelModuleFigure.svelte';
-	import KernelOverview from '$lib/widgets/KernelOverview.svelte';
-	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
-	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
-	import Code from '$lib/components/Code.svelte';
-	import DeepDive from '$lib/components/DeepDive.svelte';
-	import Figure from '$lib/components/Figure.svelte';
-	import H2 from '$lib/components/H2.svelte';
-	import Note from '$lib/components/Note.svelte';
-	import { chapter } from '$lib/site';
+	import Term from '#lib/components/Term.svelte';
+	import KernelModuleFigure from '#lib/widgets/KernelModuleFigure.svelte';
+	import KernelOverview from '#lib/widgets/KernelOverview.svelte';
+	import ChapterFooter from '#lib/components/ChapterFooter.svelte';
+	import ChapterHeader from '#lib/components/ChapterHeader.svelte';
+	import Code from '#lib/components/Code.svelte';
+	import DeepDive from '#lib/components/DeepDive.svelte';
+	import Figure from '#lib/components/Figure.svelte';
+	import H2 from '#lib/components/H2.svelte';
+	import Note from '#lib/components/Note.svelte';
+	import { chapter } from '#lib/site.ts';
 
 	let { data } = $props();
 	const c = chapter('kernel');

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { ThemedToken } from 'shiki/core';
-	import type { CodeLanguage } from '$lib/kernel/code-language';
+	import type { CodeLanguage } from '#lib/kernel/code-language.ts';
 	let {
 		value = $bindable(''),
 		language,
@@ -16,7 +16,7 @@
 		/** The id of an element that explains the editor's keys. */
 		hint?: string;
 	} = $props();
-	let tokenizer = $state<typeof import('$lib/kernel/highlight').highlight>();
+	let tokenizer = $state<typeof import('#lib/kernel/highlight.ts').highlight>();
 	let tokens = $state<ThemedToken[][]>([]);
 	let paintedSource = $state<string | null>(null);
 	let paintedLanguage = $state<CodeLanguage>();
@@ -28,7 +28,7 @@
 
 	onMount(() => {
 		let disposed = false;
-		import('$lib/kernel/highlight')
+		import('#lib/kernel/highlight.ts')
 			.then((module) => {
 				if (!disposed) tokenizer = module.highlight;
 			})

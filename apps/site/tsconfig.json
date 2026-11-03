@@ -13,7 +13,7 @@
 		"allowImportingTsExtensions": true,
 		"types": ["node"]
 	},
-	// Replaces the generated include list, so it repeats that list and adds the scripts and the Svelte config.
+	// Replaces the generated include list, so it repeats that list and adds the scripts.
 	"include": [
 		".svelte-kit/ambient.d.ts",
 		".svelte-kit/env.d.ts",
@@ -30,7 +30,6 @@
 		"tests/**/*.js",
 		"tests/**/*.ts",
 		"tests/**/*.svelte",
-		"scripts/**/*.ts",
-		"svelte.config.ts"
+		"scripts/**/*.ts"
 	]
 }

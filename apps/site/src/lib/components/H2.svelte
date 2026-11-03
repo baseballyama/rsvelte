@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { chapterByHref, sectionTitle } from '$lib/site';
+	import { chapterByHref, sectionTitle } from '#lib/site.ts';
 
 	let { id }: { id: string } = $props();
 

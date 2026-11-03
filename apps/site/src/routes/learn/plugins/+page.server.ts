@@ -1,4 +1,4 @@
-import { excerpts } from '$lib/server/source';
+import { excerpts } from '#lib/server/source.ts';
 
 export const load = () => ({
 	code: excerpts({

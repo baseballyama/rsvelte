@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Figure from '$lib/components/Figure.svelte';
-	import { simulate } from '$lib/kernel/pool-sim';
+	import Figure from '#lib/components/Figure.svelte';
+	import { simulate } from '#lib/kernel/pool-sim.ts';
 
 	const sizes = [120, 80, 300, 90, 110, 95];
 	let enabled = $state(true);

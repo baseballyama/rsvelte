@@ -12,12 +12,12 @@
 		"check": "pnpm run format:check && pnpm run lint && pnpm run knip && pnpm run typecheck"
 	},
 	"devDependencies": {
-		"@types/node": "26.6.3",
-		"knip": "6.42.1",
-		"oxfmt": "0.74.0",
-		"oxlint": "1.89.0",
-		"svelte": "5.57.1",
-		"typescript-7": "npm:typescript@7.1.0-dev.20261003.1"
+		"@types/node": "26.6.6",
+		"knip": "6.44.1",
+		"oxfmt": "0.75.0",
+		"oxlint": "1.90.0",
+		"svelte": "5.57.3",
+		"typescript-7": "npm:typescript@7.1.0-dev.20261102.1"
 	},
 	"engines": {
 		"node": ">=26"

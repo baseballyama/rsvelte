@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { chapters, type Chapter } from '$lib/site';
+	import { chapters, type Chapter } from '#lib/site.ts';
 	import Icon from './Icon.svelte';
 
 	let { chapter }: { chapter: Chapter } = $props();

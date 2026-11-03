@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Figure from '$lib/components/Figure.svelte';
-	import { moduleDescription } from '$lib/module-descriptions';
+	import Figure from '#lib/components/Figure.svelte';
+	import { moduleDescription } from '#lib/module-descriptions.ts';
 
 	interface KernelModule {
 		key: string;

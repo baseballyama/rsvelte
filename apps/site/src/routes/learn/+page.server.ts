@@ -1,4 +1,4 @@
-import { crateSizes } from '$lib/server/source';
+import { crateSizes } from '#lib/server/source.ts';
 
 export const load = () => {
 	const kernel = crateSizes().find((c) => c.name === 'rsvelte_kernel');

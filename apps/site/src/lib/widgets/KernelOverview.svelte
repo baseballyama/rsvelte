@@ -1,12 +1,12 @@
 <script lang="ts">
-	import Figure from '$lib/components/Figure.svelte';
+	import Figure from '#lib/components/Figure.svelte';
 	import {
 		overviewEdges,
 		overviewNodes,
 		positionLabel,
 		sharedParts,
-	} from '$lib/kernel/kernel-overview';
-	import { REPO_URL } from '$lib/site';
+	} from '#lib/kernel/kernel-overview.ts';
+	import { REPO_URL } from '#lib/site.ts';
 
 	let { current = [] }: { current?: string[] } = $props();
 	const order = [

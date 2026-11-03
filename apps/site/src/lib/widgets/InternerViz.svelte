@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Figure from '$lib/components/Figure.svelte';
-	import { Interner, type InternResult } from '$lib/kernel/interner';
+	import Figure from '#lib/components/Figure.svelte';
+	import { Interner, type InternResult } from '#lib/kernel/interner.ts';
 
 	const SAMPLE = [
 		'count',

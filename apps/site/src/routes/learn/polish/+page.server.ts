@@ -1,6 +1,6 @@
-import { polishArms } from '$lib/server/benchmark';
-import { performanceHistory } from '$lib/server/performance';
-import { excerpts } from '$lib/server/source';
+import { polishArms } from '#lib/server/benchmark.ts';
+import { performanceHistory } from '#lib/server/performance.ts';
+import { excerpts } from '#lib/server/source.ts';
 
 export const load = () => ({
 	polish: polishArms(),

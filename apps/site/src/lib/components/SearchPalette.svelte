@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { appendix, chapters } from '$lib/site';
-	import { guideSections } from '$lib/guide';
+	import { appendix, chapters } from '#lib/site.ts';
+	import { guideSections } from '#lib/guide.ts';
 	import Icon from './Icon.svelte';
 	import { search } from './search.svelte';
 

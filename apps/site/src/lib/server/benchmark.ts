@@ -1,11 +1,11 @@
-import before1 from '$lib/data/benchmark-polish/before-1.json';
-import before2 from '$lib/data/benchmark-polish/before-2.json';
-import after1 from '$lib/data/benchmark-polish/after-1.json';
-import after2 from '$lib/data/benchmark-polish/after-2.json';
-import metricsA from '$lib/data/benchmark/metrics-a.json';
-import metricsB from '$lib/data/benchmark/metrics-b.json';
-import plainA from '$lib/data/benchmark/plain-a.json';
-import plainB from '$lib/data/benchmark/plain-b.json';
+import before1 from '#lib/data/benchmark-polish/before-1.json';
+import before2 from '#lib/data/benchmark-polish/before-2.json';
+import after1 from '#lib/data/benchmark-polish/after-1.json';
+import after2 from '#lib/data/benchmark-polish/after-2.json';
+import metricsA from '#lib/data/benchmark/metrics-a.json';
+import metricsB from '#lib/data/benchmark/metrics-b.json';
+import plainA from '#lib/data/benchmark/plain-a.json';
+import plainB from '#lib/data/benchmark/plain-b.json';
 
 export interface ArmSummary {
 	name: string;

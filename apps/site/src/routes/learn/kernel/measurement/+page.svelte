@@ -1,12 +1,12 @@
 <script lang="ts">
-	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
-	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
-	import Code from '$lib/components/Code.svelte';
-	import DeepDive from '$lib/components/DeepDive.svelte';
-	import H2 from '$lib/components/H2.svelte';
-	import Note from '$lib/components/Note.svelte';
-	import { chapter } from '$lib/site';
-	import PhaseTimeline from '$lib/widgets/PhaseTimeline.svelte';
+	import ChapterFooter from '#lib/components/ChapterFooter.svelte';
+	import ChapterHeader from '#lib/components/ChapterHeader.svelte';
+	import Code from '#lib/components/Code.svelte';
+	import DeepDive from '#lib/components/DeepDive.svelte';
+	import H2 from '#lib/components/H2.svelte';
+	import Note from '#lib/components/Note.svelte';
+	import { chapter } from '#lib/site.ts';
+	import PhaseTimeline from '#lib/widgets/PhaseTimeline.svelte';
 
 	let { data } = $props();
 	const c = chapter('metrics');

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
-	import LearnNav from '$lib/components/LearnNav.svelte';
-	import OnThisPage from '$lib/components/OnThisPage.svelte';
-	import { appendix, chapterByHref, chapters } from '$lib/site';
+	import LearnNav from '#lib/components/LearnNav.svelte';
+	import OnThisPage from '#lib/components/OnThisPage.svelte';
+	import { appendix, chapterByHref, chapters } from '#lib/site.ts';
 
 	let { children } = $props();
 

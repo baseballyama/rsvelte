@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { CrateSize } from '$lib/build/source-plugin';
+	import type { CrateSize } from '#lib/build/source-plugin.ts';
 
 	let { crates }: { crates: CrateSize[] } = $props();
 

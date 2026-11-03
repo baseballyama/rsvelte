@@ -1,4 +1,4 @@
-import { excerpts, sourceModule } from '$lib/server/source';
+import { excerpts, sourceModule } from '#lib/server/source.ts';
 
 export const load = () => ({
 	docs: sourceModule('kernel/output/document').docs,

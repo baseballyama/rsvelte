@@ -1,5 +1,5 @@
-import { reports } from '$lib/server/benchmark';
-import { excerpts } from '$lib/server/source';
+import { reports } from '#lib/server/benchmark.ts';
+import { excerpts } from '#lib/server/source.ts';
 
 export const load = () => ({
 	format: reports().plainA.population.tasks['svelte.format/default'],

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Figure from '$lib/components/Figure.svelte';
-	import { StructuredDataWriter } from '$lib/kernel/structured-data';
+	import Figure from '#lib/components/Figure.svelte';
+	import { StructuredDataWriter } from '#lib/kernel/structured-data.ts';
 
 	let pretty = $state(true);
 	let step = $state(0);

@@ -1,9 +1,9 @@
 <script lang="ts">
-	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
-	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
-	import Code from '$lib/components/Code.svelte';
-	import H2 from '$lib/components/H2.svelte';
-	import { chapter } from '$lib/site';
+	import ChapterFooter from '#lib/components/ChapterFooter.svelte';
+	import ChapterHeader from '#lib/components/ChapterHeader.svelte';
+	import Code from '#lib/components/Code.svelte';
+	import H2 from '#lib/components/H2.svelte';
+	import { chapter } from '#lib/site.ts';
 
 	let { data } = $props();
 	const currentChapter = chapter('plugins');

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import DocumentPrinter from '$lib/widgets/DocumentPrinter.svelte';
+	import DocumentPrinter from '#lib/widgets/DocumentPrinter.svelte';
 	import {
 		call,
 		fill,

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { chapters } from '$lib/site';
+import { chapters } from '#lib/site.ts';
 import {
 	chapterPositions,
 	overviewEdges,
@@ -9,7 +9,7 @@ import {
 	positionLabel,
 	sharedParts,
 } from './kernel-overview';
-import { sources } from '$lib/build/sources';
+import { sources } from '#lib/build/sources.ts';
 
 const root = path.resolve(import.meta.dirname, '../../../../..');
 

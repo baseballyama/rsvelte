@@ -4,7 +4,7 @@
 		overviewNodes,
 		positionLabel,
 		sharedParts,
-	} from '$lib/kernel/kernel-overview';
+	} from '#lib/kernel/kernel-overview.ts';
 
 	let { href }: { href: string } = $props();
 	const current = $derived(chapterPositions[href] ?? []);

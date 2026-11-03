@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import Figure from '$lib/components/Figure.svelte';
-	import SpanRuler from '$lib/components/SpanRuler.svelte';
+	import Figure from '#lib/components/Figure.svelte';
+	import SpanRuler from '#lib/components/SpanRuler.svelte';
 	import {
 		initializeDocumentPrinter,
 		renderDocument,
 		stringWidth,
 		type TraceEvent,
-	} from '$lib/kernel/document-browser';
+	} from '#lib/kernel/document-browser.ts';
 
 	interface Preset {
 		name: string;

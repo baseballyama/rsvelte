@@ -1,14 +1,14 @@
 <script lang="ts">
-	import Term from '$lib/components/Term.svelte';
-	import Caution from '$lib/components/Caution.svelte';
-	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
-	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
-	import Code from '$lib/components/Code.svelte';
-	import DeepDive from '$lib/components/DeepDive.svelte';
-	import H2 from '$lib/components/H2.svelte';
-	import Note from '$lib/components/Note.svelte';
-	import { chapter } from '$lib/site';
-	import ArtifactCacheSim from '$lib/widgets/ArtifactCacheSim.svelte';
+	import Term from '#lib/components/Term.svelte';
+	import Caution from '#lib/components/Caution.svelte';
+	import ChapterFooter from '#lib/components/ChapterFooter.svelte';
+	import ChapterHeader from '#lib/components/ChapterHeader.svelte';
+	import Code from '#lib/components/Code.svelte';
+	import DeepDive from '#lib/components/DeepDive.svelte';
+	import H2 from '#lib/components/H2.svelte';
+	import Note from '#lib/components/Note.svelte';
+	import { chapter } from '#lib/site.ts';
+	import ArtifactCacheSim from '#lib/widgets/ArtifactCacheSim.svelte';
 
 	let { data } = $props();
 	const c = chapter('db');

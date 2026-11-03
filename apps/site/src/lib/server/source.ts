@@ -1,5 +1,5 @@
 import { clean, crates, modules, rev } from 'virtual:rsvelte-source';
-import type { HighlightedItem, HighlightedModule } from '$lib/build/source-plugin';
+import type { HighlightedItem, HighlightedModule } from '#lib/build/source-plugin.ts';
 
 const byKey = new Map<string, HighlightedItem>();
 const moduleByKey = new Map<string, HighlightedModule>();

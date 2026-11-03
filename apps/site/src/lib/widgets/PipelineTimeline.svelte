@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Figure from '$lib/components/Figure.svelte';
-	import { makeDocs, simulate } from '$lib/kernel/pipeline-sim';
+	import Figure from '#lib/components/Figure.svelte';
+	import { makeDocs, simulate } from '#lib/kernel/pipeline-sim.ts';
 
 	let workers = $state(4);
 	let partShare = $state(0.15);

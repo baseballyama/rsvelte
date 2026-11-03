@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { REPO_URL, type Chapter } from '$lib/site';
+	import { REPO_URL, type Chapter } from '#lib/site.ts';
 	import Icon from './Icon.svelte';
 
 	let { chapter, active, progress }: { chapter: Chapter; active: string | null; progress: number } =

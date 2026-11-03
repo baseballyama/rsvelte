@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { REPO_URL } from '$lib/site';
+	import { REPO_URL } from '#lib/site.ts';
 
 	let { rev }: { rev: string } = $props();
 </script>

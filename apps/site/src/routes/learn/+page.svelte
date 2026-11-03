@@ -1,9 +1,9 @@
 <script lang="ts">
-	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
-	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
-	import H2 from '$lib/components/H2.svelte';
-	import Note from '$lib/components/Note.svelte';
-	import { appendix, chapter, chapters } from '$lib/site';
+	import ChapterFooter from '#lib/components/ChapterFooter.svelte';
+	import ChapterHeader from '#lib/components/ChapterHeader.svelte';
+	import H2 from '#lib/components/H2.svelte';
+	import Note from '#lib/components/Note.svelte';
+	import { appendix, chapter, chapters } from '#lib/site.ts';
 
 	let { data } = $props();
 	const c = chapter('intro');

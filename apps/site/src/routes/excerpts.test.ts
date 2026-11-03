@@ -3,8 +3,8 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseRustModule, type RustItem } from '$lib/build/rust-items.ts';
-import { CRATES, sources } from '$lib/build/sources.ts';
+import { parseRustModule, type RustItem } from '#lib/build/rust-items.ts';
+import { CRATES, sources } from '#lib/build/sources.ts';
 
 const crates = path.resolve(import.meta.dirname, '../../../../crates');
 const files = new Map(sources(crates).map((s) => [s.key, s.file]));

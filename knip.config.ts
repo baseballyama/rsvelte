@@ -12,7 +12,6 @@ const config: KnipConfig = {
 		'apps/site': {
 			entry: ['scripts/*.ts'],
 			project: ['src/**/*.{ts,svelte,css}', 'scripts/**/*.ts'],
-			svelte: { config: ['svelte.config.ts'] },
 		},
 		'tools/fixtures': {
 			entry: [

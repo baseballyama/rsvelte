@@ -1,8 +1,8 @@
 <script lang="ts">
-	import CrateDiagram from '$lib/components/CrateDiagram.svelte';
-	import Icon from '$lib/components/Icon.svelte';
-	import { REPO_URL, chapters } from '$lib/site';
-	import SpanFigure from '$lib/widgets/SpanFigure.svelte';
+	import CrateDiagram from '#lib/components/CrateDiagram.svelte';
+	import Icon from '#lib/components/Icon.svelte';
+	import { REPO_URL, chapters } from '#lib/site.ts';
+	import SpanFigure from '#lib/widgets/SpanFigure.svelte';
 
 	let { data } = $props();
 

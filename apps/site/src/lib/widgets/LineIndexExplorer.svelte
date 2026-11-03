@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Figure from '$lib/components/Figure.svelte';
-	import { LineIndex } from '$lib/kernel/source';
+	import Figure from '#lib/components/Figure.svelte';
+	import { LineIndex } from '#lib/kernel/source.ts';
 
 	let text = $state("let 名前 = '😀';\nx");
 	let at = $state(0);

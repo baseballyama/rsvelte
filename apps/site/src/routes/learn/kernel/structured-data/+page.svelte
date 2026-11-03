@@ -1,11 +1,11 @@
 <script lang="ts">
-	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
-	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
-	import Code from '$lib/components/Code.svelte';
-	import H2 from '$lib/components/H2.svelte';
-	import Note from '$lib/components/Note.svelte';
-	import { chapter } from '$lib/site';
-	import JsonStepper from '$lib/widgets/JsonStepper.svelte';
+	import ChapterFooter from '#lib/components/ChapterFooter.svelte';
+	import ChapterHeader from '#lib/components/ChapterHeader.svelte';
+	import Code from '#lib/components/Code.svelte';
+	import H2 from '#lib/components/H2.svelte';
+	import Note from '#lib/components/Note.svelte';
+	import { chapter } from '#lib/site.ts';
+	import JsonStepper from '#lib/widgets/JsonStepper.svelte';
 
 	let { data } = $props();
 	const c = chapter('json');

@@ -1,13 +1,13 @@
 <script lang="ts">
-	import Term from '$lib/components/Term.svelte';
-	import ChapterFooter from '$lib/components/ChapterFooter.svelte';
-	import ChapterHeader from '$lib/components/ChapterHeader.svelte';
-	import Code from '$lib/components/Code.svelte';
-	import DeepDive from '$lib/components/DeepDive.svelte';
-	import H2 from '$lib/components/H2.svelte';
-	import Note from '$lib/components/Note.svelte';
-	import { chapter } from '$lib/site';
-	import LineIndexExplorer from '$lib/widgets/LineIndexExplorer.svelte';
+	import Term from '#lib/components/Term.svelte';
+	import ChapterFooter from '#lib/components/ChapterFooter.svelte';
+	import ChapterHeader from '#lib/components/ChapterHeader.svelte';
+	import Code from '#lib/components/Code.svelte';
+	import DeepDive from '#lib/components/DeepDive.svelte';
+	import H2 from '#lib/components/H2.svelte';
+	import Note from '#lib/components/Note.svelte';
+	import { chapter } from '#lib/site.ts';
+	import LineIndexExplorer from '#lib/widgets/LineIndexExplorer.svelte';
 
 	let { data } = $props();
 	const c = chapter('source');

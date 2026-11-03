@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { moduleFile, type Chapter } from '$lib/site';
+	import { moduleFile, type Chapter } from '#lib/site.ts';
 	import ChapterPosition from './ChapterPosition.svelte';
 	import Icon from './Icon.svelte';
 

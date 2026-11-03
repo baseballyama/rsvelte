@@ -1,8 +1,8 @@
 <script lang="ts">
 	import '../app.css';
-	import SearchPalette from '$lib/components/SearchPalette.svelte';
-	import SiteFooter from '$lib/components/SiteFooter.svelte';
-	import SiteHeader from '$lib/components/SiteHeader.svelte';
+	import SearchPalette from '#lib/components/SearchPalette.svelte';
+	import SiteFooter from '#lib/components/SiteFooter.svelte';
+	import SiteHeader from '#lib/components/SiteHeader.svelte';
 
 	let { data, children } = $props();
 </script>

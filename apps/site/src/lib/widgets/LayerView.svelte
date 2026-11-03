@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Figure from '$lib/components/Figure.svelte';
-	import { TOOLBAR as d, type Range } from '$lib/data/layers';
+	import Figure from '#lib/components/Figure.svelte';
+	import { TOOLBAR as d, type Range } from '#lib/data/layers/index.ts';
 
 	type Tone = '' | 'node' | 'declaration' | 'ref';
 

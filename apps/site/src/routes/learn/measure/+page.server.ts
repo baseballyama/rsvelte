@@ -1,6 +1,6 @@
-import { arms, phaseTable, reports } from '$lib/server/benchmark';
-import { baseline, paritySummary, performanceHistory, PLATFORM } from '$lib/server/performance';
-import { excerpts } from '$lib/server/source';
+import { arms, phaseTable, reports } from '#lib/server/benchmark.ts';
+import { baseline, paritySummary, performanceHistory, PLATFORM } from '#lib/server/performance.ts';
+import { excerpts } from '#lib/server/source.ts';
 
 export const load = () => {
 	const { plainA, metricsA } = reports();

@@ -1,4 +1,4 @@
-import { allModules, excerpts } from '$lib/server/source';
+import { allModules, excerpts } from '#lib/server/source.ts';
 
 /** Every `const _: () = assert!(size_of::<T>() == N, …)` in the quoted crates, read at build time. */
 function layouts() {

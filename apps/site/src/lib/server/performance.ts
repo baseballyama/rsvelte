@@ -1,5 +1,5 @@
 import { parity, performanceBaseline, performanceHistory as history } from 'virtual:rsvelte-source';
-import type { PerformanceRecord } from '$lib/build/performance-history';
+import type { PerformanceRecord } from '#lib/build/performance-history.ts';
 
 export type { PerformanceRecord };
 
@@ -20,7 +20,7 @@ export interface PerformanceBaseline {
 	load_instructions: Record<string, number>;
 }
 
-export { PLATFORM } from '$lib/build/performance-history';
+export { PLATFORM } from '#lib/build/performance-history.ts';
 
 export function baseline(): PerformanceBaseline {
 	return performanceBaseline;

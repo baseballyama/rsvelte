@@ -1,7 +1,7 @@
 <script lang="ts">
-	import GuideCode from '$lib/components/GuideCode.svelte';
-	import { guideExamples, guideSections } from '$lib/guide';
-	import { REPO_URL } from '$lib/site';
+	import GuideCode from '#lib/components/GuideCode.svelte';
+	import { guideExamples, guideSections } from '#lib/guide.ts';
+	import { REPO_URL } from '#lib/site.ts';
 </script>
 
 <svelte:head>

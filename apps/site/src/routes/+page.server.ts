@@ -1,8 +1,8 @@
-import counter from '$generated/emit/counter-client.json';
-import plainA from '$lib/data/benchmark/plain-a.json';
-import metricsA from '$lib/data/benchmark/metrics-a.json';
+import counter from '#generated/emit/counter-client.json';
+import plainA from '#lib/data/benchmark/plain-a.json';
+import metricsA from '#lib/data/benchmark/metrics-a.json';
 import { parity } from 'virtual:rsvelte-source';
-import { crateSizes } from '$lib/server/source';
+import { crateSizes } from '#lib/server/source.ts';
 
 export const prerender = true;
 

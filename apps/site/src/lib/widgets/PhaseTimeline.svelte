@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Figure from '$lib/components/Figure.svelte';
-	import { account, type Span } from '$lib/kernel/metrics-sim';
+	import Figure from '#lib/components/Figure.svelte';
+	import { account, type Span } from '#lib/kernel/metrics-sim.ts';
 
 	/** Average self microseconds per call of each phase, from a metrics benchmark report. */
 	let { avg, rev }: { avg: Record<string, number>; rev: string } = $props();

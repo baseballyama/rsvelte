@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { replaceState } from '$app/navigation';
-	import CodePane from '$lib/components/CodePane.svelte';
-	import { outputLanguage, type CodeLanguage } from '$lib/kernel/code-language';
+	import CodePane from '#lib/components/CodePane.svelte';
+	import { outputLanguage, type CodeLanguage } from '#lib/kernel/code-language.ts';
 	import {
 		initializePipeline,
 		runPipeline,
 		type PipelineResult,
-	} from '$lib/kernel/pipeline-browser';
+	} from '#lib/kernel/pipeline-browser.ts';
 	import {
 		accessTable,
 		artifactLabel,
@@ -19,7 +19,7 @@
 		plugins,
 		problems,
 		taskLabel,
-	} from '$lib/kernel/pipeline-playground';
+	} from '#lib/kernel/pipeline-playground.ts';
 	let exampleId = $state('svelte');
 	let drafts = $state(Object.fromEntries(examples.map((example) => [example.id, example.source])));
 	let enabledPlugins = $state(['svelte', 'vue', 'svue', 'vuelte']);

@@ -1,5 +1,5 @@
 import { error, json } from '@sveltejs/kit';
-import { allModules } from '$lib/server/source';
+import { allModules } from '#lib/server/source.ts';
 
 /** One module's items with highlighted code, for the reference page's code viewer. */
 export const GET = ({ params: parameters }) => {

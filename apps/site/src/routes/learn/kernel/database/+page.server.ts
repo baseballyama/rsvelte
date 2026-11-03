@@ -1,5 +1,5 @@
-import { arm, documents } from '$lib/server/benchmark';
-import { excerpts } from '$lib/server/source';
+import { arm, documents } from '#lib/server/benchmark.ts';
+import { excerpts } from '#lib/server/source.ts';
 
 export const load = () => ({
 	docs: documents(),

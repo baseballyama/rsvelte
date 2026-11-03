@@ -1,8 +1,8 @@
 <script lang="ts">
-	import ParseSharingFigure from '$lib/widgets/ParseSharingFigure.svelte';
-	import ProjectFactsFigure from '$lib/widgets/ProjectFactsFigure.svelte';
-	import SvelteSourceFigure from '$lib/widgets/SvelteSourceFigure.svelte';
-	import { REPO_URL } from '$lib/site';
+	import ParseSharingFigure from '#lib/widgets/ParseSharingFigure.svelte';
+	import ProjectFactsFigure from '#lib/widgets/ProjectFactsFigure.svelte';
+	import SvelteSourceFigure from '#lib/widgets/SvelteSourceFigure.svelte';
+	import { REPO_URL } from '#lib/site.ts';
 
 	let { data } = $props();
 

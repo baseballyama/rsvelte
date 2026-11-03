@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Figure from '$lib/components/Figure.svelte';
-	import { vlqDigits } from '$lib/kernel/emit';
+	import Figure from '#lib/components/Figure.svelte';
+	import { vlqDigits } from '#lib/kernel/emit.ts';
 
 	let value = $state(1000);
 	const digits = $derived(vlqDigits(Math.trunc(value || 0)));

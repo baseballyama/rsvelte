@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Figure from '$lib/components/Figure.svelte';
+	import Figure from '#lib/components/Figure.svelte';
 	import {
 		ARTIFACTS,
 		computeCounts,
@@ -7,7 +7,7 @@
 		TASKS,
 		type ArtifactName,
 		type TaskId,
-	} from '$lib/kernel/artifacts-sim';
+	} from '#lib/kernel/artifacts-sim.ts';
 
 	let selected: TaskId[] = $state([...TASKS]);
 	let sharing: 'shared' | 'isolated' = $state('shared');

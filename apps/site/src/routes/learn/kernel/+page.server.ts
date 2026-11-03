@@ -1,6 +1,6 @@
-import { allModules, crateSizes, excerpts, sourceModule } from '$lib/server/source';
-import { chapters } from '$lib/site';
-import { moduleDescription } from '$lib/module-descriptions';
+import { allModules, crateSizes, excerpts, sourceModule } from '#lib/server/source.ts';
+import { chapters } from '#lib/site.ts';
+import { moduleDescription } from '#lib/module-descriptions.ts';
 
 export const load = () => {
 	const modules = allModules()

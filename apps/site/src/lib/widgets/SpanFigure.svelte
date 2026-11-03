@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import SpanRuler from '$lib/components/SpanRuler.svelte';
-	import { Emitter } from '$lib/kernel/emit';
-	import { LineIndex } from '$lib/kernel/source';
+	import SpanRuler from '#lib/components/SpanRuler.svelte';
+	import { Emitter } from '#lib/kernel/emit.ts';
+	import { LineIndex } from '#lib/kernel/source.ts';
 
 	interface EmitData {
 		source: string;

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Figure from '$lib/components/Figure.svelte';
-	import { consumerLookup, decodeMappings, Emitter } from '$lib/kernel/emit';
+	import Figure from '#lib/components/Figure.svelte';
+	import { consumerLookup, decodeMappings, Emitter } from '#lib/kernel/emit.ts';
 
 	// The kernel test `spans_map_back_through_copies_and_quotes`, step by step.
 	const source = '<p aria-label={x}>';

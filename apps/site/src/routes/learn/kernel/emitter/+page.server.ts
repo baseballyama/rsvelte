@@ -1,5 +1,5 @@
-import counter from '$generated/emit/counter-client.json';
-import { excerpts } from '$lib/server/source';
+import counter from '#generated/emit/counter-client.json';
+import { excerpts } from '#lib/server/source.ts';
 
 export const load = () => ({
 	counter,

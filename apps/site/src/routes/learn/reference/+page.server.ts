@@ -1,4 +1,4 @@
-import { allModules } from '$lib/server/source';
+import { allModules } from '#lib/server/source.ts';
 
 export const load = () => ({
 	modules: allModules().map((m) => ({

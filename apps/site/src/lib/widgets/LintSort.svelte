@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Figure from '$lib/components/Figure.svelte';
-	import { LineIndex } from '$lib/kernel/source';
+	import Figure from '#lib/components/Figure.svelte';
+	import { LineIndex } from '#lib/kernel/source.ts';
 
 	// The rsvelte_lint test's rule: report every 'x' (optionally shifted), under the rule's own id.
 	interface Finding {

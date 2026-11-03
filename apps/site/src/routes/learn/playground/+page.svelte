@@ -1,5 +1,5 @@
 <script lang="ts">
-	import PipelinePlayground from '$lib/widgets/PipelinePlayground.svelte';
+	import PipelinePlayground from '#lib/widgets/PipelinePlayground.svelte';
 </script>
 
 <svelte:head><title>プレイグラウンド — rsvelte Learn</title></svelte:head>

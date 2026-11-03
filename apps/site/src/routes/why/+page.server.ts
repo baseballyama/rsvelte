@@ -2,7 +2,7 @@ import {
 	createHighlighter,
 	createCssVariablesTheme as createStylesheetVariablesTheme,
 } from 'shiki';
-import { pipelineExamples } from '$lib/widgets/svelte-pipeline';
+import { pipelineExamples } from '#lib/widgets/svelte-pipeline.ts';
 
 const highlighter = createHighlighter({
 	themes: [

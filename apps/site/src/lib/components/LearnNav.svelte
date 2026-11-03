@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { appendix, chapters, type Chapter } from '$lib/site';
+	import { appendix, chapters, type Chapter } from '#lib/site.ts';
 
 	let {
 		active,
