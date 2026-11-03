@@ -236,9 +236,15 @@ pub fn visit_component<'a, 'b: 'a>(
                 // TODO: Validate attach tag
                 // disallow_unparenthesized_sequences(attribute.expression, context.state.analysis.source)
             }
-            Attribute::LetDirective(_) | Attribute::SpreadAttribute(_) => {
-                // These are allowed on components
+            Attribute::LetDirective(let_dir) => {
+                check_let_directive_snippet_conflict(
+                    let_dir,
+                    &component.attributes,
+                    &component.fragment,
+                    &context.analysis.source,
+                )?;
             }
+            Attribute::SpreadAttribute(_) => {}
             _ => {
                 // All other directive types are invalid on components
                 // (TransitionDirective, AnimateDirective, UseDirective, ClassDirective, StyleDirective)
@@ -475,6 +481,57 @@ fn get_slot_name(node: &crate::ast::template::TemplateNode) -> Option<(String, u
     }
 
     None
+}
+
+/// Upstream `LetDirective.js`: an explicit `children` snippet replaces the
+/// default slot content, so a `let:` on the component would never be provided.
+/// With a `slot` attribute the directive applies to the component itself.
+pub fn check_let_directive_snippet_conflict(
+    let_dir: &crate::ast::template::LetDirective,
+    attributes: &[Attribute],
+    fragment: &crate::ast::template::Fragment,
+    source: &str,
+) -> Result<(), AnalysisError> {
+    use crate::ast::template::{AttributeValue, AttributeValuePart, TemplateNode};
+
+    // `determine_slot` returns the first text-valued `slot`; an empty one is falsy.
+    let slot = attributes.iter().find_map(|attr| match attr {
+        Attribute::Attribute(a) if a.name.as_str() == "slot" => match &a.value {
+            AttributeValue::Sequence(parts) if parts.len() == 1 => match &parts[0] {
+                AttributeValuePart::Text(text) => Some(text.data.as_ref()),
+                _ => None,
+            },
+            _ => None,
+        },
+        _ => None,
+    });
+    if slot.is_some_and(|s: &str| !s.is_empty()) {
+        return Ok(());
+    }
+
+    let has_children_snippet = fragment.nodes.iter().any(|child| {
+        matches!(child, TemplateNode::SnippetBlock(snippet)
+            if snippet.expression.identifier_name() == Some("children"))
+    });
+    if !has_children_snippet {
+        return Ok(());
+    }
+
+    let pattern = match &let_dir.expression {
+        None => let_dir.name.to_string(),
+        Some(expr) if expr.identifier_name() == Some(let_dir.name.as_str()) => {
+            let_dir.name.to_string()
+        }
+        Some(expr) => {
+            let text = expr
+                .start()
+                .zip(expr.end())
+                .and_then(|(start, end)| source.get(start as usize..end as usize))
+                .unwrap_or_default();
+            format!("{}: {}", let_dir.name, text)
+        }
+    };
+    Err(errors::let_directive_snippet_conflict(&pattern).at(let_dir.start, let_dir.end))
 }
 
 /// Validate a component and its attributes.
