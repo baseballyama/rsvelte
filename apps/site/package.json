@@ -9,6 +9,7 @@
 		"#generated/*": "./generated/*"
 	},
 	"scripts": {
+		"prepare": "svelte-kit sync",
 		"lint:code-names": "node scripts/lint-code-names.ts",
 		"lint:prose": "node scripts/lint-prose.ts",
 		"generate": "node scripts/generate.ts",

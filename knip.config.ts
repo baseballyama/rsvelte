@@ -8,7 +8,11 @@ export default {
 			// The root has no Svelte app; the site workspace does.
 			svelte: false,
 		},
-		'apps/site': { entry: ['scripts/*.ts'] },
+		'apps/site': {
+			entry: ['scripts/*.ts'],
+			// wasm-pack's output, which only the site job builds.
+			ignoreUnresolved: [/^#generated\/wasm\//],
+		},
 		'tools/fixtures': {
 			// Loaded by URL into a browser, a worker or a child process, not imported.
 			entry: ['behaviour/{browser-runner,client,server,worker}.ts'],
