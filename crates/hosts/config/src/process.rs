@@ -16,7 +16,7 @@ use crate::{
 const PROTOCOL_VERSION: u32 = 1;
 use crate::wire::{self, MAX_MESSAGE_BYTES};
 const RESPONSE_TIMEOUT: Duration = Duration::from_secs(30);
-const NODE_SERVER: &str = include_str!("../../../../tools/config/node.mjs");
+const NODE_SERVER: &str = include_str!("node_server.ts");
 
 #[derive(Debug)]
 pub struct ProcessLoader {
@@ -38,7 +38,7 @@ impl ProcessLoader {
     #[must_use]
     pub fn node(executable: PathBuf, mut arguments: Vec<String>) -> Self {
         arguments.extend([
-            "--input-type=module".into(),
+            "--input-type=module-typescript".into(),
             "--eval".into(),
             NODE_SERVER.into(),
         ]);
