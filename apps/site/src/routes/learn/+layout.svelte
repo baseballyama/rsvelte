@@ -32,7 +32,8 @@
 			let cur = heads[0].id;
 			for (const h of heads) if (h.getBoundingClientRect().top < 200) cur = h.id;
 			// At the very bottom a short last section can never reach the line; it is still the one being read.
-			if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) cur = heads[heads.length - 1].id;
+			if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4)
+				cur = heads[heads.length - 1].id;
 			active = cur;
 		};
 		update();
@@ -64,15 +65,21 @@
 
 <div
 	class={[
-		playground ? 'mx-auto max-w-[1600px] px-4 md:px-8' : 'mx-auto max-w-[1440px] px-4 md:px-8 lg:grid lg:grid-cols-[232px_minmax(0,1fr)] lg:gap-12',
-		outline && 'xl:grid-cols-[232px_minmax(0,820px)_200px] xl:justify-between'
+		playground
+			? 'mx-auto max-w-[1600px] px-4 md:px-8'
+			: 'mx-auto max-w-[1440px] px-4 md:px-8 lg:grid lg:grid-cols-[232px_minmax(0,1fr)] lg:gap-12',
+		outline && 'xl:grid-cols-[232px_minmax(0,820px)_200px] xl:justify-between',
 	]}
 >
 	<aside class={playground ? 'hidden' : 'hidden lg:block'}>
-		<div class="thin-scrollbar sticky top-14 -ml-2 max-h-[calc(100dvh-56px)] overflow-y-auto py-10 pr-2 pl-0">
+		<div
+			class="thin-scrollbar sticky top-14 -ml-2 max-h-[calc(100dvh-56px)] overflow-y-auto py-10 pr-2 pl-0"
+		>
 			{#if ordinal >= 0}
 				<div class="mb-6 px-2">
-					<div class="flex items-baseline justify-between font-mono text-[11.5px] tracking-normal text-muted tnum">
+					<div
+						class="flex items-baseline justify-between font-mono text-[11.5px] tracking-normal text-muted tnum"
+					>
 						<span>進み具合</span><span>{ordinal + 1} / {chapters.length}</span>
 					</div>
 					<div class="mt-1.5 h-[3px] overflow-hidden rounded-full bg-surface">
@@ -89,20 +96,33 @@
 
 	<details
 		bind:this={drawer}
-		class={['group/drawer sticky top-14 z-30 -mx-4 border-b border-line bg-[var(--header-bg)] px-4 backdrop-blur-md md:-mx-8 md:px-8 lg:hidden', playground && 'hidden']}
+		class={[
+			'group/drawer sticky top-14 z-30 -mx-4 border-b border-line bg-[var(--header-bg)] px-4 backdrop-blur-md md:-mx-8 md:px-8 lg:hidden',
+			playground && 'hidden',
+		]}
 	>
-		<summary class="flex cursor-pointer list-none items-center gap-3 py-2.5 text-[14px] [&::-webkit-details-marker]:hidden">
-			<span class="rounded-sm border border-line px-1.5 font-mono text-[11.5px] tracking-normal text-muted tnum"
+		<summary
+			class="flex cursor-pointer list-none items-center gap-3 py-2.5 text-[14px] [&::-webkit-details-marker]:hidden"
+		>
+			<span
+				class="rounded-sm border border-line px-1.5 font-mono text-[11.5px] tracking-normal text-muted tnum"
 				>{chapter?.number ?? '付録'}</span
 			>
 			<span class="min-w-0 truncate">
-				<span class={currentTitle ? 'text-muted max-sm:hidden' : ''}>{chapter?.title ?? '目次'}</span>
-				{#if currentTitle}<span class="mx-1.5 text-line-strong max-sm:hidden">/</span><span>{currentTitle}</span>{/if}
+				<span class={currentTitle ? 'text-muted max-sm:hidden' : ''}
+					>{chapter?.title ?? '目次'}</span
+				>
+				{#if currentTitle}<span class="mx-1.5 text-line-strong max-sm:hidden">/</span><span
+						>{currentTitle}</span
+					>{/if}
 			</span>
 			<span
 				class="ml-auto flex shrink-0 items-center gap-1 rounded-md border border-line bg-raised px-2 py-0.5 text-[12px] text-fg-2"
 			>
-				目次<span class="inline-block transition-transform group-open/drawer:rotate-180" aria-hidden="true">▾</span>
+				目次<span
+					class="inline-block transition-transform group-open/drawer:rotate-180"
+					aria-hidden="true">▾</span
+				>
 			</span>
 		</summary>
 		<div class="thin-scrollbar max-h-[70dvh] overflow-y-auto pt-1 pb-5"><LearnNav {active} /></div>
@@ -110,7 +130,11 @@
 
 	<article
 		bind:this={article}
-		class={['learn-article min-w-0', playground ? 'py-6 lg:py-7' : 'py-10 lg:py-14', wide && 'learn-wide']}
+		class={[
+			'learn-article min-w-0',
+			playground ? 'py-6 lg:py-7' : 'py-10 lg:py-14',
+			wide && 'learn-wide',
+		]}
 		data-outline={outline || undefined}
 	>
 		{@render children()}

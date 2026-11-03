@@ -22,7 +22,8 @@ function removeStale(task: Task, variantId: string, unit: Unit, keep: Set<string
 	} catch {
 		return;
 	}
-	for (const n of names) if (n.startsWith(`${variantId}.`) && !keep.has(n)) fs.rmSync(path.join(dir, n));
+	for (const n of names)
+		if (n.startsWith(`${variantId}.`) && !keep.has(n)) fs.rmSync(path.join(dir, n));
 	if (fs.readdirSync(dir).length === 0) fs.rmdirSync(dir);
 	const parent = path.dirname(dir);
 	if (fs.readdirSync(parent).length === 0) fs.rmdirSync(parent);
@@ -33,7 +34,10 @@ export interface RegenOptions {
 	sourceIds?: string[];
 }
 
-export async function regen({ taskIds, sourceIds }: RegenOptions): Promise<{ unparseable: string[] }> {
+export async function regen({
+	taskIds,
+	sourceIds,
+}: RegenOptions): Promise<{ unparseable: string[] }> {
 	const tasks = taskIds ? taskIds.map(taskById) : TASKS;
 	const units = allUnits(sourceIds);
 	const unparseable: string[] = [];
@@ -45,14 +49,20 @@ export async function regen({ taskIds, sourceIds }: RegenOptions): Promise<{ unp
 				const keep = new Set<string>();
 				if (applies(task, variant.id, unit)) {
 					counts.units++;
-					const artifacts = await task.run(unit, fs.readFileSync(inputFile(unit, unit.ext), 'utf8'), variant);
+					const artifacts = await task.run(
+						unit,
+						fs.readFileSync(inputFile(unit, unit.ext), 'utf8'),
+						variant,
+					);
 					if (artifacts.error) counts.error++;
 					for (const [name, art] of Object.entries(artifacts)) {
 						if (art.compare === 'js-ast') {
 							try {
 								parseJs(art.text);
 							} catch (e) {
-								unparseable.push(`${task.id}/${variant.id} ${unit.family}/${unit.source}/${unit.path} (${name}): ${(e as Error).message}`);
+								unparseable.push(
+									`${task.id}/${variant.id} ${unit.family}/${unit.source}/${unit.path} (${name}): ${(e as Error).message}`,
+								);
 							}
 						}
 						writeIfChanged(expectedFile(task, variant.id, unit, art.ext), art.text);
@@ -70,7 +80,7 @@ export async function regen({ taskIds, sourceIds }: RegenOptions): Promise<{ unp
 		lock[task.id] = {
 			storage: task.storage,
 			oracles: Object.fromEntries(task.oracles.map((p) => [p, packageVersion(p)])),
-			canonicalizer: { acorn: packageVersion('acorn') }
+			canonicalizer: { acorn: packageVersion('acorn') },
 		};
 	}
 	writeIfChanged(ORACLES_FILE, stableStringify(lock) + '\n');

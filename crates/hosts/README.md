@@ -8,10 +8,10 @@ tools, accepts input, runs tasks through the kernel, and returns their output.
 Language trees and tool implementations live in `../languages/`; shared data and
 task scheduling live in `../kernel/`.
 
-| Host | Who uses it | Interface |
-|---|---|---|
-| `command_line/` | People running rsvelte in a terminal, and toolchain developers | The native `rsvelte` executable |
-| `browser/` | Developers embedding rsvelte in a web page; currently the Learn site | JavaScript bindings to WebAssembly |
+| Host            | Who uses it                                                          | Interface                          |
+| --------------- | -------------------------------------------------------------------- | ---------------------------------- |
+| `command_line/` | People running rsvelte in a terminal, and toolchain developers       | The native `rsvelte` executable    |
+| `browser/`      | Developers embedding rsvelte in a web page; currently the Learn site | JavaScript bindings to WebAssembly |
 
 ## Command line
 
@@ -27,12 +27,12 @@ cargo run -p rsvelte_command_line -- run App.svelte --task svelte.lint/default
 Repeat `--task` to request more than one task. `run` prints generated files and
 diagnostics to standard output, with task labels. It does not edit the input file.
 
-| Command | Purpose |
-|---|---|
-| `run <file> --task <identifier>` | Run selected tasks on one file |
-| `fixtures <dir>... --task <identifier>` | Write task outputs under each fixture unit's `actual/` directory |
-| `benchmark <dir> --task <identifier>` | Measure pipeline time |
-| `performance <dir>... --task <identifier>` | Measure performance counters |
+| Command                                    | Purpose                                                          |
+| ------------------------------------------ | ---------------------------------------------------------------- |
+| `run <file> --task <identifier>`           | Run selected tasks on one file                                   |
+| `fixtures <dir>... --task <identifier>`    | Write task outputs under each fixture unit's `actual/` directory |
+| `benchmark <dir> --task <identifier>`      | Measure pipeline time                                            |
+| `performance <dir>... --task <identifier>` | Measure performance counters                                     |
 
 Svelte type checking needs native TypeScript 7.1 and the precomputed content mapper executable.
 The CLI finds the mapper on `PATH`; `RSVELTE_TYPESCRIPT_CONTENT_MAPPER` can set its path.
@@ -62,17 +62,17 @@ Initialize the generated module before calling its functions:
 import init, { runPipeline } from './rsvelte_kernel_browser.js';
 
 await init();
-const result = JSON.parse(runPipeline(
-  '<p>Hello</p>', 'App.svelte', 'svelte', 'compile-client,lint', true
-));
+const result = JSON.parse(
+  runPipeline('<p>Hello</p>', 'App.svelte', 'svelte', 'compile-client,lint', true),
+);
 console.log(result.steps);
 ```
 
-| Export | Purpose |
-|---|---|
+| Export                                                  | Purpose                                                                                       |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `runPipeline(source, filename, plugins, tasks, shared)` | Run language tasks and return a JSON string with outputs, diagnostics, and computation traces |
-| `renderDocument(source, width, tabs)` | Render a document layout expression and return a JSON string with output and layout traces |
-| `stringWidth(text)` | Return the printer's display width for a string |
+| `renderDocument(source, width, tabs)`                   | Render a document layout expression and return a JSON string with output and layout traces    |
+| `stringWidth(text)`                                     | Return the printer's display width for a string                                               |
 
 `plugins` is a comma-separated selection of `svelte`, `vue`, `svue`, and `vuelte`.
 `tasks` selects `compile-client`, `compile-server`, `format`, and `lint` in the

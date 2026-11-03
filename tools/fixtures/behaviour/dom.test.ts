@@ -12,10 +12,7 @@ const same: [string, string][] = [
 	['<p class="b a a">x</p>', '<p class="a b">x</p>'],
 	['<p class="svelte-1x2y3z">x</p>', '<p>x</p>'],
 	['<p id="i" title="t">x</p>', '<p title="t" id="i">x</p>'],
-	[
-		'<p style="color:red;margin: 0">x</p>',
-		'<p style="margin:0; color: red;">x</p>',
-	],
+	['<p style="color:red;margin: 0">x</p>', '<p style="margin:0; color: red;">x</p>'],
 	['<div>\n  <p>x</p>\n  <p>y</p>\n</div>', '<div><p>x</p><p>y</p></div>'],
 	['<p>  a \n b  </p>', '<p>a b</p>'],
 	['<span>a</span> <p>b</p>', '<span>a</span><p>b</p>'],
@@ -23,10 +20,7 @@ const same: [string, string][] = [
 ];
 const different: [string, string][] = [
 	['<template><p>a</p></template>', '<template><p>b</p></template>'],
-	[
-		'<template><template>a</template></template>',
-		'<template><template>b</template></template>',
-	],
+	['<template><template>a</template></template>', '<template><template>b</template></template>'],
 	['<span>a</span> <span>b</span>', '<span>a</span><span>b</span>'],
 	['<span>a</span>\n<span>b</span>', '<span>a</span><span>b</span>'],
 	['<pre> a  b</pre>', '<pre>a b</pre>'],
@@ -44,8 +38,7 @@ const different: [string, string][] = [
 ];
 
 test('normalization: invisible differences vanish, visible ones stay', () => {
-	for (const [a, b] of same)
-		assert.deepEqual(serializeHtml(a), serializeHtml(b), `${a} vs ${b}`);
+	for (const [a, b] of same) assert.deepEqual(serializeHtml(a), serializeHtml(b), `${a} vs ${b}`);
 	for (const [a, b] of different)
 		assert.notDeepEqual(serializeHtml(a), serializeHtml(b), `${a} vs ${b}`);
 });

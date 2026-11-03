@@ -13,7 +13,7 @@ const FORMAT_OPTIONS = {
 	trailingComma: 'all',
 	bracketSpacing: true,
 	svelteSortOrder: 'options-scripts-markup-styles',
-	svelteIndentScriptAndStyle: true
+	svelteIndentScriptAndStyle: true,
 } as const;
 
 // Only the hand-written units for now: whether corpus snapshots are committed or cached waits for a
@@ -25,8 +25,12 @@ const task: Task = {
 	variants: [{ id: 'default', options: {} }],
 	appliesTo: (unit) => unit.lang === 'svelte' && unit.source === 'rsvelte',
 	async run(unit, src) {
-		const text = await prettier.format(src, { ...FORMAT_OPTIONS, filepath: unit.path, plugins: [sveltePlugin as prettier.Plugin] });
+		const text = await prettier.format(src, {
+			...FORMAT_OPTIONS,
+			filepath: unit.path,
+			plugins: [sveltePlugin as prettier.Plugin],
+		});
 		return { svelte: { text, ext: 'svelte', compare: 'text' } };
-	}
+	},
 };
 export default task;

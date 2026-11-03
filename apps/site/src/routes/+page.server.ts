@@ -29,8 +29,8 @@ export const load = () => {
 				name: a.name,
 				median: a.median_ms,
 				peak: alloc(a.name).peak_live_growth_bytes,
-				allocations: alloc(a.name).allocations
-			}))
-		}
+				allocations: alloc(a.name).allocations,
+			})),
+		},
 	};
 };

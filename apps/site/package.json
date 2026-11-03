@@ -1,11 +1,8 @@
 {
 	"name": "@rsvelte-experimental/site",
 	"private": true,
-	"type": "module",
 	"description": "The rsvelte site: landing page and the /learn developer guide. SvelteKit on Cloudflare Workers.",
-	"engines": {
-		"node": ">=26"
-	},
+	"type": "module",
 	"scripts": {
 		"lint:code-names": "node scripts/lint-code-names.ts",
 		"lint:prose": "node scripts/lint-prose.ts",
@@ -40,5 +37,8 @@
 		"vite": "8.3.1",
 		"vitest": "5.0.2",
 		"wrangler": "4.143.0"
+	},
+	"engines": {
+		"node": ">=26"
 	}
 }

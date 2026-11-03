@@ -1,14 +1,44 @@
 import { scan } from '../src/lib/build/rust-items.ts';
 
-type Token = { text: string; line: number; kind: 'literal' | 'lifetime' | 'identifier' | 'punctuation' };
+type Token = {
+	text: string;
+	line: number;
+	kind: 'literal' | 'lifetime' | 'identifier' | 'punctuation';
+};
 export type Declaration = { name: string; line: number; owner: string | undefined };
 type TraitImplementation = { start: number; end: number; trait: string };
 // The options ride on `add` so every helper that declares names can read them.
-type Add = ((index: number, owner?: string) => void) & { traitParameterNamesEnforced: boolean; source: string };
+type Add = ((index: number, owner?: string) => void) & {
+	traitParameterNamesEnforced: boolean;
+	source: string;
+};
 
 const ITEMS = new Set(['fn', 'struct', 'enum', 'trait', 'type', 'const', 'static', 'mod', 'union']);
-const NOT_BINDINGS = new Set(['mut', 'ref', 'box', 'true', 'false', 'in', 'if', 'self', 'Self', 'crate', 'super', '_']);
-const EXPRESSION_START_KEYWORDS = new Set(['return', 'move', 'break', 'yield', 'in', 'async', 'static', 'box', 'else']);
+const NOT_BINDINGS = new Set([
+	'mut',
+	'ref',
+	'box',
+	'true',
+	'false',
+	'in',
+	'if',
+	'self',
+	'Self',
+	'crate',
+	'super',
+	'_',
+]);
+const EXPRESSION_START_KEYWORDS = new Set([
+	'return',
+	'move',
+	'break',
+	'yield',
+	'in',
+	'async',
+	'static',
+	'box',
+	'else',
+]);
 const PAIRS = new Set(['::', '=>', '->', '..', '==', '!=', '<=', '>=', '&&', '||']);
 const OPENING = new Set(['(', '[', '{', '<']);
 const CLOSING = new Set([')', ']', '}', '>']);
@@ -19,10 +49,14 @@ const CLOSER: Record<string, string> = { '(': ')', '[': ']', '{': '}', '<': '>' 
  * A field or variant also has `owner`, the type that declares it. With `traitParameterNamesEnforced`, the `buf`
  * parameter of `std::io::Write::write` is skipped, because the workspace lint keeps it equal to std's declaration.
  */
-export function rustDeclarations(source: string, { traitParameterNamesEnforced = false } = {}): Declaration[] {
+export function rustDeclarations(
+	source: string,
+	{ traitParameterNamesEnforced = false } = {},
+): Declaration[] {
 	const tokens = tokenize(source);
 	const found: Declaration[] = [];
-	const add = (index: number, owner?: string) => found.push({ name: tokens[index].text.replace(/^'/, ''), line: tokens[index].line, owner });
+	const add = (index: number, owner?: string) =>
+		found.push({ name: tokens[index].text.replace(/^'/, ''), line: tokens[index].line, owner });
 	add.traitParameterNamesEnforced = traitParameterNamesEnforced;
 	add.source = source;
 	const traitImplementations: TraitImplementation[] = [];
@@ -35,7 +69,11 @@ export function rustDeclarations(source: string, { traitParameterNamesEnforced =
 			index = useAliases(tokens, index, add);
 		} else if (token.text === 'macro_rules' && tokens[index + 1]?.text === '!') {
 			add(index + 2);
-		} else if (ITEMS.has(token.text) && tokens[index + 1]?.kind === 'identifier' && previous !== '.') {
+		} else if (
+			ITEMS.has(token.text) &&
+			tokens[index + 1]?.kind === 'identifier' &&
+			previous !== '.'
+		) {
 			item(tokens, index, add, traitImplementations);
 		} else if (token.text === 'for' && tokens[index + 1]?.text === '<') {
 			index = genericParameters(tokens, index + 1, add);
@@ -45,8 +83,11 @@ export function rustDeclarations(source: string, { traitParameterNamesEnforced =
 			index = closureParameters(tokens, index, add);
 		} else if (token.text === 'match' && previous !== '#') {
 			matchArms(tokens, index, add);
-		} else if (token.kind === 'lifetime' && tokens[index + 1]?.text === ':'
-			&& ['loop', 'while', 'for', '{'].includes(tokens[index + 2]?.text)) {
+		} else if (
+			token.kind === 'lifetime' &&
+			tokens[index + 1]?.text === ':' &&
+			['loop', 'while', 'for', '{'].includes(tokens[index + 2]?.text)
+		) {
 			add(index);
 		}
 	}
@@ -60,7 +101,8 @@ function tokenize(source: string): Token[] {
 	let line = 1;
 	for (let offset = 0; offset < source.length;) {
 		const character = source[offset];
-		if (visible[offset] === -1 && character !== '/' && visible[offset - 1] !== -1) tokens.push({ text: '', line, kind: 'literal' });
+		if (visible[offset] === -1 && character !== '/' && visible[offset - 1] !== -1)
+			tokens.push({ text: '', line, kind: 'literal' });
 		if (visible[offset] === -1 || /\s/.test(character)) {
 			if (character === '\n') line++;
 			offset++;
@@ -93,13 +135,21 @@ function closingIndex(tokens: Token[], open: number) {
 }
 
 // Method, type and constant names inside `impl Trait for Type` are chosen by the trait.
-function implementationHeader(tokens: Token[], index: number, add: Add, traitImplementations: TraitImplementation[]) {
+function implementationHeader(
+	tokens: Token[],
+	index: number,
+	add: Add,
+	traitImplementations: TraitImplementation[],
+) {
 	let next = index + 1;
 	if (tokens[next]?.text === '<') next = genericParameters(tokens, next, add) + 1;
 	const start = next;
 	while (next < tokens.length && !['{', ';', 'for'].includes(tokens[next].text)) next++;
 	if (tokens[next]?.text === 'for') {
-		const trait = tokens.slice(start, next).map(token => token.text).join('');
+		const trait = tokens
+			.slice(start, next)
+			.map((token) => token.text)
+			.join('');
 		while (next < tokens.length && tokens[next].text !== '{') next++;
 		traitImplementations.push({ start: next, end: closingIndex(tokens, next), trait });
 	}
@@ -114,7 +164,12 @@ function useAliases(tokens: Token[], index: number, add: Add) {
 	return next;
 }
 
-function item(tokens: Token[], index: number, add: Add, traitImplementations: TraitImplementation[]) {
+function item(
+	tokens: Token[],
+	index: number,
+	add: Add,
+	traitImplementations: TraitImplementation[],
+) {
 	const keyword = tokens[index].text;
 	if (keyword === 'const' && ['fn', 'unsafe', 'async'].includes(tokens[index + 1].text)) return;
 	const name = index + 1;
@@ -122,9 +177,14 @@ function item(tokens: Token[], index: number, add: Add, traitImplementations: Tr
 	if (!implementation) add(name);
 	let next = name + 1;
 	if (tokens[next]?.text === '<') next = genericParameters(tokens, next, add) + 1;
-	const keepsWriteBuffer = add.traitParameterNamesEnforced && keyword === 'fn' && tokens[name].text === 'write'
-		&& implementation && isStdWrite(implementation.trait, add.source);
-	if (keyword === 'fn' && tokens[next]?.text === '(') functionParameters(tokens, next, add, keepsWriteBuffer);
+	const keepsWriteBuffer =
+		add.traitParameterNamesEnforced &&
+		keyword === 'fn' &&
+		tokens[name].text === 'write' &&
+		implementation &&
+		isStdWrite(implementation.trait, add.source);
+	if (keyword === 'fn' && tokens[next]?.text === '(')
+		functionParameters(tokens, next, add, keepsWriteBuffer);
 	if (keyword === 'struct' || keyword === 'union') {
 		while (next < tokens.length && !['{', ';', '('].includes(tokens[next].text)) next++;
 		if (tokens[next]?.text === '{') fields(tokens, next, add, tokens[name].text);
@@ -160,7 +220,12 @@ function isStdWrite(trait: string, source: string) {
 	return trait === 'Write' && /\buse\s+std::io::(Write\s*;|\{[^}]*\bWrite\b)/.test(source);
 }
 
-function functionParameters(tokens: Token[], open: number, add: Add, keepsWriteBuffer: boolean | undefined) {
+function functionParameters(
+	tokens: Token[],
+	open: number,
+	add: Add,
+	keepsWriteBuffer: boolean | undefined,
+) {
 	const end = closingIndex(tokens, open);
 	let depth = 0;
 	let segment = open + 1;
@@ -170,7 +235,10 @@ function functionParameters(tokens: Token[], open: number, add: Add, keepsWriteB
 		else if (CLOSING.has(text) && index !== end) depth--;
 		if ((text === ',' && depth === 0) || index === end) {
 			const colon = topLevelColon(tokens, segment, index);
-			if (colon < index && !(keepsWriteBuffer && colon === segment + 1 && tokens[segment].text === 'buf')) {
+			if (
+				colon < index &&
+				!(keepsWriteBuffer && colon === segment + 1 && tokens[segment].text === 'buf')
+			) {
 				patternBindings(tokens, segment, colon, add);
 			}
 			segment = index + 1;
@@ -196,7 +264,13 @@ function fields(tokens: Token[], open: number, add: Add, owner: string) {
 		const token = tokens[index];
 		if (OPENING.has(token.text)) depth++;
 		else if (CLOSING.has(token.text)) depth--;
-		else if (depth === 0 && token.kind === 'identifier' && tokens[index + 1]?.text === ':' && token.text !== 'pub') add(index, owner);
+		else if (
+			depth === 0 &&
+			token.kind === 'identifier' &&
+			tokens[index + 1]?.text === ':' &&
+			token.text !== 'pub'
+		)
+			add(index, owner);
 	}
 }
 
@@ -242,11 +316,13 @@ function statementPattern(tokens: Token[], index: number, add: Add) {
 function patternBindings(tokens: Token[], from: number, to: number, add: Add) {
 	for (let index = from; index < to; index++) {
 		const token = tokens[index];
-		if (token.kind !== 'identifier' || NOT_BINDINGS.has(token.text) || /^[A-Z]/.test(token.text)) continue;
+		if (token.kind !== 'identifier' || NOT_BINDINGS.has(token.text) || /^[A-Z]/.test(token.text))
+			continue;
 		const next = tokens[index + 1]?.text;
 		const previous = tokens[index - 1]?.text;
 		if (['(', '{', '::', '!'].includes(next) || previous === '::' || previous === '.') continue;
-		if (next === ':' && [',', '{'].includes(previous) && insideBraces(tokens, from, index)) continue;
+		if (next === ':' && [',', '{'].includes(previous) && insideBraces(tokens, from, index))
+			continue;
 		add(index);
 	}
 }

@@ -14,7 +14,13 @@ export type PipelineStep = {
 	accesses: { name: string; cached: boolean }[];
 	artifacts: { name: string; text: string }[];
 	files: { name: string; text: string }[];
-	diagnostics: { code: string; message: string; severity: 'error' | 'warning'; line: number; column: number }[];
+	diagnostics: {
+		code: string;
+		message: string;
+		severity: 'error' | 'warning';
+		line: number;
+		column: number;
+	}[];
 };
 
 export type PipelineResult =
@@ -22,11 +28,13 @@ export type PipelineResult =
 	| { ok: false; message: string };
 
 export function runPipeline(request: PipelineRequest): PipelineResult {
-	return JSON.parse(runPipelineJson(
-		request.source,
-		request.filename,
-		request.plugins.join(','),
-		request.operations.join(','),
-		request.shared
-	)) as PipelineResult;
+	return JSON.parse(
+		runPipelineJson(
+			request.source,
+			request.filename,
+			request.plugins.join(','),
+			request.operations.join(','),
+			request.shared,
+		),
+	) as PipelineResult;
 }

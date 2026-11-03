@@ -6,7 +6,18 @@ export const GET = ({ params: parameters }) => {
 	const m = allModules().find((x) => x.key === parameters.module);
 	if (!m) error(404, `no module ${parameters.module}`);
 	return json(
-		{ key: m.key, path: m.path, items: m.items.map(({ key, name, kind, startLine, endLine, markup }) => ({ key, name, kind, startLine, endLine, markup })) },
-		{ headers: { 'cache-control': 'public, max-age=3600' } }
+		{
+			key: m.key,
+			path: m.path,
+			items: m.items.map(({ key, name, kind, startLine, endLine, markup }) => ({
+				key,
+				name,
+				kind,
+				startLine,
+				endLine,
+				markup,
+			})),
+		},
+		{ headers: { 'cache-control': 'public, max-age=3600' } },
 	);
 };

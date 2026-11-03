@@ -8,9 +8,10 @@ const task: Task = {
 	oracles: ['svelte'],
 	variants: [
 		{ id: 'client', options: { generate: 'client' } },
-		{ id: 'server', options: { generate: 'server' } }
+		{ id: 'server', options: { generate: 'server' } },
 	],
 	appliesTo: (unit) => unit.lang === 'svelte-module-js',
-	run: (unit, src, variant) => compileArtifacts(() => compileModule(src, { filename: unit.path, ...variant.options }))
+	run: (unit, src, variant) =>
+		compileArtifacts(() => compileModule(src, { filename: unit.path, ...variant.options })),
 };
 export default task;

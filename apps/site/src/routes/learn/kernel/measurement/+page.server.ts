@@ -17,6 +17,6 @@ export const load = () => ({
 		snapshot: 'kernel/performance/measurement/imp::snapshot',
 		trackGlobal: 'kernel/performance/measurement/track_global',
 		global: 'kernel/performance/measurement/global',
-		off: 'kernel/performance/measurement/imp#2'
-	})
+		off: 'kernel/performance/measurement/imp#2',
+	}),
 });

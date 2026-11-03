@@ -4,13 +4,13 @@
 The output uses `.ts`, so angle-bracket type assertions remain valid. JSX is not required
 for template checks: elements become typed calls to `svelteHTML.createElement`.
 
-| API | Result |
-|---|---|
-| `lower(&Component, source)` | An immutable projection AST |
-| `emit(&SyntaxTree, source)` | TypeScript text and byte-range source mappings |
-| `DECLARATIONS` | Filename and text of the projection helpers' type declarations |
-| `register(&mut Registry)` | `svelte.typescript_projection/default`, plus cached AST and emission artifacts |
-| `content_mapper::write_transform(source, output)` | A native TypeScript content mapper transform result |
+| API                                               | Result                                                                         |
+| ------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `lower(&Component, source)`                       | An immutable projection AST                                                    |
+| `emit(&SyntaxTree, source)`                       | TypeScript text and byte-range source mappings                                 |
+| `DECLARATIONS`                                    | Filename and text of the projection helpers' type declarations                 |
+| `register(&mut Registry)`                         | `svelte.typescript_projection/default`, plus cached AST and emission artifacts |
+| `content_mapper::write_transform(source, output)` | A native TypeScript content mapper transform result                            |
 
 The source component must be the one used to build the projection. Source nodes refer
 by ID to its immutable JS/TS AST. The printer copies complete source subtrees to keep

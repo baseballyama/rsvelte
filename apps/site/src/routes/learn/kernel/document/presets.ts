@@ -6,13 +6,13 @@ export const call = {
   indent([softline, join([",", line], ["alpha", "beta", "gamma"])]),
   softline,
   ")"
-)`
+)`,
 };
 
 export const fill = {
 	name: 'fill',
 	width: 24,
-	source: `fill(join(line, ["複数言語", "の", "処理", "を", "ひとつ", "の", "カーネル", "で", "動かす"]))`
+	source: `fill(join(line, ["複数言語", "の", "処理", "を", "ひとつ", "の", "カーネル", "で", "動かす"]))`,
 };
 
 export const groupIds = {
@@ -21,13 +21,13 @@ export const groupIds = {
 	source: `[
   groupId("args", "call(", indent([softline, "argument_one,", line, "argument_two"]), softline, ")"),
   ifBreakOf("args", " // 改行した", " // 1 行")
-]`
+]`,
 };
 
 export const flatOnly = {
 	name: 'flat_only',
 	width: 30,
-	source: `["type Props = ", flatOnly(["{ label: string;", line, "count: number }"])]`
+	source: `["type Props = ", flatOnly(["{ label: string;", line, "count: number }"])]`,
 };
 
 export const remeasure = {
@@ -39,11 +39,11 @@ export const remeasure = {
   line,
   "}",
   group(["(", softline, "c", ")"])
-])`
+])`,
 };
 
 export const mustBeFlat = {
 	name: 'mustBeFlat',
 	width: 80,
-	source: `fill([groupBroken(["a", line, "b"]), line, "c"])`
+	source: `fill([groupBroken(["a", line, "b"]), line, "c"])`,
 };

@@ -13,7 +13,7 @@
 		unit = 'B',
 		tick = 8,
 		label = 32,
-		title
+		title,
 	}: {
 		/** The quantity the ruler spans: bytes, columns or milliseconds. */
 		length: number;
@@ -27,12 +27,29 @@
 	const W = 1000;
 	const x = (v: number) => (v / Math.max(length, 1)) * W;
 	const ticks = $derived(Array.from({ length: Math.floor(length / tick) + 1 }, (_, i) => i * tick));
-	const color = { accent: 'var(--accent)', source: 'var(--c-src)', gen: 'var(--c-gen)', muted: 'var(--muted)' };
+	const color = {
+		accent: 'var(--accent)',
+		source: 'var(--c-src)',
+		gen: 'var(--c-gen)',
+		muted: 'var(--muted)',
+	};
 </script>
 
-<svg viewBox="0 0 {W} 30" preserveAspectRatio="none" class="block h-[30px] w-full overflow-visible" role="img">
+<svg
+	viewBox="0 0 {W} 30"
+	preserveAspectRatio="none"
+	class="block h-[30px] w-full overflow-visible"
+	role="img"
+>
 	<title>{title}</title>
-	<line x1="0" x2={W} y1="10" y2="10" stroke="var(--border-strong)" vector-effect="non-scaling-stroke" />
+	<line
+		x1="0"
+		x2={W}
+		y1="10"
+		y2="10"
+		stroke="var(--border-strong)"
+		vector-effect="non-scaling-stroke"
+	/>
 	{#each ticks as t (t)}
 		<line
 			x1={x(t)}
@@ -54,10 +71,14 @@
 		/>
 	{/each}
 </svg>
-<div class="relative h-4 font-mono text-[11px] leading-4 tracking-normal text-muted tnum" aria-hidden="true">
+<div
+	class="relative h-4 font-mono text-[11px] leading-4 tracking-normal text-muted tnum"
+	aria-hidden="true"
+>
 	{#each ticks.filter((t) => t % label === 0 && length - t > label / 2) as t (t)}
-		<span class="absolute -translate-x-1/2 first:translate-x-0" style:left="{(t / Math.max(length, 1)) * 100}%"
-			>{t}</span
+		<span
+			class="absolute -translate-x-1/2 first:translate-x-0"
+			style:left="{(t / Math.max(length, 1)) * 100}%">{t}</span
 		>
 	{/each}
 	<span class="absolute right-0">{length} {unit}</span>

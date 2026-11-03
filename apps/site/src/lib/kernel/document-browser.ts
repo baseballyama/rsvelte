@@ -1,12 +1,25 @@
 import initializeBrowserBindings, {
 	renderDocument as renderDocumentJson,
 	stringWidth,
-	type InitInput
+	type InitInput,
 } from '$generated/wasm/kernel/rsvelte_kernel_browser.js';
 
 export type TraceEvent =
-	| { kind: 'group'; layoutInstructionIdentifier: number; position: number; remainingWidth: number; mode: 'flat' | 'break'; why: 'fits' | 'does-not-fit' | 'broken' | 'parent-flat' }
-	| { kind: 'fill'; layoutInstructionIdentifier: number; position: number; contentFits: boolean; separatorFits: boolean | null }
+	| {
+			kind: 'group';
+			layoutInstructionIdentifier: number;
+			position: number;
+			remainingWidth: number;
+			mode: 'flat' | 'break';
+			why: 'fits' | 'does-not-fit' | 'broken' | 'parent-flat';
+	  }
+	| {
+			kind: 'fill';
+			layoutInstructionIdentifier: number;
+			position: number;
+			contentFits: boolean;
+			separatorFits: boolean | null;
+	  }
 	| { kind: 'refused'; layoutInstructionIdentifier: number; position: number }
 	| { kind: 'remeasure'; position: number };
 
@@ -23,7 +36,11 @@ export type RenderResult =
 let initialized: Promise<void> | undefined;
 
 export function initializeDocumentPrinter(input?: InitInput | Promise<InitInput>): Promise<void> {
-	initialized ??= (input === undefined ? initializeBrowserBindings() : initializeBrowserBindings({ module_or_path: input })).then(() => undefined);
+	initialized ??= (
+		input === undefined
+			? initializeBrowserBindings()
+			: initializeBrowserBindings({ module_or_path: input })
+	).then(() => undefined);
 	return initialized;
 }
 

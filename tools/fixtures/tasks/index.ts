@@ -13,7 +13,20 @@ import vueFormat from './vue-format.ts';
 import vueLint from './vue-lint.ts';
 import type { Task } from '../types.ts';
 
-export const TASKS: Task[] = [svelteCheck, svelteCompile, svelteCompileModule, svelteFormat, svelteLint, svueCompile, tsCheck, vueCheck, vueCompile, vueFormat, vueLint, vuelteCompile];
+export const TASKS: Task[] = [
+	svelteCheck,
+	svelteCompile,
+	svelteCompileModule,
+	svelteFormat,
+	svelteLint,
+	svueCompile,
+	tsCheck,
+	vueCheck,
+	vueCompile,
+	vueFormat,
+	vueLint,
+	vuelteCompile,
+];
 
 export function taskById(id: string): Task {
 	const task = TASKS.find((t) => t.id === id);

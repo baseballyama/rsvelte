@@ -7,26 +7,36 @@ if (!outputDirectory) throw new Error('expected <output-directory> [old-checkout
 const output = path.resolve(outputDirectory);
 fs.mkdirSync(output, { recursive: true });
 const cases = path.join(root, 'crates/languages/svelte/lint/tests/fixtures/rsvelte');
-const inputs = fs.readdirSync(cases).sort().map(name =>
-  path.join(root, 'crates/languages/svelte/compile/tests/fixtures/rsvelte', name, 'input.svelte')
-);
-for (const input of inputs) if (!fs.statSync(input).isFile()) throw new Error(`missing input: ${input}`);
+const inputs = fs
+	.readdirSync(cases)
+	.sort()
+	.map((name) =>
+		path.join(root, 'crates/languages/svelte/compile/tests/fixtures/rsvelte', name, 'input.svelte'),
+	);
+for (const input of inputs)
+	if (!fs.statSync(input).isFile()) throw new Error(`missing input: ${input}`);
 fs.writeFileSync(path.join(output, 'real.txt'), inputs.join('\n') + '\n');
 const large = path.join(output, 'large.svelte');
-fs.writeFileSync(large, '<script>const type="button";const props={};</script>\n' +
-  '<button id="x" class="control" aria-label="run" type="button"/>\n'.concat(
-    '<button {type}/><button {...props}/><button type="submit"/>\n'
-  ).repeat(512));
+fs.writeFileSync(
+	large,
+	'<script>const type="button";const props={};</script>\n' +
+		'<button id="x" class="control" aria-label="run" type="button"/>\n'
+			.concat('<button {type}/><button {...props}/><button type="submit"/>\n')
+			.repeat(512),
+);
 fs.writeFileSync(path.join(output, 'synthetic.txt'), large + '\n');
 if (oldCheckout) {
-  const checkout = fs.realpathSync(oldCheckout);
-  const directory = path.join(output, 'old');
-  fs.mkdirSync(path.join(directory, 'src'), { recursive: true });
-  fs.copyFileSync(path.join(import.meta.dirname, 'old.rs'), path.join(directory, 'src/main.rs'));
-  const manifest = fs.readFileSync(path.join(checkout, 'Cargo.toml'), 'utf8');
-  const patches = manifest.slice(manifest.indexOf('[patch.crates-io]'));
-  if (!patches.startsWith('[patch.crates-io]')) throw new Error('old checkout has no dependency patches');
-  fs.writeFileSync(path.join(directory, 'Cargo.toml'), `
+	const checkout = fs.realpathSync(oldCheckout);
+	const directory = path.join(output, 'old');
+	fs.mkdirSync(path.join(directory, 'src'), { recursive: true });
+	fs.copyFileSync(path.join(import.meta.dirname, 'old.rs'), path.join(directory, 'src/main.rs'));
+	const manifest = fs.readFileSync(path.join(checkout, 'Cargo.toml'), 'utf8');
+	const patches = manifest.slice(manifest.indexOf('[patch.crates-io]'));
+	if (!patches.startsWith('[patch.crates-io]'))
+		throw new Error('old checkout has no dependency patches');
+	fs.writeFileSync(
+		path.join(directory, 'Cargo.toml'),
+		`
 [package]
 name = "old-lint-benchmark"
 version = "0.0.0"
@@ -39,6 +49,9 @@ rsvelte_lint = { path = ${JSON.stringify(path.join(checkout, 'crates/rsvelte_lin
 debug = "line-tables-only"
 lto = "thin"
 codegen-units = 1
-${patches}`);
+${patches}`,
+	);
 }
-process.stdout.write(JSON.stringify({ documents: inputs.length, synthetic_documents: 1, output }) + '\n');
+process.stdout.write(
+	JSON.stringify({ documents: inputs.length, synthetic_documents: 1, output }) + '\n',
+);

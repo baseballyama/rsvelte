@@ -27,6 +27,7 @@ export const load = () => ({
 		trimLeft: 'kernel/output/document/LayoutInstructions::trim_left',
 		removeLines: 'kernel/output/document/LayoutInstructions::remove_lines',
 		builtBrokenTest: 'kernel/output/document/tests::a_group_built_broken_breaks_its_parent',
-		mustBeFlatTest: 'kernel/output/document/tests::fill_breaks_the_separator_after_content_holding_a_broken_group'
-	})
+		mustBeFlatTest:
+			'kernel/output/document/tests::fill_breaks_the_separator_after_content_holding_a_broken_group',
+	}),
 });

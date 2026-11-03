@@ -9,9 +9,7 @@ import { svelteModule } from './official.ts';
 
 export type Target = 'client' | 'server';
 
-const TOOLS = pathToFileURL(
-	path.resolve(import.meta.dirname, '../package.json'),
-).href;
+const TOOLS = pathToFileURL(path.resolve(import.meta.dirname, '../package.json')).href;
 const RUNTIME_PACKAGE = /^(svelte|vue|@vue\/[^/]+)(\/|$)/;
 const MAX_MODULE_METADATA = 131_072;
 const sources = new Map<
@@ -36,8 +34,7 @@ const remember = (
 		throw new Error('behaviour module metadata limit reached');
 	sources.set(file, info);
 };
-const VAPOR_RUNTIME =
-	'vue-vapor/dist/vue.runtime-with-vapor.esm-browser.prod.js';
+const VAPOR_RUNTIME = 'vue-vapor/dist/vue.runtime-with-vapor.esm-browser.prod.js';
 
 /**
  * Resolves the runtimes for one build target in this thread. `svelte` exports its client entry
@@ -47,9 +44,7 @@ const VAPOR_RUNTIME =
 export function provideRuntimes(target: Target): void {
 	module.registerHooks({
 		resolve(specifier, context, nextResolve) {
-			const parent = context.parentURL?.startsWith('file:')
-				? fileURLToPath(context.parentURL)
-				: '';
+			const parent = context.parentURL?.startsWith('file:') ? fileURLToPath(context.parentURL) : '';
 			const info = sources.get(parent);
 			if (specifier.endsWith('.svelte') && info?.sourceFile) {
 				const input = path.resolve(path.dirname(info.sourceFile), specifier);
@@ -97,11 +92,7 @@ export function provideRuntimes(target: Target): void {
 let scratch: string | undefined;
 
 /** A module given as text, written to a file so it loads like an emitted one. */
-export function moduleFile(
-	code: string,
-	target: Target,
-	identity = '',
-): string {
+export function moduleFile(code: string, target: Target, identity = ''): string {
 	scratch ??= fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-behaviour-'));
 	const file = path.join(
 		scratch,
@@ -125,10 +116,8 @@ export async function loadComponent(
 	// The module cache is keyed by URL; the content hash makes a rewritten file a new module.
 	const url = `${pathToFileURL(file).href}?${crypto.createHash('sha256').update(code).digest('hex').slice(0, 16)}`;
 	const m: { default?: unknown } = await import(url);
-	if (m.default === undefined)
-		throw new Error('the module has no default export');
+	if (m.default === undefined) throw new Error('the module has no default export');
 	return m.default;
 }
 
-export const message = (e: unknown): string =>
-	e instanceof Error ? e.message : String(e);
+export const message = (e: unknown): string => (e instanceof Error ? e.message : String(e));

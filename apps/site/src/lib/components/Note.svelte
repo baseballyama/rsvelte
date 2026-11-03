@@ -8,7 +8,12 @@
 
 <!-- The marker and the note share one CSS counter, so numbering needs no bookkeeping. The note is a popover anchored to its marker, so opening it does not reflow the sentence around it. -->
 <sup class="note-ref"
-	><button type="button" popovertarget="note-{id}" style:anchor-name="--note-{id}" aria-label="注を開く"></button></sup
+	><button
+		type="button"
+		popovertarget="note-{id}"
+		style:anchor-name="--note-{id}"
+		aria-label="注を開く"
+	></button></sup
 ><span class="note" id="note-{id}" popover="auto" role="note" style:position-anchor="--note-{id}"
 	>{@render children()}</span
 >

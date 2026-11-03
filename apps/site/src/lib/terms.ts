@@ -21,7 +21,7 @@ const terms: Record<string, string> = {
 	'rsvelte_typescript_check::TypeScriptView': '型検査用のコードと位置情報を取得する共通窓口',
 	'TypeScriptDocument::Unchecked': '型検査が不要という結果',
 	'SourceLocation::span': '元のソース上の範囲を取り出す関数',
-	'DocumentContext::line_index': '行と列の対応表を取得する関数'
+	'DocumentContext::line_index': '行と列の対応表を取得する関数',
 };
 
 export function term(name: string): string {

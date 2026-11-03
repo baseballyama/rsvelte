@@ -6,7 +6,7 @@
 		controls,
 		caption,
 		children,
-		wide = false
+		wide = false,
 	}: {
 		label: string;
 		controls?: Snippet;

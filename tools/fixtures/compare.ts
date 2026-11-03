@@ -18,9 +18,16 @@ export interface Row {
 }
 
 /** Every `<variant>.<ext>` either side has, so a task's artifacts need no list here. */
-function artifactExts(task: ReturnType<typeof taskById>, variantId: string, unit: Parameters<typeof expectedFile>[2]): string[] {
+function artifactExts(
+	task: ReturnType<typeof taskById>,
+	variantId: string,
+	unit: Parameters<typeof expectedFile>[2],
+): string[] {
 	const exts = new Set<string>();
-	for (const file of [expectedFile(task, variantId, unit, 'x'), actualFile(task, variantId, unit, 'x')]) {
+	for (const file of [
+		expectedFile(task, variantId, unit, 'x'),
+		actualFile(task, variantId, unit, 'x'),
+	]) {
 		const dir = path.dirname(file);
 		if (!fs.existsSync(dir)) continue;
 		for (const name of fs.readdirSync(dir)) {
@@ -42,7 +49,8 @@ interface LintFile {
  */
 function compareLint(exp: LintFile, act: LintFile): { verdict: Verdict; detail?: string } {
 	const extra = act.rules.filter((r) => !exp.rules.includes(r));
-	if (extra.length > 0) return { verdict: 'mismatch', detail: `not run by the oracle: ${extra.join(', ')}` };
+	if (extra.length > 0)
+		return { verdict: 'mismatch', detail: `not run by the oracle: ${extra.join(', ')}` };
 	const ran = new Set(act.rules);
 	const want = exp.findings.filter((f) => f.rule === null || ran.has(f.rule));
 	return { verdict: JSON.stringify(want) === JSON.stringify(act.findings) ? 'match' : 'mismatch' };
@@ -81,7 +89,15 @@ async function observeRows(task: Task, variantId: string, unit: Unit, key: strin
 	const observed = await observe.derive(unit, variant, jsFile);
 	fs.writeFileSync(actualFile(task, variantId, unit, observe.ext), observed.text);
 	const d = observed.diff(fs.readFileSync(expFile, 'utf8'));
-	return [...rows, { key, ext: observe.ext, verdict: d === null ? 'match' : 'mismatch', ...(d !== null && { detail: d }) }];
+	return [
+		...rows,
+		{
+			key,
+			ext: observe.ext,
+			verdict: d === null ? 'match' : 'mismatch',
+			...(d !== null && { detail: d }),
+		},
+	];
 }
 
 export async function compare({ taskId, variantId, sourceIds, families }: CompareOptions) {
@@ -122,17 +138,40 @@ export async function compare({ taskId, variantId, sourceIds, families }: Compar
 					continue;
 				}
 				const d = firstDiff(tree, actual);
-				const detail = [d !== null && `first diff at ${d || '<root>'}`, stale && `${stale} stale adjustment(s)`].filter(Boolean).join('; ');
-				rows.push({ key, ext, verdict: d === null ? 'match' : 'mismatch', ...(detail && { detail }) });
+				const detail = [
+					d !== null && `first diff at ${d || '<root>'}`,
+					stale && `${stale} stale adjustment(s)`,
+				]
+					.filter(Boolean)
+					.join('; ');
+				rows.push({
+					key,
+					ext,
+					verdict: d === null ? 'match' : 'mismatch',
+					...(detail && { detail }),
+				});
 			} else if (ext === 'lint.json') {
-				rows.push({ key, ext, ...compareLint(JSON.parse(fs.readFileSync(expFile, 'utf8')), JSON.parse(act)) });
+				rows.push({
+					key,
+					ext,
+					...compareLint(JSON.parse(fs.readFileSync(expFile, 'utf8')), JSON.parse(act)),
+				});
 			} else if (ext.endsWith('json')) {
 				const { tree, statuses } = expectedTree(unit, task, variantId, ext);
 				const stale = statuses.filter((s) => s.status === 'stale').length;
 				const detail = stale ? `${stale} stale adjustment(s)` : undefined;
-				rows.push({ key, ext, verdict: same(tree, JSON.parse(act)) ? 'match' : 'mismatch', ...(detail && { detail }) });
+				rows.push({
+					key,
+					ext,
+					verdict: same(tree, JSON.parse(act)) ? 'match' : 'mismatch',
+					...(detail && { detail }),
+				});
 			} else {
-				rows.push({ key, ext, verdict: fs.readFileSync(expFile, 'utf8') === act ? 'match' : 'mismatch' });
+				rows.push({
+					key,
+					ext,
+					verdict: fs.readFileSync(expFile, 'utf8') === act ? 'match' : 'mismatch',
+				});
 			}
 		}
 	}

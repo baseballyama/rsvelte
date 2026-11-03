@@ -15,13 +15,23 @@ test('rejects abbreviations, jargon, hype, redundancy and long sentences', async
 		['アーティファクトを使います。', 'prh'],
 		['革命的な技術です。', 'no-ai-hype-expressions'],
 		['検査を実行します。', 'ja-no-redundant-expression'],
-		['これは' + '長い説明を続けます'.repeat(15) + '。', 'sentence-length']
+		['これは' + '長い説明を続けます'.repeat(15) + '。', 'sentence-length'],
 	]) {
 		const result = await linter.lintText(text, 'control.md');
-		assert.ok(result.messages.some(message => message.ruleId.includes(rule)), `${rule} must reject ${text}`);
+		assert.ok(
+			result.messages.some((message) => message.ruleId.includes(rule)),
+			`${rule} must reject ${text}`,
+		);
 	}
-	assert.deepEqual((await linter.lintText('構文解析の結果を保存して再利用します。', 'control.md')).messages, []);
-	for (const text of ['AST（抽象構文木）を保持します。', 'HIR（高水準の中間表現）を生成します。', '`AST` と `HIR` を保持します。']) {
+	assert.deepEqual(
+		(await linter.lintText('構文解析の結果を保存して再利用します。', 'control.md')).messages,
+		[],
+	);
+	for (const text of [
+		'AST（抽象構文木）を保持します。',
+		'HIR（高水準の中間表現）を生成します。',
+		'`AST` と `HIR` を保持します。',
+	]) {
 		assert.deepEqual((await linter.lintText(text, 'control.md')).messages, []);
 	}
 });
@@ -36,16 +46,39 @@ test('reads prose from templates, attributes, expressions, branches and scripts'
 {#snippet caption()}図の説明{/snippet}
 {@render heading('見出しの説明')}
 <pre>AST と db.rs は元のコード</pre><Code item={data.code} />`;
-	const text = extractProse(source, 'example.svelte').map(chunk => chunk.text).join('\n');
-	for (const expected of ['本文の説明', '導入の説明', '条件付きの補足', '前半**強調**後半文書ごとの保存領域', '条件付きの説明', '別の説明', '動的な説明', '図の説明', '見出しの説明']) {
+	const text = extractProse(source, 'example.svelte')
+		.map((chunk) => chunk.text)
+		.join('\n');
+	for (const expected of [
+		'本文の説明',
+		'導入の説明',
+		'条件付きの補足',
+		'前半**強調**後半文書ごとの保存領域',
+		'条件付きの説明',
+		'別の説明',
+		'動的な説明',
+		'図の説明',
+		'見出しの説明',
+	]) {
 		assert.ok(text.includes(expected), `Must check ${expected}`);
 	}
 	assert.ok(!text.includes('元のコード'));
-	assert.throws(() => extractProse('<Term name="Unknown" />', 'example.svelte'), /Missing reader label/);
-	assert.ok(extractProse("s('hir', 'HIR')", 'site.ts').some(chunk => chunk.text === 'HIR'));
-	assert.ok(extractProse('const label = `容量 ${size} MB`; const metric = { unit: "MB" };', 'site.ts').some(chunk => chunk.text === 'MB'));
+	assert.throws(
+		() => extractProse('<Term name="Unknown" />', 'example.svelte'),
+		/Missing reader label/,
+	);
+	assert.ok(extractProse("s('hir', 'HIR')", 'site.ts').some((chunk) => chunk.text === 'HIR'));
+	assert.ok(
+		extractProse('const label = `容量 ${size} MB`; const metric = { unit: "MB" };', 'site.ts').some(
+			(chunk) => chunk.text === 'MB',
+		),
+	);
 	assert.deepEqual(extractProse('throw new Error(`ASCII only: ${code}`)', 'internal.ts'), []);
-	assert.ok(extractProse('const label = `説明 ${flag ? "条件の補足" : "別の補足"}`', 'site.ts').some(chunk => chunk.text === '条件の補足'));
+	assert.ok(
+		extractProse('const label = `説明 ${flag ? "条件の補足" : "別の補足"}`', 'site.ts').some(
+			(chunk) => chunk.text === '条件の補足',
+		),
+	);
 });
 
 test('AI pattern rules reject rendered emphasis and lists from Svelte', async () => {
@@ -53,13 +86,22 @@ test('AI pattern rules reject rendered emphasis and lists from Svelte', async ()
 		['<p><strong>重要</strong>：解析結果を共有します。</p>', 'no-ai-emphasis-patterns'],
 		['<ul><li><strong>速度</strong>：解析結果を共有します。</li></ul>', 'no-ai-list-formatting'],
 		['<h2><strong>解析結果を共有する</strong></h2>', 'no-ai-emphasis-patterns'],
-		['<p>それでは詳しく見ていきましょう。</p>', 'prh']
+		['<p>それでは詳しく見ていきましょう。</p>', 'prh'],
 	]) {
 		const chunks = extractProse(source, 'control.svelte');
-		const results = await Promise.all(chunks.map(chunk => linter.lintText(chunk.text, 'control.md')));
-		assert.ok(results.some(result => result.messages.some(message => message.ruleId.includes(rule))), `${rule} must reject rendered prose`);
+		const results = await Promise.all(
+			chunks.map((chunk) => linter.lintText(chunk.text, 'control.md')),
+		);
+		assert.ok(
+			results.some((result) => result.messages.some((message) => message.ruleId.includes(rule))),
+			`${rule} must reject rendered prose`,
+		);
 	}
-	for (const source of ['<p>構文解析は<strong>一度だけ</strong>です。</p>', '<ul><li>結果を保存します。</li></ul>', '<h2>解析結果を共有する</h2>']) {
+	for (const source of [
+		'<p>構文解析は<strong>一度だけ</strong>です。</p>',
+		'<ul><li>結果を保存します。</li></ul>',
+		'<h2>解析結果を共有する</h2>',
+	]) {
 		for (const chunk of extractProse(source, 'control.svelte')) {
 			assert.deepEqual((await linter.lintText(chunk.text, 'control.md')).messages, []);
 		}
@@ -67,7 +109,9 @@ test('AI pattern rules reject rendered emphasis and lists from Svelte', async ()
 });
 
 test('new kernel modules need a reader description', () => {
-	const modules = sources('../../crates').filter(module => module.key.startsWith('kernel/') && module.key !== 'kernel/lib');
+	const modules = sources('../../crates').filter(
+		(module) => module.key.startsWith('kernel/') && module.key !== 'kernel/lib',
+	);
 	assert.ok(modules.length > 0);
 	for (const module of modules) assert.ok(moduleDescription(module.key).summary);
 	assert.throws(() => moduleDescription('kernel/unknown'), /Missing reader description/);

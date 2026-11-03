@@ -26,6 +26,6 @@ export const load = () => ({
 		checkPrepare: 'typescript/check/check/Check::prepare',
 		check: 'typescript/check/check/Check',
 		test: 'kernel/computation/pipeline/tests/a_finish_task_sees_every_prepared_document_once',
-		testTwo: 'kernel/computation/pipeline/tests/each_finish_task_gets_only_its_own_parts'
-	})
+		testTwo: 'kernel/computation/pipeline/tests/each_finish_task_gets_only_its_own_parts',
+	}),
 });

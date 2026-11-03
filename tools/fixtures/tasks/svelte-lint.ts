@@ -11,7 +11,10 @@ import type { Task } from '../types.ts';
 const CONFIG: Linter.Config[] = [
 	{ files: ['**/*.svelte'], rules: CORE_ALL },
 	...sveltePlugin.configs.all,
-	{ files: ['**/*.svelte'], languageOptions: { parserOptions: { parser: tsParser, svelteFeatures: { runes: true } } } }
+	{
+		files: ['**/*.svelte'],
+		languageOptions: { parserOptions: { parser: tsParser, svelteFeatures: { runes: true } } },
+	},
 ];
 
 const ENABLED = enabledRules(CONFIG);
@@ -24,6 +27,6 @@ const task: Task = {
 	oracles: ['eslint', 'eslint-plugin-svelte', 'svelte-eslint-parser', '@typescript-eslint/parser'],
 	variants: [{ id: 'default', options: {} }],
 	appliesTo: (unit) => unit.lang === 'svelte' && unit.source === 'rsvelte',
-	run: (unit, src) => lintArtifacts(linter.verify(src, CONFIG, { filename: unit.path }), ENABLED)
+	run: (unit, src) => lintArtifacts(linter.verify(src, CONFIG, { filename: unit.path }), ENABLED),
 };
 export default task;

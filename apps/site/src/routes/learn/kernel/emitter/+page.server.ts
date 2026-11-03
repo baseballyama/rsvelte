@@ -19,6 +19,6 @@ export const load = () => ({
 		applyIn: 'kernel/output/emitter/TextEdits::apply_in',
 		lookupOverlap: 'kernel/output/emitter/Emitter::lookup_overlap',
 		mapBack: 'typescript/check/check/MapBack',
-		checkProjected: 'typescript/check/check/check_projected'
-	})
+		checkProjected: 'typescript/check/check/check_projected',
+	}),
 });

@@ -37,11 +37,17 @@ interface Applied {
 }
 
 function loadAdjustments(unit: Unit): Loaded[] {
-	return (unit.fixture.adjust ?? []).map((a, index) => ({ ...a, artifact: a.artifact ?? 'js', index }));
+	return (unit.fixture.adjust ?? []).map((a, index) => ({
+		...a,
+		artifact: a.artifact ?? 'js',
+		index,
+	}));
 }
 
 const appliesTo = (adj: Loaded, taskId: string, variantId: string, artifact: string): boolean =>
-	adj.task === taskId && (adj.variant === undefined || adj.variant === variantId) && adj.artifact === artifact;
+	adj.task === taskId &&
+	(adj.variant === undefined || adj.variant === variantId) &&
+	adj.artifact === artifact;
 
 const isJson = (artifact: string): boolean => artifact.endsWith('json');
 
@@ -55,7 +61,8 @@ function applyAdjustments(tree: Node, adjustments: Loaded[]): Applied[] {
 	return adjustments.map((adj): Applied => {
 		if (!adj.at) return { adj, status: 'stale', detail: 'empty `at`' };
 		const target = getAt(tree, adj.at) as Node | undefined;
-		const value = (snippet: string) => (isJson(adj.artifact) ? (JSON.parse(snippet) as Node) : parseSnippet(snippet, target?.type));
+		const value = (snippet: string) =>
+			isJson(adj.artifact) ? (JSON.parse(snippet) as Node) : parseSnippet(snippet, target?.type);
 		const expect = value(adj.expect);
 		const replace = value(adj.replace);
 		if (target !== undefined && same(target, expect)) {
@@ -73,9 +80,20 @@ function applyAdjustments(tree: Node, adjustments: Loaded[]): Applied[] {
 }
 
 /** The tree an implementation's output must equal, plus how each adjustment applied. */
-export function expectedTree(unit: Unit, task: Task, variantId: string, artifact = 'js'): { tree: Node; statuses: Applied[] } {
-	const tree = parseArtifact(fs.readFileSync(expectedFile(task, variantId, unit, artifact), 'utf8'), artifact);
-	const statuses = applyAdjustments(tree, loadAdjustments(unit).filter((a) => appliesTo(a, task.id, variantId, artifact)));
+export function expectedTree(
+	unit: Unit,
+	task: Task,
+	variantId: string,
+	artifact = 'js',
+): { tree: Node; statuses: Applied[] } {
+	const tree = parseArtifact(
+		fs.readFileSync(expectedFile(task, variantId, unit, artifact), 'utf8'),
+		artifact,
+	);
+	const statuses = applyAdjustments(
+		tree,
+		loadAdjustments(unit).filter((a) => appliesTo(a, task.id, variantId, artifact)),
+	);
 	return { tree, statuses };
 }
 
@@ -104,7 +122,7 @@ export function verifyAdjustments({ write }: { write: boolean }) {
 					problems.push(
 						`${st.status.padEnd(9)} ${unit.family}/${unit.source}/${unit.path} #${adj.index} ${adj.task}/${variantId} at=${adj.at}` +
 							(st.at ? ` -> ${st.at}` : '') +
-							(st.detail ? ` (${st.detail})` : '')
+							(st.detail ? ` (${st.detail})` : ''),
 					);
 				}
 			}

@@ -12,15 +12,33 @@ import { TypeComparison, UnmeasuredType } from './types.ts';
 
 const tools = path.resolve(import.meta.dirname, '..');
 const repository = path.resolve(tools, '../..');
-const fixture = path.join(repository, 'crates/languages/svelte/compile/tests/fixtures/rsvelte/ts-props');
-const binary = process.env.RSVELTE_SEMANTIC_PROJECTOR ?? path.join(repository, 'target/debug/examples/semantic');
+const fixture = path.join(
+	repository,
+	'crates/languages/svelte/compile/tests/fixtures/rsvelte/ts-props',
+);
+const binary =
+	process.env.RSVELTE_SEMANTIC_PROJECTOR ?? path.join(repository, 'target/debug/examples/semantic');
 let checker: SemanticChecker;
 let projection: Projection;
 let source: string;
 
 before(async () => {
 	if (!process.env.RSVELTE_SEMANTIC_PROJECTOR) {
-		const built = spawnSync('cargo', ['build', '--offline', '-p', 'rsvelte_typescript_content_mapper', '-p', 'rsvelte_svelte_typescript_projection', '--bins', '--example', 'semantic'], { cwd: repository, encoding: 'utf8' });
+		const built = spawnSync(
+			'cargo',
+			[
+				'build',
+				'--offline',
+				'-p',
+				'rsvelte_typescript_content_mapper',
+				'-p',
+				'rsvelte_svelte_typescript_projection',
+				'--bins',
+				'--example',
+				'semantic',
+			],
+			{ cwd: repository, encoding: 'utf8' },
+		);
 		assert.equal(built.status, 0, built.stderr);
 	}
 	const rows: Projection[] = [];
@@ -37,24 +55,37 @@ test('real Rust and svelte2tsx output expose matching template and callback type
 	const result = checker.compare(projection, source);
 	assert.notEqual(result.verdict, 'mismatch', JSON.stringify(result));
 	assert.ok(result.queries.some((query) => query.verdict === 'match' && query.left === 'string'));
-	assert.ok(result.queries.some((query) => query.verdict === 'match' && query.left?.includes('number')));
-	assert.ok(result.queries.some((query) => query.verdict === 'match' && query.role === 'ArrowFunctionExpression'));
+	assert.ok(
+		result.queries.some((query) => query.verdict === 'match' && query.left?.includes('number')),
+	);
+	assert.ok(
+		result.queries.some(
+			(query) => query.verdict === 'match' && query.role === 'ArrowFunctionExpression',
+		),
+	);
 	assert.equal(result.publicContract, 'match', JSON.stringify(result));
 });
 
 function defect(original: string, replacement: string): Projection {
 	assert.ok(projection.code?.includes(original), 'the control must change the actual Rust output');
-	assert.equal(original.length, replacement.length, 'the control must preserve generated source positions');
+	assert.equal(
+		original.length,
+		replacement.length,
+		'the control must preserve generated source positions',
+	);
 	const start = Buffer.byteLength(projection.code!.slice(0, projection.code!.indexOf(original)));
 	const end = start + Buffer.byteLength(original);
-	const mappings = projection.mappings!.flatMap(([lo, length, from, copied, kind]) => {
-		assert.equal(length, copied);
-		if (lo + length <= start || lo >= end) return [[lo, length, from, copied, kind] as const];
-		const ranges = [];
-		if (lo < start) ranges.push([lo, start - lo, from, start - lo, kind] as const);
-		if (lo + length > end) ranges.push([end, lo + length - end, from + end - lo, lo + length - end, kind] as const);
-		return ranges;
-	}).map((mapping) => [...mapping] as [number, number, number, number, number]);
+	const mappings = projection
+		.mappings!.flatMap(([lo, length, from, copied, kind]) => {
+			assert.equal(length, copied);
+			if (lo + length <= start || lo >= end) return [[lo, length, from, copied, kind] as const];
+			const ranges = [];
+			if (lo < start) ranges.push([lo, start - lo, from, start - lo, kind] as const);
+			if (lo + length > end)
+				ranges.push([end, lo + length - end, from + end - lo, lo + length - end, kind] as const);
+			return ranges;
+		})
+		.map((mapping) => [...mapping] as [number, number, number, number, number]);
 	return { ...projection, code: projection.code!.replace(original, replacement), mappings };
 }
 
@@ -72,7 +103,11 @@ test('changing a callback parameter type fails the semantic comparison', () => {
 test('replacing an observed property type with any fails the semantic comparison', () => {
 	const result = checker.compare(defect('name: string;', 'name: any   ;'), source);
 	assert.equal(result.verdict, 'mismatch', JSON.stringify(result));
-	assert.ok(result.queries.some((query) => query.verdict === 'mismatch' && query.left === 'any' && query.right === 'string'));
+	assert.ok(
+		result.queries.some(
+			(query) => query.verdict === 'mismatch' && query.left === 'any' && query.right === 'string',
+		),
+	);
 });
 
 test('missing mappings, dependencies and unsupported projections are never accepted', () => {
@@ -80,10 +115,23 @@ test('missing mappings, dependencies and unsupported projections are never accep
 	assert.equal(unmapped.verdict, 'UNMEASURED');
 	assert.equal(unmapped.queries.filter((query) => query.verdict === 'match').length, 0);
 	const prefix = "import missing from 'missing-semantic-control-package';\n";
-	const missing = checker.compare({ ...projection, code: prefix + projection.code, mappings: projection.mappings!.map(([lo, ...rest]) => [lo + Buffer.byteLength(prefix), ...rest]) }, source);
+	const missing = checker.compare(
+		{
+			...projection,
+			code: prefix + projection.code,
+			mappings: projection.mappings!.map(([lo, ...rest]) => [
+				lo + Buffer.byteLength(prefix),
+				...rest,
+			]),
+		},
+		source,
+	);
 	assert.equal(missing.verdict, 'UNMEASURED');
 	assert.match(missing.detail!, /missing dependencies/);
-	assert.equal(checker.compare({ input: 'unsupported', status: 'unsupported' }, source).verdict, 'unsupported');
+	assert.equal(
+		checker.compare({ input: 'unsupported', status: 'unsupported' }, source).verdict,
+		'unsupported',
+	);
 });
 
 test('the population report records versions, source identity and measured contracts', async () => {
@@ -103,7 +151,7 @@ test('JavaScript, scriptless expressions and Unicode source positions are measur
 	const sources = [
 		'<script>const value = "ok";</script><p>{value}</p>',
 		'<p>{42}</p>',
-		'<script lang="ts">const café: string = "🚀"; const value = café;</script><p>{value}</p>'
+		'<script lang="ts">const café: string = "🚀"; const value = café;</script><p>{value}</p>',
 	];
 	try {
 		for (const [index, input] of sources.entries()) {
@@ -116,11 +164,13 @@ test('JavaScript, scriptless expressions and Unicode source positions are measur
 			const result = checker.compare(row, fs.readFileSync(row.input, 'utf8'));
 			assert.notEqual(result.verdict, 'mismatch', JSON.stringify(result));
 			assert.ok(result.queries.length > 0);
-			assert.ok(result.queries.every(query => query.verdict === 'match'));
+			assert.ok(result.queries.every((query) => query.verdict === 'match'));
 			count++;
 		}
 		assert.equal(count, sources.length);
-	} finally { fs.rmSync(directory, { recursive: true, force: true }); }
+	} finally {
+		fs.rmSync(directory, { recursive: true, force: true });
+	}
 });
 
 test('structural comparison checks special types, recursive objects, unions and signatures', () => {
@@ -128,8 +178,11 @@ test('structural comparison checks special types, recursive objects, unions and 
 	const config = path.join(directory, 'tsconfig.json');
 	const file = path.join(directory, 'input.ts');
 	const cases: [string, string, boolean][] = [
-		['any', 'unknown', false], ['unknown', 'never', false], ['any', 'never', false],
-		['1n', '1n', true], ['1n', '2n', false],
+		['any', 'unknown', false],
+		['unknown', 'never', false],
+		['any', 'never', false],
+		['1n', '1n', true],
+		['1n', '2n', false],
 		['{value: string}', '{value: any}', false],
 		['{required: string}', '{required?: string}', false],
 		['{readonly value: string}', '{value: string}', false],
@@ -144,28 +197,47 @@ test('structural comparison checks special types, recursive objects, unions and 
 		['<T extends string>(value: T) => T', '<U extends string>(value: U) => U', true],
 		['<T extends string>(value: T) => T', '<U extends number>(value: U) => U', false],
 		['<T = string>() => T', '<U = number>() => U', false],
-		['RecursiveA', 'RecursiveB', true], ['RecursiveA', 'RecursiveC', false],
-		['{inner: MissingType}', '{inner: MissingType}', false]
+		['RecursiveA', 'RecursiveB', true],
+		['RecursiveA', 'RecursiveC', false],
+		['{inner: MissingType}', '{inner: MissingType}', false],
 	];
-	fs.writeFileSync(file, 'type RecursiveA = {value: string; next?: RecursiveA};\n' +
-		'type RecursiveB = {next?: RecursiveB; value: string};\n' +
-		'type RecursiveC = {next?: RecursiveC; value: any};\n' +
-		cases.map(([left, right], index) => `declare let left${index}: ${left};\ndeclare let right${index}: ${right};`).join('\n'));
-	fs.writeFileSync(config, JSON.stringify({ compilerOptions: { strict: true, noEmit: true }, files: [file] }));
+	fs.writeFileSync(
+		file,
+		'type RecursiveA = {value: string; next?: RecursiveA};\n' +
+			'type RecursiveB = {next?: RecursiveB; value: string};\n' +
+			'type RecursiveC = {next?: RecursiveC; value: any};\n' +
+			cases
+				.map(
+					([left, right], index) =>
+						`declare let left${index}: ${left};\ndeclare let right${index}: ${right};`,
+				)
+				.join('\n'),
+	);
+	fs.writeFileSync(
+		config,
+		JSON.stringify({ compilerOptions: { strict: true, noEmit: true }, files: [file] }),
+	);
 	const api = new API({ cwd: directory });
 	try {
 		const snapshot = api.createSnapshot({ openProjects: [config] });
 		try {
 			const project = snapshot.getConfiguredProject(config)!;
 			const tree = project.program.getSourceFile(file)!;
-			const variables = tree.statements.filter((statement) => statement.kind === SyntaxKind.VariableStatement) as VariableStatement[];
-			const types = project.checker.getTypeAtLocation(variables.map((statement) => statement.declarationList.declarations[0]!.name));
+			const variables = tree.statements.filter(
+				(statement) => statement.kind === SyntaxKind.VariableStatement,
+			) as VariableStatement[];
+			const types = project.checker.getTypeAtLocation(
+				variables.map((statement) => statement.declarationList.declarations[0]!.name),
+			);
 			for (const [index, [left, right, expected]] of cases.entries()) {
-				const compare = () => new TypeComparison(project.checker).compare(types[index * 2], types[index * 2 + 1]);
+				const compare = () =>
+					new TypeComparison(project.checker).compare(types[index * 2], types[index * 2 + 1]);
 				if (left.includes('MissingType')) assert.throws(compare, UnmeasuredType);
 				else assert.equal(compare(), expected, `${left} versus ${right}`);
 			}
-		} finally { snapshot.dispose(); }
+		} finally {
+			snapshot.dispose();
+		}
 	} finally {
 		api.close();
 		fs.rmSync(directory, { recursive: true, force: true });
@@ -191,12 +263,18 @@ const choices: string[] | number[] = Math.random() > 0.5 ? ['ok'] : [1];
 			assert.equal(row.status, 'projected');
 			const result = checker.compare(row, input);
 			assert.notEqual(result.verdict, 'mismatch', JSON.stringify(result));
-			assert.ok(result.queries.some((query) => query.verdict === 'match' && query.left === 'string'));
-			assert.ok(result.queries.some((query) => query.verdict === 'match' && query.left === 'number'));
+			assert.ok(
+				result.queries.some((query) => query.verdict === 'match' && query.left === 'string'),
+			);
+			assert.ok(
+				result.queries.some((query) => query.verdict === 'match' && query.left === 'number'),
+			);
 			count++;
 		}
 		assert.equal(count, 1);
-	} finally { fs.rmSync(directory, { recursive: true, force: true }); }
+	} finally {
+		fs.rmSync(directory, { recursive: true, force: true });
+	}
 });
 
 test('a template value keeps its declared type instead of the narrowed initial value', async () => {
@@ -212,19 +290,24 @@ let open = $state(false);
 		for await (const row of projections(binary, directory)) {
 			assert.equal(row.status, 'projected');
 			const result = checker.compare(row, input);
-			const query = result.queries.find((q) => q.start === start && q.end === start + 4 && q.role === 'Identifier');
+			const query = result.queries.find(
+				(q) => q.start === start && q.end === start + 4 && q.role === 'Identifier',
+			);
 			assert.ok(query, JSON.stringify(result.queries));
 			assert.equal(query.verdict, 'match', JSON.stringify(query));
 			assert.equal(query.left, 'boolean', JSON.stringify(query));
 			count++;
 		}
 		assert.equal(count, 1);
-	} finally { fs.rmSync(directory, { recursive: true, force: true }); }
+	} finally {
+		fs.rmSync(directory, { recursive: true, force: true });
+	}
 });
 
 test('native diagnostics compare original positions without mapping twice', async () => {
 	const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-diagnostic-types-'));
-	const input = '<script lang="ts">const café: string[] = ["🚀"];</script>{#each café as name}<p>{name.toFixed()}</p>{/each}';
+	const input =
+		'<script lang="ts">const café: string[] = ["🚀"];</script>{#each café as name}<p>{name.toFixed()}</p>{/each}';
 	try {
 		fs.writeFileSync(path.join(directory, 'input.svelte'), input);
 		let count = 0;
@@ -239,31 +322,36 @@ test('native diagnostics compare original positions without mapping twice', asyn
 			count++;
 		}
 		assert.equal(count, 1);
-	} finally { fs.rmSync(directory, { recursive: true, force: true }); }
+	} finally {
+		fs.rmSync(directory, { recursive: true, force: true });
+	}
 });
-
 
 test('a missing public component export fails even when internal source types still match', () => {
-    const code = projection.code!.replace('export default ', 'void           ');
-    assert.notEqual(code, projection.code);
-    const result = checker.compare({ ...projection, code }, source);
-    assert.equal(result.publicContract, 'mismatch', JSON.stringify(result));
-    assert.equal(result.publicContractDetail, 'missing default component export');
-    assert.equal(result.verdict, 'mismatch');
-    assert.ok(result.queries.every(query => query.verdict === 'match'));
+	const code = projection.code!.replace('export default ', 'void           ');
+	assert.notEqual(code, projection.code);
+	const result = checker.compare({ ...projection, code }, source);
+	assert.equal(result.publicContract, 'mismatch', JSON.stringify(result));
+	assert.equal(result.publicContractDetail, 'missing default component export');
+	assert.equal(result.verdict, 'mismatch');
+	assert.ok(result.queries.every((query) => query.verdict === 'match'));
 });
 
-
 test('JavaScript props are measured from TypeScript oracle syntax rather than ignored JSDoc', async () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-js-props-'));
-    const input = '<script>let { count = 0, label = "ok" } = $props();</script><p>{count.toFixed()}{label.toUpperCase()}</p>';
-    try {
-        fs.writeFileSync(path.join(directory, 'input.svelte'), input);
-        for await (const row of projections(binary, directory)) {
-            const result = checker.compare(row, input);
-            assert.equal(result.publicContract, 'match', JSON.stringify(result));
-            assert.equal(result.verdict, 'match', JSON.stringify(result));
-            assert.ok(result.queries.some(query => query.left === 'number' && query.verdict === 'match'));
-        }
-    } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+	const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-js-props-'));
+	const input =
+		'<script>let { count = 0, label = "ok" } = $props();</script><p>{count.toFixed()}{label.toUpperCase()}</p>';
+	try {
+		fs.writeFileSync(path.join(directory, 'input.svelte'), input);
+		for await (const row of projections(binary, directory)) {
+			const result = checker.compare(row, input);
+			assert.equal(result.publicContract, 'match', JSON.stringify(result));
+			assert.equal(result.verdict, 'match', JSON.stringify(result));
+			assert.ok(
+				result.queries.some((query) => query.left === 'number' && query.verdict === 'match'),
+			);
+		}
+	} finally {
+		fs.rmSync(directory, { recursive: true, force: true });
+	}
 });

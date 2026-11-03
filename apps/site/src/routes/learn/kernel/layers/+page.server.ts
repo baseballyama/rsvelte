@@ -9,9 +9,9 @@ function layouts() {
 				[...it.code.matchAll(/assert!\(\s*size_of::<([^()]+?)>\(\)\s*==\s*(\d+)/g)].map((x) => ({
 					file: m.path.replace(/^crates\//, ''),
 					type: x[1],
-					bytes: Number(x[2])
-				}))
-			)
+					bytes: Number(x[2]),
+				})),
+			),
 	);
 }
 
@@ -30,7 +30,8 @@ export const load = () => ({
 		bindKind: 'svelte/semantic/resolve/BindingKind',
 		compiler_syntax_tree: 'svelte/compilation/compiler_syntax_tree/CompilerSyntaxTree',
 		attributeValue: 'svelte/compilation/compiler_syntax_tree/AttributeValue',
-		elementKind: 'svelte/compilation/compiler_syntax_tree/builder/CompilerSyntaxTreeBuilder::element_kind',
+		elementKind:
+			'svelte/compilation/compiler_syntax_tree/builder/CompilerSyntaxTreeBuilder::element_kind',
 		list: 'svelte/compilation/normalize/SurfaceBuilder::list',
 		compilerSyntaxTreeBuilder: 'svelte/compilation/compiler_syntax_tree/CompilerSyntaxTreeBuilder',
 		compileInputType: 'svelte/computation/svelte_input',
@@ -49,6 +50,6 @@ export const load = () => ({
 		lint: 'svelte/lint/lint/lint',
 		ruleImpl: 'svelte/lint/rules/impl Rule for RuleConfiguration',
 		button: 'svelte/lint/rules/button_has_type/check',
-		staticProblem: 'svelte/lint/rules/button_has_type/static_problem'
-	})
+		staticProblem: 'svelte/lint/rules/button_has_type/static_problem',
+	}),
 });

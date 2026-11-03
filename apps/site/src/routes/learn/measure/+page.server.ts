@@ -17,7 +17,7 @@ export const load = () => {
 			phases: Object.entries(b.phases)
 				.map(([name, p]) => ({ name, ...p }))
 				.sort((x, y) => y.allocations - x.allocations),
-			last: performanceHistory().at(-1)!
+			last: performanceHistory().at(-1)!,
 		},
 		parity: paritySummary(),
 		arms: arms(),
@@ -28,6 +28,9 @@ export const load = () => {
 		rounds: plainA.rounds,
 		maxRss: metricsA.max_rss_bytes,
 		rawRounds: Object.fromEntries(plainA.arms.map((a) => [a.name, a.wall_ms])),
-		code: excerpts({ doc: 'command_line/commands/benchmark/ARMS', perfDoc: 'command_line/commands/performance/measure' })
+		code: excerpts({
+			doc: 'command_line/commands/benchmark/ARMS',
+			perfDoc: 'command_line/commands/performance/measure',
+		}),
 	};
 };

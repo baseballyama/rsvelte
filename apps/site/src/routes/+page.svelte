@@ -15,7 +15,7 @@
 		{ key: 'mismatch', label: '不一致', dot: 'bg-line-strong' },
 		{ key: 'unparseable', label: 'パースできない出力', dot: 'bg-warn' },
 		{ key: 'unexpected', label: '上流にない出力', dot: 'bg-accent' },
-		{ key: 'missing', label: '未対応として拒否', dot: 'bg-fg-2/25' }
+		{ key: 'missing', label: '未対応として拒否', dot: 'bg-fg-2/25' },
 	];
 	const arm = (name: string) => {
 		const a = data.benchmark.arms.find((x) => x.name === name);
@@ -28,7 +28,7 @@
 		isolated: 'タスクごとに計算し直す',
 		nopool: 'バッファプールなし',
 		serial: '1 スレッド',
-		streaming: '結果を確定した順に捨てる'
+		streaming: '結果を確定した順に捨てる',
 	};
 
 	// Every figure in the hero is a ratio of two arms from the same benchmark run; nothing here is typed in.
@@ -37,26 +37,26 @@
 			value: `${arm('shared').median.toFixed(1)}`,
 			unit: 'ms',
 			label: `${fmt(data.benchmark.documents)} 文書・${mb(data.benchmark.bytes)} メガバイトに ${data.benchmark.tasks} タスク`,
-			detail: `${data.benchmark.threads} スレッド、${data.benchmark.rounds} ラウンドの中央値`
+			detail: `${data.benchmark.threads} スレッド、${data.benchmark.rounds} ラウンドの中央値`,
 		},
 		{
 			value: `${(arm('isolated').median / arm('shared').median).toFixed(1)}`,
 			unit: '×',
 			label: 'パースを共有した効果',
-			detail: `タスクごとに計算し直すと ${arm('isolated').median.toFixed(0)} ms`
+			detail: `タスクごとに計算し直すと ${arm('isolated').median.toFixed(0)} ms`,
 		},
 		{
 			value: `${(arm('serial').median / arm('shared').median).toFixed(1)}`,
 			unit: '×',
 			label: '文書単位の並列化',
-			detail: `1 スレッドでは ${arm('serial').median.toFixed(0)} ms`
+			detail: `1 スレッドでは ${arm('serial').median.toFixed(0)} ms`,
 		},
 		{
 			value: `${mb(arm('streaming').peak)}`,
 			unit: 'メガバイト',
 			label: 'ストリーミング時のピーク増分',
-			detail: `溜め込むと ${mb(arm('shared').peak)} メガバイト`
-		}
+			detail: `溜め込むと ${mb(arm('shared').peak)} メガバイト`,
+		},
 	]);
 
 	const groups = $derived.by(() => {
@@ -66,12 +66,13 @@
 		return [
 			{ title: 'はじめに', items: chapters.slice(0, first) },
 			{ title: 'カーネルのモジュール', items: chapters.slice(first, last + 1) },
-			{ title: '測って磨く', items: chapters.slice(last + 1) }
+			{ title: '測って磨く', items: chapters.slice(last + 1) },
 		].filter((g) => g.items.length > 0);
 	});
 	const totalMinutes = chapters.reduce((n, c) => n + c.minutes, 0);
 
-	const command = 'cargo run --release -p rsvelte_command_line -- run Counter.svelte --task svelte.compile/client';
+	const command =
+		'cargo run --release -p rsvelte_command_line -- run Counter.svelte --task svelte.compile/client';
 	let copied = $state(false);
 	async function copy() {
 		await navigator.clipboard.writeText(command);
@@ -96,7 +97,10 @@
 				href="/learn/kernel"
 				class="inline-flex max-w-full items-center gap-2 rounded-full border border-line bg-raised py-1 pr-3 pl-1 text-[13px] text-fg-2 hover:border-line-strong hover:text-fg"
 			>
-				<span class="shrink-0 rounded-full bg-accent-wash px-2 py-0.5 font-mono text-[11px] tracking-normal text-accent">experimental</span>
+				<span
+					class="shrink-0 rounded-full bg-accent-wash px-2 py-0.5 font-mono text-[11px] tracking-normal text-accent"
+					>experimental</span
+				>
 				Rust で書いた Svelte 5 のツールチェーン
 				<Icon name="arrow-right" size={13} class="text-muted" />
 			</a>
@@ -104,7 +108,9 @@
 				class="mt-7 max-w-[15em] text-[36px] leading-[1.22] font-semibold tracking-[0.005em] sm:text-[clamp(44px,5.4vw,72px)] sm:leading-[1.14]"
 				style="font-stretch: 88%"
 			>
-				Svelte のツールチェーンを、<br class="hidden sm:inline" /><span class="text-accent">ひとつのカーネル</span>で。
+				Svelte のツールチェーンを、<br class="hidden sm:inline" /><span class="text-accent"
+					>ひとつのカーネル</span
+				>で。
 			</h1>
 			<div class="mt-8 grid grid-cols-[minmax(0,1fr)] gap-x-16 gap-y-12 lg:grid-cols-12">
 				<div class="lg:col-span-6">
@@ -112,8 +118,16 @@
 						コンパイル、整形、lint、型検査を、同じパースと同じ解析の上で走らせます。文書ごとに一度だけパースし、移植していない構文は近似せずに「未対応」と報告します。どこで時間とメモリを使ったかは、カーネル自身が数えます。
 					</p>
 					<div class="mt-9 flex flex-wrap items-center gap-3 text-[15px]">
-						<a href="/guide" class="inline-flex h-11 items-center gap-2 rounded-md bg-fg px-5 font-medium text-bg shadow-sm hover:bg-accent">使い方ガイド<Icon name="arrow-right" size={15} /></a>
-						<a href="/why" class="inline-flex h-11 items-center gap-2 rounded-md border border-line bg-raised px-5 font-medium text-fg hover:border-line-strong">なぜrsvelteを作るのか<Icon name="arrow-right" size={15} /></a>
+						<a
+							href="/guide"
+							class="inline-flex h-11 items-center gap-2 rounded-md bg-fg px-5 font-medium text-bg shadow-sm hover:bg-accent"
+							>使い方ガイド<Icon name="arrow-right" size={15} /></a
+						>
+						<a
+							href="/why"
+							class="inline-flex h-11 items-center gap-2 rounded-md border border-line bg-raised px-5 font-medium text-fg hover:border-line-strong"
+							>なぜrsvelteを作るのか<Icon name="arrow-right" size={15} /></a
+						>
 						<a
 							href="/learn"
 							class="inline-flex h-11 items-center gap-2 rounded-md border border-line bg-raised px-5 font-medium text-fg hover:border-line-strong"
@@ -135,19 +149,27 @@
 						class="mt-8 flex max-w-[640px] items-center gap-2 rounded-md border border-line bg-sunken py-1.5 pr-1.5 pl-3 font-mono text-[13px]"
 					>
 						<span class="text-muted select-none" aria-hidden="true">$</span>
-						<code class="no-scrollbar min-w-0 flex-1 overflow-x-auto whitespace-nowrap text-fg-2" title={command}>{command}</code>
+						<code
+							class="no-scrollbar min-w-0 flex-1 overflow-x-auto whitespace-nowrap text-fg-2"
+							title={command}>{command}</code
+						>
 						<button
 							type="button"
 							class="flex size-8 shrink-0 items-center justify-center rounded-sm text-muted hover:bg-surface hover:text-fg"
 							onclick={copy}
 							aria-label={copied ? 'コピーしました' : 'コマンドをコピー'}
 						>
-							{#if copied}<Icon name="check" size={15} class="text-ok" />{:else}<Icon name="copy" size={15} />{/if}
+							{#if copied}<Icon name="check" size={15} class="text-ok" />{:else}<Icon
+									name="copy"
+									size={15}
+								/>{/if}
 						</button>
 					</div>
 				</div>
 				<div class="lg:col-span-6 lg:pt-1">
-					<dl class="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line shadow-[0_1px_2px_#0000000a]">
+					<dl
+						class="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line shadow-[0_1px_2px_#0000000a]"
+					>
 						{#each stats as s (s.label)}
 							<div class="flex flex-col bg-bg px-4 py-5 sm:px-6 sm:py-6">
 								<dt class="order-2 mt-2 text-[14px] leading-[1.5] text-fg">{s.label}</dt>
@@ -160,9 +182,8 @@
 						{/each}
 					</dl>
 					<p class="mt-3 font-mono text-[11.5px] tracking-normal text-muted">
-						release ビルド {data.benchmark.rev.slice(0, 10)} の実測。比較対象の定義と再現手順は <a class="link" href="/learn/measure"
-							>13 実測</a
-						>に。
+						release ビルド {data.benchmark.rev.slice(0, 10)} の実測。比較対象の定義と再現手順は
+						<a class="link" href="/learn/measure">13 実測</a>に。
 					</p>
 				</div>
 			</div>
@@ -174,10 +195,13 @@
 			<div class="grid grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-4 lg:grid-cols-12 lg:items-end">
 				<div class="lg:col-span-5">
 					<p class="eyebrow">動く図</p>
-					<h2 id="hero-fig" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">出力の位置から、入力の位置へ</h2>
+					<h2 id="hero-fig" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">
+						出力の位置から、入力の位置へ
+					</h2>
 				</div>
 				<p class="text-[16px] leading-[1.9] text-fg-2 lg:col-span-7">
-					<span class="c-gen">出力</span>の上でカーソルを動かすと、その文字がどの<span class="c-src">入力</span
+					<span class="c-gen">出力</span>の上でカーソルを動かすと、その文字がどの<span class="c-src"
+						>入力</span
 					>の位置から来たかを、カーネルの <code class="text-[14px]">Emitter::lookup</code> と同じ規則（指定位置以前で最も近い対応点）で引きます。
 				</p>
 			</div>
@@ -185,23 +209,34 @@
 				<SpanFigure data={data.counter} label="図 0 · 出力の位置から入力の位置へ" />
 			</div>
 			<p class="mt-3 max-w-[52em] text-[13.5px] leading-[1.8] text-muted">
-				出力と位置の対応点は <code class="text-[12.5px]">{data.counter.fixture}</code> を rsvelte で実際にコンパイルしたもので、位置の対応点はまだ
+				出力と位置の対応点は <code class="text-[12.5px]">{data.counter.fixture}</code> を rsvelte
+				で実際にコンパイルしたもので、位置の対応点はまだ
 				{data.counter.mappings.length} 個しかありません。位置の対応点のない文字は、直前の位置の対応点に吸い寄せられます。
 			</p>
 		</section>
 
-		<section class="mt-28 grid grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-8 lg:grid-cols-12" aria-labelledby="one-kernel">
+		<section
+			class="mt-28 grid grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-8 lg:grid-cols-12"
+			aria-labelledby="one-kernel"
+		>
 			<div class="lg:col-span-4">
 				<p class="eyebrow">設計</p>
-				<h2 id="one-kernel" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">カーネルは言語を知らない</h2>
+				<h2 id="one-kernel" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">
+					カーネルは言語を知らない
+				</h2>
 				<p class="mt-4 text-[16px] leading-[1.9] text-fg-2">
-					<code class="text-[14px]">rsvelte_kernel</code> が持つのは、位置、名前、一度だけ計算するキャッシュ、スケジューラ、診断、レイアウト、出力と位置の対応、計測です。Svelte について知っていることはひとつもありません。Svelte
-					は言語プラグインとして、中核の crate が計算結果を、コンパイル・整形・lint・型検査の crate がタスクと共通の呼び出し窓口の提供元を登録します。
+					<code class="text-[14px]">rsvelte_kernel</code> が持つのは、位置、名前、一度だけ計算するキャッシュ、スケジューラ、診断、レイアウト、出力と位置の対応、計測です。Svelte
+					について知っていることはひとつもありません。Svelte は言語プラグインとして、中核の crate が計算結果を、コンパイル・整形・lint・型検査の
+					crate がタスクと共通の呼び出し窓口の提供元を登録します。
 				</p>
 				<p class="mt-4 text-[14px] leading-[1.8] text-muted">
-					行数はビルド時に数えています。この図を描き直さなくても、コードが変われば数字も変わります。図は主な crate の抜粋で、破線は図にない crate を通した間接の依存です。すべての crate の役割は「01 カーネルの全体像」の図 1.2 にあります。
+					行数はビルド時に数えています。この図を描き直さなくても、コードが変われば数字も変わります。図は主な
+					crate の抜粋で、破線は図にない crate を通した間接の依存です。すべての crate の役割は「01
+					カーネルの全体像」の図 1.2 にあります。
 				</p>
-				<a href="/learn/kernel" class="mt-5 inline-flex items-center gap-1.5 text-[15px] font-medium text-accent hover:underline"
+				<a
+					href="/learn/kernel"
+					class="mt-5 inline-flex items-center gap-1.5 text-[15px] font-medium text-accent hover:underline"
 					>01 カーネルの全体像<Icon name="arrow-right" size={14} /></a
 				>
 			</div>
@@ -214,7 +249,9 @@
 			<div class="grid grid-cols-[minmax(0,1fr)] gap-x-12 lg:grid-cols-12">
 				<div class="lg:col-span-4">
 					<p class="eyebrow">正しさ</p>
-					<h2 id="ledger" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">上流との一致</h2>
+					<h2 id="ledger" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">
+						上流との一致
+					</h2>
 					<p class="mt-4 text-[16px] leading-[1.9] text-fg-2">
 						正しさは上流のツールの出力と比べて測ります。手書きの検証例はほぼ揃っていますが、実際のコンポーネントを集めた検証用のソースファイル集では、コンパイル結果が上流と一致するのは出力できたうちの一部です。
 					</p>
@@ -222,7 +259,9 @@
 				<div class="mt-8 min-w-0 lg:col-span-8 lg:mt-0">
 					<ul class="flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] text-fg-2">
 						{#each VERDICTS as v (v.key)}
-							<li class="flex items-center gap-1.5"><span class={['size-2 rounded-full', v.dot]}></span>{v.label}</li>
+							<li class="flex items-center gap-1.5">
+								<span class={['size-2 rounded-full', v.dot]}></span>{v.label}
+							</li>
 						{/each}
 					</ul>
 					<div class="mt-4 overflow-x-auto">
@@ -230,7 +269,10 @@
 							<caption class="mb-2 text-left font-mono text-[12px] tracking-normal text-muted">
 								fixtures/_registry/parity.json · {fmt(data.parity.units)} 検証例 · ビルド時に集計
 							</caption>
-							<thead><tr><th>タスク</th><th class="w-[40%]">判定の内訳</th><th class="num">一致</th></tr></thead>
+							<thead
+								><tr><th>タスク</th><th class="w-[40%]">判定の内訳</th><th class="num">一致</th></tr
+								></thead
+							>
 							<tbody>
 								{#each data.parity.rows as r (r.task)}
 									{@const total = sum(r.verdicts)}
@@ -246,19 +288,23 @@
 											>
 												{#each VERDICTS as v (v.key)}
 													{#if r.verdicts[v.key]}
-														<span class={v.dot} style:width="{pct(r.verdicts[v.key] ?? 0, total)}%"></span>
+														<span class={v.dot} style:width="{pct(r.verdicts[v.key] ?? 0, total)}%"
+														></span>
 													{/if}
 												{/each}
 											</div>
 										</td>
-										<td class="num font-mono text-[14px]">{fmt(r.verdicts.match ?? 0)} / {fmt(total)}</td>
+										<td class="num font-mono text-[14px]"
+											>{fmt(r.verdicts.match ?? 0)} / {fmt(total)}</td
+										>
 									</tr>
 								{/each}
 							</tbody>
 						</table>
 					</div>
 					<p class="mt-3 text-[13px] leading-[1.8] text-muted">
-						手書きの検証例と、検証用のソースファイル集から取り込んだ検証例を、上流のツールの出力と比べた判定です。変更時の自動検査 はこのファイルを基準値との比較検査として扱い、判定が一つでも動けば落ちます（<a
+						手書きの検証例と、検証用のソースファイル集から取り込んだ検証例を、上流のツールの出力と比べた判定です。変更時の自動検査
+						はこのファイルを基準値との比較検査として扱い、判定が一つでも動けば落ちます（<a
 							class="link"
 							href="/learn/measure">13 実測</a
 						>）。「未対応」はまだ移植していない構文を正直に拒否したもの、「パースできない」は拒否すべきところで出力してしまった欠陥です。
@@ -267,14 +313,22 @@
 			</div>
 		</section>
 
-		<section class="mt-28 grid grid-cols-[minmax(0,1fr)] gap-x-12 lg:grid-cols-12" aria-labelledby="performance">
+		<section
+			class="mt-28 grid grid-cols-[minmax(0,1fr)] gap-x-12 lg:grid-cols-12"
+			aria-labelledby="performance"
+		>
 			<div class="lg:col-span-4">
 				<p class="eyebrow">性能</p>
-				<h2 id="performance" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">仕組みごとに測る</h2>
+				<h2 id="performance" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">
+					仕組みごとに測る
+				</h2>
 				<p class="mt-4 text-[16px] leading-[1.9] text-fg-2">
-					ベンチマークの各比較対象は、同じ文書・同じタスクを、仕組みをひとつだけ変えて走らせます。比較対象の差が、その仕組みの効果です。ストリーミングは時間をほとんど変えずに、使用中のメモリのピーク増分を {mb(arm('shared').peak)} メガバイト から {mb(arm('streaming').peak)} メガバイト にします。
+					ベンチマークの各比較対象は、同じ文書・同じタスクを、仕組みをひとつだけ変えて走らせます。比較対象の差が、その仕組みの効果です。ストリーミングは時間をほとんど変えずに、使用中のメモリのピーク増分を
+					{mb(arm('shared').peak)} メガバイト から {mb(arm('streaming').peak)} メガバイト にします。
 				</p>
-				<a href="/learn/measure" class="mt-5 inline-flex items-center gap-1.5 text-[15px] font-medium text-accent hover:underline"
+				<a
+					href="/learn/measure"
+					class="mt-5 inline-flex items-center gap-1.5 text-[15px] font-medium text-accent hover:underline"
 					>13 実測<Icon name="arrow-right" size={14} /></a
 				>
 			</div>
@@ -282,16 +336,26 @@
 				<div class="overflow-x-auto">
 					<table class="table min-w-[560px]">
 						<thead>
-							<tr><th>比較対象</th><th class="w-[42%]">中央値</th><th class="num">ms</th><th class="num">ピーク増分</th></tr>
+							<tr
+								><th>比較対象</th><th class="w-[42%]">中央値</th><th class="num">ms</th><th
+									class="num">ピーク増分</th
+								></tr
+							>
 						</thead>
 						<tbody>
 							{#each data.benchmark.arms as a (a.name)}
 								<tr>
-									<td><code>{a.name}</code><div class="text-[13px] text-muted">{armNote[a.name]}</div></td>
+									<td
+										><code>{a.name}</code>
+										<div class="text-[13px] text-muted">{armNote[a.name]}</div></td
+									>
 									<td class="align-middle">
 										<div class="h-2.5 overflow-hidden rounded-full bg-surface">
 											<div
-												class={['h-full rounded-full', a.name === 'shared' ? 'bg-accent' : 'bg-line-strong']}
+												class={[
+													'h-full rounded-full',
+													a.name === 'shared' ? 'bg-accent' : 'bg-line-strong',
+												]}
 												style:width="{(a.median / maxMs) * 100}%"
 											></div>
 										</div>
@@ -304,9 +368,9 @@
 					</table>
 				</div>
 				<p class="mt-3 text-[13px] leading-[1.7] text-muted">
-					{fmt(data.benchmark.documents)} 文書（{mb(data.benchmark.bytes)} メガバイト）を、{data.benchmark.tasks} タスク・{data.benchmark.threads} スレッドで処理しました。
-					最適化したビルドで {data.benchmark.rounds} 回計測した中央値です。比較対象の実行順は交互に入れ替えています。
-					時間は計測機能なし、メモリのピークは計測機能ありの別の実行で測りました。ビルド
+					{fmt(data.benchmark.documents)} 文書（{mb(data.benchmark.bytes)} メガバイト）を、{data
+						.benchmark.tasks} タスク・{data.benchmark.threads} スレッドで処理しました。 最適化したビルドで
+					{data.benchmark.rounds} 回計測した中央値です。比較対象の実行順は交互に入れ替えています。 時間は計測機能なし、メモリのピークは計測機能ありの別の実行で測りました。ビルド
 					{data.benchmark.rev.slice(0, 10)}。
 				</p>
 			</div>
@@ -316,7 +380,9 @@
 			<div class="flex flex-wrap items-end justify-between gap-4">
 				<div>
 					<p class="eyebrow">Learn</p>
-					<h2 id="learn" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">カーネルを読む {chapters.length} 章</h2>
+					<h2 id="learn" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">
+						カーネルを読む {chapters.length} 章
+					</h2>
 					<p class="mt-3 max-w-[42em] text-[16px] leading-[1.9] text-fg-2">
 						大枠から細部まで読むための教材です。抜粋はすべてビルド時に実際のソースから切り出していて、行番号はファイルのものです。通して約
 						{totalMinutes} 分。
@@ -334,11 +400,19 @@
 										href={c.href}
 										class="group flex h-full flex-col rounded-lg border border-line bg-bg p-4 hover:border-line-strong hover:bg-sunken"
 									>
-										<span class="flex items-center justify-between font-mono text-[12px] tracking-normal text-muted tnum">
-											<span class="rounded-sm bg-surface px-1.5 py-0.5 text-fg-2 group-hover:text-accent">{c.number}</span>
+										<span
+											class="flex items-center justify-between font-mono text-[12px] tracking-normal text-muted tnum"
+										>
+											<span
+												class="rounded-sm bg-surface px-1.5 py-0.5 text-fg-2 group-hover:text-accent"
+												>{c.number}</span
+											>
 											<span>{c.minutes} 分</span>
 										</span>
-										<span class="mt-3 text-[16px] leading-[1.5] font-medium text-fg group-hover:text-accent">{c.title}</span>
+										<span
+											class="mt-3 text-[16px] leading-[1.5] font-medium text-fg group-hover:text-accent"
+											>{c.title}</span
+										>
 										<span class="mt-1.5 text-[13.5px] leading-[1.7] text-muted">{c.abstract}</span>
 									</a>
 								</li>

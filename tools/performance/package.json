@@ -1,14 +1,14 @@
 {
 	"name": "@rsvelte-experimental/performance",
 	"private": true,
-	"type": "module",
 	"description": "The performance ratchet: deterministic allocation and instruction counts against a committed baseline (TypeScript, run directly by Node 26; no dependencies)",
-	"engines": {
-		"node": ">=26"
-	},
+	"type": "module",
 	"scripts": {
 		"performance": "node performance.ts",
 		"typecheck": "tsc -p .",
 		"test": "node --test '*.test.ts'"
+	},
+	"engines": {
+		"node": ">=26"
 	}
 }

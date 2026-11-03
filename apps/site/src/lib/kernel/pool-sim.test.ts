@@ -22,7 +22,9 @@ describe('pool model', () => {
 
 	it('frees a buffer that would take the pool past its budget, as MAXIMUM_BYTES does', () => {
 		const steps = simulate([100, 100], true, 200);
-		const gives = steps.filter((s) => s.event.kind === 'give').map((s) => s.event.kind === 'give' && s.event.why);
+		const gives = steps
+			.filter((s) => s.event.kind === 'give')
+			.map((s) => s.event.kind === 'give' && s.event.why);
 		expect(gives).toContain('budget');
 		const unbounded = simulate([100, 100], true).at(-1)!.allocations;
 		expect(steps.at(-1)!.allocations).toBeGreaterThan(unbounded);

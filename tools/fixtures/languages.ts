@@ -27,7 +27,7 @@ const LANGUAGES: Language[] = [
 				if (compile(src, { filename, generate: false }).metadata.runes) inferredMode = 'runes';
 			} catch {}
 			return { include: true, fields: { mode: 'runes', inferredMode } };
-		}
+		},
 	},
 	{
 		id: 'svelte-module-js',
@@ -41,7 +41,7 @@ const LANGUAGES: Language[] = [
 				return { include: false, reason: `module-rejected:${code(e)}` };
 			}
 			return { include: true, fields: { mode: 'runes' } };
-		}
+		},
 	},
 	{
 		// No compile task yet: upstream only sees these after Vite strips the types, and which
@@ -50,7 +50,7 @@ const LANGUAGES: Language[] = [
 		family: 'svelte',
 		ext: '.svelte.ts',
 		matches: (p) => p.endsWith('.svelte.ts'),
-		admit: () => ({ include: true, fields: { mode: 'runes' } })
+		admit: () => ({ include: true, fields: { mode: 'runes' } }),
 	},
 	{
 		id: 'vue',
@@ -63,7 +63,7 @@ const LANGUAGES: Language[] = [
 			// `setup`: `<script setup>`; `options`: a plain `<script>` only; `template`: no script.
 			const mode = descriptor.scriptSetup ? 'setup' : descriptor.script ? 'options' : 'template';
 			return { include: true, fields: { mode } };
-		}
+		},
 	},
 	{
 		// A `.vue` component whose behaviour is the subject (svue.compile): it must build with the
@@ -79,8 +79,13 @@ const LANGUAGES: Language[] = [
 				return { include: false, reason: 'vue-build-failed' };
 			}
 			const { descriptor } = parseSfc(src, { filename });
-			return { include: true, fields: { mode: descriptor.scriptSetup ? 'setup' : descriptor.script ? 'options' : 'template' } };
-		}
+			return {
+				include: true,
+				fields: {
+					mode: descriptor.scriptSetup ? 'setup' : descriptor.script ? 'options' : 'template',
+				},
+			};
+		},
 	},
 	{
 		// A `.svelte` component whose behaviour is the subject (vuelte.compile).
@@ -95,15 +100,17 @@ const LANGUAGES: Language[] = [
 				return { include: false, reason: `not-runes-compatible:${code(e)}` };
 			}
 			return { include: true, fields: { mode: 'runes' } };
-		}
-	}
+		},
+	},
 ];
 
 export const FAMILIES: string[] = [...new Set(LANGUAGES.map((l) => l.family))];
 
 /** The language claiming `path`: the first that matches, or within `family` when one is given. */
 export function languageOf(path: string, family?: string): Language | null {
-	return LANGUAGES.find((l) => (family === undefined || l.family === family) && l.matches(path)) ?? null;
+	return (
+		LANGUAGES.find((l) => (family === undefined || l.family === family) && l.matches(path)) ?? null
+	);
 }
 
 export function languageById(id: string): Language {

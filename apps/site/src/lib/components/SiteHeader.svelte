@@ -10,7 +10,7 @@
 		{ href: '/why', label: 'なぜrsvelteか' },
 		{ href: '/learn', label: '開発者向け' },
 		{ href: '/learn/reference', label: 'リファレンス' },
-		{ href: '/learn/playground', label: 'プレイグラウンド' }
+		{ href: '/learn/playground', label: 'プレイグラウンド' },
 	];
 	const current = (href: string) =>
 		href === '/learn'
@@ -27,7 +27,9 @@
 <header
 	class="sticky top-0 z-40 h-14 border-b border-line bg-[var(--header-bg)] backdrop-blur-md backdrop-saturate-150"
 >
-	<div class="mx-auto flex h-full max-w-[1440px] items-center gap-3 px-4 whitespace-nowrap sm:gap-6 md:px-8">
+	<div
+		class="mx-auto flex h-full max-w-[1440px] items-center gap-3 px-4 whitespace-nowrap sm:gap-6 md:px-8"
+	>
 		<a href="/" class="flex shrink-0 items-center gap-2" aria-label="rsvelte ホーム">
 			<svg viewBox="0 0 32 32" class="size-[22px]" aria-hidden="true">
 				<rect width="32" height="32" rx="7" class="fill-fg" />
@@ -42,14 +44,19 @@
 			</svg>
 			<span class="font-mono text-[15px] font-medium tracking-normal">rsvelte</span>
 		</a>
-		<nav class="no-scrollbar flex min-w-0 items-center gap-1 overflow-x-auto text-[14px]" aria-label="サイト">
+		<nav
+			class="no-scrollbar flex min-w-0 items-center gap-1 overflow-x-auto text-[14px]"
+			aria-label="サイト"
+		>
 			{#each links as l (l.href)}
 				<a
 					href={l.href}
 					class={[
 						'rounded-md px-2.5 py-1.5 whitespace-nowrap',
-						current(l.href) ? 'bg-surface font-medium text-fg' : 'text-fg-2 hover:bg-surface hover:text-fg',
-						!['/guide', '/learn'].includes(l.href) && 'max-sm:hidden'
+						current(l.href)
+							? 'bg-surface font-medium text-fg'
+							: 'text-fg-2 hover:bg-surface hover:text-fg',
+						!['/guide', '/learn'].includes(l.href) && 'max-sm:hidden',
 					]}
 					aria-current={current(l.href) ? 'page' : undefined}
 				>

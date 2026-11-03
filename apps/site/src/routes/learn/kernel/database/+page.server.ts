@@ -25,6 +25,6 @@ export const load = () => ({
 		svelteRegister: 'svelte/typecheck/registration/register',
 		vueRegister: 'vue/check/registration/register',
 		svelteView: 'svelte/typecheck/registration/typescript_view',
-		prepare: 'typescript/check/check/Check::prepare'
-	})
+		prepare: 'typescript/check/check/Check::prepare',
+	}),
 });

@@ -7,7 +7,11 @@ const virtualConsole = new VirtualConsole();
 // dispatchEvent, so a step records it.
 virtualConsole.on('jsdomError', (e: Error) => errors.push(e.message));
 
-const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost/', pretendToBeVisual: true, virtualConsole });
+const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', {
+	url: 'http://localhost/',
+	pretendToBeVisual: true,
+	virtualConsole,
+});
 const win = dom.window as unknown as Record<string, unknown>;
 
 // Both runtimes read DOM classes and `document` as globals, Vue's runtime-dom once at module
@@ -17,8 +21,19 @@ for (const key of Object.getOwnPropertyNames(win)) {
 	if (key in globalThis && !/Event(Target)?$/.test(key)) continue;
 	Object.defineProperty(globalThis, key, { configurable: true, writable: true, value: win[key] });
 }
-for (const key of ['window', 'document', 'navigator', 'requestAnimationFrame', 'cancelAnimationFrame', 'getComputedStyle']) {
-	Object.defineProperty(globalThis, key, { configurable: true, writable: true, value: key === 'window' ? win : win[key] });
+for (const key of [
+	'window',
+	'document',
+	'navigator',
+	'requestAnimationFrame',
+	'cancelAnimationFrame',
+	'getComputedStyle',
+]) {
+	Object.defineProperty(globalThis, key, {
+		configurable: true,
+		writable: true,
+		value: key === 'window' ? win : win[key],
+	});
 }
 
 export const document: Document = dom.window.document;

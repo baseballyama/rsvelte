@@ -9,6 +9,6 @@ export const load = () => ({
 		grow: 'kernel/source/interning/Interner::grow',
 		lookup: 'kernel/source/interning/Interner::lookup',
 		pooled: 'kernel/source/interning/impl Default for Interner',
-		drop: 'kernel/source/interning/Interner::drop'
-	})
+		drop: 'kernel/source/interning/Interner::drop',
+	}),
 });

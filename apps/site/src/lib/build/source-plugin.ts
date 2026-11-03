@@ -6,7 +6,11 @@ import { performanceHistory } from './performance-history.ts';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { createCssVariablesTheme as createStylesheetVariablesTheme, createHighlighter, type Highlighter } from 'shiki';
+import {
+	createCssVariablesTheme as createStylesheetVariablesTheme,
+	createHighlighter,
+	type Highlighter,
+} from 'shiki';
 import type { Plugin } from 'vite';
 import { parseRustModule, type RustModule } from './rust-items.ts';
 import { sources } from './sources.ts';
@@ -20,10 +24,12 @@ function readBaseline(file: string) {
 		phases: Record<string, { 'allocs': number }>;
 	};
 	const { allocs: allocations, ...fields } = record;
-	const phases = Object.fromEntries(Object.entries(record.phases).map(([name, phase]) => {
-		const { allocs: phaseAllocations, ...phaseFields } = phase;
-		return [name, { ...phaseFields, allocations: phaseAllocations }];
-	}));
+	const phases = Object.fromEntries(
+		Object.entries(record.phases).map(([name, phase]) => {
+			const { allocs: phaseAllocations, ...phaseFields } = phase;
+			return [name, { ...phaseFields, allocations: phaseAllocations }];
+		}),
+	);
 	return { ...fields, allocations, phases };
 }
 
@@ -47,7 +53,11 @@ export interface HighlightedModule {
 }
 
 /** Token colours are CSS variables (`--shiki-token-*` in app.css), so one pass serves both themes. */
-const theme = createStylesheetVariablesTheme({ name: 'rsvelte', variablePrefix: '--shiki-', fontStyle: true });
+const theme = createStylesheetVariablesTheme({
+	name: 'rsvelte',
+	variablePrefix: '--shiki-',
+	fontStyle: true,
+});
 
 function highlight(h: Highlighter, code: string, lang: string): string {
 	return h.codeToHtml(code, { lang, theme: 'rsvelte' });
@@ -61,25 +71,30 @@ export interface CrateSize {
 }
 
 export function crateSizes(cratesDir: string): CrateSize[] {
-	const metadata = JSON.parse(execFileSync('cargo', ['metadata', '--offline', '--no-deps', '--format-version', '1'], {
-		cwd: path.dirname(cratesDir),
-		encoding: 'utf8'
-	})) as { packages: { id: string; name: string; manifest_path: string }[]; workspace_members: string[] };
+	const metadata = JSON.parse(
+		execFileSync('cargo', ['metadata', '--offline', '--no-deps', '--format-version', '1'], {
+			cwd: path.dirname(cratesDir),
+			encoding: 'utf8',
+		}),
+	) as {
+		packages: { id: string; name: string; manifest_path: string }[];
+		workspace_members: string[];
+	};
 	const members = new Set(metadata.workspace_members);
 	return metadata.packages
 		.filter((entry) => members.has(entry.id))
 		.map((entry) => {
 			const sourceDir = path.resolve(path.dirname(entry.manifest_path), 'src');
-			const files = readdirSync(sourceDir, { recursive: true, encoding: 'utf8' }).filter(
-				(f) => f.endsWith('.rs')
+			const files = readdirSync(sourceDir, { recursive: true, encoding: 'utf8' }).filter((f) =>
+				f.endsWith('.rs'),
 			);
 			const lines = files.reduce(
 				(n, f) => n + readFileSync(path.resolve(sourceDir, f), 'utf8').split('\n').length - 1,
-				0
+				0,
 			);
 			return { name: entry.name, files: files.length, lines };
 		})
-		.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+		.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }
 
 interface ParityRow {
@@ -96,14 +111,18 @@ function paritySummary(entries: Record<string, string>): { units: number; rows: 
 		row[verdict] = (row[verdict] ?? 0) + 1;
 		byTask.set(task, row);
 	}
-	const rows = [...byTask].sort(([a], [b]) => a.localeCompare(b)).map(([task, verdicts]) => ({ task, verdicts }));
+	const rows = [...byTask]
+		.sort(([a], [b]) => a.localeCompare(b))
+		.map(([task, verdicts]) => ({ task, verdicts }));
 	return { units: Object.keys(entries).length, rows };
 }
 
 /** The commit the quoted code comes from, or `null` when crates/ differs from it. */
 function revision(root: string): { rev: string; clean: boolean } {
 	const rev = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-	const status = execFileSync('git', ['-C', root, 'status', '--porcelain', '--', 'crates'], { encoding: 'utf8' });
+	const status = execFileSync('git', ['-C', root, 'status', '--porcelain', '--', 'crates'], {
+		encoding: 'utf8',
+	});
 	return { rev, clean: status.trim() === '' };
 }
 
@@ -119,7 +138,7 @@ export function rsvelteSource(): Plugin {
 			if (id !== RESOLVED) return;
 			highlighter ??= createHighlighter({
 				themes: [theme],
-				langs: ['rust', 'typescript', 'svelte', 'json', 'shellscript']
+				langs: ['rust', 'typescript', 'svelte', 'json', 'shellscript'],
 			});
 			const h = await highlighter;
 			const modules: HighlightedModule[] = sources(cratesDir).map(({ key, file }) => {
@@ -128,7 +147,7 @@ export function rsvelteSource(): Plugin {
 				const m: RustModule = parseRustModule(key, `crates/${file}`, readFileSync(full, 'utf8'));
 				return {
 					...m,
-					items: m.items.map((it) => ({ ...it, markup: highlight(h, it.code, 'rust') }))
+					items: m.items.map((it) => ({ ...it, markup: highlight(h, it.code, 'rust') })),
 				};
 			});
 			const root = path.dirname(cratesDir);
@@ -144,8 +163,8 @@ export function rsvelteSource(): Plugin {
 				`export const crates = ${JSON.stringify(crateSizes(cratesDir))};`,
 				`export const performanceBaseline = ${JSON.stringify(readBaseline(baselineFile))};`,
 				`export const performanceHistory = ${JSON.stringify(performanceHistory(root))};`,
-				`export const parity = ${JSON.stringify(paritySummary(JSON.parse(readFileSync(parityFile, 'utf8'))))};`
+				`export const parity = ${JSON.stringify(paritySummary(JSON.parse(readFileSync(parityFile, 'utf8'))))};`,
 			].join('\n');
-		}
+		},
 	};
 }

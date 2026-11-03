@@ -30,7 +30,11 @@ export class Emitter {
 	}
 
 	copy(source: string, span: Span) {
-		this.mappings.push({ generated: this.position, source: span.startOffset, len: span.endOffset - span.startOffset });
+		this.mappings.push({
+			generated: this.position,
+			source: span.startOffset,
+			len: span.endOffset - span.startOffset,
+		});
 		this.out += ascii(spanText(source, span));
 	}
 
@@ -85,7 +89,9 @@ export class Emitter {
 	}
 
 	/** Every segment `source_map` writes, before VLQ encoding. */
-	segments(source: string): { genLine: number; genCol: number; sourceLine: number; sourceCol: number }[] {
+	segments(
+		source: string,
+	): { genLine: number; genCol: number; sourceLine: number; sourceCol: number }[] {
 		const sourceIndex = new LineIndex(source);
 		const gen = new LineIndex(this.out);
 		return this.points().map(([generated, original]) => {
@@ -111,7 +117,11 @@ export class Emitter {
 			}
 			if (!firstInLine) mappings += ',';
 			firstInLine = false;
-			mappings += vlq(s.genCol - prevGenCol) + vlq(0) + vlq(s.sourceLine - 1 - prevSourceLine) + vlq(s.sourceCol - prevSourceCol);
+			mappings +=
+				vlq(s.genCol - prevGenCol) +
+				vlq(0) +
+				vlq(s.sourceLine - 1 - prevSourceLine) +
+				vlq(s.sourceCol - prevSourceCol);
 			prevGenCol = s.genCol;
 			prevSourceLine = s.sourceLine - 1;
 			prevSourceCol = s.sourceCol;
@@ -121,7 +131,8 @@ export class Emitter {
 }
 
 function ascii(s: string): string {
-	if (/[\u0080-\uffff]/.test(s)) throw new Error(`the emit port takes ASCII only: ${JSON.stringify(s)}`);
+	if (/[\u0080-\uffff]/.test(s))
+		throw new Error(`the emit port takes ASCII only: ${JSON.stringify(s)}`);
 	return s;
 }
 
@@ -154,7 +165,9 @@ export function vlq(value: number): string {
 }
 
 /** Decodes a `mappings` string into absolute segments, as a standard source map consumer does. */
-export function decodeMappings(mappings: string): { genLine: number; genCol: number; sourceLine: number; sourceCol: number }[] {
+export function decodeMappings(
+	mappings: string,
+): { genLine: number; genCol: number; sourceLine: number; sourceCol: number }[] {
 	const out: { genLine: number; genCol: number; sourceLine: number; sourceCol: number }[] = [];
 	let sourceLine = 0;
 	let sourceCol = 0;
@@ -188,7 +201,7 @@ export function decodeMappings(mappings: string): { genLine: number; genCol: num
 export function consumerLookup(
 	segments: { genLine: number; genCol: number; sourceLine: number; sourceCol: number }[],
 	genLine: number,
-	genCol: number
+	genCol: number,
 ): { sourceLine: number; sourceCol: number } | null {
 	let best: { sourceLine: number; sourceCol: number } | null = null;
 	for (const s of segments) if (s.genLine === genLine && s.genCol <= genCol) best = s;

@@ -48,7 +48,9 @@ export interface Unit extends UnitKey, UnitMeta {
 	fixture: FixtureToml;
 }
 
-type Admission = { include: true; fields: Omit<UnitMeta, 'lang' | 'sha256'> } | { include: false; reason: string };
+type Admission =
+	| { include: true; fields: Omit<UnitMeta, 'lang' | 'sha256'> }
+	| { include: false; reason: string };
 
 export interface Language {
 	id: string;
@@ -81,7 +83,11 @@ export interface Task {
 	oracles: string[];
 	variants: Variant[];
 	appliesTo(unit: Unit): boolean;
-	run(unit: Unit, src: string, variant: Variant): Record<string, Artifact> | Promise<Record<string, Artifact>>;
+	run(
+		unit: Unit,
+		src: string,
+		variant: Variant,
+	): Record<string, Artifact> | Promise<Record<string, Artifact>>;
 	/**
 	 * For a task whose actual output is not the artifact itself: derives the artifact `ext` from the
 	 * implementation's `actual/<task>/<variant>.js`, given as a path (a behaviour trace of emitted code).

@@ -38,7 +38,7 @@ export function arms(): ArmSummary[] {
 			allocations: num(m.allocations, `${a.name}.allocs`),
 			allocBytes: num(m.alloc_bytes, `${a.name}.alloc_bytes`),
 			allocationsPerByte: num(m.allocations_per_source_byte, `${a.name}.allocs_per_source_byte`),
-			peak: num(m.peak_live_growth_bytes, `${a.name}.peak_live_growth_bytes`)
+			peak: num(m.peak_live_growth_bytes, `${a.name}.peak_live_growth_bytes`),
 		};
 	});
 }
@@ -57,7 +57,12 @@ export function reports() {
 export function phaseAverages(): Record<string, number> {
 	const phases = metricsA.phases;
 	if (!Array.isArray(phases)) throw new Error('metrics-a.json has no phase table');
-	return Object.fromEntries(phases.map((p) => [p.name, (num(p.self_ms, `${p.name}.self_ms`) * 1000) / num(p.calls, `${p.name}.calls`)]));
+	return Object.fromEntries(
+		phases.map((p) => [
+			p.name,
+			(num(p.self_ms, `${p.name}.self_ms`) * 1000) / num(p.calls, `${p.name}.calls`),
+		]),
+	);
 }
 
 export function phaseTable() {
@@ -68,11 +73,13 @@ export function phaseTable() {
 
 /** Documents every report measured; the four runs must agree or the comparison is between populations. */
 export function documents(): number {
-	const counts = Object.entries(reports()).map(([k, r]) => num(r.population.documents, `${k}.population.documents`));
-	if (new Set(counts).size !== 1) throw new Error(`reports disagree on the population: ${counts.join(', ')}`);
+	const counts = Object.entries(reports()).map(([k, r]) =>
+		num(r.population.documents, `${k}.population.documents`),
+	);
+	if (new Set(counts).size !== 1)
+		throw new Error(`reports disagree on the population: ${counts.join(', ')}`);
 	return counts[0];
 }
-
 
 export interface PolishArm {
 	name: string;
@@ -87,7 +94,9 @@ export interface PolishArm {
  */
 export function polishArms(): { documents: number; arms: PolishArm[] } {
 	const runs = { before1, before2, after1, after2 };
-	const docs = Object.entries(runs).map(([k, r]) => num(r.population.documents, `${k}.population.documents`));
+	const docs = Object.entries(runs).map(([k, r]) =>
+		num(r.population.documents, `${k}.population.documents`),
+	);
 	// The four runs are compared with each other only, so they must agree with each other, not with the other reports.
 	if (new Set(docs).size !== 1) throw new Error(`populations differ: ${docs.join(', ')}`);
 	const median = (r: { arms: { name: string; median_ms?: unknown }[] }, name: string) => {
@@ -100,7 +109,7 @@ export function polishArms(): { documents: number; arms: PolishArm[] } {
 		arms: before1.arms.map(({ name }) => ({
 			name,
 			before: [median(before1, name), median(before2, name)],
-			after: [median(after1, name), median(after2, name)]
-		}))
+			after: [median(after1, name), median(after2, name)],
+		})),
 	};
 }

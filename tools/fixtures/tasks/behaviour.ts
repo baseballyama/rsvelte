@@ -19,12 +19,7 @@ import type { Task, Unit, Variant } from '../types.ts';
 
 const traceText = (t: Trace): string => stableStringify(t) + '\n';
 
-function behaviourTask(
-	id: string,
-	lang: string,
-	source: Runtime,
-	target: Runtime,
-): Task {
+function behaviourTask(id: string, lang: string, source: Runtime, target: Runtime): Task {
 	const official = source === 'svelte' ? svelteModule : vueModule;
 	return {
 		id,
@@ -72,8 +67,7 @@ function behaviourTask(
 		observe: {
 			ext: 'trace.json',
 			async derive(unit: Unit, variant: Variant, file: string) {
-				const runtime =
-					target === 'vapor' && variant.id === 'server' ? 'vue' : target;
+				const runtime = target === 'vapor' && variant.id === 'server' ? 'vue' : target;
 				const result = await trace(
 					runtime,
 					variant.id as Target,
@@ -85,8 +79,7 @@ function behaviourTask(
 				const text = traceText(result);
 				return {
 					text,
-					diff: (expected: string) =>
-						traceDiff(JSON.parse(expected), JSON.parse(text)),
+					diff: (expected: string) => traceDiff(JSON.parse(expected), JSON.parse(text)),
 				};
 			},
 		},
@@ -94,16 +87,6 @@ function behaviourTask(
 }
 
 /** A `.vue` component compiled for the Svelte runtime. */
-export const svueCompile = behaviourTask(
-	'svue.compile',
-	'cross-vue',
-	'vue',
-	'svelte',
-);
+export const svueCompile = behaviourTask('svue.compile', 'cross-vue', 'vue', 'svelte');
 /** A `.svelte` component compiled for the Vue runtime. */
-export const vuelteCompile = behaviourTask(
-	'vuelte.compile',
-	'cross-svelte',
-	'svelte',
-	'vapor',
-);
+export const vuelteCompile = behaviourTask('vuelte.compile', 'cross-svelte', 'svelte', 'vapor');

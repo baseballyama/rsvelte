@@ -23,14 +23,12 @@ import { JSDOM } from 'jsdom';
 let parser: Document | undefined;
 
 function stylesheet(text: string): string {
-	parser ??= new JSDOM('<!doctype html><html><body></body></html>').window
-		.document;
+	parser ??= new JSDOM('<!doctype html><html><body></body></html>').window.document;
 	const style = parser.createElement('style');
 	style.textContent = text;
 	parser.head.appendChild(style);
 	try {
-		if (!style.sheet)
-			throw new Error('could not parse CSS for a behaviour trace');
+		if (!style.sheet) throw new Error('could not parse CSS for a behaviour trace');
 		return Array.from(style.sheet.cssRules, (rule) => rule.cssText).join('\n');
 	} finally {
 		style.remove();
@@ -96,11 +94,7 @@ function attributes(el: Element): string[] {
 		let value = a.value;
 		if (a.name === 'class') {
 			const tokens = [
-				...new Set(
-					value
-						.split(/[ \t\n\f\r]+/)
-						.filter((t) => t && !/^svelte-[a-z0-9]+$/.test(t)),
-				),
+				...new Set(value.split(/[ \t\n\f\r]+/).filter((t) => t && !/^svelte-[a-z0-9]+$/.test(t))),
 			].sort();
 			if (tokens.length === 0) continue;
 			value = tokens.join(' ');
@@ -110,18 +104,14 @@ function attributes(el: Element): string[] {
 			for (let i = 0; i < style.length; i++) {
 				const name = style.item(i);
 				const priority = style.getPropertyPriority(name);
-				decls.push(
-					`${name}: ${style.getPropertyValue(name)}${priority ? ` !${priority}` : ''}`,
-				);
+				decls.push(`${name}: ${style.getPropertyValue(name)}${priority ? ` !${priority}` : ''}`);
 			}
 			if (decls.length === 0) continue;
 			value = decls.sort().join('; ');
 		}
 		out.push([a.name, value]);
 	}
-	return out
-		.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-		.map(([n, v]) => `${n}=${quote(v)}`);
+	return out.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([n, v]) => `${n}=${quote(v)}`);
 }
 
 function properties(el: Element): string[] {
@@ -134,9 +124,7 @@ function properties(el: Element): string[] {
 		}
 		case 'textarea':
 		case 'select':
-			return [
-				`.value=${quote((el as HTMLTextAreaElement | HTMLSelectElement).value)}`,
-			];
+			return [`.value=${quote((el as HTMLTextAreaElement | HTMLSelectElement).value)}`];
 		case 'option':
 			return [`.selected=${(el as HTMLOptionElement).selected}`];
 		default:
@@ -160,16 +148,10 @@ function items(parent: Node): Item[] {
 	return out;
 }
 
-function children(
-	parent: Element,
-	depth: number,
-	pre: boolean,
-	lines: string[],
-): void {
+function children(parent: Element, depth: number, pre: boolean, lines: string[]): void {
 	if (parent.localName === 'textarea') return;
 	const list = items(
-		parent.localName === 'template' &&
-			parent.namespaceURI === 'http://www.w3.org/1999/xhtml'
+		parent.localName === 'template' && parent.namespaceURI === 'http://www.w3.org/1999/xhtml'
 			? (parent as HTMLTemplateElement).content
 			: parent,
 	);
@@ -193,17 +175,11 @@ function children(
 	});
 }
 
-function element(
-	el: Element,
-	depth: number,
-	pre: boolean,
-	lines: string[],
-): void {
+function element(el: Element, depth: number, pre: boolean, lines: string[]): void {
 	const head = [el.localName, ...attributes(el), ...properties(el)].join(' ');
 	const pad = '  '.repeat(depth);
 	const inner: string[] = [];
-	if (el.localName === 'style')
-		inner.push(`${pad}  ${quote(stylesheet(el.textContent ?? ''))}`);
+	if (el.localName === 'style') inner.push(`${pad}  ${quote(stylesheet(el.textContent ?? ''))}`);
 	else children(el, depth + 1, pre || el.localName === 'pre', inner);
 	if (inner.length === 0) lines.push(`${pad}<${head}>`);
 	else lines.push(`${pad}<${head}>`, ...inner, `${pad}</${el.localName}>`);
@@ -218,8 +194,7 @@ export function serialize(root: Element): string[] {
 
 /** Server-rendered HTML, parsed as a browser parses it into a block container, then normalized like the live DOM. */
 export function serializeHtml(html: string): string[] {
-	parser ??= new JSDOM('<!doctype html><html><body></body></html>').window
-		.document;
+	parser ??= new JSDOM('<!doctype html><html><body></body></html>').window.document;
 	const div = parser.createElement('div');
 	div.innerHTML = html;
 	return serialize(div);

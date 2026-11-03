@@ -20,6 +20,9 @@ importers:
       oxlint:
         specifier: 1.89.0
         version: 1.89.0
+      svelte:
+        specifier: 5.57.1
+        version: 5.57.1(@typescript-eslint/types@8.71.0)
       typescript-7:
         specifier: npm:typescript@7.1.0-dev.20261003.1
         version: typescript@7.1.0-dev.20261003.1

@@ -8,8 +8,21 @@
 const MAX_PER_KEY = 16;
 
 type Event =
-	| { kind: 'take'; syntax_tree: string; got: number | null; need: number; allocations: number; cap: number }
-	| { kind: 'give'; syntax_tree: string; cap: number; kept: boolean; why: 'kept' | 'disabled' | 'full' | 'budget' };
+	| {
+			kind: 'take';
+			syntax_tree: string;
+			got: number | null;
+			need: number;
+			allocations: number;
+			cap: number;
+	  }
+	| {
+			kind: 'give';
+			syntax_tree: string;
+			cap: number;
+			kept: boolean;
+			why: 'kept' | 'disabled' | 'full' | 'budget';
+	  };
 
 export interface Step {
 	doc: number;
@@ -43,16 +56,32 @@ export function simulate(sizes: number[], enabled: boolean, budget = Infinity): 
 			const g = growths(got ?? 0, need);
 			total += g.allocations;
 			live.set(syntax_tree, g.cap);
-			steps.push({ doc, event: { kind: 'take', syntax_tree, got, need, ...g }, pool: [...pool], allocations: total });
+			steps.push({
+				doc,
+				event: { kind: 'take', syntax_tree, got, need, ...g },
+				pool: [...pool],
+				allocations: total,
+			});
 		};
 		const give = (syntax_tree: string) => {
 			const cap = live.get(syntax_tree)!;
 			live.delete(syntax_tree);
 			const held = pool.reduce((a, b) => a + b, 0);
-			const why = !enabled ? 'disabled' : held + cap > budget ? 'budget' : pool.length >= MAX_PER_KEY ? 'full' : 'kept';
+			const why = !enabled
+				? 'disabled'
+				: held + cap > budget
+					? 'budget'
+					: pool.length >= MAX_PER_KEY
+						? 'full'
+						: 'kept';
 			const kept = why === 'kept';
 			if (kept) pool.push(cap);
-			steps.push({ doc, event: { kind: 'give', syntax_tree, cap, kept, why }, pool: [...pool], allocations: total });
+			steps.push({
+				doc,
+				event: { kind: 'give', syntax_tree, cap, kept, why },
+				pool: [...pool],
+				allocations: total,
+			});
 		};
 		take('parse', n);
 		take('lower.client', Math.round(n * 1.6));

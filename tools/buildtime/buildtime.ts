@@ -37,25 +37,35 @@ type Scenario = {
 const WS = ['--workspace', '--all-targets', '--all-features'];
 
 const SCENARIOS: Scenario[] = [
-	{ name: 'check.clean', description: 'cargo check, every target, from nothing', cargo: ['check', ...WS] },
+	{
+		name: 'check.clean',
+		description: 'cargo check, every target, from nothing',
+		cargo: ['check', ...WS],
+	},
 	{ name: 'clippy.clean', description: 'the lint gate, from nothing', cargo: ['clippy', ...WS] },
-	{ name: 'debug.clean', description: 'debug build of every target (tests included), from nothing', cargo: ['build', ...WS] },
-	{ name: 'release.clean', description: 'the shipped `rsvelte` binary (release: thin LTO, one codegen unit)', cargo: ['build', '--release', '-p', 'rsvelte_command_line'] },
+	{
+		name: 'debug.clean',
+		description: 'debug build of every target (tests included), from nothing',
+		cargo: ['build', ...WS],
+	},
+	{
+		name: 'release.clean',
+		description: 'the shipped `rsvelte` binary (release: thin LTO, one codegen unit)',
+		cargo: ['build', '--release', '-p', 'rsvelte_command_line'],
+	},
 	...(
 		[
 			['kernel', 'crates/kernel/src/lib.rs'],
-			['svelte', 'crates/languages/svelte/compile/src/lib.rs']
+			['svelte', 'crates/languages/svelte/compile/src/lib.rs'],
 		] as const
 	).flatMap(([crate, file]) =>
-		(['touch', 'body', 'api'] as const).map(
-			(kind): Scenario => ({
-				name: `debug.incr.${crate}.${kind}`,
-				description: `debug build of every target after a \`${kind}\` edit to ${file}`,
-				cargo: ['build', ...WS],
-				edit: { kind, file }
-			})
-		)
-	)
+		(['touch', 'body', 'api'] as const).map((kind): Scenario => ({
+			name: `debug.incr.${crate}.${kind}`,
+			description: `debug build of every target after a \`${kind}\` edit to ${file}`,
+			cargo: ['build', ...WS],
+			edit: { kind, file },
+		})),
+	),
 ];
 
 const { values } = parseArgs({
@@ -64,21 +74,32 @@ const { values } = parseArgs({
 		only: { type: 'string' },
 		json: { type: 'string' },
 		timings: { type: 'boolean', default: false },
-		'allow-busy': { type: 'boolean', default: false }
-	}
+		'allow-busy': { type: 'boolean', default: false },
+	},
 });
 
 const rounds = Number(values.rounds);
-if (!Number.isInteger(rounds) || rounds < 1) throw new Error(`--rounds must be a positive integer, got ${values.rounds}`);
+if (!Number.isInteger(rounds) || rounds < 1)
+	throw new Error(`--rounds must be a positive integer, got ${values.rounds}`);
 const only = values.only?.split(',');
 const scenarios = only ? SCENARIOS.filter((s) => only.includes(s.name)) : SCENARIOS;
 if (only && scenarios.length !== only.length) {
 	const known = new Set(SCENARIOS.map((s) => s.name));
-	throw new Error(`unknown scenario: ${only.filter((n) => !known.has(n)).join(', ')}\nknown: ${[...known].join(', ')}`);
+	throw new Error(
+		`unknown scenario: ${only.filter((n) => !known.has(n)).join(', ')}\nknown: ${[...known].join(', ')}`,
+	);
 }
 
-function run(cmd: string, args: string[], opts: { cwd?: string; env?: NodeJS.ProcessEnv } = {}): string {
-	const r = spawnSync(cmd, args, { cwd: opts.cwd ?? ROOT, env: opts.env ?? process.env, encoding: 'utf8' });
+function run(
+	cmd: string,
+	args: string[],
+	opts: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
+): string {
+	const r = spawnSync(cmd, args, {
+		cwd: opts.cwd ?? ROOT,
+		env: opts.env ?? process.env,
+		encoding: 'utf8',
+	});
 	if (r.status !== 0) throw new Error(`${cmd} ${args.join(' ')} exited ${r.status}\n${r.stderr}`);
 	return r.stdout.trim();
 }
@@ -87,7 +108,11 @@ function cargo(s: Scenario, extra: string[] = []): { seconds: number; packages: 
 	const env: NodeJS.ProcessEnv = { ...process.env, CARGO_TARGET_DIR: path.join(BASE, s.name) };
 	delete env.RUSTC_WRAPPER;
 	const t0 = process.hrtime.bigint();
-	const r = spawnSync('cargo', [...s.cargo, '--offline', ...extra], { cwd: ROOT, env, encoding: 'utf8' });
+	const r = spawnSync('cargo', [...s.cargo, '--offline', ...extra], {
+		cwd: ROOT,
+		env,
+		encoding: 'utf8',
+	});
 	const seconds = Number(process.hrtime.bigint() - t0) / 1e9;
 	if (r.status !== 0) throw new Error(`${s.name}: cargo exited ${r.status}\n${r.stderr}`);
 	// Cargo prints one `Compiling`/`Checking` line per package it ran rustc for (once, however many
@@ -155,13 +180,25 @@ for (const s of scenarios) {
 const cores = os.availableParallelism();
 const load0 = os.loadavg()[0] ?? 0;
 if (load0 > cores / 4 && !values['allow-busy'])
-	throw new Error(`load average ${load0.toFixed(1)} on ${cores} cores (busiest: ${busiest()}); wait, or pass --allow-busy`);
+	throw new Error(
+		`load average ${load0.toFixed(1)} on ${cores} cores (busiest: ${busiest()}); wait, or pass --allow-busy`,
+	);
 
 const rustc = run('rustc', ['-vV']);
 const env = {
 	gitRev: run('git', ['rev-parse', 'HEAD']),
 	// Only tracked Rust sources and build configuration decide what is compiled.
-	dirty: run('git', ['status', '--porcelain', '--untracked-files=no', '--', 'crates', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml']) !== '',
+	dirty:
+		run('git', [
+			'status',
+			'--porcelain',
+			'--untracked-files=no',
+			'--',
+			'crates',
+			'Cargo.toml',
+			'Cargo.lock',
+			'rust-toolchain.toml',
+		]) !== '',
 	rustc: rustc.split('\n')[0],
 	host: /host: (.*)/.exec(rustc)?.[1],
 	cargo: run('cargo', ['-V']),
@@ -170,19 +207,26 @@ const env = {
 	memGiB: Math.round(os.totalmem() / 2 ** 30),
 	os: `${os.type()} ${os.release()}`,
 	rustflags: process.env.RUSTFLAGS ?? null,
-	incremental: process.env.CARGO_INCREMENTAL ?? null
+	incremental: process.env.CARGO_INCREMENTAL ?? null,
 };
-console.error(`${env.gitRev.slice(0, 10)}${env.dirty ? ' (dirty)' : ''} · ${env.rustc} · ${cores} cores · load ${load0.toFixed(1)}`);
+console.error(
+	`${env.gitRev.slice(0, 10)}${env.dirty ? ' (dirty)' : ''} · ${env.rustc} · ${cores} cores · load ${load0.toFixed(1)}`,
+);
 
 // load1 includes the build being measured, so only the value before the first run says whether the
 // machine was otherwise idle.
-const samples = new Map<string, { seconds: number; packages: number; load1: number }[]>(scenarios.map((s) => [s.name, []]));
+const samples = new Map<string, { seconds: number; packages: number; load1: number }[]>(
+	scenarios.map((s) => [s.name, []]),
+);
 for (let round = 0; round < rounds; round++) {
 	for (const s of scenarios) {
 		const r = measure(s);
 		samples.get(s.name)?.push(r);
-		console.error(`round ${round + 1}/${rounds}  ${s.name.padEnd(26)} ${r.seconds.toFixed(2).padStart(7)} s  ${String(r.packages).padStart(3)} packages  load ${r.load1.toFixed(1)}`);
-		if (s.edit && r.packages === 0) throw new Error(`${s.name}: the edit rebuilt nothing; the scenario measures a no-op`);
+		console.error(
+			`round ${round + 1}/${rounds}  ${s.name.padEnd(26)} ${r.seconds.toFixed(2).padStart(7)} s  ${String(r.packages).padStart(3)} packages  load ${r.load1.toFixed(1)}`,
+		);
+		if (s.edit && r.packages === 0)
+			throw new Error(`${s.name}: the edit rebuilt nothing; the scenario measures a no-op`);
 	}
 }
 
@@ -192,7 +236,9 @@ if (values.timings) {
 		const dir = path.join(BASE, s.name);
 		fs.rmSync(dir, { recursive: true, force: true });
 		cargo(s, ['--timings']);
-		fs.cpSync(path.join(dir, 'cargo-timings'), path.join(GENERATED, 'timings', s.name), { recursive: true });
+		fs.cpSync(path.join(dir, 'cargo-timings'), path.join(GENERATED, 'timings', s.name), {
+			recursive: true,
+		});
 	}
 }
 
@@ -212,15 +258,22 @@ const result = {
 			minSeconds: Number(Math.min(...secs).toFixed(3)),
 			maxSeconds: Number(Math.max(...secs).toFixed(3)),
 			packages: median(xs.map((x) => x.packages)),
-			samples: xs.map((x) => ({ seconds: Number(x.seconds.toFixed(3)), packages: x.packages, load1: Number(x.load1.toFixed(2)) }))
+			samples: xs.map((x) => ({
+				seconds: Number(x.seconds.toFixed(3)),
+				packages: x.packages,
+				load1: Number(x.load1.toFixed(2)),
+			})),
 		};
-	})
+	}),
 };
 
 console.error('');
 for (const s of result.scenarios)
-	console.error(`${s.name.padEnd(26)} median ${s.medianSeconds.toFixed(2).padStart(7)} s  [${s.minSeconds.toFixed(2)} – ${s.maxSeconds.toFixed(2)}]  ${s.packages} packages`);
-if (values.timings) console.error(`\ncargo --timings reports (clean scenarios): ${path.join(GENERATED, 'timings')}`);
+	console.error(
+		`${s.name.padEnd(26)} median ${s.medianSeconds.toFixed(2).padStart(7)} s  [${s.minSeconds.toFixed(2)} – ${s.maxSeconds.toFixed(2)}]  ${s.packages} packages`,
+	);
+if (values.timings)
+	console.error(`\ncargo --timings reports (clean scenarios): ${path.join(GENERATED, 'timings')}`);
 
 const out = JSON.stringify(result, null, '\t') + '\n';
 if (values.json) fs.writeFileSync(values.json, out);

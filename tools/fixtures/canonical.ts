@@ -19,7 +19,11 @@ const PURE = /^[\s*]*[@#]__PURE__[\s*]*$/;
 
 export function parseJs(code: string): Node {
 	const comments: acorn.Comment[] = [];
-	const ast = acorn.parse(code, { ecmaVersion: 'latest', sourceType: 'module', onComment: comments });
+	const ast = acorn.parse(code, {
+		ecmaVersion: 'latest',
+		sourceType: 'module',
+		onComment: comments,
+	});
 	const pureStarts = new Set<number>();
 	for (const c of comments) {
 		if (!PURE.test(c.value)) continue;
@@ -41,14 +45,20 @@ function canonicalize(node: Tree, pureStarts: Set<number>): Tree {
 		out[k] = canonicalize(v, pureStarts);
 	}
 	if (n.type === 'Literal' && (n.regex || n.bigint !== undefined)) out.value = null;
-	if ((n.type === 'CallExpression' || n.type === 'NewExpression') && pureStarts.has(n.start as number)) out.pure = true;
+	if (
+		(n.type === 'CallExpression' || n.type === 'NewExpression') &&
+		pureStarts.has(n.start as number)
+	)
+		out.pure = true;
 	return sortKeys(out);
 }
 
 export const same = (a: Tree, b: Tree): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 const step = (cur: Tree, seg: string): Tree =>
-	cur == null ? undefined : (cur as Record<string | number, unknown>)[/^\d+$/.test(seg) ? Number(seg) : seg];
+	cur == null
+		? undefined
+		: (cur as Record<string | number, unknown>)[/^\d+$/.test(seg) ? Number(seg) : seg];
 
 /** Path syntax: dot-separated keys and array indices from the Program, e.g. `body.3.declarations.0.init`. */
 export function getAt(tree: Tree, at: string): Tree {
@@ -76,7 +86,14 @@ export function findAll(tree: Tree, target: Tree, at = '', out: string[] = []): 
 /** First path at which two trees differ, or null. */
 export function firstDiff(a: Tree, b: Tree, at = ''): string | null {
 	if (same(a, b)) return null;
-	if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return at;
+	if (
+		!a ||
+		!b ||
+		typeof a !== 'object' ||
+		typeof b !== 'object' ||
+		Array.isArray(a) !== Array.isArray(b)
+	)
+		return at;
 	const na = a as Node;
 	const nb = b as Node;
 	if (na.type !== nb.type) return at;
@@ -95,6 +112,11 @@ export function parseSnippet(snippet: string, targetType: unknown): Node {
 	const body = parseJs(snippet).body as Node[];
 	if (body.length !== 1) throw new Error(`snippet must be one statement or expression: ${snippet}`);
 	const stmt = body[0]!;
-	if (stmt.type === 'ExpressionStatement' && targetType !== 'ExpressionStatement' && !stmt.directive) return stmt.expression as Node;
+	if (
+		stmt.type === 'ExpressionStatement' &&
+		targetType !== 'ExpressionStatement' &&
+		!stmt.directive
+	)
+		return stmt.expression as Node;
 	return stmt;
 }

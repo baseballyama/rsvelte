@@ -26,7 +26,12 @@
 			.filter((m) => crate === 'all' || (crate === 'kernel') === m.key.startsWith('kernel/'))
 			.map((m) => ({
 				...m,
-				items: m.items.filter((i) => !needle || i.name.toLowerCase().includes(needle) || i.doc.toLowerCase().includes(needle))
+				items: m.items.filter(
+					(i) =>
+						!needle ||
+						i.name.toLowerCase().includes(needle) ||
+						i.doc.toLowerCase().includes(needle),
+				),
 			}))
 			.filter((m) => m.items.length > 0);
 	});
@@ -58,7 +63,9 @@
 
 <header class="mb-8">
 	<span class="font-mono text-[13px] tracking-normal text-muted">付録</span>
-	<h1 class="mt-1 text-[30px] leading-[1.3] font-semibold sm:text-[36px]" style="font-stretch: 92%">リファレンス</h1>
+	<h1 class="mt-1 text-[30px] leading-[1.3] font-semibold sm:text-[36px]" style="font-stretch: 92%">
+		リファレンス
+	</h1>
 	<p class="mt-4 max-w-[40em] text-[17px] leading-[1.8] text-fg-2">
 		サイトのビルド時にソースから切り出した項目の一覧です。項目を選ぶと、その場でコードを取得して表示します。テストは除いています。
 	</p>
@@ -67,15 +74,29 @@
 <div class="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
 	<div class="min-w-0">
 		<div class="sticky top-14 z-10 flex flex-wrap items-center gap-2 bg-bg py-3">
-			<input class="field max-w-72 py-1.5" type="search" placeholder="名前や説明で絞り込む" bind:value={q} aria-label="項目を絞り込む" />
+			<input
+				class="field max-w-72 py-1.5"
+				type="search"
+				placeholder="名前や説明で絞り込む"
+				bind:value={q}
+				aria-label="項目を絞り込む"
+			/>
 			{#each [['kernel', 'カーネル'], ['plugins', 'プラグインなど'], ['all', 'すべて']] as [v, name] (v)}
-				<button type="button" class="btn-ghost" aria-pressed={crate === v} onclick={() => (crate = v as typeof crate)}>{name}</button>
+				<button
+					type="button"
+					class="btn-ghost"
+					aria-pressed={crate === v}
+					onclick={() => (crate = v as typeof crate)}>{name}</button
+				>
 			{/each}
-			<span class="ml-auto font-mono text-[12px] tracking-normal text-muted tnum">{count} 項目</span>
+			<span class="ml-auto font-mono text-[12px] tracking-normal text-muted tnum">{count} 項目</span
+			>
 		</div>
 		{#each results as m (m.key)}
 			<section class="mt-6">
-				<h2 class="flex items-baseline justify-between border-b border-line-strong pb-1 font-mono text-[13px] font-medium tracking-normal">
+				<h2
+					class="flex items-baseline justify-between border-b border-line-strong pb-1 font-mono text-[13px] font-medium tracking-normal"
+				>
 					<span>{m.key}</span><span class="text-muted">{m.lines} 行</span>
 				</h2>
 				<ul>
@@ -83,13 +104,20 @@
 						<li class="border-b border-line">
 							<button
 								type="button"
-								class={['grid w-full grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3 py-1.5 text-left', viewed?.key === it.key ? 'bg-accent-wash' : 'hover:bg-surface']}
+								class={[
+									'grid w-full grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3 py-1.5 text-left',
+									viewed?.key === it.key ? 'bg-accent-wash' : 'hover:bg-surface',
+								]}
 								onclick={() => view(m.key, it.key)}
 							>
-								<span class="pl-1 font-mono text-[11.5px] leading-[1.9] tracking-normal text-muted">{it.kind.replace('!', '')}</span>
+								<span class="pl-1 font-mono text-[11.5px] leading-[1.9] tracking-normal text-muted"
+									>{it.kind.replace('!', '')}</span
+								>
 								<span class="min-w-0">
 									<code class="text-[13px]">{it.name}</code>
-									{#if it.doc}<span class="block truncate text-[13px] text-muted" lang="en">{it.doc}</span>{/if}
+									{#if it.doc}<span class="block truncate text-[13px] text-muted" lang="en"
+											>{it.doc}</span
+										>{/if}
 								</span>
 							</button>
 						</li>
@@ -104,11 +132,18 @@
 		<div class="sticky top-[72px]">
 			{#if viewed}
 				<figure class="overflow-hidden rounded-sm border border-line bg-sunken">
-					<figcaption class="flex justify-between gap-4 border-b border-line px-3 py-1.5 font-mono text-[12px] tracking-normal text-muted">
-						<span class="truncate">{viewed.path} · <span class="text-fg-2">{viewed.name}</span></span>
+					<figcaption
+						class="flex justify-between gap-4 border-b border-line px-3 py-1.5 font-mono text-[12px] tracking-normal text-muted"
+					>
+						<span class="truncate"
+							>{viewed.path} · <span class="text-fg-2">{viewed.name}</span></span
+						>
 						{#if page.data.clean}
-							<a class="shrink-0 hover:text-accent" href="{REPO_URL}/blob/{page.data.rev}/{viewed.path}#L{viewed.startLine}-L{viewed.endLine}" rel="noopener"
-								>L{viewed.startLine}–{viewed.endLine}</a
+							<a
+								class="shrink-0 hover:text-accent"
+								href="{REPO_URL}/blob/{page.data
+									.rev}/{viewed.path}#L{viewed.startLine}-L{viewed.endLine}"
+								rel="noopener">L{viewed.startLine}–{viewed.endLine}</a
 							>
 						{:else}
 							<span class="shrink-0">L{viewed.startLine}–{viewed.endLine}</span>

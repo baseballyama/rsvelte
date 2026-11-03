@@ -10,9 +10,10 @@ const task: Task = {
 	oracles: ['svelte'],
 	variants: [
 		{ id: 'client', options: { generate: 'client' } },
-		{ id: 'server', options: { generate: 'server' } }
+		{ id: 'server', options: { generate: 'server' } },
 	],
 	appliesTo: (unit) => unit.lang === 'svelte',
-	run: (unit, src, variant) => compileArtifacts(() => compile(src, { filename: unit.path, runes: true, ...variant.options }))
+	run: (unit, src, variant) =>
+		compileArtifacts(() => compile(src, { filename: unit.path, runes: true, ...variant.options })),
 };
 export default task;

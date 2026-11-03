@@ -29,11 +29,20 @@ int main(int argc,char **argv) {
 }`;
 
 function compile(output: string, ...flags: string[]): void {
-	const build = spawnSync('clang', ['-x', 'c', ...flags, '-o', output, '-'], { input: WORK, encoding: 'utf8' });
+	const build = spawnSync('clang', ['-x', 'c', ...flags, '-o', output, '-'], {
+		input: WORK,
+		encoding: 'utf8',
+	});
 	assert.equal(build.status, 0, build.stderr);
 }
 
-function fixture(): { directory: string; executable: string; config: string; report: string; measure: (body: object, ...flags: string[]) => SpawnSyncReturns<string> } {
+function fixture(): {
+	directory: string;
+	executable: string;
+	config: string;
+	report: string;
+	measure: (body: object, ...flags: string[]) => SpawnSyncReturns<string>;
+} {
 	const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-cycles-'));
 	const executable = path.join(directory, 'work');
 	compile(executable, '-O2');
@@ -41,7 +50,10 @@ function fixture(): { directory: string; executable: string; config: string; rep
 	const report = path.join(directory, 'report.json');
 	const measure = (body: object, ...flags: string[]) => {
 		fs.writeFileSync(config, JSON.stringify({ rounds: 1, repetitions: 1, ...body }));
-		return spawnSync(process.execPath, [runner, config, report, ...flags], { encoding: 'utf8', env: { ...process.env, PATH: `${directory}${path.delimiter}${process.env.PATH}` } });
+		return spawnSync(process.execPath, [runner, config, report, ...flags], {
+			encoding: 'utf8',
+			env: { ...process.env, PATH: `${directory}${path.delimiter}${process.env.PATH}` },
+		});
 	};
 	return { directory, executable, config, report, measure };
 }
@@ -49,19 +61,54 @@ function fixture(): { directory: string; executable: string; config: string; rep
 test('hardware counters detect added work and reject missing measurements', darwin, () => {
 	const { directory, executable, report, measure } = fixture();
 	try {
-		const measured = measure({ expect_stdout: { documents: 1 }, minimum_output_bytes: 16, arms: [{ name: 'light', command: [executable, '0'] }, { name: 'heavy', command: [executable, '1000000'] }] }, '--allow-busy');
+		const measured = measure(
+			{
+				expect_stdout: { documents: 1 },
+				minimum_output_bytes: 16,
+				arms: [
+					{ name: 'light', command: [executable, '0'] },
+					{ name: 'heavy', command: [executable, '1000000'] },
+				],
+			},
+			'--allow-busy',
+		);
 		assert.equal(measured.status, 0, measured.stderr);
-		const { samples }: { samples: { arm: string; counters: { cycles: number; instructions: number } }[] } = JSON.parse(fs.readFileSync(report, 'utf8'));
-		const light = samples.filter(sample => sample.arm === 'light');
-		const heavy = samples.filter(sample => sample.arm === 'heavy');
+		const {
+			samples,
+		}: { samples: { arm: string; counters: { cycles: number; instructions: number } }[] } =
+			JSON.parse(fs.readFileSync(report, 'utf8'));
+		const light = samples.filter((sample) => sample.arm === 'light');
+		const heavy = samples.filter((sample) => sample.arm === 'heavy');
 		assert.equal(samples.length, 4);
-		assert.ok(heavy.every(sample => sample.counters.instructions > Math.max(...light.map(lightSample => lightSample.counters.instructions)) + 1000000));
-		assert.ok(heavy.every(sample => sample.counters.cycles > Math.max(...light.map(lightSample => lightSample.counters.cycles))));
-		const empty = measure({ expect_stdout: { documents: 1 }, minimum_output_bytes: 16, arms: [{ name: 'empty-workload', command: [executable, '0', 'empty'] }] }, '--allow-busy');
+		assert.ok(
+			heavy.every(
+				(sample) =>
+					sample.counters.instructions >
+					Math.max(...light.map((lightSample) => lightSample.counters.instructions)) + 1000000,
+			),
+		);
+		assert.ok(
+			heavy.every(
+				(sample) =>
+					sample.counters.cycles >
+					Math.max(...light.map((lightSample) => lightSample.counters.cycles)),
+			),
+		);
+		const empty = measure(
+			{
+				expect_stdout: { documents: 1 },
+				minimum_output_bytes: 16,
+				arms: [{ name: 'empty-workload', command: [executable, '0', 'empty'] }],
+			},
+			'--allow-busy',
+		);
 		assert.notEqual(empty.status, 0);
 		assert.match(empty.stderr, /workload documents/);
 		assert.ok(!fs.existsSync(report));
-		const missing = measure({ arms: [{ name: 'signed-system-binary', command: ['/usr/bin/true'] }] }, '--allow-busy');
+		const missing = measure(
+			{ arms: [{ name: 'signed-system-binary', command: ['/usr/bin/true'] }] },
+			'--allow-busy',
+		);
 		assert.notEqual(missing.status, 0);
 		assert.match(missing.stderr, /hardware counter report is missing/);
 		assert.ok(!fs.existsSync(report));
@@ -70,20 +117,34 @@ test('hardware counters detect added work and reject missing measurements', darw
 	}
 });
 
-test('only the started process is measured, and child work is rejected instead of hidden', darwin, () => {
-	const { directory, executable, report, measure } = fixture();
-	try {
-		const forked = measure({ arms: [{ name: 'fork', command: [executable, 'fork', '100000000'] }] }, '--allow-busy');
-		assert.notEqual(forked.status, 0, 'a reaped child ran 1e8 iterations outside the counters');
-		assert.match(forked.stderr, /child processes/);
-		assert.ok(!fs.existsSync(report));
-		const replaced = measure({ arms: [{ name: 'exec', command: [executable, 'exec', '1000'] }] }, '--allow-busy');
-		assert.notEqual(replaced.status, 0, 'the measured process was replaced by another executable');
-		assert.match(replaced.stderr, /report is missing/);
-	} finally {
-		fs.rmSync(directory, { recursive: true, force: true });
-	}
-});
+test(
+	'only the started process is measured, and child work is rejected instead of hidden',
+	darwin,
+	() => {
+		const { directory, executable, report, measure } = fixture();
+		try {
+			const forked = measure(
+				{ arms: [{ name: 'fork', command: [executable, 'fork', '100000000'] }] },
+				'--allow-busy',
+			);
+			assert.notEqual(forked.status, 0, 'a reaped child ran 1e8 iterations outside the counters');
+			assert.match(forked.stderr, /child processes/);
+			assert.ok(!fs.existsSync(report));
+			const replaced = measure(
+				{ arms: [{ name: 'exec', command: [executable, 'exec', '1000'] }] },
+				'--allow-busy',
+			);
+			assert.notEqual(
+				replaced.status,
+				0,
+				'the measured process was replaced by another executable',
+			);
+			assert.match(replaced.stderr, /report is missing/);
+		} finally {
+			fs.rmSync(directory, { recursive: true, force: true });
+		}
+	},
+);
 
 test('an arm is resolved and hashed before the first sample', darwin, () => {
 	const { directory, executable, report, measure } = fixture();
@@ -92,12 +153,26 @@ test('an arm is resolved and hashed before the first sample', darwin, () => {
 		assert.equal(bare.status, 0, bare.stderr);
 		const { summary } = JSON.parse(fs.readFileSync(report, 'utf8'));
 		assert.equal(summary[0].executable, executable);
-		assert.equal(summary[0].executable_sha256, crypto.createHash('sha256').update(fs.readFileSync(executable)).digest('hex'));
+		assert.equal(
+			summary[0].executable_sha256,
+			crypto.createHash('sha256').update(fs.readFileSync(executable)).digest('hex'),
+		);
 		fs.rmSync(`${report}.samples`, { recursive: true, force: true });
-		const unknown = measure({ arms: [{ name: 'valid', command: [executable, '1000'] }, { name: 'unknown', command: ['no-such-rsvelte-arm', '1'] }] }, '--allow-busy');
+		const unknown = measure(
+			{
+				arms: [
+					{ name: 'valid', command: [executable, '1000'] },
+					{ name: 'unknown', command: ['no-such-rsvelte-arm', '1'] },
+				],
+			},
+			'--allow-busy',
+		);
 		assert.notEqual(unknown.status, 0);
 		assert.match(unknown.stderr, /executable not found: no-such-rsvelte-arm/);
-		assert.ok(!fs.existsSync(`${report}.samples/sample-0.log`), 'no sample may run before every arm resolves');
+		assert.ok(
+			!fs.existsSync(`${report}.samples/sample-0.log`),
+			'no sample may run before every arm resolves',
+		);
 	} finally {
 		fs.rmSync(directory, { recursive: true, force: true });
 	}
@@ -132,74 +207,131 @@ test('a busy machine is refused before any sample, and the start load is recorde
 	}
 });
 
-test('P-core counters and footprint are recorded, or written as null when the host cannot give them', darwin, () => {
-	const { directory, executable, report, measure } = fixture();
-	try {
-		const measured = measure({ arms: [{ name: 'work', command: [executable, '1000000'] }] }, '--allow-busy');
-		assert.equal(measured.status, 0, measured.stderr);
-		const { samples, summary } = JSON.parse(fs.readFileSync(report, 'utf8'));
-		const levels = Number(spawnSync('sysctl', ['-n', 'hw.nperflevels'], { encoding: 'utf8' }).stdout.trim() || 0);
-		for (const { counters: sample } of samples) {
-			assert.ok(sample.lifetime_max_phys_footprint_bytes > 0);
-			assert.equal(sample.child_time_ns, 0);
-			if (sample.rusage_flavor === 6 && levels > 1) {
-				assert.ok(sample.p_cycles <= sample.cycles && sample.p_instructions <= sample.instructions);
-			} else {
-				assert.equal(sample.p_cycles, null);
+test(
+	'P-core counters and footprint are recorded, or written as null when the host cannot give them',
+	darwin,
+	() => {
+		const { directory, executable, report, measure } = fixture();
+		try {
+			const measured = measure(
+				{ arms: [{ name: 'work', command: [executable, '1000000'] }] },
+				'--allow-busy',
+			);
+			assert.equal(measured.status, 0, measured.stderr);
+			const { samples, summary } = JSON.parse(fs.readFileSync(report, 'utf8'));
+			const levels = Number(
+				spawnSync('sysctl', ['-n', 'hw.nperflevels'], { encoding: 'utf8' }).stdout.trim() || 0,
+			);
+			for (const { counters: sample } of samples) {
+				assert.ok(sample.lifetime_max_phys_footprint_bytes > 0);
+				assert.equal(sample.child_time_ns, 0);
+				if (sample.rusage_flavor === 6 && levels > 1) {
+					assert.ok(
+						sample.p_cycles <= sample.cycles && sample.p_instructions <= sample.instructions,
+					);
+				} else {
+					assert.equal(sample.p_cycles, null);
+				}
 			}
+			assert.deepEqual(
+				summary[0].unmeasured,
+				samples.every(
+					(sample: { counters: { p_cycles: unknown } }) => sample.counters.p_cycles !== null,
+				)
+					? []
+					: ['p_cycles', 'p_instructions'],
+			);
+			// The V4 path is what an older kernel takes; build it directly to see its record.
+			const library = path.join(directory, 'v4.dylib');
+			assert.equal(
+				spawnSync('clang', [
+					'-O2',
+					'-dynamiclib',
+					'-DRSVELTE_COUNTERS_FORCE_V4',
+					counters,
+					'-o',
+					library,
+				]).status,
+				0,
+			);
+			const out = path.join(directory, 'v4.json');
+			const v4 = spawnSync(executable, ['1000'], {
+				env: { ...process.env, DYLD_INSERT_LIBRARIES: library, RSVELTE_COUNTER_REPORT: out },
+			});
+			assert.equal(v4.status, 0);
+			const record = JSON.parse(fs.readFileSync(out, 'utf8'));
+			assert.equal(record.rusage_flavor, 4);
+			assert.equal(record.p_cycles, null);
+			assert.equal(record.p_instructions, null);
+			assert.ok(record.cycles > 0 && record.lifetime_max_phys_footprint_bytes > 0);
+		} finally {
+			fs.rmSync(directory, { recursive: true, force: true });
 		}
-		assert.deepEqual(summary[0].unmeasured, samples.every((sample: { counters: { p_cycles: unknown } }) => sample.counters.p_cycles !== null) ? [] : ['p_cycles', 'p_instructions']);
-		// The V4 path is what an older kernel takes; build it directly to see its record.
-		const library = path.join(directory, 'v4.dylib');
-		assert.equal(spawnSync('clang', ['-O2', '-dynamiclib', '-DRSVELTE_COUNTERS_FORCE_V4', counters, '-o', library]).status, 0);
-		const out = path.join(directory, 'v4.json');
-		const v4 = spawnSync(executable, ['1000'], { env: { ...process.env, DYLD_INSERT_LIBRARIES: library, RSVELTE_COUNTER_REPORT: out } });
-		assert.equal(v4.status, 0);
-		const record = JSON.parse(fs.readFileSync(out, 'utf8'));
-		assert.equal(record.rusage_flavor, 4);
-		assert.equal(record.p_cycles, null);
-		assert.equal(record.p_instructions, null);
-		assert.ok(record.cycles > 0 && record.lifetime_max_phys_footprint_bytes > 0);
-	} finally {
-		fs.rmSync(directory, { recursive: true, force: true });
-	}
-});
+	},
+);
 
 test('a child that outlives the parent cannot rewrite the accepted sample', darwin, async () => {
 	const { directory, executable, report, measure } = fixture();
 	try {
 		const pids = path.join(directory, 'pids');
-		const measured = measure({ arms: [{ name: 'forkexit', command: [executable, 'forkexit', '1000000', pids] }] }, '--allow-busy');
+		const measured = measure(
+			{ arms: [{ name: 'forkexit', command: [executable, 'forkexit', '1000000', pids] }] },
+			'--allow-busy',
+		);
 		assert.equal(measured.status, 0, measured.stderr);
-		const files = [0, 1].map(index => path.join(`${report}.samples`, `sample-${index}.json`));
-		const accepted = files.map(file => fs.readFileSync(file, 'utf8'));
+		const files = [0, 1].map((index) => path.join(`${report}.samples`, `sample-${index}.json`));
+		const accepted = files.map((file) => fs.readFileSync(file, 'utf8'));
 		const deadline = Date.now() + 20_000;
-		const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+		const alive = (pid: number) => {
+			try {
+				process.kill(pid, 0);
+				return true;
+			} catch {
+				return false;
+			}
+		};
 		for (;;) {
-			const children = fs.existsSync(pids) ? fs.readFileSync(pids, 'utf8').trim().split('\n').filter(Boolean).map(Number) : [];
+			const children = fs.existsSync(pids)
+				? fs.readFileSync(pids, 'utf8').trim().split('\n').filter(Boolean).map(Number)
+				: [];
 			if (children.length === 2 && !children.some(alive)) break;
 			assert.ok(Date.now() < deadline, `children did not finish: ${children.join(',')}`);
-			await new Promise(resolve => setTimeout(resolve, 50));
+			await new Promise((resolve) => setTimeout(resolve, 50));
 		}
-		assert.deepEqual(files.map(file => fs.readFileSync(file, 'utf8')), accepted, 'a forked child rewrote a sample after it was accepted');
+		assert.deepEqual(
+			files.map((file) => fs.readFileSync(file, 'utf8')),
+			accepted,
+			'a forked child rewrote a sample after it was accepted',
+		);
 	} finally {
 		fs.rmSync(directory, { recursive: true, force: true });
 	}
 });
 
-test('an executable replaced during the measurement fails instead of being reported', darwin, () => {
-	const { directory, report, measure } = fixture();
-	try {
-		const arm = path.join(directory, 'arm');
-		const replacement = path.join(directory, 'replacement');
-		compile(arm, '-O2');
-		compile(replacement, '-O1');
-		assert.notEqual(fs.readFileSync(arm).compare(fs.readFileSync(replacement)), 0, 'the replacement must differ in bytes');
-		const swapped = measure({ arms: [{ name: 'swap', command: [arm, 'swap', replacement, arm, '1000'] }] }, '--allow-busy');
-		assert.notEqual(swapped.status, 0);
-		assert.match(swapped.stderr, /swap: the executable changed during the measurement/);
-		assert.equal(JSON.parse(fs.readFileSync(report, 'utf8')).status, 'running');
-	} finally {
-		fs.rmSync(directory, { recursive: true, force: true });
-	}
-});
+test(
+	'an executable replaced during the measurement fails instead of being reported',
+	darwin,
+	() => {
+		const { directory, report, measure } = fixture();
+		try {
+			const arm = path.join(directory, 'arm');
+			const replacement = path.join(directory, 'replacement');
+			compile(arm, '-O2');
+			compile(replacement, '-O1');
+			assert.notEqual(
+				fs.readFileSync(arm).compare(fs.readFileSync(replacement)),
+				0,
+				'the replacement must differ in bytes',
+			);
+			const swapped = measure(
+				{ arms: [{ name: 'swap', command: [arm, 'swap', replacement, arm, '1000'] }] },
+				'--allow-busy',
+			);
+			assert.notEqual(swapped.status, 0);
+			assert.match(swapped.stderr, /swap: the executable changed during the measurement/);
+			assert.equal(JSON.parse(fs.readFileSync(report, 'utf8')).status, 'running');
+		} finally {
+			fs.rmSync(directory, { recursive: true, force: true });
+		}
+	},
+);

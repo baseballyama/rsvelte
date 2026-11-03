@@ -31,8 +31,8 @@ const { positionals, values } = parseArgs({
 		to: { type: 'string' },
 		write: { type: 'boolean', default: false },
 		update: { type: 'boolean', default: false },
-		'accept-commit': { type: 'boolean', default: false }
-	}
+		'accept-commit': { type: 'boolean', default: false },
+	},
 });
 const list = (v: string | undefined) => v?.split(',');
 
@@ -47,23 +47,35 @@ let failures = 0;
 switch (positionals[0]) {
 	case 'import': {
 		if (!values.from) throw new Error('--from <dir holding the source checkouts> is required');
-		failures += runImport({ from: path.resolve(values.from), only: list(values.source), acceptCommit: values['accept-commit'] }).orphans.length;
+		failures += runImport({
+			from: path.resolve(values.from),
+			only: list(values.source),
+			acceptCommit: values['accept-commit'],
+		}).orphans.length;
 		break;
 	}
 	case 'regen':
-		failures += (await regen({ taskIds: list(values.task), sourceIds: list(values.source) })).unparseable.length;
+		failures += (await regen({ taskIds: list(values.task), sourceIds: list(values.source) }))
+			.unparseable.length;
 		break;
 	case 'upgrade':
 		failures += (await regen({})).unparseable.length;
 		failures += reportAdjustments(false);
-		console.log("review `git diff --stat -- ':(glob)fixtures/**/expected/**'`: every changed snapshot is an upstream behaviour change");
+		console.log(
+			"review `git diff --stat -- ':(glob)fixtures/**/expected/**'`: every changed snapshot is an upstream behaviour change",
+		);
 		break;
 	case 'adjust':
 		failures += reportAdjustments(values.write);
 		break;
 	case 'compare': {
 		if (!values.task || !values.variant) throw new Error('--task and --variant are required');
-		const r = await compare({ taskId: values.task, variantId: values.variant, sourceIds: list(values.source), families: list(values.family) });
+		const r = await compare({
+			taskId: values.task,
+			variantId: values.variant,
+			sourceIds: list(values.source),
+			families: list(values.family),
+		});
 		console.log(`units: ${r.units}  ${JSON.stringify(r.counts)}`);
 		const lines = r.rows
 			.filter((x) => x.verdict !== 'match')
@@ -71,7 +83,10 @@ switch (positionals[0]) {
 		if (values.report) fs.writeFileSync(values.report, lines.join('\n') + '\n');
 		const SHOW = 20;
 		for (const l of lines.slice(0, SHOW)) console.log(`  ${l}`);
-		if (lines.length > SHOW) console.log(`  … and ${lines.length - SHOW} more${values.report ? ` (all in ${values.report})` : ' (pass --report <file> for all)'}`);
+		if (lines.length > SHOW)
+			console.log(
+				`  … and ${lines.length - SHOW} more${values.report ? ` (all in ${values.report})` : ' (pass --report <file> for all)'}`,
+			);
 		failures += lines.length;
 		break;
 	}
@@ -93,36 +108,65 @@ switch (positionals[0]) {
 				let refused = 0;
 				const counts: Record<string, number> = {};
 				for (const [key, rows] of units) {
-					const onlyDiagnostics = rows.every((x) => (x.verdict === 'unexpected' && x.ext === 'diagnostics.json') || x.verdict === 'missing');
+					const onlyDiagnostics = rows.every(
+						(x) =>
+							(x.verdict === 'unexpected' && x.ext === 'diagnostics.json') ||
+							x.verdict === 'missing',
+					);
 					if (onlyDiagnostics && rows.some((x) => x.ext === 'diagnostics.json')) {
 						refused++;
 						continue;
 					}
-					const verdict = rows.reduce<string>((w, x) => (rank.indexOf(x.verdict) > rank.indexOf(w as (typeof rank)[number]) ? x.verdict : w), 'match');
+					const verdict = rows.reduce<string>(
+						(w, x) =>
+							rank.indexOf(x.verdict) > rank.indexOf(w as (typeof rank)[number]) ? x.verdict : w,
+						'match',
+					);
 					counts[verdict] = (counts[verdict] ?? 0) + 1;
 					now[`${t.id}/${v.id} ${key}`] = verdict;
 				}
-				console.log(`${`${t.id}/${v.id}`.padEnd(28)} units ${String(r.units).padStart(6)}  refused ${String(refused).padStart(6)}  ${JSON.stringify(counts)}`);
+				console.log(
+					`${`${t.id}/${v.id}`.padEnd(28)} units ${String(r.units).padStart(6)}  refused ${String(refused).padStart(6)}  ${JSON.stringify(counts)}`,
+				);
 			}
 		}
-		const sorted = Object.fromEntries(Object.entries(now).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+		const sorted = Object.fromEntries(
+			Object.entries(now).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+		);
 		if (values.update) {
 			fs.writeFileSync(file, JSON.stringify(sorted, null, '\t') + '\n');
-			console.log(`wrote ${Object.keys(sorted).length} units to ${path.relative(process.cwd(), file)}`);
+			console.log(
+				`wrote ${Object.keys(sorted).length} units to ${path.relative(process.cwd(), file)}`,
+			);
 			break;
 		}
-		const known: Record<string, string> = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
-		const moved = [...new Set([...Object.keys(known), ...Object.keys(now)])].filter((k) => known[k] !== now[k]).sort();
-		for (const k of moved) console.log(`MOVED  ${(known[k] ?? 'refused').padEnd(11)} -> ${(now[k] ?? 'refused').padEnd(11)} ${k}`);
-		console.log(`${Object.keys(now).length} units compared (refused ones not listed), ${moved.length} moved from ${path.relative(process.cwd(), file)}`);
+		const known: Record<string, string> = fs.existsSync(file)
+			? JSON.parse(fs.readFileSync(file, 'utf8'))
+			: {};
+		const moved = [...new Set([...Object.keys(known), ...Object.keys(now)])]
+			.filter((k) => known[k] !== now[k])
+			.sort();
+		for (const k of moved)
+			console.log(
+				`MOVED  ${(known[k] ?? 'refused').padEnd(11)} -> ${(now[k] ?? 'refused').padEnd(11)} ${k}`,
+			);
+		console.log(
+			`${Object.keys(now).length} units compared (refused ones not listed), ${moved.length} moved from ${path.relative(process.cwd(), file)}`,
+		);
 		if (moved.length) console.log('record an intended change with `fixtures check --update`');
 		failures += moved.length;
 		break;
 	}
 	case 'crate': {
 		const tasks = list(values.task);
-		if (!values.family || !tasks || !values.to) throw new Error('--family, --task and --to are required');
-		exportToCrate({ family: values.family, taskIds: tasks, to: path.resolve(values.to), sourceIds: list(values.source) });
+		if (!values.family || !tasks || !values.to)
+			throw new Error('--family, --task and --to are required');
+		exportToCrate({
+			family: values.family,
+			taskIds: tasks,
+			to: path.resolve(values.to),
+			sourceIds: list(values.source),
+		});
 		break;
 	}
 	case 'stats': {
@@ -130,13 +174,25 @@ switch (positionals[0]) {
 		const by = (f: (u: (typeof units)[number]) => string) =>
 			units.reduce<Record<string, number>>((m, u) => ((m[f(u)] = (m[f(u)] ?? 0) + 1), m), {});
 		console.log(`sources: ${includedSources().length}  units: ${units.length}`);
-		console.log('by family/lang:', by((u) => `${u.family}/${u.lang}`));
-		console.log('by inferredMode (svelte):', by((u) => (u.lang === 'svelte' ? (u.inferredMode ?? '?') : '-')));
-		for (const t of TASKS) for (const v of t.variants) console.log(`task ${t.id}/${v.id}: ${units.filter((u) => applies(t, v.id, u)).length} units (${t.storage})`);
+		console.log(
+			'by family/lang:',
+			by((u) => `${u.family}/${u.lang}`),
+		);
+		console.log(
+			'by inferredMode (svelte):',
+			by((u) => (u.lang === 'svelte' ? (u.inferredMode ?? '?') : '-')),
+		);
+		for (const t of TASKS)
+			for (const v of t.variants)
+				console.log(
+					`task ${t.id}/${v.id}: ${units.filter((u) => applies(t, v.id, u)).length} units (${t.storage})`,
+				);
 		break;
 	}
 	default:
-		console.error('usage: fixtures <import|regen|adjust|compare|check|upgrade|stats|crate> [options]');
+		console.error(
+			'usage: fixtures <import|regen|adjust|compare|check|upgrade|stats|crate> [options]',
+		);
 		process.exit(2);
 }
 process.exit(failures ? 1 : 0);

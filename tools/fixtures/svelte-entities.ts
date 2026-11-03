@@ -7,24 +7,14 @@ const source = new URL(
 	import.meta.url,
 );
 const { default: entities }: { default: unknown } = await import(source.href);
-assert.ok(
-	typeof entities === 'object' && entities !== null && !Array.isArray(entities),
-);
+assert.ok(typeof entities === 'object' && entities !== null && !Array.isArray(entities));
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const directory = path.join(
-	root,
-	'crates/languages/svelte/syntax/src/syntax/vendor',
-);
+const directory = path.join(root, 'crates/languages/svelte/syntax/src/syntax/vendor');
 const entries = Object.entries(entities);
 for (const [name, code] of entries) {
 	assert.match(name, /^[A-Za-z0-9]+;?$/);
-	assert.ok(
-		typeof code === 'number' &&
-			Number.isInteger(code) &&
-			code > 0 &&
-			code <= 0x10ffff,
-	);
+	assert.ok(typeof code === 'number' && Number.isInteger(code) && code > 0 && code <= 0x10ffff);
 }
 mkdirSync(directory, { recursive: true });
 entries.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));

@@ -102,8 +102,11 @@
 	--color-c-map: var(--c-map);
 	--color-c-idle: var(--c-idle);
 
-	--font-sans: 'IBM Plex Sans', 'IBM Plex Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', system-ui, sans-serif;
-	--font-mono: 'IBM Plex Mono', 'IBM Plex Sans JP', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+	--font-sans:
+		'IBM Plex Sans', 'IBM Plex Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN',
+		'Noto Sans JP', system-ui, sans-serif;
+	--font-mono:
+		'IBM Plex Mono', 'IBM Plex Sans JP', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
 	--radius-xs: 3px;
 	--radius-sm: 4px;

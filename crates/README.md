@@ -1,29 +1,29 @@
 # Crates
 
-| Path | Responsibility |
-|---|---|
-| `tooling/lint/` | Shared rule execution, lint ordering, and ESLint report output |
-| `kernel/` | Sources, positions, diagnostics, output, metrics, and task scheduling |
-| `languages/<language>/core/` | Shared language data and artifact registration; Svelte uses the crates below |
-| `languages/svelte/syntax/` | Source AST and token types |
-| `languages/svelte/parser/` | Source parsing into the AST |
-| `languages/svelte/compiler_syntax_tree/` | Shared template HIR and frontend builder |
-| `languages/svelte/semantic/` | Name resolution, binding facts, and component analysis |
-| `languages/svelte/core/` | AST to HIR normalization, artifact registration, and public re-exports |
-| `languages/<language>/compile/` | Lowering, emission, and compile tasks |
-| `languages/<language>/lint/` | Syntax and scope rules and lint tasks |
-| `languages/svelte/lint_typed/` | Optional type-aware rules, provider and lint task |
-| `languages/<language>/format/` | Formatting and format tasks |
-| `languages/svelte/typescript_projection/` | Svelte to TypeScript projection AST and emission |
-| `languages/svelte/typecheck/` | Native TypeScript checking and diagnostic mapping |
-| `languages/{typescript,vue}/check/` | TypeScript checking and Vue projection |
-| `languages/typescript/content_mapper/` | Native TypeScript content mapper protocol and precomputed projection server |
-| `languages/vue/compile_svelte/` | Vue semantics compiled for the Svelte runtime |
-| `languages/svelte/compile_vapor/` | Svelte semantics compiled for the Vue Vapor runtime |
-| `hosts/command_line/` | CLI and integration examples |
-| `hosts/config/` | Pluggable setting loaders, process protocol and native function ABI |
-| `hosts/browser/` | Browser bindings |
-| `fixture_test/` | The snapshot harness for each crate's `tests/fixtures/` |
+| Path                                      | Responsibility                                                               |
+| ----------------------------------------- | ---------------------------------------------------------------------------- |
+| `tooling/lint/`                           | Shared rule execution, lint ordering, and ESLint report output               |
+| `kernel/`                                 | Sources, positions, diagnostics, output, metrics, and task scheduling        |
+| `languages/<language>/core/`              | Shared language data and artifact registration; Svelte uses the crates below |
+| `languages/svelte/syntax/`                | Source AST and token types                                                   |
+| `languages/svelte/parser/`                | Source parsing into the AST                                                  |
+| `languages/svelte/compiler_syntax_tree/`  | Shared template HIR and frontend builder                                     |
+| `languages/svelte/semantic/`              | Name resolution, binding facts, and component analysis                       |
+| `languages/svelte/core/`                  | AST to HIR normalization, artifact registration, and public re-exports       |
+| `languages/<language>/compile/`           | Lowering, emission, and compile tasks                                        |
+| `languages/<language>/lint/`              | Syntax and scope rules and lint tasks                                        |
+| `languages/svelte/lint_typed/`            | Optional type-aware rules, provider and lint task                            |
+| `languages/<language>/format/`            | Formatting and format tasks                                                  |
+| `languages/svelte/typescript_projection/` | Svelte to TypeScript projection AST and emission                             |
+| `languages/svelte/typecheck/`             | Native TypeScript checking and diagnostic mapping                            |
+| `languages/{typescript,vue}/check/`       | TypeScript checking and Vue projection                                       |
+| `languages/typescript/content_mapper/`    | Native TypeScript content mapper protocol and precomputed projection server  |
+| `languages/vue/compile_svelte/`           | Vue semantics compiled for the Svelte runtime                                |
+| `languages/svelte/compile_vapor/`         | Svelte semantics compiled for the Vue Vapor runtime                          |
+| `hosts/command_line/`                     | CLI and integration examples                                                 |
+| `hosts/config/`                           | Pluggable setting loaders, process protocol and native function ABI          |
+| `hosts/browser/`                          | Browser bindings                                                             |
+| `fixture_test/`                           | The snapshot harness for each crate's `tests/fixtures/`                      |
 
 See [Hosts](hosts/README.md) for CLI usage, browser exports, and their intended users.
 

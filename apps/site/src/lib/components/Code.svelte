@@ -16,7 +16,7 @@
 	let {
 		item,
 		mark = [],
-		caption
+		caption,
 	}: {
 		item: Excerpt;
 		/** Lines containing any of these strings are highlighted; each must match, so a stale one fails. */
@@ -30,12 +30,15 @@
 		if (mark.length === 0) return item.markup;
 		const lines = item.code.split('\n');
 		for (const m of mark) {
-			if (!lines.some((l) => l.includes(m))) throw new Error(`${item.key}: no line contains ${JSON.stringify(m)}`);
+			if (!lines.some((l) => l.includes(m)))
+				throw new Error(`${item.key}: no line contains ${JSON.stringify(m)}`);
 		}
 		let n = -1;
 		return item.markup.replace(/<span class="line">/g, () => {
 			n++;
-			return mark.some((m) => lines[n]?.includes(m)) ? '<span class="line hl">' : '<span class="line">';
+			return mark.some((m) => lines[n]?.includes(m))
+				? '<span class="line hl">'
+				: '<span class="line">';
 		});
 	});
 	const gutter = $derived(`${String(item.endLine).length + 1}ch`);
@@ -74,7 +77,9 @@
 					>L{item.startLine}–{item.endLine}<Icon name="external" size={11} class="opacity-70" /></a
 				>
 			{:else}
-				<span class="px-1.5 tnum" title="crates/ に未コミットの変更がある状態でビルドされたため、行リンクはありません"
+				<span
+					class="px-1.5 tnum"
+					title="crates/ に未コミットの変更がある状態でビルドされたため、行リンクはありません"
 					>L{item.startLine}–{item.endLine}</span
 				>
 			{/if}
@@ -85,7 +90,10 @@
 				aria-label={copied ? 'コピーしました' : 'コードをコピー'}
 				title={copied ? 'コピーしました' : 'コピー'}
 			>
-				{#if copied}<Icon name="check" size={14} class="text-ok" />{:else}<Icon name="copy" size={14} />{/if}
+				{#if copied}<Icon name="check" size={14} class="text-ok" />{:else}<Icon
+						name="copy"
+						size={14}
+					/>{/if}
 			</button>
 		</span>
 	</figcaption>

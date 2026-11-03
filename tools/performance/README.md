@@ -1,14 +1,14 @@
 # Performance measurements
 
-| Command | Measures |
-|---|---|
-| `mise run performance` | Allocation ratchet over the corpus |
-| `node tools/performance/linux.ts` | Allocation and instruction ratchets in Linux |
-| `mise run performance:cache <config.json> <report.json>` | Cachegrind cache simulation and an optional baseline gate |
-| `mise run performance:hardware <config.json> <report.json>` | Linux `perf` CPU and cache hardware events |
-| `node tools/performance/macos-cycles.ts <config.json> <report.json> [--max-load <n>] [--allow-busy]` | macOS hardware CPU cycles and instructions, P-core share, peak footprint |
-| `mise run performance:layout` | Kernel, JS/TS, Svelte, Vue and CSS type sizes, alignment and field offsets |
-| `mise run performance:test` | Measurement tests and defect controls |
+| Command                                                                                              | Measures                                                                   |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `mise run performance`                                                                               | Allocation ratchet over the corpus                                         |
+| `node tools/performance/linux.ts`                                                                    | Allocation and instruction ratchets in Linux                               |
+| `mise run performance:cache <config.json> <report.json>`                                             | Cachegrind cache simulation and an optional baseline gate                  |
+| `mise run performance:hardware <config.json> <report.json>`                                          | Linux `perf` CPU and cache hardware events                                 |
+| `node tools/performance/macos-cycles.ts <config.json> <report.json> [--max-load <n>] [--allow-busy]` | macOS hardware CPU cycles and instructions, P-core share, peak footprint   |
+| `mise run performance:layout`                                                                        | Kernel, JS/TS, Svelte, Vue and CSS type sizes, alignment and field offsets |
+| `mise run performance:test`                                                                          | Measurement tests and defect controls                                      |
 
 ## Cache profiles
 
@@ -18,17 +18,17 @@ use separate Cargo target directories for different source trees.
 
 The config contains:
 
-| Field | Meaning |
-|---|---|
-| `arms` | Unique `name` and `command` array for each executable |
-| `rounds`, `repetitions` | Workload rounds per process, and forward/reverse sample pairs |
-| `inputs`, `sources` | Lists of input files and files used by the build; hashed before profiling |
-| `revision` | Full base commit hash for a frozen snapshot; otherwise read from Git |
-| `model` | Optional `i1`, `d1`, `ll` cache objects: `bytes`, `ways`, `line_bytes` |
-| `expect_stdout` | Optional expected fields in a JSON workload summary |
-| `minimum_output_bytes` | Optional lower bound on that summary's `output_bytes` |
-| `baseline` | Optional previous complete report to compare |
-| `tolerance` | Optional relative tolerance for the two-sided gate; default 0.02 |
+| Field                   | Meaning                                                                   |
+| ----------------------- | ------------------------------------------------------------------------- |
+| `arms`                  | Unique `name` and `command` array for each executable                     |
+| `rounds`, `repetitions` | Workload rounds per process, and forward/reverse sample pairs             |
+| `inputs`, `sources`     | Lists of input files and files used by the build; hashed before profiling |
+| `revision`              | Full base commit hash for a frozen snapshot; otherwise read from Git      |
+| `model`                 | Optional `i1`, `d1`, `ll` cache objects: `bytes`, `ways`, `line_bytes`    |
+| `expect_stdout`         | Optional expected fields in a JSON workload summary                       |
+| `minimum_output_bytes`  | Optional lower bound on that summary's `output_bytes`                     |
+| `baseline`              | Optional previous complete report to compare                              |
+| `tolerance`             | Optional relative tolerance for the two-sided gate; default 0.02          |
 
 The command must perform the declared number of rounds. For `rsvelte performance`,
 check `documents`, `skipped`, `metrics`, `rounds` and the minimum output size. Outside
@@ -106,4 +106,3 @@ CI runs a real sequential/strided memory control and verifies that the baseline 
 rejects the deliberate miss increase. It also saves a type layout artifact. The cache
 gate is available for pinned workload configs; it is separate from the whole-corpus
 allocation/instruction baseline.
-

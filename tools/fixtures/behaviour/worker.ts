@@ -4,7 +4,10 @@ import { Worker } from 'node:worker_threads';
  * Requests to a worker thread, answered in order. The worker is started on the first request and
  * kept referenced only while one is pending, so an idle worker does not keep the process alive.
  */
-export function rpc<Req, Res>(url: URL, crashed: (message: string) => Res): (req: Req) => Promise<Res> {
+export function rpc<Req, Res>(
+	url: URL,
+	crashed: (message: string) => Res,
+): (req: Req) => Promise<Res> {
 	let worker: Worker | undefined;
 	let pending: ((r: Res) => void)[] = [];
 	return (req) => {

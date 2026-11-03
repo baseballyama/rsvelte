@@ -44,7 +44,7 @@ export function makeDocs(n: number, partShare: number, seed = 7): SimDoc[] {
 		id,
 		cost: 2 + Math.floor(r() * 9),
 		size: 1 + Math.floor(r() * 4),
-		hasPart: r() < partShare
+		hasPart: r() < partShare,
 	}));
 }
 
@@ -89,7 +89,7 @@ export function simulate(docs: SimDoc[], workers: number, projectCost: number): 
 	const peakStreaming = Math.max(
 		...streaming.map((p) => p[1]),
 		...docs.filter((d) => !d.hasPart).map((d) => d.size),
-		0
+		0,
 	);
 	return {
 		blocks,
@@ -98,6 +98,6 @@ export function simulate(docs: SimDoc[], workers: number, projectCost: number): 
 		streaming,
 		collected,
 		peakStreaming,
-		peakCollected: Math.max(...collected.map((p) => p[1]), 0)
+		peakCollected: Math.max(...collected.map((p) => p[1]), 0),
 	};
 }

@@ -100,7 +100,10 @@ export class LineIndex {
 		if (line < 1 || line > this.lineStarts.length) return null;
 		const start = this.lineStarts[line - 1];
 		// The line ends at its newline, before a CR that comes first.
-		const end = line < this.lineStarts.length ? this.lineStarts[line] - 1 - (this.crlf.includes(line - 1) ? 1 : 0) : this.bytes.length;
+		const end =
+			line < this.lineStarts.length
+				? this.lineStarts[line] - 1 - (this.crlf.includes(line - 1) ? 1 : 0)
+				: this.bytes.length;
 		let units = 0;
 		let byte = start;
 		const rest = new TextDecoder().decode(this.bytes.subarray(start));

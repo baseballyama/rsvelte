@@ -12,7 +12,7 @@ const FORMAT_OPTIONS = {
 	singleQuote: false,
 	trailingComma: 'all',
 	bracketSpacing: true,
-	vueIndentScriptAndStyle: false
+	vueIndentScriptAndStyle: false,
 } as const;
 
 const task: Task = {
@@ -24,6 +24,6 @@ const task: Task = {
 	async run(unit, src) {
 		const text = await prettier.format(src, { ...FORMAT_OPTIONS, filepath: unit.path });
 		return { vue: { text, ext: 'vue', compare: 'text' } };
-	}
+	},
 };
 export default task;

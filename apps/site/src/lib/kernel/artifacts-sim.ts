@@ -11,15 +11,27 @@ export type ArtifactName =
 	| 'svelte.css'
 	| 'ts.view';
 
-export const ARTIFACTS: ArtifactName[] = ['svelte.parse', 'svelte.resolve', 'svelte.compiler_syntax_tree', 'svelte.analyze', 'svelte.css', 'ts.view'];
-export type TaskId = 'svelte.compile/client' | 'svelte.compile/server' | 'svelte.format/default' | 'svelte.lint/default' | 'svelte.check/default';
+export const ARTIFACTS: ArtifactName[] = [
+	'svelte.parse',
+	'svelte.resolve',
+	'svelte.compiler_syntax_tree',
+	'svelte.analyze',
+	'svelte.css',
+	'ts.view',
+];
+export type TaskId =
+	| 'svelte.compile/client'
+	| 'svelte.compile/server'
+	| 'svelte.format/default'
+	| 'svelte.lint/default'
+	| 'svelte.check/default';
 
 export const TASKS: TaskId[] = [
 	'svelte.compile/client',
 	'svelte.compile/server',
 	'svelte.format/default',
 	'svelte.lint/default',
-	'svelte.check/default'
+	'svelte.check/default',
 ];
 
 export interface LayoutInstruction {
@@ -45,7 +57,7 @@ class SimulationContext {
 	computed: ArtifactName[] = [];
 	constructor(
 		private doc: LayoutInstruction,
-		private log: GetEvent[]
+		private log: GetEvent[],
 	) {}
 
 	setLog(log: GetEvent[]) {
@@ -60,7 +72,8 @@ class SimulationContext {
 		this.log.push({ artifact: a, computed: true, depth });
 		this.computed.push(a);
 		// `compute` bodies, in the order they call `get` (lib.rs).
-		if (a === 'svelte.resolve' || a === 'svelte.compiler_syntax_tree' || a === 'ts.view') this.get('svelte.parse', depth + 1);
+		if (a === 'svelte.resolve' || a === 'svelte.compiler_syntax_tree' || a === 'ts.view')
+			this.get('svelte.parse', depth + 1);
 		if (a === 'svelte.analyze') {
 			this.compileInput(depth + 1);
 			if (this.doc.parses) this.get('svelte.resolve', depth + 1);
@@ -104,7 +117,11 @@ function runTask(task: TaskId, context: SimulationContext, doc: LayoutInstructio
 	}
 }
 
-export function simulate(tasks: TaskId[], doc: LayoutInstruction, sharing: 'shared' | 'isolated'): TaskTrace[] {
+export function simulate(
+	tasks: TaskId[],
+	doc: LayoutInstruction,
+	sharing: 'shared' | 'isolated',
+): TaskTrace[] {
 	const shared = new SimulationContext(doc, []);
 	return TASKS.filter((t) => tasks.includes(t)).map((task) => {
 		const gets: GetEvent[] = [];

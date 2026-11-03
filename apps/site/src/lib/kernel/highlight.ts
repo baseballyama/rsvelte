@@ -10,9 +10,11 @@ import rust from 'shiki/langs/rust.mjs';
 
 import type { CodeLanguage } from './code-language';
 const highlighter = createHighlighterCore({
-	themes: [createCssVariablesTheme({ name: 'rsvelte', variablePrefix: '--shiki-', fontStyle: false })],
+	themes: [
+		createCssVariablesTheme({ name: 'rsvelte', variablePrefix: '--shiki-', fontStyle: false }),
+	],
 	langs: [svelte, vue, javascript, typescript, structuredData, stylesheet, rust],
-	engine: createJavaScriptRegexEngine()
+	engine: createJavaScriptRegexEngine(),
 });
 
 export async function highlight(source: string, language: CodeLanguage) {

@@ -9,7 +9,9 @@ for (const file of files) {
 		passages++;
 		const result = await linter.lintText(chunk.text, 'prose.md');
 		for (const message of result.messages) {
-			console.error(`${file}:${chunk.line} [${message.ruleId}] ${message.message}\n  ${chunk.text}`);
+			console.error(
+				`${file}:${chunk.line} [${message.ruleId}] ${message.message}\n  ${chunk.text}`,
+			);
 			errors++;
 		}
 	}

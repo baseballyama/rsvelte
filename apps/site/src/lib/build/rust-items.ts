@@ -26,7 +26,8 @@ export interface RustModule {
 	items: RustItem[];
 }
 
-const KEYWORDS = /^(?:pub(?:\([^)]*\))?\s+)?(?:unsafe\s+|async\s+|const\s+(?=fn)|extern\s+"[^"]*"\s+)*(fn|struct|enum|trait|impl|mod|const|static|type|macro_rules!|thread_local!)(?:(?<=!)|\b)/;
+const KEYWORDS =
+	/^(?:pub(?:\([^)]*\))?\s+)?(?:unsafe\s+|async\s+|const\s+(?=fn)|extern\s+"[^"]*"\s+)*(fn|struct|enum|trait|impl|mod|const|static|type|macro_rules!|thread_local!)(?:(?<=!)|\b)/;
 
 /** Per byte: brace depth before that byte, or -1 inside a comment or literal. */
 export function scan(source: string): Int32Array {
@@ -80,7 +81,8 @@ export function scan(source: string): Int32Array {
 			// A char literal is 'x' or '\…'; otherwise this is a lifetime or a label.
 			const esc = next === '\\';
 			const close = esc ? source.indexOf("'", i + 3) : source[i + 2] === "'" ? i + 2 : -1;
-			const astral = !esc && source.codePointAt(i + 1)! > 0xffff && source[i + 3] === "'" ? i + 3 : -1;
+			const astral =
+				!esc && source.codePointAt(i + 1)! > 0xffff && source[i + 3] === "'" ? i + 3 : -1;
 			const end = close !== -1 ? close : astral;
 			if (end !== -1 && end - i <= 12) {
 				opaque(i, end + 1);
@@ -151,7 +153,12 @@ function stripGenerics(s: string): string {
 
 function itemName(kind: string, header: string): string {
 	if (kind === 'impl') {
-		const h = stripGenerics(header.slice(header.indexOf('impl') + 4).split('{')[0].split(' where ')[0]);
+		const h = stripGenerics(
+			header
+				.slice(header.indexOf('impl') + 4)
+				.split('{')[0]
+				.split(' where ')[0],
+		);
 		return `impl ${h}`;
 	}
 	if (kind === 'macro_rules!' || kind === 'thread_local!') {
@@ -201,7 +208,10 @@ export function parseRustModule(key: string, path: string, source: string): Rust
 			const kind = m[1];
 			const begin = at + lead;
 			const end = itemEnd(source, depth, begin, d, kind);
-			const header = source.slice(begin, Math.min(end, source.indexOf('{', begin) === -1 ? end : source.indexOf('{', begin) + 1));
+			const header = source.slice(
+				begin,
+				Math.min(end, source.indexOf('{', begin) === -1 ? end : source.indexOf('{', begin) + 1),
+			);
 			const own = itemName(kind, header);
 			const name = prefix + own;
 			const first = docsAbove(line);
@@ -223,7 +233,7 @@ export function parseRustModule(key: string, path: string, source: string): Rust
 				startLine: first + 1,
 				endLine: last + 1,
 				code: source.slice(starts[first], starts[last + 1] ?? source.length).replace(/\n$/, ''),
-				docs
+				docs,
 			});
 			if (kind === 'impl' || kind === 'trait' || kind === 'mod') {
 				const open = source.indexOf('{', begin);

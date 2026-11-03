@@ -6,7 +6,16 @@ import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { loadSources, readSourceUnits, writeMeta } from './manifest.ts';
 import { languageOf, FAMILIES } from './languages.ts';
-import { unitDir, inputFile, fixtureFile, sourceDir, licensesDir, IMPORT_REPORT_FILE, SOURCES_FILE, rel } from './paths.ts';
+import {
+	unitDir,
+	inputFile,
+	fixtureFile,
+	sourceDir,
+	licensesDir,
+	IMPORT_REPORT_FILE,
+	SOURCES_FILE,
+	rel,
+} from './paths.ts';
 import { writeIfChanged, stableStringify, pruneEmptyDirs } from './fsutil.ts';
 
 const LICENSE_NAME = /^(licen[cs]e|copying)(\.(md|txt))?$/i;
@@ -14,12 +23,15 @@ const ACCEPTED_NESTED: [RegExp, string][] = [
 	[/Permission is hereby granted, free of charge/i, 'MIT'],
 	[/Apache License[\s\S]*Version 2\.0/i, 'Apache-2.0'],
 	[/Permission to use, copy, modify, and\/?or distribute this software for any purpose/i, 'ISC'],
-	[/free and unencumbered software released into the public domain/i, 'Unlicense']
+	[/free and unencumbered software released into the public domain/i, 'Unlicense'],
 ];
 
 /** Tracked files only: build outputs, `_output` snapshots and other ignored files never become fixtures. */
 function trackedFiles(root: string): string[] {
-	return execFileSync('git', ['-C', root, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 1 << 30 })
+	return execFileSync('git', ['-C', root, 'ls-files', '-z'], {
+		encoding: 'utf8',
+		maxBuffer: 1 << 30,
+	})
 		.split('\0')
 		.filter(Boolean)
 		.map((p) => path.join(root, p))
@@ -28,7 +40,9 @@ function trackedFiles(root: string): string[] {
 
 /** An uninitialised submodule answers `rev-parse HEAD` with the superproject's commit, so check the toplevel too. */
 function checkoutCommit(dir: string): string {
-	const top = execFileSync('git', ['-C', dir, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+	const top = execFileSync('git', ['-C', dir, 'rev-parse', '--show-toplevel'], {
+		encoding: 'utf8',
+	}).trim();
 	if (fs.realpathSync(top) !== fs.realpathSync(dir)) {
 		throw new Error(`${dir} is not a populated checkout (git toplevel is ${top})`);
 	}
@@ -36,11 +50,17 @@ function checkoutCommit(dir: string): string {
 }
 
 /** The license governing `file` is the nearest license file between its directory and the source root. */
-function nearestLicense(root: string, file: string, cache: Map<string, string | null>): string | null {
+function nearestLicense(
+	root: string,
+	file: string,
+	cache: Map<string, string | null>,
+): string | null {
 	let dir = path.dirname(file);
 	while (true) {
 		if (!cache.has(dir)) {
-			const hit = fs.readdirSync(dir, { withFileTypes: true }).find((e) => e.isFile() && LICENSE_NAME.test(e.name));
+			const hit = fs
+				.readdirSync(dir, { withFileTypes: true })
+				.find((e) => e.isFile() && LICENSE_NAME.test(e.name));
 			cache.set(dir, hit ? path.join(dir, hit.name) : null);
 		}
 		const hit = cache.get(dir);
@@ -69,20 +89,28 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 		if (source.excluded || !source.license) continue;
 		if (only && !only.includes(source.id)) {
 			// Earlier sources claim duplicates first, so a partial import dedups exactly like a full one.
-			for (const u of readSourceUnits(source.id)) if (!seen.has(u.sha256)) seen.set(u.sha256, `${source.id}/${u.path}`);
+			for (const u of readSourceUnits(source.id))
+				if (!seen.has(u.sha256)) seen.set(u.sha256, `${source.id}/${u.path}`);
 			continue;
 		}
 		const root = path.resolve(from, source.checkout);
 		const commit = checkoutCommit(root);
 		if (commit !== source.commit) {
 			if (!acceptCommit) {
-				throw new Error(`${source.id}: checkout is at ${commit}, registry pins ${source.commit} (pass --accept-commit to move the pin)`);
+				throw new Error(
+					`${source.id}: checkout is at ${commit}, registry pins ${source.commit} (pass --accept-commit to move the pin)`,
+				);
 			}
 			source.commit = commit;
 			registryChanged = true;
 		}
 
-		const counts: { claimed: number; admitted: number; duplicate: number; [reason: string]: number } = { claimed: 0, admitted: 0, duplicate: 0 };
+		const counts: {
+			claimed: number;
+			admitted: number;
+			duplicate: number;
+			[reason: string]: number;
+		} = { claimed: 0, admitted: 0, duplicate: 0 };
 		const bump = (reason: string) => (counts[reason] = (counts[reason] ?? 0) + 1);
 		const kept = new Set<string>();
 		const licenseCache = new Map<string, string | null>();
@@ -119,7 +147,14 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 			}
 			seen.set(sha256, `${source.id}/${relPath}`);
 			counts.admitted++;
-			const unit = { family: lang.family, source: source.id, path: relPath, lang: lang.id, sha256, ...admission.fields };
+			const unit = {
+				family: lang.family,
+				source: source.id,
+				path: relPath,
+				lang: lang.id,
+				sha256,
+				...admission.fields,
+			};
 			kept.add(`${unit.family}/${unit.path}`);
 			writeIfChanged(inputFile(unit, lang.ext), src);
 			writeMeta(unit);
@@ -154,7 +189,9 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 	}
 	writeIfChanged(IMPORT_REPORT_FILE, stableStringify(ordered) + '\n');
 	if (orphans.length) {
-		console.log(`units gone from their source but carrying a fixture.toml (kept; resolve by hand): ${orphans.length}`);
+		console.log(
+			`units gone from their source but carrying a fixture.toml (kept; resolve by hand): ${orphans.length}`,
+		);
 		for (const o of orphans) console.log(`  ${o}`);
 	}
 	return { orphans };

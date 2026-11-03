@@ -18,6 +18,6 @@ export const load = () => ({
 		noUnused: 'svelte/lint/rules/no_unused_variables/check',
 		orderTest: 'lint/rules/tests::findings_are_ordered_by_offset_and_ties_keep_rule_order',
 		render: 'lint/output/render_json_with_rules',
-		columnsTest: 'lint/output/tests::columns_are_one_based_utf16'
-	})
+		columnsTest: 'lint/output/tests::columns_are_one_based_utf16',
+	}),
 });

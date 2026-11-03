@@ -64,8 +64,8 @@ const { values } = parseArgs({
 	options: {
 		update: { type: 'boolean', default: false },
 		instructions: { type: 'boolean', default: false },
-		json: { type: 'string' }
-	}
+		json: { type: 'string' },
+	},
 });
 
 function run(cmd: string, args: string[], env: NodeJS.ProcessEnv = process.env) {
@@ -78,7 +78,10 @@ function run(cmd: string, args: string[], env: NodeJS.ProcessEnv = process.env) 
 function build(flavour: 'metrics' | 'plain', directory: string): string {
 	const dir = path.join(ROOT, 'target', 'performance', flavour);
 	const features = flavour === 'metrics' ? ['--features', 'metrics'] : [];
-	run('cargo', ['build', '--release', '--offline', '-p', 'rsvelte_command_line', ...features], { ...process.env, CARGO_TARGET_DIR: dir });
+	run('cargo', ['build', '--release', '--offline', '-p', 'rsvelte_command_line', ...features], {
+		...process.env,
+		CARGO_TARGET_DIR: dir,
+	});
 	const copy = path.join(directory, 'rsvelte');
 	fs.copyFileSync(path.join(dir, 'release', 'rsvelte'), copy);
 	return copy;
@@ -95,14 +98,27 @@ function allocations(): Report {
 	} finally {
 		fs.rmSync(directory, { recursive: true, force: true });
 	}
-	if (!r.metrics || typeof r.allocs !== 'number') throw new Error('rsvelte performance reported no allocation counts: not a metrics build');
-	if (r.documents < 1000) throw new Error(`rsvelte performance saw ${r.documents} documents: the corpus is missing or partial`);
+	if (!r.metrics || typeof r.allocs !== 'number')
+		throw new Error('rsvelte performance reported no allocation counts: not a metrics build');
+	if (r.documents < 1000)
+		throw new Error(
+			`rsvelte performance saw ${r.documents} documents: the corpus is missing or partial`,
+		);
 	return r;
 }
 
 /** cachegrind's `I refs` of one invocation. */
 function irefs(rsvelte: string, rounds: number): number {
-	const r = run('valgrind', ['--tool=cachegrind', '--cache-sim=no', '--cachegrind-out-file=/dev/null', rsvelte, 'performance', ...POPULATION, `rounds=${rounds}`, 'json=/dev/null']);
+	const r = run('valgrind', [
+		'--tool=cachegrind',
+		'--cache-sim=no',
+		'--cachegrind-out-file=/dev/null',
+		rsvelte,
+		'performance',
+		...POPULATION,
+		`rounds=${rounds}`,
+		'json=/dev/null',
+	]);
 	const m = /I\s+refs:\s+([\d,]+)/.exec(r.stderr);
 	if (!m) throw new Error(`no "I refs" line in cachegrind's output:\n${r.stderr.slice(-2000)}`);
 	return Number(m[1]!.replaceAll(',', ''));
@@ -118,7 +134,10 @@ function instructions(): { warm: number; load: number } {
 		fs.rmSync(directory, { recursive: true, force: true });
 	}
 	const warm = two - one;
-	if (!(load > 0 && one > load && two > one)) throw new Error(`counts that do not grow with the rounds: rounds=0 ${load}, rounds=1 ${one}, rounds=2 ${two}`);
+	if (!(load > 0 && one > load && two > one))
+		throw new Error(
+			`counts that do not grow with the rounds: rounds=0 ${load}, rounds=1 ${one}, rounds=2 ${two}`,
+		);
 	return { warm, load };
 }
 
@@ -127,19 +146,30 @@ const report = allocations();
 const instr = values.instructions ? instructions() : undefined;
 
 const measured: Baseline = {
-	population: { documents: report.documents, source_bytes: report.source_bytes, tasks: report.tasks },
+	population: {
+		documents: report.documents,
+		source_bytes: report.source_bytes,
+		tasks: report.tasks,
+	},
 	allocs: report.allocs,
 	alloc_bytes: report.alloc_bytes,
 	peak_live_growth_bytes: report.peak_live_growth_bytes,
 	phases: report.phases,
 	instructions: instr === undefined ? {} : { [platform]: instr.warm },
-	load_instructions: instr === undefined ? {} : { [platform]: instr.load }
+	load_instructions: instr === undefined ? {} : { [platform]: instr.load },
 };
-if (values.json) fs.writeFileSync(values.json, JSON.stringify({ platform, rev: report.rev, ...measured }, null, '\t') + '\n');
+if (values.json)
+	fs.writeFileSync(
+		values.json,
+		JSON.stringify({ platform, rev: report.rev, ...measured }, null, '\t') + '\n',
+	);
 
-const old: Baseline | undefined = fs.existsSync(BASELINE) ? (JSON.parse(fs.readFileSync(BASELINE, 'utf8')) as Baseline) : undefined;
+const old: Baseline | undefined = fs.existsSync(BASELINE)
+	? (JSON.parse(fs.readFileSync(BASELINE, 'utf8')) as Baseline)
+	: undefined;
 
-const pct = (a: number, b: number) => (a === 0 ? (b === 0 ? '0%' : '+inf') : `${b >= a ? '+' : ''}${(((b - a) / a) * 100).toFixed(2)}%`);
+const pct = (a: number, b: number) =>
+	a === 0 ? (b === 0 ? '0%' : '+inf') : `${b >= a ? '+' : ''}${(((b - a) / a) * 100).toFixed(2)}%`;
 const fmt = (n: number) => n.toLocaleString('en-US');
 
 interface Row {
@@ -152,23 +182,34 @@ interface Row {
 function compare(a: Baseline, b: Baseline): { rows: Row[]; population: string[] } {
 	const population: string[] = [];
 	if (JSON.stringify(a.population) !== JSON.stringify(b.population)) {
-		population.push(`population changed: ${JSON.stringify(a.population)} -> ${JSON.stringify(b.population)}`);
+		population.push(
+			`population changed: ${JSON.stringify(a.population)} -> ${JSON.stringify(b.population)}`,
+		);
 	}
 	const rows: Row[] = [];
 	const exact = (metric: string, was: number | undefined, now: number | undefined) => {
 		const verdict: Row['verdict'] =
-			was === undefined ? 'NEW' : now === undefined ? 'GONE' : now > was ? 'REGRESSED' : now < was ? 'IMPROVED (baseline not updated)' : 'ok';
+			was === undefined
+				? 'NEW'
+				: now === undefined
+					? 'GONE'
+					: now > was
+						? 'REGRESSED'
+						: now < was
+							? 'IMPROVED (baseline not updated)'
+							: 'ok';
 		rows.push({ metric, was, now, verdict });
 	};
 	exact('allocs', a.allocs, b.allocs);
 	exact('alloc_bytes', a.alloc_bytes, b.alloc_bytes);
 	exact('peak_live_growth_bytes', a.peak_live_growth_bytes, b.peak_live_growth_bytes);
 	for (const name of [...new Set([...Object.keys(a.phases), ...Object.keys(b.phases)])].sort()) {
-		for (const k of ['calls', 'allocs', 'alloc_bytes'] as const) exact(`phase ${name} ${k}`, a.phases[name]?.[k], b.phases[name]?.[k]);
+		for (const k of ['calls', 'allocs', 'alloc_bytes'] as const)
+			exact(`phase ${name} ${k}`, a.phases[name]?.[k], b.phases[name]?.[k]);
 	}
 	for (const [key, label] of [
 		['instructions', 'instructions'],
-		['load_instructions', 'load instructions']
+		['load_instructions', 'load instructions'],
 	] as const) {
 		const now = b[key][platform];
 		if (now === undefined) continue;
@@ -186,23 +227,33 @@ function compare(a: Baseline, b: Baseline): { rows: Row[]; population: string[] 
 	return { rows, population };
 }
 
-console.log(`rsvelte performance at ${report.rev}: ${fmt(report.documents)} documents, ${fmt(report.source_bytes)} bytes, ${report.tasks.length} tasks`);
-console.log(`  allocs ${fmt(report.allocs)} (${((report.allocs / report.source_bytes) * 1000).toFixed(2)} per KB), bytes ${fmt(report.alloc_bytes)}, peak live +${fmt(report.peak_live_growth_bytes)}`);
+console.log(
+	`rsvelte performance at ${report.rev}: ${fmt(report.documents)} documents, ${fmt(report.source_bytes)} bytes, ${report.tasks.length} tasks`,
+);
+console.log(
+	`  allocs ${fmt(report.allocs)} (${((report.allocs / report.source_bytes) * 1000).toFixed(2)} per KB), bytes ${fmt(report.alloc_bytes)}, peak live +${fmt(report.peak_live_growth_bytes)}`,
+);
 if (instr !== undefined) {
-	console.log(`  instructions (${platform}, one warm round) ${fmt(instr.warm)} (${(instr.warm / report.source_bytes).toFixed(1)} per source byte)`);
-	console.log(`  instructions (${platform}, loading) ${fmt(instr.load)} (${(instr.load / report.source_bytes).toFixed(1)} per source byte)`);
+	console.log(
+		`  instructions (${platform}, one warm round) ${fmt(instr.warm)} (${(instr.warm / report.source_bytes).toFixed(1)} per source byte)`,
+	);
+	console.log(
+		`  instructions (${platform}, loading) ${fmt(instr.load)} (${(instr.load / report.source_bytes).toFixed(1)} per source byte)`,
+	);
 }
 
 if (values.update) {
 	const next: Baseline = {
 		...measured,
 		instructions: { ...old?.instructions, ...measured.instructions },
-		load_instructions: { ...old?.load_instructions, ...measured.load_instructions }
+		load_instructions: { ...old?.load_instructions, ...measured.load_instructions },
 	};
 	fs.writeFileSync(BASELINE, JSON.stringify(next, null, '\t') + '\n');
 	if (old) {
 		for (const row of compare(old, next).rows.filter((r) => r.verdict !== 'ok')) {
-			console.log(`  ${row.metric}: ${row.was === undefined ? '-' : fmt(row.was)} -> ${row.now === undefined ? '-' : fmt(row.now)}`);
+			console.log(
+				`  ${row.metric}: ${row.was === undefined ? '-' : fmt(row.was)} -> ${row.now === undefined ? '-' : fmt(row.now)}`,
+			);
 		}
 	}
 	console.log(`wrote ${path.relative(ROOT, BASELINE)}`);
@@ -213,7 +264,10 @@ if (!old) {
 	console.error(`no baseline at ${path.relative(ROOT, BASELINE)}; run with --update`);
 	process.exit(1);
 }
-if (instr === undefined && (old.instructions[platform] !== undefined || old.load_instructions?.[platform] !== undefined)) {
+if (
+	instr === undefined &&
+	(old.instructions[platform] !== undefined || old.load_instructions?.[platform] !== undefined)
+) {
 	console.log(`  instructions ${platform}: UNMEASURED (pass --instructions)`);
 }
 const { rows, population } = compare(old, measured);
@@ -225,8 +279,12 @@ for (const r of bad) {
 	const delta = r.was !== undefined && r.now !== undefined ? ` (${pct(r.was, r.now)})` : '';
 	console.error(`FAIL ${r.metric}: ${was} -> ${now}${delta} ${r.verdict}`);
 }
-console.log(`${rows.length} counters compared, ${bad.length} moved${population.length ? ', population changed' : ''}`);
+console.log(
+	`${rows.length} counters compared, ${bad.length} moved${population.length ? ', population changed' : ''}`,
+);
 if (bad.length || population.length) {
-	console.error('the ratchet is two-sided: record an intended change with `mise run performance:update` (and --instructions on Linux)');
+	console.error(
+		'the ratchet is two-sided: record an intended change with `mise run performance:update` (and --instructions on Linux)',
+	);
 	process.exit(1);
 }

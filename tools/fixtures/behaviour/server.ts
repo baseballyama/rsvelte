@@ -27,13 +27,7 @@ async function render({
 }: Request): Promise<Response> {
 	let component: unknown;
 	try {
-		component = await loadComponent(
-			file,
-			false,
-			sourceFile,
-			translated,
-			experimental_async,
-		);
+		component = await loadComponent(file, false, sourceFile, translated, experimental_async);
 	} catch (e) {
 		return { error: `load: ${message(e)}` };
 	}
@@ -56,6 +50,4 @@ async function render({
 	}
 }
 
-parentPort!.on('message', async (req: Request) =>
-	parentPort!.postMessage(await render(req)),
-);
+parentPort!.on('message', async (req: Request) => parentPort!.postMessage(await render(req)));

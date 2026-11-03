@@ -67,15 +67,24 @@
 			<input class="range w-24" type="range" min="1" max="8" bind:value={workers} />
 		</label>
 		{#each [[0, '部品なし'], [0.15, '15%'], [1, '全部']] as [v, name] (name)}
-			<button type="button" class="btn-ghost" aria-pressed={partShare === v} onclick={() => (partShare = Number(v))}>{name}</button>
+			<button
+				type="button"
+				class="btn-ghost"
+				aria-pressed={partShare === v}
+				onclick={() => (partShare = Number(v))}>{name}</button
+			>
 		{/each}
-		<button type="button" class="btn-ghost" onclick={playing ? stop : play}>{playing ? '■ 停止' : '▶ 再生'}</button>
+		<button type="button" class="btn-ghost" onclick={playing ? stop : play}
+			>{playing ? '■ 停止' : '▶ 再生'}</button
+		>
 	{/snippet}
 	<div class="overflow-x-auto p-4">
 		<svg viewBox="0 0 {W} {lanesH + memH + 24}" class="h-auto w-full min-w-[560px]" role="img">
 			<title>ワーカーごとの文書の処理と、保持している結果の量</title>
 			{#each Array.from({ length: workers }, (_, i) => i) as w (w)}
-				<text x="0" y={w * lane + 15} class="font-mono" font-size="11" fill="var(--muted)">worker {w}</text>
+				<text x="0" y={w * lane + 15} class="font-mono" font-size="11" fill="var(--muted)"
+					>worker {w}</text
+				>
 				<line x1={x(0)} x2={x(T)} y1={w * lane + 11} y2={w * lane + 11} stroke="var(--border)" />
 			{/each}
 			{#each sim.blocks.filter((b) => b.start < now) as b (b.doc)}
@@ -89,7 +98,9 @@
 					opacity={b.end <= now ? 0.85 : 0.45}
 				/>
 			{/each}
-			<text x="0" y={workers * lane + 15} class="font-mono" font-size="11" fill="var(--muted)">project</text>
+			<text x="0" y={workers * lane + 15} class="font-mono" font-size="11" fill="var(--muted)"
+				>project</text
+			>
 			{#if sim.projectEnd > sim.parallelEnd && now > sim.parallelEnd}
 				<rect
 					x={x(sim.parallelEnd)}
@@ -105,22 +116,55 @@
 				<line x1={x(0)} x2={x(T)} y1={y(0)} y2={y(0)} stroke="var(--border-strong)" />
 				<path d={pathOf(sim.collected)} fill="none" stroke="var(--muted)" stroke-dasharray="3 3" />
 				<path d={pathOf(sim.streaming)} fill="none" stroke="var(--fg)" />
-				<text x="0" y="30" class="font-mono" font-size="10.5" fill="var(--fg)">run_each {liveAt(sim.streaming, now)}</text>
-				<text x="0" y="44" class="font-mono" font-size="10.5" fill="var(--muted)">run {liveAt(sim.collected, now)}</text>
+				<text x="0" y="30" class="font-mono" font-size="10.5" fill="var(--fg)"
+					>run_each {liveAt(sim.streaming, now)}</text
+				>
+				<text x="0" y="44" class="font-mono" font-size="10.5" fill="var(--muted)"
+					>run {liveAt(sim.collected, now)}</text
+				>
 			</g>
-			<line x1={x(now)} x2={x(now)} y1="0" y2={lanesH + memH} stroke="var(--accent)" opacity={now < T ? 1 : 0} />
-			<text x={x(0)} y={lanesH + memH + 18} class="font-mono" font-size="11" fill="var(--muted)">0</text>
-			<text x={x(T)} y={lanesH + memH + 18} text-anchor="end" class="font-mono" font-size="11" fill="var(--muted)">{T} 単位時間</text>
+			<line
+				x1={x(now)}
+				x2={x(now)}
+				y1="0"
+				y2={lanesH + memH}
+				stroke="var(--accent)"
+				opacity={now < T ? 1 : 0}
+			/>
+			<text x={x(0)} y={lanesH + memH + 18} class="font-mono" font-size="11" fill="var(--muted)"
+				>0</text
+			>
+			<text
+				x={x(T)}
+				y={lanesH + memH + 18}
+				text-anchor="end"
+				class="font-mono"
+				font-size="11"
+				fill="var(--muted)">{T} 単位時間</text
+			>
 		</svg>
-		<div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[11.5px] tracking-normal text-muted">
-			<span><span class="mr-1 inline-block h-2 w-3 bg-c-src align-middle"></span>すぐ sink に渡る文書</span>
-			<span><span class="mr-1 inline-block h-2 w-3 bg-c-map align-middle"></span>部品を持ち、プロジェクト全体の処理を待つ文書</span>
-			<span><span class="mr-1 inline-block h-2 w-3 bg-c-idle align-middle"></span>FinishTask::finish</span>
+		<div
+			class="mt-2 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[11.5px] tracking-normal text-muted"
+		>
+			<span
+				><span class="mr-1 inline-block h-2 w-3 bg-c-src align-middle"></span>すぐ sink に渡る文書</span
+			>
+			<span
+				><span class="mr-1 inline-block h-2 w-3 bg-c-map align-middle"
+				></span>部品を持ち、プロジェクト全体の処理を待つ文書</span
+			>
+			<span
+				><span class="mr-1 inline-block h-2 w-3 bg-c-idle align-middle"
+				></span>FinishTask::finish</span
+			>
 			<span>ピーク: run_each {sim.peakStreaming} · run {sim.peakCollected}</span>
 		</div>
 	</div>
 	{#snippet caption()}
-		模型です。文書は空いたワーカーに順に配ります（rayon の work stealing を単純化したもの）。処理時間と結果の大きさは例示で、実測ではありません。実線は <code>run_each</code>
+		模型です。文書は空いたワーカーに順に配ります（rayon の work stealing
+		を単純化したもの）。処理時間と結果の大きさは例示で、実測ではありません。実線は <code
+			>run_each</code
+		>
 		が生かしている結果の量、破線は <code>run</code> のように全部を集めた場合の量です。部品を持つ文書が増えるほど、二つの線は近づきます。
 	{/snippet}
 </Figure>

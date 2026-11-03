@@ -32,9 +32,7 @@ export async function chrome(binary: string, profile: string) {
 		],
 		{ detached: true, stdio: ['ignore', 'ignore', 'pipe'] },
 	);
-	const exited = new Promise<void>((resolve) =>
-		child.once('close', () => resolve()),
-	);
+	const exited = new Promise<void>((resolve) => child.once('close', () => resolve()));
 	let socket: WebSocket | undefined;
 	const signal = (name: NodeJS.Signals) => {
 		if (child.pid === undefined) return;
@@ -109,10 +107,7 @@ export async function chrome(binary: string, profile: string) {
 			number,
 			{ resolve(value: unknown): void; reject(error: Error): void }
 		>();
-		const events = new Map<
-			string,
-			{ resolve(value: unknown): void; reject(error: Error): void }
-		>();
+		const events = new Map<string, { resolve(value: unknown): void; reject(error: Error): void }>();
 		connection.addEventListener('message', (event) => {
 			const reply = JSON.parse(String(event.data)) as Reply;
 			if (typeof reply.id === 'number') {
@@ -135,11 +130,7 @@ export async function chrome(binary: string, profile: string) {
 			pending.clear();
 			events.clear();
 		});
-		const command = async <T>(
-			method: string,
-			params: object,
-			sessionId?: string,
-		): Promise<T> => {
+		const command = async <T>(method: string, params: object, sessionId?: string): Promise<T> => {
 			if (connection.readyState !== WebSocket.OPEN)
 				throw new Error('Chrome connection is not open');
 			const id = ++next;
@@ -164,15 +155,14 @@ export async function chrome(binary: string, profile: string) {
 		};
 		return {
 			async trace(url: string): Promise<string> {
-				const { targetId } = await command<{ targetId: string }>(
-					'Target.createTarget',
-					{ url: 'about:blank' },
-				);
+				const { targetId } = await command<{ targetId: string }>('Target.createTarget', {
+					url: 'about:blank',
+				});
 				try {
-					const { sessionId } = await command<{ sessionId: string }>(
-						'Target.attachToTarget',
-						{ targetId, flatten: true },
-					);
+					const { sessionId } = await command<{ sessionId: string }>('Target.attachToTarget', {
+						targetId,
+						flatten: true,
+					});
 					await command('Page.enable', {}, sessionId);
 					const key = `${sessionId}:Page.loadEventFired`;
 					const loaded = new Promise<void>((resolve, reject) => {
@@ -214,10 +204,7 @@ export async function chrome(binary: string, profile: string) {
 						},
 						sessionId,
 					);
-					if (
-						result.exceptionDetails ||
-						typeof result.result.value !== 'string'
-					)
+					if (result.exceptionDetails || typeof result.result.value !== 'string')
 						throw new Error(JSON.stringify(result));
 					return result.result.value;
 				} finally {

@@ -7,6 +7,13 @@ export const load = () => ({
 		lines: m.lines,
 		items: m.items
 			.filter((i) => !i.name.startsWith('tests'))
-			.map((i) => ({ key: i.key, name: i.name, kind: i.kind, startLine: i.startLine, endLine: i.endLine, doc: i.docs.split('\n')[0] }))
-	}))
+			.map((i) => ({
+				key: i.key,
+				name: i.name,
+				kind: i.kind,
+				startLine: i.startLine,
+				endLine: i.endLine,
+				doc: i.docs.split('\n')[0],
+			})),
+	})),
 });

@@ -22,7 +22,8 @@
 		const e = new Emitter();
 		e.out = data.out;
 		e.mappings = data.mappings.map((m) => {
-			if (m.length !== 3) throw new Error(`a mapping is [generated, src, len], got ${JSON.stringify(m)}`);
+			if (m.length !== 3)
+				throw new Error(`a mapping is [generated, src, len], got ${JSON.stringify(m)}`);
 			return { generated: m[0], source: m[1], len: m[2] };
 		});
 		return e;
@@ -60,7 +61,9 @@
 	<div class="flex items-center justify-between gap-4 border-b border-line bg-surface px-3 py-1.5">
 		<span class="font-mono text-[12px] tracking-normal text-muted">{label}</span>
 		<span class="font-mono text-[12px] tracking-normal text-muted">
-			位置の対応点 {data.mappings.length} · {data.target} · {data.rev.slice(0, 7)}{data.dirty ? ' + 未コミットの変更' : ''}
+			位置の対応点 {data.mappings.length} · {data.target} · {data.rev.slice(0, 7)}{data.dirty
+				? ' + 未コミットの変更'
+				: ''}
 		</span>
 	</div>
 	<div class="grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
@@ -69,7 +72,10 @@
 			<pre
 				class="overflow-x-auto px-3 py-2 text-[12.5px] leading-[1.7] [tab-size:2]"
 				aria-label="入力"><code
-					>{#each sourceChars as c (c.byte)}&lt;span class={[hit === c.byte && 'bg-accent text-bg', 'rounded-[2px]']}
+					>{#each sourceChars as c (c.byte)}&lt;span class={[
+							hit === c.byte && 'bg-accent text-bg',
+							'rounded-[2px]',
+						]}
 							&gt;{c.ch}&lt;/span
 						&gt;{/each}</code
 				></pre>
@@ -78,14 +84,22 @@
 					title="入力のバイト位置"
 					length={sourceIndex.bytes.length}
 					marks={[
-						...data.mappings.map((m) => ({ startOffset: m[1], endOffset: m[1] + Math.max(m[2], 1), tone: 'muted' as const })),
-						...(hit === null ? [] : [{ startOffset: hit, endOffset: hit + 1, tone: 'accent' as const }])
+						...data.mappings.map((m) => ({
+							startOffset: m[1],
+							endOffset: m[1] + Math.max(m[2], 1),
+							tone: 'muted' as const,
+						})),
+						...(hit === null
+							? []
+							: [{ startOffset: hit, endOffset: hit + 1, tone: 'accent' as const }]),
 					]}
 				/>
 			</div>
 		</div>
 		<div class="min-w-0">
-			<div class="px-3 pt-2 font-mono text-[11px] tracking-normal text-c-gen">rsvelte の出力 (JavaScript)</div>
+			<div class="px-3 pt-2 font-mono text-[11px] tracking-normal text-c-gen">
+				rsvelte の出力 (JavaScript)
+			</div>
 			<div
 				class="max-h-[340px] cursor-crosshair overflow-auto px-3 py-2 font-mono text-[12.5px] leading-[1.7] whitespace-pre [tab-size:2] focus-visible:outline-2 focus-visible:outline-accent"
 				tabindex="0"
@@ -98,15 +112,23 @@
 				onmousemove={pick}
 				onclick={pick}
 				onkeydown={key}
-			>{#each outChars as c (c.byte)}<span
-							data-b={c.byte}
-							class={[
-								'rounded-[2px]',
-								c.byte === position && 'bg-fg text-bg',
-								c.byte !== position && marked.has(c.byte) && 'underline decoration-accent decoration-2 underline-offset-4',
-								c.byte !== position && mapping && c.byte >= mapping.generated && c.byte < position && 'bg-accent-wash'
-							]}>{c.ch}</span
-						>{/each}</div>
+			>
+				{#each outChars as c (c.byte)}<span
+						data-b={c.byte}
+						class={[
+							'rounded-[2px]',
+							c.byte === position && 'bg-fg text-bg',
+							c.byte !== position &&
+								marked.has(c.byte) &&
+								'underline decoration-accent decoration-2 underline-offset-4',
+							c.byte !== position &&
+								mapping &&
+								c.byte >= mapping.generated &&
+								c.byte < position &&
+								'bg-accent-wash',
+						]}>{c.ch}</span
+					>{/each}
+			</div>
 		</div>
 	</div>
 	<div
@@ -118,8 +140,8 @@
 		{#if s}
 			<span><span class="text-c-src">src</span> {s.line}:{s.column}</span>
 			<span class="text-muted">
-				位置の対応 #{which} (generated {mapping?.generated}, src {mapping?.source}, len {mapping?.len}) から {position -
-					(mapping?.generated ?? 0)} バイト後
+				位置の対応 #{which} (generated {mapping?.generated}, src {mapping?.source}, len {mapping?.len})
+				から {position - (mapping?.generated ?? 0)} バイト後
 			</span>
 		{:else}
 			<span class="text-muted">位置の対応なし: 最初の位置の対応点より前</span>

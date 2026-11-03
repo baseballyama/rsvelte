@@ -10,7 +10,11 @@ export const load = () => {
 			file: m.path.slice(m.path.indexOf('/src/') + 5),
 			lines: m.lines,
 			...moduleDescription(m.key),
-			chapter: chapters.find((c) => c.module === m.key || (c.slug === 'diagnostics' && m.key === 'kernel/diagnostics/diagnostic'))
+			chapter: chapters.find(
+				(c) =>
+					c.module === m.key ||
+					(c.slug === 'diagnostics' && m.key === 'kernel/diagnostics/diagnostic'),
+			),
 		}));
 	return {
 		modules,
@@ -21,7 +25,7 @@ export const load = () => {
 			vueRegister: 'vue/computation/artifacts/register',
 			vueParsed: 'vue/computation/artifacts/impl Artifact for Parsed',
 			registry: 'kernel/computation/pipeline/Registry',
-			runDocument: 'kernel/computation/pipeline/run_document'
-		})
+			runDocument: 'kernel/computation/pipeline/run_document',
+		}),
 	};
 };

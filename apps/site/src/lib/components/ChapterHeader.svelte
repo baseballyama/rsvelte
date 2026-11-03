@@ -19,10 +19,18 @@
 		{chapter.title}
 	</h1>
 	<p class="mt-5 text-[17.5px] leading-[1.9] text-fg-2 sm:text-[18.5px]">{lead}</p>
-	<dl class="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[12px] tracking-normal text-muted">
-		<div class="flex items-center gap-1.5"><dt class="sr-only">読了時間</dt><dd>約 {chapter.minutes} 分</dd></div>
+	<dl
+		class="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[12px] tracking-normal text-muted"
+	>
+		<div class="flex items-center gap-1.5">
+			<dt class="sr-only">読了時間</dt>
+			<dd>約 {chapter.minutes} 分</dd>
+		</div>
 		{#if chapter.sections.length > 0}
-			<div class="flex items-center gap-1.5"><dt class="sr-only">節の数</dt><dd>{chapter.sections.length} 節</dd></div>
+			<div class="flex items-center gap-1.5">
+				<dt class="sr-only">節の数</dt>
+				<dd>{chapter.sections.length} 節</dd>
+			</div>
 		{/if}
 		{#if chapter.module}
 			<div class="flex min-w-0 items-center gap-1.5">

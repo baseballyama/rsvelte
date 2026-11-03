@@ -11,6 +11,7 @@ const task: Task = {
 	oracles: [...new Set([...svelteCheck.oracles, ...vueCheck.oracles])],
 	variants: [{ id: 'default', options: {} }],
 	appliesTo: (unit) => svelteCheck.appliesTo(unit) || vueCheck.appliesTo(unit),
-	run: (unit, src, variant) => (unit.lang === 'svelte' ? svelteCheck : vueCheck).run(unit, src, variant)
+	run: (unit, src, variant) =>
+		(unit.lang === 'svelte' ? svelteCheck : vueCheck).run(unit, src, variant),
 };
 export default task;

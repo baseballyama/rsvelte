@@ -28,11 +28,7 @@ export function svelteModule(
 // DOM or, for the server build, to an SSR render function (`templateOptions.ssr`). Styles are not
 // emitted, since traces do not compare them; the scope id is still attached so scoped markup is
 // what a build renders.
-export function vueModule(
-	src: string,
-	filename: string,
-	target: Target,
-): string {
+export function vueModule(src: string, filename: string, target: Target): string {
 	const { descriptor, errors } = parse(src, { filename });
 	if (errors.length) throw new Error(`${filename}: ${errors[0]}`);
 	const id = scopeId(filename);
@@ -62,10 +58,7 @@ export function vueModule(
 			if (t.errors.length) throw new Error(`${filename}: ${t.errors[0]}`);
 			const fn = ssr ? 'ssrRender' : 'render';
 			parts.push(
-				t.code.replace(
-					new RegExp(`\\nexport (function|const) ${fn}`),
-					`\n$1 _sfc_${fn}`,
-				),
+				t.code.replace(new RegExp(`\\nexport (function|const) ${fn}`), `\n$1 _sfc_${fn}`),
 				`_sfc_main.${fn} = _sfc_${fn}`,
 			);
 		}
@@ -73,8 +66,7 @@ export function vueModule(
 	if (scoped) parts.push(`_sfc_main.__scopeId = "data-v-${id}"`);
 	parts.push('export default _sfc_main');
 	const js = parts.join('\n') + '\n';
-	if (descriptor.scriptSetup?.lang !== 'ts' && descriptor.script?.lang !== 'ts')
-		return js;
+	if (descriptor.scriptSetup?.lang !== 'ts' && descriptor.script?.lang !== 'ts') return js;
 	return ts.transpileModule(js, {
 		compilerOptions: {
 			target: ts.ScriptTarget.ESNext,

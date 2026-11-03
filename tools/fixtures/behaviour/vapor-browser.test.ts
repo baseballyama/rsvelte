@@ -13,15 +13,9 @@ import type { Behaviour } from './runtime.ts';
 import { ROOT } from '../paths.ts';
 
 const CHROME =
-	process.env.RSVELTE_BROWSER ??
-	'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const CASES = path.join(
-	ROOT,
-	'crates/languages/svelte/compile_vapor/tests/fixtures',
-);
-const SVELTE = fs.realpathSync(
-	path.join(import.meta.dirname, '../node_modules/svelte'),
-);
+	process.env.RSVELTE_BROWSER ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CASES = path.join(ROOT, 'crates/languages/svelte/compile_vapor/tests/fixtures');
+const SVELTE = fs.realpathSync(path.join(import.meta.dirname, '../node_modules/svelte'));
 const requireSvelte = createRequire(path.join(SVELTE, 'package.json'));
 const CLSX = requireSvelte.resolve('clsx').replace(/\.js$/, '.mjs');
 const VUE = path.join(
@@ -48,27 +42,16 @@ test(
 	{ skip: !fs.existsSync(CHROME), timeout: 240_000 },
 	async (context) => {
 		const selection = process.env.RSVELTE_VAPOR_BROWSER_CASES;
-		const selected =
-			selection === undefined ? undefined : new Set(selection.split(','));
+		const selected = selection === undefined ? undefined : new Set(selection.split(','));
 		const cases = fs.readdirSync(CASES).filter((name) => {
 			if (selected && !selected.has(name)) return false;
 			const behaviour = path.join(CASES, name, 'behaviour.toml');
-			return (
-				fs.existsSync(behaviour) &&
-				parse(fs.readFileSync(behaviour, 'utf8')).browser === true
-			);
+			return fs.existsSync(behaviour) && parse(fs.readFileSync(behaviour, 'utf8')).browser === true;
 		});
-		if (selected)
-			assert.equal(
-				cases.length,
-				selected.size,
-				'unknown Vapor browser case names',
-			);
+		if (selected) assert.equal(cases.length, selected.size, 'unknown Vapor browser case names');
 		assert.ok(cases.length > 0);
 		const names = new Set(cases);
-		const scratch = fs.mkdtempSync(
-			path.join(os.tmpdir(), 'rsvelte-vapor-browser-'),
-		);
+		const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-vapor-browser-'));
 		const modules = new Map<string, string>();
 		const imports = {
 			vue: '/vue.js',
@@ -76,8 +59,7 @@ test(
 			'svelte/transition': '/svelte/src/transition/index.js',
 			'svelte/animate': '/svelte/src/animate/index.js',
 			'svelte/internal/client': '/svelte/src/internal/client/index.js',
-			'svelte/internal/disclose-version':
-				'/svelte/src/internal/disclose-version.js',
+			'svelte/internal/disclose-version': '/svelte/src/internal/disclose-version.js',
 			'svelte/internal/flags/legacy': '/svelte/src/internal/flags/legacy.js',
 			'svelte/internal/flags/async': '/svelte/src/internal/flags/async.js',
 			'#client/constants': '/svelte/src/internal/client/constants.js',
@@ -94,9 +76,7 @@ test(
 					type = 'text/html';
 					text = `<script type="importmap">${JSON.stringify({ imports })}</script><div id="root"></div><pre id="result"></pre><script type="module" src="/runner.js"></script>`;
 				} else if (url.pathname === '/component.js') {
-					const module = modules.get(
-						`${name}:${url.searchParams.get('runtime')}`,
-					);
+					const module = modules.get(`${name}:${url.searchParams.get('runtime')}`);
 					if (module === undefined) {
 						response.writeHead(404).end();
 						return;
@@ -109,9 +89,7 @@ test(
 					}
 					type = 'application/json';
 					text = JSON.stringify(
-						parse(
-							fs.readFileSync(path.join(CASES, name, 'behaviour.toml'), 'utf8'),
-						),
+						parse(fs.readFileSync(path.join(CASES, name, 'behaviour.toml'), 'utf8')),
 					);
 				} else if (url.pathname === '/environment.js') {
 					text = 'export const DEV=false, BROWSER=true, BUILD=false;';
@@ -128,8 +106,7 @@ test(
 										: undefined;
 					if (
 						!file ||
-						(url.pathname.startsWith('/svelte/') &&
-							path.relative(SVELTE, file).startsWith('..'))
+						(url.pathname.startsWith('/svelte/') && path.relative(SVELTE, file).startsWith('..'))
 					) {
 						response.writeHead(404).end();
 						return;
@@ -137,27 +114,19 @@ test(
 					text = fs.readFileSync(file, 'utf8');
 					if (file === RUNNER) text = stripTypeScriptTypes(text);
 				}
-				response
-					.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' })
-					.end(text);
+				response.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' }).end(text);
 			} catch (error) {
 				response.writeHead(500).end(String(error));
 			}
 		});
-		await new Promise<void>((resolve) =>
-			server.listen(0, '127.0.0.1', resolve),
-		);
+		await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
 		const address = server.address();
 		assert.ok(address && typeof address !== 'string');
 		const browser = await chrome(CHROME, path.join(scratch, 'profile'));
 		const trace = async (name: string, runtime: string): Promise<Result> => {
 			const url = `http://127.0.0.1:${address.port}/?case=${encodeURIComponent(name)}&runtime=${runtime}`;
 			const result = JSON.parse(await browser.trace(url)) as Result;
-			assert.equal(
-				result.error,
-				undefined,
-				`${name} ${runtime}: ${JSON.stringify(result)}`,
-			);
+			assert.equal(result.error, undefined, `${name} ${runtime}: ${JSON.stringify(result)}`);
 			assert.deepEqual(result.errors, []);
 			return {
 				steps: result.steps.map((step) => ({
@@ -184,27 +153,15 @@ test(
 						`${name}.svelte`,
 						'client',
 						!!(
-							parse(
-								fs.readFileSync(
-									path.join(CASES, name, 'behaviour.toml'),
-									'utf8',
-								),
-							) as { custom_element?: string }
+							parse(fs.readFileSync(path.join(CASES, name, 'behaviour.toml'), 'utf8')) as {
+								custom_element?: string;
+							}
 						).custom_element,
-						(
-							parse(
-								fs.readFileSync(
-									path.join(CASES, name, 'behaviour.toml'),
-									'utf8',
-								),
-							) as Behaviour
-						).experimental_async,
+						(parse(fs.readFileSync(path.join(CASES, name, 'behaviour.toml'), 'utf8')) as Behaviour)
+							.experimental_async,
 					),
 				);
-				const code = fs.readFileSync(
-					path.join(CASES, name, 'expected/client.js'),
-					'utf8',
-				);
+				const code = fs.readFileSync(path.join(CASES, name, 'expected/client.js'), 'utf8');
 				modules.set(`${name}:vapor`, code);
 				const expected = await trace(name, 'svelte');
 				assert.equal(expected.steps.at(-1)!.observed, 0);
@@ -223,10 +180,7 @@ test(
 				if (name === 'custom-element-spreads') {
 					const assignment = "const custom = el.nodeName.includes('-');";
 					assert.ok(code.includes(assignment));
-					modules.set(
-						`${name}:vapor`,
-						code.replace(assignment, 'const custom = false;'),
-					);
+					modules.set(`${name}:vapor`, code.replace(assignment, 'const custom = false;'));
 					assert.notDeepEqual(
 						await trace(name, 'vapor'),
 						expected,
@@ -250,10 +204,7 @@ test(
 					assert.ok(code.includes(assignment));
 					modules.set(
 						`${name}:vapor`,
-						code.replace(
-							assignment,
-							'if (property) element.setAttribute(name, String(value));',
-						),
+						code.replace(assignment, 'if (property) element.setAttribute(name, String(value));'),
 					);
 					assert.notDeepEqual(
 						await trace(name, 'vapor'),
@@ -264,10 +215,7 @@ test(
 				}
 				if (name === 'custom-element-host') {
 					assert.ok(code.includes('$$host().dispatchEvent'));
-					modules.set(
-						`${name}:vapor`,
-						code.replace('$$host().dispatchEvent', '(() => true)'),
-					);
+					modules.set(`${name}:vapor`, code.replace('$$host().dispatchEvent', '(() => true)'));
 					assert.notDeepEqual(
 						await trace(name, 'vapor'),
 						expected,
@@ -284,10 +232,7 @@ test(
 				}
 				if (name === 'animation') {
 					assert.ok(code.includes('(fragment.bu ??= []).push(measure);'));
-					modules.set(
-						`${name}:vapor`,
-						code.replace('(fragment.bu ??= []).push(measure);', ''),
-					);
+					modules.set(`${name}:vapor`, code.replace('(fragment.bu ??= []).push(measure);', ''));
 					assert.notDeepEqual(
 						await trace(name, 'vapor'),
 						expected,
@@ -299,10 +244,7 @@ test(
 					assert.ok(code.includes('const parent = initializing ?? owner;'));
 					modules.set(
 						`${name}:vapor`,
-						code.replace(
-							'const parent = initializing ?? owner;',
-							'const parent = initializing;',
-						),
+						code.replace('const parent = initializing ?? owner;', 'const parent = initializing;'),
 					);
 					assert.notDeepEqual(
 						await trace(name, 'vapor'),
@@ -315,10 +257,7 @@ test(
 					assert.ok(code.includes('const controllers = [];'));
 					modules.set(
 						`${name}:vapor`,
-						code.replace(
-							'const controllers = [];',
-							'const controllers = []; root.version++;',
-						),
+						code.replace('const controllers = [];', 'const controllers = []; root.version++;'),
 					);
 					assert.notDeepEqual(
 						await trace(name, 'vapor'),
@@ -326,10 +265,7 @@ test(
 						'missing block removal after outro must fail',
 					);
 					assert.ok(code.includes('`opacity: ${t}`'));
-					modules.set(
-						`${name}:vapor`,
-						code.replace('`opacity: ${t}`', '`opacity: 1`'),
-					);
+					modules.set(`${name}:vapor`, code.replace('`opacity: ${t}`', '`opacity: 1`'));
 					assert.notDeepEqual(
 						await trace(name, 'vapor'),
 						expected,
@@ -360,10 +296,7 @@ test(
 				}
 				if (name === 'window-scroll') {
 					assert.ok(code.includes('element.scrollTo'));
-					modules.set(
-						`${name}:vapor`,
-						code.replaceAll('element.scrollTo', '(() => {})'),
-					);
+					modules.set(`${name}:vapor`, code.replaceAll('element.scrollTo', '(() => {})'));
 					assert.notDeepEqual(
 						await trace(name, 'vapor'),
 						expected,
@@ -374,15 +307,8 @@ test(
 				if (name === 'dimensions') {
 					positiveControls += 2;
 					assert.ok(code.includes('element[name]'));
-					modules.set(
-						`${name}:vapor`,
-						code.replaceAll('element[name]', 'element[name] + 1'),
-					);
-					assert.notDeepEqual(
-						await trace(name, 'vapor'),
-						expected,
-						'wrong dimensions must fail',
-					);
+					modules.set(`${name}:vapor`, code.replaceAll('element[name]', 'element[name] + 1'));
+					assert.notDeepEqual(await trace(name, 'vapor'), expected, 'wrong dimensions must fail');
 					assert.ok(code.includes('record.observer.unobserve(element)'));
 					modules.set(
 						`${name}:vapor`,

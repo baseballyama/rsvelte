@@ -5,7 +5,10 @@ import { test } from 'node:test';
 import { compile, VERSION } from 'svelte/compiler';
 import { firstDiff, parseJs } from './canonical.ts';
 
-const root = path.resolve(import.meta.dirname, '../../crates/languages/svelte/compile/tests/fixtures/special-elements');
+const root = path.resolve(
+	import.meta.dirname,
+	'../../crates/languages/svelte/compile/tests/fixtures/special-elements',
+);
 const cases = fs.readdirSync(root).sort();
 assert.ok(cases.length > 0, 'special element cases must exist');
 
@@ -14,7 +17,11 @@ for (const name of cases) {
 	const source = fs.readFileSync(path.join(directory, 'input.svelte'), 'utf8');
 	for (const generate of ['client', 'server'] as const) {
 		test(`${name}/${generate} matches Svelte ${VERSION}`, () => {
-			const official = compile(source, { filename: `special-elements/${name}.svelte`, runes: true, generate }).js.code;
+			const official = compile(source, {
+				filename: `special-elements/${name}.svelte`,
+				runes: true,
+				generate,
+			}).js.code;
 			const accepted = fs.readFileSync(path.join(directory, 'expected', `${generate}.js`), 'utf8');
 			const difference = firstDiff(parseJs(official), parseJs(accepted));
 			assert.equal(difference, null, `first AST difference: ${difference}`);

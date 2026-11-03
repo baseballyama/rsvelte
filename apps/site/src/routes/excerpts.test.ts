@@ -15,7 +15,9 @@ function item(key: string): RustItem | undefined {
 		const mod = key.slice(0, key.lastIndexOf('/'));
 		const file = files.get(mod);
 		if (!file) return undefined;
-		for (const parsed of parseRustModule(mod, file, readFileSync(path.join(crates, file), 'utf8')).items) items.set(parsed.key, parsed);
+		for (const parsed of parseRustModule(mod, file, readFileSync(path.join(crates, file), 'utf8'))
+			.items)
+			items.set(parsed.key, parsed);
 	}
 	return items.get(key);
 }
@@ -23,7 +25,9 @@ function item(key: string): RustItem | undefined {
 const crateKeys = Object.values(CRATES).join('|');
 
 const routes = path.resolve(import.meta.dirname);
-const pages = readdirSync(routes, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('+page.svelte'));
+const pages = readdirSync(routes, { recursive: true, encoding: 'utf8' }).filter((f) =>
+	f.endsWith('+page.svelte'),
+);
 
 describe('excerpts', () => {
 	for (const page of pages) {
@@ -35,12 +39,17 @@ describe('excerpts', () => {
 			continue;
 		}
 		const keys = new Map(
-			[...server.matchAll(new RegExp(`(\\w+): '((?:${crateKeys})\\/[^']+)'`, 'g'))].map((m) => [m[1], m[2]])
+			[...server.matchAll(new RegExp(`(\\w+):\\s*'((?:${crateKeys})\\/[^']+)'`, 'g'))].map((m) => [
+				m[1],
+				m[2],
+			]),
 		);
 		if (keys.size === 0) continue;
 		it(page, () => {
-			const missing = [...keys].filter(([, key]) => item(key) === undefined).map(([name, key]) => `${name}: ${key}`);
-			expect(missing.join(", ")).toBe("");
+			const missing = [...keys]
+				.filter(([, key]) => item(key) === undefined)
+				.map(([name, key]) => `${name}: ${key}`);
+			expect(missing.join(', ')).toBe('');
 			const svelte = readFileSync(path.join(routes, page), 'utf8');
 			for (const m of svelte.matchAll(/data\.code\.(\w+)\}\s*mark=\{\[([^\]]*)\]\}/g)) {
 				const key = keys.get(m[1]);
@@ -51,7 +60,8 @@ describe('excerpts', () => {
 					expect(code.includes(needle), `${key}: mark ${JSON.stringify(needle)}`).toBe(true);
 				}
 			}
-			for (const m of svelte.matchAll(/data\.code\.(\w+)/g)) expect(keys.has(m[1]), `data.code.${m[1]}`).toBe(true);
+			for (const m of svelte.matchAll(/data\.code\.(\w+)/g))
+				expect(keys.has(m[1]), `data.code.${m[1]}`).toBe(true);
 		});
 	}
 });

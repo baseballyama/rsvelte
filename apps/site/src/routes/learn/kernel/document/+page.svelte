@@ -25,10 +25,14 @@
 <div class="prose-learn">
 	<H2 id="ir" />
 	<p>
-		整形の中間表現は <dfn>LayoutInstruction</dfn> と呼ばれる木です。葉はテキストと改行の候補（line）で、節はそれらをまとめる group、字下げの indent などです。Prettier
-		の論文ではなく実装（<code>printDocToString</code>）を移植していて、ファイル冒頭のコメントがそれを約束しています。
+		整形の中間表現は <dfn>LayoutInstruction</dfn>
+		と呼ばれる木です。葉はテキストと改行の候補（line）で、節はそれらをまとめる group、字下げの indent
+		などです。Prettier の論文ではなく実装（<code>printDocToString</code
+		>）を移植していて、ファイル冒頭のコメントがそれを約束しています。
 	</p>
-	<blockquote class="font-mono text-[14px] leading-[1.7] whitespace-pre-line text-fg-2" lang="en">{data.docs}</blockquote>
+	<blockquote class="font-mono text-[14px] leading-[1.7] whitespace-pre-line text-fg-2" lang="en">
+		{data.docs}
+	</blockquote>
 	<p>改行の候補には四種類あります。</p>
 </div>
 
@@ -36,8 +40,13 @@
 
 <div class="prose-learn">
 	<p>
-		ノードは <code>Copy</code> な enum です。子を並べる <code>Concat</code>、<code>Group</code>、<code>Fill</code> は、子のリストへの範囲（<code>start</code>, <code>len</code>）を持ちます。リストの中身は
-		<code>LayoutInstructions::children</code> という一本のベクタに並びます。子が一つの <code>Indent</code>、<code>Dedent</code>、<code>FlatOnly</code>、<code>IfBreak</code>、<code>IndentIfBreak</code> は、子の識別番号を直接持ちます。
+		ノードは <code>Copy</code> な enum です。子を並べる <code>Concat</code>、<code>Group</code
+		>、<code>Fill</code> は、子のリストへの範囲（<code>start</code>,
+		<code>len</code>）を持ちます。リストの中身は
+		<code>LayoutInstructions::children</code> という一本のベクタに並びます。子が一つの
+		<code>Indent</code>、<code>Dedent</code>、<code>FlatOnly</code>、<code>IfBreak</code>、<code
+			>IndentIfBreak</code
+		> は、子の識別番号を直接持ちます。
 	</p>
 </div>
 
@@ -46,9 +55,11 @@
 
 <div class="prose-learn">
 	<p>
-		ノードごとに <code>Box</code> を作らないので、文書を組み立てるときの割り当ては、四本のベクタ（<code>nodes</code>、<code
+		ノードごとに <code>Box</code>
+		を作らないので、文書を組み立てるときの割り当ては、四本のベクタ（<code>nodes</code>、<code
 			>breaks</code
-		>、<code>children</code>、<code>buffer</code>）が伸びる分だけです。テキストも、実行時に作った文字列は <code>buffer</code> に追記し、ノードはその範囲だけを持ちます。
+		>、<code>children</code>、<code>buffer</code
+		>）が伸びる分だけです。テキストも、実行時に作った文字列は <code>buffer</code> に追記し、ノードはその範囲だけを持ちます。
 	</p>
 </div>
 
@@ -56,12 +67,11 @@
 
 <div class="prose-learn">
 	<p>
-		閉じタグ <code>&lt;/div&gt;</code> のように、いくつかの断片をつないだテキストは <code>text_parts</code> で作ります。<code
-			>format!</code
-		>
-		で一度 <code>String</code> を作ってから <code>text</code> に渡すと、その <code>String</code> の分だけ割り当てが増えます。<code
-			>text_parts</code
-		>
+		閉じタグ <code>&lt;/div&gt;</code> のように、いくつかの断片をつないだテキストは
+		<code>text_parts</code>
+		で作ります。<code>format!</code>
+		で一度 <code>String</code> を作ってから <code>text</code> に渡すと、その <code>String</code>
+		の分だけ割り当てが増えます。<code>text_parts</code>
 		は断片を <code>buffer</code> に直接書きます。導入後、1回の実行でメモリを確保する回数は2,192,937回から2,021,660回に減りました。
 		Svelte の整形処理だけでは691,547回から520,270回に減りました（e0ef873545）。
 	</p>
@@ -71,8 +81,11 @@
 
 <div class="prose-learn">
 	<p>
-		四本のベクタそのものも、文書ごとに作り直しません。<Term name="LayoutInstructions" /> はスレッドのプールから <Term name="LayoutInstructions" />
-		という鍵でバッファを借り、<code>Drop</code> で逆の順に返します（<a href="/learn/kernel/buffer-pool#keyed">12</a>）。
+		四本のベクタそのものも、文書ごとに作り直しません。<Term name="LayoutInstructions" /> はスレッドのプールから
+		<Term name="LayoutInstructions" />
+		という鍵でバッファを借り、<code>Drop</code> で逆の順に返します（<a
+			href="/learn/kernel/buffer-pool#keyed">12</a
+		>）。
 	</p>
 </div>
 
@@ -81,33 +94,49 @@
 <div class="prose-learn">
 	<H2 id="printer" />
 	<p>
-		プリンタは、コマンドのスタックを回すループです。コマンドは (インデント, モード, 要素) の三つ組で、モードは <dfn>flat</dfn>（平らに 1
-		行で）か <dfn>break</dfn>（改行する）のどちらかです。
+		プリンタは、コマンドのスタックを回すループです。コマンドは (インデント, モード, 要素)
+		の三つ組で、モードは <dfn>flat</dfn>（平らに 1 行で）か
+		<dfn>break</dfn>（改行する）のどちらかです。
 	</p>
 	<p>
-		改行するモードでも、ひとまとまりの内容は一行に収まるかを <code>fits</code> で調べます。
-		収まる場合は改行せず、収まらない場合は改行する指示を積みます。
+		改行するモードでも、ひとまとまりの内容は一行に収まるかを <code>fits</code> で調べます。 収まる場合は改行せず、収まらない場合は改行する指示を積みます。
 		改行しないモードでは、内側のまとまりも改行せずに出力します。
 	</p>
 </div>
 
-<DocumentPrinter label="図 8.1 · 文書プリンタ" presets={[call, fill, groupIds, flatOnly, remeasure]} />
+<DocumentPrinter
+	label="図 8.1 · 文書プリンタ"
+	presets={[call, fill, groupIds, flatOnly, remeasure]}
+/>
 
-<Code item={data.code.run} mark={['self.choose_group(identifier, indentation, mode, stack)', 'self.remeasure = true']} />
-<Code item={data.code.chooseGroup} mark={['let breaks_line = self.docs.will_break(identifier);', 'else if self.fits(&flat, stack, self.remaining(), false)']} />
+<Code
+	item={data.code.run}
+	mark={['self.choose_group(identifier, indentation, mode, stack)', 'self.remeasure = true']}
+/>
+<Code
+	item={data.code.chooseGroup}
+	mark={[
+		'let breaks_line = self.docs.will_break(identifier);',
+		'else if self.fits(&flat, stack, self.remaining(), false)',
+	]}
+/>
 
 <div class="prose-learn">
 	<p>
-		line は、flat モードなら空白（softline なら何もなし）、break モードなら改行とインデントになります。hardline
-		は平らな group の中でも必ず改行します。そのとき <code>remeasure</code> を立て、次の group では親のモードに関係なく測り直します。改行したあとは、行の残りの幅が変わっているからです。
+		line は、flat モードなら空白（softline なら何もなし）、break
+		モードなら改行とインデントになります。hardline は平らな group の中でも必ず改行します。そのとき <code
+			>remeasure</code
+		> を立て、次の group では親のモードに関係なく測り直します。改行したあとは、行の残りの幅が変わっているからです。
 	</p>
 	<p>
-		group を判断するとき、プリンタはまず <code>will_break</code> を見ます。hardline や breakParent、あるいは最初から break
-		と指定された group（<code>group_broken</code>）を中に含む group は、幅に関係なく break です。図の「hardline」を選ぶと、外側の group が
+		group を判断するとき、プリンタはまず <code>will_break</code> を見ます。hardline や
+		breakParent、あるいは最初から break と指定された group（<code>group_broken</code>）を中に含む
+		group は、幅に関係なく break です。図の「hardline」を選ぶと、外側の group が
 		<code>broken</code> と判断されるのが分かります。
 	</p>
 	<p>
-		Prettier はこの判断のために、出力の前に <code>propagateBreaks</code> で木を一度なめ、group の <code>break</code>
+		Prettier はこの判断のために、出力の前に <code>propagateBreaks</code> で木を一度なめ、group の
+		<code>break</code>
 		を書き換えます。カーネルでは、これをノードを作る時点で済ませます。ノードは自分より前に作られたノードしか参照できないので、子の答えは親を作るときにはすでに出ています。<code
 			>push</code
 		>
@@ -121,10 +150,12 @@
 
 <div class="prose-learn">
 	<p>
-		以前は出力の前に構文木全体を調べる <code>propagate_breaks</code> があり、hardline と breakParent だけを数えていました。そのため
-		<code>group(["x", line, group(["y"], {'{'} shouldBreak: true {'}'})])</code> という入力で違いが出ました。
-		Prettier 3.9.9 は <code>x\ny</code> と改行します。カーネルは <code>x y</code> と出力していました。
-		作る時点で数える形に変えたときに、<code>breaks_line</code> の立った group も数えるようにしました。Svelte
+		以前は出力の前に構文木全体を調べる <code>propagate_breaks</code> があり、hardline と breakParent
+		だけを数えていました。そのため
+		<code>group(["x", line, group(["y"], {'{'} shouldBreak: true {'}'})])</code>
+		という入力で違いが出ました。 Prettier 3.9.9 は <code>x\ny</code> と改行します。カーネルは
+		<code>x y</code>
+		と出力していました。 作る時点で数える形に変えたときに、<code>breaks_line</code> の立った group も数えるようにしました。Svelte
 		の検証用のソースファイル集では整形の出力が 37 ファイルで変わり、そのうち 35 ファイルが比較元の公式ツールと一致するようになりました。一致していたファイルが外れた例はありません（708a4403d5）。
 	</p>
 </div>
@@ -134,28 +165,40 @@
 <div class="prose-learn">
 	<H2 id="fits" />
 	<p>
-		<code>fits</code> は、平らに出力したら何列使うかを数えます。ただし、group の中身だけを数えるのではありません。group
-		のあとに続く、スタックに残ったコマンド（<dfn>rest commands</dfn>）も、最初の改行に出会うまで数えます。
+		<code>fits</code> は、平らに出力したら何列使うかを数えます。ただし、group
+		の中身だけを数えるのではありません。group のあとに続く、スタックに残ったコマンド（<dfn
+			>rest commands</dfn
+		>）も、最初の改行に出会うまで数えます。
 	</p>
 </div>
 
 <Code item={data.code.fits} />
-<Code item={data.code.fitsIn} mark={['rest_i -= 1;', 'if must_be_flat && breaks_line {', 'if mode == Mode::Break || matches!(kind, LineKind::Hard | LineKind::Literal)']} />
+<Code
+	item={data.code.fitsIn}
+	mark={[
+		'rest_i -= 1;',
+		'if must_be_flat && breaks_line {',
+		'if mode == Mode::Break || matches!(kind, LineKind::Hard | LineKind::Literal)',
+	]}
+/>
 
 <div class="prose-learn">
 	<p>
-		<code>fits</code> は group を判断するたびに呼ばれるので、作業リストのベクタは <code>Printer</code> が持つ <code>scratch</code>
+		<code>fits</code> は group を判断するたびに呼ばれるので、作業リストのベクタは
+		<code>Printer</code>
+		が持つ <code>scratch</code>
 		を使い回し、呼び出しごとに確保しません。数える本体は <code>fits_in</code> です。
 	</p>
 	<p>
-		たとえば <code>f(a, b);</code> の group が収まるかは、閉じ括弧のあとの <code>;</code> まで含めて決まります。group
-		だけ見て「収まる」と判断すると、<code>;</code> がはみ出します。rest commands は自分のモードで数えるので、break
-		モードの line に着いたところで「そこで改行できる」として true を返します。
+		たとえば <code>f(a, b);</code> の group が収まるかは、閉じ括弧のあとの <code>;</code>
+		まで含めて決まります。group だけ見て「収まる」と判断すると、<code>;</code> がはみ出します。rest commands
+		は自分のモードで数えるので、break モードの line に着いたところで「そこで改行できる」として true を返します。
 	</p>
 
 	<H2 id="fill" />
 	<p>
-		<dfn>fill</dfn> は、段落の文字詰めのように、収まるだけ一行に並べてから改行します。子は「内容, 区切り, 内容, 区切り, …」と交互に並び、プリンタは二つずつ判断します。
+		<dfn>fill</dfn> は、段落の文字詰めのように、収まるだけ一行に並べてから改行します。子は「内容, 区切り,
+		内容, 区切り, …」と交互に並び、プリンタは二つずつ判断します。
 	</p>
 </div>
 
@@ -163,19 +206,20 @@
 
 <div class="prose-learn">
 	<p>
-		区切りを flat にするかは、<strong>[内容, 区切り, 次の内容]</strong>の三つ組が平らに収まるかで決めます。このとき
+		区切りを flat にするかは、<strong>[内容, 区切り, 次の内容]</strong
+		>の三つ組が平らに収まるかで決めます。このとき
 		<code>fits</code> は <code>must_be_flat</code> で呼ばれ、中に強制改行の group があれば、その時点で「収まらない」と答えます。
 	</p>
 
 	<DeepDive title="mustBeFlat にはテストがなかった">
 		<p>
 			この教材を作る途中で <code>must_be_flat</code> の分岐を消しても Rust のテストがすべて通ることに気づきました。この分岐を判別するテストがなかったため、強制改行の
-			group を内容に持つ fill のテストを Rust に足しました。ブラウザの図も同じ Rust プリンタを WebAssembly で実行するため、このテストが守る実装をそのまま通ります。
+			group を内容に持つ fill のテストを Rust に足しました。ブラウザの図も同じ Rust プリンタを WebAssembly
+			で実行するため、このテストが守る実装をそのまま通ります。
 		</p>
 		<p>
-			分岐を消すと、区切りの判断で中の group の line を「break モードの line に着いた」と数えて true を返し、区切りが平らになってしまいます（<code
-				>b c</code
-			>
+			分岐を消すと、区切りの判断で中の group の line を「break モードの line に着いた」と数えて true
+			を返し、区切りが平らになってしまいます（<code>b c</code>
 			が同じ行に並ぶ）。
 		</p>
 	</DeepDive>
@@ -188,7 +232,9 @@
 <div class="prose-learn">
 	<H2 id="group-ids" />
 	<p>
-		<code>if_break</code> は、囲む group が break なら一つ目、flat なら二つ目を出力します。<code>if_break_of</code>
+		<code>if_break</code> は、囲む group が break なら一つ目、flat なら二つ目を出力します。<code
+			>if_break_of</code
+		>
 		は囲む group ではなく、名前（group id）で指定した group のモードに従います。
 	</p>
 </div>
@@ -197,8 +243,8 @@
 
 <div class="prose-learn">
 	<p>
-		名前を付けた group のモードは、プリンタがその group を判断したときに <code>group_modes</code> に記録されます。まだ判断していない
-		group を参照すると、flat として扱います<Note
+		名前を付けた group のモードは、プリンタがその group を判断したときに <code>group_modes</code>
+		に記録されます。まだ判断していない group を参照すると、flat として扱います<Note
 			>Prettier の <code>printDocToString</code> も、未判断の group は flat として扱います。</Note
 		>。<code>indent_if_break</code> も同じ表を見て、名前の group が break のときだけ字下げします。
 	</p>
@@ -213,9 +259,13 @@
 
 <div class="prose-learn">
 	<p>
-		整形器の移植は途中で、改行したときのレイアウトをまだ移植していない構文があります。そうした構文を flat_only
-		で包んでおくと、幅に収まる限りは正しく 1 行に出力し、収まらないときは出力そのものを拒否（<code>Refused</code>）します。収まらないときに「それらしく」改行すると、Prettier
-		が出さないレイアウトを出してしまうからです。<a href="/learn/kernel/diagnostics#unsupported">07</a> の「近似しない」をプリンタに持ち込んだものです。図 8.1 の「flat_only」で、幅を狭めてみてください。
+		整形器の移植は途中で、改行したときのレイアウトをまだ移植していない構文があります。そうした構文を
+		flat_only で包んでおくと、幅に収まる限りは正しく 1
+		行に出力し、収まらないときは出力そのものを拒否（<code>Refused</code
+		>）します。収まらないときに「それらしく」改行すると、Prettier
+		が出さないレイアウトを出してしまうからです。<a href="/learn/kernel/diagnostics#unsupported"
+			>07</a
+		> の「近似しない」をプリンタに持ち込んだものです。図 8.1 の「flat_only」で、幅を狭めてみてください。
 	</p>
 </div>
 
@@ -223,26 +273,29 @@
 
 <div class="prose-learn">
 	<p>
-		<code>print</code> は、<code>flat_only</code> が収まらないと分かった時点で出力をやめます。どうせ呼び出し側には
+		<code>print</code> は、<code>flat_only</code>
+		が収まらないと分かった時点で出力をやめます。どうせ呼び出し側には
 		<code>Refused</code> しか返らないので、残りを出力しても無駄になるからです。
 	</p>
-	<p>
-		改行のたびに、行末の空白とタブを取り除きます（literalline では取り除きません）。
-	</p>
+	<p>改行のたびに、行末の空白とタブを取り除きます（literalline では取り除きません）。</p>
 </div>
 
 <Code item={data.code.newline} />
 
 <div class="prose-learn">
 	<p>
-		幅は Rust の <code>unicode-width</code> に任せています。東アジア幅に加えて、結合文字や ゼロ幅の結合文字
-		絵文字などの文字列内の並びも扱うため、このプロジェクトで Unicode の表を生成して持つ必要はありません。これは端末風の表示列数を安定して見積もるための規則であり、フォントによる実際の描画幅や
+		幅は Rust の <code>unicode-width</code> に任せています。東アジア幅に加えて、結合文字や
+		ゼロ幅の結合文字 絵文字などの文字列内の並びも扱うため、このプロジェクトで Unicode
+		の表を生成して持つ必要はありません。これは端末風の表示列数を安定して見積もるための規則であり、フォントによる実際の描画幅や
 		Prettier の歴史的な規則との完全一致を目的にはしていません。<Note
-			>この教材のブラウザ上のプリンタ（図 8.1）も、WebAssembly を通して同じ Rust の <code>string_width</code> を使います。</Note
+			>この教材のブラウザ上のプリンタ（図 8.1）も、WebAssembly を通して同じ Rust の <code
+				>string_width</code
+			> を使います。</Note
 		>
 	</p>
 	<p>
-		Unicode データと複合列の判定は crate が所有し、このリポジトリのテストは 英数字などの基本文字、中国語・日本語・韓国語、結合文字、絵文字という必要な意味を確認します。依存バージョンは
+		Unicode データと複合列の判定は crate が所有し、このリポジトリのテストは
+		英数字などの基本文字、中国語・日本語・韓国語、結合文字、絵文字という必要な意味を確認します。依存バージョンは
 		<code>Cargo.lock</code> が固定するため、同じツリーの整形結果は再現できます。
 	</p>
 </div>
@@ -256,9 +309,9 @@
 	</p>
 	<ul>
 		<li>
-			<code>trim_left</code> と <code>trim_right</code> は、prettier-plugin-svelte の <code>trim</code> を移植したもので、<code
-				>replace_parts</code
-			>
+			<code>trim_left</code> と <code>trim_right</code> は、prettier-plugin-svelte の
+			<code>trim</code>
+			を移植したもので、<code>replace_parts</code>
 			で既存のノードの子リストを差し替えます。
 		</li>
 		<li><code>remove_lines</code> は逆に、元のノードを変えずに新しいノードを作って返します。</li>
@@ -269,8 +322,10 @@
 
 <div class="prose-learn">
 	<p>
-		Prettier は <code>propagateBreaks</code> を出力の直前に走らせるので、trim のあとの木で数え直します。一方
-		<Term name="LayoutInstructions" /> は <code>will_break</code> をノードを作るときに決めてしまいます。そこで <code>replace_parts</code>
+		Prettier は <code>propagateBreaks</code> を出力の直前に走らせるので、trim
+		のあとの木で数え直します。一方
+		<Term name="LayoutInstructions" /> は <code>will_break</code>
+		をノードを作るときに決めてしまいます。そこで <code>replace_parts</code>
 		は、子リストを差し替えたあと持ち主の答えを数え直します。子を取り除いても break が増えることはないので、数え直すのは元の答えが
 		true のときだけです。trim は内側から順に差し替えるので、子の答えはその時点で最新です。以前はこの数え直しがなく、hardline
 		を取り除かれた group が壊れたまま出力されていました（e8196d855b）。fixtures の出力でこの形を踏むものは一つもありません（105,387
@@ -279,10 +334,12 @@
 </div>
 
 <Caution>
-	同じノードを木の二か所で共有していると、<code>trim</code> で片方を整えたつもりが、もう片方も変わります。ノードは
-	<code>Copy</code> な識別番号で配れるので、共有は簡単に起きます。それでも複製する形にしないのは、上流の prettier-plugin-svelte
-	も配列をその場で書き換えていて、共有された doc についての出力を上流と揃えるためです（<a href="/learn/polish#correctness"
-		>14 磨きどころ</a
+	同じノードを木の二か所で共有していると、<code>trim</code>
+	で片方を整えたつもりが、もう片方も変わります。ノードは
+	<code>Copy</code>
+	な識別番号で配れるので、共有は簡単に起きます。それでも複製する形にしないのは、上流の prettier-plugin-svelte
+	も配列をその場で書き換えていて、共有された doc についての出力を上流と揃えるためです（<a
+		href="/learn/polish#correctness">14 磨きどころ</a
 	>）。
 </Caution>
 

@@ -1,17 +1,29 @@
 import { readFile } from 'node:fs/promises';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { initializePipeline, runPipeline, type PipelineRequest, type PipelineStep } from './pipeline-browser';
+import {
+	initializePipeline,
+	runPipeline,
+	type PipelineRequest,
+	type PipelineStep,
+} from './pipeline-browser';
 import { accessSummary, computationCount, examples } from './pipeline-playground';
 
 beforeAll(async () => {
-	await initializePipeline(await readFile(new URL('../../../generated/wasm/kernel/rsvelte_kernel_browser_bg.wasm', import.meta.url)));
+	await initializePipeline(
+		await readFile(
+			new URL('../../../generated/wasm/kernel/rsvelte_kernel_browser_bg.wasm', import.meta.url),
+		),
+	);
 });
 
 function request(id = 'svelte'): PipelineRequest {
 	const example = examples.find((item) => item.id === id)!;
 	return {
-		source: example.source, filename: example.filename,
-		plugins: [example.plugin], operations: ['compile-client', 'format', 'lint'], shared: true
+		source: example.source,
+		filename: example.filename,
+		plugins: [example.plugin],
+		operations: ['compile-client', 'format', 'lint'],
+		shared: true,
 	};
 }
 
@@ -38,8 +50,9 @@ describe('language plugins through the real Rust pipeline in WebAssembly', () =>
 		expect(steps({ ...input, plugins: [] })).toEqual([]);
 		expect(steps({ ...input, plugins: ['vue', 'svue'] })).toEqual([]);
 		expect(steps({ ...input, operations: [] })).toEqual([]);
-		expect(steps({ ...input, plugins: ['svelte', 'vue', 'svue'] }).map((step) => step.id))
-			.toEqual(steps(input).map((step) => step.id));
+		expect(steps({ ...input, plugins: ['svelte', 'vue', 'svue'] }).map((step) => step.id)).toEqual(
+			steps(input).map((step) => step.id),
+		);
 	});
 
 	it('computes only the artifacts needed by the selected task', () => {
@@ -54,8 +67,9 @@ describe('language plugins through the real Rust pipeline in WebAssembly', () =>
 		expect(computationCount(shared, 'svelte.parse')).toBe(1);
 		expect(computationCount(isolated, 'svelte.parse')).toBe(shared.length);
 		expect(shared[1].accesses).toContainEqual({ name: 'svelte.parse', cached: true });
-		expect(shared.map(({ id, files, diagnostics }) => ({ id, files, diagnostics })))
-			.toEqual(isolated.map(({ id, files, diagnostics }) => ({ id, files, diagnostics })));
+		expect(shared.map(({ id, files, diagnostics }) => ({ id, files, diagnostics }))).toEqual(
+			isolated.map(({ id, files, diagnostics }) => ({ id, files, diagnostics })),
+		);
 	});
 
 	it('translates a Vue component for the Svelte runtime', () => {
@@ -67,26 +81,41 @@ describe('language plugins through the real Rust pipeline in WebAssembly', () =>
 	});
 
 	it('translates a Svelte component for the Vue runtime, sharing the Svelte parse', () => {
-		const result = steps({ ...request('vuelte'), operations: ['compile-client', 'compile-server'] });
-		expect(result.map((step) => step.id)).toEqual(['vuelte.compile/client', 'vuelte.compile/server']);
+		const result = steps({
+			...request('vuelte'),
+			operations: ['compile-client', 'compile-server'],
+		});
+		expect(result.map((step) => step.id)).toEqual([
+			'vuelte.compile/client',
+			'vuelte.compile/server',
+		]);
 		expect(computationCount(result, 'svelte.parse')).toBe(1);
 		expect(result[0].files.find((file) => file.name === 'js')?.text).toContain('vue');
 	});
 
 	it('uses one parser for both Svelte compile targets', () => {
 		const result = steps({ ...request(), operations: ['compile-client', 'compile-server'] });
-		expect(result.map((step) => step.id)).toEqual(['svelte.compile/client', 'svelte.compile/server']);
+		expect(result.map((step) => step.id)).toEqual([
+			'svelte.compile/client',
+			'svelte.compile/server',
+		]);
 		expect(computationCount(result, 'svelte.parse')).toBe(1);
-		expect(result[0].files.find((file) => file.name === 'js')?.text)
-			.not.toEqual(result[1].files.find((file) => file.name === 'js')?.text);
+		expect(result[0].files.find((file) => file.name === 'js')?.text).not.toEqual(
+			result[1].files.find((file) => file.name === 'js')?.text,
+		);
 	});
 
 	it('returns real syntax errors with positions', () => {
 		const result = steps({ ...request(), source: '<p>', operations: ['format'] });
 		expect(result[0].files).toEqual([]);
-		expect(result[0].diagnostics).toEqual([expect.objectContaining({
-			severity: 'error', line: expect.any(Number), column: expect.any(Number), message: expect.any(String)
-		})]);
+		expect(result[0].diagnostics).toEqual([
+			expect.objectContaining({
+				severity: 'error',
+				line: expect.any(Number),
+				column: expect.any(Number),
+				message: expect.any(String),
+			}),
+		]);
 	});
 
 	it('rejects unknown selections, deduplicates plugins, and enforces the source limit', () => {
@@ -98,8 +127,14 @@ describe('language plugins through the real Rust pipeline in WebAssembly', () =>
 
 	it('summarizes actual accesses without counting reuse as new computation', () => {
 		const step: PipelineStep = {
-			id: 'test', accesses: [{ name: 'parse', cached: false }, { name: 'parse', cached: true }],
-			artifacts: [], files: [], diagnostics: []
+			id: 'test',
+			accesses: [
+				{ name: 'parse', cached: false },
+				{ name: 'parse', cached: true },
+			],
+			artifacts: [],
+			files: [],
+			diagnostics: [],
 		};
 		expect(accessSummary(step)).toEqual([{ name: 'parse', computed: 1, reused: 1 }]);
 		expect(computationCount([step])).toBe(1);

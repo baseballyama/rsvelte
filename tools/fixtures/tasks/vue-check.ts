@@ -19,14 +19,25 @@ const runTsc = require('@volar/typescript/lib/quickstart/runTsc') as {
 runTsc.getLanguagePlugins = (ts: typeof TS, options: TS.CreateProgramOptions) => {
 	const configFilePath = options.options.configFilePath as string;
 	const vueOptions = core.createParsedCommandLine(ts, ts.sys, configFilePath).vueOptions;
-	return { languagePlugins: [core.createVueLanguagePlugin(ts, options.options, vueOptions, (id: string) => id)] };
+	return {
+		languagePlugins: [
+			core.createVueLanguagePlugin(ts, options.options, vueOptions, (id: string) => id),
+		],
+	};
 };
 const ts: typeof TS = (() => {
 	const file = require.resolve('typescript');
-	const code = runTsc.transformTscContent(fs.readFileSync(file, 'utf8'), require.resolve('@volar/typescript/lib/node/proxyCreateProgram'), ['vue'], []);
+	const code = runTsc.transformTscContent(
+		fs.readFileSync(file, 'utf8'),
+		require.resolve('@volar/typescript/lib/node/proxyCreateProgram'),
+		['vue'],
+		[],
+	);
 	const m = new Module(file) as Module & { _compile(code: string, file: string): void };
 	m.filename = file;
-	m.paths = (Module as unknown as { _nodeModulePaths(dir: string): string[] })._nodeModulePaths(path.dirname(file));
+	m.paths = (Module as unknown as { _nodeModulePaths(dir: string): string[] })._nodeModulePaths(
+		path.dirname(file),
+	);
 	m._compile(code, file);
 	return m.exports as typeof TS;
 })();
@@ -50,22 +61,47 @@ const task: Task = {
 			const file = path.join(ws, unit.path);
 			fs.mkdirSync(path.dirname(file), { recursive: true });
 			fs.writeFileSync(file, src);
-			const parsed = ts.parseJsonConfigFileContent(ts.readConfigFile(tsconfig, ts.sys.readFile).config, ts.sys, ws, undefined, tsconfig, undefined, [
-				{ extension: 'vue', isMixedContent: true, scriptKind: ts.ScriptKind.Deferred }
-			]);
+			const parsed = ts.parseJsonConfigFileContent(
+				ts.readConfigFile(tsconfig, ts.sys.readFile).config,
+				ts.sys,
+				ws,
+				undefined,
+				tsconfig,
+				undefined,
+				[{ extension: 'vue', isMixedContent: true, scriptKind: ts.ScriptKind.Deferred }],
+			);
 			const options = { ...parsed.options, configFilePath: tsconfig };
-			const program = ts.createProgram({ rootNames: [file], options, host: ts.createCompilerHost(options) });
+			const program = ts.createProgram({
+				rootNames: [file],
+				options,
+				host: ts.createCompilerHost(options),
+			});
 			const findings = ts.getPreEmitDiagnostics(program).map((d) => {
-				if (!d.file || d.start === undefined || d.length === undefined) throw new Error(`a diagnostic without a position: ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`);
-				if (path.resolve(d.file.fileName) !== file) throw new Error(`diagnostic for another file: ${d.file.fileName}`);
+				if (!d.file || d.start === undefined || d.length === undefined)
+					throw new Error(
+						`a diagnostic without a position: ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`,
+					);
+				if (path.resolve(d.file.fileName) !== file)
+					throw new Error(`diagnostic for another file: ${d.file.fileName}`);
 				const start = d.file.getLineAndCharacterOfPosition(d.start);
 				const end = d.file.getLineAndCharacterOfPosition(d.start + d.length);
-				return { code: d.code, message: ts.flattenDiagnosticMessageText(d.messageText, '\n'), start, end };
+				return {
+					code: d.code,
+					message: ts.flattenDiagnosticMessageText(d.messageText, '\n'),
+					start,
+					end,
+				};
 			});
-			return { findings: { text: JSON.stringify(findings, null, '\t') + '\n', ext: 'json', compare: 'json' } };
+			return {
+				findings: {
+					text: JSON.stringify(findings, null, '\t') + '\n',
+					ext: 'json',
+					compare: 'json',
+				},
+			};
 		} finally {
 			fs.rmSync(ws, { recursive: true, force: true });
 		}
-	}
+	},
 };
 export default task;

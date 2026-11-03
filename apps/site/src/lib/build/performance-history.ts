@@ -31,7 +31,7 @@ const counters = (b: BaselineCounters) => ({
 	alloc_bytes: b.alloc_bytes,
 	peak_live_growth_bytes: b.peak_live_growth_bytes,
 	instructions: b.instructions?.[PLATFORM] ?? null,
-	load_instructions: b.load_instructions?.[PLATFORM] ?? null
+	load_instructions: b.load_instructions?.[PLATFORM] ?? null,
 });
 
 /**
@@ -39,22 +39,27 @@ const counters = (b: BaselineCounters) => ({
  * silently at the clone's depth: a boundary commit reads as adding every file.
  */
 export function performanceHistory(root: string): PerformanceRecord[] {
-	const git = (...args: string[]) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 1 << 26 }).trim();
+	const git = (...args: string[]) =>
+		execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 1 << 26 }).trim();
 	const file = 'tools/performance/baseline.json';
 	const historicalFile = 'tools/perf/baseline.json';
-	const shas = git('log', '--reverse', '--format=%H', '--', file, historicalFile).split('\n').filter(Boolean);
+	const shas = git('log', '--reverse', '--format=%H', '--', file, historicalFile)
+		.split('\n')
+		.filter(Boolean);
 	const shallow = path.resolve(root, git('rev-parse', '--git-path', 'shallow'));
 	const boundary = existsSync(shallow) ? readFileSync(shallow, 'utf8').split('\n') : [];
 	if (shas.length === 0 || boundary.includes(shas[0]!)) {
 		throw new Error(`the history of ${file} is cut by a shallow clone: fetch with depth 0`);
 	}
 	const records: PerformanceRecord[] = shas.map((sha) => {
-		const recordedFile = git('ls-tree', '--name-only', sha, '--', file, historicalFile).split('\n').find(candidate => candidate === file || candidate === historicalFile);
+		const recordedFile = git('ls-tree', '--name-only', sha, '--', file, historicalFile)
+			.split('\n')
+			.find((candidate) => candidate === file || candidate === historicalFile);
 		if (!recordedFile) throw new Error(`Missing baseline at ${sha}`);
 		return {
 			sha: sha.slice(0, 10),
 			subject: git('log', '-1', '--format=%s', sha),
-			...counters(JSON.parse(git('show', `${sha}:${recordedFile}`)))
+			...counters(JSON.parse(git('show', `${sha}:${recordedFile}`))),
 		};
 	});
 	const now = counters(JSON.parse(readFileSync(path.join(root, file), 'utf8')));

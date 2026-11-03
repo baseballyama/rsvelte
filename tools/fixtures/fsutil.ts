@@ -19,7 +19,9 @@ export function stableStringify(value: unknown, indent: string = '\t'): string {
 export function sortKeys<T>(value: T): T {
 	if (Array.isArray(value)) return value.map(sortKeys) as T;
 	if (value && typeof value === 'object') {
-		const keys = Object.keys(value).sort((a, b) => (a === 'type' ? -1 : b === 'type' ? 1 : a < b ? -1 : a > b ? 1 : 0));
+		const keys = Object.keys(value).sort((a, b) =>
+			a === 'type' ? -1 : b === 'type' ? 1 : a < b ? -1 : a > b ? 1 : 0,
+		);
 		const out: Record<string, unknown> = {};
 		for (const k of keys) out[k] = sortKeys((value as Record<string, unknown>)[k]);
 		return out as T;

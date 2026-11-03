@@ -24,6 +24,6 @@ export const load = () => ({
 		componentDrop: 'svelte/syntax/syntax_tree/Component::drop',
 		test: 'kernel/performance/buffer_pool/tests::capacity_is_reused_on_the_same_thread',
 		keyedTest: 'kernel/performance/buffer_pool/tests::keyed_buffers_are_not_handed_to_other_owners',
-		budgetTest: 'kernel/performance/buffer_pool/tests::a_buffer_past_the_budget_is_freed'
-	})
+		budgetTest: 'kernel/performance/buffer_pool/tests::a_buffer_past_the_budget_is_freed',
+	}),
 });

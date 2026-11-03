@@ -1,9 +1,21 @@
 {
-  "maxLines": 600,
-  "exceptions": {
-    "crates/kernel/src/output/document.rs": {
-      "maxLines": 1309,
-      "reason": "Existing source; keep its size until its responsibility can be split."
-    }
-  }
+	"maxLines": 600,
+	"exceptions": {
+		"crates/kernel/src/output/document.rs": {
+			"maxLines": 1309,
+			"reason": "Existing source; keep its size until its responsibility can be split."
+		},
+		"apps/site/src/lib/widgets/PipelinePlayground.svelte": {
+			"maxLines": 915,
+			"reason": "Grew past the limit when oxfmt first wrapped its long lines; keep its size until it is split."
+		},
+		"apps/site/src/routes/learn/kernel/layers/+page.svelte": {
+			"maxLines": 647,
+			"reason": "Grew past the limit when oxfmt first wrapped its long lines; keep its size until it is split."
+		},
+		"apps/site/src/routes/learn/polish/+page.svelte": {
+			"maxLines": 627,
+			"reason": "Grew past the limit when oxfmt first wrapped its long lines; keep its size until it is split."
+		}
+	}
 }

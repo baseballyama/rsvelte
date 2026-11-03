@@ -6,10 +6,10 @@ Each crate keeps cases for its own tasks in `tests/fixtures/`. `rsvelte_fixture_
 
 A case has one of two kinds of `expected/`:
 
-| Kind | Where | `expected/` holds | A difference |
-|---|---|---|---|
-| hand-written | any directory without `source.json` above it (`rsvelte/` in the compile crate) | rsvelte's own output, accepted with `UPDATE_EXPECT=1` | fails the test |
-| copied from the corpus | `tests/fixtures/<source>/`, which holds `source.json` | the official tool's output | is counted, not failed |
+| Kind                   | Where                                                                          | `expected/` holds                                     | A difference           |
+| ---------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------- | ---------------------- |
+| hand-written           | any directory without `source.json` above it (`rsvelte/` in the compile crate) | rsvelte's own output, accepted with `UPDATE_EXPECT=1` | fails the test         |
+| copied from the corpus | `tests/fixtures/<source>/`, which holds `source.json`                          | the official tool's output                            | is counted, not failed |
 
 Snapshots show what changed. Only copied cases show what is correct. A snapshot registered with
 `javascript_snapshot` compares its `.js` file with the official one as a syntax tree, with the
@@ -116,20 +116,20 @@ Type-check tasks need native TypeScript 7.1 and the framework packages.
 
 ## Where the cases are
 
-| Crate | Tasks | Snapshot names |
-|---|---|---|
-| `languages/svelte/compile` | `svelte.compile/client`, `/server` | `client`, `server` |
-| `languages/svelte/format` | `svelte.format/default` | `formatted` |
-| `languages/svelte/lint` | `svelte.lint/default` | `findings` |
-| `languages/svelte/typecheck` | `svelte.check/default` | `findings` |
-| `languages/svelte/typescript_projection` | `svelte.typescript_projection/default` | `projection` |
-| `languages/svelte/compile_vapor` | `vuelte.compile/client`, `/server` | `client`, `server` |
-| `languages/vue/compile` | `vue.compile/default` | `compiled` |
-| `languages/vue/format` | `vue.format/default` | `formatted` |
-| `languages/vue/lint` | `vue.lint/default` | `findings` |
-| `languages/vue/check` | `vue.check/default` | `findings` |
-| `languages/vue/compile_svelte` | `svue.compile/client`, `/server` | `client`, `server` |
-| `hosts/command_line` | `ts.check/default` (registered by the host) | `ts-check` |
+| Crate                                    | Tasks                                       | Snapshot names     |
+| ---------------------------------------- | ------------------------------------------- | ------------------ |
+| `languages/svelte/compile`               | `svelte.compile/client`, `/server`          | `client`, `server` |
+| `languages/svelte/format`                | `svelte.format/default`                     | `formatted`        |
+| `languages/svelte/lint`                  | `svelte.lint/default`                       | `findings`         |
+| `languages/svelte/typecheck`             | `svelte.check/default`                      | `findings`         |
+| `languages/svelte/typescript_projection` | `svelte.typescript_projection/default`      | `projection`       |
+| `languages/svelte/compile_vapor`         | `vuelte.compile/client`, `/server`          | `client`, `server` |
+| `languages/vue/compile`                  | `vue.compile/default`                       | `compiled`         |
+| `languages/vue/format`                   | `vue.format/default`                        | `formatted`        |
+| `languages/vue/lint`                     | `vue.lint/default`                          | `findings`         |
+| `languages/vue/check`                    | `vue.check/default`                         | `findings`         |
+| `languages/vue/compile_svelte`           | `svue.compile/client`, `/server`            | `client`, `server` |
+| `hosts/command_line`                     | `ts.check/default` (registered by the host) | `ts-check`         |
 
 Svelte type checking and TypeScript projection use `Fixtures::inputs_from` to read the compiler's exact input
 population. Each crate keeps its own expectations and actual outputs. Missing external

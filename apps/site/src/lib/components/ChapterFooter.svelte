@@ -17,10 +17,16 @@
 			class="group flex flex-col rounded-lg border border-line px-4 py-3.5 hover:border-line-strong hover:bg-surface"
 		>
 			<span class="flex items-center gap-1.5 text-[12.5px] text-muted">
-				<Icon name="arrow-left" size={13} class="transition-transform group-hover:-translate-x-0.5" />前の章
+				<Icon
+					name="arrow-left"
+					size={13}
+					class="transition-transform group-hover:-translate-x-0.5"
+				/>前の章
 				<span class="font-mono tracking-normal">{prev.number}</span>
 			</span>
-			<span class="mt-1 text-[15.5px] leading-snug font-medium text-fg group-hover:text-accent">{prev.title}</span>
+			<span class="mt-1 text-[15.5px] leading-snug font-medium text-fg group-hover:text-accent"
+				>{prev.title}</span
+			>
 		</a>
 	{:else}
 		<span class="max-sm:hidden"></span>
@@ -38,7 +44,9 @@
 					class="transition-transform group-hover:translate-x-0.5"
 				/>
 			</span>
-			<span class="mt-1 text-[15.5px] leading-snug font-medium text-fg group-hover:text-accent">{next.title}</span>
+			<span class="mt-1 text-[15.5px] leading-snug font-medium text-fg group-hover:text-accent"
+				>{next.title}</span
+			>
 			<span class="mt-1 line-clamp-2 text-[13px] leading-[1.6] text-muted">{next.abstract}</span>
 		</a>
 	{/if}

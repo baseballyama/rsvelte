@@ -6,7 +6,9 @@ import { chapters } from './site.ts';
 // Prose names chapters by number ("（<a href="/learn/kernel/database">04</a>）", "13 実測"); inserting a
 // chapter renumbers the rest, so every such number is checked against the table of contents.
 const root = path.resolve(import.meta.dirname, '..');
-const files = readdirSync(root, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('.svelte'));
+const files = readdirSync(root, { recursive: true, encoding: 'utf8' }).filter((f) =>
+	f.endsWith('.svelte'),
+);
 const byHref = new Map(chapters.map((c) => [c.href, c]));
 
 describe('chapter numbers in prose', () => {

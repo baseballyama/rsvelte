@@ -31,11 +31,12 @@ export function buildInfo(): { rev: string; clean: boolean } {
 }
 
 /** Several excerpts at once, keyed by the name a page uses for them. */
-export function excerpts<K extends string>(keys: Record<K, string>): Record<K, ReturnType<typeof excerpt>> {
-	return Object.fromEntries(Object.entries<string>(keys).map(([k, v]) => [k, excerpt(v)])) as Record<
-		K,
-		ReturnType<typeof excerpt>
-	>;
+export function excerpts<K extends string>(
+	keys: Record<K, string>,
+): Record<K, ReturnType<typeof excerpt>> {
+	return Object.fromEntries(
+		Object.entries<string>(keys).map(([k, v]) => [k, excerpt(v)]),
+	) as Record<K, ReturnType<typeof excerpt>>;
 }
 
 export function crateSizes() {

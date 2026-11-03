@@ -7,28 +7,15 @@ import { parse as parseToml } from 'smol-toml';
 import { compile as compileSvelte } from 'svelte/compiler';
 import type { Target } from './modules.ts';
 import { svelteModule, vueModule } from './official.ts';
-import {
-	moduleFile,
-	trace,
-	traceDiff,
-	type Behaviour,
-} from './runtime.ts';
+import { moduleFile, trace, traceDiff, type Behaviour } from './runtime.ts';
 import { ROOT } from '../paths.ts';
 import { svueCompile, vuelteCompile } from '../tasks/behaviour.ts';
 import type { Unit } from '../types.ts';
 
 const TARGETS: Target[] = ['client', 'server'];
-const INVALID_AWAIT_DIRECTIVES = [
-	'action',
-	'attachment',
-	'transition',
-	'animation',
-	'binding',
-];
+const INVALID_AWAIT_DIRECTIVES = ['action', 'attachment', 'transition', 'animation', 'binding'];
 const DIAGNOSTIC_CASES = new Set([
-	...INVALID_AWAIT_DIRECTIVES.map(
-		(directive) => `invalid-await-${directive}.svelte`,
-	),
+	...INVALID_AWAIT_DIRECTIVES.map((directive) => `invalid-await-${directive}.svelte`),
 	'class-literal-key.svelte',
 ]);
 const CASES = [
@@ -53,9 +40,7 @@ const units: Unit[] = CASES.flatMap(({ dir, lang, ext }) =>
 			const caseDir = path.join(ROOT, dir, name);
 			const behaviourFile = path.join(caseDir, 'behaviour.toml');
 			const behaviour = fs.existsSync(behaviourFile)
-				? (parseToml(
-						fs.readFileSync(behaviourFile, 'utf8'),
-					) as unknown as Behaviour)
+				? (parseToml(fs.readFileSync(behaviourFile, 'utf8')) as unknown as Behaviour)
 				: undefined;
 			return {
 				family: 'cross',
@@ -73,42 +58,25 @@ const units: Unit[] = CASES.flatMap(({ dir, lang, ext }) =>
 const input = (unit: Unit): string => {
 	const dir = CASES.find((c) => c.lang === unit.lang)!.dir;
 	return fs.readFileSync(
-		path.join(
-			ROOT,
-			dir,
-			unit.path.slice(0, -unit.ext.length),
-			`input${unit.ext}`,
-		),
+		path.join(ROOT, dir, unit.path.slice(0, -unit.ext.length), `input${unit.ext}`),
 		'utf8',
 	);
 };
-const taskOf = (unit: Unit) =>
-	unit.lang === 'cross-vue' ? svueCompile : vuelteCompile;
+const taskOf = (unit: Unit) => (unit.lang === 'cross-vue' ? svueCompile : vuelteCompile);
 
 test('Vapor rejects the five directive await forms rejected by Svelte', () => {
 	for (const directive of INVALID_AWAIT_DIRECTIVES) {
 		const name = `invalid-await-${directive}`;
 		const unit = units.find((candidate) => candidate.path === `${name}.svelte`)!;
-		const code =
-			directive === 'binding'
-				? 'bind_invalid_expression'
-				: 'illegal_await_expression';
+		const code = directive === 'binding' ? 'bind_invalid_expression' : 'illegal_await_expression';
 		assert.throws(
 			() => compileSvelte(input(unit), { experimental: { async: true } }),
 			(error: unknown) =>
-				typeof error === 'object' &&
-				error !== null &&
-				'code' in error &&
-				error.code === code,
+				typeof error === 'object' && error !== null && 'code' in error && error.code === code,
 		);
 		for (const target of TARGETS) {
 			const diagnostic = fs.readFileSync(
-				path.join(
-					ROOT,
-					CASES[1]!.dir,
-					name,
-					`expected/${target}.diagnostics.txt`,
-				),
+				path.join(ROOT, CASES[1]!.dir, name, `expected/${target}.diagnostics.txt`),
 				'utf8',
 			);
 			assert.ok(diagnostic.includes(code));
@@ -148,26 +116,20 @@ async function verdict(
 
 test('every Svelte to Vapor snapshot matches the official Svelte trace', async (context) => {
 	const selection = process.env.RSVELTE_VAPOR_CASES;
-	const selected =
-		selection === undefined ? undefined : new Set(selection.split(','));
+	const selected = selection === undefined ? undefined : new Set(selection.split(','));
 	const cases = units.filter(
 		(u) =>
 			u.lang === 'cross-svelte' &&
 			!DIAGNOSTIC_CASES.has(u.path) &&
 			(!selected || selected.has(u.path.slice(0, -u.ext.length))),
 	);
-	if (selected)
-		assert.equal(cases.length, selected.size, 'unknown Vapor case names');
+	if (selected) assert.equal(cases.length, selected.size, 'unknown Vapor case names');
 	assert.ok(cases.length > 0, 'no Vapor cases');
 	const failures: string[] = [];
 	let measured = 0;
 	for (const unit of cases) {
 		for (const target of TARGETS) {
-			if (
-				target === 'client' &&
-				unit.fixture.behaviour?.browser &&
-				!unit.fixture.behaviour.node
-			)
+			if (target === 'client' && unit.fixture.behaviour?.browser && !unit.fixture.behaviour.node)
 				continue;
 			measured++;
 			try {
@@ -184,8 +146,7 @@ test('every Svelte to Vapor snapshot matches the official Svelte trace', async (
 					file,
 				);
 				const difference = observed.diff(await expected(unit, target));
-				if (difference !== null)
-					failures.push(`${unit.path} ${target}: ${difference}`);
+				if (difference !== null) failures.push(`${unit.path} ${target}: ${difference}`);
 			} catch (error) {
 				failures.push(`${unit.path} ${target}: ${String(error)}`);
 			}
@@ -208,10 +169,7 @@ test('the Vapor trace detects checked attribute reflection', async () => {
 	const [unit, code] = vaporSource('boolean-attributes');
 	const assignment = /(\$\$v_n\d+)\.checked = Boolean\(value.value\)/;
 	assert.match(code, assignment);
-	const broken = code.replace(
-		assignment,
-		"($&, $1.setAttribute('checked', ''))",
-	);
+	const broken = code.replace(assignment, "($&, $1.setAttribute('checked', ''))");
 	const observed = await vuelteCompile.observe!.derive(
 		unit,
 		{ id: 'client', options: {} },
@@ -238,10 +196,7 @@ test('the Vapor trace detects boolean coercion of a normal attribute', async () 
 	const observed = await vuelteCompile.observe!.derive(
 		unit,
 		{ id: 'client', options: {} },
-		moduleFile(
-			code.replace(value, "'answer', Boolean(active.value ? 42 : false)"),
-			'client',
-		),
+		moduleFile(code.replace(value, "'answer', Boolean(active.value ? 42 : false)"), 'client'),
 	);
 	assert.match(observed.diff(await expected(unit, 'client')) ?? '', /step 1/);
 });
@@ -264,10 +219,7 @@ test('the Vapor trace detects a preserved static pre newline', async () => {
 	const observed = await vuelteCompile.observe!.derive(
 		unit,
 		{ id: 'client', options: {} },
-		moduleFile(
-			code.replace(markup, '<span>\\nstatic &amp; text</span>'),
-			'client',
-		),
+		moduleFile(code.replace(markup, '<span>\\nstatic &amp; text</span>'), 'client'),
 	);
 	assert.match(observed.diff(await expected(unit, 'client')) ?? '', /step 0/);
 });
@@ -325,11 +277,7 @@ test('the Vapor trace detects a missing component reference', async () => {
 
 test('the Vapor trace detects lost async server context', async () => {
 	const unit = units.find((candidate) => candidate.path === 'async-context.svelte')!;
-	const file = path.join(
-		ROOT,
-		CASES[1]!.dir,
-		'async-context/expected/server.js',
-	);
+	const file = path.join(ROOT, CASES[1]!.dir, 'async-context/expected/server.js');
 	const code = fs.readFileSync(file, 'utf8');
 	assert.ok(code.includes('restore();'));
 	const broken = code.replace('restore();', '');
@@ -338,10 +286,7 @@ test('the Vapor trace detects lost async server context', async () => {
 		{ id: 'server', options: {} },
 		moduleFile(broken, 'server'),
 	);
-	assert.match(
-		observed.diff(await expected(unit, 'server')) ?? '',
-		/^server html:/,
-	);
+	assert.match(observed.diff(await expected(unit, 'server')) ?? '', /^server html:/);
 });
 
 test('the Vapor trace detects stale async results', async () => {
@@ -363,13 +308,8 @@ test('the Vapor trace detects missing boundary recovery', async () => {
 	const unit = units.find((candidate) => candidate.path === 'boundary.svelte')!;
 	const file = path.join(ROOT, CASES[1]!.dir, 'boundary/expected/client.js');
 	const code = fs.readFileSync(file, 'utf8');
-	assert.ok(
-		code.includes('failure.value = { error, reset, failed: options.failed };'),
-	);
-	const broken = code.replace(
-		'failure.value = { error, reset, failed: options.failed };',
-		'',
-	);
+	assert.ok(code.includes('failure.value = { error, reset, failed: options.failed };'));
+	const broken = code.replace('failure.value = { error, reset, failed: options.failed };', '');
 	const observed = await vuelteCompile.observe!.derive(
 		unit,
 		{ id: 'client', options: {} },
@@ -397,19 +337,13 @@ test('the Vapor trace detects missing server head content', async () => {
 	const file = path.join(ROOT, CASES[1]!.dir, 'head/expected/server.js');
 	const code = fs.readFileSync(file, 'utf8');
 	assert.ok(code.includes('$$render_head($$ssr_context,'));
-	const broken = code.replace(
-		'$$render_head($$ssr_context,',
-		() => '$$render_head(null,',
-	);
+	const broken = code.replace('$$render_head($$ssr_context,', () => '$$render_head(null,');
 	const observed = await vuelteCompile.observe!.derive(
 		unit,
 		{ id: 'server', options: {} },
 		moduleFile(broken, 'server'),
 	);
-	assert.match(
-		observed.diff(await expected(unit, 'server')) ?? '',
-		/^server head:/,
-	);
+	assert.match(observed.diff(await expected(unit, 'server')) ?? '', /^server head:/);
 });
 
 test('the Vapor trace detects a wrong SVG namespace', async () => {
@@ -418,10 +352,7 @@ test('the Vapor trace detects a wrong SVG namespace', async () => {
 	const code = fs.readFileSync(file, 'utf8');
 	const factory = `$$v_template('<circle cx="5" cy="5">', 0, 1)`;
 	assert.ok(code.includes(factory));
-	const broken = code.replace(
-		factory,
-		() => `$$v_template('<circle cx="5" cy="5">')`,
-	);
+	const broken = code.replace(factory, () => `$$v_template('<circle cx="5" cy="5">')`);
 	const observed = await vuelteCompile.observe!.derive(
 		unit,
 		{ id: 'client', options: {} },
@@ -443,19 +374,12 @@ test('the Vapor trace detects lowercased namespaced spread attributes', async ()
 		{ id: 'client', options: {} },
 		moduleFile(broken, 'client'),
 	);
-	assert.match(
-		observed.diff(await expected(unit, 'client')) ?? '',
-		/step 0.*viewBox/,
-	);
+	assert.match(observed.diff(await expected(unit, 'client')) ?? '', /step 0.*viewBox/);
 });
 
 test('the Vapor trace detects attachment cleanup omissions', async () => {
 	const unit = units.find((candidate) => candidate.path === 'attachments-spread.svelte')!;
-	const file = path.join(
-		ROOT,
-		CASES[1]!.dir,
-		'attachments-spread/expected/client.js',
-	);
+	const file = path.join(ROOT, CASES[1]!.dir, 'attachments-spread/expected/client.js');
 	const code = fs.readFileSync(file, 'utf8');
 	const cleanup = 'entry.scope.stop();';
 	assert.ok(code.includes(cleanup));
@@ -465,10 +389,7 @@ test('the Vapor trace detects attachment cleanup omissions', async () => {
 		{ id: 'client', options: {} },
 		moduleFile(broken, 'client'),
 	);
-	assert.match(
-		observed.diff(await expected(unit, 'client')) ?? '',
-		/step [1-9]/,
-	);
+	assert.match(observed.diff(await expected(unit, 'client')) ?? '', /step [1-9]/);
 });
 
 test('every Vue unit has a Svelte twin, and both official translations match', async () => {
@@ -500,16 +421,11 @@ interface Control {
 	server: string | null;
 }
 const controls: Control[] = JSON.parse(
-	fs.readFileSync(
-		path.join(import.meta.dirname, 'tests/controls.json'),
-		'utf8',
-	),
+	fs.readFileSync(path.join(import.meta.dirname, 'tests/controls.json'), 'utf8'),
 );
 
 test('every wrong translation is a mismatch naming the step and the difference', async () => {
-	const files = fs
-		.readdirSync(path.join(import.meta.dirname, 'tests/wrong'))
-		.sort();
+	const files = fs.readdirSync(path.join(import.meta.dirname, 'tests/wrong')).sort();
 	assert.deepEqual(
 		controls.map((c) => c.file).sort(),
 		files,
@@ -518,20 +434,10 @@ test('every wrong translation is a mismatch naming the step and the difference',
 	for (const c of controls) {
 		const unit = units.find((u) => u.path === c.unit);
 		assert.ok(unit, `${c.file}: no unit ${c.unit}`);
-		assert.ok(
-			c.client !== null || c.server !== null,
-			`${c.file}: a control must differ somewhere`,
-		);
-		const src = fs.readFileSync(
-			path.join(import.meta.dirname, 'tests/wrong', c.file),
-			'utf8',
-		);
+		assert.ok(c.client !== null || c.server !== null, `${c.file}: a control must differ somewhere`);
+		const src = fs.readFileSync(path.join(import.meta.dirname, 'tests/wrong', c.file), 'utf8');
 		for (const target of TARGETS)
-			assert.equal(
-				await verdict(unit, src, c.file, target),
-				c[target],
-				`${c.file} ${target}`,
-			);
+			assert.equal(await verdict(unit, src, c.file, target), c[target], `${c.file} ${target}`);
 	}
 });
 
@@ -539,11 +445,7 @@ test('emitted code that cannot be observed is reported, not skipped', async () =
 	const unit = units.find((u) => u.path === 'counter.vue')!;
 	const observe = async (code: string, target: Target) =>
 		(
-			await svueCompile.observe!.derive(
-				unit,
-				{ id: target, options: {} },
-				moduleFile(code, target),
-			)
+			await svueCompile.observe!.derive(unit, { id: target, options: {} }, moduleFile(code, target))
 		).diff(await expected(unit, target));
 	assert.equal(
 		await observe('export const x = 1;\n', 'client'),
@@ -554,17 +456,11 @@ test('emitted code that cannot be observed is reported, not skipped', async () =
 		'load: the module has no default export',
 	);
 	assert.equal(
-		await observe(
-			"export default function () { throw new Error('boom'); }\n",
-			'client',
-		),
+		await observe("export default function () { throw new Error('boom'); }\n", 'client'),
 		'step 0 "mount": boom',
 	);
 	assert.match(
-		(await observe(
-			"import 'left-pad';\nexport default function () {}\n",
-			'client',
-		)) ?? '',
+		(await observe("import 'left-pad';\nexport default function () {}\n", 'client')) ?? '',
 		/^load: Cannot find package 'left-pad'/,
 	);
 });

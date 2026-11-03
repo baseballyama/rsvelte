@@ -11,7 +11,10 @@
 		| { kind: 'lint'; index: number }
 		| null;
 
-	let focus: Focus = $state({ kind: 'compiler_syntax_tree', row: d.compiler_syntax_tree.findIndex((r) => r.label.startsWith('If')) });
+	let focus: Focus = $state({
+		kind: 'compiler_syntax_tree',
+		row: d.compiler_syntax_tree.findIndex((r) => r.label.startsWith('If')),
+	});
 
 	// A focused HIR row lights its origin; a focused surface row lights every HIR row built from it.
 	const surfaceLit = $derived.by(() => {
@@ -36,12 +39,15 @@
 			const r = d.syntax_tree.find((x) => x.id === (focus as { id: number }).id);
 			return r ? [{ span: r.span, tone: 'node' }] : [];
 		}
-		if (focus.kind === 'compiler_syntax_tree') return [{ span: d.compiler_syntax_tree[focus.row].span, tone: 'node' }];
+		if (focus.kind === 'compiler_syntax_tree')
+			return [{ span: d.compiler_syntax_tree[focus.row].span, tone: 'node' }];
 		if (focus.kind === 'lint') return [{ span: d.lint[focus.index].span, tone: 'node' }];
 		const b = d.bindings.find((x) => x.id === (focus as { id: number }).id)!;
 		return [
 			{ span: b.span, tone: 'declaration' },
-			...d.refs.filter((r) => r.binding === b.id).map((r) => ({ span: r.span, tone: 'ref' as const }))
+			...d.refs
+				.filter((r) => r.binding === b.id)
+				.map((r) => ({ span: r.span, tone: 'ref' as const })),
 		];
 	});
 
@@ -65,20 +71,23 @@
 		'': '',
 		node: 'bg-accent-wash text-fg',
 		declaration: 'bg-c-map text-bg',
-		ref: 'outline outline-1 outline-c-map'
+		ref: 'outline outline-1 outline-c-map',
 	};
 </script>
 
 <Figure label="図 5.1 · Svelte の構文木と解析結果の例" wide>
 	<div class="border-b border-line p-4">
 		<div class="mb-2 font-mono text-[11.5px] tracking-normal text-muted">Toolbar.svelte</div>
-			<pre class="overflow-x-auto font-mono text-[12px] leading-[1.65] tracking-normal text-fg-2">{#each runs as r, i (i)}<span
-						class={toneClass[r.tone]}>{r.text}</span
-					>{/each}</pre>
+		<pre
+			class="overflow-x-auto font-mono text-[12px] leading-[1.65] tracking-normal text-fg-2">{#each runs as r, i (i)}<span
+					class={toneClass[r.tone]}>{r.text}</span
+				>{/each}</pre>
 	</div>
 	<div class="grid border-b border-line md:grid-cols-2">
 		<div class="min-w-0 border-b border-line p-4 md:border-r md:border-b-0">
-			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-c-src">元の構文木（syntax_tree）</div>
+			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-c-src">
+				元の構文木（syntax_tree）
+			</div>
 			<ul class="font-mono text-[12px] leading-[1.9] tracking-normal">
 				{#each d.syntax_tree as r, i (i)}
 					<li style:padding-left="{r.depth * 12}px">
@@ -89,11 +98,12 @@
 								type="button"
 								class={[
 									'rounded-xs px-1 text-left',
-									surfaceLit.has(r.id) ? 'bg-c-src text-bg' : 'hover:bg-surface'
+									surfaceLit.has(r.id) ? 'bg-c-src text-bg' : 'hover:bg-surface',
 								]}
 								onmouseenter={() => (focus = { kind: 'surface', id: r.id! })}
 								onfocus={() => (focus = { kind: 'surface', id: r.id! })}
-								><span class={surfaceLit.has(r.id) ? '' : 'text-muted'}>{r.id}</span> {r.label}</button
+								><span class={surfaceLit.has(r.id) ? '' : 'text-muted'}>{r.id}</span>
+								{r.label}</button
 							>
 						{/if}
 					</li>
@@ -101,19 +111,28 @@
 			</ul>
 		</div>
 		<div class="min-w-0 p-4">
-			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-c-gen">コンパイル用に整理した構文木</div>
+			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-c-gen">
+				コンパイル用に整理した構文木
+			</div>
 			<ul class="font-mono text-[12px] leading-[1.9] tracking-normal">
 				{#each d.compiler_syntax_tree as r, i (i)}
 					<li style:padding-left="{r.depth * 12}px">
 						<button
 							type="button"
-							class={['rounded-xs px-1 text-left', compilerSyntaxTreeLit.has(i) ? 'bg-c-gen text-bg' : 'hover:bg-surface']}
+							class={[
+								'rounded-xs px-1 text-left',
+								compilerSyntaxTreeLit.has(i) ? 'bg-c-gen text-bg' : 'hover:bg-surface',
+							]}
 							onmouseenter={() => (focus = { kind: 'compiler_syntax_tree', row: i })}
 							onfocus={() => (focus = { kind: 'compiler_syntax_tree', row: i })}
 						>
-							{#if r.id !== null}<span class={compilerSyntaxTreeLit.has(i) ? '' : 'text-muted'}>{r.id}</span>{/if}
+							{#if r.id !== null}<span class={compilerSyntaxTreeLit.has(i) ? '' : 'text-muted'}
+									>{r.id}</span
+								>{/if}
 							{r.label}
-							{#if r.origin !== null}<span class={compilerSyntaxTreeLit.has(i) ? '' : 'text-muted'}>← {r.origin}</span>{/if}
+							{#if r.origin !== null}<span class={compilerSyntaxTreeLit.has(i) ? '' : 'text-muted'}
+									>← {r.origin}</span
+								>{/if}
 						</button>
 						{#each r.attributes ?? [] as a (a.name)}
 							<div class="pl-5 text-[11.5px] leading-[1.6] text-muted">{a.name}: {a.value}</div>
@@ -128,7 +147,11 @@
 			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-c-map">名前解決（束縛）</div>
 			<table class="w-full font-mono text-[12px] tracking-normal">
 				<thead class="text-left text-muted">
-					<tr><th class="font-normal">名前</th><th class="font-normal">宣言</th><th class="font-normal">rune</th><th class="text-right font-normal">参照</th></tr>
+					<tr
+						><th class="font-normal">名前</th><th class="font-normal">宣言</th><th
+							class="font-normal">rune</th
+						><th class="text-right font-normal">参照</th></tr
+					>
 				</thead>
 				<tbody>
 					{#each d.bindings as b (b.id)}
@@ -137,11 +160,17 @@
 							onmouseenter={() => (focus = { kind: 'binding', id: b.id })}
 						>
 							<td class="py-0.5">
-								<button type="button" class="hover:text-accent" onfocus={() => (focus = { kind: 'binding', id: b.id })}>{b.name}</button>
+								<button
+									type="button"
+									class="hover:text-accent"
+									onfocus={() => (focus = { kind: 'binding', id: b.id })}>{b.name}</button
+								>
 							</td>
 							<td>{b.declaration}</td>
 							<td>{b.rune}</td>
-							<td class="text-right tnum" title="テンプレートからの参照 / 読み取りの合計">{refCount(b.id)} / {b.reads}</td>
+							<td class="text-right tnum" title="テンプレートからの参照 / 読み取りの合計"
+								>{refCount(b.id)} / {b.reads}</td
+							>
 						</tr>
 					{/each}
 				</tbody>
@@ -154,7 +183,10 @@
 					<li>
 						<button
 							type="button"
-							class={['text-left', focus?.kind === 'lint' && focus.index === i ? 'text-fg' : 'text-fg-2 hover:text-fg']}
+							class={[
+								'text-left',
+								focus?.kind === 'lint' && focus.index === i ? 'text-fg' : 'text-fg-2 hover:text-fg',
+							]}
 							onmouseenter={() => (focus = { kind: 'lint', index: i })}
 							onfocus={() => (focus = { kind: 'lint', index: i })}
 						>
@@ -166,9 +198,13 @@
 		</div>
 	</div>
 	{#snippet caption()}
-		行にポインタを重ねると、対応する位置がつながります。<span class="c-gen">コンパイル用に整理した構文木</span> の <code>← n</code> は、その要素を作った<span
-			class="c-src">元の構文木の要素</span
-		>の番号です。<code>{'{:else if}'}</code> は表層では <code>alternate</code> の中の <code>If</code> ですが、コンパイル用に整理した構文木では一つの
+		行にポインタを重ねると、対応する位置がつながります。<span class="c-gen"
+			>コンパイル用に整理した構文木</span
+		>
+		の <code>← n</code> は、その要素を作った<span class="c-src">元の構文木の要素</span
+		>の番号です。<code>{'{:else if}'}</code> は表層では <code>alternate</code> の中の
+		<code>If</code>
+		ですが、コンパイル用に整理した構文木では一つの
 		<code>If</code> の枝になります。束縛にポインタを重ねると、宣言（塗り）とテンプレートからの参照（枠）が光ります。空白だけのテキスト要素は省いています。値はすべて
 		Rust のパイプラインが出したもので、lint の二件は ESLint の出力と位置まで一致します。
 	{/snippet}

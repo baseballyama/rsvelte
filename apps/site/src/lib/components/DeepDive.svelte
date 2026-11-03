@@ -16,7 +16,9 @@
 			<span class="mt-0.5 block text-[15.5px] leading-[1.6] font-semibold">{title}</span>
 		</span>
 		<span class="ml-auto hidden shrink-0 pt-[18px] text-[12px] text-muted sm:block"
-			><span class="group-open/deep:hidden">開く</span><span class="hidden group-open/deep:inline">閉じる</span></span
+			><span class="group-open/deep:hidden">開く</span><span class="hidden group-open/deep:inline"
+				>閉じる</span
+			></span
 		>
 	</summary>
 	<div class="prose-learn border-t border-line px-4 pt-3 pb-4 text-[16px]">

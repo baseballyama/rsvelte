@@ -21,14 +21,14 @@
 			title: '使い方ガイド',
 			context: '導入、コンパイル、整形、検査、型チェック、Web アプリへの組み込み',
 			kind: 'guide',
-			haystack: '使い方 ガイド 導入 コンパイル 整形 検査 型チェック WebAssembly'.toLowerCase()
+			haystack: '使い方 ガイド 導入 コンパイル 整形 検査 型チェック WebAssembly'.toLowerCase(),
 		},
 		...guideSections.map((section) => ({
 			href: `/guide#${section.id}`,
 			title: section.title,
 			context: '使い方ガイド',
 			kind: 'section' as const,
-			haystack: `${section.title} 使い方 ガイド`.toLowerCase()
+			haystack: `${section.title} 使い方 ガイド`.toLowerCase(),
 		})),
 		...chapters.flatMap((c) => [
 			{
@@ -37,23 +37,23 @@
 				context: c.abstract,
 				kind: 'chapter' as const,
 				number: c.number,
-				haystack: `${c.number} ${c.title} ${c.abstract}`.toLowerCase()
+				haystack: `${c.number} ${c.title} ${c.abstract}`.toLowerCase(),
 			},
 			...c.sections.map((s) => ({
 				href: `${c.href}#${s.id}`,
 				title: s.title,
 				context: `${c.number} ${c.title}`,
 				kind: 'section' as const,
-				haystack: `${s.title} ${c.title}`.toLowerCase()
-			}))
+				haystack: `${s.title} ${c.title}`.toLowerCase(),
+			})),
 		]),
 		...appendix.map((a) => ({
 			href: a.href,
 			title: a.title,
 			context: a.abstract,
 			kind: 'appendix' as const,
-			haystack: `${a.title} ${a.abstract} 付録`.toLowerCase()
-		}))
+			haystack: `${a.title} ${a.abstract} 付録`.toLowerCase(),
+		})),
 	];
 
 	let dialog: HTMLDialogElement | undefined = $state();
@@ -150,16 +150,22 @@
 				autocomplete="off"
 				spellcheck="false"
 			/>
-			<button type="button" class="kbd cursor-pointer" onclick={() => (search.open = false)}>esc</button>
+			<button type="button" class="kbd cursor-pointer" onclick={() => (search.open = false)}
+				>esc</button
+			>
 		</div>
-		<ul id="palette-results" role="listbox" class="thin-scrollbar min-h-0 flex-1 overflow-y-auto p-2">
+		<ul
+			id="palette-results"
+			role="listbox"
+			class="thin-scrollbar min-h-0 flex-1 overflow-y-auto p-2"
+		>
 			{#each results as r, i (r.href)}
 				<li role="option" id="palette-{i}" aria-selected={i === sel} data-i={i}>
 					<a
 						href={r.href}
 						class={[
 							'flex items-center gap-3 rounded-md px-3 py-2.5',
-							i === sel ? 'bg-accent-wash text-fg' : 'text-fg-2'
+							i === sel ? 'bg-accent-wash text-fg' : 'text-fg-2',
 						]}
 						onmousemove={() => (sel = i)}
 						onclick={(e) => {
@@ -170,29 +176,35 @@
 						<span
 							class={[
 								'flex size-7 shrink-0 items-center justify-center rounded-sm border font-mono text-[11px] tracking-normal',
-								i === sel ? 'border-accent/40 text-accent' : 'border-line text-muted'
+								i === sel ? 'border-accent/40 text-accent' : 'border-line text-muted',
 							]}
 						>
-							{#if r.kind === 'chapter'}{r.number}{:else if r.kind === 'section'}<Icon name="hash" size={13} />{:else}<Icon
-									name="book"
+							{#if r.kind === 'chapter'}{r.number}{:else if r.kind === 'section'}<Icon
+									name="hash"
 									size={13}
-								/>{/if}
+								/>{:else}<Icon name="book" size={13} />{/if}
 						</span>
 						<span class="min-w-0 flex-1">
 							<span class="block truncate text-[15px] leading-snug text-fg">{r.title}</span>
-							<span class="mt-0.5 block truncate text-[12.5px] leading-snug text-muted">{r.context}</span>
+							<span class="mt-0.5 block truncate text-[12.5px] leading-snug text-muted"
+								>{r.context}</span
+							>
 						</span>
 						{#if i === sel}<Icon name="arrow-right" size={14} class="text-accent" />{/if}
 					</a>
 				</li>
 			{:else}
-				<li class="px-3 py-10 text-center text-[14px] text-muted">「{q}」に一致するページ・節はありません</li>
+				<li class="px-3 py-10 text-center text-[14px] text-muted">
+					「{q}」に一致するページ・節はありません
+				</li>
 			{/each}
 		</ul>
 		<div
 			class="hidden items-center gap-4 border-t border-line px-4 py-2 font-mono text-[11px] tracking-normal text-muted sm:flex"
 		>
-			<span class="flex items-center gap-1.5"><span class="kbd">↑</span><span class="kbd">↓</span> 選ぶ</span>
+			<span class="flex items-center gap-1.5"
+				><span class="kbd">↑</span><span class="kbd">↓</span> 選ぶ</span
+			>
 			<span class="flex items-center gap-1.5"><span class="kbd">↵</span> 開く</span>
 			<span class="ml-auto">{results.length} 件</span>
 		</div>

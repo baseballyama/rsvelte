@@ -1,6 +1,13 @@
 <script lang="ts">
 	import DocumentPrinter from '$lib/widgets/DocumentPrinter.svelte';
-	import { call, fill, flatOnly, groupIds, mustBeFlat, remeasure } from '../../kernel/document/presets';
+	import {
+		call,
+		fill,
+		flatOnly,
+		groupIds,
+		mustBeFlat,
+		remeasure,
+	} from '../../kernel/document/presets';
 
 	const object = {
 		name: 'オブジェクト',
@@ -11,7 +18,7 @@
   ifBreak(",", ""),
   line,
   "};"
-])`
+])`,
 	};
 	const fns = [
 		['"text"', 'テキスト（配列は concat）'],
@@ -26,7 +33,7 @@
 		['fill([内容, 区切り, …])', '収まるだけ詰める'],
 		['join(sep, [a, b, …])', 'sep を挟んで並べる'],
 		['flatOnly(x)', '平らに収まらなければ Refused'],
-		['breakParent', '囲む group を改行させる']
+		['breakParent', '囲む group を改行させる'],
 	];
 </script>
 
@@ -34,14 +41,25 @@
 
 <header class="mb-6">
 	<span class="font-mono text-[13px] tracking-normal text-muted">付録</span>
-	<h1 class="mt-1 text-[30px] leading-[1.3] font-semibold sm:text-[36px]" style="font-stretch: 92%">整形の判断を試す</h1>
-	<a class="link mt-3 inline-block text-sm" href="/learn/playground">言語プラグインのプレイグラウンドへ戻る</a>
+	<h1 class="mt-1 text-[30px] leading-[1.3] font-semibold sm:text-[36px]" style="font-stretch: 92%">
+		整形の判断を試す
+	</h1>
+	<a class="link mt-3 inline-block text-sm" href="/learn/playground"
+		>言語プラグインのプレイグラウンドへ戻る</a
+	>
 	<p class="mt-4 max-w-[44em] text-[17px] leading-[1.8] text-fg-2">
-		整形用のデータ構造を小さな式で書き、Rust のカーネルを WebAssembly としてブラウザで実行して出力します。仕組みは <a class="link" href="/learn/kernel/document">08 レイアウト</a>で説明しています。このページはブラウザだけで動き、サーバーでは描画しません。
+		整形用のデータ構造を小さな式で書き、Rust のカーネルを WebAssembly
+		としてブラウザで実行して出力します。仕組みは <a class="link" href="/learn/kernel/document"
+			>08 レイアウト</a
+		>で説明しています。このページはブラウザだけで動き、サーバーでは描画しません。
 	</p>
 </header>
 
-<DocumentPrinter label="プレイグラウンド" presets={[object, call, fill, groupIds, flatOnly, remeasure, mustBeFlat]} tall />
+<DocumentPrinter
+	label="プレイグラウンド"
+	presets={[object, call, fill, groupIds, flatOnly, remeasure, mustBeFlat]}
+	tall
+/>
 
 <section class="mt-10">
 	<h2 class="text-[19px] font-semibold">使える式</h2>

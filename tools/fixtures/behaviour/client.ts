@@ -3,26 +3,18 @@
 import { parentPort } from 'node:worker_threads';
 import { document, serialize, serializeHtml, takeErrors } from './dom.ts';
 import { loadComponent, message, provideRuntimes } from './modules.ts';
-import type {
-	ClientStep,
-	Runtime,
-	Step,
-	Trace,
-	TraceRequest,
-} from './runtime.ts';
+import type { ClientStep, Runtime, Step, Trace, TraceRequest } from './runtime.ts';
 import type { Request, Response } from './server.ts';
 import { rpc } from './worker.ts';
 
 provideRuntimes('client');
 
-const renderServer = rpc<Request, Response>(
-	new URL('./server.ts', import.meta.url),
-	(m) => ({ error: `worker: ${m}` }),
-);
+const renderServer = rpc<Request, Response>(new URL('./server.ts', import.meta.url), (m) => ({
+	error: `worker: ${m}`,
+}));
 
 /** Lets every pending microtask and timer-free update run, so a trace does not see when within the event a runtime renders. */
-const settle = (): Promise<void> =>
-	new Promise((resolve) => setTimeout(resolve, 0));
+const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
 interface Mounted {
 	flush(): Promise<void>;
@@ -46,14 +38,10 @@ async function mount(
 		await flush();
 		return { flush, unmount: () => svelte.unmount(app) };
 	}
-	const vue =
-		runtime === 'vapor' ? await import('vue-vapor') : await import('vue');
+	const vue = runtime === 'vapor' ? await import('vue-vapor') : await import('vue');
 	const app =
 		runtime === 'vapor'
-			? (vue as typeof import('vue-vapor')).createVaporApp(
-					component as never,
-					props,
-				)
+			? (vue as typeof import('vue-vapor')).createVaporApp(component as never, props)
 			: vue.createApp(component as never, props);
 	app.config.warnHandler = () => {};
 	app.mount(target);
@@ -72,15 +60,13 @@ function find(root: Element, selector: string): HTMLElement {
 	return el as HTMLElement;
 }
 
-const event = (type: string, init: EventInit = {}) =>
-	new Event(type, { bubbles: true, ...init });
+const event = (type: string, init: EventInit = {}) => new Event(type, { bubbles: true, ...init });
 
 // The browser's own event sequence for each user action, dispatched on the first match of the
 // step's selector.
 function perform(root: Element, step: Step): void {
 	const verbs = Object.keys(step);
-	if (verbs.length !== 1)
-		throw new Error(`a step has exactly one action: ${JSON.stringify(step)}`);
+	if (verbs.length !== 1) throw new Error(`a step has exactly one action: ${JSON.stringify(step)}`);
 	if ('click' in step) find(root, step.click).click();
 	else if ('input' in step) {
 		const el = find(root, step.input[0]) as HTMLInputElement;
@@ -92,8 +78,7 @@ function perform(root: Element, step: Step): void {
 				data: step.input[1],
 			}),
 		);
-	} else if ('change' in step)
-		find(root, step.change).dispatchEvent(event('change'));
+	} else if ('change' in step) find(root, step.change).dispatchEvent(event('change'));
 	else if ('select' in step) {
 		const el = find(root, step.select[0]) as HTMLSelectElement;
 		el.value = step.select[1];
@@ -110,9 +95,7 @@ function perform(root: Element, step: Step): void {
 				}),
 			);
 	} else if ('submit' in step)
-		find(root, step.submit).dispatchEvent(
-			event('submit', { cancelable: true }),
-		);
+		find(root, step.submit).dispatchEvent(event('submit', { cancelable: true }));
 	else throw new Error(`unknown step action ${JSON.stringify(verbs[0])}`);
 }
 
@@ -192,11 +175,7 @@ async function trace({
 	}
 }
 
-function record(
-	what: ClientStep['do'],
-	root: Element,
-	includeHead?: boolean,
-): ClientStep {
+function record(what: ClientStep['do'], root: Element, includeHead?: boolean): ClientStep {
 	const errors = takeErrors();
 	return {
 		do: what,
@@ -206,6 +185,4 @@ function record(
 	};
 }
 
-parentPort!.on('message', async (req: TraceRequest) =>
-	parentPort!.postMessage(await trace(req)),
-);
+parentPort!.on('message', async (req: TraceRequest) => parentPort!.postMessage(await trace(req)));

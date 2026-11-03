@@ -11,13 +11,13 @@ const VUE_ALL: Record<string, Linter.RuleEntry> = Object.fromEntries(
 	Object.entries(vuePlugin.rules)
 		.filter(([, rule]) => !rule.meta?.deprecated)
 		.map(([id]) => [`vue/${id}`, 'error'] as const)
-		.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+		.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
 );
 
 const CONFIG: Linter.Config[] = [
 	{ files: ['**/*.vue'], rules: CORE_ALL },
 	...(vuePlugin.configs['flat/base'] as Linter.Config[]),
-	{ files: ['**/*.vue'], rules: VUE_ALL, languageOptions: { parserOptions: { parser: tsParser } } }
+	{ files: ['**/*.vue'], rules: VUE_ALL, languageOptions: { parserOptions: { parser: tsParser } } },
 ];
 
 const ENABLED = enabledRules(CONFIG);
@@ -29,6 +29,6 @@ const task: Task = {
 	oracles: ['eslint', 'eslint-plugin-vue', 'vue-eslint-parser', '@typescript-eslint/parser'],
 	variants: [{ id: 'default', options: {} }],
 	appliesTo: (unit) => unit.lang === 'vue' && unit.source === 'rsvelte',
-	run: (unit, src) => lintArtifacts(linter.verify(src, CONFIG, { filename: unit.path }), ENABLED)
+	run: (unit, src) => lintArtifacts(linter.verify(src, CONFIG, { filename: unit.path }), ENABLED),
 };
 export default task;

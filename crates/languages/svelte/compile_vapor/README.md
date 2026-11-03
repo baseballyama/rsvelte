@@ -4,10 +4,10 @@
 for Vue Vapor. It shares the Svelte trees and facts with the other Svelte tasks.
 The Rust backend builds a new JavaScript tree and prints it once.
 
-| Target | Task | Runtime |
-|---|---|---|
+| Target | Task                    | Runtime                                  |
+| ------ | ----------------------- | ---------------------------------------- |
 | Client | `vuelte.compile/client` | Vue Vapor, mounted with `createVaporApp` |
-| Server | `vuelte.compile/server` | Vue SSR, rendered with `createSSRApp` |
+| Server | `vuelte.compile/server` | Vue SSR, rendered with `createSSRApp`    |
 
 Client output calls `defineVaporComponent`, DOM template factories, `renderEffect`,
 `createIf`, `createFor`, and `createDynamicComponent`. Bindings clean up when their scope ends. The native

@@ -18,7 +18,7 @@
 	{@const key = `kernel/${name}`}
 	<h3>{moduleDescription(key).title}</h3>
 	<ul class="roles">
-		{#each modules.filter(module => module.key.startsWith(`${key}/`)) as module (module.key)}
+		{#each modules.filter((module) => module.key.startsWith(`${key}/`)) as module (module.key)}
 			<li>
 				{#if module.chapter}
 					<a href={module.chapter.href}>{module.title}<span aria-hidden="true"> ↗</span></a>
@@ -31,7 +31,7 @@
 	<details>
 		<summary>実装ファイルと行数</summary>
 		<dl>
-			{#each modules.filter(module => module.key === key || module.key.startsWith(`${key}/`)) as module (module.key)}
+			{#each modules.filter((module) => module.key === key || module.key.startsWith(`${key}/`)) as module (module.key)}
 				<div>
 					<dt><code>{module.file}</code><span class="lines">{module.lines} 行</span></dt>
 					<dd>{module.summary}</dd>
@@ -81,36 +81,167 @@
 </Figure>
 
 <style>
-	.module-map { padding: clamp(16px, 3vw, 28px); font-size: 14px; line-height: 1.7; }
-	.flow { display: flex; flex-direction: column; }
-	section { min-width: 0; border: 1px solid var(--border-strong); border-radius: 8px; padding: 16px; background: var(--bg); }
-	.execution { border-color: var(--accent); background: var(--accent-wash); }
-	h3 { font-size: 16px; font-weight: 600; color: var(--fg); margin: 0 0 10px; }
-	h4 { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
-	p { margin: 0; }
-	.endpoint { align-self: center; padding: 8px 16px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); text-align: center; font-weight: 500; }
-	.connector { display: flex; justify-content: center; align-items: center; gap: 10px; padding: 10px 0; font-size: 12px; color: var(--fg-2); }
-	.connector span { font-size: 22px; color: var(--accent); }
-	.roles { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
-	.roles li { min-width: 0; }
-	a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
-	a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-	.plugin { margin-top: 16px; padding: 14px; border: 1px dashed var(--border-strong); border-radius: 6px; background: var(--bg); }
-	.plugin p { color: var(--fg-2); font-size: 13px; }
-	.plugin .shared { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); color: var(--accent); }
-	.results { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-	.support { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-	.support-label { grid-column: 1 / -1; color: var(--fg-2); font-size: 12px; font-weight: 500; }
-	.support-label span { color: var(--accent); }
-	.support section { background: var(--surface); }
-	.support-note { margin-top: 12px; color: var(--fg-2); font-size: 13px; }
-	details { margin-top: 12px; font-size: 12px; }
-	summary { cursor: pointer; color: var(--muted); }
-	dl { margin: 10px 0 0; }
-	dl > div { padding: 10px 0; border-top: 1px solid var(--border); }
-	dt { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
-	code { overflow-wrap: anywhere; color: var(--fg); }
-	.lines { color: var(--muted); white-space: nowrap; }
-	dd { margin: 4px 0 0; color: var(--fg-2); }
-	@media (max-width: 600px) { .results, .support { grid-template-columns: 1fr; } }
+	.module-map {
+		padding: clamp(16px, 3vw, 28px);
+		font-size: 14px;
+		line-height: 1.7;
+	}
+	.flow {
+		display: flex;
+		flex-direction: column;
+	}
+	section {
+		min-width: 0;
+		border: 1px solid var(--border-strong);
+		border-radius: 8px;
+		padding: 16px;
+		background: var(--bg);
+	}
+	.execution {
+		border-color: var(--accent);
+		background: var(--accent-wash);
+	}
+	h3 {
+		font-size: 16px;
+		font-weight: 600;
+		color: var(--fg);
+		margin: 0 0 10px;
+	}
+	h4 {
+		margin: 0 0 6px;
+		font-size: 14px;
+		font-weight: 600;
+	}
+	p {
+		margin: 0;
+	}
+	.endpoint {
+		align-self: center;
+		padding: 8px 16px;
+		border: 1px solid var(--border-strong);
+		border-radius: 6px;
+		background: var(--surface);
+		text-align: center;
+		font-weight: 500;
+	}
+	.connector {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		gap: 10px;
+		padding: 10px 0;
+		font-size: 12px;
+		color: var(--fg-2);
+	}
+	.connector span {
+		font-size: 22px;
+		color: var(--accent);
+	}
+	.roles {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px 16px;
+	}
+	.roles li {
+		min-width: 0;
+	}
+	a {
+		color: var(--accent);
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+	a:focus-visible,
+	summary:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 3px;
+	}
+	.plugin {
+		margin-top: 16px;
+		padding: 14px;
+		border: 1px dashed var(--border-strong);
+		border-radius: 6px;
+		background: var(--bg);
+	}
+	.plugin p {
+		color: var(--fg-2);
+		font-size: 13px;
+	}
+	.plugin .shared {
+		margin-top: 10px;
+		padding-top: 10px;
+		border-top: 1px solid var(--border);
+		color: var(--accent);
+	}
+	.results {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 12px;
+	}
+	.support {
+		margin-top: 24px;
+		padding-top: 16px;
+		border-top: 1px solid var(--border);
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 12px;
+	}
+	.support-label {
+		grid-column: 1 / -1;
+		color: var(--fg-2);
+		font-size: 12px;
+		font-weight: 500;
+	}
+	.support-label span {
+		color: var(--accent);
+	}
+	.support section {
+		background: var(--surface);
+	}
+	.support-note {
+		margin-top: 12px;
+		color: var(--fg-2);
+		font-size: 13px;
+	}
+	details {
+		margin-top: 12px;
+		font-size: 12px;
+	}
+	summary {
+		cursor: pointer;
+		color: var(--muted);
+	}
+	dl {
+		margin: 10px 0 0;
+	}
+	dl > div {
+		padding: 10px 0;
+		border-top: 1px solid var(--border);
+	}
+	dt {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px 12px;
+		align-items: baseline;
+	}
+	code {
+		overflow-wrap: anywhere;
+		color: var(--fg);
+	}
+	.lines {
+		color: var(--muted);
+		white-space: nowrap;
+	}
+	dd {
+		margin: 4px 0 0;
+		color: var(--fg-2);
+	}
+	@media (max-width: 600px) {
+		.results,
+		.support {
+			grid-template-columns: 1fr;
+		}
+	}
 </style>

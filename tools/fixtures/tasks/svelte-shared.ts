@@ -13,7 +13,8 @@ interface Diagnostic {
 	end?: Position;
 }
 
-const position = (p?: Position) => (p ? { line: p.line, column: p.column, character: p.character } : null);
+const position = (p?: Position) =>
+	p ? { line: p.line, column: p.column, character: p.character } : null;
 
 /** Warnings and errors keep what a user sees and drop the rendered frame. */
 function diagnostic(d: Diagnostic) {
@@ -33,12 +34,24 @@ export function compileArtifacts(fn: () => CompileLike): Record<string, Artifact
 		result = fn();
 	} catch (e) {
 		if (!(e as Diagnostic).code) throw e;
-		return { error: { text: JSON.stringify(diagnostic(e as Diagnostic), null, '\t') + '\n', ext: 'error.json', compare: 'json' } };
+		return {
+			error: {
+				text: JSON.stringify(diagnostic(e as Diagnostic), null, '\t') + '\n',
+				ext: 'error.json',
+				compare: 'json',
+			},
+		};
 	}
-	const out: Record<string, Artifact> = { js: { text: result.js.code, ext: 'js', compare: 'js-ast' } };
+	const out: Record<string, Artifact> = {
+		js: { text: result.js.code, ext: 'js', compare: 'js-ast' },
+	};
 	if (result.css?.code) out.css = { text: result.css.code, ext: 'css', compare: 'text' };
 	if (result.warnings.length) {
-		out.warnings = { text: JSON.stringify(result.warnings.map(diagnostic), null, '\t') + '\n', ext: 'warnings.json', compare: 'json' };
+		out.warnings = {
+			text: JSON.stringify(result.warnings.map(diagnostic), null, '\t') + '\n',
+			ext: 'warnings.json',
+			compare: 'json',
+		};
 	}
 	return out;
 }

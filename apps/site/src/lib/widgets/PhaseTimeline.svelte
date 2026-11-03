@@ -48,7 +48,7 @@
 				...analyze(),
 				...scoped(),
 				span(`svelte.lower.${target}`, () => []),
-				span('js.print', () => [])
+				span('js.print', () => []),
 			]);
 		const format = () => span('svelte.format/default', () => [...parse()]);
 		const lint = () =>
@@ -57,9 +57,11 @@
 				...analyze(),
 				span('js.parents', () => []),
 				span('no-unused-vars', () => []),
-				span('svelte/button-has-type', () => [])
+				span('svelte/button-has-type', () => []),
 			]);
-		return formatFirst ? [format(), compile('client'), compile('server'), lint()] : [compile('client'), compile('server'), format(), lint()];
+		return formatFirst
+			? [format(), compile('client'), compile('server'), lint()]
+			: [compile('client'), compile('server'), format(), lint()];
 	});
 	const rows = $derived(account(roots));
 	const T = $derived(roots.at(-1)!.end);
@@ -85,8 +87,18 @@
 
 <Figure label="図 11.1 · 1 文書のフェーズ" wide>
 	{#snippet controls()}
-		<button type="button" class="btn-ghost" aria-pressed={!formatFirst} onclick={() => (formatFirst = false)}>登録順</button>
-		<button type="button" class="btn-ghost" aria-pressed={formatFirst} onclick={() => (formatFirst = true)}>format を先に</button>
+		<button
+			type="button"
+			class="btn-ghost"
+			aria-pressed={!formatFirst}
+			onclick={() => (formatFirst = false)}>登録順</button
+		>
+		<button
+			type="button"
+			class="btn-ghost"
+			aria-pressed={formatFirst}
+			onclick={() => (formatFirst = true)}>format を先に</button
+		>
 	{/snippet}
 	<div class="overflow-x-auto p-4">
 		<svg viewBox="0 0 {W} {4 * 22}" class="h-auto w-full min-w-[560px]" role="img">
@@ -98,15 +110,35 @@
 					onmouseleave={() => (hovered = null)}
 					opacity={hovered && hovered !== s.name ? 0.35 : 1}
 				>
-					<rect x={x(s.start)} y={depth * 22} width={Math.max(x(s.end) - x(s.start) - 1, 1)} height="19" rx="2" fill={tone(s.name)} opacity="0.85" />
+					<rect
+						x={x(s.start)}
+						y={depth * 22}
+						width={Math.max(x(s.end) - x(s.start) - 1, 1)}
+						height="19"
+						rx="2"
+						fill={tone(s.name)}
+						opacity="0.85"
+					/>
 					{#if x(s.end) - x(s.start) > 60}
-						<text x={x(s.start) + 4} y={depth * 22 + 13} class="font-mono" font-size="10.5" fill="var(--bg)">{s.name}</text>
+						<text
+							x={x(s.start) + 4}
+							y={depth * 22 + 13}
+							class="font-mono"
+							font-size="10.5"
+							fill="var(--bg)">{s.name}</text
+						>
 					{/if}
 				</g>
 			{/each}
 		</svg>
 		<table class="table mt-4 text-[13px]">
-			<thead><tr><th>フェーズ</th><th class="num">total µs</th><th class="num">self µs</th><th class="w-[35%]">self の割合</th></tr></thead>
+			<thead
+				><tr
+					><th>フェーズ</th><th class="num">total µs</th><th class="num">self µs</th><th
+						class="w-[35%]">self の割合</th
+					></tr
+				></thead
+			>
 			<tbody>
 				{#each [...rows].sort((a, b) => b.selfNs - a.selfNs) as r (r.name)}
 					<tr
@@ -118,7 +150,13 @@
 						<td class="num">{r.totalNs.toFixed(1)}</td>
 						<td class="num">{r.selfNs.toFixed(1)}</td>
 						<td class="align-middle">
-							<div class="h-1.5 bg-surface"><div class="h-1.5" style:width="{(r.selfNs / T) * 100}%" style:background={tone(r.name)}></div></div>
+							<div class="h-1.5 bg-surface">
+								<div
+									class="h-1.5"
+									style:width="{(r.selfNs / T) * 100}%"
+									style:background={tone(r.name)}
+								></div>
+							</div>
 						</td>
 					</tr>
 				{/each}
@@ -126,8 +164,10 @@
 		</table>
 	</div>
 	{#snippet caption()}
-		各フェーズの長さは、ベンチマーク（build {rev.slice(0, 7)}、metrics あり）のフェーズ表の「そのフェーズ 1 回あたりの平均 self 時間」です。並べ方は <code>run_document</code>
-		と各タスクのコードに従ったモデルです。「format を先に」にしても <code>svelte.parse</code> の self は変わらず、変わるのはどのタスクの
-		total にパースが含まれるかだけです。
+		各フェーズの長さは、ベンチマーク（build {rev.slice(0, 7)}、metrics
+		あり）のフェーズ表の「そのフェーズ 1 回あたりの平均 self 時間」です。並べ方は
+		<code>run_document</code>
+		と各タスクのコードに従ったモデルです。「format を先に」にしても <code>svelte.parse</code> の self
+		は変わらず、変わるのはどのタスクの total にパースが含まれるかだけです。
 	{/snippet}
 </Figure>

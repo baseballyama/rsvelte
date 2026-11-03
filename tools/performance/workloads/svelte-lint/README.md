@@ -45,10 +45,10 @@ counters do not measure the final workspace tree.
 
 For 53 real files in the recorded snapshot:
 
-| Configuration | Median CPU cycles | Allocations per round | Requested bytes per round |
-|---|---|---|---|
-| Default | -2.58%, overlapping ranges | 2,462 → 2,451 | 283,001 → 282,179 |
-| Button only | -42.82%, separate ranges | 2,398 → 701 | 271,317 → 90,935 |
+| Configuration | Median CPU cycles          | Allocations per round | Requested bytes per round |
+| ------------- | -------------------------- | --------------------- | ------------------------- |
+| Default       | -2.58%, overlapping ranges | 2,462 → 2,451         | 283,001 → 282,179         |
+| Button only   | -42.82%, separate ranges   | 2,398 → 701           | 271,317 → 90,935          |
 
 The default result does not establish a general speed improvement. The button-only
 cache models reduce L1 data read misses by 59.72% and 45.88% in two cache layouts.

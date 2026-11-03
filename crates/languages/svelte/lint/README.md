@@ -4,11 +4,11 @@ This crate contains rules that need syntax and scopes. It does not register a ty
 provider or depend on `rsvelte_svelte_lint_typed` or `rsvelte_typescript_check`.
 TypeScript core supplies JS/TS parsing and scopes; it does not start tsgo.
 
-| Rule | Facts requested |
-|---|---|
-| `svelte/button-has-type` | Surface tree |
-| `svelte/valid-each-key` | HIR and resolution |
-| `no-unused-vars` | Resolution and JS parents |
+| Rule                     | Facts requested           |
+| ------------------------ | ------------------------- |
+| `svelte/button-has-type` | Surface tree              |
+| `svelte/valid-each-key`  | HIR and resolution        |
+| `no-unused-vars`         | Resolution and JS parents |
 
 Rules live in `src/rules/<rule>.rs`. `lint.rs` is the library entry point;
 `configuration.rs` selects rules, severity and options; `task.rs` adapts the library

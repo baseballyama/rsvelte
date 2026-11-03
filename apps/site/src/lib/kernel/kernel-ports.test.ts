@@ -42,7 +42,14 @@ describe('source', () => {
 			return `${b}:${x.line}:${x.column}:${x.character}`;
 		});
 		expect(lc.join(',')).toBe('0:1:0:0,2:1:1:1,6:1:3:3,7:2:0:4,8:2:1:5,9:2:2:6');
-		const cells: [number, number][] = [[1, 9], [2, 9], [3, 0], [1, 1], [1, 2], [2, 2]];
+		const cells: [number, number][] = [
+			[1, 9],
+			[2, 9],
+			[3, 0],
+			[1, 1],
+			[1, 2],
+			[2, 2],
+		];
 		expect(cells.map(([l, c]) => index.offset(l, c))).toEqual([null, null, null, 2, null, 9]);
 	});
 
@@ -98,7 +105,18 @@ describe('interner', () => {
 describe('json', () => {
 	it('nested values and keys', () => {
 		let w = new StructuredDataWriter(false);
-		w.beginObject().key('a').writeNumber(1).key('b').beginArray().writeString('x\n').null().endArray().key('c').beginObject().endObject().endObject();
+		w.beginObject()
+			.key('a')
+			.writeNumber(1)
+			.key('b')
+			.beginArray()
+			.writeString('x\n')
+			.null()
+			.endArray()
+			.key('c')
+			.beginObject()
+			.endObject()
+			.endObject();
 		expect(w.finish()).toBe('{"a":1,"b":["x\\n",null],"c":{}}');
 		w = new StructuredDataWriter(true);
 		w.beginArray().beginObject().key('k').writeBoolean(true).endObject().endArray();
@@ -122,23 +140,56 @@ describe('emit', () => {
 	it('spans map back through copies and quotes', () => {
 		const { source, e } = ariaExample();
 		expect(e.out.slice(4, 16)).toBe('"aria-label"');
-		expect(e.lookupSpan({ startOffset: 4, endOffset: 16 })).toEqual({ startOffset: 3, endOffset: 12 });
-		expect(e.lookupSpan({ startOffset: 18, endOffset: 19 })).toEqual({ startOffset: 15, endOffset: 15 });
+		expect(e.lookupSpan({ startOffset: 4, endOffset: 16 })).toEqual({
+			startOffset: 3,
+			endOffset: 12,
+		});
+		expect(e.lookupSpan({ startOffset: 18, endOffset: 19 })).toEqual({
+			startOffset: 15,
+			endOffset: 15,
+		});
 		expect(e.lookupSpan({ startOffset: 0, endOffset: 2 })).toBe(null);
 		const marked = new Emitter();
 		marked.copy(source, { startOffset: 15, endOffset: 16 });
 		marked.mark(16);
 		marked.push(';');
-		expect(marked.lookupSpan({ startOffset: 0, endOffset: 1 })).toEqual({ startOffset: 15, endOffset: 16 });
+		expect(marked.lookupSpan({ startOffset: 0, endOffset: 1 })).toEqual({
+			startOffset: 15,
+			endOffset: 16,
+		});
 	});
 
 	it('matches the oracle source map and per-byte lookup', () => {
 		const { source, e } = ariaExample();
 		expect(e.sourceMap(source, 'App.svelte')).toBe(
-			'{"version":3,"sources":["App.svelte"],"names":[],"mappings":"IAAG,CAAA,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,IAAG"}'
+			'{"version":3,"sources":["App.svelte"],"names":[],"mappings":"IAAG,CAAA,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,IAAG"}',
 		);
 		const lookups = Array.from(e.out, (_, p) => e.lookup(p));
-		expect(lookups).toEqual([null, null, null, null, 3, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 12, 12, 12, 15, 15, 15, 15, 15]);
+		expect(lookups).toEqual([
+			null,
+			null,
+			null,
+			null,
+			3,
+			3,
+			4,
+			5,
+			6,
+			7,
+			8,
+			9,
+			10,
+			11,
+			12,
+			12,
+			12,
+			12,
+			15,
+			15,
+			15,
+			15,
+			15,
+		]);
 	});
 
 	it('a standard consumer answers what lookup answers', () => {
@@ -154,7 +205,9 @@ describe('emit', () => {
 		const m = new Emitter();
 		m.copy('ab\ncd', { startOffset: 0, endOffset: 5 });
 		m.push('\n;');
-		expect(m.sourceMap('ab\ncd', 'a')).toBe('{"version":3,"sources":["a"],"names":[],"mappings":"AAAA,CAAC,CAAC;AACF,CAAC"}');
+		expect(m.sourceMap('ab\ncd', 'a')).toBe(
+			'{"version":3,"sources":["a"],"names":[],"mappings":"AAAA,CAAC,CAAC;AACF,CAAC"}',
+		);
 		const lookups = Array.from({ length: m.out.length + 1 }, (_, p) => m.lookup(p));
 		expect(lookups).toEqual([0, 1, 2, 3, 4, 4, null, null]);
 	});

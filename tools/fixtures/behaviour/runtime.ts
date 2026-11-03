@@ -56,10 +56,9 @@ export interface TraceRequest {
 	translated?: boolean;
 }
 
-const call = rpc<TraceRequest, Trace>(
-	new URL('./client.ts', import.meta.url),
-	(m) => ({ error: `worker: ${m}` }),
-);
+const call = rpc<TraceRequest, Trace>(new URL('./client.ts', import.meta.url), (m) => ({
+	error: `worker: ${m}`,
+}));
 
 /** The behaviour trace of the component module `file` exports, on `runtime`, for one build target. */
 export const trace = (
@@ -69,17 +68,13 @@ export const trace = (
 	behaviour: Behaviour,
 	sourceFile?: string,
 	translated = false,
-): Promise<Trace> =>
-	call({ runtime, target, file, behaviour, sourceFile, translated });
+): Promise<Trace> => call({ runtime, target, file, behaviour, sourceFile, translated });
 
 /** Errors a trace carries; the official toolchain's trace must have none. */
 export function traceErrors(t: Trace): string[] {
 	if ('error' in t) return [t.error];
 	if ('html' in t) return [];
-	return t.steps.flatMap((s) => [
-		...(s.error ? [s.error] : []),
-		...(s.errors ?? []),
-	]);
+	return t.steps.flatMap((s) => [...(s.error ? [s.error] : []), ...(s.errors ?? [])]);
 }
 
 /** Where two traces first differ, in words, or null when they are equal. */
@@ -91,13 +86,8 @@ export function traceDiff(expected: Trace, actual: Trace): string | null {
 			return `server html: ${linesDiff(expected.html, actual.html)}`;
 		return `server head: ${linesDiff(expected.head ?? [], actual.head ?? [])}`;
 	}
-	if (!('steps' in expected) || !('steps' in actual))
-		return 'different trace kinds';
-	for (
-		let i = 0;
-		i < Math.max(expected.steps.length, actual.steps.length);
-		i++
-	) {
+	if (!('steps' in expected) || !('steps' in actual)) return 'different trace kinds';
+	for (let i = 0; i < Math.max(expected.steps.length, actual.steps.length); i++) {
 		const e = expected.steps[i];
 		const a = actual.steps[i];
 		if (JSON.stringify(e) === JSON.stringify(a)) continue;
@@ -117,7 +107,6 @@ export function traceDiff(expected: Trace, actual: Trace): string | null {
 function linesDiff(expected: string[], actual: string[]): string {
 	let i = 0;
 	while (i < expected.length && expected[i] === actual[i]) i++;
-	const show = (l: string | undefined) =>
-		l === undefined ? '<end>' : l.trim();
+	const show = (l: string | undefined) => (l === undefined ? '<end>' : l.trim());
 	return `line ${i + 1}: expected ${show(expected[i])}, actual ${show(actual[i])}`;
 }
