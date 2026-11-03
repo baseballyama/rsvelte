@@ -17,6 +17,7 @@
 //! and are left for a follow-up so the synchronous path can land first.
 
 use crate::ast::template::DeclarationTag;
+use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsStatement};
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
@@ -208,6 +209,104 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
     };
 
     context.state.consts.push(JsStatement::Raw(raw.into()));
+    register_signal_transforms(node, context);
+}
+
+/// Upstream's `DeclarationTag` runs `add_state_transformers` over the tag's own
+/// scope. The program-level pass sees only the binding the flattened root scope
+/// keeps under each name, so a tag's `$state` / `$derived` lost its `$.get`
+/// read whenever another binding shared its name; resolve each declared
+/// identifier by its declaring position instead.
+///
+/// A `$state` tag that shadows an instance binding is skipped: the text pipeline
+/// above decided `$.state(…)` versus a plain value from that instance binding,
+/// and the reads have to agree with the declaration it emitted.
+fn register_signal_transforms(node: &DeclarationTag, context: &mut ComponentContext) {
+    let decl_json = node.declaration.as_json();
+    let Some(decls) = decl_json.field("declarations").and_then(|d| d.as_array()) else {
+        return;
+    };
+    let mut ids: Vec<(String, u32)> = Vec::new();
+    for d in decls {
+        if let Some(id) = d.field("id") {
+            collect_declared_ids(id, &mut ids);
+        }
+    }
+    let scope_root = context.state.scope_root;
+    for (name, start) in ids {
+        let Some(binding) = scope_root
+            .bindings_by_name
+            .get(name.as_str())
+            .into_iter()
+            .flatten()
+            .filter_map(|&index| scope_root.bindings.get(index as usize))
+            .find(|binding| binding.declaration_start == Some(start))
+        else {
+            continue;
+        };
+        let shadows_instance = scope_root
+            .all_scopes
+            .get(scope_root.instance_scope_index)
+            .is_some_and(|scope| scope.declarations.contains_key(name.as_str()));
+        if shadows_instance && binding.kind != BindingKind::Derived {
+            continue;
+        }
+        if let Some(transform) =
+            super::shared::declarations::signal_transform(&name, binding, context)
+        {
+            context.state.transform.insert(name, transform);
+        }
+    }
+}
+
+fn collect_declared_ids(pattern: &serde_json::Value, out: &mut Vec<(String, u32)>) {
+    match pattern.field("type").and_then(|t| t.as_str()) {
+        Some("Identifier") => {
+            if let (Some(name), Some(start)) = (
+                pattern.field("name").and_then(|n| n.as_str()),
+                pattern.field("start").and_then(|s| s.as_u64()),
+            ) {
+                out.push((name.to_string(), start as u32));
+            }
+        }
+        Some("ObjectPattern" | "ObjectExpression") => {
+            for prop in pattern
+                .field("properties")
+                .and_then(|p| p.as_array())
+                .into_iter()
+                .flatten()
+            {
+                let inner = match prop.field("type").and_then(|t| t.as_str()) {
+                    Some("RestElement" | "SpreadElement") => prop.field("argument"),
+                    _ => prop.field("value"),
+                };
+                if let Some(inner) = inner {
+                    collect_declared_ids(inner, out);
+                }
+            }
+        }
+        Some("ArrayPattern" | "ArrayExpression") => {
+            for element in pattern
+                .field("elements")
+                .and_then(|e| e.as_array())
+                .into_iter()
+                .flatten()
+            {
+                collect_declared_ids(element, out);
+            }
+        }
+        Some("AssignmentPattern") => {
+            if let Some(left) = pattern.field("left") {
+                collect_declared_ids(left, out);
+            }
+        }
+        Some("RestElement" | "SpreadElement") => {
+            if let Some(argument) = pattern.field("argument") {
+                collect_declared_ids(argument, out);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// Try to emit a `{let x = …}` / `{const x = …}` declaration tag via the

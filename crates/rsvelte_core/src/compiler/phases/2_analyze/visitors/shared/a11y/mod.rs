@@ -212,7 +212,8 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
 
                 // A valueless `role` is the boolean `true`, which upstream skips.
                 if let Some(StaticValue::Text(value)) = get_static_value(attribute) {
-                    for current_role in value.split(|c: char| c.is_whitespace()) {
+                    let lowered = role_tokens_source(value);
+                    for current_role in role_tokens(&lowered) {
                         if current_role.is_empty() {
                             continue;
                         }
@@ -234,7 +235,8 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
                         if let Some(implicit_role) = get_implicit_role(node.name, &attribute_map)
                             && current_role == implicit_role
                             && !["ul", "ol", "li", "menu"].contains(&node.name)
-                            && (node.name != "a" || attribute_map.contains_key("href"))
+                            && (!matches!(node.name, "a" | "area")
+                                || attribute_map.contains_key("href"))
                         {
                             warnings.push(
                                 w::a11y_no_redundant_roles(current_role).at(attr_start, attr_end),
@@ -367,9 +369,11 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
     }
 
     let has_role_attr = attribute_map.contains_key("role");
-    let role_static_value = attribute_map
+    let effective_role = attribute_map
         .get("role")
-        .and_then(|attr| get_static_text_value(attr));
+        .and_then(|attr| get_static_text_value(attr))
+        .map(get_effective_role);
+    let role_static_value = effective_role.as_deref();
 
     // click-events-have-key-events
     if handlers.contains("click") {
@@ -904,6 +908,34 @@ fn is_interactive_roles(role: &str) -> bool {
 
 fn is_abstract_role(role: &str) -> bool {
     ABSTRACT_ROLES.contains(role)
+}
+
+/// Role tokens match ASCII case-insensitively; non-ASCII letters keep their case.
+fn role_tokens_source(value: &str) -> std::borrow::Cow<'_, str> {
+    if value.bytes().any(|b| b.is_ascii_uppercase()) {
+        std::borrow::Cow::Owned(value.to_ascii_lowercase())
+    } else {
+        std::borrow::Cow::Borrowed(value)
+    }
+}
+
+/// Upstream's `get_role_tokens` splits on `regex_whitespaces_strict`
+/// (`[ \t\n\r\f]+`), the HTML ASCII-whitespace set, which excludes `\v`.
+fn role_tokens(lowered: &str) -> impl Iterator<Item = &str> {
+    lowered.split([' ', '\t', '\n', '\r', '\u{c}'])
+}
+
+/// The first known, non-abstract fallback role, or the whole value when none
+/// matches so invalid roles keep their diagnostics.
+fn get_effective_role(value: &str) -> std::borrow::Cow<'_, str> {
+    let lowered = role_tokens_source(value);
+    let found = role_tokens(&lowered)
+        .find(|role| ARIA_ROLES.contains(role) && !is_abstract_role(role))
+        .map(str::to_owned);
+    match found {
+        Some(role) => std::borrow::Cow::Owned(role),
+        None => std::borrow::Cow::Borrowed(value),
+    }
 }
 
 /// Upstream's `get_static_value` yields `null | true | string`; a valueless

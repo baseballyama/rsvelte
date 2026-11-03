@@ -178,54 +178,55 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                 continue;
             }
 
-            // Check if this binding needs reactive transformations
-            if is_state_source(binding, context.state.analysis)
-                || matches!(binding.kind, BindingKind::Derived)
-                || matches!(binding.kind, BindingKind::LegacyReactive)
-            {
-                // Determine the read function based on declaration kind
-                let read_fn: fn(&JsArena, JsExpr) -> JsExpr =
-                    if binding.declaration_kind == DeclarationKind::Var {
-                        safe_get_value
-                    } else {
-                        get_value
-                    };
-
-                // Determine the mutate function based on runes mode
-                let mutate_fn: fn(&IdentifierTransform, &JsArena, JsExpr, JsExpr) -> JsExpr =
-                    if context.state.analysis.runes {
-                        mutate_value_runes
-                    } else {
-                        mutate_value_legacy
-                    };
-
-                // Determine the assign function based on whether we need store handling
-                let assign_fn = create_assign_fn(name, context);
-
-                // Create the transform rule for this binding
-                // $state.raw() variables should never use proxy (skip_proxy: true)
-                let skip_proxy = matches!(binding.kind, BindingKind::RawState);
-                let transform = IdentifierTransform {
-                    read: Some(read_fn),
-                    read_source: None,
-                    assign: Some(assign_fn),
-                    mutate: Some(mutate_fn),
-                    update: Some(update_value),
-                    skip_proxy,
-                    is_defined: false,
-                    // State sources ($state, $derived, legacy reactive) are reactive
-                    is_reactive: true,
-                    replacement_id: None,
-                    store_source: None,
-                };
-
-                // Register the transform in the state
+            if let Some(transform) = signal_transform(name, binding, context) {
                 context.state.transform.insert(name.clone(), transform);
             }
         }
     }
 
     resolve_store_sources(context);
+}
+
+/// The transform `add_state_transformers` installs for a `$state` source, a
+/// `$derived` or a legacy reactive binding; `None` for any other binding.
+pub(crate) fn signal_transform(
+    name: &str,
+    binding: &crate::compiler::phases::phase2_analyze::scope::Binding,
+    context: &ComponentContext,
+) -> Option<IdentifierTransform> {
+    if !(is_state_source(binding, context.state.analysis)
+        || matches!(
+            binding.kind,
+            BindingKind::Derived | BindingKind::LegacyReactive
+        ))
+    {
+        return None;
+    }
+    let read_fn: fn(&JsArena, JsExpr) -> JsExpr =
+        if binding.declaration_kind == DeclarationKind::Var {
+            safe_get_value
+        } else {
+            get_value
+        };
+    let mutate_fn: fn(&IdentifierTransform, &JsArena, JsExpr, JsExpr) -> JsExpr =
+        if context.state.analysis.runes {
+            mutate_value_runes
+        } else {
+            mutate_value_legacy
+        };
+    Some(IdentifierTransform {
+        read: Some(read_fn),
+        read_source: None,
+        assign: Some(create_assign_fn(name, context)),
+        mutate: Some(mutate_fn),
+        update: Some(update_value),
+        // `$state.raw` values are never proxied.
+        skip_proxy: matches!(binding.kind, BindingKind::RawState),
+        is_defined: false,
+        is_reactive: true,
+        replacement_id: None,
+        store_source: None,
+    })
 }
 
 /// Fill in every `$store` transform's `store_source`. Upstream reads it lazily

@@ -146,6 +146,21 @@ fn json_walk_for_call(val: &serde_json::Value) -> bool {
     }
 }
 
+/// Upstream `binding.blocker`: a binding assigned after a top-level `await` is
+/// still `undefined` when the handler is attached, so it is read through
+/// `?.apply` at event time instead of being passed directly.
+pub(crate) fn binding_has_blocker(
+    binding: &crate::compiler::phases::phase2_analyze::scope::Binding,
+    name: &str,
+    context: &ComponentContext,
+) -> bool {
+    if binding.scope_index == context.state.scope_root.instance_scope_index {
+        context.state.has_blockers_for_names(&[name])
+    } else {
+        context.state.const_blocker_map.borrow().contains_key(name)
+    }
+}
+
 /// Build an event handler function.
 ///
 /// Corresponds to `build_event_handler` in
@@ -224,7 +239,7 @@ pub fn build_event_handler(
         // Mirrors the official compiler in `events.js`:
         //
         //   if (binding?.is_function()) return handler;
-        //   if (!dev && binding?.declaration_kind !== 'import') return handler;
+        //   if (!dev && binding?.declaration_kind !== 'import' && !binding?.blocker) return handler;
         //
         // i.e. attach the handler directly when (a) it's a function
         // declaration / hoisted function, or (b) outside dev, any binding that
@@ -244,6 +259,7 @@ pub fn build_event_handler(
         }
         if !context.state.options.dev
             && binding.is_none_or(|b| b.declaration_kind != DeclarationKind::Import)
+            && !binding.is_some_and(|b| binding_has_blocker(b, name, context))
         {
             return handler;
         }
