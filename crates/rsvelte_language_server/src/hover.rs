@@ -309,7 +309,7 @@ mod tests {
             "{css}"
         );
         assert!(
-            css.contains("[MDN Reference](https://developer.mozilla.org/docs/Web/CSS/color)"),
+            css.contains("[MDN Reference](https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/color)"),
             "{css}"
         );
         expect_none("<script>const a = true</script><p>test</p>", 10);
