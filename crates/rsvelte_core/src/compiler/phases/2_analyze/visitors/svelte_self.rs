@@ -69,10 +69,15 @@ pub fn visit<'a, 'b: 'a>(
                     );
                 }
             }
-            Attribute::Attribute(_)
-            | Attribute::AttachTag(_)
-            | Attribute::LetDirective(_)
-            | Attribute::SpreadAttribute(_) => {}
+            Attribute::LetDirective(let_dir) => {
+                super::shared::component::check_let_directive_snippet_conflict(
+                    let_dir,
+                    &self_.attributes,
+                    &self_.fragment,
+                    &context.analysis.source,
+                )?;
+            }
+            Attribute::Attribute(_) | Attribute::AttachTag(_) | Attribute::SpreadAttribute(_) => {}
             _ => {
                 let (start, end) = attr.span();
                 return Err(errors::component_invalid_directive().at(start, end));

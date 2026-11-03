@@ -1,11 +1,6 @@
-//! One table decides whether a repeated `{:…}` clause is legal (#3284 / #3349).
-//!
-//! The two directions were reported as separate issues — `{:else}` **rejected**
-//! where upstream accepts, `{:then}` / `{:catch}` **accepted** where upstream
-//! rejects — and they are opposite arms of one question. Keeping the answer at
-//! each parse site is what let them drift, so the sites read
-//! `Clause::duplicate_is_error` instead and this file pins it against the
-//! official compiler's behaviour.
+//! A repeated `{:…}` clause in one block is `block_duplicate_clause` for every
+//! clause kind (svelte 5.57.3 extended it from `{#await}` to `{:else}` in
+//! `{#if}` / `{#each}`).
 //!
 //! Every expectation is the official Svelte compiler's verdict for the same
 //! source.
@@ -70,21 +65,29 @@ fn in_every_host(block: &str, mut check: impl FnMut(&str)) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// `{:else}` — a repeat is ACCEPTED and replaces the earlier branch
-// ---------------------------------------------------------------------------
-
 #[test]
-fn a_repeated_else_is_accepted_in_an_if_block() {
-    in_every_host("{#if c}a{:else}b{:else}d{/if}", assert_accepted);
+fn a_repeated_else_is_rejected_in_an_if_block() {
+    for block in [
+        "{#if c}a{:else}b{:else}d{/if}",
+        "{#if c}a{:else}b{:else if p}d{/if}",
+        "{#if c}a{:else if p}b{:else}e{:else}f{/if}",
+    ] {
+        in_every_host(block, |source| {
+            assert_rejected(source, "block_duplicate_clause");
+        });
+    }
 }
 
 #[test]
-fn a_repeated_else_is_accepted_in_an_each_block() {
-    in_every_host(
+fn a_repeated_else_is_rejected_in_an_each_block() {
+    for block in [
         "{#each arr as v}{v}{:else}b{:else}d{/each}",
-        assert_accepted,
-    );
+        "{#each arr}x{:else}b{:else}d{/each}",
+    ] {
+        in_every_host(block, |source| {
+            assert_rejected(source, "block_duplicate_clause");
+        });
+    }
 }
 
 #[test]
