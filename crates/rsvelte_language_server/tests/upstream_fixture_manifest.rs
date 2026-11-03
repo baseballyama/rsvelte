@@ -53,7 +53,7 @@ fn snapshot_fixture_inventory_is_complete_and_parseable() -> Result<()> {
                 .with_context(|| format!("invalid {}", fixture.expected.display()))?;
         }
     }
-    assert_eq!(total, 127);
+    assert_eq!(total, 129);
     Ok(())
 }
 
