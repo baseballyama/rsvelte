@@ -1,68 +1,38 @@
 # fixtures
 
-Test inputs copied from real projects, and the output of the official tools for them (the expected
-result). One input file is one **unit**, and each unit has its own directory.
-
-Hand-written tests do not go here. They live in each crate's `tests/fixtures/` and compare
-rsvelte's output with its own snapshots: see [crates/fixture_test/README.md](../crates/fixture_test/README.md).
+Real files from permissively licensed projects, and the official tools' output for them. One
+input file is one **unit**. Commands: [tools/fixtures](../tools/fixtures/README.md).
 
 ```
 fixtures/
-├── _registry/                  data shared by all languages
-└── <family>/<source>/<path>/   one unit, e.g. svelte/bits-ui/src/lib/button.svelte/
+├── _registry/
+│   ├── sources.json          source repositories: URL, commit, license (written by hand)
+│   ├── oracles.json          versions of the official tools that wrote expected/
+│   ├── import-report.json    files taken and skipped per source
+│   └── licenses/
+└── <family>/<source>/<path>/ one unit, e.g. svelte/bits-ui/src/lib/button.svelte/
+    ├── input.*               the copied file
+    ├── meta.json             language, hash, mode
+    ├── fixture.toml          [skip], [[adjust]], [behaviour] (cross units); written by hand
+    ├── expected/<task>/<variant>.*   the official tool's output
+    ├── actual/               rsvelte's output (ignored by git)
+    └── cache/                expected output too large to commit (ignored by git)
 ```
 
-`<family>` is a language family (`svelte`, `vue`, and `cross` for components compiled for
-the other runtime), `<source>` is the repository the file came from, and `<path>` is the file's
-path in that repository.
-
-## Files
-
-| File | Purpose | Written by | In git |
-|---|---|---|---|
-| `_registry/sources.json` | Source repositories: URL, commit, license. Unused ones stay listed with the reason. | a person | yes |
-| `_registry/oracles.json` | Versions of the official tools that made `expected/`. | `regen` | yes |
-| `_registry/import-report.json` | Per source: files taken, and files skipped per reason. | `import` | yes |
-| `_registry/licenses/` | License files of the sources. | `import` | yes |
-| `<unit>/input.*` | The copied input. | `import` | yes |
-| `<unit>/meta.json` | Language, hash, and mode of the input. | `import` | yes |
-| `<unit>/fixture.toml` | Manual notes: `[skip]`, `[[adjust]]` (below) and, for `cross` units, `[behaviour]` (props and user steps). `import` never changes it. | a person | yes |
-| `<unit>/expected/<task>/<variant>.*` | Output of the official tool: `.js`, `.css`, `.warnings.json`, `.error.json`, or for `cross` units `.trace.json` (what the official build renders after each step). | `regen` | yes |
-| `<unit>/actual/<task>/<variant>.*` | rsvelte's output, same names as `expected/`. | rsvelte tests | no |
-| `<unit>/cache/<task>/<variant>.*` | Expected output too large to commit. | `regen` | no |
-
-JavaScript is compared as a syntax tree, so positions, quote style and comments do not matter
-(rules: `tools/fixtures/canonical.ts`).
-
-## `fixture.toml`
+Never edit `expected/`. When rsvelte's output means the same thing, add an adjustment:
 
 ```toml
 [skip]
 "svelte.compile/client" = "why this task does not apply"
 
-[[adjust]]                  # accept a harmless difference in the expected output
+[[adjust]]
 task = "svelte.compile"
 variant = "client"
-at = "body.5.declaration.body.body.0.declarations.0.init.arguments.0"   # printed by `compare`
-expect = "void 0"           # what the official tool has there
-replace = "undefined"       # what we accept instead
+at = "body.5.declaration.body.body.0.declarations.0.init.arguments.0" # printed by `compare`
+expect = "void 0"     # the official output
+replace = "undefined" # what we accept
 reason = "same value"
 ```
 
-After an update of the official tool, `adjust` reports entries that no longer fit.
-
-## Reserved names
-
-If a part of `<path>` is `expected`, `actual`, `cache`, `meta.json`, `fixture.toml`, `input.*`, or
-starts with `~`, it is stored with a `~` in front. Example: `foo/input.svelte` is stored as
-`foo/~input.svelte/`.
-
-## Commands
-
-The commands that import, regenerate and compare the corpus are in
-[tools/fixtures](../tools/fixtures/README.md).
-
-## Licenses
-
-Only permissively licensed sources are copied. Copyright stays with each source; see
-`_registry/licenses/` and `_registry/sources.json`.
+A path segment named like a unit file (`expected`, `input.svelte`, …) or starting with `~` is
+stored with a `~` in front.
