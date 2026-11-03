@@ -3,7 +3,7 @@ import type { Task } from '../types.ts';
 
 // Written out so the snapshot does not depend on a prettier default changing. prettier formats
 // `.vue` itself; no plugin.
-export const FORMAT_OPTIONS = {
+const FORMAT_OPTIONS = {
 	parser: 'vue',
 	printWidth: 80,
 	tabWidth: 2,

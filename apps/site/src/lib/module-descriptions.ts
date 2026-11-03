@@ -1,4 +1,4 @@
-export const moduleDescriptions: Record<string, { title: string; summary: string }> = {
+const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 	'kernel/source': { title: 'ソースの記録', summary: '位置、名前、字句、構文木の識別番号を扱う機能をまとめます。' },
 	'kernel/computation': { title: '計算と実行', summary: '計算結果の保存と、処理の登録・実行をまとめます。' },
 	'kernel/diagnostics': { title: '問題の報告', summary: 'どのタスクも使う、エラーや警告の情報をまとめます。' },

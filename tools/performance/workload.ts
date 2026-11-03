@@ -1,4 +1,4 @@
-export type Arm = { name: string; command: [string, ...string[]] };
+type Arm = { name: string; command: [string, ...string[]] };
 export type Workload = {
 	rounds: number; repetitions: number; arms: Arm[];
 	expect_stdout?: Record<string, string | number | boolean>;

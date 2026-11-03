@@ -5,7 +5,7 @@ import toolbar from '$generated/layers/Toolbar.json';
 
 export type Range = [number, number];
 
-export interface SurfaceRow {
+interface SurfaceRow {
 	depth: number;
 	label: string;
 	span: Range;
@@ -13,7 +13,7 @@ export interface SurfaceRow {
 	id: number | null;
 }
 
-export interface CompilerSyntaxTreeRow {
+interface CompilerSyntaxTreeRow {
 	depth: number;
 	label: string;
 	span: Range;
@@ -24,7 +24,7 @@ export interface CompilerSyntaxTreeRow {
 	attributes?: { name: string; value: string }[];
 }
 
-export interface Binding {
+interface Binding {
 	id: number;
 	name: string;
 	declaration: string;

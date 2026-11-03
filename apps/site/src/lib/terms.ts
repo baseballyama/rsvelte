@@ -1,4 +1,4 @@
-export const terms: Record<string, string> = {
+const terms: Record<string, string> = {
 	DocumentContext: '文書ごとの保存領域',
 	SourceLocation: '元のソース上の位置の有無',
 	TypedIndex: '型付きの識別番号',

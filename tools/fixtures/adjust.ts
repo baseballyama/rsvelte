@@ -36,7 +36,7 @@ interface Applied {
 	detail?: string;
 }
 
-export function loadAdjustments(unit: Unit): Loaded[] {
+function loadAdjustments(unit: Unit): Loaded[] {
 	return (unit.fixture.adjust ?? []).map((a, index) => ({ ...a, artifact: a.artifact ?? 'js', index }));
 }
 
@@ -51,7 +51,7 @@ function parseArtifact(text: string, artifact: string): Node {
 }
 
 /** Applies adjustments to a canonical tree in place and returns one status per adjustment. */
-export function applyAdjustments(tree: Node, adjustments: Loaded[]): Applied[] {
+function applyAdjustments(tree: Node, adjustments: Loaded[]): Applied[] {
 	return adjustments.map((adj): Applied => {
 		if (!adj.at) return { adj, status: 'stale', detail: 'empty `at`' };
 		const target = getAt(tree, adj.at) as Node | undefined;

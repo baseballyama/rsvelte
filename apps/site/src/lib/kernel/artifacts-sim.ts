@@ -26,7 +26,7 @@ export interface LayoutInstruction {
 	parses: boolean;
 }
 
-export interface GetEvent {
+interface GetEvent {
 	artifact: ArtifactName;
 	computed: boolean;
 	/** Nesting depth: a `get` made from inside another artifact's `compute`. */

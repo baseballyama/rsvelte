@@ -54,7 +54,7 @@ export function writeMeta(unit: StoredUnit): boolean {
  *   [skip]            "<task>" or "<task>/<variant>" = "reason"
  *   [[adjust]]        see adjust.ts
  */
-export function readFixture(unit: UnitKey): FixtureToml {
+function readFixture(unit: UnitKey): FixtureToml {
 	const file = fixtureFile(unit);
 	if (!fs.existsSync(file)) return {};
 	return parseToml(fs.readFileSync(file, 'utf8')) as FixtureToml;

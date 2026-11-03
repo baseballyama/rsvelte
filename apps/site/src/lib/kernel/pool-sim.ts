@@ -5,9 +5,9 @@
 // for small elements). The byte budget is counted in elements here; the real one is `MAXIMUM_BYTES`,
 // over every key of the thread.
 
-export const MAX_PER_KEY = 16;
+const MAX_PER_KEY = 16;
 
-export type Event =
+type Event =
 	| { kind: 'take'; syntax_tree: string; got: number | null; need: number; allocations: number; cap: number }
 	| { kind: 'give'; syntax_tree: string; cap: number; kept: boolean; why: 'kept' | 'disabled' | 'full' | 'budget' };
 

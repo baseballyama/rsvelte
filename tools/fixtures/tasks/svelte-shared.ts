@@ -16,7 +16,7 @@ interface Diagnostic {
 const position = (p?: Position) => (p ? { line: p.line, column: p.column, character: p.character } : null);
 
 /** Warnings and errors keep what a user sees and drop the rendered frame. */
-export function diagnostic(d: Diagnostic) {
+function diagnostic(d: Diagnostic) {
 	return { code: d.code, message: d.message, start: position(d.start), end: position(d.end) };
 }
 

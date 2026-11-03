@@ -20,7 +20,7 @@ export interface Projection {
 	detail?: string;
 }
 
-export interface QueryResult extends Observation {
+interface QueryResult extends Observation {
 	verdict: 'match' | 'mismatch' | 'UNMEASURED';
 	left?: string;
 	right?: string;

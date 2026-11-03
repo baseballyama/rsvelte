@@ -3,7 +3,7 @@ import type { PerformanceRecord } from '$lib/build/performance-history';
 
 export type { PerformanceRecord };
 
-export interface PerformancePhase {
+interface PerformancePhase {
 	calls: number;
 	allocations: number;
 	alloc_bytes: number;

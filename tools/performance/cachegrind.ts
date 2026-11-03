@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 export const CACHE_EVENTS = ['Ir', 'I1mr', 'ILmr', 'Dr', 'D1mr', 'DLmr', 'Dw', 'D1mw', 'DLmw'] as const;
 export type CacheEvent = typeof CACHE_EVENTS[number];
 export type CacheCounts = Record<CacheEvent, number>;
-export type Cache = { bytes: number; ways: number; line_bytes: number };
+type Cache = { bytes: number; ways: number; line_bytes: number };
 export type CacheModel = { i1: Cache; d1: Cache; ll: Cache };
 export const DEFAULT_CACHE_MODEL: CacheModel = {
 	i1: { bytes: 32 * 1024, ways: 8, line_bytes: 64 },
@@ -13,7 +13,7 @@ export const DEFAULT_CACHE_MODEL: CacheModel = {
 	ll: { bytes: 8 * 1024 * 1024, ways: 16, line_bytes: 64 }
 };
 
-export function validateModel(model: CacheModel): void {
+function validateModel(model: CacheModel): void {
 	for (const name of ['i1', 'd1', 'll'] as const) {
 		const cache = model[name];
 		if (!cache) throw new Error(`missing ${name} cache`);
@@ -50,7 +50,7 @@ export function parseCachegrind(text: string): CacheCounts {
 	return result;
 }
 
-export function validateCounts(counts: CacheCounts): void {
+function validateCounts(counts: CacheCounts): void {
 	for (const event of CACHE_EVENTS) {
 		if (typeof counts[event] !== 'number' || !Number.isFinite(counts[event]) || counts[event] < 0 || counts[event] > Number.MAX_SAFE_INTEGER) throw new Error(`invalid ${event} count`);
 	}

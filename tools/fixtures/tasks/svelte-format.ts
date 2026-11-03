@@ -3,7 +3,7 @@ import * as sveltePlugin from 'prettier-plugin-svelte';
 import type { Task } from '../types.ts';
 
 // Written out so the snapshot does not depend on a prettier default changing.
-export const FORMAT_OPTIONS = {
+const FORMAT_OPTIONS = {
 	parser: 'svelte',
 	printWidth: 80,
 	tabWidth: 2,

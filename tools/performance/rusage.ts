@@ -28,7 +28,7 @@ export function parseCounters(text: string): Counters {
 	return counters;
 }
 
-export function median(values: number[]): number {
+function median(values: number[]): number {
 	const sorted = values.toSorted((a, b) => a - b);
 	const middle = Math.floor(sorted.length / 2);
 	if (!sorted.length) throw new Error('no samples');

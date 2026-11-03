@@ -1,7 +1,5 @@
 import type { Behaviour } from './behaviour/runtime.ts';
 
-export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
-
 export interface Source {
 	id: string;
 	url: string | null;
@@ -50,7 +48,7 @@ export interface Unit extends UnitKey, UnitMeta {
 	fixture: FixtureToml;
 }
 
-export type Admission = { include: true; fields: Omit<UnitMeta, 'lang' | 'sha256'> } | { include: false; reason: string };
+type Admission = { include: true; fields: Omit<UnitMeta, 'lang' | 'sha256'> } | { include: false; reason: string };
 
 export interface Language {
 	id: string;
@@ -62,7 +60,7 @@ export interface Language {
 	admit(src: string, path: string): Admission;
 }
 
-export type Compare = 'js-ast' | 'text' | 'json' | 'lint';
+type Compare = 'js-ast' | 'text' | 'json' | 'lint';
 
 export interface Artifact {
 	text: string;
@@ -92,4 +90,4 @@ export interface Task {
 }
 
 /** An observed artifact, or why the emitted code could not be observed. */
-export type Observed = { text: string; diff(expected: string): string | null };
+type Observed = { text: string; diff(expected: string): string | null };

@@ -10,7 +10,7 @@ export interface SimDoc {
 	hasPart: boolean;
 }
 
-export interface Block {
+interface Block {
 	doc: number;
 	worker: number;
 	start: number;

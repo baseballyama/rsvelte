@@ -8,7 +8,7 @@ import type { Language } from './types.ts';
 
 const code = (e: unknown): string => (e as { code?: string }).code ?? 'throw';
 
-export const LANGUAGES: Language[] = [
+const LANGUAGES: Language[] = [
 	{
 		id: 'svelte',
 		family: 'svelte',

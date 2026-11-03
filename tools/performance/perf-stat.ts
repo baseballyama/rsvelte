@@ -1,5 +1,5 @@
 export const HARDWARE_EVENTS = ['cycles', 'instructions', 'L1-dcache-loads', 'L1-dcache-load-misses', 'LLC-loads', 'LLC-load-misses'] as const;
-export type HardwareEvent = typeof HARDWARE_EVENTS[number];
+type HardwareEvent = typeof HARDWARE_EVENTS[number];
 export type HardwareCounts = Record<HardwareEvent, number | 'UNMEASURED'>;
 
 export function parsePerfStat(text: string): HardwareCounts {

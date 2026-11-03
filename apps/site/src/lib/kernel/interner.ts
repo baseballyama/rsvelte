@@ -18,7 +18,7 @@ export interface InternResult {
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-export function fnv1a(s: string): number {
+function fnv1a(s: string): number {
 	let h = 0x811c9dc5;
 	for (const b of encoder.encode(s)) {
 		h ^= b;

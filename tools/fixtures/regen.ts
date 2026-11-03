@@ -11,7 +11,7 @@ import { parseJs } from './canonical.ts';
 import type { Task, Unit } from './types.ts';
 
 const require = createRequire(import.meta.url);
-export const packageVersion = (name: string): string => require(`${name}/package.json`).version;
+const packageVersion = (name: string): string => require(`${name}/package.json`).version;
 
 /** Drops `<variant>.*` artifacts the oracle did not produce this time, so none linger. */
 function removeStale(task: Task, variantId: string, unit: Unit, keep: Set<string>): void {

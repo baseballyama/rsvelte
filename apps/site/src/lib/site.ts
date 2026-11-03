@@ -3,7 +3,7 @@
 
 export const REPO_URL = 'https://github.com/baseballyama/rsvelte';
 
-export interface Section {
+interface Section {
 	id: string;
 	title: string;
 }

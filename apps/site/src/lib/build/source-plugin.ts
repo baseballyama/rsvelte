@@ -49,7 +49,7 @@ export interface HighlightedModule {
 /** Token colours are CSS variables (`--shiki-token-*` in app.css), so one pass serves both themes. */
 const theme = createStylesheetVariablesTheme({ name: 'rsvelte', variablePrefix: '--shiki-', fontStyle: true });
 
-export function highlight(h: Highlighter, code: string, lang: string): string {
+function highlight(h: Highlighter, code: string, lang: string): string {
 	return h.codeToHtml(code, { lang, theme: 'rsvelte' });
 }
 
@@ -82,7 +82,7 @@ export function crateSizes(cratesDir: string): CrateSize[] {
 		.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
 }
 
-export interface ParityRow {
+interface ParityRow {
 	task: string;
 	verdicts: Record<string, number>;
 }
