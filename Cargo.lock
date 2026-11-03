@@ -2605,7 +2605,7 @@ dependencies = [
  "self_cell",
  "serde",
  "serde_json",
- "similar 3.2.0",
+ "similar 3.2.1",
  "smallvec",
  "sourcemap",
  "static_assertions",
@@ -2641,7 +2641,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
- "similar 3.2.0",
+ "similar 3.2.1",
  "tikv-jemallocator",
  "tokio",
  "walkdir",
@@ -3027,9 +3027,9 @@ checksum = "bbbb5d9659141646ae647b42fe094daf6c6192d1620870b449d9557f748b2daa"
 
 [[package]]
 name = "similar"
-version = "3.2.0"
+version = "3.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f66ca1f7aca2474dc10c942eb22feffc897735f54cd1db90138c2fddb490987"
+checksum = "d2f8bec09ae8fae0f4f265a4559a9334be3929d8504e9b536df0a41302bd1733"
 dependencies = [
  "bstr",
 ]
