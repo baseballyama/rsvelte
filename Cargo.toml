@@ -49,12 +49,12 @@ rsvelte_stylesheet_format = { path = "crates/languages/css/format" }
 rsvelte_typescript_compile = { path = "crates/languages/typescript/compile" }
 rsvelte_svelte_compile = { path = "crates/languages/svelte/compile" }
 rsvelte_vue_compile = { path = "crates/languages/vue/compile" }
-oxc_allocator = "0.152"
-oxc_ast = "0.152"
-oxc_ast_visit = "0.152"
-oxc_parser = "0.152"
-oxc_span = "0.152"
-oxc_syntax = "0.152"
+oxc_allocator = "0.157.0"
+oxc_ast = "0.157.0"
+oxc_ast_visit = "0.157.0"
+oxc_parser = "0.157.0"
+oxc_span = "0.157.0"
+oxc_syntax = "0.157.0"
 rayon = "1.12.0"
 semver = "1.0.28"
 rustc-hash = "2.1.3"
