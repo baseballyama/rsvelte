@@ -7691,8 +7691,8 @@ Attribution of `scss-known-failures.json`:
 
 | n | target | cluster |
 |---|---|---|
-| 155 | `deliberate-divergences` | render-neutral serialisation — colour spelling, comment placement, wrapped-selector indentation, quote style. Pinned by `crates/rsvelte_preprocess/tests/grass_serialisation.rs`. |
-| 59 | `upstream_issues/grass-hoists-a-declaration-written-after-a-nested-rule.md` | a declaration written after a nested rule is hoisted above it — the `mixed-decls` class, and the only css-mismatch cluster that changes the cascade |
+| 153 | `deliberate-divergences` | render-neutral serialisation — colour spelling, comment placement, wrapped-selector indentation, quote style. Pinned by `crates/rsvelte_preprocess/tests/grass_serialisation.rs`. |
+| 58 | `upstream_issues/grass-hoists-a-declaration-written-after-a-nested-rule.md` | a declaration written after a nested rule is hoisted above it — the `mixed-decls` class, and the only css-mismatch cluster that changes the cascade |
 | 35 | `upstream_issues/grass-missing-css-color-4-api.md` | the CSS Color 4 `sass:color` API is missing, so the input does not compile |
 | 32 | `upstream_issues/grass-import-only-file-loaded-by-use.md` | a `*.import.scss` file is resolved from `@use` / `@forward` |
 | 28 | `upstream_issues/grass-explicit-extension-specifier.md` | a specifier carrying an explicit `.scss` extension does not resolve |
@@ -7701,7 +7701,9 @@ Attribution of `scss-known-failures.json`:
 | 1 | `upstream_issues/grass-tailwind-important-apply.md` | Tailwind's `!`-prefixed utility inside `@apply` |
 
 The split is the computed classification of § *What the 315 entries are, measured* (155 / 59 / 2)
-plus the five `grass-rejects-accepted` causes (99), not a second reading of the same units.
+plus the five `grass-rejects-accepted` causes (99), not a second reading of the same units,
+less the three `date-picker-svelte` units that left with dart-sass 1.107: the only
+`date-picker-svelte` unit in the 59 was one of them, so 155 → 153 and 59 → 58.
 
 <a id="sourcemap-known-failures"></a>
 
