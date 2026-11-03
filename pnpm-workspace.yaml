@@ -1,6 +1,8 @@
 packages:
   - apps/site
   - tools/*
-onlyBuiltDependencies:
-  - esbuild
-  - workerd
+allowBuilds:
+  esbuild: true
+  workerd: true
+# Packages are taken as soon as they are published, as with pnpm 10 (pnpm 11 waits a day by default).
+minimumReleaseAge: 0

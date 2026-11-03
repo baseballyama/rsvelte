@@ -1,6 +1,7 @@
 [tools]
-node = "26.7.0"
-pnpm = "10.33.4"
+node = "26.13.0"
+# The aqua registry does not know pnpm 12's asset names yet; npm has the same release.
+"npm:pnpm" = "12.16.1"
 
 # The Rust toolchain itself is pinned by rust-toolchain.toml; rustfmt runs on a pinned nightly
 # because the strict options in rustfmt.toml are unstable (stable rustfmt ignores them silently).

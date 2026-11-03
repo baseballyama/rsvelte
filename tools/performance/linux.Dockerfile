@@ -6,7 +6,7 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 ARG RUST=1.99.1
 RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain "$RUST"
-ARG NODE=26.7.0
+ARG NODE=26.13.0
 RUN arch=$(dpkg --print-architecture | sed s/amd64/x64/) \
  && curl -fsSL "https://nodejs.org/dist/v$NODE/node-v$NODE-linux-$arch.tar.xz" | tar -xJ -C /usr/local --strip-components=1
 ENV PATH=/root/.cargo/bin:$PATH
