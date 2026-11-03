@@ -6,11 +6,11 @@ pnpm = "10.33.4"
 # because the strict options in rustfmt.toml are unstable (stable rustfmt ignores them silently).
 [tasks.fmt]
 description = "Format the Rust workspace"
-run = "cargo +nightly-2026-07-11 fmt --all"
+run = "cargo +nightly-2026-11-03 fmt --all"
 
 [tasks."fmt:check"]
 description = "Fail when the Rust workspace is not formatted"
-run = "cargo +nightly-2026-07-11 fmt --all --check"
+run = "cargo +nightly-2026-11-03 fmt --all --check"
 
 [tasks.structure]
 description = "Check source file lengths and the checker controls"

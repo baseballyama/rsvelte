@@ -103,7 +103,6 @@ impl<K: TokenKind> Tokens<K> {
         &self.tokens[identifier]
     }
 
-    #[must_use]
     pub fn iter(&self) -> impl DoubleEndedIterator<Item = &Token<K>> + ExactSizeIterator {
         self.tokens.iter()
     }

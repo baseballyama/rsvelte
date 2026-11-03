@@ -193,7 +193,7 @@ mod tests {
         let cap = bytes.capacity();
         super::give_keyed::<Owner, u8>(bytes);
         let text = super::take_string::<Owner>();
-        assert!(text.is_empty());
+        assert_eq!(text, "");
         assert_eq!(text.capacity(), cap);
     }
 
@@ -205,7 +205,7 @@ mod tests {
         let cap = v.capacity();
         super::give(v);
         let w: Vec<u64> = super::take();
-        assert!(w.is_empty());
+        assert_eq!(w, Vec::<u64>::new());
         assert_eq!(w.capacity(), cap);
     }
 

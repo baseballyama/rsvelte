@@ -26,7 +26,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFMT_TOOLCHAIN: nightly-2026-07-11
+  RUSTFMT_TOOLCHAIN: nightly-2026-11-03
 
 jobs:
   rust:

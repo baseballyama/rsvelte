@@ -31,18 +31,18 @@ fn unused(source_text: &str) -> Vec<String> {
 #[test]
 fn a_name_used_only_in_types_is_used() {
     let typescript = |body: &str| format!("<script lang=\"ts\">\n{body}\n</script>\n");
-    assert!(
+    assert_eq!(
         unused(&typescript(
             "import type { A } from \"./a\";\nlet x: A = 1;\nconsole.log(x);"
-        ))
-        .is_empty()
+        )),
+        Vec::<String>::new()
     );
-    assert!(
+    assert_eq!(
         unused(&typescript(
             "import { B } from \"./b\";\
                  \nlet y = $state<Map<string, B>>(new Map());\nconsole.log(y);"
-        ))
-        .is_empty()
+        )),
+        Vec::<String>::new()
     );
     assert_eq!(
         unused(&typescript("import { C } from \"./c\";")),

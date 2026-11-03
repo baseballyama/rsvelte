@@ -118,7 +118,6 @@ impl Registry {
         self
     }
 
-    #[must_use]
     pub fn plugins(&self) -> impl ExactSizeIterator<Item = &'static Plugin> + '_ {
         self.plugins.declarations()
     }

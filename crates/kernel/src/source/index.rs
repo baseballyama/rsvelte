@@ -131,7 +131,6 @@ impl<I: TypedIndex, T> IndexVector<I, T> {
         self.raw.iter()
     }
 
-    #[must_use]
     pub fn iter_enumerated(&self) -> impl DoubleEndedIterator<Item = (I, &T)> + ExactSizeIterator {
         self.raw.iter().enumerate().map(|(i, t)| (I::new(i), t))
     }

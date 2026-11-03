@@ -76,7 +76,10 @@ fn every_helper_parses() {
         Boundary,
         CustomElementData,
     ];
-    assert!(!helpers::declarations(&all, &mut to).is_empty());
+    assert_ne!(
+        helpers::declarations(&all, &mut to),
+        Vec::<rsvelte_typescript::NodeIdentifier>::new()
+    );
 }
 
 #[test]

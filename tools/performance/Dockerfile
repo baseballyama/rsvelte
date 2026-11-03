@@ -4,7 +4,7 @@ FROM ubuntu:24.04
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl build-essential git python3 valgrind xz-utils \
  && rm -rf /var/lib/apt/lists/*
-ARG RUST=1.98.1
+ARG RUST=1.99.1
 RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain "$RUST"
 ARG NODE=26.7.0
 RUN arch=$(dpkg --print-architecture | sed s/amd64/x64/) \

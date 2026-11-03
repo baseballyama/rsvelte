@@ -96,7 +96,7 @@ fn a_component_translates_to_runes_on_both_targets() {
 fn imports_are_svelte_and_vue_only() {
     for javascript in both(COUNTER) {
         let found = imports(&javascript);
-        assert!(!found.is_empty());
+        assert_ne!(found, Vec::<&str>::new());
         for m in found {
             assert!(
                 m == "svelte" || m.starts_with("svelte/") || m == "vue" || m.starts_with("@vue/"),

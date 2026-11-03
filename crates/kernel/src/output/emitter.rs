@@ -473,7 +473,7 @@ mod tests {
         let mut e = Edits::default();
         e.replace(Span::new(0, source_text.len() as u32), "");
         let out = e.apply(&source_text);
-        assert!(out.is_empty());
+        assert_eq!(out, "");
         assert_eq!(out.capacity(), 0);
     }
 }
