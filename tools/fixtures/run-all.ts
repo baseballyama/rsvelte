@@ -5,7 +5,9 @@
 // and packages, so `fixtures check` compares a complete run. `--binary` defaults to the release build.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import module from 'node:module';
 import path from 'node:path';
+import url from 'node:url';
 import { parseArgs } from 'node:util';
 import getExePath from './node_modules/typescript-7/lib/getExePath.js';
 import { FIXTURES, ROOT } from './paths.ts';
@@ -21,7 +23,7 @@ const args = [
 	'fixtures',
 	...families.map((f) => path.join(FIXTURES, f)),
 	'--tsc',
-	getExePath(),
+	getExePath({ fs, module, path, url }),
 	'--svelte',
 	pkg('svelte'),
 	'--vue',

@@ -23,7 +23,7 @@ special elements. See [documentation coverage](COVERAGE.md) for each feature and
 its remaining work. Unsupported constructs return `vuelte_unsupported`.
 
 Client tests use the production browser runtime from
-[Vue 3.6.0-rc.10](https://github.com/vuejs/core/tree/v3.6.0-rc.10/packages/runtime-vapor).
+[Vue 3.6.0-rc.14](https://github.com/vuejs/core/tree/v3.6.0-rc.14/packages/runtime-vapor).
 Generated imports use `vue`, as a client bundler does. The fixture tools install
 this version as `vue-vapor` so the regular Vue 3.5.43 oracle stays separate.
 

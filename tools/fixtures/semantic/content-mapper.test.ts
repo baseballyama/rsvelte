@@ -4,8 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { before, test } from 'node:test';
-import { API } from 'typescript-7/unstable/sync';
-import { SyntaxKind, SpanMapFeature, SpanMapFidelity } from 'typescript-7/unstable/ast';
+import { API } from 'typescript-7/sync';
+import { SyntaxKind, SpanMapFeature, SpanMapFidelity } from 'typescript-7/ast';
 
 import { ProjectTypeInfo } from '@rsvelte-experimental/type-information';
 

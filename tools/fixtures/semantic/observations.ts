@@ -1,6 +1,6 @@
 import { MappedNodes } from '@rsvelte-experimental/type-information';
 import { parse } from 'svelte/compiler';
-import { createScanner, SyntaxKind, type Node } from 'typescript-7/unstable/ast';
+import { createScanner, SyntaxKind, type Node } from 'typescript-7/ast';
 
 export interface Observation {
 	start: number;

@@ -3,7 +3,7 @@ import {
 	type Declaration,
 	type ParameterDeclaration,
 	type TypeParameterDeclaration,
-} from 'typescript-7/unstable/ast';
+} from 'typescript-7/ast';
 import {
 	SignatureKind,
 	SymbolFlags,
@@ -11,7 +11,7 @@ import {
 	type Signature,
 	type Symbol,
 	type Type,
-} from 'typescript-7/unstable/sync';
+} from 'typescript-7/sync';
 
 export const MAX_TYPE_PAIRS = 2_000;
 const MAX_TYPE_DEPTH = 100;

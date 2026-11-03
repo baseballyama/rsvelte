@@ -6,15 +6,9 @@ import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { svelte2tsx } from 'svelte2tsx';
 import { VERSION } from 'svelte/compiler';
-import {
-	API,
-	type Snapshot,
-	type Project,
-	type Diagnostic,
-	type Type,
-} from 'typescript-7/unstable/sync';
+import { API, type Snapshot, type Project, type Diagnostic, type Type } from 'typescript-7/sync';
 import { oracleMappings, type MappingTuple } from './mappings.ts';
-import { type Node } from 'typescript-7/unstable/ast';
+import { type Node } from 'typescript-7/ast';
 import {
 	ObservationIndex,
 	SourceMappings,

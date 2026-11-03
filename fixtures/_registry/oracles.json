@@ -1,133 +1,133 @@
 {
 	"svelte.check": {
 		"canonicalizer": {
-			"acorn": "8.18.0"
+			"acorn": "8.19.0"
 		},
 		"oracles": {
-			"svelte": "5.57.1",
-			"svelte-check": "4.7.6",
+			"svelte": "5.57.3",
+			"svelte-check": "4.7.8",
 			"typescript": "6.0.3"
 		},
 		"storage": "committed"
 	},
 	"svelte.compile": {
 		"canonicalizer": {
-			"acorn": "8.18.0"
+			"acorn": "8.19.0"
 		},
 		"oracles": {
-			"svelte": "5.57.1"
+			"svelte": "5.57.3"
 		},
 		"storage": "committed"
 	},
 	"svelte.compileModule": {
 		"canonicalizer": {
-			"acorn": "8.18.0"
+			"acorn": "8.19.0"
 		},
 		"oracles": {
-			"svelte": "5.57.1"
+			"svelte": "5.57.3"
 		},
 		"storage": "committed"
 	},
 	"svelte.format": {
 		"canonicalizer": {
-			"acorn": "8.18.0"
+			"acorn": "8.19.0"
 		},
 		"oracles": {
-			"prettier": "3.9.9",
+			"prettier": "3.9.10",
 			"prettier-plugin-svelte": "4.1.1"
 		},
 		"storage": "committed"
 	},
 	"svelte.lint": {
 		"canonicalizer": {
-			"acorn": "8.18.0"
+			"acorn": "8.19.0"
 		},
 		"oracles": {
-			"@typescript-eslint/parser": "8.71.0",
-			"eslint": "10.11.0",
-			"eslint-plugin-svelte": "3.23.0",
-			"svelte-eslint-parser": "1.8.1"
+			"@typescript-eslint/parser": "8.72.1",
+			"eslint": "10.14.0",
+			"eslint-plugin-svelte": "3.23.1",
+			"svelte-eslint-parser": "1.10.0"
 		},
 		"storage": "committed"
 	},
 	"svue.compile": {
 		"canonicalizer": {
-			"acorn": "8.18.0"
+			"acorn": "8.19.0"
 		},
 		"oracles": {
-			"@vue/compiler-sfc": "3.5.43",
-			"jsdom": "30.1.1",
+			"@vue/compiler-sfc": "3.5.44",
+			"jsdom": "30.1.3",
 			"typescript": "6.0.3",
-			"vue": "3.5.43"
+			"vue": "3.5.44"
 		},
 		"storage": "committed"
 	},
 	"ts.check": {
 		"canonicalizer": {
-			"acorn": "8.18.0"
+			"acorn": "8.19.0"
 		},
 		"oracles": {
-			"@volar/typescript": "2.4.28",
-			"@vue/language-core": "3.3.11",
-			"svelte": "5.57.1",
-			"svelte-check": "4.7.6",
+			"@volar/typescript": "2.4.30",
+			"@vue/language-core": "3.3.14",
+			"svelte": "5.57.3",
+			"svelte-check": "4.7.8",
 			"typescript": "6.0.3",
-			"vue": "3.5.43",
-			"vue-tsc": "3.3.11"
+			"vue": "3.5.44",
+			"vue-tsc": "3.3.14"
 		},
 		"storage": "committed"
 	},
 	"vue.check": {
 		"canonicalizer": {
-			"acorn": "8.18.0"
+			"acorn": "8.19.0"
 		},
 		"oracles": {
-			"@volar/typescript": "2.4.28",
-			"@vue/language-core": "3.3.11",
+			"@volar/typescript": "2.4.30",
+			"@vue/language-core": "3.3.14",
 			"typescript": "6.0.3",
-			"vue": "3.5.43",
-			"vue-tsc": "3.3.11"
+			"vue": "3.5.44",
+			"vue-tsc": "3.3.14"
 		},
 		"storage": "committed"
 	},
 	"vue.compile": {
 		"canonicalizer": {
-			"acorn": "8.18.0"
+			"acorn": "8.19.0"
 		},
 		"oracles": {
-			"@vue/compiler-sfc": "3.5.43",
+			"@vue/compiler-sfc": "3.5.44",
 			"typescript": "6.0.3"
 		},
 		"storage": "committed"
 	},
 	"vue.format": {
 		"canonicalizer": {
-			"acorn": "8.18.0"
+			"acorn": "8.19.0"
 		},
 		"oracles": {
-			"prettier": "3.9.9"
+			"prettier": "3.9.10"
 		},
 		"storage": "committed"
 	},
 	"vue.lint": {
 		"canonicalizer": {
-			"acorn": "8.18.0"
+			"acorn": "8.19.0"
 		},
 		"oracles": {
-			"@typescript-eslint/parser": "8.71.0",
-			"eslint": "10.11.0",
-			"eslint-plugin-vue": "10.11.1",
+			"@typescript-eslint/parser": "8.72.1",
+			"eslint": "10.14.0",
+			"eslint-plugin-vue": "10.12.0",
 			"vue-eslint-parser": "10.4.1"
 		},
 		"storage": "committed"
 	},
 	"vuelte.compile": {
 		"canonicalizer": {
-			"acorn": "8.18.0"
+			"acorn": "8.19.0"
 		},
 		"oracles": {
-			"jsdom": "30.1.1",
-			"svelte": "5.57.1"
+			"jsdom": "30.1.3",
+			"svelte": "5.57.3"
 		},
 		"storage": "committed"
 	}

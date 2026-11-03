@@ -23,7 +23,7 @@ export const guideExamples = {
 	typedSource:
 		'<script lang="ts">\n  let count: number = $state("zero");\n</script>\n\n<p>{count}</p>',
 	checkSetup:
-		'cargo install --path crates/languages/typescript/content_mapper\nnpm install --prefix typecheck-tools typescript@7.1.0-dev.20261003.1 svelte@5.57.1\nnode --input-type=module -e "import getExePath from \'./typecheck-tools/node_modules/typescript/lib/getExePath.js\'; console.log(getExePath());"',
+		"cargo install --path crates/languages/typescript/content_mapper\nnpm install --prefix typecheck-tools typescript@7.1.0-dev.20261102.1 svelte@5.57.3\nnode --input-type=module -e \"import fs from 'node:fs'; import module from 'node:module'; import path from 'node:path'; import url from 'node:url'; import getExePath from './typecheck-tools/node_modules/typescript/lib/getExePath.js'; console.log(getExePath({ fs, module, path, url }));\"",
 	check:
 		'./target/release/rsvelte run Counter.svelte \\\n  --task svelte.check/default \\\n  --tsc /absolute/path/to/native/tsc \\\n  --svelte /absolute/path/to/project/node_modules/svelte \\\n  --tsconfig /absolute/path/to/project/tsconfig.json',
 	wasmBuild:

@@ -11,7 +11,7 @@
 //! The existing `vuelte.compile/{client,server}` task identifiers remain available. Client
 //! modules require a Vue runtime with Vapor support and mount with `createVaporApp`.
 //! The native server target emits HTML and head content for Vue SSR. Hydration is not supported.
-//! Runtime tests use Vue 3.6.0-rc.10 and compare against official Svelte behavior.
+//! Runtime tests use Vue 3.6.0-rc.14 and compare against official Svelte behavior.
 
 pub mod compilation;
 pub mod computation;

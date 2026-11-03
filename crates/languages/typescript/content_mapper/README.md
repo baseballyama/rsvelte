@@ -25,4 +25,4 @@ cargo install --path crates/languages/typescript/content_mapper
 The mapper package declares `typescript.contentMapper.exec` in its `package.json`.
 The project selects that package and its input extensions through top-level `contentMappers`.
 Native TypeScript requires `--runExternalCode` for CLI use, or `runExternalCode: true`
-for its native API. The fixture tools pin `7.1.0-dev.20261003.1`.
+for its native API. The fixture tools pin `7.1.0-dev.20261102.1`.

@@ -3,11 +3,11 @@
   "commit": "437ae4fdab4d38c6c71c689be4cd897b607c4426",
   "license": "MIT",
   "oracles": {
-    "eslint": "10.11.0",
-    "eslint-plugin-svelte": "3.23.0",
-    "svelte-eslint-parser": "1.8.1",
-    "@typescript-eslint/parser": "8.71.0",
+    "eslint": "10.14.0",
+    "eslint-plugin-svelte": "3.23.1",
+    "svelte-eslint-parser": "1.10.0",
+    "@typescript-eslint/parser": "8.72.1",
     "typescript": "6.0.3",
-    "svelte": "5.57.1"
+    "svelte": "5.57.3"
   }
 }

@@ -1,5 +1,5 @@
-import { SyntaxKind, SpanMapFidelity, type Node, type SourceFile } from 'typescript-7/unstable/ast';
-import { SymbolFlags, type Diagnostic, type Project, type Type } from 'typescript-7/unstable/sync';
+import { SyntaxKind, SpanMapFidelity, type Node, type SourceFile } from 'typescript-7/ast';
+import { SymbolFlags, type Diagnostic, type Project, type Type } from 'typescript-7/sync';
 import { Coordinates } from './coordinates.ts';
 
 export interface SourceQuery {
