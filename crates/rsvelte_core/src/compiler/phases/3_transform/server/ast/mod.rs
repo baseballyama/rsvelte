@@ -294,6 +294,9 @@ pub(crate) struct EvalInputs {
     pub constant_vars: rustc_hash::FxHashMap<String, EvalValue>,
     pub use_async: bool,
     pub top_level_blocker_map: rustc_hash::FxHashMap<String, usize>,
+    /// `compute_blocker_primary_names` for the instance script.
+    pub top_level_blocker_primary_names:
+        rustc_hash::FxHashMap<usize, rustc_hash::FxHashSet<String>>,
     /// Lazily-built template-scope index set (see `evaluate_identifier`).
     pub template_scopes_cache: std::cell::OnceCell<rustc_hash::FxHashSet<usize>>,
 }
@@ -1010,19 +1013,25 @@ impl<'a> ServerTransformState<'a> {
             self.collect_shadowed(),
             self.local_derived_names.clone(),
         );
+        self.lower_runes_in_place(&mut out);
+        out
+    }
+
+    /// The rune lowering `visit_expr` applies after read-wrapping, for callers
+    /// that build the expression from a re-parsed source slice instead.
+    pub fn lower_runes_in_place(&self, expr: &mut OxcExpression<'a>) {
         // Lower value-position `$effect.tracking()` → `false`,
         // `$effect.root(…)` → `() => {}`, `$effect.pending()` → `0` inside the
         // template expression (写经 server `CallExpression` visitor).
-        script::lower_effect_value_runes_expr(&mut out, self.b, self.options.dev, self.source);
+        script::lower_effect_value_runes_expr(expr, self.b, self.options.dev, self.source);
         // Drop statement-position `$effect(…)` / `$effect.pre(…)` / `$inspect(…)`
         // calls nested in a template-expression IIFE arrow / function body (写经
         // server `ExpressionStatement` visitor → `b.empty`).
         script::lower_nested_runes_in_expr(
-            &mut out,
+            expr,
             self.b,
             script::rune_names_are_store_subs(self.analysis),
         );
-        out
     }
 
     /// Run the read-wrapping pass over an already-built oxc expression in place,
@@ -1456,6 +1465,7 @@ pub fn server_component_ast<'a>(
             constant_vars: raw.constant_vars,
             use_async,
             top_level_blocker_map: raw.top_level_blocker_map,
+            top_level_blocker_primary_names: raw.top_level_blocker_primary_names,
             template_scopes_cache: std::cell::OnceCell::new(),
         };
     }
