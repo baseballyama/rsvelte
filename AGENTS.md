@@ -1,212 +1,63 @@
 # AGENTS.md
 
-## What this project is
-
-rsvelte (experimental) is a **new native toolchain, written from scratch in Rust**.
-
-In one sentence: it reads each source file **once**, keeps **immutable trees** and a
-**database of derived facts**, and from them computes only what a task needs — compile,
-lint, format, or type check — with **one file per thread**.
-
-- Svelte 5 (runes) is the first language we support end to end.
-- More languages come later (TS, Vue, HTML, CSS, Sass, Markdown, ...).
-- We own every tree, including the JS/TS tree. Parsers are replaceable parts
-  (oxc is one of them).
-- The old rsvelte (a line-by-line port of the Svelte toolchain) lives on the `main` branch.
-  We keep it as a **diff oracle** and a **performance baseline**. We do not copy its design.
-
-The full concept, with the review of each idea, is in [docs/concept.md](docs/concept.md)
-(in Japanese).
-
-## Why we rewrite
-
-The old port had five kinds of debt. The new design must make each of them **impossible by
-structure**, not just less likely:
-
-1. The AST was `serde_json::Value`, and building JSON took most of the allocations.
-2. Statement boundaries were found by scanning characters, not by asking the tree.
-3. One upstream function had two or more ports (client/server, text/AST, CLI/LSP), and
-   nothing compared them.
-4. Some steps printed text and parsed it again to keep transforming.
-5. One integer (`loc_base`) carried two meanings for comment positions.
+rsvelte (experimental) is a native toolchain written from scratch in Rust. It reads each file
+once, keeps immutable trees and a database of derived facts, and computes only what a task
+needs (compile, lint, format, type check), one file per thread. Svelte 5 comes first. The old
+port on `main` is only a diff oracle and a performance baseline; do not copy its design.
+Concept, pipeline and milestones: [docs/concept.md](docs/concept.md) (Japanese).
 
 ## Principles
 
-Every design and every PR must follow these. A reviewer should be able to say, in one line,
-why each debt above cannot happen.
+| # | Rule |
+|---|---|
+| P1 | Decide structure by asking the tree. Only the lexer and parser read source bytes. |
+| P2 | One meaning, one implementation. client/server/dev differ by a parameter, not a copy. |
+| P3 | Shared trees are immutable. Never print text and parse it again. |
+| P4 | One position type, `Span { file, lo, hi }` (UTF-8 bytes). One integer never has two meanings. |
+| P5 | No `serde_json::Value` inside. Write public JSON directly when printing. |
+| P6 | Semantic facts live in side tables, so trees stay `Sync`. |
+| P7 | Claims about speed or correctness need measurements. |
 
-| # | Rule | Stops debt |
-|---|---|---|
-| P1 | Decide structure by **asking the tree**. Never scan raw source bytes for structure (only the lexer and parser read bytes). | 2 |
-| P2 | **One meaning, one implementation.** client/server/dev differ by a lowering *parameter*, not by a second function. | 3 |
-| P3 | Shared trees are **immutable**. A transform builds a new tree. Never print text and parse it again. | 4 |
-| P4 | One position type: `Span { file, lo, hi }` (UTF-8 bytes). A made-up position has its own type. One integer never has two meanings. | 5 |
-| P5 | No `serde_json::Value` inside. Public JSON is written directly when printing. | 1 |
-| P6 | Semantic facts live in **side tables** (`NodeIdentifier` → info), so trees stay `Sync`. | — |
-| P7 | Claims about speed or correctness need **measurements** (fixtures, metrics). No guesses. | — |
+Non-goals: bundling and minifying, Svelte 4 legacy mode (falls back to the official compiler),
+Svelte 4 → 5 migration, text-level svelte2tsx compatibility, many general JS lint rules.
 
-Other fixed choices:
+## Correctness and speed
 
-- Tools expose library APIs that run alone or compose with other tools. Task registration is an adapter.
-- Parallelism is **per file**. Tasks for one file run in order on one worker.
-- Memory: one arena per file, `u32` spans, interned atoms.
-- Tasks declare which derived facts they need. A scheduler builds the smallest plan.
-  The same fact is computed only once.
-
-## Pipeline
-
-```
-Document ─► Surface tree (lossless, per language, with embedded regions) ─► fmt
-              ▼
-            Semantic (scopes, bindings, types as side tables) ─► lint
-              ▼
-            Lowered IR (Svelte → client JS / server JS / TS projection, Sass → CSS, ...)
-              ▼
-            Emit (text + source map) ─► compile output, TS projection for type check
-```
-
-## Non-goals
-
-- Bundling, minifying, tree-shaking (that is Rolldown / oxc work).
-- A new implementation of Svelte 4 legacy mode. Legacy files fall back to the official
-  compiler.
-- Svelte 4 → 5 migration.
-- Text-level compatibility with svelte2tsx output.
-- Competing with oxlint on the number of general JS rules. Our strength is understanding
-  templates and mixed languages.
-
-## Milestones
-
-M0 core (source DB, spans, diagnostics, arena, metrics, benchmark harness) → M1 Svelte parse
-matches upstream `parse()` → M2 compile (client and server from one lowering) → M3 lint + fmt
-on the same database → M4 type check through the TS content mapper.
-Each milestone is "done" only by a measured number.
-
-## How we know it is correct: fixtures
-
-- `fixtures/` holds about 18,000 real Svelte 5 files, copied from repositories with a
-  **permissive license only** (MIT, Apache-2.0, ISC, BSD-3-Clause, Unlicense).
-  Never add files from GPL, AGPL, MPL, custom-license or no-license sources.
-- The official tools (the **oracles**) made the expected output once. We compare JavaScript
-  **as an AST**, not as text.
-- When our output means the same thing but looks different, add a small `[[adjust]]` entry to
-  that unit's `fixture.toml`. Never change a snapshot by hand.
-- Details: [fixtures/README.md](fixtures/README.md).
+- `fixtures/` holds real Svelte 5 files from permissive licenses only (MIT, Apache-2.0, ISC,
+  BSD-3-Clause, Unlicense). Expected output comes from the official tools; never edit it by
+  hand. When our output means the same thing, add an `[[adjust]]` entry to `fixture.toml`.
+  See [fixtures/README.md](fixtures/README.md) and
+  [crates/fixture_test/README.md](crates/fixture_test/README.md).
+- Speed: compare the official tools, `main`, and this rewrite. See
+  [tools/performance/README.md](tools/performance/README.md).
 
 ```sh
-F=tools/fixtures/bin/fixtures.ts          # in zsh, keep only the path in the variable
-mise exec -- node $F stats
+F=tools/fixtures/bin/fixtures.ts   # zsh: keep only the path in the variable
 mise exec -- node $F compare --task svelte.compile --variant client --report <file>
-mise exec -- node $F adjust
+cargo test -p rsvelte_svelte_compile --test fixtures            # UPDATE_EXPECT=1 to accept
+cargo fmt && cargo clippy --all-targets -- -D warnings && cargo test
+mise run structure                                              # layout: docs/layout.md
 ```
 
-Tools are TypeScript, run directly by Node (version in `mise.toml`). No build step.
+## Measuring
 
-## Crate fixture tests
-
-Cases live in the crate that owns the task, in `tests/fixtures/<case>/input.<ext>`. Each run
-writes rsvelte's output to `<case>/actual/` (not in git), next to `<case>/expected/`. A
-hand-written case expects rsvelte's own accepted output and fails on a difference. A case under
-`tests/fixtures/<source>/` is copied from `fixtures/` and expects the official output; its
-differences are counted, not failed. The full comparison with the oracles (as an AST) is only over
-`fixtures/`. Details: [crates/fixture_test/README.md](crates/fixture_test/README.md).
-
-```sh
-cargo test -p rsvelte_svelte_compile --test fixtures [-- <case filter>]
-UPDATE_EXPECT=1 cargo test -p rsvelte_svelte_compile --test fixtures   # accept new output; review the diff
-```
-
-## How we know it is fast: measurements
-
-| Layer | What | Use |
-|---|---|---|
-| L0 | instruction count, allocations, peak RSS (no noise) | CI gate |
-| L1 | time and allocations per file and per phase | find where a change helped |
-| L2 | whole corpus time, Vite cold build, HMR p50/p99 | reports; run A/B as ABBA |
-
-Always compare three arms: the official JS tools, old rsvelte (`main`), and this rewrite.
-
-For layout changes, compare cache profiles and actual CPU cycles. Cache simulation is a
-model, not a hardware measurement. See [tools/performance/README.md](tools/performance/README.md).
-
-## Measurement discipline
-
-These rules come from real mistakes in the old project.
-
-- Do not read a result through a stage that can hide a failure (`| tail`, `| head`,
-  `2>/dev/null`, `|| echo 0`). Write output to a file, then read the file.
-- A "nothing found" result needs a **positive control**: add the defect on purpose, see the
-  check fail, then remove it.
-- Say which tree you measured (`git rev-parse HEAD`) and which oracle version. A branch name
-  or file name is a label, not proof.
-- Report the population: how many units were measured, not only how many passed.
-  Write `UNMEASURED` when nothing was measured; a blank looks like zero.
-- Check the type of every value you hash or count. `String(obj)` is the same for every object.
-
-## Writing rules
-
-**Write everything in plain English that non-native speakers can read easily.** This includes
-code, comments, docs, commit messages, PR text, issues, and skills. Use short sentences and
-common words. Avoid idioms. Old docs in Japanese (`docs/*.md`) are the exception until someone
-translates them.
-
-**Keep code comments to the minimum WHY.**
-
-- Write a comment only when the code cannot say the reason itself. One line is usually enough.
-- Do not describe WHAT the code does.
-- Do not write history, PR numbers, issue numbers, or section banners.
-
-**Keep docs short.**
-
-- Say each thing once, in the place people will look for it.
-- Prefer a table or a list over long text. Remove text that is no longer true.
-- Put a rule here only if it is short and general. Details go to `docs/` or a skill, with a
-  one-line link from here.
-- Numbers written in prose go stale. Prefer a command that gives the number.
-
-**Code rules.**
-
-- Every corpus file runs through this code: no O(n²) (build a map once), borrow instead of
-  clone, and use the file arena, atoms and `u32` spans.
-- Validate input once, where it enters (source, config, CLI, NAPI, disk). Return a diagnostic;
-  do not panic.
-- Do not hide a computed span, index or offset behind `unwrap_or(0)` / `unwrap_or_default()`.
-  Use `expect("why")`, or handle the absent case on purpose. "Skipped" and "passed" are
-  different values.
-- No magic numbers in logic: name the constant with its meaning and unit.
-- Tests run the real code and fail without the change.
+- Never read a result through `| tail`, `| head`, `2>/dev/null` or `|| echo 0`. Use a file.
+- "Nothing found" needs a positive control: add the defect, see the check fail, remove it.
+- Name the tree (`git rev-parse HEAD`) and the oracle version, and how many units you measured.
+  Write `UNMEASURED` when nothing was measured.
 - A reproduced behavior is not a cause. Mark guesses as guesses.
-- To find P2 copies: `similarity-rs <dir> --threshold 0.87 --min-lines 3 --skip-test`
-  (`similarity-ts` for TypeScript), on source directories only.
 
-## Working in this repo
+## Code and writing
 
-- Several agents may work in this repo at the same time. Do not revert or delete changes that
-  are not yours, even if they look wrong. Ask first.
-- Do not use bare `git stash` / `git stash pop` (the stash is shared between worktrees).
-- One logical change per commit.
-- Follow [docs/layout.md](docs/layout.md) for source layout. Run `mise run structure` to check file lengths.
-- Rust commands, once the Cargo workspace exists: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo test`.
+- Write everything (code, comments, docs, commits, PRs) in plain, simple English.
+- Comments: one-line WHY only. No WHAT, history or issue numbers.
+- No O(n²) in per-node code; borrow instead of clone.
+- Validate input once, where it enters. Do not hide a computed span or index behind
+  `unwrap_or(0)` / `unwrap_or_default()`.
+- Docs: say each thing once, keep it short, and prefer a command over a number in prose.
 
-## Layout
+## Working here
 
-| Path | What |
-|---|---|
-| `crates/` | kernel, language cores and tools, and hosts; see [crates/README.md](crates/README.md) |
-| `docs/concept.md` | the concept and the reasons behind it |
-| `docs/fixtures.md` | why fixtures are designed the way they are |
-| `fixtures/` | the external corpus: test inputs, oracle output, per-unit notes |
-| `crates/fixture_test/` | the snapshot harness for each crate's `tests/fixtures/` |
-| `tools/fixtures/` | import / regen / adjust / compare tools (TypeScript) |
-| `.claude/skills/` | skills for agents (table below) |
-| `.github/AGENTS.md` | rules for GitHub Actions workflows |
-| `apps/site/AGENTS.md` | rules for the Japanese site |
-
-## Skills
-
-When you add or remove a skill, update this table in the same change.
-
-| Skill | Use when |
-|---|---|
-| `review` | reviewing a branch or PR as the code owner |
-| `pr` | taking an issue or a branch to a ready PR (create, rebase, review comments, CI) |
+- Other agents work here at the same time. Do not revert changes that are not yours; ask.
+- No bare `git stash` (the stash is shared between worktrees). One logical change per commit.
+- Skills: `review` (review a branch or PR) and `pr` (issue or branch to a ready PR).
