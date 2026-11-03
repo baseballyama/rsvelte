@@ -37,4 +37,3 @@ The integration driver measures the crate's Vue fixture inputs in twelve ABBA
 batches, checks that every task runs, and measures the official Vue task over
 the same inputs. It records binary hashes and every timing round.
 
-Results: [SHA-256 report](../../docs/measurements/sha256/README.md).

@@ -107,5 +107,3 @@ rejects the deliberate miss increase. It also saves a type layout artifact. The 
 gate is available for pinned workload configs; it is separate from the whole-corpus
 allocation/instruction baseline.
 
-For a measured compiler change, see [cache locality](../../docs/cache-locality.md).
-For a candidate held after measurement, see [expression precedence](../../docs/cache-precedence.md).

@@ -4,7 +4,6 @@ rsvelte (experimental) is a native toolchain written from scratch in Rust. It re
 once, keeps immutable trees and a database of derived facts, and computes only what a task
 needs (compile, lint, format, type check), one file per thread. Svelte 5 comes first. The old
 port on `main` is only a diff oracle and a performance baseline; do not copy its design.
-Concept, pipeline and milestones: [docs/concept.md](docs/concept.md) (Japanese).
 
 ## Principles
 
@@ -36,7 +35,7 @@ F=tools/fixtures/bin/fixtures.ts   # zsh: keep only the path in the variable
 mise exec -- node $F compare --task svelte.compile --variant client --report <file>
 cargo test -p rsvelte_svelte_compile --test fixtures            # UPDATE_EXPECT=1 to accept
 cargo fmt && cargo clippy --all-targets -- -D warnings && cargo test
-mise run structure                                              # layout: docs/layout.md
+mise run structure
 ```
 
 ## Measuring

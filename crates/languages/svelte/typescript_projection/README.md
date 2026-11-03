@@ -49,7 +49,7 @@ blocks remain unsupported. This is not a complete Svelte type projection.
 
 Type checking and typed lint consume this same projection. There is no task-specific output.
 Original expressions keep exact content mappings; generated helpers do not become source lint
-nodes. The [shared type information API](../../../../docs/type-information.md) uses one native
+nodes. The [shared type information API](../../../../tools/type-information/README.md) uses one native
 Program for both consumers. The existing Rust CLI checker has not been connected to that API.
 
 ```sh
@@ -65,13 +65,12 @@ TypeScript outputs. It checks generated syntax with an independent parser. The b
 measures lowering and printing for parsed components with an instance TypeScript script;
 its process CPU counters also include file reads and source parsing. Layout sizes are payload
 measurements, not proof of cache residency. See [performance tools](../../../../tools/performance/README.md).
-Measured results and limitations are in the [projection report](../../../../docs/svelte-project-performance.md).
 
 The fixture test reads the exact input population from `../compile/tests/fixtures`.
 Only projection expectations and actual outputs live here. It checks every emitted file
 with an independent TypeScript parser, including external cases without oracle snapshots.
 Handwritten snapshots detect changes in our own output; they do not establish type equivalence
-with svelte2tsx. The [semantic harness](../../../../docs/typescript-projection-testing.md)
+with svelte2tsx. The semantic harness (`tools/fixtures/bin/projection-semantics.ts`)
 compares source-visible types from both projections through TS 7.1 content mappers over the same compiler inputs.
 The harness also compares public props, instance exports, and bindable keys. Missing queries
 and unsupported public contract shapes remain `UNMEASURED`.

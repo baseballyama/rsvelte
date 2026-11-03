@@ -17,7 +17,7 @@ export const FORMAT_OPTIONS = {
 } as const;
 
 // Only the hand-written units for now: whether corpus snapshots are committed or cached waits for a
-// size measurement (docs/fixtures.md).
+// size measurement.
 const task: Task = {
 	id: 'svelte.format',
 	storage: 'committed',

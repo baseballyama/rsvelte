@@ -1,6 +1,5 @@
 // The DOM both runtimes render into, and the normalized view of it a trace records: what a user
-// sees, and nothing that is an implementation artifact of one runtime. Rules, each with its reason
-// (docs/fixtures.md §12 lists them for readers):
+// sees, and nothing that is an implementation artifact of one runtime. Rules, each with its reason:
 //   - comments are dropped: Svelte's `<!---->` / `<!--[-->` anchors and Vue's `<!--[-->` /
 //     `<!--]-->` / `<!--v-if-->` fragment markers render nothing; text around a dropped comment
 //     joins, as it does on screen;

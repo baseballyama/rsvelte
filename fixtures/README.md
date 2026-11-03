@@ -2,7 +2,6 @@
 
 Test inputs copied from real projects, and the output of the official tools for them (the expected
 result). One input file is one **unit**, and each unit has its own directory.
-Design: [docs/fixtures.md](../docs/fixtures.md).
 
 Hand-written tests do not go here. They live in each crate's `tests/fixtures/` and compare
 rsvelte's output with its own snapshots: see [crates/fixture_test/README.md](../crates/fixture_test/README.md).

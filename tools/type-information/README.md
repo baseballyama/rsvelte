@@ -21,7 +21,7 @@ native types. `diagnosticSpan` converts original native diagnostics to byte span
 
 Use a new adapter for each updated snapshot. Discard it before disposing that snapshot.
 All files must belong to that Project and have a content mapper. Rust callers keep node IDs
-and byte spans in their own source side tables. See [the ownership contract](../../docs/type-information.md).
+and byte spans in their own source side tables.
 
 ```sh
 pnpm --dir tools/type-information install --frozen-lockfile

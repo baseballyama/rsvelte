@@ -12,7 +12,7 @@ Show the result of each phase. Fix only what the user approves. `--quick` skips 
    `git fetch origin && mise exec -- node .claude/skills/review/plan-chunks.ts --format=md [<base>]`,
    show the table, and ask if the split is fine.
 1. **WHY.** Read the PR, issues and commits. Does it solve the problem in the simplest way, and
-   is it not a non-goal in `docs/concept.md`?
+   is it not a non-goal in AGENTS.md?
 2. **Design.** Check P1–P7, non-goals, evidence (every number has a command that makes it),
    fixtures (expected files only from `regen`, each `[[adjust]]` has a reason, permissive
    license), and no abstraction for needs that do not exist yet.
@@ -31,8 +31,8 @@ A reviewer that failed to run (error, rate limit, timeout) did not review. Never
 ```
 Review only these files. Do not edit anything. Only report.
 Base: <BASE>. Files: <files>.
-Run `git diff <BASE>...HEAD -- <files>`, read the code around it, and read AGENTS.md and
-docs/concept.md. Check: correctness (edge cases, Unicode, CRLF, span offsets), output still
+Run `git diff <BASE>...HEAD -- <files>`, read the code around it, and read AGENTS.md.
+Check: correctness (edge cases, Unicode, CRLF, span offsets), output still
 matches the oracles (evidence, not guesses), P1–P7, cost in hot paths, silent fallbacks such as
 unwrap_or_default on computed values, duplication, a test that fails without the change, and
 comments that say more than a short WHY.

@@ -45,7 +45,7 @@ export const LANGUAGES: Language[] = [
 	},
 	{
 		// No compile task yet: upstream only sees these after Vite strips the types, and which
-		// stripper is the oracle is undecided (docs/fixtures.md). Parse/lint/fmt tasks still apply.
+		// stripper is the oracle is undecided. Parse/lint/fmt tasks still apply.
 		id: 'svelte-module-ts',
 		family: 'svelte',
 		ext: '.svelte.ts',

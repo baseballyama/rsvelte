@@ -374,7 +374,7 @@
 <Code item={data.code.vuelteBindText} />
 
 <div class="prose-learn">
-	<p>動作の比較で見つかった違い（<code>docs/fixtures.md</code> §12.8）は、それぞれ次のように再現しています。</p>
+	<p>動作の比較で見つかった違いは、それぞれ次のように再現しています。</p>
 	<ul>
 		<li>
 			補間: Vue の <code>toDisplayString</code> は、オブジェクトを <code>JSON.stringify</code> と同じ形の文字列にします。翻訳は、先に Svelte

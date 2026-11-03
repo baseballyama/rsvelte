@@ -2,7 +2,7 @@
 // the component compiled for the other runtime must render and react as the official toolchain of
 // its own language makes it render and react. The expected artifact is the trace of the official
 // build on the source language's runtime; the actual one is the trace of rsvelte's emitted module
-// on the target runtime, under the same props and steps (docs/fixtures.md §12).
+// on the target runtime, under the same props and steps.
 import { svelteModule, vueModule } from '../behaviour/official.ts';
 import type { Target } from '../behaviour/modules.ts';
 import {
