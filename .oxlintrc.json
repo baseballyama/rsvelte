@@ -30,7 +30,7 @@
 	"ignorePatterns": [
 		"fixtures/**",
 		"crates/**/tests/**",
-		"tools/fixtures/test/behaviour/**",
+		"tools/fixtures/behaviour/tests/**",
 		"**/vendor/**",
 		"**/generated/**",
 		// Runtime text that the Vapor compiler copies into its output byte for byte.

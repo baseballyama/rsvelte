@@ -13,7 +13,7 @@ A case has one of two kinds of `expected/`:
 
 Snapshots show what changed. Only copied cases show what is correct. A snapshot registered with
 `javascript_snapshot` compares its `.js` file with the official one as a syntax tree, with the
-meaning of `tools/fixtures/src/canonical.ts` (layout, comments and literal spelling are ignored;
+meaning of `tools/fixtures/canonical.ts` (layout, comments and literal spelling are ignored;
 `@__PURE__` on calls is not). Other files are compared as bytes. `[[adjust]]` entries apply only to
 the full check over [`fixtures/`](../../fixtures/README.md).
 
@@ -62,7 +62,7 @@ Run this again after the corpus changes (`fixtures import` or `regen`). It repla
 `tests/fixtures/<source>/` and never touches hand-written cases.
 
 ```sh
-F=tools/fixtures/bin/fixtures.ts
+F=tools/fixtures/fixtures.ts
 mise exec -- node $F crate --family svelte --task svelte.compile,svelte.compileModule \
   --to crates/languages/svelte/compile/tests/fixtures
 ```

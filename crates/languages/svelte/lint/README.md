@@ -34,7 +34,7 @@ beside the copied cases. Supported cases have strict comparisons.
 
 ```sh
 cargo test -p rsvelte_svelte_lint
-mise exec -- node tools/fixtures/lint/import-svelte.ts <upstream-checkout>
+mise exec -- node tools/fixtures/import-svelte-lint.ts <upstream-checkout>
 ```
 
 The importer regenerates both lint suites through ESLint. Use upstream commit

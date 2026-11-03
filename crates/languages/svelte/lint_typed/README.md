@@ -31,7 +31,7 @@ Supported cases have strict comparisons. Differences in legacy cases are counted
 
 ```sh
 cargo test -p rsvelte_svelte_lint_typed
-mise exec -- node tools/fixtures/lint/import-svelte.ts <upstream-checkout>
+mise exec -- node tools/fixtures/import-svelte-lint.ts <upstream-checkout>
 ```
 
 The shared importer regenerates both suites with upstream commit

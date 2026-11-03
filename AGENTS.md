@@ -31,7 +31,7 @@ Svelte 4 → 5 migration, text-level svelte2tsx compatibility, many general JS l
   [tools/performance/README.md](tools/performance/README.md).
 
 ```sh
-F=tools/fixtures/bin/fixtures.ts   # zsh: keep only the path in the variable
+F=tools/fixtures/fixtures.ts   # zsh: keep only the path in the variable
 mise exec -- node $F compare --task svelte.compile --variant client --report <file>
 cargo test -p rsvelte_svelte_compile --test fixtures            # UPDATE_EXPECT=1 to accept
 cargo fmt && cargo clippy --all-targets -- -D warnings && cargo test

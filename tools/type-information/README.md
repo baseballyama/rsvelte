@@ -28,7 +28,7 @@ pnpm install --frozen-lockfile
 pnpm --filter @rsvelte-experimental/type-information run typecheck
 ```
 
-The integration tests live in `tools/fixtures/test/content-mapper.test.ts`. They use the
+The integration tests live in `tools/fixtures/semantic/content-mapper.test.ts`. They use the
 standalone Rust Svelte mapper, real Svelte imports, and native TS 7.1. They also verify
 that diagnostics and repeated typed lint queries share one Program and cached type handles.
 Hardware cycles and cache residency are UNMEASURED.

@@ -6,8 +6,8 @@
 		"node": ">=26"
 	},
 	"scripts": {
-		"check": "node bin/structure.ts",
-		"test": "node --test test/*.test.ts",
+		"check": "node structure.ts",
+		"test": "node --test '*.test.ts'",
 		"typecheck": "tsc -p ."
 	}
 }

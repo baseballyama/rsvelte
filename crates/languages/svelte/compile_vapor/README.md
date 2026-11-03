@@ -29,7 +29,7 @@ this version as `vue-vapor` so the regular Vue 3.5.43 oracle stays separate.
 
 ```sh
 cargo test -p rsvelte_svelte_compile_vapor
-mise exec -- node --test tools/fixtures/test/behaviour*.test.ts tools/fixtures/test/vapor-browser.test.ts
+mise exec -- node --test tools/fixtures/behaviour/*.test.ts
 ```
 
 The runtime tests compare each compiled fixture with official Svelte output after

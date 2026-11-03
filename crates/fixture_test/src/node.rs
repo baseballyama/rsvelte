@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-const INSTALL_HINT: &str = "run `(cd tools/fixtures && pnpm install --frozen-lockfile)`";
+const INSTALL_HINT: &str = "run `pnpm install --frozen-lockfile` at the repository root";
 
 /// The Node packages `tools/fixtures` installs. Type-check tasks need TypeScript 7's native
 /// `tsc` and the framework packages' types from there.

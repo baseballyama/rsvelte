@@ -6,8 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
-import task from '../fixtures/src/tasks/vue-compile.ts';
-import type { Unit } from '../fixtures/src/types.ts';
+import task from '../fixtures/tasks/vue-compile.ts';
+import type { Unit } from '../fixtures/types.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const [before, after, output] = process.argv.slice(2).map(p => path.resolve(p));

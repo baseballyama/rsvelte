@@ -72,15 +72,15 @@ jobs:
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
       - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/fixtures-tools...
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      - run: node --test tools/structure/test/*.test.ts
-      - run: node tools/structure/bin/structure.ts
+      - run: node --test tools/structure/*.test.ts
+      - run: node tools/structure/structure.ts
       # The semantic tests build other crates with --offline, so fetch the whole lockfile first.
       - run: cargo fetch
       - run: cargo build --release -p rsvelte_command_line
-      - run: node tools/fixtures/bin/run-all.ts
-      - run: node bin/fixtures.ts check
+      - run: node tools/fixtures/run-all.ts
+      - run: node fixtures.ts check
         working-directory: tools/fixtures
-      - run: node bin/fixtures.ts adjust
+      - run: node fixtures.ts adjust
         working-directory: tools/fixtures
       # The behaviour oracle against hand-written twins and deliberately wrong translations.
       - run: pnpm test
@@ -137,10 +137,10 @@ jobs:
         with:
           node-version: 26.7.0
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends valgrind
-      - run: node --test tools/performance/test/*.test.ts
+      - run: node --test tools/performance/*.test.ts
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: cargo fetch
-      - run: node tools/performance/bin/performance.ts --instructions --json performance-report.json
+      - run: node tools/performance/performance.ts --instructions --json performance-report.json
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

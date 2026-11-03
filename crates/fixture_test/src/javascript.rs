@@ -1,4 +1,4 @@
-//! JavaScript compared as a syntax tree, with the meaning of `tools/fixtures/src/canonical.ts`:
+//! JavaScript compared as a syntax tree, with the meaning of `tools/fixtures/canonical.ts`:
 //! positions, comments and the spelling of literals are ignored; `@__PURE__` marks on calls are
 //! not.
 

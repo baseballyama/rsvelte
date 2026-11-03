@@ -9,7 +9,7 @@
 # Measurement output, kept next to the tool that writes it.
 /tools/*/generated/
 # Per-unit implementation output and cached snapshots. Original path segments with these names are
-# stored as `~actual` / `~cache` (tools/fixtures/src/paths.ts), so the patterns reach only unit children.
+# stored as `~actual` / `~cache` (tools/fixtures/paths.ts), so the patterns reach only unit children.
 /fixtures/**/actual/
 /fixtures/**/cache/
 # rsvelte's output in crate fixture tests; `expected/` next to it is committed.

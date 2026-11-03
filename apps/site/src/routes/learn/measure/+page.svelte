@@ -158,7 +158,7 @@
 		<li>
 			<code>performance</code>: 64ビットの Arm プロセッサーを使う Ubuntu 上で命令数を測ります。計測には Valgrind を使います。
 			コマンド:<br />
-			<code>node tools/performance/bin/performance.ts --instructions --json performance-report.json</code>。
+			<code>node tools/performance/performance.ts --instructions --json performance-report.json</code>。
 			レポートは成果物として保存します。
 		</li>
 	</ul>

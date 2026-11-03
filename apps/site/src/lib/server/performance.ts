@@ -9,7 +9,7 @@ export interface PerformancePhase {
 	alloc_bytes: number;
 }
 
-/** The shape of tools/performance/baseline.json (tools/performance/bin/performance.ts `Baseline`). */
+/** The shape of tools/performance/baseline.json (tools/performance/performance.ts `Baseline`). */
 export interface PerformanceBaseline {
 	population: { documents: number; source_bytes: number; tasks: string[] };
 	allocations: number;

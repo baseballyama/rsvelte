@@ -2,7 +2,7 @@
 	"name": "@rsvelte-experimental/type-information",
 	"private": true,
 	"type": "module",
-	"exports": "./src/index.ts",
+	"exports": "./index.ts",
 	"engines": {
 		"node": ">=26"
 	},

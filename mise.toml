@@ -14,7 +14,7 @@ run = "cargo +nightly-2026-07-11 fmt --all --check"
 
 [tasks.structure]
 description = "Check source file lengths and the checker controls"
-run = ["node --test tools/structure/test/*.test.ts", "node tools/structure/bin/structure.ts"]
+run = ["node --test tools/structure/*.test.ts", "node tools/structure/structure.ts"]
 
 [tasks.lint]
 depends = ["structure"]
@@ -29,19 +29,19 @@ run = [
 
 [tasks.buildtime]
 description = "Measure how long the workspace takes to compile (tools/buildtime)"
-run = "node tools/buildtime/bin/buildtime.ts"
+run = "node tools/buildtime/buildtime.ts"
 
 [tasks.performance]
 description = "The performance ratchet: allocation (and on Linux, instruction) counts against tools/performance/baseline.json"
-run = "node tools/performance/bin/performance.ts"
+run = "node tools/performance/performance.ts"
 
 [tasks."performance:update"]
 description = "Record the measured performance counters in tools/performance/baseline.json"
-run = "node tools/performance/bin/performance.ts --update"
+run = "node tools/performance/performance.ts --update"
 
 [tasks."performance:cache"]
 description = "Profile cache locality and check a recorded baseline: <config.json> <report.json>"
-run = "node tools/performance/bin/cache-profile.ts"
+run = "node tools/performance/cache-profile.ts"
 
 [tasks."performance:layout"]
 description = "Report kernel, JS/TS, Svelte, Vue and CSS type sizes, alignment and field offsets"
@@ -49,8 +49,8 @@ run = "cargo run --offline -p rsvelte_command_line --example repo_layout"
 
 [tasks."performance:hardware"]
 description = "Measure Linux hardware CPU and cache counters: <config.json> <report.json>"
-run = "node tools/performance/bin/linux-counters.ts"
+run = "node tools/performance/linux-counters.ts"
 
 [tasks."performance:test"]
 description = "Test the measurement tools and their defect controls"
-run = "node --test tools/performance/test/*.test.ts"
+run = "node --test tools/performance/*.test.ts"

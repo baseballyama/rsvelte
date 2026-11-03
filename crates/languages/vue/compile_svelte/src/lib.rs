@@ -5,7 +5,7 @@
 //! and a Svelte HIR ([`Translation`]). [`rsvelte_svelte_compile::compile`] then lowers
 //! it, so the module has the shape `svelte/compiler` emits and imports only `svelte`, `svelte/*`,
 //! `vue` and `@vue/*`. The tasks are `svue.compile/client` and `svue.compile/server`, on `.vue`
-//! documents; the oracle is the component's DOM under Vue itself (`tools/fixtures/src/behaviour`).
+//! documents; the oracle is the component's DOM under Vue itself (`tools/fixtures/behaviour`).
 //!
 //! What a translation cannot reproduce exactly it refuses with a `compile_unsupported`
 //! diagnostic, never an approximation, and it never panics.

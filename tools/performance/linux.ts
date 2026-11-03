@@ -27,7 +27,7 @@ const registry = path.join(process.env.CARGO_HOME ?? path.join(os.homedir(), '.c
 const args = process.argv.slice(2);
 const run = spawnSync(
 	'docker',
-	['run', '--rm', '-v', `${source}:/w`, '-v', `${target}:/w/target`, '-v', `${registry}:/root/.cargo/registry`, 'rsvelte-performance', 'node', 'tools/performance/bin/performance.ts', '--instructions', ...args],
+	['run', '--rm', '-v', `${source}:/w`, '-v', `${target}:/w/target`, '-v', `${registry}:/root/.cargo/registry`, 'rsvelte-performance', 'node', 'tools/performance/performance.ts', '--instructions', ...args],
 	{ stdio: 'inherit' }
 );
 if (run.status !== 0) process.exit(run.status ?? 1);
