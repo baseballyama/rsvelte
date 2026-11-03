@@ -97,6 +97,11 @@ fn is_meta_rule(code: &str) -> bool {
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
 const SKIP: &[&str] = &[
+    // Recorded against a dart-sass that accepted indented `lang="sass"` after a
+    // leading blank line; dart-sass 1.107 rejects it, so the style is no longer
+    // compiled and the ignore is not "used". The live oracle (`lint-verify`)
+    // agrees with rsvelte here.
+    "no-unused-svelte-ignore/invalid/style-lang04",
     // `require-store-reactive-access` TS *invalid* fixtures: store detection by
     // TYPE (a value whose type has a `subscribe` signature, imported from an
     // external `.ts` module) needs the TypeScript checker / tsgo. The ES path

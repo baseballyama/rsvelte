@@ -7386,7 +7386,7 @@ measurement.
 
 The gate compiles every `<style lang="scss"|"sass">` block and every standalone `.scss` / `.sass`
 file in the corpus source repositories with both backends and compares the CSS byte-for-byte after
-trailing-whitespace normalisation. `scss-known-failures.json` holds **315 entries** and may only
+trailing-whitespace normalisation. `scss-known-failures.json` holds **312 entries** and may only
 shrink; it is two-sided, so an entry that starts agreeing fails the run until it is
 re-baselined in the same PR.
 
@@ -7421,9 +7421,9 @@ Two consequences worth stating rather than discovering later:
 65 of its stylesheets fall into the both-reject bucket — the gate would have looked green while
 comparing almost nothing.
 
-Partition of `scss-known-failures.json` by verdict: `216 + 99`
+Partition of `scss-known-failures.json` by verdict: `213 + 99`
 
-- **216 — the CSS differs** (`css-mismatch`).
+- **213 — the CSS differs** (`css-mismatch`).
 - **99 — `grass` rejects an input dart-sass compiles** (`grass-rejects-accepted`). This is the
   half a text diff cannot describe, and it is a third of the list.
 
@@ -7454,6 +7454,11 @@ the ratchet, three compile to different CSS and moved from `grass-rejects-accept
 `css-mismatch` (one each into the three clusters above). The leading blank line is part of the
 condition, not incidental — dart Sass rejects a document whose very first line is indented, so
 dedenting that shape would make rsvelte accept what dart Sass refuses.
+
+dart-sass 1.107 moved that line: it now rejects base indentation after leading blank lines too
+(`Indenting at the beginning of the document is illegal.`), so rsvelte rejects it as well instead
+of dedenting. The three `css-mismatch` units above became `both-error` and left the ratchet
+(315 → 312); the class table below was measured at 315 and has not been re-classified.
 
 The one cluster that changes rendering is also the largest, which was not true at 30 entries.
 
