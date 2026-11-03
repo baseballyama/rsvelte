@@ -32,7 +32,7 @@ path in that repository.
 | `<unit>/cache/<task>/<variant>.*` | Expected output too large to commit. | `regen` | no |
 
 JavaScript is compared as a syntax tree, so positions, quote style and comments do not matter
-(rules: `tools/fixtures/src/canonical.ts`).
+(rules: `tools/fixtures/canonical.ts`).
 
 ## `fixture.toml`
 
@@ -62,8 +62,8 @@ starts with `~`, it is stored with a `~` in front. Example: `foo/input.svelte` i
 Node 26 runs the TypeScript directly (version pinned in `mise.toml`).
 
 ```sh
-(cd tools/fixtures && pnpm install)
-F=tools/fixtures/bin/fixtures.ts
+pnpm install                       # from the repository root
+F=tools/fixtures/fixtures.ts
 mise exec -- node $F compare --task svelte.compile --variant client   # actual/ vs expected/
 mise exec -- node $F adjust                                           # check [[adjust]] entries
 mise exec -- node $F upgrade      # after changing a tool version in tools/fixtures/package.json
