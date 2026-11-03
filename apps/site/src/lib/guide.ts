@@ -27,7 +27,7 @@ export const guideExamples = {
 	check:
 		'./target/release/rsvelte run Counter.svelte \\\n  --task svelte.check/default \\\n  --tsc /absolute/path/to/native/tsc \\\n  --svelte /absolute/path/to/project/node_modules/svelte \\\n  --tsconfig /absolute/path/to/project/tsconfig.json',
 	wasmBuild:
-		'rustup target add wasm32-unknown-unknown\ncargo install wasm-pack --version 0.14.0 --locked\nwasm-pack build crates/hosts/browser --target web --release \\\n  --out-dir ../../../browser-package --out-name rsvelte_kernel_browser',
+		'rustup target add wasm32-unknown-unknown\ncargo install wasm-pack --version 0.15.1 --locked\nwasm-pack build crates/hosts/browser --target web --release \\\n  --out-dir ../../../browser-package --out-name rsvelte_kernel_browser',
 	wasmUse:
 		"import init, { runPipeline } from './browser-package/rsvelte_kernel_browser.js';\n\nawait init();\nconst result = JSON.parse(runPipeline(\n  '<p>Hello</p>', 'App.svelte', 'svelte', 'compile-client,lint', true\n));\n\nif (!result.ok) {\n  throw new Error(result.message);\n}\nfor (const step of result.steps) {\n  console.log(step.files, step.diagnostics);\n}",
 };
