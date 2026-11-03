@@ -38,6 +38,7 @@ pub struct Value {
     pub name: &'static str,
     pub description: Option<&'static str>,
     pub browsers: Option<&'static [&'static str]>,
+    pub baseline: Option<Baseline>,
 }
 
 /// An at-directive, pseudo-class or pseudo-element. `status` is a plain string
@@ -136,16 +137,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "center",
                 description: Some("Lines are packed toward the center of the flex container."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "flex-end",
                 description: Some("Lines are packed toward the end of the flex container."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "flex-start",
                 description: Some("Lines are packed toward the start of the flex container."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "space-around",
@@ -153,26 +157,31 @@ pub const PROPERTIES: &[Property] = &[
                     "Lines are evenly distributed in the flex container, with half-size spaces on either end.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "space-between",
                 description: Some("Lines are evenly distributed in the flex container."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
                 description: Some("Lines stretch to take up the remaining space."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
@@ -180,51 +189,65 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF28", "FFA28", "S9", "SM9", "C29", "CA29", "IE11", "O16",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-09-30"),
+                    high_date: Some("2018-03-30"),
+                }),
             },
             Value {
                 name: "baseline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "first baseline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "last baseline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "space-around",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "space-between",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "space-evenly",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "safe",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "unsafe",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -259,6 +282,7 @@ pub const PROPERTIES: &[Property] = &[
                     "If the flex item's inline axis is the same as the cross axis, this value is identical to 'flex-start'. Otherwise, it participates in baseline alignment.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "center",
@@ -266,6 +290,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The flex item's margin box is centered in the cross axis within the line.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "flex-end",
@@ -273,6 +298,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The cross-end margin edge of the flex item is placed flush with the cross-end edge of the line.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "flex-start",
@@ -280,6 +306,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The cross-start margin edge of the flex item is placed flush with the cross-start edge of the line.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
@@ -287,56 +314,67 @@ pub const PROPERTIES: &[Property] = &[
                     "If the cross size property of the flex item computes to auto, and neither of the cross-axis margins are auto, the flex item is stretched.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "self-start",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "self-end",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "first baseline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "last baseline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "safe",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "unsafe",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -369,31 +407,37 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "flex-end",
                 description: Some("\"Flex items are packed toward the end of the line.\""),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "flex-start",
                 description: Some("\"Flex items are packed toward the start of the line.\""),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "self-end",
@@ -401,6 +445,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The item is packed flush to the edge of the alignment container of the end side of the item, in the appropriate axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "self-start",
@@ -408,6 +453,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The item is packed flush to the edge of the alignment container of the start side of the item, in the appropriate axis..",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "center",
@@ -415,31 +461,49 @@ pub const PROPERTIES: &[Property] = &[
                     "The items are packed flush to each other toward the center of the of the alignment container.",
                 ),
                 browsers: Some(&["E79", "FF20", "FFA20", "S9", "SM9", "C52", "CA52", "O39"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "left",
                 description: None,
                 browsers: Some(&["E79", "FF20", "FFA20", "S9", "SM9", "C52", "CA52", "O39"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "right",
                 description: None,
                 browsers: Some(&["E79", "FF20", "FFA20", "S9", "SM9", "C52", "CA52", "O39"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "baseline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "first baseline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "last baseline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
@@ -447,21 +511,29 @@ pub const PROPERTIES: &[Property] = &[
                     "If the cross size property of the flex item computes to auto, and neither of the cross-axis margins are auto, the flex item is stretched.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "safe",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "unsafe",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "legacy",
                 description: None,
                 browsers: Some(&["E79", "FF20", "FFA20", "S9", "SM9", "C52", "CA52", "O39"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -496,6 +568,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF45", "FFA45", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "normal",
@@ -503,26 +580,35 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF45", "FFA45", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "end",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "flex-end",
                 description: Some("\"Flex items are packed toward the end of the line.\""),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "flex-start",
                 description: Some("\"Flex items are packed toward the start of the line.\""),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "self-end",
@@ -530,6 +616,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The item is packed flush to the edge of the alignment container of the end side of the item, in the appropriate axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "self-start",
@@ -537,6 +624,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The item is packed flush to the edge of the alignment container of the start side of the item, in the appropriate axis..",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "center",
@@ -544,6 +632,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The items are packed flush to each other toward the center of the of the alignment container.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "left",
@@ -551,6 +640,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF45", "FFA45", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "right",
@@ -558,21 +652,29 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF45", "FFA45", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "baseline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "first baseline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "last baseline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
@@ -582,16 +684,23 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF45", "FFA45", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "save",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "unsave",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -626,21 +735,33 @@ pub const PROPERTIES: &[Property] = &[
                     "Computes to the value of 'align-items' on the element's parent, or 'stretch' if the element has no parent. On absolutely positioned elements, it computes to itself.",
                 ),
                 browsers: Some(&["E79", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "normal",
                 description: None,
                 browsers: Some(&["E79", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "self-end",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "self-start",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "baseline",
@@ -648,6 +769,7 @@ pub const PROPERTIES: &[Property] = &[
                     "If the flex item's inline axis is the same as the cross axis, this value is identical to 'flex-start'. Otherwise, it participates in baseline alignment.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "center",
@@ -655,6 +777,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The flex item's margin box is centered in the cross axis within the line.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "flex-end",
@@ -662,6 +785,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The cross-end margin edge of the flex item is placed flush with the cross-end edge of the line.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "flex-start",
@@ -669,6 +793,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The cross-start margin edge of the flex item is placed flush with the cross-start edge of the line.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
@@ -676,31 +801,41 @@ pub const PROPERTIES: &[Property] = &[
                     "If the cross size property of the flex item computes to auto, and neither of the cross-axis margins are auto, the flex item is stretched.",
                 ),
                 browsers: Some(&["E79", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "baseline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "first baseline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "last baseline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "safe",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "unsafe",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -776,6 +911,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The animation cycle iterations that are odd counts are played in the normal direction, and the animation cycle iterations that are even counts are played in a reverse direction.",
                 ),
                 browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "alternate-reverse",
@@ -783,6 +923,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The animation cycle iterations that are odd counts are played in the reverse direction, and the animation cycle iterations that are even counts are played in a normal direction.",
                 ),
                 browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "backwards",
@@ -790,11 +935,21 @@ pub const PROPERTIES: &[Property] = &[
                     "The beginning property value (as defined in the first @keyframes at-rule) is applied before the animation is displayed, during the period defined by 'animation-delay'.",
                 ),
                 browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "both",
                 description: Some("Both forwards and backwards fill modes are applied."),
                 browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "forwards",
@@ -802,21 +957,41 @@ pub const PROPERTIES: &[Property] = &[
                     "The final property value (as defined in the last @keyframes at-rule) is maintained after the animation completes.",
                 ),
                 browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "infinite",
                 description: Some("Causes the animation to repeat forever."),
                 browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "none",
                 description: Some("No animation is performed"),
                 browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "normal",
                 description: Some("Normal playback."),
                 browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "reverse",
@@ -824,6 +999,11 @@ pub const PROPERTIES: &[Property] = &[
                     "All iterations of the animation are played in the reverse direction from the way they were specified.",
                 ),
                 browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -880,6 +1060,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "IE10", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "alternate-reverse",
@@ -889,6 +1074,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF16", "FFA16", "S6", "SM6", "C19", "CA25", "IE10", "O12.1",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "normal",
@@ -896,6 +1086,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "IE10", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "reverse",
@@ -905,6 +1100,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF16", "FFA16", "S6", "SM6", "C19", "CA25", "IE10", "O12.1",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -963,6 +1163,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF5", "FFA5", "S5", "SM4.2", "C3", "CA18", "IE10", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "both",
@@ -970,6 +1175,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF5", "FFA5", "S5", "SM4.2", "C3", "CA18", "IE10", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "forwards",
@@ -979,6 +1189,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF5", "FFA5", "S5", "SM4.2", "C3", "CA18", "IE10", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "none",
@@ -988,6 +1203,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF5", "FFA5", "S5", "SM4.2", "C3", "CA18", "IE10", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -1019,6 +1239,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "IE10", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -1049,6 +1274,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "IE10", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -1078,6 +1308,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "IE10", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "running",
@@ -1085,6 +1320,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "IE10", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -1139,11 +1379,21 @@ pub const PROPERTIES: &[Property] = &[
                 name: "hidden",
                 description: Some("Back side is hidden."),
                 browsers: Some(&["E12", "FF10", "FFA10", "S5.1", "SM5", "C12", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "visible",
                 description: Some("Back side is visible."),
                 browsers: Some(&["E12", "FF10", "FFA10", "S5.1", "SM5", "C12", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -1187,6 +1437,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E15", "FF50", "FFA50", "S9.1", "SM9.3", "C15", "CA18", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
             Value {
                 name: "local",
@@ -1194,11 +1449,21 @@ pub const PROPERTIES: &[Property] = &[
                     "The background is fixed with regard to the element's contents: if the element has a scrolling mechanism, the background scrolls with the element's contents.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "none",
                 description: Some("A value of 'none' counts as an image layer but draws nothing."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "scroll",
@@ -1206,6 +1471,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The background is fixed with regard to the element itself and does not scroll with its contents. (It is effectively attached to the element's border.)",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -1238,6 +1508,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The background is fixed with regard to the viewport. In paged media where there is no viewport, a 'fixed' background is fixed with respect to the page box and therefore replicated on every page.",
                 ),
                 browsers: Some(&["E12", "FF2", "FFA4", "S15.4", "C1", "CA18", "IE9", "O10.5"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "local",
@@ -1247,6 +1522,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF25", "FFA25", "S15.4", "SM15.4", "C1", "CA18", "IE9", "O10.5",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-03-14"),
+                    high_date: Some("2024-09-14"),
+                }),
             },
             Value {
                 name: "scroll",
@@ -1256,6 +1536,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM3.2", "C1", "CA18", "IE4", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -1282,6 +1567,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "normal",
                 description: Some("Default attribute which specifies no blending"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "multiply",
@@ -1289,6 +1575,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The source color is multiplied by the destination color and replaces the destination.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "screen",
@@ -1296,6 +1583,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Multiplies the complements of the backdrop and source color values, then complements the result.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "overlay",
@@ -1303,26 +1591,31 @@ pub const PROPERTIES: &[Property] = &[
                     "Multiplies or screens the colors, depending on the backdrop color value.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "darken",
                 description: Some("Selects the darker of the backdrop and source colors."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "lighten",
                 description: Some("Selects the lighter of the backdrop and source colors."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "color-dodge",
                 description: Some("Brightens the backdrop color to reflect the source color."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "color-burn",
                 description: Some("Darkens the backdrop color to reflect the source color."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "hard-light",
@@ -1330,6 +1623,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Multiplies or screens the colors, depending on the source color value.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "soft-light",
@@ -1337,6 +1631,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Darkens or lightens the colors, depending on the source color value.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "difference",
@@ -1344,6 +1639,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Subtracts the darker of the two constituent colors from the lighter color..",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "exclusion",
@@ -1351,6 +1647,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Produces an effect similar to that of the Difference mode but lower in contrast.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "hue",
@@ -1358,6 +1655,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Creates a color with the hue of the source color and the saturation and luminosity of the backdrop color.",
                 ),
                 browsers: Some(&["E79", "FF30", "FFA30", "S8", "SM8", "C35", "CA35", "O22"]),
+                baseline: None,
             },
             Value {
                 name: "saturation",
@@ -1365,6 +1663,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Creates a color with the saturation of the source color and the hue and luminosity of the backdrop color.",
                 ),
                 browsers: Some(&["E79", "FF30", "FFA30", "S8", "SM8", "C35", "CA35", "O22"]),
+                baseline: None,
             },
             Value {
                 name: "color",
@@ -1372,6 +1671,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Creates a color with the hue and saturation of the source color and the luminosity of the backdrop color.",
                 ),
                 browsers: Some(&["E79", "FF30", "FFA30", "S8", "SM8", "C35", "CA35", "O22"]),
+                baseline: None,
             },
             Value {
                 name: "luminosity",
@@ -1379,6 +1679,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Creates a color with the luminosity of the source color and the hue and saturation of the backdrop color.",
                 ),
                 browsers: Some(&["E79", "FF30", "FFA30", "S8", "SM8", "C35", "CA35", "O22"]),
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -1452,6 +1753,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -1531,6 +1837,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Equivalent to '50%' ('left 50%') for the horizontal position if the horizontal position is not otherwise specified, or '50%' ('top 50%') for the vertical position if it is.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "left",
@@ -1538,6 +1845,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Equivalent to '0%' for the horizontal position if one or two values are given, otherwise specifies the left edge as the origin for the next offset.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "right",
@@ -1545,6 +1853,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Equivalent to '100%' for the horizontal position if one or two values are given, otherwise specifies the right edge as the origin for the next offset.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -1577,6 +1886,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Equivalent to '100%' for the vertical position if one or two values are given, otherwise specifies the bottom edge as the origin for the next offset.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "center",
@@ -1584,6 +1894,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Equivalent to '50%' ('left 50%') for the horizontal position if the horizontal position is not otherwise specified, or '50%' ('top 50%') for the vertical position if it is.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "top",
@@ -1591,6 +1902,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Equivalent to '0%' for the vertical position if one or two values are given, otherwise specifies the top edge as the origin for the next offset.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -1647,6 +1959,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF3.6", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "contain",
@@ -1656,6 +1973,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF3.6", "FFA4", "S5", "SM4.2", "C3", "CA18", "IE9", "O10",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "cover",
@@ -1665,6 +1987,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF3.6", "FFA4", "S5", "SM4.2", "C3", "CA18", "IE9", "O10",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -1707,6 +2034,11 @@ pub const PROPERTIES: &[Property] = &[
             name: "auto",
             description: Some("Depends on the values of other properties."),
             browsers: Some(&["E79", "FF41", "FFA41", "S5.1", "SM5", "C8", "CA18", "O15"]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2020-01-15"),
+                high_date: Some("2022-07-15"),
+            }),
         }],
         at_rule: None,
     },
@@ -2080,11 +2412,21 @@ pub const PROPERTIES: &[Property] = &[
                 name: "collapse",
                 description: Some("Selects the collapsing borders model."),
                 browsers: Some(&["E79", "FF1", "FFA4", "S1.1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "separate",
                 description: Some("Selects the separated borders border model."),
                 browsers: Some(&["E79", "FF1", "FFA4", "S1.1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -2141,6 +2483,7 @@ pub const PROPERTIES: &[Property] = &[
                     "If 'auto' is specified then the border image width is the intrinsic width or height (whichever is applicable) of the corresponding image slice. If the image does not have the required intrinsic dimension then the corresponding border-width is used instead.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "fill",
@@ -2148,16 +2491,31 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF15", "FFA15", "S6", "SM6", "C16", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "none",
                 description: Some("Use the border styles."),
                 browsers: Some(&["E12", "FF3.5", "FFA4", "S3", "SM2", "C16", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "repeat",
                 description: Some("The image is tiled (repeated) to fill the area."),
                 browsers: Some(&["E12", "FF3.5", "FFA4", "S3", "SM2", "C16", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "round",
@@ -2165,6 +2523,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The image is tiled (repeated) to fill the area. If it does not fill the area with a whole number of tiles, the image is rescaled so that it does.",
                 ),
                 browsers: Some(&["E12", "FF3.5", "FFA4", "S3", "SM2", "C16", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "space",
@@ -2172,16 +2535,27 @@ pub const PROPERTIES: &[Property] = &[
                     "The image is tiled (repeated) to fill the area. If it does not fill the area with a whole number of tiles, the extra space is distributed around the tiles.",
                 ),
                 browsers: Some(&["E12", "FF3.5", "FFA4", "S3", "SM2", "C16", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "stretch",
                 description: Some("The image is stretched to fill the area."),
                 browsers: Some(&["E12", "FF3.5", "FFA4", "S3", "SM2", "C16", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "url()",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -2238,6 +2612,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF15", "FFA15", "S6", "SM9.3", "C15", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2016-03-21"),
+                    high_date: Some("2018-09-21"),
+                }),
             },
             Value {
                 name: "round",
@@ -2247,6 +2626,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF15", "FFA15", "S9.1", "SM9.3", "C30", "CA30", "IE11", "O17",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2016-03-21"),
+                    high_date: Some("2018-09-21"),
+                }),
             },
             Value {
                 name: "space",
@@ -2256,6 +2640,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF50", "FFA50", "S9.1", "SM9.3", "C56", "CA56", "IE11", "O43",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-02-01"),
+                    high_date: Some("2019-08-01"),
+                }),
             },
             Value {
                 name: "stretch",
@@ -2263,6 +2652,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF15", "FFA15", "S6", "SM9.3", "C15", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2016-03-21"),
+                    high_date: Some("2018-09-21"),
+                }),
             },
         ],
         at_rule: None,
@@ -2292,6 +2686,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "fill",
             description: Some("Causes the middle part of the border-image to be preserved."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -2320,6 +2715,11 @@ pub const PROPERTIES: &[Property] = &[
             name: "none",
             description: Some("Use the border styles."),
             browsers: Some(&["E12", "FF15", "FFA15", "S6", "SM6", "C15", "CA18", "O15"]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -2352,6 +2752,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF15", "FFA15", "S6", "SM6", "C16", "CA18", "IE11", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -2972,6 +3377,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -3001,6 +3411,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E130", "FF32", "FFA32", "S7", "SM7", "C130", "CA130", "O115",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-10-17"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "slice",
@@ -3010,6 +3425,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E130", "FF32", "FFA32", "S7", "SM7", "C130", "CA130", "O115",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-10-17"),
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -3044,11 +3464,21 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF3.5", "FFA4", "S5", "SM4.2", "C1", "CA18", "IE9", "O10.5",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "none",
                 description: Some("No shadow."),
                 browsers: Some(&["E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -3081,6 +3511,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "content-box",
@@ -3090,6 +3525,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -3122,6 +3562,11 @@ pub const PROPERTIES: &[Property] = &[
                 name: "always",
                 description: Some("Always force a page break before/after the generated box."),
                 browsers: Some(&["FF65", "FFA65"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "auto",
@@ -3129,26 +3574,51 @@ pub const PROPERTIES: &[Property] = &[
                     "Neither force nor forbid a page/column break before/after the principal box.",
                 ),
                 browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid a break before/after the principal box."),
                 browsers: Some(&["E79", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "avoid-column",
                 description: Some("Avoid a column break before/after the principal box."),
                 browsers: Some(&["E79", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "avoid-page",
                 description: Some("Avoid a page break before/after the principal box."),
                 browsers: Some(&["E79", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "column",
                 description: Some("Always force a column break before/after the principal box."),
                 browsers: Some(&["E79", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "left",
@@ -3156,11 +3626,21 @@ pub const PROPERTIES: &[Property] = &[
                     "Force one or two page breaks before/after the generated box so that the next page is formatted as a left page.",
                 ),
                 browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "page",
                 description: Some("Always force a page break before/after the principal box."),
                 browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "right",
@@ -3168,6 +3648,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Force one or two page breaks before/after the generated box so that the next page is formatted as a right page.",
                 ),
                 browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -3200,6 +3685,11 @@ pub const PROPERTIES: &[Property] = &[
                 name: "always",
                 description: Some("Always force a page break before/after the generated box."),
                 browsers: Some(&["FF65", "FFA65"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "auto",
@@ -3207,26 +3697,51 @@ pub const PROPERTIES: &[Property] = &[
                     "Neither force nor forbid a page/column break before/after the principal box.",
                 ),
                 browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid a break before/after the principal box."),
                 browsers: Some(&["E79", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "avoid-column",
                 description: Some("Avoid a column break before/after the principal box."),
                 browsers: Some(&["E79", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "avoid-page",
                 description: Some("Avoid a page break before/after the principal box."),
                 browsers: Some(&["E79", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "column",
                 description: Some("Always force a column break before/after the principal box."),
                 browsers: Some(&["E79", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "left",
@@ -3234,11 +3749,21 @@ pub const PROPERTIES: &[Property] = &[
                     "Force one or two page breaks before/after the generated box so that the next page is formatted as a left page.",
                 ),
                 browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "page",
                 description: Some("Always force a page break before/after the principal box."),
                 browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "right",
@@ -3246,6 +3771,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Force one or two page breaks before/after the generated box so that the next page is formatted as a right page.",
                 ),
                 browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -3276,21 +3806,41 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: Some("Impose no additional breaking constraints within the box."),
                 browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid breaks within the box."),
                 browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "avoid-column",
                 description: Some("Avoid a column break within the box."),
                 browsers: Some(&["E79", "FF92", "FFA92", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-09-07"),
+                    high_date: Some("2024-03-07"),
+                }),
             },
             Value {
                 name: "avoid-page",
                 description: Some("Avoid a page break within the box."),
                 browsers: Some(&["E79", "FF92", "FFA92", "S10", "SM10", "C50", "CA50", "O37"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-09-07"),
+                    high_date: Some("2024-03-07"),
+                }),
             },
         ],
         at_rule: None,
@@ -3319,11 +3869,21 @@ pub const PROPERTIES: &[Property] = &[
                 name: "bottom",
                 description: Some("Positions the caption box below the table box."),
                 browsers: Some(&["E79", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "top",
                 description: Some("Positions the caption box above the table box."),
                 browsers: Some(&["E79", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -3355,6 +3915,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E79", "FF53", "FFA53", "S11.1", "SM11.3", "C57", "CA57", "O44",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2020-01-15"),
+                high_date: Some("2022-07-15"),
+            }),
         }],
         at_rule: None,
     },
@@ -3388,6 +3953,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "left",
@@ -3397,11 +3967,21 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "none",
                 description: Some("No constraint on the box's position with respect to floats."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "right",
@@ -3411,6 +3991,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -3439,11 +4024,17 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: Some("The element does not clip."),
                 browsers: Some(&["E79", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "rect()",
                 description: Some("Specifies offsets from the edges of the border box."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -3474,11 +4065,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: Some("No clipping path gets created."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "url()",
                 description: Some("References a <clipPath> element to create a clipping path."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -3509,6 +4102,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Determines the 'insideness' of a point on the canvas by drawing a ray from that point to infinity in any direction and counting the number of path segments from the given shape that the ray crosses.",
                 ),
                 browsers: Some(&["E79", "FF3.5", "FFA4", "S5", "SM4.2", "C15", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "nonzero",
@@ -3516,6 +4114,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Determines the 'insideness' of a point on the canvas by drawing a ray from that point to infinity in any direction and then examining the places where a segment of the shape crosses the ray.",
                 ),
                 browsers: Some(&["E79", "FF3.5", "FFA4", "S5", "SM4.2", "C15", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -3568,6 +4171,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Color operations are not required to occur in a particular color space.",
                 ),
                 browsers: Some(&["E79", "FF3", "FFA4", "S3", "SM2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "linearRGB",
@@ -3575,11 +4183,21 @@ pub const PROPERTIES: &[Property] = &[
                     "Color operations should occur in the linearized RGB color space.",
                 ),
                 browsers: Some(&["E79", "FF22", "FFA22", "S9", "SM9", "C28", "CA28", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "sRGB",
                 description: Some("Color operations should occur in the sRGB color space."),
                 browsers: Some(&["E79", "FF22", "FFA22", "S9", "SM9", "C28", "CA28", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -3611,6 +4229,11 @@ pub const PROPERTIES: &[Property] = &[
                 "Determines the number of columns by the 'column-width' property and the element width.",
             ),
             browsers: Some(&["E12", "FF1.5", "FFA4", "S3", "SM2", "C1", "CA18", "O15"]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -3642,6 +4265,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF17", "FFA17", "S8", "SM8", "C50", "CA50", "IE11", "O37",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2016-04-13"),
+                    high_date: Some("2018-10-13"),
+                }),
             },
             Value {
                 name: "balance",
@@ -3649,6 +4277,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF17", "FFA17", "S8", "SM8", "C50", "CA50", "IE11", "O37",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2016-04-13"),
+                    high_date: Some("2018-10-13"),
+                }),
             },
         ],
         at_rule: None,
@@ -3680,6 +4313,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE10", "O11.1",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -3800,6 +4438,11 @@ pub const PROPERTIES: &[Property] = &[
             name: "auto",
             description: Some("The width depends on the values of other properties."),
             browsers: Some(&["E12", "FF9", "FFA22", "S3", "SM3.2", "C50", "CA50", "O37"]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2016-04-13"),
+                high_date: Some("2018-10-13"),
+            }),
         }],
         at_rule: None,
     },
@@ -3829,11 +4472,21 @@ pub const PROPERTIES: &[Property] = &[
                     "The element spans across all columns. Content in the normal flow that appears before the element is automatically balanced across all columns before the element appear.",
                 ),
                 browsers: Some(&["E12", "FF71", "FFA79", "S5.1", "SM5", "C6", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-07-28"),
+                    high_date: Some("2023-01-28"),
+                }),
             },
             Value {
                 name: "none",
                 description: Some("The element does not span multiple columns."),
                 browsers: Some(&["E12", "FF71", "FFA79", "S5.1", "SM5", "C6", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-07-28"),
+                    high_date: Some("2023-01-28"),
+                }),
             },
         ],
         at_rule: None,
@@ -3861,6 +4514,11 @@ pub const PROPERTIES: &[Property] = &[
             name: "auto",
             description: Some("The width depends on the values of other properties."),
             browsers: Some(&["E12", "FF1.5", "FFA4", "S3", "SM2", "C1", "CA18", "O15"]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -3894,6 +4552,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF69", "FFA79", "S15.4", "SM15.4", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-03-14"),
+                    high_date: Some("2024-09-14"),
+                }),
             },
             Value {
                 name: "strict",
@@ -3901,6 +4564,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF69", "FFA79", "S15.4", "SM15.4", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-03-14"),
+                    high_date: Some("2024-09-14"),
+                }),
             },
             Value {
                 name: "content",
@@ -3908,6 +4576,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF69", "FFA79", "S15.4", "SM15.4", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-03-14"),
+                    high_date: Some("2024-09-14"),
+                }),
             },
             Value {
                 name: "size",
@@ -3917,6 +4590,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF69", "FFA79", "S15.4", "SM15.4", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-03-14"),
+                    high_date: Some("2024-09-14"),
+                }),
             },
             Value {
                 name: "layout",
@@ -3924,6 +4602,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF69", "FFA79", "S15.4", "SM15.4", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-03-14"),
+                    high_date: Some("2024-09-14"),
+                }),
             },
             Value {
                 name: "style",
@@ -3931,6 +4614,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF103", "FFA103", "S15.4", "SM15.4", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-07-26"),
+                    high_date: Some("2025-01-26"),
+                }),
             },
             Value {
                 name: "paint",
@@ -3938,6 +4626,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF69", "FFA79", "S15.4", "SM15.4", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-03-14"),
+                    high_date: Some("2024-09-14"),
+                }),
             },
         ],
         at_rule: None,
@@ -3970,6 +4663,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The attr(n) function returns as a string the value of attribute n for the subject of the selector.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "counter(name)",
@@ -3977,6 +4671,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Counters are denoted by identifiers (see the 'counter-increment' and 'counter-reset' properties).",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "icon",
@@ -3984,6 +4679,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The (pseudo-)element is replaced in its entirety by the resource referenced by its 'icon' property, and treated as a replaced element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
@@ -3993,6 +4689,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "normal",
@@ -4002,11 +4703,17 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "url()",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -4036,6 +4743,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA25", "S3", "SM2", "C2", "CA18", "IE11", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -4066,6 +4778,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA25", "S3", "SM2", "C2", "CA18", "IE11", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -4095,6 +4812,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates an alias of/shortcut to something is to be created. Often rendered as an arrow with a small curved arrow next to it.",
                 ),
                 browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE10", "O10.6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "all-scroll",
@@ -4102,6 +4824,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the something can be scrolled in any direction. Often rendered as arrows pointing up, down, left, and right with a dot in the middle.",
                 ),
                 browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE6", "O10.6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "auto",
@@ -4111,6 +4838,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA95", "S1.2", "SM13.4", "C1", "CA18", "IE4", "O7",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-12-07"),
+                    high_date: Some("2024-06-07"),
+                }),
             },
             Value {
                 name: "cell",
@@ -4120,6 +4852,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1.5", "FFA95", "S3", "SM13.4", "C1", "CA18", "IE10", "O10.6",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-12-07"),
+                    high_date: Some("2024-06-07"),
+                }),
             },
             Value {
                 name: "col-resize",
@@ -4127,6 +4864,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the item/column can be resized horizontally. Often rendered as arrows pointing left and right with a vertical bar separating them.",
                 ),
                 browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE6", "O10.6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "context-menu",
@@ -4134,6 +4876,11 @@ pub const PROPERTIES: &[Property] = &[
                     "A context menu is available for the object under the cursor. Often rendered as an arrow with a small menu-like graphic next to it.",
                 ),
                 browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE10", "O10.6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "copy",
@@ -4141,6 +4888,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates something is to be copied. Often rendered as an arrow with a small plus sign next to it.",
                 ),
                 browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE10", "O10.6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "crosshair",
@@ -4148,6 +4900,11 @@ pub const PROPERTIES: &[Property] = &[
                     "A simple crosshair (e.g., short line segments resembling a '+' sign). Often used to indicate a two dimensional bitmap selection mode.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "default",
@@ -4155,26 +4912,51 @@ pub const PROPERTIES: &[Property] = &[
                     "The platform-dependent default cursor. Often rendered as an arrow.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "e-resize",
                 description: Some("Indicates that east edge is to be moved."),
                 browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "ew-resize",
                 description: Some("Indicates a bidirectional east-west resize cursor."),
                 browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE10", "O10.6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "grab",
                 description: Some("Indicates that something can be grabbed."),
                 browsers: Some(&["E14", "FF27", "FFA95", "S11", "C68", "CA68", "O55"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "grabbing",
                 description: Some("Indicates that something is being grabbed."),
                 browsers: Some(&["E79", "FF27", "FFA95", "S11", "C68", "CA68", "O55"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "help",
@@ -4182,11 +4964,21 @@ pub const PROPERTIES: &[Property] = &[
                     "Help is available for the object under the cursor. Often rendered as a question mark or a balloon.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "move",
                 description: Some("Indicates something is to be moved."),
                 browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "-moz-grab",
@@ -4194,6 +4986,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA95", "S1.2", "SM13.4", "C1", "CA18", "IE4", "O7",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "-moz-grabbing",
@@ -4201,6 +4994,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA95", "S1.2", "SM13.4", "C1", "CA18", "IE4", "O7",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "-moz-zoom-in",
@@ -4208,6 +5002,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA95", "S1.2", "SM13.4", "C1", "CA18", "IE4", "O7",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "-moz-zoom-out",
@@ -4215,16 +5010,27 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA95", "S1.2", "SM13.4", "C1", "CA18", "IE4", "O7",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "ne-resize",
                 description: Some("Indicates that movement starts from north-east corner."),
                 browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "nesw-resize",
                 description: Some("Indicates a bidirectional north-east/south-west cursor."),
                 browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE10", "O10.6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "no-drop",
@@ -4232,11 +5038,21 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the dragged item cannot be dropped at the current cursor location. Often rendered as a hand or pointer with a small circle with a line through it.",
                 ),
                 browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE6", "O10.6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "none",
                 description: Some("No cursor is rendered for the element."),
                 browsers: Some(&["E12", "FF3", "FFA95", "S5", "C5", "CA18", "IE9", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "not-allowed",
@@ -4244,31 +5060,61 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the requested action will not be carried out. Often rendered as a circle with a line through it.",
                 ),
                 browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE6", "O10.6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "n-resize",
                 description: Some("Indicates that north edge is to be moved."),
                 browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "ns-resize",
                 description: Some("Indicates a bidirectional north-south cursor."),
                 browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE10", "O10.6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "nw-resize",
                 description: Some("Indicates that movement starts from north-west corner."),
                 browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "nwse-resize",
                 description: Some("Indicates a bidirectional north-west/south-east cursor."),
                 browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE10", "O10.6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "pointer",
                 description: Some("The cursor is a pointer that indicates a link."),
                 browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE6", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "progress",
@@ -4276,6 +5122,11 @@ pub const PROPERTIES: &[Property] = &[
                     "A progress indicator. The program is performing some processing, but is different from 'wait' in that the user may still interact with the program. Often rendered as a spinning beach ball, or an arrow with a watch or hourglass.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE6", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "row-resize",
@@ -4283,21 +5134,41 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the item/row can be resized vertically. Often rendered as arrows pointing up and down with a horizontal bar separating them.",
                 ),
                 browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE6", "O10.6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "se-resize",
                 description: Some("Indicates that movement starts from south-east corner."),
                 browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "s-resize",
                 description: Some("Indicates that south edge is to be moved."),
                 browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "sw-resize",
                 description: Some("Indicates that movement starts from south-west corner."),
                 browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "text",
@@ -4307,6 +5178,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA95", "S1.2", "SM13.4", "C1", "CA18", "IE4", "O7",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-12-07"),
+                    high_date: Some("2024-06-07"),
+                }),
             },
             Value {
                 name: "vertical-text",
@@ -4314,6 +5190,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates vertical-text that may be selected. Often rendered as a horizontal I-beam.",
                 ),
                 browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "O10.6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "wait",
@@ -4321,6 +5202,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the program is busy and the user should wait. Often rendered as a watch or hourglass.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "-webkit-grab",
@@ -4328,6 +5214,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA95", "S1.2", "SM13.4", "C1", "CA18", "IE4", "O7",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "-webkit-grabbing",
@@ -4335,6 +5222,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA95", "S1.2", "SM13.4", "C1", "CA18", "IE4", "O7",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "-webkit-zoom-in",
@@ -4342,6 +5230,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA95", "S1.2", "SM13.4", "C1", "CA18", "IE4", "O7",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "-webkit-zoom-out",
@@ -4349,21 +5238,37 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA95", "S1.2", "SM13.4", "C1", "CA18", "IE4", "O7",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "w-resize",
                 description: Some("Indicates that west edge is to be moved."),
                 browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "zoom-in",
                 description: Some("Indicates that something can be zoomed (magnified) in."),
                 browsers: Some(&["E12", "FF24", "FFA95", "S9", "C37", "CA37", "O24"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "zoom-out",
                 description: Some("Indicates that something can be zoomed (magnified) out."),
                 browsers: Some(&["E12", "FF24", "FFA95", "S9", "C37", "CA37", "O24"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -4396,6 +5301,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C2", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "rtl",
@@ -4403,6 +5313,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C2", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -4433,6 +5348,11 @@ pub const PROPERTIES: &[Property] = &[
                 name: "block",
                 description: Some("The element generates a block-level box"),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "contents",
@@ -4442,6 +5362,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF37", "FFA37", "S11.1", "SM11.3", "C65", "CA65", "O52",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "flex",
@@ -4451,6 +5376,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF20", "FFA20", "S9", "SM9", "C29", "CA29", "IE11", "O16",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-09-30"),
+                    high_date: Some("2018-03-30"),
+                }),
             },
             Value {
                 name: "flexbox",
@@ -4458,6 +5388,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The element lays out its contents using flow layout (block-and-inline layout). Standardized as 'flex'.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "flow-root",
@@ -4465,6 +5396,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The element generates a block container box, and lays out its contents using flow layout.",
                 ),
                 browsers: Some(&["E79", "FF53", "FFA53", "S13", "SM13", "C58", "CA58", "O45"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "grid",
@@ -4474,11 +5410,21 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "IE10", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-10-17"),
+                    high_date: Some("2020-04-17"),
+                }),
             },
             Value {
                 name: "inline",
                 description: Some("The element generates an inline-level box."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "inline-block",
@@ -4486,6 +5432,11 @@ pub const PROPERTIES: &[Property] = &[
                     "A block box, which itself is flowed as a single inline box, similar to a replaced element. The inside of an inline-block is formatted as a block box, and the box itself is formatted as an inline box.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "inline-flex",
@@ -4493,21 +5444,37 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF20", "FFA20", "S9", "SM9", "C29", "CA29", "IE11", "O16",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-09-30"),
+                    high_date: Some("2018-03-30"),
+                }),
             },
             Value {
                 name: "inline-flexbox",
                 description: Some("Inline-level flex container. Standardized as 'inline-flex'"),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "inline-table",
                 description: Some("Inline-level table wrapper box containing table box."),
                 browsers: Some(&["E12", "FF3", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "list-item",
                 description: Some("One or more block boxes and one marker box."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE6", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "-moz-box",
@@ -4515,61 +5482,73 @@ pub const PROPERTIES: &[Property] = &[
                     "The element lays out its contents using flow layout (block-and-inline layout). Standardized as 'flex'.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-moz-deck",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-moz-grid",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-moz-grid-group",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-moz-grid-line",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-moz-groupbox",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-moz-inline-box",
                 description: Some("Inline-level flex container. Standardized as 'inline-flex'"),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-moz-inline-grid",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-moz-inline-stack",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-moz-marker",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-moz-popup",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-moz-stack",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-ms-flexbox",
@@ -4577,6 +5556,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The element lays out its contents using flow layout (block-and-inline layout). Standardized as 'flex'.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-ms-grid",
@@ -4584,21 +5564,29 @@ pub const PROPERTIES: &[Property] = &[
                     "The element generates a principal grid container box, and establishes a grid formatting context.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-ms-inline-flexbox",
                 description: Some("Inline-level flex container. Standardized as 'inline-flex'"),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-ms-inline-grid",
                 description: Some("Inline-level grid container."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("The element and its descendants generates no boxes."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "ruby",
@@ -4606,26 +5594,51 @@ pub const PROPERTIES: &[Property] = &[
                     "The element generates a principal ruby container box, and establishes a ruby formatting context.",
                 ),
                 browsers: Some(&["FF38", "FFA38", "C121", "CA121", "IE7", "O107"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "ruby-base",
                 description: None,
                 browsers: Some(&["FF38", "FFA38", "IE7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "ruby-base-container",
                 description: None,
                 browsers: Some(&["FF38", "FFA38", "IE7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "ruby-text",
                 description: None,
                 browsers: Some(&["FF38", "FFA38", "C121", "CA121", "IE7", "O107"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "ruby-text-container",
                 description: None,
                 browsers: Some(&["FF38", "FFA38", "IE7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "run-in",
@@ -4633,6 +5646,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The element generates a run-in box. Run-in elements act like inlines or blocks, depending on the surrounding elements.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "table",
@@ -4640,46 +5654,91 @@ pub const PROPERTIES: &[Property] = &[
                     "The element generates a principal table wrapper box containing an additionally-generated table box, and establishes a table formatting context.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "table-caption",
                 description: None,
                 browsers: Some(&["E15", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
             Value {
                 name: "table-cell",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "table-column",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "table-column-group",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "table-footer-group",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "table-header-group",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "table-row",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "table-row-group",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "-webkit-box",
@@ -4687,6 +5746,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The element lays out its contents using flow layout (block-and-inline layout). Standardized as 'flex'.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-webkit-flex",
@@ -4694,16 +5754,19 @@ pub const PROPERTIES: &[Property] = &[
                     "The element lays out its contents using flow layout (block-and-inline layout).",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-webkit-inline-box",
                 description: Some("Inline-level flex container. Standardized as 'inline-flex'"),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "-webkit-inline-flex",
                 description: Some("Inline-level flex container."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -4736,6 +5799,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE8", "O4",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "-moz-show-background",
@@ -4743,6 +5811,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE8", "O4",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "show",
@@ -4752,6 +5821,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE8", "O4",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -4775,6 +5849,7 @@ pub const PROPERTIES: &[Property] = &[
                     "If the ancestor container element has a property of new, then all graphics elements within the current container are rendered both on the parent's background image and onto the target.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "new",
@@ -4782,6 +5857,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Create a new background image canvas. All children of the current container element can access the background, and they will be rendered onto both the parent's background image canvas in addition to the target device.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -4825,11 +5901,17 @@ pub const PROPERTIES: &[Property] = &[
                     "A URL reference to a paint server element, which is an element that defines a paint server: 'hatch', 'linearGradient', 'mesh', 'pattern', 'radialGradient' and 'solidcolor'.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("No paint is applied in this layer."),
                 browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
         ],
         at_rule: None,
@@ -4882,6 +5964,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Determines the 'insideness' of a point on the canvas by drawing a ray from that point to infinity in any direction and counting the number of path segments from the given shape that the ray crosses.",
                 ),
                 browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
             Value {
                 name: "nonzero",
@@ -4889,6 +5976,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Determines the 'insideness' of a point on the canvas by drawing a ray from that point to infinity in any direction and then examining the places where a segment of the shape crosses the ray.",
                 ),
                 browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
         ],
         at_rule: None,
@@ -4919,11 +6011,17 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: Some("No filter effects are applied."),
                 browsers: Some(&["E12", "FF35", "FFA35", "S6", "SM6", "C18", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "blur()",
                 description: Some("Applies a Gaussian blur to the input image."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "brightness()",
@@ -4931,46 +6029,55 @@ pub const PROPERTIES: &[Property] = &[
                     "Applies a linear multiplier to input image, making it appear more or less bright.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "contrast()",
                 description: Some("Adjusts the contrast of the input."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "drop-shadow()",
                 description: Some("Applies a drop shadow effect to the input image."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "grayscale()",
                 description: Some("Converts the input image to grayscale."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "hue-rotate()",
                 description: Some("Applies a hue rotation on the input image. "),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "invert()",
                 description: Some("Inverts the samples in the input image."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "opacity()",
                 description: Some("Applies transparency to the samples in the input image."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "saturate()",
                 description: Some("Saturates the input image."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "sepia()",
                 description: Some("Converts the input image to sepia."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "url()",
@@ -4978,6 +6085,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF35", "FFA35", "S9.1", "SM9.3", "C53", "CA53", "O40",
                 ]),
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -5010,11 +6118,21 @@ pub const PROPERTIES: &[Property] = &[
                     "Retrieves the value of the main size property as the used 'flex-basis'.",
                 ),
                 browsers: Some(&["E12", "FF22", "FFA22", "S7", "SM7", "C21", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "content",
                 description: Some("Indicates automatic sizing, based on the flex item's content."),
                 browsers: Some(&["E94", "FF61", "FFA61", "S15", "SM15", "C94", "CA94", "O80"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-09-24"),
+                    high_date: Some("2024-03-24"),
+                }),
             },
             Value {
                 name: "none",
@@ -5022,6 +6140,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF22", "FFA22", "S7", "SM7", "C21", "CA25", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -5054,6 +6177,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF22", "FFA22", "S9", "SM9", "C22", "CA25", "IE11", "O12.1",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-09-30"),
+                    high_date: Some("2018-03-30"),
+                }),
             },
             Value {
                 name: "content",
@@ -5061,6 +6189,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E94", "FF61", "FFA61", "S15.4", "SM15.4", "C94", "CA94", "O80",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-03-14"),
+                    high_date: Some("2024-09-14"),
+                }),
             },
         ],
         at_rule: None,
@@ -5095,6 +6228,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF22", "FFA22", "S7", "SM7", "C21", "CA25", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "column-reverse",
@@ -5104,6 +6242,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF81", "FFA81", "S7", "SM7", "C21", "CA25", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-09-22"),
+                    high_date: Some("2023-03-22"),
+                }),
             },
             Value {
                 name: "row",
@@ -5113,6 +6256,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF22", "FFA22", "S7", "SM7", "C21", "CA25", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "row-reverse",
@@ -5122,6 +6270,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF81", "FFA81", "S7", "SM7", "C21", "CA25", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-09-22"),
+                    high_date: Some("2023-03-22"),
+                }),
             },
         ],
         at_rule: None,
@@ -5152,6 +6305,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The flex container's main axis has the same orientation as the block axis of the current writing mode.",
                 ),
                 browsers: Some(&["E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "column-reverse",
@@ -5159,11 +6317,21 @@ pub const PROPERTIES: &[Property] = &[
                     "Same as 'column', except the main-start and main-end directions are swapped.",
                 ),
                 browsers: Some(&["E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "nowrap",
                 description: Some("The flex container is single-line."),
                 browsers: Some(&["E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "row",
@@ -5171,6 +6339,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The flex container's main axis has the same orientation as the inline axis of the current writing mode.",
                 ),
                 browsers: Some(&["E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "row-reverse",
@@ -5178,11 +6351,21 @@ pub const PROPERTIES: &[Property] = &[
                     "Same as 'row', except the main-start and main-end directions are swapped.",
                 ),
                 browsers: Some(&["E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "wrap",
                 description: Some("The flexbox is multi-line."),
                 browsers: Some(&["E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "wrap-reverse",
@@ -5190,6 +6373,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Same as 'wrap', except the cross-start and cross-end directions are swapped.",
                 ),
                 browsers: Some(&["E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -5266,6 +6454,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "wrap",
@@ -5273,6 +6466,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "wrap-reverse",
@@ -5282,6 +6480,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -5314,6 +6517,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E118", "FF55", "FFA55", "S15", "SM15", "C118", "CA118", "O104",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2023-10-13"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "inline-start",
@@ -5323,6 +6531,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E118", "FF55", "FFA55", "S15", "SM15", "C118", "CA118", "O104",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2023-10-13"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "left",
@@ -5332,6 +6545,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "none",
@@ -5339,6 +6557,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "right",
@@ -5348,6 +6571,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -5428,51 +6656,61 @@ pub const PROPERTIES: &[Property] = &[
                 name: "100",
                 description: Some("Thin"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "200",
                 description: Some("Extra Light (Ultra Light)"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "300",
                 description: Some("Light"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "400",
                 description: Some("Normal"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "500",
                 description: Some("Medium"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "600",
                 description: Some("Semi Bold (Demi Bold)"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "700",
                 description: Some("Bold"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "800",
                 description: Some("Extra Bold (Ultra Bold)"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "900",
                 description: Some("Black (Heavy)"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "bold",
                 description: Some("Same as 700"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "bolder",
@@ -5480,6 +6718,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies the weight of the face bolder than the inherited value.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "caption",
@@ -5487,11 +6726,21 @@ pub const PROPERTIES: &[Property] = &[
                     "The font used for captioned controls (e.g., buttons, drop-downs, etc.).",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "icon",
                 description: Some("The font used to label icons."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "italic",
@@ -5499,16 +6748,19 @@ pub const PROPERTIES: &[Property] = &[
                     "Selects a font that is labeled 'italic', or, if that is not available, one labeled 'oblique'.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "large",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "larger",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "lighter",
@@ -5516,36 +6768,51 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies the weight of the face lighter than the inherited value.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "medium",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menu",
                 description: Some("The font used in menus (e.g., dropdown menus and menu lists)."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "message-box",
                 description: Some("The font used in dialog boxes."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "normal",
                 description: Some("Specifies a face that is not labeled as a small-caps font."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "oblique",
                 description: Some("Selects a font that is labeled 'oblique'."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "small",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "small-caps",
@@ -5553,41 +6820,57 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a font that is labeled as a small-caps font. If a genuine small-caps font is not available, user agents should simulate a small-caps font.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "small-caption",
                 description: Some("The font used for labeling small controls."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "smaller",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "status-bar",
                 description: Some("The font used in window status bars."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "x-large",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "x-small",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "xx-large",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "xx-small",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -5618,91 +6901,129 @@ pub const PROPERTIES: &[Property] = &[
                 name: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "Arial, Helvetica, sans-serif",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "Cambria, Cochin, Georgia, Times, 'Times New Roman', serif",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "'Courier New', Courier, monospace",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "cursive",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "fantasy",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "Georgia, 'Times New Roman', Times, serif",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "monospace",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "sans-serif",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "serif",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "'Times New Roman', Times, serif",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "Verdana, Geneva, Tahoma, sans-serif",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: Some("@font-palette-values"),
@@ -5733,51 +7054,61 @@ pub const PROPERTIES: &[Property] = &[
                 name: "\"aalt\"",
                 description: Some("Access All Alternates."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"abvf\"",
                 description: Some("Above-base Forms. Required in Khmer script."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"abvm\"",
                 description: Some("Above-base Mark Positioning. Required in Indic scripts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"abvs\"",
                 description: Some("Above-base Substitutions. Required in Indic scripts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"afrc\"",
                 description: Some("Alternative Fractions."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"akhn\"",
                 description: Some("Akhand. Required in most Indic scripts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"blwf\"",
                 description: Some("Below-base Form. Required in a number of Indic scripts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"blwm\"",
                 description: Some("Below-base Mark Positioning. Required in Indic scripts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"blws\"",
                 description: Some("Below-base Substitutions. Required in Indic scripts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"calt\"",
                 description: Some("Contextual Alternates."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"case\"",
@@ -5785,16 +7116,19 @@ pub const PROPERTIES: &[Property] = &[
                     "Case-Sensitive Forms. Applies only to European scripts; particularly prominent in Spanish-language setting.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"ccmp\"",
                 description: Some("Glyph Composition/Decomposition."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"cfar\"",
                 description: Some("Conjunct Form After Ro. Required in Khmer scripts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"cjct\"",
@@ -5802,16 +7136,19 @@ pub const PROPERTIES: &[Property] = &[
                     "Conjunct Forms. Required in Indic scripts that show similarity to Devanagari.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"clig\"",
                 description: Some("Contextual Ligatures."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"cpct\"",
                 description: Some("Centered CJK Punctuation. Used primarily in Chinese fonts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"cpsp\"",
@@ -5819,16 +7156,19 @@ pub const PROPERTIES: &[Property] = &[
                     "Capital Spacing. Should not be used in connecting scripts (e.g. most Arabic).",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"cswh\"",
                 description: Some("Contextual Swash."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"curs\"",
                 description: Some("Cursive Positioning. Can be used in any cursive script."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"c2pc\"",
@@ -5836,6 +7176,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Petite Capitals From Capitals. Applies only to bicameral scripts.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"c2sc\"",
@@ -5843,31 +7184,37 @@ pub const PROPERTIES: &[Property] = &[
                     "Small Capitals From Capitals. Applies only to bicameral scripts.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"dist\"",
                 description: Some("Distances. Required in Indic scripts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"dlig\"",
                 description: Some("Discretionary ligatures."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"dnom\"",
                 description: Some("Denominators."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"dtls\"",
                 description: Some("Dotless Forms. Applied to math formula layout."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"expt\"",
                 description: Some("Expert Forms. Applies only to Japanese."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"falt\"",
@@ -5875,31 +7222,37 @@ pub const PROPERTIES: &[Property] = &[
                     "Final Glyph on Line Alternates. Can be used in any cursive script.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"fin2\"",
                 description: Some("Terminal Form #2. Used only with the Syriac script."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"fin3\"",
                 description: Some("Terminal Form #3. Used only with the Syriac script."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"fina\"",
                 description: Some("Terminal Forms. Can be used in any alphabetic script."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"flac\"",
                 description: Some("Flattened ascent forms. Applied to math formula layout."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"frac\"",
                 description: Some("Fractions."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"fwid\"",
@@ -5907,6 +7260,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Full Widths. Applies to any script which can use monospaced forms.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"half\"",
@@ -5914,21 +7268,25 @@ pub const PROPERTIES: &[Property] = &[
                     "Half Forms. Required in Indic scripts that show similarity to Devanagari.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"haln\"",
                 description: Some("Halant Forms. Required in Indic scripts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"halt\"",
                 description: Some("Alternate Half Widths. Used only in CJKV fonts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"hist\"",
                 description: Some("Historical Forms."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"hkna\"",
@@ -5936,16 +7294,19 @@ pub const PROPERTIES: &[Property] = &[
                     "Horizontal Kana Alternates. Applies only to fonts that support kana (hiragana and katakana).",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"hlig\"",
                 description: Some("Historical Ligatures."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"hngl\"",
                 description: Some("Hangul. Korean only."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"hojo\"",
@@ -5953,21 +7314,25 @@ pub const PROPERTIES: &[Property] = &[
                     "Hojo Kanji Forms (JIS X 0212-1990 Kanji Forms). Used only with Kanji script.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"hwid\"",
                 description: Some("Half Widths. Generally used only in CJKV fonts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"init\"",
                 description: Some("Initial Forms. Can be used in any alphabetic script."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"isol\"",
                 description: Some("Isolated Forms. Can be used in any cursive script."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"ital\"",
@@ -5975,46 +7340,55 @@ pub const PROPERTIES: &[Property] = &[
                     "Italics. Applies mostly to Latin; note that many non-Latin fonts contain Latin as well.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"jalt\"",
                 description: Some("Justification Alternates. Can be used in any cursive script."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"jp78\"",
                 description: Some("JIS78 Forms. Applies only to Japanese."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"jp83\"",
                 description: Some("JIS83 Forms. Applies only to Japanese."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"jp90\"",
                 description: Some("JIS90 Forms. Applies only to Japanese."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"jp04\"",
                 description: Some("JIS2004 Forms. Applies only to Japanese."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"kern\"",
                 description: Some("Kerning."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"lfbd\"",
                 description: Some("Left Bounds."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"liga\"",
                 description: Some("Standard Ligatures."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"ljmo\"",
@@ -6022,111 +7396,133 @@ pub const PROPERTIES: &[Property] = &[
                     "Leading Jamo Forms. Required for Hangul script when Ancient Hangul writing system is supported.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"lnum\"",
                 description: Some("Lining Figures."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"locl\"",
                 description: Some("Localized Forms."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"ltra\"",
                 description: Some("Left-to-right glyph alternates."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"ltrm\"",
                 description: Some("Left-to-right mirrored forms."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"mark\"",
                 description: Some("Mark Positioning."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"med2\"",
                 description: Some("Medial Form #2. Used only with the Syriac script."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"medi\"",
                 description: Some("Medial Forms."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"mgrk\"",
                 description: Some("Mathematical Greek."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"mkmk\"",
                 description: Some("Mark to Mark Positioning."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"nalt\"",
                 description: Some("Alternate Annotation Forms."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"nlck\"",
                 description: Some("NLC Kanji Forms. Used only with Kanji script."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"nukt\"",
                 description: Some("Nukta Forms. Required in Indic scripts.."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"numr\"",
                 description: Some("Numerators."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"onum\"",
                 description: Some("Oldstyle Figures."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"opbd\"",
                 description: Some("Optical Bounds."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"ordn\"",
                 description: Some("Ordinals. Applies mostly to Latin script."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"ornm\"",
                 description: Some("Ornaments."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"palt\"",
                 description: Some("Proportional Alternate Widths. Used mostly in CJKV fonts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"pcap\"",
                 description: Some("Petite Capitals."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"pkna\"",
                 description: Some("Proportional Kana. Generally used only in Japanese fonts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"pnum\"",
                 description: Some("Proportional Figures."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"pref\"",
@@ -6134,11 +7530,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Pre-base Forms. Required in Khmer and Myanmar (Burmese) scripts and southern Indic scripts that may display a pre-base form of Ra.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"pres\"",
                 description: Some("Pre-base Substitutions. Required in Indic scripts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"pstf\"",
@@ -6146,26 +7544,31 @@ pub const PROPERTIES: &[Property] = &[
                     "Post-base Forms. Required in scripts of south and southeast Asia that have post-base forms for consonants eg: Gurmukhi, Malayalam, Khmer.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"psts\"",
                 description: Some("Post-base Substitutions."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"pwid\"",
                 description: Some("Proportional Widths."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"qwid\"",
                 description: Some("Quarter Widths. Generally used only in CJKV fonts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"rand\"",
                 description: Some("Randomize."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"rclt\"",
@@ -6173,6 +7576,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Required Contextual Alternates. May apply to any script, but is especially important for many styles of Arabic.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"rlig\"",
@@ -6180,11 +7584,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Required Ligatures. Applies to Arabic and Syriac. May apply to some other scripts.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"rkrf\"",
                 description: Some("Rakar Forms. Required in Devanagari and Gujarati scripts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"rphf\"",
@@ -6192,81 +7598,97 @@ pub const PROPERTIES: &[Property] = &[
                     "Reph Form. Required in Indic scripts. E.g. Devanagari, Kannada.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"rtbd\"",
                 description: Some("Right Bounds."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"rtla\"",
                 description: Some("Right-to-left alternates."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"rtlm\"",
                 description: Some("Right-to-left mirrored forms."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"ruby\"",
                 description: Some("Ruby Notation Forms. Applies only to Japanese."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"salt\"",
                 description: Some("Stylistic Alternates."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"sinf\"",
                 description: Some("Scientific Inferiors."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"size\"",
                 description: Some("Optical size."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"smcp\"",
                 description: Some("Small Capitals. Applies only to bicameral scripts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"smpl\"",
                 description: Some("Simplified Forms. Applies only to Chinese and Japanese."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"ssty\"",
                 description: Some("Math script style alternates."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"stch\"",
                 description: Some("Stretching Glyph Decomposition."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"subs\"",
                 description: Some("Subscript."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"sups\"",
                 description: Some("Superscript."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"swsh\"",
                 description: Some("Swash. Does not apply to ideographic scripts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"titl\"",
                 description: Some("Titling."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"tjmo\"",
@@ -6274,31 +7696,37 @@ pub const PROPERTIES: &[Property] = &[
                     "Trailing Jamo Forms. Required for Hangul script when Ancient Hangul writing system is supported.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"tnam\"",
                 description: Some("Traditional Name Forms. Applies only to Japanese."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"tnum\"",
                 description: Some("Tabular Figures."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"trad\"",
                 description: Some("Traditional Forms. Applies only to Chinese and Japanese."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"twid\"",
                 description: Some("Third Widths. Generally used only in CJKV fonts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"unic\"",
                 description: Some("Unicase."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"valt\"",
@@ -6306,11 +7734,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Alternate Vertical Metrics. Applies only to scripts with vertical writing modes.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"vatu\"",
                 description: Some("Vattu Variants. Used for Indic scripts. E.g. Devanagari."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"vert\"",
@@ -6318,11 +7748,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Vertical Alternates. Applies only to scripts with vertical writing modes.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"vhal\"",
                 description: Some("Alternate Vertical Half Metrics. Used only in CJKV fonts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"vjmo\"",
@@ -6330,6 +7762,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Vowel Jamo Forms. Required for Hangul script when Ancient Hangul writing system is supported.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"vkna\"",
@@ -6337,11 +7770,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Vertical Kana Alternates. Applies only to fonts that support kana (hiragana and katakana).",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"vkrn\"",
                 description: Some("Vertical Kerning."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"vpal\"",
@@ -6349,6 +7784,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Proportional Alternate Vertical Metrics. Used mostly in CJKV fonts.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"vrt2\"",
@@ -6356,11 +7792,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Vertical Alternates and Rotation. Applies only to scripts with vertical writing modes.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"zero\"",
                 description: Some("Slashed Zero."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
@@ -6368,16 +7806,23 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E15", "FF15", "FFA15", "S9.1", "SM9.3", "C16", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
             Value {
                 name: "off",
                 description: Some("Disable feature."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "on",
                 description: Some("Enable feature."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: Some("@font-face"),
@@ -6408,16 +7853,31 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies that kerning is applied at the discretion of the user agent.",
                 ),
                 browsers: Some(&["E79", "FF32", "FFA32", "S9", "SM9", "C33", "CA33", "O20"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "none",
                 description: Some("Specifies that kerning is not applied."),
                 browsers: Some(&["E79", "FF32", "FFA32", "S9", "SM9", "C33", "CA33", "O20"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "normal",
                 description: Some("Specifies that kerning is applied."),
                 browsers: Some(&["E79", "FF32", "FFA32", "S9", "SM9", "C33", "CA33", "O20"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -6447,6 +7907,11 @@ pub const PROPERTIES: &[Property] = &[
                 "Implies that when rendering with OpenType fonts the language of the document is used to infer the OpenType language system, used to select language specific features when rendering.",
             ),
             browsers: Some(&["E143", "FF4", "FFA4", "C143", "CA143"]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::Limited,
+                low_date: None,
+                high_date: None,
+            }),
         }],
         at_rule: None,
     },
@@ -6476,46 +7941,55 @@ pub const PROPERTIES: &[Property] = &[
                 name: "large",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "larger",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "medium",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "small",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "smaller",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "x-large",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "x-small",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "xx-large",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "xx-small",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -6549,6 +8023,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E127", "FF3", "FFA4", "S16.4", "SM16.4", "C127", "CA127", "O113",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::Low,
+                low_date: Some("2024-07-25"),
+                high_date: None,
+            }),
         }],
         at_rule: None,
     },
@@ -6576,21 +8055,41 @@ pub const PROPERTIES: &[Property] = &[
                 name: "condensed",
                 description: None,
                 browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-09-19"),
+                    high_date: Some("2020-03-19"),
+                }),
             },
             Value {
                 name: "expanded",
                 description: None,
                 browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-09-19"),
+                    high_date: Some("2020-03-19"),
+                }),
             },
             Value {
                 name: "extra-condensed",
                 description: None,
                 browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-09-19"),
+                    high_date: Some("2020-03-19"),
+                }),
             },
             Value {
                 name: "extra-expanded",
                 description: None,
                 browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-09-19"),
+                    high_date: Some("2020-03-19"),
+                }),
             },
             Value {
                 name: "narrower",
@@ -6600,31 +8099,57 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "IE9", "O47",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: None,
                 browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-09-19"),
+                    high_date: Some("2020-03-19"),
+                }),
             },
             Value {
                 name: "semi-condensed",
                 description: None,
                 browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-09-19"),
+                    high_date: Some("2020-03-19"),
+                }),
             },
             Value {
                 name: "semi-expanded",
                 description: None,
                 browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-09-19"),
+                    high_date: Some("2020-03-19"),
+                }),
             },
             Value {
                 name: "ultra-condensed",
                 description: None,
                 browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-09-19"),
+                    high_date: Some("2020-03-19"),
+                }),
             },
             Value {
                 name: "ultra-expanded",
                 description: None,
                 browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-09-19"),
+                    high_date: Some("2020-03-19"),
+                }),
             },
             Value {
                 name: "wider",
@@ -6634,6 +8159,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "IE9", "O47",
                 ]),
+                baseline: None,
             },
         ],
         at_rule: Some("@font-face"),
@@ -6666,6 +8192,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "normal",
@@ -6673,6 +8204,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "oblique",
@@ -6680,6 +8216,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Selects a font that is labeled as an 'oblique' face, or an 'italic' face if one is not.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: Some("@font-face"),
@@ -6708,6 +8249,11 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: Some("Disallow all synthetic faces."),
                 browsers: Some(&["E97", "FF34", "FFA34", "S9", "SM9", "C97", "CA97", "O83"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-01-06"),
+                    high_date: Some("2024-07-06"),
+                }),
             },
             Value {
                 name: "style",
@@ -6715,6 +8261,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E97", "FF34", "FFA34", "S10.1", "SM10.3", "C97", "CA97", "O83",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-01-06"),
+                    high_date: Some("2024-07-06"),
+                }),
             },
             Value {
                 name: "weight",
@@ -6722,6 +8273,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E97", "FF34", "FFA34", "S10.1", "SM10.3", "C97", "CA97", "O83",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-01-06"),
+                    high_date: Some("2024-07-06"),
+                }),
             },
         ],
         at_rule: None,
@@ -6754,6 +8310,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "small-caps",
@@ -6761,6 +8322,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a font that is labeled as a small-caps font. If a genuine small-caps font is not available, user agents should simulate a small-caps font.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -6793,11 +8355,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "annotation()",
                 description: Some("Enables display of alternate annotation forms."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "character-variant()",
                 description: Some("Enables display of specific character variants."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "historical-forms",
@@ -6805,6 +8369,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E111", "FF34", "FFA34", "S9.1", "SM9.3", "C111", "CA111", "O97",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2023-03-13"),
+                    high_date: Some("2025-09-13"),
+                }),
             },
             Value {
                 name: "normal",
@@ -6812,6 +8381,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E111", "FF34", "FFA34", "S9.1", "SM9.3", "C111", "CA111", "O97",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2023-03-13"),
+                    high_date: Some("2025-09-13"),
+                }),
             },
             Value {
                 name: "ornaments()",
@@ -6819,21 +8393,25 @@ pub const PROPERTIES: &[Property] = &[
                     "Enables replacement of default glyphs with ornaments, if provided in the font.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "styleset()",
                 description: Some("Enables display with stylistic sets."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stylistic()",
                 description: Some("Enables display of stylistic alternates."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "swash()",
                 description: Some("Enables display of swash glyphs."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -6868,6 +8446,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "all-small-caps",
@@ -6877,6 +8460,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "normal",
@@ -6884,6 +8472,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "petite-caps",
@@ -6891,6 +8484,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "small-caps",
@@ -6900,6 +8498,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "titling-caps",
@@ -6907,6 +8510,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "unicase",
@@ -6916,6 +8524,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -6948,6 +8561,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "jis04",
@@ -6955,6 +8573,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "jis78",
@@ -6962,6 +8585,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "jis83",
@@ -6969,6 +8597,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "jis90",
@@ -6976,6 +8609,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "normal",
@@ -6983,6 +8621,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "proportional-width",
@@ -6990,6 +8633,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "ruby",
@@ -6997,6 +8645,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "simplified",
@@ -7004,6 +8657,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "traditional",
@@ -7011,6 +8669,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -7043,61 +8706,113 @@ pub const PROPERTIES: &[Property] = &[
                 name: "additional-ligatures",
                 description: Some("Enables display of additional ligatures."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "common-ligatures",
                 description: Some("Enables display of common ligatures."),
                 browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "contextual",
                 description: Some("Enables display of contextual alternates."),
                 browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "discretionary-ligatures",
                 description: Some("Enables display of discretionary ligatures."),
                 browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "historical-ligatures",
                 description: Some("Enables display of historical ligatures."),
                 browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "no-additional-ligatures",
                 description: Some("Disables display of additional ligatures."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "no-common-ligatures",
                 description: Some("Disables display of common ligatures."),
                 browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "no-contextual",
                 description: Some("Disables display of contextual alternates."),
                 browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "no-discretionary-ligatures",
                 description: Some("Disables display of discretionary ligatures."),
                 browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "no-historical-ligatures",
                 description: Some("Disables display of historical ligatures."),
                 browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "none",
                 description: Some("Disables all ligatures."),
                 browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "normal",
                 description: Some("Implies that the defaults set by the font are used."),
                 browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -7130,6 +8845,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "lining-nums",
@@ -7137,6 +8857,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "normal",
@@ -7144,6 +8869,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "oldstyle-nums",
@@ -7151,6 +8881,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "ordinal",
@@ -7158,6 +8893,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "proportional-nums",
@@ -7165,6 +8905,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "slashed-zero",
@@ -7172,6 +8917,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "stacked-fractions",
@@ -7179,6 +8929,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "tabular-nums",
@@ -7186,6 +8941,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -7216,6 +8976,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E117", "FF34", "FFA34", "S9.1", "SM9.3", "C117", "CA117", "O103",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2023-09-15"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "sub",
@@ -7223,6 +8988,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Enables display of subscript variants (OpenType feature: subs).",
                 ),
                 browsers: Some(&["FF34", "FFA34", "O103"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "super",
@@ -7230,6 +9000,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Enables display of superscript variants (OpenType feature: sups).",
                 ),
                 browsers: Some(&["FF34", "FFA34", "O103"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -7260,46 +9035,55 @@ pub const PROPERTIES: &[Property] = &[
                 name: "100",
                 description: Some("Thin"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "200",
                 description: Some("Extra Light (Ultra Light)"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "300",
                 description: Some("Light"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "400",
                 description: Some("Normal"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "500",
                 description: Some("Medium"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "600",
                 description: Some("Semi Bold (Demi Bold)"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "700",
                 description: Some("Bold"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "800",
                 description: Some("Extra Bold (Ultra Bold)"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "900",
                 description: Some("Black (Heavy)"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "bold",
@@ -7307,6 +9091,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C2", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "bolder",
@@ -7316,6 +9105,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C2", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "lighter",
@@ -7325,6 +9119,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C2", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "normal",
@@ -7332,6 +9131,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C2", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: Some("@font-face"),
@@ -7373,6 +9177,7 @@ pub const PROPERTIES: &[Property] = &[
                 "Sets the orientation based on the fullwidth or non-fullwidth characters and the most common orientation.",
             ),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -7406,6 +9211,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-10-17"),
+                    high_date: Some("2020-04-17"),
+                }),
             },
             Value {
                 name: "span",
@@ -7413,6 +9223,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Contributes a grid span to the grid item's placement such that the corresponding edge of the grid item's grid area is N lines from its opposite edge.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -7469,6 +9280,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Represents the largest min-content contribution of the grid items occupying the grid track.",
                 ),
                 browsers: Some(&["E16", "FF52", "FFA52", "S11", "SM11", "C57", "CA57", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-10-17"),
+                    high_date: Some("2020-04-17"),
+                }),
             },
             Value {
                 name: "max-content",
@@ -7476,6 +9292,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Represents the largest max-content contribution of the grid items occupying the grid track.",
                 ),
                 browsers: Some(&["E16", "FF52", "FFA52", "S11", "SM11", "C57", "CA57", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-10-17"),
+                    high_date: Some("2020-04-17"),
+                }),
             },
             Value {
                 name: "auto",
@@ -7485,6 +9306,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-10-17"),
+                    high_date: Some("2020-04-17"),
+                }),
             },
             Value {
                 name: "minmax()",
@@ -7492,6 +9318,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Defines a size range greater than or equal to min and less than or equal to max.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -7526,6 +9353,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "column",
@@ -7535,6 +9367,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "dense",
@@ -7544,6 +9381,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -7574,6 +9416,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Represents the largest min-content contribution of the grid items occupying the grid track.",
                 ),
                 browsers: Some(&["E16", "FF52", "FFA52", "S11", "SM11", "C57", "CA57", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-10-17"),
+                    high_date: Some("2020-04-17"),
+                }),
             },
             Value {
                 name: "max-content",
@@ -7581,6 +9428,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Represents the largest max-content contribution of the grid items occupying the grid track.",
                 ),
                 browsers: Some(&["E16", "FF52", "FFA52", "S11", "SM11", "C57", "CA57", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-10-17"),
+                    high_date: Some("2020-04-17"),
+                }),
             },
             Value {
                 name: "auto",
@@ -7590,6 +9442,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-10-17"),
+                    high_date: Some("2020-04-17"),
+                }),
             },
             Value {
                 name: "minmax()",
@@ -7597,6 +9454,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Defines a size range greater than or equal to min and less than or equal to max.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -7629,6 +9487,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-10-17"),
+                    high_date: Some("2020-04-17"),
+                }),
             },
             Value {
                 name: "span",
@@ -7636,6 +9499,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Contributes a grid span to the grid item's placement such that the corresponding edge of the grid item's grid area is N lines from its opposite edge.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -7670,6 +9534,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-10-17"),
+                    high_date: Some("2020-04-17"),
+                }),
             },
             Value {
                 name: "span",
@@ -7677,6 +9546,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Contributes a grid span to the grid item's placement such that the corresponding edge of the grid item's grid area is N lines from its opposite edge.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -7726,6 +9596,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-10-17"),
+                    high_date: Some("2020-04-17"),
+                }),
             },
             Value {
                 name: "span",
@@ -7733,6 +9608,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Contributes a grid span to the grid item's placement such that the corresponding edge of the grid item's grid area is N lines from its opposite edge.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -7780,6 +9656,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-10-17"),
+                    high_date: Some("2020-04-17"),
+                }),
             },
             Value {
                 name: "span",
@@ -7787,6 +9668,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Contributes a grid span to the grid item's placement such that the corresponding edge of the grid item's grid area is N lines from its opposite edge.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -7821,6 +9703,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-10-17"),
+                    high_date: Some("2020-04-17"),
+                }),
             },
             Value {
                 name: "span",
@@ -7828,6 +9715,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Contributes a grid span to the grid item's placement such that the corresponding edge of the grid item's grid area is N lines from its opposite edge.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -7877,6 +9765,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-10-17"),
+                    high_date: Some("2020-04-17"),
+                }),
             },
             Value {
                 name: "span",
@@ -7884,6 +9777,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Contributes a grid span to the grid item's placement such that the corresponding edge of the grid item's grid area is N lines from its opposite edge.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -7918,6 +9812,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "min-content",
@@ -7925,6 +9824,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Represents the largest min-content contribution of the grid items occupying the grid track.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "max-content",
@@ -7932,6 +9832,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Represents the largest max-content contribution of the grid items occupying the grid track.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "auto",
@@ -7939,6 +9840,7 @@ pub const PROPERTIES: &[Property] = &[
                     "As a maximum, identical to 'max-content'. As a minimum, represents the largest minimum size (as specified by min-width/min-height) of the grid items occupying the grid track.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "subgrid",
@@ -7946,6 +9848,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Sets 'grid-template-rows' and 'grid-template-columns' to 'subgrid', and 'grid-template-areas' to its initial value.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "minmax()",
@@ -7953,6 +9856,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Defines a size range greater than or equal to min and less than or equal to max.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "repeat()",
@@ -7960,6 +9864,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Represents a repeated fragment of the track list, allowing a large number of columns or rows that exhibit a recurring pattern to be written in a more compact form.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -7991,6 +9896,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2020-01-15"),
+                high_date: Some("2022-07-15"),
+            }),
         }],
         at_rule: None,
     },
@@ -8024,6 +9934,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "min-content",
@@ -8033,6 +9948,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "max-content",
@@ -8042,6 +9962,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "auto",
@@ -8051,6 +9976,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "subgrid",
@@ -8060,6 +9990,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E117", "FF71", "FFA79", "S16", "SM16", "C117", "CA117", "O103",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2023-09-15"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "minmax()",
@@ -8067,6 +10002,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Defines a size range greater than or equal to min and less than or equal to max.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "repeat()",
@@ -8074,6 +10010,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Represents a repeated fragment of the track list, allowing a large number of columns or rows that exhibit a recurring pattern to be written in a more compact form.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -8108,6 +10045,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "min-content",
@@ -8117,6 +10059,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "max-content",
@@ -8126,6 +10073,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "auto",
@@ -8135,6 +10087,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "subgrid",
@@ -8144,6 +10101,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E117", "FF71", "FFA79", "S16", "SM16", "C117", "CA117", "O103",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2023-09-15"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "minmax()",
@@ -8151,6 +10113,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Defines a size range greater than or equal to min and less than or equal to max.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "repeat()",
@@ -8158,6 +10121,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Represents a repeated fragment of the track list, allowing a large number of columns or rows that exhibit a recurring pattern to be written in a more compact form.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -8190,6 +10154,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "fit-content",
@@ -8197,6 +10166,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the fit-content inline size or fit-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF94", "FFA94", "S11", "SM11", "C46", "CA46", "O33"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-11-02"),
+                    high_date: Some("2024-05-02"),
+                }),
             },
             Value {
                 name: "max-content",
@@ -8204,6 +10178,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the max-content inline size or max-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "min-content",
@@ -8211,6 +10190,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the min-content inline size or min-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -8243,6 +10227,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Conditional hyphenation characters inside a word, if present, take priority over automatic resources when determining hyphenation points within the word.",
                 ),
                 browsers: Some(&["E88", "FF6", "FFA6", "S5.1", "SM4.2", "C88", "CA55", "O74"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-01-21"),
+                    high_date: Some("2023-07-21"),
+                }),
             },
             Value {
                 name: "manual",
@@ -8250,6 +10239,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Words are only broken at line breaks where there are characters inside the word that suggest line break opportunities",
                 ),
                 browsers: Some(&["E88", "FF6", "FFA6", "S5.1", "SM4.2", "C88", "CA55", "O74"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-01-21"),
+                    high_date: Some("2023-07-21"),
+                }),
             },
             Value {
                 name: "none",
@@ -8257,6 +10251,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Words are not broken at line breaks, even if characters inside the word suggest line break points.",
                 ),
                 browsers: Some(&["E88", "FF6", "FFA6", "S5.1", "SM4.2", "C88", "CA55", "O74"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-01-21"),
+                    high_date: Some("2023-07-21"),
+                }),
             },
         ],
         at_rule: None,
@@ -8289,6 +10288,7 @@ pub const PROPERTIES: &[Property] = &[
                     "After rotating by the precededing angle, the image is flipped horizontally. Defaults to 0deg if the angle is ommitted.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "from-image",
@@ -8298,6 +10298,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E81", "FF26", "FFA26", "S13.1", "SM13.4", "C81", "CA81", "O68",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-04-13"),
+                    high_date: Some("2022-10-13"),
+                }),
             },
         ],
         at_rule: None,
@@ -8328,6 +10333,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The image should be scaled with an algorithm that maximizes the appearance of the image.",
                 ),
                 browsers: Some(&["E79", "FF3.6", "FFA4", "S6", "SM6", "C13", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "crisp-edges",
@@ -8335,21 +10345,37 @@ pub const PROPERTIES: &[Property] = &[
                     "The image must be scaled with an algorithm that preserves contrast and edges in the image, and which does not smooth colors or introduce blur to the image in the process.",
                 ),
                 browsers: Some(&["FF65", "FFA65", "S7", "SM7", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "-moz-crisp-edges",
                 description: None,
                 browsers: Some(&["E79", "FF3.6", "FFA4", "S6", "SM6", "C13", "CA18", "O15"]),
+                baseline: None,
             },
             Value {
                 name: "optimizeQuality",
                 description: Some("Deprecated."),
                 browsers: Some(&["FF3.6", "FFA4", "S7", "SM7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "optimizeSpeed",
                 description: Some("Deprecated."),
                 browsers: Some(&["FF3.6", "FFA4", "S7", "SM7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "pixelated",
@@ -8357,6 +10383,11 @@ pub const PROPERTIES: &[Property] = &[
                     "When scaling the image up, the 'nearest neighbor' or similar algorithm must be used, so that the image appears to be simply composed of very large pixels.",
                 ),
                 browsers: Some(&["E79", "FF93", "FFA93", "S10", "SM10", "C41", "CA41", "O26"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-10-05"),
+                    high_date: Some("2024-04-05"),
+                }),
             },
         ],
         at_rule: None,
@@ -8382,6 +10413,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The input method editor is initially active; text entry is performed using it unless the user specifically dismisses it.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "auto",
@@ -8389,6 +10421,7 @@ pub const PROPERTIES: &[Property] = &[
                     "No change is made to the current input method editor state. This is the default.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "disabled",
@@ -8396,6 +10429,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The input method editor is disabled and may not be activated by the user.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "inactive",
@@ -8403,6 +10437,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The input method editor is initially inactive, but the user may activate it if they wish.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
@@ -8410,6 +10445,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The IME state should be normal; this value can be used in a user style sheet to override the page setting.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -8437,6 +10473,11 @@ pub const PROPERTIES: &[Property] = &[
             name: "auto",
             description: Some("Depends on the values of other properties."),
             browsers: Some(&["E79", "FF41", "FFA41", "S5.1", "SM5", "C8", "CA18", "O15"]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2020-01-15"),
+                high_date: Some("2022-07-15"),
+            }),
         }],
         at_rule: None,
     },
@@ -8466,11 +10507,21 @@ pub const PROPERTIES: &[Property] = &[
                     "Elements are not isolated unless an operation is applied that causes the creation of a stacking context.",
                 ),
                 browsers: Some(&["E79", "FF36", "FFA36", "S8", "SM8", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "isolate",
                 description: Some("In CSS will turn the element into a stacking context."),
                 browsers: Some(&["E79", "FF36", "FFA36", "S8", "SM8", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -8503,6 +10554,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "center",
                 description: Some("Flex items are packed toward the center of the line."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
@@ -8510,6 +10562,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The items are packed flush to each other toward the start edge of the alignment container in the main axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
@@ -8517,6 +10570,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The items are packed flush to each other toward the end edge of the alignment container in the main axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "left",
@@ -8524,6 +10578,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The items are packed flush to each other toward the left edge of the alignment container in the main axis.",
                 ),
                 browsers: Some(&["E79", "FF20", "FFA20", "S7", "SM7", "C21", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "right",
@@ -8531,6 +10590,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The items are packed flush to each other toward the right edge of the alignment container in the main axis.",
                 ),
                 browsers: Some(&["E79", "FF20", "FFA20", "S7", "SM7", "C21", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "safe",
@@ -8538,6 +10602,7 @@ pub const PROPERTIES: &[Property] = &[
                     "If the size of the item overflows the alignment container, the item is instead aligned as if the alignment mode were start.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "unsafe",
@@ -8545,6 +10610,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Regardless of the relative sizes of the item and alignment container, the given alignment value is honored.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
@@ -8552,6 +10618,7 @@ pub const PROPERTIES: &[Property] = &[
                     "If the combined size of the alignment subjects is less than the size of the alignment container, any auto-sized alignment subjects have their size increased equally (not proportionally), while still respecting the constraints imposed by max-height/max-width (or equivalent functionality), so that the combined size exactly fills the alignment container.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "space-evenly",
@@ -8559,16 +10626,19 @@ pub const PROPERTIES: &[Property] = &[
                     "The items are evenly distributed within the alignment container along the main axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "flex-end",
                 description: Some("Flex items are packed toward the end of the line."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "flex-start",
                 description: Some("Flex items are packed toward the start of the line."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "space-around",
@@ -8576,26 +10646,31 @@ pub const PROPERTIES: &[Property] = &[
                     "Flex items are evenly distributed in the line, with half-size spaces on either end.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "space-between",
                 description: Some("Flex items are evenly distributed in the line."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "baseline",
                 description: Some("Specifies participation in first-baseline alignment."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "first baseline",
                 description: Some("Specifies participation in first-baseline alignment."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "last baseline",
                 description: Some("Specifies participation in last-baseline alignment."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -8618,6 +10693,7 @@ pub const PROPERTIES: &[Property] = &[
                 "Indicates that the user agent should adjust inter-glyph spacing based on kerning tables that are included in the font that will be used.",
             ),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -8650,6 +10726,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -8682,6 +10763,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -8737,6 +10823,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The UA determines the set of line-breaking restrictions to use for CJK scripts, and it may vary the restrictions based on the length of the line; e.g., use a less restrictive set of line-break rules for short lines.",
                 ),
                 browsers: Some(&["E79", "FF69", "FFA79", "S7", "SM7", "C25", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-07-28"),
+                    high_date: Some("2023-01-28"),
+                }),
             },
             Value {
                 name: "loose",
@@ -8744,11 +10835,21 @@ pub const PROPERTIES: &[Property] = &[
                     "Breaks text using the least restrictive set of line-breaking rules. Typically used for short lines, such as in newspapers.",
                 ),
                 browsers: Some(&["E79", "FF69", "FFA79", "S8", "SM8", "C25", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-07-28"),
+                    high_date: Some("2023-01-28"),
+                }),
             },
             Value {
                 name: "normal",
                 description: Some("Breaks text using the most common set of line-breaking rules."),
                 browsers: Some(&["E79", "FF69", "FFA79", "S2", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-07-28"),
+                    high_date: Some("2023-01-28"),
+                }),
             },
             Value {
                 name: "strict",
@@ -8756,6 +10857,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Breaks CJK scripts using a more restrictive set of line-breaking rules than 'normal'.",
                 ),
                 browsers: Some(&["E79", "FF69", "FFA79", "S8", "SM8", "C25", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-07-28"),
+                    high_date: Some("2023-01-28"),
+                }),
             },
             Value {
                 name: "anywhere",
@@ -8763,6 +10869,11 @@ pub const PROPERTIES: &[Property] = &[
                     "There is a soft wrap opportunity around every typographic character unit, including around any punctuation character or preserved white spaces, or in the middle of words, disregarding any prohibition against line breaks, even those introduced by characters with the GL, WJ, or ZWJ line breaking classes or mandated by the word-break property.",
                 ),
                 browsers: Some(&["E83", "FF69", "FFA79", "S13", "SM13", "C83", "CA83", "O69"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-07-28"),
+                    high_date: Some("2023-01-28"),
+                }),
             },
         ],
         at_rule: None,
@@ -8794,6 +10905,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -8821,31 +10937,37 @@ pub const PROPERTIES: &[Property] = &[
                 name: "armenian",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "circle",
                 description: Some("A hollow circle."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "decimal",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "decimal-leading-zero",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "disc",
                 description: Some("A filled circle."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "georgian",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "inside",
@@ -8853,31 +10975,45 @@ pub const PROPERTIES: &[Property] = &[
                     "The marker box is outside the principal block box, as described in the section on the ::marker pseudo-element below.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "lower-alpha",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "lower-greek",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "lower-latin",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "lower-roman",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "outside",
@@ -8885,36 +11021,47 @@ pub const PROPERTIES: &[Property] = &[
                     "The ::marker pseudo-element is an inline element placed immediately before all ::before pseudo-elements in the principal block box, after which the element's content flows.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "square",
                 description: Some("A filled square."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "symbols()",
                 description: Some("Allows a counter style to be defined inline."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "upper-alpha",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "upper-latin",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "upper-roman",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "url()",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -8946,6 +11093,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -8979,6 +11131,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "outside",
@@ -8988,6 +11145,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -9016,6 +11178,11 @@ pub const PROPERTIES: &[Property] = &[
                 name: "armenian",
                 description: Some("Traditional uppercase Armenian numbering."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "circle",
@@ -9023,6 +11190,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O3.5",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "decimal",
@@ -9030,11 +11202,21 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O3.5",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "decimal-leading-zero",
                 description: Some("Decimal numbers padded by initial zeros."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O8"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "disc",
@@ -9042,31 +11224,61 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O3.5",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "georgian",
                 description: Some("Traditional Georgian numbering."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "lower-alpha",
                 description: Some("Lowercase ASCII letters."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "lower-greek",
                 description: Some("Lowercase classical Greek."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "lower-latin",
                 description: Some("Lowercase ASCII letters."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "lower-roman",
                 description: Some("Lowercase ASCII Roman numerals."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "none",
@@ -9074,6 +11286,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "square",
@@ -9081,6 +11298,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O3.5",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "symbols()",
@@ -9088,21 +11310,37 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O3.5",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "upper-alpha",
                 description: Some("Uppercase ASCII letters."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "upper-latin",
                 description: Some("Uppercase ASCII letters."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "upper-roman",
                 description: Some("Uppercase ASCII Roman numerals."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -9134,6 +11372,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE6", "O3.5",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -9164,6 +11407,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E79", "FF41", "FFA41", "S12.1", "SM12.2", "C69", "CA69", "O56",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2020-01-15"),
+                high_date: Some("2022-07-15"),
+            }),
         }],
         at_rule: None,
     },
@@ -9194,6 +11442,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E79", "FF41", "FFA41", "S12.1", "SM12.2", "C69", "CA69", "O56",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2020-01-15"),
+                high_date: Some("2022-07-15"),
+            }),
         }],
         at_rule: None,
     },
@@ -9224,6 +11477,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE6", "O3.5",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -9254,6 +11512,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E79", "FF41", "FFA41", "S12.1", "SM12.2", "C69", "CA69", "O56",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2020-01-15"),
+                high_date: Some("2022-07-15"),
+            }),
         }],
         at_rule: None,
     },
@@ -9284,6 +11547,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E79", "FF41", "FFA41", "S12.1", "SM12.2", "C69", "CA69", "O56",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2020-01-15"),
+                high_date: Some("2022-07-15"),
+            }),
         }],
         at_rule: None,
     },
@@ -9314,6 +11582,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE6", "O3.5",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -9344,6 +11617,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE6", "O3.5",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -9374,6 +11652,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE6", "O3.5",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -9403,11 +11686,17 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that no marker symbol will be drawn at the given vertex or vertices.",
                 ),
                 browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
             Value {
                 name: "url()",
                 description: Some("Indicates that the <marker> element referenced will be used."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -9438,11 +11727,17 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that no marker symbol will be drawn at the given vertex or vertices.",
                 ),
                 browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
             Value {
                 name: "url()",
                 description: Some("Indicates that the <marker> element referenced will be used."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -9473,11 +11768,17 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that no marker symbol will be drawn at the given vertex or vertices.",
                 ),
                 browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
             Value {
                 name: "url()",
                 description: Some("Indicates that the <marker> element referenced will be used."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -9508,11 +11809,17 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that no marker symbol will be drawn at the given vertex or vertices.",
                 ),
                 browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
             Value {
                 name: "url()",
                 description: Some("Indicates that the <marker> element referenced will be used."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -9541,11 +11848,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: Some("Counts as a transparent black image layer."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "url()",
                 description: Some("Reference to a <mask element or to a CSS image."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -9580,6 +11889,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E120", "FF53", "FFA53", "S15.4", "SM15.4", "C120", "CA120", "O106",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2023-12-07"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "auto",
@@ -9587,6 +11901,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Use alpha values if 'mask-image' is an image, luminance if a <mask> element or a CSS image.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "luminance",
@@ -9596,6 +11911,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E120", "FF53", "FFA53", "S15.4", "SM15.4", "C120", "CA120", "O106",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2023-12-07"),
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -9694,6 +12014,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Resolved by using the image's intrinsic ratio and the size of the other dimension, or failing that, using the image's intrinsic size, or failing that, treating it as 100%.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "contain",
@@ -9701,6 +12022,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Scale the image, while preserving its intrinsic aspect ratio (if any), to the largest size such that both its width and its height can fit inside the background positioning area.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "cover",
@@ -9708,6 +12030,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Scale the image, while preserving its intrinsic aspect ratio (if any), to the smallest size such that both its width and its height can completely cover the background positioning area.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -9736,6 +12059,11 @@ pub const PROPERTIES: &[Property] = &[
                 name: "alpha",
                 description: Some("Indicates that the alpha values of the mask should be used."),
                 browsers: Some(&["E79", "FF35", "FFA35", "S7", "SM7", "C24", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "luminance",
@@ -9743,6 +12071,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the luminance values of the mask should be used.",
                 ),
                 browsers: Some(&["E79", "FF35", "FFA35", "S7", "SM7", "C24", "CA25", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -9774,6 +12107,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E79", "FF41", "FFA41", "S12.1", "SM12.2", "C57", "CA57", "O44",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2020-01-15"),
+                high_date: Some("2022-07-15"),
+            }),
         }],
         at_rule: None,
     },
@@ -9803,6 +12141,11 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: Some("No limit on the height of the box."),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1.3", "SM1", "C18", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "fit-content",
@@ -9810,6 +12153,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the fit-content inline size or fit-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF94", "FFA94", "S11", "SM11", "C46", "CA46", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-11-02"),
+                    high_date: Some("2024-05-02"),
+                }),
             },
             Value {
                 name: "max-content",
@@ -9817,6 +12165,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the max-content inline size or max-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "min-content",
@@ -9824,6 +12177,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the min-content inline size or min-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -9855,6 +12213,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E79", "FF41", "FFA41", "S12.1", "SM12.2", "C57", "CA57", "O44",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2020-01-15"),
+                high_date: Some("2022-07-15"),
+            }),
         }],
         at_rule: None,
     },
@@ -9884,6 +12247,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "fit-content",
@@ -9891,6 +12259,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the fit-content inline size or fit-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF94", "FFA94", "S11", "SM11", "C46", "CA46", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-11-02"),
+                    high_date: Some("2024-05-02"),
+                }),
             },
             Value {
                 name: "max-content",
@@ -9898,6 +12271,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the max-content inline size or max-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "min-content",
@@ -9905,6 +12283,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the min-content inline size or min-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -9959,6 +12342,11 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: Some(&["E12", "FF34", "FFA34", "S7", "SM7", "C21", "CA25", "O12.1"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "fit-content",
@@ -9966,6 +12354,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the fit-content inline size or fit-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF94", "FFA94", "S11", "SM11", "C46", "CA46", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-11-02"),
+                    high_date: Some("2024-05-02"),
+                }),
             },
             Value {
                 name: "max-content",
@@ -9973,6 +12366,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the max-content inline size or max-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "min-content",
@@ -9980,6 +12378,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the min-content inline size or min-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -10032,6 +12435,11 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: Some(&["E12", "FF34", "FFA34", "S7", "SM7", "C21", "CA25", "O12.1"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "fit-content",
@@ -10039,6 +12447,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the fit-content inline size or fit-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF94", "FFA94", "S11", "SM11", "C46", "CA46", "O33"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-11-02"),
+                    high_date: Some("2024-05-02"),
+                }),
             },
             Value {
                 name: "max-content",
@@ -10046,6 +12459,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the max-content inline size or max-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O33"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "min-content",
@@ -10053,6 +12471,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the min-content inline size or min-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O33"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -10081,6 +12504,11 @@ pub const PROPERTIES: &[Property] = &[
                 name: "normal",
                 description: Some("Default attribute which specifies no blending"),
                 browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "multiply",
@@ -10088,6 +12516,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The source color is multiplied by the destination color and replaces the destination.",
                 ),
                 browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "screen",
@@ -10095,6 +12528,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Multiplies the complements of the backdrop and source color values, then complements the result.",
                 ),
                 browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "overlay",
@@ -10102,26 +12540,51 @@ pub const PROPERTIES: &[Property] = &[
                     "Multiplies or screens the colors, depending on the backdrop color value.",
                 ),
                 browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "darken",
                 description: Some("Selects the darker of the backdrop and source colors."),
                 browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "lighten",
                 description: Some("Selects the lighter of the backdrop and source colors."),
                 browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "color-dodge",
                 description: Some("Brightens the backdrop color to reflect the source color."),
                 browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "color-burn",
                 description: Some("Darkens the backdrop color to reflect the source color."),
                 browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "hard-light",
@@ -10129,6 +12592,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Multiplies or screens the colors, depending on the source color value.",
                 ),
                 browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "soft-light",
@@ -10136,6 +12604,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Darkens or lightens the colors, depending on the source color value.",
                 ),
                 browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "difference",
@@ -10143,6 +12616,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Subtracts the darker of the two constituent colors from the lighter color..",
                 ),
                 browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "exclusion",
@@ -10150,6 +12628,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Produces an effect similar to that of the Difference mode but lower in contrast.",
                 ),
                 browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "hue",
@@ -10157,6 +12640,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Creates a color with the hue of the source color and the saturation and luminosity of the backdrop color.",
                 ),
                 browsers: Some(&["E79", "FF32", "FFA32", "S10", "SM10", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "saturation",
@@ -10164,6 +12652,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Creates a color with the saturation of the source color and the hue and luminosity of the backdrop color.",
                 ),
                 browsers: Some(&["E79", "FF32", "FFA32", "S10", "SM10", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "color",
@@ -10171,6 +12664,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Creates a color with the hue and saturation of the source color and the luminosity of the backdrop color.",
                 ),
                 browsers: Some(&["E79", "FF32", "FFA32", "S10", "SM10", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "luminosity",
@@ -10178,6 +12676,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Creates a color with the luminosity of the source color and the hue and saturation of the backdrop color.",
                 ),
                 browsers: Some(&["E79", "FF32", "FFA32", "S10", "SM10", "C41", "CA41", "O28"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -10207,6 +12710,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: Some("No motion path gets created."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "path()",
@@ -10214,6 +12718,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Defines an SVG path as a string, with optional 'fill-rule' as the first argument.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "auto",
@@ -10221,6 +12726,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the object is rotated by the angle of the direction of the motion path.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "reverse",
@@ -10228,6 +12734,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the object is rotated by the angle of the direction of the motion path plus 180 degrees.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -10262,6 +12769,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: Some("No motion path gets created."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "path()",
@@ -10269,6 +12777,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Defines an SVG path as a string, with optional 'fill-rule' as the first argument.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -10292,6 +12801,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the object is rotated by the angle of the direction of the motion path.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "reverse",
@@ -10299,6 +12809,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the object is rotated by the angle of the direction of the motion path plus 180 degrees.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -10322,6 +12833,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The animation cycle iterations that are odd counts are played in the normal direction, and the animation cycle iterations that are even counts are played in a reverse direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "alternate-reverse",
@@ -10329,6 +12841,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The animation cycle iterations that are odd counts are played in the reverse direction, and the animation cycle iterations that are even counts are played in a normal direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "backwards",
@@ -10336,11 +12849,13 @@ pub const PROPERTIES: &[Property] = &[
                     "The beginning property value (as defined in the first @keyframes at-rule) is applied before the animation is displayed, during the period defined by 'animation-delay'.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "both",
                 description: Some("Both forwards and backwards fill modes are applied."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "forwards",
@@ -10348,21 +12863,25 @@ pub const PROPERTIES: &[Property] = &[
                     "The final property value (as defined in the last @keyframes at-rule) is maintained after the animation completes.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "infinite",
                 description: Some("Causes the animation to repeat forever."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("No animation is performed"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: Some("Normal playback."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "reverse",
@@ -10370,6 +12889,7 @@ pub const PROPERTIES: &[Property] = &[
                     "All iterations of the animation are played in the reverse direction from the way they were specified.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -10406,6 +12926,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The animation cycle iterations that are odd counts are played in the normal direction, and the animation cycle iterations that are even counts are played in a reverse direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "alternate-reverse",
@@ -10413,11 +12934,13 @@ pub const PROPERTIES: &[Property] = &[
                     "The animation cycle iterations that are odd counts are played in the reverse direction, and the animation cycle iterations that are even counts are played in a normal direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: Some("Normal playback."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "reverse",
@@ -10425,6 +12948,7 @@ pub const PROPERTIES: &[Property] = &[
                     "All iterations of the animation are played in the reverse direction from the way they were specified.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -10460,6 +12984,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "infinite",
             description: Some("Causes the animation to repeat forever."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -10479,6 +13004,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "none",
             description: Some("No animation is performed"),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -10497,11 +13023,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "paused",
                 description: Some("A running animation will be paused."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "running",
                 description: Some("Resume playback of a paused animation."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -10540,341 +13068,409 @@ pub const PROPERTIES: &[Property] = &[
                 name: "button",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "button-arrow-down",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "button-arrow-next",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "button-arrow-previous",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "button-arrow-up",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "button-bevel",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "checkbox",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "checkbox-container",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "checkbox-label",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "dialog",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "groupbox",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "listbox",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menuarrow",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menuimage",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menuitem",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menuitemtext",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menulist",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menulist-button",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menulist-text",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menulist-textfield",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menupopup",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menuradio",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menuseparator",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "-moz-mac-unified-toolbar",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "-moz-win-borderless-glass",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "-moz-win-browsertabbar-toolbox",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "-moz-win-communications-toolbox",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "-moz-win-glass",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "-moz-win-media-toolbox",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "progressbar",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "progresschunk",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "radio",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "radio-container",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "radio-label",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "radiomenuitem",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "resizer",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "resizerpanel",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbarbutton-down",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbarbutton-left",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbarbutton-right",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbarbutton-up",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbar-small",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbartrack-horizontal",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbartrack-vertical",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "separator",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "spinner",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "spinner-downbutton",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "spinner-textfield",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "spinner-upbutton",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "statusbar",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "statusbarpanel",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "tab",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "tabpanels",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "tab-scroll-arrow-back",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "tab-scroll-arrow-forward",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "textfield",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "textfield-multiline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "toolbar",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "toolbox",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "tooltip",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "treeheadercell",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "treeheadersortarrow",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "treeitem",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "treetwistyopen",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "treeview",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "treewisty",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "window",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -10896,11 +13492,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "hidden",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "visible",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -10919,6 +13517,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "padding",
             description: None,
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -10939,16 +13538,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "bounding-box",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "continuous",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "each-box",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -11000,21 +13602,25 @@ pub const PROPERTIES: &[Property] = &[
                     "If 'auto' is specified then the border image width is the intrinsic width or height (whichever is applicable) of the corresponding image slice. If the image does not have the required intrinsic dimension then the corresponding border-width is used instead.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "fill",
                 description: Some("Causes the middle part of the border-image to be preserved."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "repeat",
                 description: Some("The image is tiled (repeated) to fill the area."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "round",
@@ -11022,6 +13628,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The image is tiled (repeated) to fill the area. If it does not fill the area with a whole number of tiles, the image is rescaled so that it does.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "space",
@@ -11029,16 +13636,19 @@ pub const PROPERTIES: &[Property] = &[
                     "The image is tiled (repeated) to fill the area. If it does not fill the area with a whole number of tiles, the extra space is distributed around the tiles.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
                 description: Some("The image is stretched to fill the area."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "url()",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -11103,6 +13713,7 @@ pub const PROPERTIES: &[Property] = &[
                     "If this box orientation is inline-axis or horizontal, all children are placed with their baselines aligned, and extra space placed before or after as necessary. For block flows, the baseline of the first non-empty line box located within the element is used. For tables, the baseline of the first cell is used.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "center",
@@ -11110,6 +13721,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Any extra space is divided evenly, with half placed above the child and the other half placed after the child.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
@@ -11117,6 +13729,7 @@ pub const PROPERTIES: &[Property] = &[
                     "For normal direction boxes, the bottom edge of each child is placed along the bottom of the box. Extra space is placed above the element. For reverse direction boxes, the top edge of each child is placed along the top of the box. Extra space is placed below the element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
@@ -11124,6 +13737,7 @@ pub const PROPERTIES: &[Property] = &[
                     "For normal direction boxes, the top edge of each child is placed along the top of the box. Extra space is placed below the element. For reverse direction boxes, the bottom edge of each child is placed along the bottom of the box. Extra space is placed above the element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
@@ -11131,6 +13745,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The height of each child is adjusted to that of the containing block.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -11154,6 +13769,7 @@ pub const PROPERTIES: &[Property] = &[
                     "A box with a computed value of horizontal for box-orient displays its children from left to right. A box with a computed value of vertical displays its children from top to bottom.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "reverse",
@@ -11161,6 +13777,7 @@ pub const PROPERTIES: &[Property] = &[
                     "A box with a computed value of horizontal for box-orient displays its children from right to left. A box with a computed value of vertical displays its children from bottom to top.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -11227,6 +13844,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "block-axis",
                 description: Some("Elements are oriented along the box's axis."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "horizontal",
@@ -11234,11 +13852,13 @@ pub const PROPERTIES: &[Property] = &[
                     "The box displays its children from left to right in a horizontal line.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "inline-axis",
                 description: Some("Elements are oriented vertically."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "vertical",
@@ -11246,6 +13866,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The box displays its children from stacked from top to bottom vertically.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -11269,6 +13890,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The extra space is divided evenly, with half placed before the first child and the other half placed after the last child.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
@@ -11276,6 +13898,7 @@ pub const PROPERTIES: &[Property] = &[
                     "For normal direction boxes, the right edge of the last child is placed at the right side, with all extra space placed before the first child. For reverse direction boxes, the left edge of the first child is placed at the left side, with all extra space placed after the last child.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "justify",
@@ -11283,6 +13906,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The space is divided evenly in-between each child, with none of the extra space placed before the first child or after the last child. If there is only one child, treat the pack value as if it were start.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
@@ -11290,6 +13914,7 @@ pub const PROPERTIES: &[Property] = &[
                     "For normal direction boxes, the left edge of the first child is placed at the left side, with all extra space placed after the last child. For reverse direction boxes, the right edge of the last child is placed at the right side, with all extra space placed before the first child.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -11311,6 +13936,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The specified width and height (and respective min/max properties) on this element determine the border box of the element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "content-box",
@@ -11318,6 +13944,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Behavior of width and height as specified by CSS2.1. The specified width and height (and respective min/max properties) apply to the width and height respectively of the content box of the element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "padding-box",
@@ -11325,6 +13952,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The specified width and height (and respective min/max properties) on this element determine the padding box of the element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -11347,6 +13975,7 @@ pub const PROPERTIES: &[Property] = &[
                 "Determines the number of columns by the 'column-width' property and the element width.",
             ),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -11366,6 +13995,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "normal",
             description: Some("User agent specific and typically equivalent to 1em."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -11441,6 +14071,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "auto",
             description: Some("The width depends on the values of other properties."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -11458,6 +14089,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "auto",
             description: Some("The width depends on the values of other properties."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -11478,61 +14110,73 @@ pub const PROPERTIES: &[Property] = &[
                 name: "\"c2cs\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"dlig\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"kern\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"liga\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"lnum\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"onum\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"smcp\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"swsh\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"tnum\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: Some("No change in glyph substitution or positioning occurs."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "off",
                 description: None,
                 browsers: Some(&["FF4"]),
+                baseline: None,
             },
             Value {
                 name: "on",
                 description: None,
                 browsers: Some(&["FF4"]),
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -11556,6 +14200,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Conditional hyphenation characters inside a word, if present, take priority over automatic resources when determining hyphenation points within the word.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "manual",
@@ -11563,6 +14208,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Words are only broken at line breaks where there are characters inside the word that suggest line break opportunities",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
@@ -11570,6 +14216,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Words are not broken at line breaks, even if characters inside the word suggest line break points.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -11590,6 +14237,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "none",
             description: Some("No perspective transform is applied."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -11625,11 +14273,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "center",
                 description: Some("The inline contents are centered within the line box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "justify",
@@ -11637,6 +14287,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The text is justified according to the method specified by the 'text-justify' property.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "left",
@@ -11644,6 +14295,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The inline contents are aligned to the left edge of the line box. In vertical text, 'left' aligns to the edge of the line box that would be the start edge for left-to-right text.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "right",
@@ -11651,6 +14303,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The inline contents are aligned to the right edge of the line box. In vertical text, 'right' aligns to the edge of the line box that would be the end edge for left-to-right text.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -11685,21 +14338,25 @@ pub const PROPERTIES: &[Property] = &[
                 name: "line-through",
                 description: Some("Each line of text has a line through the middle."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("Neither produces nor inhibits text decoration."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "overline",
                 description: Some("Each line of text has a line above it."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "underline",
                 description: Some("Each line of text is underlined."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -11721,31 +14378,37 @@ pub const PROPERTIES: &[Property] = &[
                 name: "dashed",
                 description: Some("Produces a dashed line style."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "dotted",
                 description: Some("Produces a dotted line."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "double",
                 description: Some("Produces a double line."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("Produces no line."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "solid",
                 description: Some("Produces a solid line."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "wavy",
                 description: Some("Produces a wavy line."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -11769,6 +14432,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Renderers must use the default size adjustment when displaying on a small device.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
@@ -11776,6 +14440,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Renderers must not do size adjustment when displaying on a small device.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -11799,6 +14464,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D transformation in the form of a transformation matrix of six values. matrix(a,b,c,d,e,f) is equivalent to applying the transformation matrix [a b c d e f]",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "matrix3d()",
@@ -11806,16 +14472,19 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 3D transformation as a 4x4 homogeneous matrix of 16 values in column-major order.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "perspective",
                 description: Some("Specifies a perspective projection matrix."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotate()",
@@ -11823,6 +14492,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D rotation by the angle specified in the parameter about the origin of the element, as defined by the transform-origin property.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotate3d()",
@@ -11830,6 +14500,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise 3D rotation by the angle specified in last parameter about the [x,y,z] direction vector described by the first 3 parameters.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotateX('angle')",
@@ -11837,6 +14508,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise rotation by the given angle about the X axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotateY('angle')",
@@ -11844,6 +14516,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise rotation by the given angle about the Y axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotateZ('angle')",
@@ -11851,6 +14524,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise rotation by the given angle about the Z axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scale()",
@@ -11858,6 +14532,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D scale operation by the [sx,sy] scaling vector described by the 2 parameters. If the second parameter is not provided, it is takes a value equal to the first.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scale3d()",
@@ -11865,6 +14540,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 3D scale operation by the [sx,sy,sz] scaling vector described by the 3 parameters.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scaleX()",
@@ -11872,6 +14548,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a scale operation using the [sx,1] scaling vector, where sx is given as the parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scaleY()",
@@ -11879,6 +14556,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a scale operation using the [sy,1] scaling vector, where sy is given as the parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scaleZ()",
@@ -11886,6 +14564,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a scale operation using the [1,1,sz] scaling vector, where sz is given as the parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "skew()",
@@ -11893,6 +14572,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a skew transformation along the X and Y axes. The first angle parameter specifies the skew on the X axis. The second angle parameter specifies the skew on the Y axis. If the second parameter is not given then a value of 0 is used for the Y angle (ie: no skew on the Y axis).",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "skewX()",
@@ -11900,6 +14580,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a skew transformation along the X axis by the given angle.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "skewY()",
@@ -11907,6 +14588,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a skew transformation along the Y axis by the given angle.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translate()",
@@ -11914,6 +14596,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D translation by the vector [tx, ty], where tx is the first translation-value parameter and ty is the optional second translation-value parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translate3d()",
@@ -11921,6 +14604,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 3D translation by the vector [tx,ty,tz], with tx, ty and tz being the first, second and third translation-value parameters respectively.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translateX()",
@@ -11928,6 +14612,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a translation by the given amount in the X direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translateY()",
@@ -11935,6 +14620,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a translation by the given amount in the Y direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translateZ()",
@@ -11942,6 +14628,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a translation by the given amount in the Z direction. Note that percentage values are not allowed in the translateZ translation-value, and if present are evaluated as 0.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -11978,11 +14665,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Every property that is able to undergo a transition will do so.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("No property will transition."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12036,11 +14725,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Every property that is able to undergo a transition will do so.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("No property will transition."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12084,11 +14775,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "ignore",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12108,41 +14801,49 @@ pub const PROPERTIES: &[Property] = &[
                 name: "all",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "element",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "elements",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "-moz-all",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "-moz-none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "text",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "toggle",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12164,11 +14865,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "false",
                 description: Some("The element does not contain an accelerator key sequence."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "true",
                 description: Some("The element contains an accelerator key sequence."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12201,21 +14904,25 @@ pub const PROPERTIES: &[Property] = &[
                 name: "bt",
                 description: Some("Bottom-to-top block flow. Layout is horizontal."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "lr",
                 description: Some("Left-to-right direction. The flow orientation is vertical."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rl",
                 description: Some("Right-to-left direction. The flow orientation is vertical."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "tb",
                 description: Some("Top-to-bottom direction. The flow orientation is horizontal."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12239,6 +14946,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The nearest zoomable parent element begins zooming when the user hits a zoom limit during a manipulation. No bounce effect is shown.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
@@ -12246,6 +14954,7 @@ pub const PROPERTIES: &[Property] = &[
                     "A bounce effect is shown when the user hits a zoom limit during a manipulation.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12265,11 +14974,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: Some("The element is not zoomable."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "zoom",
                 description: Some("The element is zoomable."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12334,6 +15045,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the motion of the content after the contact is picked up is always adjusted so that it lands on a snap-point.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
@@ -12341,6 +15053,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that zooming is unaffected by any defined snap-points.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "proximity",
@@ -12348,11 +15061,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the motion of the content after the contact is picked up may be adjusted if the content would normally stop \"close enough\" to a snap-point.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "snapInterval(100%, 100%)",
                 description: Some("Specifies where the snap-points will be placed."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "snapList()",
@@ -12360,6 +15075,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies the position of individual snap-points as a comma-separated list of zoom factors.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12379,6 +15095,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "snapInterval(100%, 100%)",
                 description: Some("Specifies where the snap-points will be placed."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "snapList()",
@@ -12386,6 +15103,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies the position of individual snap-points as a comma-separated list of zoom factors.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12407,6 +15125,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the motion of the content after the contact is picked up is always adjusted so that it lands on a snap-point.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
@@ -12414,6 +15133,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that zooming is unaffected by any defined snap-points.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "proximity",
@@ -12421,6 +15141,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the motion of the content after the contact is picked up may be adjusted if the content would normally stop \"close enough\" to a snap-point.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12457,11 +15178,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Retrieves the value of the main size property as the used 'flex-basis'.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("Expands to '0 0 auto'."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12485,6 +15208,7 @@ pub const PROPERTIES: &[Property] = &[
                     "If the flex item's inline axis is the same as the cross axis, this value is identical to 'flex-start'. Otherwise, it participates in baseline alignment.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "center",
@@ -12492,6 +15216,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The flex item's margin box is centered in the cross axis within the line.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
@@ -12499,6 +15224,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The cross-end margin edge of the flex item is placed flush with the cross-end edge of the line.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
@@ -12506,6 +15232,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The cross-start margin edge of the flexbox item is placed flush with the cross-start edge of the line.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
@@ -12513,6 +15240,7 @@ pub const PROPERTIES: &[Property] = &[
                     "If the cross size property of the flexbox item is anything other than 'auto', this value is identical to 'start'.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12536,6 +15264,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The flex container's main axis has the same orientation as the block axis of the current writing mode.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "column-reverse",
@@ -12543,6 +15272,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Same as 'column', except the main-start and main-end directions are swapped.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "row",
@@ -12550,6 +15280,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The flex container's main axis has the same orientation as the inline axis of the current writing mode.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "row-reverse",
@@ -12557,6 +15288,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Same as 'row', except the main-start and main-end directions are swapped.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12578,6 +15310,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The flex container's main axis has the same orientation as the block axis of the current writing mode.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "column-reverse",
@@ -12585,11 +15318,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Same as 'column', except the main-start and main-end directions are swapped.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "nowrap",
                 description: Some("The flex container is single-line."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "row",
@@ -12597,11 +15332,13 @@ pub const PROPERTIES: &[Property] = &[
                     "The flex container's main axis has the same orientation as the inline axis of the current writing mode.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "wrap",
                 description: Some("The flexbox is multi-line."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "wrap-reverse",
@@ -12609,6 +15346,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Same as 'wrap', except the cross-start and cross-end directions are swapped.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12632,6 +15370,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Computes to the value of 'align-items' on the element's parent, or 'stretch' if the element has no parent. On absolutely positioned elements, it computes to itself.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "baseline",
@@ -12639,6 +15378,7 @@ pub const PROPERTIES: &[Property] = &[
                     "If the flex item's inline axis is the same as the cross axis, this value is identical to 'flex-start'. Otherwise, it participates in baseline alignment.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "center",
@@ -12646,6 +15386,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The flex item's margin box is centered in the cross axis within the line.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
@@ -12653,6 +15394,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The cross-end margin edge of the flex item is placed flush with the cross-end edge of the line.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
@@ -12660,6 +15402,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The cross-start margin edge of the flex item is placed flush with the cross-start edge of the line.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
@@ -12667,6 +15410,7 @@ pub const PROPERTIES: &[Property] = &[
                     "If the cross size property of the flex item computes to auto, and neither of the cross-axis margins are auto, the flex item is stretched.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12688,6 +15432,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "center",
                 description: Some("Lines are packed toward the center of the flex container."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "distribute",
@@ -12695,26 +15440,31 @@ pub const PROPERTIES: &[Property] = &[
                     "Lines are evenly distributed in the flex container, with half-size spaces on either end.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
                 description: Some("Lines are packed toward the end of the flex container."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "justify",
                 description: Some("Lines are evenly distributed in the flex container."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
                 description: Some("Lines are packed toward the start of the flex container."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
                 description: Some("Lines stretch to take up the remaining space."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12751,6 +15501,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "center",
                 description: Some("Flex items are packed toward the center of the line."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "distribute",
@@ -12758,21 +15509,25 @@ pub const PROPERTIES: &[Property] = &[
                     "Flex items are evenly distributed in the line, with half-size spaces on either end.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
                 description: Some("Flex items are packed toward the end of the line."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "justify",
                 description: Some("Flex items are evenly distributed in the line."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
                 description: Some("Flex items are packed toward the start of the line."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12794,11 +15549,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "nowrap",
                 description: Some("The flex container is single-line."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "wrap",
                 description: Some("The flexbox is multi-line."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "wrap-reverse",
@@ -12806,6 +15563,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Same as 'wrap', except the cross-start and cross-end directions are swapped.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12824,6 +15582,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "none",
             description: Some("The block container is not a CSS Region."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -12843,6 +15602,7 @@ pub const PROPERTIES: &[Property] = &[
                 "The element is not moved to a named flow and normal CSS processing takes place.",
             ),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -12863,16 +15623,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12894,6 +15657,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Places the center of the Grid Item's margin box at the center of the Grid Item's column.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
@@ -12901,6 +15665,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Aligns the end edge of the Grid Item's margin box to the end edge of the Grid Item's column.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
@@ -12908,6 +15673,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Aligns the starting edge of the Grid Item's margin box to the starting edge of the Grid Item's column.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
@@ -12915,6 +15681,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Ensures that the Grid Item's margin box is equal to the size of the Grid Item's column.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -12977,16 +15744,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13008,6 +15778,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Places the center of the Grid Item's margin box at the center of the Grid Item's row.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
@@ -13015,6 +15786,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Aligns the end edge of the Grid Item's margin box to the end edge of the Grid Item's row.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
@@ -13022,6 +15794,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Aligns the starting edge of the Grid Item's margin box to the starting edge of the Grid Item's row.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
@@ -13029,6 +15802,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Ensures that the Grid Item's margin box is equal to the size of the Grid Item's row.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13074,11 +15848,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: Some("Properties will be adjusted as applicable."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("No adjustments will be applied."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13097,6 +15873,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "auto",
             description: Some("The user agent chooses a value that adapts to the current layout."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -13116,6 +15893,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "no-limit",
             description: Some("There is no limit."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -13153,6 +15931,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Conditional hyphenation characters inside a word, if present, take priority over automatic resources when determining hyphenation points within the word.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "manual",
@@ -13160,6 +15939,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Words are only broken at line breaks where there are characters inside the word that suggest line break opportunities",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
@@ -13167,6 +15947,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Words are not broken at line breaks, even if characters inside the word suggest line break points.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13188,6 +15969,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The input method editor is initially active; text entry is performed using it unless the user specifically dismisses it.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "auto",
@@ -13195,6 +15977,7 @@ pub const PROPERTIES: &[Property] = &[
                     "No change is made to the current input method editor state. This is the default.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "disabled",
@@ -13202,6 +15985,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The input method editor is disabled and may not be activated by the user.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "inactive",
@@ -13209,6 +15993,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The input method editor is initially inactive, but the user may activate it if they wish.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
@@ -13216,6 +16001,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The IME state should be normal; this value can be used in a user style sheet to override the page setting.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13237,11 +16023,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "bicubic",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "nearest-neighbor",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13265,6 +16053,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Any of the range of character values available to the -ms-layout-grid-char property.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "line",
@@ -13272,6 +16061,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Any of the range of line values available to the -ms-layout-grid-line property.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "mode",
@@ -13279,6 +16069,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Any of the range of mode values available to the -ms-layout-grid-mode property.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "type",
@@ -13286,6 +16077,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Any of the range of type values available to the -ms-layout-grid-type property.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13309,11 +16101,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Largest character in the font of the element is used to set the character grid.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("Default. No character grid is set."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13337,11 +16131,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Largest character in the font of the element is used to set the character grid.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("Default. No grid line is set."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13363,6 +16159,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Default. Both the char and line grid modes are enabled. This setting is necessary to fully enable the layout grid on an element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "char",
@@ -13370,6 +16167,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Only a character grid is used. This is recommended for use with block-level elements, such as a blockquote, where the line grid is intended to be disabled.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "line",
@@ -13377,11 +16175,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Only a line grid is used. This is recommended for use with inline elements, such as a span, to disable the horizontal grid on runs of text that act as a single entity in the grid layout.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("No grid is used."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13405,11 +16205,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Grid used for monospaced layout. All noncursive characters are treated as equal; every character is centered within a single grid space by default.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "loose",
                 description: Some("Default. Grid used for Japanese and Korean characters."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "strict",
@@ -13417,6 +16219,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Grid used for Chinese, as well as Japanese (Genko) and Korean characters. Only the ideographs, kanas, and wide characters are snapped to the grid.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13440,6 +16243,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The UA determines the set of line-breaking restrictions to use for CJK scripts, and it may vary the restrictions based on the length of the line; e.g., use a less restrictive set of line-break rules for short lines.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "keep-all",
@@ -13447,6 +16251,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Sequences of CJK characters can no longer break on implied break points. This option should only be used where the presence of word separator characters still creates line-breaking opportunities, as in Korean.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "newspaper",
@@ -13454,11 +16259,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Breaks CJK scripts using the least restrictive set of line-breaking rules. Typically used for short lines, such as in newspapers.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: Some("Breaks CJK scripts using a normal set of line-breaking rules."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "strict",
@@ -13466,6 +16273,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Breaks CJK scripts using a more restrictive set of line-breaking rules than 'normal'.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13489,6 +16297,7 @@ pub const PROPERTIES: &[Property] = &[
                     "No preference, UA should use the first scrolling method in the list that it supports.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "-ms-autohiding-scrollbar",
@@ -13496,6 +16305,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates the element displays auto-hiding scrollbars during mouse interactions and panning indicators during touch and keyboard interactions.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
@@ -13503,6 +16313,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates the element does not display scrollbars or panning indicators, even when its content overflows.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbar",
@@ -13510,6 +16321,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Scrollbars are typically narrow strips inserted on one or two edges of an element and which often have arrows to click on and a \"thumb\" to drag up and down (or left and right) to move the contents of the element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13530,6 +16342,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "none",
             description: Some("No perspective transform is applied."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -13595,11 +16408,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "bar",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "ring",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13735,11 +16550,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "chained",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13762,6 +16579,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "auto",
             description: None,
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -13781,6 +16599,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "auto",
             description: None,
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -13815,6 +16634,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "auto",
             description: None,
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -13850,11 +16670,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "railed",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13878,11 +16700,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "snapInterval(100%, 100%)",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "snapList()",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13906,11 +16730,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "snapInterval(100%, 100%)",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "snapList()",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13934,6 +16760,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The visual viewport of this scroll container must ignore snap points, if any, when scrolled.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "mandatory",
@@ -13941,6 +16768,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The visual viewport of this scroll container is guaranteed to rest on a snap point when there are no active scrolling operations.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "proximity",
@@ -13948,6 +16776,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The visual viewport of this scroll container may come to rest on a snap point at the termination of a scroll at the discretion of the UA given the parameters of the scroll.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -13969,26 +16798,31 @@ pub const PROPERTIES: &[Property] = &[
                 name: "mandatory",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "proximity",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "snapInterval(100%, 100%)",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "snapList()",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14010,26 +16844,31 @@ pub const PROPERTIES: &[Property] = &[
                 name: "mandatory",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "proximity",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "snapInterval(100%, 100%)",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "snapList()",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14051,11 +16890,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "vertical-to-horizontal",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14077,11 +16918,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "center",
                 description: Some("The inline contents are centered within the line box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "justify",
@@ -14089,6 +16932,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The text is justified according to the method specified by the 'text-justify' property.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "left",
@@ -14096,6 +16940,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The inline contents are aligned to the left edge of the line box. In vertical text, 'left' aligns to the edge of the line box that would be the start edge for left-to-right text.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "right",
@@ -14103,6 +16948,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The inline contents are aligned to the right edge of the line box. In vertical text, 'right' aligns to the edge of the line box that would be the end edge for left-to-right text.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14128,6 +16974,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Creates 1/4em extra spacing between runs of ideographic letters and non-ideographic letters, such as Latin-based, Cyrillic, Greek, Arabic or Hebrew.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "ideograph-numeric",
@@ -14135,6 +16982,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Creates 1/4em extra spacing between runs of ideographic letters and numeric glyphs.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "ideograph-parenthesis",
@@ -14142,6 +16990,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Creates extra spacing between normal (non wide) parenthesis and ideographs.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "ideograph-space",
@@ -14149,11 +16998,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Extends the width of the space character while surrounded by ideographs.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("No extra space is created."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "punctuation",
@@ -14161,6 +17012,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Creates extra non-breaking spacing around punctuation as required by language-specific typographic conventions.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14184,6 +17036,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Attempt to typeset horizontally all consecutive characters within the box such that they take up the space of a single character within the vertical line box.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "digits",
@@ -14191,11 +17044,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Attempt to typeset horizontally each maximal sequence of consecutive ASCII digits (U+0030-U+0039) that has as many or fewer characters than the specified integer such that it takes up the space of a single character within the vertical line box.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("No special processing."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14219,6 +17074,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The UA determines the justification algorithm to follow, based on a balance between performance and adequate presentation quality.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "distribute",
@@ -14226,6 +17082,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Justification primarily changes spacing both at word separators and at grapheme cluster boundaries in all scripts except those in the connected and cursive groups. This value is sometimes used in e.g. Japanese, often with the 'text-align-last' property.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "inter-cluster",
@@ -14233,6 +17090,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Justification primarily changes spacing at word separators and at grapheme cluster boundaries in clustered scripts. This value is typically used for Southeast Asian scripts such as Thai.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "inter-ideograph",
@@ -14240,6 +17098,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Justification primarily changes spacing at word separators and at inter-graphemic boundaries in scripts that use no word spaces. This value is typically used for CJK languages.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "inter-word",
@@ -14247,6 +17106,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Justification primarily changes spacing at word separators. This value is typically used for languages that separate words using spaces, like English or (sometimes) Korean.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "kashida",
@@ -14254,6 +17114,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Justification primarily stretches Arabic and related scripts through the use of kashida or other calligraphic elongation.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14290,6 +17151,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Clip inline content that overflows. Characters may be only partially rendered.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "ellipsis",
@@ -14297,6 +17159,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Render an ellipsis character (U+2026) to represent clipped inline content.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14320,6 +17183,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Renderers must use the default size adjustment when displaying on a small device.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
@@ -14327,6 +17191,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Renderers must not do size adjustment when displaying on a small device.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14350,6 +17215,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The underline is aligned with the alphabetic baseline. In this case the underline is likely to cross some descenders.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "auto",
@@ -14357,6 +17223,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The user agent may use any algorithm to determine the underline's position. In horizontal line layout, the underline should be aligned as for alphabetic. In vertical line layout, if the language is set to Japanese or Korean, the underline should be aligned as for over.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "over",
@@ -14364,6 +17231,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The underline is aligned with the 'top' (right in vertical writing) edge of the element's em-box. In this mode, an overline also switches sides.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "under",
@@ -14371,6 +17239,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The underline is aligned with the 'bottom' (left in vertical writing) edge of the element's em-box. In this case the underline usually does not cross the descenders. This is sometimes called 'accounting' underline.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14392,21 +17261,25 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: Some("The element is a passive element, with several exceptions."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "double-tap-zoom",
                 description: Some("The element will zoom on double-tap."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "manipulation",
                 description: Some("The element is a manipulation-causing element."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("The element is a manipulation-blocking element."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "pan-x",
@@ -14414,6 +17287,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The element permits touch-driven panning on the horizontal axis. The touch pan is performed on the nearest ancestor with horizontally scrollable content.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "pan-y",
@@ -14421,6 +17295,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The element permits touch-driven panning on the vertical axis. The touch pan is performed on the nearest ancestor with vertically scrollable content.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "pinch-zoom",
@@ -14428,6 +17303,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The element permits pinch-zooming. The pinch-zoom is performed on the nearest ancestor with zoomable content.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14449,11 +17325,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "grippers",
                 description: Some("Grippers are always on."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("Grippers are always off."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14477,6 +17355,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D transformation in the form of a transformation matrix of six values. matrix(a,b,c,d,e,f) is equivalent to applying the transformation matrix [a b c d e f]",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "matrix3d()",
@@ -14484,11 +17363,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 3D transformation as a 4x4 homogeneous matrix of 16 values in column-major order.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotate()",
@@ -14496,6 +17377,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D rotation by the angle specified in the parameter about the origin of the element, as defined by the transform-origin property.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotate3d()",
@@ -14503,6 +17385,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise 3D rotation by the angle specified in last parameter about the [x,y,z] direction vector described by the first 3 parameters.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotateX('angle')",
@@ -14510,6 +17393,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise rotation by the given angle about the X axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotateY('angle')",
@@ -14517,6 +17401,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise rotation by the given angle about the Y axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotateZ('angle')",
@@ -14524,6 +17409,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise rotation by the given angle about the Z axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scale()",
@@ -14531,6 +17417,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D scale operation by the [sx,sy] scaling vector described by the 2 parameters. If the second parameter is not provided, it is takes a value equal to the first.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scale3d()",
@@ -14538,6 +17425,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 3D scale operation by the [sx,sy,sz] scaling vector described by the 3 parameters.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scaleX()",
@@ -14545,6 +17433,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a scale operation using the [sx,1] scaling vector, where sx is given as the parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scaleY()",
@@ -14552,6 +17441,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a scale operation using the [sy,1] scaling vector, where sy is given as the parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scaleZ()",
@@ -14559,6 +17449,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a scale operation using the [1,1,sz] scaling vector, where sz is given as the parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "skew()",
@@ -14566,6 +17457,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a skew transformation along the X and Y axes. The first angle parameter specifies the skew on the X axis. The second angle parameter specifies the skew on the Y axis. If the second parameter is not given then a value of 0 is used for the Y angle (ie: no skew on the Y axis).",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "skewX()",
@@ -14573,6 +17465,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a skew transformation along the X axis by the given angle.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "skewY()",
@@ -14580,6 +17473,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a skew transformation along the Y axis by the given angle.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translate()",
@@ -14587,6 +17481,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D translation by the vector [tx, ty], where tx is the first translation-value parameter and ty is the optional second translation-value parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translate3d()",
@@ -14594,6 +17489,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 3D translation by the vector [tx,ty,tz], with tx, ty and tz being the first, second and third translation-value parameters respectively.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translateX()",
@@ -14601,6 +17497,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a translation by the given amount in the X direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translateY()",
@@ -14608,6 +17505,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a translation by the given amount in the Y direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translateZ()",
@@ -14615,6 +17513,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a translation by the given amount in the Z direction. Note that percentage values are not allowed in the translateZ translation-value, and if present are evaluated as 0.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14692,16 +17591,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "element",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "text",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14723,16 +17625,19 @@ pub const PROPERTIES: &[Property] = &[
                     "Lines may break between any two grapheme clusters for non-CJK scripts.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "keep-all",
                 description: Some("Block characters can no longer create implied break points."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: Some("Breaks non-CJK scripts according to their own rules."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14756,11 +17661,13 @@ pub const PROPERTIES: &[Property] = &[
                     "An unbreakable 'word' may be broken at an arbitrary point if there are no otherwise-acceptable break points in the line.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: Some("Lines may break only at allowed break points."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14784,11 +17691,13 @@ pub const PROPERTIES: &[Property] = &[
                     "For floats an exclusion is created, for all other elements an exclusion is not created.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "both",
                 description: Some("Inline flow content can flow on all sides of the exclusion."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "clear",
@@ -14796,6 +17705,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Inline flow content can only wrap on top and bottom of the exclusion and must leave the areas to the start and end edges of the exclusion box empty.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
@@ -14803,6 +17713,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Inline flow content can wrap on the end side of the exclusion area but must leave the area to the start edge of the exclusion area empty.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "maximum",
@@ -14810,6 +17721,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Inline flow content can wrap on the side of the exclusion with the largest available space for the given line, and must leave the other side of the exclusion empty.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "minimum",
@@ -14817,6 +17729,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Inline flow content can flow around the edge of the exclusion with the smallest available space within the flow content's containing block, and must leave the other edge of the exclusion empty.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
@@ -14824,6 +17737,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Inline flow content can wrap on the start edge of the exclusion area but must leave the area to end edge of the exclusion area empty.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14862,6 +17776,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The exclusion element does not inherit its parent node's wrapping context. Its descendants are only subject to exclusion shapes defined inside the element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "wrap",
@@ -14869,6 +17784,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The exclusion element inherits its parent node's wrapping context. Its descendant inline content wraps around exclusions defined outside the element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14888,41 +17804,49 @@ pub const PROPERTIES: &[Property] = &[
                 name: "bt-lr",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "bt-rl",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "lr-bt",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "lr-tb",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rl-bt",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rl-tb",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "tb-lr",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "tb-rl",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14941,6 +17865,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "normal",
             description: None,
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -14961,11 +17886,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "default",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -14987,6 +17914,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The user agent automatically determines which element to navigate the focus to in response to directional navigational input.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "current",
@@ -14994,11 +17922,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the user agent should target the frame that the element is in.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "root",
                 description: Some("Indicates that the user agent should target the full window."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -15021,6 +17951,7 @@ pub const PROPERTIES: &[Property] = &[
                 "The element's sequential navigation order is assigned automatically by the user agent.",
             ),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -15041,6 +17972,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The user agent automatically determines which element to navigate the focus to in response to directional navigational input.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "current",
@@ -15048,11 +17980,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the user agent should target the frame that the element is in.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "root",
                 description: Some("Indicates that the user agent should target the full window."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -15074,6 +18008,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The user agent automatically determines which element to navigate the focus to in response to directional navigational input.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "current",
@@ -15081,11 +18016,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the user agent should target the frame that the element is in.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "root",
                 description: Some("Indicates that the user agent should target the full window."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -15107,6 +18044,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The user agent automatically determines which element to navigate the focus to in response to directional navigational input.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "current",
@@ -15114,11 +18052,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the user agent should target the frame that the element is in.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "root",
                 description: Some("Indicates that the user agent should target the full window."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -15157,6 +18097,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The animation cycle iterations that are odd counts are played in the normal direction, and the animation cycle iterations that are even counts are played in a reverse direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "alternate-reverse",
@@ -15164,6 +18105,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The animation cycle iterations that are odd counts are played in the reverse direction, and the animation cycle iterations that are even counts are played in a normal direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "backwards",
@@ -15171,11 +18113,13 @@ pub const PROPERTIES: &[Property] = &[
                     "The beginning property value (as defined in the first @keyframes at-rule) is applied before the animation is displayed, during the period defined by 'animation-delay'.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "both",
                 description: Some("Both forwards and backwards fill modes are applied."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "forwards",
@@ -15183,21 +18127,25 @@ pub const PROPERTIES: &[Property] = &[
                     "The final property value (as defined in the last @keyframes at-rule) is maintained after the animation completes.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "infinite",
                 description: Some("Causes the animation to repeat forever."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("No animation is performed"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: Some("Normal playback."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "reverse",
@@ -15205,6 +18153,7 @@ pub const PROPERTIES: &[Property] = &[
                     "All iterations of the animation are played in the reverse direction from the way they were specified.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -15241,6 +18190,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The animation cycle iterations that are odd counts are played in the normal direction, and the animation cycle iterations that are even counts are played in a reverse direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "alternate-reverse",
@@ -15248,11 +18198,13 @@ pub const PROPERTIES: &[Property] = &[
                     "The animation cycle iterations that are odd counts are played in the reverse direction, and the animation cycle iterations that are even counts are played in a normal direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: Some("Normal playback."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "reverse",
@@ -15260,6 +18212,7 @@ pub const PROPERTIES: &[Property] = &[
                     "All iterations of the animation are played in the reverse direction from the way they were specified.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -15298,11 +18251,13 @@ pub const PROPERTIES: &[Property] = &[
                     "The beginning property value (as defined in the first @keyframes at-rule) is applied before the animation is displayed, during the period defined by 'animation-delay'.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "both",
                 description: Some("Both forwards and backwards fill modes are applied."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "forwards",
@@ -15310,6 +18265,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The final property value (as defined in the last @keyframes at-rule) is maintained after the animation completes.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
@@ -15317,6 +18273,7 @@ pub const PROPERTIES: &[Property] = &[
                     "There is no change to the property value between the time the animation is applied and the time the animation begins playing or after the animation completes.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -15337,6 +18294,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "infinite",
             description: Some("Causes the animation to repeat forever."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -15356,6 +18314,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "none",
             description: Some("No animation is performed"),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -15374,11 +18333,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "paused",
                 description: Some("A running animation will be paused."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "running",
                 description: Some("Resume playback of a paused animation."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -15424,6 +18385,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The replaced content is sized to maintain its aspect ratio while fitting within the element's content box: its concrete object size is resolved as a contain constraint against the element's used width and height.",
                 ),
                 browsers: Some(&["E79", "FF36", "FFA36", "S10", "SM10", "C32", "CA32", "O19"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "cover",
@@ -15431,6 +18397,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The replaced content is sized to maintain its aspect ratio while filling the element's entire content box: its concrete object size is resolved as a cover constraint against the element's used width and height.",
                 ),
                 browsers: Some(&["E79", "FF36", "FFA36", "S10", "SM10", "C32", "CA32", "O19"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "fill",
@@ -15438,6 +18409,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The replaced content is sized to fill the element's content box: the object's concrete object size is the element's used width and height.",
                 ),
                 browsers: Some(&["E79", "FF36", "FFA36", "S10", "SM10", "C32", "CA32", "O19"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "none",
@@ -15445,6 +18421,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The replaced content is not resized to fit inside the element's content box",
                 ),
                 browsers: Some(&["E79", "FF36", "FFA36", "S10", "SM10", "C32", "CA32", "O19"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "scale-down",
@@ -15452,6 +18433,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Size the content as if 'none' or 'contain' were specified, whichever would result in a smaller concrete object size.",
                 ),
                 browsers: Some(&["E79", "FF36", "FFA36", "S10", "SM10", "C32", "CA32", "O19"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -15495,21 +18481,25 @@ pub const PROPERTIES: &[Property] = &[
                     "If 'auto' is specified then the border image width is the intrinsic width or height (whichever is applicable) of the corresponding image slice. If the image does not have the required intrinsic dimension then the corresponding border-width is used instead.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "fill",
                 description: Some("Causes the middle part of the border-image to be preserved."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "repeat",
                 description: Some("The image is tiled (repeated) to fill the area."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "round",
@@ -15517,6 +18507,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The image is tiled (repeated) to fill the area. If it does not fill the area with a whole number of tiles, the image is rescaled so that it does.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "space",
@@ -15524,11 +18515,13 @@ pub const PROPERTIES: &[Property] = &[
                     "The image is tiled (repeated) to fill the area. If it does not fill the area with a whole number of tiles, the extra space is distributed around the tiles.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
                 description: Some("The image is stretched to fill the area."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -15552,6 +18545,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The replaced content is sized to maintain its aspect ratio while fitting within the element's content box: its concrete object size is resolved as a contain constraint against the element's used width and height.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "cover",
@@ -15559,6 +18553,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The replaced content is sized to maintain its aspect ratio while filling the element's entire content box: its concrete object size is resolved as a cover constraint against the element's used width and height.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "fill",
@@ -15566,6 +18561,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The replaced content is sized to fill the element's content box: the object's concrete object size is the element's used width and height.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
@@ -15573,6 +18569,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The replaced content is not resized to fit inside the element's content box",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scale-down",
@@ -15580,6 +18577,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Size the content as if 'none' or 'contain' were specified, whichever would result in a smaller concrete object size.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -15712,6 +18710,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Clip inline content that overflows. Characters may be only partially rendered.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "ellipsis",
@@ -15719,6 +18718,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Render an ellipsis character (U+2026) to represent clipped inline content.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -15742,6 +18742,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D transformation in the form of a transformation matrix of six values. matrix(a,b,c,d,e,f) is equivalent to applying the transformation matrix [a b c d e f]",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "matrix3d()",
@@ -15749,11 +18750,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 3D transformation as a 4x4 homogeneous matrix of 16 values in column-major order.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotate()",
@@ -15761,6 +18764,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D rotation by the angle specified in the parameter about the origin of the element, as defined by the transform-origin property.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotate3d()",
@@ -15768,6 +18772,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise 3D rotation by the angle specified in last parameter about the [x,y,z] direction vector described by the first 3 parameters.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotateX('angle')",
@@ -15775,6 +18780,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise rotation by the given angle about the X axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotateY('angle')",
@@ -15782,6 +18788,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise rotation by the given angle about the Y axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotateZ('angle')",
@@ -15789,6 +18796,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise rotation by the given angle about the Z axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scale()",
@@ -15796,6 +18804,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D scale operation by the [sx,sy] scaling vector described by the 2 parameters. If the second parameter is not provided, it is takes a value equal to the first.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scale3d()",
@@ -15803,6 +18812,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 3D scale operation by the [sx,sy,sz] scaling vector described by the 3 parameters.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scaleX()",
@@ -15810,6 +18820,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a scale operation using the [sx,1] scaling vector, where sx is given as the parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scaleY()",
@@ -15817,6 +18828,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a scale operation using the [sy,1] scaling vector, where sy is given as the parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scaleZ()",
@@ -15824,6 +18836,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a scale operation using the [1,1,sz] scaling vector, where sz is given as the parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "skew()",
@@ -15831,6 +18844,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a skew transformation along the X and Y axes. The first angle parameter specifies the skew on the X axis. The second angle parameter specifies the skew on the Y axis. If the second parameter is not given then a value of 0 is used for the Y angle (ie: no skew on the Y axis).",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "skewX()",
@@ -15838,6 +18852,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a skew transformation along the X axis by the given angle.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "skewY()",
@@ -15845,6 +18860,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a skew transformation along the Y axis by the given angle.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translate()",
@@ -15852,6 +18868,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D translation by the vector [tx, ty], where tx is the first translation-value parameter and ty is the optional second translation-value parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translate3d()",
@@ -15859,6 +18876,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 3D translation by the vector [tx,ty,tz], with tx, ty and tz being the first, second and third translation-value parameters respectively.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translateX()",
@@ -15866,6 +18884,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a translation by the given amount in the X direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translateY()",
@@ -15873,6 +18892,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a translation by the given amount in the Y direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translateZ()",
@@ -15880,6 +18900,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a translation by the given amount in the Z direction. Note that percentage values are not allowed in the translateZ translation-value, and if present are evaluated as 0.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -15916,11 +18937,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Every property that is able to undergo a transition will do so.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("No property will transition."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -15974,11 +18997,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Every property that is able to undergo a transition will do so.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("No property will transition."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -16016,6 +19041,7 @@ pub const PROPERTIES: &[Property] = &[
                 "For non-replaced elements, the effect of this value depends on which of related properties have the value 'auto' as well.",
             ),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -16037,6 +19063,7 @@ pub const PROPERTIES: &[Property] = &[
                 "For non-replaced elements, the effect of this value depends on which of related properties have the value 'auto' as well.",
             ),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -16058,6 +19085,7 @@ pub const PROPERTIES: &[Property] = &[
                 "For non-replaced elements, the effect of this value depends on which of related properties have the value 'auto' as well.",
             ),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -16079,6 +19107,7 @@ pub const PROPERTIES: &[Property] = &[
                 "For non-replaced elements, the effect of this value depends on which of related properties have the value 'auto' as well.",
             ),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -16110,6 +19139,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Permits the user agent to render a custom outline style, typically the default platform style.",
                 ),
                 browsers: Some(&["E79", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "invert",
@@ -16117,6 +19151,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E94", "FF88", "FFA88", "S16.4", "SM16.4", "C94", "CA94", "IE8", "O80",
                 ]),
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -16146,6 +19181,7 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1.5", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE8", "O7",
             ]),
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -16196,6 +19232,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1.5", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -16247,6 +19288,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "hidden",
@@ -16256,6 +19302,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "-moz-hidden-unscrollable",
@@ -16263,6 +19314,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Same as the standardized 'clip', except doesn't establish a block formatting context.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: None,
             },
             Value {
                 name: "scroll",
@@ -16272,6 +19324,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "visible",
@@ -16281,6 +19338,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -16315,6 +19377,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF3.5", "FFA4", "S1", "SM1", "C1", "CA18", "IE5.5", "O10.5",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "normal",
@@ -16322,6 +19389,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF3.5", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "anywhere",
@@ -16331,6 +19403,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E80", "FF65", "FFA65", "S15.4", "SM15.4", "C80", "CA80", "O67",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-03-14"),
+                    high_date: Some("2024-09-14"),
+                }),
             },
         ],
         at_rule: None,
@@ -16363,6 +19440,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "hidden",
@@ -16372,6 +19454,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "scroll",
@@ -16381,6 +19468,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "visible",
@@ -16390,6 +19482,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -16422,6 +19519,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "hidden",
@@ -16431,6 +19533,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "scroll",
@@ -16440,6 +19547,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "visible",
@@ -16449,6 +19561,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -16710,6 +19827,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "auto",
@@ -16717,11 +19839,21 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid a page break after the generated box."),
                 browsers: Some(&["E12", "C1", "CA18", "IE11", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "left",
@@ -16731,6 +19863,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "right",
@@ -16740,6 +19877,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -16770,6 +19912,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "auto",
@@ -16779,11 +19926,21 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid a page break before the generated box."),
                 browsers: Some(&["E12", "C1", "CA18", "IE11", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "left",
@@ -16793,6 +19950,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "right",
@@ -16802,6 +19964,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -16834,6 +20001,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF19", "FFA19", "S1.3", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "avoid",
@@ -16841,6 +20013,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF19", "FFA19", "S1.3", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -16871,11 +20048,21 @@ pub const PROPERTIES: &[Property] = &[
                 name: "fill",
                 description: None,
                 browsers: Some(&["E79", "FF60", "FFA60", "S8", "SM8", "C35", "CA35", "O22"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "markers",
                 description: None,
                 browsers: Some(&["E79", "FF60", "FFA60", "S8", "SM8", "C35", "CA35", "O22"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "normal",
@@ -16883,11 +20070,21 @@ pub const PROPERTIES: &[Property] = &[
                     "The element is painted with the standard order of painting operations: the 'fill' is painted first, then its 'stroke' and finally its markers.",
                 ),
                 browsers: Some(&["E79", "FF60", "FFA60", "S8", "SM8", "C35", "CA35", "O22"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "stroke",
                 description: None,
                 browsers: Some(&["E79", "FF60", "FFA60", "S8", "SM8", "C35", "CA35", "O22"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -16919,6 +20116,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF10", "FFA10", "S4", "SM3.2", "C12", "CA18", "IE11", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -16976,6 +20178,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The given element can be the target element for pointer events whenever the pointer is over either the interior or the perimeter of the element.",
                 ),
                 browsers: Some(&["E12", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "fill",
@@ -16983,11 +20190,21 @@ pub const PROPERTIES: &[Property] = &[
                     "The given element can be the target element for pointer events whenever the pointer is over the interior of the element.",
                 ),
                 browsers: Some(&["E12", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "none",
                 description: Some("The given element does not receive pointer events."),
                 browsers: Some(&["E12", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "painted",
@@ -16995,6 +20212,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The given element can be the target element for pointer events when the pointer is over a \"painted\" area. ",
                 ),
                 browsers: Some(&["E12", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "stroke",
@@ -17002,6 +20224,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The given element can be the target element for pointer events whenever the pointer is over the perimeter of the element.",
                 ),
                 browsers: Some(&["E12", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "visible",
@@ -17009,6 +20236,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The given element can be the target element for pointer events when the 'visibility' property is set to visible and the pointer is over either the interior or the perimeter of the element.",
                 ),
                 browsers: Some(&["E12", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "visibleFill",
@@ -17016,6 +20248,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The given element can be the target element for pointer events when the 'visibility' property is set to visible and when the pointer is over the interior of the element.",
                 ),
                 browsers: Some(&["E12", "FF50", "FFA50", "S4", "SM3.2", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2016-11-15"),
+                    high_date: Some("2019-05-15"),
+                }),
             },
             Value {
                 name: "visiblePainted",
@@ -17023,6 +20260,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The given element can be the target element for pointer events when the 'visibility' property is set to visible and when the pointer is over a 'painted' area.",
                 ),
                 browsers: Some(&["E12", "FF50", "FFA50", "S4", "SM3.2", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2016-11-15"),
+                    high_date: Some("2019-05-15"),
+                }),
             },
             Value {
                 name: "visibleStroke",
@@ -17030,6 +20272,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The given element can be the target element for pointer events when the 'visibility' property is set to visible and when the pointer is over the perimeter of the element.",
                 ),
                 browsers: Some(&["E12", "FF50", "FFA50", "S4", "SM3.2", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2016-11-15"),
+                    high_date: Some("2019-05-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -17062,6 +20309,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "fixed",
@@ -17069,6 +20321,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The box's position is calculated according to the 'absolute' model, but in addition, the box is fixed with respect to some reference. As with the 'absolute' model, the box's margins do not collapse with any other margins.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE7", "O4"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "-ms-page",
@@ -17076,6 +20333,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The box's position is calculated according to the 'absolute' model.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O4"]),
+                baseline: None,
             },
             Value {
                 name: "relative",
@@ -17085,6 +20343,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "static",
@@ -17094,6 +20357,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "sticky",
@@ -17101,6 +20369,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The box's position is calculated according to the normal flow. Then the box is offset relative to its flow root and containing block and in all cases, including table elements, does not affect the position of any following boxes.",
                 ),
                 browsers: Some(&["E16", "FF32", "FFA32", "S13", "SM13", "C56", "CA56", "O43"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2019-09-19"),
+                    high_date: Some("2022-03-19"),
+                }),
             },
             Value {
                 name: "-webkit-sticky",
@@ -17108,6 +20381,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The box's position is calculated according to the normal flow. Then the box is offset relative to its flow root and containing block and in all cases, including table elements, does not affect the position of any following boxes.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O4"]),
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -17154,6 +20428,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1.5", "FFA4", "S9", "SM9", "C11", "CA18", "IE11", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-09-30"),
+                high_date: Some("2018-03-30"),
+            }),
         }],
         at_rule: None,
     },
@@ -17174,6 +20453,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: Some("The range depends on the counter system."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "infinite",
@@ -17181,6 +20461,7 @@ pub const PROPERTIES: &[Property] = &[
                     "If used as the first value in a range, it represents negative infinity; if used as the second value, it represents positive infinity.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: Some("@counter-style"),
@@ -17211,6 +20492,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The UA presents a bidirectional resizing mechanism to allow the user to adjust both the height and the width of the element.",
                 ),
                 browsers: Some(&["E79", "FF4", "FFA4", "S3", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "horizontal",
@@ -17218,6 +20504,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The UA presents a unidirectional horizontal resizing mechanism to allow the user to adjust only the width of the element.",
                 ),
                 browsers: Some(&["E79", "FF4", "FFA4", "S3", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "none",
@@ -17225,6 +20516,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The UA does not present a resizing mechanism on the element, and the user is given no direct manipulation mechanism to resize the element.",
                 ),
                 browsers: Some(&["E79", "FF4", "FFA4", "S3", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "vertical",
@@ -17232,6 +20528,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The UA presents a unidirectional vertical resizing mechanism to allow the user to adjust only the height of the element.",
                 ),
                 browsers: Some(&["E79", "FF4", "FFA4", "S3", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -17265,6 +20566,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -17298,6 +20604,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E128", "FF38", "FFA38", "S18.2", "SM18.2", "C128", "CA128", "O114",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "center",
@@ -17305,6 +20612,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E128", "FF38", "FFA38", "S18.2", "SM18.2", "C128", "CA128", "O114",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-12-11"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "distribute-letter",
@@ -17314,6 +20626,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E128", "FF38", "FFA38", "S18.2", "SM18.2", "C128", "CA128", "O114",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "distribute-space",
@@ -17323,6 +20636,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E128", "FF38", "FFA38", "S18.2", "SM18.2", "C128", "CA128", "O114",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "left",
@@ -17330,6 +20644,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The ruby text content is aligned with the start edge of the base.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "line-edge",
@@ -17339,6 +20654,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E128", "FF38", "FFA38", "S18.2", "SM18.2", "C128", "CA128", "O114",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "right",
@@ -17348,6 +20664,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E128", "FF38", "FFA38", "S18.2", "SM18.2", "C128", "CA128", "O114",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "start",
@@ -17357,6 +20674,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E128", "FF38", "FFA38", "S18.2", "SM18.2", "C128", "CA128", "O114",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-12-11"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "space-between",
@@ -17366,6 +20688,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E128", "FF38", "FFA38", "S18.2", "SM18.2", "C128", "CA128", "O114",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-12-11"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "space-around",
@@ -17375,6 +20702,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E128", "FF38", "FFA38", "S18.2", "SM18.2", "C128", "CA128", "O114",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-12-11"),
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -17405,11 +20737,17 @@ pub const PROPERTIES: &[Property] = &[
                     "The ruby text can overhang text adjacent to the base on either side. This is the initial value.",
                 ),
                 browsers: Some(&["S18.2", "SM18.2"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "end",
                 description: Some("The ruby text can overhang the text that follows it."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
@@ -17417,11 +20755,17 @@ pub const PROPERTIES: &[Property] = &[
                     "The ruby text cannot overhang any text adjacent to its base, only its own base.",
                 ),
                 browsers: Some(&["S18.2", "SM18.2"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "start",
                 description: Some("The ruby text can overhang the text that precedes it."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -17454,6 +20798,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The ruby text appears after the base. This is a relatively rare setting used in ideographic East Asian writing systems, most easily found in educational text.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "before",
@@ -17461,11 +20806,13 @@ pub const PROPERTIES: &[Property] = &[
                     "The ruby text appears before the base. This is the most common setting used in ideographic East Asian writing systems.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "inline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "right",
@@ -17473,6 +20820,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The ruby text appears on the right of the base. Unlike 'before' and 'after', this value is not relative to the text flow direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -17496,11 +20844,13 @@ pub const PROPERTIES: &[Property] = &[
                     "The value of attribute 'x' is a string value. The string value is evaluated as a <number> to determine the number of ruby base elements to be spanned by the annotation element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("No spanning. The computed value is '1'."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -17647,6 +20997,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF36", "FFA36", "S15.4", "SM15.4", "C61", "CA61", "O48",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-03-14"),
+                    high_date: Some("2024-09-14"),
+                }),
             },
             Value {
                 name: "smooth",
@@ -17656,6 +21011,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF36", "FFA36", "S15.4", "SM15.4", "C61", "CA61", "O48",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-03-14"),
+                    high_date: Some("2024-09-14"),
+                }),
             },
         ],
         at_rule: None,
@@ -17676,6 +21036,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "none",
             description: Some("Specifies that this element does not contribute a snap point."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -17711,6 +21072,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: Some("No snap points are defined by this scroll container."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "repeat()",
@@ -17718,6 +21080,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Defines an interval at which snap points are defined, starting from the container's relevant start edge.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -17739,6 +21102,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: Some("No snap points are defined by this scroll container."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "repeat()",
@@ -17746,6 +21110,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Defines an interval at which snap points are defined, starting from the container's relevant start edge.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -17776,6 +21141,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The visual viewport of this scroll container must ignore snap points, if any, when scrolled.",
                 ),
                 browsers: Some(&["E79", "FF39", "FFA39", "S11", "SM11", "C69", "CA69", "O56"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "mandatory",
@@ -17783,6 +21153,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The visual viewport of this scroll container is guaranteed to rest on a snap point when there are no active scrolling operations.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "proximity",
@@ -17790,6 +21161,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The visual viewport of this scroll container may come to rest on a snap point at the termination of a scroll at the discretion of the UA given the parameters of the scroll.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -17870,6 +21242,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF62", "FFA62", "S10.1", "SM10.3", "C37", "CA37", "O24",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "none",
@@ -17877,6 +21254,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF62", "FFA62", "S10.1", "SM10.3", "C37", "CA37", "O24",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -17905,6 +21287,11 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: Some("Suppresses aural rendering."),
                 browsers: Some(&["E79", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "crispEdges",
@@ -17912,11 +21299,21 @@ pub const PROPERTIES: &[Property] = &[
                     "Emphasize the contrast between clean edges of artwork over rendering speed and geometric precision.",
                 ),
                 browsers: Some(&["E79", "FF50", "FFA50", "S4", "SM3.2", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "geometricPrecision",
                 description: Some("Emphasize geometric precision over speed and crisp edges."),
                 browsers: Some(&["E79", "FF50", "FFA50", "S4", "SM3.2", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "optimizeSpeed",
@@ -17924,6 +21321,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Emphasize rendering speed over geometric precision and crisp edges.",
                 ),
                 browsers: Some(&["E79", "FF50", "FFA50", "S4", "SM3.2", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -17960,11 +21362,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "url()",
                 description: Some("Reference font by URL"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "format()",
                 description: Some("Optional hint describing the format of the font resource."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "local()",
@@ -17972,6 +21376,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Format-specific string that identifies a locally available copy of a given font.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: Some("@font-face"),
@@ -18040,11 +21445,17 @@ pub const PROPERTIES: &[Property] = &[
                     "A URL reference to a paint server element, which is an element that defines a paint server: 'hatch', 'linearGradient', 'mesh', 'pattern', 'radialGradient' and 'solidcolor'.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("No paint is applied in this layer."),
                 browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
         ],
         at_rule: None,
@@ -18070,6 +21481,11 @@ pub const PROPERTIES: &[Property] = &[
             name: "none",
             description: Some("Indicates that no dashing is used."),
             browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2017-04-05"),
+                high_date: Some("2019-10-05"),
+            }),
         }],
         at_rule: None,
     },
@@ -18119,6 +21535,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the stroke for each subpath does not extend beyond its two endpoints.",
                 ),
                 browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
             Value {
                 name: "round",
@@ -18126,6 +21547,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that at each end of each subpath, the shape representing the stroke will be extended by a half circle with a radius equal to the stroke width.",
                 ),
                 browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
             Value {
                 name: "square",
@@ -18133,6 +21559,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that at the end of each subpath, the shape representing the stroke will be extended by a rectangle with the same width as the stroke width and whose length is half of the stroke width.",
                 ),
                 browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
         ],
         at_rule: None,
@@ -18163,6 +21594,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that a bevelled corner is to be used to join path segments.",
                 ),
                 browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
             Value {
                 name: "miter",
@@ -18170,6 +21606,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that a sharp corner is to be used to join path segments.",
                 ),
                 browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
             Value {
                 name: "round",
@@ -18177,6 +21618,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that a round corner is to be used to join path segments.",
                 ),
                 browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2017-04-05"),
+                    high_date: Some("2019-10-05"),
+                }),
             },
         ],
         at_rule: None,
@@ -18281,6 +21727,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Represents \"sign-value\" numbering systems, which, rather than using reusing digits in different positions to change their value, define additional digits with much larger values, so that the value of the number can be obtained by adding all the digits together.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "alphabetic",
@@ -18288,6 +21735,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Interprets the list of counter symbols as digits to an alphabetic numbering system, similar to the default lower-alpha counter style, which wraps from \"a\", \"b\", \"c\", to \"aa\", \"ab\", \"ac\".",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "cyclic",
@@ -18295,6 +21743,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Cycles repeatedly through its provided symbols, looping back to the beginning when it reaches the end of the list.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "extends",
@@ -18302,6 +21751,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the algorithm of another counter style, but alter other aspects.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "fixed",
@@ -18309,6 +21759,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Runs through its list of counter symbols once, then falls back.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "numeric",
@@ -18316,6 +21767,7 @@ pub const PROPERTIES: &[Property] = &[
                     "interprets the list of counter symbols as digits to a \"place-value\" numbering system, similar to the default 'decimal' counter style.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "symbolic",
@@ -18323,6 +21775,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Cycles repeatedly through its provided symbols, doubling, tripling, etc. the symbols on each successive pass through the list.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: Some("@counter-style"),
@@ -18370,6 +21823,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM3", "C14", "CA18", "IE5", "O7",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "fixed",
@@ -18377,6 +21835,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM3", "C14", "CA18", "IE5", "O7",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -18429,6 +21892,11 @@ pub const PROPERTIES: &[Property] = &[
                 name: "center",
                 description: Some("The inline contents are centered within the line box."),
                 browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "end",
@@ -18436,6 +21904,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The inline contents are aligned to the end edge of the line box.",
                 ),
                 browsers: Some(&["E79", "FF1", "FFA4", "S3.1", "SM2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "justify",
@@ -18445,6 +21918,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "left",
@@ -18452,6 +21930,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The inline contents are aligned to the left edge of the line box. In vertical text, 'left' aligns to the edge of the line box that would be the start edge for left-to-right text.",
                 ),
                 browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "right",
@@ -18459,6 +21942,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The inline contents are aligned to the right edge of the line box. In vertical text, 'right' aligns to the edge of the line box that would be the end edge for left-to-right text.",
                 ),
                 browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "start",
@@ -18466,6 +21954,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The inline contents are aligned to the start edge of the line box.",
                 ),
                 browsers: Some(&["E79", "FF1", "FFA4", "S3.1", "SM2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -18500,11 +21993,21 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF12", "FFA14", "S16", "SM16", "C47", "CA47", "IE11", "O34",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
             Value {
                 name: "center",
                 description: Some("The inline contents are centered within the line box."),
                 browsers: Some(&["E12", "FF12", "FFA14", "S16", "SM16", "C47", "CA47", "O34"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
             Value {
                 name: "justify",
@@ -18512,6 +22015,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The text is justified according to the method specified by the 'text-justify' property.",
                 ),
                 browsers: Some(&["E12", "FF12", "FFA14", "S16", "SM16", "C47", "CA47", "O34"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
             Value {
                 name: "left",
@@ -18519,6 +22027,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The inline contents are aligned to the left edge of the line box. In vertical text, 'left' aligns to the edge of the line box that would be the start edge for left-to-right text.",
                 ),
                 browsers: Some(&["E12", "FF12", "FFA14", "S16", "SM16", "C47", "CA47", "O34"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
             Value {
                 name: "right",
@@ -18526,6 +22039,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The inline contents are aligned to the right edge of the line box. In vertical text, 'right' aligns to the edge of the line box that would be the end edge for left-to-right text.",
                 ),
                 browsers: Some(&["E12", "FF12", "FFA14", "S16", "SM16", "C47", "CA47", "O34"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
         ],
         at_rule: None,
@@ -18556,6 +22074,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The rendered characters are aligned such that the end of the resulting rendered text is at the initial current text position.",
                 ),
                 browsers: Some(&["E14", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2016-08-02"),
+                    high_date: Some("2019-02-02"),
+                }),
             },
             Value {
                 name: "middle",
@@ -18563,6 +22086,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The rendered characters are aligned such that the geometric middle of the resulting rendered text is at the initial current text position.",
                 ),
                 browsers: Some(&["E14", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2016-08-02"),
+                    high_date: Some("2019-02-02"),
+                }),
             },
             Value {
                 name: "start",
@@ -18570,6 +22098,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The rendered characters are aligned such that the start of the resulting rendered text is at the initial current text position.",
                 ),
                 browsers: Some(&["E14", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2016-08-02"),
+                    high_date: Some("2019-02-02"),
+                }),
             },
         ],
         at_rule: None,
@@ -18602,6 +22135,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF50", "FFA50", "S26.2", "SM26.2", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-12-12"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "dotted",
@@ -18609,6 +22147,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF50", "FFA50", "S26.2", "SM26.2", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-12-12"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "double",
@@ -18616,21 +22159,41 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF50", "FFA50", "S26.2", "SM26.2", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-12-12"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "line-through",
                 description: Some("Each line of text has a line through the middle."),
                 browsers: Some(&["E12", "FF3", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "none",
                 description: Some("Produces no line."),
                 browsers: Some(&["E12", "FF3", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "overline",
                 description: Some("Each line of text has a line above it."),
                 browsers: Some(&["E12", "FF3", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "solid",
@@ -18638,11 +22201,21 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF50", "FFA50", "S26.2", "SM26.2", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-12-12"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "underline",
                 description: Some("Each line of text is underlined."),
                 browsers: Some(&["E12", "FF3", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "wavy",
@@ -18650,6 +22223,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF50", "FFA50", "S26.2", "SM26.2", "C57", "CA57", "O44",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-12-12"),
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -18704,21 +22282,41 @@ pub const PROPERTIES: &[Property] = &[
                 name: "line-through",
                 description: Some("Each line of text has a line through the middle."),
                 browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "none",
                 description: Some("Neither produces nor inhibits text decoration."),
                 browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "overline",
                 description: Some("Each line of text has a line above it."),
                 browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "underline",
                 description: Some("Each line of text is underlined."),
                 browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -18749,31 +22347,57 @@ pub const PROPERTIES: &[Property] = &[
                 name: "dashed",
                 description: Some("Produces a dashed line style."),
                 browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "dotted",
                 description: Some("Produces a dotted line."),
                 browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "double",
                 description: Some("Produces a double line."),
                 browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "none",
                 description: Some("Produces no line."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "solid",
                 description: Some("Produces a solid line."),
                 browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "wavy",
                 description: Some("Produces a wavy line."),
                 browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -18828,6 +22452,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The UA determines the justification algorithm to follow, based on a balance between performance and adequate presentation quality.",
                 ),
                 browsers: Some(&["E145", "FF55", "FFA55", "C145", "CA145"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "distribute",
@@ -18835,11 +22464,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Justification primarily changes spacing both at word separators and at grapheme cluster boundaries in all scripts except those in the connected and cursive groups. This value is sometimes used in e.g. Japanese, often with the 'text-align-last' property.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "distribute-all-lines",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "inter-cluster",
@@ -18847,6 +22478,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Justification primarily changes spacing at word separators and at grapheme cluster boundaries in clustered scripts. This value is typically used for Southeast Asian scripts such as Thai.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "inter-ideograph",
@@ -18854,6 +22486,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Justification primarily changes spacing at word separators and at inter-graphemic boundaries in scripts that use no word spaces. This value is typically used for CJK languages.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "inter-word",
@@ -18861,6 +22494,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Justification primarily changes spacing at word separators. This value is typically used for languages that separate words using spaces, like English or (sometimes) Korean.",
                 ),
                 browsers: Some(&["E145", "FF55", "FFA55", "C145", "CA145"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "kashida",
@@ -18868,11 +22506,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Justification primarily stretches Arabic and related scripts through the use of kashida or other calligraphic elongation.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "newspaper",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -18901,6 +22541,11 @@ pub const PROPERTIES: &[Property] = &[
                     "This value is equivalent to 'sideways-right' in 'vertical-rl' writing mode and equivalent to 'sideways-left' in 'vertical-lr' writing mode.",
                 ),
                 browsers: Some(&["E79", "FF44", "FFA44", "S7", "SM7", "C12", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "sideways-right",
@@ -18908,6 +22553,7 @@ pub const PROPERTIES: &[Property] = &[
                     "In vertical writing modes, this causes text to be set as if in a horizontal layout, but rotated 90° clockwise.",
                 ),
                 browsers: Some(&["E79", "FF41", "FFA41", "S14", "SM14", "C48", "CA48", "O35"]),
+                baseline: None,
             },
             Value {
                 name: "upright",
@@ -18917,6 +22563,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF41", "FFA41", "S13.1", "SM13.4", "C12", "CA18", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-03-24"),
+                    high_date: Some("2022-09-24"),
+                }),
             },
         ],
         at_rule: None,
@@ -18949,6 +22600,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF7", "FFA7", "S1.3", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "ellipsis",
@@ -18958,6 +22614,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF7", "FFA7", "S1.3", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -18986,6 +22647,11 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: Some(&["E79", "FF1", "FFA46", "S5", "SM4.2", "C4", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "geometricPrecision",
@@ -18993,6 +22659,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the user agent shall emphasize geometric precision over legibility and rendering speed.",
                 ),
                 browsers: Some(&["E79", "FF1", "FFA46", "S6", "SM6", "C13", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "optimizeLegibility",
@@ -19000,6 +22671,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the user agent shall emphasize legibility over rendering speed and geometric precision.",
                 ),
                 browsers: Some(&["E79", "FF50", "FFA50", "S5", "SM4.2", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "optimizeSpeed",
@@ -19007,6 +22683,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Indicates that the user agent shall emphasize rendering speed over legibility and geometric precision.",
                 ),
                 browsers: Some(&["E79", "FF50", "FFA50", "S5", "SM4.2", "C31", "CA31", "O18"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -19034,6 +22715,11 @@ pub const PROPERTIES: &[Property] = &[
             name: "none",
             description: Some("No shadow."),
             browsers: Some(&["E12", "FF3.5", "FFA4", "S1.1", "SM1", "C2", "CA18", "O15"]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -19063,6 +22749,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Puts the first typographic letter unit of each word in titlecase.",
                 ),
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "lowercase",
@@ -19070,6 +22761,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "none",
@@ -19077,6 +22773,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "uppercase",
@@ -19084,6 +22785,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -19114,6 +22820,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "above",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "auto",
@@ -19123,6 +22830,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF74", "FFA79", "S12.1", "SM12.2", "C33", "CA33", "IE6", "O20",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-07-28"),
+                    high_date: Some("2023-01-28"),
+                }),
             },
             Value {
                 name: "below",
@@ -19130,6 +22842,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The underline is aligned with the under edge of the element's content box.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -19161,6 +22874,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -19194,6 +22912,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The user agent may determine any permitted touch behaviors for touches that begin on the element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "cross-slide-x",
@@ -19201,6 +22920,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF52", "FFA52", "S13", "SM9.3", "C36", "CA36", "IE11", "O23",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "cross-slide-y",
@@ -19208,6 +22928,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF52", "FFA52", "S13", "SM9.3", "C36", "CA36", "IE11", "O23",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "double-tap-zoom",
@@ -19215,6 +22936,7 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF52", "FFA52", "S13", "SM9.3", "C36", "CA36", "IE11", "O23",
                 ]),
+                baseline: None,
             },
             Value {
                 name: "manipulation",
@@ -19224,6 +22946,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF52", "FFA52", "S13", "SM9.3", "C36", "CA36", "IE11", "O23",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2019-09-19"),
+                    high_date: Some("2022-03-19"),
+                }),
             },
             Value {
                 name: "none",
@@ -19233,6 +22960,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF52", "FFA52", "S13", "SM13", "C36", "CA36", "IE11", "O23",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2019-09-19"),
+                    high_date: Some("2022-03-19"),
+                }),
             },
             Value {
                 name: "pan-x",
@@ -19242,6 +22974,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF52", "FFA52", "S13", "SM13", "C36", "CA36", "IE11", "O23",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2019-09-19"),
+                    high_date: Some("2022-03-19"),
+                }),
             },
             Value {
                 name: "pan-y",
@@ -19251,6 +22988,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF52", "FFA52", "S13", "SM13", "C36", "CA36", "IE11", "O23",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2019-09-19"),
+                    high_date: Some("2022-03-19"),
+                }),
             },
             Value {
                 name: "pinch-zoom",
@@ -19258,6 +23000,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF85", "FFA85", "S13", "SM13", "C56", "CA56", "IE11", "O43",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-01-26"),
+                    high_date: Some("2023-07-26"),
+                }),
             },
         ],
         at_rule: None,
@@ -19290,6 +23037,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D transformation in the form of a transformation matrix of six values. matrix(a,b,c,d,e,f) is equivalent to applying the transformation matrix [a b c d e f]",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "matrix3d()",
@@ -19297,16 +23045,23 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 3D transformation as a 4x4 homogeneous matrix of 16 values in column-major order.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: Some(&["E12", "FF3.5", "FFA4", "S3.1", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "perspective()",
                 description: Some("Specifies a perspective projection matrix."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotate()",
@@ -19314,6 +23069,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D rotation by the angle specified in the parameter about the origin of the element, as defined by the transform-origin property.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotate3d()",
@@ -19321,6 +23077,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise 3D rotation by the angle specified in last parameter about the [x,y,z] direction vector described by the first 3 parameters.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotateX('angle')",
@@ -19328,6 +23085,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise rotation by the given angle about the X axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotateY('angle')",
@@ -19335,6 +23093,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise rotation by the given angle about the Y axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotateZ('angle')",
@@ -19342,6 +23101,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise rotation by the given angle about the Z axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scale()",
@@ -19349,6 +23109,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D scale operation by the [sx,sy] scaling vector described by the 2 parameters. If the second parameter is not provided, it is takes a value equal to the first.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scale3d()",
@@ -19356,6 +23117,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 3D scale operation by the [sx,sy,sz] scaling vector described by the 3 parameters.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scaleX()",
@@ -19363,6 +23125,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a scale operation using the [sx,1] scaling vector, where sx is given as the parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scaleY()",
@@ -19370,6 +23133,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a scale operation using the [sy,1] scaling vector, where sy is given as the parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scaleZ()",
@@ -19377,6 +23141,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a scale operation using the [1,1,sz] scaling vector, where sz is given as the parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "skew()",
@@ -19384,6 +23149,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a skew transformation along the X and Y axes. The first angle parameter specifies the skew on the X axis. The second angle parameter specifies the skew on the Y axis. If the second parameter is not given then a value of 0 is used for the Y angle (ie: no skew on the Y axis).",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "skewX()",
@@ -19391,6 +23157,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a skew transformation along the X axis by the given angle.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "skewY()",
@@ -19398,6 +23165,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a skew transformation along the Y axis by the given angle.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translate()",
@@ -19405,6 +23173,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D translation by the vector [tx, ty], where tx is the first translation-value parameter and ty is the optional second translation-value parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translate3d()",
@@ -19412,6 +23181,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 3D translation by the vector [tx,ty,tz], with tx, ty and tz being the first, second and third translation-value parameters respectively.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translateX()",
@@ -19419,6 +23189,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a translation by the given amount in the X direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translateY()",
@@ -19426,6 +23197,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a translation by the given amount in the Y direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translateZ()",
@@ -19433,6 +23205,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a translation by the given amount in the Z direction. Note that percentage values are not allowed in the translateZ translation-value, and if present are evaluated as 0.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -19485,6 +23258,11 @@ pub const PROPERTIES: &[Property] = &[
                     "All children of this element are rendered flattened into the 2D plane of the element.",
                 ),
                 browsers: Some(&["E12", "FF10", "FFA10", "S4", "SM3.2", "C12", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "preserve-3d",
@@ -19492,6 +23270,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Flattening is not performed, so children maintain their position in 3D space.",
                 ),
                 browsers: Some(&["E12", "FF10", "FFA10", "S4", "SM3.2", "C12", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -19524,11 +23307,21 @@ pub const PROPERTIES: &[Property] = &[
                     "Every property that is able to undergo a transition will do so.",
                 ),
                 browsers: Some(&["E12", "FF4", "FFA4", "S3.1", "SM2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "none",
                 description: Some("No property will transition."),
                 browsers: Some(&["E12", "FF4", "FFA4", "S3.1", "SM2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -19611,6 +23404,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF4", "FFA4", "S3.1", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "none",
@@ -19618,6 +23416,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF4", "FFA4", "S3.1", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -19674,6 +23477,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1.3", "SM1", "C2", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "embed",
@@ -19683,6 +23491,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1.3", "SM1", "C2", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "isolate",
@@ -19690,6 +23503,11 @@ pub const PROPERTIES: &[Property] = &[
                     "The contents of the element are considered to be inside a separate, independent paragraph.",
                 ),
                 browsers: Some(&["E79", "FF50", "FFA50", "S11", "SM11", "C48", "CA48", "O35"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "isolate-override",
@@ -19697,6 +23515,11 @@ pub const PROPERTIES: &[Property] = &[
                     "This combines the isolation behavior of 'isolate' with the directional override behavior of 'bidi-override'",
                 ),
                 browsers: Some(&["E79", "FF50", "FFA50", "S11", "SM11", "C48", "CA48", "O35"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "normal",
@@ -19706,6 +23529,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1.3", "SM1", "C2", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "plaintext",
@@ -19713,6 +23541,11 @@ pub const PROPERTIES: &[Property] = &[
                     "For the purposes of the Unicode bidirectional algorithm, the base directionality of each bidi paragraph for which the element forms the containing block is determined not by the element's computed 'direction'.",
                 ),
                 browsers: Some(&["E79", "FF50", "FFA50", "S11", "SM11", "C48", "CA48", "O35"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -19734,11 +23567,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "U+26",
                 description: Some("Ampersand."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+20-24F, U+2B0-2FF, U+370-4FF, U+1E00-1EFF, U+2000-20CF, U+2100-23FF, U+2500-26FF, U+E000-F8FF, U+FB00-FB4F",
                 description: Some("WGL4 character set (Pan-European)."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+20-17F, U+2B0-2FF, U+2000-206F, U+20A0-20CF, U+2100-21FF, U+2600-26FF",
@@ -19746,6 +23581,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The Multilingual European Subset No. 1. Latin. Covers ~44 languages.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+20-2FF, U+370-4FF, U+1E00-20CF, U+2100-23FF, U+2500-26FF, U+FB00-FB4F, U+FFF0-FFFD",
@@ -19753,6 +23589,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The Multilingual European Subset No. 2. Latin, Greek, and Cyrillic. Covers ~128 language.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+20-4FF, U+530-58F, U+10D0-10FF, U+1E00-23FF, U+2440-245F, U+2500-26FF, U+FB00-FB4F, U+FE20-FE2F, U+FFF0-FFFD",
@@ -19760,11 +23597,13 @@ pub const PROPERTIES: &[Property] = &[
                     "The Multilingual European Subset No. 3. Covers all characters belonging to European scripts.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+00-7F",
                 description: Some("Basic Latin (ASCII)."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+80-FF",
@@ -19772,6 +23611,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Latin-1 Supplement. Accented characters for Western European languages, common punctuation characters, multiplication and division signs.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+100-17F",
@@ -19779,6 +23619,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Latin Extended-A. Accented characters for for Czech, Dutch, Polish, and Turkish.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+180-24F",
@@ -19786,6 +23627,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Latin Extended-B. Croatian, Slovenian, Romanian, Non-European and historic latin, Khoisan, Pinyin, Livonian, Sinology.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+1E00-1EFF",
@@ -19793,26 +23635,31 @@ pub const PROPERTIES: &[Property] = &[
                     "Latin Extended Additional. Vietnamese, German captial sharp s, Medievalist, Latin general use.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+250-2AF",
                 description: Some("International Phonetic Alphabet Extensions."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+370-3FF",
                 description: Some("Greek and Coptic."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+1F00-1FFF",
                 description: Some("Greek Extended. Accented characters for polytonic Greek."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+400-4FF",
                 description: Some("Cyrillic."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+500-52F",
@@ -19820,26 +23667,31 @@ pub const PROPERTIES: &[Property] = &[
                     "Cyrillic Supplement. Extra letters for Komi, Khanty, Chukchi, Mordvin, Kurdish, Aleut, Chuvash, Abkhaz, Azerbaijani, and Orok.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+00-52F, U+1E00-1FFF, U+2200-22FF",
                 description: Some("Latin, Greek, Cyrillic, some punctuation and symbols."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+530-58F",
                 description: Some("Armenian."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+590-5FF",
                 description: Some("Hebrew."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+600-6FF",
                 description: Some("Arabic."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+750-77F",
@@ -19847,6 +23699,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Arabic Supplement. Additional letters for African languages, Khowar, Torwali, Burushaski, and early Persian.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+8A0-8FF",
@@ -19854,106 +23707,127 @@ pub const PROPERTIES: &[Property] = &[
                     "Arabic Extended-A. Additional letters for African languages, European and Central Asian languages, Rohingya, Tamazight, Arwi, and Koranic annotation signs.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+700-74F",
                 description: Some("Syriac."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+900-97F",
                 description: Some("Devanagari."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+980-9FF",
                 description: Some("Bengali."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+A00-A7F",
                 description: Some("Gurmukhi."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+A80-AFF",
                 description: Some("Gujarati."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+B00-B7F",
                 description: Some("Oriya."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+B80-BFF",
                 description: Some("Tamil."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+C00-C7F",
                 description: Some("Telugu."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+C80-CFF",
                 description: Some("Kannada."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+D00-D7F",
                 description: Some("Malayalam."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+D80-DFF",
                 description: Some("Sinhala."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+118A0-118FF",
                 description: Some("Warang Citi."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+E00-E7F",
                 description: Some("Thai."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+1A20-1AAF",
                 description: Some("Tai Tham."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+AA80-AADF",
                 description: Some("Tai Viet."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+E80-EFF",
                 description: Some("Lao."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+F00-FFF",
                 description: Some("Tibetan."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+1000-109F",
                 description: Some("Myanmar (Burmese)."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+10A0-10FF",
                 description: Some("Georgian."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+1200-137F",
                 description: Some("Ethiopic."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+1380-139F",
@@ -19961,6 +23835,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Ethiopic Supplement. Extra Syllables for Sebatbeit, and Tonal marks",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+2D80-2DDF",
@@ -19968,6 +23843,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Ethiopic Extended. Extra Syllables for Me'en, Blin, and Sebatbeit.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+AB00-AB2F",
@@ -19975,26 +23851,31 @@ pub const PROPERTIES: &[Property] = &[
                     "Ethiopic Extended-A. Extra characters for Gamo-Gofa-Dawro, Basketo, and Gumuz.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+1780-17FF",
                 description: Some("Khmer."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+1800-18AF",
                 description: Some("Mongolian."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+1B80-1BBF",
                 description: Some("Sundanese."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+1CC0-1CCF",
                 description: Some("Sundanese Supplement. Punctuation."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+4E00-9FD5",
@@ -20002,41 +23883,49 @@ pub const PROPERTIES: &[Property] = &[
                     "CJK (Chinese, Japanese, Korean) Unified Ideographs. Most common ideographs for modern Chinese and Japanese.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+3400-4DB5",
                 description: Some("CJK Unified Ideographs Extension A. Rare ideographs."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+2F00-2FDF",
                 description: Some("Kangxi Radicals."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+2E80-2EFF",
                 description: Some("CJK Radicals Supplement. Alternative forms of Kangxi Radicals."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+1100-11FF",
                 description: Some("Hangul Jamo."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+AC00-D7AF",
                 description: Some("Hangul Syllables."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+3040-309F",
                 description: Some("Hiragana."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+30A0-30FF",
                 description: Some("Katakana."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+A5, U+4E00-9FFF, U+30??, U+FF00-FF9F",
@@ -20044,71 +23933,85 @@ pub const PROPERTIES: &[Property] = &[
                     "Japanese Kanji, Hiragana and Katakana characters plus Yen/Yuan symbol.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+A4D0-A4FF",
                 description: Some("Lisu."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+A000-A48F",
                 description: Some("Yi Syllables."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+A490-A4CF",
                 description: Some("Yi Radicals."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+2000-206F",
                 description: Some("General Punctuation."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+3000-303F",
                 description: Some("CJK Symbols and Punctuation."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+2070-209F",
                 description: Some("Superscripts and Subscripts."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+20A0-20CF",
                 description: Some("Currency Symbols."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+2100-214F",
                 description: Some("Letterlike Symbols."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+2150-218F",
                 description: Some("Number Forms."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+2190-21FF",
                 description: Some("Arrows."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+2200-22FF",
                 description: Some("Mathematical Operators."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+2300-23FF",
                 description: Some("Miscellaneous Technical."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+E000-F8FF",
                 description: Some("Private Use Area."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+FB00-FB4F",
@@ -20116,6 +24019,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Alphabetic Presentation Forms. Ligatures for latin, Armenian, and Hebrew.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+FB50-FDFF",
@@ -20123,31 +24027,37 @@ pub const PROPERTIES: &[Property] = &[
                     "Arabic Presentation Forms-A. Contextual forms / ligatures for Persian, Urdu, Sindhi, Central Asian languages, etc, Arabic pedagogical symbols, word ligatures.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+1F600-1F64F",
                 description: Some("Emoji: Emoticons."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+2600-26FF",
                 description: Some("Emoji: Miscellaneous Symbols."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+1F300-1F5FF",
                 description: Some("Emoji: Miscellaneous Symbols and Pictographs."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+1F900-1F9FF",
                 description: Some("Emoji: Supplemental Symbols and Pictographs."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "U+1F680-1F6FF",
                 description: Some("Emoji: Transport and Map Symbols."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: Some("@font-face"),
@@ -20174,6 +24084,11 @@ pub const PROPERTIES: &[Property] = &[
                 name: "all",
                 description: Some("The content of the element must be selected atomically"),
                 browsers: Some(&["E79", "FF1", "FFA4", "S16", "SM16", "C53", "CA53", "O40"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
             Value {
                 name: "auto",
@@ -20181,6 +24096,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S2", "SM3", "C1", "CA18", "IE10", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "contain",
@@ -20188,6 +24108,7 @@ pub const PROPERTIES: &[Property] = &[
                     "UAs must not allow a selection which is started in this element to be extended outside of this element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
@@ -20197,6 +24118,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF21", "FFA21", "S2", "SM3", "C1", "CA18", "IE10", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "text",
@@ -20204,6 +24130,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S2", "SM3", "C1", "CA18", "IE10", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -20236,6 +24167,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Align the dominant baseline of the parent box with the equivalent, or heuristically reconstructed, baseline of the element inline box.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "baseline",
@@ -20245,6 +24177,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "bottom",
@@ -20254,6 +24191,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "middle",
@@ -20263,6 +24205,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "sub",
@@ -20272,6 +24219,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "super",
@@ -20281,6 +24233,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "text-bottom",
@@ -20290,6 +24247,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "text-top",
@@ -20299,6 +24261,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "top",
@@ -20308,11 +24275,17 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "-webkit-baseline-middle",
                 description: None,
                 browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O4"]),
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -20345,6 +24318,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1.3", "SM1", "C1", "CA18", "IE10", "O4",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "hidden",
@@ -20354,6 +24332,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "visible",
@@ -20361,6 +24344,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -20384,6 +24372,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The animation cycle iterations that are odd counts are played in the normal direction, and the animation cycle iterations that are even counts are played in a reverse direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "alternate-reverse",
@@ -20391,6 +24380,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The animation cycle iterations that are odd counts are played in the reverse direction, and the animation cycle iterations that are even counts are played in a normal direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "backwards",
@@ -20398,11 +24388,13 @@ pub const PROPERTIES: &[Property] = &[
                     "The beginning property value (as defined in the first @keyframes at-rule) is applied before the animation is displayed, during the period defined by 'animation-delay'.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "both",
                 description: Some("Both forwards and backwards fill modes are applied."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "forwards",
@@ -20410,21 +24402,25 @@ pub const PROPERTIES: &[Property] = &[
                     "The final property value (as defined in the last @keyframes at-rule) is maintained after the animation completes.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "infinite",
                 description: Some("Causes the animation to repeat forever."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("No animation is performed"),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: Some("Normal playback."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "reverse",
@@ -20432,6 +24428,7 @@ pub const PROPERTIES: &[Property] = &[
                     "All iterations of the animation are played in the reverse direction from the way they were specified.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -20468,6 +24465,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The animation cycle iterations that are odd counts are played in the normal direction, and the animation cycle iterations that are even counts are played in a reverse direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "alternate-reverse",
@@ -20475,11 +24473,13 @@ pub const PROPERTIES: &[Property] = &[
                     "The animation cycle iterations that are odd counts are played in the reverse direction, and the animation cycle iterations that are even counts are played in a normal direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: Some("Normal playback."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "reverse",
@@ -20487,6 +24487,7 @@ pub const PROPERTIES: &[Property] = &[
                     "All iterations of the animation are played in the reverse direction from the way they were specified.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -20525,11 +24526,13 @@ pub const PROPERTIES: &[Property] = &[
                     "The beginning property value (as defined in the first @keyframes at-rule) is applied before the animation is displayed, during the period defined by 'animation-delay'.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "both",
                 description: Some("Both forwards and backwards fill modes are applied."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "forwards",
@@ -20537,6 +24540,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The final property value (as defined in the last @keyframes at-rule) is maintained after the animation completes.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
@@ -20544,6 +24548,7 @@ pub const PROPERTIES: &[Property] = &[
                     "There is no change to the property value between the time the animation is applied and the time the animation begins playing or after the animation completes.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -20564,6 +24569,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "infinite",
             description: Some("Causes the animation to repeat forever."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -20583,6 +24589,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "none",
             description: Some("No animation is performed"),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -20601,11 +24608,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "paused",
                 description: Some("A running animation will be paused."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "running",
                 description: Some("Resume playback of a paused animation."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -20644,221 +24653,265 @@ pub const PROPERTIES: &[Property] = &[
                 name: "button",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "button-bevel",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "caps-lock-indicator",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "caret",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "checkbox",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "default-button",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "listbox",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "listitem",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "media-fullscreen-button",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "media-mute-button",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "media-play-button",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "media-seek-back-button",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "media-seek-forward-button",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "media-slider",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "media-sliderthumb",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menulist",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menulist-button",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menulist-text",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menulist-textfield",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "push-button",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "radio",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbarbutton-down",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbarbutton-left",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbarbutton-right",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbarbutton-up",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbargripper-horizontal",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbargripper-vertical",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbarthumb-horizontal",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbarthumb-vertical",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbartrack-horizontal",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scrollbartrack-vertical",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "searchfield",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "searchfield-cancel-button",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "searchfield-decoration",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "searchfield-results-button",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "searchfield-results-decoration",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "slider-horizontal",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "sliderthumb-horizontal",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "sliderthumb-vertical",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "slider-vertical",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "square-button",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "textarea",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "textfield",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -20880,11 +24933,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: Some("No filter effects are applied."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "blur()",
                 description: Some("Applies a Gaussian blur to the input image."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "brightness()",
@@ -20892,51 +24947,61 @@ pub const PROPERTIES: &[Property] = &[
                     "Applies a linear multiplier to input image, making it appear more or less bright.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "contrast()",
                 description: Some("Adjusts the contrast of the input."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "drop-shadow()",
                 description: Some("Applies a drop shadow effect to the input image."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "grayscale()",
                 description: Some("Converts the input image to grayscale."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "hue-rotate()",
                 description: Some("Applies a hue rotation on the input image. "),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "invert()",
                 description: Some("Inverts the samples in the input image."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "opacity()",
                 description: Some("Applies transparency to the samples in the input image."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "saturate()",
                 description: Some("Saturates the input image."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "sepia()",
                 description: Some("Converts the input image to sepia."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "url()",
                 description: Some("A filter reference to a <filter> element."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -20958,11 +25023,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "hidden",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "visible",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -20995,11 +25062,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "border",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "padding",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -21038,21 +25107,25 @@ pub const PROPERTIES: &[Property] = &[
                     "If 'auto' is specified then the border image width is the intrinsic width or height (whichever is applicable) of the corresponding image slice. If the image does not have the required intrinsic dimension then the corresponding border-width is used instead.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "fill",
                 description: Some("Causes the middle part of the border-image to be preserved."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "repeat",
                 description: Some("The image is tiled (repeated) to fill the area."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "round",
@@ -21060,6 +25133,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The image is tiled (repeated) to fill the area. If it does not fill the area with a whole number of tiles, the image is rescaled so that it does.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "space",
@@ -21067,16 +25141,19 @@ pub const PROPERTIES: &[Property] = &[
                     "The image is tiled (repeated) to fill the area. If it does not fill the area with a whole number of tiles, the extra space is distributed around the tiles.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
                 description: Some("The image is stretched to fill the area."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "url()",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -21100,6 +25177,7 @@ pub const PROPERTIES: &[Property] = &[
                     "If this box orientation is inline-axis or horizontal, all children are placed with their baselines aligned, and extra space placed before or after as necessary. For block flows, the baseline of the first non-empty line box located within the element is used. For tables, the baseline of the first cell is used.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "center",
@@ -21107,6 +25185,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Any extra space is divided evenly, with half placed above the child and the other half placed after the child.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
@@ -21114,6 +25193,7 @@ pub const PROPERTIES: &[Property] = &[
                     "For normal direction boxes, the bottom edge of each child is placed along the bottom of the box. Extra space is placed above the element. For reverse direction boxes, the top edge of each child is placed along the top of the box. Extra space is placed below the element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
@@ -21121,6 +25201,7 @@ pub const PROPERTIES: &[Property] = &[
                     "For normal direction boxes, the top edge of each child is placed along the top of the box. Extra space is placed below the element. For reverse direction boxes, the bottom edge of each child is placed along the bottom of the box. Extra space is placed above the element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
@@ -21128,6 +25209,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The height of each child is adjusted to that of the containing block.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -21151,6 +25233,7 @@ pub const PROPERTIES: &[Property] = &[
                     "A box with a computed value of horizontal for box-orient displays its children from left to right. A box with a computed value of vertical displays its children from top to bottom.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "reverse",
@@ -21158,6 +25241,7 @@ pub const PROPERTIES: &[Property] = &[
                     "A box with a computed value of horizontal for box-orient displays its children from right to left. A box with a computed value of vertical displays its children from bottom to top.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -21222,6 +25306,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "block-axis",
                 description: Some("Elements are oriented along the box's axis."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "horizontal",
@@ -21229,11 +25314,13 @@ pub const PROPERTIES: &[Property] = &[
                     "The box displays its children from left to right in a horizontal line.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "inline-axis",
                 description: Some("Elements are oriented vertically."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "vertical",
@@ -21241,6 +25328,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The box displays its children from stacked from top to bottom vertically.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -21264,6 +25352,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The extra space is divided evenly, with half placed before the first child and the other half placed after the last child.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
@@ -21271,6 +25360,7 @@ pub const PROPERTIES: &[Property] = &[
                     "For normal direction boxes, the right edge of the last child is placed at the right side, with all extra space placed before the first child. For reverse direction boxes, the left edge of the first child is placed at the left side, with all extra space placed after the last child.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "justify",
@@ -21278,6 +25368,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The space is divided evenly in-between each child, with none of the extra space placed before the first child or after the last child. If there is only one child, treat the pack value as if it were start.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "start",
@@ -21285,6 +25376,7 @@ pub const PROPERTIES: &[Property] = &[
                     "For normal direction boxes, the left edge of the first child is placed at the left side, with all extra space placed after the last child. For reverse direction boxes, the right edge of the last child is placed at the right side, with all extra space placed before the first child.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -21311,21 +25403,25 @@ pub const PROPERTIES: &[Property] = &[
                 name: "above",
                 description: Some("The reflection appears above the border box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "below",
                 description: Some("The reflection appears below the border box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "left",
                 description: Some("The reflection appears to the left of the border box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "right",
                 description: Some("The reflection appears to the right of the border box."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -21347,6 +25443,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The specified width and height (and respective min/max properties) on this element determine the border box of the element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "content-box",
@@ -21354,6 +25451,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Behavior of width and height as specified by CSS2.1. The specified width and height (and respective min/max properties) apply to the width and height respectively of the content box of the element.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -21373,6 +25471,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "always",
                 description: Some("Always force a page break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "auto",
@@ -21380,31 +25479,37 @@ pub const PROPERTIES: &[Property] = &[
                     "Neither force nor forbid a page/column break before/after the generated box.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid a page/column break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-column",
                 description: Some("Avoid a column break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-page",
                 description: Some("Avoid a page break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-region",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "column",
                 description: Some("Always force a column break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "left",
@@ -21412,16 +25517,19 @@ pub const PROPERTIES: &[Property] = &[
                     "Force one or two page breaks before/after the generated box so that the next page is formatted as a left page.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "page",
                 description: Some("Always force a page break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "region",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "right",
@@ -21429,6 +25537,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Force one or two page breaks before/after the generated box so that the next page is formatted as a right page.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -21448,6 +25557,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "always",
                 description: Some("Always force a page break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "auto",
@@ -21455,31 +25565,37 @@ pub const PROPERTIES: &[Property] = &[
                     "Neither force nor forbid a page/column break before/after the generated box.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid a page/column break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-column",
                 description: Some("Avoid a column break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-page",
                 description: Some("Avoid a page break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-region",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "column",
                 description: Some("Always force a column break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "left",
@@ -21487,16 +25603,19 @@ pub const PROPERTIES: &[Property] = &[
                     "Force one or two page breaks before/after the generated box so that the next page is formatted as a left page.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "page",
                 description: Some("Always force a page break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "region",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "right",
@@ -21504,6 +25623,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Force one or two page breaks before/after the generated box so that the next page is formatted as a right page.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -21525,26 +25645,31 @@ pub const PROPERTIES: &[Property] = &[
                     "Neither force nor forbid a page/column break inside the generated box.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid a page/column break inside the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-column",
                 description: Some("Avoid a column break inside the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-page",
                 description: Some("Avoid a page break inside the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-region",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -21568,6 +25693,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "always",
                 description: Some("Always force a page break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "auto",
@@ -21575,31 +25701,37 @@ pub const PROPERTIES: &[Property] = &[
                     "Neither force nor forbid a page/column break before/after the generated box.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid a page/column break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-column",
                 description: Some("Avoid a column break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-page",
                 description: Some("Avoid a page break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-region",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "column",
                 description: Some("Always force a column break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "left",
@@ -21607,16 +25739,19 @@ pub const PROPERTIES: &[Property] = &[
                     "Force one or two page breaks before/after the generated box so that the next page is formatted as a left page.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "page",
                 description: Some("Always force a page break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "region",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "right",
@@ -21624,6 +25759,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Force one or two page breaks before/after the generated box so that the next page is formatted as a right page.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -21647,6 +25783,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "always",
                 description: Some("Always force a page break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "auto",
@@ -21654,31 +25791,37 @@ pub const PROPERTIES: &[Property] = &[
                     "Neither force nor forbid a page/column break before/after the generated box.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid a page/column break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-column",
                 description: Some("Avoid a column break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-page",
                 description: Some("Avoid a page break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-region",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "column",
                 description: Some("Always force a column break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "left",
@@ -21686,16 +25829,19 @@ pub const PROPERTIES: &[Property] = &[
                     "Force one or two page breaks before/after the generated box so that the next page is formatted as a left page.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "page",
                 description: Some("Always force a page break before/after the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "region",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "right",
@@ -21703,6 +25849,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Force one or two page breaks before/after the generated box so that the next page is formatted as a right page.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -21728,26 +25875,31 @@ pub const PROPERTIES: &[Property] = &[
                     "Neither force nor forbid a page/column break inside the generated box.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid a page/column break inside the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-column",
                 description: Some("Avoid a column break inside the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-page",
                 description: Some("Avoid a page break inside the generated box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "avoid-region",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -21770,6 +25922,7 @@ pub const PROPERTIES: &[Property] = &[
                 "Determines the number of columns by the 'column-width' property and the element width.",
             ),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -21789,6 +25942,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "normal",
             description: Some("User agent specific and typically equivalent to 1em."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -21864,6 +26018,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "auto",
             description: Some("The width depends on the values of other properties."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -21884,11 +26039,13 @@ pub const PROPERTIES: &[Property] = &[
                     "The element spans across all columns. Content in the normal flow that appears before the element is automatically balanced across all columns before the element appear.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("The element does not span multiple columns."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -21907,6 +26064,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "auto",
             description: Some("The width depends on the values of other properties."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -21927,11 +26085,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: Some("No filter effects are applied."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "blur()",
                 description: Some("Applies a Gaussian blur to the input image."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "brightness()",
@@ -21939,51 +26099,61 @@ pub const PROPERTIES: &[Property] = &[
                     "Applies a linear multiplier to input image, making it appear more or less bright.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "contrast()",
                 description: Some("Adjusts the contrast of the input."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "drop-shadow()",
                 description: Some("Applies a drop shadow effect to the input image."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "grayscale()",
                 description: Some("Converts the input image to grayscale."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "hue-rotate()",
                 description: Some("Applies a hue rotation on the input image. "),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "invert()",
                 description: Some("Inverts the samples in the input image."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "opacity()",
                 description: Some("Applies transparency to the samples in the input image."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "saturate()",
                 description: Some("Saturates the input image."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "sepia()",
                 description: Some("Converts the input image to sepia."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "url()",
                 description: Some("A filter reference to a <filter> element."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -22002,6 +26172,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "none",
             description: Some("The block container is not a CSS Region."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -22021,6 +26192,7 @@ pub const PROPERTIES: &[Property] = &[
                 "The element is not moved to a named flow and normal CSS processing takes place.",
             ),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -22041,61 +26213,73 @@ pub const PROPERTIES: &[Property] = &[
                 name: "\"c2cs\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"dlig\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"kern\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"liga\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"lnum\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"onum\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"smcp\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"swsh\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "\"tnum\"",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: Some("No change in glyph substitution or positioning occurs."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "off",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "on",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -22119,6 +26303,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Conditional hyphenation characters inside a word, if present, take priority over automatic resources when determining hyphenation points within the word.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "manual",
@@ -22126,6 +26311,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Words are only broken at line breaks where there are characters inside the word that suggest line break opportunities",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
@@ -22133,6 +26319,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Words are not broken at line breaks, even if characters inside the word suggest line break points.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -22154,11 +26341,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "after-white-space",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -22178,16 +26367,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "collapse",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "discard",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "separate",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -22207,16 +26399,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "collapse",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "discard",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "separate",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -22235,6 +26430,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "auto",
             description: None,
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -22253,16 +26449,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "collapse",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "discard",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "separate",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -22297,11 +26496,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: Some("Counts as a transparent black image layer."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "url()",
                 description: Some("Reference to a <mask element or to a CSS image."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -22351,6 +26552,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Resolved by using the image's intrinsic ratio and the size of the other dimension, or failing that, using the image's intrinsic size, or failing that, treating it as 100%.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "contain",
@@ -22358,6 +26560,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Scale the image, while preserving its intrinsic aspect ratio (if any), to the largest size such that both its width and its height can fit inside the background positioning area.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "cover",
@@ -22365,6 +26568,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Scale the image, while preserving its intrinsic aspect ratio (if any), to the smallest size such that both its width and its height can completely cover the background positioning area.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -22388,11 +26592,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "normal",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "space",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -22414,11 +26620,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "touch",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -22452,6 +26660,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "none",
             description: Some("No perspective transform is applied."),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -22487,6 +26696,7 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: Some("Content flows as it would in a regular content box."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "break",
@@ -22494,6 +26704,7 @@ pub const PROPERTIES: &[Property] = &[
                     "If the content fits within the CSS Region, then this property has no effect.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -22557,6 +26768,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Renderers must use the default size adjustment when displaying on a small device.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
@@ -22564,6 +26776,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Renderers must not do size adjustment when displaying on a small device.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -22649,6 +26862,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "none",
             description: None,
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -22671,6 +26885,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D transformation in the form of a transformation matrix of six values. matrix(a,b,c,d,e,f) is equivalent to applying the transformation matrix [a b c d e f]",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "matrix3d()",
@@ -22678,16 +26893,19 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 3D transformation as a 4x4 homogeneous matrix of 16 values in column-major order.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "perspective()",
                 description: Some("Specifies a perspective projection matrix."),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotate()",
@@ -22695,6 +26913,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D rotation by the angle specified in the parameter about the origin of the element, as defined by the transform-origin property.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotate3d()",
@@ -22702,6 +26921,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise 3D rotation by the angle specified in last parameter about the [x,y,z] direction vector described by the first 3 parameters.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotateX('angle')",
@@ -22709,6 +26929,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise rotation by the given angle about the X axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotateY('angle')",
@@ -22716,6 +26937,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise rotation by the given angle about the Y axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotateZ('angle')",
@@ -22723,6 +26945,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a clockwise rotation by the given angle about the Z axis.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scale()",
@@ -22730,6 +26953,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D scale operation by the [sx,sy] scaling vector described by the 2 parameters. If the second parameter is not provided, it is takes a value equal to the first.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scale3d()",
@@ -22737,6 +26961,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 3D scale operation by the [sx,sy,sz] scaling vector described by the 3 parameters.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scaleX()",
@@ -22744,6 +26969,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a scale operation using the [sx,1] scaling vector, where sx is given as the parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scaleY()",
@@ -22751,6 +26977,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a scale operation using the [sy,1] scaling vector, where sy is given as the parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "scaleZ()",
@@ -22758,6 +26985,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a scale operation using the [1,1,sz] scaling vector, where sz is given as the parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "skew()",
@@ -22765,6 +26993,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a skew transformation along the X and Y axes. The first angle parameter specifies the skew on the X axis. The second angle parameter specifies the skew on the Y axis. If the second parameter is not given then a value of 0 is used for the Y angle (ie: no skew on the Y axis).",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "skewX()",
@@ -22772,6 +27001,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a skew transformation along the X axis by the given angle.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "skewY()",
@@ -22779,6 +27009,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a skew transformation along the Y axis by the given angle.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translate()",
@@ -22786,6 +27017,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 2D translation by the vector [tx, ty], where tx is the first translation-value parameter and ty is the optional second translation-value parameter.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translate3d()",
@@ -22793,6 +27025,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a 3D translation by the vector [tx,ty,tz], with tx, ty and tz being the first, second and third translation-value parameters respectively.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translateX()",
@@ -22800,6 +27033,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a translation by the given amount in the X direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translateY()",
@@ -22807,6 +27041,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a translation by the given amount in the Y direction.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "translateZ()",
@@ -22814,6 +27049,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Specifies a translation by the given amount in the Z direction. Note that percentage values are not allowed in the translateZ translation-value, and if present are evaluated as 0.",
                 ),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -22904,6 +27140,7 @@ pub const PROPERTIES: &[Property] = &[
                 "All children of this element are rendered flattened into the 2D plane of the element.",
             ),
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -22926,11 +27163,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Every property that is able to undergo a transition will do so.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("No property will transition."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -22984,11 +27223,13 @@ pub const PROPERTIES: &[Property] = &[
                     "Every property that is able to undergo a transition will do so.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: Some("No property will transition."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -23027,16 +27268,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "element",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -23056,16 +27300,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "read-only",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "read-write",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "read-write-plaintext-only",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -23085,16 +27332,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "text",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -23151,6 +27401,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "fit-content",
@@ -23158,6 +27413,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the fit-content inline size or fit-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF94", "FFA94", "S11", "SM11", "C46", "CA46", "O33"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2021-11-02"),
+                    high_date: Some("2024-05-02"),
+                }),
             },
             Value {
                 name: "max-content",
@@ -23165,6 +27425,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the max-content inline size or max-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "min-content",
@@ -23172,6 +27437,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Use the min-content inline size or min-content block size, as appropriate to the writing mode.",
                 ),
                 browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O33"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -23204,6 +27474,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF36", "FFA36", "S9.1", "SM9.3", "C36", "CA36", "O23",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "contents",
@@ -23213,6 +27488,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF36", "FFA36", "S9.1", "SM9.3", "C36", "CA36", "O23",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "scroll-position",
@@ -23222,6 +27502,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF36", "FFA36", "S9.1", "SM9.3", "C36", "CA36", "O23",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -23254,6 +27539,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF15", "FFA15", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
             Value {
                 name: "keep-all",
@@ -23261,6 +27551,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF15", "FFA15", "S9", "SM9", "C44", "CA44", "IE5.5", "O31",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-09-30"),
+                    high_date: Some("2018-03-30"),
+                }),
             },
             Value {
                 name: "normal",
@@ -23268,6 +27563,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E12", "FF15", "FFA15", "S3", "SM2", "C1", "CA18", "IE11", "O15",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2015-07-29"),
+                    high_date: Some("2018-01-29"),
+                }),
             },
         ],
         at_rule: None,
@@ -23297,6 +27597,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE6", "O3.5",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -23319,11 +27624,13 @@ pub const PROPERTIES: &[Property] = &[
                     "An otherwise unbreakable sequence of characters may be broken at an arbitrary point if there are no otherwise-acceptable break points in the line.",
                 ),
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "normal",
                 description: Some("Lines may break only at allowed break points."),
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -23356,6 +27663,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Top-to-bottom block flow direction. The writing mode is horizontal.",
                 ),
                 browsers: Some(&["E12", "FF43", "FFA43", "S9", "SM9", "C48", "CA48", "O35"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2016-01-26"),
+                    high_date: Some("2018-07-26"),
+                }),
             },
             Value {
                 name: "sideways-lr",
@@ -23365,6 +27677,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E132", "FF43", "FFA43", "S18.4", "SM18.4", "C132", "CA132", "O117",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-03-31"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "sideways-rl",
@@ -23374,6 +27691,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E132", "FF43", "FFA43", "S18.4", "SM18.4", "C132", "CA132", "O117",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-03-31"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "vertical-lr",
@@ -23381,6 +27703,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Left-to-right block flow direction. The writing mode is vertical.",
                 ),
                 browsers: Some(&["E12", "FF43", "FFA43", "S9", "SM9", "C48", "CA48", "O35"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2016-01-26"),
+                    high_date: Some("2018-07-26"),
+                }),
             },
             Value {
                 name: "vertical-rl",
@@ -23388,6 +27715,11 @@ pub const PROPERTIES: &[Property] = &[
                     "Right-to-left block flow direction. The writing mode is vertical.",
                 ),
                 browsers: Some(&["E12", "FF43", "FFA43", "S9", "SM9", "C48", "CA48", "O35"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2016-01-26"),
+                    high_date: Some("2018-07-26"),
+                }),
             },
         ],
         at_rule: None,
@@ -23419,6 +27751,11 @@ pub const PROPERTIES: &[Property] = &[
             browsers: Some(&[
                 "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O15",
             ]),
+            baseline: Some(Baseline {
+                status: BaselineStatus::High,
+                low_date: Some("2015-07-29"),
+                high_date: Some("2018-01-29"),
+            }),
         }],
         at_rule: None,
     },
@@ -23447,6 +27784,7 @@ pub const PROPERTIES: &[Property] = &[
             name: "normal",
             description: None,
             browsers: None,
+            baseline: None,
         }],
         at_rule: None,
     },
@@ -23467,11 +27805,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "after",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -23530,21 +27870,25 @@ pub const PROPERTIES: &[Property] = &[
                 name: "border-box",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "content-box",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "margin-box",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "padding-box",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -23573,11 +27917,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "0",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "1",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -23606,21 +27952,33 @@ pub const PROPERTIES: &[Property] = &[
                 name: "inline",
                 description: None,
                 browsers: Some(&["FF40", "FFA40"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "block",
                 description: None,
                 browsers: Some(&["FF40", "FFA40"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "horizontal",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "vertical",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -23717,11 +28075,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "ignore",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch-to-fit",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -23743,11 +28103,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "blink",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -23776,21 +28138,33 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: None,
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "enabled",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "disabled",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -23812,16 +28186,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "read-only",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "read-write",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "write-only",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -23843,11 +28220,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "drag",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "no-drag",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -23869,26 +28248,31 @@ pub const PROPERTIES: &[Property] = &[
                 name: "default",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "menu",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "tooltip",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "sheet",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -24112,21 +28496,25 @@ pub const PROPERTIES: &[Property] = &[
                 name: "repeat",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "no-repeat",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "space",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "round",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -24155,21 +28543,25 @@ pub const PROPERTIES: &[Property] = &[
                 name: "repeat",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "no-repeat",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "space",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "round",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -24237,41 +28629,81 @@ pub const PROPERTIES: &[Property] = &[
                 name: "baseline",
                 description: None,
                 browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "alphabetic",
                 description: None,
                 browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "ideographic",
                 description: None,
                 browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "middle",
                 description: None,
                 browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "central",
                 description: None,
                 browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "mathematical",
                 description: None,
                 browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "text-before-edge",
                 description: None,
                 browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "text-after-edge",
                 description: None,
                 browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -24571,16 +29003,31 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: Some(&["E111", "FF115", "FFA115", "C111", "CA111", "O97"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "first",
                 description: None,
                 browsers: Some(&["E111", "FF115", "FFA115", "C111", "CA111", "O97"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "last",
                 description: None,
                 browsers: Some(&["E111", "FF115", "FFA115", "C111", "CA111", "O97"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -24889,26 +29336,31 @@ pub const PROPERTIES: &[Property] = &[
                 name: "start",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "center",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "baseline",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "stretch",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -24937,16 +29389,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "normal",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "reverse",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "inherit",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -25019,11 +29474,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "single",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "multiple",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -25074,26 +29531,31 @@ pub const PROPERTIES: &[Property] = &[
                 name: "horizontal",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "vertical",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "inline-axis",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "block-axis",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "inherit",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -25122,21 +29584,25 @@ pub const PROPERTIES: &[Property] = &[
                 name: "start",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "center",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "end",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "justify",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -25176,11 +29642,21 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: Some(&["E140", "C140", "CA140", "O124"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "manual",
                 description: None,
                 browsers: Some(&["E140", "C140", "CA140", "O124"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -25207,21 +29683,41 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: Some(&["E144", "C144", "CA144"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "bar",
                 description: None,
                 browsers: Some(&["E144", "C144", "CA144"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "block",
                 description: None,
                 browsers: Some(&["E144", "C144", "CA144"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "underscore",
                 description: None,
                 browsers: Some(&["E144", "C144", "CA144"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -25284,16 +29780,31 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: Some(&["E145", "C145", "CA145"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "nowrap",
                 description: None,
                 browsers: Some(&["E145", "C145", "CA145"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "wrap",
                 description: None,
                 browsers: Some(&["E145", "C145", "CA145"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -25512,6 +30023,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E85", "FF125", "FFA125", "S18", "SM18", "C85", "CA85", "O71",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-09-16"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "auto",
@@ -25519,6 +30035,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E85", "FF125", "FFA125", "S26", "SM26", "C85", "CA85", "O71",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-09-15"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "hidden",
@@ -25526,6 +30047,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E85", "FF125", "FFA125", "S18", "SM18", "C85", "CA85", "O71",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-09-16"),
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -25986,46 +30512,83 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "text-bottom",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "alphabetic",
                 description: None,
                 browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "ideographic",
                 description: None,
                 browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "middle",
                 description: None,
                 browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "central",
                 description: None,
                 browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "mathematical",
                 description: None,
                 browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "hanging",
                 description: None,
                 browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "text-top",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -26074,11 +30637,21 @@ pub const PROPERTIES: &[Property] = &[
                 name: "content",
                 description: None,
                 browsers: Some(&["E123", "S26.2", "SM26.2", "C123", "CA123", "O109"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "fixed",
                 description: None,
                 browsers: Some(&["E123", "S26.2", "SM26.2", "C123", "CA123", "O109"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -26111,6 +30684,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E17", "FF62", "FFA62", "S13.1", "SM13.4", "C79", "CA79", "O66",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-03-24"),
+                    high_date: Some("2022-09-24"),
+                }),
             },
             Value {
                 name: "none",
@@ -26118,6 +30696,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E17", "FF62", "FFA62", "S13.1", "SM13.4", "C79", "CA79", "O66",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-03-24"),
+                    high_date: Some("2022-09-24"),
+                }),
             },
         ],
         at_rule: None,
@@ -26192,11 +30775,21 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: Some(&["FF118", "FFA118"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: Some(&["FF118", "FFA118"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -26229,6 +30822,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E97", "FF111", "FFA111", "S16.4", "SM16.4", "C97", "CA97", "O83",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2023-03-27"),
+                    high_date: Some("2025-09-27"),
+                }),
             },
             Value {
                 name: "none",
@@ -26236,6 +30834,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E97", "FF111", "FFA111", "S16.4", "SM16.4", "C97", "CA97", "O83",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2023-03-27"),
+                    high_date: Some("2025-09-27"),
+                }),
             },
         ],
         at_rule: None,
@@ -26268,6 +30871,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E97", "FF111", "FFA111", "S16.4", "SM16.4", "C97", "CA97", "O83",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2023-03-27"),
+                    high_date: Some("2025-09-27"),
+                }),
             },
             Value {
                 name: "none",
@@ -26275,6 +30883,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E97", "FF111", "FFA111", "S16.4", "SM16.4", "C97", "CA97", "O83",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2023-03-27"),
+                    high_date: Some("2025-09-27"),
+                }),
             },
         ],
         at_rule: None,
@@ -26307,6 +30920,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E97", "FF111", "FFA111", "S16.4", "SM16.4", "C97", "CA97", "O83",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2023-03-27"),
+                    high_date: Some("2025-09-27"),
+                }),
             },
             Value {
                 name: "none",
@@ -26314,6 +30932,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E97", "FF111", "FFA111", "S16.4", "SM16.4", "C97", "CA97", "O83",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2023-03-27"),
+                    high_date: Some("2025-09-27"),
+                }),
             },
         ],
         at_rule: None,
@@ -26342,21 +30965,41 @@ pub const PROPERTIES: &[Property] = &[
                 name: "normal",
                 description: None,
                 browsers: Some(&["E131", "FF141", "FFA141", "C131", "CA131", "O116"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "text",
                 description: None,
                 browsers: Some(&["E131", "FF141", "FFA141", "C131", "CA131", "O116"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "emoji",
                 description: None,
                 browsers: Some(&["E131", "FF141", "FFA141", "C131", "CA131", "O116"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "unicode",
                 description: None,
                 browsers: Some(&["E131", "FF141", "FFA141", "C131", "CA131", "O116"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -26426,16 +31069,31 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: Some(&["E79", "FF113", "FFA113", "C89", "CA89", "O75"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: Some(&["E79", "FF113", "FFA113", "C89", "CA89", "O75"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "preserve-parent-color",
                 description: None,
                 browsers: Some(&["E106", "C106", "CA106", "O92"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -26774,11 +31432,21 @@ pub const PROPERTIES: &[Property] = &[
                 name: "numeric-only",
                 description: None,
                 browsers: Some(&["E129", "C129", "CA129", "O115"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "allow-keywords",
                 description: None,
                 browsers: Some(&["E129", "C129", "CA129", "O115"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -26805,11 +31473,21 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: Some(&["E135", "C135", "CA135", "O120"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "inert",
                 description: None,
                 browsers: Some(&["E135", "C135", "CA135", "O120"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -27000,16 +31678,23 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: None,
                 browsers: Some(&["S16.4", "SM16.4"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "in-flow",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "all",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -27079,11 +31764,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "luminance",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "alpha",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -27311,6 +31998,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E109", "FF146", "FFA146", "S26.2", "SM26.2", "C109", "CA109", "O95",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-12-12"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "compact",
@@ -27318,6 +32010,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E109", "FF146", "FFA146", "S26.2", "SM26.2", "C109", "CA109", "O95",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-12-12"),
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -27350,6 +32047,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E109", "FF117", "FFA117", "S14.1", "SM14.5", "C109", "CA109", "O95",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2023-08-29"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "compact",
@@ -27357,6 +32059,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E109", "FF117", "FFA117", "S14.1", "SM14.5", "C109", "CA109", "O95",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2023-08-29"),
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -27560,11 +32267,21 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: Some(&["E79", "FF66", "FFA66", "C56", "CA56", "O43"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: Some(&["E79", "FF66", "FFA66", "C56", "CA56", "O43"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -27597,6 +32314,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-09-15"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "hidden",
@@ -27604,6 +32326,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-09-15"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "clip",
@@ -27611,6 +32338,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E135", "FF81", "FFA81", "S26", "SM26", "C135", "CA135", "O120",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-09-15"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "scroll",
@@ -27618,6 +32350,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-09-15"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "auto",
@@ -27625,6 +32362,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-09-15"),
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -27646,11 +32388,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "padding-box",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "content-box",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -27705,6 +32449,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-09-15"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "hidden",
@@ -27712,6 +32461,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-09-15"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "clip",
@@ -27719,6 +32473,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E135", "FF81", "FFA81", "S26", "SM26", "C135", "CA135", "O120",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-09-15"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "scroll",
@@ -27726,6 +32485,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-09-15"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "auto",
@@ -27733,6 +32497,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-09-15"),
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -27761,11 +32530,21 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: None,
                 browsers: Some(&["E117", "C117", "CA117", "O103"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "auto",
                 description: None,
                 browsers: Some(&["E117", "C117", "CA117", "O103"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -27816,16 +32595,31 @@ pub const PROPERTIES: &[Property] = &[
                 name: "contain",
                 description: None,
                 browsers: Some(&["E79", "FF73", "FFA79", "S16", "SM16", "C77", "CA77", "O64"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: Some(&["E79", "FF73", "FFA79", "S16", "SM16", "C77", "CA77", "O64"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
             Value {
                 name: "auto",
                 description: None,
                 browsers: Some(&["E79", "FF73", "FFA79", "S16", "SM16", "C77", "CA77", "O64"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
         ],
         at_rule: None,
@@ -27854,16 +32648,31 @@ pub const PROPERTIES: &[Property] = &[
                 name: "contain",
                 description: None,
                 browsers: Some(&["E79", "FF73", "FFA79", "S16", "SM16", "C77", "CA77", "O64"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: Some(&["E79", "FF73", "FFA79", "S16", "SM16", "C77", "CA77", "O64"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
             Value {
                 name: "auto",
                 description: None,
                 browsers: Some(&["E79", "FF73", "FFA79", "S16", "SM16", "C77", "CA77", "O64"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
         ],
         at_rule: None,
@@ -27892,16 +32701,31 @@ pub const PROPERTIES: &[Property] = &[
                 name: "contain",
                 description: None,
                 browsers: Some(&["E18", "FF59", "FFA59", "S16", "SM16", "C63", "CA63", "O50"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: Some(&["E79", "FF59", "FFA59", "S16", "SM16", "C63", "CA63", "O50"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
             Value {
                 name: "auto",
                 description: None,
                 browsers: Some(&["E18", "FF59", "FFA59", "S16", "SM16", "C63", "CA63", "O50"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
         ],
         at_rule: None,
@@ -27930,16 +32754,31 @@ pub const PROPERTIES: &[Property] = &[
                 name: "contain",
                 description: None,
                 browsers: Some(&["E18", "FF59", "FFA59", "S16", "SM16", "C63", "CA63", "O50"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: Some(&["E79", "FF59", "FFA59", "S16", "SM16", "C63", "CA63", "O50"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
             Value {
                 name: "auto",
                 description: None,
                 browsers: Some(&["E18", "FF59", "FFA59", "S16", "SM16", "C63", "CA63", "O50"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-09-12"),
+                    high_date: Some("2025-03-12"),
+                }),
             },
         ],
         at_rule: None,
@@ -28250,6 +33089,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E136", "FF97", "FFA97", "S6", "SM6", "C136", "CA136", "O121",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-05-01"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "exact",
@@ -28257,6 +33101,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E136", "FF97", "FFA97", "S6", "SM6", "C136", "CA136", "O121",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2025-05-01"),
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -28307,36 +33156,71 @@ pub const PROPERTIES: &[Property] = &[
                 name: "normal",
                 description: None,
                 browsers: Some(&["E137", "C137", "CA137", "O121"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "source-order",
                 description: None,
                 browsers: Some(&["E137", "C137", "CA137", "O121"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "flex-visual",
                 description: None,
                 browsers: Some(&["E137", "C137", "CA137", "O121"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "flex-flow",
                 description: None,
                 browsers: Some(&["E137", "C137", "CA137", "O121"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "grid-rows",
                 description: None,
                 browsers: Some(&["E137", "C137", "CA137", "O121"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "grid-columns",
                 description: None,
                 browsers: Some(&["E137", "C137", "CA137", "O121"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "grid-order",
                 description: None,
                 browsers: Some(&["E137", "C137", "CA137", "O121"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -28424,16 +33308,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "separate",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "collapse",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "auto",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -28529,11 +33416,21 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: None,
                 browsers: Some(&["E133", "C133", "CA133", "O118"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "nearest",
                 description: None,
                 browsers: Some(&["E133", "C133", "CA133", "O118"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -28812,16 +33709,31 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: None,
                 browsers: Some(&["E135", "C135", "CA135", "O120"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "before",
                 description: None,
                 browsers: Some(&["E135", "C135", "CA135", "O120"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "after",
                 description: None,
                 browsers: Some(&["E135", "C135", "CA135", "O120"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -29128,6 +34040,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF103", "FFA103", "S15", "SM15", "C75", "CA75", "O62",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-07-26"),
+                    high_date: Some("2025-01-26"),
+                }),
             },
             Value {
                 name: "always",
@@ -29135,6 +34052,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF103", "FFA103", "S15", "SM15", "C75", "CA75", "O62",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-07-26"),
+                    high_date: Some("2025-01-26"),
+                }),
             },
         ],
         at_rule: None,
@@ -29156,16 +34078,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "mandatory",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "proximity",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -29187,16 +34112,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "mandatory",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "proximity",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -29223,11 +34151,21 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: None,
                 browsers: Some(&["E140", "C140", "CA140", "O124"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "auto",
                 description: None,
                 browsers: Some(&["E140", "C140", "CA140", "O124"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -29374,6 +34312,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E121", "FF64", "FFA64", "S18.2", "SM18.2", "C121", "CA121", "O107",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-12-11"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "thin",
@@ -29381,6 +34324,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E121", "FF64", "FFA64", "S18.2", "SM18.2", "C121", "CA121", "O107",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-12-11"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "none",
@@ -29388,6 +34336,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E121", "FF64", "FFA64", "S18.2", "SM18.2", "C121", "CA121", "O107",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-12-11"),
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -29521,21 +34474,41 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: None,
                 browsers: Some(&["E133", "S18.2", "SM18.2", "C133", "CA133", "O118"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "trim-start",
                 description: None,
                 browsers: Some(&["E133", "S18.2", "SM18.2", "C133", "CA133", "O118"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "trim-end",
                 description: None,
                 browsers: Some(&["E133", "S18.2", "SM18.2", "C133", "CA133", "O118"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "trim-both",
                 description: None,
                 browsers: Some(&["E133", "S18.2", "SM18.2", "C133", "CA133", "O118"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -29636,11 +34609,21 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF70", "FFA79", "S15.4", "SM15.4", "C64", "CA64", "O51",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-03-14"),
+                    high_date: Some("2024-09-14"),
+                }),
             },
             Value {
                 name: "all",
                 description: None,
                 browsers: Some(&["FF75", "FFA79", "S15.4", "SM15.4"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "none",
@@ -29648,6 +34631,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E79", "FF70", "FFA79", "S15.4", "SM15.4", "C64", "CA64", "O51",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2022-03-14"),
+                    high_date: Some("2024-09-14"),
+                }),
             },
         ],
         at_rule: None,
@@ -29812,21 +34800,41 @@ pub const PROPERTIES: &[Property] = &[
                 name: "space-all",
                 description: None,
                 browsers: Some(&["E123", "C123", "CA123", "O109"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "normal",
                 description: None,
                 browsers: Some(&["E123", "C123", "CA123", "O109"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "space-first",
                 description: None,
                 browsers: Some(&["E123", "C123", "CA123", "O109"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "trim-start",
                 description: None,
                 browsers: Some(&["E123", "C123", "CA123", "O109"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -29907,6 +34915,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E130", "FF124", "FFA124", "S17.4", "SM17.4", "C130", "CA130", "O115",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-10-17"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "nowrap",
@@ -29914,6 +34927,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E130", "FF124", "FFA124", "S17.4", "SM17.4", "C130", "CA130", "O115",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-10-17"),
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -29946,6 +34964,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E130", "FF124", "FFA124", "S17.5", "SM17.5", "C130", "CA130", "O115",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-10-17"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "balance",
@@ -29953,6 +34976,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E130", "FF124", "FFA124", "S17.5", "SM17.5", "C130", "CA130", "O115",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-10-17"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "stable",
@@ -29960,11 +34988,21 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E130", "FF124", "FFA124", "S17.5", "SM17.5", "C130", "CA130", "O115",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-10-17"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "pretty",
                 description: None,
                 browsers: Some(&["E130", "S26", "SM26", "C130", "CA130", "O115"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -30158,6 +35196,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E118", "FF125", "FFA125", "S13.1", "SM13.4", "C118", "CA118", "O104",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-04-16"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "border-box",
@@ -30165,11 +35208,21 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E118", "FF55", "FFA55", "S11", "SM11", "C118", "CA118", "O104",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2023-10-13"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "fill-box",
                 description: None,
                 browsers: Some(&["E79", "FF55", "FFA55", "S11", "SM11", "C64", "CA64", "O51"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "stroke-box",
@@ -30177,11 +35230,21 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E118", "FF125", "FFA125", "S13.1", "SM13.4", "C118", "CA118", "O104",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-04-16"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "view-box",
                 description: None,
                 browsers: Some(&["E79", "FF55", "FFA55", "S11", "SM11", "C64", "CA64", "O51"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
         ],
         at_rule: None,
@@ -30277,26 +35340,39 @@ pub const PROPERTIES: &[Property] = &[
                 name: "none",
                 description: None,
                 browsers: Some(&["E79", "FF15", "FFA15", "S5.1", "SM5", "C6", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "non-scaling-stroke",
                 description: None,
                 browsers: Some(&["E79", "FF15", "FFA15", "S5.1", "SM5", "C6", "CA18", "O15"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::High,
+                    low_date: Some("2020-01-15"),
+                    high_date: Some("2022-07-15"),
+                }),
             },
             Value {
                 name: "non-scaling-size",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "non-rotation",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "fixed-position",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: None,
@@ -30491,6 +35567,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E114", "FF124", "FFA124", "S17.4", "SM17.4", "C114", "CA114", "O100",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-03-19"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "preserve",
@@ -30498,6 +35579,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E114", "FF124", "FFA124", "S17.4", "SM17.4", "C114", "CA114", "O100",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-03-19"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "preserve-breaks",
@@ -30505,11 +35591,21 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E114", "FF124", "FFA124", "S17.4", "SM17.4", "C114", "CA114", "O100",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-03-19"),
+                    high_date: None,
+                }),
             },
             Value {
                 name: "preserve-spaces",
                 description: None,
                 browsers: Some(&["FF124", "FFA124"]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Limited,
+                    low_date: None,
+                    high_date: None,
+                }),
             },
             Value {
                 name: "break-spaces",
@@ -30517,6 +35613,11 @@ pub const PROPERTIES: &[Property] = &[
                 browsers: Some(&[
                     "E114", "FF124", "FFA124", "S17.4", "SM17.4", "C114", "CA114", "O100",
                 ]),
+                baseline: Some(Baseline {
+                    status: BaselineStatus::Low,
+                    low_date: Some("2024-03-19"),
+                    high_date: None,
+                }),
             },
         ],
         at_rule: None,
@@ -30608,26 +35709,31 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "block",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "swap",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "fallback",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "optional",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: Some("@font-face"),
@@ -30735,16 +35841,19 @@ pub const PROPERTIES: &[Property] = &[
                 name: "upright",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotate-left",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "rotate-right",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: Some("@page"),
@@ -30766,11 +35875,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "true",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "false",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: Some("@property"),
@@ -30820,11 +35931,13 @@ pub const PROPERTIES: &[Property] = &[
                 name: "auto",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
             Value {
                 name: "none",
                 description: None,
                 browsers: None,
+                baseline: None,
             },
         ],
         at_rule: Some("@view-transition"),
