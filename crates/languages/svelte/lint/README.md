@@ -28,17 +28,20 @@ The shared suite reads inputs directly from `../compile/tests/fixtures`. Only li
 snapshots live here. Hand-written cases fail on differences. Copied corpus cases
 without a lint oracle remain UNMEASURED. Non-component inputs are not run.
 
-`tests/rules` contains MIT inputs and configurations from `eslint-plugin-svelte`,
-including every button option combination. Provenance, licenses and hashes live
-beside the copied cases. Supported cases have strict comparisons.
+`tests/upstream.rs` runs eslint-plugin-svelte's own rule tests, copied unchanged to
+[`fixtures/upstream/eslint-plugin-svelte`](../../../../fixtures/upstream/eslint-plugin-svelte),
+and this crate's cases in `tests/cases`, which use the same layout:
+`<rule>/{valid,invalid}/<name>-input.svelte`, options in `<name>-config.json` or `_config.json`,
+the expected reports in `<name>-errors.yaml`. It reads them as upstream's runner does. Every case of
+an implemented rule must pass; the others are counted.
 
 ```sh
-cargo test -p rsvelte_svelte_lint
-mise exec -- node tools/fixtures/fixtures.ts import-lint <upstream-checkout>
+cargo test -p rsvelte_svelte_lint --test upstream
+mise exec -- node tools/fixtures/fixtures.ts upstream eslint-plugin-svelte <checkout at the oracle's tag>
+mise exec -- node tools/fixtures/fixtures.ts lint-cases   # write errors.yaml for a new case in tests/cases
 ```
 
-The importer regenerates both lint suites through ESLint. Use upstream commit
-`437ae4fdab4d38c6c71c689be4cd897b607c4426`; oracle versions are recorded in each
-suite. Expected output is generated, never edited by hand.
+To add a rule, add it to `IMPLEMENTED` in `tests/upstream.rs`. `errors.yaml` is written by ESLint,
+never by hand.
 
 See [the performance workload](../../../../tools/performance/workloads/svelte-lint/README.md).

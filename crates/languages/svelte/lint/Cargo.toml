@@ -16,6 +16,10 @@ rsvelte_typescript_lint.workspace = true
 
 [dev-dependencies]
 rsvelte_fixture_test.workspace = true
+semver.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde-saphyr.workspace = true
 rsvelte_kernel = { workspace = true, features = ["trace-artifacts"] }
 
 [[test]]
@@ -23,7 +27,7 @@ name = "fixtures"
 harness = false
 
 [[test]]
-name = "rules"
+name = "upstream"
 harness = false
 
 [lints]

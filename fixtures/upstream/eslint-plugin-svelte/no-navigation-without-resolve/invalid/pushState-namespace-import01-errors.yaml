@@ -1,0 +1,4 @@
+- message: Unexpected pushState() call without resolve().
+  line: 4
+  column: 23
+  suggestions: null

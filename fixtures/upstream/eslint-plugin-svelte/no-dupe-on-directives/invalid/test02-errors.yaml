@@ -1,0 +1,32 @@
+- message: This `on:click` directive is the same and duplicate directives in L1.
+  line: 1
+  column: 9
+  suggestions: null
+- message: This `on:click` directive is the same and duplicate directives in L1.
+  line: 1
+  column: 18
+  suggestions: null
+- message: This `on:click` directive is the same and duplicate directives in L1.
+  line: 1
+  column: 27
+  suggestions: null
+- message: This `on:click` directive is the same and duplicate directives in L1.
+  line: 1
+  column: 36
+  suggestions: null
+- message: This `on:click` directive is the same and duplicate directives in L1.
+  line: 1
+  column: 45
+  suggestions: null
+- message: This `on:click` directive is the same and duplicate directives in L1.
+  line: 1
+  column: 54
+  suggestions: null
+- message: This `on:click` directive is the same and duplicate directives in L1.
+  line: 1
+  column: 63
+  suggestions: null
+- message: This `on:click` directive is the same and duplicate directives in L1.
+  line: 1
+  column: 72
+  suggestions: null

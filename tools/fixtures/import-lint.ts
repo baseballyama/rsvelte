@@ -21,13 +21,6 @@ function rustString(value: string) {
 	return `concat!(${parts.map((part) => JSON.stringify(part)).join(', ')})`;
 }
 
-function rustRule(rule: string, options: Record<string, boolean>) {
-	if (rule === 'svelte/button-has-type')
-		return `RuleConfiguration::ButtonHasType { severity: Severity::Error, allowed: Allowed { button: ${options.button ?? true}, submit: ${options.submit ?? true}, reset: ${options.reset ?? true} } }`;
-	if (rule === 'svelte/valid-each-key') return 'RuleConfiguration::ValidEachKey(Severity::Error)';
-	throw new Error(`unsupported rule: ${rule}`);
-}
-
 export async function main(args: string[]): Promise<void> {
 	const root = path.resolve(import.meta.dirname, '../..');
 	const require = createRequire(path.join(root, 'tools/fixtures/package.json'));
@@ -58,9 +51,9 @@ export async function main(args: string[]): Promise<void> {
 			imported: {} as Record<string, string>,
 		};
 	};
-	const suites = [newSuite('lint'), newSuite('lint_typed')] as const;
-	const suiteFor = (rule: string) =>
-		suites[rule === 'svelte/@typescript-eslint/no-unnecessary-condition' ? 1 : 0];
+	// The lint crate reads eslint-plugin-svelte's fixtures as they are (`fixtures upstream`).
+	const suites = [newSuite('lint_typed')] as const;
+	const suiteFor = (_rule: string) => suites[0];
 	const project = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-lint-oracle-'));
 	fs.symlinkSync(
 		path.join(root, 'tools/fixtures/node_modules'),
@@ -175,21 +168,14 @@ export async function main(args: string[]): Promise<void> {
 			path.join(directory, 'expected/findings.lint.json'),
 			JSON.stringify({ rules: [rule], findings }, null, '\t') + '\n',
 		);
-		const configuration =
-			rule === 'svelte/@typescript-eslint/no-unnecessary-condition'
-				? 'severity: Severity::Error'
-				: `rules: &[${rustRule(rule, options)}]`;
+		const configuration = 'severity: Severity::Error';
 		suite.cases.push(
 			`    CaseConfiguration { name: ${rustString(name)}, document: ${rustString(document)}, ${configuration}, strict: ${strict} },`,
 		);
 	}
 
 	const fixtures = path.join(upstream, 'packages/eslint-plugin-svelte/tests/fixtures/rules');
-	for (const name of [
-		'button-has-type',
-		'valid-each-key',
-		'@typescript-eslint/no-unnecessary-condition',
-	]) {
+	for (const name of ['@typescript-eslint/no-unnecessary-condition']) {
 		const base = path.join(fixtures, name);
 		for (const input of walk(base).filter((file) => file.endsWith('-input.svelte'))) {
 			const relative = path.relative(base, input).replace('-input.svelte', '.svelte');
@@ -211,7 +197,7 @@ export async function main(args: string[]): Promise<void> {
 				fs.readFileSync(input, 'utf8'),
 				`svelte/${name}`,
 				options,
-				name !== '@typescript-eslint/no-unnecessary-condition',
+				false,
 			);
 			for (const config of configs)
 				fs.copyFileSync(
@@ -227,21 +213,6 @@ export async function main(args: string[]): Promise<void> {
 		}
 	}
 
-	const buttonInput = fs.readFileSync(
-		path.join(fixtures, 'button-has-type/valid/test01-input.svelte'),
-		'utf8',
-	);
-	for (let mask = 0; mask < 8; mask++) {
-		const document = `button-has-type/matrix/${mask}.svelte`;
-		add(
-			`eslint-plugin-svelte/${document}`,
-			document,
-			buttonInput,
-			'svelte/button-has-type',
-			{ button: Boolean(mask & 1), submit: Boolean(mask & 2), reset: Boolean(mask & 4) },
-			true,
-		);
-	}
 	for (const [name, body] of [
 		['typed-true', 'function f(value: true) { if (value) console.log(value); }'],
 		['typed-false', 'function f(value: false) { if (value) console.log(value); }'],
@@ -282,12 +253,9 @@ export async function main(args: string[]): Promise<void> {
 			true,
 		);
 	}
-	for (const [index, suite] of suites.entries()) {
+	for (const suite of suites) {
 		const imports =
-			'use super::CaseConfiguration;\nuse rsvelte_kernel::diagnostics::diagnostic::Severity;\n' +
-			(index === 0
-				? 'use rsvelte_markup::button_type::Allowed;\nuse rsvelte_svelte_lint::RuleConfiguration;\n'
-				: '');
+			'use super::CaseConfiguration;\nuse rsvelte_kernel::diagnostics::diagnostic::Severity;\n';
 		fs.writeFileSync(
 			path.join(suite.directory, 'cases.rs'),
 			imports +

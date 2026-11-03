@@ -11,7 +11,9 @@
 //   stats                                                     count the units
 //   crate --family name --task id,... --to <dir> [--source id,...]
 //                                                             copy units into a crate's tests/fixtures/
-//   import-lint <eslint-plugin-svelte checkout>               copy the upstream lint rule cases into the crates
+//   upstream <name> <checkout>                                copy an upstream project's test fixtures to fixtures/upstream/
+//   lint-cases [--update]                                     write ESLint's reports for the lint crate's own rule cases
+//   import-lint <eslint-plugin-svelte checkout>               copy the upstream typed lint rule cases into lint_typed
 //   entities                                                  vendor the Svelte compiler's entity table
 //   semantic --report <file> [--inputs <dir>] [--projector <binary>] [--filter <text>] [--limit <n>]
 //                                                             compare the TypeScript projection's semantics
@@ -25,6 +27,8 @@ const commands: Record<string, () => Promise<{ main(args: string[]): Promise<voi
 	'run-all': () => import('./run-all.ts'),
 	stats: () => import('./stats.ts'),
 	crate: () => import('./crate.ts'),
+	upstream: () => import('./upstream.ts'),
+	'lint-cases': () => import('./lint-cases.ts'),
 	'import-lint': () => import('./import-lint.ts'),
 	entities: () => import('./entities.ts'),
 	semantic: () => import('./semantic.ts'),
