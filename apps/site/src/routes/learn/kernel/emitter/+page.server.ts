@@ -1,4 +1,4 @@
-import counter from '$lib/data/emit/counter-client.json';
+import counter from '$generated/emit/counter-client.json';
 import { excerpts } from '$lib/server/source';
 
 export const load = () => ({

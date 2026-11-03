@@ -4,7 +4,7 @@ import { initializePipeline, runPipeline, type PipelineRequest, type PipelineSte
 import { accessSummary, computationCount, examples } from './pipeline-playground';
 
 beforeAll(async () => {
-	await initializePipeline(await readFile(new URL('../wasm/kernel/rsvelte_kernel_browser_bg.wasm', import.meta.url)));
+	await initializePipeline(await readFile(new URL('../../../generated/wasm/kernel/rsvelte_kernel_browser_bg.wasm', import.meta.url)));
 });
 
 function request(id = 'svelte'): PipelineRequest {

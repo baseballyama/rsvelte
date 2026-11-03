@@ -9,7 +9,9 @@ const config = {
 		adapter: adapter(),
 		alias: {
 			// The kernel's source is read at build time, so every excerpt on the site is the code.
-			$crates: '../../crates'
+			$crates: '../../crates',
+			// Built by scripts/generate.ts and ignored by Git.
+			$generated: 'generated'
 		}
 	}
 };

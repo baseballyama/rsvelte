@@ -9,17 +9,17 @@
 	"scripts": {
 		"lint:code-names": "node scripts/lint-code-names.mjs",
 		"lint:prose": "node scripts/lint-prose.mjs",
-		"build:wasm": "wasm-pack build ../../crates/hosts/browser --out-dir ../../../apps/site/src/lib/wasm/kernel --out-name rsvelte_kernel_browser --target web --release",
-		"predev": "pnpm run build:wasm",
+		"generate": "node scripts/generate.ts",
+		"predev": "pnpm run generate",
 		"dev": "vite dev",
-		"prebuild": "pnpm run build:wasm",
+		"prebuild": "pnpm run generate",
 		"build": "node scripts/lint-code-names.mjs && node scripts/lint-prose.mjs && vite build",
 		"preview": "wrangler dev",
-		"predeploy": "pnpm run build:wasm",
-		"precheck": "pnpm run build:wasm",
+		"predeploy": "pnpm run generate",
+		"precheck": "pnpm run generate",
 		"deploy": "pnpm run build && wrangler deploy",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"pretest": "pnpm run build:wasm",
+		"pretest": "pnpm run generate",
 		"test": "node --test scripts/prose.test.mjs scripts/code-names.test.mjs && node scripts/lint-code-names.mjs && node scripts/lint-prose.mjs && vitest run"
 	},
 	"devDependencies": {

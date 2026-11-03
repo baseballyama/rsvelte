@@ -40,8 +40,8 @@ pnpm install --frozen-lockfile
 pnpm run dev
 ```
 
-`dev`, `test`, `check`, `build`, and `deploy` generate the Wasm bindings first.
-`pnpm run build:wasm` also builds them independently. Generated files under
-`src/lib/wasm/` are ignored by Git; Vite includes the `.wasm` asset in the client
-build. The LayoutInstruction widget initializes Wasm on mount and shows loading or initialization
+`dev`, `test`, `check`, `build`, and `deploy` first run `pnpm run generate`. It writes
+everything the site reads but does not commit to `generated/`, which Git ignores: the Wasm
+bindings, and the emitter and layer data printed by the `rsvelte_command_line` examples.
+Vite includes the `.wasm` asset in the client build. The LayoutInstruction widget initializes Wasm on mount and shows loading or initialization
 errors without invoking the printer during server rendering.

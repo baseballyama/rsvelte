@@ -2,7 +2,7 @@ import initializeBrowserBindings, {
 	renderDocument as renderDocumentJson,
 	stringWidth,
 	type InitInput
-} from '$lib/wasm/kernel/rsvelte_kernel_browser.js';
+} from '$generated/wasm/kernel/rsvelte_kernel_browser.js';
 
 export type TraceEvent =
 	| { kind: 'group'; layoutInstructionIdentifier: number; position: number; remainingWidth: number; mode: 'flat' | 'break'; why: 'fits' | 'does-not-fit' | 'broken' | 'parent-flat' }

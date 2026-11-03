@@ -4,7 +4,7 @@ import { initializePipeline, runPipeline } from './pipeline-browser';
 import { accessTable, artifactLabel, decodeState, encodeState, examples, operations, plugins, problems, taskLabel } from './pipeline-playground';
 
 beforeAll(async () => {
-	await initializePipeline(await readFile(new URL('../wasm/kernel/rsvelte_kernel_browser_bg.wasm', import.meta.url)));
+	await initializePipeline(await readFile(new URL('../../../generated/wasm/kernel/rsvelte_kernel_browser_bg.wasm', import.meta.url)));
 });
 
 function everyStep(shared: boolean) {

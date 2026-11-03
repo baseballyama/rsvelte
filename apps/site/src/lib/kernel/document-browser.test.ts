@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { initializeDocumentPrinter, renderDocument, stringWidth } from './document-browser.ts';
 
 beforeAll(async () => {
-	const bytes = await readFile(new URL('../wasm/kernel/rsvelte_kernel_browser_bg.wasm', import.meta.url));
+	const bytes = await readFile(new URL('../../../generated/wasm/kernel/rsvelte_kernel_browser_bg.wasm', import.meta.url));
 	await initializeDocumentPrinter(bytes);
 });
 

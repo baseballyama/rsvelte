@@ -12,6 +12,8 @@
 		file: string;
 		target: string;
 		rev: string;
+		/** `crates/` had uncommitted changes when the data was generated. */
+		dirty: boolean;
 	}
 
 	let { data, label }: { data: EmitData; label: string } = $props();
@@ -58,7 +60,7 @@
 	<div class="flex items-center justify-between gap-4 border-b border-line bg-surface px-3 py-1.5">
 		<span class="font-mono text-[12px] tracking-normal text-muted">{label}</span>
 		<span class="font-mono text-[12px] tracking-normal text-muted">
-			位置の対応点 {data.mappings.length} · {data.target} · {data.rev.slice(0, 7)}
+			位置の対応点 {data.mappings.length} · {data.target} · {data.rev.slice(0, 7)}{data.dirty ? ' + 未コミットの変更' : ''}
 		</span>
 	</div>
 	<div class="grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">

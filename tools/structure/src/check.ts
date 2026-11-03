@@ -36,7 +36,7 @@ export function lineCount(text: string): number {
 export function isSource(file: string): boolean {
 	return /^(crates|tools|apps)\//.test(file) && /\.(rs|ts|tsx|mts|cts|js|jsx|mjs|cjs|svelte|vue|css|scss)$/.test(file) &&
 		!file.split('/').includes('vendor') &&
-		!file.startsWith('apps/site/src/lib/wasm/') &&
+		!file.startsWith('apps/site/generated/') &&
 		!/^crates\/.+\/tests\/fixtures\//.test(file) &&
 		!file.startsWith('tools/fixtures/test/behaviour/wrong/');
 }
