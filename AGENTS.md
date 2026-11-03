@@ -164,6 +164,21 @@ translates them.
   one-line link from here.
 - Numbers written in prose go stale. Prefer a command that gives the number.
 
+**Code rules.**
+
+- Every corpus file runs through this code: no O(n²) (build a map once), borrow instead of
+  clone, and use the file arena, atoms and `u32` spans.
+- Validate input once, where it enters (source, config, CLI, NAPI, disk). Return a diagnostic;
+  do not panic.
+- Do not hide a computed span, index or offset behind `unwrap_or(0)` / `unwrap_or_default()`.
+  Use `expect("why")`, or handle the absent case on purpose. "Skipped" and "passed" are
+  different values.
+- No magic numbers in logic: name the constant with its meaning and unit.
+- Tests run the real code and fail without the change.
+- A reproduced behavior is not a cause. Mark guesses as guesses.
+- To find P2 copies: `similarity-rs <dir> --threshold 0.87 --min-lines 3 --skip-test`
+  (`similarity-ts` for TypeScript), on source directories only.
+
 ## Working in this repo
 
 - Several agents may work in this repo at the same time. Do not revert or delete changes that
@@ -184,7 +199,8 @@ translates them.
 | `crates/fixture_test/` | the snapshot harness for each crate's `tests/fixtures/` |
 | `tools/fixtures/` | import / regen / adjust / compare tools (TypeScript) |
 | `.claude/skills/` | skills for agents (table below) |
-| `.claude/scripts/` | scripts that skills share |
+| `.github/AGENTS.md` | rules for GitHub Actions workflows |
+| `apps/site/AGENTS.md` | rules for the Japanese site |
 
 ## Skills
 
@@ -192,9 +208,5 @@ When you add or remove a skill, update this table in the same change.
 
 | Skill | Use when |
 |---|---|
-| `coding-principles` | writing any code (always); finding duplicate code |
-| `site-writing` | writing or reviewing substantial Japanese explanations on the site |
-| `github-actions` | writing or reviewing `.github/workflows/` |
 | `review` | reviewing a branch or PR as the code owner |
-| `pr` | creating a PR, fixing its CI, answering its review comments, marking it ready |
-| `gh-issue-triage` | handling a GitHub issue from reproduction to draft PR |
+| `pr` | taking an issue or a branch to a ready PR (create, rebase, review comments, CI) |

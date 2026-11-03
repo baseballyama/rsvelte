@@ -1,7 +1,5 @@
 # Writing the site
 
-For substantial explanation pages, use [site-writing](../../.claude/skills/site-writing/SKILL.md).
-
 Use Japanese for reader-facing text. Use common words and short sentences. Describe what
 each module does before showing its implementation name. Do not use abbreviations in prose,
 headings, navigation, captions, controls, or labels. Use the full word or a clear Japanese
@@ -14,6 +12,16 @@ language syntax and public protocol field names must retain their specified spel
 
 Avoid jargon, metaphors, vague claims, and promotional language. Explain a mechanism with
 its input, operation, and result. Do not invent a new term for a familiar action.
+
+For explanation pages:
+
+- Write for frontend engineers. Use standard terms (parsing, name resolution, hydration).
+  Follow one example far enough to show the consequence. Say each claim once.
+- Keep implemented behavior, plans, and measured effects distinct. A cache claim says when the
+  value expires. A comparison states the other tool's relevant capability and links its
+  official page, with the check date.
+- Animation must not imply measured speed. The text must work with motion disabled.
+- Check every code example and link. A clean lint does not prove the text is accurate.
 
 Run `pnpm run lint:code-names`, `pnpm run lint:prose`, `pnpm run test`, `pnpm run check`, and `pnpm run build` after edits.
 The test and build commands enforce the writing rules, including in the existing site job.

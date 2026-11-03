@@ -2,7 +2,7 @@
 // Splits the diff against a base branch into small review chunks, so that every review
 // run of the review skill reviews the same units.
 //
-// Usage: node .claude/scripts/plan-review-chunks.ts [base] [--format=md]
+// Usage: node .claude/skills/review/plan-chunks.ts [base] [--format=md]
 // Without a base, it picks whichever of origin/experimental and origin/main has the smaller diff.
 // A candidate with no merge base is ignored (this branch may be an orphan).
 import { execFileSync } from 'node:child_process';
@@ -67,7 +67,7 @@ function categoryOf(path: string): Category {
   if (path.startsWith('.github/')) return 'ci';
   if (path.startsWith('fixtures/')) return 'fixtures';
   if (path.endsWith('.rs') || /(^|\/)Cargo\.toml$/.test(path) || path.startsWith('crates/')) return 'rust';
-  if (path.startsWith('tools/') || path.startsWith('.claude/scripts/') || /\.(ts|mts|js|mjs)$/.test(path)) return 'tools';
+  if (path.startsWith('tools/') || path.startsWith('.claude/') || /\.(ts|mts|js|mjs)$/.test(path)) return 'tools';
   if (path.endsWith('.md')) return 'docs';
   return 'other';
 }
